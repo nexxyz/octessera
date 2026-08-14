@@ -5,7 +5,7 @@ pub(super) fn spawn(
     store_dir: PathBuf,
     samples_dir: PathBuf,
     jobs: Receiver<PlatformJob>,
-    results: SyncSender<HostMessage>,
+    results: Arc<PlatformResultLane>,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] update_executor: Arc<
         dyn device_update::UpdateExecutor,
     >,
@@ -20,7 +20,7 @@ fn run(
     store_dir: PathBuf,
     samples_dir: PathBuf,
     jobs: Receiver<PlatformJob>,
-    results: SyncSender<HostMessage>,
+    results: Arc<PlatformResultLane>,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] update_executor: Arc<
         dyn device_update::UpdateExecutor,
     >,
@@ -37,11 +37,20 @@ fn run(
             let _ = release.recv();
             continue;
         }
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        if let PlatformJobKind::PrepareOrangeDeviceApply { payload, completed } = &job.kind {
+            let result = crate::orange_device_apply::prepare(&store_dir, payload);
+            let _ = completed.send(result);
+            continue;
+        }
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let result = handle_job(&store_dir, &samples_dir, job, update_executor.as_ref());
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let result = handle_job(&store_dir, &samples_dir, job);
-        if results.send(HostMessage::RuntimeResult { result }).is_err() {
+        if results
+            .send_platform(HostMessage::RuntimeResult { result })
+            .is_err()
+        {
             break;
         }
     }

@@ -80,5 +80,6 @@ That isolates the failure to the real 128-frame output buffer path, not the synt
 Potential future probes:
 
 - Find the output-buffer knee at 160, 192, and 224 frames.
-- Compare jack-only and USB-only output modes if both are active.
+- Compare selected Jack-only, USB-only, and combined output modes where the
+  corresponding exact endpoints are available.
 - Investigate ALSA/cpal scheduling and period settings before trying true 128 again.

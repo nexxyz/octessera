@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
 import orange_image_mount
 from orange_boot_contract import verify_runtime
 from stage_notices import stage_notices  # type: ignore[import-not-found]
@@ -47,6 +48,8 @@ def make_uboot_initramfs(payload: bytes, declared_size: int | None = None) -> by
     struct.pack_into(">I", header, 0, 0x27051956)
     struct.pack_into(">I", header, 12, len(payload) if declared_size is None else declared_size)
     return bytes(header) + payload
+
+
 def make_cpio_initramfs(work: Path, source_root: Path, stale: bool = False, extension: str | None = None) -> bytes:
     source = work / ("stale-initramfs-source" if stale else "initramfs-source")
     write(source / "init", b"#!/bin/sh\n")
@@ -115,11 +118,19 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "usr/local/sbin/octessera-orange-oled-handoff.py": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py",
         "usr/local/sbin/octessera-orange-oled-lifecycle.py": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py",
         "usr/local/sbin/octessera-orange-oled-suspend": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend",
+        "usr/local/lib/octessera/device_config.py": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py",
+        "usr/local/sbin/octessera-device-apply-reboot": "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot",
+        "etc/systemd/system/octessera-device-apply-reboot.socket": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket",
+        "etc/systemd/system/octessera-device-apply-reboot@.service": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service",
+        "usr/share/octessera/defaults/pi-default.json": "config/generated/pi/default.json",
         "usr/share/octessera/oled/octessera-mark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg",
         "usr/share/octessera/oled/octessera-wordmark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
     }
     for installed_path, source_path in phase5_outputs.items():
-        write(final_root / installed_path, (REPOSITORY / source_path).read_bytes())
+        target = final_root / installed_path
+        write(target, (REPOSITORY / source_path).read_bytes())
+        if installed_path in {"usr/local/lib/octessera/device_config.py", "usr/share/octessera/defaults/pi-default.json", "etc/systemd/system/octessera-device-apply-reboot.socket", "etc/systemd/system/octessera-device-apply-reboot@.service"}: os.chown(target, 0, 0); os.chmod(target, 0o644)  # type: ignore[attr-defined]
+        if installed_path == "usr/local/sbin/octessera-device-apply-reboot": os.chown(target, 0, 0); os.chmod(target, 0o755)  # type: ignore[attr-defined]
     write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-shutdown.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-suspend.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_bytes())
@@ -127,6 +138,8 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     (final_root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").symlink_to("../octessera-orange-boot-splash.service")
     (final_root / "etc/systemd/system/sleep.target.requires").mkdir(parents=True, exist_ok=True)
     (final_root / "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service").symlink_to("../octessera-orange-oled-suspend.service")
+    (final_root / "etc/systemd/system/sockets.target.wants").mkdir(parents=True, exist_ok=True)
+    (final_root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket").symlink_to("../octessera-device-apply-reboot.socket")
     initramfs = make_cpio_initramfs(work, final_root)
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
     write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))
@@ -325,6 +338,9 @@ def main() -> None:
             run_proof(root_args(args, negative), False)
 
         reject_terminal_fixture("stale-welcome", lambda path: write(path / "etc/profile.d/octessera-welcome.sh", b"stale\n"))
+        validator = REPOSITORY / "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
+        reject_terminal_fixture("stale-device-config-validator", lambda path: write(path / "usr/local/lib/octessera/device_config.py", bytes([validator.read_bytes()[0] ^ 1]) + validator.read_bytes()[1:]))
+        reject_terminal_fixture("device-config-validator-size", lambda path: write(path / "usr/local/lib/octessera/device_config.py", validator.read_bytes()[:-1]))
         reject_terminal_fixture("missing-hushlogin", lambda path: (path / "home/octessera/.hushlogin").unlink())
         reject_terminal_fixture("nonempty-hushlogin", lambda path: write(path / "home/octessera/.hushlogin", b"x"))
 
@@ -468,7 +484,7 @@ def main() -> None:
         )
         (production / "var/lib/octessera/presets").mkdir(parents=True)
         (production / "var/lib/octessera/samples").mkdir(parents=True)
-        write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartSec=5s\n")
+        write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartPreventExitStatus=78\nRestartSec=5s\n")
         write(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"spidev1.0\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"gpiochip1\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
         write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
         (production / "etc/udev/rules.d/09-disabled.rules").symlink_to("/dev/null")

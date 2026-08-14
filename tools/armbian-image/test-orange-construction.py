@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
 import json
-import stat
 from pathlib import Path
 
 
@@ -52,7 +51,7 @@ for item in contract["managed_outputs"]:
         assert item == {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"}
     elif item.get("kind") == "symlink":
         exact(item, ["path", "kind", "target", "uid", "gid"])
-        assert item["target"] in {"../octessera-orange-boot-splash.service", "../octessera-orange-oled-suspend.service", "/dev/null"} and item["uid"] == 0 and item["gid"] == 0
+        assert item["target"] in {"../octessera-orange-boot-splash.service", "../octessera-orange-oled-suspend.service", "../octessera-device-apply-reboot.socket", "/dev/null"} and item["uid"] == 0 and item["gid"] == 0
     else:
         exact(item, ["path", "mode", "uid", "gid"])
         assert item["mode"] in {420, 493} and item["uid"] == 0 and item["gid"] == 0
@@ -60,6 +59,17 @@ for item in contract["managed_outputs"]:
 assert all(isinstance(path, str) and path.startswith("tools/armbian-image/") for path in contract["proofs"])
 assert "tools/armbian-image/validate.sh" in contract["proofs"]
 assert contract["mutation_authority"] == "none"
+for path in (
+    "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py",
+    "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot",
+    "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket",
+    "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service",
+    "userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget",
+    "userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service",
+):
+    assert any(item["path"] == path for item in contract["exact_inputs"]), path
+validator_inputs = [item for item in contract["exact_inputs"] if item["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
+assert len(validator_inputs) == 1
 assert contract["mounted_proof"] == "tools/armbian-image/verify-orange-image.py"
 for line in (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8").splitlines():
     if any(path in line for path in ("/etc/motd", "/etc/issue", "/usr/share/doc", "/usr/share/common-licenses", "/usr/share/doc/base-files/copyright")) and "/usr/share/doc/octessera" not in line:
@@ -69,7 +79,18 @@ assert "notice_tree=\"$overlay_dir/usr/share/doc/octessera\"" in customize and "
 assert "chown root:root /etc/octessera/build-metadata.env" in customize
 assert "chmod 0644 /etc/octessera/build-metadata.env" in customize
 assert any(item["path"] == "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" for item in contract["exact_inputs"])
+default_input = next(item for item in contract["exact_inputs"] if item["path"] == "config/generated/pi/default.json")
+assert default_input == {"path": "config/generated/pi/default.json", "sha256": "f9df603a01f478b7b88aef80e09f62f144bc00fea4a9ed3c0907b205e2f1e9f1", "size": 78413, "mode": 420}
 assert contract["managed_outputs"][0] == {"path": "etc/profile.d/octessera-welcome.sh", "mode": 420, "uid": 0, "gid": 0}
+for path in (
+    "etc/systemd/system/octessera-orange-usb-gadget.service",
+    "etc/systemd/system/octessera-device-apply-reboot.socket",
+    "etc/systemd/system/octessera-device-apply-reboot@.service",
+    "usr/local/lib/octessera/device_config.py",
+    "usr/local/sbin/octessera-device-apply-reboot",
+    "usr/share/octessera/defaults/pi-default.json",
+):
+    assert any(item["path"] == path for item in contract["managed_outputs"]), path
 assert contract["notice_bundle"] == {"manifest": "resources/legal/notice-bundle.json", "stager": "tools/legal/stage_notices.py", "installed_root": "usr/share/doc/octessera", "installed_outputs": "manifest-files", "proof": "tools/armbian-image/orange_boot_contract.py", "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"]}
 assert contract["terminal_invariants"] == {"welcome_path": "etc/profile.d/octessera-welcome.sh", "hushlogin_path": "home/octessera/.hushlogin", "hushlogin_mode": 420, "hushlogin_empty": True, "forbidden_pam_update_motd_overrides": True}
 assert contract["uart_invariants"] == {"overlay_name": "octessera-h618-input-routing", "forbidden_console_token": "console=ttyS0", "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service", "uart0_status": "disabled", "stdout_path": ""}

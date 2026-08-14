@@ -21,7 +21,9 @@ impl NativeRunner {
             "midi.respondToStartStop" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_respond_to_start_stop, value)
             })),
-            "usb.audioOut" => Some(self.fast_usb_audio_out_menu_key()),
+            "audioOutputs.dac" | "audioOutputs.usb" | "audioOutputs.hdmi" => {
+                Some(self.fast_audio_outputs_menu_key())
+            }
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
             "recording.maxMinutes" => Some(self.fast_recording_max_minutes_menu_key()),
             "hdmi.mode" => Some(self.fast_string_menu_key(key, |runner, value| {
@@ -141,14 +143,26 @@ impl NativeRunner {
         true
     }
 
-    fn fast_usb_audio_out_menu_key(&mut self) -> bool {
-        let Some(value) = self.menu.value_for_key("usb.audioOut") else {
+    fn fast_audio_outputs_menu_key(&mut self) -> bool {
+        let Some(next) = self.audio_outputs_from_menu() else {
             return false;
         };
-        let value = super::normalize_usb_audio_out(&value).to_string();
-        if value_changed(&mut self.usb_audio_out, value) {
+        let Ok(next) = next else {
+            self.restore_audio_outputs_menu_values();
+            self.show_toast("Keep one audio output on");
+            return true;
+        };
+        if next == self.audio_outputs {
+            return true;
+        }
+        if !next.dac() && !next.usb() && !next.hdmi() {
+            self.restore_audio_outputs_menu_values();
+            self.show_toast("Keep one audio output on");
+            return true;
+        }
+        if value_changed(&mut self.audio_outputs, next) {
             self.mark_fast_autosave_dirty();
-            self.show_toast("USB: Save & Reboot");
+            self.show_toast("Audio: Save & Reboot");
         }
         true
     }
@@ -163,9 +177,25 @@ impl NativeRunner {
         };
         if value_changed(&mut self.usb_midi_out_enabled, value) {
             self.mark_fast_autosave_dirty();
-            self.show_toast("USB: Save & Reboot");
+            self.show_toast("Audio: Save & Reboot");
         }
         true
+    }
+
+    fn audio_outputs_from_menu(&self) -> Option<Result<super::AudioOutputSet, &'static str>> {
+        let dac = self.menu.value_for_key("audioOutputs.dac")? == "true";
+        let usb = self.menu.value_for_key("audioOutputs.usb")? == "true";
+        let hdmi = self.menu.value_for_key("audioOutputs.hdmi")? == "true";
+        Some(super::AudioOutputSet::from_flags(dac, usb, hdmi))
+    }
+
+    pub(super) fn restore_audio_outputs_menu_values(&mut self) {
+        self.menu
+            .set_bool_value_for_key("audioOutputs.dac", self.audio_outputs.dac());
+        self.menu
+            .set_bool_value_for_key("audioOutputs.usb", self.audio_outputs.usb());
+        self.menu
+            .set_bool_value_for_key("audioOutputs.hdmi", self.audio_outputs.hdmi());
     }
 
     fn fast_recording_max_minutes_menu_key(&mut self) -> bool {

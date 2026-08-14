@@ -134,9 +134,9 @@ and binds the copied ELF with its lowercase SHA-256. This helper does not build
 the 0.7.5 production image or its hash-bound `production-runtime` bundle, and
 it never deploys an artifact. The production image and service support the
 shared 44.1 kHz runtime, the OLED, NeoTrellis, NeoKey, four encoders, store,
-samples, MIDI, and the required internal DAC at
-`hw:CARD=octesseradac,DEV=0`. USB-only audio is unsupported; UAC2 is an
-optional companion and `audioOut=usb` is rejected.
+samples, MIDI, and the selected exact audio routes. A selected Jack route uses
+`hw:CARD=octesseradac,DEV=0`; selected UAC2 and HDMI routes wait and recover at
+their exact endpoints. There is no fallback to another route.
 
 ```powershell
 ./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
@@ -320,19 +320,21 @@ Run the host-only command-generation test without a board:
 
 `orange-pi-usb-gadget.sh` is the separate Armbian/configfs path for the Orange
 Pi. It does not reuse the Raspberry Pi gadget script, `dwc2`, BCM numbering, or
-mass storage. The image service loads the board modules and owns the combined
-UAC2/MIDI lifecycle.
+mass storage. The image service loads the board modules and owns the
+config-driven UAC2/MIDI lifecycle. Production reads
+`/var/lib/octessera/presets/default.json`; `audioOutputs.usb` selects UAC2 and
+`usb.midiOutEnabled` selects MIDI.
 
 The UDC is fail-closed and fixed to the verified `musb-hdrc.4.auto`; the
 composer never picks the first controller:
 
 ```sh
-sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup --mode combined
+sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup --config /var/lib/octessera/presets/default.json
 ```
 
-The supported modes are `midi`, `uac2`, and `combined`. Binding is the final
-setup operation, and teardown unbinds before removing function links and
-directories:
+The supported compositions are no gadget, `midi`, `uac2`, and `combined`.
+Binding is the final setup operation, and teardown unbinds before removing
+function links and directories:
 
 ```sh
 sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown

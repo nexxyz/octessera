@@ -238,7 +238,7 @@ pub(crate) fn patch_load_swaps_active_engine_state_to_loaded_behavior() {
 pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 21;
-    runner.usb_audio_out = "both".into();
+    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.audio_output_buffer_frames = 256;
 
     runner
@@ -249,7 +249,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
                 "activeBehavior": "sequencer",
                 "layers": [{ "worlds": { "behaviorId": "sequencer" } }],
                 "displayBrightness": 99,
-                "usb": { "audioOut": "uac2" },
+                "usb": { "midiOutEnabled": true },
                 "sound": { "audioOutputBufferFrames": 1024 }
             }
         }))
@@ -257,7 +257,10 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
 
     assert_eq!(runner.behavior.id(), "sequencer");
     assert_eq!(runner.display.ui.display_brightness, 21);
-    assert_eq!(runner.usb_audio_out, "both");
+    assert_eq!(
+        runner.audio_outputs,
+        AudioOutputSet::from_flags(true, true, false).unwrap()
+    );
     assert_eq!(runner.audio_output_buffer_frames, 256);
 }
 
@@ -268,7 +271,7 @@ pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
         let effect = runner.platform_effect_for_action(action).unwrap();
         let payload = match effect {
             RuntimePlatformEffect::StoreSaveRecovery { payload }
-            | RuntimePlatformEffect::UsbApplyReboot { payload } => payload,
+            | RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => payload,
             _ => panic!("unexpected effect"),
         };
         assert_eq!(payload["kind"], "octessera.config");

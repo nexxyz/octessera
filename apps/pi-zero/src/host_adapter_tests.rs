@@ -1,4 +1,5 @@
 use super::*;
+use crate::usb_config::UsbAudioOut;
 
 #[test]
 fn preset_path_rejects_unsafe_names() {

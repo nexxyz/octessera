@@ -1,5 +1,5 @@
 //! This vendored CPAL source was modified by Octessera to construct only the
-//! two approved exact output PCM names without ALSA hint enumeration.
+//! approved exact output PCM names without ALSA hint enumeration.
 
 extern crate alsa;
 extern crate libc;
@@ -15,7 +15,8 @@ use crate::{
 };
 use std::cmp;
 use std::convert::TryInto;
-use std::sync::{Arc, Mutex};
+use std::io::{self, ErrorKind};
+use std::sync::{Arc, Mutex, Once};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::vec::IntoIter as VecIntoIter;
@@ -107,7 +108,7 @@ impl DeviceTrait for Device {
             data_callback,
             error_callback,
             timeout,
-        );
+        )?;
         Ok(stream)
     }
 
@@ -130,7 +131,7 @@ impl DeviceTrait for Device {
             data_callback,
             error_callback,
             timeout,
-        );
+        )?;
         Ok(stream)
     }
 }
@@ -140,26 +141,69 @@ struct TriggerSender(libc::c_int);
 struct TriggerReceiver(libc::c_int);
 
 impl TriggerSender {
-    fn wakeup(&self) {
+    fn wakeup(&self) -> io::Result<()> {
+        self.wakeup_with(|fd, buffer, length| {
+            let ret = unsafe { libc::write(fd, buffer as *const _, length) };
+            if ret == -1 {
+                Err(io::Error::last_os_error())
+            } else {
+                Ok(ret as usize)
+            }
+        })
+    }
+
+    fn wakeup_with<W>(&self, mut write: W) -> io::Result<()>
+    where
+        W: FnMut(libc::c_int, *const u8, usize) -> io::Result<usize>,
+    {
         let buf = 1u64;
-        let ret = unsafe { libc::write(self.0, &buf as *const u64 as *const _, 8) };
-        assert_eq!(ret, 8);
+        let length = std::mem::size_of::<u64>();
+        loop {
+            match write(self.0, &buf as *const u64 as *const u8, length) {
+                Ok(written) if written == length => return Ok(()),
+                Ok(_) => {
+                    return Err(io::Error::new(
+                        ErrorKind::WriteZero,
+                        "ALSA trigger pipe accepted an incomplete wakeup",
+                    ));
+                }
+                Err(error) if error.kind() == ErrorKind::Interrupted => {
+                    thread::yield_now();
+                }
+                Err(error) => return Err(error),
+            }
+        }
     }
 }
 
 impl TriggerReceiver {
-    fn clear_pipe(&self) {
+    fn clear_pipe(&self) -> io::Result<()> {
         let mut out = 0u64;
         let ret = unsafe { libc::read(self.0, &mut out as *mut u64 as *mut _, 8) };
-        assert_eq!(ret, 8);
+        match ret {
+            8 => Ok(()),
+            -1 => Err(io::Error::last_os_error()),
+            _ => Err(io::Error::new(
+                ErrorKind::UnexpectedEof,
+                "ALSA trigger pipe returned an incomplete wakeup",
+            )),
+        }
     }
 }
 
-fn trigger() -> (TriggerSender, TriggerReceiver) {
+fn ignore_sigpipe() {
+    static IGNORE_SIGPIPE: Once = Once::new();
+    IGNORE_SIGPIPE.call_once(|| unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_IGN);
+    });
+}
+
+fn trigger() -> io::Result<(TriggerSender, TriggerReceiver)> {
+    ignore_sigpipe();
     let mut fds = [0, 0];
     match unsafe { libc::pipe(fds.as_mut_ptr()) } {
-        0 => (TriggerSender(fds[1]), TriggerReceiver(fds[0])),
-        _ => panic!("Could not create pipe"),
+        0 => Ok((TriggerSender(fds[1]), TriggerReceiver(fds[0]))),
+        _ => Err(io::Error::last_os_error()),
     }
 }
 
@@ -244,10 +288,7 @@ pub struct Device {
 }
 
 pub(crate) fn exact_output_device(name: &str) -> Result<Device, DevicesError> {
-    if !matches!(
-        name,
-        crate::ALSA_OCTESSERA_DAC_PCM | crate::ALSA_UAC2_GADGET_PCM
-    ) {
+    if !crate::ALSA_EXACT_OUTPUT_PCMS.contains(&name) {
         return Err(BackendSpecificError {
             description: format!("unsupported exact ALSA output PCM: {name:?}"),
         }
@@ -274,7 +315,7 @@ impl Device {
             .map_err(|e| (e, e.errno()));
 
         let handle = match handle_result {
-            Err((_, libc::EBUSY)) => return Err(BuildStreamError::DeviceNotAvailable),
+            Err((_, libc::EBUSY)) => return Err(BuildStreamError::DeviceBusy),
             Err((_, libc::EINVAL)) => return Err(BuildStreamError::InvalidArgument),
             Err((e, _)) => return Err(e.into()),
             Ok(handle) => handle,
@@ -309,6 +350,10 @@ impl Device {
             num_descriptors,
             conf: conf.clone(),
             period_len,
+            direction: match stream_type {
+                alsa::Direction::Capture => StreamType::Input,
+                alsa::Direction::Playback => StreamType::Output,
+            },
             can_pause,
             creation_instant,
         };
@@ -331,9 +376,10 @@ impl Device {
             .map_err(|e| (e, e.errno()));
 
         let handle = match handle_result {
-            Err((_, libc::ENOENT)) | Err((_, libc::EBUSY)) => {
+            Err((_, libc::ENOENT | libc::ENODEV)) => {
                 return Err(SupportedStreamConfigsError::DeviceNotAvailable)
             }
+            Err((_, libc::EBUSY)) => return Err(SupportedStreamConfigsError::DeviceBusy),
             Err((_, libc::EINVAL)) => return Err(SupportedStreamConfigsError::InvalidArgument),
             Err((e, _)) => return Err(e.into()),
             Ok(handle) => handle,
@@ -445,9 +491,9 @@ impl Device {
                 for &(min_rate, max_rate) in sample_rates.iter() {
                     output.push(SupportedStreamConfigRange {
                         channels,
-                        min_sample_rate: SampleRate(min_rate as u32),
-                        max_sample_rate: SampleRate(max_rate as u32),
-                        buffer_size: buffer_size_range.clone(),
+                        min_sample_rate: SampleRate(min_rate),
+                        max_sample_rate: SampleRate(max_rate),
+                        buffer_size: buffer_size_range,
                         sample_format,
                     });
                 }
@@ -479,6 +525,9 @@ impl Device {
             match self.supported_configs(stream_t) {
                 Err(SupportedStreamConfigsError::DeviceNotAvailable) => {
                     return Err(DefaultStreamConfigError::DeviceNotAvailable);
+                }
+                Err(SupportedStreamConfigsError::DeviceBusy) => {
+                    return Err(DefaultStreamConfigError::DeviceBusy);
                 }
                 Err(SupportedStreamConfigsError::InvalidArgument) => {
                     // this happens sometimes when querying for input and output capabilities, but
@@ -535,6 +584,9 @@ struct StreamInner {
     // Minimum number of samples to put in the buffer.
     period_len: usize,
 
+    // Direction of the underlying ALSA stream.
+    direction: StreamType,
+
     #[allow(dead_code)]
     // Whether or not the hardware supports pausing the stream.
     // TODO: We need an API to expose this. See #197, #284.
@@ -554,7 +606,7 @@ struct StreamInner {
 // Assume that the ALSA library is built with thread safe option.
 unsafe impl Sync for StreamInner {}
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum StreamType {
     Input,
     Output,
@@ -563,8 +615,115 @@ enum StreamType {
 #[derive(Debug, Eq, PartialEq)]
 enum PollErrorFlow {
     Continue,
-    Error,
+    Error(AlsaErrorClass),
     XRun,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AlsaErrorClass {
+    Disconnected,
+    Busy,
+    Unsupported,
+    Fault,
+}
+
+fn classify_alsa_errno(errno: libc::c_int) -> AlsaErrorClass {
+    match errno {
+        libc::ENOENT | libc::ENODEV => AlsaErrorClass::Disconnected,
+        libc::EBUSY => AlsaErrorClass::Busy,
+        libc::EINVAL => AlsaErrorClass::Unsupported,
+        _ => AlsaErrorClass::Fault,
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum WriteAttempt {
+    Complete,
+    RecoverUnderrun,
+    Stop(AlsaErrorClass),
+}
+
+fn classify_write_attempt(
+    available_frames: usize,
+    result: Result<usize, libc::c_int>,
+) -> WriteAttempt {
+    match result {
+        Ok(frames) if frames == available_frames => WriteAttempt::Complete,
+        Ok(_) => WriteAttempt::Stop(AlsaErrorClass::Fault),
+        Err(libc::EPIPE) => WriteAttempt::RecoverUnderrun,
+        Err(errno) => WriteAttempt::Stop(classify_alsa_errno(errno)),
+    }
+}
+
+#[derive(Debug)]
+enum AlsaStreamError {
+    Alsa(alsa::Error),
+    Unsupported(String),
+    Classified {
+        class: AlsaErrorClass,
+        description: String,
+    },
+    Backend(BackendSpecificError),
+}
+
+fn build_stream_error(class: AlsaErrorClass, description: String) -> BuildStreamError {
+    match class {
+        AlsaErrorClass::Disconnected => BuildStreamError::DeviceNotAvailable,
+        AlsaErrorClass::Busy => BuildStreamError::DeviceBusy,
+        AlsaErrorClass::Unsupported => BuildStreamError::InvalidArgument,
+        AlsaErrorClass::Fault => BackendSpecificError { description }.into(),
+    }
+}
+
+fn stream_error(class: AlsaErrorClass, description: String) -> StreamError {
+    match class {
+        AlsaErrorClass::Disconnected => StreamError::DeviceNotAvailable,
+        AlsaErrorClass::Busy => StreamError::DeviceBusy,
+        AlsaErrorClass::Unsupported => StreamError::Unsupported(description),
+        AlsaErrorClass::Fault => StreamError::Fault(description),
+    }
+}
+
+impl From<AlsaStreamError> for BuildStreamError {
+    fn from(error: AlsaStreamError) -> Self {
+        match error {
+            AlsaStreamError::Backend(error) => error.into(),
+            AlsaStreamError::Unsupported(_) => BuildStreamError::StreamConfigNotSupported,
+            AlsaStreamError::Classified { class, description } => {
+                build_stream_error(class, description)
+            }
+            AlsaStreamError::Alsa(error) => {
+                let class = classify_alsa_errno(error.errno());
+                build_stream_error(class, error.to_string())
+            }
+        }
+    }
+}
+
+impl From<alsa::Error> for AlsaStreamError {
+    fn from(error: alsa::Error) -> Self {
+        Self::Alsa(error)
+    }
+}
+
+impl From<BackendSpecificError> for AlsaStreamError {
+    fn from(error: BackendSpecificError) -> Self {
+        Self::Backend(error)
+    }
+}
+
+impl From<AlsaStreamError> for StreamError {
+    fn from(error: AlsaStreamError) -> Self {
+        match error {
+            AlsaStreamError::Backend(error) => error.into(),
+            AlsaStreamError::Unsupported(description) => StreamError::Unsupported(description),
+            AlsaStreamError::Classified { class, description } => stream_error(class, description),
+            AlsaStreamError::Alsa(error) => {
+                let class = classify_alsa_errno(error.errno());
+                stream_error(class, error.to_string())
+            }
+        }
+    }
 }
 
 fn classify_poll_error(
@@ -574,13 +733,18 @@ fn classify_poll_error(
 ) -> PollErrorFlow {
     if !revents.contains(alsa::poll::Flags::ERR) {
         PollErrorFlow::Continue
-    } else if matches!(
-        state,
-        alsa::pcm::State::Suspended | alsa::pcm::State::Disconnected
-    ) {
-        PollErrorFlow::Error
+    } else if state == alsa::pcm::State::Disconnected
+        || avail_errno
+            .map(|errno| matches!(classify_alsa_errno(errno), AlsaErrorClass::Disconnected))
+            .unwrap_or(false)
+    {
+        PollErrorFlow::Error(AlsaErrorClass::Disconnected)
+    } else if state == alsa::pcm::State::Suspended {
+        PollErrorFlow::Error(AlsaErrorClass::Fault)
     } else if state == alsa::pcm::State::XRun || avail_errno == Some(libc::EPIPE) {
         PollErrorFlow::XRun
+    } else if let Some(errno) = avail_errno {
+        PollErrorFlow::Error(classify_alsa_errno(errno))
     } else {
         PollErrorFlow::Continue
     }
@@ -639,19 +803,22 @@ fn input_stream_worker(
 ) {
     let mut ctxt = StreamWorkerContext::new(&timeout);
     loop {
-        let flow =
-            poll_descriptors_and_prepare_buffer(&rx, stream, &mut ctxt).unwrap_or_else(|err| {
-                error_callback(err.into());
-                PollDescriptorsFlow::Continue
-            });
+        let flow = match poll_descriptors_and_prepare_buffer(&rx, stream, &mut ctxt) {
+            Ok(flow) => flow,
+            Err(error) => {
+                error_callback(error.into());
+                return;
+            }
+        };
 
         match flow {
             PollDescriptorsFlow::Continue => {
                 continue;
             }
             PollDescriptorsFlow::XRun => {
-                if let Err(err) = stream.channel.prepare() {
+                if let Err(err) = recover_xrun(stream) {
                     error_callback(err.into());
+                    return;
                 }
                 continue;
             }
@@ -662,11 +829,12 @@ fn input_stream_worker(
                 delay_frames,
                 stream_type,
             } => {
-                assert_eq!(
-                    stream_type,
-                    StreamType::Input,
-                    "expected input stream, but polling descriptors indicated output",
-                );
+                if stream_type != StreamType::Input {
+                    error_callback(StreamError::Fault(
+                        "polling descriptors indicated output for an input stream".to_string(),
+                    ));
+                    return;
+                }
                 if let Err(err) = process_input(
                     stream,
                     &mut ctxt.buffer,
@@ -675,6 +843,7 @@ fn input_stream_worker(
                     data_callback,
                 ) {
                     error_callback(err.into());
+                    return;
                 }
             }
         }
@@ -690,17 +859,20 @@ fn output_stream_worker(
 ) {
     let mut ctxt = StreamWorkerContext::new(&timeout);
     loop {
-        let flow =
-            poll_descriptors_and_prepare_buffer(&rx, stream, &mut ctxt).unwrap_or_else(|err| {
-                error_callback(err.into());
-                PollDescriptorsFlow::Continue
-            });
+        let flow = match poll_descriptors_and_prepare_buffer(&rx, stream, &mut ctxt) {
+            Ok(flow) => flow,
+            Err(error) => {
+                error_callback(error.into());
+                return;
+            }
+        };
 
         match flow {
             PollDescriptorsFlow::Continue => continue,
             PollDescriptorsFlow::XRun => {
-                if let Err(err) = stream.channel.prepare() {
+                if let Err(err) = recover_xrun(stream) {
                     error_callback(err.into());
+                    return;
                 }
                 continue;
             }
@@ -711,11 +883,12 @@ fn output_stream_worker(
                 delay_frames,
                 stream_type,
             } => {
-                assert_eq!(
-                    stream_type,
-                    StreamType::Output,
-                    "expected output stream, but polling descriptors indicated input",
-                );
+                if stream_type != StreamType::Output {
+                    error_callback(StreamError::Fault(
+                        "polling descriptors indicated input for an output stream".to_string(),
+                    ));
+                    return;
+                }
                 if let Err(err) = process_output(
                     stream,
                     &mut ctxt.buffer,
@@ -723,9 +896,9 @@ fn output_stream_worker(
                     avail_frames,
                     delay_frames,
                     data_callback,
-                    error_callback,
                 ) {
                     error_callback(err.into());
+                    return;
                 }
             }
         }
@@ -744,12 +917,45 @@ enum PollDescriptorsFlow {
     XRun,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum XrunRecoveryAction {
+    Prepare,
+    PrepareAndStart,
+}
+
+fn xrun_recovery_action(direction: StreamType) -> XrunRecoveryAction {
+    match direction {
+        StreamType::Input => XrunRecoveryAction::PrepareAndStart,
+        StreamType::Output => XrunRecoveryAction::Prepare,
+    }
+}
+
+fn recover_xrun_with<P, S, E>(direction: StreamType, mut prepare: P, mut start: S) -> Result<(), E>
+where
+    P: FnMut() -> Result<(), E>,
+    S: FnMut() -> Result<(), E>,
+{
+    prepare()?;
+    if xrun_recovery_action(direction) == XrunRecoveryAction::PrepareAndStart {
+        start()?;
+    }
+    Ok(())
+}
+
+fn recover_xrun(stream: &StreamInner) -> Result<(), alsa::Error> {
+    recover_xrun_with(
+        stream.direction,
+        || stream.channel.prepare(),
+        || stream.channel.start(),
+    )
+}
+
 // This block is shared between both input and output stream worker functions.
 fn poll_descriptors_and_prepare_buffer(
     rx: &TriggerReceiver,
     stream: &StreamInner,
     ctxt: &mut StreamWorkerContext,
-) -> Result<PollDescriptorsFlow, BackendSpecificError> {
+) -> Result<PollDescriptorsFlow, AlsaStreamError> {
     let StreamWorkerContext {
         ref mut descriptors,
         ref mut buffer,
@@ -776,18 +982,29 @@ fn poll_descriptors_and_prepare_buffer(
         },
     );
     let filled = stream.channel.fill(&mut descriptors[len..])?;
-    debug_assert_eq!(filled, stream.num_descriptors);
+    if filled != stream.num_descriptors {
+        return Err(AlsaStreamError::Classified {
+            class: AlsaErrorClass::Fault,
+            description: format!(
+                "ALSA returned {} poll descriptors, expected {}",
+                filled, stream.num_descriptors
+            ),
+        });
+    }
 
     // Don't timeout, wait forever.
     let res = alsa::poll::poll(descriptors, *poll_timeout)?;
     if res == 0 {
         let description = String::from("`alsa::poll()` spuriously returned");
-        return Err(BackendSpecificError { description });
+        return Err(AlsaStreamError::Classified {
+            class: AlsaErrorClass::Fault,
+            description,
+        });
     }
 
     if descriptors[0].revents != 0 {
         // The stream has been requested to be destroyed.
-        rx.clear_pipe();
+        let _ = rx.clear_pipe();
         return Ok(PollDescriptorsFlow::Return);
     }
 
@@ -808,10 +1025,10 @@ fn poll_descriptors_and_prepare_buffer(
             avail_result.as_ref().err().map(|err| err.errno()),
         ) {
             PollErrorFlow::XRun => return Ok(PollDescriptorsFlow::XRun),
-            PollErrorFlow::Error => {
+            PollErrorFlow::Error(class) => {
                 let description =
                     format!("`alsa::poll()` returned POLLERR with PCM state {state:?}");
-                return Err(BackendSpecificError { description });
+                return Err(AlsaStreamError::Classified { class, description });
             }
             PollErrorFlow::Continue => {}
         }
@@ -855,7 +1072,7 @@ fn process_input(
     status: alsa::pcm::Status,
     delay_frames: usize,
     data_callback: &mut (dyn FnMut(&Data, &InputCallbackInfo) + Send + 'static),
-) -> Result<(), BackendSpecificError> {
+) -> Result<(), AlsaStreamError> {
     stream.channel.io_bytes().readi(buffer)?;
     let sample_format = stream.sample_format;
     let data = buffer.as_mut_ptr() as *mut ();
@@ -865,7 +1082,10 @@ fn process_input(
     let delay_duration = frames_to_duration(delay_frames, stream.conf.sample_rate);
     let capture = callback
         .sub(delay_duration)
-        .expect("`capture` is earlier than representation supported by `StreamInstant`");
+        .ok_or_else(|| AlsaStreamError::Classified {
+            class: AlsaErrorClass::Fault,
+            description: "capture timestamp precedes StreamInstant representation".to_string(),
+        })?;
     let timestamp = crate::InputStreamTimestamp { callback, capture };
     let info = crate::InputCallbackInfo { timestamp };
     data_callback(&data, &info);
@@ -875,7 +1095,6 @@ fn process_input(
 
 // Request data from the user's function and write it via ALSA.
 //
-// Returns `true`
 fn process_output(
     stream: &StreamInner,
     buffer: &mut [u8],
@@ -883,8 +1102,7 @@ fn process_output(
     available_frames: usize,
     delay_frames: usize,
     data_callback: &mut (dyn FnMut(&mut Data, &OutputCallbackInfo) + Send + 'static),
-    error_callback: &mut dyn FnMut(StreamError),
-) -> Result<(), BackendSpecificError> {
+) -> Result<(), AlsaStreamError> {
     {
         // We're now sure that we're ready to write data.
         let sample_format = stream.sample_format;
@@ -895,37 +1113,49 @@ fn process_output(
         let delay_duration = frames_to_duration(delay_frames, stream.conf.sample_rate);
         let playback = callback
             .add(delay_duration)
-            .expect("`playback` occurs beyond representation supported by `StreamInstant`");
+            .ok_or_else(|| AlsaStreamError::Classified {
+                class: AlsaErrorClass::Fault,
+                description: "playback timestamp exceeds StreamInstant representation".to_string(),
+            })?;
         let timestamp = crate::OutputStreamTimestamp { callback, playback };
         let info = crate::OutputCallbackInfo { timestamp };
         data_callback(&mut data, &info);
     }
-    loop {
-        match stream.channel.io_bytes().writei(buffer) {
-            Err(err) if err.errno() == libc::EPIPE => {
+    match stream.channel.io_bytes().writei(buffer) {
+        Err(err) => match classify_write_attempt(available_frames, Err(err.errno())) {
+            WriteAttempt::RecoverUnderrun => {
                 // buffer underrun
                 // TODO: Notify the user of this.
-                let _ = stream.channel.try_recover(err, false);
+                stream.channel.try_recover(err, false)?;
+                Ok(())
             }
-            Err(err) => {
-                error_callback(err.into());
-                continue;
-            }
-            Ok(result) if result != available_frames => {
+            WriteAttempt::Stop(class) => Err(AlsaStreamError::Classified {
+                class,
+                description: err.to_string(),
+            }),
+            WriteAttempt::Complete => Err(AlsaStreamError::Classified {
+                class: AlsaErrorClass::Fault,
+                description: "ALSA write classification disagreed with the write result"
+                    .to_string(),
+            }),
+        },
+        Ok(result) => match classify_write_attempt(available_frames, Ok(result)) {
+            WriteAttempt::Complete => Ok(()),
+            WriteAttempt::Stop(class) => {
                 let description = format!(
                     "unexpected number of frames written: expected {}, \
                      result {} (this should never happen)",
                     available_frames, result,
                 );
-                error_callback(BackendSpecificError { description }.into());
-                continue;
+                Err(AlsaStreamError::Classified { class, description })
             }
-            _ => {
-                break;
-            }
-        }
+            WriteAttempt::RecoverUnderrun => Err(AlsaStreamError::Classified {
+                class: AlsaErrorClass::Fault,
+                description: "ALSA write classification disagreed with the write result"
+                    .to_string(),
+            }),
+        },
     }
-    Ok(())
 }
 
 // Use the elapsed duration since the start of the stream.
@@ -934,39 +1164,50 @@ fn process_output(
 fn stream_timestamp(
     status: &alsa::pcm::Status,
     creation_instant: Option<std::time::Instant>,
-) -> Result<crate::StreamInstant, BackendSpecificError> {
+) -> Result<crate::StreamInstant, AlsaStreamError> {
     match creation_instant {
         None => {
             let trigger_ts = status.get_trigger_htstamp();
             let ts = status.get_htstamp();
             let nanos = timespec_diff_nanos(ts, trigger_ts);
             if nanos < 0 {
-                panic!(
-                    "get_htstamp `{}.{}` was earlier than get_trigger_htstamp `{}.{}`",
-                    ts.tv_sec, ts.tv_nsec, trigger_ts.tv_sec, trigger_ts.tv_nsec
-                );
+                return Err(AlsaStreamError::Classified {
+                    class: AlsaErrorClass::Fault,
+                    description: format!(
+                        "get_htstamp `{}.{}` was earlier than get_trigger_htstamp `{}.{}`",
+                        ts.tv_sec, ts.tv_nsec, trigger_ts.tv_sec, trigger_ts.tv_nsec
+                    ),
+                });
             }
-            Ok(crate::StreamInstant::from_nanos(nanos))
+            crate::StreamInstant::from_nanos_i128(nanos).ok_or_else(|| {
+                AlsaStreamError::Classified {
+                    class: AlsaErrorClass::Fault,
+                    description: "ALSA timestamp exceeds StreamInstant representation".to_string(),
+                }
+            })
         }
         Some(creation) => {
             let now = std::time::Instant::now();
             let duration = now.duration_since(creation);
-            let instant = crate::StreamInstant::from_nanos_i128(duration.as_nanos() as i128)
-                .expect("stream duration has exceeded `StreamInstant` representation");
-            Ok(instant)
+            crate::StreamInstant::from_nanos_i128(duration.as_nanos() as i128).ok_or_else(|| {
+                AlsaStreamError::Classified {
+                    class: AlsaErrorClass::Fault,
+                    description: "stream duration exceeds StreamInstant representation".to_string(),
+                }
+            })
         }
     }
 }
 
 // Adapted from `timestamp2ns` here:
 // https://fossies.org/linux/alsa-lib/test/audio_time.c
-fn timespec_to_nanos(ts: libc::timespec) -> i64 {
-    ts.tv_sec as i64 * 1_000_000_000 + ts.tv_nsec as i64
+fn timespec_to_nanos(ts: libc::timespec) -> i128 {
+    ts.tv_sec as i128 * 1_000_000_000 + ts.tv_nsec as i128
 }
 
 // Adapted from `timediff` here:
 // https://fossies.org/linux/alsa-lib/test/audio_time.c
-fn timespec_diff_nanos(a: libc::timespec, b: libc::timespec) -> i64 {
+fn timespec_diff_nanos(a: libc::timespec, b: libc::timespec) -> i128 {
     timespec_to_nanos(a) - timespec_to_nanos(b)
 }
 
@@ -984,12 +1225,14 @@ impl Stream {
         mut data_callback: D,
         mut error_callback: E,
         timeout: Option<Duration>,
-    ) -> Stream
+    ) -> Result<Stream, BuildStreamError>
     where
         D: FnMut(&Data, &InputCallbackInfo) + Send + 'static,
         E: FnMut(StreamError) + Send + 'static,
     {
-        let (tx, rx) = trigger();
+        let (tx, rx) = trigger().map_err(|error| BackendSpecificError {
+            description: format!("could not create ALSA stream trigger: {error}"),
+        })?;
         // Clone the handle for passing into worker thread.
         let stream = inner.clone();
         let thread = thread::Builder::new()
@@ -1003,12 +1246,14 @@ impl Stream {
                     timeout,
                 );
             })
-            .unwrap();
-        Stream {
+            .map_err(|error| BackendSpecificError {
+                description: format!("could not start ALSA input worker: {error}"),
+            })?;
+        Ok(Stream {
             thread: Some(thread),
             inner,
             trigger: tx,
-        }
+        })
     }
 
     fn new_output<D, E>(
@@ -1016,12 +1261,14 @@ impl Stream {
         mut data_callback: D,
         mut error_callback: E,
         timeout: Option<Duration>,
-    ) -> Stream
+    ) -> Result<Stream, BuildStreamError>
     where
         D: FnMut(&mut Data, &OutputCallbackInfo) + Send + 'static,
         E: FnMut(StreamError) + Send + 'static,
     {
-        let (tx, rx) = trigger();
+        let (tx, rx) = trigger().map_err(|error| BackendSpecificError {
+            description: format!("could not create ALSA stream trigger: {error}"),
+        })?;
         // Clone the handle for passing into worker thread.
         let stream = inner.clone();
         let thread = thread::Builder::new()
@@ -1035,30 +1282,145 @@ impl Stream {
                     timeout,
                 );
             })
-            .unwrap();
-        Stream {
+            .map_err(|error| BackendSpecificError {
+                description: format!("could not start ALSA output worker: {error}"),
+            })?;
+        Ok(Stream {
             thread: Some(thread),
             inner,
             trigger: tx,
+        })
+    }
+}
+
+fn stop_worker_with<W>(
+    thread: &mut Option<JoinHandle<()>>,
+    trigger: &TriggerSender,
+    wakeup: W,
+) -> io::Result<()>
+where
+    W: FnOnce(&TriggerSender) -> io::Result<()>,
+{
+    match wakeup(trigger) {
+        Ok(()) => join_worker(thread),
+        Err(error) if error.kind() == ErrorKind::BrokenPipe => {
+            let join_result = join_worker(thread);
+            if join_result.is_err() {
+                join_result
+            } else {
+                Err(error)
+            }
+        }
+        Err(error) => {
+            let _ = thread.take();
+            Err(error)
         }
     }
 }
 
+fn join_worker(thread: &mut Option<JoinHandle<()>>) -> io::Result<()> {
+    thread
+        .take()
+        .map(|thread| {
+            thread
+                .join()
+                .map_err(|_| io::Error::new(ErrorKind::Other, "ALSA worker thread panicked"))
+        })
+        .unwrap_or(Ok(()))
+}
+
+fn stop_worker(thread: &mut Option<JoinHandle<()>>, trigger: &TriggerSender) -> io::Result<()> {
+    stop_worker_with(thread, trigger, TriggerSender::wakeup)
+}
+
 impl Drop for Stream {
     fn drop(&mut self) {
-        self.trigger.wakeup();
-        self.thread.take().unwrap().join().unwrap();
+        let _ = stop_worker(&mut self.thread, &self.trigger);
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum PlayAction {
+    Start,
+    Resume,
+    Noop,
+}
+
+fn play_action(
+    direction: StreamType,
+    can_pause: bool,
+    state: alsa::pcm::State,
+) -> Result<PlayAction, PlayStreamError> {
+    if state == alsa::pcm::State::Disconnected {
+        return Err(PlayStreamError::DeviceNotAvailable);
+    }
+
+    match (direction, state) {
+        (_, alsa::pcm::State::Running) => Ok(PlayAction::Noop),
+        (StreamType::Output, alsa::pcm::State::Prepared) => Ok(PlayAction::Noop),
+        (StreamType::Input, alsa::pcm::State::Prepared) => Ok(PlayAction::Start),
+        (_, alsa::pcm::State::Paused) if can_pause => Ok(PlayAction::Resume),
+        (_, alsa::pcm::State::Paused) => Err(unsupported_play_error()),
+        _ => Err(PlayStreamError::Fault(format!(
+            "cannot play ALSA stream from state {state:?}"
+        ))),
+    }
+}
+
+fn unsupported_play_error() -> PlayStreamError {
+    PlayStreamError::Unsupported("ALSA PCM does not support pause or resume".to_string())
+}
+
+fn apply_play_action(
+    action: Result<PlayAction, PlayStreamError>,
+    start: &mut dyn FnMut() -> Result<(), PlayStreamError>,
+    resume: &mut dyn FnMut() -> Result<(), PlayStreamError>,
+) -> Result<(), PlayStreamError> {
+    match action? {
+        PlayAction::Start => start(),
+        PlayAction::Resume => resume(),
+        PlayAction::Noop => Ok(()),
+    }
+}
+
+fn unsupported_pause_error() -> PauseStreamError {
+    PauseStreamError::Unsupported("ALSA PCM does not support pause".to_string())
+}
+
+fn pause_error(can_pause: bool, state: alsa::pcm::State) -> Option<PauseStreamError> {
+    if state == alsa::pcm::State::Disconnected {
+        Some(PauseStreamError::DeviceNotAvailable)
+    } else if !can_pause {
+        Some(unsupported_pause_error())
+    } else {
+        None
     }
 }
 
 impl StreamTrait for Stream {
     fn play(&self) -> Result<(), PlayStreamError> {
-        self.inner.channel.pause(false).ok();
-        Ok(())
+        let mut start = || self.inner.channel.start().map_err(PlayStreamError::from);
+        let mut resume = || {
+            self.inner
+                .channel
+                .pause(false)
+                .map_err(PlayStreamError::from)
+        };
+        apply_play_action(
+            play_action(
+                self.inner.direction,
+                self.inner.can_pause,
+                self.inner.channel.state(),
+            ),
+            &mut start,
+            &mut resume,
+        )
     }
     fn pause(&self) -> Result<(), PauseStreamError> {
-        self.inner.channel.pause(true).ok();
-        Ok(())
+        if let Some(error) = pause_error(self.inner.can_pause, self.inner.channel.state()) {
+            return Err(error);
+        }
+        self.inner.channel.pause(true).map_err(Into::into)
     }
 }
 
@@ -1066,7 +1428,7 @@ fn set_hw_params_from_format(
     pcm_handle: &alsa::pcm::PCM,
     config: &StreamConfig,
     sample_format: SampleFormat,
-) -> Result<bool, BackendSpecificError> {
+) -> Result<bool, AlsaStreamError> {
     let hw_params = alsa::pcm::HwParams::any(pcm_handle)?;
     hw_params.set_access(alsa::pcm::Access::RWInterleaved)?;
 
@@ -1087,12 +1449,10 @@ fn set_hw_params_from_format(
             SampleFormat::F32 => alsa::pcm::Format::FloatBE,
             SampleFormat::F64 => alsa::pcm::Format::Float64BE,
             sample_format => {
-                return Err(BackendSpecificError {
-                    description: format!(
-                        "Sample format '{}' is not supported by this backend",
-                        sample_format
-                    ),
-                })
+                return Err(AlsaStreamError::Unsupported(format!(
+                    "Sample format '{}' is not supported by this backend",
+                    sample_format
+                )))
             }
         }
     } else {
@@ -1112,12 +1472,10 @@ fn set_hw_params_from_format(
             SampleFormat::F32 => alsa::pcm::Format::FloatLE,
             SampleFormat::F64 => alsa::pcm::Format::Float64LE,
             sample_format => {
-                return Err(BackendSpecificError {
-                    description: format!(
-                        "Sample format '{}' is not supported by this backend",
-                        sample_format
-                    ),
-                })
+                return Err(AlsaStreamError::Unsupported(format!(
+                    "Sample format '{}' is not supported by this backend",
+                    sample_format
+                )))
             }
         }
     };
@@ -1148,27 +1506,20 @@ fn set_sw_params_from_format(
     pcm_handle: &alsa::pcm::PCM,
     config: &StreamConfig,
     stream_type: alsa::Direction,
-) -> Result<usize, BackendSpecificError> {
+) -> Result<usize, AlsaStreamError> {
     let sw_params = pcm_handle.sw_params_current()?;
 
     let period_len = {
         let (buffer, period) = pcm_handle.get_params()?;
         if buffer == 0 {
-            return Err(BackendSpecificError {
+            return Err(AlsaStreamError::Classified {
+                class: AlsaErrorClass::Fault,
                 description: "initialization resulted in a null buffer".to_string(),
             });
         }
         sw_params.set_avail_min(period as alsa::pcm::Frames)?;
 
-        let start_threshold = match stream_type {
-            alsa::Direction::Playback => buffer - period,
-
-            // For capture streams, the start threshold is irrelevant and ignored,
-            // because build_stream_inner() starts the stream before process_input()
-            // reads from it. Set it anyway I guess, since it's better than leaving
-            // it at an unspecified default value.
-            alsa::Direction::Capture => 1,
-        };
+        let start_threshold = start_threshold(stream_type, buffer, period)?;
         sw_params.set_start_threshold(start_threshold.try_into().unwrap())?;
 
         period as usize * config.channels as usize
@@ -1188,6 +1539,26 @@ fn set_sw_params_from_format(
     Ok(period_len)
 }
 
+fn start_threshold(
+    stream_type: alsa::Direction,
+    buffer: u64,
+    period: u64,
+) -> Result<u64, AlsaStreamError> {
+    match stream_type {
+        alsa::Direction::Playback => {
+            buffer
+                .checked_sub(period)
+                .ok_or_else(|| AlsaStreamError::Classified {
+                    class: AlsaErrorClass::Fault,
+                    description: format!(
+                        "playback buffer size {buffer} is smaller than period size {period}"
+                    ),
+                })
+        }
+        alsa::Direction::Capture => Ok(1),
+    }
+}
+
 impl From<alsa::Error> for BackendSpecificError {
     fn from(err: alsa::Error) -> Self {
         BackendSpecificError {
@@ -1198,36 +1569,75 @@ impl From<alsa::Error> for BackendSpecificError {
 
 impl From<alsa::Error> for BuildStreamError {
     fn from(err: alsa::Error) -> Self {
-        let err: BackendSpecificError = err.into();
-        err.into()
+        match err.errno() {
+            libc::EBUSY => Self::DeviceBusy,
+            libc::ENOENT | libc::ENODEV => Self::DeviceNotAvailable,
+            libc::EINVAL => Self::InvalidArgument,
+            _ => BackendSpecificError {
+                description: err.to_string(),
+            }
+            .into(),
+        }
     }
 }
 
 impl From<alsa::Error> for SupportedStreamConfigsError {
     fn from(err: alsa::Error) -> Self {
-        let err: BackendSpecificError = err.into();
-        err.into()
+        match err.errno() {
+            libc::EBUSY => Self::DeviceBusy,
+            libc::ENOENT | libc::ENODEV => Self::DeviceNotAvailable,
+            libc::EINVAL => Self::InvalidArgument,
+            _ => BackendSpecificError {
+                description: err.to_string(),
+            }
+            .into(),
+        }
+    }
+}
+
+impl From<alsa::Error> for DefaultStreamConfigError {
+    fn from(err: alsa::Error) -> Self {
+        match err.errno() {
+            libc::EBUSY => Self::DeviceBusy,
+            libc::ENOENT | libc::ENODEV => Self::DeviceNotAvailable,
+            _ => BackendSpecificError {
+                description: err.to_string(),
+            }
+            .into(),
+        }
     }
 }
 
 impl From<alsa::Error> for PlayStreamError {
     fn from(err: alsa::Error) -> Self {
-        let err: BackendSpecificError = err.into();
-        err.into()
+        match classify_alsa_errno(err.errno()) {
+            AlsaErrorClass::Disconnected => Self::DeviceNotAvailable,
+            AlsaErrorClass::Busy => Self::DeviceBusy,
+            AlsaErrorClass::Unsupported => Self::Unsupported(err.to_string()),
+            AlsaErrorClass::Fault => Self::Fault(err.to_string()),
+        }
     }
 }
 
 impl From<alsa::Error> for PauseStreamError {
     fn from(err: alsa::Error) -> Self {
-        let err: BackendSpecificError = err.into();
-        err.into()
+        match classify_alsa_errno(err.errno()) {
+            AlsaErrorClass::Disconnected => Self::DeviceNotAvailable,
+            AlsaErrorClass::Busy => Self::DeviceBusy,
+            AlsaErrorClass::Unsupported => Self::Unsupported(err.to_string()),
+            AlsaErrorClass::Fault => Self::Fault(err.to_string()),
+        }
     }
 }
 
 impl From<alsa::Error> for StreamError {
     fn from(err: alsa::Error) -> Self {
-        let err: BackendSpecificError = err.into();
-        err.into()
+        match classify_alsa_errno(err.errno()) {
+            AlsaErrorClass::Disconnected => Self::DeviceNotAvailable,
+            AlsaErrorClass::Busy => Self::DeviceBusy,
+            AlsaErrorClass::Unsupported => Self::Unsupported(err.to_string()),
+            AlsaErrorClass::Fault => Self::Fault(err.to_string()),
+        }
     }
 }
 
@@ -1237,9 +1647,9 @@ mod tests {
 
     #[test]
     fn exact_output_device_accepts_only_approved_pcm_names() {
-        for name in [crate::ALSA_OCTESSERA_DAC_PCM, crate::ALSA_UAC2_GADGET_PCM] {
+        for name in crate::ALSA_EXACT_OUTPUT_PCMS {
             let device = exact_output_device(name).unwrap();
-            assert_eq!(device.name().unwrap(), name);
+            assert_eq!(device.name().unwrap(), *name);
             let handles = device.handles.lock().unwrap();
             assert!(handles.playback.is_none());
             assert!(handles.capture.is_none());
@@ -1248,7 +1658,7 @@ mod tests {
 
     #[test]
     fn exact_output_device_rejects_other_pcm_names() {
-        assert!(exact_output_device("hw:CARD=HDMI,DEV=0").is_err());
+        assert!(exact_output_device("hw:CARD=H616,DEV=0").is_err());
     }
 
     #[test]
@@ -1275,11 +1685,47 @@ mod tests {
     fn pollerr_suspended_and_disconnected_states_are_errors() {
         assert_eq!(
             classify_poll_error(alsa::poll::Flags::ERR, alsa::pcm::State::Suspended, None),
-            PollErrorFlow::Error
+            PollErrorFlow::Error(AlsaErrorClass::Fault)
         );
         assert_eq!(
             classify_poll_error(alsa::poll::Flags::ERR, alsa::pcm::State::Disconnected, None),
-            PollErrorFlow::Error
+            PollErrorFlow::Error(AlsaErrorClass::Disconnected)
+        );
+    }
+
+    #[test]
+    fn pollerr_preserves_disconnect_and_errno_classes() {
+        assert_eq!(
+            classify_poll_error(
+                alsa::poll::Flags::ERR,
+                alsa::pcm::State::Running,
+                Some(libc::ENODEV),
+            ),
+            PollErrorFlow::Error(AlsaErrorClass::Disconnected)
+        );
+        assert_eq!(
+            classify_poll_error(
+                alsa::poll::Flags::ERR,
+                alsa::pcm::State::Running,
+                Some(libc::EBUSY),
+            ),
+            PollErrorFlow::Error(AlsaErrorClass::Busy)
+        );
+        assert_eq!(
+            classify_poll_error(
+                alsa::poll::Flags::ERR,
+                alsa::pcm::State::Running,
+                Some(libc::EINVAL),
+            ),
+            PollErrorFlow::Error(AlsaErrorClass::Unsupported)
+        );
+        assert_eq!(
+            classify_poll_error(
+                alsa::poll::Flags::ERR,
+                alsa::pcm::State::Running,
+                Some(libc::EIO),
+            ),
+            PollErrorFlow::Error(AlsaErrorClass::Fault)
         );
     }
 
@@ -1297,5 +1743,286 @@ mod tests {
             ),
             PollErrorFlow::Continue
         );
+    }
+
+    #[test]
+    fn xrun_recovery_prepares_playback_and_starts_capture() {
+        assert_eq!(
+            xrun_recovery_action(StreamType::Output),
+            XrunRecoveryAction::Prepare
+        );
+        assert_eq!(
+            xrun_recovery_action(StreamType::Input),
+            XrunRecoveryAction::PrepareAndStart
+        );
+
+        let mut playback_prepare_calls = 0;
+        let mut playback_start_calls = 0;
+        recover_xrun_with(
+            StreamType::Output,
+            || {
+                playback_prepare_calls += 1;
+                Ok::<(), ()>(())
+            },
+            || {
+                playback_start_calls += 1;
+                Ok::<(), ()>(())
+            },
+        )
+        .unwrap();
+        assert_eq!(playback_prepare_calls, 1);
+        assert_eq!(playback_start_calls, 0);
+
+        let mut capture_prepare_calls = 0;
+        let mut capture_start_calls = 0;
+        recover_xrun_with(
+            StreamType::Input,
+            || {
+                capture_prepare_calls += 1;
+                Ok::<(), ()>(())
+            },
+            || {
+                capture_start_calls += 1;
+                Ok::<(), ()>(())
+            },
+        )
+        .unwrap();
+        assert_eq!(capture_prepare_calls, 1);
+        assert_eq!(capture_start_calls, 1);
+    }
+
+    #[test]
+    fn start_threshold_preserves_playback_and_capture_rules() {
+        assert_eq!(
+            start_threshold(alsa::Direction::Playback, 256, 64).unwrap(),
+            192
+        );
+        assert_eq!(
+            start_threshold(alsa::Direction::Capture, 256, 64).unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn write_attempt_classifies_underrun_and_terminal_errors() {
+        assert_eq!(
+            classify_write_attempt(128, Err(libc::EPIPE)),
+            WriteAttempt::RecoverUnderrun
+        );
+        assert_eq!(
+            classify_write_attempt(128, Err(libc::ENODEV)),
+            WriteAttempt::Stop(AlsaErrorClass::Disconnected)
+        );
+        assert_eq!(
+            classify_write_attempt(128, Err(libc::EBUSY)),
+            WriteAttempt::Stop(AlsaErrorClass::Busy)
+        );
+        assert_eq!(
+            classify_write_attempt(128, Err(libc::EINVAL)),
+            WriteAttempt::Stop(AlsaErrorClass::Unsupported)
+        );
+    }
+
+    #[test]
+    fn write_attempt_rejects_partial_success_as_a_fault() {
+        assert_eq!(
+            classify_write_attempt(128, Ok(64)),
+            WriteAttempt::Stop(AlsaErrorClass::Fault)
+        );
+        assert_eq!(classify_write_attempt(128, Ok(128)), WriteAttempt::Complete);
+    }
+
+    #[test]
+    fn terminal_worker_drop_ignores_closed_trigger_pipe() {
+        let (trigger, receiver) = trigger().unwrap();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = thread::spawn(move || {
+            drop(receiver);
+            done_tx.send(()).unwrap();
+        });
+        done_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("terminal worker did not exit");
+
+        let mut worker = Some(worker);
+        assert_eq!(
+            stop_worker(&mut worker, &trigger).unwrap_err().kind(),
+            ErrorKind::BrokenPipe
+        );
+
+        assert!(worker.is_none());
+        assert_eq!(trigger.wakeup().unwrap_err().kind(), ErrorKind::BrokenPipe);
+    }
+
+    #[test]
+    fn stop_worker_retries_interrupted_wakeup_before_bounded_join() {
+        let (trigger, receiver) = trigger().unwrap();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = thread::spawn(move || {
+            let mut descriptor = libc::pollfd {
+                fd: receiver.0,
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            let result = unsafe { libc::poll(&mut descriptor, 1, 250) };
+            let woke = result == 1 && descriptor.revents & libc::POLLIN != 0;
+            if woke {
+                let _ = receiver.clear_pipe();
+            }
+            done_tx.send(woke).unwrap();
+        });
+
+        let mut attempts = 0;
+        let mut worker = Some(worker);
+        let stop_result = stop_worker_with(&mut worker, &trigger, |trigger| {
+            trigger.wakeup_with(|fd, buffer, length| {
+                attempts += 1;
+                if attempts == 1 {
+                    return Err(io::Error::from(ErrorKind::Interrupted));
+                }
+                let ret = unsafe { libc::write(fd, buffer as *const _, length) };
+                if ret == -1 {
+                    Err(io::Error::last_os_error())
+                } else {
+                    Ok(ret as usize)
+                }
+            })
+        });
+        let woke = done_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("worker wakeup observation timed out");
+
+        assert!(stop_result.is_ok());
+        assert!(woke);
+        assert_eq!(attempts, 2);
+        assert!(worker.is_none());
+    }
+
+    #[test]
+    fn wakeup_retries_repeated_interrupted_writes_without_bounded_failure() {
+        let (trigger, receiver) = trigger().unwrap();
+        let mut attempts = 0;
+        trigger
+            .wakeup_with(|_, _, length| {
+                attempts += 1;
+                if attempts <= 4 {
+                    Err(io::Error::from(ErrorKind::Interrupted))
+                } else {
+                    Ok(length)
+                }
+            })
+            .unwrap();
+
+        assert_eq!(attempts, 5);
+        drop(receiver);
+    }
+
+    #[test]
+    fn wakeup_rejects_partial_writes_as_a_fault() {
+        let (trigger, receiver) = trigger().unwrap();
+        let error = trigger
+            .wakeup_with(|_, _, length| Ok(length - 1))
+            .unwrap_err();
+
+        assert_eq!(error.kind(), ErrorKind::WriteZero);
+        drop(receiver);
+    }
+
+    #[test]
+    fn play_state_matrix_covers_prepared_running_and_paused_actions() {
+        assert!(matches!(
+            play_action(StreamType::Output, false, alsa::pcm::State::Prepared),
+            Ok(PlayAction::Noop)
+        ));
+        assert!(matches!(
+            play_action(StreamType::Input, false, alsa::pcm::State::Prepared),
+            Ok(PlayAction::Start)
+        ));
+        assert!(matches!(
+            play_action(StreamType::Output, true, alsa::pcm::State::Running),
+            Ok(PlayAction::Noop)
+        ));
+        assert!(matches!(
+            play_action(StreamType::Input, true, alsa::pcm::State::Running),
+            Ok(PlayAction::Noop)
+        ));
+        assert!(matches!(
+            play_action(StreamType::Input, true, alsa::pcm::State::Paused),
+            Ok(PlayAction::Resume)
+        ));
+        assert!(matches!(
+            play_action(StreamType::Output, true, alsa::pcm::State::Paused),
+            Ok(PlayAction::Resume)
+        ));
+    }
+
+    #[test]
+    fn play_state_matrix_returns_typed_invalid_state_errors() {
+        assert!(matches!(
+            play_action(StreamType::Output, false, alsa::pcm::State::Paused),
+            Err(PlayStreamError::Unsupported(message))
+                if message == "ALSA PCM does not support pause or resume"
+        ));
+        assert!(matches!(
+            play_action(StreamType::Input, false, alsa::pcm::State::Paused),
+            Err(PlayStreamError::Unsupported(message))
+                if message == "ALSA PCM does not support pause or resume"
+        ));
+        assert!(matches!(
+            play_action(StreamType::Output, true, alsa::pcm::State::Disconnected),
+            Err(PlayStreamError::DeviceNotAvailable)
+        ));
+        assert!(matches!(
+            play_action(StreamType::Input, true, alsa::pcm::State::Disconnected),
+            Err(PlayStreamError::DeviceNotAvailable)
+        ));
+        assert!(matches!(
+            play_action(StreamType::Output, true, alsa::pcm::State::Open),
+            Err(PlayStreamError::Fault(message)) if message.contains("Open")
+        ));
+        assert!(matches!(
+            play_action(StreamType::Input, true, alsa::pcm::State::Open),
+            Err(PlayStreamError::Fault(message)) if message.contains("Open")
+        ));
+    }
+
+    #[test]
+    fn prepared_playback_does_not_invoke_start_when_start_would_fail() {
+        let mut start_calls = 0;
+        let mut resume_calls = 0;
+        let result = apply_play_action(
+            play_action(StreamType::Output, false, alsa::pcm::State::Prepared),
+            &mut || {
+                start_calls += 1;
+                Err(PlayStreamError::Fault(
+                    "snd_pcm_start: Broken pipe (32)".to_string(),
+                ))
+            },
+            &mut || {
+                resume_calls += 1;
+                Ok(())
+            },
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(start_calls, 0);
+        assert_eq!(resume_calls, 0);
+    }
+
+    #[test]
+    fn pause_without_hardware_support_is_typed_unsupported() {
+        assert!(matches!(
+            pause_error(false, alsa::pcm::State::Prepared),
+            Some(PauseStreamError::Unsupported(message)) if message.contains("does not support pause")
+        ));
+        assert!(matches!(
+            pause_error(false, alsa::pcm::State::Disconnected),
+            Some(PauseStreamError::DeviceNotAvailable)
+        ));
+    }
+
+    #[test]
+    fn pause_error_for_supported_pcm_is_deferred_to_alsa() {
+        assert!(pause_error(true, alsa::pcm::State::Prepared).is_none());
     }
 }

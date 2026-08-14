@@ -1,11 +1,8 @@
 use cpal::StreamError;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const AUDIO_STREAM_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(1);
-const AUDIO_STREAM_FAULT_WINDOW: Duration = Duration::from_millis(250);
-const AUDIO_STREAM_FAULT_ERROR_THRESHOLD: u64 = 2_000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AudioStreamRequirement {
@@ -13,7 +10,6 @@ pub(crate) enum AudioStreamRequirement {
     Optional,
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AudioStreamStatus {
     Healthy,
@@ -25,17 +21,13 @@ pub(crate) enum AudioStreamStatus {
 pub(crate) struct AudioStreamHealth {
     label: String,
     requirement: AudioStreamRequirement,
-    faulted: Arc<AtomicBool>,
-    terminal: Arc<AtomicBool>,
     state: Arc<Mutex<AudioStreamHealthState>>,
 }
 
 struct AudioStreamHealthState {
+    status: AudioStreamStatus,
     last_log: Option<Instant>,
     suppressed: u64,
-    fault_window_started: Instant,
-    fault_window_errors: u64,
-    fault_reported: bool,
 }
 
 impl AudioStreamHealth {
@@ -51,98 +43,67 @@ impl AudioStreamHealth {
         Self {
             label,
             requirement,
-            faulted: Arc::new(AtomicBool::new(false)),
-            terminal: Arc::new(AtomicBool::new(false)),
             state: Arc::new(Mutex::new(AudioStreamHealthState {
+                status: AudioStreamStatus::Healthy,
                 last_log: None,
                 suppressed: 0,
-                fault_window_started: Instant::now(),
-                fault_window_errors: 0,
-                fault_reported: false,
             })),
         }
     }
 
+    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
     pub(crate) fn is_faulted(&self) -> bool {
-        self.faulted.load(Ordering::Relaxed)
+        self.status() != AudioStreamStatus::Healthy
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     pub(crate) fn status(&self) -> AudioStreamStatus {
-        if self.is_terminal() {
-            AudioStreamStatus::Terminal
-        } else if self.is_faulted() {
-            AudioStreamStatus::Recovering
-        } else {
-            AudioStreamStatus::Healthy
-        }
+        self.state
+            .lock()
+            .map(|state| state.status)
+            .unwrap_or(AudioStreamStatus::Terminal)
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     pub(crate) fn is_terminal(&self) -> bool {
-        self.terminal.load(Ordering::Relaxed)
+        self.status() == AudioStreamStatus::Terminal
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
     pub(crate) fn clear_faulted(&self) {
-        self.faulted.store(false, Ordering::Relaxed);
+        self.clear_recoverable_fault();
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     pub(crate) fn clear_recoverable_fault(&self) {
-        if self.is_terminal() {
-            return;
-        }
-        self.faulted.store(false, Ordering::Relaxed);
         if let Ok(mut state) = self.state.lock() {
+            if state.status != AudioStreamStatus::Recovering {
+                return;
+            }
+            state.status = AudioStreamStatus::Healthy;
             state.last_log = None;
             state.suppressed = 0;
-            state.fault_window_started = Instant::now();
-            state.fault_window_errors = 0;
-            state.fault_reported = false;
         }
     }
 
+    #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     pub(crate) fn mark_terminal(&self) {
-        self.terminal.store(true, Ordering::Relaxed);
-        self.faulted.store(true, Ordering::Relaxed);
+        if let Ok(mut state) = self.state.lock() {
+            state.status = AudioStreamStatus::Terminal;
+        }
     }
 
     pub(crate) fn log(&self, error: StreamError) {
-        if matches!(error, StreamError::DeviceNotAvailable)
-            && self.requirement == AudioStreamRequirement::Required
-        {
-            self.mark_terminal();
-        } else if matches!(error, StreamError::DeviceNotAvailable) {
-            self.faulted.store(true, Ordering::Relaxed);
-        }
         let Ok(mut state) = self.state.lock() else {
             return;
         };
-        let now = Instant::now();
-        if !matches!(error, StreamError::DeviceNotAvailable) {
-            self.update_fault_window(&mut state, now);
+        if state.status != AudioStreamStatus::Terminal {
+            state.status = match (&error, self.requirement) {
+                (StreamError::DeviceNotAvailable, AudioStreamRequirement::Optional) => {
+                    AudioStreamStatus::Recovering
+                }
+                _ => AudioStreamStatus::Terminal,
+            };
         }
-        self.log_rate_limited(&mut state, now, error);
-    }
-
-    fn update_fault_window(&self, state: &mut AudioStreamHealthState, now: Instant) {
-        if now.duration_since(state.fault_window_started) > AUDIO_STREAM_FAULT_WINDOW {
-            state.fault_window_started = now;
-            state.fault_window_errors = 0;
-        }
-        state.fault_window_errors = state.fault_window_errors.saturating_add(1);
-        if state.fault_window_errors < AUDIO_STREAM_FAULT_ERROR_THRESHOLD {
-            return;
-        }
-        self.faulted.store(true, Ordering::Relaxed);
-        if !state.fault_reported {
-            state.fault_reported = true;
-            eprintln!(
-                "{} audio stream faulted after {} errors in {:?}; disabling this sink",
-                self.label, state.fault_window_errors, AUDIO_STREAM_FAULT_WINDOW
-            );
-        }
+        self.log_rate_limited(&mut state, Instant::now(), error);
     }
 
     fn log_rate_limited(
@@ -185,7 +146,6 @@ mod tests {
         assert!(health.is_faulted());
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     #[test]
     fn optional_device_loss_is_recoverable() {
         let health = AudioStreamHealth::optional("UAC2Gadget".into());
@@ -197,10 +157,9 @@ mod tests {
         assert_eq!(health.status(), AudioStreamStatus::Recovering);
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     #[test]
     fn device_loss_is_terminal_for_orange_recovery() {
-        let health = AudioStreamHealth::new("InternalDac".into());
+        let health = AudioStreamHealth::new("Jack".into());
 
         health.log(StreamError::DeviceNotAvailable);
 
@@ -208,11 +167,70 @@ mod tests {
         assert_eq!(health.status(), AudioStreamStatus::Terminal);
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     #[test]
     fn healthy_audio_status_is_explicit() {
-        let health = AudioStreamHealth::new("InternalDac".into());
+        let health = AudioStreamHealth::new("Jack".into());
 
         assert_eq!(health.status(), AudioStreamStatus::Healthy);
+    }
+
+    #[test]
+    fn terminal_errors_are_sticky_for_optional_streams() {
+        for error in [
+            StreamError::DeviceBusy,
+            StreamError::Unsupported("unsupported".into()),
+            StreamError::Fault("fault".into()),
+            StreamError::BackendSpecific {
+                err: cpal::BackendSpecificError {
+                    description: "unknown".into(),
+                },
+            },
+        ] {
+            let health = AudioStreamHealth::optional("USB".into());
+            health.log(error);
+            assert_eq!(health.status(), AudioStreamStatus::Terminal);
+            health.clear_recoverable_fault();
+            assert_eq!(health.status(), AudioStreamStatus::Terminal);
+        }
+    }
+
+    #[test]
+    fn recoverable_disconnect_can_be_cleared_but_terminal_cannot() {
+        let health = AudioStreamHealth::optional("HDMI".into());
+        health.log(StreamError::DeviceNotAvailable);
+        assert_eq!(health.status(), AudioStreamStatus::Recovering);
+        health.clear_recoverable_fault();
+        assert_eq!(health.status(), AudioStreamStatus::Healthy);
+        health.mark_terminal();
+        health.clear_recoverable_fault();
+        assert_eq!(health.status(), AudioStreamStatus::Terminal);
+    }
+
+    #[test]
+    fn runtime_classification_matrix_covers_required_and_optional_routes() {
+        for label in ["Jack", "USB", "HDMI"] {
+            let required = AudioStreamHealth::new(label.into());
+            required.log(StreamError::DeviceNotAvailable);
+            assert_eq!(required.status(), AudioStreamStatus::Terminal);
+
+            let optional = AudioStreamHealth::optional(label.into());
+            optional.log(StreamError::DeviceNotAvailable);
+            assert_eq!(optional.status(), AudioStreamStatus::Recovering);
+
+            for error in [
+                StreamError::DeviceBusy,
+                StreamError::Unsupported("unsupported".into()),
+                StreamError::Fault("fault".into()),
+                StreamError::BackendSpecific {
+                    err: cpal::BackendSpecificError {
+                        description: "unknown".into(),
+                    },
+                },
+            ] {
+                let optional = AudioStreamHealth::optional(label.into());
+                optional.log(error);
+                assert_eq!(optional.status(), AudioStreamStatus::Terminal);
+            }
+        }
     }
 }

@@ -132,7 +132,6 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
         "usb": true,
         "hdmi": false
     });
-    device["runtimeConfig"]["usb"]["audioOut"] = json!("usb");
     device["runtimeConfig"]["instruments"] = json!([
         { "mixer": { "volume": 1 } }
     ]);

@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_runner::AudioOutputSet;
 
 pub(crate) fn config() -> NativeMenuConfig {
     NativeMenuConfig {
@@ -146,7 +147,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         midi_clock_out_enabled: false,
         midi_clock_in_enabled: false,
         midi_respond_to_start_stop: true,
-        usb_audio_out: "jack".into(),
+        audio_outputs: AudioOutputSet::default(),
         usb_midi_out_enabled: false,
         hdmi_mode: "none".into(),
         hdmi_show_gridlines: false,

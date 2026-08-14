@@ -304,7 +304,18 @@ fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
     }
     #[cfg(not(feature = "hardware-raspberry-pi-zero-2w"))]
     {
-        Ok(())
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        {
+            match _request {
+                PiPowerRequest::Reboot => crate::orange_reboot::request_reboot(),
+                PiPowerRequest::Shutdown => Err("Orange shutdown is not supported".into()),
+            }
+        }
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        {
+            let _ = _request;
+            Err("power request is unavailable in this profile".into())
+        }
     }
 }
 

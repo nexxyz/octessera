@@ -94,6 +94,8 @@ pub enum SupportedStreamConfigsError {
     /// The device no longer exists. This can happen if the device is disconnected while the
     /// program is running.
     DeviceNotAvailable,
+    /// The device exists but another owner currently holds the exact stream resource.
+    DeviceBusy,
     /// We called something the C-Layer did not understand
     InvalidArgument,
     /// See the [`BackendSpecificError`] docs for more information about this error variant.
@@ -105,6 +107,7 @@ impl Display for SupportedStreamConfigsError {
         match self {
             Self::BackendSpecific { err } => err.fmt(f),
             Self::DeviceNotAvailable => f.write_str("The requested device is no longer available. For example, it has been unplugged."),
+            Self::DeviceBusy => f.write_str("The requested device is busy."),
             Self::InvalidArgument => f.write_str("Invalid argument passed to the backend. For example, this happens when trying to read capture capabilities when the device does not support it.")
         }
     }
@@ -124,6 +127,8 @@ pub enum DefaultStreamConfigError {
     /// The device no longer exists. This can happen if the device is disconnected while the
     /// program is running.
     DeviceNotAvailable,
+    /// The device exists but another owner currently holds the exact stream resource.
+    DeviceBusy,
     /// Returned if e.g. the default input format was requested on an output-only audio device.
     StreamTypeNotSupported,
     /// See the [`BackendSpecificError`] docs for more information about this error variant.
@@ -137,6 +142,7 @@ impl Display for DefaultStreamConfigError {
             DefaultStreamConfigError::DeviceNotAvailable => f.write_str(
                 "The requested device is no longer available. For example, it has been unplugged.",
             ),
+            DefaultStreamConfigError::DeviceBusy => f.write_str("The requested device is busy."),
             DefaultStreamConfigError::StreamTypeNotSupported => {
                 f.write_str("The requested stream type is not supported by the device.")
             }
@@ -157,6 +163,8 @@ pub enum BuildStreamError {
     /// The device no longer exists. This can happen if the device is disconnected while the
     /// program is running.
     DeviceNotAvailable,
+    /// The device exists but another owner currently holds the exact stream resource.
+    DeviceBusy,
     /// The specified stream configuration is not supported.
     StreamConfigNotSupported,
     /// We called something the C-Layer did not understand
@@ -177,6 +185,7 @@ impl Display for BuildStreamError {
             BuildStreamError::DeviceNotAvailable => f.write_str(
                 "The requested device is no longer available. For example, it has been unplugged.",
             ),
+            BuildStreamError::DeviceBusy => f.write_str("The requested device is busy."),
             BuildStreamError::StreamConfigNotSupported => {
                 f.write_str("The requested stream configuration is not supported by the device.")
             }
@@ -207,8 +216,13 @@ impl From<BackendSpecificError> for BuildStreamError {
 pub enum PlayStreamError {
     /// The device associated with the stream is no longer available.
     DeviceNotAvailable,
+    DeviceBusy,
+    Unsupported(String),
+    Fault(String),
     /// See the [`BackendSpecificError`] docs for more information about this error variant.
-    BackendSpecific { err: BackendSpecificError },
+    BackendSpecific {
+        err: BackendSpecificError,
+    },
 }
 
 impl Display for PlayStreamError {
@@ -217,6 +231,12 @@ impl Display for PlayStreamError {
             Self::BackendSpecific { err } => err.fmt(f),
             PlayStreamError::DeviceNotAvailable => {
                 f.write_str("the device associated with the stream is no longer available")
+            }
+            PlayStreamError::DeviceBusy => {
+                f.write_str("the device associated with the stream is busy")
+            }
+            PlayStreamError::Unsupported(message) | PlayStreamError::Fault(message) => {
+                f.write_str(message)
             }
         }
     }
@@ -239,8 +259,13 @@ impl From<BackendSpecificError> for PlayStreamError {
 pub enum PauseStreamError {
     /// The device associated with the stream is no longer available.
     DeviceNotAvailable,
+    DeviceBusy,
+    Unsupported(String),
+    Fault(String),
     /// See the [`BackendSpecificError`] docs for more information about this error variant.
-    BackendSpecific { err: BackendSpecificError },
+    BackendSpecific {
+        err: BackendSpecificError,
+    },
 }
 
 impl Display for PauseStreamError {
@@ -249,6 +274,12 @@ impl Display for PauseStreamError {
             Self::BackendSpecific { err } => err.fmt(f),
             PauseStreamError::DeviceNotAvailable => {
                 f.write_str("the device associated with the stream is no longer available")
+            }
+            PauseStreamError::DeviceBusy => {
+                f.write_str("the device associated with the stream is busy")
+            }
+            PauseStreamError::Unsupported(message) | PauseStreamError::Fault(message) => {
+                f.write_str(message)
             }
         }
     }
@@ -268,8 +299,13 @@ pub enum StreamError {
     /// The device no longer exists. This can happen if the device is disconnected while the
     /// program is running.
     DeviceNotAvailable,
+    DeviceBusy,
+    Unsupported(String),
+    Fault(String),
     /// See the [`BackendSpecificError`] docs for more information about this error variant.
-    BackendSpecific { err: BackendSpecificError },
+    BackendSpecific {
+        err: BackendSpecificError,
+    },
 }
 
 impl Display for StreamError {
@@ -279,6 +315,8 @@ impl Display for StreamError {
             StreamError::DeviceNotAvailable => f.write_str(
                 "The requested device is no longer available. For example, it has been unplugged.",
             ),
+            StreamError::DeviceBusy => f.write_str("The requested device is busy."),
+            StreamError::Unsupported(message) | StreamError::Fault(message) => f.write_str(message),
         }
     }
 }

@@ -45,6 +45,22 @@ impl RenderWorker {
         self.publish_snapshot_command(snapshot, oled, Vec::new())
     }
 
+    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
+    pub fn publish_snapshot_with_ack(
+        &self,
+        snapshot: Value,
+        oled: OledFramePublication,
+    ) -> Result<(), String> {
+        validate_oled_publication(&snapshot, &oled, false)?;
+        let (ack_tx, ack_rx) = mpsc::channel();
+        if !self.publish_snapshot_command(snapshot, oled, vec![ack_tx]) {
+            return Err("render worker rejected snapshot acknowledgement".into());
+        }
+        ack_rx
+            .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
+            .map_err(|error| format!("snapshot render acknowledgement failed: {error}"))?
+    }
+
     pub fn publish_acknowledged_snapshot(
         &self,
         snapshot: Value,

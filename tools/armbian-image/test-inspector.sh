@@ -420,10 +420,25 @@ assert_status 0 octessera_require_runtime_entry_set opt/octessera/releases/1.2.3
 octessera_require_image_symlink opt/octessera/current /opt/octessera/releases/1.2.3
 runtime_contract="$root/userpatches/overlay/etc/octessera/image-contract.json"
 runtime_contract_hash="$(sha256sum "$runtime_contract" | awk '{ print $1 }')"
+# apply lane fixtures
+device_apply_socket_unit="$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket"
+device_apply_service_unit="$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service"
+device_config_validator="$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
+device_apply_helper="$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot"
+pi_default="$root/config/generated/pi/default.json"
+mkdir -p "$fake_image/etc/systemd/system/sockets.target.wants"
+ln -s ../octessera-device-apply-reboot.socket "$fake_image/etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
 runtime_rejected_paths=()
 read_file() {
-  [[ "$1" == etc/octessera/image-contract.json ]] || return 1
-  cat -- "$runtime_contract"
+  case "$1" in
+    etc/octessera/image-contract.json) cat -- "$runtime_contract" ;;
+    etc/systemd/system/octessera-device-apply-reboot.socket) cat -- "$device_apply_socket_unit" ;;
+    etc/systemd/system/octessera-device-apply-reboot@.service) cat -- "$device_apply_service_unit" ;;
+    usr/local/lib/octessera/device_config.py) cat -- "$device_config_validator" ;;
+    usr/local/sbin/octessera-device-apply-reboot) cat -- "$device_apply_helper" ;;
+    usr/share/octessera/defaults/pi-default.json) cat -- "$pi_default" ;;
+    *) return 1 ;;
+  esac
 }
 require_root_mode() { :; }
 hash_path() { [[ "$1" == etc/octessera/image-contract.json ]] && printf '%s\n' "$runtime_contract_hash"; }
@@ -455,6 +470,11 @@ read_file() {
     etc/sudoers) printf '%s\n' 'octessera-runtime ALL=(ALL) NOPASSWD:ALL' ;;
     etc/udev/rules.d/70-octessera-orange-runtime.rules) printf '%s\n' 'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"' ;;
     etc/systemd/system/octessera.service) cat "$root/userpatches/overlay/etc/systemd/system/octessera.service" ;;
+    etc/systemd/system/octessera-device-apply-reboot.socket) cat "$device_apply_socket_unit" ;;
+    etc/systemd/system/octessera-device-apply-reboot@.service) cat "$device_apply_service_unit" ;;
+    usr/local/lib/octessera/device_config.py) cat "$device_config_validator" ;;
+    usr/local/sbin/octessera-device-apply-reboot) cat "$device_apply_helper" ;;
+    usr/share/octessera/defaults/pi-default.json) cat "$pi_default" ;;
     opt/octessera/releases/1.2.3/octessera-runtime.json) printf '%s\n' "{\"name\":\"octessera-pi\",\"profile\":\"orange-pi-zero-2w\",\"version\":\"1.2.3\",\"artifact_kind\":\"production-runtime\",\"runtime_ready\":true,\"binary_sha256\":\"$runtime_binary_hash\"}" ;;
     opt/octessera/releases/1.2.3/SHA256SUMS) printf '%s  octessera-pi\n' "$runtime_binary_hash" ;;
     *) return 1 ;;
@@ -480,7 +500,7 @@ runtime_links=()
 octessera_require_image_symlink() { runtime_links+=("$1=$2"); }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION=1.2.3\nOCTESSERA_RUNTIME_BINARY_SHA256='"$runtime_binary_hash"$'\nOCTESSERA_RUNTIME_MANIFEST_SHA256='"$runtime_manifest_hash"$'\nOCTESSERA_RUNTIME_METADATA_SHA256='"$runtime_metadata_hash"
 octessera_inspect_runtime_mode "$profile_metadata" production
-[[ "${runtime_links[*]}" == 'opt/octessera/current=/opt/octessera/releases/1.2.3 usr/local/bin/octessera-pi=/opt/octessera/current/octessera-pi etc/systemd/system/multi-user.target.wants/octessera.service=../octessera.service' ]] || {
+[[ "${runtime_links[*]}" == 'etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket=../octessera-device-apply-reboot.socket opt/octessera/current=/opt/octessera/releases/1.2.3 usr/local/bin/octessera-pi=/opt/octessera/current/octessera-pi etc/systemd/system/multi-user.target.wants/octessera.service=../octessera.service' ]] || {
   echo 'Production inspector did not require the exact symlink chain.' >&2
   exit 1
 }

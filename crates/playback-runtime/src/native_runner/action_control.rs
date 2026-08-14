@@ -175,8 +175,8 @@ impl NativeRunner {
                             RuntimePlatformEffect::Shutdown
                         });
                     Ok(self.platform_effect_for_action(&action_type))
-                } else if action_type == "usb.applyReboot" {
-                    self.show_toast("USB: applying");
+                } else if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
+                    self.show_toast("Audio: applying");
                     Ok(self.platform_effect_for_action(&action_type))
                 } else if action_type == "usb.sdTransferStart" {
                     self.transport.transport = RuntimeTransportState::Stopped;

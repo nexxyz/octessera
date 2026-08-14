@@ -1,11 +1,13 @@
-use super::{open_orange_audio_sink_with_health, AudioSink, OpenedAudioSink, OrangeDacStatus};
-use crate::audio_hotplug::{
-    has_sink, register_sink, remove_sink, replay_to_sink, ReplayCache, SinkSender,
+use super::audio_output_open::open_orange_audio_sink_with_health;
+use super::audio_output_open::OpenedAudioSink;
+use super::{AudioSink, OrangeDacStatus};
+use crate::audio_replay::ReplayCache;
+use crate::audio_route::RouteOpenError;
+use crate::audio_sink_registry::{
+    attach_sink_atomic, has_sink, remove_sink_atomic, AudioAttachGate, SinkSender,
 };
-use crate::audio_stream_health::AudioStreamHealth;
-use std::sync::mpsc::{self, Receiver, Sender};
+use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 const ORANGE_RECOVERY_RETRY_INTERVAL: Duration = Duration::from_millis(50);
@@ -20,7 +22,7 @@ enum OrangeRecoveryMode {
 }
 
 pub(super) type OrangeRecoveryOpener = Arc<
-    dyn Fn(Option<u32>, AudioSink, AudioStreamHealth) -> Result<OpenedAudioSink, String>
+    dyn Fn(Option<u32>, AudioSink, AudioStreamHealth) -> Result<OpenedAudioSink, RouteOpenError>
         + Send
         + Sync,
 >;
@@ -40,8 +42,8 @@ fn system_clock() -> OrangeRecoveryClock {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum OrangeRecoveryAttempt {
     Stable,
-    RecoverableFailure,
-    DeviceNotAvailable,
+    RecoverableDisconnected,
+    TerminalFailure,
 }
 
 #[cfg(test)]
@@ -66,11 +68,11 @@ where
     for attempt_number in 1..=ORANGE_RECOVERY_MAX_ATTEMPTS {
         match attempt(attempt_number) {
             OrangeRecoveryAttempt::Stable => return OrangeRecoveryDecision::Recovered,
-            OrangeRecoveryAttempt::DeviceNotAvailable => {
+            OrangeRecoveryAttempt::TerminalFailure => {
                 health.mark_terminal();
                 return OrangeRecoveryDecision::Terminal;
             }
-            OrangeRecoveryAttempt::RecoverableFailure => {}
+            OrangeRecoveryAttempt::RecoverableDisconnected => {}
         }
     }
     health.mark_terminal();
@@ -85,11 +87,17 @@ pub(super) fn run_bounded_optional_recovery<F>(
 where
     F: FnMut(usize) -> OrangeRecoveryAttempt,
 {
+    if health.is_terminal() {
+        return OrangeRecoveryDecision::Terminal;
+    }
     for attempt_number in 1..=ORANGE_RECOVERY_MAX_ATTEMPTS {
         match attempt(attempt_number) {
             OrangeRecoveryAttempt::Stable => return OrangeRecoveryDecision::Recovered,
-            OrangeRecoveryAttempt::DeviceNotAvailable => return OrangeRecoveryDecision::Retrying,
-            OrangeRecoveryAttempt::RecoverableFailure => {}
+            OrangeRecoveryAttempt::RecoverableDisconnected => {}
+            OrangeRecoveryAttempt::TerminalFailure => {
+                health.mark_terminal();
+                return OrangeRecoveryDecision::Terminal;
+            }
         }
     }
     assert!(!health.is_terminal());
@@ -119,6 +127,7 @@ pub(super) struct OrangeRecoveryController {
     output_buffer_frames: Option<u32>,
     realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
     replay_events: Arc<Mutex<ReplayCache>>,
+    attach_gate: AudioAttachGate,
     opener: OrangeRecoveryOpener,
     clock: OrangeRecoveryClock,
 }
@@ -127,6 +136,7 @@ struct OrangeRecoveryDependencies {
     output_buffer_frames: Option<u32>,
     realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
     replay_events: Arc<Mutex<ReplayCache>>,
+    attach_gate: AudioAttachGate,
     opener: OrangeRecoveryOpener,
     clock: OrangeRecoveryClock,
 }
@@ -136,75 +146,32 @@ impl OrangeRecoveryDependencies {
         output_buffer_frames: Option<u32>,
         realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
         replay_events: Arc<Mutex<ReplayCache>>,
+        attach_gate: AudioAttachGate,
     ) -> Self {
         Self {
             output_buffer_frames,
             realtime_txs,
             replay_events,
+            attach_gate,
             opener: production_opener(),
             clock: system_clock(),
         }
     }
 }
 
-pub(super) struct OrangeRecoveryWorker {
-    stop_tx: Sender<()>,
-    join: Option<JoinHandle<()>>,
-}
-
-impl OrangeRecoveryWorker {
-    pub(super) fn spawn(
-        output_buffer_frames: Option<u32>,
-        realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-        replay_events: Arc<Mutex<ReplayCache>>,
-    ) -> Self {
-        let (stop_tx, stop_rx) = mpsc::channel();
-        let join = thread::Builder::new()
-            .name("orange-uac2-recovery".into())
-            .spawn(move || {
-                let mut controller = OrangeRecoveryController::new_optional_missing(
-                    output_buffer_frames,
-                    realtime_txs,
-                    replay_events,
-                );
-                run_worker(&mut controller, stop_rx);
-            })
-            .expect("Orange UAC2 recovery worker should start");
-        Self {
-            stop_tx,
-            join: Some(join),
-        }
-    }
-}
-
-impl Drop for OrangeRecoveryWorker {
-    fn drop(&mut self) {
-        let _ = self.stop_tx.send(());
-        if let Some(join) = self.join.take() {
-            let _ = join.join();
-        }
-    }
-}
-
-fn run_worker(controller: &mut OrangeRecoveryController, stop_rx: Receiver<()>) {
-    loop {
-        controller.recover_if_due();
-        match stop_rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => return,
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-        }
-    }
-}
-
 impl OrangeRecoveryController {
+    pub(super) fn sink(&self) -> AudioSink {
+        self.sink
+    }
     pub(super) fn new_required(
         initial: OpenedAudioSink,
         output_buffer_frames: Option<u32>,
         realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
         replay_events: Arc<Mutex<ReplayCache>>,
-    ) -> Self {
-        Self::new_with_dependencies(
-            AudioSink::InternalDac,
+        attach_gate: AudioAttachGate,
+    ) -> Result<Self, String> {
+        let controller = Self::new_with_dependencies(
+            AudioSink::Jack,
             OrangeRecoveryMode::Required,
             initial.health.clone(),
             Some(initial),
@@ -213,21 +180,37 @@ impl OrangeRecoveryController {
                 output_buffer_frames,
                 realtime_txs,
                 replay_events,
+                attach_gate,
             ),
-        )
+        );
+        attach_sink_atomic(
+            &controller.attach_gate,
+            &controller.realtime_txs,
+            &controller.replay_events,
+            AudioSink::Jack,
+            controller
+                .current
+                .as_ref()
+                .expect("initial Jack stream")
+                .engine_tx
+                .clone(),
+        )?;
+        Ok(controller)
     }
 
     pub(super) fn new_optional_missing(
+        sink: AudioSink,
         output_buffer_frames: Option<u32>,
         realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
         replay_events: Arc<Mutex<ReplayCache>>,
+        attach_gate: AudioAttachGate,
     ) -> Self {
         let clock = system_clock();
         let now = clock();
         Self::new_with_dependencies(
-            AudioSink::Usb,
+            sink,
             OrangeRecoveryMode::Optional,
-            AudioStreamHealth::optional("UAC2Gadget".into()),
+            AudioStreamHealth::optional(format!("{sink:?}")),
             None,
             OrangeRecoveryPhase::Retrying {
                 attempts: 0,
@@ -237,10 +220,48 @@ impl OrangeRecoveryController {
                 output_buffer_frames,
                 realtime_txs,
                 replay_events,
+                attach_gate,
                 opener: production_opener(),
                 clock,
             },
         )
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn new_optional_initial(
+        sink: AudioSink,
+        initial: OpenedAudioSink,
+        output_buffer_frames: Option<u32>,
+        realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
+        replay_events: Arc<Mutex<ReplayCache>>,
+        attach_gate: AudioAttachGate,
+    ) -> Result<Self, String> {
+        let controller = Self::new_with_dependencies(
+            sink,
+            OrangeRecoveryMode::Optional,
+            initial.health.clone(),
+            Some(initial),
+            OrangeRecoveryPhase::Healthy,
+            OrangeRecoveryDependencies::production(
+                output_buffer_frames,
+                realtime_txs,
+                replay_events,
+                attach_gate,
+            ),
+        );
+        attach_sink_atomic(
+            &controller.attach_gate,
+            &controller.realtime_txs,
+            &controller.replay_events,
+            sink,
+            controller
+                .current
+                .as_ref()
+                .expect("initial optional stream")
+                .engine_tx
+                .clone(),
+        )?;
+        Ok(controller)
     }
 
     fn new_with_dependencies(
@@ -255,6 +276,7 @@ impl OrangeRecoveryController {
             output_buffer_frames,
             realtime_txs,
             replay_events,
+            attach_gate,
             opener,
             clock,
         } = dependencies;
@@ -267,6 +289,7 @@ impl OrangeRecoveryController {
             output_buffer_frames,
             realtime_txs,
             replay_events,
+            attach_gate,
             opener,
             clock,
         }
@@ -274,6 +297,7 @@ impl OrangeRecoveryController {
 
     #[cfg(test)]
     pub(super) fn new_optional_missing_with_dependencies(
+        sink: AudioSink,
         output_buffer_frames: Option<u32>,
         realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
         replay_events: Arc<Mutex<ReplayCache>>,
@@ -282,9 +306,9 @@ impl OrangeRecoveryController {
     ) -> Self {
         let now = clock();
         Self::new_with_dependencies(
-            AudioSink::Usb,
+            sink,
             OrangeRecoveryMode::Optional,
-            AudioStreamHealth::optional("UAC2Gadget".into()),
+            AudioStreamHealth::optional(format!("{sink:?}")),
             None,
             OrangeRecoveryPhase::Retrying {
                 attempts: 0,
@@ -294,6 +318,7 @@ impl OrangeRecoveryController {
                 output_buffer_frames,
                 realtime_txs,
                 replay_events,
+                attach_gate: crate::audio_sink_registry::new_attach_gate(),
                 opener,
                 clock,
             },
@@ -304,9 +329,7 @@ impl OrangeRecoveryController {
         let now = (self.clock)();
         let phase = std::mem::replace(&mut self.phase, OrangeRecoveryPhase::Terminal);
         self.phase = match phase {
-            OrangeRecoveryPhase::Healthy
-                if self.mode == OrangeRecoveryMode::Required && self.health.is_terminal() =>
-            {
+            OrangeRecoveryPhase::Healthy if self.health.status() == AudioStreamStatus::Terminal => {
                 self.detach_current();
                 OrangeRecoveryPhase::Terminal
             }
@@ -320,7 +343,9 @@ impl OrangeRecoveryController {
                     next_attempt_at: now,
                 }
             }
-            OrangeRecoveryPhase::Healthy if self.health.is_faulted() => {
+            OrangeRecoveryPhase::Healthy
+                if self.health.status() == AudioStreamStatus::Recovering =>
+            {
                 self.detach_current();
                 OrangeRecoveryPhase::Retrying {
                     attempts: 0,
@@ -349,9 +374,7 @@ impl OrangeRecoveryController {
     }
 
     pub(super) fn status(&self) -> OrangeDacStatus {
-        if self.mode == OrangeRecoveryMode::Required
-            && (matches!(self.phase, OrangeRecoveryPhase::Terminal) || self.health.is_terminal())
-        {
+        if matches!(self.phase, OrangeRecoveryPhase::Terminal) || self.health.is_terminal() {
             OrangeDacStatus::Terminal
         } else if matches!(self.phase, OrangeRecoveryPhase::Healthy)
             && self.health.status() == OrangeDacStatus::Healthy
@@ -364,7 +387,7 @@ impl OrangeRecoveryController {
 
     fn try_open(&mut self, attempts: usize) -> OrangeRecoveryPhase {
         let attempt = attempts + 1;
-        if self.mode == OrangeRecoveryMode::Required && self.health.is_terminal() {
+        if self.health.status() == AudioStreamStatus::Terminal {
             return OrangeRecoveryPhase::Terminal;
         }
         self.health.clear_recoverable_fault();
@@ -376,6 +399,10 @@ impl OrangeRecoveryController {
                     "Orange {:?} recovery attempt {attempt} failed: {error}",
                     self.sink
                 );
+                if !matches!(error, RouteOpenError::Absent | RouteOpenError::Disconnected) {
+                    self.health.mark_terminal();
+                    return OrangeRecoveryPhase::Terminal;
+                }
                 return self.failed_attempt(attempt);
             }
         };
@@ -393,10 +420,10 @@ impl OrangeRecoveryController {
         stable_until: Instant,
         now: Instant,
     ) -> OrangeRecoveryPhase {
-        if self.mode == OrangeRecoveryMode::Required && self.health.is_terminal() {
+        if self.health.status() == AudioStreamStatus::Terminal {
             return OrangeRecoveryPhase::Terminal;
         }
-        if self.health.is_faulted() {
+        if self.health.status() == AudioStreamStatus::Recovering {
             eprintln!(
                 "Orange {:?} recovery attempt {attempts} remained unstable",
                 self.sink
@@ -411,11 +438,18 @@ impl OrangeRecoveryController {
                 stable_until,
             };
         }
-        if let Err(error) = replay_to_sink(&opened.engine_tx, &self.replay_events) {
+        if let Err(error) = attach_sink_atomic(
+            &self.attach_gate,
+            &self.realtime_txs,
+            &self.replay_events,
+            self.sink,
+            opened.engine_tx.clone(),
+        ) {
             eprintln!("Orange {:?} recovery replay failed: {error}", self.sink);
-            return self.failed_attempt(attempts);
+            self.health.mark_terminal();
+            drop(opened);
+            return OrangeRecoveryPhase::Terminal;
         }
-        register_sink(&self.realtime_txs, self.sink, opened.engine_tx.clone());
         self.current = Some(opened);
         OrangeRecoveryPhase::Healthy
     }
@@ -447,7 +481,7 @@ impl OrangeRecoveryController {
     }
 
     fn detach_current(&mut self) {
-        remove_sink(&self.realtime_txs, self.sink);
+        let _ = remove_sink_atomic(&self.attach_gate, &self.realtime_txs, self.sink);
         drop(self.current.take());
     }
 }

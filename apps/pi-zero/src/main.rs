@@ -3,6 +3,8 @@ mod input;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_candidate;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_device_apply;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod render;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod render_loop;
@@ -17,9 +19,15 @@ mod audio_config_parse;
 #[cfg(feature = "native-audio")]
 mod audio_event;
 #[cfg(feature = "native-audio")]
-mod audio_hotplug;
-#[cfg(feature = "native-audio")]
 mod audio_priority;
+#[cfg(feature = "native-audio")]
+mod audio_recording;
+#[cfg(feature = "native-audio")]
+mod audio_replay;
+#[cfg(feature = "native-audio")]
+mod audio_route;
+#[cfg(feature = "native-audio")]
+mod audio_sink_registry;
 #[cfg(feature = "native-audio")]
 mod audio_stream_health;
 mod boot_oled_handoff;
@@ -40,6 +48,8 @@ mod hardware_init;
 mod hardware_test;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_test_noise;
+#[cfg(feature = "native-audio")]
+mod hdmi_connector;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod host_adapter;
 #[cfg(feature = "native-audio")]
@@ -68,6 +78,8 @@ mod orange_host_adapter;
 mod orange_oled_suspend;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_oled_suspend_policy;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_reboot;
 mod persistence;
 mod platform_service;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
@@ -144,7 +156,7 @@ fn main() {
     }
     if let Err(error) = orange_candidate::run() {
         eprintln!("Orange foreground candidate failed: {error}");
-        std::process::exit(1);
+        std::process::exit(error.exit_code());
     }
 }
 
@@ -202,10 +214,16 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let audio = init_audio(
+    let audio = match init_audio(
         usb_config::audio_output_buffer_frames_from_default_config(&store_dir),
-        usb_config.audio_out,
-    );
+        usb_config.audio_outputs,
+    ) {
+        Ok(audio) => audio,
+        Err(error) => {
+            eprintln!("Audio init failed: {error}");
+            std::process::exit(2);
+        }
+    };
 
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
@@ -222,7 +240,7 @@ fn main() {
         samples_dir,
         midi_handler,
         usb_midi_out_enabled: usb_config.midi_out_enabled,
-        usb_audio_out: usb_config.audio_out,
+        audio_outputs: usb_config.audio_outputs,
         midi_rx,
         input_rx: seesaw_io.input_rx,
         encoder_rx: event_rx,
@@ -291,16 +309,14 @@ fn early_boot_splash_enabled() -> bool {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn init_audio(
     output_buffer_frames: Option<u32>,
-    audio_out: usb_config::UsbAudioOut,
-) -> Option<AudioManager> {
-    match AudioManager::new(output_buffer_frames, audio_out) {
+    audio_outputs: playback_runtime::AudioOutputSet,
+) -> Result<Option<AudioManager>, String> {
+    match AudioManager::new(output_buffer_frames, audio_outputs) {
         Ok(audio) => {
+            audio.service().ensure_route_readiness()?;
             println!("Audio ready");
-            Some(audio)
+            Ok(Some(audio))
         }
-        Err(error) => {
-            println!("Audio init failed: {error} (continuing without audio)");
-            None
-        }
+        Err(error) => Err(error),
     }
 }

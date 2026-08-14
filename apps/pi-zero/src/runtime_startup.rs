@@ -30,7 +30,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         samples_dir,
         midi_handler,
         usb_midi_out_enabled,
-        usb_audio_out,
+        audio_outputs,
         midi_rx,
         input_rx,
         encoder_rx,
@@ -46,7 +46,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         samples_dir,
         midi_handler,
         usb_midi_out_enabled,
-        usb_audio_out,
+        audio_outputs,
     );
     initialize_host_state(&mut playback, &mut runner, &mut adapter)?;
     let message = HostMessage::TransportPulseStep {

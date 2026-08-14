@@ -46,11 +46,28 @@ a local runtime binary for the verified production image.
 The production image also has a separate interactive `octessera` admin/setup
 user. The service never runs as that user. Production supports the OLED,
 NeoTrellis, NeoKey, four encoders, persistent store, samples, MIDI, and the
-internal DAC. Readiness follows three checks: required audio is healthy, the
-control surface initializes, and the first runtime frame renders. USB-only
-audio is unsupported; the internal DAC at
-`hw:CARD=octesseradac,DEV=0` is required. USB UAC2 may be added as a companion,
-but `audioOut=usb` is rejected.
+selected exact audio routes. Every non-empty Jack/USB/HDMI output set is valid.
+Jack is required only when selected; recognized disconnected selected USB or
+HDMI routes may wait and recover; a selected route fault blocks readiness, and
+no route is a fallback. Readiness follows three checks: every selected required
+route is healthy or in its recognized waiting state, the control surface
+initializes, and the first runtime frame renders. A selected Jack route uses
+`hw:CARD=octesseradac,DEV=0`; selected USB UAC2 and HDMI routes may wait for
+their exact endpoints and recover when they return. The native menu persists
+Jack Audio, USB Audio, and HDMI Audio independently. Simultaneous physical
+outputs use independent unsynchronized clocks and can drift or echo; this phase
+does not provide sample alignment. The observed Orange HDMI connector path is
+`/sys/class/drm/card0-HDMI-A-1`. Raspberry has a separate fixed connector
+contract: the live Pi Zero 2 W observation on kernel `6.12.93+rpt-rpi-v8` uses
+`/sys/class/drm/card0-HDMI-A-1/{status,edid}`. Neither observation claims
+connected HDMI audio or audible qualification.
+
+On boot, the Orange image reads the saved default from
+`/var/lib/octessera/presets/default.json`. USB Audio exposes the fixed stereo
+UAC2 gadget, and USB MIDI exposes the fixed MIDI gadget; either, both, or
+neither may be enabled. HDMI and Jack do not change gadget composition. Save
+the setting and use the confirmed device apply action; the image accepts only
+its narrow reboot request after validating the saved file.
 
 The Orange runtime gets three attempts in a 30-second systemd start-limit
 window: the initial start plus two retries. If it reaches `start-limit-hit`,
@@ -164,7 +181,9 @@ The staged samples come from the [Stargate sample pack](https://github.com/starg
 The production image includes an Orange service for optional UAC2 playback plus
 MIDI through the verified `musb-hdrc.4.auto` controller. It refuses to bind
 another UDC or to disturb an existing gadget. UAC2 is configured for 44.1 kHz
-stereo playback, but it is not a replacement for the required internal DAC.
+stereo playback. If Jack is selected, the exact Jack route remains required;
+USB-only and HDMI-only selections do not use it as a hidden fallback. Raspberry
+uses its separate exact card0 connector path and does not fall back to card1.
 Setup and teardown use one exclusive lifecycle lock, so a concurrent lifecycle
 call fails without changing the gadget.
 The USB product is `Octessera Audio + MIDI` for the combined service,
@@ -200,8 +219,9 @@ Initramfs runs one bounded foreground sweep and fully reaps it. Early userspace
 then loops the sweep until the native runtime requests release. Native startup
 waits for the exclusive `/run/octessera-boot` OLED lock, adopts the display
 without resetting it, and stops the animation just before an acknowledged
-first normal menu frame. Orange first-menu readiness also waits for healthy
-internal DAC status; a queued frame is not enough.
+first normal menu frame. Orange first-menu readiness follows the selected-route
+rules above; a selected fault blocks readiness, while a recognized disconnected
+selected USB or HDMI route may wait. A queued frame is not enough.
 
 The menu's `OLED Sleep` setting is a UI display-sleep feature; it does not
 sleep Linux or hand the OLED to another process. Linux suspend uses a separate
@@ -237,18 +257,17 @@ runtime service.
   and recovery path. Keep the image identity and board revision in your notes.
 - Confirm the expected I2C and `/dev/spidev1.0` devices, the Orange gpiochip
   ownership, and at least one UDC in `/sys/class/udc`.
-- Confirm `aplay -l` exposes the internal DAC as
+- If Jack is selected, confirm `aplay -l` exposes it as
   `hw:CARD=octesseradac,DEV=0`; do not count HDMI or an implicit default device.
 - Confirm the production runtime and Orange USB gadget service report their
   expected status before connecting a host computer.
 
 ### Active checks: controlled hardware actions
 
-- Run a short playback through the exact internal DAC, listen for dropouts, and
+- Run a short playback through each selected exact route, listen for dropouts, and
   inspect the available audio and service logs. This can reveal audible or
   logged trouble, but it does not prove zero internally recovered ALSA
-  `EPIPE`/xrun events. USB audio may be a companion, not a replacement for this
-  check.
+  `EPIPE`/xrun events.
 - With the runtime running, exercise the OLED, the four NeoTrellis boards, the
   NeoKey, and all four encoders. Use the native System diagnostics where
   available; do not substitute Raspberry GPIO numbers or overlays.
@@ -265,7 +284,7 @@ runtime service.
   blank or flickering.
 - All 64 grid cells respond, all four NeoKey switches respond, and each encoder
   turns and clicks reliably.
-- Sound comes from the internal DAC without an audible dropout, and available
+- Sound comes from each selected route without an audible dropout, and available
   audio/service logs are inspected. This does not prove zero internally
   recovered ALSA `EPIPE`/xrun events. The host sees the expected MIDI/USB
   functions without a storage function appearing.

@@ -189,17 +189,17 @@ fn orange_runner_midi_events_do_not_latch_midi_error_when_disabled() {
 }
 
 #[test]
-fn required_internal_dac_fault_terminates_orange_runtime() {
+fn required_jack_fault_terminates_orange_runtime() {
     let error = super::ensure_required_audio_health(
         crate::audio_stream_health::AudioStreamStatus::Terminal,
     )
     .unwrap_err();
 
-    assert_eq!(error, "Orange internal DAC audio stream faulted");
+    assert_eq!(error, "Orange Jack audio stream faulted");
 }
 
 #[test]
-fn recoverable_internal_dac_fault_keeps_runtime_alive_for_recovery() {
+fn recoverable_jack_fault_keeps_runtime_alive_for_recovery() {
     assert!(super::ensure_required_audio_health(
         crate::audio_stream_health::AudioStreamStatus::Recovering,
     )

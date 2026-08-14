@@ -2,6 +2,7 @@ use super::super::{
     array_field, bool_field, enum_field, enum_value, number_value, object_field, object_value,
     signed_field, string_field, unsigned_field, Value,
 };
+use crate::AudioOutputSet;
 use platform_core::{BUS_COUNT, INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
 use serde_json::Map;
 
@@ -373,60 +374,14 @@ pub(super) fn validate_usb(runtime: &Map<String, Value>) -> Result<(), String> {
     let Some(usb) = object_field(runtime, "usb", "runtimeConfig")? else {
         return Ok(());
     };
-    enum_field(
-        usb,
-        "audioOut",
-        "runtimeConfig.usb",
-        &["jack", "usb", "both"],
-    )?;
-    bool_field(usb, "midiOutEnabled", "runtimeConfig.usb")
+    if usb.contains_key("midiOutEnabled") {
+        bool_field(usb, "midiOutEnabled", "runtimeConfig.usb")?;
+    }
+    Ok(())
 }
 
 pub(super) fn validate_audio_outputs(runtime: &Map<String, Value>) -> Result<(), String> {
-    let Some(audio_outputs) = object_field(runtime, "audioOutputs", "runtimeConfig")? else {
-        return Ok(());
-    };
-    let path = "runtimeConfig.audioOutputs";
-    if audio_outputs.len() != 3
-        || ["dac", "usb", "hdmi"]
-            .iter()
-            .any(|key| !audio_outputs.contains_key(*key))
-    {
-        return Err(format!(
-            "{path} must contain exactly boolean dac, usb, and hdmi fields"
-        ));
-    }
-    for key in ["dac", "usb", "hdmi"] {
-        bool_field(audio_outputs, key, path)?;
-    }
-    if audio_outputs["hdmi"].as_bool() == Some(true) {
-        return Err(format!("{path}.hdmi=true is unsupported by this device"));
-    }
-    let dac = audio_outputs["dac"]
-        .as_bool()
-        .expect("validated DAC boolean");
-    let usb = audio_outputs["usb"]
-        .as_bool()
-        .expect("validated USB boolean");
-    if !dac && !usb {
-        return Err(format!("{path} must enable DAC or USB audio"));
-    }
-    let canonical_state = (dac, usb);
-    if let Some(usb) = object_field(runtime, "usb", "runtimeConfig")? {
-        if let Some(legacy) = usb.get("audioOut").and_then(Value::as_str) {
-            let legacy_state = match legacy {
-                "jack" => Some((true, false)),
-                "usb" => Some((false, true)),
-                "both" => Some((true, true)),
-                _ => None,
-            };
-            if legacy_state.is_some_and(|state| state != canonical_state) {
-                return Err(
-                    "runtimeConfig.audioOutputs and runtimeConfig.usb.audioOut disagree".into(),
-                );
-            }
-        }
-    }
+    AudioOutputSet::decode_runtime_fields(runtime)?;
     Ok(())
 }
 

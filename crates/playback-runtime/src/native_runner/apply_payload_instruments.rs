@@ -3,7 +3,7 @@ use crate::protocol::RuntimePlatformEffect;
 use super::apply_payload_instrument_values::*;
 use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
-use super::{velocity_curve_from_id, NativeRunner, SyncSource, Value};
+use super::{velocity_curve_from_id, AudioOutputSet, NativeRunner, SyncSource, Value};
 
 impl NativeRunner {
     pub(super) fn apply_instruments_payload(&mut self, runtime: &Value) {
@@ -222,13 +222,10 @@ impl NativeRunner {
     }
 
     fn apply_usb_payload(&mut self, runtime: &Value) {
-        let canonical_audio_out = canonical_audio_out(runtime);
-        let legacy_audio_out = runtime
-            .get("usb")
-            .and_then(|usb| usb.get("audioOut"))
-            .and_then(Value::as_str);
-        if let Some(audio_out) = legacy_audio_out.or(canonical_audio_out) {
-            self.usb_audio_out = super::normalize_usb_audio_out(audio_out).into();
+        if let Some(audio_outputs) = runtime.get("audioOutputs") {
+            if let Ok(audio_outputs) = AudioOutputSet::decode(audio_outputs) {
+                self.audio_outputs = audio_outputs;
+            }
         }
         if let Some(enabled) = runtime
             .get("usb")
@@ -302,19 +299,4 @@ impl NativeRunner {
                 },
             });
     }
-}
-
-fn canonical_audio_out(runtime: &Value) -> Option<&'static str> {
-    let outputs = runtime.get("audioOutputs")?.as_object()?;
-    let dac = outputs.get("dac")?.as_bool()?;
-    let usb = outputs.get("usb")?.as_bool()?;
-    if outputs.get("hdmi")?.as_bool()? || (!dac && !usb) {
-        return None;
-    }
-    Some(match (dac, usb) {
-        (true, false) => "jack",
-        (false, true) => "usb",
-        (true, true) => "both",
-        (false, false) => return None,
-    })
 }

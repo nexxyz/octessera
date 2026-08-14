@@ -220,6 +220,7 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
             || key.starts_with("midi")
             || key.starts_with("hdmi.")
             || key.starts_with("usb.")
+            || key.starts_with("audioOutputs.")
             || key.starts_with("recording.")
             || key.starts_with("screen")
             || key.ends_with("Brightness")

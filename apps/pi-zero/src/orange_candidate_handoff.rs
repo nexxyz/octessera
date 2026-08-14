@@ -6,7 +6,7 @@ pub(crate) fn run(
     midi_rx: Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     mut candidate_readiness: CandidateReadiness,
-) -> Result<(), String> {
+) -> Result<(), OrangeRunError> {
     let devices = ORANGE_PI_ZERO_2W_DEVICES;
     let trellis = NeoTrellis::new_with_mode(
         devices.i2c.path,
@@ -29,14 +29,14 @@ pub(crate) fn run(
         Ok(prepared) => prepared,
         Err(error) => {
             let _ = seesaw.shutdown();
-            return Err(format!("Orange runtime preparation failed: {error}"));
+            return Err(format!("Orange runtime preparation failed: {error}").into());
         }
     };
     let handoff = match crate::boot_oled_handoff::native_attach() {
         Ok(handoff) => handoff,
         Err(error) => {
             let _ = seesaw.shutdown();
-            return Err(format!("Orange OLED boot handoff attach failed: {error}"));
+            return Err(format!("Orange OLED boot handoff attach failed: {error}").into());
         }
     };
     let oled = match OledSsd1351::adopt_existing() {
@@ -44,7 +44,7 @@ pub(crate) fn run(
         Err(error) => {
             handoff.mark_failed();
             let _ = seesaw.shutdown();
-            return Err(format!("Orange OLED adoption failed: {error}"));
+            return Err(format!("Orange OLED adoption failed: {error}").into());
         }
     };
     let render = RenderWorker::spawn(HardwareRenderTargets {
@@ -57,13 +57,13 @@ pub(crate) fn run(
         let _ = render.mark_oled_failed();
         let _ = render.abort();
         let _ = seesaw.shutdown();
-        return Err(format!("Orange initial OLED render failed: {error}"));
+        return Err(format!("Orange initial OLED render failed: {error}").into());
     }
     if let Err(error) = render.mark_first_menu_rendered() {
         let _ = render.mark_oled_failed();
         let _ = render.abort();
         let _ = seesaw.shutdown();
-        return Err(format!("Orange OLED handoff status failed: {error}"));
+        return Err(format!("Orange OLED handoff status failed: {error}").into());
     }
     let suspend =
         match crate::orange_oled_suspend::OrangeOledSuspendCoordinator::spawn(render.clone()) {
@@ -71,7 +71,7 @@ pub(crate) fn run(
             Err(error) => {
                 let _ = render.abort();
                 let _ = seesaw.shutdown();
-                return Err(format!("Orange OLED suspend coordinator failed: {error}"));
+                return Err(format!("Orange OLED suspend coordinator failed: {error}").into());
             }
         };
     let result = run_prepared_runtime(
@@ -85,10 +85,24 @@ pub(crate) fn run(
         true,
     );
     let suspend_result = suspend.shutdown();
-    let render_result = render_shutdown(&render);
+    let render_result = render.publish_shutdown();
     let seesaw_result = seesaw.shutdown();
-    result
-        .and(suspend_result)
-        .and(render_result)
-        .and(seesaw_result)
+    let result = result
+        .and_then(|resolution| {
+            suspend_result
+                .map(|_| resolution)
+                .map_err(OrangeRunError::from)
+        })
+        .and_then(|resolution| {
+            render_result
+                .map(|_| resolution)
+                .map_err(OrangeRunError::from)
+        })
+        .and_then(|resolution| {
+            seesaw_result
+                .map(|_| resolution)
+                .map_err(OrangeRunError::from)
+        });
+    drop(audio);
+    result.and_then(crate::orange_device_apply::finish_shutdown_resolution)
 }

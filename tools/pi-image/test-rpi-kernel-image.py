@@ -277,11 +277,22 @@ def _main() -> int:
             image / "etc/systemd/system/octessera-boot-splash.service",
             image / "etc/systemd/system/octessera.service",
             image / "etc/profile.d/octessera-welcome.sh",
+            image / "usr/local/sbin/octessera-usb-gadget",
         ):
             source = HERE / "stage4-octessera/files/root" / path.relative_to(image)
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, path)
-            os.chmod(path, 0o755 if "initramfs" in str(path) else 0o644)
+            os.chmod(path, 0o755 if "initramfs" in str(path) or path.name == "octessera-usb-gadget" else 0o644)
+        default_config = image / "home/pi/presets/default.json"
+        default_config.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(HERE.parents[1] / "config/generated/pi/default.json", default_config)
+        os.chmod(default_config, 0o644)
+        os.chown(default_config, 1000, 1000)  # type: ignore[attr-defined]
+        validator_path = image / "usr/local/lib/octessera/device_config.py"
+        validator_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(HERE / "stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", validator_path)
+        os.chmod(validator_path, 0o644)
+        os.chown(validator_path, 0, 0)  # type: ignore[attr-defined]
         hushlogin = image / "home/pi/.hushlogin"
         hushlogin.parent.mkdir(parents=True, exist_ok=True)
         hushlogin.write_bytes(b"")
@@ -327,6 +338,24 @@ def _main() -> int:
             PROOF._run_lsinitramfs = original_lsinitramfs
         if proved is not None:
             assert proved["package"]["sha256"] == inventory["package"]["sha256"]
+            assert proved["boot_layer"]["device_config_validator"]["size"] == validator_path.stat().st_size
+            composer_path = image / "usr/local/sbin/octessera-usb-gadget"
+            assert proved["boot_layer"]["usb_gadget_composer"]["size"] == composer_path.stat().st_size
+            validator_bytes = validator_path.read_bytes()
+            validator_path.write_bytes(bytes([validator_bytes[0] ^ 1]) + validator_bytes[1:])
+            _expect("stale installed device config validator", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
+            validator_path.write_bytes(validator_bytes[:-1])
+            _expect("short installed device config validator", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
+            validator_path.write_bytes(validator_bytes)
+            composer_bytes = composer_path.read_bytes()
+            composer_path.write_bytes(bytes([composer_bytes[0] ^ 1]) + composer_bytes[1:])
+            _expect("stale installed USB gadget composer", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
+            composer_path.write_bytes(composer_bytes[:-1])
+            _expect("short installed USB gadget composer", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
+            composer_path.write_bytes(composer_bytes)
+            os.chmod(composer_path, 0o644)
+            _expect("wrong mode installed USB gadget composer", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
+            os.chmod(composer_path, 0o755)
         PROOF._verify_payload(image, boot, package, inventory)
         stock_manifest_path = boot / "octessera/recovery-stock/manifest.json"
         stock_manifest_content = stock_manifest_path.read_text(encoding="utf-8")

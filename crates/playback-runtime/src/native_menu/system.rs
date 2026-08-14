@@ -33,13 +33,14 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ],
             ),
             group(
-                "USB",
+                "Audio & USB",
                 vec![
-                    enum_item(
-                        "Audio Out",
-                        "usb.audioOut",
-                        vec!["jack", "usb", "both"],
-                        selected_index(&["jack", "usb", "both"], &config.usb_audio_out),
+                    bool_item("Jack Audio", "audioOutputs.dac", config.audio_outputs.dac()),
+                    bool_item("USB Audio", "audioOutputs.usb", config.audio_outputs.usb()),
+                    bool_item(
+                        "HDMI Audio",
+                        "audioOutputs.hdmi",
+                        config.audio_outputs.hdmi(),
                     ),
                     bool_item(
                         "MIDI Out",
@@ -48,8 +49,8 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     ),
                     action_item(
                         "Save & Reboot",
-                        "usb.applyReboot",
-                        NativeMenuAction::PlatformEffect("usb.applyReboot".into()),
+                        "audio.applyReboot",
+                        NativeMenuAction::PlatformEffect("audio.applyReboot".into()),
                     ),
                     action_item(
                         "Start SD2 Xfer",

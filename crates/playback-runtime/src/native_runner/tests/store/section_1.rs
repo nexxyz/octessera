@@ -97,7 +97,7 @@ pub(crate) fn load_default_result_applies_native_config_payload() {
 pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 44;
-    runner.usb_audio_out = "uac2".into();
+    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi_enabled = true;
     runner.audio_output_buffer_frames = 512;
 
@@ -111,7 +111,10 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     assert!(patch["runtimeConfig"]["auxBindings"].is_object());
 
     let device = runner.device_config_payload();
-    assert_eq!(device["runtimeConfig"]["usb"]["audioOut"], "uac2");
+    assert_eq!(
+        device["runtimeConfig"]["audioOutputs"],
+        json!({ "dac": true, "usb": true, "hdmi": false })
+    );
     assert_eq!(device["runtimeConfig"]["midi"]["enabled"], true);
     assert_eq!(device["runtimeConfig"]["displayBrightness"], 44);
     assert_eq!(
@@ -124,7 +127,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
 pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 22;
-    runner.usb_audio_out = "both".into();
+    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi_enabled = false;
     runner.audio_output_buffer_frames = 256;
 
@@ -137,7 +140,7 @@ pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
                         "activeBehavior": "sequencer",
                         "layers": [{ "worlds": { "behaviorId": "sequencer" } }],
                         "displayBrightness": 88,
-                        "usb": { "audioOut": "uac2", "midiOutEnabled": true },
+                        "usb": { "midiOutEnabled": true },
                         "midi": { "enabled": true },
                         "sound": { "audioOutputBufferFrames": 1024 }
                     }
@@ -148,7 +151,10 @@ pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
 
     assert_eq!(runner.behavior.id(), "sequencer");
     assert_eq!(runner.display.ui.display_brightness, 22);
-    assert_eq!(runner.usb_audio_out, "both");
+    assert_eq!(
+        runner.audio_outputs,
+        AudioOutputSet::from_flags(true, true, false).unwrap()
+    );
     assert!(!runner.midi_enabled);
     assert_eq!(runner.audio_output_buffer_frames, 256);
 }

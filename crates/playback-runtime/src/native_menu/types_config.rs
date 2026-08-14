@@ -1,3 +1,4 @@
+use crate::native_runner::AudioOutputSet;
 use crate::protocol::SyncSource;
 
 use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
@@ -79,7 +80,7 @@ pub struct NativeMenuConfig {
     pub midi_clock_out_enabled: bool,
     pub midi_clock_in_enabled: bool,
     pub midi_respond_to_start_stop: bool,
-    pub usb_audio_out: String,
+    pub audio_outputs: AudioOutputSet,
     pub usb_midi_out_enabled: bool,
     pub recording_max_minutes: u16,
     pub hdmi_mode: String,

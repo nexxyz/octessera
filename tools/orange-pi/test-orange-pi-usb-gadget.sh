@@ -185,13 +185,14 @@ run_setup_command() {
     root=$1
     mode=$2
     shift 2
+    config=$TEST_ROOT/config-$mode.json
     env FAKE_GADGET="$root/config/usb_gadget/octessera-orange-pi" \
         FAKE_UDC_FUNCTION="$root/udc/musb-hdrc.4.auto/function" \
         FAKE_MIDI="$root/config/usb_gadget/octessera-orange-pi/functions/midi.usb0" \
         FAKE_UAC2="$root/config/usb_gadget/octessera-orange-pi/functions/uac2.usb0" \
-        FAKE_BIND_ORDER=1 PATH="$FAKE_BIN:$PATH" "$@" sh "$SCRIPT" setup \
+        FAKE_BIND_ORDER=1 OCTESSERA_DEVICE_CONFIG_VALIDATOR="$SCRIPT_DIR/../pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" PATH="$FAKE_BIN:$PATH" "$@" sh "$SCRIPT" setup \
         --configfs-root "$root/config" --udc-root "$root/udc" \
-        --lock-file "$root/lifecycle.lock" --mode "$mode"
+        --lock-file "$root/lifecycle.lock" --config "$config"
 }
 run_setup() { run_setup_command "$1" "$2"; }
 run_setup_default() {
@@ -200,9 +201,9 @@ run_setup_default() {
         FAKE_UDC_FUNCTION="$root/udc/musb-hdrc.4.auto/function" \
         FAKE_MIDI="$root/config/usb_gadget/octessera-orange-pi/functions/midi.usb0" \
         FAKE_UAC2="$root/config/usb_gadget/octessera-orange-pi/functions/uac2.usb0" \
-        FAKE_BIND_ORDER=1 PATH="$FAKE_BIN:$PATH" sh "$SCRIPT" setup \
+        FAKE_BIND_ORDER=1 OCTESSERA_DEVICE_CONFIG_VALIDATOR="$SCRIPT_DIR/../pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" PATH="$FAKE_BIN:$PATH" sh "$SCRIPT" setup \
         --configfs-root "$root/config" --udc-root "$root/udc" \
-        --lock-file "$root/lifecycle.lock"
+        --lock-file "$root/lifecycle.lock" --config "$TEST_ROOT/config-combined.json"
 }
 run_setup_id_only() { run_setup_command "$1" midi FAKE_MIDI_ID_ONLY=1; }
 run_setup_write_failure() { run_setup_command "$1" midi FAKE_MIDI_WRITE_FAILURE=1; }
@@ -242,6 +243,13 @@ for script in "$CANONICAL_SCRIPT" "$DEPLOYED_SCRIPT"; do
         suite=deployed
     fi
     SUITE_ROOT=$TEST_ROOT/$suite
+    printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":true},"usb":{"midiOutEnabled":true}}}' > "$TEST_ROOT/config-midi.json"
+    printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false}}}' > "$TEST_ROOT/config-uac2.json"
+    printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":true}}}' > "$TEST_ROOT/config-combined.json"
+    printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false}}}' > "$TEST_ROOT/config-none.json"
+    printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":true}}}' > "$TEST_ROOT/config-invalid.json"
+    printf '%s\n' '{' > "$TEST_ROOT/config-malformed.json"
+    printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"audioOut":"usb"}}}' > "$TEST_ROOT/config-conflict.json"
     for mode in midi uac2 combined; do
     root=$SUITE_ROOT/$mode
     new_fake_configfs "$root"
@@ -325,15 +333,21 @@ for script in "$CANONICAL_SCRIPT" "$DEPLOYED_SCRIPT"; do
     gadget=$root/config/usb_gadget/octessera-orange-pi
     test -d "$gadget" && test -d "$gadget/configs/c.1" && test -L "$gadget/configs/c.1/midi.usb0"
     grep -F -q musb-hdrc.4.auto "$gadget/UDC"
-root=$SUITE_ROOT/default-mode
+root=$SUITE_ROOT/no-gadget
 new_fake_configfs "$root"
-run_setup_default "$root" > "$root/setup.log"
-gadget=$root/config/usb_gadget/octessera-orange-pi
-test -L "$gadget/configs/c.1/uac2.usb0"
-test -L "$gadget/configs/c.1/midi.usb0"
-assert_file_value 'Octessera Audio + MIDI' "$gadget/strings/0x409/product"
-run_teardown "$root" > "$root/teardown.log"
-test ! -e "$gadget"
+run_setup_command "$root" none > "$root/setup.log"
+test ! -e "$root/config/usb_gadget/octessera-orange-pi"
+root=$SUITE_ROOT/invalid-config
+new_fake_configfs "$root"
+assert_failed run_setup_command "$root" invalid
+root=$SUITE_ROOT/malformed-config
+new_fake_configfs "$root"
+cp "$TEST_ROOT/config-malformed.json" "$TEST_ROOT/config-invalid.json"
+assert_failed run_setup_command "$root" invalid
+root=$SUITE_ROOT/conflict-config
+new_fake_configfs "$root"
+cp "$TEST_ROOT/config-conflict.json" "$TEST_ROOT/config-invalid.json"
+assert_failed run_setup_command "$root" invalid
 root=$SUITE_ROOT/pre-bind-failure
 new_fake_configfs "$root"
 unbind_marker="$root/unbind-attempted"

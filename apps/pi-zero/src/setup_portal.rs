@@ -10,7 +10,9 @@ use playback_runtime::{
 };
 pub(crate) use protocol::SetupPortalEnvironment;
 use protocol::{make_request_token, valid_boot_id, ValidatedStatusEnvelope};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
+#[cfg(test)]
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
 const RECEIPT_TIMEOUT_MS: u64 = 10_000;
@@ -114,6 +116,7 @@ impl SetupPortalService {
             .unwrap_or(false)
     }
 
+    #[cfg(test)]
     pub(crate) fn has_buffered_result(&self) -> bool {
         self.state
             .lock()
@@ -121,6 +124,7 @@ impl SetupPortalService {
             .unwrap_or(false)
     }
 
+    #[cfg(test)]
     pub(crate) fn take_buffered_result(&self) -> Option<HostMessage> {
         self.state
             .lock()
@@ -128,6 +132,7 @@ impl SetupPortalService {
             .and_then(|mut state| state.buffered_results.pop_front())
     }
 
+    #[cfg(test)]
     pub(crate) fn buffer_result(&self, result: HostMessage) {
         if let Ok(mut state) = self.state.lock() {
             state.buffered_results.push_back(result);
@@ -366,6 +371,7 @@ impl SetupPortalService {
 struct PortalState {
     pending: BTreeMap<String, PendingRequest>,
     cursor: Option<String>,
+    #[cfg(test)]
     buffered_results: VecDeque<HostMessage>,
 }
 

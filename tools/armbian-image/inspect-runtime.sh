@@ -287,6 +287,7 @@ octessera_require_runtime_service() {
     'Nice=-10' \
     'ExecStart=/usr/local/bin/octessera-pi' \
     'Restart=on-failure' \
+    'RestartPreventExitStatus=78' \
     'RestartSec=5s'; do
     printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
   done
@@ -338,6 +339,59 @@ octessera_require_orange_boot_service() {
   ! printf '%s\n' "$service_content" | grep -q '^Conflicts=' || { echo 'Orange boot service conflicts with runtime.' >&2; exit 1; }
   require_root_mode etc/systemd/system/octessera-orange-boot-splash.service 644
   octessera_require_image_symlink etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service ../octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service
+}
+
+octessera_require_device_apply_lane() {
+  local socket_content
+  local service_content
+  local helper_content
+  socket_content="$(read_file etc/systemd/system/octessera-device-apply-reboot.socket)"
+  service_content="$(read_file etc/systemd/system/octessera-device-apply-reboot@.service)"
+  helper_content="$(read_file usr/local/sbin/octessera-device-apply-reboot)"
+  for line in \
+    'ListenStream=/run/octessera-device-apply/reboot.sock' \
+    'SocketMode=0660' \
+    'SocketUser=root' \
+    'SocketGroup=octessera-runtime' \
+    'Accept=yes'; do
+    printf '%s\n' "$socket_content" | grep -qFx "$line" || { echo "Orange apply socket is missing: $line" >&2; exit 1; }
+  done
+  for line in \
+    'User=root' \
+    'Group=root' \
+    'StandardInput=socket' \
+    'StandardOutput=socket' \
+    'ExecStart=/usr/local/sbin/octessera-device-apply-reboot' \
+    'NoNewPrivileges=yes' \
+    'ProtectSystem=strict' \
+    'ProtectHome=yes' \
+    'RestrictAddressFamilies=AF_UNIX'; do
+    printf '%s\n' "$service_content" | grep -qFx "$line" || { echo "Orange apply service is missing: $line" >&2; exit 1; }
+  done
+  if printf '%s\n' "$service_content" | grep -qF 'systemctl'; then
+    echo "Orange apply service must not embed arbitrary systemctl commands." >&2
+    exit 1
+  fi
+  for line in \
+    'SYSTEMCTL_PATH = "/usr/bin/systemctl"' \
+    'REQUEST = b"reboot\n"' \
+    'ACCEPTED = b"accepted\n"' \
+    'REJECTED = b"rejected\n"' \
+    'subprocess.run([SYSTEMCTL_PATH, "reboot"], check=True)' \
+    'output_stream.write(ACCEPTED)' \
+    'output_stream.write(REJECTED)'; do
+    printf '%s\n' "$helper_content" | grep -qF "$line" || { echo "Orange apply helper is missing: $line" >&2; exit 1; }
+  done
+  if printf '%s\n' "$helper_content" | grep -Eq 'os\.system|shell=True|subprocess\.Popen|subprocess\.call'; then
+    echo 'Orange apply helper contains an unapproved command broker path.' >&2
+    exit 1
+  fi
+}
+
+octessera_require_device_config_assets() {
+  require_root_mode usr/local/lib/octessera/device_config.py 644
+  require_root_mode usr/local/sbin/octessera-device-apply-reboot 755
+  require_root_mode usr/share/octessera/defaults/pi-default.json 644
 }
 
 octessera_require_orange_shutdown_service() {
@@ -414,6 +468,9 @@ octessera_inspect_runtime_mode() {
   octessera_require_orange_boot_service
   octessera_require_orange_shutdown_service
   octessera_require_orange_suspend_service
+  octessera_require_device_apply_lane
+  octessera_require_device_config_assets
+  octessera_require_image_symlink etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket ../octessera-device-apply-reboot.socket /etc/systemd/system/octessera-device-apply-reboot.socket
   case "$image_mode:$runtime_default" in
     diagnostic:false)
       octessera_require_image_contract diagnostic

@@ -369,6 +369,8 @@ octessera_inspect_runtime_mode "$profile_metadata" "$expected_image_mode"
 
 for path in \
   usr/local/sbin/octessera-orange-usb-gadget \
+  usr/local/lib/octessera/device_config.py \
+  usr/local/sbin/octessera-device-apply-reboot \
   usr/local/sbin/octessera-orange-oled-logo \
   usr/local/sbin/octessera-orange-oled-handoff.py \
   usr/local/sbin/octessera-orange-oled-lifecycle.py \
@@ -377,6 +379,9 @@ for path in \
   etc/modules-load.d/octessera-orange-midi.conf \
   etc/modules-load.d/octessera-orange-usb-gadget.conf \
   etc/systemd/system/octessera-orange-usb-gadget.service \
+  etc/systemd/system/octessera-device-apply-reboot.socket \
+  etc/systemd/system/octessera-device-apply-reboot@.service \
+  etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket \
   etc/systemd/system/octessera-orange-boot-splash.service \
   etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service \
   etc/systemd/system/octessera-orange-oled-shutdown.service \
@@ -392,6 +397,8 @@ for path in \
   stat_path "$path" || { echo "Missing Orange OS parity path: $path." >&2; exit 1; }
 done
 require_root_mode usr/local/sbin/octessera-orange-usb-gadget 755
+require_root_mode usr/local/lib/octessera/device_config.py 644
+require_root_mode usr/local/sbin/octessera-device-apply-reboot 755
 require_root_mode usr/local/sbin/octessera-orange-oled-logo 755
 require_root_mode usr/local/sbin/octessera-orange-oled-handoff.py 644
 require_root_mode usr/local/sbin/octessera-orange-oled-lifecycle.py 644
@@ -400,6 +407,9 @@ require_root_mode usr/local/sbin/octessera-provision-musical-default 755
 require_root_mode etc/modules-load.d/octessera-orange-midi.conf 644
 require_root_mode etc/modules-load.d/octessera-orange-usb-gadget.conf 644
 require_root_mode etc/systemd/system/octessera-orange-usb-gadget.service 644
+require_root_mode etc/systemd/system/octessera-device-apply-reboot.socket 644
+require_root_mode etc/systemd/system/octessera-device-apply-reboot@.service 644
+octessera_require_image_symlink etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket ../octessera-device-apply-reboot.socket /etc/systemd/system/octessera-device-apply-reboot.socket
 require_root_mode etc/systemd/system/octessera-orange-boot-splash.service 644
 octessera_require_image_symlink etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service ../octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service
 require_root_mode etc/systemd/system/octessera-orange-oled-shutdown.service 644

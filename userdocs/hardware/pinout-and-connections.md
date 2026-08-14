@@ -40,7 +40,12 @@ Raspberry build only.
 
 ## USB Audio and MIDI
 
-The Raspberry image exposes USB audio and MIDI through the Pi data port. Audio-only, MIDI-only, and combined modes keep the existing product names: `Octessera Line In`, `Octessera MIDI`, and `Octessera Audio + MIDI`.
+The Raspberry image reads `/home/pi/presets/default.json` and exposes USB
+audio when `runtimeConfig.audioOutputs.usb` is true and MIDI when
+`runtimeConfig.usb.midiOutEnabled` is true. The valid compositions are no
+gadget, audio-only, MIDI-only, and combined; HDMI and Jack do not alter gadget
+composition. Audio-only, MIDI-only, and combined modes keep the product names:
+`Octessera Line In`, `Octessera MIDI`, and `Octessera Audio + MIDI`.
 
 MIDI and combined modes require the image's ConfigFS MIDI function to provide an `interface_string` attribute. The gadget setup writes exactly `Octessera MIDI` (14 bytes, with no trailing newline), checks the size and byte-for-byte readback, and binds the USB device only after those checks pass. If the attribute is missing or cannot be written, read back, or bound, setup fails closed, attempts cleanup, and reports cleanup failure instead of presenting the kernel's generic `MIDI function` label.
 
@@ -149,4 +154,4 @@ board and image before the shared PCB/harness is treated as qualified:
   fit checks.
 
 If any of those checks is unclear, stop. The Raspberry values above are not an
-Orange fallback.
+Orange-specific wiring is not interchangeable with the Raspberry mapping.

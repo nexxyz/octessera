@@ -32,6 +32,7 @@ LimitMEMLOCK=infinity
 Nice=-10
 ExecStart=/usr/local/bin/octessera-pi
 Restart=on-failure
+RestartPreventExitStatus=78
 RestartSec=5s
 StandardOutput=journal
 StandardError=journal

@@ -1,7 +1,7 @@
 use super::{
-    merge_preserved_aux_payloads, migrate_legacy_modulation, patch_payload_from_payload,
-    validate_audio_outputs, validate_canonical_lfo_bank_shape, validate_config_payload, ConfigDto,
-    Value,
+    merge_preserved_aux_payloads, migrate_legacy_modulation, normalize_audio_outputs,
+    patch_payload_from_payload, strip_device_audio_fields, validate_audio_outputs,
+    validate_canonical_lfo_bank_shape, validate_config_payload, ConfigDto, Value,
 };
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
@@ -43,6 +43,7 @@ pub(super) fn prepare_config_payload(
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
     }
+    normalize_audio_outputs(&mut input)?;
     let migration_report = if version.is_legacy() {
         migrate_legacy_modulation(&mut input, current)?
     } else {
@@ -83,6 +84,7 @@ pub(super) fn prepare_patch_payload(
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
     }
+    strip_device_audio_fields(&mut input);
     let migration_report = if version.is_legacy() {
         migrate_legacy_modulation(&mut input, current)?
     } else {
@@ -123,6 +125,7 @@ pub(super) fn prepare_device_payload(
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
     }
+    normalize_audio_outputs(&mut input)?;
     let migration_report = if version.is_legacy() {
         migrate_legacy_modulation(&mut input, current)?
     } else {

@@ -58,5 +58,7 @@ while IFS="$(printf '\t')" read -r relative_path expected_size expected_sha256 s
 done < "$manifest"
 
 if id octessera-runtime >/dev/null 2>&1; then
+  chown octessera-runtime:octessera-runtime "$destination_default"
+  chmod 0644 "$destination_default"
   chown octessera-runtime:octessera-runtime "$destination_samples" "$(dirname "$destination_default")"
 fi

@@ -190,6 +190,12 @@ require_octessera_raspberry_identity() {
     local image_root="$2"
     local welcome_source="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh"
     local welcome="$image_root/etc/profile.d/octessera-welcome.sh"
+    local default_source="$REPOSITORY_ROOT/config/generated/pi/default.json"
+    local default_config="$image_root/home/pi/presets/default.json"
+    local validator_source="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
+    local validator="$image_root/usr/local/lib/octessera/device_config.py"
+    local validator_source_hash
+    local validator_hash
     local boot_config="$boot_root/config.txt"
     local boot_cmdline="$boot_root/cmdline.txt"
     local token
@@ -216,6 +222,20 @@ require_octessera_raspberry_identity() {
     IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<< "$pi_record"
     if [ "$pi_user" != pi ] || [ "$pi_home" != /home/pi ] || [ "$pi_shell" != /bin/bash ] || [ ! -d "$image_root$pi_home" ] || [ -L "$image_root$pi_home" ]; then
         echo "constructor-required: Raspberry pi home or shell is not exact" >&2
+        return 1
+    fi
+    if [ ! -f "$default_config" ] || [ -L "$default_config" ] || [ "$(stat -c '%u:%g:%a' "$default_config")" != "$pi_uid:$pi_gid:644" ] || ! cmp -s "$default_source" "$default_config"; then
+        echo "constructor-required: Raspberry default config is not exact" >&2
+        return 1
+    fi
+    if [ ! -f "$validator_source" ] || [ -L "$validator_source" ] || [ ! -f "$validator" ] || [ -L "$validator" ] || [ "$(stat -c '%u:%g:%a' "$validator")" != 0:0:644 ]; then
+        echo "constructor-required: Raspberry device config validator metadata is not exact" >&2
+        return 1
+    fi
+    validator_source_hash="$(sha256sum "$validator_source" | awk '{print $1}')"
+    validator_hash="$(sha256sum "$validator" | awk '{print $1}')"
+    if [ "$(stat -c '%s' "$validator")" != "$(stat -c '%s' "$validator_source")" ] || [ "$validator_hash" != "$validator_source_hash" ]; then
+        echo "constructor-required: Raspberry device config validator bytes are not canonical" >&2
         return 1
     fi
     if ! awk -F: -v gid="$pi_gid" '$1 == "pi" && $3 == gid { count++ } END { exit count != 1 }' "$image_root/etc/group"; then
