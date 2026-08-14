@@ -5,6 +5,26 @@ impl NativeRunner {
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         self.clear_deferred_menu_apply();
         let current_key = self.menu.current_key().map(str::to_string);
+        if current_key
+            .as_deref()
+            .is_some_and(|key| key.starts_with("audioOutputs."))
+            && self
+                .menu
+                .value_for_key("audioOutputs.dac")
+                .is_some_and(|value| value == "false")
+            && self
+                .menu
+                .value_for_key("audioOutputs.usb")
+                .is_some_and(|value| value == "false")
+            && self
+                .menu
+                .value_for_key("audioOutputs.hdmi")
+                .is_some_and(|value| value == "false")
+        {
+            self.restore_audio_outputs_menu_values();
+            self.show_toast("Keep one audio output on");
+            return Ok(());
+        }
         if current_key.as_deref().is_some_and(|key| {
             key.ends_with(".params.timeNote")
                 || key.ends_with(".params.timeMode")

@@ -193,6 +193,10 @@ def _load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str
     _require(contract.get("selected_initramfs_regeneration") == "required", "selected initramfs regeneration is not required")
     source_inputs = contract.get("source_inputs")
     _require(bool(isinstance(source_inputs, list) and source_inputs), "Raspberry boot-layer source inputs are empty")
+    validator_sources = [source for source in source_inputs if source.get("path") == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
+    _require(len(validator_sources) == 1, "Raspberry device config validator source identity is not unique")
+    composer_sources = [source for source in source_inputs if source.get("path") == "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget"]
+    _require(len(composer_sources) == 1, "Raspberry USB gadget composer source identity is not unique")
     for source in source_inputs:
         _require(isinstance(source, dict), "Raspberry boot-layer source input changed")
         _require(set(source) == {"path", "sha256", "size"}, "Raspberry boot-layer source input changed")
@@ -243,10 +247,11 @@ def _load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str
     )
     return contract
 
-def _verify_managed_boot_outputs(root: Path, contract: dict[str, Any]) -> None:
+def _verify_managed_boot_outputs(root: Path, contract: dict[str, Any]) -> dict[str, Any] | None:
     outputs = contract.get("managed_outputs")
     if not isinstance(outputs, list) or not outputs:
         raise ImageProofError("Raspberry managed boot outputs are empty")
+    identities: dict[str, dict[str, Any]] = {}
     for output in outputs:
         _require(isinstance(output, dict), "Raspberry managed boot output is invalid")
         path = root / output["path"]
@@ -257,6 +262,19 @@ def _verify_managed_boot_outputs(root: Path, contract: dict[str, Any]) -> None:
         metadata = path.stat()
         _require(metadata.st_uid == output["uid"] and metadata.st_gid == output["gid"], f"managed boot ownership changed: {path}")
         _require(metadata.st_mode & 0o7777 == output["mode"], f"managed boot mode changed: {path}")
+        if output["classification"] == "device-config-validator":
+            source = REPOSITORY_ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
+            _require(source.is_file() and not source.is_symlink(), "Raspberry canonical device config validator source is missing or symlinked")
+            source_hash = sha256_file(source)
+            _require(path.stat().st_size == source.stat().st_size and sha256_file(path) == source_hash, "Raspberry installed device config validator is not byte-identical to the canonical source")
+            identities["device_config_validator"] = {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": source_hash, "size": source.stat().st_size}
+        if output["classification"] == "usb-gadget-composer":
+            source = REPOSITORY_ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget"
+            _require(source.is_file() and not source.is_symlink(), "Raspberry canonical USB gadget composer source is missing or symlinked")
+            source_hash = sha256_file(source)
+            _require(path.stat().st_size == source.stat().st_size and sha256_file(path) == source_hash and path.read_bytes() == source.read_bytes(), "Raspberry installed USB gadget composer is not byte-identical to the canonical source")
+            identities["usb_gadget_composer"] = {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget", "sha256": source_hash, "size": source.stat().st_size}
+    return identities or None
 
 def _verify_selected_initramfs_entries(path: Path, contract: dict[str, Any], root: Path) -> None:
     listing = _run_lsinitramfs(path)
@@ -380,8 +398,9 @@ def prove_root(
     _require(root.is_dir(), f"mounted image root does not exist: {root}")
     boot = _boot_dir(root)
     boot_layer_classification, boot_layer = _classify_boot_layer(root, boot_layer_contract_path)
+    managed_outputs = None
     if boot_layer is not None:
-        _verify_managed_boot_outputs(root, boot_layer)
+        managed_outputs = _verify_managed_boot_outputs(root, boot_layer)
     validator = _load_validator()
     try:
         package_inventory = validator.validate_package(package, contract, checksum, provenance)
@@ -393,9 +412,12 @@ def prove_root(
     if boot_layer is not None:
         _verify_selected_initramfs_entries(boot / EXPECTED_FIRMWARE_INITRAMFS, boot_layer, root)
     stock = _verify_stock_recovery(root, boot)
-    boot_layer_result: dict[str, str] = {"classification": boot_layer_classification}
+    boot_layer_result: dict[str, Any] = {"classification": boot_layer_classification}
     if boot_layer is not None:
         boot_layer_result["schema"] = str(boot_layer["schema"])
+        if managed_outputs is None or "device_config_validator" not in managed_outputs:
+            raise ImageProofError("Raspberry device config validator identity is missing")
+        boot_layer_result.update(managed_outputs)
     return {
         "package": package_inventory["package"],
         "payload": payload,

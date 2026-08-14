@@ -388,6 +388,10 @@ if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
 fi
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
 install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
+device_config_overlay="$overlay_dir/usr/local/lib/octessera/device_config.py"
+[[ -f "$device_config_overlay" && ! -L "$device_config_overlay" ]] || { echo "Missing staged canonical device config. Run tools/armbian-image/stage-device-config.py." >&2; exit 1; }
+install_overlay_file usr/local/lib/octessera/device_config.py /usr/local/lib/octessera/device_config.py 0644
+install_overlay_file usr/local/sbin/octessera-device-apply-reboot /usr/local/sbin/octessera-device-apply-reboot 0755
 install_overlay_file usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo 0755
 install_overlay_file usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py 0644
 install_overlay_file usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py 0644
@@ -396,6 +400,8 @@ install_overlay_file usr/local/sbin/octessera-provision-musical-default /usr/loc
 install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644
 install_overlay_file etc/modules-load.d/octessera-orange-usb-gadget.conf /etc/modules-load.d/octessera-orange-usb-gadget.conf 0644
 install_overlay_file etc/systemd/system/octessera-orange-usb-gadget.service /etc/systemd/system/octessera-orange-usb-gadget.service 0644
+install_overlay_file etc/systemd/system/octessera-device-apply-reboot.socket /etc/systemd/system/octessera-device-apply-reboot.socket 0644
+install_overlay_file etc/systemd/system/octessera-device-apply-reboot@.service /etc/systemd/system/octessera-device-apply-reboot@.service 0644
 install_overlay_file etc/systemd/system/octessera-provision-musical-default.service /etc/systemd/system/octessera-provision-musical-default.service 0644
 install_overlay_file etc/initramfs-tools/hooks/octessera-orange-boot-splash /etc/initramfs-tools/hooks/octessera-orange-boot-splash 0755
 install_overlay_file etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash /etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 0755
@@ -467,6 +473,7 @@ systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl enable octessera-setup.service >/dev/null
 systemctl enable octessera-setup-request.path >/dev/null
 systemctl enable octessera-orange-usb-gadget.service >/dev/null
+systemctl enable octessera-device-apply-reboot.socket >/dev/null
 systemctl enable octessera-provision-musical-default.service >/dev/null
 systemctl enable octessera-orange-boot-splash.service >/dev/null
 systemctl enable octessera-orange-oled-shutdown.service >/dev/null

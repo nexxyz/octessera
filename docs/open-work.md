@@ -49,9 +49,9 @@ Orange diagnostics where they establish a real additional fact.
 
 - Run the full Raspberry and Orange constructors from the source-bound boot-layer contracts: `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and `resources/image-construction/boot-layers/orange-pi-zero-2w.json`. Regenerate the selected initramfs outputs and Orange Python closure; record source hashes and mounted-image proof. A trusted `v0.7.5` runtime/setup parent respin is not proof of this layer.
 - On each new image, prove continuous initramfs-to-userspace cycles: one bounded initramfs cycle is fully reaped, the early userspace loop continues, native startup releases and adopts without resetting the OLED, and animation stops before the acknowledged first normal menu frame. Prove there is no blank, static, flickering, or dual-writer interval.
-- Exercise restart and failure paths on both boards: animator restart, native startup failure, OLED write failure, stale/mismatched status, lock contention/timeout, and recovery without orphaned processes, writers, lock state, or temporary handoff files. Orange also proves DAC-health gating before readiness.
+- Exercise restart and failure paths on both boards: animator restart, native startup failure, OLED write failure, stale/mismatched status, lock contention/timeout, and recovery without orphaned processes, writers, lock state, or temporary handoff files. Orange also proves Jack-route readiness gating and selected optional USB/HDMI wait/recovery behavior.
 - Orange runtime recovery is fail-closed: systemd permits the initial start plus two retries in 30 seconds, then requires `sudo systemctl reset-failed octessera.service` followed by `sudo systemctl start octessera.service`. The OLED animator deadline is 30 seconds monotonic; timeout and cleanup failures attempt black then display-off independently and leave a native-recoverable failed handoff. Exact Trellis wiring and addresses remain required; no alternate fallback is supported.
-- Orange's regenerated selected initramfs now reaches an acknowledged, readable first menu; UI OLED sleep and first-input-consumed wake are physically qualified, and reboot returns through a clean single-writer handoff. Repeat those checks on a constructor-built Orange image and on Raspberry. Linux system suspend/resume and shutdown remain separate physical qualification gates; confirm they do not race the boot writer or borrow the boot animation contract.
+- A regenerated selected initramfs is source-tested for an acknowledged, readable first menu; constructor-image and physical qualification remain open on both boards. Linux system suspend/resume and shutdown remain separate physical qualification gates; confirm they do not race the boot writer or borrow the boot animation contract.
 
 ## Hardware Validation
 
@@ -62,7 +62,7 @@ Orange diagnostics where they establish a real additional fact.
 - NeoKey checklist: validate Back, Space, Shift, Fn, combined Shift+Fn, modifier-held hints, button LED colors, and help chord entry on the PCB.
 - Encoders checklist: validate main encoder turn/press, all aux encoder directions, aux push switches, Fn+Aux binding, turn/press overlay indicators, and no-binding/not-active toasts.
 - Audio-adjacent UX checklist: validate audio-device startup status, sample preview feedback, sampler assignment feedback, Play FX assignment feedback, MIDI panic/status, and user-visible errors without requiring full audio quality sign-off.
-- Validate runtime audio through the target DAC beyond the successful ALSA 440 Hz test tone.
+- Validate runtime audio through the selected exact routes beyond the successful ALSA 440 Hz test tone, including independent unsynchronized USB/HDMI clocks, possible drift/echo, and recovery after endpoint loss; this phase does not provide sample alignment. Every non-empty output set is valid. Jack is fatal/required only when selected, recognized disconnected USB/HDMI may wait, selected faults block readiness, and no route is a fallback.
 - Validate sample preview, loaded sample banks, and runtime audio config sync through the Pi host adapter.
 
 ## Hardware Follow-Ups

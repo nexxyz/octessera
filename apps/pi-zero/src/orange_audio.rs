@@ -1,5 +1,6 @@
 use crate::audio::AudioService;
 use crate::audio_event::musical_event_to_engine_event;
+use crate::audio_route::RouteOpenError;
 use crate::host_audio_command::send_audio_command;
 use cpal::traits::DeviceTrait;
 use cpal::{SampleFormat, StreamConfig};
@@ -13,8 +14,9 @@ use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
 
-pub(crate) const ORANGE_AUDIO_DEVICE_NAME: &str = cpal::ALSA_OCTESSERA_DAC_PCM;
-pub(crate) const ORANGE_UAC2_AUDIO_DEVICE_NAME: &str = cpal::ALSA_UAC2_GADGET_PCM;
+pub(crate) const ORANGE_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_JACK_PCM;
+pub(crate) const ORANGE_UAC2_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_USB_PCM;
+pub(crate) const ORANGE_HDMI_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_HDMI_PCM;
 pub(crate) const ORANGE_AUDIO_CHANNELS: u16 = 2;
 pub(crate) const ORANGE_UNAVAILABLE_STATUS: &str =
     "unavailable in Orange foreground runtime-candidate";
@@ -55,21 +57,27 @@ pub(crate) fn select_orange_output_config(
         })
 }
 
-pub(crate) fn select_orange_output_device() -> Result<cpal::Device, String> {
+pub(crate) fn select_orange_output_device() -> Result<cpal::Device, RouteOpenError> {
     select_orange_named_output_device(ORANGE_AUDIO_DEVICE_NAME)
 }
 
-pub(crate) fn select_orange_uac2_output_device() -> Result<cpal::Device, String> {
+pub(crate) fn select_orange_uac2_output_device() -> Result<cpal::Device, RouteOpenError> {
     select_orange_named_output_device(ORANGE_UAC2_AUDIO_DEVICE_NAME)
 }
 
-fn select_orange_named_output_device(expected_name: &str) -> Result<cpal::Device, String> {
-    open_exact_orange_output_device(expected_name, |name| {
-        cpal::alsa_exact_output_device(name)
-            .map_err(|error| format!("failed to construct exact Orange ALSA PCM {name:?}: {error}"))
+pub(crate) fn select_orange_hdmi_output_device() -> Result<cpal::Device, RouteOpenError> {
+    select_orange_named_output_device(ORANGE_HDMI_AUDIO_DEVICE_NAME)
+}
+
+fn select_orange_named_output_device(expected_name: &str) -> Result<cpal::Device, RouteOpenError> {
+    cpal::alsa_exact_output_device(expected_name).map_err(|error| {
+        RouteOpenError::Fault(format!(
+            "failed to construct exact Orange ALSA PCM {expected_name:?}: {error}"
+        ))
     })
 }
 
+#[cfg(test)]
 fn open_exact_orange_output_device<T>(
     expected_name: &str,
     opener: impl FnOnce(&str) -> Result<T, String>,
@@ -79,10 +87,10 @@ fn open_exact_orange_output_device<T>(
 
 pub(crate) fn select_orange_stream_config(
     device: &cpal::Device,
-) -> Result<(SampleFormat, StreamConfig), String> {
+) -> Result<(SampleFormat, StreamConfig), RouteOpenError> {
     let ranges: Vec<_> = device
         .supported_output_configs()
-        .map_err(|e| format!("failed to read Orange audio device capabilities: {e}"))?
+        .map_err(map_supported_configs_error)?
         .collect();
     let candidates: Vec<_> = ranges
         .iter()
@@ -93,16 +101,28 @@ pub(crate) fn select_orange_stream_config(
             sample_format: range.sample_format(),
         })
         .collect();
-    let index = select_orange_output_config(&candidates)?;
-    let supported = ranges
-        .into_iter()
-        .nth(index)
-        .ok_or_else(|| "Orange audio config selection became inconsistent".to_string())?;
+    let index = select_orange_output_config(&candidates).map_err(RouteOpenError::Unsupported)?;
+    let supported = ranges.into_iter().nth(index).ok_or_else(|| {
+        RouteOpenError::Fault("Orange audio config selection became inconsistent".into())
+    })?;
     let sample_format = supported.sample_format();
     let config = supported
         .with_sample_rate(cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE))
         .config();
     Ok((sample_format, config))
+}
+
+fn map_supported_configs_error(error: cpal::SupportedStreamConfigsError) -> RouteOpenError {
+    match error {
+        cpal::SupportedStreamConfigsError::DeviceNotAvailable => RouteOpenError::Disconnected,
+        cpal::SupportedStreamConfigsError::DeviceBusy => RouteOpenError::Busy,
+        cpal::SupportedStreamConfigsError::InvalidArgument => {
+            RouteOpenError::Unsupported(error.to_string())
+        }
+        cpal::SupportedStreamConfigsError::BackendSpecific { .. } => {
+            RouteOpenError::Fault(error.to_string())
+        }
+    }
 }
 
 pub(crate) struct OrangeAudioHost {
@@ -175,7 +195,11 @@ mod tests {
     #[test]
     fn orange_selection_requests_exact_pcm_ids_without_enumeration() {
         let mut requested = Vec::<String>::new();
-        for expected_name in [ORANGE_AUDIO_DEVICE_NAME, ORANGE_UAC2_AUDIO_DEVICE_NAME] {
+        for expected_name in [
+            ORANGE_AUDIO_DEVICE_NAME,
+            ORANGE_UAC2_AUDIO_DEVICE_NAME,
+            ORANGE_HDMI_AUDIO_DEVICE_NAME,
+        ] {
             open_exact_orange_output_device(expected_name, |name| {
                 requested.push(name.to_owned());
                 Ok(())
@@ -186,7 +210,8 @@ mod tests {
             requested,
             vec![
                 ORANGE_AUDIO_DEVICE_NAME.to_owned(),
-                ORANGE_UAC2_AUDIO_DEVICE_NAME.to_owned()
+                ORANGE_UAC2_AUDIO_DEVICE_NAME.to_owned(),
+                ORANGE_HDMI_AUDIO_DEVICE_NAME.to_owned(),
             ]
         );
     }

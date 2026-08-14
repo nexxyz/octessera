@@ -4,8 +4,12 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 service="$root/userpatches/overlay/etc/systemd/system/octessera.service"
 udev_rule="$root/userpatches/overlay/etc/udev/rules.d/70-octessera-orange-runtime.rules"
+gadget="$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service"
 
 [[ -f "$service" ]] || { echo "Missing Orange runtime service." >&2; exit 1; }
+grep -qFx 'After=systemd-modules-load.service sys-kernel-config.mount local-fs.target octessera-provision-musical-default.service' "$gadget"
+grep -qFx 'Before=sound.target octessera.service' "$gadget"
+grep -qFx 'Requires=octessera-provision-musical-default.service' "$gadget"
 for required_line in \
   'User=octessera-runtime' \
   'Group=octessera-runtime' \
@@ -20,10 +24,25 @@ for required_line in \
   'ProtectHome=yes'; do
   grep -qFx "$required_line" "$service" || { echo "Runtime service is missing: $required_line" >&2; exit 1; }
 done
-for required_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartSec=5s'; do
+for required_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartPreventExitStatus=78' 'RestartSec=5s'; do
   grep -qFx "$required_line" "$service" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
 done
 ! grep -qFx 'Restart=always' "$service" || { echo 'Orange runtime service still restarts always.' >&2; exit 1; }
+python3 - "$service" <<'PY'
+from pathlib import Path
+import sys
+
+lines = set(Path(sys.argv[1]).read_text(encoding="utf-8").splitlines())
+assert "Restart=on-failure" in lines
+assert "RestartPreventExitStatus=78" in lines
+
+def restarts(exit_status):
+    return exit_status != 0 and exit_status != 78
+
+assert not restarts(78)
+assert restarts(1)
+print("Orange runtime exit-status restart policy fixture passed")
+PY
 ! grep -qE '^(StartLimitAction|OnFailure|Requires|Requisite|BindsTo|PartOf)=' "$service" || { echo 'Orange runtime service has an unapproved failure dependency.' >&2; exit 1; }
 if grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$service"; then
   echo 'Runtime service grants ambient SYS_NICE or priority 80.' >&2

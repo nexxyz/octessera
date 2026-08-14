@@ -7,6 +7,8 @@ mod setup_portal;
 mod status;
 
 #[cfg(test)]
+mod audio_tests;
+#[cfg(test)]
 mod setup_portal_tests;
 #[cfg(test)]
 mod tests;

@@ -128,9 +128,18 @@ cat > "$FAKE_BIN/cmp" <<'EOF'
 #!/bin/sh
 set -eu
 if [ "$#" -eq 3 ] && [ "$1" = -s ] && [ "$2" = - ] && [ "$3" = "$FAKE_MIDI/interface_string" ]; then
+    if [ -n "${FAKE_READBACK_OBSERVED:-}" ] && [ ! -e "$FAKE_READBACK_OBSERVED" ]; then
+        cp "$3" "$FAKE_READBACK_OBSERVED"
+    fi
     case "${FAKE_READBACK_MODE:-}" in
         short) printf '%s' 'Octessera MID' > "$3" ;;
         modified) printf '%s' 'Octessera MIDX' > "$3" ;;
+        lf) printf '%s\n' 'Octessera MIDI' > "$3" ;;
+        crlf) printf '%s\r\n' 'Octessera MIDI' > "$3" ;;
+        internal) printf '%s\n%s' 'Octessera' 'MIDI' > "$3" ;;
+        two-lf) printf '%s\n\n' 'Octessera MIDI' > "$3" ;;
+        spaces) printf '%s ' 'Octessera MIDI' > "$3" ;;
+        long) printf '%sX' 'Octessera MIDI' > "$3" ;;
         fail) exit 1 ;;
     esac
 fi
@@ -278,6 +287,7 @@ run_action() {
         "FAKE_STORAGE_STATE=$root/storage.state" \
         "$@" \
         "OCTESSERA_USB_CONFIG=$config" \
+        "OCTESSERA_DEVICE_CONFIG_VALIDATOR=$SCRIPT_DIR/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" \
         "OCTESSERA_USB_CONFIGFS_ROOT=$root/config" \
         "OCTESSERA_USB_GADGET_ROOT=$root/config/usb_gadget/octessera" \
         "OCTESSERA_USB_UDC_ROOT=$root/udc" \
@@ -320,9 +330,36 @@ prepare_storage_root() {
 MIDI_CONFIG=$TEST_ROOT/midi.json
 COMBINED_CONFIG=$TEST_ROOT/combined.json
 AUDIO_CONFIG=$TEST_ROOT/audio.json
-write_config "$MIDI_CONFIG" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false},"midiOutEnabled":true}}'
-write_config "$COMBINED_CONFIG" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":true,"hdmi":false},"midiOutEnabled":true}}'
-write_config "$AUDIO_CONFIG" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":true,"hdmi":false}}}'
+write_config "$MIDI_CONFIG" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":true},"usb":{"midiOutEnabled":true}}}'
+write_config "$COMBINED_CONFIG" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":true}}}'
+write_config "$AUDIO_CONFIG" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false}}}'
+
+write_config "$TEST_ROOT/audio-100.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false}}}'
+write_config "$TEST_ROOT/audio-010.json" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":true,"hdmi":false}}}'
+write_config "$TEST_ROOT/audio-001.json" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":true}}}'
+write_config "$TEST_ROOT/audio-110.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false}}}'
+write_config "$TEST_ROOT/audio-101.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":true}}}'
+write_config "$TEST_ROOT/audio-011.json" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":true,"hdmi":true}}}'
+write_config "$TEST_ROOT/audio-111.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":true}}}'
+write_config "$TEST_ROOT/audio-zero.json" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false}}}'
+write_config "$TEST_ROOT/audio-extra.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false,"extra":false}}}'
+write_config "$TEST_ROOT/audio-conflict.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"audioOut":"usb"}}}'
+write_config "$TEST_ROOT/audio-malformed.json" '{'
+for outputs in 100 010 001 110 101 011 111; do
+    config="$TEST_ROOT/audio-$outputs.json"
+    usb=${outputs#?}; usb=${usb%?}
+    root="$TEST_ROOT/audio-set-$outputs"
+    new_fake_configfs "$root"
+    run_setup "$root" "$config" > "$root/setup.log"
+    if [ "$usb" = 1 ]; then test -L "$root/config/usb_gadget/octessera/configs/c.1/uac2.usb0"; else test ! -e "$root/config/usb_gadget/octessera/functions/uac2.usb0"; fi
+    run_teardown "$root" > "$root/teardown.log"
+done
+for config in audio-zero.json audio-extra.json audio-conflict.json audio-malformed.json; do
+    root="$TEST_ROOT/reject-${config%.json}"
+    new_fake_configfs "$root"
+    assert_failed run_setup "$root" "$TEST_ROOT/$config"
+    test ! -e "$root/config/usb_gadget/octessera"
+done
 
 root=$TEST_ROOT/patched-midi
 new_fake_configfs "$root"
@@ -330,14 +367,28 @@ run_setup "$root" "$MIDI_CONFIG" > "$root/setup.log"
 gadget=$root/config/usb_gadget/octessera
 test -L "$gadget/configs/c.1/midi.usb0"
 test ! -e "$gadget/functions/uac2.usb0"
+test -f "$gadget/functions/midi.usb0/interface_string"
 assert_file_value 'Octessera MIDI' "$gadget/strings/0x409/product"
 assert_file_value 'Octessera MIDI' "$gadget/functions/midi.usb0/id"
 assert_file_value 'Octessera MIDI' "$gadget/functions/midi.usb0/function_name"
-test "$(wc -c < "$gadget/functions/midi.usb0/interface_string" | tr -d '[:space:]')" -eq 14
 expected=$root/expected-interface-string
 printf '%s' 'Octessera MIDI' > "$expected"
 cmp -s "$expected" "$gadget/functions/midi.usb0/interface_string"
 assert_file_value fake-udc "$gadget/UDC"
+run_teardown "$root" > "$root/teardown.log"
+test ! -e "$gadget"
+
+root=$TEST_ROOT/sysfs-lf-readback
+new_fake_configfs "$root"
+observed=$root/underlying-interface-write
+run_setup "$root" "$MIDI_CONFIG" FAKE_READBACK_MODE=lf FAKE_READBACK_OBSERVED="$observed" > "$root/setup.log"
+gadget=$root/config/usb_gadget/octessera
+expected=$root/expected-interface-string-lf
+printf '%s\n' 'Octessera MIDI' > "$expected"
+cmp -s "$expected" "$gadget/functions/midi.usb0/interface_string"
+expected=$root/expected-underlying-interface-write
+printf '%s' 'Octessera MIDI' > "$expected"
+cmp -s "$expected" "$observed"
 run_teardown "$root" > "$root/teardown.log"
 test ! -e "$gadget"
 
@@ -378,6 +429,13 @@ root=$TEST_ROOT/modified-readback
 new_fake_configfs "$root"
 assert_failed run_setup "$root" "$MIDI_CONFIG" FAKE_READBACK_MODE=modified
 test ! -e "$root/config/usb_gadget/octessera"
+
+for mode in crlf internal two-lf spaces long; do
+    root=$TEST_ROOT/malformed-readback-$mode
+    new_fake_configfs "$root"
+    assert_failed run_setup "$root" "$MIDI_CONFIG" "FAKE_READBACK_MODE=$mode"
+    test ! -e "$root/config/usb_gadget/octessera"
+done
 
 root=$TEST_ROOT/bind-failure
 new_fake_configfs "$root"

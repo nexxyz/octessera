@@ -28,8 +28,10 @@ System
 │   ├── Max Time: [1..120] min  default 10
 │   ├── Start Audio: (action)           ← Pi main-SD WAV of internal stereo output
 │   └── Stop: (action)                  ← finalize active recording
-├── USB (group)
-│   ├── Audio Out: [jack | usb | both]  default jack  ← restart-applied
+├── Audio & USB (group)
+│   ├── Jack Audio: [on | off]  default on             ← restart-applied
+│   ├── USB Audio: [on | off]  default off             ← restart-applied
+│   ├── HDMI Audio: [on | off]  default off            ← restart-applied
 │   ├── MIDI Out: [on | off]  default off             ← USB gadget exposure preference
 │   ├── Save & Reboot: (action)         ← confirms with Cancel / Save & Reboot, saves payload, asks platform to apply and reboot
 │   ├── Start SD2 Xfer: (action)        ← confirms, stops playback, blocks input in transfer popup, rejects active USB audio, USB MIDI out, or recording on Pi, temporarily exposes OLED SD2 as USB storage; waits cancellably if no host is connected

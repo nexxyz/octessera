@@ -1,6 +1,14 @@
+use crate::audio_replay::ReplayCache;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use crate::audio_route::readiness as route_readiness;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use crate::audio_route::status as route_status;
+use crate::audio_route::AudioRouteRegistry;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-use crate::audio_hotplug::test_sink_sender;
-use crate::audio_hotplug::{broadcast_event, is_replay_event, ReplayCache, SinkSender};
+use crate::audio_sink_registry::test_sink_sender;
+use crate::audio_sink_registry::{broadcast_event_atomic, AudioAttachGate, SinkSender};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use crate::audio_stream_health::AudioStreamHealth;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::recording::{RecorderService, RecordingTap};
 #[path = "audio_defaults.rs"]
@@ -11,11 +19,8 @@ mod audio_error;
 mod audio_output;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) use audio_output::audio_sinks;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-pub(crate) use audio_output::OrangeDacStatus;
 pub(crate) use audio_output::{AudioManager, AudioSink};
+use playback_runtime::AudioOutputSet;
 use playback_runtime::{HostMessage, RuntimeAdapterError};
 use rodio_engine_source::EngineEvent;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
@@ -32,11 +37,16 @@ use std::sync::{Arc, Mutex};
 pub struct AudioService {
     realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
     replay_events: Arc<Mutex<ReplayCache>>,
+    attach_gate: AudioAttachGate,
     pub control_tx: Sender<AudioControlRequest>,
     pub config_revision: Arc<AtomicU64>,
     pub sample_cache:
         Arc<Mutex<std::collections::HashMap<String, realtime_engine::synth::SampleBuffer>>>,
     pub sample_bank_signature: Arc<Mutex<String>>,
+    route_registry: AudioRouteRegistry,
+    audio_outputs: AudioOutputSet,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    required_jack_health: Option<AudioStreamHealth>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     recorder: Arc<Mutex<RecorderService>>,
@@ -68,8 +78,13 @@ impl AudioService {
     }
 
     pub fn send_realtime(&self, event: EngineEvent) -> Result<(), RuntimeAdapterError> {
-        self.remember_replay_event(&event);
-        broadcast_event(&self.realtime_txs, event).map_err(audio_queue_error)
+        broadcast_event_atomic(
+            &self.attach_gate,
+            &self.realtime_txs,
+            &self.replay_events,
+            event,
+        )
+        .map_err(audio_queue_error)
     }
 
     pub fn enqueue_full_config(
@@ -120,6 +135,36 @@ impl AudioService {
         output
     }
 
+    pub(crate) fn ensure_route_readiness(&self) -> Result<(), String> {
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        if self
+            .required_jack_health
+            .as_ref()
+            .is_some_and(AudioStreamHealth::is_faulted)
+        {
+            return Err("required Jack audio stream faulted".into());
+        }
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        if self.audio_outputs.dac()
+            && route_status(&self.route_registry, AudioSink::Jack)
+                == crate::audio_route::AudioRouteStatus::Faulted
+        {
+            return Err("selected Jack audio route faulted".into());
+        }
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let result = Ok(());
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        let result = route_readiness(self.audio_outputs, &self.route_registry);
+        result
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    pub(crate) fn required_jack_failed(&self) -> bool {
+        self.required_jack_health
+            .as_ref()
+            .is_some_and(AudioStreamHealth::is_faulted)
+    }
+
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), String> {
         let tap = self
@@ -158,18 +203,13 @@ impl AudioService {
 }
 
 impl AudioService {
-    pub(crate) fn remember_replay_event(&self, event: &EngineEvent) {
-        if !is_replay_event(event) {
-            return;
-        }
-        if let Ok(mut events) = self.replay_events.lock() {
-            events.remember(event);
-        }
-    }
-
     pub(crate) fn broadcast(&self, event: EngineEvent) -> Result<(), String> {
-        self.remember_replay_event(&event);
-        broadcast_event(&self.realtime_txs, event)
+        broadcast_event_atomic(
+            &self.attach_gate,
+            &self.realtime_txs,
+            &self.replay_events,
+            event,
+        )
     }
 }
 
@@ -196,10 +236,15 @@ pub(crate) fn test_service_with_prep_sender() -> (
     let service = AudioService {
         realtime_txs: Arc::new(Mutex::new(vec![test_sink_sender(event_tx)])),
         replay_events: Arc::new(Mutex::new(ReplayCache::default())),
+        attach_gate: crate::audio_sink_registry::new_attach_gate(),
         control_tx,
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
+        route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
+        audio_outputs: AudioOutputSet::jack(),
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
     };
     (service, control_rx, event_rx, prep_result_tx)

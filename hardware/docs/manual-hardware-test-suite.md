@@ -177,6 +177,37 @@ Record:
 
 ## 6. Audio Output Test
 
+### Raspberry HDMI connector identity check: read-only
+
+The live Raspberry Pi Zero 2 W observation uses kernel
+`6.12.93+rpt-rpi-v8` and the exact connector paths
+`/sys/class/drm/card0-HDMI-A-1/{status,edid}`. Check those paths directly; do
+not enumerate DRM connectors or substitute `card1`:
+
+```bash
+set -eu
+test "$(uname -r)" = "6.12.93+rpt-rpi-v8"
+connector=/sys/class/drm/card0-HDMI-A-1
+test -f "$connector/status"
+test -f "$connector/edid"
+status=$(tr -d '\r\n' < "$connector/status")
+edid_bytes=$(wc -c < "$connector/edid")
+printf 'HDMI connector: %s\nstatus: %s\nEDID bytes: %s\n' "$connector" "$status" "$edid_bytes"
+if [ "$status" = connected ] && [ "$edid_bytes" -gt 0 ]; then
+    echo "connector and EDID observation passed"
+elif [ "$status" = disconnected ]; then
+    echo "connector is present but waiting/disconnected; record this qualification state"
+elif [ "$status" = connected ] && [ "$edid_bytes" -eq 0 ]; then
+    echo "connector is present but waiting/disconnected; record this qualification state"
+else
+    echo "unexpected HDMI connector state" >&2
+    exit 1
+fi
+```
+
+This proves the fixed connector/EDID seam only. It does not qualify connected
+HDMI audio, an ALSA PCM, or audible output.
+
 The test harness asks the operator to connect speakers or headphones and set a safe volume before playing the direct ALSA tone:
 
 ```bash
@@ -192,7 +223,8 @@ Then run a runtime audio smoke test:
 
 1. Start the app only after I2C devices are healthy.
 2. Trigger a simple internal synth note from code or a known grid action.
-3. Confirm output through the DAC path, not HDMI or headphone fallback.
+3. Confirm output through the selected exact route; when Jack is selected, use
+   the DAC path and do not count an implicit HDMI or headphone route.
 
 ## 7. Integrated Runtime Smoke Test
 

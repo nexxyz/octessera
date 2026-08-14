@@ -3344,8 +3344,12 @@
       "swingPct": 0
     },
     "usb": {
-      "audioOut": "jack",
       "midiOutEnabled": false
+    },
+    "audioOutputs": {
+      "dac": true,
+      "usb": false,
+      "hdmi": false
     },
     "hdmi": {
       "mode": "none",

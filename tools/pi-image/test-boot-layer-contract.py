@@ -60,6 +60,12 @@ def validate(document: dict[str, Any], root: Path) -> None:
         actual = root / source["path"]
         if not actual.is_file() or hashlib.sha256(actual.read_bytes()).hexdigest() != source["sha256"] or actual.stat().st_size != source["size"]:
             raise ValueError(f"source input digest is stale: {source['path']}")
+    validator_sources = [source for source in source_inputs if source["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
+    if len(validator_sources) != 1:
+        raise ValueError("Raspberry validator source identity is not unique")
+    composer_sources = [source for source in source_inputs if source["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget"]
+    if len(composer_sources) != 1:
+        raise ValueError("Raspberry USB gadget composer source identity is not unique")
 
     live_inputs = document["live_parity_inputs"]
     if live_inputs != [
@@ -137,6 +143,10 @@ def validate(document: dict[str, Any], root: Path) -> None:
         output_paths.add(output["path"])
         if output_type == "file" and any(not isinstance(output[key], int) or output[key] < 0 for key in ("mode", "uid", "gid")):
             raise ValueError("managed output metadata is invalid")
+    if {"classification": "pi-default-config", "path": "home/pi/presets/default.json", "type": "file", "mode": 420, "uid": 1000, "gid": 1000} not in outputs:
+        raise ValueError("Raspberry default managed output is not exact")
+    if {"classification": "usb-gadget-composer", "path": "usr/local/sbin/octessera-usb-gadget", "type": "file", "mode": 493, "uid": 0, "gid": 0} not in outputs:
+        raise ValueError("Raspberry USB gadget composer managed output is not exact")
 
     selected = document["selected_initramfs"]
     if set(selected) != {
@@ -201,6 +211,13 @@ class BootLayerContractTests(unittest.TestCase):
     def test_stale_source_digest_is_rejected(self) -> None:
         altered = copy.deepcopy(self.document)
         altered["source_inputs"][0]["sha256"] = "0" * 64
+        with self.assertRaises(ValueError):
+            validate(altered, ROOT)
+
+    def test_usb_gadget_composer_source_digest_is_bound(self) -> None:
+        altered = copy.deepcopy(self.document)
+        composer = next(source for source in altered["source_inputs"] if source["path"].endswith("/octessera-usb-gadget"))
+        composer["sha256"] = "0" * 64
         with self.assertRaises(ValueError):
             validate(altered, ROOT)
 

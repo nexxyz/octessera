@@ -7,6 +7,8 @@ CONFIGFS_ROOT=/sys/kernel/config
 UDC_ROOT=/sys/class/udc
 REQUIRED_UDC=musb-hdrc.4.auto
 LOCK_FILE=/run/lock/octessera-orange-usb-gadget.lock
+CONFIG=/var/lib/octessera/presets/default.json
+DEVICE_CONFIG_VALIDATOR=${OCTESSERA_DEVICE_CONFIG_VALIDATOR:-/usr/local/lib/octessera/device_config.py}
 ACTION=
 MODE=
 UDC=$REQUIRED_UDC
@@ -14,10 +16,11 @@ UDC=$REQUIRED_UDC
 usage() {
     cat <<EOF
 Usage:
-  $0 setup [--mode <midi|uac2|combined>] [options]
+  $0 setup [--config <path>] [options]
   $0 teardown [options]
 
 Options:
+  --config <path>         Persisted device config (default: /var/lib/octessera/presets/default.json)
   --configfs-root <path>  Configfs mount root (default: /sys/kernel/config)
   --udc-root <path>       UDC sysfs root (default: /sys/class/udc)
   --lock-file <path>      Lifecycle lock path (default: /run/lock/octessera-orange-usb-gadget.lock)
@@ -55,14 +58,14 @@ esac
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --mode)
+        --config)
             require_value "$@"
-            MODE=$2
+            CONFIG=$2
             shift 2
             ;;
-        --mode=*)
-            MODE=${1#*=}
-            [ -n "$MODE" ] || die "empty value for --mode"
+        --config=*)
+            CONFIG=${1#*=}
+            [ -n "$CONFIG" ] || die "empty value for --config"
             shift
             ;;
         --configfs-root)
@@ -113,18 +116,22 @@ GADGET_ROOT=$CONFIGFS_ROOT/usb_gadget
 GADGET=$GADGET_ROOT/$GADGET_NAME
 UDC_PATH=$UDC_ROOT/$UDC
 
-if [ "$ACTION" = setup ]; then
-    [ -n "$MODE" ] || MODE=combined
-    case "$MODE" in
-        midi|uac2|combined)
-            ;;
-        *)
-            die "unsupported mode: $MODE"
-            ;;
-    esac
-else
-    [ -z "$MODE" ] || die "--mode is valid only for setup"
+if [ "$ACTION" = teardown ]; then
+    [ "$CONFIG" = /var/lib/octessera/presets/default.json ] || die "--config is valid only for setup"
 fi
+
+read_device_config() {
+    state=$(python3 "$DEVICE_CONFIG_VALIDATOR" "$CONFIG") || die "invalid persisted device config"
+    AUDIO=${state%% *}
+    MIDI=${state#* }
+    case "$AUDIO$MIDI" in
+        00) MODE=none ;;
+        01) MODE=midi ;;
+        10) MODE=uac2 ;;
+        11) MODE=combined ;;
+        *) die "device config validator returned invalid state" ;;
+    esac
+}
 
 require_configfs() {
     [ -d "$GADGET_ROOT" ] || die "configfs USB gadget directory is missing: $GADGET_ROOT"
@@ -201,6 +208,13 @@ product_name() {
         *)
             die "unsupported mode: $MODE"
             ;;
+    esac
+}
+
+configuration_name() {
+    case "$MODE" in
+        none) printf 'Octessera USB disabled\n' ;;
+        *) printf 'Octessera Orange Pi %s\n' "$MODE" ;;
     esac
 }
 
@@ -306,6 +320,19 @@ create_uac2_function() {
 
 setup_gadget_unlocked() {
     require_configfs
+    read_device_config
+    if [ "$MODE" = none ]; then
+        for candidate in "$GADGET_ROOT"/*; do
+            [ -d "$candidate" ] || continue
+            if [ "$candidate" != "$GADGET" ]; then
+                die "refusing existing gadget: $candidate"
+            fi
+        done
+        teardown_gadget_unlocked
+        refuse_prebound_udc
+        printf 'Orange Pi USB gadget disabled\n'
+        return 0
+    fi
     require_udc
     refuse_existing_gadgets
     refuse_prebound_udc
@@ -323,7 +350,7 @@ setup_gadget_unlocked() {
     product_name > "$GADGET/strings/0x409/product"
     write_attribute "$GADGET/strings/0x409/serialnumber" octessera-orange-pi
     write_attribute "$GADGET/configs/c.1/MaxPower" 250
-    write_attribute "$GADGET/configs/c.1/strings/0x409/configuration" "Octessera Orange Pi $MODE"
+    configuration_name > "$GADGET/configs/c.1/strings/0x409/configuration"
 
     case "$MODE" in
         midi)

@@ -53,6 +53,7 @@ mod apply_payload_instrument_values;
 mod apply_payload_instruments;
 mod apply_payload_layers;
 mod apply_payload_mixer_values;
+mod audio_outputs;
 mod aux_auto_map;
 mod aux_auto_map_fx_layouts;
 mod aux_auto_map_instrument_layouts;
@@ -183,6 +184,8 @@ mod velocity_curve;
 mod visual_utils;
 
 use crate::{clean_preset_name, fresh_preset_name};
+pub use audio_outputs::AudioOutputSet;
+pub(crate) use audio_outputs::{normalize_audio_outputs, strip_device_audio_fields};
 pub use runner_config::NativeRunnerConfig;
 
 use binding_payload::*;
@@ -249,14 +252,6 @@ pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str>
     }
 }
 
-pub(super) fn normalize_usb_audio_out(value: &str) -> &'static str {
-    match value {
-        "usb" => "usb",
-        "both" => "both",
-        _ => "jack",
-    }
-}
-
 #[derive(Clone)]
 struct PendingMenuApply {
     due_at: Instant,
@@ -298,7 +293,7 @@ pub struct NativeRunner {
     midi_clock_out_enabled: bool,
     midi_clock_in_enabled: bool,
     midi_respond_to_start_stop: bool,
-    usb_audio_out: String,
+    audio_outputs: AudioOutputSet,
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
     sparks_mode: String,

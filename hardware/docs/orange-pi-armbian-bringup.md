@@ -35,15 +35,15 @@ is limited to the proven Seesaw reset/HW-ID check on `/dev/i2c-2`.
 Diagnostic image mode is explicit as `OCTESSERA_IMAGE_MODE=diagnostic`; it has no
 production runtime bundle or `octessera.service`. The production runtime
 supports the OLED, NeoTrellis, NeoKey, four encoders, persistent store, samples,
-MIDI, and the internal DAC. It uses the shared 44.1 kHz rate and requires
-exactly one CPAL output device named `hw:CARD=octesseradac,DEV=0` with verified
-stereo support. USB-only audio is unsupported; UAC2 is an optional companion
-(`audioOut=both`), and `audioOut=usb` is rejected. MIDI uses the native host
-adapter, including USB MIDI when the configured gadget port is present.
+MIDI, and the shared 44.1 kHz audio contract. Jack, USB Audio, and HDMI Audio
+are independent desired-next-boot outputs. The selected Jack route is exactly
+`hw:CARD=octesseradac,DEV=0`; selected UAC2 and HDMI routes wait for their exact
+endpoints and recover when they return. MIDI uses the native host adapter,
+including USB MIDI when the configured gadget port is present.
 
 `octessera.service` runs the native runtime as the locked `octessera-runtime`
 system account. The separate interactive `octessera` account is for setup and
-administration. Readiness follows healthy required audio, initialized
+administration. Readiness follows selected-route status, initialized
 control-surface devices, and the first rendered runtime frame. The service
 gets FIFO priority 70 through `LimitRTPRIO=70`; it does not use `CAP_SYS_NICE`,
 ambient capabilities, or other realtime capability elevation.
@@ -709,12 +709,21 @@ The 0.7.5 production image installs and enables `octessera.service`. It runs
 the native runtime as the locked `octessera-runtime` system account; the
 interactive `octessera` account remains separate for setup and administration.
 The service supports the OLED, NeoTrellis, NeoKey, four encoders, persistent
-store, samples, MIDI, and the exact internal DAC endpoint. USB-only audio is
-unsupported: UAC2 is optional with `audioOut=both`, while `audioOut=usb` is
-rejected and HDMI/default audio fallback is not used. Runtime readiness follows
-healthy required audio, initialized control-surface devices, and the first
-rendered snapshot. FIFO priority 70 comes from `LimitRTPRIO=70`; the service
-does not use `CAP_SYS_NICE` or ambient capabilities.
+store, samples, MIDI, and the selected exact audio outputs. Every non-empty
+output set is valid; Jack is required only when selected, recognized disconnected
+UAC2 and HDMI routes may wait and recover, selected route faults block readiness,
+and no route is a fallback. Simultaneous physical outputs use independent
+unsynchronized clocks and can drift or echo; this phase does not provide sample
+alignment. Runtime readiness follows selected-route status, initialized
+control-surface devices, and the first rendered snapshot. The observed Orange
+HDMI connector path is `/sys/class/drm/card0-HDMI-A-1`. Separately, a live
+Raspberry Pi Zero 2 W observation on kernel `6.12.93+rpt-rpi-v8` found the exact
+`/sys/class/drm/card0-HDMI-A-1/{status,edid}` paths; Raspberry code pins card0
+and does not fall back to card1. These are connector identity observations, not
+claims of connected HDMI audio or audible qualification.
+FIFO priority 70 comes from
+`LimitRTPRIO=70`; the service does not use `CAP_SYS_NICE` or ambient
+capabilities.
 
 Orange update check, apply, rollback, and OTA remain unsupported. Use the
 verified production image artifact for an image update. The diagnostic image

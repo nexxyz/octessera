@@ -3,6 +3,8 @@ use super::*;
 mod audio_menu;
 mod audio_menu_direct;
 mod audio_menu_naming;
+mod audio_outputs_config;
+mod audio_outputs_menu;
 mod aux_auto_map;
 mod basics;
 mod behavior_menu_defaults;
@@ -80,6 +82,22 @@ pub(crate) fn led_rgb(rgb: [u8; 3]) -> Value {
 pub(crate) fn dim_rgb(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
     let divisor = divisor.max(1);
     [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
+}
+
+pub(crate) fn assert_rejected_without_byte_changes(runner: &mut NativeRunner, payload: Value) {
+    let before_config = serde_json::to_vec(&runner.config_payload()).unwrap();
+    let before_snapshot = serde_json::to_vec(&runner.snapshot().unwrap()).unwrap();
+
+    assert!(runner.apply_config_payload(payload).is_err());
+
+    assert_eq!(
+        serde_json::to_vec(&runner.config_payload()).unwrap(),
+        before_config
+    );
+    assert_eq!(
+        serde_json::to_vec(&runner.snapshot().unwrap()).unwrap(),
+        before_snapshot
+    );
 }
 
 pub(crate) fn legacy_payload(mut payload: Value) -> Value {

@@ -173,8 +173,23 @@ pub use platform::{
     SupportedInputConfigs, SupportedOutputConfigs, ALL_HOSTS,
 };
 
-pub const ALSA_OCTESSERA_DAC_PCM: &str = "hw:CARD=octesseradac,DEV=0";
-pub const ALSA_UAC2_GADGET_PCM: &str = "hw:CARD=UAC2Gadget,DEV=0";
+pub const ALSA_RASPBERRY_JACK_PCM: &str = "hw:CARD=sndrpihifiberry,DEV=0";
+pub const ALSA_RASPBERRY_USB_PCM: &str = "hw:CARD=UAC2Gadget,DEV=0";
+pub const ALSA_RASPBERRY_HDMI_PCM: &str = "hw:CARD=vc4hdmi,DEV=0";
+pub const ALSA_ORANGE_JACK_PCM: &str = "hw:CARD=octesseradac,DEV=0";
+pub const ALSA_ORANGE_USB_PCM: &str = "hw:CARD=UAC2Gadget,DEV=0";
+pub const ALSA_ORANGE_HDMI_PCM: &str = "hw:CARD=HDMI,DEV=0";
+pub const ALSA_OCTESSERA_DAC_PCM: &str = ALSA_ORANGE_JACK_PCM;
+pub const ALSA_UAC2_GADGET_PCM: &str = ALSA_ORANGE_USB_PCM;
+
+pub const ALSA_EXACT_OUTPUT_PCMS: &[&str] = &[
+    ALSA_RASPBERRY_JACK_PCM,
+    ALSA_RASPBERRY_USB_PCM,
+    ALSA_RASPBERRY_HDMI_PCM,
+    ALSA_ORANGE_JACK_PCM,
+    ALSA_ORANGE_USB_PCM,
+    ALSA_ORANGE_HDMI_PCM,
+];
 
 #[cfg(any(
     target_os = "linux",
@@ -193,7 +208,7 @@ pub fn alsa_exact_output_device(name: &str) -> Result<Device, DevicesError> {
     target_os = "netbsd"
 )))]
 pub fn alsa_exact_output_device(name: &str) -> Result<Device, DevicesError> {
-    if !matches!(name, ALSA_OCTESSERA_DAC_PCM | ALSA_UAC2_GADGET_PCM) {
+    if !ALSA_EXACT_OUTPUT_PCMS.contains(&name) {
         return Err(BackendSpecificError {
             description: format!("unsupported exact ALSA output PCM: {name:?}"),
         }

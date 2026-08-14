@@ -68,9 +68,11 @@ impl NativeRunner {
             "system.shutdown" => Some(RuntimePlatformEffect::StoreSaveRecovery {
                 payload: self.config_payload(),
             }),
-            "usb.applyReboot" => Some(RuntimePlatformEffect::UsbApplyReboot {
-                payload: self.config_payload(),
-            }),
+            "audio.applyReboot" | "usb.applyReboot" => {
+                Some(RuntimePlatformEffect::ApplyDeviceConfigReboot {
+                    payload: self.config_payload(),
+                })
+            }
             "usb.sdTransferStart" => Some(RuntimePlatformEffect::UsbSdTransferStart),
             "usb.sdTransferStop" => Some(RuntimePlatformEffect::UsbSdTransferStop),
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
@@ -164,8 +166,8 @@ impl NativeRunner {
             ("Confirm Reboot", "Reboot Octessera?".into())
         } else if action_type == "system.shutdown" {
             ("Confirm Shutdown", "Shut down Octessera?".into())
-        } else if action_type == "usb.applyReboot" {
-            ("Confirm USB", "Save USB settings and reboot?".into())
+        } else if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
+            ("Confirm Audio", "Save audio settings and reboot?".into())
         } else if action_type == "usb.sdTransferStart" {
             (
                 "Confirm SD2 Transfer",
@@ -206,7 +208,7 @@ impl NativeRunner {
             let preset = rest.split(':').nth(1).unwrap_or("preset");
             ("Confirm Synth", format!("Load synth preset {preset}?"))
         };
-        let options = if action_type == "usb.applyReboot" {
+        let options = if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
             vec!["Cancel".into(), "Save & Reboot".into()]
         } else {
             vec!["Cancel".into(), "Confirm".into()]

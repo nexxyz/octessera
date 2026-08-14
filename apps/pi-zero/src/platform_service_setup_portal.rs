@@ -14,12 +14,16 @@ impl PiPlatformService {
 
     pub fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut results = Vec::new();
-        if max_results > 0 {
-            if let Some(result) = self.setup_portal.take_buffered_result() {
+        for _ in 0..max_results {
+            if let Some(result) = self
+                .preserved_results
+                .lock()
+                .expect("Orange preserved platform results lock is poisoned")
+                .pop_front()
+            {
                 results.push(result);
+                continue;
             }
-        }
-        for _ in results.len()..max_results {
             match self.results.try_recv() {
                 Ok(result) => results.push(result),
                 Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,

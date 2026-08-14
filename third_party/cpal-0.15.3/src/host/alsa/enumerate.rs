@@ -24,23 +24,19 @@ impl Iterator for Devices {
 
     fn next(&mut self) -> Option<Device> {
         loop {
-            match self.hint_iter.next() {
-                None => return None,
-                Some(hint) => {
-                    let name = match hint.name {
-                        None => continue,
-                        // Ignoring the `null` device.
-                        Some(name) if name == "null" => continue,
-                        Some(name) => name,
-                    };
+            let hint = self.hint_iter.next()?;
+            let name = match hint.name {
+                None => continue,
+                // Ignoring the `null` device.
+                Some(name) if name == "null" => continue,
+                Some(name) => name,
+            };
 
-                    if let Ok(handles) = DeviceHandles::open(&name) {
-                        return Some(Device {
-                            name,
-                            handles: Arc::new(Mutex::new(handles)),
-                        });
-                    }
-                }
+            if let Ok(handles) = DeviceHandles::open(&name) {
+                return Some(Device {
+                    name,
+                    handles: Arc::new(Mutex::new(handles)),
+                });
             }
         }
     }

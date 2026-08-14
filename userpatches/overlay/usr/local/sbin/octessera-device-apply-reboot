@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+import os
+import pwd
+import select
+import stat
+import subprocess
+import sys
+
+
+CONFIG_PATH = "/var/lib/octessera/presets/default.json"
+SYSTEMCTL_PATH = "/usr/bin/systemctl"
+REQUEST = b"reboot\n"
+ACCEPTED = b"accepted\n"
+REJECTED = b"rejected\n"
+MAX_REQUEST_BYTES = 128
+EXTRA_BYTE_WAIT_SECONDS = 0.1
+
+
+def _load_config(path):
+    import importlib.util
+
+    helper_path = "/usr/local/lib/octessera/device_config.py"
+    spec = importlib.util.spec_from_file_location("octessera_device_config", helper_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("device config validator is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.load_config(path)
+
+
+def _validate_config(path):
+    metadata = os.lstat(path)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != pwd.getpwnam("octessera-runtime").pw_uid
+        or metadata.st_gid != pwd.getpwnam("octessera-runtime").pw_gid
+        or stat.S_IMODE(metadata.st_mode) != 0o644
+    ):
+        raise ValueError("persisted config ownership or mode is unsafe")
+    _load_config(path)
+
+
+def _extra_bytes(stream):
+    try:
+        descriptor = stream.fileno()
+    except (AttributeError, OSError):
+        return stream.read(1)
+    readable, _, _ = select.select([descriptor], [], [], EXTRA_BYTE_WAIT_SECONDS)
+    return stream.read(1) if readable else b""
+
+
+def _read_request(stream):
+    try:
+        descriptor = stream.fileno()
+    except (AttributeError, OSError):
+        line = stream.readline(MAX_REQUEST_BYTES + 1)
+        extra = stream.read(1)
+    else:
+        data = bytearray()
+        while len(data) <= MAX_REQUEST_BYTES:
+            readable, _, _ = select.select([descriptor], [], [], EXTRA_BYTE_WAIT_SECONDS)
+            if not readable:
+                break
+            chunk = os.read(descriptor, 1)
+            if not chunk:
+                break
+            data.extend(chunk)
+            if chunk == b"\n":
+                break
+        line = bytes(data)
+        extra = _extra_bytes(stream)
+    if line != REQUEST or extra:
+        raise ValueError("invalid device apply request")
+
+
+def handle_request(input_stream, output_stream):
+    try:
+        _read_request(input_stream)
+        _validate_config(CONFIG_PATH)
+        subprocess.run([SYSTEMCTL_PATH, "reboot"], check=True)
+    except (OSError, ValueError, subprocess.SubprocessError, KeyError):
+        output_stream.write(REJECTED)
+        output_stream.flush()
+        raise
+    output_stream.write(ACCEPTED)
+    output_stream.flush()
+
+
+def main():
+    if os.geteuid() != 0:
+        return 1
+    try:
+        handle_request(sys.stdin.buffer, sys.stdout.buffer)
+    except (OSError, ValueError, subprocess.SubprocessError, KeyError):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

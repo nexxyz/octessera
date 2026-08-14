@@ -50,6 +50,11 @@ The simulator's keyboard and UI controls mirror the hardware ideas. The
 [controls cheat sheet](controls-cheat-sheet.md) has the complete map, and
 [behaviors and Sparks](behaviors-and-sparks.md) explains the moving parts.
 
+The simulator also persists the same three desired-next-boot audio toggles as
+the Pi profiles: Jack Audio, USB Audio, and HDMI Audio. It does not change the
+desktop host's default audio endpoint. Keep at least one output enabled; the
+native menu refuses the final-output-off edit.
+
 ## What this path can and cannot tell you
 
 The simulator is a proper place to explore patches, playback, menus, and

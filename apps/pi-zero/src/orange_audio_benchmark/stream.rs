@@ -42,8 +42,10 @@ pub fn build(
     phase_control: Arc<MeasurementControl>,
 ) -> Result<BenchmarkStream, String> {
     let geometry = stream_geometry(output_frames, internal_frames)?;
-    let device = crate::orange_audio::select_orange_output_device()?;
-    let (sample_format, mut config) = select_orange_stream_config(&device)?;
+    let device =
+        crate::orange_audio::select_orange_output_device().map_err(|error| error.to_string())?;
+    let (sample_format, mut config) =
+        select_orange_stream_config(&device).map_err(|error| error.to_string())?;
     let sample_format_name = format!("{sample_format:?}");
     debug_assert_eq!(geometry.output_frames, output_frames);
     config.buffer_size = BufferSize::Fixed(output_frames);

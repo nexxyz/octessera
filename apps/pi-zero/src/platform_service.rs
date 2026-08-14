@@ -1,5 +1,7 @@
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::device_update;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use crate::orange_device_apply::OrangeDeviceApplyTransaction;
 use crate::persistence::atomic_write_json;
 use crate::sample_browser::sample_entries;
 #[cfg(all(test, any(unix, windows)))]
@@ -9,12 +11,18 @@ use crate::setup_portal_worker;
 use playback_runtime::{
     HostMessage, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfoError,
 };
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+#[path = "platform_result_lane.rs"]
+mod platform_result_lane;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[path = "platform_service_orange_apply.rs"]
+mod platform_service_orange_apply;
 #[path = "platform_service_setup_portal.rs"]
 mod platform_service_setup_portal;
 #[cfg(test)]
@@ -24,13 +32,16 @@ mod platform_service_test_support;
 mod platform_service_worker;
 #[path = "system_info.rs"]
 mod system_info;
+pub(crate) use platform_result_lane::PlatformResultLane;
 const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
-
 pub struct PiPlatformService {
     store_dir: PathBuf,
     jobs: SyncSender<PlatformJob>,
     results: Receiver<HostMessage>,
+    preserved_results: Mutex<VecDeque<HostMessage>>,
+    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+    result_lane: Arc<PlatformResultLane>,
     setup_portal: SetupPortalService,
     setup_portal_stop: Arc<AtomicBool>,
 }
@@ -81,10 +92,11 @@ impl PiPlatformService {
     ) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
         let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
+        let result_lane = Arc::new(PlatformResultLane::new(results_tx));
         let worker_store_dir = store_dir.clone();
         let setup_portal_stop = Arc::new(AtomicBool::new(false));
         setup_portal_worker::spawn(
-            results_tx.clone(),
+            result_lane.clone(),
             setup_portal.clone(),
             setup_portal_stop.clone(),
         );
@@ -93,15 +105,18 @@ impl PiPlatformService {
             worker_store_dir,
             samples_dir,
             jobs_rx,
-            results_tx,
+            result_lane.clone(),
             update_executor,
         );
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        platform_service_worker::spawn(worker_store_dir, samples_dir, jobs_rx, results_tx);
+        platform_service_worker::spawn(worker_store_dir, samples_dir, jobs_rx, result_lane.clone());
         Self {
             store_dir,
             jobs: jobs_tx,
             results: results_rx,
+            preserved_results: Mutex::new(VecDeque::new()),
+            #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+            result_lane,
             setup_portal,
             setup_portal_stop,
         }
@@ -125,7 +140,6 @@ impl PiPlatformService {
     pub fn save_recovery_now(&self, payload: &serde_json::Value) -> Result<(), String> {
         save_json(&self.store_dir.join("recovery-save.json"), payload)
     }
-
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn save_default_now(&self, payload: &serde_json::Value) -> Result<(), String> {
         save_json(&self.store_dir.join("default.json"), payload)
@@ -144,12 +158,10 @@ impl Drop for PiPlatformService {
         self.setup_portal_stop.store(true, Ordering::Release);
     }
 }
-
 pub struct PlatformJob {
     pub request: RuntimePlatformRequest,
     pub kind: PlatformJobKind,
 }
-
 pub enum PlatformJobKind {
     ListPresets,
     LoadPreset {
@@ -165,6 +177,11 @@ pub enum PlatformJobKind {
     SaveDefault {
         payload: serde_json::Value,
         is_auto: Option<bool>,
+    },
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    PrepareOrangeDeviceApply {
+        payload: serde_json::Value,
+        completed: SyncSender<Result<OrangeDeviceApplyTransaction, String>>,
     },
     SaveBackup {
         payload: serde_json::Value,
@@ -196,13 +213,11 @@ pub enum PlatformJobKind {
         release: Receiver<()>,
     },
 }
-
 impl PlatformJob {
     pub fn new(request: RuntimePlatformRequest, kind: PlatformJobKind) -> Self {
         Self { request, kind }
     }
 }
-
 fn handle_job(
     store_dir: &Path,
     samples_dir: &Path,
@@ -246,6 +261,10 @@ fn handle_job(
                 Ok(()) => RuntimeStoreResult::SaveDefaultResult { ok: true, is_auto },
                 Err(message) => store_error(format!("Save default failed: {message}")),
             }
+        }
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        PlatformJobKind::PrepareOrangeDeviceApply { .. } => {
+            unreachable!("Orange device apply jobs are completed by the platform worker")
         }
         PlatformJobKind::SaveBackup { payload } => match save_backup(store_dir, &payload) {
             Ok(()) => RuntimeStoreResult::SaveBackupResult { ok: true },

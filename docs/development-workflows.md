@@ -55,7 +55,7 @@ desktop, and host-build behavior only; none is board qualification.
 | Desktop format            | `corepack pnpm --filter @octessera/desktop format:check`                                         | Desktop Prettier checks pass                                                                                                  | Runtime behavior or hardware integration                                       |
 | Desktop tests             | `corepack pnpm --filter @octessera/desktop test`                                                 | Simulator/runtime-facing test cases pass                                                                                      | Board timing, GPIO, DAC, or USB behavior                                       |
 | Native host tests         | `cargo test -p platform-core -p playback-runtime -p realtime-engine`                             | Native behavior and rendering logic pass on the host                                                                          | A particular board, enclosure, power supply, or assembled control surface      |
-| Orange-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w orange_` | Orange-specific host tests, including setup-portal lifecycle and DAC/audio-loss handling, pass without opening board hardware | Orange boot, GPIO, OLED, DAC, audio-device, or physical qualification behavior |
+| Orange-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w orange_` | Orange-specific host tests, including setup-portal lifecycle and selected-route audio loss/recovery handling, pass without opening board hardware | Orange boot, GPIO, OLED, audio-device, or physical qualification behavior |
 | Pi host-stub build        | `cargo build -p octessera-pi`                                                                    | The Pi application builds without hardware                                                                                    | Boot images, peripheral wiring, or physical qualification                      |
 
 Keep the limits visible in reports: a clean hardware-free matrix is evidence
@@ -495,7 +495,7 @@ source-bound boot-layer contract, not from a trusted parent respin:
 ./tools/pi/build-pi-cross.ps1 -BoardProfile orange-pi-zero-2w -Backend wsl-docker
 ```
 
-That output declares `hardware-orange-pi-zero-2w` in its adjacent metadata sidecar. Raspberry deploy, provision, preflight, and pi-gen image tooling accepts only the Raspberry profile. The Orange production image uses the Armbian path and ships the native runtime as `octessera.service` under the locked `octessera-runtime` account. It supports the OLED, NeoTrellis, NeoKey, four encoders, persistent store, samples, MIDI, and the exact internal DAC at the shared 44.1 kHz rate. USB-only audio is rejected; `audioOut=both` may add UAC2, but `audioOut=usb` is unsupported. Readiness follows healthy audio, initialized control-surface devices, and the first rendered snapshot. FIFO priority 70 is granted through `LimitRTPRIO=70`; no `CAP_SYS_NICE` or ambient capability is added. Orange update check/apply/rollback and OTA remain unsupported.
+That output declares `hardware-orange-pi-zero-2w` in its adjacent metadata sidecar. Raspberry deploy, provision, preflight, and pi-gen image tooling accepts only the Raspberry profile. The Orange production image uses the Armbian path and ships the native runtime as `octessera.service` under the locked `octessera-runtime` account. Every non-empty Jack/USB/HDMI output set is valid; Jack is fatal/required only when selected, recognized disconnected USB or HDMI may wait, selected route faults block readiness, and no route is a fallback. Simultaneous physical outputs use independent unsynchronized clocks and can drift or echo; this phase does not provide sample alignment. Readiness follows selected-route status, initialized control-surface devices, and the first rendered snapshot. FIFO priority 70 is granted through `LimitRTPRIO=70`; no `CAP_SYS_NICE` or ambient capability is added. The observed Orange HDMI connector path is `/sys/class/drm/card0-HDMI-A-1`. On the live Raspberry Pi Zero 2 W, kernel `6.12.93+rpt-rpi-v8` exposes the exact `/sys/class/drm/card0-HDMI-A-1/{status,edid}` paths; Raspberry code pins card0 and does not fall back to card1. This is connector identity evidence only, not connected HDMI audio or audible qualification. Orange update check/apply/rollback and OTA remain unsupported.
 
 For a local Orange Pi cross-build, use the WSL Docker-only builder. It never
 contacts or deploys to a board, installs the aarch64 GNU linker/sysroot in its
@@ -682,7 +682,7 @@ Wrapper examples:
 
 The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
 
-Orange Phase 1 command generation and offline comparisons use:
+Orange command generation and offline comparisons use:
 
 ```powershell
 ./tools/orange-pi/run-orange-capability-study.ps1 -Mode PassiveBaseline -PrintOnly

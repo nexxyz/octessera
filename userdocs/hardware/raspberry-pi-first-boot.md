@@ -39,9 +39,15 @@ Initramfs runs one bounded foreground cycle and fully reaps it. Early userspace
 then loops the animation while the native runtime starts. The runtime requests
 release, waits for the exclusive `/run/octessera-boot` lock, adopts the already
 initialized OLED without resetting it, and stops the animation immediately
-before an acknowledged first normal menu frame. Raspberry first-menu
-readiness requires that real OLED write acknowledgement; Orange has the extra
-DAC-health gate.
+before an acknowledged first normal menu frame. Raspberry first-menu readiness
+requires that real OLED write acknowledgement. For the shared audio contract,
+every non-empty set is valid; Jack is required only when selected, recognized
+disconnected USB or HDMI routes may wait, a selected route fault blocks
+readiness, and no route is a fallback. On the live Raspberry Pi Zero 2 W board,
+kernel `6.12.93+rpt-rpi-v8` exposes the exact connector paths
+`/sys/class/drm/card0-HDMI-A-1/{status,edid}`. The runtime pins that card0
+identity and does not scan or fall back to card1. This is connector identity
+evidence only; it does not claim connected HDMI audio or audible qualification.
 
 Sleep, resume, and shutdown/reboot are separate display paths. They should not
 restart the boot sweep or share its writer. If the OLED is blank, static,
@@ -49,5 +55,8 @@ flickering, or shows two writers during a future hardware check, stop and
 record it for qualification rather than treating it as normal boot behavior.
 
 For the shared setup flow, see [Open or reopen the full setup portal](setup-portal.md).
+The Raspberry gadget applies the saved default from `/home/pi/presets/default.json`;
+save device settings and use the confirmed apply/reboot action before changing
+the host-visible USB composition.
 For wiring and assembly, see the [pinout and connections](pinout-and-connections.md)
 and [build and assembly manual](assembly-manual.md).

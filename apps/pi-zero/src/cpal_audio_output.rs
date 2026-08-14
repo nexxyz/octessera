@@ -1,10 +1,9 @@
 use super::AudioSink;
 use super::RecordingTapState;
 use crate::audio_priority::CallbackSchedulingHandle;
+use crate::audio_route::RouteOpenError;
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::traits::DeviceTrait;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use cpal::traits::HostTrait;
 use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
@@ -26,18 +25,40 @@ pub(super) struct BuiltAudioStream {
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+pub(super) fn probe_cpal_sink(sink: AudioSink) -> Result<(), RouteOpenError> {
+    ensure_connector(sink)?;
+    let device = cpal::alsa_exact_output_device(raspberry_pcm_name(sink))
+        .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
+    let supported = device
+        .default_output_config()
+        .map_err(map_default_config_error)?;
+    if supported.channels() != 2
+        || supported.sample_rate().0 != DEFAULT_AUDIO_SAMPLE_RATE
+        || !matches!(
+            supported.sample_format(),
+            SampleFormat::F32 | SampleFormat::I16 | SampleFormat::U16
+        )
+    {
+        return Err(RouteOpenError::Unsupported(format!(
+            "{sink:?} audio device lacks project stereo format"
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn build_cpal_stream(
     engine_rx: EngineEventReceiver,
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
     recording_tap: Option<RecordingTapState>,
     stream_health: AudioStreamHealth,
-) -> Result<BuiltAudioStream, String> {
+) -> Result<BuiltAudioStream, RouteOpenError> {
     let host = cpal::default_host();
     let device = select_output_device(&host, sink)?;
     let supported = device
         .default_output_config()
-        .map_err(|e| format!("failed to read default audio config: {e}"))?;
+        .map_err(map_default_config_error)?;
     let mut config: StreamConfig = supported.config();
     config.channels = 2;
     config.sample_rate = cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE);
@@ -53,7 +74,9 @@ pub(super) fn build_cpal_stream(
         SampleFormat::U16 => {
             build_stream::<u16>(&device, &config, source, recording_tap, stream_health)
         }
-        format => Err(format!("unsupported audio sample format: {format:?}")),
+        format => Err(RouteOpenError::Unsupported(format!(
+            "unsupported audio sample format: {format:?}"
+        ))),
     }
 }
 
@@ -63,10 +86,12 @@ pub(super) fn build_orange_cpal_stream(
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
     stream_health: AudioStreamHealth,
-) -> Result<BuiltAudioStream, String> {
+) -> Result<BuiltAudioStream, RouteOpenError> {
+    ensure_connector(sink)?;
     let device = match sink {
-        AudioSink::InternalDac => crate::orange_audio::select_orange_output_device()?,
+        AudioSink::Jack => crate::orange_audio::select_orange_output_device()?,
         AudioSink::Usb => crate::orange_audio::select_orange_uac2_output_device()?,
+        AudioSink::Hdmi => crate::orange_audio::select_orange_hdmi_output_device()?,
     };
     let (sample_format, mut config) = crate::orange_audio::select_orange_stream_config(&device)?;
     let output_buffer_frames = orange_output_buffer_frames(output_buffer_frames);
@@ -79,66 +104,41 @@ pub(super) fn build_orange_cpal_stream(
         SampleFormat::F32 => build_stream::<f32>(&device, &config, source, None, stream_health),
         SampleFormat::I16 => build_stream::<i16>(&device, &config, source, None, stream_health),
         SampleFormat::U16 => build_stream::<u16>(&device, &config, source, None, stream_health),
-        format => Err(format!(
+        format => Err(RouteOpenError::Unsupported(format!(
             "unsupported Orange audio sample format: {format:?}"
-        )),
+        ))),
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn select_output_device(host: &cpal::Host, sink: AudioSink) -> Result<cpal::Device, String> {
-    let env_name = match sink {
-        AudioSink::Jack => "OCTESSERA_AUDIO_JACK_DEVICE",
-        AudioSink::Usb => "OCTESSERA_AUDIO_USB_DEVICE",
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(super) fn probe_cpal_sink(sink: AudioSink) -> Result<(), RouteOpenError> {
+    ensure_connector(sink)?;
+    let device = match sink {
+        AudioSink::Jack => crate::orange_audio::select_orange_output_device()?,
+        AudioSink::Usb => crate::orange_audio::select_orange_uac2_output_device()?,
+        AudioSink::Hdmi => crate::orange_audio::select_orange_hdmi_output_device()?,
     };
-    let devices: Vec<_> = host
-        .output_devices()
-        .map_err(|e| format!("failed to enumerate audio output devices: {e}"))?
-        .collect();
-    if let Ok(needle) = std::env::var(env_name) {
-        if let Some(device) = find_named_device(&devices, &needle) {
-            return Ok(device);
-        }
-        return Err(format!(
-            "audio device override {env_name}={needle:?} not found"
-        ));
-    }
+    crate::orange_audio::select_orange_stream_config(&device).map(|_| ())
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn select_output_device(
+    host: &cpal::Host,
+    sink: AudioSink,
+) -> Result<cpal::Device, RouteOpenError> {
+    let _ = host;
+    ensure_connector(sink)?;
+    cpal::alsa_exact_output_device(raspberry_pcm_name(sink))
+        .map_err(|error| RouteOpenError::Fault(error.to_string()))
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn raspberry_pcm_name(sink: AudioSink) -> &'static str {
     match sink {
-        AudioSink::Jack => devices
-            .iter()
-            .find(|d| !is_usb_gadget_name(&device_name(d)))
-            .cloned()
-            .or_else(|| host.default_output_device())
-            .ok_or_else(|| "no jack/default audio output device".to_string()),
-        AudioSink::Usb => devices
-            .iter()
-            .find(|d| is_usb_gadget_name(&device_name(d)))
-            .cloned()
-            .ok_or_else(|| "no USB gadget audio output device".to_string()),
+        AudioSink::Jack => cpal::ALSA_RASPBERRY_JACK_PCM,
+        AudioSink::Usb => cpal::ALSA_RASPBERRY_USB_PCM,
+        AudioSink::Hdmi => cpal::ALSA_RASPBERRY_HDMI_PCM,
     }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn find_named_device(devices: &[cpal::Device], needle: &str) -> Option<cpal::Device> {
-    let needle = needle.to_ascii_lowercase();
-    devices
-        .iter()
-        .find(|device| device_name(device).to_ascii_lowercase().contains(&needle))
-        .cloned()
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn device_name(device: &cpal::Device) -> String {
-    device.name().unwrap_or_else(|_| String::new())
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn is_usb_gadget_name(name: &str) -> bool {
-    let name = name.to_ascii_lowercase();
-    name.contains("octessera")
-        || name.contains("uac")
-        || name.contains("gadget")
-        || name.contains("usb audio")
 }
 
 fn build_stream<T>(
@@ -147,7 +147,7 @@ fn build_stream<T>(
     mut source: EngineSource,
     recording_tap: Option<RecordingTapState>,
     stream_health: AudioStreamHealth,
-) -> Result<BuiltAudioStream, String>
+) -> Result<BuiltAudioStream, RouteOpenError>
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
@@ -164,7 +164,51 @@ where
             None,
         )
         .map(|stream| BuiltAudioStream { stream, scheduler })
-        .map_err(|e| format!("failed to build audio output stream: {e}"))
+        .map_err(map_build_stream_error)
+}
+
+fn ensure_connector(sink: AudioSink) -> Result<(), RouteOpenError> {
+    if sink == AudioSink::Hdmi {
+        crate::hdmi_connector::HdmiConnectorProbe::fixed().require_connected()?;
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+pub(super) fn map_default_config_error(error: cpal::DefaultStreamConfigError) -> RouteOpenError {
+    match error {
+        cpal::DefaultStreamConfigError::DeviceNotAvailable => RouteOpenError::Disconnected,
+        cpal::DefaultStreamConfigError::DeviceBusy => RouteOpenError::Busy,
+        cpal::DefaultStreamConfigError::StreamTypeNotSupported => {
+            RouteOpenError::Unsupported(error.to_string())
+        }
+        cpal::DefaultStreamConfigError::BackendSpecific { .. } => {
+            RouteOpenError::Fault(error.to_string())
+        }
+    }
+}
+
+pub(super) fn map_build_stream_error(error: cpal::BuildStreamError) -> RouteOpenError {
+    match error {
+        cpal::BuildStreamError::DeviceNotAvailable => RouteOpenError::Disconnected,
+        cpal::BuildStreamError::DeviceBusy => RouteOpenError::Busy,
+        cpal::BuildStreamError::StreamConfigNotSupported
+        | cpal::BuildStreamError::InvalidArgument => RouteOpenError::Unsupported(error.to_string()),
+        cpal::BuildStreamError::StreamIdOverflow
+        | cpal::BuildStreamError::BackendSpecific { .. } => {
+            RouteOpenError::Fault(error.to_string())
+        }
+    }
+}
+
+pub(super) fn map_play_stream_error(error: cpal::PlayStreamError) -> RouteOpenError {
+    match error {
+        cpal::PlayStreamError::DeviceNotAvailable => RouteOpenError::Disconnected,
+        cpal::PlayStreamError::DeviceBusy => RouteOpenError::Busy,
+        cpal::PlayStreamError::Unsupported(message) => RouteOpenError::Unsupported(message),
+        cpal::PlayStreamError::Fault(message) => RouteOpenError::Fault(message),
+        cpal::PlayStreamError::BackendSpecific { .. } => RouteOpenError::Fault(error.to_string()),
+    }
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

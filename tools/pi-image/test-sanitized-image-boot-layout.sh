@@ -73,13 +73,17 @@ if [ "$(id -u)" -eq 0 ]; then
         "$fixture/root/etc/systemd/system" \
         "$fixture/root/etc/systemd/system/multi-user.target.wants" \
         "$fixture/root/boot" \
-        "$fixture/root/home/pi" \
+        "$fixture/root/home/pi" "$fixture/root/home/pi/presets" \
         "$fixture/root/usr/local/lib/octessera" \
         "$fixture/root/etc/systemd/system/multi-user.target.wants"
     printf '%s\n' 'root:x:0:0:root:/root:/bin/bash' 'pi:x:1000:1000:Pi:/home/pi:/bin/bash' > "$fixture/root/etc/passwd"
     printf '%s\n' 'root:x:0:' 'pi:x:1000:' > "$fixture/root/etc/group"
     cp "$script_dir/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" "$fixture/root/etc/profile.d/octessera-welcome.sh"
     chmod 0644 "$fixture/root/etc/profile.d/octessera-welcome.sh"
+    cp "$script_dir/../../config/generated/pi/default.json" "$fixture/root/home/pi/presets/default.json"
+    chmod 0644 "$fixture/root/home/pi/presets/default.json"
+    chown 1000:1000 "$fixture/root/home/pi/presets/default.json"
+    cp "$script_dir/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" "$fixture/root/usr/local/lib/octessera/device_config.py"; chmod 0644 "$fixture/root/usr/local/lib/octessera/device_config.py"; chown 0:0 "$fixture/root/usr/local/lib/octessera/device_config.py"
     : > "$fixture/root/home/pi/.hushlogin"
     chown 1000:1000 "$fixture/root/home/pi/.hushlogin"
     write_constructor_fat_pair
@@ -113,6 +117,13 @@ if [ "$(id -u)" -eq 0 ]; then
     fi
     rm "$fixture/root/usr/share/doc/external-octessera-legal-alias"
     require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"
+    validator_path="$fixture/root/usr/local/lib/octessera/device_config.py"
+    for validator_case in stale size; do
+        cp "$script_dir/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" "$validator_path"; chmod 0644 "$validator_path"; chown 0:0 "$validator_path"
+        if [ "$validator_case" = stale ]; then python3 -c 'from pathlib import Path; p=Path("'"$validator_path"'"); b=bytearray(p.read_bytes()); b[0] ^= 1; p.write_bytes(b)'; else truncate -s -1 "$validator_path"; fi
+        if require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"; then echo "Constructor identity accepted a $validator_case device config validator." >&2; exit 1; fi
+    done
+    cp "$script_dir/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" "$validator_path"; chmod 0644 "$validator_path"; chown 0:0 "$validator_path"
     write_constructor_fat_pair
     printf '\r' >> "$fixture/boot/config.txt"
     if require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"; then
@@ -220,7 +231,7 @@ if [ "$(id -u)" -eq 0 ]; then
             "$fixture/root/etc/systemd/system/sysinit.target.wants" \
             "$fixture/root/etc/systemd/system/getty.target.wants" \
             "$fixture/root/etc/systemd/system/multi-user.target.wants" \
-            "$fixture/root/home/pi" \
+            "$fixture/root/home/pi" "$fixture/root/home/pi/presets" \
             "$fixture/root/boot/firmware" \
             "$fixture/root/usr/local/lib/octessera"
         cp "$script_dir/fixtures/trusted-parent-v0.7.5/boot/config.txt" "$fixture/boot/config.txt"

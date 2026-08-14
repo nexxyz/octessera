@@ -324,12 +324,14 @@ default_save	System > Saves > Default > Save Default	action:default_save	action	
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.
 system_shutdown	System	action:system_shutdown	action	Shutdown	Shows the shutdown splash, then closes the simulator or powers off the Pi gracefully.	Requires confirmation before shutting down.
 system_reboot	System	action:system_reboot	action	Reboot	Shows the shutdown splash, then reboots the Pi gracefully.	Requires confirmation before rebooting.
-usb_group	Menu > System > USB		group	USB	Controls restart-applied USB gadget exposure for the Pi.	Audio Out selects jack, USB, or both; MIDI Out exposes gadget MIDI when Pi support is enabled.
-usb_audio_out	*	key:usb.audioOut	enum	Audio Out	Selects the persisted USB audio output mode for the next reboot.	Choose jack, usb, or both, then use Save & Reboot.
+audio_usb_group	Menu > System > Audio & USB		group	Audio & USB	Controls the three restart-applied audio outputs and USB gadget MIDI preference.	At least one audio output stays enabled; use Save & Reboot to apply the desired next-boot set.
+audio_jack	*	key:audioOutputs.dac	bool	Jack Audio	Sets the persisted Jack Audio output for the next reboot.	Turn it off only when another audio output remains enabled.
+audio_usb	*	key:audioOutputs.usb	bool	USB Audio	Sets the persisted USB Audio output for the next reboot.	USB gadget routing is applied by the platform adapter after Save & Reboot.
+audio_hdmi	*	key:audioOutputs.hdmi	bool	HDMI Audio	Sets the persisted HDMI Audio output for the next reboot.	This audio output toggle is separate from the HDMI display menu.
 usb_midi_out	*	key:usb.midiOutEnabled	bool	MIDI Out	Enables persisted USB MIDI gadget output preference for the next reboot.	General MIDI enable/input/clock settings remain under System > MIDI.
-usb_apply_reboot	System > USB	action:usb.applyReboot	action	Save & Reboot	Saves the current default payload and asks the platform to apply USB settings with a reboot.	Confirmation offers Cancel or Save & Reboot.
-usb_sd_transfer_start	System > USB	action:usb.sdTransferStart	action	Start SD2 Xfer	Temporarily exposes the OLED SD2 sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
-usb_sd_transfer_stop	System > USB	action:usb.sdTransferStop	action	Stop SD2 Xfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject OLED SD2 on the host before stopping transfer.
+usb_apply_reboot	System > Audio & USB	action:audio.applyReboot	action	Save & Reboot	Saves the canonical audio output set and asks the platform to apply device settings with a reboot.	Confirmation offers Cancel or Save & Reboot.
+usb_sd_transfer_start	System > Audio & USB	action:usb.sdTransferStart	action	Start SD2 Xfer	Temporarily exposes the OLED SD2 sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
+usb_sd_transfer_stop	System > Audio & USB	action:usb.sdTransferStop	action	Stop SD2 Xfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject OLED SD2 on the host before stopping transfer.
 hdmi_group	Menu > System > HDMI		group	HDMI	Controls the optional Pi framebuffer grid output.	This display follows snapshots only and does not change playback.
 hdmi_mode	System > HDMI > Mode	key:hdmi.mode	enum	Mode	Chooses the grid source for HDMI output.	None keeps framebuffer output closed; Live Grid includes overlays.
 hdmi_cycle	System > HDMI > Cycle Bars	key:hdmi.cycleMeasures	number	Cycle Bars	Sets how many bars each behavior stays on HDMI before cycling.	Applies to Cycle Behaviors mode and clamps from 1 to 64.

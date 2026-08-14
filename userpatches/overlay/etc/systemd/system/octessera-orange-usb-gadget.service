@@ -1,8 +1,9 @@
 [Unit]
-Description=Octessera Orange Pi combined USB audio and MIDI gadget
+Description=Octessera Orange Pi config-driven USB gadget
 Wants=sys-kernel-config.mount
-After=systemd-modules-load.service sys-kernel-config.mount local-fs.target
-Before=sound.target
+After=systemd-modules-load.service sys-kernel-config.mount local-fs.target octessera-provision-musical-default.service
+Before=sound.target octessera.service
+Requires=octessera-provision-musical-default.service
 
 [Service]
 Type=oneshot

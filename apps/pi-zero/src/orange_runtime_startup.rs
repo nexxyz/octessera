@@ -30,10 +30,12 @@ impl OrangeStartupReadinessGate {
 
     pub(crate) fn try_mark_ready(
         &mut self,
-        dac_status: OrangeDacStatus,
+        route_status: OrangeDacStatus,
         candidate_readiness: &mut CandidateReadiness,
     ) -> Result<(), String> {
-        if self.ready || !self.acknowledged_initial_write || dac_status != OrangeDacStatus::Healthy
+        if self.ready
+            || !self.acknowledged_initial_write
+            || route_status != OrangeDacStatus::Healthy
         {
             return Ok(());
         }
@@ -81,6 +83,26 @@ pub(crate) fn prepare_runtime(
         runner,
         host,
     })
+}
+
+fn initialize_host_state(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    host: &mut OrangeHostAdapter,
+) -> Result<(), String> {
+    let output = playback.dispatch_runner_messages(
+        vec![playback_runtime::RunnerMessage::PlatformEffects {
+            effects: vec![
+                playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
+                playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
+                playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
+            ],
+        }],
+        runner,
+        host,
+    )?;
+    process_runtime_output(playback, runner, host, output)?;
+    Ok(())
 }
 
 pub(crate) fn publish_prepared_acknowledged_snapshot(

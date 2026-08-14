@@ -304,17 +304,6 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
     );
 
     assert_eq!(
-        serde_json::to_value(RuntimePlatformEffect::UsbApplyReboot {
-            payload: json!({ "runtimeConfig": { "usb": { "audioOut": "jack", "midiOutEnabled": false } } }),
-        })
-        .unwrap(),
-        json!({
-            "type": "usb_apply_reboot",
-            "payload": { "runtimeConfig": { "usb": { "audioOut": "jack", "midiOutEnabled": false } } }
-        })
-    );
-
-    assert_eq!(
         serde_json::to_value(RuntimePlatformEffect::RecordingStartAudio { max_minutes: 5 })
             .unwrap(),
         json!({ "type": "recording_start_audio", "maxMinutes": 5 })

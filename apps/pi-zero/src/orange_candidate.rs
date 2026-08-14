@@ -1,4 +1,5 @@
-use crate::audio::{AudioManager, AudioService, OrangeDacStatus};
+use crate::audio::{AudioManager, AudioService};
+use crate::audio_stream_health::AudioStreamStatus as OrangeDacStatus;
 use crate::candidate_readiness::CandidateReadiness;
 use crate::input::{
     encoder_press_message, encoder_turn_message, midi_realtime_message, MidiMessage,
@@ -6,6 +7,7 @@ use crate::input::{
 use crate::main_paths::default_store_dir;
 use crate::midi_host::drain_midi_messages;
 use crate::normal_menu::is_normal_menu_snapshot;
+pub(crate) use crate::orange_device_apply::OrangeRunError;
 use crate::orange_host_adapter::OrangeHostAdapter;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
@@ -32,7 +34,6 @@ pub(crate) use startup::{
     prepare_runtime, publish_prepared_acknowledged_snapshot, OrangeStartupReadinessGate,
     PreparedRuntime,
 };
-
 const POLLING_INTERVAL: Duration = Duration::from_millis(10);
 const RENDER_INTERVAL: Duration = Duration::from_millis(33);
 const RUNTIME_TICK: Duration = Duration::from_millis(8);
@@ -40,19 +41,18 @@ const HOST_RESULT_BUDGET: usize = 4;
 const ORANGE_UART0_ACTIVE: bool = false;
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
-
 struct OrangeRuntimeServices {
     midi_rx: Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     usb_midi_out_enabled: bool,
 }
-
-pub fn run() -> Result<(), String> {
+pub fn run() -> Result<(), OrangeRunError> {
     let mut candidate_readiness = CandidateReadiness::from_env();
     crate::board_profile::validate_runtime_profile()?;
     let handoff_mode = crate::boot_oled_handoff::mode_from_env()?;
     install_signal_handlers()?;
     let store_dir = default_store_dir();
+    crate::orange_device_apply::recover_startup(&store_dir)?;
     let usb_config = read_usb_runtime_config(&store_dir)
         .map_err(|error| format!("Orange USB runtime configuration is unavailable: {error}"))?;
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
@@ -63,12 +63,9 @@ pub fn run() -> Result<(), String> {
     });
     let mut audio = AudioManager::new_orange(
         crate::usb_config::audio_output_buffer_frames_from_default_config(&store_dir),
-        usb_config.audio_out,
+        usb_config.audio_outputs,
     )
     .map_err(|error| error.to_string())?;
-    let _required_audio_health = audio
-        .internal_dac_health()
-        .ok_or_else(|| "Orange internal DAC health monitor was not installed".to_string())?;
     if handoff_mode == crate::boot_oled_handoff::HandoffMode::V1 {
         return handoff::run(
             audio,
@@ -97,7 +94,6 @@ pub fn run() -> Result<(), String> {
         seesaw_tx: seesaw.command_tx.clone(),
         oled_handoff: None,
     });
-
     let audio_service = audio.service();
     let result = run_runtime(
         &seesaw,
@@ -112,11 +108,22 @@ pub fn run() -> Result<(), String> {
             usb_midi_out_enabled: usb_config.midi_out_enabled,
         },
     );
-    let render_result = render_shutdown(&render);
+    let render_result = render.publish_shutdown();
     let seesaw_result = seesaw.shutdown();
-    result.and(render_result).and(seesaw_result)
+    let result = result
+        .and_then(|resolution| {
+            render_result
+                .map(|_| resolution)
+                .map_err(OrangeRunError::from)
+        })
+        .and_then(|resolution| {
+            seesaw_result
+                .map(|_| resolution)
+                .map_err(OrangeRunError::from)
+        });
+    drop(audio);
+    result.and_then(crate::orange_device_apply::finish_shutdown_resolution)
 }
-
 #[allow(clippy::too_many_arguments)]
 fn run_runtime(
     seesaw: &SeesawIo,
@@ -126,7 +133,7 @@ fn run_runtime(
     audio_manager: &mut AudioManager,
     candidate_readiness: &mut CandidateReadiness,
     services: OrangeRuntimeServices,
-) -> Result<(), String> {
+) -> Result<crate::orange_device_apply::OrangeShutdownResolution, OrangeRunError> {
     let OrangeRuntimeServices {
         midi_rx,
         midi_handler,
@@ -155,15 +162,18 @@ pub(crate) fn run_prepared_runtime(
     candidate_readiness: &mut CandidateReadiness,
     midi_rx: Receiver<MidiMessage>,
     initial_rendered: bool,
-) -> Result<(), String> {
+) -> Result<crate::orange_device_apply::OrangeShutdownResolution, OrangeRunError> {
     let PreparedRuntime {
         mut playback,
         mut runner,
         mut host,
     } = prepared;
+    let audio = host.audio_service();
     let mut last_published_revision = 0;
     let mut readiness_gate = OrangeStartupReadinessGate::new(initial_rendered);
-    ensure_required_audio_health(audio_manager.required_dac_status())?;
+    ensure_required_audio_health(audio_manager.required_jack_status())?;
+    audio.ensure_route_readiness()?;
+    audio_manager.ensure_selected_routes()?;
     let result = (|| {
         drain_host_work(&mut playback, &mut runner, &mut host)?;
         let first_snapshot_rendered = if initial_rendered {
@@ -188,25 +198,44 @@ pub(crate) fn run_prepared_runtime(
         if !first_snapshot_rendered {
             return Err("Orange runtime did not produce a valid initial snapshot".into());
         }
-        readiness_gate.try_mark_ready(audio_manager.required_dac_status(), candidate_readiness)?;
-
+        readiness_gate.try_mark_ready(audio_manager.required_jack_status(), candidate_readiness)?;
         let mut previous_tick = Instant::now();
         let mut next_render = previous_tick + RENDER_INTERVAL;
         while !INTERRUPTED.load(Ordering::SeqCst) {
+            if host.shutdown_pending() {
+                break;
+            }
             let now = Instant::now();
             let elapsed = now.saturating_duration_since(previous_tick);
             previous_tick = now;
             audio_manager.recover_audio_if_due();
-            ensure_required_audio_health(audio_manager.required_dac_status())?;
+            ensure_required_audio_health(audio_manager.required_jack_status())?;
+            audio.ensure_route_readiness()?;
+            audio_manager.ensure_selected_routes()?;
             readiness_gate
-                .try_mark_ready(audio_manager.required_dac_status(), candidate_readiness)?;
+                .try_mark_ready(audio_manager.required_jack_status(), candidate_readiness)?;
             drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut host);
+            if host.shutdown_pending() {
+                break;
+            }
             drain_host_work(&mut playback, &mut runner, &mut host)?;
+            if host.shutdown_pending() {
+                break;
+            }
             drain_inputs(seesaw, encoder_rx, &mut playback, &mut runner, &mut host)?;
+            if host.shutdown_pending() {
+                break;
+            }
             let output = playback.advance_duration_with_output(elapsed, &mut runner, &mut host)?;
             process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-            ensure_required_audio_health(audio_manager.required_dac_status())?;
+            if host.shutdown_pending() {
+                break;
+            }
+            ensure_required_audio_health(audio_manager.required_jack_status())?;
             drain_host_work(&mut playback, &mut runner, &mut host)?;
+            if host.shutdown_pending() {
+                break;
+            }
             if now >= next_render {
                 playback.request_next_snapshot();
                 let at_ppqn_pulse = playback
@@ -237,40 +266,30 @@ pub(crate) fn run_prepared_runtime(
         }
         Ok::<(), String>(())
     })();
-    let silence = host
-        .silence_internal_audio()
-        .map_err(|error| error.to_string());
-    result.and(silence)
+    match (result, host.take_shutdown_request()) {
+        (Ok(()), Some(request)) => {
+            crate::orange_device_apply::resolve_shutdown_request(request, &mut host)
+        }
+        (Ok(()), None) => host
+            .silence_internal_audio()
+            .map(|_| crate::orange_device_apply::OrangeShutdownResolution::Complete)
+            .map_err(|error| OrangeRunError::Ordinary(error.to_string())),
+        (Err(error), Some(request)) => Err(crate::orange_device_apply::abort_shutdown_request(
+            request, error, &mut host,
+        )),
+        (Err(error), None) => {
+            let _ = host.silence_internal_audio();
+            Err(OrangeRunError::Ordinary(error))
+        }
+    }
 }
-
 fn ensure_required_audio_health(status: OrangeDacStatus) -> Result<(), String> {
     if status == OrangeDacStatus::Terminal {
-        Err("Orange internal DAC audio stream faulted".into())
+        Err("Orange Jack audio stream faulted".into())
     } else {
         Ok(())
     }
 }
-
-fn initialize_host_state(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
-) -> Result<(), String> {
-    let output = playback.dispatch_runner_messages(
-        vec![playback_runtime::RunnerMessage::PlatformEffects {
-            effects: vec![
-                playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
-                playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
-                playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
-            ],
-        }],
-        runner,
-        host,
-    )?;
-    process_runtime_output(playback, runner, host, output)?;
-    Ok(())
-}
-
 fn drain_host_work(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -286,7 +305,6 @@ fn drain_host_work(
     }
     drain_host_results(playback, runner, host)
 }
-
 fn drain_host_results(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -297,7 +315,6 @@ fn drain_host_results(
     }
     Ok(())
 }
-
 fn drain_inputs(
     seesaw: &SeesawIo,
     encoder_rx: &Receiver<HardwareEvent>,
@@ -323,7 +340,6 @@ fn drain_inputs(
     }
     Ok(())
 }
-
 fn init_encoders() -> Result<(Receiver<HardwareEvent>, Vec<OrangeEncoderGpio>), String> {
     let (event_tx, event_rx) = mpsc::channel();
     let mut encoders = Vec::new();
@@ -338,7 +354,6 @@ fn init_encoders() -> Result<(Receiver<HardwareEvent>, Vec<OrangeEncoderGpio>), 
     }
     Ok((event_rx, encoders))
 }
-
 #[cfg(test)]
 fn qualified_encoder_ids() -> Vec<&'static str> {
     ORANGE_PI_ZERO_2W_DEVICES
@@ -348,7 +363,6 @@ fn qualified_encoder_ids() -> Vec<&'static str> {
         .map(|(index, _)| encoder_id(index).expect("Orange encoder descriptor index is valid"))
         .collect()
 }
-
 fn encoder_id(index: usize) -> Result<&'static str, String> {
     match index {
         0 => Ok("encoder_main"),
@@ -358,7 +372,6 @@ fn encoder_id(index: usize) -> Result<&'static str, String> {
         _ => Err(format!("unknown Orange encoder index {index}")),
     }
 }
-
 fn encoder_message(event: HardwareEvent) -> Option<HostMessage> {
     match event {
         HardwareEvent::EncoderTurn { id, delta } => Some(encoder_turn_message(id, delta)),
@@ -366,7 +379,6 @@ fn encoder_message(event: HardwareEvent) -> Option<HostMessage> {
         HardwareEvent::EncoderRelease { .. } => None,
     }
 }
-
 fn dispatch(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -381,7 +393,6 @@ fn dispatch(
     process_runtime_output(playback, runner, host, output)?;
     Ok(())
 }
-
 pub(crate) fn process_runtime_output(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -395,14 +406,19 @@ pub(crate) fn process_runtime_output(
     let fault_output = playback.report_oled_cache_fault(fault);
     ingest_oled_messages(host, &fault_output.messages);
     for follow_up in fault_output.follow_ups {
+        if host.shutdown_pending() {
+            break;
+        }
         dispatch(playback, runner, host, follow_up)?;
     }
     for follow_up in output.follow_ups {
+        if host.shutdown_pending() {
+            break;
+        }
         dispatch(playback, runner, host, follow_up)?;
     }
     Ok(())
 }
-
 fn ingest_oled_messages(
     host: &mut OrangeHostAdapter,
     messages: &[playback_runtime::RunnerMessage],
@@ -414,7 +430,6 @@ fn ingest_oled_messages(
         }
     }
 }
-
 fn publish_snapshot(
     playback: &mut PlaybackRuntime,
     runner: &NativeRunner,
@@ -442,10 +457,6 @@ fn publish_snapshot(
     }
     *last_revision = playback.last_snapshot_revision();
     Ok(true)
-}
-
-fn render_shutdown(render: &RenderWorker) -> Result<(), String> {
-    render.publish_shutdown()
 }
 
 #[cfg(unix)]

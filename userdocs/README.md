@@ -71,7 +71,7 @@ audio, every control, and access to the ports.
 
 ## OLED SD card samples
 
-For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2. The Pi boot card is SD1. Octessera mounts SD2 at `SD card` and creates `octessera/samples` plus `octessera/saves`; put WAV samples under `octessera/samples`. If you use `System > USB > Start SD2 Xfer`, eject the drive on the host before pressing Back or Main to stop transfer. If no host is connected yet, Octessera waits until one appears and you can still cancel from the popup. Tiny storage goblin, ordinary safe-eject rules.
+For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2. The Pi boot card is SD1. Octessera mounts SD2 at `SD card` and creates `octessera/samples` plus `octessera/saves`; put WAV samples under `octessera/samples`. If you use `System > Audio & USB > Start SD2 Xfer`, eject the drive on the host before pressing Back or Main to stop transfer. If no host is connected yet, Octessera waits until one appears and you can still cancel from the popup. Tiny storage goblin, ordinary safe-eject rules.
 
 ## Canonical specs
 

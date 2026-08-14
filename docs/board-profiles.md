@@ -36,7 +36,10 @@ cyan/yellow/green/magenta four-band sweep defined by
 lock/status protocol, and the same acknowledged first-menu handoff. Raspberry
 embeds the native boot utility in initramfs and uses the Pi SPI/GPIO adapter;
 Orange carries its fixed Python OLED utility and closure for H618 SPI/GPIO.
-Orange readiness additionally waits for healthy internal DAC status. These
+Orange readiness additionally applies the selected-route rules: every
+non-empty Jack/USB/HDMI set is valid, Jack is required only when selected,
+recognized disconnected USB or HDMI may wait, selected faults block readiness,
+and no route is a fallback for another. These
 source paths are implemented, but their boot services, hooks, and selected
 initramfs outputs still require a new constructor image and physical
 qualification on both boards.
@@ -65,12 +68,31 @@ aliases and are covered by CI compile checks. The HAL also exposes the
 `orange-pi-zero-2w` profile descriptor and its diagnostic OLED/I2C bring-up
 backend. The Orange production `octessera-pi` runtime uses the shared 44.1 kHz
 rate and supports the OLED, NeoTrellis, NeoKey, all four encoders, persistent
-store, samples, MIDI, and the internal DAC. Audio requires exactly one CPAL
-output device named `hw:CARD=octesseradac,DEV=0` with verified stereo support.
-There is no default or HDMI fallback. USB UAC2 is an optional companion
-(`audioOut=both`); `audioOut=usb` is rejected because the internal DAC is
-required. MIDI uses the native host adapter, including USB MIDI when the
-configured gadget port is present.
+store, samples, MIDI, and the selected audio routes. A selected Jack route
+uses exactly `hw:CARD=octesseradac,DEV=0` with verified stereo support.
+The native menu persists Jack Audio, USB Audio, and HDMI Audio independently;
+every non-empty output set is valid. Jack is fatal/required only when selected;
+recognized disconnected USB or HDMI routes may wait, selected route faults block
+readiness, and no route is used as a fallback. Simultaneous physical outputs
+use independent unsynchronized clocks and can drift or echo; this phase does
+not provide sample alignment. The observed Orange HDMI connector path is
+`/sys/class/drm/card0-HDMI-A-1`. A live Raspberry Pi Zero 2 W observation on
+kernel `6.12.93+rpt-rpi-v8` found the exact connector paths
+`/sys/class/drm/card0-HDMI-A-1/{status,edid}`; Raspberry code pins that card0
+identity and does not scan or fall back to card1. This establishes connector
+identity only, not connected HDMI audio or audible qualification.
+MIDI uses the native host adapter, including USB MIDI when the configured gadget
+port is present.
+
+The Orange image-side USB gadget reads the persisted default at
+`/var/lib/octessera/presets/default.json`. `audioOutputs.usb` enables the fixed
+44.1 kHz stereo UAC2 function and `usb.midiOutEnabled` enables the fixed MIDI
+function. The valid compositions are no gadget, MIDI only, UAC2 only, and
+combined; HDMI and Jack do not change gadget composition.
+The confirmed device apply lane uses a narrow root-owned socket and the exact
+`reboot\n` request rather than a general sudo command path. It returns
+`accepted\n` only after `/usr/bin/systemctl reboot` succeeds and returns
+`rejected\n` for malformed or definitively failed requests.
 
 The Orange control surface requires the exact validated NeoTrellis wiring and
 addresses. There is no alternate Trellis bus, address, or hardware fallback.
@@ -169,13 +191,14 @@ The metadata command is read-only. The active hardware test is
 staging, and electrical gates; it must not be run against an unverified device
 or wiring harness.
 
-The smoke artifacts remain diagnostic-only. The production runtime routes
-internal synth/sample audio through the realtime engine and emits MIDI through
-the native host adapter. It requires the exact internal DAC; USB UAC2 is only an
-optional companion and `audioOut=usb` is rejected. Orange update check, apply,
-rollback, and OTA remain unsupported and return typed unavailable status before
-an updater or network path is touched. The production service has no Orange
-device-update path; use a verified production image artifact for image updates.
+The native runtime contract exposes Jack Audio, USB Audio, and HDMI Audio
+independently on the Orange profile under the selected-route rules above. The
+smoke artifacts remain diagnostic-only. The production runtime routes internal
+synth/sample audio through the realtime engine and emits MIDI through the native
+host adapter. Orange update check, apply, rollback, and OTA remain
+unsupported and return typed unavailable status before an updater or network
+path is touched. The production service has no Orange device-update path; use a
+verified production image artifact for image updates.
 SIGINT
 performs the normal shutdown frame, bounded 750 ms black-LED cleanup/retry, and
 OLED-off acknowledgement; workers join only after an acknowledgement and are

@@ -239,7 +239,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
                 }])
             }
-            RuntimePlatformEffect::UsbApplyReboot { payload } => {
+            RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 self.save_default_result(request, payload, Some("overwrite"))?;
                 self.shutdown_requested = true;
                 Ok(vec![])

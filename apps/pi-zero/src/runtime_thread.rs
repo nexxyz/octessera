@@ -9,7 +9,6 @@ use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
 use crate::snapshot_cadence::SnapshotCadence;
 use crate::ui_profile::UiProfiler;
-use crate::usb_config::UsbAudioOut;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
     HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
@@ -62,7 +61,7 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) samples_dir: PathBuf,
     pub(crate) midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) usb_midi_out_enabled: bool,
-    pub(crate) usb_audio_out: UsbAudioOut,
+    pub(crate) audio_outputs: playback_runtime::AudioOutputSet,
     pub(crate) midi_rx: mpsc::Receiver<MidiMessage>,
     pub(crate) input_rx: mpsc::Receiver<HostMessage>,
     pub(crate) encoder_rx: mpsc::Receiver<HardwareEvent>,
@@ -97,6 +96,7 @@ fn run_scheduler(
         mut adapter,
         candidate_readiness: _,
     } = prepared;
+    let audio = adapter.audio_service();
     let mut state = SchedulerState::new();
     state
         .snapshot_cadence
@@ -118,6 +118,44 @@ fn run_scheduler(
             &mut adapter,
             &render_worker,
         ) {
+            break;
+        }
+        let audio_fault = audio.as_ref().and_then(|audio| {
+            if audio.required_jack_failed() {
+                Some("required Jack audio stream faulted".to_string())
+            } else {
+                audio.ensure_route_readiness().err()
+            }
+        });
+        if let Some(message) = audio_fault {
+            let error = playback_runtime::RuntimeErrorFacts::new(
+                playback_runtime::RuntimeErrorDomain::Audio,
+                playback_runtime::RuntimeErrorCode::AudioThreadFailed,
+                playback_runtime::RuntimeOperation::AudioThread,
+                Some(message),
+            );
+            match playback.recover_from_facts(error, &mut runner, &mut adapter) {
+                Ok(output) => {
+                    if let Err(error) = crate::runtime_loop::process_runtime_output(
+                        &mut playback,
+                        &mut runner,
+                        &mut adapter,
+                        output,
+                    ) {
+                        eprintln!("pi audio fault output processing failed: {error}");
+                    }
+                }
+                Err(error) => eprintln!("pi audio fault recovery failed: {error}"),
+            }
+            let snapshot = playback.last_snapshot().cloned();
+            if let Some(snapshot) = snapshot {
+                if let Ok(oled) = adapter.oled_publication_for_snapshot(&snapshot, false) {
+                    if let Err(error) = render_worker.publish_snapshot_with_ack(snapshot, oled) {
+                        eprintln!("pi audio fault snapshot publication failed: {error}");
+                    }
+                }
+            }
+            let _ = render_worker.publish_shutdown();
             break;
         }
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);

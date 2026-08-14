@@ -4,6 +4,7 @@ set -eu
 CONFIGFS_ROOT=${OCTESSERA_USB_CONFIGFS_ROOT:-/sys/kernel/config}
 G=${OCTESSERA_USB_GADGET_ROOT:-$CONFIGFS_ROOT/usb_gadget/octessera}
 CONFIG=${OCTESSERA_USB_CONFIG:-/home/pi/presets/default.json}
+DEVICE_CONFIG_VALIDATOR=${OCTESSERA_DEVICE_CONFIG_VALIDATOR:-/usr/local/lib/octessera/device_config.py}
 UDC_ROOT=${OCTESSERA_USB_UDC_ROOT:-/sys/class/udc}
 STORAGE_CONFIG=${OCTESSERA_USB_STORAGE_CONFIG:-/etc/octessera/usb-storage.conf}
 SD_MOUNT=${OCTESSERA_USB_SD_MOUNT:-/home/pi/samples/sd-card}
@@ -12,7 +13,6 @@ LIFECYCLE_LOCK=${OCTESSERA_USB_LIFECYCLE_LOCK:-/run/octessera-usb-gadget.lock}
 LOG=octessera-usb-gadget
 LINE_CONNECTOR_TERMINAL_TYPE=1539
 MIDI_INTERFACE_STRING='Octessera MIDI'
-MIDI_INTERFACE_STRING_SIZE=14
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
 first_udc() {
@@ -23,42 +23,9 @@ first_udc() {
   done
   return 1
 }
-json_compact() { tr -d '[:space:]' < "$CONFIG"; }
-json_has() { json_compact | grep -Eq "$1"; }
-canonical_usb_enabled() {
-  outputs=$1
-  saved_ifs=$IFS
-  IFS=,
-  valid=1
-  count=0
-  dac=
-  usb=
-  hdmi=
-  for field in $outputs; do
-    count=$((count + 1))
-    case "$field" in
-      '"dac":true' | '"dac":false') [ -z "$dac" ] || valid=0; dac=1 ;;
-      '"usb":true') [ -z "$usb" ] || valid=0; usb=true ;;
-      '"usb":false') [ -z "$usb" ] || valid=0; usb=false ;;
-      '"hdmi":true') [ -z "$hdmi" ] || valid=0; hdmi=true ;;
-      '"hdmi":false') [ -z "$hdmi" ] || valid=0; hdmi=false ;;
-      *) valid=0 ;;
-    esac
-  done
-  IFS=$saved_ifs
-  [ "$valid" = 1 ] && [ "$count" = 3 ] && [ "$usb" = true ] && [ "$hdmi" = false ]
+read_device_config() {
+  python3 "$DEVICE_CONFIG_VALIDATOR" "$CONFIG"
 }
-audio_enabled() {
-  compact=$(json_compact)
-  case "$compact" in
-    *'"audioOutputs":'*)
-      outputs=$(printf '%s\n' "$compact" | sed -n 's/.*"audioOutputs":{\([^}]*\)}.*/\1/p')
-      canonical_usb_enabled "$outputs"
-      ;;
-    *) json_has '"audioOut"[[:space:]]*:[[:space:]]*"(usb|both)"' ;;
-  esac
-}
-midi_enabled() { json_has '"midiOutEnabled"[[:space:]]*:[[:space:]]*true'; }
 serial_number() {
   if [ -r /etc/machine-id ]; then
     printf 'octessera-%s\n' "$(cut -c1-16 /etc/machine-id)"
@@ -92,12 +59,8 @@ write_midi_interface_string() {
     log "could not write f_midi interface_string attribute"
     return 1
   fi
-  size=$(wc -c < "$path" | tr -d '[:space:]')
-  [ "$size" = "$MIDI_INTERFACE_STRING_SIZE" ] || {
-    log "f_midi interface_string has unexpected size: $size"
-    return 1
-  }
-  if ! printf '%s' "$MIDI_INTERFACE_STRING" | cmp -s - "$path"; then
+  if ! printf '%s' "$MIDI_INTERFACE_STRING" | cmp -s - "$path" &&
+     ! printf '%s\n' "$MIDI_INTERFACE_STRING" | cmp -s - "$path"; then
     log "f_midi interface_string readback did not match"
     return 1
   fi
@@ -200,12 +163,16 @@ setup_unlocked() (
   modprobe dwc2 >/dev/null 2>&1 || true
   modprobe libcomposite >/dev/null 2>&1 || true
   mountpoint -q "$CONFIGFS_ROOT" || mount -t configfs none "$CONFIGFS_ROOT" || true
+  state=$(read_device_config) || { log "invalid persisted device config"; return 1; }
+  AUDIO=${state%% *}
+  MIDI=${state#* }
+  case "$AUDIO$MIDI" in
+    00|01|10|11) ;;
+    *) log "device config validator returned invalid state"; return 1 ;;
+  esac
   [ -d "$UDC_ROOT" ] || { log "no UDC class; skipping"; return 0; }
   UDC=$(first_udc || true)
   [ -n "$UDC" ] || { log "no UDC available; skipping"; return 0; }
-  AUDIO=0; MIDI=0
-  audio_enabled && AUDIO=1
-  midi_enabled && MIDI=1
   if [ "$AUDIO$MIDI" = 00 ]; then
     teardown_unlocked || exit 1
     log "no USB gadget functions enabled"

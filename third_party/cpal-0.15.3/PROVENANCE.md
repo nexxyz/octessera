@@ -8,8 +8,17 @@
 - License: Apache-2.0, retained in `LICENSE`.
 
 The vendored tree contains the package above plus the following exact modified
-files for Octessera's narrow exact-PCM ALSA path:
+files. Each change is limited to Octessera's fixed hardware/audio contracts:
 
-- `src/lib.rs`
-- `src/host/alsa/mod.rs`
-- `src/host/wasapi/device.rs`
+- `src/error.rs` — adds typed busy, unsupported, and fault variants used to
+  report ALSA device and stream failures without collapsing them into generic
+  backend errors.
+- `src/lib.rs` — defines the fixed Raspberry Pi and Orange Pi PCM identities
+  and the shared exact-output allowlist.
+- `src/host/alsa/enumerate.rs` — preserves null-hint filtering and only yields
+  ALSA devices whose handles open successfully, using simpler iterator flow.
+- `src/host/alsa/mod.rs` — implements exact PCM opening, ALSA errno
+  classification, pause/play semantics, interrupt-safe worker wakeups, and
+  non-panicking worker teardown.
+- `src/host/wasapi/device.rs` — caches the future WASAPI audio client and
+  process-wide device enumerator used by the desktop audio adapter.

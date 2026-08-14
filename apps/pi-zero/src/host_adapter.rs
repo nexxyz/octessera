@@ -14,11 +14,10 @@ use crate::midi_host::{MidiHost, RuntimeOutputSink};
 use crate::oled_frame_cache::OledFrameCache;
 use crate::platform_service::{PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::setup_portal::start_failure_message;
-use crate::usb_config::UsbAudioOut;
 use playback_runtime::{
-    DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
-    RuntimeAdapterError, RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeStoreResult,
+    AudioOutputSet, DeferredDefaultSave, HostAdapter, HostMessage,
+    MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
+    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
@@ -33,7 +32,7 @@ pub struct PiPlaybackHostAdapter {
     pending_default_save: DeferredDefaultSave,
     midi: MidiHost,
     usb_midi_out_enabled: bool,
-    usb_audio_out: UsbAudioOut,
+    audio_outputs: AudioOutputSet,
     power_request: Option<PiPowerRequest>,
     latest_recovery_payload: Option<serde_json::Value>,
     pub(crate) oled_frame_cache: OledFrameCache,
@@ -44,13 +43,13 @@ pub enum PiPowerRequest {
     Shutdown,
 }
 impl PiPlaybackHostAdapter {
-    pub fn new(
+    pub fn new<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,
         samples_dir: PathBuf,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         usb_midi_out_enabled: bool,
-        usb_audio_out: UsbAudioOut,
+        audio_outputs: T,
     ) -> Self {
         let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
         Self::with_platform_service(
@@ -59,13 +58,17 @@ impl PiPlaybackHostAdapter {
             samples_dir,
             midi_in_handler,
             usb_midi_out_enabled,
-            usb_audio_out,
+            audio_outputs.into(),
             platform_service,
         )
     }
 
     pub fn take_power_request(&mut self) -> Option<PiPowerRequest> {
         self.power_request.take()
+    }
+
+    pub(crate) fn audio_service(&self) -> Option<AudioService> {
+        self.audio.clone()
     }
 
     pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
@@ -182,11 +185,11 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     None => return Ok(Vec::new()),
                 }
             }
-            RuntimePlatformEffect::UsbApplyReboot { payload } => {
+            RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 self.pending_default_save.cancel();
                 if let Err(message) = self.platform_service.save_default_now(payload) {
                     return Ok(vec![store_error(format!(
-                        "USB apply save failed: {message}"
+                        "device/audio apply save failed: {message}"
                     ))]);
                 }
                 self.power_request = Some(PiPowerRequest::Reboot);
@@ -205,7 +208,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::UsbSdTransferStart => {
-                if matches!(self.usb_audio_out, UsbAudioOut::Usb | UsbAudioOut::Both) {
+                if self.audio_outputs.usb() {
                     return Ok(vec![store_error(
                         "USB SD2 transfer blocked while USB audio out is active".into(),
                     )]);

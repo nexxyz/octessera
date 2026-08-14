@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+use crate::usb_config::UsbAudioOut;
 
 impl PiPlaybackHostAdapter {
     pub(super) fn with_platform_service(
@@ -7,7 +9,7 @@ impl PiPlaybackHostAdapter {
         samples_dir: PathBuf,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         usb_midi_out_enabled: bool,
-        usb_audio_out: UsbAudioOut,
+        audio_outputs: AudioOutputSet,
         platform_service: PiPlatformService,
     ) -> Self {
         Self {
@@ -18,7 +20,7 @@ impl PiPlaybackHostAdapter {
             pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             usb_midi_out_enabled,
-            usb_audio_out,
+            audio_outputs,
             power_request: None,
             latest_recovery_payload: None,
             oled_frame_cache: OledFrameCache::default(),
@@ -46,7 +48,7 @@ impl PiPlaybackHostAdapter {
             samples_dir,
             midi_in_handler,
             usb_midi_out_enabled,
-            usb_audio_out,
+            usb_audio_out.outputs(),
             platform_service,
         )
     }
@@ -72,7 +74,7 @@ impl PiPlaybackHostAdapter {
             samples_dir,
             midi_in_handler,
             usb_midi_out_enabled,
-            usb_audio_out,
+            usb_audio_out.outputs(),
             platform_service,
         )
     }

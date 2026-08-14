@@ -1,119 +1,12 @@
 use crate::audio::default_pi_instruments;
-use crate::audio::AudioSink;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use crate::usb_config::UsbAudioOut;
 use realtime_engine::synth::SampleBankConfig;
 use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
 use rodio_engine_source::{EngineEvent, EngineEventSender};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-pub(crate) struct SinkSender {
-    pub(crate) sink: AudioSink,
-    tx: EngineEventSender,
-}
-
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn test_sink_sender(tx: EngineEventSender) -> SinkSender {
-    test_sink_sender_for(AudioSink::InternalDac, tx)
-}
-
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn test_sink_sender_for(sink: AudioSink, tx: EngineEventSender) -> SinkSender {
-    SinkSender { sink, tx }
-}
-
-pub(crate) fn broadcast_event(
-    txs: &Arc<Mutex<Vec<SinkSender>>>,
-    event: EngineEvent,
-) -> Result<(), String> {
-    let mut failed = Vec::new();
-    let mut first_error = None;
-    let mut guard = txs
-        .lock()
-        .map_err(|_| "audio sink registry lock failed".to_string())?;
-    for sink in guard.iter() {
-        if let Err(error) = sink.tx.send(event.clone()) {
-            first_error.get_or_insert_with(|| error.to_string());
-            failed.push(sink.sink);
-        }
-    }
-    guard.retain(|sink| !failed.contains(&sink.sink));
-    if failed.is_empty() || !failed.iter().any(failed_sink_is_required) {
-        Ok(())
-    } else {
-        Err(format!(
-            "audio event queue unavailable for {:?}: {}",
-            failed,
-            first_error.unwrap_or_else(|| "unknown queue failure".into())
-        ))
-    }
-}
-
-fn failed_sink_is_required(sink: &AudioSink) -> bool {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    {
-        *sink == AudioSink::InternalDac
-    }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    {
-        let _ = sink;
-        true
-    }
-}
-
-pub(crate) fn register_sink(
-    txs: &Arc<Mutex<Vec<SinkSender>>>,
-    sink: AudioSink,
-    tx: EngineEventSender,
-) {
-    if let Ok(mut txs) = txs.lock() {
-        txs.retain(|entry| entry.sink != sink);
-        txs.push(SinkSender { sink, tx });
-    }
-}
-
-pub(crate) fn remove_sink(txs: &Arc<Mutex<Vec<SinkSender>>>, sink: AudioSink) {
-    if let Ok(mut txs) = txs.lock() {
-        txs.retain(|entry| entry.sink != sink);
-    }
-}
-
-pub(crate) fn has_sink(txs: &Arc<Mutex<Vec<SinkSender>>>, sink: AudioSink) -> bool {
-    txs.lock()
-        .map(|txs| txs.iter().any(|entry| entry.sink == sink))
-        .unwrap_or(false)
-}
-
-pub(crate) fn replay_to_sink(
-    tx: &EngineEventSender,
-    replay_events: &Arc<Mutex<ReplayCache>>,
-) -> Result<(), String> {
-    let events = replay_events
-        .lock()
-        .map_err(|_| "audio replay cache lock failed".to_string())?;
-    for event in events.events() {
-        tx.send(event.clone()).map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
 pub(crate) fn default_replay_events() -> ReplayCache {
     ReplayCache::default()
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn startup_sinks(audio_out: UsbAudioOut) -> Vec<AudioSink> {
-    match audio_out {
-        UsbAudioOut::Jack => vec![AudioSink::Jack],
-        UsbAudioOut::Usb => Vec::new(),
-        UsbAudioOut::Both => vec![AudioSink::Jack],
-    }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn recovery_enabled(audio_out: UsbAudioOut) -> bool {
-    matches!(audio_out, UsbAudioOut::Usb | UsbAudioOut::Both)
 }
 
 #[derive(Clone, Default)]
@@ -163,6 +56,19 @@ impl ReplayCache {
         events.extend(self.keyed.values().cloned());
         events
     }
+}
+
+pub(crate) fn replay_to_sink(
+    tx: &EngineEventSender,
+    replay_events: &Arc<Mutex<ReplayCache>>,
+) -> Result<(), String> {
+    let events = replay_events
+        .lock()
+        .map_err(|_| "audio replay cache lock failed".to_string())?;
+    for event in events.events() {
+        tx.send(event.clone()).map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 fn merge_fx_bus_mixer_event(
@@ -260,11 +166,6 @@ pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
     )
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn usb_uses_recording_tap(audio_out: UsbAudioOut) -> bool {
-    audio_out == UsbAudioOut::Usb
-}
-
 #[cfg(test)]
 pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
     use rodio_engine_source::event_queue;
@@ -282,41 +183,7 @@ pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    use crate::audio::audio_sinks;
     use realtime_engine::synth::prepare_audio_config;
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    use rodio_engine_source::event_queue;
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    #[test]
-    fn audio_sink_plan_preserves_desired_usb_modes() {
-        assert_eq!(audio_sinks(UsbAudioOut::Jack), vec![AudioSink::Jack]);
-        assert_eq!(audio_sinks(UsbAudioOut::Usb), vec![AudioSink::Usb]);
-        assert_eq!(
-            audio_sinks(UsbAudioOut::Both),
-            vec![AudioSink::Jack, AudioSink::Usb]
-        );
-    }
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    #[test]
-    fn usb_recording_tap_policy_keeps_single_callback_owner() {
-        assert!(usb_uses_recording_tap(UsbAudioOut::Usb));
-        assert!(!usb_uses_recording_tap(UsbAudioOut::Both));
-        assert!(!usb_uses_recording_tap(UsbAudioOut::Jack));
-    }
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    #[test]
-    fn startup_and_recovery_plan_keeps_usb_mode_usb_only() {
-        assert_eq!(startup_sinks(UsbAudioOut::Jack), vec![AudioSink::Jack]);
-        assert!(!recovery_enabled(UsbAudioOut::Jack));
-        assert_eq!(startup_sinks(UsbAudioOut::Both), vec![AudioSink::Jack]);
-        assert!(recovery_enabled(UsbAudioOut::Both));
-        assert_eq!(startup_sinks(UsbAudioOut::Usb), Vec::<AudioSink>::new());
-        assert!(recovery_enabled(UsbAudioOut::Usb));
-    }
 
     #[test]
     fn replay_events_skip_transient_realtime_messages() {
@@ -334,7 +201,7 @@ mod tests {
     #[test]
     fn replay_cache_keeps_current_sample_banks_when_audio_config_omits_them() {
         let mut cache = ReplayCache::default();
-        let bank = realtime_engine::synth::SampleBankConfig {
+        let bank = SampleBankConfig {
             gain_pct: 42.0,
             ..Default::default()
         };
@@ -418,51 +285,5 @@ mod tests {
                 volume_pct: Some(55.0),
             }
         )));
-    }
-
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    #[test]
-    fn orange_audio_fanout_and_replay_cover_a_late_uac_sink() {
-        let (dac_tx, mut dac_rx) = event_queue();
-        let (usb_tx, mut usb_rx) = event_queue();
-        let sinks = Arc::new(Mutex::new(Vec::new()));
-        register_sink(&sinks, AudioSink::InternalDac, dac_tx);
-        register_sink(&sinks, AudioSink::Usb, usb_tx);
-
-        let event = EngineEvent::SetMasterVolume { volume_pct: 72.0 };
-        broadcast_event(&sinks, event.clone()).unwrap();
-        assert!(
-            matches!(dac_rx.try_recv(), Ok(EngineEvent::SetMasterVolume { volume_pct }) if volume_pct == 72.0)
-        );
-        assert!(
-            matches!(usb_rx.try_recv(), Ok(EngineEvent::SetMasterVolume { volume_pct }) if volume_pct == 72.0)
-        );
-
-        let mut cache = ReplayCache::default();
-        cache.remember(&event);
-        let (late_tx, mut late_rx) = event_queue();
-        replay_to_sink(&late_tx, &Arc::new(Mutex::new(cache))).unwrap();
-        assert!(matches!(
-            late_rx.try_recv(),
-            Ok(EngineEvent::SetPreparedInstruments(_))
-        ));
-        assert!(
-            matches!(late_rx.try_recv(), Ok(EngineEvent::SetMasterVolume { volume_pct }) if volume_pct == 72.0)
-        );
-    }
-
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    #[test]
-    fn orange_uac_sink_loss_does_not_fail_required_dac_fanout() {
-        let (dac_tx, mut dac_rx) = event_queue();
-        let (usb_tx, usb_rx) = event_queue();
-        let sinks = Arc::new(Mutex::new(Vec::new()));
-        register_sink(&sinks, AudioSink::InternalDac, dac_tx);
-        register_sink(&sinks, AudioSink::Usb, usb_tx);
-        drop(usb_rx);
-
-        assert!(broadcast_event(&sinks, EngineEvent::AllNotesOff).is_ok());
-        assert!(matches!(dac_rx.try_recv(), Ok(EngineEvent::AllNotesOff)));
-        assert_eq!(sinks.lock().unwrap().len(), 1);
     }
 }

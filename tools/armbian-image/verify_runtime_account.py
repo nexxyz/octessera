@@ -82,6 +82,7 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "LimitMEMLOCK=infinity",
         "ExecStart=/usr/local/bin/octessera-pi",
         "Restart=on-failure",
+        "RestartPreventExitStatus=78",
         "RestartSec=5s",
     ):
         require(line in service_content, f"production service is missing: {line}")

@@ -1,4 +1,5 @@
 use super::*;
+use crate::usb_config::UsbAudioOut;
 use playback_runtime::{
     HostAdapter, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
@@ -120,7 +121,7 @@ fn load_immediate_save_and_usb_apply_cancel_deferred_work() {
         .is_empty());
     assert!(adapter
         .handle_platform_effect(&request(
-            RuntimePlatformEffect::UsbApplyReboot {
+            RuntimePlatformEffect::ApplyDeviceConfigReboot {
                 payload: json!({"usb": true})
             },
             "usb-now",

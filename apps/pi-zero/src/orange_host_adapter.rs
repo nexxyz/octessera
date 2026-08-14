@@ -3,6 +3,7 @@ use crate::main_paths::{default_samples_dir, default_store_dir};
 use crate::midi_host::{MidiHost, RuntimeOutputSink};
 use crate::oled_frame_cache::{OledFrameCache, OledFramePublication};
 use crate::orange_audio::OrangeAudioHost;
+use crate::orange_device_apply::OrangeShutdownRequest;
 use crate::platform_service::{load_json, PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::setup_portal::start_failure_message;
 use playback_runtime::{
@@ -24,9 +25,21 @@ pub(crate) struct OrangeHostAdapter {
     pending_default_save: DeferredDefaultSave,
     midi: MidiHost,
     oled_frame_cache: OledFrameCache,
+    shutdown_request: Option<OrangeShutdownRequest>,
 }
 
 impl OrangeHostAdapter {
+    pub(crate) fn audio_service(&self) -> AudioService {
+        self.audio.clone()
+    }
+
+    pub(crate) fn shutdown_pending(&self) -> bool {
+        self.shutdown_request.is_some()
+    }
+
+    pub(crate) fn take_shutdown_request(&mut self) -> Option<OrangeShutdownRequest> {
+        self.shutdown_request.take()
+    }
     pub(crate) fn new(
         audio: AudioService,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -58,6 +71,7 @@ impl OrangeHostAdapter {
             pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             oled_frame_cache: OledFrameCache::default(),
+            shutdown_request: None,
         })
     }
 
@@ -105,6 +119,7 @@ impl OrangeHostAdapter {
             pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             oled_frame_cache: OledFrameCache::default(),
+            shutdown_request: None,
         })
     }
 
@@ -180,6 +195,9 @@ impl OrangeHostAdapter {
 
 impl HostAdapter for OrangeHostAdapter {
     fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return Ok(());
+        }
         self.audio_host.handle_musical_event(event)
     }
 
@@ -187,6 +205,18 @@ impl HostAdapter for OrangeHostAdapter {
         &mut self,
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return match &request.effect {
+                RuntimePlatformEffect::StoreSaveDefault { .. }
+                | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. } => {
+                    Ok(vec![failure_message(
+                        request,
+                        "Orange shutdown request is already pending".into(),
+                    )])
+                }
+                _ => Ok(Vec::new()),
+            };
+        }
         let result = match &request.effect {
             RuntimePlatformEffect::StoreListPresets => {
                 return Ok(
@@ -226,6 +256,12 @@ impl HostAdapter for OrangeHostAdapter {
                 RuntimeStoreResult::LoadDefaultResult { payload }
             }
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
+                if self.shutdown_pending() {
+                    return Ok(vec![failure_message(
+                        request,
+                        "Orange shutdown request is already pending".into(),
+                    )]);
+                }
                 if mode.as_deref() == Some("deferred") {
                     self.pending_default_save.schedule(
                         payload.clone(),
@@ -258,6 +294,31 @@ impl HostAdapter for OrangeHostAdapter {
                     .save_recovery_now(payload)
                     .map_err(RuntimeAdapterError::operation_failed)?;
                 RuntimeStoreResult::SaveRecoveryResult { ok: true }
+            }
+            RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
+                if self.shutdown_pending() {
+                    return Ok(vec![failure_message(
+                        request,
+                        "Orange shutdown request is already pending".into(),
+                    )]);
+                }
+                self.pending_default_save.cancel();
+                let transaction = self
+                    .platform_service
+                    .prepare_orange_device_apply(payload)
+                    .map_err(RuntimeAdapterError::operation_failed)?;
+                self.shutdown_request = Some(OrangeShutdownRequest::ApplyDeviceConfig(transaction));
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::Reboot => {
+                if self.shutdown_pending() {
+                    return Ok(vec![failure_message(
+                        request,
+                        "Orange shutdown request is already pending".into(),
+                    )]);
+                }
+                self.shutdown_request = Some(OrangeShutdownRequest::Reboot);
+                return Ok(Vec::new());
             }
             RuntimePlatformEffect::MidiListOutputsRequest => {
                 RuntimeStoreResult::MidiListOutputsResult {
@@ -341,10 +402,16 @@ impl HostAdapter for OrangeHostAdapter {
         &mut self,
         command: &RuntimeAudioCommand,
     ) -> Result<(), RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return Ok(());
+        }
         self.audio_host.handle_audio_command(command)
     }
 
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return Ok(());
+        }
         self.midi
             .send(bytes)
             .map_err(RuntimeAdapterError::operation_failed)
@@ -403,6 +470,9 @@ fn failure_message(request: &RuntimePlatformRequest, message: String) -> HostMes
     }
 }
 
+#[cfg(test)]
+#[path = "orange_host_adapter_apply_tests.rs"]
+mod apply_tests;
 #[cfg(test)]
 #[path = "orange_host_adapter_tests.rs"]
 mod tests;

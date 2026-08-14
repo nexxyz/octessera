@@ -69,6 +69,9 @@ install -D -m 0644 \
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-usb-gadget" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-usb-gadget"
+install -D -o root -g root -m 0644 \
+    "$STAGE_FILES/root/usr/local/lib/octessera/device_config.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/device_config.py"
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-sd-card" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-sd-card"
@@ -245,6 +248,9 @@ done
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
 install -d -m 0755 "$ROOTFS_DIR/home/pi/samples" "$ROOTFS_DIR/home/pi/presets"
 install -d -m 0755 "$ROOTFS_DIR/home/pi/samples/sd-card"
+install -D -o root -g root -m 0644 \
+    "$LEGAL_REPOSITORY_ROOT/config/generated/pi/default.json" \
+    "$ROOTFS_DIR/home/pi/presets/default.json"
 pi_record="$(awk -F: '$1 == "pi" { print; count++ } END { if (count != 1) exit 1 }' "$ROOTFS_DIR/etc/passwd")"
 IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<< "$pi_record"
 if [ "$pi_home" != /home/pi ] || [ "$pi_shell" != /bin/bash ] || [ ! -d "$ROOTFS_DIR$pi_home" ] || [ -L "$ROOTFS_DIR$pi_home" ]; then
@@ -262,3 +268,4 @@ else
 fi
 chroot "$ROOTFS_DIR" chown "$pi_user:$pi_user" "$pi_home/.hushlogin"
 chroot "$ROOTFS_DIR" chown -R pi:pi /home/pi/samples /home/pi/presets
+chroot "$ROOTFS_DIR" chmod 0644 /home/pi/presets/default.json

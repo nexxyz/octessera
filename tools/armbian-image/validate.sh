@@ -4,12 +4,14 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 welcome_stager="$root/tools/armbian-image/stage-canonical-welcome.sh"
+device_config_stager="$root/tools/armbian-image/stage-device-config.py"
 welcome_overlay="$root/userpatches/overlay/etc/profile.d/octessera-welcome.sh"
 welcome_overlay_preexisting=false
 if [[ -e "$welcome_overlay" || -L "$welcome_overlay" ]]; then
   welcome_overlay_preexisting=true
 fi
 "$welcome_stager"
+python3 "$device_config_stager"
 armbian_extensions_resolver="$root/tools/armbian-image/resolve-armbian-extensions.sh"
 image_sanitization_test="$root/tools/armbian-image/test-image-sanitization.sh"
 inspector_test="$root/tools/armbian-image/test-inspector.sh"
@@ -37,6 +39,8 @@ orange_oled_handoff_test="$root/tools/armbian-image/test_orange_oled_handoff.py"
 orange_oled_lifecycle_test="$root/tools/armbian-image/test_orange_oled_lifecycle.py"
 orange_runtime_identity_test="$root/tools/armbian-image/test-orange-runtime-identity.py"
 orange_constructor_test="$root/tools/armbian-image/test-orange-construction.py"
+device_config_test="$root/tools/armbian-image/test-device-config.py"
+device_apply_test="$root/tools/armbian-image/test-orange-device-apply.py"
 orange_constructor="$root/resources/image-construction/boot-layers/orange-pi-zero-2w.json"
 orange_boot_neutral_derivation="$root/resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json"
 orange_boot_splash_fixture_files="$root/tools/armbian-image/fixtures/python313-initramfs-closure-files.txt"
@@ -106,6 +110,7 @@ inspect_payload_tar() {
 
 required_files=(
   "$welcome_stager"
+  "$device_config_stager"
   "$root/userpatches/overlay/etc/profile.d/octessera-welcome.sh"
   "$armbian_extensions_resolver"
   "$image_sanitization_test"
@@ -137,6 +142,8 @@ required_files=(
   "$orange_oled_lifecycle_test"
   "$orange_runtime_identity_test"
   "$orange_constructor_test"
+  "$device_config_test"
+  "$device_apply_test"
   "$orange_constructor"
   "$orange_boot_neutral_derivation"
   "$root/tools/armbian-image/inspect-output-images.sh"
@@ -160,6 +167,8 @@ required_files=(
   "$root/userpatches/overlay/etc/systemd/system/octessera.service"
   "$root/userpatches/overlay/etc/modules-load.d/octessera-orange-usb-gadget.conf"
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
@@ -167,6 +176,7 @@ required_files=(
   "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
   "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py"
@@ -239,6 +249,8 @@ bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-update"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
+bash -n "$root/tools/orange-pi/orange-pi-usb-gadget.sh"
+bash -n "$root/userpatches/customize-image.sh"
 bash -n "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
 bash -n "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
 bash -n "$spi_env_helper"
@@ -253,10 +265,14 @@ bash -n "$runtime_inspector"
 bash -n "$image_mode_test"
 bash -n "$runtime_service_test"
 python3 -m py_compile "$root/tools/device-update/updater_protocol.py" "$root/tools/device-update/updater_state.py" "$root/tools/device-update/updater_assets.py" "$root/tools/device-update/updater_guard.py" "$root/tools/device-update/updater_cli.py"
+python3 -m py_compile "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
+python3 -m py_compile "$device_config_stager"
+python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot"
 python3 -m py_compile "$orange_image_mount_helper" "$orange_boot_selection_helper" "$orange_image_proof_python" "$orange_image_proof_fixture" "$orange_trusted_proof" "$orange_trusted_proof_test" "$orange_initramfs" "$orange_phase5_proof"
 python3 -m py_compile "$image_verifier" "$runtime_account_verifier"
 python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" "$root/tools/armbian-image/test_orange_oled_logo.py" "$root/tools/armbian-image/test_orange_oled_handoff.py" "$orange_oled_lifecycle_test" "$orange_runtime_identity_test"
 python3 -m py_compile "$orange_oled_suspend_python_test"
+python3 -m py_compile "$device_config_test" "$device_apply_test"
 bash "$orange_boot_splash_test"
 bash "$orange_oled_suspend_test"
 python3 "$orange_oled_suspend_python_test"
@@ -265,6 +281,8 @@ python3 "$orange_oled_handoff_test"
 python3 "$orange_oled_lifecycle_test"
 python3 "$orange_runtime_identity_test"
 python3 "$orange_constructor_test"
+python3 "$device_config_test"
+python3 "$device_apply_test"
 if (( EUID == 0 )); then
   python3 "$orange_trusted_proof_test"
 elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
@@ -439,7 +457,7 @@ grep -q '^After=systemd-udev-trigger.service systemd-modules-load.service system
 ! grep -q 'Conflicts=octessera.service' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo "Orange boot splash must not conflict with runtime." >&2; exit 1; }
 grep -q 'Wants=octessera-orange-boot-splash.service' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime must want the boot splash." >&2; exit 1; }
 grep -q 'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime must select OLED handoff v1." >&2; exit 1; }
-for service_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartSec=5s'; do
+for service_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartPreventExitStatus=78' 'RestartSec=5s'; do
   grep -qFx "$service_line" "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service is missing: $service_line" >&2; exit 1; }
 done
 ! grep -qFx 'Restart=always' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service must not restart always." >&2; exit 1; }

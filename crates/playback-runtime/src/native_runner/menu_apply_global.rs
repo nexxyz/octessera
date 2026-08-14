@@ -30,7 +30,7 @@ impl NativeRunner {
             self.preset_draft_name = draft_name;
         }
         config_changed |= self.apply_midi_menu_flags();
-        config_changed |= self.apply_usb_menu_state();
+        config_changed |= self.apply_audio_outputs_menu_state();
         config_changed |= self.apply_hdmi_menu_state();
         config_changed |= self.apply_recording_menu_state();
         if let Some(sparks_mode) = self.menu.selected_sparks_mode() {
@@ -112,12 +112,37 @@ impl NativeRunner {
         changed
     }
 
-    pub(super) fn apply_usb_menu_state(&mut self) -> bool {
+    pub(super) fn apply_audio_outputs_menu_state(&mut self) -> bool {
         let mut changed = false;
-        if let Some(audio_out) = self.menu.value_for_key("usb.audioOut") {
-            let audio_out = super::normalize_usb_audio_out(&audio_out).to_string();
-            changed |= self.usb_audio_out != audio_out;
-            self.usb_audio_out = audio_out;
+        let Some(dac) = self
+            .menu
+            .value_for_key("audioOutputs.dac")
+            .map(|v| v == "true")
+        else {
+            return false;
+        };
+        let Some(usb) = self
+            .menu
+            .value_for_key("audioOutputs.usb")
+            .map(|v| v == "true")
+        else {
+            return false;
+        };
+        let Some(hdmi) = self
+            .menu
+            .value_for_key("audioOutputs.hdmi")
+            .map(|v| v == "true")
+        else {
+            return false;
+        };
+        let Some(next) = super::AudioOutputSet::from_flags(dac, usb, hdmi).ok() else {
+            self.restore_audio_outputs_menu_values();
+            self.show_toast("Keep one audio output on");
+            return false;
+        };
+        if self.audio_outputs != next {
+            self.audio_outputs = next;
+            changed = true;
         }
         if let Some(enabled) = self.menu.value_for_key("usb.midiOutEnabled") {
             let enabled = enabled == "true";
@@ -125,7 +150,7 @@ impl NativeRunner {
             self.usb_midi_out_enabled = enabled;
         }
         if changed {
-            self.show_toast("USB: Save & Reboot");
+            self.show_toast("Audio: Save & Reboot");
         }
         changed
     }
