@@ -264,7 +264,8 @@ fn ordinary_reboot_resolution_defers_helper_until_teardown() {
         .unwrap();
     assert!(matches!(
         &result,
-        OrangeShutdownResolution::Reboot {
+        OrangeShutdownResolution::Power {
+            action: OrangePowerAction::Reboot,
             safety_failure: None
         }
     ));
@@ -303,4 +304,87 @@ fn ordinary_reboot_safety_failure_attempts_both_and_fails_closed() {
         events.lock().unwrap().as_slice(),
         ["midi-panic", "internal-silence", "teardown"]
     );
+}
+
+#[test]
+fn ordinary_shutdown_completes_after_both_safety_steps() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut host = OrderedHost {
+        events: events.clone(),
+    };
+    let resolution =
+        resolve_shutdown_request_with_helper(OrangeShutdownRequest::Shutdown, &mut host, || {
+            events.lock().unwrap().push("poweroff");
+            OrangeHelperOutcome::Accepted
+        })
+        .unwrap();
+    assert!(matches!(
+        resolution,
+        OrangeShutdownResolution::Power {
+            action: OrangePowerAction::Shutdown,
+            safety_failure: None
+        }
+    ));
+    events.lock().unwrap().push("teardown");
+    finish_shutdown_resolution_with_helper(resolution, || {
+        events.lock().unwrap().push("poweroff");
+        OrangeHelperOutcome::Accepted
+    })
+    .unwrap();
+    assert_eq!(
+        events.lock().unwrap().as_slice(),
+        ["midi-panic", "internal-silence", "teardown", "poweroff"]
+    );
+}
+
+#[test]
+fn ordinary_shutdown_safety_failure_prevents_power_action() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut host = FailingHost {
+        events: events.clone(),
+        panic_failure: false,
+        silence_failure: true,
+    };
+    let resolution =
+        resolve_shutdown_request_with_helper(OrangeShutdownRequest::Shutdown, &mut host, || {
+            panic!("shutdown helper must wait for safe shutdown")
+        })
+        .unwrap();
+    events.lock().unwrap().push("teardown");
+    let error = finish_shutdown_resolution_with_helper(resolution, || {
+        panic!("shutdown helper must not run after safety failure")
+    })
+    .unwrap_err();
+    assert_eq!(error.exit_code(), 1);
+    assert_eq!(
+        events.lock().unwrap().as_slice(),
+        ["midi-panic", "internal-silence", "teardown"]
+    );
+}
+
+#[test]
+fn ordinary_power_outcome_matrix_is_typed_and_never_panics() {
+    for (action, outcome) in [
+        (OrangePowerAction::Reboot, OrangeHelperOutcome::Rejected),
+        (
+            OrangePowerAction::Reboot,
+            OrangeHelperOutcome::Indeterminate,
+        ),
+        (
+            OrangePowerAction::Shutdown,
+            OrangeHelperOutcome::NotSubmitted,
+        ),
+    ] {
+        let mut host = OrderedHost {
+            events: Arc::new(Mutex::new(Vec::new())),
+        };
+        let request = match action {
+            OrangePowerAction::Reboot => OrangeShutdownRequest::Reboot,
+            OrangePowerAction::Shutdown => OrangeShutdownRequest::Shutdown,
+        };
+        let resolution =
+            resolve_shutdown_request_with_helper(request, &mut host, || outcome).unwrap();
+        let error = finish_shutdown_resolution_with_helper(resolution, || outcome).unwrap_err();
+        assert_eq!(error.exit_code(), 1);
+    }
 }

@@ -23,19 +23,18 @@ Keep the two image workflows separate:
   OLED, and qualification checks. It intentionally has no production runtime
   service and is not the image to use for normal first boot.
 
-Before flashing a production image, download the matching checksum file whose
-name ends in `.img.xz.sha256` and verify that exact pair. For example, on Linux
-or macOS:
+Before flashing a production image, download the root `SHA256SUMS.txt` asset and
+verify the line for that exact image. For example, on Linux:
 
 ```sh
-sha256sum -c octessera-<version>-orange-pi-zero-2w.img.xz.sha256
+grep '  octessera-<version>-orange-pi-zero-2w.img.xz$' SHA256SUMS.txt | sha256sum -c -
 ```
 
-On Windows PowerShell, compare the hash named in that matching file with the
-image directly:
+On Windows PowerShell, compare the hash named in that line with the image
+directly:
 
 ```powershell
-$expected = (Get-Content .\octessera-<version>-orange-pi-zero-2w.img.xz.sha256).Trim().Split()[0].ToLowerInvariant()
+$expected = (Select-String -Path .\SHA256SUMS.txt -Pattern '  octessera-<version>-orange-pi-zero-2w.img.xz$').Line.Split()[0].ToLowerInvariant()
 $actual = (Get-FileHash .\octessera-<version>-orange-pi-zero-2w.img.xz -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "image SHA-256 mismatch" }
 ```
@@ -67,7 +66,12 @@ On boot, the Orange image reads the saved default from
 UAC2 gadget, and USB MIDI exposes the fixed MIDI gadget; either, both, or
 neither may be enabled. HDMI and Jack do not change gadget composition. Save
 the setting and use the confirmed device apply action; the image accepts only
-its narrow reboot request after validating the saved file.
+the exact `reboot\n` request for config apply after validating the saved file.
+The instrument's ordinary Reboot and Shutdown actions use the same fixed
+root-owned socket: Shutdown sends exact `poweroff\n` without persisted-config
+validation, while both actions first silence internal audio and panic external
+MIDI. A rejected or indeterminate request is a typed failure, not permission
+to try another command path.
 
 The Orange runtime gets three attempts in a 30-second systemd start-limit
 window: the initial start plus two retries. If it reaches `start-limit-hit`,
@@ -211,17 +215,23 @@ The source implements the boot handoff contract described in the [board
 qualification and status page](board-qualification.md). A real board check is
 still the authority for a particular image, OLED, power arrangement, and
 enclosure.
-When that image is available, Orange should show the same four-band cyan,
-yellow, green, and magenta sweep as Raspberry: 8 px bands, a +8 px top-right
-lean, white-source pixels only, and 24 frames over one second.
+When that image is available, Orange should show the same four-band
+magenta, green, yellow, and cyan sweep as Raspberry: 8 px bands, a rigid 45°
+panel-facing top-right lean while the mounted SSD1351 controller origin
+decreases and the train travels left-to-right; canonical bottom-to-top
+coordinates use `bottom_origin - row_y`. Pixels remain
+white-source-only, with 30 frames over 1.2 seconds (25 fps).
 
-Initramfs runs one bounded foreground sweep and fully reaps it. Early userspace
-then loops the sweep until the native runtime requests release. Native startup
+Orange's initramfs writes one static RGB565 logo+wordmark frame, then stops.
+The root-installed `octessera-orange-boot-splash.service` is the sole loop and
+runs while the other services load. Native startup
 waits for the exclusive `/run/octessera-boot` OLED lock, adopts the display
 without resetting it, and stops the animation just before an acknowledged
 first normal menu frame. Orange first-menu readiness follows the selected-route
 rules above; a selected fault blocks readiness, while a recognized disconnected
 selected USB or HDMI route may wait. A queued frame is not enough.
+Normal shutdown and reboot retain the clean logo+wordmark frame; they do not
+restart the boot sweep.
 
 The menu's `OLED Sleep` setting is a UI display-sleep feature; it does not
 sleep Linux or hand the OLED to another process. Linux suspend uses a separate

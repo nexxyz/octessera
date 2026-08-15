@@ -31,18 +31,26 @@ Pi image path and `pi` account, while Orange uses the Armbian path with separate
 qualification on both boards remains pending.
 
 The OLED boot handoff is also one parity contract. Both boards use the same
-cyan/yellow/green/magenta four-band sweep defined by
-`resources/oled/boot-sweep-v1.json`, the same exclusive `/run/octessera-boot`
-lock/status protocol, and the same acknowledged first-menu handoff. Raspberry
-embeds the native boot utility in initramfs and uses the Pi SPI/GPIO adapter;
-Orange carries its fixed Python OLED utility and closure for H618 SPI/GPIO.
+mirrored four-band sweep defined by `resources/oled/boot-sweep-v1.json`, the
+same exclusive `/run/octessera-boot` lock/status protocol, and the same
+acknowledged first-menu handoff. The mounted SSD1351 controller origin travels
+leftward while the physical sweep travels left-to-right with a panel-facing
+right slash. Canonical bottom-to-top coordinates use
+`slanted_origin = bottom_origin - row_y`, so the top-row origin is 127 px less
+X than the bottom-row origin. It uses magenta/green/yellow/cyan order, 30
+frames, and 25 fps. Raspberry's selected initramfs writes one clean static
+logo+wordmark frame before its root-installed systemd service starts the sweep;
+the service uses the Pi SPI/GPIO adapter. Orange's selected initramfs writes one
+static RGB565 frame with its fixed Python closure before its root-installed
+Python OLED utility starts the H618 SPI/GPIO sweep.
 Orange readiness additionally applies the selected-route rules: every
 non-empty Jack/USB/HDMI set is valid, Jack is required only when selected,
 recognized disconnected USB or HDMI may wait, selected faults block readiness,
 and no route is a fallback for another. These
-source paths are implemented, but their boot services, hooks, and selected
-initramfs outputs still require a new constructor image and physical
-qualification on both boards.
+source paths are implemented, but their boot services and selected initramfs
+outputs still require a new constructor image and physical qualification. Both
+boards may remain blank before their initramfs writer runs; systemd then owns
+the only OLED animator. Reboot retains the clean shutdown logo+wordmark.
 
 Orange runtime startup allows three attempts in a 30-second systemd start-limit
 window: the initial start and two five-second failure retries. After
@@ -89,10 +97,16 @@ The Orange image-side USB gadget reads the persisted default at
 44.1 kHz stereo UAC2 function and `usb.midiOutEnabled` enables the fixed MIDI
 function. The valid compositions are no gadget, MIDI only, UAC2 only, and
 combined; HDMI and Jack do not change gadget composition.
-The confirmed device apply lane uses a narrow root-owned socket and the exact
-`reboot\n` request rather than a general sudo command path. It returns
-`accepted\n` only after `/usr/bin/systemctl reboot` succeeds and returns
-`rejected\n` for malformed or definitively failed requests.
+The confirmed device apply lane uses one narrow root-owned socket rather than a
+general sudo command path. It accepts only exact `reboot\n` and `poweroff\n`
+requests. `reboot\n` validates the saved config before invoking
+`/usr/bin/systemctl reboot`; `poweroff\n` invokes only
+`/usr/bin/systemctl poweroff` and does not depend on that config validation.
+The socket starts after `local-fs.target` only; the runtime separately waits for
+musical-default provisioning before it starts.
+Both return `accepted\n` only after the fixed command succeeds and return
+`rejected\n` for malformed, unknown, extra-byte, or definitively failed
+requests.
 
 The Orange control surface requires the exact validated NeoTrellis wiring and
 addresses. There is no alternate Trellis bus, address, or hardware fallback.

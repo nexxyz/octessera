@@ -95,7 +95,7 @@ def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
         _write(root / f"usr/lib/modules/{policy.contract['selected_boot']['kernel_release']}/modules.dep", b"modules")
         _write(root / "usr/lib/systemd/system-sleep/octessera-orange-oled", b"sleep-hook")
         (root / "lib").symlink_to("usr/lib")
-        _write(root / "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", b"initramfs-hook")
+        _write(root / "etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash", b"initramfs-hook")
         _write(root / "etc/udev/rules.d/70-octessera-orange-runtime.rules", b"udev-rule")
         for relative in policy.contract["protected_paths"]:
             if relative == "etc/systemd/system/multi-user.target.wants/octessera.service":

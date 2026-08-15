@@ -6,6 +6,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 release="$root/.github/workflows/release-artifacts.yml"
 boards="$root/.github/workflows/release-board-artifacts.yml"
 action="$root/.github/actions/build-armbian-image/action.yml"
+device_packager="$root/tools/device-update/package_device_bundle.py"
 sanitizer="$root/tools/pi-image/verify-sanitized-image.sh"
 runtime_chain_helper="$root/tools/pi-image/verify-managed-runtime.sh"
 runtime_chain_test="$root/tools/pi-image/test-sanitized-image-runtime-chain.sh"
@@ -104,7 +105,14 @@ assert_contains "$release" 'package_notice_zip.py'
 assert_contains "$release" 'verify_notice_archive.py --repository-root . --archive $portableAsset --payload-name octessera.exe'
 assert_contains "$release" 'device ZIP inventory is not exact'
 assert_contains "$release" 'device ZIP legal files do not match the release source'
-assert_contains "$release" 'expected_count=28'
+assert_contains "$release" 'expected_root_assets=('
+assert_contains "$release" 'expected_count=13'
+assert_contains "$release" 'expected_names = ["octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"]'
+assert_contains "$release" 'expected_mode = 0o755 if info.filename == "octessera-pi" else 0o644'
+assert_contains "$release" 'zip -9 -r "$evidence_zip" windows macos ubuntu raspberry orange legal'
+assert_contains "$release" 'sha256sum "${root_payloads[@]}" > SHA256SUMS.txt'
+assert_contains "$release" 'sha256sum -c SHA256SUMS.txt'
+assert_contains "$release" '== "$expected_count" && "${final_files[*]}" == "${expected_files[*]}"'
 assert_contains "$release" 'require_exact_files "$root/octessera-windows-release-assets"'
 assert_contains "$release" 'require_exact_files "$root/octessera-macos-release-assets"'
 assert_contains "$release" 'require_exact_files "$root/octessera-ubuntu-release-assets"'
@@ -114,7 +122,9 @@ assert_contains "$release" 'mapfile -t final_files'
 assert_contains "$release" 'mapfile -t uploaded_assets'
 assert_contains "$release" 'Uploaded release asset names/count do not match the verified set.'
 assert_contains "$release" 'if-no-files-found: error'
-assert_contains "$boards" 'install -m 0644 LICENSE NOTICE device-release/'
+assert_contains "$boards" 'tools/device-update/package_device_bundle.py'
+assert_contains "$boards" '--board-profile raspberry-pi-zero-2w'
+assert_contains "$boards" '--board-profile orange-pi-zero-2w'
 assert_contains "$boards" 'Stage Raspberry legal notices and copy disposable stage4'
 assert_contains "$boards" 'tools/legal/stage_notices.py'
 assert_contains "$boards" '--check'
@@ -271,11 +281,11 @@ assert_contains "$boards" 'CROSS_SHA256: 642375d1bcf3bd88272c32ba90e999f3d983050
 assert_contains "$boards" 'https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz'
 assert_contains "$boards" "curl --fail --location --proto '=https' --tlsv1.2"
 assert_contains "$boards" 'sha256sum -c -'
-assert_contains "$boards" '"updater_supported": False'
-assert_contains "$boards" '"candidate_health_protocol": 1'
-assert_contains "$boards" '"distribution": "standalone-manual"'
-assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w-standalone-manual-aarch64.zip'
-[[ "$(grep -cF '"updater_protocol": 2' "$boards")" == 1 ]] || {
+assert_contains "$device_packager" '"updater_supported": False'
+assert_contains "$device_packager" '"candidate_health_protocol": 1'
+assert_contains "$device_packager" '"distribution": "standalone-manual"'
+assert_contains "$device_packager" 'standalone-manual-aarch64.zip'
+[[ "$(grep -cF '"updater_protocol": 2' "$device_packager")" == 1 ]] || {
     echo 'Only the Raspberry device metadata may claim updater_protocol 2.' >&2
     exit 1
 }
@@ -296,6 +306,9 @@ assert_contains "$release" 'git/tags/$tag_object'
 assert_contains "$release" 'native_prefix = canonical_name.removesuffix(".deb") + "__"'
 assert_contains "$release" 'apt-get install -y --no-install-recommends cpio zstd'
 assert_contains "$release" 'kernel_source_repository'
+assert_absent "$release" 'expected_count=28'
+assert_absent "$release" 'release-assets/$prefix-notices.zip'
+assert_absent "$release" 'release-assets/$rpi_kernel_package'
 
 raspberry_config_setup="$(sed -n '/^      - name: Configure and run pi-gen$/,/^          cat > pi-gen\/config <<EOF$/p' "$boards")"
 raspberry_config_block="$(sed -n '/cat > pi-gen\/config <<EOF$/,/^[[:space:]]*cd pi-gen$/p' "$boards")"

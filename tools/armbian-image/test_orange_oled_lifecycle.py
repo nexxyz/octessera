@@ -33,11 +33,14 @@ spec.loader.exec_module(logo)
 
 
 assert logo.NATIVE_HANDOFF_TIMEOUT_SECONDS == 30
+assert logo.BOOT_SWEEP_FRAME_COUNT == 30
+assert [logo.sweep_deadline_offset_ns(frame) for frame in range(30)] == [frame * 40_000_000 for frame in range(30)]
 
 
 class FakeClock:
     def __init__(self, signal_module=None, signal_number=signal.SIGTERM):
         self.now = 0
+        self.sleeps = []
         self.signal_module = signal_module
         self.signal_number = signal_number
 
@@ -45,6 +48,7 @@ class FakeClock:
         return self.now
 
     def sleep(self, seconds):
+        self.sleeps.append(seconds)
         self.now += int(seconds * 1_000_000_000)
         if self.signal_module is not None and self.signal_module.trigger_on_sleep:
             self.signal_module.trigger_on_sleep = False
@@ -102,7 +106,7 @@ class LifecycleHandoff:
         return True
 
     def publish_cycle(self):
-        pass
+        self.events.append(("publish-cycle",))
 
     def release(self):
         self.events.append(("release",))
@@ -131,6 +135,12 @@ class LifecycleOled:
         self.events.append(("initialize",))
 
     def frame(self, payload):
+        self.stream_frame(payload)
+
+    def begin_frame_stream(self):
+        self.events.append(("begin-frame-stream",))
+
+    def stream_frame(self, payload):
         self.events.append(("frame", payload))
         if payload == bytes(logo.WIDTH * logo.HEIGHT * 2) and self.fail_black:
             raise RuntimeError("black failed")
@@ -148,17 +158,16 @@ class LifecycleOled:
             raise RuntimeError("close failed")
 
 
-def run_lifecycle(handoff, oled, clock, signal_module, cleanup_oled=None, marker_error=None, oled_error=None):
-    names = ("Handoff", "Oled", "open_cleanup_oled", "validate_marker", "logo_canvas", "render_canvas", "time", "signal")
+def run_lifecycle(handoff, oled, clock, signal_module, cleanup_oled=None, oled_error=None, render_frame=None):
+    names = ("Handoff", "Oled", "open_cleanup_oled", "logo_canvas", "render_canvas", "time", "signal")
     saved = {name: getattr(logo, name) for name in names}
     try:
         handoff.clock = clock
         logo.Handoff = types.SimpleNamespace(open=lambda create_lock: handoff)
         logo.Oled = lambda: (_ for _ in ()).throw(oled_error) if oled_error is not None else oled
         logo.open_cleanup_oled = lambda: cleanup_oled if cleanup_oled is not None else (_ for _ in ()).throw(RuntimeError("cleanup factory failed"))
-        logo.validate_marker = lambda: (_ for _ in ()).throw(marker_error) if marker_error is not None else False
         logo.logo_canvas = lambda kind: object()
-        logo.render_canvas = lambda canvas, frame: b"render"
+        logo.render_canvas = lambda canvas, frame=None: render_frame(frame) if render_frame is not None else b"render"
         logo.time = clock
         logo.signal = signal_module
         return logo._run_loop()
@@ -205,6 +214,26 @@ else:
 assert_cleanup(start_failure_events)
 assert start_failure_handoff.mark_failed_calls == 1
 
+continuous_handoff = LifecycleHandoff(stop_at=logo.BOOT_SWEEP_DURATION_NS + 1_500_000_000)
+continuous_events = []
+continuous_clock = FakeClock()
+run_lifecycle(
+    continuous_handoff,
+    LifecycleOled(continuous_events),
+    continuous_clock,
+    FakeSignal(),
+    render_frame=lambda frame: b"clean" if frame is None else bytes((frame,)),
+)
+continuous_frames = [event[1] for event in continuous_events if event[0] == "frame"]
+assert logo.BOOT_SWEEP_FRAME_COUNT == 30
+assert continuous_frames == [bytes((frame,)) for frame in range(logo.BOOT_SWEEP_FRAME_COUNT)] + [b"clean"]
+assert continuous_events.count(("begin-frame-stream",)) == 1
+assert continuous_handoff.events.count(("publish-cycle",)) == 0
+assert continuous_clock.now == continuous_handoff.stop_at
+assert max(continuous_clock.sleeps[16:]) <= logo.BOOT_SWEEP_REST_CHECK_NS / 1_000_000_000
+assert continuous_clock.now < logo.BOOT_SWEEP_DURATION_NS + logo.BOOT_SWEEP_REST_NS
+assert not any(event[0] == "command" for event in continuous_events)
+
 stale_status = {"phase": "animating", "bootId": "01234567-89ab-cdef-0123-456789abcdef"}
 stale_events = []
 stale_handoff = LifecycleHandoff(start_error=RuntimeError("OLED handoff already exists for this boot"), initial_status=stale_status, events=stale_events)
@@ -215,16 +244,6 @@ except RuntimeError as error:
 else:
     raise AssertionError("stale animating handoff was accepted")
 assert_cleanup(stale_events)
-
-marker_events = []
-marker_handoff = LifecycleHandoff(events=marker_events)
-try:
-    run_lifecycle(marker_handoff, LifecycleOled(marker_events), FakeClock(), FakeSignal(), LifecycleOled(marker_events), RuntimeError("marker failed"))
-except RuntimeError as error:
-    assert str(error) == "marker failed"
-else:
-    raise AssertionError("marker failure was swallowed")
-assert_cleanup(marker_events)
 
 construction_events = []
 construction_handoff = LifecycleHandoff(events=construction_events)

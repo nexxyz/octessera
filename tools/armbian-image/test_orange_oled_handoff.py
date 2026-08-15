@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import importlib.util
-import json
 import os
 import subprocess
 import stat
@@ -130,17 +129,8 @@ if getattr(handoff, "fcntl", None) is not None and hasattr(handoff.fcntl, "flock
         utility = handoff.Handoff.utility_lock()
         assert utility._read_status()["phase"] == "released"
         utility.close()
-        marker = root.parent / "marker"
-        marker.write_text(json.dumps({"schema": 1, "bootId": handoff.current_boot_id()}) + "\n", encoding="utf-8")
-        os.chmod(marker, 0o644)
-        handoff.INITRAMFS_MARKER = str(marker)
-        assert handoff.validate_marker()
-        marker.unlink()
-        marker.symlink_to(root)
-        expect_error(handoff.validate_marker)
-        marker.unlink()
         (root / "status.json").unlink()
         (root / "status.json").symlink_to(root / "oled.lock")
         expect_error(h._read_status)
 
-print("Orange OLED handoff schema, marker, lock, transition, and child cleanup tests passed")
+print("Orange OLED handoff schema, lock, transition, and child cleanup tests passed")

@@ -1,5 +1,4 @@
 use crate::orange_host_adapter::OrangeHostAdapter;
-use crate::orange_reboot::{self, OrangeHelperOutcome};
 use crate::persistence::atomic_write_bytes;
 use playback_runtime::HostAdapter;
 use serde::{Deserialize, Serialize};
@@ -8,6 +7,9 @@ use std::fs;
 #[cfg(unix)]
 use std::fs::File;
 use std::path::{Path, PathBuf};
+
+#[cfg(test)]
+pub(crate) use crate::orange_reboot::OrangeHelperOutcome;
 
 pub(crate) const TRANSACTION_FILE_NAME: &str = "orange-device-config-reboot.transaction";
 const DEFAULT_FILE_NAME: &str = "default.json";
@@ -53,13 +55,8 @@ pub(crate) struct OrangeDeviceApplyTransaction {
 #[derive(Debug)]
 pub(crate) enum OrangeShutdownRequest {
     Reboot,
+    Shutdown,
     ApplyDeviceConfig(OrangeDeviceApplyTransaction),
-}
-
-#[derive(Debug)]
-pub(crate) enum OrangeShutdownResolution {
-    Complete,
-    Reboot { safety_failure: Option<String> },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -158,142 +155,16 @@ fn recover_startup_at(store_dir: &Path, boot_id: &str) -> Result<(), String> {
     remove_transaction(&path)
 }
 
-pub(crate) fn resolve_shutdown_request<H: OrangeApplyHost>(
-    request: OrangeShutdownRequest,
-    host: &mut H,
-) -> Result<OrangeShutdownResolution, OrangeRunError> {
-    resolve_shutdown_request_with_helper(request, host, orange_reboot::request_reboot)
-}
-
-fn resolve_shutdown_request_with_helper<H, F>(
-    request: OrangeShutdownRequest,
-    host: &mut H,
-    helper: F,
-) -> Result<OrangeShutdownResolution, OrangeRunError>
-where
-    H: OrangeApplyHost,
-    F: FnOnce() -> OrangeHelperOutcome,
-{
-    match request {
-        OrangeShutdownRequest::Reboot => {
-            let panic_error = host.panic_external_midi().err();
-            let silence_error = host.silence_internal_audio().err();
-            Ok(OrangeShutdownResolution::Reboot {
-                safety_failure: combine_safety_failures(panic_error, silence_error),
-            })
-        }
-        OrangeShutdownRequest::ApplyDeviceConfig(transaction) => {
-            let panic_error = host.panic_external_midi().err();
-            let silence_error = host.silence_internal_audio().err();
-            if let Some(error) = panic_error {
-                return rollback_after_failure(
-                    transaction,
-                    format!("external MIDI panic failed: {error}"),
-                );
-            }
-            if let Some(error) = silence_error {
-                return rollback_after_failure(
-                    transaction,
-                    format!("internal audio silence failed: {error}"),
-                );
-            }
-            match helper() {
-                OrangeHelperOutcome::Accepted => Ok(OrangeShutdownResolution::Complete),
-                OrangeHelperOutcome::Indeterminate => Err(OrangeRunError::SpecialExit78(
-                    "Orange device apply reboot outcome is indeterminate".into(),
-                )),
-                outcome @ (OrangeHelperOutcome::Rejected | OrangeHelperOutcome::NotSubmitted) => {
-                    rollback_after_failure(
-                        transaction,
-                        format!("Orange device apply helper outcome: {outcome:?}"),
-                    )
-                }
-            }
-        }
-    }
-}
-
-pub(crate) fn abort_shutdown_request<H: OrangeApplyHost>(
-    request: OrangeShutdownRequest,
-    runtime_error: String,
-    host: &mut H,
-) -> OrangeRunError {
-    match request {
-        OrangeShutdownRequest::Reboot => {
-            match resolve_shutdown_request(OrangeShutdownRequest::Reboot, host) {
-                Ok(_) => OrangeRunError::Ordinary(runtime_error),
-                Err(error) => error,
-            }
-        }
-        OrangeShutdownRequest::ApplyDeviceConfig(transaction) => {
-            let panic_error = host.panic_external_midi().err();
-            let silence_error = host.silence_internal_audio().err();
-            let reason = combine_safety_failures(panic_error, silence_error)
-                .map_or(runtime_error.clone(), |safety| {
-                    format!("{runtime_error}; {safety}")
-                });
-            match rollback_after_failure(transaction, reason) {
-                Ok(_) => unreachable!("rollback failure path always returns an error"),
-                Err(error) => error,
-            }
-        }
-    }
-}
-
-pub(crate) fn finish_shutdown_resolution(
-    resolution: OrangeShutdownResolution,
-) -> Result<(), OrangeRunError> {
-    finish_shutdown_resolution_with_helper(resolution, orange_reboot::request_reboot)
-}
-
-fn finish_shutdown_resolution_with_helper<F>(
-    resolution: OrangeShutdownResolution,
-    helper: F,
-) -> Result<(), OrangeRunError>
-where
-    F: FnOnce() -> OrangeHelperOutcome,
-{
-    match resolution {
-        OrangeShutdownResolution::Complete => Ok(()),
-        OrangeShutdownResolution::Reboot {
-            safety_failure: Some(error),
-        } => Err(OrangeRunError::Ordinary(error)),
-        OrangeShutdownResolution::Reboot {
-            safety_failure: None,
-        } => match helper() {
-            OrangeHelperOutcome::Accepted => Ok(()),
-            outcome => Err(OrangeRunError::Ordinary(format!(
-                "Orange reboot helper did not accept ordinary reboot: {outcome:?}"
-            ))),
-        },
-    }
-}
-
-fn combine_safety_failures(
-    panic_error: Option<String>,
-    silence_error: Option<String>,
-) -> Option<String> {
-    match (panic_error, silence_error) {
-        (None, None) => None,
-        (Some(panic), None) => Some(format!("external MIDI panic failed: {panic}")),
-        (None, Some(silence)) => Some(format!("internal audio silence failed: {silence}")),
-        (Some(panic), Some(silence)) => Some(format!(
-            "external MIDI panic failed: {panic}; internal audio silence failed: {silence}"
-        )),
-    }
-}
-
-fn rollback_after_failure(
-    transaction: OrangeDeviceApplyTransaction,
-    reason: String,
-) -> Result<OrangeShutdownResolution, OrangeRunError> {
-    match transaction.rollback() {
-        Ok(()) => Err(OrangeRunError::Ordinary(reason)),
-        Err(error) => Err(OrangeRunError::SpecialExit78(format!(
-            "{reason}; Orange device configuration rollback failed: {error}"
-        ))),
-    }
-}
+#[path = "orange_shutdown.rs"]
+mod shutdown;
+pub(crate) use shutdown::{
+    abort_shutdown_request, finish_shutdown_resolution, resolve_shutdown_request,
+    OrangeShutdownResolution,
+};
+#[cfg(test)]
+pub(crate) use shutdown::{
+    finish_shutdown_resolution_with_helper, resolve_shutdown_request_with_helper, OrangePowerAction,
+};
 
 impl OrangeDeviceApplyTransaction {
     pub(crate) fn rollback(self) -> Result<(), String> {

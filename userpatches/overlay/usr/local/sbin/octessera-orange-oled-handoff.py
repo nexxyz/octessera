@@ -9,7 +9,6 @@ import time
 
 
 HANDOFF_ROOT = "/run/octessera-boot"
-INITRAMFS_MARKER = "/run/octessera-initramfs-splash.ready"
 SCHEMA = 1
 DIRECTORY_MODE = 0o750
 LOCK_MODE = 0o600
@@ -107,24 +106,6 @@ def parse_stop(value):
     if set(value) != {"schema", "bootId", "pid", "requestId"} or value.get("schema") != SCHEMA or not isinstance(value.get("bootId"), str) or not BOOT_ID_RE.fullmatch(value["bootId"]) or not isinstance(value.get("pid"), int) or not 0 < value["pid"] <= 0xFFFFFFFF or not isinstance(value.get("requestId"), str) or not REQUEST_ID_RE.fullmatch(value["requestId"]):
         raise RuntimeError("invalid OLED stop request")
     return value
-
-
-def validate_marker(path=None):
-    path = path or INITRAMFS_MARKER
-    try:
-        metadata = os.lstat(path)
-    except FileNotFoundError:
-        return False
-    if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_gid != 0 or stat.S_IMODE(metadata.st_mode) != 0o644 or metadata.st_nlink != 1 or metadata.st_size > 256:
-        raise RuntimeError("invalid initramfs OLED marker metadata")
-    descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
-    try:
-        value = _strict_json(os.read(descriptor, 257), "initramfs marker")
-    finally:
-        os.close(descriptor)
-    if set(value) != {"schema", "bootId"} or value.get("schema") != SCHEMA or value.get("bootId") != current_boot_id():
-        raise RuntimeError("initramfs OLED marker does not identify this boot")
-    return True
 
 
 class Handoff:

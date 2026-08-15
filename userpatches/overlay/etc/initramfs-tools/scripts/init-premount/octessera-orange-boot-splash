@@ -2,11 +2,8 @@
 set -u
 
 PREREQ=""
-MARKER=/run/octessera-initramfs-splash.ready
-TEMPORARY_MARKER=
 HELPER_PID=
 WATCHDOG_PID=
-INTERRUPTED=0
 
 prereqs() {
   echo "$PREREQ"
@@ -52,56 +49,28 @@ cleanup() {
   trap - EXIT INT TERM HUP
   stop_process_group "$HELPER_PID" || true
   stop_process_group "$WATCHDOG_PID" || true
-  if [ -n "$TEMPORARY_MARKER" ]; then
-    rm -f -- "$TEMPORARY_MARKER" || true
-  fi
   HELPER_PID=
   WATCHDOG_PID=
-  TEMPORARY_MARKER=
 }
 
 # shellcheck disable=SC2317
 on_signal() {
-  INTERRUPTED=1
   stop_process_group "$HELPER_PID" || true
   stop_process_group "$WATCHDOG_PID" || true
-}
-
-write_ready_marker() {
-  boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)
-  case "$boot_id" in
-    ????????-????-????-????-????????????) ;;
-    *) return 1 ;;
-  esac
-  TEMPORARY_MARKER="/run/.octessera-initramfs-splash.ready.tmp-$$"
-  umask 022
-  rm -f -- "$TEMPORARY_MARKER" || return 1
-  printf '{"bootId":"%s","schema":1}\n' "$boot_id" > "$TEMPORARY_MARKER" || return 1
-  chmod 0644 "$TEMPORARY_MARKER" || return 1
-  chown root:root "$TEMPORARY_MARKER" || return 1
-  mv -f -- "$TEMPORARY_MARKER" "$MARKER" || return 1
-  TEMPORARY_MARKER=
-  return 0
 }
 
 trap cleanup EXIT
 trap on_signal INT TERM HUP
 
-rm -f -- "$MARKER" || true
-if [ -x /usr/bin/setsid ] && [ -x /usr/local/sbin/octessera-orange-oled-logo ] && [ ! -e "$MARKER" ]; then
-  /usr/bin/setsid /usr/local/sbin/octessera-orange-oled-logo boot-once >/dev/kmsg 2>&1 &
+if [ -x /usr/bin/setsid ] && [ -x /usr/bin/python3 ] && [ -x /usr/local/sbin/octessera-orange-oled-logo ]; then
+  /usr/bin/setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot-static >/dev/kmsg 2>&1 &
   HELPER_PID=$!
   /usr/bin/setsid /bin/sh -c "sleep 3; kill -TERM -- \"-\$1\" 2>/dev/null || true; kill -TERM \"\$1\" 2>/dev/null || true; sleep 1; kill -KILL -- \"-\$1\" 2>/dev/null || true; kill -KILL \"\$1\" 2>/dev/null || true" sh "$HELPER_PID" &
   WATCHDOG_PID=$!
   wait "$HELPER_PID" 2>/dev/null
-  HELPER_STATUS=$?
   stop_process_group "$WATCHDOG_PID" || true
   WATCHDOG_PID=
-  HELPER_CLEAN=1
-  stop_process_group "$HELPER_PID" || HELPER_CLEAN=0
-  if [ "$HELPER_STATUS" -eq 0 ] && [ "$INTERRUPTED" -eq 0 ] && [ "$HELPER_CLEAN" -eq 1 ]; then
-    write_ready_marker || true
-  fi
+  stop_process_group "$HELPER_PID" || true
   HELPER_PID=
 fi
 exit 0

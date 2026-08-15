@@ -6,6 +6,26 @@ def _sleep_until_frame_or_handoff_deadline(logo, frame_deadline, handoff_deadlin
     logo["_sleep_until"](min(frame_deadline, handoff_deadline))
 
 
+def _wait_for_rest(logo, handoff, termination_requested, rest_start, handoff_deadline):
+    rest_deadline = rest_start + logo["BOOT_SWEEP_REST_NS"]
+    while True:
+        if handoff.stop_requested():
+            return True
+        if termination_requested[0]:
+            return False
+        now = logo["time"].monotonic_ns()
+        if now >= handoff_deadline:
+            raise RuntimeError(f"Orange OLED native handoff timed out after {logo['NATIVE_HANDOFF_TIMEOUT_SECONDS']} seconds")
+        if now >= rest_deadline:
+            return False
+        next_deadline = min(
+            rest_deadline,
+            handoff_deadline,
+            now + logo["BOOT_SWEEP_REST_CHECK_NS"],
+        )
+        logo["_sleep_until"](next_deadline)
+
+
 def _install_signal_handlers(termination_requested):
     signal_module = termination_requested[1]
     previous_handlers = {}
@@ -97,13 +117,16 @@ def run_loop(logo):
             return
         handoff.start()
         handoff_deadline = logo["time"].monotonic_ns() + logo["NATIVE_HANDOFF_TIMEOUT_SECONDS"] * 1_000_000_000
-        adopt_existing = logo["validate_marker"]()
         oled = logo["Oled"]()
-        if not adopt_existing:
-            oled.initialize()
+        oled.initialize()
         canvas = logo["logo_canvas"]("boot")
-        if adopt_existing:
-            oled.command(0xAF)
+        frames = [
+            logo["render_canvas"](canvas, frame)
+            for frame in range(logo["BOOT_SWEEP_FRAME_COUNT"])
+        ]
+        clean_frame = logo["render_canvas"](canvas)
+        logo["notify_systemd_ready"]()
+        oled.begin_frame_stream()
         cycle_start = logo["time"].monotonic_ns()
         frame = 0
         while True:
@@ -117,10 +140,41 @@ def run_loop(logo):
                 return
             if logo["time"].monotonic_ns() >= handoff_deadline:
                 raise RuntimeError(f"Orange OLED native handoff timed out after {logo['NATIVE_HANDOFF_TIMEOUT_SECONDS']} seconds")
-            oled.frame(logo["render_canvas"](canvas, frame))
+            oled.stream_frame(frames[frame])
             if frame == logo["BOOT_SWEEP_FRAME_COUNT"] - 1:
-                cycle_start += logo["BOOT_SWEEP_DURATION_NS"]
+                if handoff.stop_requested():
+                    handoff.release()
+                    close_oled_without_off()
+                    released = True
+                    return
+                if termination_requested[0]:
+                    return
+                cycle_end = cycle_start + logo["BOOT_SWEEP_DURATION_NS"]
+                logo["_sleep_until"](min(cycle_end, handoff_deadline))
+                if handoff.stop_requested():
+                    handoff.release()
+                    close_oled_without_off()
+                    released = True
+                    return
+                if termination_requested[0]:
+                    return
+                if logo["time"].monotonic_ns() >= handoff_deadline:
+                    raise RuntimeError(f"Orange OLED native handoff timed out after {logo['NATIVE_HANDOFF_TIMEOUT_SECONDS']} seconds")
+                oled.stream_frame(clean_frame)
+                if _wait_for_rest(
+                    logo,
+                    handoff,
+                    termination_requested,
+                    cycle_end,
+                    handoff_deadline,
+                ):
+                    handoff.release()
+                    close_oled_without_off()
+                    released = True
+                    return
+                next_cycle_start = cycle_start + logo["BOOT_SWEEP_DURATION_NS"] + logo["BOOT_SWEEP_REST_NS"]
                 handoff.publish_cycle()
+                cycle_start = next_cycle_start
                 frame = 0
             else:
                 frame += 1

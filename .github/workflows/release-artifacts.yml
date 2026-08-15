@@ -317,7 +317,7 @@ jobs:
         with:
           name: octessera-orange-runtime
           path: gathered-runtime/orange
-      - name: Verify exact asset sets, checksums, runtime identity, and provenance
+      - name: Verify exact asset sets, checksums, runtime identity, and image evidence
         env:
           RELEASE_VERSION: ${{ needs.release_info.outputs.version }}
           RELEASE_SOURCE_SHA: ${{ needs.release_info.outputs.source_sha }}
@@ -325,7 +325,14 @@ jobs:
           set -euo pipefail
           root="$GITHUB_WORKSPACE/gathered-release-assets"
           release_assets="$GITHUB_WORKSPACE/release-assets"
-          mkdir -p "$release_assets"
+          evidence_staging="$GITHUB_WORKSPACE/release-evidence"
+          mkdir -p "$release_assets" \
+            "$evidence_staging/windows" "$evidence_staging/macos" "$evidence_staging/ubuntu" \
+            "$evidence_staging/raspberry/image" "$evidence_staging/raspberry/device" \
+            "$evidence_staging/raspberry/kernel" "$evidence_staging/raspberry/runtime" \
+            "$evidence_staging/orange/image" "$evidence_staging/orange/device" \
+            "$evidence_staging/orange/kernel" "$evidence_staging/orange/runtime" \
+            "$evidence_staging/legal"
           require_exact_files() {
             local directory="$1"
             shift
@@ -339,48 +346,68 @@ jobs:
           }
           copy_asset() {
             local source="$1" destination="$2"
+            [[ -f "$source" ]] || { echo "Missing release asset: $source" >&2; exit 1; }
             [[ ! -e "$destination" ]] || { echo "Release asset collision: $destination" >&2; exit 1; }
             install -m 0644 "$source" "$destination"
           }
+          copy_evidence() {
+            local source="$1" destination="$2"
+            [[ -f "$source" ]] || { echo "Missing release evidence: $source" >&2; exit 1; }
+            install -m 0644 "$source" "$destination"
+          }
           prefix="octessera-$RELEASE_VERSION"
+          rpi_image_dir="$root/octessera-raspberry-image-release-assets"
+          rpi_device_dir="$root/octessera-raspberry-device-release-assets"
           require_exact_files "$root/octessera-windows-release-assets" "$prefix-windows-installer.exe" "$prefix-windows-portable.zip" SHA256SUMS-windows.txt
           require_exact_files "$root/octessera-macos-release-assets" "$prefix-macos-unsigned.dmg" SHA256SUMS-macos.txt
           require_exact_files "$root/octessera-ubuntu-release-assets" "$prefix-ubuntu-amd64.deb" "$prefix-ubuntu-x86_64.AppImage" SHA256SUMS-ubuntu.txt
           RPI_KERNEL_ARTIFACT_VERSION="0.7.5"
           rpi_kernel_package="linux-image-6.12.93-octessera-rpi-v8-${RPI_KERNEL_ARTIFACT_VERSION}_6.12.93-octessera${RPI_KERNEL_ARTIFACT_VERSION}-1_arm64.deb"
           rpi_kernel_dir="$root/octessera-raspberry-kernel-release-assets"
+          rpi_manifest="$prefix-raspberry-pi-zero-2w.rpi-imager-manifest"
+          rpi_device_zip="$prefix-raspberry-pi-zero-2w-device-aarch64.zip"
+          rpi_device_sums="SHA256SUMS-raspberry-pi-zero-2w-device.txt"
           require_exact_files "$rpi_kernel_dir" "$rpi_kernel_package" SHA256SUMS inventory.json provenance.json
-          require_exact_files "$root/octessera-raspberry-image-release-assets" "$prefix-raspberry-pi-zero-2w.img.zip" "$prefix-raspberry-pi-zero-2w.rpi-imager-manifest" SHA256SUMS-pi.txt
-          require_exact_files "$root/octessera-raspberry-device-release-assets" "$prefix-raspberry-pi-zero-2w-device-aarch64.zip" SHA256SUMS-raspberry-pi-zero-2w-device.txt
+          require_exact_files "$rpi_image_dir" "$prefix-raspberry-pi-zero-2w.img.zip" "$rpi_manifest" SHA256SUMS-pi.txt
+          require_exact_files "$rpi_device_dir" "$rpi_device_zip" "$rpi_device_sums"
           orange_kernel_image="linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb"
           orange_kernel_dtb="linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
           orange_image_dir="$root/octessera-orange-image-release-assets"
           require_exact_files "$orange_image_dir" "$prefix-orange-pi-zero-2w.img.xz" "$prefix-orange-pi-zero-2w.img.xz.sha256" "$orange_kernel_image" "$orange_kernel_dtb" octessera-orange-kernel-evidence.env octessera-orange-kernel-provenance.txt octessera-orange-image-proof.json SHA256SUMS-orange-pi-zero-2w.txt
-          require_exact_files "$root/octessera-orange-device-release-assets" "$prefix-orange-pi-zero-2w-standalone-manual-aarch64.zip" SHA256SUMS-orange-pi-zero-2w-device.txt
-          for source_dir in "$root/octessera-windows-release-assets" "$root/octessera-macos-release-assets" "$root/octessera-ubuntu-release-assets" "$root/octessera-raspberry-image-release-assets" "$root/octessera-raspberry-device-release-assets" "$orange_image_dir" "$root/octessera-orange-device-release-assets"; do
-            while IFS= read -r source; do
-              copy_asset "$source" "$release_assets/$(basename "$source")"
-            done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -type f -print | sort)
-          done
-          copy_asset "$rpi_kernel_dir/$rpi_kernel_package" "$release_assets/$rpi_kernel_package"
-          copy_asset "$rpi_kernel_dir/SHA256SUMS" "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-SHA256SUMS"
-          copy_asset "$rpi_kernel_dir/inventory.json" "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-inventory.json"
-          copy_asset "$rpi_kernel_dir/provenance.json" "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-provenance.json"
-          python3 tools/legal/package_notice_zip.py --repository-root . --output "$release_assets/$prefix-notices.zip"
+          orange_device_dir="$root/octessera-orange-device-release-assets"
+          orange_device_zip="$prefix-orange-pi-zero-2w-standalone-manual-aarch64.zip"
+          orange_device_sums="SHA256SUMS-orange-pi-zero-2w-device.txt"
+          require_exact_files "$orange_device_dir" "$orange_device_zip" "$orange_device_sums"
+          copy_asset "$root/octessera-windows-release-assets/$prefix-windows-installer.exe" "$release_assets/$prefix-windows-installer.exe"
+          copy_asset "$root/octessera-windows-release-assets/$prefix-windows-portable.zip" "$release_assets/$prefix-windows-portable.zip"
+          copy_asset "$root/octessera-macos-release-assets/$prefix-macos-unsigned.dmg" "$release_assets/$prefix-macos-unsigned.dmg"
+          copy_asset "$root/octessera-ubuntu-release-assets/$prefix-ubuntu-amd64.deb" "$release_assets/$prefix-ubuntu-amd64.deb"
+          copy_asset "$root/octessera-ubuntu-release-assets/$prefix-ubuntu-x86_64.AppImage" "$release_assets/$prefix-ubuntu-x86_64.AppImage"
+          copy_asset "$rpi_image_dir/$prefix-raspberry-pi-zero-2w.img.zip" "$release_assets/$prefix-raspberry-pi-zero-2w.img.zip"
+          copy_asset "$rpi_image_dir/$rpi_manifest" "$release_assets/$rpi_manifest"
+          copy_asset "$rpi_device_dir/$rpi_device_zip" "$release_assets/$rpi_device_zip"
+          copy_asset "$rpi_device_dir/$rpi_device_sums" "$release_assets/$rpi_device_sums"
+          copy_asset "$orange_image_dir/$prefix-orange-pi-zero-2w.img.xz" "$release_assets/$prefix-orange-pi-zero-2w.img.xz"
+          copy_asset "$orange_device_dir/$orange_device_zip" "$release_assets/$orange_device_zip"
           python3 tools/legal/verify_notice_archive.py --repository-root . --archive "$release_assets/$prefix-windows-portable.zip" --payload-name octessera.exe
-          python3 tools/legal/verify_notice_archive.py --repository-root . --archive "$release_assets/$prefix-notices.zip"
-          (cd "$release_assets" && sha256sum -c SHA256SUMS-windows.txt && sha256sum -c SHA256SUMS-macos.txt && sha256sum -c SHA256SUMS-ubuntu.txt && sha256sum -c SHA256SUMS-pi.txt && sha256sum -c SHA256SUMS-raspberry-pi-zero-2w-device.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w-device.txt && sha256sum -c "$prefix-raspberry-pi-zero-2w-kernel-SHA256SUMS")
-          (cd "$release_assets" && sha256sum -c "$prefix-orange-pi-zero-2w.img.xz.sha256")
+          (cd "$root/octessera-windows-release-assets" && sha256sum -c SHA256SUMS-windows.txt)
+          (cd "$root/octessera-macos-release-assets" && sha256sum -c SHA256SUMS-macos.txt)
+          (cd "$root/octessera-ubuntu-release-assets" && sha256sum -c SHA256SUMS-ubuntu.txt)
+          (cd "$rpi_image_dir" && sha256sum -c SHA256SUMS-pi.txt)
+          (cd "$rpi_device_dir" && sha256sum -c "$rpi_device_sums")
+          (cd "$rpi_kernel_dir" && sha256sum -c SHA256SUMS)
+          (cd "$orange_image_dir" && sha256sum -c "$prefix-orange-pi-zero-2w.img.xz.sha256" && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt)
+          (cd "$orange_device_dir" && sha256sum -c "$orange_device_sums")
           sudo bash tools/armbian-image/verify-orange-image.sh \
-            --image "$release_assets/$prefix-orange-pi-zero-2w.img.xz" \
-            --linux-image "$release_assets/$orange_kernel_image" \
-            --linux-dtb "$release_assets/$orange_kernel_dtb" \
-            --evidence "$release_assets/octessera-orange-kernel-evidence.env" \
-            --provenance "$release_assets/octessera-orange-kernel-provenance.txt" \
+            --image "$orange_image_dir/$prefix-orange-pi-zero-2w.img.xz" \
+            --linux-image "$orange_image_dir/$orange_kernel_image" \
+            --linux-dtb "$orange_image_dir/$orange_kernel_dtb" \
+            --evidence "$orange_image_dir/octessera-orange-kernel-evidence.env" \
+            --provenance "$orange_image_dir/octessera-orange-kernel-provenance.txt" \
             --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
             --boot-proof-mode phase5-constructor \
             --construction-contract resources/image-construction/boot-layers/orange-pi-zero-2w.json \
-            --image-provenance "$release_assets/octessera-orange-image-proof.json" \
+            --image-provenance "$orange_image_dir/octessera-orange-image-proof.json" \
             --mode production
           for runtime_dir in gathered-runtime/raspberry gathered-runtime/orange; do
             mapfile -t runtime_entries < <(find "$runtime_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
@@ -388,32 +415,31 @@ jobs:
             (cd "$runtime_dir" && sha256sum -c SHA256SUMS)
           done
           python3 tools/pi-kernel/validate-rpi-kernel-package.py \
-            "$release_assets/$rpi_kernel_package" \
+            "$rpi_kernel_dir/$rpi_kernel_package" \
             --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
-            --checksum-file "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-SHA256SUMS" \
-            --provenance-in "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-provenance.json"
-          python3 - "$release_assets" "$prefix" "$rpi_kernel_package" <<'PY'
+            --checksum-file "$rpi_kernel_dir/SHA256SUMS" \
+            --provenance-in "$rpi_kernel_dir/provenance.json"
+          python3 - "$rpi_kernel_dir" "$rpi_kernel_package" <<'PY'
           import json
           import pathlib
           import sys
 
           root = pathlib.Path(sys.argv[1])
-          prefix = sys.argv[2]
-          package = sys.argv[3]
-          inventory = json.loads((root / f"{prefix}-raspberry-pi-zero-2w-kernel-inventory.json").read_text())
-          provenance = json.loads((root / f"{prefix}-raspberry-pi-zero-2w-kernel-provenance.json").read_text())
+          package = sys.argv[2]
+          inventory = json.loads((root / "inventory.json").read_text())
+          provenance = json.loads((root / "provenance.json").read_text())
           if {key: value for key, value in provenance.items() if key != "build"} != inventory:
               raise SystemExit("Raspberry inventory and provenance chain differ")
           if inventory["package"]["path"] != package:
               raise SystemExit("Raspberry kernel inventory package path changed")
           PY
-          python3 - "$release_assets" "$prefix" "$orange_kernel_image" "$orange_kernel_dtb" "$RELEASE_SOURCE_SHA" <<'PY'
+          python3 - "$orange_image_dir" "$orange_kernel_image" "$orange_kernel_dtb" "$RELEASE_SOURCE_SHA" <<'PY'
           import hashlib
           import pathlib
           import sys
 
           root = pathlib.Path(sys.argv[1])
-          prefix, image_package, dtb_package, source_sha = sys.argv[2:]
+          image_package, dtb_package, source_sha = sys.argv[2:]
           evidence = (root / "octessera-orange-kernel-evidence.env").read_text().splitlines()
           values = dict(line.split("=", 1) for line in evidence)
           provenance = (root / "octessera-orange-kernel-provenance.txt").read_text().splitlines()
@@ -435,12 +461,11 @@ jobs:
           if facts.get("evidence_sha256") != evidence_hash or facts.get("armbian_build_ref") != "fa7a7b2294d9e760a77630950afd460b7a0b2a26" or facts.get("github_source_sha") != source_sha or facts.get("kernel_source_repository") != "https://github.com/torvalds/linux.git":
               raise SystemExit("Orange provenance evidence or build pin is not bound")
           PY
-          python3 - "$RELEASE_VERSION" gathered-runtime/raspberry gathered-runtime/orange "$root/octessera-raspberry-device-release-assets/$prefix-raspberry-pi-zero-2w-device-aarch64.zip" "$root/octessera-orange-device-release-assets/$prefix-orange-pi-zero-2w-standalone-manual-aarch64.zip" <<'PY'
-          import hashlib
+          python3 - "$RELEASE_VERSION" gathered-runtime/raspberry gathered-runtime/orange "$rpi_device_dir/$rpi_device_zip" "$orange_device_dir/$orange_device_zip" <<'PY'
           import json
           import pathlib
           import sys
-          import tempfile
+          import stat
           import zipfile
 
           version, raspberry_dir, orange_dir, raspberry_zip, orange_zip = sys.argv[1:]
@@ -449,28 +474,76 @@ jobs:
               metadata = json.loads((bundle / "octessera-runtime.json").read_text())
               if set(metadata) != {"artifact_kind", "binary_sha256", "name", "profile", "runtime_ready", "version"} or metadata["artifact_kind"] != "production-runtime" or metadata["name"] != "octessera-pi" or metadata["runtime_ready"] is not True or metadata["profile"] != profile or metadata["version"] != version:
                   raise SystemExit(f"{profile} runtime metadata is not exact")
-              with tempfile.TemporaryDirectory() as temporary:
-                  with zipfile.ZipFile(zip_path) as archive:
-                      if set(archive.namelist()) != {"octessera-pi", "octessera-runtime.json", "SHA256SUMS", "octessera-device-release.json", "LICENSE", "NOTICE"}:
-                          raise SystemExit(f"{profile} device ZIP inventory is not exact")
-                      if archive.read("LICENSE") != pathlib.Path("LICENSE").read_bytes() or archive.read("NOTICE") != pathlib.Path("NOTICE").read_bytes():
-                          raise SystemExit(f"{profile} device ZIP legal files do not match the release source")
-                      archive.extractall(temporary)
-                  extracted = pathlib.Path(temporary)
-                  if (extracted / "octessera-pi").read_bytes() != (bundle / "octessera-pi").read_bytes():
+              expected_names = ["octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"] if profile == "raspberry-pi-zero-2w" else ["octessera-pi", "octessera-runtime.json", "SHA256SUMS", "octessera-device-release.json", "LICENSE", "NOTICE"]
+              with zipfile.ZipFile(zip_path) as archive:
+                  if archive.namelist() != expected_names:
+                      raise SystemExit(f"{profile} device ZIP inventory is not exact")
+                  for info in archive.infolist():
+                      file_type = (info.external_attr >> 16) & 0o170000
+                      mode = (info.external_attr >> 16) & 0o777
+                      expected_mode = 0o755 if info.filename == "octessera-pi" else 0o644
+                      if file_type != stat.S_IFREG or mode != expected_mode:
+                          raise SystemExit(f"{profile} device ZIP executable mode is not exact")
+                  if archive.read("LICENSE") != pathlib.Path("LICENSE").read_bytes() or archive.read("NOTICE") != pathlib.Path("NOTICE").read_bytes():
+                      raise SystemExit(f"{profile} device ZIP legal files do not match the release source")
+                  if archive.read("octessera-pi") != (bundle / "octessera-pi").read_bytes():
                       raise SystemExit(f"{profile} device ZIP does not reuse the runtime bytes")
-                  if (extracted / "octessera-runtime.json").read_bytes() != (bundle / "octessera-runtime.json").read_bytes() or (extracted / "SHA256SUMS").read_bytes() != (bundle / "SHA256SUMS").read_bytes():
-                      raise SystemExit(f"{profile} device ZIP does not reuse the runtime metadata/checksum")
-                  if hashlib.sha256((extracted / "octessera-pi").read_bytes()).hexdigest() != metadata["binary_sha256"]:
-                      raise SystemExit(f"{profile} device ZIP binary hash is not bound")
-                  manifest = json.loads((extracted / "octessera-device-release.json").read_text())
-                  if profile == "orange-pi-zero-2w":
+                  manifest = json.loads(archive.read("octessera-device-release.json"))
+                  if profile == "raspberry-pi-zero-2w":
+                      if manifest.get("updater_protocol") != 2 or manifest.get("board_profile") != profile or manifest.get("version") != version:
+                          raise SystemExit("Raspberry device metadata is not updater-compatible")
+                  else:
+                      if archive.read("octessera-runtime.json") != (bundle / "octessera-runtime.json").read_bytes() or archive.read("SHA256SUMS") != (bundle / "SHA256SUMS").read_bytes():
+                          raise SystemExit("Orange standalone ZIP does not reuse the runtime metadata/checksum")
                       if manifest.get("updater_supported") is not False or "updater_protocol" in manifest or manifest.get("candidate_health_protocol") != 1 or manifest.get("distribution") != "standalone-manual":
                           raise SystemExit("Orange standalone device metadata claims unsupported updater behavior")
           PY
-          expected_count=28
-          mapfile -t final_files < <(find "$release_assets" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
-          [[ "${#final_files[@]}" == "$expected_count" ]] || { echo "Unexpected final release asset count: ${#final_files[@]} (expected $expected_count)." >&2; exit 1; }
+          copy_evidence "$root/octessera-windows-release-assets/SHA256SUMS-windows.txt" "$evidence_staging/windows/SHA256SUMS-windows.txt"
+          copy_evidence "$root/octessera-macos-release-assets/SHA256SUMS-macos.txt" "$evidence_staging/macos/SHA256SUMS-macos.txt"
+          copy_evidence "$root/octessera-ubuntu-release-assets/SHA256SUMS-ubuntu.txt" "$evidence_staging/ubuntu/SHA256SUMS-ubuntu.txt"
+          copy_evidence "$rpi_image_dir/SHA256SUMS-pi.txt" "$evidence_staging/raspberry/image/SHA256SUMS-pi.txt"
+          copy_evidence "$rpi_image_dir/$rpi_manifest" "$evidence_staging/raspberry/image/$rpi_manifest"
+          copy_evidence "$rpi_device_dir/$rpi_device_sums" "$evidence_staging/raspberry/device/$rpi_device_sums"
+          copy_evidence "$rpi_kernel_dir/$rpi_kernel_package" "$evidence_staging/raspberry/kernel/$rpi_kernel_package"
+          copy_evidence "$rpi_kernel_dir/SHA256SUMS" "$evidence_staging/raspberry/kernel/SHA256SUMS"
+          copy_evidence "$rpi_kernel_dir/inventory.json" "$evidence_staging/raspberry/kernel/inventory.json"
+          copy_evidence "$rpi_kernel_dir/provenance.json" "$evidence_staging/raspberry/kernel/provenance.json"
+          copy_evidence "gathered-runtime/raspberry/SHA256SUMS" "$evidence_staging/raspberry/runtime/SHA256SUMS"
+          copy_evidence "$orange_image_dir/$prefix-orange-pi-zero-2w.img.xz.sha256" "$evidence_staging/orange/image/$prefix-orange-pi-zero-2w.img.xz.sha256"
+          copy_evidence "$orange_image_dir/SHA256SUMS-orange-pi-zero-2w.txt" "$evidence_staging/orange/image/SHA256SUMS-orange-pi-zero-2w.txt"
+          copy_evidence "$orange_image_dir/$orange_kernel_image" "$evidence_staging/orange/kernel/$orange_kernel_image"
+          copy_evidence "$orange_image_dir/$orange_kernel_dtb" "$evidence_staging/orange/kernel/$orange_kernel_dtb"
+          copy_evidence "$orange_image_dir/octessera-orange-kernel-evidence.env" "$evidence_staging/orange/kernel/octessera-orange-kernel-evidence.env"
+          copy_evidence "$orange_image_dir/octessera-orange-kernel-provenance.txt" "$evidence_staging/orange/kernel/octessera-orange-kernel-provenance.txt"
+          copy_evidence "$orange_image_dir/octessera-orange-image-proof.json" "$evidence_staging/orange/image/octessera-orange-image-proof.json"
+          copy_evidence "$orange_device_dir/$orange_device_sums" "$evidence_staging/orange/device/$orange_device_sums"
+          copy_evidence "gathered-runtime/orange/SHA256SUMS" "$evidence_staging/orange/runtime/SHA256SUMS"
+          python3 tools/legal/package_notice_zip.py --repository-root . --output "$evidence_staging/legal/$prefix-notices.zip"
+          python3 tools/legal/verify_notice_archive.py --repository-root . --archive "$evidence_staging/legal/$prefix-notices.zip"
+          evidence_zip="$release_assets/$prefix-release-evidence.zip"
+          (cd "$evidence_staging" && zip -9 -r "$evidence_zip" windows macos ubuntu raspberry orange legal)
+          unzip -t "$evidence_zip" >/dev/null
+          expected_root_assets=(
+            "$prefix-windows-installer.exe"
+            "$prefix-windows-portable.zip"
+            "$prefix-macos-unsigned.dmg"
+            "$prefix-ubuntu-amd64.deb"
+            "$prefix-ubuntu-x86_64.AppImage"
+            "$prefix-raspberry-pi-zero-2w.img.zip"
+            "$rpi_manifest"
+            "$rpi_device_zip"
+            "$rpi_device_sums"
+            "$prefix-orange-pi-zero-2w.img.xz"
+            "$orange_device_zip"
+            "$prefix-release-evidence.zip"
+            "SHA256SUMS.txt"
+          )
+          expected_count=13
+          mapfile -t root_payloads < <(printf '%s\n' "${expected_root_assets[@]}" | grep -v '^SHA256SUMS\.txt$' | LC_ALL=C sort)
+          (cd "$release_assets" && sha256sum "${root_payloads[@]}" > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
+          mapfile -t final_files < <(find "$release_assets" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)
+          mapfile -t expected_files < <(printf '%s\n' "${expected_root_assets[@]}" | LC_ALL=C sort)
+          [[ "${#final_files[@]}" == "$expected_count" && "${final_files[*]}" == "${expected_files[*]}" ]] || { echo "Unexpected final release asset set: ${final_files[*]}" >&2; exit 1; }
       - name: Revalidate exact draft immediately before upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 hook="$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
+premount_script="$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
 boot_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
 shutdown_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
 suspend_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
@@ -11,8 +12,13 @@ python313_fixture="$root/tools/armbian-image/fixtures/python313-initramfs-closur
 oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
 
 [[ -f "$hook" ]] || { echo "Missing Orange initramfs boot-splash hook." >&2; exit 1; }
+grep -qF '/usr/bin/setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script" || { echo "Orange initramfs must invoke the renderer through /usr/bin/python3." >&2; exit 1; }
+! grep -qF '/usr/bin/setsid /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script" || { echo "Orange initramfs must not execute the renderer through its env shebang." >&2; exit 1; }
+! grep -qF '/usr/bin/env' "$premount_script" || { echo "Orange initramfs must not depend on /usr/bin/env." >&2; exit 1; }
 for required_line in \
-    'Type=simple' \
+    'Type=notify' \
+    'NotifyAccess=main' \
+    'Environment=OCTESSERA_OLED_READY_NOTIFY_REQUIRED=1' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
     'ExecStart=/usr/local/sbin/octessera-orange-oled-logo boot-loop' \
@@ -167,10 +173,12 @@ for required_line in \
     'copy_file binary /usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py' \
     'copy_exec /usr/bin/setsid /usr/bin/setsid' \
     'copy_exec /usr/bin/gpioset /usr/bin/gpioset' \
-    'copy_file asset /usr/share/octessera/oled/octessera-mark.svg' \
-    'copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg'; do
+    'copy_file asset /usr/share/octessera/oled/octessera-pi-booting.rgb565' \
+    'copy_file asset /usr/share/octessera/oled/octessera-pi-shutdown.rgb565'; do
     grep -qF "$required_line" "$hook" || { echo "Orange initramfs dependency was removed: $required_line" >&2; exit 1; }
 done
+! grep -qF 'copy_file asset /usr/share/octessera/oled/octessera-mark.svg' "$hook" || { echo "Obsolete Orange SVG initramfs dependency returned." >&2; exit 1; }
+! grep -qF 'copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg' "$hook" || { echo "Obsolete Orange SVG initramfs dependency returned." >&2; exit 1; }
 for removed_line in \
     'manual_add_modules spi-sun6i' \
     'manual_add_modules spidev' \
@@ -306,8 +314,8 @@ run_extracted_runtime_test() {
     local archive
     local hook_copy
     local oled_source
-    local mark_source
-    local wordmark_source
+    local boot_source
+    local shutdown_source
     local handoff_source
     local fake_gpioset
     local python_stdlib
@@ -331,8 +339,8 @@ run_extracted_runtime_test() {
     archive="$work/initramfs.img"
     hook_copy="$work/hook"
     oled_source="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
-    mark_source="$root/userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg"
-    wordmark_source="$root/userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg"
+    boot_source="$root/userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565"
+    shutdown_source="$root/userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565"
     handoff_source="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
     lifecycle_source="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py"
     fake_gpioset="$work/gpioset"
@@ -344,8 +352,8 @@ run_extracted_runtime_test() {
         -e "s|copy_file binary /usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py|copy_file binary \"$handoff_source\" /usr/local/sbin/octessera-orange-oled-handoff.py|" \
         -e "s|copy_file binary /usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py|copy_file binary \"$lifecycle_source\" /usr/local/sbin/octessera-orange-oled-lifecycle.py|" \
         -e "s|copy_exec /usr/bin/gpioset /usr/bin/gpioset|copy_exec \"$fake_gpioset\" /usr/bin/gpioset|" \
-        -e "s|copy_file asset /usr/share/octessera/oled/octessera-mark.svg|copy_file asset \"$mark_source\" /usr/share/octessera/oled/octessera-mark.svg|" \
-        -e "s|copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg|copy_file asset \"$wordmark_source\" /usr/share/octessera/oled/octessera-wordmark.svg|" \
+        -e "s|copy_file asset /usr/share/octessera/oled/octessera-pi-booting.rgb565|copy_file asset \"$boot_source\" /usr/share/octessera/oled/octessera-pi-booting.rgb565|" \
+        -e "s|copy_file asset /usr/share/octessera/oled/octessera-pi-shutdown.rgb565|copy_file asset \"$shutdown_source\" /usr/share/octessera/oled/octessera-pi-shutdown.rgb565|" \
         "$hook" > "$hook_copy"
 
     kernel_version="$(uname -r)"
@@ -375,14 +383,16 @@ run_extracted_runtime_test() {
     grep -qF 'usr/local/sbin/octessera-orange-oled-logo' "$work/contents" || { echo "Extracted initramfs is missing the OLED executable." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/local/sbin/octessera-orange-oled-handoff.py' "$work/contents" || { echo "Extracted initramfs is missing the OLED handoff module." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/local/sbin/octessera-orange-oled-lifecycle.py' "$work/contents" || { echo "Extracted initramfs is missing the OLED lifecycle module." >&2; rm -rf "$work"; exit 1; }
-    grep -qF 'usr/share/octessera/oled/octessera-mark.svg' "$work/contents" || { echo "Extracted initramfs is missing the mark asset." >&2; rm -rf "$work"; exit 1; }
-    grep -qF 'usr/share/octessera/oled/octessera-wordmark.svg' "$work/contents" || { echo "Extracted initramfs is missing the wordmark asset." >&2; rm -rf "$work"; exit 1; }
+    ! grep -qF 'usr/share/octessera/oled/octessera-mark.svg' "$work/contents" || { echo "Extracted initramfs contains the obsolete mark SVG." >&2; rm -rf "$work"; exit 1; }
+    ! grep -qF 'usr/share/octessera/oled/octessera-wordmark.svg' "$work/contents" || { echo "Extracted initramfs contains the obsolete wordmark SVG." >&2; rm -rf "$work"; exit 1; }
+    grep -qF 'usr/share/octessera/oled/octessera-pi-booting.rgb565' "$work/contents" || { echo "Extracted initramfs is missing the boot frame asset." >&2; rm -rf "$work"; exit 1; }
+    grep -qF 'usr/share/octessera/oled/octessera-pi-shutdown.rgb565' "$work/contents" || { echo "Extracted initramfs is missing the shutdown frame asset." >&2; rm -rf "$work"; exit 1; }
     unmkinitramfs "$archive" "$extracted"
     cmp "$oled_source" "$extracted/usr/local/sbin/octessera-orange-oled-logo"
     cmp "$handoff_source" "$extracted/usr/local/sbin/octessera-orange-oled-handoff.py"
     cmp "$lifecycle_source" "$extracted/usr/local/sbin/octessera-orange-oled-lifecycle.py"
-    cmp "$mark_source" "$extracted/usr/share/octessera/oled/octessera-mark.svg"
-    cmp "$wordmark_source" "$extracted/usr/share/octessera/oled/octessera-wordmark.svg"
+    cmp "$boot_source" "$extracted/usr/share/octessera/oled/octessera-pi-booting.rgb565"
+    cmp "$shutdown_source" "$extracted/usr/share/octessera/oled/octessera-pi-shutdown.rgb565"
 
     python_stdlib="$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')"
     for python_file in "$python_stdlib/json/__init__.py" "$python_stdlib/json/decoder.py" "$python_stdlib/json/encoder.py" "$python_stdlib/json/scanner.py"; do
@@ -399,97 +409,12 @@ run_extracted_runtime_test() {
     runtime_status=$?
     set -e
     [[ "$runtime_status" == 1 ]] || { echo "Extracted OLED Python runtime did not reject invalid input as expected." >&2; cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
-    grep -qF 'usage: octessera-orange-oled-logo boot-once|boot-loop|resume|sleep|shutdown' "$runtime_output" || { echo "Extracted OLED Python runtime did not execute the installed script." >&2; cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
+    grep -qF 'usage: octessera-orange-oled-logo boot-once|boot-static|boot-loop|resume|sleep|shutdown' "$runtime_output" || { echo "Extracted OLED Python runtime did not execute the installed script." >&2; cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
     ! grep -qE 'ModuleNotFoundError|ImportError' "$runtime_output" || { echo "Extracted OLED Python runtime has an incomplete import closure." >&2; cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
     rm -rf "$work"
     printf 'Orange initramfs extracted runtime validation passed\n'
 }
 
 run_extracted_runtime_test
-
-run_initramfs_lifecycle_test() {
-    local source_script="$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
-    local setsid_path
-    local work
-    local marker
-    local helper
-    local fixture
-    local mode
-    local pid
-    local child_pid
-
-    setsid_path="$(command -v setsid || true)"
-    [[ -n "$setsid_path" ]] || return 0
-    [[ "$(id -u)" == 0 ]] || return 0
-    for mode in success interruption timeout survivor marker-write-failure marker-rename-failure stale-marker; do
-        work="$(mktemp -d)"
-        marker="$work/marker"
-        helper="$work/helper"
-        fixture="$work/init-premount"
-        case "$mode" in
-            success|stale-marker|marker-write-failure|marker-rename-failure)
-                printf '%s\n' '#!/bin/sh' 'exit 0' > "$helper"
-                ;;
-            interruption)
-                printf '%s\n' '#!/bin/sh' 'sleep 10' > "$helper"
-                ;;
-            timeout|survivor)
-                printf '%s\n' '#!/bin/sh' "sleep 10 & echo \"\$!\" > \"$work/child.pid\"; wait" > "$helper"
-                ;;
-        esac
-        chmod 0755 "$helper"
-        sed \
-            -e "s|MARKER=/run/octessera-initramfs-splash.ready|MARKER=$marker|" \
-            -e "s|TEMPORARY_MARKER=|TEMPORARY_MARKER=|" \
-            -e "s|/usr/bin/setsid|$setsid_path|g" \
-            -e "s|/usr/local/sbin/octessera-orange-oled-logo|$helper|g" \
-            -e "s|/dev/kmsg|$work/kmsg|g" \
-            "$source_script" > "$fixture"
-        sed -i "s|TEMPORARY_MARKER=\"/run/.octessera-initramfs-splash.ready.tmp-\$\$\"|TEMPORARY_MARKER=\"$work/temp-marker-\$\$\"|" "$fixture"
-        case "$mode" in
-            marker-write-failure)
-                sed -i '/printf.*bootId.*TEMPORARY_MARKER/c\  false' "$fixture"
-                ;;
-            marker-rename-failure)
-                sed -i '/mv -f --.*TEMPORARY_MARKER.*MARKER/c\  false || return 1' "$fixture"
-                ;;
-            stale-marker)
-                printf '%s\n' 'stale' > "$marker"
-                ;;
-        esac
-        chmod 0755 "$fixture"
-        if [[ "$mode" == interruption ]]; then
-            PATH="$work/bin:$PATH" "$fixture" > "$work/output" 2>&1 &
-            pid=$!
-            sleep 0.2
-            kill -TERM "$pid" 2>/dev/null || true
-            wait "$pid" || true
-        else
-            PATH="$work/bin:$PATH" "$fixture" > "$work/output" 2>&1
-        fi
-        case "$mode" in
-            success|stale-marker)
-                grep -qF '"schema":1' "$marker"
-                [[ -z "$(find "$work" -maxdepth 1 -name 'temp-marker-*' -print -quit)" ]]
-                ;;
-            timeout|survivor)
-                child_pid="$(cat "$work/child.pid")"
-                for _ in 1 2 3 4 5 6 7 8 9 10; do
-                    kill -0 "$child_pid" 2>/dev/null || break
-                    sleep 0.05
-                done
-                ! kill -0 "$child_pid" 2>/dev/null
-                [[ ! -e "$marker" && -z "$(find "$work" -maxdepth 1 -name 'temp-marker-*' -print -quit)" ]]
-                ;;
-            *)
-                [[ ! -e "$marker" && -z "$(find "$work" -maxdepth 1 -name 'temp-marker-*' -print -quit)" ]]
-                ;;
-        esac
-        rm -rf "$work"
-    done
-    printf 'Orange initramfs lifecycle fixtures passed\n'
-}
-
-run_initramfs_lifecycle_test
 
 printf 'Orange boot-splash hook tests passed\n'

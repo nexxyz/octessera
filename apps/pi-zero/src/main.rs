@@ -244,8 +244,7 @@ fn main() {
         midi_rx,
         input_rx: seesaw_io.input_rx,
         encoder_rx: event_rx,
-        early_boot_splash: handoff_mode == boot_oled_handoff::HandoffMode::V1
-            || early_boot_splash_enabled(),
+        early_boot_splash: handoff_mode == boot_oled_handoff::HandoffMode::V1,
     };
     let hdmi = match render::hdmi::HdmiFramebuffer::open_from_env() {
         Ok(hdmi) => hdmi,
@@ -299,11 +298,6 @@ fn exit_code(success: bool) -> i32 {
     } else {
         1
     }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn early_boot_splash_enabled() -> bool {
-    std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

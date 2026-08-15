@@ -1,7 +1,7 @@
 [Unit]
-Description=Octessera narrow device-config reboot request socket
+Description=Octessera narrow device power request socket
 Before=sound.target octessera.service
-After=local-fs.target octessera-provision-musical-default.service
+After=local-fs.target
 
 [Socket]
 ListenStream=/run/octessera-device-apply/reboot.sock

@@ -212,6 +212,140 @@ test('suppressed async OLED batches replay in order with their semantic snapshot
   );
 });
 
+test('split async OLED delivery publishes no transient fault during healthy recovery', async () => {
+  const result = await acceptedHarness();
+  await new Promise((resolve) => setTimeout(resolve, 130));
+  const published: Array<{
+    fault: string | null;
+    available: boolean;
+    firstPixel: number;
+  }> = [];
+  result.runtime.subscribe((current) => {
+    published.push({
+      fault: current.oledFrameFault,
+      available: current.oledFrameAvailable,
+      firstPixel: current.frame.oled.pixels[0]!,
+    });
+  });
+
+  result.emitAsync(2, [snapshot(2, 'Async reference')]);
+  result.emitAsync(3, [oledFrame(2, 0x2a)]);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  const current = result.runtime.getSnapshot();
+  assert.ok(published.every(({ fault }) => fault === null));
+  assert.equal(current.oledFrameFault, null);
+  assert.equal(current.oledFrameAvailable, true);
+  assert.ok(current.frame.oled.pixels.every((byte) => byte === 0x2a));
+  assert.deepEqual(
+    published
+      .slice(-2)
+      .map(({ available, firstPixel }) => ({ available, firstPixel })),
+    [
+      { available: true, firstPixel: 0x11 },
+      { available: true, firstPixel: 0x2a },
+    ],
+  );
+});
+
+test('unresolved async OLED future becomes visible after the bounded turn and keeps last-good pixels', async () => {
+  const result = await acceptedHarness();
+  await new Promise((resolve) => setTimeout(resolve, 130));
+
+  result.emitAsync(2, [snapshot(2, 'Unresolved future')]);
+  assert.equal(result.runtime.getSnapshot().oledFrameFault, null);
+  assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  const current = result.runtime.getSnapshot();
+  assert.equal(current.oledFrameFault, 'future');
+  assert.equal(current.oledFrameAvailable, true);
+  assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+
+  result.emitAsync(3, [oledFrame(2, 0x2a)]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(result.runtime.getSnapshot().oledFrameFault, 'future');
+  assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+});
+
+test('equal async references do not extend the original grace deadline', async () => {
+  const result = await acceptedHarness();
+  await new Promise((resolve) => setTimeout(resolve, 130));
+
+  result.emitAsync(2, [snapshot(2, 'First reference')]);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  result.emitAsync(3, [snapshot(2, 'Repeated reference')]);
+  assert.equal(result.runtime.getSnapshot().oledFrameFault, null);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.equal(result.runtime.getSnapshot().oledFrameFault, 'future');
+  assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+});
+
+test('direct snapshot-before-frame keeps its typed fault when a later async frame arrives alone', async () => {
+  const result = harness();
+
+  await send(result, [snapshot(1, 'Direct reference')]);
+  let current = result.runtime.getSnapshot();
+  assert.equal(current.oledFrameFault, 'future');
+  assert.equal(current.oledFrameAvailable, false);
+  assert.ok(pixelBytes(result).every((byte) => byte === 0));
+
+  await new Promise((resolve) => setTimeout(resolve, 140));
+  result.emitAsync(2, [oledFrame(1, 0x45)]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  current = result.runtime.getSnapshot();
+  assert.equal(current.oledFrameFault, 'future');
+  assert.equal(current.oledFrameAvailable, false);
+  assert.ok(pixelBytes(result).every((byte) => byte === 0));
+});
+
+test('direct OLED candidate conflict cancels grace and preserves the last-good frame', async () => {
+  const result = await acceptedHarness();
+  await new Promise((resolve) => setTimeout(resolve, 130));
+  result.emitAsync(2, [snapshot(2, 'Async reference')]);
+  await send(result, [oledFrame(2, 0x22)]);
+  result.emitAsync(3, [oledFrame(2, 0x33)]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  let current = result.runtime.getSnapshot();
+  assert.equal(current.oledFrameFault, 'conflict');
+  assert.equal(current.oledFrameAvailable, true);
+  assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  current = result.runtime.getSnapshot();
+  assert.equal(current.oledFrameFault, 'conflict');
+  assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+});
+
+test('superseded async OLED references cannot accept an older frame', async () => {
+  const cases = [
+    [1, 2, snapshot(null), 'missing'],
+    [1, 2, snapshot(0), 'malformed'],
+    [2, 3, snapshot(1), 'stale'],
+    [1, 2, snapshot(3), 'future'],
+  ] as const;
+
+  for (const [baseRevision, pending, superseding, fault] of cases) {
+    const result = await acceptedHarness(baseRevision);
+    await new Promise((resolve) => setTimeout(resolve, 130));
+
+    result.emitAsync(2, [snapshot(pending)]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    result.emitAsync(3, [superseding]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    result.emitAsync(4, [oledFrame(pending, 0x2a)]);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const current = result.runtime.getSnapshot();
+    assert.equal(current.oledFrameFault, fault);
+    assert.equal(current.oledFrameAvailable, true);
+    assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+  }
+});
+
 test('async batches matching direct responses remain duplicate-suppressed', async () => {
   const result = await acceptedHarness();
   let matchingSnapshots = 0;

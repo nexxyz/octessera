@@ -8,9 +8,34 @@ DEVICE_UPDATE_ROOT="$PACKAGE_ROOT/device-update"
 REMOTE_REPO=${REMOTE_REPO:-/home/pi/octessera-dev}
 SERVICE=${SERVICE:-octessera.service}
 BOARD_PROFILE=${BOARD_PROFILE:-raspberry-pi-zero-2w}
-UPDATE_INITRAMFS=${UPDATE_INITRAMFS:-0}
+UPDATE_INITRAMFS=${UPDATE_INITRAMFS-}
 WAKE_TRACE=${WAKE_TRACE:-0}
 SYSROOT=${SYSROOT:-}
+
+update_initramfs_argument=0
+for argument do
+    case "$argument" in
+        --update-initramfs)
+            update_initramfs_argument=1
+            ;;
+        *)
+            echo "Unknown provisioning option: $argument" >&2
+            exit 2
+            ;;
+    esac
+done
+case "$UPDATE_INITRAMFS" in
+    ''|0|1) ;;
+    *)
+        echo "UPDATE_INITRAMFS must be 0 or 1; use --update-initramfs for an explicit rebuild." >&2
+        exit 2
+        ;;
+esac
+if [ "$update_initramfs_argument" -eq 1 ]; then
+    UPDATE_INITRAMFS=1
+elif [ -z "$UPDATE_INITRAMFS" ]; then
+    UPDATE_INITRAMFS=0
+fi
 
 if [ "$SERVICE" != octessera.service ]; then
     echo "Pi provisioning supports only the managed service name octessera.service; got $SERVICE." >&2
@@ -102,11 +127,12 @@ while IFS= read -r line || [ -n "$line" ]; do
     esac
     ensure_boot_config_line "$line"
 done < "$PROVISION_ROOT/boot/config.txt.append"
-ensure_raspberry_uart_inactive
 
 sudo rm -f \
     "$(target_path /etc/initramfs-tools/hooks/cellsymphony-boot-splash)" \
     "$(target_path /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash)" \
+    "$(target_path /etc/initramfs-tools/hooks/octessera-boot-splash)" \
+    "$(target_path /etc/initramfs-tools/scripts/init-premount/octessera-boot-splash)" \
     "$(target_path /etc/systemd/system/cellsymphony-boot-splash.service)" \
     "$(target_path /etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service)" \
     "$(target_path /etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service)"
@@ -218,8 +244,10 @@ if [ "$UPDATE_INITRAMFS" = "1" ]; then
     grep -qxF "spidev" "$(target_path /etc/initramfs-tools/modules)" || printf '%s\n' "spidev" | sudo tee -a "$(target_path /etc/initramfs-tools/modules)" >/dev/null
     sudo update-initramfs -u
 else
-    echo "Skipping initramfs update. Pass -UpdateInitramfs to refresh the early boot splash initramfs."
+    echo "Skipping initramfs update; pass -UpdateInitramfs when an OS or boot change requires a rebuild."
 fi
+
+ensure_raspberry_uart_inactive
 
 sudo install -d -m 0750 "$(target_path /etc/sudoers.d)"
 sudo systemctl restart systemd-journald

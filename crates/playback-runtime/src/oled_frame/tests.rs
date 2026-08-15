@@ -1,15 +1,18 @@
+use super::error_layout::runtime_error_rows;
 use super::model::*;
+use super::pixels::rgb565;
 use super::render::render_oled_frame;
 use super::splash::{SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
 use super::OLED_FRAME_BYTES;
+use platform_core::palette;
 
 const NORMAL_SELECTED_FNV1A64: u64 = 0xAFAB_0247_A45C_1F39;
 const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x176C_78B8_3179_27FF;
-const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0xB732_4E42_2F8A_B1C9;
+const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x286B_843D_8F90_6A69;
 const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x247E_FFE5_93FC_3319;
 const STARTUP_SPLASH_100_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const STARTUP_SPLASH_50_FNV1A64: u64 = 0x4AB2_E39F_7B90_AA8E;
-const SLEEP_SPLASH_FNV1A64: u64 = 0xB27A_BF03_4D41_F9B9;
+const SLEEP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SHUTDOWN_SPLASH_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 const OFF_FNV1A64: u64 = 0x8F69_55BF_94EC_2325;
 const GLYPH_DIGITS_FNV1A64: u64 = 0x9FE1_8ECD_428C_BC3F;
@@ -83,11 +86,35 @@ fn typed_oled_golden_anchors_are_stable() {
     }
     assert_eq!(SPLASH_BOOT.len(), OLED_FRAME_BYTES);
     assert_eq!(SPLASH_SLEEP_SHUTDOWN.len(), OLED_FRAME_BYTES);
+    assert_eq!(SPLASH_SLEEP_SHUTDOWN, SPLASH_BOOT);
     assert_eq!(fnv1a64(SPLASH_BOOT), BOOT_SPLASH_ASSET_FNV1A64);
     assert_eq!(
         fnv1a64(SPLASH_SLEEP_SHUTDOWN),
         SLEEP_SHUTDOWN_SPLASH_ASSET_FNV1A64
     );
+}
+
+#[test]
+fn runtime_error_fallback_and_path_punctuation_are_visible_in_the_fixed_font() {
+    let mut input = base();
+    input.runtime_error = Some(OledRuntimeErrorMetadata {
+        domain: Some("sample".into()),
+        code: Some("not_found".into()),
+        operation: Some("sample_preview".into()),
+        message: Some("Ω_/x-y.wav".into()),
+    });
+    assert_eq!(
+        runtime_error_rows(input.runtime_error.as_ref().unwrap())[3],
+        "MSG ?_/x-y.wav"
+    );
+
+    let frame = render_oled_frame(&input);
+    let text = rgb565(palette::GRAY);
+    assert_eq!(pixel(&frame, 35, 70), text);
+    assert_eq!(pixel(&frame, 40, 76), text);
+    assert!((46..=50).any(|x| (70..77).any(|y| pixel(&frame, x, y) == text)));
+    assert!((58..=62).any(|x| (70..77).any(|y| pixel(&frame, x, y) == text)));
+    assert!((70..=74).any(|x| (70..77).any(|y| pixel(&frame, x, y) == text)));
 }
 
 fn normal_selected() -> OledPresentationInput {
@@ -225,4 +252,9 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
         (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3)
     })
+}
+
+fn pixel(frame: &[u8], x: usize, y: usize) -> u16 {
+    let offset = (y * 128 + x) * 2;
+    u16::from_be_bytes([frame[offset], frame[offset + 1]])
 }

@@ -149,5 +149,5 @@ if [ "$python_stdlib_found" -eq 0 ]; then
   echo "Orange initramfs hook missing Python target directory: /usr/lib/python3.*" >&2
   exit 1
 fi
-copy_file asset /usr/share/octessera/oled/octessera-mark.svg
-copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg
+copy_file asset /usr/share/octessera/oled/octessera-pi-booting.rgb565
+copy_file asset /usr/share/octessera/oled/octessera-pi-shutdown.rgb565

@@ -41,6 +41,8 @@ rm -f \
     "$ROOTFS_DIR/etc/systemd/system/cellsymphony-boot-splash.service" \
     "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service" \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service" \
+    "$ROOTFS_DIR/etc/initramfs-tools/hooks/octessera-boot-splash" \
+    "$ROOTFS_DIR/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash" \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service"
 
 install -D -m 0644 \
@@ -213,7 +215,6 @@ install -D -m 0755 \
 install -D -m 0755 \
     "$STAGE_FILES/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash" \
     "$ROOTFS_DIR/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash"
-
 install -d "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants"
 install -d "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants"
 install -d "$ROOTFS_DIR/etc/systemd/system/timers.target.wants"

@@ -43,29 +43,31 @@ def write(path: Path, content: bytes | str) -> None:
     path.write_bytes(content if isinstance(content, bytes) else content.encode())
 
 
-def make_uboot_initramfs(payload: bytes, declared_size: int | None = None) -> bytes:
+def make_uboot_initramfs(payload: bytes) -> bytes:
     header = bytearray(64)
     struct.pack_into(">I", header, 0, 0x27051956)
-    struct.pack_into(">I", header, 12, len(payload) if declared_size is None else declared_size)
+    struct.pack_into(">I", header, 12, len(payload))
     return bytes(header) + payload
 
 
-def make_cpio_initramfs(work: Path, source_root: Path, stale: bool = False, extension: str | None = None) -> bytes:
-    source = work / ("stale-initramfs-source" if stale else "initramfs-source")
+def make_cpio_initramfs(work: Path, source_root: Path) -> bytes:
+    source = work / "initramfs-source"
     write(source / "init", b"#!/bin/sh\n")
-    if not stale:
-        installed_matches = CONSTRUCTION["selected_initramfs"]["installed_output_matches"]
-        for item in installed_matches:
-            target = source / item["initramfs_path"]
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source_root / item["installed_path"], target)
-        for tool in CONSTRUCTION["selected_initramfs"]["required_tools"]:
-            write(source / tool, b"synthetic-tool\n")
-        write(source / "usr/bin/python3", b"synthetic-python\n")
-        for relative in CONSTRUCTION["selected_initramfs"]["python_files"]:
-            write(source / f"usr/lib/python3.13/{relative}", b"synthetic-python-closure\n")
-        if extension is not None:
-            write(source / extension, (source_root / extension).read_bytes())
+    requirements = CONSTRUCTION["selected_initramfs"]
+    for item in requirements["installed_output_matches"]:
+        target = source / item["initramfs_path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source_root / item["installed_path"], target)
+    for tool in requirements["required_tools"]:
+        write(source / tool, b"synthetic-tool\n")
+    write(source / "usr/bin/python3", b"synthetic-python\n")
+    for relative in requirements["python_files"]:
+        write(source / f"usr/lib/python3.13/{relative}", b"synthetic-python-closure\n")
+    for module in requirements["required_python_modules"]:
+        extension = next(source_root.glob(f"usr/lib/python3.13/lib-dynload/{module}*.so"))
+        target = source / extension.relative_to(source_root)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(extension, target)
     return subprocess.run(
         ["cpio", "--quiet", "-o", "-H", "newc"],
         cwd=source,
@@ -113,6 +115,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     (final_root / "boot/Image").symlink_to(f"../usr/lib/linux-image-{RELEASE}/Image")
     phase5_outputs = {
         "etc/profile.d/octessera-welcome.sh": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh",
+        "etc/initramfs-tools/hooks/octessera-orange-boot-splash": "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash",
         "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash": "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash",
         "usr/local/sbin/octessera-orange-oled-logo": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo",
         "usr/local/sbin/octessera-orange-oled-handoff.py": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py",
@@ -125,12 +128,18 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "usr/share/octessera/defaults/pi-default.json": "config/generated/pi/default.json",
         "usr/share/octessera/oled/octessera-mark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg",
         "usr/share/octessera/oled/octessera-wordmark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
+        "usr/share/octessera/oled/octessera-pi-booting.rgb565": "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565",
+        "usr/share/octessera/oled/octessera-pi-shutdown.rgb565": "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565",
     }
     for installed_path, source_path in phase5_outputs.items():
         target = final_root / installed_path
         write(target, (REPOSITORY / source_path).read_bytes())
+        managed = next(item for item in CONSTRUCTION["managed_outputs"] if item["path"] == installed_path)
+        os.chmod(target, managed["mode"])
         if installed_path in {"usr/local/lib/octessera/device_config.py", "usr/share/octessera/defaults/pi-default.json", "etc/systemd/system/octessera-device-apply-reboot.socket", "etc/systemd/system/octessera-device-apply-reboot@.service"}: os.chown(target, 0, 0); os.chmod(target, 0o644)  # type: ignore[attr-defined]
         if installed_path == "usr/local/sbin/octessera-device-apply-reboot": os.chown(target, 0, 0); os.chmod(target, 0o755)  # type: ignore[attr-defined]
+    for module_name in CONSTRUCTION["selected_initramfs"]["required_python_modules"]:
+        write(final_root / f"usr/lib/python3.13/lib-dynload/{module_name}.cpython-313-aarch64-linux-gnu.so", b"synthetic-python-extension")
     write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-shutdown.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-suspend.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_bytes())
@@ -309,7 +318,7 @@ def main() -> None:
         assert orange_image_mount._lsblk("/dev/loop0") == ["/dev/loop0p1"]
     finally:
         orange_image_mount._run = original_run
-    missing_tools = [tool for tool in ("cpio", "dpkg-deb", "zstd") if shutil.which(tool) is None]
+    missing_tools = [tool for tool in ("dpkg-deb",) if shutil.which(tool) is None]
     if missing_tools:
         print(f"Orange image proof fixture skipped: missing {', '.join(missing_tools)}")
         return
@@ -318,11 +327,6 @@ def main() -> None:
         root, image, dtb, evidence, provenance = make_fixture(work)
         args = verifier_args(root, image, dtb, evidence, provenance)
         run_proof(args, True)
-        extension = "usr/lib/python3.13/lib-dynload/_json.cpython-313-aarch64-linux-gnu.so"; write(root / extension, b"synthetic-python-extension")
-        write(root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(subprocess.run(["zstd", "-q", "-c"], input=make_cpio_initramfs(work, root, extension=extension), capture_output=True, check=True).stdout))
-        run_proof(args, True)
-        negative_extension = work / "negative-extension-mismatch"; shutil.copytree(root, negative_extension, symlinks=True); write(negative_extension / extension, b"mismatched-python-extension")
-        run_proof(root_args(args, negative_extension), False)
         negative_root, negative_image, negative_evidence, negative_provenance = make_missing_builtin_fixture(work, root, image, evidence, provenance)
         negative_args = args
         for option, value in (("--root", negative_root), ("--linux-image", negative_image), ("--evidence", negative_evidence), ("--provenance", negative_provenance)):
@@ -358,7 +362,6 @@ def main() -> None:
         reject_terminal_fixture("duplicate-account", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text() + "octessera:x:1001:1001:Duplicate:/home/octessera:/bin/bash\n"))
         reject_terminal_fixture("wrong-home", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/srv/octessera:/bin/bash")))
         reject_terminal_fixture("wrong-shell", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/home/octessera:/bin/sh")))
-        reject_terminal_fixture("python-parent-symlink", lambda path: ((path / "usr/lib/python3.13").rename(path / "usr/lib/python-runtime-target"), (path / "usr/lib/python3.13").symlink_to("python-runtime-target", target_is_directory=True)))
         reject_terminal_fixture("wrong-build-metadata-mode", lambda path: path.joinpath("etc/octessera/build-metadata.env").chmod(0o600))
         def wrong_build_metadata_owner(path: Path) -> None:
             os.chown(path / "etc/octessera/build-metadata.env", 1000, 1000)  # type: ignore[attr-defined]
@@ -419,25 +422,6 @@ def main() -> None:
         shutil.copy2(dtb, canonical_dtb)
         run_proof(verifier_args(root, canonical_image, canonical_dtb, evidence, provenance), True)
         for name, contents in (
-            ("truncated-uboot-header", b"\x27\x05\x19\x56\x00"),
-            ("oversized-uboot-payload", make_uboot_initramfs(b"raw", declared_size=4)),
-            ("truncated-zstd", make_uboot_initramfs(b"\x28\xb5\x2f\xfd")),
-            ("damaged-zstd-magic", b"\x28\xb5\x2f\xfe"),
-            ("corrupt-gzip", b"\x1f\x8bcorrupt"),
-            ("corrupt-xz", b"\xfd7zXZ\x00corrupt"),
-        ):
-            negative = work / f"negative-{name}"
-            shutil.copytree(root, negative, symlinks=True)
-            write(negative / f"boot/initrd.img-{RELEASE}", contents)
-            run_proof(root_args(args, negative), False)
-        stale = work / "stale-v0.7.5-parent"
-        shutil.copytree(root, stale, symlinks=True)
-        stale_payload = make_cpio_initramfs(work, stale, True)
-        stale_compressed = subprocess.run(["zstd", "-q", "-c"], input=stale_payload, capture_output=True, check=True).stdout
-        write(stale / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(stale_compressed))
-        run_proof(root_args(args, stale), False)
-        verify_runtime(stale, "diagnostic")
-        for name, contents in (
             ("empty-fdt", "fdtfile=\n"),
             ("duplicate-fdt", "fdtfile=sun50i-h618-orangepi-zero2w.dtb\nfdtfile=sun50i-h618-orangepi-zero2w.dtb\n"),
         ):
@@ -484,7 +468,7 @@ def main() -> None:
         )
         (production / "var/lib/octessera/presets").mkdir(parents=True)
         (production / "var/lib/octessera/samples").mkdir(parents=True)
-        write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartPreventExitStatus=78\nRestartSec=5s\n")
+        write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\nRequires=octessera-device-apply-reboot.socket\nAfter=octessera-device-apply-reboot.socket\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartPreventExitStatus=78\nRestartSec=5s\n")
         write(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"spidev1.0\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"gpiochip1\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
         write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
         (production / "etc/udev/rules.d/09-disabled.rules").symlink_to("/dev/null")

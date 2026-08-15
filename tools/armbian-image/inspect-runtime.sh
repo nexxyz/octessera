@@ -263,6 +263,8 @@ octessera_require_runtime_service() {
     'StartLimitIntervalSec=30s' \
     'StartLimitBurst=3' \
     'After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target' \
+    'Requires=octessera-device-apply-reboot.socket' \
+    'After=octessera-device-apply-reboot.socket' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
     'Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w' \
@@ -291,10 +293,13 @@ octessera_require_runtime_service() {
     'RestartSec=5s'; do
     printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
   done
-  if printf '%s\n' "$service_content" | grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80|^(PrivateDevices|DevicePolicy)=|^(Restart=always|StartLimitAction=|OnFailure=|Requires=|Requisite=|BindsTo=|PartOf=)|octessera-update'; then
+  if printf '%s\n' "$service_content" | grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80|^(PrivateDevices|DevicePolicy)=|^(Restart=always|StartLimitAction=|OnFailure=|Requisite=|BindsTo=|PartOf=)|octessera-update'; then
     echo "Orange runtime service has an unsafe device or unsupported updater policy." >&2
     exit 1
   fi
+  while IFS= read -r line; do
+    [[ "$line" == 'Requires=octessera-device-apply-reboot.socket' ]] || { echo "Orange runtime service has an unexpected Requires dependency." >&2; exit 1; }
+  done < <(printf '%s\n' "$service_content" | grep '^Requires=' || true)
 }
 
 octessera_require_runtime_udev_rule() {
@@ -349,6 +354,8 @@ octessera_require_device_apply_lane() {
   service_content="$(read_file etc/systemd/system/octessera-device-apply-reboot@.service)"
   helper_content="$(read_file usr/local/sbin/octessera-device-apply-reboot)"
   for line in \
+    'Before=sound.target octessera.service' \
+    'After=local-fs.target' \
     'ListenStream=/run/octessera-device-apply/reboot.sock' \
     'SocketMode=0660' \
     'SocketUser=root' \
@@ -356,6 +363,7 @@ octessera_require_device_apply_lane() {
     'Accept=yes'; do
     printf '%s\n' "$socket_content" | grep -qFx "$line" || { echo "Orange apply socket is missing: $line" >&2; exit 1; }
   done
+  ! printf '%s\n' "$socket_content" | grep -qFx 'After=local-fs.target octessera-provision-musical-default.service' || { echo 'Orange apply socket must not wait for musical provisioning.' >&2; exit 1; }
   for line in \
     'User=root' \
     'Group=root' \
@@ -374,10 +382,14 @@ octessera_require_device_apply_lane() {
   fi
   for line in \
     'SYSTEMCTL_PATH = "/usr/bin/systemctl"' \
-    'REQUEST = b"reboot\n"' \
+    'REBOOT_REQUEST = b"reboot\n"' \
+    'POWEROFF_REQUEST = b"poweroff\n"' \
     'ACCEPTED = b"accepted\n"' \
     'REJECTED = b"rejected\n"' \
-    'subprocess.run([SYSTEMCTL_PATH, "reboot"], check=True)' \
+    'if request == REBOOT_REQUEST:' \
+    '_validate_config(CONFIG_PATH)' \
+    'command = "poweroff"' \
+    'subprocess.run([SYSTEMCTL_PATH, command], check=True)' \
     'output_stream.write(ACCEPTED)' \
     'output_stream.write(REJECTED)'; do
     printf '%s\n' "$helper_content" | grep -qF "$line" || { echo "Orange apply helper is missing: $line" >&2; exit 1; }

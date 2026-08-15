@@ -1,5 +1,5 @@
 use super::oled::{oled_frame, OLED_FRAME_BYTES};
-use super::oled_error_tests::menu_snapshot;
+use super::oled_error_tests::{menu_snapshot, producer_error};
 use super::oled_glyph_tests::{
     assert_glyph_fixture_coverage, glyph_snapshot, GLYPH_DIGITS_FNV1A64, GLYPH_FIXTURES,
     GLYPH_LOWERCASE_FIRST_FNV1A64, GLYPH_LOWERCASE_LAST_FNV1A64, GLYPH_PUNCTUATION_FIRST_FNV1A64,
@@ -12,11 +12,11 @@ use serde_json::{json, Value};
 
 const NORMAL_SELECTED_FNV1A64: u64 = 0xAFAB_0247_A45C_1F39;
 const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x176C_78B8_3179_27FF;
-const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0xB732_4E42_2F8A_B1C9;
+const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x286B_843D_8F90_6A69;
 const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x247E_FFE5_93FC_3319;
 const STARTUP_SPLASH_100_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const STARTUP_SPLASH_50_FNV1A64: u64 = 0x4AB2_E39F_7B90_AA8E;
-const SLEEP_SPLASH_FNV1A64: u64 = 0xB27A_BF03_4D41_F9B9;
+const SLEEP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SHUTDOWN_SPLASH_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 const OFF_FNV1A64: u64 = 0x8F69_55BF_94EC_2325;
 const BOOT_SPLASH_ASSET_FNV1A64: u64 = STARTUP_SPLASH_100_FNV1A64;
@@ -37,6 +37,21 @@ fn playback_oled_renderer_matches_pi_reference_corpus() {
         );
         assert_eq!(playback_frame, pi_frame, "OLED parity case: {name}");
     }
+}
+
+#[test]
+fn unicode_path_error_keeps_pi_and_playback_pixel_parity() {
+    let mut snapshot = menu_snapshot();
+    snapshot["runtimeError"] = producer_error(
+        playback_runtime::RuntimeErrorDomain::Sample,
+        playback_runtime::RuntimeErrorCode::OperationFailed,
+        playback_runtime::RuntimeOperation::SamplePreview,
+        Some("/音色/very_long_file_abcdefghijklmnabcdefghijklmn"),
+    );
+    assert_eq!(
+        oled_frame(&snapshot),
+        render_oled_frame(&input_from_snapshot(&snapshot))
+    );
 }
 
 #[test]

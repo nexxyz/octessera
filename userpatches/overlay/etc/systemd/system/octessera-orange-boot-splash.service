@@ -6,9 +6,11 @@ Before=sysinit.target octessera.service
 Wants=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
 User=octessera-runtime
 Group=octessera-runtime
+Environment=OCTESSERA_OLED_READY_NOTIFY_REQUIRED=1
 ExecStart=/usr/local/sbin/octessera-orange-oled-logo boot-loop
 RuntimeDirectory=octessera-boot
 RuntimeDirectoryMode=0750

@@ -44,7 +44,7 @@ class ImageProofError(ValueError):
     pass
 
 CURRENT_BOOT_SERVICE = "etc/systemd/system/octessera-boot-splash.service"
-INITRAMFS_SPLASH_INVOCATION = "OCTESSERA_INITRAMFS_BOOT_SPLASH=1 setsid /usr/local/bin/octessera-pi --boot-splash-once >/dev/kmsg 2>&1 &"
+INITRAMFS_SPLASH_INVOCATION = "setsid /usr/local/bin/octessera-pi --boot-splash-static >/dev/kmsg 2>&1 &"
 
 
 def _require(condition: bool, message: str) -> None:
@@ -131,11 +131,13 @@ def _classify_boot_layer(root: Path, boot_layer_contract_path: Path = BOOT_LAYER
             "Raspberry constructor boot service is incomplete",
         )
         for required in (
-            "After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service",
+            "Wants=systemd-udev-settle.service",
+            "After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service",
             "Before=sysinit.target octessera.service",
             "DevicePolicy=closed",
             "DeviceAllow=/dev/spidev0.0 rw",
             "DeviceAllow=/dev/gpiomem rw",
+            "DeviceAllow=/dev/gpiochip0 rw",
         ):
             _require(required in lines, f"Raspberry constructor boot service is missing {required}")
         _require(sum(line.startswith("Type=") for line in lines) == 1, "Raspberry constructor boot service has an extra Type directive")
@@ -207,7 +209,7 @@ def _load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str
     _require(
         live_parity == [
             {"path": "tools/pi/deploy-pi.sh", "sha256": "f6b0adeb72e2e0d23a979b092aab1ffa45f5fb4e44ae0bf9084cb666ebcf127d", "size": 17225},
-            {"path": "tools/pi/provision/provision.sh", "sha256": "d9fa9729603cae621e9fde76ee2df32fed4d3036871637273ee3a7cfddb47ac3", "size": 13697},
+            {"path": "tools/pi/provision/provision.sh", "sha256": "54cd00421ae23f53b0a7d52de206bc0a387f74b604cb18e1993d1a2927e4c3a1", "size": 14447},
         ],
         "Raspberry live parity inputs changed",
     )
@@ -320,7 +322,7 @@ def _verify_selected_initramfs_entries(path: Path, contract: dict[str, Any], roo
         raise ImageProofError("selected initramfs splash script is not UTF-8") from error
     _require(
         any(line.strip() == INITRAMFS_SPLASH_INVOCATION for line in lines),
-        "selected initramfs does not contain the exact one-cycle splash invocation",
+        "selected initramfs does not contain the exact static splash invocation",
     )
 
 def _verify_stock_recovery(root: Path, boot: Path) -> list[dict[str, str]]:

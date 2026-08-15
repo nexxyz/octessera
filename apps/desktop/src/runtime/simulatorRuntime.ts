@@ -40,6 +40,8 @@ import {
   ingestOledFrame,
   markOledFrameFault,
 } from './oledFrameCache';
+import type { OledFrameCacheFault } from './oledFrameCache';
+import { createOledAsyncReferenceGrace } from './oledAsyncReferenceGrace';
 
 type SimulatorRuntime = {
   dispatch(input: DeviceInput): void;
@@ -101,6 +103,7 @@ export function createSimulatorRuntime(
     createInitialRuntimeSnapshot();
   let audioLoad: AudioLoadStatus = { ratio: 0, voiceSteal: false };
   let runtimeStatus: RuntimeStatus | null = null;
+  let visibleOledFrameFault: OledFrameCacheFault | null = null;
   let lastAsyncRuntimeSeq = 0;
   let lastTauriDrainAt = 0;
   let tauriDrainInFlight = false;
@@ -113,6 +116,10 @@ export function createSimulatorRuntime(
   );
   const snapshotCache = createRuntimeSnapshotCache();
   const oledFrameCache = createOledFrameCache();
+  const oledAsyncReferenceGrace = createOledAsyncReferenceGrace(() => {
+    visibleOledFrameFault = oledFrameCache.fault;
+    publishSnapshot();
+  });
   const pendingEncoderTurns: Array<{ id: EncoderId; delta: number }> = [];
   let pendingEncoderTimer: ReturnType<typeof setTimeout> | null = null;
   let startupSplashTimer: StartupSplashTimer = null;
@@ -151,40 +158,97 @@ export function createSimulatorRuntime(
     }
   });
 
-  function publishSnapshot() {
-    const snapshot = snapshotFromCore(
+  function getCurrentSnapshot() {
+    return snapshotFromCore(
       latestFrame,
       snapshotCache,
       {
         audioLoad,
         runtimeStatus,
-        oledFrameFault: oledFrameCache.fault,
+        oledFrameFault: visibleOledFrameFault,
         oledFrameAvailable: oledFrameCache.acceptedPixels !== null,
       },
       acceptedOledFrame(oledFrameCache),
     );
+  }
+
+  function publishSnapshot() {
+    const snapshot = getCurrentSnapshot();
     for (const listener of listeners) listener(snapshot);
   }
 
-  function processRunnerMessages(messages: DesktopRunnerMessage[]) {
+  function processRunnerMessages(
+    messages: DesktopRunnerMessage[],
+    allowAsyncOledSplit = false,
+  ) {
     let hasSnapshot = false;
     for (const message of messages) {
       hasSnapshot ||= message.type === 'snapshot';
-      processRunnerMessage(message);
+      processRunnerMessage(message, allowAsyncOledSplit);
     }
+    refreshOledFaultPresentation();
     return hasSnapshot;
   }
 
-  function processRunnerMessage(message: DesktopRunnerMessage) {
+  function refreshOledFaultPresentation() {
+    if (oledAsyncReferenceGrace.hasPending()) return;
+    visibleOledFrameFault = oledFrameCache.fault;
+  }
+
+  function processRunnerMessage(
+    message: DesktopRunnerMessage,
+    allowAsyncOledSplit = false,
+  ) {
     if (message.type === 'oled_frame') {
+      const completesPendingReference =
+        allowAsyncOledSplit &&
+        oledAsyncReferenceGrace.canComplete(message.revision) &&
+        message.revision > oledFrameCache.acceptedRevision &&
+        oledFrameCache.candidateRevision <= message.revision;
       ingestOledFrame(oledFrameCache, message);
+      if (completesPendingReference) {
+        if (
+          oledFrameCache.candidateRevision === message.revision &&
+          oledFrameCache.candidatePixels !== null
+        ) {
+          acceptOledFrameReference(oledFrameCache, message.revision);
+        }
+        if (
+          oledFrameCache.acceptedRevision === message.revision &&
+          oledFrameCache.fault === null
+        ) {
+          oledAsyncReferenceGrace.complete(message.revision);
+        } else {
+          oledAsyncReferenceGrace.cancel();
+        }
+      } else if (!allowAsyncOledSplit && oledAsyncReferenceGrace.hasPending()) {
+        oledAsyncReferenceGrace.cancel();
+      } else if (
+        oledAsyncReferenceGrace.hasPending() &&
+        (oledFrameCache.fault === 'malformed' ||
+          oledFrameCache.fault === 'stale' ||
+          oledFrameCache.fault === 'conflict')
+      ) {
+        oledAsyncReferenceGrace.cancel();
+      }
       return;
     }
     if (message.type === 'snapshot') {
       const revision = message.snapshot.oledFrameRevision as unknown;
       if (isPositiveOledFrameRevision(revision)) {
         acceptOledFrameReference(oledFrameCache, revision);
+        if (
+          allowAsyncOledSplit &&
+          oledFrameCache.fault === 'future' &&
+          revision > oledFrameCache.acceptedRevision &&
+          oledFrameCache.candidateRevision < revision
+        ) {
+          oledAsyncReferenceGrace.begin(revision);
+        } else {
+          oledAsyncReferenceGrace.cancel();
+        }
       } else {
+        oledAsyncReferenceGrace.cancel();
         markOledFrameFault(
           oledFrameCache,
           revision === undefined ? 'missing' : 'malformed',
@@ -264,7 +328,7 @@ export function createSimulatorRuntime(
     if (!shouldApplyRuntimeBatch(lastAsyncRuntimeSeq, seq, nowMs, 0, messages))
       return;
     lastAsyncRuntimeSeq = seq;
-    processRunnerMessages(messages);
+    processRunnerMessages(messages, true);
     publishSnapshot();
   }
 
@@ -374,38 +438,18 @@ export function createSimulatorRuntime(
         clearTimeout(startupSplashTimer);
         startupSplashTimer = null;
       }
+      oledAsyncReferenceGrace.cancel();
+      visibleOledFrameFault = oledFrameCache.fault;
       publishSnapshot();
       scheduler.stop();
     },
     subscribe(listener) {
       listeners.add(listener);
-      listener(
-        snapshotFromCore(
-          latestFrame,
-          snapshotCache,
-          {
-            audioLoad,
-            runtimeStatus,
-            oledFrameFault: oledFrameCache.fault,
-            oledFrameAvailable: oledFrameCache.acceptedPixels !== null,
-          },
-          acceptedOledFrame(oledFrameCache),
-        ),
-      );
+      listener(getCurrentSnapshot());
       return () => listeners.delete(listener);
     },
     getSnapshot() {
-      return snapshotFromCore(
-        latestFrame,
-        snapshotCache,
-        {
-          audioLoad,
-          runtimeStatus,
-          oledFrameFault: oledFrameCache.fault,
-          oledFrameAvailable: oledFrameCache.acceptedPixels !== null,
-        },
-        acceptedOledFrame(oledFrameCache),
-      );
+      return getCurrentSnapshot();
     },
   };
 

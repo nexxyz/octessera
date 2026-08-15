@@ -3,6 +3,8 @@ Description=Octessera Orange Pi runtime
 StartLimitIntervalSec=30s
 StartLimitBurst=3
 After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target
+Requires=octessera-device-apply-reboot.socket
+After=octessera-device-apply-reboot.socket
 Wants=octessera-orange-boot-splash.service
 After=octessera-orange-boot-splash.service
 

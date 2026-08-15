@@ -31,6 +31,7 @@ require_octessera_boot_service_layout() {
         'Type=simple' \
         'User=pi' \
         'Group=pi' \
+        'Wants=systemd-udev-settle.service' \
         'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
         'RuntimeDirectory=octessera-boot' \
         'RuntimeDirectoryMode=0750' \
@@ -42,7 +43,8 @@ require_octessera_boot_service_layout() {
         'ExecStart=/usr/local/bin/octessera-pi --boot-splash-loop' \
         'DevicePolicy=closed' \
         'DeviceAllow=/dev/spidev0.0 rw' \
-        'DeviceAllow=/dev/gpiomem rw'; do
+        'DeviceAllow=/dev/gpiomem rw' \
+        'DeviceAllow=/dev/gpiochip0 rw'; do
         if ! grep -qxF "$required_line" "$service"; then
             echo "constructor-required: boot splash service is missing $required_line" >&2
             return 1
@@ -50,11 +52,13 @@ require_octessera_boot_service_layout() {
     done
     for exact_line in \
         'Type=simple' \
+        'Wants=systemd-udev-settle.service' \
         'ExecStart=/usr/local/bin/octessera-pi --boot-splash-loop' \
         'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
         'DevicePolicy=closed' \
         'DeviceAllow=/dev/spidev0.0 rw' \
-        'DeviceAllow=/dev/gpiomem rw'; do
+        'DeviceAllow=/dev/gpiomem rw' \
+        'DeviceAllow=/dev/gpiochip0 rw'; do
         count="$(grep -cFx "$exact_line" "$service" || true)"
         if [ "$count" -ne 1 ]; then
             echo "constructor-required: boot splash service has an extra or missing $exact_line" >&2
@@ -62,7 +66,7 @@ require_octessera_boot_service_layout() {
         fi
     done
     for required_line in \
-        'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service' \
+        'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service' \
         'Before=sysinit.target octessera.service'; do
         if ! grep -qxF "$required_line" "$service"; then
             echo "constructor-required: boot splash ordering is missing $required_line" >&2

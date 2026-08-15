@@ -25,16 +25,11 @@ pub(crate) fn init_hardware(open_oled: bool) -> Result<HardwareDevices, Hardware
         &mut fault,
     );
     let mut oled = if open_oled {
-        let result = if early_boot_splash_enabled() {
-            OledSsd1351::adopt_existing()
-        } else {
-            OledSsd1351::new()
-        };
-        init_device("OLED", result, &mut fault)
+        init_device("OLED", OledSsd1351::new(), &mut fault)
     } else {
         None
     };
-    if let Some(oled) = oled.as_mut().filter(|_| !early_boot_splash_enabled()) {
+    if let Some(oled) = oled.as_mut() {
         if let Err(error) = crate::render::render_boot_splash(oled) {
             eprintln!("pi OLED boot splash render failed: {error}");
         }
@@ -70,10 +65,6 @@ pub(crate) fn init_hardware(open_oled: bool) -> Result<HardwareDevices, Hardware
             Err(fault)
         }
     }
-}
-
-fn early_boot_splash_enabled() -> bool {
-    std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
 pub(crate) fn init_encoders(

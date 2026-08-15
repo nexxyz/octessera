@@ -57,16 +57,20 @@ travel and bottom-to-top Y coordinates. Only source-white RGB565 pixels
 
 The moving train is four 8 px bands, in order:
 
-1. cyan (`07FF`)
-2. yellow (`FFE0`)
-3. green (`07E0`)
-4. magenta (`F81F`)
+1. magenta (`F81F`)
+2. green (`07E0`)
+3. yellow (`FFE0`)
+4. cyan (`07FF`)
 
-The 32 px train leans +8 px toward the top-right using
-`floor(row_y * 8 / 127)`. It travels from a bottom-row origin of `-40` to
-`128` across 24 frames. Frames 0 and 23 are intentionally blank endpoint
-frames. The cycle uses absolute one-second deadlines, wraps directly from
-frame 23 to frame 0, and inserts no extra pause or cumulative-sleep drift.
+The 48 px train has 8 px color bands with 4 px white separators and forms a
+panel-facing top-right slash. In canonical bottom-to-top coordinates it uses
+`slanted_origin = bottom_row_origin - row_y`, so the top row is 127 px less X
+than the bottom row. The mounted SSD1351 controller origin travels from
+`255 - floor(frame_index * 303 / 29)` across 30 frames, appearing left-to-right
+on the physical panel and ending at a bottom-row origin of `-48`. Frames 0 and
+29 are intentionally blank endpoint frames. The cycle is 1,200,000,000 ns at
+25 fps with absolute deadlines, wraps directly from frame 29 to frame 0, and
+inserts no extra pause or cumulative-sleep drift.
 
 This is implemented in the current source for Raspberry and Orange, but the
 boot-layer inputs are constructor-required. Do not describe the sweep as

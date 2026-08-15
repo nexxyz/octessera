@@ -11,7 +11,8 @@ for required_line in \
     'Type=simple' \
     'User=pi' \
     'Group=pi' \
-    'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service' \
+    'Wants=systemd-udev-settle.service' \
+    'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service' \
     'Before=sysinit.target octessera.service' \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
     'RuntimeDirectory=octessera-boot' \
@@ -36,12 +37,14 @@ for required_line in \
     'RestrictAddressFamilies=AF_UNIX' \
     'DevicePolicy=closed' \
     'DeviceAllow=/dev/spidev0.0 rw' \
-    'DeviceAllow=/dev/gpiomem rw'; do
+    'DeviceAllow=/dev/gpiomem rw' \
+    'DeviceAllow=/dev/gpiochip0 rw'; do
     grep -qFx "$required_line" "$service"
 done
 ! grep -q '^Type=oneshot$' "$service"
 ! grep -q '^ExecStart=-' "$service"
 ! grep -q '^Conflicts=' "$service"
+! grep -q 'OCTESSERA_EARLY_BOOT_SPLASH' "$runtime" "$template"
 
 for required_line in \
     'Wants=octessera-boot-splash.service' \
@@ -96,6 +99,7 @@ if command -v systemd-analyze >/dev/null 2>&1; then
         systemd-modules-load.service \
         systemd-udevd.service \
         systemd-udev-trigger.service \
+        systemd-udev-settle.service \
         octessera-usb-gadget.service \
         octessera-update-recovery.service \
         sound.target; do
@@ -105,7 +109,41 @@ if command -v systemd-analyze >/dev/null 2>&1; then
             printf '%s\n' '[Unit]' "Description=$unit" > "$systemd_root/etc/systemd/system/$unit"
         fi
     done
-    systemd-analyze --root="$systemd_root" verify octessera-boot-splash.service octessera.service
+    cat > "$systemd_root/etc/systemd/system/systemd-udev-settle.service" <<'EOF'
+[Unit]
+Description=Fixture udev settle
+DefaultDependencies=no
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/udevadm settle
+EOF
+    if ! positive_output="$(systemd-analyze --root="$systemd_root" verify octessera-boot-splash.service octessera.service 2>&1)"; then
+        printf '%s\n' "$positive_output" >&2
+        echo 'systemd verify rejected the positive Raspberry service graph' >&2
+        exit 1
+    fi
+    if printf '%s\n' "$positive_output" | grep -Eiq 'ordering cycle|Found ordering cycle|job deletion|job .*deleted|deleted .*job'; then
+        printf '%s\n' "$positive_output" >&2
+        echo 'systemd verify reported an ordering cycle or job deletion for the positive Raspberry service graph' >&2
+        exit 1
+    fi
+    cat > "$systemd_root/etc/systemd/system/systemd-udev-settle.service" <<'EOF'
+[Unit]
+Description=Fixture cyclic udev settle
+Before=sysinit.target
+After=octessera-boot-splash.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/udevadm settle
+EOF
+    cycle_output="$(systemd-analyze --root="$systemd_root" verify octessera-boot-splash.service octessera.service 2>&1 || true)"
+    if ! printf '%s\n' "$cycle_output" | grep -qF 'Found ordering cycle'; then
+        echo 'systemd verify accepted a udev-settle cycle' >&2
+        exit 1
+    fi
 else
     printf '%s\n' 'systemd-analyze unavailable; static Raspberry service graph checks passed'
 fi
@@ -113,10 +151,12 @@ fi
 if [ "$(id -u)" -eq 0 ]; then
     original_service="$fixture/etc/systemd/system/octessera-boot-splash.service"
     for missing_line in \
-        'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service' \
+        'Wants=systemd-udev-settle.service' \
+        'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service' \
         'DevicePolicy=closed' \
         'DeviceAllow=/dev/spidev0.0 rw' \
-        'DeviceAllow=/dev/gpiomem rw'; do
+        'DeviceAllow=/dev/gpiomem rw' \
+        'DeviceAllow=/dev/gpiochip0 rw'; do
         grep -vFx "$missing_line" "$service" > "$original_service"
         chmod 0644 "$original_service"
         chown 0:0 "$original_service"

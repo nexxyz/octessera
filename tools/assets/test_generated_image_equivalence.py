@@ -61,8 +61,16 @@ class GeneratedImageEquivalenceTests(unittest.TestCase):
                 "octessera-pi-sleeping.png",
                 "octessera-pi-shutdown.png",
                 "octessera-pi-booting.png",
+                "octessera-pi-shutdown.rgb565",
+                "octessera-pi-booting.rgb565",
             ):
                 shutil.copy2(root / "assets" / relative, fixture / "assets" / relative)
+            (fixture / "userpatches/overlay/usr/local/share/octessera/oled").mkdir(parents=True)
+            for relative in (
+                "octessera-pi-shutdown.rgb565",
+                "octessera-pi-booting.rgb565",
+            ):
+                shutil.copy2(root / "assets" / relative, fixture / "userpatches/overlay/usr/local/share/octessera/oled" / relative)
             for relative in ("icon.png", "icon.ico"):
                 shutil.copy2(root / "apps/desktop/src-tauri/icons" / relative, fixture / "apps/desktop/src-tauri/icons" / relative)
             target = fixture / "assets/octessera-pi-manifest.png"
@@ -87,6 +95,11 @@ class GeneratedImageEquivalenceTests(unittest.TestCase):
         self.assertNotEqual(compact, alternate)
         self.assertTrue(images_equivalent(compact, alternate, "png"))
         self.assertTrue(images_equivalent(ico(compact), ico(alternate), "ico"))
+
+    def test_rgb565_assets_are_exact_and_size_bound(self) -> None:
+        asset = bytes(range(256)) * 128
+        self.assertTrue(images_equivalent(asset, asset, "rgb565"))
+        self.assertFalse(images_equivalent(asset[:-1], asset, "rgb565"))
 
     def test_pixel_drift_and_malformed_data_fail(self) -> None:
         original = png()

@@ -15,60 +15,6 @@ fn request_ids_and_boot_ids_are_strict() {
 }
 
 #[test]
-fn initramfs_marker_schema_is_strict_and_boot_bound() {
-    let boot_id = "01234567-89ab-cdef-0123-456789abcdef";
-    let valid = serde_json::json!({"schema": 1, "bootId": boot_id});
-    assert!(
-        initramfs_marker::parse_marker_for_test(&serde_json::to_vec(&valid).unwrap(), boot_id)
-            .is_ok()
-    );
-    for invalid in [
-        serde_json::json!({"schema": 2, "bootId": boot_id}),
-        serde_json::json!({"schema": 1, "bootId": "01234567-89ab-cdef-0123-456789abcdee", "extra": true}),
-        serde_json::json!({"schema": 1}),
-    ] {
-        assert!(initramfs_marker::parse_marker_for_test(
-            &serde_json::to_vec(&invalid).unwrap(),
-            boot_id
-        )
-        .is_err());
-    }
-}
-
-#[test]
-fn initramfs_marker_files_fail_closed_for_link_mode_and_size_errors() {
-    let path = test_directory("marker");
-    assert!(
-        !initramfs_marker::validate_marker_if_present_at_for_test(&path.join("missing")).unwrap()
-    );
-    let marker = path.join("marker.json");
-    let valid = serde_json::json!({
-        "schema": 1,
-        "bootId": current_boot_id().unwrap(),
-    });
-    fs::write(&marker, serde_json::to_vec(&valid).unwrap()).unwrap();
-    let mut permissions = fs::metadata(&marker).unwrap().permissions();
-    permissions.set_mode(0o644);
-    fs::set_permissions(&marker, permissions).unwrap();
-    let symlink = path.join("symlink");
-    std::os::unix::fs::symlink(&marker, &symlink).unwrap();
-    assert!(initramfs_marker::validate_marker_at_for_test(&symlink).is_err());
-    let hardlink = path.join("hardlink");
-    fs::hard_link(&marker, &hardlink).unwrap();
-    assert!(initramfs_marker::validate_marker_at_for_test(&hardlink).is_err());
-    let wrong_mode = path.join("wrong-mode");
-    fs::copy(&marker, &wrong_mode).unwrap();
-    let mut permissions = fs::metadata(&wrong_mode).unwrap().permissions();
-    permissions.set_mode(0o600);
-    fs::set_permissions(&wrong_mode, permissions).unwrap();
-    assert!(initramfs_marker::validate_marker_at_for_test(&wrong_mode).is_err());
-    let oversized = path.join("oversized");
-    fs::write(&oversized, vec![b'x'; 257]).unwrap();
-    assert!(initramfs_marker::validate_marker_at_for_test(&oversized).is_err());
-    let _ = fs::remove_dir_all(path);
-}
-
-#[test]
 fn status_contract_rejects_unknown_keys_and_missing_request_id() {
     let boot_id = "01234567-89ab-cdef-0123-456789abcdef";
     let missing = serde_json::json!({

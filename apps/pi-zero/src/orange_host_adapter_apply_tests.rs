@@ -181,3 +181,35 @@ fn pending_reboot_suppresses_later_musical_output() {
     assert!(event_rx.try_recv().is_err());
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn shutdown_effect_maps_to_typed_orange_shutdown_request() {
+    let (mut adapter, root) = adapter("shutdown-request");
+    assert!(adapter
+        .handle_platform_effect(&request(RuntimePlatformEffect::Shutdown, "shutdown"))
+        .unwrap()
+        .is_empty());
+    assert!(matches!(
+        adapter.take_shutdown_request(),
+        Some(OrangeShutdownRequest::Shutdown)
+    ));
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn pending_shutdown_suppresses_a_second_shutdown_request() {
+    let (mut adapter, root) = adapter("shutdown-pending");
+    assert!(adapter
+        .handle_platform_effect(&request(RuntimePlatformEffect::Shutdown, "first"))
+        .unwrap()
+        .is_empty());
+    assert!(adapter
+        .handle_platform_effect(&request(RuntimePlatformEffect::Shutdown, "second"))
+        .unwrap()
+        .is_empty());
+    assert!(matches!(
+        adapter.take_shutdown_request(),
+        Some(OrangeShutdownRequest::Shutdown)
+    ));
+    let _ = std::fs::remove_dir_all(root);
+}
