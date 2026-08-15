@@ -83,41 +83,8 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "hardware-raspberry-pi-zero-2w"))]
     fn failed_atomic_terminal_is_not_torn_down_again() {
-        use crate::oled_frame_cache::OledFramePublication;
-        use crate::render::HardwareRenderTargets;
-        use octessera_hal::OledSsd1351;
-        use playback_runtime::oled_frame::OLED_FRAME_BYTES;
-        use serde_json::json;
-        use std::sync::mpsc;
-
-        let (seesaw_tx, seesaw_rx) = mpsc::channel();
-        drop(seesaw_rx);
-        let render = RenderWorker::spawn(HardwareRenderTargets {
-            oled: {
-                #[cfg(feature = "hardware-orange-pi-zero-2w")]
-                {
-                    OledSsd1351
-                }
-                #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                {
-                    OledSsd1351::new().unwrap()
-                }
-            },
-            seesaw_tx,
-            oled_handoff: None,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            hdmi: None,
-        });
-        let terminal_result = render.publish_terminal_preserving(
-            json!({
-                "display": { "off": false },
-                "oledFrameRevision": 5
-            }),
-            OledFramePublication::test_native(5, vec![0; OLED_FRAME_BYTES]),
-        );
-        assert!(terminal_result.is_err());
+        let render = RenderWorker::terminated_for_test();
         assert!(render.is_terminated());
         let original = Err(OrangeRunError::Ordinary("atomic terminal failed".into()));
         assert_eq!(teardown_render(&original, &render), Ok(()));

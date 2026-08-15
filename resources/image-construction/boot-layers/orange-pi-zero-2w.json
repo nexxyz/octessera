@@ -21,7 +21,7 @@
     {"path": "tools/armbian-image/stage-canonical-welcome.sh", "sha256": "1048803ddfe6132d4906444d29fe16065445eafc5080bcf6d8fff999762f321b", "size": 593, "mode": 493},
     {"path": "config/generated/pi/default.json", "sha256": "f9df603a01f478b7b88aef80e09f62f144bc00fea4a9ed3c0907b205e2f1e9f1", "size": 78413, "mode": 420},
     {"path": "userpatches/customize-image.sh", "sha256": "5cc0b74446d2fe2a79a7a2ba1017c23a114796aa3af3572713ee649111c1a559", "size": 33084, "mode": 493},
-    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "b6e3e92da2042622bfa917e522d21a60101445d8b015cc8e770564d26c7bb82d", "size": 3942, "mode": 420},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "b342ea39da8dcfd6f725fa377084d439a1b624d79c216ffc345cc7e69286a6bc", "size": 3821, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot", "sha256": "143952471c60d6329960041ebc5a105c89a4015a44fa9908d3657c2aa5311b29", "size": 3103, "mode": 420},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket", "sha256": "fe4f5927614d81759ca84501a908823e320068b9d9104837e31b7e3a7ea7b5cf", "size": 331, "mode": 420},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service", "sha256": "99015f15b0e826f0981d00bc06db6c8ebe8250bf213e662163caa9b0f2722c08", "size": 408, "mode": 420},

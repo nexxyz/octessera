@@ -15,7 +15,7 @@
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320},
     {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "5782d9e05e53b53a299302642078178a2c4e492eca08b1f227490e3b091d81a5", "size": 14644},
     {"path": "config/generated/pi/default.json", "sha256": "f9df603a01f478b7b88aef80e09f62f144bc00fea4a9ed3c0907b205e2f1e9f1", "size": 78413},
-    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "b6e3e92da2042622bfa917e522d21a60101445d8b015cc8e770564d26c7bb82d", "size": 3942},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "b342ea39da8dcfd6f725fa377084d439a1b624d79c216ffc345cc7e69286a6bc", "size": 3821},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget", "sha256": "613299829a46d6699f979e00403221f61e3d67c4decbe3ab41913be45c7691ac", "size": 15862},
     {"path": "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh", "sha256": "531947cf58f4e60d523ecdf65f337b7ccf66c4cbc98a8e280f9835087deca552", "size": 1653},
     {"path": "tools/pi-image/stage4-octessera/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},
