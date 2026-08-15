@@ -154,7 +154,7 @@ impl NativeRunner {
             self.display.oled_splash_text = OLED_SLEEP_SPLASH_KEY.into();
             self.display.oled_splash_until =
                 Some(now + Duration::from_millis(OLED_SLEEP_SPLASH_MS));
-            self.show_toast("Going to sleep ...");
+            self.show_toast("Going to sleep");
         }
     }
 

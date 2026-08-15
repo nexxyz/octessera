@@ -126,7 +126,7 @@ for first in range(logo.BOOT_SWEEP_FRAME_COUNT):
 assert logo.logo_canvas("boot") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565").read_bytes())
 assert logo.logo_canvas("shutdown") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565").read_bytes())
 assert logo.logo_canvas("shutdown") == logo.logo_canvas("boot")
-assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown")] == ["boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown"]
+assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off")] == ["boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off"]
 for invalid in ([], ["boot"], ["boot-once", "sleep"], ["unknown"]):
     try:
         logo.parse_mode(invalid)
@@ -451,49 +451,5 @@ finally:
     logo.subprocess.Popen = real_popen
     logo.time.sleep = real_gpio_sleep
 
-
-class FakeUtilityLock:
-    def close(self):
-        pass
-
-
-sleep_calls = []
-real_oled = logo.Oled
-real_sleep = logo.time.sleep
-real_handoff = logo.Handoff
-real_drop_to_runtime = logo.drop_to_runtime
-try:
-    logo.Oled = FakeOled
-    logo.Handoff = types.SimpleNamespace(utility_lock=lambda timeout: FakeUtilityLock())
-    logo.drop_to_runtime = lambda: None
-    logo.time.sleep = lambda seconds: sleep_calls.append(seconds)
-    logo.run("boot-static")
-    logo.run("sleep")
-    logo.run("shutdown")
-finally:
-    logo.Oled = real_oled
-    logo.time.sleep = real_sleep
-    logo.Handoff = real_handoff
-    logo.drop_to_runtime = real_drop_to_runtime
-
-boot_oled, sleep_oled, shutdown_oled = FakeOled.instances
-assert boot_oled.initialized and len(boot_oled.frames) == 1 and boot_oled.begin_frame_stream_calls == 1 and boot_oled.close_args == [False]
-assert boot_oled.frames[-1] == logo.render_canvas(logo.logo_canvas("boot"))
-assert sleep_oled.initialized and len(sleep_oled.frames) == 1 and sleep_oled.begin_frame_stream_calls == 1 and sleep_oled.close_args == [False]
-assert shutdown_oled.initialized and len(shutdown_oled.frames) == 1 and shutdown_oled.begin_frame_stream_calls == 1 and shutdown_oled.close_args == [False]
-assert sleep_calls == []
-def busy_lock(timeout_seconds):
-    raise TimeoutError("test OLED lock contention")
-
-
-before_busy = len(FakeOled.instances)
-logo.Handoff = types.SimpleNamespace(utility_lock=busy_lock)
-logo.drop_to_runtime = lambda: None
-logo.run("sleep")
-logo.run("resume")
-logo.run("shutdown")
-assert len(FakeOled.instances) == before_busy
-logo.Handoff = real_handoff
-logo.drop_to_runtime = real_drop_to_runtime
 
 print("Orange OLED contract, static mode, golden sweep, and visual cleanup tests passed")

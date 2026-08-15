@@ -126,12 +126,20 @@ function Resolve-PayloadArgument {
 }
 
 function New-AskPassHelper {
-  $temporaryPath = $null
   $helperPath = $null
+  $stream = $null
   try {
-    $temporaryPath = [IO.Path]::GetTempFileName()
-    $helperPath = "$temporaryPath.cmd"
-    [IO.File]::Move($temporaryPath, $helperPath)
+    for ($attempt = 0; $attempt -lt 16 -and $null -eq $stream; $attempt++) {
+      $candidatePath = Join-Path ([IO.Path]::GetTempPath()) ("octessera-pi-askpass-" + [guid]::NewGuid().ToString("N") + ".cmd")
+      try {
+        $stream = [IO.File]::Open($candidatePath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        $helperPath = $candidatePath
+      } catch [IO.IOException] {
+      }
+    }
+    if ($null -eq $stream) {
+      throw "Could not create a unique temporary SSH_ASKPASS helper."
+    }
     $contents = @(
       "@echo off"
       '"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$p = [Environment]::GetEnvironmentVariable(''OCTESSERA_PI_PASSPHRASE'', ''Process''); if ($null -eq $p) { exit 1 }; [Console]::Out.Write($p)"'
@@ -139,13 +147,18 @@ function New-AskPassHelper {
     ) -join "`r`n"
     $contents += "`r`n"
     $encoding = New-Object System.Text.UTF8Encoding($false)
-    [IO.File]::WriteAllText($helperPath, $contents, $encoding)
+    $bytes = $encoding.GetBytes($contents)
+    $stream.Write($bytes, 0, $bytes.Length)
+    $stream.Flush()
+    $stream.Dispose()
+    $stream = $null
     return $helperPath
   } catch {
-    foreach ($path in @($helperPath, $temporaryPath)) {
-      if ($null -ne $path) {
-        [IO.File]::Delete($path)
-      }
+    if ($null -ne $stream) {
+      $stream.Dispose()
+    }
+    if ($null -ne $helperPath) {
+      [IO.File]::Delete($helperPath)
     }
     throw
   }

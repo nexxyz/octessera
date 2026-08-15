@@ -233,6 +233,13 @@ selected USB or HDMI route may wait. A queued frame is not enough.
 Normal shutdown and reboot retain the clean logo+wordmark frame; they do not
 restart the boot sweep.
 
+The confirmed instrument-menu lifecycle keeps presentation native: sleep shows
+`Going to sleep`, Reboot shows `Rebooting`, and Shutdown shows `Shutting down`
+over the existing static logo+wordmark frame. Native acknowledges the final
+snapshot before preserving the OLED while it detaches and submits the fixed
+Orange power path. These strings do not describe arbitrary administrative power
+commands.
+
 The menu's `OLED Sleep` setting is a UI display-sleep feature; it does not
 sleep Linux or hand the OLED to another process. Linux suspend uses a separate
 Orange-only `sleep.target` transaction. Production enables

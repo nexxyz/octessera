@@ -126,8 +126,7 @@ def require_orange_shutdown_service(root: Path, require: Require) -> None:
     service = root / "etc/systemd/system/octessera-orange-oled-shutdown.service"
     content = service.read_text(encoding="utf-8")
     for line in (
-        "After=octessera.service",
-        "Before=shutdown.target reboot.target halt.target",
+        "Type=oneshot",
         "User=octessera-runtime",
         "Group=octessera-runtime",
         "ProtectSystem=strict",
@@ -135,11 +134,16 @@ def require_orange_shutdown_service(root: Path, require: Require) -> None:
         "DevicePolicy=closed",
         "DeviceAllow=/dev/spidev1.0 rw",
         "DeviceAllow=/dev/gpiochip1 rw",
-        "ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown",
-        "TimeoutStartSec=5",
+        "ExecStart=/bin/true",
+        "ExecStop=/bin/sh -c 'sleep 4; /usr/local/sbin/octessera-orange-oled-logo off || true'",
+        "RemainAfterExit=yes",
+        "TimeoutStopSec=8",
     ):
         require(line in content, f"Orange shutdown service is missing: {line}")
-    require("SupplementaryGroups=audio i2c spi gpio" not in content, "Orange shutdown service requires unavailable supplementary groups")
+    require("Before=" not in content and "WantedBy=shutdown.target" not in content and "WantedBy=reboot.target" not in content and "WantedBy=halt.target" not in content, "Orange shutdown service retains target choreography")
+    require("orange-oled-logo shutdown" not in content and "orange-oled-logo boot" not in content, "Orange shutdown service writes a logo")
+    enabled = root / "etc/systemd/system/multi-user.target.wants/octessera-orange-oled-shutdown.service"
+    require(enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera-orange-oled-shutdown.service", "/etc/systemd/system/octessera-orange-oled-shutdown.service"}, "Orange shutdown service is not enabled at multi-user")
 
 
 def require_orange_suspend_service(root: Path, require: Require) -> None:

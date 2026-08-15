@@ -1,8 +1,5 @@
 [Unit]
-Description=Octessera Orange Pi OLED shutdown logo
-DefaultDependencies=no
-After=octessera.service
-Before=shutdown.target reboot.target halt.target
+Description=Octessera Orange Pi OLED shutdown
 
 [Service]
 Type=oneshot
@@ -16,8 +13,12 @@ ProtectHome=yes
 DevicePolicy=closed
 DeviceAllow=/dev/spidev1.0 rw
 DeviceAllow=/dev/gpiochip1 rw
-ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown
-TimeoutStartSec=5
+ExecStart=/bin/true
+ExecStop=/bin/sh -c 'sleep 4; /usr/local/sbin/octessera-orange-oled-logo off || true'
+RemainAfterExit=yes
+TimeoutStopSec=8
+StandardOutput=journal
+StandardError=journal
 
 [Install]
-WantedBy=shutdown.target reboot.target halt.target
+WantedBy=multi-user.target

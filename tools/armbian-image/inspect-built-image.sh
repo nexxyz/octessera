@@ -385,6 +385,7 @@ for path in \
   etc/systemd/system/octessera-orange-boot-splash.service \
   etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service \
   etc/systemd/system/octessera-orange-oled-shutdown.service \
+  etc/systemd/system/multi-user.target.wants/octessera-orange-oled-shutdown.service \
   etc/systemd/system/octessera-orange-oled-suspend.service \
   etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service \
   etc/systemd/system/octessera-provision-musical-default.service \
@@ -411,6 +412,7 @@ octessera_require_image_symlink etc/systemd/system/sockets.target.wants/octesser
 require_root_mode etc/systemd/system/octessera-orange-boot-splash.service 644
 octessera_require_image_symlink etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service ../octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service
 require_root_mode etc/systemd/system/octessera-orange-oled-shutdown.service 644
+octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera-orange-oled-shutdown.service ../octessera-orange-oled-shutdown.service /etc/systemd/system/octessera-orange-oled-shutdown.service
 require_root_mode etc/systemd/system/octessera-orange-oled-suspend.service 644
 octessera_require_image_symlink etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service ../octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service
 reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service

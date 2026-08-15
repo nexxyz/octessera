@@ -164,9 +164,9 @@ impl NativeRunner {
                             ),
                     );
                     if action_type == "system.reboot" {
-                        self.show_toast("Octessera is rebooting");
+                        self.show_toast("Rebooting");
                     } else {
-                        self.show_toast("Octessera is shutting down");
+                        self.show_toast("Shutting down");
                     }
                     self.outbox
                         .push_platform_effect(if action_type == "system.reboot" {

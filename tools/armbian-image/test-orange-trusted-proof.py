@@ -59,7 +59,7 @@ def make_root(path: Path) -> None:
     write(path / "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", "#!/bin/sh\n")
     write(path / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
     write(path / "etc/systemd/system/octessera-orange-boot-splash.service", "[Service]\nExecStart=/usr/local/sbin/octessera-orange-oled-logo boot\n")
-    write(path / "etc/systemd/system/octessera-orange-oled-shutdown.service", "[Service]\nExecStart=/usr/local/sbin/octessera-orange-oled-logo shutdown\n")
+    write(path / "etc/systemd/system/octessera-orange-oled-shutdown.service", "[Service]\nExecStart=/bin/true\nExecStop=/bin/sh -c 'sleep 4; /usr/local/sbin/octessera-orange-oled-logo off || true'\n")
     write(path / "etc/systemd/system/octessera.service", "[Service]\nUser=octessera-runtime\n")
     write(path / "usr/lib/systemd/system-sleep/octessera-orange-oled", "#!/bin/sh\n")
     write(path / "usr/local/sbin/octessera-orange-oled-logo", "#!/bin/sh\n")

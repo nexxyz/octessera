@@ -39,6 +39,7 @@ orange_boot_splash_fixture_abc="$root/tools/armbian-image/fixtures/python313-ini
 orange_oled_suspend_test="$root/tools/armbian-image/test-orange-oled-suspend.sh"
 orange_oled_suspend_python_test="$root/tools/armbian-image/test-orange-oled-suspend.py"
 orange_oled_logo_test="$root/tools/armbian-image/test_orange_oled_logo.py"
+orange_oled_off_test="$root/tools/armbian-image/test_orange_oled_off.py"
 orange_oled_readiness_test="$root/tools/armbian-image/test_orange_oled_readiness.py"
 orange_oled_handoff_test="$root/tools/armbian-image/test_orange_oled_handoff.py"
 orange_oled_lifecycle_test="$root/tools/armbian-image/test_orange_oled_lifecycle.py"
@@ -139,6 +140,7 @@ required_files=(
   "$orange_boot_splash_fixture_collections"
   "$orange_boot_splash_fixture_abc"
   "$orange_oled_logo_test"
+  "$orange_oled_off_test"
   "$orange_oled_handoff_test"
   "$orange_oled_lifecycle_test"
   "$orange_runtime_identity_test"
@@ -271,12 +273,13 @@ python3 -m py_compile "$device_config_stager"
 python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot"
 python3 -m py_compile "$orange_image_mount_helper" "$orange_boot_selection_helper" "$orange_image_proof_python" "$orange_image_proof_fixture" "$orange_trusted_proof" "$orange_trusted_proof_test" "$orange_initramfs" "$orange_phase5_proof"
 python3 -m py_compile "$image_verifier" "$runtime_account_verifier"
-python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" "$root/tools/armbian-image/test_orange_oled_logo.py" "$orange_oled_readiness_test" "$root/tools/armbian-image/test_orange_oled_handoff.py" "$orange_oled_lifecycle_test" "$orange_runtime_identity_test"
+python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" "$root/tools/armbian-image/test_orange_oled_logo.py" "$orange_oled_off_test" "$orange_oled_readiness_test" "$root/tools/armbian-image/test_orange_oled_handoff.py" "$orange_oled_lifecycle_test" "$orange_runtime_identity_test"
 python3 -m py_compile "$orange_oled_suspend_python_test"
 python3 -m py_compile "$device_config_test" "$device_apply_test"
 bash "$orange_oled_suspend_test"
 python3 "$orange_oled_suspend_python_test"
 python3 "$orange_oled_logo_test"
+python3 "$orange_oled_off_test"
 python3 "$orange_oled_readiness_test"
 python3 "$orange_oled_handoff_test"
 python3 "$orange_oled_lifecycle_test"
@@ -438,17 +441,22 @@ grep -q 'setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot
 ! grep -q '/usr/bin/env' "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash" || { echo "Orange initramfs must not depend on /usr/bin/env." >&2; exit 1; }
 ! grep -qE 'MARKER|write_ready_marker|boot-once' "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash" || { echo "Orange initramfs must not use marker or animated one-shot coupling." >&2; exit 1; }
 grep -q 'octessera-orange-oled-suspend.service' "$root/userpatches/customize-image.sh" || { echo "Orange suspend OLED handoff is not installed." >&2; exit 1; }
+grep -q 'install_overlay_file etc/systemd/system/octessera-orange-oled-shutdown.service' "$root/userpatches/customize-image.sh" || { echo "Orange shutdown OLED service is not installed." >&2; exit 1; }
+grep -q 'systemctl enable octessera-orange-oled-shutdown.service' "$root/userpatches/customize-image.sh" || { echo "Orange shutdown OLED service is not enabled." >&2; exit 1; }
 oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
 oled_handoff="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
 if grep -RInF '/usr/local/bin/octessera-orange-oled-logo' \
   "$root/userpatches/customize-image.sh" \
-  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" \
-  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"; then
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"; then
   echo "Orange OLED lifecycle must use the installed /usr/local/sbin executable." >&2
   exit 1
 fi
 grep -q 'Before=sysinit.target octessera.service' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo "Orange boot splash must hand off before the runtime." >&2; exit 1; }
-grep -q 'After=octessera.service' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service" || { echo "Orange shutdown logo must wait for runtime release." >&2; exit 1; }
+shutdown_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
+grep -qFx 'ExecStart=/bin/true' "$shutdown_service" || { echo "Orange shutdown service must have an inert start." >&2; exit 1; }
+grep -qFx "ExecStop=/bin/sh -c 'sleep 4; /usr/local/sbin/octessera-orange-oled-logo off || true'" "$shutdown_service" || { echo "Orange shutdown service must turn the display off after four seconds." >&2; exit 1; }
+grep -qFx 'WantedBy=multi-user.target' "$shutdown_service" || { echo "Orange shutdown service must be enabled at multi-user." >&2; exit 1; }
+! grep -qE '^(Before=|WantedBy=(shutdown|reboot|halt)\.target$)|orange-oled-logo (shutdown|boot)' "$shutdown_service" || { echo "Orange shutdown service must not write a shutdown logo or use target choreography." >&2; exit 1; }
 grep -q '^Type=notify$' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo "Orange boot splash must be a persistent notify service." >&2; exit 1; }
 grep -q '^NotifyAccess=main$' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo "Orange boot splash must allow main-process readiness notification." >&2; exit 1; }
 grep -q '^Environment=OCTESSERA_OLED_READY_NOTIFY_REQUIRED=1$' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo "Orange boot splash must require readiness notification." >&2; exit 1; }
@@ -514,6 +522,7 @@ class FakeOled:
     def __init__(self):
         self.initialized = False
         self.frame_payload = None
+        self.command_values = []
         self.display_off = None
         FakeOled.instance = self
 
@@ -522,6 +531,9 @@ class FakeOled:
 
     def frame(self, payload):
         self.frame_payload = payload
+
+    def command(self, *values):
+        self.command_values.append(values)
 
     def close(self, display_off=True):
         self.display_off = display_off
@@ -538,9 +550,10 @@ module.Oled = FakeOled
 module.Handoff = FakeHandoff
 module.drop_to_runtime = lambda: None
 module.render_canvas = lambda canvas, frame=None: b"frame"
-module.run("shutdown")
-assert FakeOled.instance.initialized
-assert FakeOled.instance.frame_payload == b"frame"
+module.run("off")
+assert not FakeOled.instance.initialized
+assert FakeOled.instance.frame_payload is None
+assert FakeOled.instance.command_values == [(0xAE,)]
 assert FakeOled.instance.display_off is False
 PY
 grep -q 'octessera_install_diagnostic_payload' "$root/userpatches/customize-image.sh" || { echo "Diagnostic payload handling must remain explicit." >&2; exit 1; }

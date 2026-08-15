@@ -20,6 +20,11 @@ pub(crate) enum RenderCommand {
     Shutdown {
         ack: mpsc::Sender<Result<(), String>>,
     },
+    PreserveTerminal {
+        snapshot: Value,
+        oled: OledFramePublication,
+        ack: mpsc::Sender<Result<(), String>>,
+    },
     Abort {
         ack: mpsc::Sender<Result<(), String>>,
     },
@@ -87,7 +92,8 @@ pub(crate) fn reject_pending_command(state: &mut RenderState, message: &str) {
             RenderCommand::MarkFirstMenuRendered { ack }
             | RenderCommand::MarkFailed { ack }
             | RenderCommand::Abort { ack }
-            | RenderCommand::Shutdown { ack } => ack,
+            | RenderCommand::Shutdown { ack }
+            | RenderCommand::PreserveTerminal { ack, .. } => ack,
             RenderCommand::Ownership {
                 cancellation, ack, ..
             } => {

@@ -26,6 +26,16 @@ fn native_snapshot() -> Value {
     })
 }
 
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
+fn terminal_snapshot(revision: u64) -> Value {
+    let mut snapshot = native_snapshot();
+    snapshot["oledFrameRevision"] = serde_json::json!(revision);
+    snapshot
+}
+
 #[test]
 fn shutdown_ack_preserves_display_off_failure() {
     let (ack_tx, ack_rx) = mpsc::channel();
@@ -43,6 +53,153 @@ fn shutdown_ack_timeout_is_bounded() {
     assert_eq!(SHUTDOWN_ACK_TIMEOUT, Duration::from_millis(750));
     assert_eq!(INITIAL_RENDER_ACK_TIMEOUT, Duration::from_millis(750));
     assert_eq!(OWNERSHIP_ACK_TIMEOUT, Duration::from_secs(2));
+}
+
+#[test]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
+fn preserving_terminal_teardown_acknowledges_and_joins_worker() {
+    let (seesaw_tx, _seesaw_rx) = mpsc::channel();
+    let worker = RenderWorker::spawn(HardwareRenderTargets {
+        oled: OledSsd1351::new().unwrap(),
+        seesaw_tx,
+        oled_handoff: None,
+        hdmi: None,
+    });
+
+    worker
+        .publish_terminal_preserving(
+            native_snapshot(),
+            OledFramePublication::test_native(1, vec![0; OLED_FRAME_BYTES]),
+        )
+        .unwrap();
+    assert!(worker.is_terminated());
+}
+
+#[test]
+fn terminal_command_requires_an_accepted_matching_native_frame() {
+    let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
+    let worker = RenderWorker {
+        state,
+        worker: Arc::new(Mutex::new(None)),
+    };
+    let snapshot = serde_json::json!({"oledFrameRevision": 7});
+
+    assert_eq!(
+        worker.publish_terminal_preserving(snapshot.clone(), OledFramePublication::ExplicitBlack),
+        Err("terminal OLED snapshot requires an accepted native frame".into())
+    );
+    assert_eq!(
+        worker.publish_terminal_preserving(
+            snapshot.clone(),
+            OledFramePublication::test_retained_last_good(7, vec![0; OLED_FRAME_BYTES]),
+        ),
+        Err("terminal OLED snapshot requires an accepted native frame".into())
+    );
+    assert_eq!(
+        worker.publish_terminal_preserving(
+            snapshot,
+            OledFramePublication::test_native(6, vec![0; OLED_FRAME_BYTES]),
+        ),
+        Err("terminal OLED publication does not match snapshot frame revision".into())
+    );
+}
+
+#[test]
+fn snapshot_publication_is_rejected_once_terminal_command_is_queued() {
+    let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
+    let (ack, _received) = mpsc::channel();
+    state.0.lock().unwrap().command = Some(RenderCommand::PreserveTerminal {
+        snapshot: Value::Null,
+        oled: OledFramePublication::ExplicitBlack,
+        ack,
+    });
+    let worker = RenderWorker {
+        state: Arc::clone(&state),
+        worker: Arc::new(Mutex::new(None)),
+    };
+
+    assert!(!worker.publish_snapshot(Value::Null, OledFramePublication::ExplicitBlack));
+    assert!(state.0.lock().unwrap().snapshot.is_none());
+}
+
+#[test]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
+fn atomic_terminal_rejects_stale_snapshot_and_uses_supplied_command() {
+    let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
+    let (stale_ack_tx, stale_ack_rx) = mpsc::channel();
+    state.0.lock().unwrap().snapshot = Some(SnapshotCommand {
+        snapshot: terminal_snapshot(1),
+        oled: OledFramePublication::test_native(1, vec![1; OLED_FRAME_BYTES]),
+        rendered_acks: vec![stale_ack_tx],
+    });
+    let gate = Arc::new((Mutex::new(false), Condvar::new()));
+    let worker_state = Arc::clone(&state);
+    let worker_gate = Arc::clone(&gate);
+    let (seesaw_tx, seesaw_rx) = mpsc::channel();
+    let mut targets = HardwareRenderTargets {
+        oled: OledSsd1351::new().unwrap(),
+        seesaw_tx,
+        oled_handoff: None,
+        hdmi: None,
+    };
+    let handle = thread::spawn(move || {
+        let (lock, ready) = &*worker_gate;
+        let mut open = lock.lock().unwrap();
+        while !*open {
+            open = ready.wait(open).unwrap();
+        }
+        drop(open);
+        let _seesaw_rx = seesaw_rx;
+        render_worker_loop(worker_state, &mut targets);
+    });
+    let worker = RenderWorker {
+        state: Arc::clone(&state),
+        worker: Arc::new(Mutex::new(Some(handle))),
+    };
+    let terminal_snapshot = terminal_snapshot(2);
+    let terminal_oled = OledFramePublication::test_native(2, vec![2; OLED_FRAME_BYTES]);
+    let terminal_worker = worker.clone();
+    let terminal_snapshot_for_thread = terminal_snapshot.clone();
+    let terminal_oled_for_thread = terminal_oled.clone();
+    let terminal = thread::spawn(move || {
+        terminal_worker
+            .publish_terminal_preserving(terminal_snapshot_for_thread, terminal_oled_for_thread)
+    });
+
+    loop {
+        let queued = state
+            .0
+            .lock()
+            .unwrap()
+            .command
+            .as_ref()
+            .is_some_and(|command| {
+                matches!(
+                    command,
+                    RenderCommand::PreserveTerminal { snapshot, oled, .. }
+                        if snapshot == &terminal_snapshot && oled.revision() == Some(2)
+                )
+            });
+        if queued {
+            break;
+        }
+        thread::yield_now();
+    }
+    *gate.0.lock().unwrap() = true;
+    gate.1.notify_one();
+
+    assert_eq!(terminal.join().unwrap(), Ok(()));
+    assert_eq!(
+        stale_ack_rx.recv().unwrap(),
+        Err("render worker was preempted by preserving terminal teardown".into())
+    );
+    assert!(worker.is_terminated());
 }
 
 #[test]

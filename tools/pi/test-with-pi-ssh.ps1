@@ -7,12 +7,19 @@ $userProfile = Join-Path $testRoot "user profile"
 $sshDirectory = Join-Path $userProfile ".ssh"
 $recordPath = Join-Path $testRoot "transport.json"
 $payloadPath = Join-Path $testRoot "remote payload.sh"
+$concurrentRecordDir = Join-Path $testRoot "concurrent records"
+$concurrentBarrierDir = Join-Path $testRoot "concurrent barrier"
+$staleBasePath = $null
+$staleSiblingPath = $null
+$concurrentProcesses = @()
 $oldPath = $env:PATH
 $oldUserProfile = $env:USERPROFILE
 $oldPassphrase = $env:OCTESSERA_PI_PASSPHRASE
 $oldAskPass = $env:SSH_ASKPASS
 $oldAskPassRequire = $env:SSH_ASKPASS_REQUIRE
 $oldDisplay = $env:DISPLAY
+$oldConcurrentRecordDir = $env:OCTESSERA_PI_SSH_RECORD_DIR
+$oldConcurrentBarrierDir = $env:OCTESSERA_PI_SSH_BARRIER_DIR
 $encoding = New-Object System.Text.UTF8Encoding($false)
 
 function Write-Utf8NoBom {
@@ -64,6 +71,19 @@ try {
 
   Write-Utf8NoBom (Join-Path $fakeBin "record-transport.ps1") @'
 $arguments = @($args | Select-Object -Skip 1)
+$recordPath = $env:OCTESSERA_PI_SSH_RECORD
+if ($null -ne $env:OCTESSERA_PI_SSH_RECORD_DIR) {
+  $markerPath = Join-Path $env:OCTESSERA_PI_SSH_BARRIER_DIR (([guid]::NewGuid().ToString("N")) + ".ready")
+  [IO.File]::WriteAllText($markerPath, "ready")
+  $deadline = [DateTime]::UtcNow.AddSeconds(10)
+  while ([IO.Directory]::GetFiles($env:OCTESSERA_PI_SSH_BARRIER_DIR, "*.ready").Count -lt 2 -and [DateTime]::UtcNow -lt $deadline) {
+    Start-Sleep -Milliseconds 10
+  }
+  if ([IO.Directory]::GetFiles($env:OCTESSERA_PI_SSH_BARRIER_DIR, "*.ready").Count -lt 2) {
+    exit 91
+  }
+  $recordPath = Join-Path $env:OCTESSERA_PI_SSH_RECORD_DIR (([guid]::NewGuid().ToString("N")) + ".json")
+}
 $record = [ordered]@{
   tool = [string]$args[0]
   arguments = $arguments
@@ -83,7 +103,7 @@ $helperText = [IO.File]::ReadAllText($env:SSH_ASKPASS)
 $record.helperContainsPassphrase = $helperText.Contains($env:OCTESSERA_EXPECTED_ASKPASS)
 $askPassOutput = @(& $env:SSH_ASKPASS test-prompt)
 $record.askPassMatches = $askPassOutput.Count -eq 1 -and [string]$askPassOutput[0] -ceq $env:OCTESSERA_EXPECTED_ASKPASS
-[IO.File]::WriteAllText($env:OCTESSERA_PI_SSH_RECORD, ($record | ConvertTo-Json -Compress))
+[IO.File]::WriteAllText($recordPath, ($record | ConvertTo-Json -Compress))
 $exitCode = if ($null -eq $env:OCTESSERA_PI_SSH_EXIT_CODE) { 0 } else { [int]$env:OCTESSERA_PI_SSH_EXIT_CODE }
 if ($null -ne $env:OCTESSERA_PI_SSH_STDERR) {
   [Console]::Error.WriteLine($env:OCTESSERA_PI_SSH_STDERR)
@@ -111,6 +131,9 @@ exit /b %ERRORLEVEL%
   $env:SSH_ASKPASS = "prior-askpass"
   $env:SSH_ASKPASS_REQUIRE = "prior-require"
   $env:DISPLAY = "prior-display"
+  $staleBasePath = [IO.Path]::GetTempFileName()
+  $staleSiblingPath = "$staleBasePath.cmd"
+  Write-Utf8NoBom $staleSiblingPath "unrelated stale helper"
 
   $defaultResult = Invoke-Wrapper @("ssh", "printf safe")
   if ($defaultResult.ExitCode -ne 0) {
@@ -140,6 +163,9 @@ exit /b %ERRORLEVEL%
   if (Test-Path -LiteralPath $defaultRecord.askPass -PathType Leaf) {
     throw "Temporary SSH_ASKPASS helper was not removed after success."
   }
+  if (-not (Test-Path -LiteralPath $staleSiblingPath -PathType Leaf) -or [IO.File]::ReadAllText($staleSiblingPath) -cne "unrelated stale helper") {
+    throw "Wrapper touched an unrelated stale askpass sibling."
+  }
   Assert-EqualText $env:SSH_ASKPASS "prior-askpass" "SSH_ASKPASS was not restored after success."
   Assert-EqualText $env:SSH_ASKPASS_REQUIRE "prior-require" "SSH_ASKPASS_REQUIRE was not restored after success."
   Assert-EqualText $env:DISPLAY "prior-display" "DISPLAY was not restored after success."
@@ -153,6 +179,40 @@ exit /b %ERRORLEVEL%
   if (-not (@($explicitRecord.arguments) -contains $explicitTarget)) {
     throw "Explicit target parameter was not passed to the child transport."
   }
+
+  New-Item -ItemType Directory -Path $concurrentRecordDir, $concurrentBarrierDir -Force | Out-Null
+  $env:OCTESSERA_PI_SSH_RECORD_DIR = $concurrentRecordDir
+  $env:OCTESSERA_PI_SSH_BARRIER_DIR = $concurrentBarrierDir
+  $concurrentProcesses = @(
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $scriptPath, "ssh", "printf concurrent") -PassThru -WindowStyle Hidden
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $scriptPath, "ssh", "printf concurrent") -PassThru -WindowStyle Hidden
+  )
+  foreach ($process in $concurrentProcesses) {
+    $process.WaitForExit()
+    $process.Refresh()
+    if ($process.ExitCode -ne 0) {
+      throw "Concurrent wrapper invocation failed with exit code $($process.ExitCode)."
+    }
+  }
+  $concurrentRecords = @(Get-ChildItem -LiteralPath $concurrentRecordDir -Filter "*.json" -File)
+  if ($concurrentRecords.Count -ne 2) {
+    throw "Concurrent wrapper invocations did not produce two transport records."
+  }
+  $concurrentHelperPaths = @($concurrentRecords | ForEach-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).askPass })
+  if (@($concurrentHelperPaths | Select-Object -Unique).Count -ne 2) {
+    throw "Concurrent wrapper invocations did not create distinct askpass helpers."
+  }
+  foreach ($concurrentHelperPath in $concurrentHelperPaths) {
+    if (Test-Path -LiteralPath $concurrentHelperPath -PathType Leaf) {
+      throw "A concurrent askpass helper was not removed."
+    }
+  }
+  $concurrentProcesses = @()
+  if ($null -eq $oldConcurrentRecordDir) { Remove-Item Env:\OCTESSERA_PI_SSH_RECORD_DIR -ErrorAction SilentlyContinue } else { $env:OCTESSERA_PI_SSH_RECORD_DIR = $oldConcurrentRecordDir }
+  if ($null -eq $oldConcurrentBarrierDir) { Remove-Item Env:\OCTESSERA_PI_SSH_BARRIER_DIR -ErrorAction SilentlyContinue } else { $env:OCTESSERA_PI_SSH_BARRIER_DIR = $oldConcurrentBarrierDir }
+  Assert-EqualText $env:SSH_ASKPASS "prior-askpass" "SSH_ASKPASS changed during concurrent wrappers."
+  Assert-EqualText $env:SSH_ASKPASS_REQUIRE "prior-require" "SSH_ASKPASS_REQUIRE changed during concurrent wrappers."
+  Assert-EqualText $env:DISPLAY "prior-display" "DISPLAY changed during concurrent wrappers."
 
   $target = "pi@192.168.0.218"
   $scpDestination = "$target`:/tmp/candidate"
@@ -286,6 +346,9 @@ exit /b %ERRORLEVEL%
     throw "A mismatched SCP target was not rejected before transport."
   }
 } finally {
+  foreach ($process in $concurrentProcesses) {
+    if (-not $process.HasExited) { $process.Kill() }
+  }
   $env:PATH = $oldPath
   if ($null -eq $oldUserProfile) { Remove-Item Env:\USERPROFILE -ErrorAction SilentlyContinue } else { $env:USERPROFILE = $oldUserProfile }
   if ($null -eq $oldPassphrase) { Remove-Item Env:\OCTESSERA_PI_PASSPHRASE -ErrorAction SilentlyContinue } else { $env:OCTESSERA_PI_PASSPHRASE = $oldPassphrase }
@@ -296,6 +359,10 @@ exit /b %ERRORLEVEL%
   Remove-Item Env:\OCTESSERA_PI_SSH_RECORD -ErrorAction SilentlyContinue
   Remove-Item Env:\OCTESSERA_PI_SSH_EXIT_CODE -ErrorAction SilentlyContinue
   Remove-Item Env:\OCTESSERA_PI_SSH_STDERR -ErrorAction SilentlyContinue
+  Remove-Item Env:\OCTESSERA_PI_SSH_RECORD_DIR -ErrorAction SilentlyContinue
+  Remove-Item Env:\OCTESSERA_PI_SSH_BARRIER_DIR -ErrorAction SilentlyContinue
+  if ($null -ne $staleSiblingPath) { Remove-Item -LiteralPath $staleSiblingPath -Force -ErrorAction SilentlyContinue }
+  if ($null -ne $staleBasePath) { Remove-Item -LiteralPath $staleBasePath -Force -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 

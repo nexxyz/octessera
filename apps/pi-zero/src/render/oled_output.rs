@@ -107,6 +107,15 @@ pub(crate) fn force_oled_render(
     publication: &OledFramePublication,
     cache: &mut HardwareRenderCache,
 ) -> Result<(), String> {
+    force_oled_render_with_device(oled, snapshot, publication, cache)
+}
+
+fn force_oled_render_with_device<O: OledRenderDevice>(
+    oled: &mut O,
+    snapshot: &Value,
+    publication: &OledFramePublication,
+    cache: &mut HardwareRenderCache,
+) -> Result<(), String> {
     cache.oled_output_state.display_off = None;
     let result = write_publication(
         oled,
@@ -178,5 +187,65 @@ impl HardwareRenderCache {
         self.oled_retry_publication = None;
         self.oled_retry_display_off = false;
         self.oled_error_log_at = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::oled_frame_cache::OledFramePublication;
+    use serde_json::json;
+
+    struct FakeOled {
+        writes: Vec<Vec<u8>>,
+    }
+
+    impl FakeOled {
+        fn new() -> Self {
+            Self { writes: Vec::new() }
+        }
+    }
+
+    impl OledRenderDevice for FakeOled {
+        fn display_on(&mut self) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn write_frame(&mut self, frame: &[u8]) -> Result<(), String> {
+            self.writes.push(frame.to_vec());
+            Ok(())
+        }
+
+        fn display_off(&mut self) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn force_render_writes_cached_revision_again_with_supplied_pixels() {
+        let snapshot = json!({
+            "display": { "off": false },
+            "oledFrameRevision": 7
+        });
+        let pixels = vec![0x2a; super::super::OLED_FRAME_BYTES];
+        let publication = OledFramePublication::test_native(7, pixels.clone());
+        let mut cache = HardwareRenderCache::default();
+        let mut oled = FakeOled::new();
+
+        assert_eq!(
+            render_oled_if_changed(
+                &mut oled,
+                &snapshot,
+                &publication,
+                &mut cache,
+                Instant::now(),
+            ),
+            None
+        );
+        assert_eq!(oled.writes.len(), 1);
+
+        force_oled_render_with_device(&mut oled, &snapshot, &publication, &mut cache).unwrap();
+
+        assert_eq!(oled.writes, vec![pixels.clone(), pixels]);
     }
 }

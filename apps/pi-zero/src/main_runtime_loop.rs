@@ -14,6 +14,9 @@ use playback_runtime::{
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+#[path = "power_lifecycle.rs"]
+mod power_lifecycle;
+
 const HARDWARE_EVENT_BUDGET: usize = 16;
 const IDLE_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(50);
 
@@ -111,7 +114,7 @@ pub(crate) fn maybe_advance_runtime(
         adapter,
         render_worker,
     );
-    shutdown_if_requested(adapter, render_worker)
+    shutdown_if_requested(playback, adapter, render_worker)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -272,20 +275,24 @@ fn service_render_if_due(
 }
 
 fn shutdown_if_requested(
+    playback: &PlaybackRuntime,
     adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
 ) -> bool {
     let Some(request) = adapter.take_power_request() else {
         return false;
     };
-    if let Err(error) = render_worker.publish_shutdown() {
-        eprintln!("pi shutdown render acknowledgement failed: {error}");
-    }
-    if let Err(error) = power_pi_system(request) {
-        eprintln!("pi power request failed: {error}");
-        return false;
-    }
-    true
+    power_lifecycle::finalize_power_request(
+        || {
+            let snapshot = playback
+                .last_snapshot()
+                .cloned()
+                .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
+            let oled = adapter.oled_publication_for_snapshot(&snapshot, false)?;
+            render_worker.publish_terminal_preserving(snapshot, oled)
+        },
+        || power_pi_system(request),
+    )
 }
 
 fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {

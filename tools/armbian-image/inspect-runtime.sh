@@ -410,8 +410,7 @@ octessera_require_orange_shutdown_service() {
   local service_content
   service_content="$(read_file etc/systemd/system/octessera-orange-oled-shutdown.service)"
   for required_line in \
-    'After=octessera.service' \
-    'Before=shutdown.target reboot.target halt.target' \
+    'Type=oneshot' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
     'ProtectSystem=strict' \
@@ -419,11 +418,14 @@ octessera_require_orange_shutdown_service() {
     'DevicePolicy=closed' \
     'DeviceAllow=/dev/spidev1.0 rw' \
     'DeviceAllow=/dev/gpiochip1 rw' \
-    'ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown' \
-    'TimeoutStartSec=5'; do
+    'ExecStart=/bin/true' \
+    "ExecStop=/bin/sh -c 'sleep 4; /usr/local/sbin/octessera-orange-oled-logo off || true'" \
+    'RemainAfterExit=yes' \
+    'TimeoutStopSec=8'; do
     printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
   done
-  ! printf '%s\n' "$service_content" | grep -qFx 'SupplementaryGroups=audio i2c spi gpio' || { echo 'Orange shutdown service requires unavailable supplementary groups.' >&2; exit 1; }
+  ! printf '%s\n' "$service_content" | grep -qE '^(Before=|WantedBy=shutdown\.target|WantedBy=reboot\.target|WantedBy=halt\.target)|orange-oled-logo (shutdown|boot)' || { echo 'Orange shutdown service retains a shutdown-target or logo writer.' >&2; exit 1; }
+  require_root_mode etc/systemd/system/octessera-orange-oled-shutdown.service 644
 }
 
 octessera_require_orange_suspend_service() {
