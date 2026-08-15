@@ -43,11 +43,13 @@ userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before
 /tools/legal/stage_notices.py text eol=lf
 /tools/pi-image/stage4-octessera/files/boot/config.txt.append text eol=lf
 /tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py text eol=lf
+/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget text eol=lf
 /tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/hooks/octessera-boot-splash text eol=lf
 /tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash text eol=lf
 /tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/* text eol=lf
 /tools/pi-image/test-boot-layer-contract.py text eol=lf
 /tools/pi-image/test-rpi-boot-splash.sh text eol=lf
+/tools/pi-image/rpi_initramfs_proof.py text eol=lf
 /tools/pi-image/verify-rpi-kernel-image.py text eol=lf
 /tools/armbian-image/fixtures/python313-initramfs-closure/*.py text eol=lf
 /tools/armbian-image/orange_initramfs.py text eol=lf
