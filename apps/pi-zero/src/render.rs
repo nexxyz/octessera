@@ -61,13 +61,20 @@ const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
 mod boot_sweep;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use boot_sweep::{
-    boot_sweep_bottom_row_origin, boot_sweep_deadline_offset_ns, boot_sweep_frame,
-    boot_sweep_frame_from, logical_to_physical_bottom, physical_to_logical_input, rgb565_at,
-    BOOT_SWEEP_BAND_WIDTH, BOOT_SWEEP_COLORS, BOOT_SWEEP_CYCLE_NS, BOOT_SWEEP_FRAMES,
-    BOOT_SWEEP_LEAN_DENOMINATOR, BOOT_SWEEP_LEAN_NUMERATOR, BOOT_SWEEP_TRAIN_WIDTH,
+    boot_sweep_base_frame, boot_sweep_bottom_row_origin, boot_sweep_deadline_offset_ns,
+    boot_sweep_frame, boot_sweep_frame_from, boot_sweep_frames, logical_to_physical_bottom,
+    physical_to_logical_input, rgb565_at, BOOT_SWEEP_BAND_WIDTH, BOOT_SWEEP_COLORS,
+    BOOT_SWEEP_CYCLE_NS, BOOT_SWEEP_FRAMES, BOOT_SWEEP_LEAN_DENOMINATOR, BOOT_SWEEP_LEAN_NUMERATOR,
+    BOOT_SWEEP_REST_CHECK_NS, BOOT_SWEEP_REST_NS, BOOT_SWEEP_SEPARATOR_COLOR,
+    BOOT_SWEEP_SEPARATOR_WIDTH, BOOT_SWEEP_TRAIN_WIDTH,
+};
+#[cfg(all(not(test), not(feature = "hardware-orange-pi-zero-2w")))]
+pub(crate) use boot_sweep::{
+    boot_sweep_base_frame, boot_sweep_frames, BOOT_SWEEP_CYCLE_NS, BOOT_SWEEP_FRAMES,
+    BOOT_SWEEP_REST_CHECK_NS, BOOT_SWEEP_REST_NS,
 };
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) use boot_sweep::{boot_sweep_deadline, render_boot_splash, render_boot_splash_frame};
+pub(crate) use boot_sweep::{boot_sweep_deadline, render_boot_splash};
 
 pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,

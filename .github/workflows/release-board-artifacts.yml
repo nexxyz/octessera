@@ -448,28 +448,13 @@ jobs:
       - name: Package matching Raspberry runtime bundle
         run: |
           set -euo pipefail
-          mkdir -p device-release release-assets
-          cp runtime-bundle/* device-release/
-          python3 - <<'PY'
-          import json
-          with open("device-release/octessera-device-release.json", "w", encoding="utf-8") as handle:
-              json.dump({
-                  "schema_version": 2,
-                  "updater_protocol": 2,
-                  "candidate_health_protocol": 1,
-                  "tag": "${{ inputs.tag }}",
-                  "version": "${{ inputs.version }}",
-                  "board_profile": "raspberry-pi-zero-2w",
-                  "arch": "aarch64-unknown-linux-gnu",
-                  "binary": "octessera-pi",
-                  "platforms": ["raspberry-pi-zero-2w", "linux-aarch64-device"],
-              }, handle, indent=2)
-              handle.write("\n")
-          PY
-          install -m 0644 LICENSE NOTICE device-release/
-          zip_name="octessera-${{ inputs.version }}-raspberry-pi-zero-2w-device-aarch64.zip"
-          (cd device-release && zip -9 "../release-assets/$zip_name" octessera-pi octessera-runtime.json SHA256SUMS octessera-device-release.json LICENSE NOTICE)
-          (cd release-assets && sha256sum "$zip_name" > SHA256SUMS-raspberry-pi-zero-2w-device.txt && sha256sum -c SHA256SUMS-raspberry-pi-zero-2w-device.txt)
+          python3 tools/device-update/package_device_bundle.py \
+            --runtime-bundle runtime-bundle \
+            --output-dir release-assets \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --board-profile raspberry-pi-zero-2w \
+            --tag "${{ inputs.tag }}" \
+            --version "${{ inputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-raspberry-device-release-assets
@@ -493,29 +478,13 @@ jobs:
       - name: Package matching Orange runtime bundle
         run: |
           set -euo pipefail
-          mkdir -p device-release release-assets
-          cp runtime-bundle/* device-release/
-          python3 - <<'PY'
-          import json
-          with open("device-release/octessera-device-release.json", "w", encoding="utf-8") as handle:
-              json.dump({
-                  "schema_version": 2,
-                  "updater_supported": False,
-                  "candidate_health_protocol": 1,
-                  "distribution": "standalone-manual",
-                  "tag": "${{ inputs.tag }}",
-                  "version": "${{ inputs.version }}",
-                  "board_profile": "orange-pi-zero-2w",
-                  "arch": "aarch64-unknown-linux-gnu",
-                  "binary": "octessera-pi",
-                  "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"],
-              }, handle, indent=2)
-              handle.write("\n")
-          PY
-          install -m 0644 LICENSE NOTICE device-release/
-          zip_name="octessera-${{ inputs.version }}-orange-pi-zero-2w-standalone-manual-aarch64.zip"
-          (cd device-release && zip -9 "../release-assets/$zip_name" octessera-pi octessera-runtime.json SHA256SUMS octessera-device-release.json LICENSE NOTICE)
-          (cd release-assets && sha256sum "$zip_name" > SHA256SUMS-orange-pi-zero-2w-device.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w-device.txt)
+          python3 tools/device-update/package_device_bundle.py \
+            --runtime-bundle runtime-bundle \
+            --output-dir release-assets \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --board-profile orange-pi-zero-2w \
+            --tag "${{ inputs.tag }}" \
+            --version "${{ inputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-orange-device-release-assets

@@ -11,6 +11,7 @@ PNG_SIZE = 128
 PNG_IHDR_SIZE = 13
 PNG_MAX_CHUNK = 1 << 20
 PNG_RAW_SIZE = PNG_SIZE * (1 + PNG_SIZE * 4)
+RGB565_SIZE = PNG_SIZE * PNG_SIZE * 2
 ICO_HEADER_SIZE = 6
 ICO_ENTRY_SIZE = 16
 
@@ -80,11 +81,19 @@ def _ico_semantics(data: bytes) -> tuple[bytes, bytes]:
     return _png_semantics(data[offset:])
 
 
+def _rgb565_semantics(data: bytes) -> tuple[bytes, bytes]:
+    if len(data) != RGB565_SIZE:
+        raise ValueError("unsupported RGB565 asset size")
+    return b"rgb565", data
+
+
 def image_semantics(data: bytes, kind: str) -> tuple[bytes, bytes]:
     if kind == "png":
         return _png_semantics(data)
     if kind == "ico":
         return _ico_semantics(data)
+    if kind == "rgb565":
+        return _rgb565_semantics(data)
     raise ValueError(f"unsupported generated image kind: {kind}")
 
 

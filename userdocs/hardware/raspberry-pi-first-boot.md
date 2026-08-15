@@ -30,17 +30,18 @@ instrument.
 On a constructor-qualified Raspberry Pi Zero 2 W image, the OLED boot sweep is
 the same as Orange:
 
-- cyan, yellow, green, and magenta bands, 8 px each;
-- a +8 px lean toward the top-right;
+- magenta, green, yellow, and cyan bands, 8 px each;
+- a rigid 45° panel-facing lean toward the top-right while the mounted SSD1351 controller origin decreases and the train travels left-to-right; canonical bottom-to-top coordinates use `bottom_origin - row_y`;
 - only white source pixels are recolored;
-- 24 frames across one second, cycling without an added pause.
+- 30 frames across 1.2 seconds (25 fps), followed by a responsive 2-second rest in the continuous loop.
 
-Initramfs runs one bounded foreground cycle and fully reaps it. Early userspace
-then loops the animation while the native runtime starts. The runtime requests
-release, waits for the exclusive `/run/octessera-boot` lock, adopts the already
-initialized OLED without resetting it, and stops the animation immediately
-before an acknowledged first normal menu frame. Raspberry first-menu readiness
-requires that real OLED write acknowledgement. For the shared audio contract,
+Raspberry's initramfs writes one static logo+wordmark frame and stops. The
+root-installed `octessera-boot-splash.service` is the sole animator and starts
+concurrently during systemd boot. The runtime requests release, waits for the exclusive
+`/run/octessera-boot` lock, adopts the already initialized OLED without
+resetting it, and stops the animation immediately before an acknowledged first
+normal menu frame. Raspberry first-menu readiness requires that real OLED write
+acknowledgement. For the shared audio contract,
 every non-empty set is valid; Jack is required only when selected, recognized
 disconnected USB or HDMI routes may wait, a selected route fault blocks
 readiness, and no route is a fallback. On the live Raspberry Pi Zero 2 W board,

@@ -197,11 +197,11 @@ For manual Pi setup and developer deploy/update workflows, see [`../../docs/deve
 
 ### Orange Pi Zero 2W image
 
-Use the production asset whose name ends in `-orange-pi-zero-2w.img.xz` and its
-matching `.img.xz.sha256` file. Verify the pair, flash it with an image flasher
-that supports the compressed image, then continue with the [Orange first-boot
-setup](orange-pi-first-boot.md). The separate diagnostic workflow image is for
-controlled bring-up checks, not normal operation.
+Use the production asset whose name ends in `-orange-pi-zero-2w.img.xz` and
+verify its entry in the root `SHA256SUMS.txt` asset. Flash it with an image
+flasher that supports the compressed image, then continue with the [Orange
+first-boot setup](orange-pi-first-boot.md). The separate diagnostic workflow
+image is for controlled bring-up checks, not normal operation.
 
 The Orange board's boot overlays, physical pin mapping, DAC path, and USB role
 are board-specific. Do not adapt the Raspberry commands or pin numbers by

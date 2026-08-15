@@ -1,5 +1,5 @@
 param(
-  [string]$Target = "pi@192.168.0.211",
+  [string]$Target = "pi@192.168.0.218",
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$RemoteRepo = "/home/pi/octessera-dev",
   [string]$Service = "octessera.service",
@@ -13,26 +13,39 @@ $ErrorActionPreference = "Stop"
 Assert-RaspberryBoardProfile $BoardProfile
 Assert-OctesseraServiceName $Service
 
-$sshArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes", $Target)
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
+$script:PiTransportExitCode = 0
+$script:PiFailureExitCode = 0
 
 function Invoke-PiSsh {
   param([string]$Command)
-  if ($Command.Contains("`n")) {
-    $Command | ssh @sshArgs "tr -d '\r' | bash -s"
-  } else {
-    ssh @sshArgs $Command
+
+  $payloadPath = Join-Path $env:TEMP ("octessera-pi-provision-command-" + [guid]::NewGuid().ToString("N") + ".sh")
+  try {
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($payloadPath, $Command, $encoding)
+    $output = @(& $transport "ssh-payload" -Target $Target -Key $Key $payloadPath)
+    $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  } finally {
+    Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
   }
-  if ($LASTEXITCODE -ne 0) {
-    throw "ssh command failed with exit code $LASTEXITCODE"
+  if ($script:PiTransportExitCode -ne 0) {
+    $script:PiFailureExitCode = $script:PiTransportExitCode
+    throw "ssh command failed with exit code $script:PiTransportExitCode"
   }
+  $output
 }
 
 function Copy-ToPi {
   param([string]$Source, [string]$Destination)
-  scp -i $Key -o IdentitiesOnly=yes $Source "${Target}:$Destination"
-  if ($LASTEXITCODE -ne 0) {
-    throw "scp failed with exit code $LASTEXITCODE"
+
+  $output = @(& $transport "scp" -Target $Target -Key $Key $Source "${Target}:$Destination")
+  $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  if ($script:PiTransportExitCode -ne 0) {
+    $script:PiFailureExitCode = $script:PiTransportExitCode
+    throw "scp failed with exit code $script:PiTransportExitCode"
   }
+  $output
 }
 
 function ConvertTo-ShellSingleQuoted {
@@ -48,6 +61,7 @@ $deviceUpdateRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\devi
 $deviceUpdateParent = Split-Path -Parent $deviceUpdateRoot
 $deviceUpdateName = Split-Path -Leaf $deviceUpdateRoot
 $archive = Join-Path $env:TEMP "octessera-pi-provision.tar.gz"
+$exitCode = 0
 
 try {
   if (Test-Path -LiteralPath $archive) {
@@ -81,8 +95,16 @@ rm -rf '$remotePackage' '$remoteArchive'
 "@
   Invoke-PiSsh $provisionCommand
 }
+catch {
+  $exitCode = if ($script:PiFailureExitCode -ne 0) { $script:PiFailureExitCode } else { 1 }
+  [Console]::Error.WriteLine($_.Exception.Message)
+}
 finally {
   if (Test-Path -LiteralPath $archive) {
     Remove-Item -LiteralPath $archive -Force
   }
+}
+
+if ($exitCode -ne 0) {
+  exit $exitCode
 }

@@ -3,22 +3,18 @@ import fcntl
 import importlib.util
 from importlib.machinery import SourceFileLoader
 import os
-import math
-import re
 import stat
 import signal
 import struct
 import subprocess
 import sys
 import time
-import zlib
 
 _handoff_loader = SourceFileLoader("octessera_orange_oled_handoff", os.path.join(os.path.dirname(__file__), "octessera-orange-oled-handoff.py"))
 _handoff_spec = importlib.util.spec_from_loader("octessera_orange_oled_handoff", _handoff_loader)
 _handoff_module = importlib.util.module_from_spec(_handoff_spec)
 _handoff_spec.loader.exec_module(_handoff_module)
 Handoff = _handoff_module.Handoff
-validate_marker = _handoff_module.validate_marker
 RUNTIME_USER = _handoff_module.RUNTIME_USER
 _lifecycle_loader = SourceFileLoader("octessera_orange_oled_lifecycle", os.path.join(os.path.dirname(__file__), "octessera-orange-oled-lifecycle.py"))
 _lifecycle_spec = importlib.util.spec_from_loader("octessera_orange_oled_lifecycle", _lifecycle_loader)
@@ -33,18 +29,26 @@ SPI_DEVICE = "/dev/spidev1.0"
 SPI_SPEED = 16_000_000
 WIDTH = 128
 HEIGHT = 128
-MARK_SOURCE = "/usr/share/octessera/oled/octessera-mark.svg"
-WORDMARK_SOURCE = "/usr/share/octessera/oled/octessera-wordmark.svg"
-BOOT_SWEEP_FRAME_COUNT = 24
-BOOT_SWEEP_DURATION_NS = 1_000_000_000
+FRAME_BYTES = WIDTH * HEIGHT * 2
+BOOT_RGB565_SOURCE = "/usr/share/octessera/oled/octessera-pi-booting.rgb565"
+SHUTDOWN_RGB565_SOURCE = "/usr/share/octessera/oled/octessera-pi-shutdown.rgb565"
+BOOT_SWEEP_FRAME_COUNT = 30
+BOOT_SWEEP_DURATION_NS = 1_200_000_000
+BOOT_SWEEP_REST_NS = 2_000_000_000
+BOOT_SWEEP_REST_CHECK_NS = 50_000_000
 BOOT_SWEEP_FRAME_DELAY_SECONDS = BOOT_SWEEP_DURATION_NS / 1_000_000_000 / BOOT_SWEEP_FRAME_COUNT
 BOOT_SWEEP_BAND_WIDTH = 8
-BOOT_SWEEP_LEAN_PIXELS = 8
-BOOT_SWEEP_COLORS_RGB565 = (0x07FF, 0xFFE0, 0x07E0, 0xF81F)
-BOOT_SWEEP_COLORS = ((0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 255))
-BOOT_SWEEP_CONTRACT_SHA256 = "698a1f3d2527c1d3c49028f33c7905db931985e3e30c3759ff9bdbebc9e7e754"
+BOOT_SWEEP_SEPARATOR_WIDTH = 4
+BOOT_SWEEP_SEPARATOR_COLOR_RGB565 = 0xFFFF
+BOOT_SWEEP_LEAN_PIXELS = -1
+BOOT_SWEEP_LEAN_DENOMINATOR = 1
+BOOT_SWEEP_TRAIN_WIDTH = 48
+BOOT_SWEEP_COLORS_RGB565 = (0xF81F, 0x07E0, 0xFFE0, 0x07FF)
+BOOT_SWEEP_COLORS = ((255, 0, 255), (0, 255, 0), (255, 255, 0), (0, 255, 255))
+BOOT_SWEEP_CONTRACT_SHA256 = "18dabe8ebf4ba27dc36c23c0a5f3d91ed816f205ce796583b19c3ba4b9e7a2af"
 NATIVE_HANDOFF_PHASES = {"released", "native_owned", "first_menu_rendered"}
 NATIVE_HANDOFF_TIMEOUT_SECONDS = 30
+READY_NOTIFY_REQUIRED_ENV = "OCTESSERA_OLED_READY_NOTIFY_REQUIRED"
 SPI_IOC_WR_MODE = 0x40016B01
 SPI_IOC_WR_BITS_PER_WORD = 0x40016B03
 SPI_IOC_WR_MAX_SPEED_HZ = 0x40046B04
@@ -62,9 +66,15 @@ class GpioLines:
         self.processes = {}
 
     def set(self, name, offset, value):
-        previous = self.processes.pop(name, None)
+        previous = self.processes.get(name)
         if previous is not None:
-            self._stop(previous)
+            previous_value, previous_process = previous
+            if previous_process.poll() is not None:
+                raise RuntimeError(f"H618 GPIO {name} holder exited unexpectedly")
+            if previous_value == value:
+                return
+            self.processes.pop(name)
+            self._stop(previous_process)
         process = subprocess.Popen(
             ["gpioset", "--chip", self.chip, f"{offset}={value}"],
             stdout=subprocess.DEVNULL,
@@ -75,7 +85,7 @@ class GpioLines:
         if process.poll() is not None:
             error = process.stderr.read().strip()
             raise RuntimeError(f"could not set H618 GPIO {offset}: {error}")
-        self.processes[name] = process
+        self.processes[name] = (value, process)
 
     @staticmethod
     def _stop(process):
@@ -88,7 +98,7 @@ class GpioLines:
             process.wait(timeout=1)
 
     def close(self):
-        for process in self.processes.values():
+        for _, process in self.processes.values():
             self._stop(process)
         self.processes.clear()
 
@@ -160,107 +170,39 @@ class Oled:
         self.command(0xAF)
 
     def frame(self, pixels):
+        self.begin_frame_stream()
+        self.stream_frame(pixels)
+
+    def begin_frame_stream(self):
         self.command(0x15, 0, WIDTH - 1)
         self.command(0x75, 0, HEIGHT - 1)
         self.command(0x5C)
-        self.data(pixels)
+        self.gpio.set("dc", GPIO_DC, 1)
 
+    def stream_frame(self, pixels):
+        if len(pixels) != FRAME_BYTES:
+            raise ValueError(f"OLED stream frame must contain exactly {FRAME_BYTES} bytes")
+        self.write(pixels)
 
 def open_cleanup_oled():
     return Oled()
 
 
-def path_points(path):
-    numbers = [float(value) for value in re.findall(r"-?\d+(?:\.\d+)?", path)]
-    return [(numbers[index], numbers[index + 1]) for index in range(0, len(numbers), 2)]
-
-
-def source_bounds(paths, circles):
-    points = [point for points in paths for point in points]
-    points.extend((x - radius, y - radius) for x, y, radius in circles)
-    points.extend((x + radius, y + radius) for x, y, radius in circles)
-    return min(x for x, _ in points), min(y for _, y in points), max(x for x, _ in points), max(y for _, y in points)
-
-
-def transform(point, bounds, target, center):
-    minimum_x, minimum_y, maximum_x, maximum_y = bounds
-    scale = target / max(maximum_x - minimum_x, maximum_y - minimum_y)
-    source_center = ((minimum_x + maximum_x) / 2, (minimum_y + maximum_y) / 2)
-    return ((point[0] - source_center[0]) * scale + center[0], (point[1] - source_center[1]) * scale + center[1])
-
-
-def pixel(canvas, x, y, value=255):
-    if 0 <= x < WIDTH and 0 <= y < HEIGHT:
-        canvas[y][x] = max(canvas[y][x], value)
-
-
-def line(canvas, start, end, width):
-    distance = max(abs(end[0] - start[0]), abs(end[1] - start[1]))
-    steps = max(1, math.ceil(distance * 2))
-    radius = width / 2
-    for step in range(steps + 1):
-        fraction = step / steps
-        x = start[0] + (end[0] - start[0]) * fraction
-        y = start[1] + (end[1] - start[1]) * fraction
-        for target_y in range(math.floor(y - radius), math.ceil(y + radius) + 1):
-            for target_x in range(math.floor(x - radius), math.ceil(x + radius) + 1):
-                if (target_x + 0.5 - x) ** 2 + (target_y + 0.5 - y) ** 2 <= radius**2:
-                    pixel(canvas, target_x, target_y)
-
-
-def disk(canvas, center, radius):
-    for y in range(math.floor(center[1] - radius), math.ceil(center[1] + radius) + 1):
-        for x in range(math.floor(center[0] - radius), math.ceil(center[0] + radius) + 1):
-            if (x + 0.5 - center[0]) ** 2 + (y + 0.5 - center[1]) ** 2 <= radius**2:
-                pixel(canvas, x, y)
-
-
-def fill_polygon(canvas, points):
-    minimum_y = max(0, math.floor(min(y for _, y in points)))
-    maximum_y = min(HEIGHT - 1, math.ceil(max(y for _, y in points)))
-    for y in range(minimum_y, maximum_y + 1):
-        intersections = []
-        for start, end in zip(points, points[1:] + points[:1]):
-            if (start[1] > y) != (end[1] > y):
-                intersections.append(start[0] + (y - start[1]) * (end[0] - start[0]) / (end[1] - start[1]))
-        intersections.sort()
-        for start, end in zip(intersections[::2], intersections[1::2]):
-            for x in range(math.floor(start), math.ceil(end) + 1):
-                pixel(canvas, x, y)
-
-
-def read_svg(path):
-    source = open(path, encoding="utf-8").read()
-    paths = [path_points(value) for value in re.findall(r'<path\s+d="([^"]+)"', source)]
-    circles = [tuple(float(value) for value in match) for match in re.findall(r'<circle\s+cx="([^"]+)"\s+cy="([^"]+)"\s+r="([^"]+)"', source)]
-    return paths, circles
-
-
 def logo_canvas(kind):
-    mark_paths, circles = read_svg(MARK_SOURCE)
-    canvas = [[0 for _ in range(WIDTH)] for _ in range(HEIGHT)]
-    mark_bounds = source_bounds(mark_paths, circles)
-    target = 58 if kind == "boot" else 80
-    center = (64, 52) if kind == "boot" else (64, 64)
-    for points in mark_paths:
-        transformed = [transform(point, mark_bounds, target, center) for point in points]
-        for start, end in zip(transformed, transformed[1:]):
-            line(canvas, start, end, 6.5 * target / max(mark_bounds[2] - mark_bounds[0], mark_bounds[3] - mark_bounds[1]))
-    for x, y, radius in circles:
-        disk(canvas, transform((x, y), mark_bounds, target, center), radius * target / max(mark_bounds[2] - mark_bounds[0], mark_bounds[3] - mark_bounds[1]))
-    if kind == "boot":
-        wordmark_paths, _ = read_svg(WORDMARK_SOURCE)
-        for points in wordmark_paths:
-            transformed = [((point[0] / 52) * 106 + 11, (point[1] / 7) * 16 + 85) for point in points]
-            fill_polygon(canvas, transformed)
-    return canvas
+    source = BOOT_RGB565_SOURCE if kind == "boot" else SHUTDOWN_RGB565_SOURCE
+    with open(source, "rb") as handle:
+        pixels = bytearray(handle.read())
+    expected = WIDTH * HEIGHT * 2
+    if len(pixels) != expected:
+        raise ValueError(f"{source} must contain exactly {expected} RGB565 bytes")
+    return pixels
 
 
 def sweep_band_left(frame, y):
     if not 0 <= frame < BOOT_SWEEP_FRAME_COUNT:
         raise ValueError(f"boot sweep frame must be in [0, {BOOT_SWEEP_FRAME_COUNT})")
-    origin = -40 + (frame * 168) // (BOOT_SWEEP_FRAME_COUNT - 1)
-    return origin + (y * BOOT_SWEEP_LEAN_PIXELS) // (HEIGHT - 1)
+    origin = 255 - (frame * 303) // (BOOT_SWEEP_FRAME_COUNT - 1)
+    return origin + (y * BOOT_SWEEP_LEAN_PIXELS) // BOOT_SWEEP_LEAN_DENOMINATOR
 
 
 def sweep_deadline_offset_ns(frame):
@@ -285,17 +227,15 @@ def apply_sweep(rotated, frame):
                 continue
             left = sweep_band_left(frame, contract_y)
             local_x = x - left
-            if 0 <= local_x < 32:
-                rotated[offset:offset + 2] = BOOT_SWEEP_COLORS_RGB565[int(local_x // 8)].to_bytes(2, "big")
+            if 0 <= local_x < BOOT_SWEEP_TRAIN_WIDTH:
+                band_position = local_x % (BOOT_SWEEP_BAND_WIDTH + BOOT_SWEEP_SEPARATOR_WIDTH)
+                color = BOOT_SWEEP_SEPARATOR_COLOR_RGB565 if band_position < BOOT_SWEEP_SEPARATOR_WIDTH else BOOT_SWEEP_COLORS_RGB565[(local_x - BOOT_SWEEP_SEPARATOR_WIDTH) // (BOOT_SWEEP_BAND_WIDTH + BOOT_SWEEP_SEPARATOR_WIDTH)]
+                rotated[offset:offset + 2] = color.to_bytes(2, "big")
     return rotated
 
 
 def render_canvas(canvas, frame=None):
-    pixels = bytearray()
-    for row in canvas:
-        for value in row:
-            pixels.extend(rgb565(value).to_bytes(2, "big"))
-    rotated = rotate_clockwise_rgb565(pixels)
+    rotated = rotate_clockwise_rgb565(canvas)
     if frame is None:
         return rotated
     return apply_sweep(rotated, frame)
@@ -303,10 +243,6 @@ def render_canvas(canvas, frame=None):
 
 def render_logo(kind, frame=None):
     return render_canvas(logo_canvas(kind), frame)
-
-
-def rgb565(value):
-    return ((value & 0xF8) << 8) | ((value & 0xFC) << 3) | (value >> 3)
 
 
 def rotate_clockwise_rgb565(pixels):
@@ -329,19 +265,38 @@ def _sleep_until(deadline):
 
 
 def render_sweep(oled, canvas):
+    frames = [render_canvas(canvas, frame) for frame in range(BOOT_SWEEP_FRAME_COUNT)]
+    clean_frame = render_canvas(canvas)
+    notify_systemd_ready()
+    oled.begin_frame_stream()
     cycle_start = time.monotonic_ns()
     for frame in range(BOOT_SWEEP_FRAME_COUNT):
         _sleep_until(cycle_start + sweep_deadline_offset_ns(frame))
-        oled.frame(render_canvas(canvas, frame))
+        oled.stream_frame(frames[frame])
+    _sleep_until(cycle_start + BOOT_SWEEP_DURATION_NS)
+    oled.stream_frame(clean_frame)
+
+
+def notify_systemd_ready():
+    if os.environ.get(READY_NOTIFY_REQUIRED_ENV) != "1":
+        return
+    notify_socket = os.environ.get("NOTIFY_SOCKET")
+    if not notify_socket:
+        raise RuntimeError("systemd OLED readiness notification is required but NOTIFY_SOCKET is missing")
+    import socket
+
+    address = notify_socket
+    if address.startswith("@"):
+        address = "\0" + address[1:]
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sender:
+            sender.sendto(b"READY=1\n", address)
+    except OSError as error:
+        raise RuntimeError(f"systemd OLED readiness notification failed: {error}") from error
 
 
 def _run_once():
-    oled = Oled()
-    try:
-        oled.initialize()
-        render_sweep(oled, logo_canvas("boot"))
-    finally:
-        oled.close(False)
+    _run_static("boot")
 
 
 def _run_static(kind, adopt=False):
@@ -394,7 +349,7 @@ def _run_utility(kind, timeout_seconds):
 
 
 def run(kind):
-    if kind == "boot-once":
+    if kind in {"boot-once", "boot-static"}:
         _run_once()
     elif kind == "boot-loop":
         _run_loop()
@@ -415,8 +370,8 @@ def run(kind):
 
 
 def parse_mode(args):
-    if len(args) != 1 or args[0] not in {"boot-once", "boot-loop", "resume", "sleep", "shutdown"}:
-        raise ValueError("usage: octessera-orange-oled-logo boot-once|boot-loop|resume|sleep|shutdown")
+    if len(args) != 1 or args[0] not in {"boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown"}:
+        raise ValueError("usage: octessera-orange-oled-logo boot-once|boot-static|boot-loop|resume|sleep|shutdown")
     return args[0]
 
 

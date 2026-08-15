@@ -2,6 +2,10 @@ use super::oled_output::{render_oled_if_changed, OledRenderDevice, OLED_RETRY_IN
 use super::*;
 use crate::oled_frame_cache::OledFramePublication;
 use platform_core::palette;
+use playback_runtime::oled_frame::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
+use playback_runtime::{
+    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery,
+};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
@@ -40,6 +44,22 @@ pub(super) fn menu_snapshot() -> Value {
         "eventDotOn": true,
         "cpuLoadRatio": 0.0
     })
+}
+
+pub(super) fn producer_error(
+    domain: RuntimeErrorDomain,
+    code: RuntimeErrorCode,
+    operation: RuntimeOperation,
+    message: Option<&str>,
+) -> Value {
+    serde_json::to_value(RuntimeErrorMetadata::new(
+        domain,
+        code,
+        operation,
+        RuntimeRecovery::RetainLastGood,
+        message.map(str::to_owned),
+    ))
+    .unwrap()
 }
 
 struct TestOled {
@@ -113,6 +133,103 @@ fn midi_input_runtime_error_uses_concise_native_presentation() {
     assert_eq!(pixel(&frame, 0, 0), 0);
     assert_ne!(pixel(&frame, 5, 5), 0);
     assert_ne!(pixel(&frame, 6, 18), 0);
+}
+
+#[test]
+fn runtime_error_layout_wraps_and_sanitizes_representative_producers() {
+    for error in [
+        producer_error(
+            RuntimeErrorDomain::Audio,
+            RuntimeErrorCode::Unavailable,
+            RuntimeOperation::AudioCommand,
+            Some("USB Audio Codec hw:2,0"),
+        ),
+        producer_error(
+            RuntimeErrorDomain::Midi,
+            RuntimeErrorCode::Unavailable,
+            RuntimeOperation::MidiListInputs,
+            Some("MIDI unavailable\nALSA details\tkept in logs"),
+        ),
+        producer_error(
+            RuntimeErrorDomain::Sample,
+            RuntimeErrorCode::OperationFailed,
+            RuntimeOperation::SampleList,
+            Some("/home/pi/samples/very_long_name.wav"),
+        ),
+        producer_error(
+            RuntimeErrorDomain::Sample,
+            RuntimeErrorCode::OperationFailed,
+            RuntimeOperation::SamplePreview,
+            Some("/mnt/🍄/音色/very_long_device_id.wav"),
+        ),
+        producer_error(
+            RuntimeErrorDomain::Runtime,
+            RuntimeErrorCode::Unavailable,
+            RuntimeOperation::SetupPortal,
+            Some("handoff timeout; try again"),
+        ),
+        producer_error(
+            RuntimeErrorDomain::Runtime,
+            RuntimeErrorCode::OperationFailed,
+            RuntimeOperation::DeviceUpdate,
+            Some("health validation failed"),
+        ),
+        producer_error(
+            RuntimeErrorDomain::Serialization,
+            RuntimeErrorCode::InvalidPayload,
+            RuntimeOperation::Snapshot,
+            Some("bad\u{0000}metadata from runtime"),
+        ),
+        producer_error(
+            RuntimeErrorDomain::Storage,
+            RuntimeErrorCode::OperationFailed,
+            RuntimeOperation::StoreLoadDefault,
+            Some("disk full while loading default preset"),
+        ),
+    ] {
+        let rows = runtime_error_rows(&super::oled::runtime_error_metadata(&error));
+        assert_eq!(rows.len(), ERROR_ROW_COUNT);
+        assert!(rows
+            .iter()
+            .all(|row| row.chars().count() <= ERROR_ROW_WIDTH));
+    }
+}
+
+#[test]
+fn runtime_error_layout_ends_truncated_diagnostics_with_ellipsis() {
+    let error = json!({
+        "domain": "audio",
+        "code": "device_missing",
+        "operation": "open_default_device",
+        "message": "this is a deliberately long diagnostic path that must not escape the OLED card"
+    });
+    let rows = runtime_error_rows(&super::oled::runtime_error_metadata(&error));
+    assert!(rows
+        .iter()
+        .rev()
+        .find(|row| !row.is_empty())
+        .is_some_and(|row| row.ends_with("...")));
+    assert!(rows
+        .iter()
+        .all(|row| row.chars().count() <= ERROR_ROW_WIDTH));
+}
+
+#[test]
+fn runtime_error_frame_has_fixed_size_and_brightness_scaling() {
+    let mut snapshot = menu_snapshot();
+    snapshot["runtimeError"] = json!({
+        "domain": "power",
+        "code": "shutdown_failed",
+        "operation": "request_shutdown",
+        "message": "not accepted"
+    });
+    snapshot["settings"]["displayBrightness"] = json!(0);
+    let dark = oled_frame(&snapshot);
+    snapshot["settings"]["displayBrightness"] = json!(100);
+    let bright = oled_frame(&snapshot);
+    assert_eq!(dark.len(), OLED_FRAME_BYTES);
+    assert_eq!(bright.len(), OLED_FRAME_BYTES);
+    assert_ne!(dark, bright);
 }
 
 #[test]

@@ -315,6 +315,9 @@ jobs:
       - name: Validate fast deployment target handling
         shell: pwsh
         run: ./tools/pi/test-deploy-pi-fast.ps1
+      - name: Validate Pi provisioning wrapper flags
+        shell: pwsh
+        run: ./tools/pi/test-provision-pi.ps1
       - name: Validate Orange profile PowerShell scripts
         shell: pwsh
         run: |

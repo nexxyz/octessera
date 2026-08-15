@@ -32,8 +32,8 @@ spec = importlib.util.spec_from_loader("octessera_orange_oled_logo", SourceFileL
 assert spec is not None and spec.loader is not None
 logo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(logo)
-logo.MARK_SOURCE = str(REPOSITORY / "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg")
-logo.WORDMARK_SOURCE = str(REPOSITORY / "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg")
+logo.BOOT_RGB565_SOURCE = str(REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565")
+logo.SHUTDOWN_RGB565_SOURCE = str(REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565")
 contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
 
 
@@ -41,44 +41,92 @@ def exact(value, keys):
     assert set(value) == set(keys)
 
 
-exact(contract, ["schema_version", "strictness", "coordinate_space", "source_pixel_rule", "bands", "slant", "timing", "travel", "golden_samples"])
+exact(contract, ["schema_version", "strictness", "coordinate_space", "source_pixel_rule", "bands", "slant", "timing", "wire_budget", "travel", "golden_samples"])
 assert contract["schema_version"] == 1
 exact(contract["strictness"], ["unknown_keys", "missing_keys"])
 assert contract["strictness"] == {"unknown_keys": "reject", "missing_keys": "reject"}
-exact(contract["coordinate_space"], ["orientation", "width_px", "height_px", "x_direction", "y_direction"])
+exact(contract["coordinate_space"], ["orientation", "width_px", "height_px", "x_direction", "y_direction", "physical_motion"])
+assert contract["coordinate_space"]["x_direction"] == "leftward_controller_axis"
+assert contract["coordinate_space"]["physical_motion"] == "left_to_right_after_mounted_ssd1351_remap"
 exact(contract["source_pixel_rule"], ["pixel_format", "recolor_match_rgb565", "match_action", "non_match_action"])
-exact(contract["bands"], ["order", "band_count", "band_width_px", "train_width_px", "items"])
+exact(contract["bands"], ["order", "band_count", "band_width_px", "separator_width_px", "separator_color_rgb565", "separator_semantics", "train_width_px", "items"])
 for item in contract["bands"]["items"]:
     exact(item, ["band_index", "name", "color_rgb565", "width_px"])
 exact(contract["slant"], ["offset_formula", "offset_numerator_px", "offset_denominator_rows", "row_y_min", "row_y_max", "bottom_row_offset_px", "top_row_offset_px"])
+assert contract["slant"]["offset_formula"] == "-row_y"
 exact(contract["timing"], ["cycle_duration_ns", "frames_per_cycle", "frame_index_min", "frame_index_max", "frame_deadline_offset_formula", "frame_deadline_reference", "scheduling_mode", "cumulative_sleep_scheduling"])
+exact(contract["wire_budget"], ["spi_clock_hz", "address_command_bytes_per_cycle", "frame_data_bytes", "conservative_command_data_bytes_per_frame", "utilization_limit_percent", "cycle_frame_count", "cycle_payload_duration_ns", "cycle_utilization_percent", "utilization_headroom_to_limit_percent", "accepted_frame_count", "rejected_frame_count"])
 exact(contract["travel"], ["bottom_row_origin_formula", "frame_index_min", "frame_index_max", "start_bottom_row_origin_px", "end_bottom_row_origin_px", "travel_distance_px", "pixel_membership", "endpoint_blank_frames", "wrap"])
-exact(contract["travel"]["pixel_membership"], ["slanted_origin_formula", "local_x_formula", "in_band_condition", "band_index_formula", "outside_action", "inside_action"])
-exact(contract["travel"]["endpoint_blank_frames"], ["frame_indices", "intentional", "extra_pause_inserted", "frame_0", "frame_23"])
-exact(contract["travel"]["endpoint_blank_frames"]["frame_0"], ["bottom_row_origin_px", "top_row_origin_px", "rightmost_train_pixel_px", "fully_offscreen_left"])
-exact(contract["travel"]["endpoint_blank_frames"]["frame_23"], ["bottom_row_origin_px", "top_row_origin_px", "leftmost_train_pixel_px", "fully_offscreen_right"])
+exact(contract["travel"]["pixel_membership"], ["slanted_origin_formula", "local_x_formula", "in_band_condition", "band_index_formula", "separator_condition", "separator_action", "outside_action", "inside_action"])
+exact(contract["travel"]["endpoint_blank_frames"], ["frame_indices", "intentional", "extra_pause_inserted", "frame_0", "frame_29"])
+exact(contract["travel"]["endpoint_blank_frames"]["frame_0"], ["bottom_row_origin_px", "top_row_origin_px", "leftmost_train_pixel_px", "fully_offscreen_right"])
+exact(contract["travel"]["endpoint_blank_frames"]["frame_29"], ["bottom_row_origin_px", "top_row_origin_px", "rightmost_train_pixel_px", "fully_offscreen_left"])
 exact(contract["travel"]["wrap"], ["after_frame_index", "next_frame_index", "extra_pause_inserted"])
 exact(contract["golden_samples"], ["pixel_samples", "geometry_samples", "endpoint_assertions"])
+pixel_identities = set()
 for sample in contract["golden_samples"]["pixel_samples"]:
     exact(sample, ["sample_group", "frame_index", "x", "y", "source_rgb565", "expected_rgb565"])
     assert all(isinstance(sample[key], int) for key in ("frame_index", "x", "y"))
     assert all(isinstance(sample[key], str) and len(sample[key]) == 4 for key in ("source_rgb565", "expected_rgb565"))
+    identity = (sample["frame_index"], sample["x"], sample["y"], sample["source_rgb565"])
+    assert identity not in pixel_identities, f"duplicate pixel golden sample identity: {identity}"
+    pixel_identities.add(identity)
+geometry_identities = set()
 for sample in contract["golden_samples"]["geometry_samples"]:
     geometry_keys = ["sample_group", "frame_index", "row_y", "expected_slant_offset_px", "expected_slanted_origin_px"]
     if sample["row_y"] == 0:
         geometry_keys.append("expected_bottom_row_origin_px")
     exact(sample, geometry_keys)
+    identity = (sample["frame_index"], sample["row_y"])
+    assert identity not in geometry_identities, f"duplicate geometry golden sample identity: {identity}"
+    geometry_identities.add(identity)
 endpoint = contract["golden_samples"]["endpoint_assertions"]
-exact(endpoint, ["frame_0", "frame_23", "cycle"])
-exact(endpoint["frame_0"], ["expected_bottom_row_origin_px", "expected_deadline_offset_ns", "expected_next_frame_index", "fully_offscreen_left"])
-exact(endpoint["frame_23"], ["expected_bottom_row_origin_px", "expected_deadline_offset_ns", "expected_next_frame_index", "fully_offscreen_right"])
+exact(endpoint, ["frame_0", "frame_29", "cycle"])
+exact(endpoint["frame_0"], ["expected_bottom_row_origin_px", "expected_deadline_offset_ns", "expected_next_frame_index", "fully_offscreen_right"])
+exact(endpoint["frame_29"], ["expected_bottom_row_origin_px", "expected_deadline_offset_ns", "expected_next_frame_index", "fully_offscreen_left"])
 exact(endpoint["cycle"], ["expected_frame_count", "expected_first_frame_index", "expected_last_frame_index", "expected_wrap_frame_index", "extra_pause_inserted"])
 
 assert hashlib.sha256(CONTRACT.read_bytes()).hexdigest() == logo.BOOT_SWEEP_CONTRACT_SHA256
-assert logo.BOOT_SWEEP_FRAME_COUNT == contract["timing"]["frames_per_cycle"] == 24
+assert logo.BOOT_SWEEP_FRAME_COUNT == contract["timing"]["frames_per_cycle"] == 30
 assert logo.BOOT_SWEEP_DURATION_NS == contract["timing"]["cycle_duration_ns"]
+assert logo.BOOT_SWEEP_REST_NS == 2_000_000_000
+assert logo.BOOT_SWEEP_REST_CHECK_NS == 50_000_000
+assert logo.BOOT_SWEEP_SEPARATOR_WIDTH == contract["bands"]["separator_width_px"] == 4
+assert logo.BOOT_SWEEP_SEPARATOR_COLOR_RGB565 == int(contract["bands"]["separator_color_rgb565"], 16) == 0xFFFF
+assert logo.BOOT_SWEEP_TRAIN_WIDTH == contract["bands"]["train_width_px"] == 48
 assert logo.BOOT_SWEEP_COLORS_RGB565 == tuple(int(item["color_rgb565"], 16) for item in contract["bands"]["items"])
-assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-loop", "resume", "sleep", "shutdown")] == ["boot-once", "boot-loop", "resume", "sleep", "shutdown"]
+assert contract["wire_budget"]["spi_clock_hz"] == 16_000_000
+assert contract["wire_budget"]["address_command_bytes_per_cycle"] == 7
+assert contract["wire_budget"]["frame_data_bytes"] == logo.FRAME_BYTES == 32_768
+assert contract["wire_budget"]["conservative_command_data_bytes_per_frame"] == 32_775
+assert contract["wire_budget"]["utilization_limit_percent"] == 80
+assert contract["wire_budget"]["cycle_frame_count"] == 30
+assert contract["wire_budget"]["cycle_payload_duration_ns"] == 491_625_000
+assert contract["wire_budget"]["cycle_utilization_percent"] == 40.96875
+assert contract["wire_budget"]["utilization_headroom_to_limit_percent"] == 39.03125
+assert contract["wire_budget"]["accepted_frame_count"] == 58
+assert contract["wire_budget"]["rejected_frame_count"] == 59
+def under_wire_limit(frame_count):
+    return frame_count * 32_775 * 8 * 100 * 1_000_000_000 <= 16_000_000 * logo.BOOT_SWEEP_DURATION_NS * 80
+assert under_wire_limit(58)
+assert not under_wire_limit(59)
+assert [logo.sweep_deadline_offset_ns(frame) for frame in range(30)] == [frame * 40_000_000 for frame in range(30)]
+assert logo.sweep_band_left(15, 0) == 99
+assert logo.sweep_band_left(15, 127) == -28
+assert logo.sweep_band_left(15, 127) < logo.sweep_band_left(15, 0)
+assert contract["travel"]["start_bottom_row_origin_px"] == 255
+assert contract["travel"]["end_bottom_row_origin_px"] == -48
+assert contract["travel"]["travel_distance_px"] == -303
+for frame in range(logo.BOOT_SWEEP_FRAME_COUNT):
+    assert logo.sweep_band_left(frame, 127) - logo.sweep_band_left(frame, 0) == -127
+for first in range(logo.BOOT_SWEEP_FRAME_COUNT):
+    for second in range(first, logo.BOOT_SWEEP_FRAME_COUNT):
+        delta = logo.sweep_band_left(second, 0) - logo.sweep_band_left(first, 0)
+        assert all(logo.sweep_band_left(second, row) - logo.sweep_band_left(first, row) == delta for row in (0, 64, 127))
+assert logo.logo_canvas("boot") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565").read_bytes())
+assert logo.logo_canvas("shutdown") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565").read_bytes())
+assert logo.logo_canvas("shutdown") == logo.logo_canvas("boot")
+assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown")] == ["boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown"]
 for invalid in ([], ["boot"], ["boot-once", "sleep"], ["unknown"]):
     try:
         logo.parse_mode(invalid)
@@ -86,7 +134,6 @@ for invalid in ([], ["boot"], ["boot-once", "sleep"], ["unknown"]):
         pass
     else:
         raise AssertionError(f"invalid OLED mode accepted: {invalid}")
-
 for sample in contract["golden_samples"]["pixel_samples"]:
     raw = bytearray(logo.WIDTH * logo.HEIGHT * 2)
     source_x = logo.HEIGHT - 1 - sample["y"]
@@ -96,10 +143,9 @@ for sample in contract["golden_samples"]["pixel_samples"]:
     rendered = logo.apply_sweep(logo.rotate_clockwise_rgb565(raw), sample["frame_index"])
     destination = ((logo.HEIGHT - 1 - sample["y"]) * logo.WIDTH + sample["x"]) * 2
     assert rendered[destination:destination + 2] == bytes.fromhex(sample["expected_rgb565"]), sample
-
 for sample in (
-    {"frame_index": 6, "x": 3, "y": 1, "source_rgb565": "FFFF", "expected_rgb565": "07FF"},
-    {"frame_index": 6, "x": 10, "y": 126, "source_rgb565": "FFFF", "expected_rgb565": "07FF"},
+    {"frame_index": 6, "x": 3, "y": 1, "source_rgb565": "FFFF", "expected_rgb565": "FFFF"},
+    {"frame_index": 6, "x": 10, "y": 126, "source_rgb565": "FFFF", "expected_rgb565": "FFFF"},
 ):
     raw = bytearray(logo.WIDTH * logo.HEIGHT * 2)
     source_x = logo.HEIGHT - 1 - sample["y"]
@@ -109,24 +155,47 @@ for sample in (
     rendered = logo.apply_sweep(logo.rotate_clockwise_rgb565(raw), sample["frame_index"])
     destination = ((logo.HEIGHT - 1 - sample["y"]) * logo.WIDTH + sample["x"]) * 2
     assert rendered[destination:destination + 2] == bytes.fromhex(sample["expected_rgb565"]), sample
-
 for sample in contract["golden_samples"]["geometry_samples"]:
     frame = sample["frame_index"]
     row = sample["row_y"]
+    bottom_origin = logo.sweep_band_left(frame, 0)
+    slant = row * logo.BOOT_SWEEP_LEAN_PIXELS // logo.BOOT_SWEEP_LEAN_DENOMINATOR
+    assert sample["expected_slant_offset_px"] == slant
     if row == 0:
-        assert -40 + (frame * 168) // 23 == sample["expected_bottom_row_origin_px"]
-    assert (row * 8) // 127 == sample["expected_slant_offset_px"]
+        assert bottom_origin == sample["expected_bottom_row_origin_px"]
     assert logo.sweep_band_left(frame, row) == sample["expected_slanted_origin_px"]
-assert logo.sweep_band_left(0, 127) + 31 == -1
-assert logo.sweep_band_left(23, 0) == 128
-assert logo.sweep_deadline_offset_ns(0) == 0
-assert logo.sweep_deadline_offset_ns(23) == 958333333
-
+travel_endpoint = contract["travel"]["endpoint_blank_frames"]
+for frame_name, frame_index in (("frame_0", 0), ("frame_29", logo.BOOT_SWEEP_FRAME_COUNT - 1)):
+    bottom_origin = logo.sweep_band_left(frame_index, 0)
+    top_origin = logo.sweep_band_left(frame_index, logo.HEIGHT - 1)
+    endpoint = travel_endpoint[frame_name]
+    assert endpoint["bottom_row_origin_px"] == bottom_origin
+    assert endpoint["top_row_origin_px"] == top_origin
+    if frame_index == 0:
+        leftmost = top_origin
+        assert endpoint["leftmost_train_pixel_px"] == leftmost
+        assert endpoint["fully_offscreen_right"] == (leftmost >= logo.WIDTH)
+    else:
+        rightmost = bottom_origin + logo.BOOT_SWEEP_TRAIN_WIDTH - 1
+        assert endpoint["rightmost_train_pixel_px"] == rightmost
+        assert endpoint["fully_offscreen_left"] == (rightmost < 0)
+endpoint = contract["golden_samples"]["endpoint_assertions"]
+for frame_name, frame_index in (("frame_0", 0), ("frame_29", logo.BOOT_SWEEP_FRAME_COUNT - 1)):
+    golden = endpoint[frame_name]
+    assert golden["expected_bottom_row_origin_px"] == logo.sweep_band_left(frame_index, 0)
+    assert golden["expected_deadline_offset_ns"] == logo.sweep_deadline_offset_ns(frame_index)
+    assert golden["expected_next_frame_index"] == (frame_index + 1) % logo.BOOT_SWEEP_FRAME_COUNT
 canvas = logo.logo_canvas("boot")
-assert any(value == 255 for row in canvas for value in row)
+assert any(value == 255 for value in canvas)
 frames = [logo.render_canvas(canvas, frame) for frame in range(logo.BOOT_SWEEP_FRAME_COUNT)]
 assert all(len(frame) == logo.WIDTH * logo.HEIGHT * 2 for frame in frames)
-
+raw = bytearray(b"\xFF" * logo.FRAME_BYTES)
+first = logo.apply_sweep(logo.rotate_clockwise_rgb565(raw), 14)
+second = logo.apply_sweep(logo.rotate_clockwise_rgb565(raw), 15)
+for local_x in range(4, 44):
+    first_x = logo.sweep_band_left(14, 64) + local_x
+    second_x = logo.sweep_band_left(15, 64) + local_x
+    assert first[((logo.HEIGHT - 1 - 64) * logo.WIDTH + first_x) * 2:][:2] == second[((logo.HEIGHT - 1 - 64) * logo.WIDTH + second_x) * 2:][:2]
 
 class RecordingGpio:
     def __init__(self, events):
@@ -155,14 +224,25 @@ assert command_oled_events == [("dc", 0), ("write", b"\xa0"), ("dc", 1), ("write
 
 frame_oled_events: list[tuple[str, object]] = []
 frame_oled = recording_oled(frame_oled_events)
-frame_oled.frame(b"\x12\x34")
+frame_oled.frame(bytes(logo.FRAME_BYTES))
 assert frame_oled_events == [
     ("dc", 0), ("write", b"\x15"), ("dc", 1), ("write", b"\x00\x7f"),
     ("dc", 0), ("write", b"\x75"), ("dc", 1), ("write", b"\x00\x7f"),
-    ("dc", 0), ("write", b"\x5c"), ("dc", 1), ("write", b"\x12\x34"),
+    ("dc", 0), ("write", b"\x5c"), ("dc", 1), ("write", bytes(logo.FRAME_BYTES)),
 ]
-
-
+stream_oled_events: list[tuple[str, object]] = []
+stream_oled = recording_oled(stream_oled_events)
+stream_oled.begin_frame_stream()
+stream_oled_events.clear()
+stream_oled.stream_frame(bytes(logo.FRAME_BYTES))
+stream_oled.stream_frame(bytes(logo.FRAME_BYTES))
+assert stream_oled_events == [("write", bytes(logo.FRAME_BYTES)), ("write", bytes(logo.FRAME_BYTES))]
+try:
+    stream_oled.stream_frame(bytes(logo.FRAME_BYTES - 1))
+except ValueError as error:
+    assert str(error) == f"OLED stream frame must contain exactly {logo.FRAME_BYTES} bytes"
+else:
+    raise AssertionError("short OLED stream frame was accepted")
 initialization_events: list[tuple[str, object]] = []
 initialization_oled = recording_oled(initialization_events)
 initialization_oled.reset = lambda: initialization_events.append(("reset", None))
@@ -203,6 +283,7 @@ class FakeOled:
 
     def __init__(self):
         self.frames = []
+        self.begin_frame_stream_calls = 0
         self.close_args = []
         self.initialized = False
         self.__class__.instances.append(self)
@@ -211,6 +292,13 @@ class FakeOled:
         self.initialized = True
 
     def frame(self, payload):
+        self.begin_frame_stream()
+        self.stream_frame(payload)
+
+    def begin_frame_stream(self):
+        self.begin_frame_stream_calls += 1
+
+    def stream_frame(self, payload):
         self.frames.append(payload)
 
     def close(self, display_off=True):
@@ -311,13 +399,38 @@ try:
     first = gpio_processes[-1]
     assert first.command == ["gpioset", "--chip", logo.GPIO_CHIP, f"{logo.GPIO_DC}=0"]
     assert first.kwargs == {"stdout": logo.subprocess.DEVNULL, "stderr": logo.subprocess.PIPE, "text": True}
-    assert gpio.processes["dc"] is first
+    assert gpio.processes["dc"] == (0, first)
+    process_count = len(gpio_processes)
+    gpio.set("dc", logo.GPIO_DC, 0)
+    assert len(gpio_processes) == process_count
+    assert gpio.processes["dc"] == (0, first)
     gpio.set("dc", logo.GPIO_DC, 1)
     second = gpio_processes[-1]
     assert first.terminated and not first.killed
     assert second.command == ["gpioset", "--chip", logo.GPIO_CHIP, f"{logo.GPIO_DC}=1"]
     gpio.close()
     assert second.terminated and not second.killed
+
+    dead_gpio = logo.GpioLines()
+    dead_gpio.set("dc", logo.GPIO_DC, 0)
+    dead = gpio_processes[-1]
+    dead.exit_code = 1
+    dead_process_count = len(gpio_processes)
+    try:
+        dead_gpio.set("dc", logo.GPIO_DC, 0)
+    except RuntimeError as error:
+        assert str(error) == "H618 GPIO dc holder exited unexpectedly"
+    else:
+        raise AssertionError("dead GPIO holder was restarted for the same value")
+    try:
+        dead_gpio.set("dc", logo.GPIO_DC, 1)
+    except RuntimeError as error:
+        assert str(error) == "H618 GPIO dc holder exited unexpectedly"
+    else:
+        raise AssertionError("dead GPIO holder was replaced for a different value")
+    assert len(gpio_processes) == dead_process_count
+    assert dead_gpio.processes["dc"] == (0, dead)
+    dead_gpio.close()
 
     def failed_popen(command, **kwargs):
         process = FakeGpioProcess(command, **kwargs)
@@ -354,7 +467,7 @@ try:
     logo.Handoff = types.SimpleNamespace(utility_lock=lambda timeout: FakeUtilityLock())
     logo.drop_to_runtime = lambda: None
     logo.time.sleep = lambda seconds: sleep_calls.append(seconds)
-    logo.run("boot-once")
+    logo.run("boot-static")
     logo.run("sleep")
     logo.run("shutdown")
 finally:
@@ -364,12 +477,11 @@ finally:
     logo.drop_to_runtime = real_drop_to_runtime
 
 boot_oled, sleep_oled, shutdown_oled = FakeOled.instances
-assert boot_oled.initialized and len(boot_oled.frames) == 24 and boot_oled.close_args == [False]
-assert sleep_oled.initialized and len(sleep_oled.frames) == 1 and sleep_oled.close_args == [False]
-assert shutdown_oled.initialized and len(shutdown_oled.frames) == 1 and shutdown_oled.close_args == [False]
-assert len(sleep_calls) == 23
-
-
+assert boot_oled.initialized and len(boot_oled.frames) == 1 and boot_oled.begin_frame_stream_calls == 1 and boot_oled.close_args == [False]
+assert boot_oled.frames[-1] == logo.render_canvas(logo.logo_canvas("boot"))
+assert sleep_oled.initialized and len(sleep_oled.frames) == 1 and sleep_oled.begin_frame_stream_calls == 1 and sleep_oled.close_args == [False]
+assert shutdown_oled.initialized and len(shutdown_oled.frames) == 1 and shutdown_oled.begin_frame_stream_calls == 1 and shutdown_oled.close_args == [False]
+assert sleep_calls == []
 def busy_lock(timeout_seconds):
     raise TimeoutError("test OLED lock contention")
 
@@ -384,4 +496,4 @@ assert len(FakeOled.instances) == before_busy
 logo.Handoff = real_handoff
 logo.drop_to_runtime = real_drop_to_runtime
 
-print("Orange OLED contract, modes, golden sweep, and visual cleanup tests passed")
+print("Orange OLED contract, static mode, golden sweep, and visual cleanup tests passed")

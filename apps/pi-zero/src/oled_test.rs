@@ -7,15 +7,13 @@ const WIDTH: usize = 128;
 const HEIGHT: usize = 128;
 const BYTES_PER_PIXEL: usize = 2;
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
-const BOOT_SPLASH_ATTEMPTS: usize = 12;
-const BOOT_SPLASH_RETRY_DELAY: Duration = Duration::from_millis(75);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum OledUtility {
     Test,
     AllOn,
     OffOnce,
-    BootSplashOnce,
+    BootSplashStatic,
     BootSplashLoop,
 }
 
@@ -30,7 +28,7 @@ fn parse_utility_args(args: &[&str]) -> Result<Option<OledUtility>, String> {
         "--oled-test" => Ok(Some(OledUtility::Test)),
         "--oled-all-on" => Ok(Some(OledUtility::AllOn)),
         "--oled-off-once" => Ok(Some(OledUtility::OffOnce)),
-        "--boot-splash-once" => Ok(Some(OledUtility::BootSplashOnce)),
+        "--boot-splash-static" => Ok(Some(OledUtility::BootSplashStatic)),
         "--boot-splash-loop" => Ok(Some(OledUtility::BootSplashLoop)),
         _ => Err(format!("unsupported OLED utility argument {argument:?}")),
     }
@@ -56,7 +54,7 @@ pub fn run() -> bool {
         }
     };
     match utility {
-        OledUtility::BootSplashOnce => return run_boot_splash_once(),
+        OledUtility::BootSplashStatic => return run_boot_splash_static(),
         OledUtility::BootSplashLoop => return run_boot_splash_loop(),
         OledUtility::Test | OledUtility::AllOn | OledUtility::OffOnce => {}
     }
@@ -112,32 +110,23 @@ fn run_oled_off_once() -> bool {
     }
 }
 
-fn run_boot_splash_once() -> bool {
-    if std::env::var("OCTESSERA_INITRAMFS_BOOT_SPLASH").as_deref() != Ok("1") {
-        eprintln!("FAIL --boot-splash-once requires OCTESSERA_INITRAMFS_BOOT_SPLASH=1");
-        return false;
-    }
-    let mut last_error = String::new();
-    for _ in 0..BOOT_SPLASH_ATTEMPTS {
-        match OledSsd1351::new() {
-            Ok(mut oled) => {
-                return crate::render::render_boot_splash(&mut oled).is_ok();
-            }
-            Err(error) => {
-                last_error = error;
-                thread::sleep(BOOT_SPLASH_RETRY_DELAY);
-            }
-        }
-    }
-    eprintln!("FAIL OLED boot splash init failed: {last_error}");
-    false
+fn open_oled_legacy() -> Result<OledSsd1351, String> {
+    OledSsd1351::new()
 }
 
-fn open_oled_legacy() -> Result<OledSsd1351, String> {
-    if std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1") {
-        OledSsd1351::adopt_existing()
-    } else {
-        OledSsd1351::new()
+fn run_boot_splash_static() -> bool {
+    let result = (|| -> Result<(), String> {
+        let mut oled = OledSsd1351::new()?;
+        oled.display_on()?;
+        oled.write_frame(&crate::render::boot_sweep_base_frame())?;
+        Ok(())
+    })();
+    match result {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("FAIL OLED static boot splash failed: {error}");
+            false
+        }
     }
 }
 
@@ -156,40 +145,41 @@ fn run_boot_splash_loop() -> bool {
             return false;
         }
     };
-    let adopt_existing = match crate::boot_oled_handoff::validate_initramfs_marker_if_present() {
-        Ok(adopt_existing) => adopt_existing,
-        Err(error) => {
-            handoff.mark_failed();
-            eprintln!("FAIL initramfs OLED marker validation failed: {error}");
-            return false;
-        }
-    };
     let result = (|| -> Result<(), String> {
-        let mut oled = if adopt_existing {
-            OledSsd1351::adopt_existing()?
-        } else {
-            OledSsd1351::new()?
-        };
+        let mut oled = OledSsd1351::new()?;
         oled.display_on()?;
+        let frames = crate::render::boot_sweep_frames();
+        let clean_frame = crate::render::boot_sweep_base_frame();
         let mut frame_index = 0;
         let mut cycle_start = Instant::now();
         loop {
             sleep_until(crate::render::boot_sweep_deadline(cycle_start, frame_index));
-            crate::render::render_boot_splash_frame(&mut oled, frame_index)?;
+            oled.write_frame(&frames[frame_index])?;
             let stop_requested = handoff.stop_requested()?;
-            if frame_index == 23 {
+            if frame_index == crate::render::BOOT_SWEEP_FRAMES - 1 {
                 if stop_requested {
                     break Ok(());
                 }
-                let next_cycle_start = cycle_start + Duration::from_secs(1);
-                sleep_until(next_cycle_start);
+                let cycle_end =
+                    cycle_start + Duration::from_nanos(crate::render::BOOT_SWEEP_CYCLE_NS);
+                sleep_until(cycle_end);
+                oled.write_frame(&clean_frame)?;
+                if handoff.stop_requested()? {
+                    break Ok(());
+                }
+                let (next_cycle_start, next_frame_index) =
+                    advance_boot_sweep(cycle_start, frame_index);
+                if sleep_boot_sweep_rest(&mut handoff, cycle_end)? {
+                    break Ok(());
+                }
                 handoff.publish_cycle()?;
                 cycle_start = next_cycle_start;
-                frame_index = 0;
+                frame_index = next_frame_index;
             } else if stop_requested {
                 break Ok(());
             } else {
-                frame_index += 1;
+                let (_, next_frame_index) = advance_boot_sweep(cycle_start, frame_index);
+                frame_index = next_frame_index;
             }
         }
     })();
@@ -205,10 +195,42 @@ fn run_boot_splash_loop() -> bool {
     }
 }
 
+fn sleep_boot_sweep_rest(
+    handoff: &mut crate::boot_oled_handoff::AnimatorHandoff,
+    rest_start: Instant,
+) -> Result<bool, String> {
+    let rest_deadline = rest_start + Duration::from_nanos(crate::render::BOOT_SWEEP_REST_NS);
+    loop {
+        if handoff.stop_requested()? {
+            return Ok(true);
+        }
+        let now = Instant::now();
+        if now >= rest_deadline {
+            return Ok(false);
+        }
+        let check_deadline = now + Duration::from_nanos(crate::render::BOOT_SWEEP_REST_CHECK_NS);
+        sleep_until(check_deadline.min(rest_deadline));
+    }
+}
+
 fn sleep_until(deadline: Instant) {
     let remaining = deadline.saturating_duration_since(Instant::now());
     if !remaining.is_zero() {
         thread::sleep(remaining);
+    }
+}
+
+fn advance_boot_sweep(cycle_start: Instant, frame_index: usize) -> (Instant, usize) {
+    if frame_index == crate::render::BOOT_SWEEP_FRAMES - 1 {
+        (
+            cycle_start
+                + Duration::from_nanos(
+                    crate::render::BOOT_SWEEP_CYCLE_NS + crate::render::BOOT_SWEEP_REST_NS,
+                ),
+            0,
+        )
+    } else {
+        (cycle_start, frame_index + 1)
     }
 }
 
@@ -261,7 +283,8 @@ fn color_at(x: usize, y: usize) -> u16 {
 
 #[cfg(test)]
 mod cli_tests {
-    use super::{parse_utility_args, OledUtility};
+    use super::{advance_boot_sweep, parse_utility_args, OledUtility, FRAME_BYTES};
+    use std::time::{Duration, Instant};
 
     #[test]
     fn utility_cli_parser_accepts_exactly_one_known_mode() {
@@ -269,7 +292,7 @@ mod cli_tests {
             ("--oled-test", OledUtility::Test),
             ("--oled-all-on", OledUtility::AllOn),
             ("--oled-off-once", OledUtility::OffOnce),
-            ("--boot-splash-once", OledUtility::BootSplashOnce),
+            ("--boot-splash-static", OledUtility::BootSplashStatic),
             ("--boot-splash-loop", OledUtility::BootSplashLoop),
         ] {
             assert_eq!(parse_utility_args(&[argument]), Ok(Some(utility)));
@@ -282,10 +305,44 @@ mod cli_tests {
         for args in [
             &["--oled-test", "--oled-test"][..],
             &["--oled-test", "--boot-splash-loop"][..],
+            &["--boot-splash-static", "--boot-splash-loop"][..],
             &["--oled-test", "--other"][..],
+            &["--boot-splash-once"][..],
             &["--unknown"][..],
         ] {
             assert!(parse_utility_args(args).is_err(), "args={args:?}");
         }
+    }
+
+    #[test]
+    fn static_boot_splash_writes_one_clean_frame_without_runtime_waits() {
+        let source = include_str!("oled_test.rs");
+        let static_body = source
+            .split_once("fn run_boot_splash_static()")
+            .and_then(|(_, body)| body.split_once("fn run_boot_splash_loop()"))
+            .map(|(body, _)| body)
+            .expect("static boot splash body");
+        assert_eq!(crate::render::boot_sweep_base_frame().len(), FRAME_BYTES);
+        assert_eq!(static_body.matches("write_frame").count(), 1);
+        assert!(!static_body.contains("thread::sleep"));
+        assert!(!static_body.contains("animator_start"));
+        assert!(!static_body.contains("marker"));
+    }
+
+    #[test]
+    fn boot_sweep_wrap_advances_frame_zero_after_the_exact_sweep_and_rest() {
+        let cycle_start = Instant::now();
+        let (next_cycle_start, next_frame) =
+            advance_boot_sweep(cycle_start, crate::render::BOOT_SWEEP_FRAMES - 1);
+        assert_eq!(next_frame, 0);
+        assert_eq!(
+            next_cycle_start.duration_since(cycle_start),
+            Duration::from_nanos(3_200_000_000)
+        );
+        assert!(next_cycle_start.duration_since(cycle_start) > Duration::from_secs(3));
+        assert_eq!(
+            crate::render::boot_sweep_deadline(next_cycle_start, next_frame),
+            next_cycle_start
+        );
     }
 }

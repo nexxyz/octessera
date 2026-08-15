@@ -6,10 +6,6 @@ use std::path::Path;
 mod files;
 use files::*;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-#[path = "boot_oled_initramfs_marker.rs"]
-mod initramfs_marker;
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) struct AnimatorHandoff {
     directory: HandoffDirectory,
     lock: File,
@@ -51,11 +47,6 @@ pub(crate) fn utility_lock() -> Result<UtilityOledLock, String> {
         _directory: directory,
         _lock: lock,
     })
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn validate_initramfs_marker_if_present() -> Result<bool, String> {
-    initramfs_marker::validate_initramfs_marker_if_present()
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

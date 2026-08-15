@@ -1,5 +1,5 @@
 param(
-  [string]$Target = "pi@192.168.0.211",
+  [string]$Target = "pi@192.168.0.218",
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$BoardProfile = "raspberry-pi-zero-2w"
 )
@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "board-profile.ps1")
 Assert-RaspberryBoardProfile $BoardProfile
 
-$sshArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes", $Target)
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
 
 $remote = @'
 set -u
@@ -47,4 +47,15 @@ echo "Pi preflight found $failures failing check(s)"
 exit 1
 '@
 
-$remote | ssh @sshArgs "bash -s"
+$payloadPath = Join-Path $env:TEMP ("octessera-pi-preflight-" + [guid]::NewGuid().ToString("N") + ".sh")
+try {
+  $encoding = New-Object System.Text.UTF8Encoding($false)
+  [IO.File]::WriteAllText($payloadPath, $remote, $encoding)
+  & $transport "ssh-payload" -Target $Target -Key $Key $payloadPath
+  $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+} finally {
+  Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
+}
+if ($exitCode -ne 0) {
+  exit $exitCode
+}

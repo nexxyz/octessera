@@ -307,14 +307,37 @@ fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         {
             match _request {
-                PiPowerRequest::Reboot => crate::orange_reboot::request_reboot(),
-                PiPowerRequest::Shutdown => Err("Orange shutdown is not supported".into()),
+                PiPowerRequest::Reboot => {
+                    orange_power_result("reboot", crate::orange_reboot::request_reboot())
+                }
+                PiPowerRequest::Shutdown => {
+                    orange_power_result("poweroff", crate::orange_reboot::request_shutdown())
+                }
             }
         }
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         {
             let _ = _request;
             Err("power request is unavailable in this profile".into())
+        }
+    }
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+fn orange_power_result(
+    action: &str,
+    outcome: crate::orange_reboot::OrangeHelperOutcome,
+) -> Result<(), String> {
+    match outcome {
+        crate::orange_reboot::OrangeHelperOutcome::Accepted => Ok(()),
+        crate::orange_reboot::OrangeHelperOutcome::Rejected => {
+            Err(format!("Orange {action} request was rejected"))
+        }
+        crate::orange_reboot::OrangeHelperOutcome::NotSubmitted => {
+            Err(format!("Orange {action} request was not submitted"))
+        }
+        crate::orange_reboot::OrangeHelperOutcome::Indeterminate => {
+            Err(format!("Orange {action} request outcome is indeterminate"))
         }
     }
 }

@@ -1,5 +1,5 @@
 param(
-  [string]$Target = "pi@192.168.0.211",
+  [string]$Target = "pi@192.168.0.218",
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$OutputDir = "diagnostics"
 )
@@ -14,7 +14,7 @@ $hostName = $Target.Split("@")[1]
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $safeTarget = $Target -replace "[^A-Za-z0-9_.-]", "_"
 $outputPath = Join-Path $OutputDir "pi-network-$safeTarget-$timestamp.txt"
-$sshArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes", "-o", "ConnectTimeout=10", $Target)
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
 
 $remote = @'
 set -u
@@ -66,11 +66,19 @@ journalctl -b -1 -o short-iso --no-pager 2>/dev/null | grep -Ei 'wlan0|wifi|brcm
   "ping=$((Test-Connection -ComputerName $hostName -Count 2 -Quiet))"
   Test-NetConnection -ComputerName $hostName -Port 22
   "--- remote diagnostics ---"
-  $remote | ssh @sshArgs "tr -d '\r' | bash -s"
+  $payloadPath = Join-Path $env:TEMP ("octessera-pi-network-" + [guid]::NewGuid().ToString("N") + ".sh")
+  try {
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($payloadPath, $remote, $encoding)
+    & $transport "ssh-payload" -Target $Target -Key $Key $payloadPath
+    $script:PiDiagnosticExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  } finally {
+    Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
+  }
 } 2>&1 | Tee-Object -FilePath $outputPath
 
-if ($LASTEXITCODE -ne 0) {
-  throw "diagnostic SSH command failed with exit code $LASTEXITCODE; partial output: $outputPath"
+if ($script:PiDiagnosticExitCode -ne 0) {
+  exit $script:PiDiagnosticExitCode
 }
 
 "wrote $outputPath"

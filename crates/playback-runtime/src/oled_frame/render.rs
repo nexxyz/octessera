@@ -1,5 +1,6 @@
 use platform_core::palette;
 
+use super::error_layout::runtime_error_rows;
 use super::footer::{draw_footer, draw_status_indicators};
 use super::model::{OledBarInput, OledBarStyle, OledRuntimeErrorMetadata};
 use super::pixels::{dim, fill_rect, rgb565, rgb565_to_rgb, scale};
@@ -164,26 +165,10 @@ fn render_runtime_error_frame(frame: &mut [u8], error: &OledRuntimeErrorMetadata
         13,
         rgb565(scale(palette::BLACK, brightness)),
     );
-    let lines = [
-        error_label(error.domain.as_deref()),
-        error_label(error.code.as_deref()),
-        error_label(error.operation.as_deref()),
-        error
-            .message
-            .as_deref()
-            .unwrap_or("needs attention")
-            .to_string(),
-    ];
+    let lines = runtime_error_rows(error);
     for (index, line) in lines.iter().enumerate() {
         draw_text_clipped(frame, line, 10, 34 + index as i32 * 12, 18, text);
     }
-}
-
-fn error_label(value: Option<&str>) -> String {
-    value
-        .unwrap_or("unknown")
-        .replace('_', " ")
-        .to_ascii_uppercase()
 }
 
 fn overlay_toast(frame: &mut [u8], toast: &str, brightness: f32) {

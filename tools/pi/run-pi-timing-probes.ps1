@@ -1,5 +1,5 @@
 param(
-  [string]$Target = "pi@192.168.0.211",
+  [string]$Target = "pi@192.168.0.218",
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$Binary = "/usr/local/bin/octessera-pi",
   [string]$Service = "octessera.service",
@@ -18,6 +18,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
 
 function Quote-ShValue {
   param([string]$Value)
@@ -35,9 +36,17 @@ function Invoke-PiSsh {
     $Command
     return
   }
-  $Command | ssh -i $Key -o IdentitiesOnly=yes $Target "tr -d '\r' | bash -s"
-  if ($LASTEXITCODE -ne 0) {
-    throw "ssh command failed with exit code $LASTEXITCODE"
+  $payloadPath = Join-Path $env:TEMP ("octessera-pi-timing-" + [guid]::NewGuid().ToString("N") + ".sh")
+  try {
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($payloadPath, $Command, $encoding)
+    & $transport "ssh-payload" -Target $Target -Key $Key $payloadPath
+    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  } finally {
+    Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
+  }
+  if ($exitCode -ne 0) {
+    exit $exitCode
   }
 }
 

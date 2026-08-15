@@ -320,6 +320,16 @@ impl HostAdapter for OrangeHostAdapter {
                 self.shutdown_request = Some(OrangeShutdownRequest::Reboot);
                 return Ok(Vec::new());
             }
+            RuntimePlatformEffect::Shutdown => {
+                if self.shutdown_pending() {
+                    return Ok(vec![failure_message(
+                        request,
+                        "Orange shutdown request is already pending".into(),
+                    )]);
+                }
+                self.shutdown_request = Some(OrangeShutdownRequest::Shutdown);
+                return Ok(Vec::new());
+            }
             RuntimePlatformEffect::MidiListOutputsRequest => {
                 RuntimeStoreResult::MidiListOutputsResult {
                     outputs: self.midi.list_outputs()?,

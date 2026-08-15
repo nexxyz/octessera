@@ -1,5 +1,5 @@
 param(
-  [string]$Target = "pi@192.168.0.211",
+  [string]$Target = "pi@192.168.0.218",
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$RemoteRepo = "/home/pi/octessera-dev",
   [string]$InstallDir = "/opt/octessera",
@@ -23,7 +23,9 @@ Assert-PiDeploymentTarget $Target | Out-Null
 Assert-RaspberryBoardProfile $BoardProfile
 Assert-OctesseraServiceName $Service
 
-$sshArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes", $Target)
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
+$script:PiTransportExitCode = 0
+$script:PiFailureExitCode = 0
 
 function Assert-RemoteAbsolutePath {
   param(
@@ -54,13 +56,25 @@ function Join-PosixPath {
 function Invoke-PiSsh {
   param([string]$Command)
 
-  $output = if ($Command.Contains("`n")) {
-    $Command | ssh @sshArgs "tr -d '\r' | bash -s"
-  } else {
-    ssh @sshArgs $Command
+  $payloadPath = $null
+  try {
+    if ($Command.Contains("`n")) {
+      $payloadPath = Join-Path $env:TEMP ("octessera-pi-command-" + [guid]::NewGuid().ToString("N") + ".sh")
+      $encoding = New-Object System.Text.UTF8Encoding($false)
+      [IO.File]::WriteAllText($payloadPath, $Command, $encoding)
+      $output = @(& $transport "ssh-payload" -Target $Target -Key $Key $payloadPath)
+    } else {
+      $output = @(& $transport "ssh" -Target $Target -Key $Key $Command)
+    }
+    $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  } finally {
+    if ($null -ne $payloadPath) {
+      Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
+    }
   }
-  if ($LASTEXITCODE -ne 0) {
-    throw "ssh command failed with exit code $LASTEXITCODE"
+  if ($script:PiTransportExitCode -ne 0) {
+    $script:PiFailureExitCode = $script:PiTransportExitCode
+    throw "ssh command failed with exit code $script:PiTransportExitCode"
   }
   $output
 }
@@ -68,12 +82,14 @@ function Invoke-PiSsh {
 function Invoke-PiLockedSsh {
   param([string]$Command)
 
-  $output = $Command | ssh @sshArgs "tr -d '\r' | bash -s"
-  if ($LASTEXITCODE -eq 75) {
-    throw "Updater transaction lock is busy; fast deployment was refused."
-  }
-  if ($LASTEXITCODE -ne 0) {
-    throw "locked ssh command failed with exit code $LASTEXITCODE"
+  try {
+    $output = @(Invoke-PiSsh $Command)
+  } catch {
+    if ($script:PiTransportExitCode -eq 75) {
+      $script:PiFailureExitCode = 75
+      throw "Updater transaction lock is busy; fast deployment was refused."
+    }
+    throw "locked ssh command failed with exit code $script:PiTransportExitCode"
   }
   $output
 }
@@ -81,10 +97,13 @@ function Invoke-PiLockedSsh {
 function Copy-ToPi {
   param([string]$Source, [string]$Destination)
 
-  scp -i $Key -o IdentitiesOnly=yes $Source "${Target}:$Destination"
-  if ($LASTEXITCODE -ne 0) {
-    throw "scp failed with exit code $LASTEXITCODE"
+  $output = @(& $transport "scp" -Target $Target -Key $Key $Source "${Target}:$Destination")
+  $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  if ($script:PiTransportExitCode -ne 0) {
+    $script:PiFailureExitCode = $script:PiTransportExitCode
+    throw "scp failed with exit code $script:PiTransportExitCode"
   }
+  $output
 }
 
 Assert-RemoteAbsolutePath $RemoteRepo "RemoteRepo"
@@ -141,6 +160,7 @@ $helperArguments = @(
 )
 $helperArgumentValues = $helperArguments | ForEach-Object { ConvertTo-PosixShellSingleQuoted ([string]$_) }
 $helperArgumentString = $helperArgumentValues -join " "
+$exitCode = 0
 
 try {
   Invoke-PiSsh "set -e; rm -f $remoteCandidateValue $remoteCandidateMetadataValue $remoteHelperValue $remoteLockHelperValue" | Out-Null
@@ -227,6 +247,19 @@ rm -rf $syncDirValue $remoteArchiveValue
   Copy-ToPi $helperPath $remoteHelperPath
   Copy-ToPi $lockHelperPath $remoteLockHelperPath
   Invoke-PiLockedSsh "set -e; chmod 755 $remoteHelperValue; sudo python3 $remoteLockHelperValue $updaterLockValue 0 $transactionPathValue $remoteHelperValue $helperArgumentString"
+  if (-not $NoTail) {
+    $tailOutput = @(& $transport "ssh" -Target $Target -Key $Key "journalctl -u $serviceValue -f")
+    $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    if ($script:PiTransportExitCode -ne 0) {
+      $script:PiFailureExitCode = $script:PiTransportExitCode
+      throw "ssh log tail failed with exit code $script:PiTransportExitCode"
+    }
+    $tailOutput
+  }
+}
+catch {
+  $exitCode = if ($script:PiFailureExitCode -ne 0) { $script:PiFailureExitCode } else { 1 }
+  [Console]::Error.WriteLine($_.Exception.Message)
 }
 finally {
   try {
@@ -235,6 +268,6 @@ finally {
   }
 }
 
-if (-not $NoTail) {
-  ssh @sshArgs "journalctl -u $serviceValue -f"
+if ($exitCode -ne 0) {
+  exit $exitCode
 }

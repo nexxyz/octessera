@@ -134,18 +134,19 @@ Release assets:
 - `octessera-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
 - `octessera-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
 - `octessera-<version>-raspberry-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
-- `octessera-<version>-raspberry-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
-- `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip`: Raspberry Pi profile-qualified Linux aarch64 device update payload.
-- `SHA256SUMS-raspberry-pi-zero-2w-device.txt`: checksum for the Raspberry Pi device update payload.
+- `octessera-<version>-raspberry-pi-zero-2w.rpi-imager-manifest`: operational standalone Raspberry Pi Imager manifest copy.
+- `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip`: Raspberry Pi profile-qualified updater payload containing exactly `octessera-pi`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`; the binary entry is executable.
+- `SHA256SUMS-raspberry-pi-zero-2w-device.txt`: legacy one-line checksum retained only for existing installed Raspberry updater clients.
 - `octessera-<version>-orange-pi-zero-2w.img.xz`: Orange Pi production Armbian image.
-- `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`: Orange Pi production runtime bundle for manual installation.
-- `SHA256SUMS-orange-pi-zero-2w.txt` and `SHA256SUMS-orange-pi-zero-2w-device.txt`: checksums for the Orange image and manual runtime bundle.
-- `octessera-<version>-notices.zip`: release-level legal notice bundle.
-- `SHA256SUMS-*.txt`: checksums for the other release assets.
+- `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`: Orange Pi production runtime bundle for manual installation containing `octessera-pi`, `octessera-runtime.json`, `SHA256SUMS`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`. It is not an OTA or device-update asset.
+- `octessera-<version>-release-evidence.zip`: supporting build material, including the checksums, kernel packages, image evidence, operational manifest copy, and legal bundle that are not root assets.
+- `SHA256SUMS.txt`: lowercase, sorted checksums for the other 12 custom root assets.
 
-The final publish gate expects exactly 28 release files. It checks the notice
-bundle, portable notice proof, device ZIP legal files, image proofs, runtime
-identity, and exact asset names/checksums.
+The final publish gate expects exactly 13 custom release files. It checks the
+portable notice proof, exact four-entry Raspberry updater ZIP, exact six-entry
+Orange manual ZIP, image and kernel evidence, runtime identity, and root asset
+names/checksums. GitHub's automatic source ZIP and tar archives remain visible
+source archives but are not custom assets or entries in `SHA256SUMS.txt`.
 
 Release process:
 
@@ -158,10 +159,9 @@ Release process:
    the future semver from the tag and confirms it against the package metadata.
 7. Confirm the installer, portable ZIP, macOS DMG, Ubuntu DEB/AppImage,
    Raspberry image and device assets, Orange production image and standalone
-   runtime bundle, notices, kernel evidence, and checksum files are attached
-   before announcing the release. Board device ZIPs carry exact root-level
-   `LICENSE` and `NOTICE` files; the release-level `notices.zip` remains the
-   full bundle.
+   runtime bundle, evidence ZIP, and root checksum file are attached before
+   announcing the release. The Imager manifest is operational metadata, and
+   board device ZIPs carry exact root-level `LICENSE` and `NOTICE` files.
 
 The Pi and Orange image builds are necessary slow paths because they generate
 full OS images through pi-gen and Armbian. Keep them release-only.
@@ -395,7 +395,7 @@ cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-ze
 
 ## Pi Hardware Build
 
-Provision a development Pi, or refresh its tracked OS and boot configuration, with `./tools/pi/provision-pi.ps1`. This is separate from fast deployment and is safe to repeat. Pass `-UpdateInitramfs` when the early boot splash or its boot configuration needs to be refreshed; pass `-WakeTrace` only when enabling the development wake trace in the service configuration.
+Provision a development Pi, or refresh its tracked OS and boot configuration, with `./tools/pi/provision-pi.ps1`. This is separate from fast deployment and is safe to repeat. Initramfs refresh is opt-in via `-UpdateInitramfs`; the default path removes retired Raspberry animation inputs without rebuilding the selected image, while the explicit path installs the current static hook/script before rebuilding it. Pass `-WakeTrace` only when enabling the development wake trace in the service configuration.
 
 ```powershell
 ./tools/pi/provision-pi.ps1 -Target pi@192.168.0.211 -BoardProfile raspberry-pi-zero-2w
@@ -407,6 +407,7 @@ Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM 
 ./tools/pi/build-pi-cross.ps1
 ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail
 # The adjacent target/pi-cross/octessera-pi.metadata.json is checked during deployment.
+# If the boot-splash binary or assets changed, run provision-pi.ps1 first; this fast path never rebuilds initramfs.
 ```
 
 On a Pi or properly configured cross environment:
@@ -431,20 +432,31 @@ an image build:
 cargo test -p octessera-pi sweep_
 cargo test -p octessera-pi handoff
 python3 tools/pi-image/test-boot-layer-contract.py
-bash tools/pi-image/test-rpi-boot-splash.sh
 bash tools/pi-image/test-rpi-boot-services.sh
-bash tools/armbian-image/test-orange-boot-splash-hook.sh
 python3 tools/armbian-image/test_orange_oled_logo.py
 python3 tools/armbian-image/test_orange_oled_handoff.py
 python3 tools/armbian-image/test-orange-construction.py
 ```
 
 The handoff tests exercise the exclusive `/run/octessera-boot` lock, strict
-status/stop files, initramfs marker, release/adoption sequence, failure
-recovery, and no-clobber behavior. Run the Unix-only lock coverage in Linux or
+status/stop files, release/adoption sequence, failure recovery, and no-clobber
+behavior. Raspberry's selected initramfs is checked for one static frame path
+and its command closure; Orange's selected initramfs is checked for one static
+RGB565 frame and its Python closure. Run the Unix-only lock
+coverage in Linux or
 WSL when the host is Windows. The visual contract is
 `resources/oled/boot-sweep-v1.json`; source tests must continue to prove its
-24-frame, one-second, four-band, white-only, +8 px lean behavior.
+30-frame, 1,200,000,000 ns absolute-deadline sweep at 25 fps, decreasing
+mounted-controller X motion that appears left-to-right on the physical panel,
+and a panel-facing right slash. Canonical bottom-to-top coordinates use
+`slanted_origin = bottom_origin - row_y`, with four 8 px color bands and 4 px
+white-separator behavior.
+The clean logo+wordmark frame follows the sweep; continuous loops hold it for a
+responsive 2,000,000,000 ns rest. The initramfs writers leave the final systemd
+sweep and handoff unchanged. These are source-contract checks, not live visual
+qualification. The contract also checks the conservative 16 MHz wire budget:
+30 frames use 491.625 ms (40.96875%), leaving 39.03125 percentage points to the
+80% limit; 58 frames pass the limit and 59 frames fail it.
 
 Build both native binaries without deploying them as a constructor substitute:
 
@@ -471,16 +483,17 @@ source-bound boot-layer contract, not from a trusted parent respin:
 2. Run the reviewed Raspberry pi-gen constructor and the reviewed Orange
    Armbian constructor. Stage the canonical interactive welcome, preserve the
    declared hushlogin behavior, and encode Raspberry's inactive-UART safety
-   state before boot finalization. Install the boot service, hook, and runtime
-   inputs; regenerate the selected initramfs on Raspberry and both the
-   initramfs and Python closure on Orange. Do not use the runtime-only or
+   state before boot finalization. Install Raspberry's root systemd animator and
+   runtime inputs; install Orange's root service, lifecycle helpers, and RGB565
+   assets, and its static initramfs closure. Regenerate both selected initramfs
+   images only as part of the constructor. Do not use the runtime-only or
    setup-only `v0.7.5` parent respin as a boot-layer build.
 3. Run mounted-image proof before any board deployment. Raspberry must show one
    exact selected initramfs, one enabled early writer, the canonical welcome,
    exact pi hushlogin, inactive Raspberry UART configuration, serial-console
    absence, and the expected serial-getty/Bluetooth service masks. Orange must show the
-   canonical welcome, exact selected initramfs, fixed SPI/GPIO dependencies,
-   the complete Python closure, and no broad GPIO probe. Verify the installed
+   canonical welcome, root-installed renderer/lifecycle/assets, fixed SPI/GPIO
+   dependencies, static Orange initramfs frame, and Python closure. Verify the installed
    `/run/octessera-boot` ownership/status/lock paths and no second writer.
 4. Preserve the resulting image, source hashes, selected boot outputs, and
    proof logs as constructor evidence. Only then perform the physical loop in
@@ -716,7 +729,7 @@ Prefer offering a live probe when the report is subjective or audio-path-specifi
 
 Use the real hardware loop for Pi-only behavior, input latency, OLED rendering, LEDs, encoders, menu timing, sample playback, and audio stutter. Automated checks cannot prove tactile timing or display readability.
 
-1. For a new Pi or OS/configuration change, provision first; then cross-build and deploy from the PC:
+1. For a new Pi, OS/configuration change, or boot-splash binary/asset change, provision first; then cross-build and deploy from the PC. Fast deployment alone is insufficient for boot-splash changes:
 
    ```powershell
    ./tools/pi/provision-pi.ps1 -Target pi@192.168.0.211

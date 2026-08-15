@@ -1,3 +1,4 @@
+mod error_layout;
 mod font;
 mod footer;
 mod model;
@@ -11,6 +12,7 @@ pub const OLED_WIDTH: usize = 128;
 pub const OLED_HEIGHT: usize = 128;
 pub const OLED_FRAME_BYTES: usize = OLED_WIDTH * OLED_HEIGHT * 2;
 
+pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
 pub use model::{
     OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput, OledPresentationMetrics,
     OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
@@ -19,6 +21,10 @@ pub use model::{
 pub(crate) use presentation_input::presentation_input_from_snapshot;
 pub use render::render_oled_frame;
 pub(crate) use render::render_oled_frame_into;
+
+#[cfg(test)]
+#[path = "error_layout_tests.rs"]
+mod error_layout_tests;
 
 #[cfg(test)]
 mod tests;

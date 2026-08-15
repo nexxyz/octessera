@@ -240,10 +240,10 @@ def _verify_device_apply_lane(root: Path, repository_root: Path, construction: d
     helper = (repository_root / assets[2][0]).read_text(encoding="utf-8")
     for line in (
         'SYSTEMCTL_PATH = "/usr/bin/systemctl"',
-        'REQUEST = b"reboot\\n"',
+        'REBOOT_REQUEST = b"reboot\\n"',
         'ACCEPTED = b"accepted\\n"',
         'REJECTED = b"rejected\\n"',
-        'subprocess.run([SYSTEMCTL_PATH, "reboot"], check=True)',
+        'subprocess.run([SYSTEMCTL_PATH, command], check=True)',
         'output_stream.write(ACCEPTED)',
         'output_stream.write(REJECTED)',
     ):

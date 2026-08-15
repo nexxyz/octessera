@@ -1,5 +1,5 @@
 [Unit]
-Description=Octessera validated device-config reboot request
+Description=Octessera validated device power request
 
 [Service]
 Type=oneshot

@@ -4,8 +4,6 @@ use std::time::Duration;
 pub(crate) const HANDOFF_ENV: &str = "OCTESSERA_OLED_BOOT_HANDOFF";
 #[cfg(unix)]
 pub(crate) const HANDOFF_ROOT: &str = "/run/octessera-boot";
-#[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) const INITRAMFS_MARKER_PATH: &str = "/run/octessera-initramfs-splash.ready";
 #[cfg(unix)]
 pub(crate) const HANDOFF_SCHEMA: u8 = 1;
 #[cfg(unix)]
@@ -157,7 +155,9 @@ impl StopRequest {
 mod unix_impl;
 
 #[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) use unix_impl::{animator_start, utility_lock, validate_initramfs_marker_if_present};
+pub(crate) use unix_impl::AnimatorHandoff;
+#[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
+pub(crate) use unix_impl::{animator_start, utility_lock};
 #[cfg(unix)]
 pub(crate) use unix_impl::{native_attach, NativeOledGuard};
 
@@ -182,11 +182,6 @@ pub(crate) fn native_attach() -> Result<NativeOledGuard, String> {
 
 #[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) fn utility_lock() -> Result<UtilityOledLock, String> {
-    Err("OLED boot handoff requires Unix file locking".into())
-}
-
-#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) fn validate_initramfs_marker_if_present() -> Result<bool, String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 

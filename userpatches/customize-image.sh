@@ -411,6 +411,8 @@ install_overlay_file etc/systemd/system/octessera-orange-oled-suspend.service /e
 install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
 install_overlay_file usr/local/share/octessera-setup-ui/octessera-mark.svg /usr/share/octessera/oled/octessera-mark.svg 0644
 install_overlay_file usr/local/share/octessera-setup-ui/octessera-wordmark.svg /usr/share/octessera/oled/octessera-wordmark.svg 0644
+install_overlay_file usr/local/share/octessera/oled/octessera-pi-booting.rgb565 /usr/share/octessera/oled/octessera-pi-booting.rgb565 0644
+install_overlay_file usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565 /usr/share/octessera/oled/octessera-pi-shutdown.rgb565 0644
 for musical_asset in \
   usr/share/octessera/defaults/pi-default.json \
   usr/share/octessera/samples/sample-manifest.tsv; do

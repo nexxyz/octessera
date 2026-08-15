@@ -35,9 +35,13 @@ for item in contract["exact_inputs"]:
     assert item["mode"] in {420, 493}
 
 construction_inputs = {item["path"]: item for item in contract["exact_inputs"]}
+assert (ROOT / "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash").is_file()
+assert (ROOT / "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash").is_file()
 assert "userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" not in construction_inputs
 assert "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service" in construction_inputs
 assert "userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" in construction_inputs
+assert construction_inputs["userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565"]["size"] == 32768
+assert construction_inputs["userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565"]["size"] == 32768
 setup_inputs = {item["path"]: item for item in setup_contract["source_inputs"]}
 overlap = sorted(set(construction_inputs) & set(setup_inputs))
 assert overlap
@@ -103,6 +107,12 @@ assert contract["device_dependencies"] == {"spi_device": "/dev/spidev1.0", "gpio
 assert contract["required_builtin_kernel_config_lines"] == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y"]
 exact(contract["selected_initramfs"], ["required_paths", "forbidden_paths", "required_tools", "python_files", "required_python_modules", "installed_output_matches"])
 assert contract["selected_initramfs"]["required_python_modules"] == ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"]
-assert contract["selected_initramfs"]["forbidden_paths"] == ["usr/bin/gpiodetect"]
+assert contract["selected_initramfs"]["forbidden_paths"] == ["usr/bin/gpiodetect", "usr/share/octessera/oled/octessera-mark.svg", "usr/share/octessera/oled/octessera-wordmark.svg"]
+assert all(not path.endswith(".svg") for path in contract["selected_initramfs"]["required_paths"])
+assert all(not item["initramfs_path"].endswith(".svg") for item in contract["selected_initramfs"]["installed_output_matches"])
+assert "usr/share/octessera/oled/octessera-pi-booting.rgb565" in contract["selected_initramfs"]["required_paths"]
+assert "usr/share/octessera/oled/octessera-pi-shutdown.rgb565" in contract["selected_initramfs"]["required_paths"]
 assert all("system-sleep/octessera-orange-oled" not in item["path"] for item in contract["managed_outputs"])
+assert any(item["path"] == "usr/share/octessera/oled/octessera-mark.svg" for item in contract["managed_outputs"])
+assert any(item["path"] == "usr/share/octessera/oled/octessera-wordmark.svg" for item in contract["managed_outputs"])
 print("Orange constructor classification and source digest tests passed")

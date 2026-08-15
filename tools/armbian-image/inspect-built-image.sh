@@ -388,10 +388,8 @@ for path in \
   etc/systemd/system/octessera-orange-oled-suspend.service \
   etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service \
   etc/systemd/system/octessera-provision-musical-default.service \
-  etc/initramfs-tools/hooks/octessera-orange-boot-splash \
-  etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash \
-  usr/share/octessera/oled/octessera-mark.svg \
-  usr/share/octessera/oled/octessera-wordmark.svg \
+  usr/share/octessera/oled/octessera-pi-booting.rgb565 \
+  usr/share/octessera/oled/octessera-pi-shutdown.rgb565 \
   usr/share/octessera/defaults/pi-default.json \
   usr/share/octessera/samples/sample-manifest.tsv; do
   stat_path "$path" || { echo "Missing Orange OS parity path: $path." >&2; exit 1; }
@@ -417,8 +415,8 @@ require_root_mode etc/systemd/system/octessera-orange-oled-suspend.service 644
 octessera_require_image_symlink etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service ../octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service
 reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service
 require_root_mode etc/systemd/system/octessera-provision-musical-default.service 644
-require_root_mode etc/initramfs-tools/hooks/octessera-orange-boot-splash 755
-require_root_mode etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 755
+reject_path etc/initramfs-tools/hooks/octessera-orange-boot-splash
+reject_path etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash
 reject_path lib/systemd/system-sleep/octessera-orange-oled
 reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
 require_root_mode usr/share/octessera/defaults/pi-default.json 644

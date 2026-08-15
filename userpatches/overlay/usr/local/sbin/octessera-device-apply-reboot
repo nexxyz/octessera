@@ -9,7 +9,8 @@ import sys
 
 CONFIG_PATH = "/var/lib/octessera/presets/default.json"
 SYSTEMCTL_PATH = "/usr/bin/systemctl"
-REQUEST = b"reboot\n"
+REBOOT_REQUEST = b"reboot\n"
+POWEROFF_REQUEST = b"poweroff\n"
 ACCEPTED = b"accepted\n"
 REJECTED = b"rejected\n"
 MAX_REQUEST_BYTES = 128
@@ -69,15 +70,20 @@ def _read_request(stream):
                 break
         line = bytes(data)
         extra = _extra_bytes(stream)
-    if line != REQUEST or extra:
+    if line not in (REBOOT_REQUEST, POWEROFF_REQUEST) or extra:
         raise ValueError("invalid device apply request")
+    return line
 
 
 def handle_request(input_stream, output_stream):
     try:
-        _read_request(input_stream)
-        _validate_config(CONFIG_PATH)
-        subprocess.run([SYSTEMCTL_PATH, "reboot"], check=True)
+        request = _read_request(input_stream)
+        if request == REBOOT_REQUEST:
+            _validate_config(CONFIG_PATH)
+            command = "reboot"
+        else:
+            command = "poweroff"
+        subprocess.run([SYSTEMCTL_PATH, command], check=True)
     except (OSError, ValueError, subprocess.SubprocessError, KeyError):
         output_stream.write(REJECTED)
         output_stream.flush()

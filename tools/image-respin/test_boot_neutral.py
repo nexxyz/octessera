@@ -34,7 +34,7 @@ def make_root(root: Path) -> None:
     write(root / f"boot/initrd.img-{RELEASE}", b"initramfs")
     write(root / f"boot/config-{RELEASE}", b"config")
     write(root / f"usr/lib/modules/{RELEASE}/modules.dep", b"modules")
-    write(root / "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", b"initramfs-hook")
+    write(root / "etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash", b"initramfs-hook")
     write(root / "etc/udev/rules.d/70-octessera-orange-runtime.rules", b"udev-rule")
     write(root / "usr/lib/systemd/system-sleep/octessera-orange-oled", b"sleep-hook")
     (root / "lib").symlink_to("usr/lib")
@@ -89,7 +89,7 @@ class BootNeutralTests(unittest.TestCase):
             ("boot-addition", lambda root: write(root / "boot/unexpected.bin", b"unknown")),
             ("selector", lambda root: (root / "boot/armbianEnv.txt").write_text("verbosity=9\n", encoding="utf-8")),
             ("module", lambda root: (root / f"usr/lib/modules/{RELEASE}/modules.dep").write_bytes(b"tampered")),
-            ("initramfs-hook", lambda root: (root / "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash").write_bytes(b"tampered")),
+            ("initramfs-hook", lambda root: (root / "etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash").write_bytes(b"tampered")),
             ("system-sleep", lambda root: (root / "usr/lib/systemd/system-sleep/octessera-orange-oled").write_bytes(b"tampered")),
             ("lib-symlink", lambda root: ((root / "lib").unlink(), (root / "lib").symlink_to("usr"))),
             ("udev", lambda root: (root / "etc/udev/rules.d/70-octessera-orange-runtime.rules").write_bytes(b"tampered")),

@@ -73,8 +73,6 @@
     "tools/armbian-image/orange_boot_inventory.py",
     "tools/armbian-image/orange_boot_selection.py",
     "tools/armbian-image/orange_image_mount.py",
-    "tools/armbian-image/orange_initramfs.py",
-    "tools/armbian-image/orange_phase5_proof.py",
     "tools/armbian-image/orange_trusted_parent_proof.py",
     "tools/armbian-image/verify_runtime_account.py",
     "tools/image-respin/boot_neutral.py",

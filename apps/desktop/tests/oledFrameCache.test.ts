@@ -115,6 +115,22 @@ test('desktop OLED cache keeps candidate and accepted conflicts sticky', () => {
   assert.equal(cache.fault, null);
 });
 
+test('desktop OLED cache rejects conflicting completion bytes', () => {
+  const cache = createOledFrameCache();
+  ingestOledFrame(cache, frame(1, new Uint8Array(FRAME_BYTES).fill(0x11)));
+  assert.equal(acceptOledFrameReference(cache, 1)?.[0], 0x11);
+  assert.equal(acceptOledFrameReference(cache, 2)?.[0], 0x11);
+
+  ingestOledFrame(cache, frame(2, new Uint8Array(FRAME_BYTES).fill(0x22)));
+  ingestOledFrame(cache, frame(2, new Uint8Array(FRAME_BYTES).fill(0x33)));
+
+  assert.equal(cache.fault, 'conflict');
+  assert.equal(cache.acceptedRevision, 1);
+  assert.equal(cache.acceptedPixels?.[0], 0x11);
+  assert.equal(acceptOledFrameReference(cache, 2)?.[0], 0x11);
+  assert.equal(cache.acceptedRevision, 1);
+});
+
 test('desktop OLED cache retains the last valid frame for malformed input', () => {
   const cache = createOledFrameCache();
   ingestOledFrame(cache, frame(1));

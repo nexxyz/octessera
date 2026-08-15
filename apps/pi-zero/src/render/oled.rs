@@ -10,6 +10,7 @@ use footer::{draw_footer, draw_status_indicators};
 use platform_core::palette;
 
 use super::{brightness_scale, dim, rgb565, scale, SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
+use playback_runtime::oled_frame::{runtime_error_rows, OledRuntimeErrorMetadata};
 
 pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 
@@ -242,28 +243,20 @@ fn render_runtime_error_frame(frame: &mut [u8], error: &Value, brightness: f32) 
         13,
         rgb565(scale(palette::BLACK, brightness)),
     );
-    let lines = [
-        error_label(error, "domain"),
-        error_label(error, "code"),
-        error_label(error, "operation"),
-        error
-            .get("message")
-            .and_then(Value::as_str)
-            .unwrap_or("needs attention")
-            .to_string(),
-    ];
+    let lines = runtime_error_rows(&runtime_error_metadata(error));
     for (index, line) in lines.iter().enumerate() {
         draw_text_clipped(frame, line, 10, 34 + index as i32 * 12, 18, text);
     }
 }
 
-fn error_label(error: &Value, key: &str) -> String {
-    error
-        .get(key)
-        .and_then(Value::as_str)
-        .unwrap_or("unknown")
-        .replace('_', " ")
-        .to_ascii_uppercase()
+pub(super) fn runtime_error_metadata(error: &Value) -> OledRuntimeErrorMetadata {
+    let field = |key: &str| error.get(key).and_then(Value::as_str).map(str::to_owned);
+    OledRuntimeErrorMetadata {
+        domain: field("domain"),
+        code: field("code"),
+        operation: field("operation"),
+        message: field("message"),
+    }
 }
 
 fn copy_rgb565_scaled(frame: &mut [u8], source: &[u8], brightness: f32) {

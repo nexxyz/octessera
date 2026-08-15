@@ -19,7 +19,6 @@ modprobe spidev >/dev/null 2>&1 || true
 
 animator_pid=""
 watchdog_pid=""
-marker_tmp=""
 
 kill_process_group() {
     group_pid="$1"
@@ -46,9 +45,6 @@ cleanup() {
     status="$?"
     trap - EXIT INT TERM HUP
     reap_children
-    if [ -n "$marker_tmp" ]; then
-        rm -f -- "$marker_tmp" >/dev/null 2>&1 || true
-    fi
     exit "$status"
 }
 
@@ -59,40 +55,16 @@ interrupt() {
 trap cleanup EXIT
 trap interrupt INT TERM HUP
 
-rm -f -- /run/octessera-initramfs-splash.ready >/dev/null 2>&1 || true
-
-publish_marker() {
-    boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
-    case "$boot_id" in
-        ????????-????-????-????-????????????) ;;
-        *) return 1 ;;
-    esac
-    marker_tmp="/run/.octessera-initramfs-splash.ready.$$"
-    umask 022
-    printf '{"schema":1,"bootId":"%s"}\n' "$boot_id" > "$marker_tmp" || return 1
-    chmod 0644 -- "$marker_tmp" || return 1
-    chown 0:0 -- "$marker_tmp" || return 1
-    mv -f -- "$marker_tmp" /run/octessera-initramfs-splash.ready || return 1
-    marker_tmp=""
-}
-
 if [ -x /usr/local/bin/octessera-pi ]; then
-    OCTESSERA_INITRAMFS_BOOT_SPLASH=1 setsid /usr/local/bin/octessera-pi --boot-splash-once >/dev/kmsg 2>&1 &
+    setsid /usr/local/bin/octessera-pi --boot-splash-static >/dev/kmsg 2>&1 &
     animator_pid="$!"
     # shellcheck disable=SC2016
     setsid /bin/sh -c 'sleep 3; kill -TERM "-$1" >/dev/null 2>&1 || true; kill -KILL "-$1" >/dev/null 2>&1 || true' sh "$animator_pid" &
     watchdog_pid="$!"
-    if wait "$animator_pid" >/dev/null 2>&1; then
-        animator_status=0
-    else
-        animator_status="$?"
-    fi
+    wait "$animator_pid" >/dev/null 2>&1 || true
     kill_process_group "$animator_pid"
     animator_pid=""
     kill_process_group "$watchdog_pid"
     wait "$watchdog_pid" >/dev/null 2>&1 || true
     watchdog_pid=""
-    if [ "$animator_status" -eq 0 ]; then
-        publish_marker || true
-    fi
 fi

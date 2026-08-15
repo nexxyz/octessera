@@ -57,6 +57,15 @@ The production service uses `/var/lib/octessera/presets` for its persistent
 store and `/var/lib/octessera/samples` for samples. Both paths belong to
 `octessera-runtime`; the interactive `octessera` account is separate.
 
+The Orange power boundary is intentionally narrow. The runtime performs
+external MIDI panic and internal audio silence before sending exactly
+`reboot\n` or `poweroff\n` to the root-owned
+`/run/octessera-device-apply/reboot.sock`. The root helper validates the saved
+config only for reboot, invokes only the matching fixed `/usr/bin/systemctl`
+command, and returns exact `accepted\n` or `rejected\n` bytes. There is no
+sudo fallback, command discovery, or live hardware qualification claim in this
+source/bring-up contract.
+
 ## Full setup portal proof status
 
 The software/static setup layer is present for both fixed board paths. The

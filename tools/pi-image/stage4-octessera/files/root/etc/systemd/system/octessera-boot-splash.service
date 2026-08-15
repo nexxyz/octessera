@@ -1,7 +1,8 @@
 [Unit]
 Description=octessera Early OLED Boot Splash
 DefaultDependencies=no
-After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service
+Wants=systemd-udev-settle.service
+After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service
 Before=sysinit.target octessera.service
 
 [Service]
@@ -20,6 +21,7 @@ ExecStart=/usr/local/bin/octessera-pi --boot-splash-loop
 DevicePolicy=closed
 DeviceAllow=/dev/spidev0.0 rw
 DeviceAllow=/dev/gpiomem rw
+DeviceAllow=/dev/gpiochip0 rw
 NoNewPrivileges=yes
 ProtectSystem=strict
 ReadWritePaths=/run/octessera-boot

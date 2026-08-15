@@ -270,6 +270,25 @@ def write_png(path: Path, rgba: bytes) -> None:
     path.write_bytes(data)
 
 
+def rgb565_asset(rgba: bytes) -> bytes:
+    expected = SIZE * SIZE * 4
+    if len(rgba) != expected:
+        raise ValueError(f"expected {expected} RGBA bytes, got {len(rgba)}")
+    output = bytearray()
+    for offset in range(0, len(rgba), 4):
+        red, green, blue, alpha = rgba[offset : offset + 4]
+        red = (red * alpha + 127) // 255
+        green = (green * alpha + 127) // 255
+        blue = (blue * alpha + 127) // 255
+        value = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3)
+        output.extend(value.to_bytes(2, "big"))
+    return bytes(output)
+
+
+def write_rgb565(path: Path, rgba: bytes) -> None:
+    path.write_bytes(rgb565_asset(rgba))
+
+
 def write_ico_from_png(path: Path, png_path: Path) -> None:
     png = png_path.read_bytes()
     width, height = struct.unpack(">II", png[16:24])
@@ -288,10 +307,12 @@ def write_ico_from_png(path: Path, png_path: Path) -> None:
     path.write_bytes(struct.pack("<HHH", 0, 1, 1) + entry + png)
 
 
-def save_mark(path: Path, root: Path) -> None:
+def save_mark(path: Path, root: Path) -> bytes:
     canvas = make_canvas()
     draw_mark(canvas, root, target_size=80, center_x=64, center_y=64)
-    write_png(path, downsample_grayscale(canvas))
+    rgba = downsample_grayscale(canvas)
+    write_png(path, rgba)
+    return rgba
 
 
 def save_manifest_icon(path: Path, root: Path) -> None:
@@ -300,16 +321,19 @@ def save_manifest_icon(path: Path, root: Path) -> None:
     write_png(path, downsample_grayscale(canvas))
 
 
-def save_stacked_logo(path: Path, root: Path) -> None:
+def save_stacked_logo(path: Path, root: Path) -> bytes:
     canvas = make_canvas()
     draw_mark(canvas, root, target_size=58, center_x=64, center_y=52)
     draw_wordmark_antialiased(canvas, root, target_width=106, target_height=16, center_x=64, center_y=93)
     center_content(canvas)
-    write_png(path, downsample_grayscale(canvas))
+    rgba = downsample_grayscale(canvas)
+    write_png(path, rgba)
+    return rgba
 
 
 def generate_assets(root: Path, output_root: Path) -> list[Path]:
     assets = output_root / "assets"
+    overlay_oled = output_root / "userpatches/overlay/usr/local/share/octessera/oled"
     icons_dir = output_root / "apps" / "desktop" / "src-tauri" / "icons"
     outputs = [
         assets / "octessera-pi-manifest.png",
@@ -317,19 +341,28 @@ def generate_assets(root: Path, output_root: Path) -> list[Path]:
         assets / "octessera-pi-sleeping.png",
         assets / "octessera-pi-shutdown.png",
         assets / "octessera-pi-booting.png",
+        assets / "octessera-pi-shutdown.rgb565",
+        assets / "octessera-pi-booting.rgb565",
+        overlay_oled / "octessera-pi-shutdown.rgb565",
+        overlay_oled / "octessera-pi-booting.rgb565",
         icons_dir / "icon.png",
         icons_dir / "icon.ico",
     ]
     assets.mkdir(parents=True, exist_ok=True)
+    overlay_oled.mkdir(parents=True, exist_ok=True)
     icons_dir.mkdir(parents=True, exist_ok=True)
     _ = parse_wordmark_text(root)
     save_manifest_icon(outputs[0], root)
     save_manifest_icon(outputs[1], root)
     save_mark(outputs[2], root)
-    save_mark(outputs[3], root)
-    save_stacked_logo(outputs[4], root)
-    save_manifest_icon(outputs[5], root)
-    write_ico_from_png(outputs[6], outputs[5])
+    shutdown_rgba = save_stacked_logo(outputs[3], root)
+    boot_rgba = save_stacked_logo(outputs[4], root)
+    write_rgb565(outputs[5], shutdown_rgba)
+    write_rgb565(outputs[6], boot_rgba)
+    write_rgb565(outputs[7], shutdown_rgba)
+    write_rgb565(outputs[8], boot_rgba)
+    save_manifest_icon(outputs[9], root)
+    write_ico_from_png(outputs[10], outputs[9])
     return outputs
 
 
