@@ -55,6 +55,13 @@ restart the boot sweep or share its writer. If the OLED is blank, static,
 flickering, or shows two writers during a future hardware check, stop and
 record it for qualification rather than treating it as normal boot behavior.
 
+The confirmed instrument-menu lifecycle keeps presentation native: sleep shows
+`Going to sleep`, Reboot shows `Rebooting`, and Shutdown shows `Shutting down`
+over the existing static logo+wordmark frame. Native acknowledges the final
+snapshot before preserving the OLED while it detaches and submits the board
+power request. These strings do not describe arbitrary administrative power
+commands.
+
 For the shared setup flow, see [Open or reopen the full setup portal](setup-portal.md).
 The Raspberry gadget applies the saved default from `/home/pi/presets/default.json`;
 save device settings and use the confirmed apply/reboot action before changing

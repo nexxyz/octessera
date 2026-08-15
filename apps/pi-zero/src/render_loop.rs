@@ -2,13 +2,12 @@ use crate::oled_frame_cache::OledFramePublication;
 use crate::render::{
     initial_snapshot_render_result, mark_handoff_failed_decision, ownership_stage_for_render,
     render_leds_only, render_snapshot_cached, restore_after_dropped_ack_for_render,
-    restore_for_render, retry_oled_decision, select_snapshot_render, snapshot_requires_oled_ack,
-    HardwareRenderCache, HardwareRenderTargets, OledOwnershipStage, OledOwnershipState,
-    SnapshotRenderDecision,
+    retry_oled_decision, select_snapshot_render, snapshot_requires_oled_ack, HardwareRenderCache,
+    HardwareRenderTargets, OledOwnershipStage, OledOwnershipState, SnapshotRenderDecision,
 };
 use crate::render_loop_queue::{
-    merge_snapshot_command, pending_work_wins_over_expired_animation_deadline,
-    reject_pending_command, RenderCommand, RenderState, SnapshotCommand,
+    merge_snapshot_command, pending_work_wins_over_expired_animation_deadline, RenderCommand,
+    RenderState, SnapshotCommand,
 };
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,6 +15,9 @@ use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+
+#[path = "render_loop_terminal.rs"]
+mod terminal;
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
@@ -136,7 +138,11 @@ impl RenderWorker {
             .map_err(|_| "render worker state mutex poisoned during OLED ownership".to_string())?;
         if matches!(
             &state.command,
-            Some(RenderCommand::Shutdown { .. } | RenderCommand::Abort { .. })
+            Some(
+                RenderCommand::Shutdown { .. }
+                    | RenderCommand::PreserveTerminal { .. }
+                    | RenderCommand::Abort { .. },
+            )
         ) {
             return Err("render worker is terminating".into());
         }
@@ -169,7 +175,11 @@ impl RenderWorker {
         if let Ok(mut state) = lock.lock() {
             if matches!(
                 &state.command,
-                Some(RenderCommand::Shutdown { .. } | RenderCommand::Abort { .. })
+                Some(
+                    RenderCommand::Shutdown { .. }
+                        | RenderCommand::PreserveTerminal { .. }
+                        | RenderCommand::Abort { .. },
+                )
             ) {
                 return false;
             }
@@ -181,56 +191,9 @@ impl RenderWorker {
             false
         }
     }
-
-    pub fn publish_shutdown(&self) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
-        let (lock, ready) = &*self.state;
-        if let Ok(mut state) = lock.lock() {
-            reject_pending_command(&mut state, "render worker was preempted by shutdown");
-            state.command = Some(RenderCommand::Shutdown { ack: ack_tx });
-            ready.notify_one();
-        } else {
-            return Err("render worker state mutex poisoned during shutdown".into());
-        }
-        let ack_result = ack_rx
-            .recv_timeout(SHUTDOWN_ACK_TIMEOUT)
-            .map_err(|error| format!("render shutdown acknowledgement failed: {error}"))?;
-        let worker = self
-            .worker
-            .lock()
-            .ok()
-            .and_then(|mut worker| worker.take())
-            .ok_or_else(|| "render worker handle unavailable during shutdown".to_string())?;
-        worker
-            .join()
-            .map_err(|_| "render worker panicked during shutdown".to_string())?;
-        ack_result
-    }
-
-    pub fn abort(&self) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
-        let (lock, ready) = &*self.state;
-        if let Ok(mut state) = lock.lock() {
-            reject_pending_command(&mut state, "render worker was preempted by abort");
-            state.command = Some(RenderCommand::Abort { ack: ack_tx });
-            ready.notify_one();
-        } else {
-            return Err("render worker state mutex poisoned during abort".into());
-        }
-        let result = ack_rx
-            .recv_timeout(SHUTDOWN_ACK_TIMEOUT)
-            .map_err(|error| format!("render abort acknowledgement failed: {error}"))?;
-        let worker = self
-            .worker
-            .lock()
-            .ok()
-            .and_then(|mut worker| worker.take())
-            .ok_or_else(|| "render worker handle unavailable during abort".to_string())?;
-        worker
-            .join()
-            .map_err(|_| "render worker panicked during abort".to_string())?;
-        result
-    }
+}
+fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
+    result.map_err(|error| format!("OLED display-off failed: {error}"))
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -373,28 +336,35 @@ fn render_worker_loop(
                 }
             }
             Some(RenderCommand::Shutdown { ack }) => {
-                let restore_result = restore_for_render(
+                let result = terminal::handle_shutdown(
                     targets,
                     &mut cache,
                     &latest_snapshot,
                     &latest_oled,
                     &mut ownership,
                 );
-                if restore_result.is_ok() {
-                    crate::render::render_shutdown_splash(&mut targets.oled);
-                }
-                let _ = targets
-                    .seesaw_tx
-                    .send(crate::seesaw_io::SeesawCommand::GridFrame([[0; 3]; 64]));
-                let _ = targets
-                    .seesaw_tx
-                    .send(crate::seesaw_io::SeesawCommand::NeoKeyColors([[0; 3]; 4]));
-                let display_off = display_off_ack(restore_result.and(targets.oled.display_off()));
-                let _ = ack.send(display_off);
+                let _ = ack.send(result);
+                break;
+            }
+            Some(RenderCommand::PreserveTerminal {
+                snapshot,
+                oled,
+                ack,
+            }) => {
+                let result = terminal::handle_preserve_terminal(
+                    targets,
+                    &mut cache,
+                    &latest_snapshot,
+                    &latest_oled,
+                    &mut ownership,
+                    &snapshot,
+                    &oled,
+                );
+                let _ = ack.send(result);
                 break;
             }
             Some(RenderCommand::Abort { ack }) => {
-                let result = restore_for_render(
+                let result = terminal::handle_abort(
                     targets,
                     &mut cache,
                     &latest_snapshot,
@@ -445,8 +415,21 @@ fn validate_oled_publication(
     Ok(())
 }
 
-fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
-    result.map_err(|error| format!("OLED display-off failed: {error}"))
+pub(super) fn validate_terminal_oled_publication(
+    snapshot: &Value,
+    oled: &OledFramePublication,
+) -> Result<(), String> {
+    if !oled.is_native() {
+        return Err("terminal OLED snapshot requires an accepted native frame".into());
+    }
+    let required_revision = snapshot
+        .get("oledFrameRevision")
+        .and_then(Value::as_u64)
+        .filter(|revision| *revision > 0);
+    if oled.revision() != required_revision {
+        return Err("terminal OLED publication does not match snapshot frame revision".into());
+    }
+    Ok(())
 }
 
 #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]

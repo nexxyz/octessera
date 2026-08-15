@@ -309,6 +309,14 @@ def _run_static(kind, adopt=False):
         oled.close(False)
 
 
+def _run_off():
+    oled = Oled()
+    try:
+        oled.command(0xAE)
+    finally:
+        oled.close(False)
+
+
 def _run_loop():
     return _lifecycle_module.run_loop(globals())
 
@@ -343,7 +351,10 @@ def _run_utility(kind, timeout_seconds):
     except TimeoutError:
         return
     try:
-        _run_static(kind)
+        if kind == "off":
+            _run_off()
+        else:
+            _run_static(kind)
     finally:
         handoff.close()
 
@@ -365,13 +376,16 @@ def run(kind):
     elif kind == "shutdown":
         drop_to_runtime()
         _run_utility(kind, _handoff_module.SHUTDOWN_LOCK_TIMEOUT_SECONDS)
+    elif kind == "off":
+        drop_to_runtime()
+        _run_utility(kind, _handoff_module.UTILITY_LOCK_TIMEOUT_SECONDS)
     else:
         raise ValueError("unsupported OLED boot mode")
 
 
 def parse_mode(args):
-    if len(args) != 1 or args[0] not in {"boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown"}:
-        raise ValueError("usage: octessera-orange-oled-logo boot-once|boot-static|boot-loop|resume|sleep|shutdown")
+    if len(args) != 1 or args[0] not in {"boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off"}:
+        raise ValueError("usage: octessera-orange-oled-logo boot-once|boot-static|boot-loop|resume|sleep|shutdown|off")
     return args[0]
 
 

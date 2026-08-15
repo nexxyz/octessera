@@ -23,9 +23,7 @@ pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "shutdown");
     assert!(runner.display.oled_splash_until.is_some());
-    assert!(display["toast"]
-        .as_str()
-        .is_some_and(|toast| toast.contains("shutting down")));
+    assert_eq!(display["toast"], "Shutting down");
     assert_recovery_save_then_effect(&messages, RuntimePlatformEffect::Shutdown);
 }
 
@@ -49,9 +47,7 @@ pub(crate) fn system_menu_reboot_emits_reboot_effect_and_shutdown_splash() {
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "shutdown");
     assert!(runner.display.oled_splash_until.is_some());
-    assert!(display["toast"]
-        .as_str()
-        .is_some_and(|toast| toast.contains("rebooting")));
+    assert_eq!(display["toast"], "Rebooting");
     assert_recovery_save_then_effect(&messages, RuntimePlatformEffect::Reboot);
 }
 

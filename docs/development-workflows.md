@@ -458,6 +458,12 @@ qualification. The contract also checks the conservative 16 MHz wire budget:
 30 frames use 491.625 ms (40.96875%), leaving 39.03125 percentage points to the
 80% limit; 58 frames pass the limit and 59 frames fail it.
 
+The native instrument-menu lifecycle is a separate bounded path: PlaybackRuntime
+emits the exact `Going to sleep`, `Shutting down`, and `Rebooting` toasts, while
+the board runtime force-acknowledges the final snapshot before preserving OLED
+pixels/on state, zeroing LEDs, detaching, and submitting ordinary power. Do not
+use arbitrary administrative `systemctl` commands as evidence for this path.
+
 Build both native binaries without deploying them as a constructor substitute:
 
 ```powershell

@@ -109,7 +109,7 @@ pub(crate) fn overdue_normal_display_input_does_not_trigger_sleep_toast() {
 
     assert_eq!(snapshot["display"]["splash"], "");
     assert_eq!(snapshot["display"]["off"], false);
-    assert_ne!(snapshot["display"]["toast"], "Going to sleep ...");
+    assert_ne!(snapshot["display"]["toast"], "Going to sleep");
     assert_eq!(runner.menu.state.cursor, 1);
 }
 
@@ -135,7 +135,7 @@ pub(crate) fn fresh_startup_timed_snapshots_reach_sleep_without_input() {
     assert_eq!(snapshot_from(&messages)["display"]["splash"], "sleep");
     assert_eq!(
         snapshot_from(&messages)["display"]["toast"],
-        "Going to sleep ..."
+        "Going to sleep"
     );
 }
 

@@ -20,7 +20,6 @@ use playback_runtime::{
     HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
     SyncSource,
 };
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::sync::Arc;
 use std::thread;
@@ -28,6 +27,10 @@ use std::time::{Duration, Instant};
 
 #[path = "orange_candidate_handoff.rs"]
 mod handoff;
+#[path = "orange_lifecycle.rs"]
+mod lifecycle;
+#[path = "orange_signal.rs"]
+mod signal;
 #[path = "orange_runtime_startup.rs"]
 mod startup;
 pub(crate) use startup::{
@@ -40,7 +43,6 @@ const RUNTIME_TICK: Duration = Duration::from_millis(8);
 const HOST_RESULT_BUDGET: usize = 4;
 const ORANGE_UART0_ACTIVE: bool = false;
 
-static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 struct OrangeRuntimeServices {
     midi_rx: Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -50,7 +52,7 @@ pub fn run() -> Result<(), OrangeRunError> {
     let mut candidate_readiness = CandidateReadiness::from_env();
     crate::board_profile::validate_runtime_profile()?;
     let handoff_mode = crate::boot_oled_handoff::mode_from_env()?;
-    install_signal_handlers()?;
+    signal::install_signal_handlers()?;
     let store_dir = default_store_dir();
     crate::orange_device_apply::recover_startup(&store_dir)?;
     let usb_config = read_usb_runtime_config(&store_dir)
@@ -108,7 +110,7 @@ pub fn run() -> Result<(), OrangeRunError> {
             usb_midi_out_enabled: usb_config.midi_out_enabled,
         },
     );
-    let render_result = render.publish_shutdown();
+    let render_result = lifecycle::teardown_render(&result, &render);
     let seesaw_result = seesaw.shutdown();
     let result = result
         .and_then(|resolution| {
@@ -201,7 +203,7 @@ pub(crate) fn run_prepared_runtime(
         readiness_gate.try_mark_ready(audio_manager.required_jack_status(), candidate_readiness)?;
         let mut previous_tick = Instant::now();
         let mut next_render = previous_tick + RENDER_INTERVAL;
-        while !INTERRUPTED.load(Ordering::SeqCst) {
+        while !signal::interrupted() {
             if host.shutdown_pending() {
                 break;
             }
@@ -267,6 +269,17 @@ pub(crate) fn run_prepared_runtime(
         Ok::<(), String>(())
     })();
     match (result, host.take_shutdown_request()) {
+        (
+            Ok(()),
+            Some(
+                request @ (crate::orange_device_apply::OrangeShutdownRequest::Reboot
+                | crate::orange_device_apply::OrangeShutdownRequest::Shutdown),
+            ),
+        ) => {
+            lifecycle::publish_power_terminal(&mut playback, &mut host, render)
+                .map_err(OrangeRunError::Ordinary)?;
+            crate::orange_device_apply::resolve_shutdown_request(request, &mut host)
+        }
         (Ok(()), Some(request)) => {
             crate::orange_device_apply::resolve_shutdown_request(request, &mut host)
         }
@@ -457,30 +470,6 @@ fn publish_snapshot(
     }
     *last_revision = playback.last_snapshot_revision();
     Ok(true)
-}
-
-#[cfg(unix)]
-fn install_signal_handlers() -> Result<(), String> {
-    unsafe {
-        let handler = interrupt_handler as *const () as libc::sighandler_t;
-        for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
-            if libc::signal(signal, handler) == libc::SIG_ERR {
-                return Err(format!(
-                    "could not install Orange shutdown handler for signal {signal}"
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-#[cfg(not(unix))]
-fn install_signal_handlers() -> Result<(), String> {
-    Err("Orange foreground candidate requires Unix signal handling".into())
-}
-#[cfg(unix)]
-extern "C" fn interrupt_handler(_: libc::c_int) {
-    INTERRUPTED.store(true, Ordering::SeqCst);
 }
 
 #[cfg(test)]

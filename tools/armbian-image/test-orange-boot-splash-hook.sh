@@ -42,10 +42,8 @@ done
 ! grep -q '^Conflicts=' "$boot_service" || { echo "Orange boot service must not conflict with runtime." >&2; exit 1; }
 grep -qFx 'After=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service local-fs.target' "$boot_service"
 grep -qFx 'Before=sysinit.target octessera.service' "$boot_service"
-! grep -q '^Conflicts=' "$shutdown_service" || { echo "Orange shutdown service must not conflict with runtime." >&2; exit 1; }
 for required_line in \
-    'After=octessera.service' \
-    'Before=shutdown.target reboot.target halt.target' \
+    'Type=oneshot' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
     'ProtectSystem=strict' \
@@ -53,11 +51,16 @@ for required_line in \
     'DevicePolicy=closed' \
     'DeviceAllow=/dev/spidev1.0 rw' \
     'DeviceAllow=/dev/gpiochip1 rw' \
-    'ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown' \
-    'TimeoutStartSec=5'; do
+    'ExecStart=/bin/true' \
+    "ExecStop=/bin/sh -c 'sleep 4; /usr/local/sbin/octessera-orange-oled-logo off || true'" \
+    'RemainAfterExit=yes' \
+    'TimeoutStopSec=8'; do
     grep -qFx "$required_line" "$shutdown_service" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
 done
-! grep -qFx 'SupplementaryGroups=audio i2c spi gpio' "$shutdown_service" || { echo 'Orange shutdown service must use the runtime account without named supplementary groups.' >&2; exit 1; }
+! grep -q '^Before=' "$shutdown_service" || { echo 'Orange shutdown service must not use target ordering.' >&2; exit 1; }
+! grep -qE '^WantedBy=(shutdown|reboot|halt)\.target$' "$shutdown_service" || { echo 'Orange shutdown service must be enabled at multi-user.' >&2; exit 1; }
+grep -qFx 'WantedBy=multi-user.target' "$shutdown_service" || { echo 'Orange shutdown service is not a multi-user service.' >&2; exit 1; }
+! grep -qE 'orange-oled-logo (shutdown|boot)' "$shutdown_service" || { echo 'Orange shutdown service must not write a logo.' >&2; exit 1; }
 [[ ! -e "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" ]] || { echo 'Orange system-sleep hook must be removed.' >&2; exit 1; }
 grep -qF '["gpioset", "--chip", self.chip, f"{offset}={value}"]' "$oled_logo" || { echo 'Orange OLED GPIO control must use the fixed libgpiod v2 syntax.' >&2; exit 1; }
 ! grep -qF -- '--mode=wait' "$oled_logo" || { echo 'Orange OLED GPIO control must not use the removed libgpiod v1 mode option.' >&2; exit 1; }
@@ -106,18 +109,19 @@ for missing in \
 done
 if command -v systemd-analyze >/dev/null 2>&1; then
     systemd_work="$(mktemp -d)"
-    mkdir -p "$systemd_work/etc/systemd/system" "$systemd_work/usr/local/sbin"
+    mkdir -p "$systemd_work/etc/systemd/system/multi-user.target.wants" "$systemd_work/usr/local/sbin"
     cp "$boot_service" "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
     cp "$shutdown_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
     cp "$suspend_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
+    ln -s ../octessera-orange-oled-shutdown.service "$systemd_work/etc/systemd/system/multi-user.target.wants/octessera-orange-oled-shutdown.service"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
     chmod 0755 "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-suspend"
     chmod 0755 "$systemd_work/usr/local/sbin/octessera-orange-oled-suspend"
-    for unit in local-fs.target sysinit.target shutdown.target reboot.target halt.target sleep.target; do
+    for unit in local-fs.target sysinit.target multi-user.target sleep.target; do
         printf '%s\n' '[Unit]' "Description=$unit" > "$systemd_work/etc/systemd/system/$unit"
     done
     for unit in systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service octessera.service; do
@@ -129,7 +133,8 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     done
     mkdir -p "$systemd_work/bin"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/bin/true"
-    chmod 0755 "$systemd_work/bin/true"
+    printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/bin/sh"
+    chmod 0755 "$systemd_work/bin/true" "$systemd_work/bin/sh"
     systemd-analyze --root="$systemd_work" verify octessera-orange-boot-splash.service octessera-orange-oled-shutdown.service octessera-orange-oled-suspend.service
     rm -rf "$systemd_work"
 fi

@@ -52,6 +52,13 @@ outputs still require a new constructor image and physical qualification. Both
 boards may remain blank before their initramfs writer runs; systemd then owns
 the only OLED animator. Reboot retains the clean shutdown logo+wordmark.
 
+Confirmed instrument-menu sleep uses the exact native `Going to sleep` toast over
+the shared static sleep/shutdown logo+wordmark frame. Confirmed Reboot and
+Shutdown use `Rebooting` and `Shutting down`; native acknowledges the final
+snapshot, preserves the OLED pixels/on state while detaching, and only then
+submits the fixed board power request. This does not describe arbitrary
+administrative `systemctl` commands.
+
 Orange runtime startup allows three attempts in a 30-second systemd start-limit
 window: the initial start and two five-second failure retries. After
 `start-limit-hit`, run `sudo systemctl reset-failed octessera.service` and then

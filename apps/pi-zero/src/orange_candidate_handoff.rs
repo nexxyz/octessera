@@ -85,7 +85,7 @@ pub(crate) fn run(
         true,
     );
     let suspend_result = suspend.shutdown();
-    let render_result = render.publish_shutdown();
+    let render_result = lifecycle::teardown_render(&result, &render);
     let seesaw_result = seesaw.shutdown();
     let result = result
         .and_then(|resolution| {
