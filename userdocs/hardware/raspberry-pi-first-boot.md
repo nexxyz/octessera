@@ -86,5 +86,12 @@ The Raspberry gadget reads the saved default from
 `/home/pi/presets/default.json`. Save device settings and use the confirmed
 apply/reboot action before changing the host-visible USB composition.
 
+The full 320-file sample library is installed in the production image under
+`/home/pi/samples`; user samples remain supported. USB Audio and USB MIDI are
+experimental/local bench validation only, with defaults disabled. Do not call
+the path supported without an authorized USB identity and an exact-image
+electrical/manual FAT record. Keep the board on the enclosure power input and
+use a data-only or power-isolating host cable; see [safety and power](safety-and-power.md).
+
 For wiring and the open-assembly checks, use [pinout and connections](pinout-and-connections.md),
 [the assembly manual](assembly-manual.md), and [troubleshooting](../troubleshooting.md).

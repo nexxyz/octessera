@@ -1,6 +1,6 @@
 # octessera hardware assembly manual
 
-This guide builds the standalone Octessera instrument: PCB, soldered controls, plug-in modules, NeoTrellis grid, one of the two supported compute boards, and enclosure.
+This guide builds the standalone Octessera instrument: PCB, soldered controls, plug-in modules, NeoTrellis grid, one of the two documented compute-board paths, and enclosure.
 
 The hardware is still being fit-tested. The current enclosure is the active v21
 test-fit model, not a production-final enclosure. Check the current enclosure
@@ -39,7 +39,7 @@ keep source proof and physical proof separate.
 | 4 | NeoTrellis 4x4 driver PCB | [Adafruit `3954`](https://www.adafruit.com/product/3954), Mouser `485-3954` | Forms the 8x8 grid. |
 | 4 | Silicone 4x4 keypad | [Adafruit `1611`](https://www.adafruit.com/product/1611), Mouser `485-1611` | One per NeoTrellis board. |
 | 1 | NeoKey 1x4 QT | [Adafruit `4980`](https://www.adafruit.com/product/4980), Mouser `485-4980` | Holds the four Cherry MX keys. |
-| 1 | Compute board | [Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) for the Raspberry path, or [Orange Pi Zero 2W](../../hardware/docs/orange-pi-armbian-bringup.md#target-context) for the Orange path | Choose one supported board profile. Confirm the exact board revision, header orientation, pinout, and mechanical fit before soldering or powering it. |
+| 1 | Compute board | [Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) for the Raspberry path, or [Orange Pi Zero 2W](../../hardware/docs/orange-pi-armbian-bringup.md#target-context) for the Orange path | Choose one documented board profile. Confirm the exact board revision, header orientation, pinout, and mechanical fit before soldering or powering it. |
 | 1 | SSD1351 OLED breakout with microSD holder | [Adafruit `1431`](https://www.adafruit.com/product/1431), Mouser `485-1431` | SPI display. |
 | 1 | PCM5102 I2S DAC | [Adafruit `6250`](https://www.adafruit.com/product/6250), Mouser `485-6250` | Line/headphone output path. |
 | 1 | USB-C power breakout | [Adafruit `4090`](https://www.adafruit.com/product/4090), Mouser `485-4090` | Power the device here, not through the compute board. |
@@ -52,7 +52,7 @@ keep source proof and physical proof separate.
 | 4 | Cherry MX-compatible key switches | [Cherry MX Black switches](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1), or any MX-compatible switch | Install into the NeoKey after bring-up. |
 | 1 | MicroSD card for the selected board | 16GB or larger recommended | Flash the matching board image. Raspberry and Orange image workflows are separate. |
 | 1 | USB-C power supply | Regulated 5V supply, 3A minimum; 4A recommended for extra LED headroom | Connect only to the USB-C breakout. A 2A supply is likely marginal once the compute board and LEDs are running together. See [safety and power](safety-and-power.md). |
-| 1 | Data-only USB cable or power-isolating USB adapter | Optional, for selected-board USB data/gadget use | Needed when the selected board's host-data port is connected to a host after the exact build passes its port-role, VBUS/CC, and no-backfeed gates. Software cannot block USB 5V for you. |
+| 1 | Data-only USB cable or power-isolating USB adapter | Optional, for experimental/local bench USB data validation | Needed when the selected board's host-data port is connected to a host after the exact build passes its port-role, VBUS/CC, and no-backfeed gates. Software cannot block USB 5V for you. |
 | 1 | Audio cable/headphones/speaker | 3.5mm audio | Used for test and operation. |
 
 ### 3D printed and mechanical parts
@@ -238,8 +238,9 @@ explicitly authorize it. Follow the selected board's power and USB-role checks
 before connecting a host.
 
 For the Raspberry path, if you connect the Pi USB data/gadget port to a
-computer, remember that a normal USB cable carries 5V too. Octessera can
-configure the gadget, but software cannot block that power.
+computer for authorized experimental/local bench validation, remember that a
+normal USB cable carries 5V too. Octessera can configure the gadget, but software
+cannot block that power.
 Use a data-only cable or a power-isolating adapter if the instrument is already
 powered through the enclosure USB-C port. For Orange, connect the host-data port
 only after the exact build passes the port-role, VBUS/CC, and no-backfeed gates

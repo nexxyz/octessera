@@ -7,7 +7,7 @@ samples. It is an engineering record, not legal advice.
 ## Pins and inputs
 
 - Cargo workspace lockfile: `Cargo.lock`, SHA-256
-  `0225ccdf24258b816cc152df5571601f91e2c380afc06a44d9bf2157e87d6bae`.
+  `8fa7043b83b0b3a630c097508e96663997bc2153e2451d8005f5b000e24e36d9`.
 - `cargo-about` **0.9.1**. Install with:
   `cargo install cargo-about --version 0.9.1 --locked --features cli`.
 - Cargo configuration: `about.toml`; reviewed template:
@@ -83,17 +83,17 @@ cargo about generate --workspace --all-features --frozen --fail --format json -o
 ```
 
 The Cargo output is `cargo-lock-overinclusive`: it covers every lockfile
-identity and is not a claim that all 509 packages ship in every target profile.
+identity and is not a claim that all 523 packages ship in every target profile.
 `SOURCE_INDEX.json` records release target source obligations separately.
 `cargo-about` remains advisory; the exact policy checker, not its allowlist,
 authorizes the ten MPL records and two r-efi Apache alternatives.
 
 ## Review status
 
-The Cargo inventory records 497 permissive packages, ten reviewed MPL packages,
-and two reviewed r-efi alternatives. It records 68
-`manifest-license-no-file` packages as informational and 73 packages requiring
-source-availability review before public binary release. All seven first-party
+The Cargo inventory records 511 permissive packages, ten reviewed MPL packages,
+and two reviewed r-efi alternatives. It records 69
+`manifest-license-no-file` packages as informational and 74 packages requiring
+source-availability review before public binary release. All eight first-party
 crates inherit the root `LICENSE`; that custom license is validated but
 excluded from the third-party index. There are zero custom/unknown packages
 and zero unresolved policy decisions.

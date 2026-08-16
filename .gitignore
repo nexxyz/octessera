@@ -78,6 +78,10 @@ tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/*
 !tools/pi-image/stage4-octessera/files/root/usr/share/doc/
 tools/pi-image/stage4-octessera/files/root/usr/share/doc/octessera/
 userpatches/overlay/usr/share/doc/octessera/
+userpatches/overlay/usr/share/octessera/samples/
+userpatches/overlay/usr/share/octessera/defaults/pi-default.json
+tools/pi-image/stage4-octessera/files/root/home/pi/samples/
 userpatches/overlay/usr/local/lib/octessera/device_config.py
 release-legal/
+release-samples/
 AGENTS.md

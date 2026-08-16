@@ -6,6 +6,8 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 release="$root/.github/workflows/release-artifacts.yml"
 boards="$root/.github/workflows/release-board-artifacts.yml"
 action="$root/.github/actions/build-armbian-image/action.yml"
+assembler="$root/tools/release/assemble_release_assets.py"
+desktop_verifier="$root/tools/release/verify_desktop_artifact.py"
 device_packager="$root/tools/device-update/package_device_bundle.py"
 sanitizer="$root/tools/pi-image/verify-sanitized-image.sh"
 runtime_chain_helper="$root/tools/pi-image/verify-managed-runtime.sh"
@@ -81,10 +83,10 @@ assert_contains "$release" 'shellcheck tools/armbian-image/test-release-workflow
 assert_contains "$release" 'release_info:'
 assert_contains "$release" 'Release version must be an exact semver.'
 assert_contains "$release" 'version=${RELEASE_TAG#v}'
-assert_contains "$release" 'Cargo package version'
+assert_contains "$release" 'tools/release/check_version_consistency.py --tag "$RELEASE_TAG"'
 assert_contains "$release" 'git rev-parse "$RELEASE_TAG^{commit}"'
 assert_contains "$release" 'needs: [release_info, updater_protocol, windows, ubuntu, board_artifacts, workflow_static]'
-assert_contains "$release" 'The release must remain a draft until the final publish job.'
+assert_contains "$release" 'The release must remain a draft until manual publication.'
 assert_contains "$release" 'The release draft must not already contain assets.'
 assert_contains "$release" 'gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100"'
 assert_contains "$release" '[ .[][] | select(.tag_name == $tag) ] as $matches'
@@ -92,40 +94,53 @@ assert_contains "$release" 'if ($matches | length) != 1 then'
 assert_contains "$release" 'elif $matches[0].draft != true then'
 assert_contains "$release" 'elif ($matches[0].assets | length) != 0 then'
 assert_contains "$release" 'release_id: ${{ needs.resolve_draft.outputs.release_id }}'
+assert_contains "$release" 'python3 tools/release/assemble_release_assets.py'
+assert_absent "$release" 'expected_root_assets=('
+assert_absent "$release" 'zip -9 -r "$evidence_zip"'
+assert_absent "$release" 'require_exact_files()'
+assert_absent "$release" 'copy_asset()'
 assert_contains "$release" 'gh release upload'
-assert_contains "$release" 'gh release edit'
-assert_contains "$release" '--draft=false'
+assert_absent "$release" 'gh release edit'
+assert_absent "$release" '--draft=false'
 assert_contains "$release" 'Release already has assets before upload.'
 assert_contains "$release" 'Revalidate exact draft immediately before upload'
-assert_contains "$release" 'Revalidate uploaded asset set immediately before publish'
+assert_contains "$release" 'Revalidate uploaded asset set after upload'
+assert_contains "$release" 'GITHUB_STEP_SUMMARY'
+assert_contains "$release" 'draft_ready=true'
+assert_contains "$release" 'draft_ready: ${{ steps.draft_handoff.outputs.draft_ready }}'
+assert_contains "$release" 'manual exact-artifact FAT and human publication'
+assert_absent "$release" 'Publish the verified draft release last'
 assert_contains "$release" 'EXPECTED_RELEASE_ID'
-assert_contains "$release" 'RPI_KERNEL_ARTIFACT_VERSION="0.7.5"'
-assert_contains "$release" 'RPI_KERNEL_ARTIFACT_VERSION}-1_arm64.deb'
-assert_contains "$release" 'package_notice_zip.py'
-assert_contains "$release" 'verify_notice_archive.py --repository-root . --archive $portableAsset --payload-name octessera.exe'
-assert_contains "$release" 'device ZIP inventory is not exact'
-assert_contains "$release" 'device ZIP legal files do not match the release source'
-assert_contains "$release" 'expected_root_assets=('
-assert_contains "$release" 'expected_count=12'
-assert_contains "$release" 'expected_names = ["octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"]'
-assert_contains "$release" 'expected_mode = 0o755 if info.filename == "octessera-pi" else 0o644'
-assert_contains "$release" 'zip -9 -r "$evidence_zip" windows ubuntu raspberry orange legal'
-assert_contains "$release" 'sha256sum "${root_payloads[@]}" > SHA256SUMS.txt'
-assert_contains "$release" 'sha256sum -c SHA256SUMS.txt'
-assert_contains "$release" '== "$expected_count" && "${final_files[*]}" == "${expected_files[*]}"'
-assert_contains "$release" 'require_exact_files "$root/octessera-windows-release-assets"'
-assert_contains "$release" 'require_exact_files "$root/octessera-ubuntu-release-assets"'
-assert_contains "$release" 'copy_asset()'
-assert_contains "$release" '[[ ! -e "$destination" ]]'
-assert_contains "$release" 'mapfile -t final_files'
+assert_contains "$assembler" 'RPI_KERNEL_ARTIFACT_VERSION = "0.7.5"'
+assert_contains "$assembler" 'RPI_KERNEL_PACKAGE'
+assert_contains "$assembler" 'package_notice_zip(root, notices)'
+assert_contains "$assembler" 'verify_notice_archive(root, portable, "octessera.exe")'
+assert_contains "$assembler" 'device ZIP inventory is not exact'
+assert_contains "$assembler" 'expected_root_assets = ['
+assert_contains "$assembler" 'len(expected_root_assets) == 12'
+assert_contains "$assembler" 'expected_names'
+assert_contains "$assembler" 'expected_mode = 0o755 if entry.filename == "octessera-pi" else 0o644'
+assert_contains "$assembler" '_make_evidence_zip'
+assert_contains "$assembler" '_write_checksums(release_assets, "SHA256SUMS.txt"'
+assert_contains "$assembler" '_require_exact_files(release_assets, expected_root_assets)'
+assert_contains "$desktop_verifier" 'EXPECTED_MEDIA_COUNT'
+assert_contains "$desktop_verifier" 'verify_media_tree'
+assert_contains "$desktop_verifier" 'portable archive entry mode is not 0644'
+assert_contains "$desktop_verifier" 'legal/notice-bundle.json'
+assert_contains "$desktop_verifier" 'sample-manifest.tsv'
 assert_contains "$release" 'mapfile -t uploaded_assets'
-assert_contains "$release" 'Uploaded release asset names/count do not match the verified set.'
+assert_contains "$release" "stat -c '%s'"
+assert_contains "$release" '[.name, (.size | tostring)] | @tsv'
+assert_contains "$release" 'Uploaded release asset names/count/sizes do not match the verified set.'
+assert_contains "$release" 'local bytes/checksums were verified before upload; remote names/count/sizes were revalidated; downloaded bytes/checksums and exact-artifact FAT remain human gates before publication.'
 assert_contains "$release" 'if-no-files-found: error'
 assert_contains "$boards" 'tools/device-update/package_device_bundle.py'
 assert_contains "$boards" '--board-profile raspberry-pi-zero-2w'
 assert_contains "$boards" '--board-profile orange-pi-zero-2w'
 assert_contains "$boards" 'Stage Raspberry legal notices and copy disposable stage4'
 assert_contains "$boards" 'tools/legal/stage_notices.py'
+assert_contains "$boards" 'tools/pi-image/stage-musical-assets.sh'
+assert_contains "$boards" 'tools/pi-image/test-musical-assets.sh'
 assert_contains "$boards" '--check'
 assert_contains "$boards" 'verify-rpi-kernel-image.sh'
 assert_contains "$boards" 'verify-orange-image.sh'
@@ -133,6 +148,7 @@ assert_contains "$boards" 'octessera-orange-image-proof.json'
 assert_contains "$boards" 'octessera-${{ inputs.version }}-raspberry-pi-zero-2w.img.zip'
 assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w.img.xz'
 assert_contains "$action" 'tools/legal/stage_notices.py'
+assert_contains "$action" 'tools/armbian-image/stage-musical-assets.sh'
 assert_contains "$root/resources/image-construction/boot-layers/raspberry-pi-zero-2w.json" 'resources/legal/notice-bundle.json'
 assert_absent "$action" 'legal-source'
 assert_absent "$release" 'macos'
@@ -182,26 +198,26 @@ fi
     exit 1
 }
 [[ "$(grep -cF 'EXPECTED_RELEASE_ID: ${{ needs.release_info.outputs.release_id }}' "$release")" == 2 ]] || {
-    echo 'Upload and publish guards must receive the resolved release ID.' >&2
+    echo 'Upload and revalidation guards must receive the resolved release ID.' >&2
     exit 1
 }
 upload_guard_block="$(sed -n '/^      - name: Revalidate exact draft immediately before upload$/,/^      - name: Upload assets without collision hiding$/p' "$release")"
-publish_guard_block="$(sed -n '/^      - name: Revalidate uploaded asset set immediately before publish$/,/^      - name: Publish the verified draft release last$/p' "$release")"
+publish_guard_block="$(sed -n '/^      - name: Revalidate uploaded asset set after upload$/,/^      - name: Report populated draft ready for manual FAT and publication$/p' "$release")"
 assert_block_contains "$upload_guard_block" 'EXPECTED_RELEASE_ID'
 assert_block_contains "$publish_guard_block" 'EXPECTED_RELEASE_ID'
-[[ "$(grep -cF 'gh release upload' "$release")" == 1 && "$(grep -cF 'gh release edit' "$release")" == 1 ]] || {
-    echo 'Release upload and edit operations must remain single, explicit operations.' >&2
+[[ "$(grep -cF 'gh release upload' "$release")" == 1 && "$(grep -cF 'gh release edit' "$release")" == 0 ]] || {
+    echo 'Release upload must remain single and automatic publication must be absent.' >&2
     exit 1
 }
 assert_order "$release" 'Revalidate exact draft immediately before upload' 'Upload assets without collision hiding'
-assert_order "$release" 'Upload assets without collision hiding' 'Revalidate uploaded asset set immediately before publish'
-assert_order "$release" 'Revalidate uploaded asset set immediately before publish' 'Publish the verified draft release last'
+assert_order "$release" 'Upload assets without collision hiding' 'Revalidate uploaded asset set after upload'
+assert_order "$release" 'Revalidate uploaded asset set after upload' 'Report populated draft ready for manual FAT and publication'
 
 jq_draft_filter='[ .[][] | select(.tag_name == $tag) ] as $matches
   | if ($matches | length) != 1 then
       error("Expected exactly one release for tag \($tag)")
     elif $matches[0].draft != true then
-      error("The release must remain a draft until the final publish job.")
+      error("The release must remain a draft until manual publication.")
     elif ($matches[0].assets | length) != 0 then
       error("The release draft must not already contain assets.")
     else
@@ -220,6 +236,27 @@ printf '%s\n' '[[{"tag_name":"v0.7.5","id":42,"draft":true,"assets":[{"name":"st
 }
 if jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/zero.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/duplicate.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/non-draft.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/non-empty.json" >/dev/null; then
     echo 'Draft resolver fixtures must reject zero, duplicate, non-draft, and non-empty matches.' >&2
+    exit 1
+fi
+size_fixture="$fixture_dir/asset-sizes"
+mkdir -p "$size_fixture"
+printf '%s' abc > "$size_fixture/one.bin"
+printf '%s' 12345 > "$size_fixture/two.bin"
+printf '%s\n' '{"assets":[{"name":"one.bin","size":3},{"name":"two.bin","size":5}]}' > "$size_fixture/matching.json"
+mapfile -t expected_size_assets < <(
+    while IFS= read -r name; do
+        printf '%s\t%s\n' "$name" "$(stat -c '%s' "$size_fixture/$name")"
+    done < <(find "$size_fixture" -maxdepth 1 -type f -name '*.bin' -printf '%f\n' | sort)
+)
+mapfile -t uploaded_size_assets < <(jq -r '.assets[] | [.name, (.size | tostring)] | @tsv' "$size_fixture/matching.json" | sort)
+[[ "${#uploaded_size_assets[@]}" == "${#expected_size_assets[@]}" && "${uploaded_size_assets[*]}" == "${expected_size_assets[*]}" ]] || {
+    echo 'Matching remote asset size fixture did not match local stat output.' >&2
+    exit 1
+}
+printf '%s\n' '{"assets":[{"name":"one.bin","size":4},{"name":"two.bin","size":5}]}' > "$size_fixture/wrong-size.json"
+mapfile -t uploaded_size_assets < <(jq -r '.assets[] | [.name, (.size | tostring)] | @tsv' "$size_fixture/wrong-size.json" | sort)
+if [[ "${#uploaded_size_assets[@]}" == "${#expected_size_assets[@]}" && "${uploaded_size_assets[*]}" == "${expected_size_assets[*]}" ]]; then
+    echo 'Wrong remote asset size fixture was accepted.' >&2
     exit 1
 fi
 orange_handoff_fixture="$fixture_dir/orange-handoff"
@@ -249,14 +286,25 @@ for file in "$release" "$boards" "$action" "$root/tools/armbian-image/verify-ora
     done
 done
 
-for removed_step in 'Start-Process -FilePath' 'hdiutil attach' 'dpkg-deb -x' '--appimage-extract'; do
+for removed_step in 'Start-Process -FilePath' 'hdiutil attach'; do
     assert_absent "$release" "$removed_step"
 done
 
 windows_block="$(sed -n '/^  windows:/,/^  ubuntu:/p' "$release")"
 ubuntu_block="$(sed -n '/^  ubuntu:/,/^  board_artifacts:/p' "$release")"
 assert_block_contains "$windows_block" 'verify_notice_archive.py'
+assert_block_contains "$windows_block" 'python tools/release/verify_desktop_artifact.py --repository-root . --portable-zip'
+assert_block_contains "$windows_block" '$sevenZip = "C:\Program Files\7-Zip\7z.exe"'
+assert_block_contains "$windows_block" 'Resolve-Path -LiteralPath $sevenZip'
+assert_block_contains "$windows_block" '& $sevenZip x $installer'
+assert_block_contains "$windows_block" 'Expected exactly one extracted direct samples/legal resource root'
+assert_block_contains "$windows_block" '--resource-root $resourceRoots[0].FullName'
+assert_absent "$release" '& $installer /S'
 assert_block_contains "$ubuntu_block" 'sha256sum ./*.deb ./*.AppImage > SHA256SUMS-ubuntu.txt'
+assert_block_contains "$ubuntu_block" 'dpkg-deb -x'
+assert_block_contains "$ubuntu_block" '--appimage-extract'
+assert_block_contains "$ubuntu_block" 'python3 tools/release/verify_desktop_artifact.py --repository-root . --resource-root "$deb_root/usr/lib/octessera"'
+assert_block_contains "$ubuntu_block" 'python3 tools/release/verify_desktop_artifact.py --repository-root . --resource-root "$appimage_root/squashfs-root/usr/lib/octessera"'
 
 assert_contains "$boards" 'hardware-raspberry-pi-zero-2w'
 assert_contains "$boards" 'hardware-orange-pi-zero-2w'
@@ -298,9 +346,9 @@ assert_contains "$boards" 'for required in "$image" "$image.sha256" "${canonical
 assert_contains "$boards" 'sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}"'
 assert_contains "$release" 'git/ref/tags/$EXPECTED_RELEASE_TAG'
 assert_contains "$release" 'git/tags/$tag_object'
-assert_contains "$release" 'native_prefix = canonical_name.removesuffix(".deb") + "__"'
+assert_contains "$assembler" 'native_name.startswith(filename.removesuffix(".deb") + "__")'
 assert_contains "$release" 'apt-get install -y --no-install-recommends cpio zstd'
-assert_contains "$release" 'kernel_source_repository'
+assert_contains "$assembler" 'kernel_source_repository'
 assert_absent "$release" 'expected_count=28'
 assert_absent "$release" 'release-assets/$prefix-notices.zip'
 assert_absent "$release" 'release-assets/$rpi_kernel_package'

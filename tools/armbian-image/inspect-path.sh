@@ -232,7 +232,7 @@ octessera_validate_sample_tree() {
   local target_path="$1"
   local manifest_content="$2"
   local inspect_work_path="$3"
-  local sample_root=usr/share/octessera/samples/files
+  local sample_root=var/lib/octessera/samples
   local records_path="$inspect_work_path/sample-manifest.records"
   local directories_path="$inspect_work_path/sample-manifest.directories"
   local inventory_path="$inspect_work_path/sample-inventory"
@@ -243,7 +243,6 @@ octessera_validate_sample_tree() {
   local sample_size
   local sample_hash
   local sample_source
-  local expected_sample_source
   local sample_license_source
   local component
   local current_directory
@@ -268,13 +267,7 @@ octessera_validate_sample_tree() {
       }
       continue
     fi
-    case "$sample_path" in
-      "Drum/claps/distkit-clap.wav") expected_sample_source=https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/fugue-state-audio/drums/claps/distkit-clap.wav ;;
-      "Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav") expected_sample_source=https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav ;;
-      "Drum/kick/Kick2.wav") expected_sample_source=https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav ;;
-      *) echo "Invalid packaged sample path: $sample_path." >&2; return 1 ;;
-    esac
-    [[ -n "$sample_path" && "$sample_source" == "$expected_sample_source" && "$sample_license_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE ]] || {
+    [[ -n "$sample_path" && "$sample_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/* && "$sample_license_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE ]] || {
       echo 'Invalid packaged sample manifest row.' >&2
       return 1
     }
@@ -306,17 +299,13 @@ octessera_validate_sample_tree() {
       fi
     done
   done <<< "$manifest_content"
-  [[ "$manifest_line" -gt 1 && "$sample_count" -gt 0 ]] || {
-    echo 'Packaged sample manifest has no sample rows.' >&2
+  [[ "$manifest_line" -gt 1 && "$sample_count" == 320 ]] || {
+    echo 'Packaged sample manifest does not contain the complete inventory.' >&2
     return 1
   }
 
   octessera_collect_sample_inventory "$target_path" "$sample_root" "$inventory_path" || {
     echo 'Unable to enumerate packaged sample files.' >&2
-    return 1
-  }
-  require_root_mode "$sample_root" 755 || {
-    echo "Unsafe packaged sample directory: $sample_root." >&2
     return 1
   }
   while IFS= read -r current_directory; do

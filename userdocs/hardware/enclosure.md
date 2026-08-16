@@ -75,14 +75,16 @@ The Raspberry Pi top exposes these ports:
 - Left side: USB-C power
 - Left side: Pi microSD
 - Bottom side: Pi mini-HDMI
-- Bottom side: Pi USB data, for connecting Octessera to a host as MIDI/audio
+- Bottom side: Pi USB data, reserved for experimental/local bench validation;
+  public USB Audio/MIDI support is not claimed
 
 The Raspberry Pi's second micro-USB port exists, but it is power-only and intentionally covered. Do not use it; power comes through the enclosure USB-C breakout.
 
 The Orange Pi Zero 2W top exposes the same enclosure power, audio, and storage openings, plus both south-edge USB-C ports:
 
 - West/left USB-C, marked with one dot: USB 1 for USB devices
-- East/right USB-C, marked with two dots: USB 2 for connecting Octessera to a host as MIDI/audio
+- East/right USB-C, marked with two dots: USB 2 for experimental/local bench
+  validation only; public USB Audio/MIDI support is not claimed
 
 The OLED microSD is not exposed as a case-edge port in the current `v21` entry.
 

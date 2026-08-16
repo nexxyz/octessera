@@ -80,11 +80,16 @@ for line in (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8"
         raise AssertionError("Orange constructor mutates a parent legal path")
 customize = (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8")
 assert "notice_tree=\"$overlay_dir/usr/share/doc/octessera\"" in customize and "tools/legal/stage_notices.py" in customize and "/usr/share/doc/octessera" in customize
+assert "install_orange_musical_assets \"$overlay_dir\" \"\"" in customize
+provisioner = (ROOT / "userpatches/overlay/usr/local/sbin/octessera-provision-musical-default").read_text(encoding="utf-8")
+assert "samples" not in provisioner
+inspector = (ROOT / "tools/armbian-image/inspect-path.sh").read_text(encoding="utf-8")
+assert "local sample_root=var/lib/octessera/samples" in inspector
 assert "chown root:root /etc/octessera/build-metadata.env" in customize
 assert "chmod 0644 /etc/octessera/build-metadata.env" in customize
 assert any(item["path"] == "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" for item in contract["exact_inputs"])
 default_input = next(item for item in contract["exact_inputs"] if item["path"] == "config/generated/pi/default.json")
-assert default_input == {"path": "config/generated/pi/default.json", "sha256": "f9df603a01f478b7b88aef80e09f62f144bc00fea4a9ed3c0907b205e2f1e9f1", "size": 78413, "mode": 420}
+assert default_input == {"path": "config/generated/pi/default.json", "sha256": "c076628ca5240ff82c63cdaa0886e9bb0828b9e1cd02188498251cc474f018ce", "size": 83596, "mode": 420}
 assert contract["managed_outputs"][0] == {"path": "etc/profile.d/octessera-welcome.sh", "mode": 420, "uid": 0, "gid": 0}
 for path in (
     "etc/systemd/system/octessera-orange-usb-gadget.service",

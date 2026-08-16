@@ -14,6 +14,7 @@
     "palette:check": "node tools/resources/generate-display-palette.mjs --check",
     "capabilities:generate": "node tools/resources/generate-platform-capabilities.mjs",
     "capabilities:check": "node tools/resources/generate-platform-capabilities.mjs --check",
+    "release:check-version": "python tools/release/check_version_consistency.py",
     "lint": "corepack pnpm -r lint",
     "format:check": "corepack pnpm -r format:check",
     "typecheck": "corepack pnpm run config:check && corepack pnpm run capabilities:check && corepack pnpm run palette:check && corepack pnpm -r typecheck",

@@ -349,7 +349,8 @@ def verify_runtime(root: Path, mode: str) -> dict[str, str]:
     contract = json.loads((root / "etc/octessera/image-contract.json").read_text(encoding="utf-8"))
     require(contract == {"schema_version": 1, "image_kind": mode, "runtime_enabled_default": mode == "production"}, "final image contract is not exact")
     if mode == "diagnostic":
-        runtime_account(root, require)
+        runtime_uid, runtime_gid = runtime_account(root, require)
+        require_owner_mode(root / "var/lib/octessera/samples", runtime_uid, runtime_gid, 0o755, require)
         for path in (root / "usr/local/bin/octessera-pi", root / "etc/systemd/system/octessera.service", root / "opt/octessera/current", root / "opt/octessera/releases"):
             require(not path.exists() and not path.is_symlink(), f"diagnostic image contains production runtime path: {path.relative_to(root)}")
         return {"runtime_service_mode": "disabled"}

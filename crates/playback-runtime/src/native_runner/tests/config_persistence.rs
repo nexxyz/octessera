@@ -267,10 +267,10 @@ pub(crate) fn typed_decode_keeps_opaque_state_and_canonical_bytes_unchanged() {
     let worlds = input["runtimeConfig"]["layers"][0]["worlds"]
         .as_object_mut()
         .unwrap();
-    let mut behavior_config = worlds
-        .get("behaviorConfig")
-        .cloned()
-        .unwrap_or_else(|| json!({}));
+    let mut behavior_config = match worlds.get("behaviorConfig") {
+        Some(value) if value.is_object() => value.clone(),
+        _ => json!({}),
+    };
     behavior_config
         .as_object_mut()
         .unwrap()

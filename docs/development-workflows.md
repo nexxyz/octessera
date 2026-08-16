@@ -8,6 +8,10 @@ the user-facing hardware build, assembly, and bring-up docs have priority:
 - `userdocs/hardware/enclosure.md`
 - `docs/menu-and-controls-spec.md`
 
+Release owners should start with the [user-facing release support matrix](../userdocs/release-support.md).
+It is the single owner checklist for support status, manual FAT evidence, USB
+policy, and the final human publish decision.
+
 Contributor-only branding guidance lives in `hardware/docs/branding-assets.md`.
 
 ## Install
@@ -24,6 +28,7 @@ General documentation checks:
 
 ```bash
 python tools/docs/check_links.py
+python3 tools/docs/test_release_documentation.py
 git diff --check
 ```
 
@@ -156,27 +161,29 @@ Release assets:
 - `SHA256SUMS.txt`: lowercase, sorted checksums for the other 11 custom root assets.
 
 macOS distribution is paused until it can be properly signed and notarized, so
-it is not currently a GitHub release asset. The final publish gate expects
+it is not currently a GitHub release asset. The final populated-draft gate expects
 exactly 12 custom release files. It checks the
 portable notice proof, exact four-entry Raspberry updater ZIP, exact six-entry
 Orange manual ZIP, image and kernel evidence, runtime identity, and root asset
 names/checksums. GitHub's automatic source ZIP and tar archives remain visible
 source archives but are not custom assets or entries in `SHA256SUMS.txt`.
 
-Release process:
+Release process and owner handoff:
 
 1. Bump versions in Rust manifests, `package.json` files, and `apps/desktop/src-tauri/tauri.conf.json`.
 2. Run `corepack pnpm install` after package version edits.
 3. Run local validation and rebuild the portable desktop exe if desktop-visible behavior changed.
 4. Commit and push the release-prep changes.
-5. Create a unique empty draft GitHub release such as `v0.5.0`.
+5. Create a unique empty draft GitHub release such as `v0.5.0` as the workflow
+   input. The release workflow must end with the exact assets attached to that
+   release while it remains a populated draft.
 6. Run `Release Artifacts` manually with that existing tag. The workflow derives
-   the future semver from the tag and confirms it against the package metadata.
-7. Confirm the installer, portable ZIP, Ubuntu DEB/AppImage,
-   Raspberry image and device assets, Orange production image and standalone
-   runtime bundle, evidence ZIP, and root checksum file are attached before
-   announcing the release. The Imager manifest is operational metadata, and
-   board device ZIPs carry exact root-level `LICENSE` and `NOTICE` files.
+   the semver from the tag and confirms it against the package metadata; it does
+   not replace the release-owner review in [release support](../userdocs/release-support.md).
+7. Stop at the populated draft. Use the release-owner checklist to verify exact
+   asset names/count, checksums, image manifests, ZIP contents, sample/default
+   coverage, desktop launch, per-board FAT, source duties, and limitations. Do
+   not announce or publish until a human explicitly makes that decision.
 
 The Pi and Orange image builds are necessary slow paths because they generate
 full OS images through pi-gen and Armbian. Keep them release-only.

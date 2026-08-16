@@ -8,6 +8,8 @@ mod midi;
 mod persistence;
 mod runtime_worker;
 mod samples;
+mod startup_failure;
+mod store_startup;
 mod types;
 
 use audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepState};
@@ -17,7 +19,6 @@ use host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use runtime_worker::{RuntimeWorker, WorkerCommand};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
@@ -25,89 +26,6 @@ use tauri::Manager;
 pub(crate) struct AppState {
     worker_tx: mpsc::Sender<crate::runtime_worker::WorkerCommand>,
     runtime_outbox: Arc<Mutex<Vec<crate::types::RuntimeMessagesPayload>>>,
-}
-
-const BUNDLED_DEFAULT_CONFIG: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../config/generated/desktop/default.json"
-));
-
-fn ensure_store_dir(app: &tauri::App) -> PathBuf {
-    if let Some(dir) = std::env::var_os("OCTESSERA_DESKTOP_STORE_DIR").map(PathBuf::from) {
-        return ensure_store_dir_at(dir);
-    }
-    let dir = app
-        .path()
-        .app_data_dir()
-        .unwrap_or_else(|_| fallback_store_dir());
-    ensure_store_dir_at(dir)
-}
-
-fn ensure_store_dir_at(dir: PathBuf) -> PathBuf {
-    let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::create_dir_all(dir.join("presets"));
-    let default_path = dir.join("default.json");
-    if !default_path.is_file() {
-        let _ = serde_json::from_str(BUNDLED_DEFAULT_CONFIG)
-            .map_err(|_| ())
-            .and_then(|payload| {
-                persistence::atomic_write_json(&default_path, &payload).map_err(|_| ())
-            });
-    } else {
-        let _ = repair_existing_desktop_default_brightness(&default_path);
-    }
-    dir
-}
-
-fn repair_existing_desktop_default_brightness(path: &std::path::Path) -> Result<(), String> {
-    let bundled: serde_json::Value =
-        serde_json::from_str(BUNDLED_DEFAULT_CONFIG).map_err(|e| e.to_string())?;
-    let mut payload: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-    let Some(runtime) = payload
-        .get_mut("runtimeConfig")
-        .and_then(serde_json::Value::as_object_mut)
-    else {
-        return Ok(());
-    };
-    let bundled_runtime = bundled
-        .get("runtimeConfig")
-        .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| "bundled desktop default missing runtimeConfig".to_string())?;
-    let old_pi_defaults = [
-        ("buttonBrightness", 35_u64),
-        ("displayBrightness", 75_u64),
-        ("gridBrightness", 25_u64),
-    ];
-    let mut changed = false;
-    for (key, old_value) in old_pi_defaults {
-        let should_repair = runtime
-            .get(key)
-            .and_then(serde_json::Value::as_u64)
-            .is_none_or(|current| current == old_value);
-        if !should_repair {
-            continue;
-        }
-        let Some(next) = bundled_runtime.get(key) else {
-            continue;
-        };
-        if runtime.get(key) != Some(next) {
-            runtime.insert(key.to_string(), next.clone());
-            changed = true;
-        }
-    }
-    if changed {
-        persistence::atomic_write_json(path, &payload)?;
-    }
-    Ok(())
-}
-
-fn fallback_store_dir() -> PathBuf {
-    std::env::current_exe()
-        .ok()
-        .and_then(|path| path.parent().map(|parent| parent.join("config")))
-        .unwrap_or_else(|| PathBuf::from("config"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -125,12 +43,22 @@ pub fn run() {
     let midi_out = Arc::new(Mutex::new(None));
     let midi_in = Arc::new(Mutex::new(None));
     let runtime_outbox = Arc::new(Mutex::new(Vec::new()));
-    spawn_audio_engine_thread(trigger_rx, load_tx, audio_failure_tx, no_audio);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             let app_handle = app.handle().clone();
-            let store_dir = ensure_store_dir(app);
+            let startup_result = samples::initialize_samples_root(app).and_then(|()| {
+                store_startup::ensure_store_dir(app).map_err(|error| error.to_string())
+            });
+            let store_dir =
+                match startup_failure::decide_startup(startup_result, |title, message| {
+                    startup_failure::present_native_startup_error(app, title, message);
+                }) {
+                    startup_failure::StartupDecision::Continue(store_dir) => store_dir,
+                    startup_failure::StartupDecision::FailurePresented => return Ok(()),
+                };
+            spawn_audio_engine_thread(trigger_rx, load_tx, audio_failure_tx, no_audio);
             let platform_service = spawn_desktop_platform_service();
             let (audio_control, audio_prep_result_rx) = spawn_desktop_audio_control(
                 trigger_tx.clone(),
@@ -190,111 +118,4 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn store_dir_seed_writes_bundled_default_once() {
-        let dir = std::env::temp_dir().join(format!(
-            "octessera-desktop-store-seed-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-
-        let seeded = ensure_store_dir_at(dir.clone());
-        let default_path = seeded.join("default.json");
-        let default_payload: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&default_path).unwrap()).unwrap();
-        assert_eq!(
-            default_payload["runtimeConfig"]["layers"][3]["autoName"],
-            true
-        );
-        assert_eq!(default_payload["runtimeConfig"]["displayBrightness"], 100);
-        assert_eq!(default_payload["runtimeConfig"]["gridBrightness"], 100);
-        assert_eq!(default_payload["runtimeConfig"]["buttonBrightness"], 100);
-
-        std::fs::write(&default_path, "{\"kept\":true}").unwrap();
-        ensure_store_dir_at(dir.clone());
-        assert_eq!(
-            std::fs::read_to_string(&default_path).unwrap(),
-            "{\"kept\":true}"
-        );
-        let _ = std::fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn store_dir_repairs_existing_pi_brightness_default_for_desktop() {
-        let dir = std::env::temp_dir().join(format!(
-            "octessera-desktop-store-brightness-repair-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        let default_path = dir.join("default.json");
-        std::fs::write(
-            &default_path,
-            serde_json::to_string_pretty(&serde_json::json!({
-                "runtimeConfig": {
-                    "buttonBrightness": 35,
-                    "displayBrightness": 75,
-                    "gridBrightness": 25,
-                    "masterVolume": 82
-                }
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-
-        ensure_store_dir_at(dir.clone());
-
-        let default_payload: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&default_path).unwrap()).unwrap();
-        assert_eq!(default_payload["runtimeConfig"]["displayBrightness"], 100);
-        assert_eq!(default_payload["runtimeConfig"]["gridBrightness"], 100);
-        assert_eq!(default_payload["runtimeConfig"]["buttonBrightness"], 100);
-        assert_eq!(default_payload["runtimeConfig"]["masterVolume"], 82);
-        let _ = std::fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn store_dir_repairs_partial_old_brightness_without_overwriting_custom_values() {
-        let dir = std::env::temp_dir().join(format!(
-            "octessera-desktop-store-partial-brightness-repair-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        let default_path = dir.join("default.json");
-        std::fs::write(
-            &default_path,
-            serde_json::to_string_pretty(&serde_json::json!({
-                "runtimeConfig": {
-                    "buttonBrightness": 35,
-                    "displayBrightness": 88,
-                    "masterVolume": 82
-                }
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-
-        ensure_store_dir_at(dir.clone());
-
-        let default_payload: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&default_path).unwrap()).unwrap();
-        assert_eq!(default_payload["runtimeConfig"]["buttonBrightness"], 100);
-        assert_eq!(default_payload["runtimeConfig"]["displayBrightness"], 88);
-        assert_eq!(default_payload["runtimeConfig"]["gridBrightness"], 100);
-        assert_eq!(default_payload["runtimeConfig"]["masterVolume"], 82);
-        let _ = std::fs::remove_dir_all(dir);
-    }
 }

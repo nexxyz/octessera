@@ -2249,6 +2249,13 @@ License files:
 - LICENSE-APACHE (751963a8b88c0e3a9f27e98933079fbcf09b9998b2c13ac49c2e4d58444520d6)
 - LICENSE-MIT (dd87e27dfbaa888cb77ea34592648a7743636b8dce07e49543bddda0fcfc73bc)
 
+### rfd 0.16.0
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE (65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071)
+
 ### rodio 0.20.1
 License: MIT OR Apache-2.0
 Class: permissive
@@ -2699,6 +2706,26 @@ License: Apache-2.0 OR MIT
 Class: permissive
 Source: crates.io
 License files: manifest-license-no-file; informational until source-availability review before public binary release
+
+### tauri-plugin 2.6.0
+License: Apache-2.0 OR MIT
+Class: permissive
+Source: crates.io
+License files: manifest-license-no-file; informational until source-availability review before public binary release
+
+### tauri-plugin-dialog 2.7.2
+License: Apache-2.0 OR MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE.spdx (eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef)
+
+### tauri-plugin-fs 2.5.1
+License: Apache-2.0 OR MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE.spdx (eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef)
 
 ### tauri-runtime 2.11.0
 License: Apache-2.0 OR MIT
@@ -3490,6 +3517,14 @@ License files:
 - license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
+### windows-sys 0.60.2
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
 ### windows-sys 0.61.2
 License: MIT OR Apache-2.0
 Class: permissive
@@ -3507,6 +3542,14 @@ License files:
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
 ### windows-targets 0.52.6
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
+### windows-targets 0.53.5
 License: MIT OR Apache-2.0
 Class: permissive
 Source: crates.io
@@ -3546,6 +3589,14 @@ License files:
 - license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
+### windows_aarch64_gnullvm 0.53.1
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
 ### windows_aarch64_msvc 0.42.2
 License: MIT OR Apache-2.0
 Class: permissive
@@ -3555,6 +3606,14 @@ License files:
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
 ### windows_aarch64_msvc 0.52.6
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
+### windows_aarch64_msvc 0.53.1
 License: MIT OR Apache-2.0
 Class: permissive
 Source: crates.io
@@ -3578,7 +3637,23 @@ License files:
 - license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
+### windows_i686_gnu 0.53.1
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
 ### windows_i686_gnullvm 0.52.6
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
+### windows_i686_gnullvm 0.53.1
 License: MIT OR Apache-2.0
 Class: permissive
 Source: crates.io
@@ -3602,6 +3677,14 @@ License files:
 - license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
+### windows_i686_msvc 0.53.1
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
 ### windows_x86_64_gnu 0.42.2
 License: MIT OR Apache-2.0
 Class: permissive
@@ -3611,6 +3694,14 @@ License files:
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
 ### windows_x86_64_gnu 0.52.6
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
+### windows_x86_64_gnu 0.53.1
 License: MIT OR Apache-2.0
 Class: permissive
 Source: crates.io
@@ -3634,6 +3725,14 @@ License files:
 - license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
+### windows_x86_64_gnullvm 0.53.1
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
 ### windows_x86_64_msvc 0.42.2
 License: MIT OR Apache-2.0
 Class: permissive
@@ -3643,6 +3742,14 @@ License files:
 - license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
 
 ### windows_x86_64_msvc 0.52.6
+License: MIT OR Apache-2.0
+Class: permissive
+Source: crates.io
+License files:
+- license-apache-2.0 (c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b)
+- license-mit (c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383)
+
+### windows_x86_64_msvc 0.53.1
 License: MIT OR Apache-2.0
 Class: permissive
 Source: crates.io
@@ -9706,6 +9813,34 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+----- END LICENSE TEXT -----
+
+### SHA-256 65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071
+Sources:
+- rfd 0.16.0: LICENSE
+
+----- BEGIN LICENSE TEXT -----
+MIT License
+
+Copyright (c) 2022 Bartłomiej Maryńczak
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ----- END LICENSE TEXT -----
 
 ### SHA-256 65fdb6c76cd61612070c066eec9ecdb30ee74fb27859d0d9af58b9f499fd0c3e
@@ -17667,26 +17802,36 @@ Sources:
 - windows-strings 0.5.1: license-apache-2.0
 - windows-sys 0.45.0: license-apache-2.0
 - windows-sys 0.59.0: license-apache-2.0
+- windows-sys 0.60.2: license-apache-2.0
 - windows-sys 0.61.2: license-apache-2.0
 - windows-targets 0.42.2: license-apache-2.0
 - windows-targets 0.52.6: license-apache-2.0
+- windows-targets 0.53.5: license-apache-2.0
 - windows-threading 0.1.0: license-apache-2.0
 - windows-version 0.1.7: license-apache-2.0
 - windows_aarch64_gnullvm 0.42.2: license-apache-2.0
 - windows_aarch64_gnullvm 0.52.6: license-apache-2.0
+- windows_aarch64_gnullvm 0.53.1: license-apache-2.0
 - windows_aarch64_msvc 0.42.2: license-apache-2.0
 - windows_aarch64_msvc 0.52.6: license-apache-2.0
+- windows_aarch64_msvc 0.53.1: license-apache-2.0
 - windows_i686_gnu 0.42.2: license-apache-2.0
 - windows_i686_gnu 0.52.6: license-apache-2.0
+- windows_i686_gnu 0.53.1: license-apache-2.0
 - windows_i686_gnullvm 0.52.6: license-apache-2.0
+- windows_i686_gnullvm 0.53.1: license-apache-2.0
 - windows_i686_msvc 0.42.2: license-apache-2.0
 - windows_i686_msvc 0.52.6: license-apache-2.0
+- windows_i686_msvc 0.53.1: license-apache-2.0
 - windows_x86_64_gnu 0.42.2: license-apache-2.0
 - windows_x86_64_gnu 0.52.6: license-apache-2.0
+- windows_x86_64_gnu 0.53.1: license-apache-2.0
 - windows_x86_64_gnullvm 0.42.2: license-apache-2.0
 - windows_x86_64_gnullvm 0.52.6: license-apache-2.0
+- windows_x86_64_gnullvm 0.53.1: license-apache-2.0
 - windows_x86_64_msvc 0.42.2: license-apache-2.0
 - windows_x86_64_msvc 0.52.6: license-apache-2.0
+- windows_x86_64_msvc 0.53.1: license-apache-2.0
 
 ----- BEGIN LICENSE TEXT -----
                                  Apache License
@@ -17981,26 +18126,36 @@ Sources:
 - windows-strings 0.5.1: license-mit
 - windows-sys 0.45.0: license-mit
 - windows-sys 0.59.0: license-mit
+- windows-sys 0.60.2: license-mit
 - windows-sys 0.61.2: license-mit
 - windows-targets 0.42.2: license-mit
 - windows-targets 0.52.6: license-mit
+- windows-targets 0.53.5: license-mit
 - windows-threading 0.1.0: license-mit
 - windows-version 0.1.7: license-mit
 - windows_aarch64_gnullvm 0.42.2: license-mit
 - windows_aarch64_gnullvm 0.52.6: license-mit
+- windows_aarch64_gnullvm 0.53.1: license-mit
 - windows_aarch64_msvc 0.42.2: license-mit
 - windows_aarch64_msvc 0.52.6: license-mit
+- windows_aarch64_msvc 0.53.1: license-mit
 - windows_i686_gnu 0.42.2: license-mit
 - windows_i686_gnu 0.52.6: license-mit
+- windows_i686_gnu 0.53.1: license-mit
 - windows_i686_gnullvm 0.52.6: license-mit
+- windows_i686_gnullvm 0.53.1: license-mit
 - windows_i686_msvc 0.42.2: license-mit
 - windows_i686_msvc 0.52.6: license-mit
+- windows_i686_msvc 0.53.1: license-mit
 - windows_x86_64_gnu 0.42.2: license-mit
 - windows_x86_64_gnu 0.52.6: license-mit
+- windows_x86_64_gnu 0.53.1: license-mit
 - windows_x86_64_gnullvm 0.42.2: license-mit
 - windows_x86_64_gnullvm 0.52.6: license-mit
+- windows_x86_64_gnullvm 0.53.1: license-mit
 - windows_x86_64_msvc 0.42.2: license-mit
 - windows_x86_64_msvc 0.52.6: license-mit
+- windows_x86_64_msvc 0.53.1: license-mit
 
 ----- BEGIN LICENSE TEXT -----
     MIT License
@@ -19877,6 +20032,34 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+----- END LICENSE TEXT -----
+
+### SHA-256 eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef
+Sources:
+- tauri-plugin-dialog 2.7.2: LICENSE.spdx
+- tauri-plugin-fs 2.5.1: LICENSE.spdx
+
+----- BEGIN LICENSE TEXT -----
+SPDXVersion: SPDX-2.1
+DataLicense: CC0-1.0
+PackageName: tauri
+DataFormat: SPDXRef-1
+PackageSupplier: Organization: The Tauri Programme in the Commons Conservancy
+PackageHomePage: https://tauri.app
+PackageLicenseDeclared: Apache-2.0
+PackageLicenseDeclared: MIT
+PackageCopyrightText: 2019-2022, The Tauri Programme in the Commons Conservancy
+PackageSummary: <text>Tauri is a rust project that enables developers to make secure
+and small desktop applications using a web frontend.
+                </text>
+PackageComment: <text>The package includes the following libraries; see
+Relationship information.
+                </text>
+Created: 2019-05-20T09:00:00Z
+PackageDownloadLocation: git://github.com/tauri-apps/tauri
+PackageDownloadLocation: git+https://github.com/tauri-apps/tauri.git
+PackageDownloadLocation: git+ssh://github.com/tauri-apps/tauri.git
+Creator: Person: Daniel Thompson-Yvetot
 ----- END LICENSE TEXT -----
 
 ### SHA-256 ebaac853b53fec0ed475796f533ce676912a4df9ad9d8a621fa76d5060591e10

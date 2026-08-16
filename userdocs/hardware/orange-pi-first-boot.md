@@ -151,36 +151,42 @@ sudo systemctl start octessera.service
 ## Samples and output paths
 
 The image stages the generated Raspberry/Pi-family default patch without
-replacing an existing user config. On first boot,
-`octessera-provision-musical-default.service` copies it to
-`/var/lib/octessera/presets/default.json` only when that file is absent. The
-three samples referenced by the patch are verified by SHA-256 and copied only
-when their destination files are absent, under:
+replacing an existing user config. The complete 320-file sample inventory is
+installed during image construction. On first boot,
+`octessera-provision-musical-default.service` only seeds the default to
+`/var/lib/octessera/presets/default.json` when that file is absent; it never
+copies or replaces sample media. Packaged sample bytes are verified by
+SHA-256 under:
 
 ```text
 /var/lib/octessera/samples/
 ```
+
+User samples remain supported through this board sample path; the construction
+manifest is not a reason to replace them during first boot.
+
+The presets directory is a real `octessera-runtime`-owned `0755` directory.
+The service refuses symlinks, wrong ownership, wrong modes, and other unsafe
+paths instead of trying to repair a user-controlled destination.
 
 The staged samples come from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack),
 whose upstream README describes them as free to use and redistribute. The image
 keeps that source attribution in its sample manifest.
 
 The production image supports the OLED, NeoTrellis, NeoKey, four encoders,
-persistent store, samples, MIDI, and selected exact audio routes. Every
+persistent store, samples, and selected exact audio routes. Every
 non-empty Jack/USB/HDMI output set is valid; Jack is required only when
 selected; recognized disconnected selected USB or HDMI routes may wait and
 recover; a selected route fault blocks readiness; and no route is a fallback.
-The selected Jack route is `hw:CARD=octesseradac,DEV=0`. USB Audio is the fixed
-stereo UAC2 gadget at 44.1 kHz, and USB MIDI is the fixed MIDI gadget. HDMI and
-Jack do not change gadget composition. Independent physical output clocks can
-drift or echo; this phase does not provide sample alignment.
+The selected Jack route is `hw:CARD=octesseradac,DEV=0`. USB Audio and USB MIDI
+are experimental/local bench validation only, not public first-release support.
+Defaults remain disabled. The current Linux Foundation VID/PID values are
+local-validation-only and are not a public product identity. A kernel capability
+check does not qualify the exact image or board; an authorized identity plus
+electrical/manual FAT is required.
 
-MIDI and combined USB operation require a kernel build that provides the patched
-ConfigFS MIDI function and its `interface_string` attribute. The service writes
-and verifies the exact 14-byte `Octessera MIDI` value before binding. Passing
-this capability check does not qualify the whole image or board. A host may
-still retain an older friendly name, so raw bus descriptors are the validation
-source.
+Independent physical output clocks can drift or echo; this phase does not
+provide sample alignment.
 
 ## OLED, USB, and final bench checks
 
@@ -205,9 +211,9 @@ Before closing the case:
   notes;
 - if Jack is selected, confirm `aplay -l` exposes
   `hw:CARD=octesseradac,DEV=0`;
-- confirm the production runtime and Orange USB gadget service before connecting
-  a host computer, and connect only after the exact build passes its port-role,
-  VBUS/CC, and no-backfeed gates;
+- treat the Orange USB gadget as experimental/local bench validation, and
+  connect a host only after an authorized identity and the exact build's
+  port-role, VBUS/CC, and no-backfeed gates are recorded;
 - exercise the OLED, all 64 grid cells, four NeoKey switches, four encoders,
   audio, MIDI, and USB while the assembly is open; and
 - connect the host-data USB-C path for this exact build only after checking its

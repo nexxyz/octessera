@@ -5,7 +5,7 @@
   "identifier": "xyz.nex.octessera",
   "build": {
     "beforeDevCommand": "corepack pnpm dev",
-    "beforeBuildCommand": "corepack pnpm --dir ../.. run assets:generate && corepack pnpm --dir ../.. run legal:stage-desktop && vite build",
+    "beforeBuildCommand": "corepack pnpm --dir ../.. run assets:generate && python ../../tools/samples/sample_library.py --repository-root ../.. --media-destination ../../release-samples/samples --manifest-destination ../../release-samples/sample-manifest.tsv && corepack pnpm --dir ../.. run legal:stage-desktop && vite build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -24,7 +24,9 @@
     "targets": ["nsis"],
     "icon": ["icons/icon.png"],
     "resources": {
-      "../../../release-legal/usr/share/doc/octessera": "legal"
+      "../../../release-legal/usr/share/doc/octessera": "legal",
+      "../../../resources/legal/notice-bundle.json": "legal/notice-bundle.json",
+      "../../../release-samples/samples": "samples"
     },
     "windows": {
       "nsis": {

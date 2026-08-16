@@ -89,7 +89,13 @@ def require_runtime_service(root: Path, require: Require) -> None:
     require("AmbientCapabilities=" not in service_content and "CapabilityBoundingSet=" not in service_content, "production service grants ambient priority capability")
     require("Restart=always" not in service_content, "production service restarts always")
     requires = [line for line in service_content.splitlines() if line.startswith("Requires=")]
-    require(requires == ["Requires=octessera-device-apply-reboot.socket"], "production service has an unexpected dependency")
+    require(
+        requires == [
+            "Requires=octessera-device-apply-reboot.socket",
+            "Requires=octessera-provision-musical-default.service",
+        ],
+        "production service has an unexpected dependency",
+    )
     require(not any(line.startswith(prefix) for line in service_content.splitlines() for prefix in ("StartLimitAction=", "OnFailure=", "Requisite=", "BindsTo=", "PartOf=")), "production service has an unapproved failure dependency")
     require("LimitRTPRIO=80" not in service_content, "production service grants an overly broad realtime priority")
     require("PrivateDevices=yes" not in service_content and "DevicePolicy=" not in service_content, "production service blocks hardware access")

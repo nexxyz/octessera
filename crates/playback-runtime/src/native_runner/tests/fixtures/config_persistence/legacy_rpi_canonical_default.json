@@ -1,7 +1,4 @@
 {
-  "kind": "octessera.config",
-  "schemaVersion": 2,
-  "revision": 0,
   "mappingConfig": {
     "activate": {
       "action": "note_on",
@@ -48,22 +45,19 @@
     "startingMidiNote": 24
   },
   "runtimeConfig": {
-    "activeBehavior": "looper",
-    "activeLayerIndex": 2,
+    "activeBehavior": "life",
+    "activeLayerIndex": 0,
     "autoSaveDefault": false,
     "auxAutoMapEnabled": true,
     "auxBindings": {
-      "aux1": {
-        "pressAction": null,
-        "turnKey": "instruments.1.sample.filter.cutoffHz"
-      },
+      "aux1": null,
       "aux2": null,
       "aux3": null
     },
-    "bpm": 120,
-    "buttonBrightness": 35,
+    "bpm": 120.0,
+    "buttonBrightness": 50,
     "dimTimerSeconds": 60,
-    "displayBrightness": 75,
+    "displayBrightness": 85,
     "ghostCells": false,
     "gridBrightness": 25,
     "inputEventsWhilePaused": true,
@@ -161,7 +155,7 @@
             "sustainPct": 70
           },
           "filter": {
-            "cutoffHz": 9921,
+            "cutoffHz": 1192,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
             "resonance": 20,
@@ -193,13 +187,13 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 2,
+          "channel": 1,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 2,
+          "channel": 1,
           "durationMs": 120,
           "velocity": 100
         },
@@ -224,54 +218,6 @@
           "assignments": [
             {
               "level": null,
-              "sampleSlot": 0,
-              "x": 0,
-              "y": 0
-            },
-            {
-              "level": null,
-              "sampleSlot": 0,
-              "x": 1,
-              "y": 0
-            },
-            {
-              "level": null,
-              "sampleSlot": 0,
-              "x": 2,
-              "y": 0
-            },
-            {
-              "level": null,
-              "sampleSlot": 0,
-              "x": 3,
-              "y": 0
-            },
-            {
-              "level": null,
-              "sampleSlot": 0,
-              "x": 4,
-              "y": 0
-            },
-            {
-              "level": null,
-              "sampleSlot": 0,
-              "x": 5,
-              "y": 0
-            },
-            {
-              "level": null,
-              "sampleSlot": 0,
-              "x": 6,
-              "y": 0
-            },
-            {
-              "level": null,
-              "sampleSlot": 0,
-              "x": 7,
-              "y": 0
-            },
-            {
-              "level": null,
               "sampleSlot": 1,
               "x": 0,
               "y": 1
@@ -320,49 +266,97 @@
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 0,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 1,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 2,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 3,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 4,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 5,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 6,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 7,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
               "x": 0,
               "y": 2
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 2,
               "x": 1,
               "y": 2
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 2,
               "x": 2,
               "y": 2
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 2,
               "x": 3,
               "y": 2
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 2,
               "x": 4,
               "y": 2
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 2,
               "x": 5,
               "y": 2
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 2,
               "x": 6,
               "y": 2
             },
             {
               "level": null,
-              "sampleSlot": 3,
+              "sampleSlot": 2,
               "x": 7,
               "y": 2
             }
@@ -381,19 +375,19 @@
             "releaseMs": 180,
             "sustainPct": 70
           },
-          "selectedSlot": 3,
+          "selectedSlot": 2,
           "slots": [
             {
-              "path": "samples/Drum/kick/Kick2.wav"
+              "path": "Drum/kick/Kick2.wav"
             },
             {
-              "path": "samples/Drum/claps/distkit-clap.wav"
+              "path": "Drum/clap/448221__toxicfilmzsrsounds__hip-hop-clap.wav"
+            },
+            {
+              "path": "Drum/hihat open/165027__rodrigo-the-mad__mini-open-hihat.wav"
             },
             {
               "path": null
-            },
-            {
-              "path": "samples/Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav"
             },
             {
               "path": null
@@ -460,13 +454,13 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 3,
+          "channel": 1,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 3,
+          "channel": 1,
           "durationMs": 120,
           "velocity": 100
         },
@@ -546,14 +540,14 @@
           "ampEnv": {
             "attackMs": 5,
             "decayMs": 120,
-            "releaseMs": 180,
+            "releaseMs": 25,
             "sustainPct": 70
           },
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 3299,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 57,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -567,14 +561,14 @@
             "levelPct": 80,
             "octave": 0,
             "pulseWidthPct": 50,
-            "waveform": "saw"
+            "waveform": "triangle"
           },
           "osc2": {
             "detuneCents": 0,
             "levelPct": 72,
             "octave": 0,
             "pulseWidthPct": 50,
-            "waveform": "square"
+            "waveform": "saw"
           }
         },
         "type": "synth"
@@ -582,13 +576,135 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 4,
+          "channel": 1,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 4,
+          "channel": 1,
+          "durationMs": 120,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "fx_bus_2",
+          "volume": 100
+        },
+        "name": "Synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 100,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "assignments": [],
+          "baseVelocity": 100,
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0,
+          "velocityLevels": {
+            "high": 120,
+            "low": 45,
+            "medium": 85
+          },
+          "velocityLevelsEnabled": false
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 88,
+            "velocitySensitivityPct": 72
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 160,
+            "releaseMs": 120,
+            "sustainPct": 56
+          },
+          "filter": {
+            "cutoffHz": 873,
+            "envAmountPct": 22,
+            "keyTrackingPct": 24,
+            "resonance": 30,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 7,
+            "decayMs": 170,
+            "releaseMs": 150,
+            "sustainPct": 70
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 84,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          },
+          "osc2": {
+            "detuneCents": -4,
+            "levelPct": 68,
+            "octave": -1,
+            "pulseWidthPct": 50,
+            "waveform": "triangle"
+          }
+        },
+        "type": "synth"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "channel": 1,
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "midiEngine": {
+          "channel": 1,
           "durationMs": 120,
           "velocity": 100
         },
@@ -704,13 +820,13 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 5,
+          "channel": 1,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 5,
+          "channel": 1,
           "durationMs": 120,
           "velocity": 100
         },
@@ -826,13 +942,13 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 6,
+          "channel": 1,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 6,
+          "channel": 1,
           "durationMs": 120,
           "velocity": 100
         },
@@ -948,135 +1064,13 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 7,
+          "channel": 1,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 7,
-          "durationMs": 120,
-          "velocity": 100
-        },
-        "mixer": {
-          "panPos": 16,
-          "route": "direct",
-          "volume": 100
-        },
-        "name": "None",
-        "noteBehavior": "oneshot",
-        "sample": {
-          "amp": {
-            "gainPct": 100,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "assignments": [],
-          "baseVelocity": 100,
-          "filter": {
-            "cutoffHz": 8000,
-            "envAmountPct": 0,
-            "keyTrackingPct": 0,
-            "resonance": 20,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "selectedSlot": 0,
-          "slots": [
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            }
-          ],
-          "tuneSemis": 0,
-          "velocityLevels": {
-            "high": 120,
-            "low": 45,
-            "medium": 85
-          },
-          "velocityLevelsEnabled": false
-        },
-        "synth": {
-          "amp": {
-            "gainPct": 80,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "filter": {
-            "cutoffHz": 8000,
-            "envAmountPct": 0,
-            "keyTrackingPct": 0,
-            "resonance": 20,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "osc1": {
-            "detuneCents": 0,
-            "levelPct": 80,
-            "octave": 0,
-            "pulseWidthPct": 50,
-            "waveform": "saw"
-          },
-          "osc2": {
-            "detuneCents": 0,
-            "levelPct": 72,
-            "octave": 0,
-            "pulseWidthPct": 50,
-            "waveform": "square"
-          }
-        },
-        "type": "none"
-      },
-      {
-        "autoName": true,
-        "midi": {
-          "channel": 8,
-          "durationMs": 120,
-          "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 8,
+          "channel": 1,
           "durationMs": 120,
           "velocity": 100
         },
@@ -1190,78 +1184,6 @@
         "type": "none"
       }
     ],
-    "linkLfos": [
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      },
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      },
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      },
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      },
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      },
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      },
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      },
-      {
-        "depthPct": 100,
-        "enabled": false,
-        "period": "1/1",
-        "target": null
-      }
-    ],
-    "xy": {
-      "x": {
-        "invert": false,
-        "key": "instruments.0.synth.filter.cutoffHz",
-        "kind": "number",
-        "label": "Cutoff",
-        "max": 255,
-        "min": 0,
-        "step": 1
-      },
-      "xInvert": false,
-      "y": {
-        "invert": false,
-        "key": "instruments.0.synth.filter.resonance",
-        "kind": "number",
-        "label": "Res",
-        "max": 255,
-        "min": 0,
-        "step": 1
-      },
-      "yInvert": false
-    },
     "layers": [
       {
         "autoName": true,
@@ -1277,44 +1199,26 @@
           ]
         },
         "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
           "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 0
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 0
             },
             "scanned": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 0
             },
             "scanned_empty": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 0
             },
             "stable": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 0
             }
           },
@@ -1324,7 +1228,7 @@
             "outOfRange": "clamp",
             "root": "D",
             "scale": "major_pentatonic",
-            "startingNote": 62
+            "startingNote": 60
           },
           "scanAxis": "columns",
           "scanDirection": "forward",
@@ -1463,60 +1367,13 @@
           }
         },
         "worlds": {
-          "behaviorConfig": {
-            "gliderSpawnInterval": 0,
-            "randomCellsPerTick": 0,
-            "randomTickInterval": 1,
-            "spawnStep": 0
-          },
+          "behaviorConfig": null,
           "behaviorId": "life",
           "saveGridState": true,
           "savedState": {
             "cells": [
               false,
-              true,
               false,
-              true,
-              true,
-              false,
-              false,
-              false,
-              false,
-              false,
-              true,
-              true,
-              true,
-              false,
-              false,
-              false,
-              true,
-              true,
-              true,
-              true,
-              true,
-              false,
-              false,
-              false,
-              true,
-              true,
-              true,
-              false,
-              false,
-              true,
-              true,
-              true,
-              true,
-              true,
-              true,
-              false,
-              false,
-              true,
-              true,
-              true,
-              false,
-              false,
-              false,
-              true,
               false,
               true,
               true,
@@ -1524,9 +1381,51 @@
               false,
               false,
               false,
+              false,
+              true,
+              false,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
               true,
               true,
               false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              true,
               false,
               false,
               false,
@@ -1547,64 +1446,64 @@
               "none",
               "none",
               "none",
+              "activate",
+              "activate",
               "none",
               "none",
               "none",
               "none",
               "none",
+              "stable",
+              "deactivate",
+              "deactivate",
+              "stable",
+              "none",
+              "none",
+              "none",
+              "stable",
+              "none",
+              "deactivate",
+              "deactivate",
+              "none",
+              "stable",
+              "none",
+              "activate",
+              "deactivate",
+              "deactivate",
+              "none",
+              "none",
+              "deactivate",
+              "deactivate",
+              "activate",
+              "activate",
+              "deactivate",
+              "deactivate",
+              "none",
+              "none",
+              "deactivate",
+              "deactivate",
+              "activate",
+              "none",
+              "stable",
+              "none",
+              "deactivate",
+              "deactivate",
+              "none",
+              "stable",
+              "none",
+              "none",
+              "none",
+              "stable",
+              "deactivate",
+              "deactivate",
+              "stable",
               "none",
               "none",
               "none",
               "none",
               "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
-              "none",
+              "activate",
+              "activate",
               "none",
               "none",
               "none"
@@ -1612,6 +1511,12 @@
             "width": 8
           },
           "stepRate": "1/16"
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
         }
       },
       {
@@ -1628,44 +1533,26 @@
           ]
         },
         "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
-          "eventEnabled": true,
+          "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 1
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 1
             },
             "scanned": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 1
             },
             "scanned_empty": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 1
             },
             "stable": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 1
             }
           },
@@ -1677,7 +1564,7 @@
             "scale": "major_pentatonic",
             "startingNote": 60
           },
-          "scanAxis": "rows",
+          "scanAxis": "columns",
           "scanDirection": "forward",
           "scanMode": "scanning",
           "scanSections": 1,
@@ -1831,9 +1718,9 @@
               false,
               true,
               false,
+              false,
+              false,
               true,
-              false,
-              false,
               false,
               false,
               true,
@@ -1888,6 +1775,12 @@
             "width": 8
           },
           "stepRate": "1/8"
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
         }
       },
       {
@@ -1904,44 +1797,26 @@
           ]
         },
         "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
           "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 2
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 2
             },
             "scanned": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 2
             },
             "scanned_empty": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 2
             },
             "stable": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 2
             }
           },
@@ -1951,7 +1826,7 @@
             "outOfRange": "clamp",
             "root": "D",
             "scale": "major_pentatonic",
-            "startingNote": 62
+            "startingNote": 60
           },
           "scanAxis": "columns",
           "scanDirection": "forward",
@@ -2090,11 +1965,14 @@
           }
         },
         "worlds": {
-          "behaviorConfig": null,
+          "behaviorConfig": {
+            "lengthSteps": 32,
+            "mode": "overdub"
+          },
           "behaviorId": "looper",
           "saveGridState": true,
           "savedState": {
-            "lengthSteps": 16,
+            "lengthSteps": 32,
             "mode": "overdub",
             "steps": [
               [],
@@ -2102,12 +1980,102 @@
               [],
               [],
               [],
+              [
+                {
+                  "cell": 49,
+                  "kind": "press"
+                }
+              ],
+              [
+                {
+                  "cell": 49,
+                  "kind": "release"
+                },
+                {
+                  "cell": 42,
+                  "kind": "press"
+                },
+                {
+                  "cell": 42,
+                  "kind": "press"
+                }
+              ],
+              [],
+              [
+                {
+                  "cell": 49,
+                  "kind": "press"
+                },
+                {
+                  "cell": 42,
+                  "kind": "release"
+                },
+                {
+                  "cell": 42,
+                  "kind": "release"
+                }
+              ],
+              [],
+              [
+                {
+                  "cell": 49,
+                  "kind": "release"
+                }
+              ],
+              [],
+              [],
+              [
+                {
+                  "cell": 49,
+                  "kind": "press"
+                }
+              ],
+              [
+                {
+                  "cell": 49,
+                  "kind": "release"
+                }
+              ],
               [],
               [],
               [],
               [],
               [],
               [],
+              [],
+              [
+                {
+                  "cell": 49,
+                  "kind": "press"
+                },
+                {
+                  "cell": 49,
+                  "kind": "release"
+                },
+                {
+                  "cell": 42,
+                  "kind": "press"
+                }
+              ],
+              [],
+              [
+                {
+                  "cell": 42,
+                  "kind": "release"
+                }
+              ],
+              [
+                {
+                  "cell": 49,
+                  "kind": "press"
+                }
+              ],
+              [
+                {
+                  "cell": 49,
+                  "kind": "release"
+                }
+              ],
               [],
               [],
               [],
@@ -2115,7 +2083,277 @@
               []
             ]
           },
-          "stepRate": "1/8"
+          "stepRate": "1/16"
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "sequencer",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 3
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 3
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 3
+            },
+            "scanned_empty": {
+              "action": "note_off",
+              "slot": 3
+            },
+            "stable": {
+              "action": "none",
+              "slot": 3
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 31,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 36
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "scanning",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "sequencer",
+          "saveGridState": true,
+          "savedState": {
+            "cells": [
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "height": 8,
+            "width": 8
+          },
+          "stepRate": "1/1"
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
         }
       },
       {
@@ -2132,45 +2370,27 @@
           ]
         },
         "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 3
+              "slot": 4
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 3
+              "slot": 4
             },
             "scanned": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 3
+              "slot": 4
             },
             "scanned_empty": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 3
+              "slot": 4
             },
             "stable": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 3
+              "slot": 4
             }
           },
           "pitch": {
@@ -2321,6 +2541,12 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
         }
       },
       {
@@ -2337,249 +2563,26 @@
           ]
         },
         "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 4
-            },
-            "deactivate": {
-              "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 4
-            },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 4
-            },
-            "scanned_empty": {
-              "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 4
-            },
-            "stable": {
-              "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 4
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "clamp",
-            "root": "D",
-            "scale": "major_pentatonic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/16",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 0
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "worlds": {
-          "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": true
-        }
-      },
-      {
-        "autoName": true,
-        "name": "none",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
-          "eventEnabled": false,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 5
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 5
             },
             "scanned": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 5
             },
             "scanned_empty": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 5
             },
             "stable": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 5
             }
           },
@@ -2731,6 +2734,12 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
         }
       },
       {
@@ -2747,44 +2756,26 @@
           ]
         },
         "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 6
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 6
             },
             "scanned": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 6
             },
             "scanned_empty": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 6
             },
             "stable": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 6
             }
           },
@@ -2936,6 +2927,12 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
         }
       },
       {
@@ -2952,44 +2949,26 @@
           ]
         },
         "pulses": {
-          "arp": {
-            "gatePct": 80,
-            "mode": "none",
-            "noteLengthMs": 120,
-            "octaveSpread": 0,
-            "source": "simultaneous",
-            "stepIntervalSteps": 1
-          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 7
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 7
             },
             "scanned": {
               "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 7
             },
             "scanned_empty": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 7
             },
             "stable": {
               "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
               "slot": 7
             }
           },
@@ -3141,6 +3120,12 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
+        },
+        "xy": {
+          "x": null,
+          "xInvert": false,
+          "y": null,
+          "yInvert": false
         }
       }
     ],
@@ -3148,9 +3133,9 @@
     "midi": {
       "clockInEnabled": false,
       "clockOutEnabled": false,
-      "enabled": false,
+      "enabled": true,
       "inId": null,
-      "outId": null,
+      "outId": "1",
       "respondToStartStop": true,
       "syncMode": "internal"
     },
@@ -3163,29 +3148,43 @@
           "slot1": {
             "params": {
               "feedback": 0.35,
-              "mixPct": 35,
-              "spreadPct": 0,
-              "timeMode": "ms",
-              "timeMs": 250,
-              "timeNote": "1/8"
+              "mixPct": 84,
+              "timeMs": 250
             },
             "type": "delay"
           },
           "slot2": {
             "params": {
-              "amountPct": 60,
+              "amountPct": 50,
               "attackMs": 8,
               "releaseMs": 160,
               "source": "I2",
               "threshold": 0.08
             },
             "type": "duck"
+          }
+        },
+        {
+          "autoName": true,
+          "name": "Duck+Saturator",
+          "panPos": 16,
+          "slot1": {
+            "params": {
+              "amountPct": 20,
+              "attackMs": 8,
+              "releaseMs": 160,
+              "source": "I1",
+              "threshold": 0.08
+            },
+            "type": "duck"
           },
-          "slot3": {
-            "params": {},
-            "type": "none"
-          },
-          "volumePct": 100
+          "slot2": {
+            "params": {
+              "drive": 2.7,
+              "mixPct": 42
+            },
+            "type": "saturator"
+          }
         },
         {
           "autoName": true,
@@ -3198,12 +3197,7 @@
           "slot2": {
             "params": {},
             "type": "none"
-          },
-          "slot3": {
-            "params": {},
-            "type": "none"
-          },
-          "volumePct": 100
+          }
         },
         {
           "autoName": true,
@@ -3216,37 +3210,21 @@
           "slot2": {
             "params": {},
             "type": "none"
-          },
-          "slot3": {
-            "params": {},
-            "type": "none"
-          },
-          "volumePct": 100
-        },
-        {
-          "autoName": true,
-          "name": "None",
-          "panPos": 16,
-          "slot1": {
-            "params": {},
-            "type": "none"
-          },
-          "slot2": {
-            "params": {},
-            "type": "none"
-          },
-          "slot3": {
-            "params": {},
-            "type": "none"
-          },
-          "volumePct": 100
+          }
         }
       ],
       "master": {
         "slots": [
           {
-            "params": {},
-            "type": "none"
+            "params": {
+              "attackMs": 36,
+              "makeupDb": 0,
+              "mixPct": 100,
+              "ratio": 4,
+              "releaseMs": 100,
+              "thresholdDb": -12.0
+            },
+            "type": "compressor"
           },
           {
             "params": {},
@@ -3269,7 +3247,7 @@
       "aux3": null
     },
     "sound": {
-      "audioOutputBufferFrames": 256,
+      "audioOutputBufferFrames": 512,
       "noteLengthMs": 120,
       "velocityCurve": "linear",
       "velocityScalePct": 100,
@@ -3287,7 +3265,43 @@
             "targetKey": "master"
           },
           "x": 0,
-          "y": 0
+          "y": 7
+        },
+        {
+          "config": {
+            "fxType": "stutter",
+            "params": {
+              "depthPct": 100,
+              "rateHz": 8
+            },
+            "targetKey": "master"
+          },
+          "x": 0,
+          "y": 6
+        },
+        {
+          "config": {
+            "fxType": "stutter",
+            "params": {
+              "depthPct": 100,
+              "rateHz": 8
+            },
+            "targetKey": "master"
+          },
+          "x": 1,
+          "y": 6
+        },
+        {
+          "config": {
+            "fxType": "stutter",
+            "params": {
+              "depthPct": 100,
+              "rateHz": 8
+            },
+            "targetKey": "master"
+          },
+          "x": 1,
+          "y": 7
         },
         {
           "config": {
@@ -3298,42 +3312,51 @@
             },
             "targetKey": "master"
           },
-          "x": 1,
-          "y": 0
+          "x": 2,
+          "y": 6
         },
         {
           "config": {
-            "fxType": "pitch_shift",
+            "fxType": "freeze",
             "params": {
-              "cents": 0,
               "mixPct": 100,
-              "semitones": 0
+              "releaseMs": 500
             },
             "targetKey": "master"
           },
           "x": 2,
-          "y": 0
+          "y": 7
         },
         {
           "config": {
-            "fxType": "pitch_shift",
+            "fxType": "freeze",
             "params": {
-              "cents": 0,
               "mixPct": 100,
-              "semitones": 7
+              "releaseMs": 500
             },
             "targetKey": "master"
           },
           "x": 3,
-          "y": 0
+          "y": 6
+        },
+        {
+          "config": {
+            "fxType": "freeze",
+            "params": {
+              "mixPct": 100,
+              "releaseMs": 500
+            },
+            "targetKey": "master"
+          },
+          "x": 3,
+          "y": 7
         }
       ],
       "selected": {
-        "fxType": "pitch_shift",
+        "fxType": "freeze",
         "params": {
-          "cents": 0,
           "mixPct": 100,
-          "semitones": 7
+          "releaseMs": 500
         },
         "targetKey": "master"
       }
@@ -3344,22 +3367,17 @@
       "swingPct": 0
     },
     "usb": {
-      "midiOutEnabled": false
-    },
-    "audioOutputs": {
-      "dac": true,
-      "usb": false,
-      "hdmi": false
-    },
-    "hdmi": {
-      "mode": "none",
-      "showGridlines": false,
-      "cycleMeasures": 4
+      "midiOutEnabled": true
     },
     "velocityCurve": "linear",
     "velocityScalePct": 100,
     "voiceStealingMode": "auto-balanced",
-    "xyRelease": "sample-hold"
+    "xyRelease": "sample-hold",
+    "audioOutputs": {
+      "dac": true,
+      "usb": true,
+      "hdmi": false
+    }
   },
   "system": {
     "sparksMode": "fx"

@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +19,8 @@ const sourceExe = resolve(
   'octessera-desktop.exe',
 );
 const outputExe = resolve(desktopDir, 'dist-desktop', 'octessera.exe');
+const outputSamples = resolve(desktopDir, 'dist-desktop', 'samples');
+const sourceSamples = resolve(repoRoot, 'release-samples', 'samples');
 const result = spawnSync(
   process.env.ComSpec ?? 'cmd.exe',
   ['/d', '/s', '/c', 'call', tauriCli, 'build', '--no-bundle'],
@@ -39,4 +41,6 @@ if (result.status !== 0) {
 
 mkdirSync(dirname(outputExe), { recursive: true });
 copyFileSync(sourceExe, outputExe);
+rmSync(outputSamples, { recursive: true, force: true });
+cpSync(sourceSamples, outputSamples, { recursive: true, errorOnExist: true });
 console.log(`Portable exe copied to ${outputExe}`);

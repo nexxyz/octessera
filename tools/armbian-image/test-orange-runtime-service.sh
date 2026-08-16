@@ -21,6 +21,7 @@ for required_line in \
   'User=octessera-runtime' \
   'Group=octessera-runtime' \
   'Requires=octessera-device-apply-reboot.socket' \
+  'Requires=octessera-provision-musical-default.service' \
   'After=octessera-device-apply-reboot.socket' \
   'Wants=octessera-orange-boot-splash.service' \
   'After=octessera-orange-boot-splash.service' \
@@ -53,7 +54,7 @@ assert restarts(1)
 print("Orange runtime exit-status restart policy fixture passed")
 PY
 ! grep -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$service" || { echo 'Orange runtime service has an unapproved failure dependency.' >&2; exit 1; }
-[[ "$(grep -c '^Requires=' "$service")" == 1 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
+[[ "$(grep -c '^Requires=' "$service")" == 2 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
 if grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$service"; then
   echo 'Runtime service grants ambient SYS_NICE or priority 80.' >&2
   exit 1

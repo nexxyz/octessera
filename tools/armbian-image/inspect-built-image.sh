@@ -392,7 +392,10 @@ for path in \
   usr/share/octessera/oled/octessera-pi-booting.rgb565 \
   usr/share/octessera/oled/octessera-pi-shutdown.rgb565 \
   usr/share/octessera/defaults/pi-default.json \
-  usr/share/octessera/samples/sample-manifest.tsv; do
+  usr/share/octessera/samples/sample-manifest.tsv \
+  usr/share/octessera/samples/ATTRIBUTIONS.tsv \
+  usr/share/octessera/samples/upstream/LICENSE \
+  usr/share/octessera/samples/upstream/README.txt; do
   stat_path "$path" || { echo "Missing Orange OS parity path: $path." >&2; exit 1; }
 done
 require_root_mode usr/local/sbin/octessera-orange-usb-gadget 755
@@ -423,6 +426,10 @@ reject_path lib/systemd/system-sleep/octessera-orange-oled
 reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
 require_root_mode usr/share/octessera/defaults/pi-default.json 644
 require_root_mode usr/share/octessera/samples/sample-manifest.tsv 644
+require_root_mode usr/share/octessera/samples/ATTRIBUTIONS.tsv 644
+require_root_mode usr/share/octessera/samples/upstream/LICENSE 644
+require_root_mode usr/share/octessera/samples/upstream/README.txt 644
+reject_path usr/share/octessera/samples/files
 [[ "$(hash_path usr/share/octessera/defaults/pi-default.json)" == "$default_hash" ]] || { echo "Pi default hash mismatch." >&2; exit 1; }
 [[ "$(hash_path usr/share/octessera/samples/sample-manifest.tsv)" == "$samples_manifest_hash" ]] || { echo "Sample manifest hash mismatch." >&2; exit 1; }
 manifest_content="$(read_file usr/share/octessera/samples/sample-manifest.tsv)"

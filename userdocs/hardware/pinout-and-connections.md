@@ -47,14 +47,16 @@ rules. These Raspberry assignments do not define the Orange power or USB role.
 
 ## USB Audio and MIDI
 
-The Raspberry image reads `/home/pi/presets/default.json` and exposes USB
-audio when `runtimeConfig.audioOutputs.usb` is true and MIDI when
-`runtimeConfig.usb.midiOutEnabled` is true. The valid compositions are no
-gadget, audio-only, MIDI-only, and combined; HDMI and Jack do not alter gadget
-composition. Audio-only, MIDI-only, and combined modes keep the product names:
-`Octessera Line In`, `Octessera MIDI`, and `Octessera Audio + MIDI`.
+The Raspberry image contains a local-validation gadget path, but USB Audio and
+USB MIDI are not public first-release support. They remain experimental until an
+authorized USB identity and the exact image/assembled-board electrical and
+manual FAT gates are recorded. The current Linux Foundation VID/PID values are
+local-validation-only; do not invent or publish replacement IDs. Defaults remain
+disabled.
 
-MIDI and combined modes require the image's ConfigFS MIDI function to provide an `interface_string` attribute. The gadget setup writes exactly `Octessera MIDI` (14 bytes, with no trailing newline), checks the size and byte-for-byte readback, and binds the USB device only after those checks pass. If the attribute is missing or cannot be written, read back, or bound, setup fails closed, attempts cleanup, and reports cleanup failure instead of presenting the kernel's generic `MIDI function` label.
+The shared menu's USB settings describe desired next-boot state. A capability
+check, a source test, or a ConfigFS fake test does not qualify host enumeration,
+audio/MIDI behavior, port role, VBUS/CC behavior, or no-backfeed safety.
 
 Use a data-only cable or a power-isolating adapter when connecting the Pi data port to a host while the instrument is powered through the enclosure USB-C input.
 

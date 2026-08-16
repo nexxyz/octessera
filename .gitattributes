@@ -69,3 +69,4 @@ userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before
 /tools/armbian-image/test-orange-device-apply.py text eol=lf
 /tools/armbian-image/orange_boot_contract.py text eol=lf
 /tools/armbian-image/verify-orange-image.py text eol=lf
+/crates/playback-runtime/src/native_runner/tests/fixtures/config_persistence/legacy_rpi_canonical_default.json -text
