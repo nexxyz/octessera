@@ -5,6 +5,10 @@ the same full setup portal. Physical qualification is still pending, but the
 flow is the same whether the board is fresh from the image or already living in
 your musical box.
 
+For hotspot, apply, or credential problems, use [troubleshooting](../troubleshooting.md).
+For power and host-cable handling while setup is running, see [safety and
+power](safety-and-power.md).
+
 ## Open it from the instrument
 
 1. Stop playback before you begin. If it is still playing, Octessera stops and

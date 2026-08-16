@@ -4,7 +4,11 @@ This page is profile-aware. The detailed assignments below are the Raspberry Pi
 Zero 2 W profile; the Orange Pi Zero 2W path has its own physical pin and device
 checks and must not borrow Raspberry numbers.
 
-Use it while assembling the device. It is deliberately plain: this is where the electricity gets fewer jokes and more exact pins. For the user-facing docs home, see [`../README.md`](../README.md). For build order and board setup, see [`assembly-manual.md`](assembly-manual.md). For the case and port layout, see [`enclosure.md`](enclosure.md).
+Use it while assembling the device. For power, USB backfeed, orientation, and
+fit stop conditions, read [`safety-and-power.md`](safety-and-power.md). For the
+user-facing docs home, see [`../README.md`](../README.md). For build order and
+board setup, see [`assembly-manual.md`](assembly-manual.md). For the case and
+port layout, see [`enclosure.md`](enclosure.md).
 
 ## Board profile first
 
@@ -37,6 +41,9 @@ Raspberry build only.
 - If you use the Pi USB data/gadget port with a host computer, use a data-only cable or another hardware method that blocks the cable's 5V line. Software cannot make a Pi Zero accept USB data while electrically refusing USB power.
 - The USB-C breakout feeds the shared `+5V` rail for the Pi, OLED, NeoKey, NeoTrellis connector, and DAC.
 - `C1` is a `470uf` polarized capacitor across `+5V` and `GND` to add bulk supply smoothing on the main power rail.
+
+See [safety and power](safety-and-power.md) for the shared supply and host-cable
+rules. These Raspberry assignments do not define the Orange power or USB role.
 
 ## USB Audio and MIDI
 
@@ -154,4 +161,5 @@ board and image before the shared PCB/harness is treated as qualified:
   fit checks.
 
 If any of those checks is unclear, stop. The Raspberry values above are not an
-Orange-specific wiring is not interchangeable with the Raspberry mapping.
+Orange-specific wiring table and are not interchangeable with the Orange
+mapping.

@@ -16,20 +16,25 @@ Octessera is a hobbyist instrument project. Quality work should protect musical 
 - Reproducible desktop and Pi builds.
 - Documentation that describes current behavior, not completed-work history.
 
-## Required Checks
+## Focused Checks
 
-For command details, see `docs/development-workflows.md`. The pre-push hook in `.githooks/pre-push` is the broad local CI gate.
+For command details, see `docs/development-workflows.md`. The pre-push hook in
+`.githooks/pre-push` is the broad local CI gate described below.
 
-TypeScript and generated contract checks:
+Workspace checks (broad but not exhaustive):
 
 ```bash
 corepack pnpm run typecheck
-corepack pnpm -r test
-corepack pnpm -r lint
-corepack pnpm -r format:check
+corepack pnpm run test
+corepack pnpm run lint
+corepack pnpm run format:check
 ```
 
-Rust checks:
+These root scripts are workspace aggregates, not uniform lint/format coverage:
+the desktop package runs real ESLint and Prettier, while the device-contracts
+package currently has no-op `lint` and `format:check` scripts.
+
+Focused Rust checks:
 
 ```bash
 cargo fmt --all --check
@@ -64,6 +69,19 @@ corepack pnpm run quality:test
 corepack pnpm run quality:audit
 ```
 
+## Full Pre-Push And CI Coverage
+
+The fast pre-push profile is `./tools/quality/pre-push.sh --fast`; it runs root
+lint, typecheck, format checks, Cargo formatting, and file-length checks without
+Cargo tests or builds. The default `./tools/quality/pre-push.sh` profile is the
+full/default local gate on a clean worktree. It adds workspace tests and
+coverage, the ignored factory-patch scenario, desktop and Pi checks, Tauri build
+smoke, and clippy. Its workspace Cargo test and clippy selections exclude
+`rodio-engine-source`; CI separately runs that crate's tests and clippy. The
+current CI Rust coverage script covers `platform-core`, `playback-runtime`, and
+`realtime-engine`, not `rodio-engine-source`. CI also runs the corresponding
+split TypeScript and Rust jobs and conditional parity scenario.
+
 The audit enforces the 500-line source-file limit, warning above 300 LOC and failing above 500 LOC. JavaScript and TypeScript function metrics are syntax-aware Babel AST measurements; Rust function metrics remain approximate regex measurements. Function length, simple complexity, wide signatures, and behavior/behaviour naming drift remain informational staged warnings.
 
 ## TypeScript Baseline
@@ -71,7 +89,10 @@ The audit enforces the 500-line source-file limit, warning above 300 LOC and fai
 - TypeScript is limited to desktop UI and shared bridge/runtime contracts.
 - `strict`, `noUnusedLocals`, and `noUnusedParameters` are enabled through `tsconfig.base.json`.
 - Tests use Node `node:test` through `tsx --test`; do not add Jest or Vitest.
-- Package `lint` and `format:check` scripts are currently placeholders; do not claim ESLint or Prettier coverage until those tools are wired.
+- `apps/desktop` uses real ESLint and Prettier scripts for lint and format checks.
+- `@octessera/device-contracts` still has no-op `lint` and `format:check` scripts;
+  workspace-wide commands therefore provide mixed package coverage rather than
+  a claim that every package is linted or formatted.
 
 ## Rust Baseline
 

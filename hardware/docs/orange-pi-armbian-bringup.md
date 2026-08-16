@@ -1,18 +1,22 @@
 # Orange Pi Zero 2W Armbian bring-up
 
-This document records Orange Pi Zero 2W Armbian bring-up and qualification
-details for the 0.7.5 production path. The production artifact is an explicit
-`production` image mode; the separate `diagnostic` image mode remains useful
-for bus, OLED, and kernel checks. The diagnostic procedure below is not the
-production service contract.
+This document is the current Orange Pi Zero 2W bring-up and qualification
+procedure for the established Armbian production path. The production artifact
+is an explicit `production` image mode; the separate `diagnostic` image mode
+remains useful for bus, OLED, and kernel checks. The historical diagnostic
+qualification record is not the production service contract and is kept in
+[`orange-pi-selection-and-qualification-history.md`](orange-pi-selection-and-qualification-history.md).
+
+Foreground runtime qualification in this procedure uses the production runtime;
+the historical `runtime-candidate` procedure is retained only in the linked
+selection history.
 
 This is a hardware gate. Do not copy Raspberry Pi constants, overlays, or `rppal` GPIO assumptions into Orange Pi support until these checks pass on the target board and image.
 
 ## Target context
 
 - Board: Orange Pi Zero 2W, 2 GB RAM.
-- First image to test: Armbian Debian 13/Trixie for Orange Pi Zero 2W.
-- Fallback image: official Orange Pi/vendor image if Armbian exposes peripherals poorly.
+- Production image path: Armbian Debian 13/Trixie for Orange Pi Zero 2W.
 - Wiring goal: same Octessera PCB and harness as the Raspberry Pi Zero 2 W build.
 
 Record the image URL, image date, kernel version, board name, and all command output during bring-up.
@@ -48,10 +52,10 @@ control-surface devices, and the first rendered runtime frame. The service
 gets FIFO priority 70 through `LimitRTPRIO=70`; it does not use `CAP_SYS_NICE`,
 ambient capabilities, or other realtime capability elevation.
 
-Orange update check, apply, rollback, and OTA remain unsupported in 0.7.5.
+Orange update check, apply, rollback, and OTA remain unsupported.
 Use a verified production image artifact for an image update. The historical
-foreground `runtime-candidate` procedure below is retained only as bring-up
-history; it is not the production artifact or service path.
+foreground `runtime-candidate` procedure is retained in the selection history
+only as bring-up history; it is not the production artifact or service path.
 
 The production service uses `/var/lib/octessera/presets` for its persistent
 store and `/var/lib/octessera/samples` for samples. Both paths belong to
@@ -316,7 +320,7 @@ aconnect -l
 
 Record the exact kernel package version, image filename, `uname -r`, and the
 command output. `/dev/snd/seq` must exist, and `aconnect -l` must run against
-the new image before any foreground MIDI qualification.
+the new image before any foreground runtime MIDI qualification.
 
 The fixed-kernel gate must also reject an enabled or modular RT group
 scheduler and must preserve the global throttle and cgroup mode:
@@ -332,7 +336,7 @@ test "$(sysctl -n kernel.sched_rt_runtime_us)" = 950000
 
 Do not treat `CONFIG_RT_GROUP_SCHED=y` as a pass; the live test must fail
 closed if that exact line is present. After the new kernel is running, start
-the foreground candidate with its default audio-thread priority and verify
+the foreground runtime with its default audio-thread priority and verify
 the actual callback thread reaches FIFO scheduling:
 
 ```sh
@@ -562,159 +566,12 @@ validation. Do not treat them as release USB IDs.
 
 - Treat the I2S DAC as unproven until `aplay -l` exposes the expected card.
 - Record required overlays and ALSA card names.
-- Run a short playback test and an underrun/dropout check before foreground candidate testing.
+- Run a short playback test and an underrun/dropout check before foreground runtime qualification.
 - Confirm bit clock, word select, and data pins match the existing DAC wiring.
-
-## Diagnostic qualification contract (historical bring-up)
-
-This section describes the separate diagnostic image and smoke-utility path. Run
-it in order on one identified board when qualifying hardware. It intentionally
-does not install or enable the production service. The production path is
-documented above and under [Runtime service status](#runtime-service-status).
-Record the board revision, PCB/harness revision, image/kernel/DT identity,
-artifact SHA-256, and timestamps for every gate.
-
-### Passive gate
-
-Before any transfer, GPIO request, audio playback, USB bind, or runtime launch:
-
-- Confirm the board is exactly `orangepizero2w`, the recovery path works, and no
-  Octessera service or other process owns the connected hardware.
-- Reconfirm the live DT/pinmux mappings for I2C, SPI1/CS0, OLED D/C/reset, I2S,
-  USB role, and UDC. Record device nodes, GPIO ownership, `aplay -l`, and
-  `/sys/class/udc`; do not infer a mapping from a Raspberry Pi number.
-- Confirm the candidate is an Orange Pi artifact with matching metadata. Stage
-  it only under `/tmp`; do not install it, replace a release, or start a
-  service.
-- Confirm the exact USB-C OTG/data port from the schematic and board. With the
-  board power arrangement documented, measure VBUS and CC/role state with the
-  host disconnected and connected. Pass only when the expected host/device
-  direction, peripheral role, and no-backfeed/no-brownout behavior are proven.
-
-### Reboot and staging gate
-
-`/tmp` is cleared by reboot. After every controlled reboot, do not run a probe
-or active test until SSH has returned and the artifact has been staged again:
-
-```powershell
-$Target = "orangepi@<address>"
-$Artifact = "<local-path-to-orange-oled-smoke>"
-$Metadata = "$Artifact.metadata.json"
-$RemoteArtifact = "/tmp/orange-oled-smoke"
-$RemoteMetadata = "/tmp/orange-oled-smoke.metadata.json"
-$SshOptions = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=5")
-$Deadline = (Get-Date).AddMinutes(5)
-$Reachable = $false
-while ((Get-Date) -lt $Deadline) {
-  & ssh @SshOptions $Target "true"
-  if ($LASTEXITCODE -eq 0) { $Reachable = $true; break }
-  Start-Sleep -Seconds 2
-}
-if (-not $Reachable) { throw "post-reboot SSH poll timed out; stop" }
-& scp @SshOptions $Artifact "${Target}:$RemoteArtifact"
-if ($LASTEXITCODE -ne 0) { throw "artifact redeploy failed; stop" }
-& scp @SshOptions $Metadata "${Target}:$RemoteMetadata"
-if ($LASTEXITCODE -ne 0) { throw "metadata sidecar redeploy failed; stop" }
-& ssh @SshOptions $Target "chmod 0755 '$RemoteArtifact' && '$RemoteArtifact' --print-build-metadata"
-if ($LASTEXITCODE -ne 0) { throw "staged artifact metadata check failed; stop" }
-$LocalSha = (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash.ToLowerInvariant()
-$RemoteShaOutput = @(& ssh @SshOptions $Target "sha256sum -- '$RemoteArtifact'")
-if ($LASTEXITCODE -ne 0) { throw "remote SHA-256 command failed; stop" }
-if ($RemoteShaOutput.Count -ne 1) { throw "remote SHA-256 output was not exactly one record; stop" }
-$RemoteShaRecord = ([string]$RemoteShaOutput[0]).Trim()
-$ShaPattern = "^(?<Hash>[0-9a-f]{64})\s+(?<Path>$([regex]::Escape($RemoteArtifact)))$"
-$ShaMatch = [regex]::Match($RemoteShaRecord, $ShaPattern)
-if (-not $ShaMatch.Success) { throw "remote SHA-256 output had an invalid format; stop" }
-$RemoteSha = $ShaMatch.Groups["Hash"].Value
-if ($RemoteSha -ne $LocalSha) { throw "remote binary SHA-256 differs from the recorded local SHA-256; stop" }
-```
-
-The metadata validation and the independent remote SHA-256 comparison are both
-required before launching anything. Repeat this poll-and-redeploy sequence
-after every reboot, including one caused by an overlay change. The utility's
-metadata mode reads only the adjacent exact-name sidecar and hashes its running
-`/proc/self/exe`; it performs no hardware initialization.
-
-Stage the Seesaw diagnostic under its canonical names and repeat the same
-independent SHA-256 check. The metadata command is intentionally unprivileged:
-
-```powershell
-$SeesawArtifact = "<local-path-to-orange-seesaw-smoke>"
-$SeesawMetadata = "$SeesawArtifact.metadata.json"
-$RemoteSeesawArtifact = "/tmp/orange-seesaw-smoke"
-$RemoteSeesawMetadata = "/tmp/orange-seesaw-smoke.metadata.json"
-& scp @SshOptions $SeesawArtifact "${Target}:$RemoteSeesawArtifact"
-if ($LASTEXITCODE -ne 0) { throw "Seesaw artifact upload failed; stop" }
-& scp @SshOptions $SeesawMetadata "${Target}:$RemoteSeesawMetadata"
-if ($LASTEXITCODE -ne 0) { throw "Seesaw metadata upload failed; stop" }
-& ssh @SshOptions $Target "chmod 0755 '$RemoteSeesawArtifact' && '$RemoteSeesawArtifact' --print-build-metadata"
-if ($LASTEXITCODE -ne 0) { throw "Seesaw metadata check failed; stop" }
-$SeesawLocalSha = (Get-FileHash -LiteralPath $SeesawArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
-$SeesawRemoteSha = @(& ssh @SshOptions $Target "sha256sum -- '$RemoteSeesawArtifact'")
-if ($LASTEXITCODE -ne 0 -or $SeesawRemoteSha.Count -ne 1) { throw "Seesaw remote SHA-256 check failed; stop" }
-if (([string]$SeesawRemoteSha[0]).Trim() -notmatch "^$SeesawLocalSha\s+$([regex]::Escape($RemoteSeesawArtifact))$") {
-  throw "Seesaw binary SHA-256 differs from the recorded local SHA-256; stop"
-}
-```
-
-### Active gate and order
-
-Proceed only when the passive gate, staging gate, and USB electrical gate pass:
-
-The OLED operation has a cooperative 3-second budget and a cooperative
-1-second cleanup budget. Normal shutdown performs black and display-off
-together; error and interruption cleanup uses one deadline, prioritizing
-display-off before the fallback black frame. Synchronous SPI/GPIO calls may
-outlast these checks, so neither budget is a wall-clock promise.
-
-1. **Seesaw:** run `sudo -n /tmp/orange-seesaw-smoke --confirm-active-test` only after
-   the passive and staging gates pass. It resets the four NeoTrellis addresses
-   and NeoKey address on `/dev/i2c-2`, then reads their valid hardware IDs; it
-   does not configure keypad events, write LEDs, poll keys, request GPIO, access
-   OLED/SPI/audio, start runtime, or install a service.
-2. **OLED:** run the diagnostic-only utility from `/tmp`. One invocation owns
-   the cooperative pattern-to-black-to-display-off sequence, with operation
-   and cleanup budgets, cleanup on errors, and handled interruption. Blocking
-   SPI/GPIO syscalls are synchronous and may outlast those cooperative checks;
-   record that limitation rather than treating the budgets as a wall-clock
-   promise. Do not split it into separate commands:
-
-   ```sh
-   sudo -n /tmp/orange-oled-smoke --confirm-active-test
-   ```
-
-3. **I2S/DAC:** enumerate ALSA, select the exact CPAL endpoint
-   `hw:CARD=octesseradac,DEV=0` at the shared 44.1 kHz runtime rate, and run
-   one short playback plus an underrun check. A sound from HDMI or an
-   implicit/default ALSA device is not an I2S pass.
-4. **HDMI:** after the I2S result is recorded, enumerate HDMI separately and
-   confirm it has not been selected as an audio fallback. Do not use HDMI to
-   qualify the DAC wiring.
-5. **USB gadget:** only after I2S and HDMI checks, recheck VBUS/CC/role and the
-   exact UDC, bind one composer mode, verify host enumeration, then unbind and
-   verify clean teardown. Use the Orange Pi composer; do not bind a pre-existing
-   gadget or guess a UDC.
-6. **Historical foreground candidate:** this old qualification step is retained
-   for reproducibility only. It may use the profile-matched diagnostic utility
-   or the old `runtime-candidate` from `/tmp`; keep deployment, release, and
-   production service paths untouched. It is not the 0.7.5 production runtime.
-
-### Stop conditions
-
-Stop the session, preserve logs and measurements, and do not retry or reorder a
-gate if any of these occurs: the SSH poll times out; the board identity, boot
-DT, pinmux, artifact metadata, or SHA-256 differs; `/tmp` staging or metadata
-validation fails; the cooperative OLED operation or cleanup budget is
-exhausted, or black/display-off cannot be confirmed; any bus hangs, GPIO
-ownership mismatch, kernel fault, brownout, thermal rise, unexpected reboot, or hardware owner appears; the I2S card is absent, an
-audio test falls back to HDMI, or playback underruns; VBUS/CC/OTG direction is
-unproven, backfeed or power loss appears, UDC is absent/pre-bound, host
-enumeration fails, or gadget teardown cannot unbind cleanly. Do not continue
-to runtime qualification after a failed gate.
 
 ## Runtime service status
 
-The 0.7.5 production image installs and enables `octessera.service`. It runs
+The production image installs and enables `octessera.service`. It runs
 the native runtime as the locked `octessera-runtime` system account; the
 interactive `octessera` account remains separate for setup and administration.
 The service supports the OLED, NeoTrellis, NeoKey, four encoders, persistent
@@ -722,8 +579,8 @@ store, samples, MIDI, and the selected exact audio outputs. Every non-empty
 output set is valid; Jack is required only when selected, recognized disconnected
 UAC2 and HDMI routes may wait and recover, selected route faults block readiness,
 and no route is a fallback. Simultaneous physical outputs use independent
-unsynchronized clocks and can drift or echo; this phase does not provide sample
-alignment. Runtime readiness follows selected-route status, initialized
+unsynchronized clocks and can drift or echo; this service contract does not
+provide sample alignment. Runtime readiness follows selected-route status, initialized
 control-surface devices, and the first rendered snapshot. The observed Orange
 HDMI connector path is `/sys/class/drm/card0-HDMI-A-1`. Separately, a live
 Raspberry Pi Zero 2 W observation on kernel `6.12.93+rpt-rpi-v8` found the exact
@@ -739,14 +596,3 @@ verified production image artifact for an image update. The diagnostic image
 mode and the historical smoke utilities remain separate from this service
 path. Normal SIGINT cleanup joins workers after the shutdown frame, black
 Trellis/NeoKey frames, and OLED-off operation.
-
-## Historical repo follow-up (pre-0.7.5)
-
-These notes record the implementation work that preceded the production image;
-they are not outstanding release tasks:
-
-1. Add real `orange-pi-zero-2w` board profile values.
-2. Add a non-`rppal` GPIO backend based on gpiochip lines.
-3. Split gadget setup by board/image layer so Raspberry Pi keeps `dwc2` and Orange Pi uses the detected UDC path.
-4. Parameterize service user, store paths, samples paths, deploy target, preflight checks, and image sanitation.
-5. Add Orange Pi image automation as a parallel Armbian path, not a pi-gen variant.

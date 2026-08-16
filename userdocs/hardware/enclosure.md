@@ -2,15 +2,19 @@
 
 This is the enclosure and mechanical reference for the Octessera hardware target.
 
-Use it with [`assembly-manual.md`](assembly-manual.md) for build order and [`pinout-and-connections.md`](pinout-and-connections.md) for wiring. For the user-facing docs home, start at [`../README.md`](../README.md).
+Use it with [`assembly-manual.md`](assembly-manual.md) for build order and [`pinout-and-connections.md`](pinout-and-connections.md) for wiring. Read [`safety-and-power.md`](safety-and-power.md) before fitting or powering the assembly. For the user-facing docs home, start at [`../README.md`](../README.md).
 
-This is the part where the instrument becomes an object you can pick up. Print carefully, test-fit patiently, and take out the SD card before you put the device in the enclosure, or it may break. Ask me how I found that one out.
+This is the part where the instrument becomes an object you can pick up. Print
+carefully, test-fit patiently, and remove the selected board's microSD card and
+the OLED microSD card before putting the device in the enclosure. They can catch
+on the case and break.
 
 ## Current Status
 
 The enclosure is under construction. The current parameter data in
-`enclosure_params.json` is the `v21` set, but the generated two-level faceplate
-is still an active design model, not a production-ready enclosure release.
+`enclosure_params.json` is the `v21` set. The generated two-level faceplate is
+an active design and test-fit model, not production-final and not a production
+enclosure release.
 
 - Case size: `247 x 140 mm`
 - Main PCB rail height: `3.2 mm`
@@ -57,11 +61,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_
 
 Branding source and cleanup rules are documented in [`../../hardware/docs/branding-assets.md`](../../hardware/docs/branding-assets.md).
 
-The STEP file is the preferred generated artifact. This is still not a
-production lid: it does not yet recreate the full underside lip, catch rims,
-board capture ribs, or bottom mating interface. Promote it to the production top
-only after validating that underside interface, board capture, connector
-clearance, slicer output, and the measured component height stack.
+The STEP file is the preferred generated artifact. The active v21 model does not
+yet recreate the full underside lip, catch rims, board capture ribs, or bottom
+mating interface. Do not call it production-final until the underside interface,
+board capture, connector clearance, slicer output, and measured component
+height stack have been validated.
 
 ## External Access
 
@@ -84,6 +88,8 @@ The OLED microSD is not exposed as a case-edge port in the current `v21` entry.
 
 ## Power Rule
 
+The concise owner for these rules is [safety and power](safety-and-power.md).
+
 - Power the device through the enclosure USB-C power opening.
 - Do not power the Raspberry Pi through its own micro-USB power connector.
 - The Pi micro-USB power connector is intentionally covered by the enclosure and is not meant to be used.
@@ -100,7 +106,7 @@ The current enclosure captures the boards without running screws through active 
 - The NeoTrellis cluster is located by perimeter rails.
 - The NeoTrellis left rail is broken for the `J1` / connector path clearance.
 - NeoTrellis vertical retention is handled by the top faceplate, top pins, and edge capture ribs, not by screws through the button field.
-- If a printed top pin is a little too loose, gently squeeze the ball at the end with pliers to make it grip tighter. Sneak up on the fit; crushed pins are less charming than snug ones.
+- If a printed top pin is a little too loose, gently squeeze the ball at the end with pliers to make it grip tighter. Use gentle pressure; replace a pin rather than crushing it.
 
 ## Printing Notes
 

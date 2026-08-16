@@ -30,6 +30,8 @@ Pi image path and `pi` account, while Orange uses the Armbian path with separate
 `octessera` setup and `octessera-runtime` service accounts. Physical setup-portal
 qualification on both boards remains pending.
 
+## Shared OLED boot handoff and qualification
+
 The OLED boot handoff is also one parity contract. Both boards use the same
 mirrored four-band sweep defined by `resources/oled/boot-sweep-v1.json`, the
 same exclusive `/run/octessera-boot` lock/status protocol, and the same
@@ -51,6 +53,13 @@ source paths are implemented, but their boot services and selected initramfs
 outputs still require a new constructor image and physical qualification. Both
 boards may remain blank before their initramfs writer runs; systemd then owns
 the only OLED animator. Reboot retains the clean shutdown logo+wordmark.
+
+### Bounded boot result (historical)
+
+Bounded attended result: both boards cold-booted with the static logo+wordmark,
+reached the final animation, and completed menu/handoff; Orange runtime/socket
+checks passed, and both runtime services recorded zero restarts. Constructor-image,
+broader OLED/UI, suspend, connected-audio, and controls qualification remain open.
 
 Confirmed instrument-menu sleep uses the exact native `Going to sleep` toast over
 the shared static sleep/shutdown logo+wordmark frame. Confirmed Reboot and
@@ -152,9 +161,10 @@ Pi binaries expose `--print-build-metadata`, and cross-build output includes
 and device update manifests carry the same canonical ID so a mismatched
 binary or artifact fails closed where the host can check it.
 
-The 0.7.5 production image artifact is
-`octessera-0.7.5-orange-pi-zero-2w.img.xz`, with its matching SHA-256 and image
-provenance files. Its explicit image metadata is
+The current production image uses the version-qualified name
+`octessera-<version>-orange-pi-zero-2w.img.xz`, with matching SHA-256 and image
+provenance files. The immutable v0.7.5 release artifact is
+`octessera-0.7.5-orange-pi-zero-2w.img.xz`; its explicit image metadata is
 `OCTESSERA_IMAGE_MODE=production`. The image contains the hash-bound runtime
 bundle `octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`; the metadata
 declares `artifact_kind=production-runtime` and `runtime_ready=true` for
