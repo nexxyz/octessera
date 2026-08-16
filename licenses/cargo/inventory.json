@@ -10,7 +10,7 @@
     "machine_output_checked": false,
     "limitation": "cargo-about 0.9.1 is advisory here: custom first-party license-file metadata and policy review are not represented by its accepted identifiers, so the checked inventory is rendered from Cargo.lock, manifests, and the exact reviewed policy instead."
   },
-  "cargo_lock_sha256": "8fa7043b83b0b3a630c097508e96663997bc2153e2451d8005f5b000e24e36d9",
+  "cargo_lock_sha256": "3a596729b3d1275da69d0309b16d157add6abd5edcba7a10eb6cadda0e9c7d92",
   "package_count": 523,
   "license_classes": {
     "permissive": 511,
