@@ -661,8 +661,10 @@ gh workflow run respin-board-image.yml -f board=orange-pi-zero-2w -f setup_layer
 ```
 
 That lane validates `resources/image-parents/v0.7.5-trust-manifest.json`, fetches
-the exact `v0.7.5` parent assets, and records setup-layer proof. No production
-parent image has been exercised here.
+the exact board parent assets, and records setup-layer proof. Its live release
+preflight allows only the two withdrawn macOS assets to be absent; the historical
+27-asset trust manifest remains unchanged. No production parent image has been
+exercised here.
 
 Pi UI/render responsiveness profiling is quiet by default. Enable periodic summaries with either control:
 

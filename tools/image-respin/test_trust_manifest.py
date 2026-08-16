@@ -9,9 +9,11 @@ from pathlib import Path
 
 from trust_manifest import (
     ManifestError,
+    LIVE_RESPIN_WITHDRAWN_ASSET_NAMES,
     load_manifest,
     parse_json_text,
     validate_downloaded_directory,
+    validate_live_respin_release_document,
     validate_manifest_document,
     validate_release_document,
 )
@@ -69,6 +71,16 @@ def api_release_fixture(manifest: dict) -> dict:
             for asset in fixture["assets"]
         ],
     }
+
+
+def live_release_fixture(manifest: dict) -> dict:
+    fixture = gh_release_fixture(manifest)
+    fixture["assets"] = [
+        asset
+        for asset in fixture["assets"]
+        if asset["name"] not in LIVE_RESPIN_WITHDRAWN_ASSET_NAMES
+    ]
+    return fixture
 
 
 def directory_fixture(manifest: dict, board: str) -> dict:
@@ -168,6 +180,76 @@ class TrustManifestTests(unittest.TestCase):
         manifest = checked_manifest()
         validate_release_document(gh_release_fixture(manifest), manifest)
         validate_release_document(api_release_fixture(manifest), manifest)
+
+    def test_strict_release_rejects_exact_live_withdrawal_set(self) -> None:
+        manifest = checked_manifest()
+        with self.assertRaises(ManifestError):
+            validate_release_document(live_release_fixture(manifest), manifest)
+
+    def test_live_respin_accepts_only_the_two_explicit_withdrawals(self) -> None:
+        manifest = checked_manifest()
+        validate_live_respin_release_document(live_release_fixture(manifest), manifest)
+        historical = gh_release_fixture(manifest)
+        one_withdrawn = gh_release_fixture(manifest)
+        one_withdrawn["assets"] = [
+            asset
+            for asset in one_withdrawn["assets"]
+            if asset["name"] != "octessera-0.7.5-macos-unsigned.dmg"
+        ]
+        missing_board = live_release_fixture(manifest)
+        missing_board["assets"] = [
+            asset
+            for asset in missing_board["assets"]
+            if asset["name"] != "octessera-0.7.5-orange-pi-zero-2w.img.xz"
+        ]
+        missing_retained = live_release_fixture(manifest)
+        missing_retained["assets"] = [
+            asset
+            for asset in missing_retained["assets"]
+            if asset["name"] != "octessera-0.7.5-ubuntu-amd64.deb"
+        ]
+        extra = live_release_fixture(manifest)
+        extra["assets"][0]["name"] = "octessera-0.7.5-macos-unsigned.dmg"
+        duplicate = live_release_fixture(manifest)
+        duplicate["assets"][-1]["name"] = duplicate["assets"][0]["name"]
+        for label, release in (
+            ("historical", historical),
+            ("one-withdrawn", one_withdrawn),
+            ("missing-board", missing_board),
+            ("missing-retained", missing_retained),
+            ("extra", extra),
+            ("duplicate", duplicate),
+        ):
+            with self.subTest(label=label), self.assertRaises(ManifestError):
+                validate_live_respin_release_document(release, manifest)
+
+    def test_live_respin_rejects_retained_identity_and_anchor_mutations(self) -> None:
+        manifest = checked_manifest()
+        for field, value in (
+            ("tagName", "latest"),
+            ("url", "https://example.invalid/release"),
+            ("publishedAt", "2026-08-02T14:27:17Z"),
+            ("repository", "someone/else"),
+            ("sourceCommit", "0" * 40),
+            ("isDraft", True),
+            ("isPrerelease", True),
+        ):
+            with self.subTest(field=field):
+                release = live_release_fixture(manifest)
+                release[field] = value
+                with self.assertRaises(ManifestError):
+                    validate_live_respin_release_document(release, manifest)
+        for field, value in (
+            ("id", "RA_invalid"),
+            ("size", 1),
+            ("digest", "sha256:" + "0" * 64),
+            ("contentType", "application/octet-stream"),
+        ):
+            with self.subTest(field=field):
+                release = live_release_fixture(manifest)
+                release["assets"][0][field] = value
+                with self.assertRaises(ManifestError):
+                    validate_live_respin_release_document(release, manifest)
 
     def test_release_fixture_rejects_release_anchor_mutations(self) -> None:
         mutations = (
@@ -270,6 +352,10 @@ class TrustManifestTests(unittest.TestCase):
         commands = (
             (["--validate-manifest"], None),
             (["--release-json", "-"], json.dumps(gh_release_fixture(checked_manifest()))),
+            (
+                ["--live-respin-release-json", "-"],
+                json.dumps(live_release_fixture(checked_manifest())),
+            ),
         )
         for arguments, input_text in commands:
             result = subprocess.run(
@@ -281,6 +367,7 @@ class TrustManifestTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
+
         for board in ("orange-pi-zero-2w", "raspberry-pi-zero-2w"):
             result = subprocess.run(
                 [
@@ -347,6 +434,26 @@ class TrustManifestTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_verifier_cli_live_mode_rejects_historical_asset_set(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            release_file = Path(temporary) / "fixture-release.json"
+            release_file.write_text(
+                json.dumps(gh_release_fixture(checked_manifest())), encoding="utf-8"
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(VERIFIER_PATH),
+                    "--live-respin-release-json",
+                    str(release_file),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":

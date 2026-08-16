@@ -8,6 +8,7 @@ from trust_manifest import (
     load_manifest,
     parse_json_text,
     validate_downloaded_directory,
+    validate_live_respin_release_document,
     validate_release_document,
 )
 
@@ -26,6 +27,7 @@ def _arguments() -> argparse.Namespace:
     mode.add_argument("--validate-manifest", action="store_true")
     mode.add_argument("--directory", type=Path)
     mode.add_argument("--release-json", metavar="PATH")
+    mode.add_argument("--live-respin-release-json", metavar="PATH")
     mode.add_argument("--print-board-assets", action="store_true")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument(
@@ -63,6 +65,11 @@ def main() -> int:
             boards = tuple(arguments.board) if arguments.board else None
             validate_downloaded_directory(arguments.directory, manifest, boards)
             print(f"downloaded directory valid: {arguments.directory}")
+        elif arguments.live_respin_release_json is not None:
+            validate_live_respin_release_document(
+                _release_json_document(arguments.live_respin_release_json), manifest
+            )
+            print("live respin release JSON valid: v0.7.5")
         else:
             validate_release_document(_release_json_document(arguments.release_json), manifest)
             print("release JSON valid: v0.7.5")

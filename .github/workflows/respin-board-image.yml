@@ -204,7 +204,7 @@ jobs:
           release_json="$RUNNER_TEMP/octessera-v0.7.5-release.json"
           gh api "repos/nexxyz/octessera/releases/tags/v0.7.5" > "$release_json"
           jq -e '.draft == false and .prerelease == false' "$release_json" >/dev/null
-          python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --release-json "$release_json"
+          python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --live-respin-release-json "$release_json"
           trusted_source="$(python3 - "$TRUST_MANIFEST" <<'PY'
           import json
           import sys
