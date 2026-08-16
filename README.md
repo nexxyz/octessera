@@ -83,7 +83,10 @@ Related references:
 The easiest way to play with this system is the [hardware-free desktop simulator path](userdocs/desktop-simulator.md),
 which starts with the portable Windows build on the [official releases](https://github.com/nexxyz/octessera/releases).
 
-Releases may also include macOS and Linux desktop simulator builds. Those are currently untested; treat them as experimental until someone has done the boring part and actually run them on those systems.
+Windows is the documented desktop release path. Releases also include Ubuntu
+DEB and AppImage builds. macOS distribution is paused until it can be properly
+signed and notarized. You can still run the simulator from the checkout when
+you want to tinker.
 
 It lets you try out Octessera without any special hardware. The simulator is
 excellent for musical and desktop-runtime exploration, but it does not qualify

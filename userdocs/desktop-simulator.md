@@ -9,14 +9,15 @@ the controls before deciding whether you want another box on your desk.
 
 1. Open the project's [official releases](https://github.com/nexxyz/octessera/releases).
 2. Choose the newest release you intend to try.
-3. Download the standalone Windows portable `.exe` when that asset is available,
-   save it somewhere you can write to, and launch it. If a future release offers
-   a portable `.zip` instead, extract it somewhere writable and launch the
-   included `octessera.exe`. Do not run an image or board runtime for this path.
+3. Download the Windows portable asset. Extract a portable `.zip` somewhere
+   writable and launch the included `octessera.exe`; older releases may provide
+   the standalone `.exe` directly. Do not run an image or board runtime for this
+   path.
 
-Release pages may also offer macOS or Linux builds. They are useful experiments,
-but Windows portable builds are the primary documented simulator path. Treat
-other host platforms as unverified until you have run them yourself.
+Windows portable builds are the documented release path. Ubuntu DEB and
+AppImage builds are also published. macOS distribution is paused until it can
+be properly signed and notarized. You can still run the simulator from the
+checkout when you fancy a little tinkering.
 
 ## Contributor path: run from the checkout
 

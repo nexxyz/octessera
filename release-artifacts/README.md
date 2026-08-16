@@ -30,15 +30,17 @@ the release evidence ZIP. Board device ZIPs carry exact root-level `LICENSE` and
 
 ## GitHub release surface
 
-The publisher keeps exactly 13 custom assets at the release root: the Windows
-installer and portable ZIP, unsigned macOS DMG, Ubuntu DEB and AppImage,
+The publisher keeps exactly 12 custom assets at the release root: the Windows
+installer and portable ZIP, Ubuntu DEB and AppImage,
 Raspberry image ZIP, operational `.rpi-imager-manifest`, Raspberry updater ZIP,
 the legacy `SHA256SUMS-raspberry-pi-zero-2w-device.txt`, Orange image and
 standalone-manual ZIP, `octessera-<version>-release-evidence.zip`, and
 `SHA256SUMS.txt`. GitHub also shows its automatic source ZIP and tar archives;
 those are not custom assets and are not included in `SHA256SUMS.txt`.
 
-`SHA256SUMS.txt` covers the other 12 custom root assets. The Raspberry Imager
+`SHA256SUMS.txt` covers the other 11 custom root assets. macOS distribution is
+paused until it can be properly signed and notarized, so no macOS build is
+published. The Raspberry Imager
 manifest is operational metadata for Imager, while the release evidence ZIP is
 supporting build material rather than another install payload. The legacy
 Raspberry device checksum remains at the root only for existing installed
