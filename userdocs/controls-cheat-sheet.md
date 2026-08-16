@@ -4,6 +4,23 @@ This is the map I wish I had taped next to the prototype while I was still learn
 
 Octessera has regular controls, and then it has places where the controls temporarily become something else: Play pages, grid assignment modes, sample assignment, and context help. When in doubt, watch the OLED. It is small, but it tries to tell you what you are currently touching.
 
+The visible performance area is **Play**, with **Play FX** for momentary
+effects. **Sparks** is an older internal/native identifier and remains in the
+filename and source contracts; it is not a current visible mode label.
+
+## Learn these five controls first
+
+| Learn this | First use |
+|---|---|
+| *Turn Main* | Move through menus or change the value being edited. |
+| *Click Main* | Select, enter, edit, or confirm. |
+| *Back* | Leave an edit, overlay, or menu level. |
+| *Play* / *Space* | Start or pause playback. |
+| Hold *Fn* and use a grid column | Preview layers on the left and Play pages on the right; press a cell to jump there. |
+
+Once these feel familiar, use the exact tables below for stop, reset, binding,
+probability, transpose, and Play FX behavior.
+
 ## Regular controls
 
 | Control | Area | What it does |

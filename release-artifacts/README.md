@@ -1,16 +1,17 @@
 # Release Artifacts
 
-This directory contains files intended for builders and end users, not source-of-truth project files.
+This directory contains generated deliverables for builders and end users, not
+source-of-truth project files. The currently committed fabrication tree is:
 
-- `desktop/` — downloadable desktop builds when intentionally published.
-- `pi/` — Pi images or Pi binary packages when intentionally published.
-- `pcb/` — PCB fabrication exports such as Gerber zips.
-- `enclosure/` — printable STL files and exported STEP files.
+- `pcb/gerber/` — Gerbers, drill files, the KiCad job file, and `gerber.zip`.
+- `enclosure/stl/` — printable STL exports.
+- `enclosure/step/` — CAD STEP exports.
+- `enclosure/3mf-multicolor/` — multicolor-print exports.
 
-Versioned release mirrors live under `v<version>/`, for example `v0.5.1/pi/`.
-Keep only publishable artifacts in versioned folders; temporary CI run imports or extracted images should not be committed.
-
-Regenerate these files from the source tree before publishing a release.
+Generated release surfaces such as `desktop/`, `pi/`, `v<version>/`, evidence,
+and checksums are not a second source tree. Do not commit temporary CI imports
+or extracted images. Regenerate committed fabrication exports from the source
+tree before publishing.
 
 ## Legal and source companions
 
@@ -30,21 +31,12 @@ the release evidence ZIP. Board device ZIPs carry exact root-level `LICENSE` and
 
 ## GitHub release surface
 
-The publisher keeps exactly 12 custom assets at the release root: the Windows
-installer and portable ZIP, Ubuntu DEB and AppImage,
-Raspberry image ZIP, operational `.rpi-imager-manifest`, Raspberry updater ZIP,
-the legacy `SHA256SUMS-raspberry-pi-zero-2w-device.txt`, Orange image and
-standalone-manual ZIP, `octessera-<version>-release-evidence.zip`, and
-`SHA256SUMS.txt`. GitHub also shows its automatic source ZIP and tar archives;
-those are not custom assets and are not included in `SHA256SUMS.txt`.
-
-`SHA256SUMS.txt` covers the other 11 custom root assets. macOS distribution is
-paused until it can be properly signed and notarized, so no macOS build is
-published. The Raspberry Imager
-manifest is operational metadata for Imager, while the release evidence ZIP is
-supporting build material rather than another install payload. The legacy
-Raspberry device checksum remains at the root only for existing installed
-updater clients.
+The committed release procedure and exact current 12-asset custom release
+contract live in [`docs/development-workflows.md`](../docs/development-workflows.md).
+It also explains the operational Imager manifest, supporting evidence ZIP,
+global checksum, automatic GitHub source archives, and the legacy Raspberry
+updater checksum. macOS distribution remains paused until it can be properly
+signed and notarized, so it is not a published asset.
 
 ## Artifact-surface naming
 

@@ -2,9 +2,14 @@
 
 This guide builds the standalone Octessera instrument: PCB, soldered controls, plug-in modules, NeoTrellis grid, one of the two supported compute boards, and enclosure.
 
-The hardware is still being fit-tested. Check the current enclosure files before ordering printed parts, and do the slow fit checks before you close the box. Tiny clearances are where instruments learn humility.
+The hardware is still being fit-tested. The current enclosure is the active v21
+test-fit model, not a production-final enclosure. Check the current enclosure
+files before ordering printed parts, and do the fit checks before closing the
+box.
 
-If you are new here, start with the friendlier map in [`../README.md`](../README.md), then come back with a soldering iron and snacks.
+If you are new here, start with the friendlier map in [`../README.md`](../README.md),
+then read [`safety-and-power.md`](safety-and-power.md) before handling power or
+the enclosure.
 
 Choose either the [Raspberry Pi Zero 2 W](../../docs/board-profiles.md) or the
 [Orange Pi Zero 2W](../../hardware/docs/orange-pi-armbian-bringup.md) path before
@@ -20,6 +25,8 @@ keep source proof and physical proof separate.
 - PCB layout: [`../../hardware/pcb/octessera.kicad_pcb`](../../hardware/pcb/octessera.kicad_pcb)
 - Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
 - Enclosure reference: [`enclosure.md`](enclosure.md)
+- Safety and power: [`safety-and-power.md`](safety-and-power.md)
+- Troubleshooting: [`../troubleshooting.md`](../troubleshooting.md)
 - User docs home: [`../README.md`](../README.md)
 
 ## BOM
@@ -44,8 +51,8 @@ keep source proof and physical proof separate.
 | several | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length for the selected compute board, OLED, DAC, power breakout, and other plug-in modules. Confirm the socket height before ordering. |
 | 4 | Cherry MX-compatible key switches | [Cherry MX Black switches](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1), or any MX-compatible switch | Install into the NeoKey after bring-up. |
 | 1 | MicroSD card for the selected board | 16GB or larger recommended | Flash the matching board image. Raspberry and Orange image workflows are separate. |
-| 1 | USB-C power supply | Regulated 5V supply, 3A minimum; 4A recommended for extra LED headroom | Connect only to the USB-C breakout. A 2A supply is likely marginal once the compute board and LEDs are running together. |
-| 1 | Data-only USB cable or power-isolating USB adapter | Optional, for selected-board USB data/gadget use | Needed when the selected board's verified host-data port is connected to a host without back-powering the device. Software cannot block USB 5V for you. |
+| 1 | USB-C power supply | Regulated 5V supply, 3A minimum; 4A recommended for extra LED headroom | Connect only to the USB-C breakout. A 2A supply is likely marginal once the compute board and LEDs are running together. See [safety and power](safety-and-power.md). |
+| 1 | Data-only USB cable or power-isolating USB adapter | Optional, for selected-board USB data/gadget use | Needed when the selected board's host-data port is connected to a host after the exact build passes its port-role, VBUS/CC, and no-backfeed gates. Software cannot block USB 5V for you. |
 | 1 | Audio cable/headphones/speaker | 3.5mm audio | Used for test and operation. |
 
 ### 3D printed and mechanical parts
@@ -82,6 +89,9 @@ Standoff STL attribution and purchase/source reference: the standoff models are 
 - Optional: continuity tester, tweezers, helping hands, and magnifier.
 
 ## Before soldering
+
+Read [safety and power](safety-and-power.md) before connecting a board, host
+cable, or power supply. Confirm the exact board profile and module orientation.
 
 1. Inspect the PCB for visible manufacturing defects.
 2. Confirm the PCB matches the current Gerber zip.
@@ -147,9 +157,10 @@ The NeoKey and NeoTrellis connector are the two parts that are easiest to plug i
 
 ## Flash the selected board image
 
-Flash the image for the board you chose. Do not use a Raspberry image on Orange
-or an Orange diagnostic image as a production replacement. The board-specific
-first-boot pages carry the current image, checksum, and setup details.
+Flash the image for the board you chose from the [current release page](https://github.com/nexxyz/octessera/releases).
+Do not use a Raspberry image on Orange or an Orange diagnostic image as a
+production replacement. The board-specific first-boot pages carry the current
+image, checksum, and setup details.
 
 ### Raspberry Pi Zero 2 W image
 
@@ -197,18 +208,22 @@ For manual Pi setup and developer deploy/update workflows, see [`../../docs/deve
 
 ### Orange Pi Zero 2W image
 
-Use the production asset whose name ends in `-orange-pi-zero-2w.img.xz` and
-verify its entry in the root `SHA256SUMS.txt` asset. Flash it with an image
-flasher that supports the compressed image, then continue with the [Orange
-first-boot setup](orange-pi-first-boot.md). The separate diagnostic workflow
-image is for controlled bring-up checks, not normal operation.
+Use the Orange production image asset and matching checksum asset attached to the
+same selected release. Follow [Orange first-boot image verification](orange-pi-first-boot.md#verify-the-selected-image)
+to make a checksum-verified artifact before flashing it. Use an image flasher
+that supports the selected format, then continue with the [Orange first-boot
+setup](orange-pi-first-boot.md). The separate diagnostic workflow image is for
+controlled bring-up checks, not normal operation.
 
 The Orange board's boot overlays, physical pin mapping, DAC path, and USB role
 are board-specific. Do not adapt the Raspberry commands or pin numbers by
-position; use the [Orange Armbian bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md)
+position; use the reviewed [Orange Armbian bring-up procedure](../../hardware/docs/orange-pi-armbian-bringup.md)
 and stop at any unresolved physical gate.
 
 ## Bench bring-up before enclosure
+
+Read [safety and power](safety-and-power.md) before applying power or connecting
+the selected board to a host.
 
 1. Insert the selected compute board, OLED, DAC, USB-C power breakout, and NeoKey into their sockets.
 2. Connect the NeoTrellis array to the PCB with the 5-wire female-to-female Dupont cable.
@@ -217,15 +232,18 @@ and stop at any unresolved physical gate.
 5. Connect audio output to headphones, speakers, or a mixer.
 6. Connect power to the USB-C breakout.
 
-Do not power the device from the compute board's own power connector. Use the enclosure USB-C breakout, and follow the selected board's power and USB-role checks before connecting a host.
+Use the enclosure USB-C breakout as the intended power input. Do not use another
+board power port unless the selected-board wiring or bring-up instructions
+explicitly authorize it. Follow the selected board's power and USB-role checks
+before connecting a host.
 
 For the Raspberry path, if you connect the Pi USB data/gadget port to a
 computer, remember that a normal USB cable carries 5V too. Octessera can
-configure the gadget, but it cannot make the Pi politely decline that power.
+configure the gadget, but software cannot block that power.
 Use a data-only cable or a power-isolating adapter if the instrument is already
-powered through the enclosure USB-C port. For Orange, verify the host-data port,
-VBUS/CC role, and no-backfeed behavior in the [Orange bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md)
-before connecting it.
+powered through the enclosure USB-C port. For Orange, connect the host-data port
+only after the exact build passes the port-role, VBUS/CC, and no-backfeed gates
+in the [Orange Armbian bring-up procedure](../../hardware/docs/orange-pi-armbian-bringup.md).
 
 Before applying power, check the NeoKey and NeoTrellis connector orientation again. `INT` should be on the south side.
 
@@ -257,7 +275,7 @@ Remove the selected compute board's microSD card and the OLED microSD card first
    - 18 pins go into the separate standoff pillars.
    - 8 pins go into the NeoTrellis array's integrated bottom pillars. It might be a bit tight due to the female connectors on the bottom, since the pillars are flared a bit for stability, but it will end up fitting nicely.
    - During final assembly, a small drop of glue on the top-pin can keep pins from falling out if the device is turned upside down.
-   - The dowel/top-pin system can hold the enclosure together on its own. If a pin does not secure enough, use pliers to gently squeeze the ball at the end of the pin for a tighter fit. Gently is the magic word here; the tiny mushroom is brave, not immortal.
+   - The dowel/top-pin system can hold the enclosure together on its own. If a pin does not secure enough, use pliers to gently squeeze the ball at the end of the pin for a tighter fit. Use gentle pressure; replace a pin rather than forcing or crushing it.
 5. Place one silicone 4x4 keypad on each NeoTrellis board. Make sure the pads sit flat and line up with the 8x8 opening before closing the case.
 6. Optional but recommended: install all 8 M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
 7. Place the enclosure top over the assembly. It is easiest to slip the top on from the left/west side first so the ports pass through their holes, then lower the right/east side. The guide walls and standoff pins should locate the parts without forcing them.
@@ -276,3 +294,6 @@ Tighten screws gently. If the top does not sit flat, stop and find the interfere
 4. Confirm the OLED is readable.
 5. Confirm audio output from the DAC.
 6. Confirm the selected board's microSD, OLED microSD, audio, USB-C power, video, and host-data openings are accessible. Use the [enclosure notes](enclosure.md) for the board-specific port layout.
+
+If any check is unclear, stop and use [troubleshooting](../troubleshooting.md)
+before closing the enclosure.

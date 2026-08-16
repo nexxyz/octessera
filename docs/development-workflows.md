@@ -1,12 +1,14 @@
 # Contributor Development Workflows
 
-This is a contributor reference. End-user hardware build, assembly, and bring-up docs have priority:
+This is a contributor reference. Start user-facing work at `userdocs/README.md`;
+the user-facing hardware build, assembly, and bring-up docs have priority:
 
 - `userdocs/hardware/assembly-manual.md`
 - `userdocs/hardware/pinout-and-connections.md`
 - `userdocs/hardware/enclosure.md`
-- `hardware/docs/branding-assets.md`
 - `docs/menu-and-controls-spec.md`
+
+Contributor-only branding guidance lives in `hardware/docs/branding-assets.md`.
 
 ## Install
 
@@ -18,10 +20,19 @@ Use pnpm workspaces. Do not use npm or yarn for this repository.
 
 ## Documentation Checks
 
-Check local Markdown links:
+General documentation checks:
 
 ```bash
 python tools/docs/check_links.py
+git diff --check
+```
+
+Markdown-only edits do not require a Rust test run. Edits to
+`resources/menu-help-texts.tsv` or native menu/help targets also require the
+focused parity check:
+
+```bash
+cargo test -p playback-runtime
 ```
 
 For a slower pass that also fetches HTTP links and validates known BOM product pages by content, run:
@@ -60,6 +71,9 @@ desktop, and host-build behavior only; none is board qualification.
 
 Keep the limits visible in reports: a clean hardware-free matrix is evidence
 for software and documentation paths, not evidence that a board is ready.
+The desktop lint and format rows run real ESLint and Prettier checks. The root
+recursive lint and format commands also visit packages whose scripts are no-ops,
+so those aggregate commands do not prove uniform coverage across every package.
 
 ## Orange live audio benchmark tooling
 
@@ -203,7 +217,7 @@ images. Assets are profile-qualified: the Raspberry Pi updater fetches
 `SHA256SUMS-raspberry-pi-zero-2w-device.txt`, verifies the checksum and embedded
 board-profile manifest, and stages an immutable candidate under
 `/opt/octessera/releases/<version>`. Orange update check, apply, rollback, and
-OTA remain unsupported in 0.7.5; Orange must not consume Raspberry assets or
+OTA remain unsupported; Orange must not consume Raspberry assets or
 pretend that a manual image install is an OTA update.
 
 On supported Raspberry installations, Apply and rollback use a guarded
@@ -331,17 +345,54 @@ corepack pnpm run config:check
 
 Preset saves use portable patch envelopes in `presets/patches/<name>.json`. Hosts still load legacy `presets/<name>.json`; when both files exist for one logical preset name, the patch-directory file wins, and delete removes both. Default and recovery files remain full local snapshots until the device/default split protocol is introduced.
 
-## Standard Verification
+## Focused Verification
+
+Use package-scoped and crate-scoped checks while iterating:
 
 ```bash
-corepack pnpm run typecheck
-corepack pnpm -r test
-corepack pnpm -r lint
-corepack pnpm -r format:check
-corepack pnpm run quality:audit
+corepack pnpm --filter @octessera/desktop typecheck
+corepack pnpm --filter @octessera/desktop lint
+corepack pnpm --filter @octessera/desktop format:check
+corepack pnpm --filter @octessera/desktop test
 cargo fmt --all --check
 cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop
 cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
+```
+
+These are fast or focused confidence checks, not the full workspace gate. The
+desktop lint and format commands run real ESLint and Prettier; the recursive
+workspace commands also visit packages with no-op lint/format scripts.
+
+## Full Local and CI Verification
+
+`.githooks/pre-push` delegates to `tools/quality/pre-push.sh`. The fast profile
+is explicit and skips Cargo tests/builds:
+
+```bash
+./tools/quality/pre-push.sh --fast
+```
+
+The default profile is the full local gate and expects a clean worktree:
+
+```bash
+./tools/quality/pre-push.sh
+```
+
+It runs the root `lint`, `typecheck`, `format:check`, `test`, and
+`test:coverage` scripts, Cargo formatting, file-length checks, workspace Rust
+tests and coverage, the ignored factory-patch scenario, desktop/Pi checks, the
+Tauri build smoke test, and clippy for the checked workspace crates. Its
+workspace Cargo test and clippy selections exclude `rodio-engine-source`.
+GitHub CI separately runs that crate's tests and clippy; the current Rust
+coverage script covers `platform-core`, `playback-runtime`, and `realtime-engine`
+only. CI otherwise splits the same broad coverage across TypeScript
+lint/format/typecheck/tests, Rust format/lint/tests, coverage, and the
+conditional factory-patch scenario.
+
+The quality audit is an additional local source-structure check:
+
+```bash
+corepack pnpm run quality:audit
 ```
 
 The root `typecheck` runs `config:check`, `capabilities:check`, and `palette:check` before package typechecks.
@@ -356,7 +407,7 @@ Add `-IncludePlatformCore` when platform behavior changes and `-Typecheck` when 
 
 The pre-push hook runs CI-like checks against the committed tree, including lint, typecheck, format checks, tests, coverage, file-length checks, desktop Rust adapter tests after the desktop check, Tauri build smoke, and clippy. It also runs the ignored factory patch UI scenario. Use a long timeout when pushing from automation. Do not skip the hook; fix failures and push again.
 
-When committing and immediately pushing, run targeted confidence checks and required artifact builds before committing, then rely on the pre-push hook for the exhaustive CI-like suite. Avoid manually running a hook-equivalent full validation immediately before `git push` unless the change is high-risk, explicitly requested, or the hook cannot run.
+When committing and immediately pushing, run targeted confidence checks and required artifact builds before committing, then rely on the pre-push hook for the full CI-like suite. Avoid manually running a hook-equivalent full validation immediately before `git push` unless the change is high-risk, explicitly requested, or the hook cannot run.
 
 For hardware branding and enclosure artifact changes, also check `hardware/docs/branding-assets.md` before committing. It documents the SVG source of truth, Pi PNG/initramfs path, PCB/enclosure branding conversions, and the cleanup checklist for stale generated artifacts and local absolute paths.
 
@@ -531,15 +582,16 @@ ephemeral tool container, and writes checked artifacts under
 Cargo and rustup caches use persistent named Docker volumes; `-DryRun` prints
 the command without starting Docker. The builder accepts the two diagnostic
 smoke binaries and a local Orange `octessera-pi` development binary. It does not
-produce the 0.7.5 production image or its `production-runtime` bundle; that
+produce a production image or its `production-runtime` bundle; that
 bundle is built and hash-checked by the release workflow. No artifact is run
 against the board by this helper.
 
 The shared `build-armbian-image` action has an explicit `image_kind` input:
 `diagnostic` builds the separate bring-up image, while `production` requires the
 hash-bound Orange runtime bundle. The generic `Armbian Image` workflow uses
-diagnostic mode; the 0.7.5 release workflow invokes the action in production
-mode and builds `octessera-0.7.5-orange-pi-zero-2w.img.xz`. Diagnostic mode does
+diagnostic mode; the release workflow invokes the action in production mode.
+Its immutable v0.7.5 output was `octessera-0.7.5-orange-pi-zero-2w.img.xz`;
+future releases use the same version-qualified name. Diagnostic mode does
 not contain or enable `octessera.service`. Run validation first:
 
 The image path compiles and merges the separate
@@ -754,17 +806,6 @@ Use the real hardware loop for Pi-only behavior, input latency, OLED rendering, 
 7. Run targeted Rust checks before redeploying when possible, then repeat the hardware observation.
 8. Before pushing a stable hardware milestone, use QA or oracle review for risky runtime/menu changes and run the pre-push hook. It validates the committed tree and includes file-length checks, coverage, Tauri smoke build, and clippy.
 
-## Documentation Checks
-
-After changing docs or menu/help resources:
-
-```bash
-cargo test -p playback-runtime
-git diff --check
-```
-
-Search for obsolete completed-work history before committing documentation updates.
-
 ## Menu/Control Playback-Priority Changes
 
 Menu and control changes can affect playback timing. Use this checklist when changing `crates/playback-runtime` menu apply paths, desktop/Pi runtime loops, or audio config/control routing:
@@ -774,6 +815,6 @@ Menu and control changes can affect playback timing. Use this checklist when cha
 3. For structural selectors, avoid full config/audio rebuilds unless the selected structure actually changed.
 4. Delay autosave payload generation for rapid edits; explicit Save Default remains immediate.
 5. Preserve hardware parity by implementing behavior in `playback-runtime` or `platform-core`, not desktop TypeScript.
-6. Update `docs/menu-and-controls-spec.md` for parity-affecting control/menu behavior.
+6. Update `docs/menu-and-controls-spec.md` and `resources/menu-help-texts.tsv` for parity-affecting control/menu behavior; native help coverage must remain specific.
 7. Run targeted playback-runtime tests first, then full `cargo test -p playback-runtime` before commit.
 8. Rebuild `apps/desktop/dist-desktop/octessera.exe` when the change is desktop-visible.

@@ -7,11 +7,11 @@ It is a collection of little algorithmic musical world-bubbles: small systems yo
 Start with the user docs: [`userdocs/README.md`](userdocs/README.md). If you
 have no hardware yet, use the [hardware-free desktop simulator path](userdocs/desktop-simulator.md).
 
-Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Sparks mode and perform with live effects, change trigger probability, and use the XY pad and mixer controls to build something that you and octessera found together.
+Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then open a Play page and perform with Play FX, change trigger probability, and use the XY pad and mixer controls to build something that you and octessera found together.
 
 It is easy to start with, but deep. It rewards exploration and experimentation. Small changes to the grid can become rhythms, melodies, modulation, texture, or surprise.
 
-The intended way of using it is a DIY standalone hardware instrument based on a Raspberry Pi. There is, however, a fully implemented desktop app that serves simulator for building, testing, and playing the same instrument on a computer - but it is also quite usable and effective, if you don't want another piece of gear to clutter your valuable desk real estate.
+The intended way of using it is a DIY standalone hardware instrument built around one of two fixed compute-board paths: Raspberry Pi Zero 2 W or Orange Pi Zero 2W. There is also a fully implemented desktop simulator for building, testing, and playing the same instrument on a computer.
 
 ## What You Can Make
 
@@ -30,7 +30,7 @@ The intended way of using it is a DIY standalone hardware instrument based on a 
 2. Draw or seed a few cells on the grid.
 3. Press **Space** to start playback.
 4. Go to **Shape** and choose a synth, sampler or even MIDI output for the layer.
-5. Add a sequencer layer for drums, have it play a sampler with your preferred drum samples (we even provide a small sample library for you!)
+5. Add a sequencer layer for drums and have it play a sampler with samples you provide.
 6. Then route the synth through an FX bus with ducking so the beat opens space in the mix.
 7. Switch another layer to **Keys** and play a lead line live.
 8. Hold **Fn** for navigation and use the right grid column to enter **Play** pages.
@@ -40,7 +40,7 @@ You can treat it like a algorithmic groovebox, a generative sketchpad, or a smal
 
 ## Controls
 
-The hardware (still under design) uses one clickable main encoder, three clickable aux encoders, four keys with LEDs, an 8x8 grid and a small OLED. The desktop simulator mirrors those controls with keyboard and UI inputs.
+The standalone hardware uses one clickable main encoder, three clickable aux encoders, four keys with LEDs, an 8x8 grid, and a small OLED. The enclosure is still an active v21 test-fit design; the desktop simulator mirrors those controls with keyboard and UI inputs.
 
 | Action | Hardware | Desktop |
 |---|---|---|
@@ -61,32 +61,41 @@ The friendly control guide starts at [`userdocs/controls-cheat-sheet.md`](userdo
 - **Build** — choose the active layer's behavior and edit its grid state.
 - **Link** — decide how grid motion becomes notes, velocity, filters, probability, and modulation.
 - **Shape** — choose synth, sampler, MIDI, mixer routing, FX buses, and global FX.
-- **Play** — perform with mix, pan, trigger probability, XY, and momentary effects.
+- **Play** — perform with mix, pan, trigger probability, XY, and momentary Play FX.
 - **System** — presets, default/factory actions, sound, MIDI, brightness, sleep, and help.
 
 ## Build The Hardware
 
-The intended build is a DIY standalone instrument around a custom PCB, Raspberry Pi Zero 2 W, NeoTrellis grid, NeoKey controls, OLED, DAC, and printed enclosure.
+The intended build is a DIY standalone instrument around a custom PCB, one of
+the two supported compute boards, NeoTrellis grid, NeoKey controls, OLED, DAC,
+and printed enclosure. Choose either Raspberry Pi Zero 2 W or Orange Pi Zero
+2W; their images, pinouts, port roles, and physical checks are not
+interchangeable.
+
+Parts cost follows the current BOM, suppliers, shipping, taxes, and printing.
+Check those inputs before ordering; the project does not promise a fixed total.
 
 Start with the full assembly guide:
 
-- [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md) — BOM, PCB ordering, soldering, module setup, Pi flashing, first power-on, and enclosure assembly.
+- [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md) — BOM, PCB ordering, soldering, module setup, board flashing, first power-on, and enclosure assembly.
 
 Related references:
 
 1. [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
-2. [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md) — case, port access, print notes, and power rule.
+2. [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md) — case, port access, print notes, and mechanical status.
 3. [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md) — runtime controls, menus, overlays, and display behavior.
+4. [`userdocs/hardware/safety-and-power.md`](userdocs/hardware/safety-and-power.md) — power input, USB backfeed, orientation, and fit stop conditions.
+5. [`userdocs/troubleshooting.md`](userdocs/troubleshooting.md) — symptom router for the desktop and both board paths.
 
 ## Desktop Simulator
 
 The easiest way to play with this system is the [hardware-free desktop simulator path](userdocs/desktop-simulator.md),
-which starts with the portable Windows build on the [official releases](https://github.com/nexxyz/octessera/releases).
+which starts with the portable Windows build on the [current release page](https://github.com/nexxyz/octessera/releases).
 
-Windows is the documented desktop release path. Releases also include Ubuntu
-DEB and AppImage builds. macOS distribution is paused until it can be properly
-signed and notarized. You can still run the simulator from the checkout when
-you want to tinker.
+Windows is the documented desktop release path. The current release page also
+lists Ubuntu DEB and AppImage builds when available. macOS distribution is
+paused until it can be properly signed and notarized. You can still run the
+simulator from the checkout when you want to tinker.
 
 It lets you try out Octessera without any special hardware. The simulator is
 excellent for musical and desktop-runtime exploration, but it does not qualify
@@ -99,18 +108,22 @@ Primary user docs:
 - [`userdocs/README.md`](userdocs/README.md): start here for build, bring-up, controls, printable sheets, and references.
 - [`userdocs/desktop-simulator.md`](userdocs/desktop-simulator.md): start a hardware-free desktop session and understand its limits.
 - [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
-- [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
+- [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md): Raspberry wiring, bus allocation, logical input mapping, and Orange routing warning.
+- [`userdocs/hardware/raspberry-pi-first-boot.md`](userdocs/hardware/raspberry-pi-first-boot.md): Raspberry image, UART/SW3, OLED, and saved-settings behavior.
+- [`userdocs/hardware/orange-pi-first-boot.md`](userdocs/hardware/orange-pi-first-boot.md): Orange production image, setup, samples, and bench recovery.
+- [`userdocs/hardware/safety-and-power.md`](userdocs/hardware/safety-and-power.md): the concise safety owner page.
+- [`userdocs/troubleshooting.md`](userdocs/troubleshooting.md): symptom-first recovery links.
 - [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md): enclosure ports, power rule, printing notes, and mechanical strategy.
 - [`userdocs/controls-cheat-sheet.md`](userdocs/controls-cheat-sheet.md): hardware and simulator controls.
-- [`userdocs/behaviors-and-sparks.md`](userdocs/behaviors-and-sparks.md): behavior overview and Sparks page reference.
-- [`userdocs/print/quick-reference.pdf`](userdocs/print/quick-reference.pdf): two-page printable controls, behaviors, Sparks, and signal-flow sheet.
+- [`userdocs/behaviors-and-sparks.md`](userdocs/behaviors-and-sparks.md): behavior catalog and Play page reference.
+- [`userdocs/print/quick-reference.pdf`](userdocs/print/quick-reference.pdf): two-page printable controls, behaviors, Play, and signal-flow sheet.
 
 Canonical specs:
 
 - [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md): authoritative controls, menu structure, overlays, persistence, and display behavior.
 - [`docs/menu-tree-spec.md`](docs/menu-tree-spec.md): canonical menu tree.
 
-Secondary contributor docs:
+Contributor/reference docs:
 
 - [`docs/runtime-boundaries.md`](docs/runtime-boundaries.md): crate/host responsibilities and dependency boundaries.
 - [`docs/development-workflows.md`](docs/development-workflows.md): current development, build, verification, and capability-generation commands.
@@ -119,7 +132,7 @@ Secondary contributor docs:
 
 ## Samples
 
-The repository includes 320 media files from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack). Every file is recorded in [`samples/ATTRIBUTIONS.tsv`](samples/ATTRIBUTIONS.tsv) with its size, SHA-256 digest, exact upstream path, and a source URL pinned to commit [`dbfd6ec52d4ed53b60bdbea5fc6adf295127c027`](https://github.com/stargatedaw/stargate-sample-pack/tree/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027).
+The repository includes 320 media files from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack). This full library lives in the repository; desktop release packages do not bundle it and require user-supplied samples. The Orange production image stages only three generated-default samples, while Raspberry's image defaults and optional OLED SD samples are separate paths. Every repository file is recorded in [`samples/ATTRIBUTIONS.tsv`](samples/ATTRIBUTIONS.tsv) with its size, SHA-256 digest, exact upstream path, and a source URL pinned to commit [`dbfd6ec52d4ed53b60bdbea5fc6adf295127c027`](https://github.com/stargatedaw/stargate-sample-pack/tree/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027).
 
 The upstream project publishes the pack under CC0 1.0 and describes it as attribution-free. Octessera records that upstream designation; it does not independently warrant third-party rights. The exact upstream [license](samples/upstream/LICENSE) and [README designation](samples/upstream/README.txt) snapshots are retained beside the inventory.
 

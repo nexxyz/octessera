@@ -1,91 +1,148 @@
 # octessera user docs
 
-Octessera is a little box of algorithmic music systems.
+Octessera is a collection of small algorithmic musical world-bubbles. Set up a
+few systems, nudge them, anchor them with a little sequencing, and play the
+result together with the machine.
 
-Instead of drawing fixed notes on a grid or a piano roll, you set up small self-contained systems: cellular automata, bouncing particles, raindrops, loops, keys, and shapes. Each one has its own rules. Each one produces music in a slightly different, slightly unpredictable way.
+## Release and build status
 
-Then you nudge them. You anchor them with a bit of manual sequencing if you want. You add probability so the pattern breathes. You grab a Play page and play the machine in real time. The result is not only what you wrote, and not only what octessera generated. It is what the two of you found together.
+The [current release page](https://github.com/nexxyz/octessera/releases) owns
+current versions, platform assets, formats, and checksums. Check it for the
+desktop and board assets available for the release you selected; names and
+formats may change. macOS distribution is paused until a signed and notarized
+path is available; do not treat an old macOS asset as current.
 
-## Start here
+Octessera supports two fixed compute-board paths: Raspberry Pi Zero 2 W and
+Orange Pi Zero 2W. They share the native runtime, but their images, pinouts,
+ports, and adapters are board-specific. Source and build checks are useful
+evidence, not physical-board qualification.
 
-- [Hardware-free desktop simulator](desktop-simulator.md) — download a release build or run from a checkout, make a first patch, and see what the simulator cannot qualify.
-- The full hardware device can be built for well under €200 through suppliers such as Mouser, even after accounting for the small stuff: sockets, pin headers, wire, solder, screws, and a sensible amount of 3D-printing filament.
-- [Board qualification and status](hardware/board-qualification.md) — see what source and build checks prove, and what still needs a real board on the bench.
-- [Build and assembly manual](hardware/assembly-manual.md) — parts, soldering, enclosure, and the bits where I try to keep you from breaking the same things I broke.
-- [Controls cheat sheet](controls-cheat-sheet.md) — what the encoders, buttons, grid, modifiers, Play pages, and auto-maps do.
-- [Behaviors and Play pages](behaviors-and-sparks.md) — the layer behaviors and live performance pages.
-- [Pinout and connections](hardware/pinout-and-connections.md) — wiring and pin ownership.
-- [Enclosure and print notes](hardware/enclosure.md) — case files, ports, power, and print-fit notes.
-- [Orange Pi first boot setup](hardware/orange-pi-first-boot.md) — Wi-Fi and SSH setup for the Armbian image.
-- [Raspberry Pi first boot and OLED handoff](hardware/raspberry-pi-first-boot.md) — constructor boot behavior, terminal welcome, and serial ownership.
-- [Open or reopen the full setup portal](hardware/setup-portal.md) — the menu-driven setup flow for either board.
+The enclosure is currently an active v21 design and test-fit model, not a
+production-final enclosure. Cost depends on the current BOM, suppliers,
+shipping, taxes, and printing. There is no fixed price promise.
 
-## Build journey
+## Start by what you want to do
 
-Choose one of the two fixed board paths, then follow the shared build order. The
-PCB and control surface are one handmade instrument; the board profile, image,
-pinout, and physical checks are not interchangeable.
+### I want to play now
+
+Use the [hardware-free desktop simulator](desktop-simulator.md). Start with the
+current [release page](https://github.com/nexxyz/octessera/releases), make a
+first sound, and learn the controls without a PCB or board.
+
+### I am building the instrument
+
+Choose one of the two fixed board paths, then follow the [shared six-step build
+journey](#shared-six-step-build-journey):
+
+- [Raspberry Pi Zero 2 W first boot](hardware/raspberry-pi-first-boot.md)
+- [Orange Pi Zero 2W first boot](hardware/orange-pi-first-boot.md)
+- [Build and assembly manual](hardware/assembly-manual.md)
+
+### I already built or flashed it
+
+Start with [troubleshooting](troubleshooting.md), then use the matching
+[Raspberry first-boot page](hardware/raspberry-pi-first-boot.md) or [Orange
+first-boot page](hardware/orange-pi-first-boot.md), [setup portal
+guide](hardware/setup-portal.md), or [board qualification and
+status](hardware/board-qualification.md). Keep the boards accessible until the
+open electrical checks pass.
+
+### I want to learn the instrument
+
+- [Controls cheat sheet](controls-cheat-sheet.md) — learn the five controls that
+  get you moving, then keep the exact shortcut and overlay tables handy.
+- [Behaviors and Play pages](behaviors-and-sparks.md) — start with a small patch,
+  browse the behavior catalog, and perform with Play.
+
+### I need a reference
+
+- [Safety and power](hardware/safety-and-power.md) — the short owner page for
+  power input, USB backfeed, orientation, and enclosure handling.
+- [Pinout and connections](hardware/pinout-and-connections.md) — Raspberry
+  wiring and the Orange routing warning.
+- [Enclosure and print notes](hardware/enclosure.md) — board-specific openings
+  and the current v21 test-fit model.
+- [Setup portal](hardware/setup-portal.md) — open or reopen board setup.
+- [Printable quick reference](#printable-quick-reference)
+
+## Shared six-step build journey
+
+The PCB and control surface are one handmade instrument; do not substitute a
+board image, pin table, port role, or physical check from the other board.
 
 ### 1. Choose a board
 
-- **Raspberry Pi Zero 2 W** — follow the [Raspberry first-boot path](hardware/raspberry-pi-first-boot.md).
-- **Orange Pi Zero 2W** — follow the [Orange first-boot path](hardware/orange-pi-first-boot.md) and its Armbian checks.
-- Read the [board qualification and status page](hardware/board-qualification.md) before treating a clean build as a qualified instrument.
+- **Raspberry Pi Zero 2 W** — use the [Raspberry first-boot path](hardware/raspberry-pi-first-boot.md).
+- **Orange Pi Zero 2W** — use the [Orange first-boot path](hardware/orange-pi-first-boot.md) and its Armbian checks.
+- Read [board qualification and status](hardware/board-qualification.md) before calling a clean build a qualified instrument.
 
 ### 2. Parts and assembly
 
 Use the [assembly manual](hardware/assembly-manual.md#bom) and [board-specific
 pinout references](hardware/pinout-and-connections.md#board-profile-first) while
-ordering parts, soldering, and checking the open assembly.
+ordering parts, soldering, and checking the open assembly. Read [safety and
+power](hardware/safety-and-power.md) before connecting power or a host cable.
 
 ### 3. Flash the selected board
 
-Flash the matching image for the board you chose. The [assembly manual's flash
-step](hardware/assembly-manual.md#flash-the-selected-board-image) links to both
-first-boot workflows and their image/checksum instructions.
+Flash the matching image from the [current release page](https://github.com/nexxyz/octessera/releases).
+The [assembly manual's flash step](hardware/assembly-manual.md#flash-the-selected-board-image)
+links to both first-boot workflows and their image/checksum instructions.
 
 ### 4. Bench bring-up
 
 Bring the device up while the boards are still accessible. Use the [Raspberry
 first-boot page](hardware/raspberry-pi-first-boot.md), or the [Orange final
-bring-up checklist](hardware/orange-pi-first-boot.md#final-bench-bring-up-checklist).
-Stop at an unresolved physical gate; do not let a successful source check bully
-you into closing the case.
+bench bring-up checklist](hardware/orange-pi-first-boot.md#oled-usb-and-final-bench-checks).
+Stop at an unresolved physical gate; a successful source check is not permission
+to close the case.
 
 ### 5. Enclosure
 
 After the open electrical checks pass, use the [enclosure and print
 notes](hardware/enclosure.md) and the fit sequence in the [assembly
-manual](hardware/assembly-manual.md#enclosure-assembly). Remove both microSD
-cards before the boards go into the case.
+manual](hardware/assembly-manual.md#enclosure-assembly). Remove the selected
+board's microSD card and the OLED microSD card before putting the boards in the
+case.
 
 ### 6. Final checks
 
 Run the [final checks](hardware/assembly-manual.md#final-checks): power, display,
-audio, every control, and access to the ports.
+audio, every control, and access to the ports. If anything is unclear, use the
+[symptom router](troubleshooting.md) before continuing.
+
+## Samples and OLED SD storage
+
+The repository contains the full sample library and its attribution inventory.
+Desktop release packages do not bundle that library: use your own samples
+through the host/sample browser when you choose a sampler. The Orange
+production image stages only the three generated-default samples. Raspberry's
+image defaults and the optional user-managed OLED SD card are a separate path.
+
+For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2;
+the selected board's boot card is SD1. Octessera mounts SD2 at `SD card` and
+creates `octessera/samples` plus `octessera/saves`; put WAV samples under
+`octessera/samples`. If you use `System > Audio & USB > Start SD2 Xfer`, eject
+the drive on the host before pressing Back or Main to stop transfer. If no host
+is connected yet, Octessera waits until one appears and you can still cancel
+from the popup.
 
 ## Printable quick reference
 
-- [Two-page controls, behaviors, Play, and flowchart PDF](print/quick-reference.pdf)
-- HTML sources are in [`print/`](print/) if you want to print or tweak them yourself.
+- [Two-page controls, behaviors, Play, and signal-flow PDF](print/quick-reference.pdf)
+- [Printable sources](print/) — HTML, CSS, and the signal-flow SVG.
 
-## OLED SD card samples
+## Canonical references
 
-For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2. The Pi boot card is SD1. Octessera mounts SD2 at `SD card` and creates `octessera/samples` plus `octessera/saves`; put WAV samples under `octessera/samples`. If you use `System > Audio & USB > Start SD2 Xfer`, eject the drive on the host before pressing Back or Main to stop transfer. If no host is connected yet, Octessera waits until one appears and you can still cancel from the popup. Tiny storage goblin, ordinary safe-eject rules.
-
-## Canonical specs
-
-The friendly pages above are meant for humans at the workbench. The exact runtime contracts live in the source specs:
+The friendly pages above are for people at the workbench. Exact runtime
+contracts live in the source references:
 
 - [Menu and controls spec](../docs/menu-and-controls-spec.md)
 - [Menu tree spec](../docs/menu-tree-spec.md)
 - [Behavior source](../crates/platform-core/src/behaviors/)
+- [Project license](../LICENSE)
+- [Samples attribution inventory](../samples/ATTRIBUTIONS.tsv)
+- [Hardware attributions](../hardware/ATTRIBUTIONS.md)
 
-If the friendly docs and the specs disagree, the specs win and the friendly docs need updating.
-
-## Attribution and release notes
-
-- [Project license](../LICENSE) — original Octessera material and scope.
-- [Samples attribution inventory](../samples/ATTRIBUTIONS.tsv) — pinned media paths, hashes, and upstream terms.
-- [Hardware attributions](../hardware/ATTRIBUTIONS.md) — enclosure and PCB source notes.
-- [Release licensing and source policy](../docs/release-licensing.md) — what a public board-image release must carry.
+If a friendly page and a canonical specification disagree, the specification
+wins and the friendly page needs updating.

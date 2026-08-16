@@ -4,7 +4,21 @@ Each layer runs one behavior. Think of a behavior as a small rule-based system: 
 
 You can run several layers at once. One layer might be a stable pulse. Another might be a strange little colony. Another might be your fingers. The fun starts when they disagree politely.
 
-## Behaviors
+## Start with a small patch
+
+The factory preset is a good orientation point: it has a self-sustaining `life`
+pattern on Layer 1 and a basic `sequencer` rhythm on Layer 2. These five
+behaviors make a useful first tour:
+
+| Behavior | First thing to try |
+|---|---|
+| `life` | Seed a few cells and listen to birth, survival, and death move through the grid. |
+| `sequencer` | Set a manual rhythm, then add probability if it feels too square. |
+| `keys` | Press cells for momentary finger-drumming; release them to stop. |
+| `raindrops` | Start with a sparse cell and let drops and ripples bloom outward. |
+| `bounce` | Seed moving particles and listen to their repeating collisions. |
+
+## Full behavior catalog
 
 | Behavior | Category | What it is good for |
 |---|---|---|
@@ -88,7 +102,7 @@ Hold **Fn** and use the right grid column to choose a Play page.
 
 ## Play FX details
 
-Play FX are momentary. Pressing a mapped grid cell starts the effect. Releasing it stops the effect. Octessera limits them so the Pi does not melt into a sad little cracker:
+Play FX are momentary. Pressing a mapped grid cell starts the effect. Releasing it stops the effect. Octessera limits them to keep the audio engine within its configured budget:
 
 - At most two momentary FX are active at once.
 - Only one active cell of the same FX type is allowed.
