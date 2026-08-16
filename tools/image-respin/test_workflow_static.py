@@ -76,7 +76,8 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertIn("jq -e '.draft == false and .prerelease == false'", self.text)
         self.assertIn('repos/nexxyz/octessera/git/ref/tags/v0.7.5', self.text)
         self.assertIn('repos/nexxyz/octessera/git/tags/$tag_object', self.text)
-        self.assertIn("--release-json", self.text)
+        self.assertIn("--live-respin-release-json", self.text)
+        self.assertNotIn('--release-json "$release_json"', self.text)
         self.assertIn("--print-board-assets --board", self.text)
 
     def test_no_cache_or_release_mutation_and_exact_downloads(self) -> None:

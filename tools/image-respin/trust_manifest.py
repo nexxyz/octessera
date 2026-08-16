@@ -12,6 +12,13 @@ RELEASE_URL = "https://github.com/nexxyz/octessera/releases/tag/v0.7.5"
 PUBLISHED_AT = "2026-08-02T14:27:16Z"
 SOURCE_COMMIT = "4eec2b7edf6619fa22c709d4a589237a5748de78"
 ASSET_COUNT = 27
+LIVE_RESPIN_WITHDRAWN_ASSET_NAMES = frozenset(
+    {
+        "octessera-0.7.5-macos-unsigned.dmg",
+        "SHA256SUMS-macos.txt",
+    }
+)
+LIVE_RESPIN_ASSET_COUNT = ASSET_COUNT - len(LIVE_RESPIN_WITHDRAWN_ASSET_NAMES)
 
 REQUIRED_BOARD_NAMES = ("orange-pi-zero-2w", "raspberry-pi-zero-2w")
 BOARD_ARTIFACTS = {
@@ -321,65 +328,88 @@ def _release_asset_node_id(asset: dict[str, Any], index: int) -> Any:
     raise ManifestError(f"release JSON asset {index} is missing its GitHub node ID")
 
 
-def validate_release_document(document: Any, manifest: dict[str, Any]) -> None:
+def _validate_exact_release_document(
+    document: Any,
+    manifest: dict[str, Any],
+    expected_names: frozenset[str],
+    expected_count: int,
+    label: str,
+) -> None:
     checked_manifest = validate_manifest_document(manifest)
-    release = _require_object(document, "release JSON")
+    release = _require_object(document, label)
     tag = _release_alias(release, ("tag_name", "tagName"), "tag")
     if tag != RELEASE_TAG:
-        raise ManifestError("release JSON tag is not v0.7.5")
+        raise ManifestError(f"{label} tag is not v0.7.5")
     if "html_url" in release:
         release_url = release["html_url"]
     elif "url" in release:
         release_url = release["url"]
     else:
-        raise ManifestError("release JSON is missing its release URL")
+        raise ManifestError(f"{label} is missing its release URL")
     if release_url != RELEASE_URL:
-        raise ManifestError("release JSON URL is not the exact v0.7.5 release URL")
+        raise ManifestError(f"{label} URL is not the exact v0.7.5 release URL")
     published_at = _release_alias(release, ("published_at", "publishedAt"), "published time")
     if published_at != PUBLISHED_AT:
-        raise ManifestError("release JSON published time is not the exact v0.7.5 time")
+        raise ManifestError(f"{label} published time is not the exact v0.7.5 time")
     draft = _release_alias(release, ("draft", "is_draft", "isDraft"), "draft state")
     prerelease = _release_alias(
         release, ("prerelease", "is_prerelease", "isPrerelease"), "prerelease state"
     )
-    _require_exact_value(draft, False, "release JSON draft state")
-    _require_exact_value(prerelease, False, "release JSON prerelease state")
+    _require_exact_value(draft, False, f"{label} draft state")
+    _require_exact_value(prerelease, False, f"{label} prerelease state")
     if "repository" in release:
         repository = release["repository"]
         if isinstance(repository, dict):
             repository = repository.get("full_name")
         if repository != REPOSITORY:
-            raise ManifestError("release JSON repository is not nexxyz/octessera")
+            raise ManifestError(f"{label} repository is not nexxyz/octessera")
     for source_key in ("source_commit", "sourceCommit"):
         if source_key in release and release[source_key] != SOURCE_COMMIT:
-            raise ManifestError("release JSON source commit is not the v0.7.5 source commit")
-    raw_assets = _require_list(release.get("assets"), "release JSON assets")
-    if len(raw_assets) != ASSET_COUNT:
-        raise ManifestError("release JSON asset count is not 27")
+            raise ManifestError(f"{label} source commit is not the v0.7.5 source commit")
+    raw_assets = _require_list(release.get("assets"), f"{label} assets")
+    if len(raw_assets) != expected_count:
+        raise ManifestError(f"{label} asset count is not {expected_count}")
     manifest_assets = {asset["name"]: asset for asset in checked_manifest["assets"]}
+    diagnostic_prefix = "" if label == "release JSON" else "live respin "
     seen_names: set[str] = set()
     for index, raw_asset in enumerate(raw_assets):
-        asset = _require_object(raw_asset, f"release JSON assets[{index}]")
-        name = _require_string(asset.get("name"), f"release JSON assets[{index}].name")
+        asset = _require_object(raw_asset, f"{label} assets[{index}]")
+        name = _require_string(asset.get("name"), f"{label} assets[{index}].name")
         if name in seen_names:
-            raise ManifestError(f"release JSON has duplicate asset: {name}")
+            raise ManifestError(f"{label} has duplicate asset: {name}")
         seen_names.add(name)
         expected = manifest_assets.get(name)
-        if expected is None:
-            raise ManifestError(f"release JSON has an extra asset: {name}")
+        if expected is None or name not in expected_names:
+            raise ManifestError(f"{label} has an extra asset: {name}")
         node_id = _release_asset_node_id(asset, index)
         if node_id != expected["node_id"]:
-            raise ManifestError(f"node ID anchor mismatch for {name}")
+            raise ManifestError(f"{diagnostic_prefix}node ID anchor mismatch for {name}")
         if asset.get("size") != expected["size"] or type(asset.get("size")) is not int:
-            raise ManifestError(f"size anchor mismatch for {name}")
+            raise ManifestError(f"{diagnostic_prefix}size anchor mismatch for {name}")
         content_type = asset.get("content_type", asset.get("contentType"))
         if content_type != expected["content_type"]:
-            raise ManifestError(f"content type anchor mismatch for {name}")
+            raise ManifestError(f"{diagnostic_prefix}content type anchor mismatch for {name}")
         if asset.get("digest") != f"sha256:{expected['sha256']}":
-            raise ManifestError(f"SHA-256 anchor mismatch for {name}")
-    if seen_names != set(manifest_assets):
-        missing = sorted(set(manifest_assets) - seen_names)
-        raise ManifestError(f"release JSON is missing assets: {missing}")
+            raise ManifestError(f"{diagnostic_prefix}SHA-256 anchor mismatch for {name}")
+    if seen_names != expected_names:
+        missing = sorted(expected_names - seen_names)
+        raise ManifestError(f"{label} is missing assets: {missing}")
+
+
+def validate_release_document(document: Any, manifest: dict[str, Any]) -> None:
+    _validate_exact_release_document(
+        document, manifest, EXPECTED_ASSET_NAMES, ASSET_COUNT, "release JSON"
+    )
+
+
+def validate_live_respin_release_document(document: Any, manifest: dict[str, Any]) -> None:
+    _validate_exact_release_document(
+        document,
+        manifest,
+        EXPECTED_ASSET_NAMES - LIVE_RESPIN_WITHDRAWN_ASSET_NAMES,
+        LIVE_RESPIN_ASSET_COUNT,
+        "live respin release JSON",
+    )
 
 
 def _board_asset_names(manifest: dict[str, Any], boards: tuple[str, ...]) -> tuple[str, ...]:
