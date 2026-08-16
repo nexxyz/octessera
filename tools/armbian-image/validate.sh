@@ -60,6 +60,7 @@ boot_dtb_helper="$root/userpatches/overlay/usr/local/share/octessera/device-tree
 inspect_mode_helper="$root/tools/armbian-image/inspect-mode.sh"
 image_mode_helper="$root/userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"
 diagnostic_payload_helper="$root/userpatches/overlay/usr/local/lib/octessera/diagnostic-payload.sh"
+sample_assets_helper="$root/userpatches/overlay/usr/local/lib/octessera/orange-sample-assets.sh"
 runtime_inspector="$root/tools/armbian-image/inspect-runtime.sh"
 image_mode_test="$root/tools/armbian-image/test-image-mode.sh"
 runtime_service_test="$root/tools/armbian-image/test-orange-runtime-service.sh"
@@ -195,6 +196,7 @@ required_files=(
   "$inspect_mode_helper"
   "$image_mode_helper"
   "$diagnostic_payload_helper"
+  "$sample_assets_helper"
   "$runtime_inspector"
   "$image_mode_test"
   "$runtime_service_test"
@@ -474,9 +476,10 @@ for service_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-
 done
 ! grep -qFx 'Restart=always' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service must not restart always." >&2; exit 1; }
 grep -qFx 'Requires=octessera-device-apply-reboot.socket' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime must require the device-apply socket." >&2; exit 1; }
+grep -qFx 'Requires=octessera-provision-musical-default.service' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime must require successful default provisioning." >&2; exit 1; }
 grep -qFx 'After=octessera-device-apply-reboot.socket' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime must start after the device-apply socket." >&2; exit 1; }
 ! grep -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service has an unapproved failure dependency." >&2; exit 1; }
-[[ "$(grep -c '^Requires=' "$root/userpatches/overlay/etc/systemd/system/octessera.service")" == 1 ]] || { echo "Orange runtime service has an unexpected Requires dependency." >&2; exit 1; }
+[[ "$(grep -c '^Requires=' "$root/userpatches/overlay/etc/systemd/system/octessera.service")" == 2 ]] || { echo "Orange runtime service has an unexpected Requires dependency." >&2; exit 1; }
 grep -qF 'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime must retain handoff runtime-directory write access." >&2; exit 1; }
 python3 - "$oled_logo" "$oled_handoff" "$root" <<'PY'
 import importlib.machinery
@@ -569,6 +572,8 @@ for service_line in \
   'ExecStart=/usr/local/bin/octessera-pi' \
   'User=octessera-runtime' \
   'Group=octessera-runtime' \
+  'Requires=octessera-device-apply-reboot.socket' \
+  'Requires=octessera-provision-musical-default.service' \
   'Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w' \
   'Environment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets' \
   'Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples' \
@@ -793,6 +798,7 @@ octessera_assert_input_routing_merge "$dt_work/h618-spi-base.dtb" "$dt_work/h618
 
 if command -v shellcheck >/dev/null 2>&1; then
   shellcheck "$root/userpatches/customize-image.sh" "$armbian_extensions_resolver" "$image_sanitization_extension" "$image_sanitization_test" "$inspector_test" "$alsa_sequencer_extension" "$alsa_sequencer_test" "$orange_kernel_package_test" "$orange_kernel_package_validator" "$orange_image_proof_test" "$orange_image_proof_verifier" "$root/tools/armbian-image/inspect-built-image.sh" "$runtime_inspector" "$image_mode_helper" "$diagnostic_payload_helper" "$image_mode_test" "$authorized_key_paths_helper" "$inspect_path_helper" "$root/tools/armbian-image/inspect-mode.sh" "$root/tools/armbian-image/inspect-output-images.sh" "$root/tools/armbian-image/stage-musical-assets.sh" "$root/tools/armbian-image/test-musical-assets.sh" "$root/tools/pi-image/test-wifi-foundation.sh" "$root/tools/orange-pi/input-routing-provision.sh" "$root/tools/orange-pi/orange-pi-usb-gadget.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget" "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation" "$root/userpatches/overlay/usr/local/sbin/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard" "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery" "$0"
+  shellcheck "$sample_assets_helper"
   shellcheck "$runtime_service_test"
   shellcheck "$orange_oled_suspend_test"
   shellcheck "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"

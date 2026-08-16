@@ -36,7 +36,10 @@ contract live in [`docs/development-workflows.md`](../docs/development-workflows
 It also explains the operational Imager manifest, supporting evidence ZIP,
 global checksum, automatic GitHub source archives, and the legacy Raspberry
 updater checksum. macOS distribution remains paused until it can be properly
-signed and notarized, so it is not a published asset.
+signed and notarized, so it is not a published asset. The [release support
+matrix and owner checklist](../userdocs/release-support.md) define the evidence
+needed before an exact asset/platform is called supported. A populated draft is
+not a public release; a human must explicitly publish it.
 
 ## Artifact-surface naming
 
@@ -49,6 +52,11 @@ canonical `raspberry-pi-zero-2w` or `orange-pi-zero-2w` profile name.
 `octessera-pi` is the compatibility runtime filename used by both board variants;
 it is not a board identity. Use the profile-qualified artifact name and metadata to
 identify the target board.
+
+USB Audio and USB MIDI are not public first-release support claims. The current
+Linux Foundation VID/PID values are local-validation-only, not a public product
+identity, and defaults remain disabled. Do not invent IDs or use an artifact's
+presence as evidence of USB or physical qualification.
 
 ## Enclosure board naming
 

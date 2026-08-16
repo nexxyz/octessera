@@ -88,6 +88,9 @@ if [ "$(id -u)" -eq 0 ]; then
     chown 1000:1000 "$fixture/root/home/pi/.hushlogin"
     write_constructor_fat_pair
     write_constructor_redirect_pair
+    bash "$script_dir/stage-musical-assets.sh" "$fixture/sample-stage"
+    bash "$script_dir/install-musical-assets.sh" "$fixture/sample-stage" "$fixture/root"
+    chown -R 1000:1000 "$fixture/root/home/pi/samples"
     for unit in serial0 ttyAMA0 ttyS0; do
         ln -s /dev/null "$fixture/root/etc/systemd/system/serial-getty@$unit.service"
     done

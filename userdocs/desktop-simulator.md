@@ -28,9 +28,9 @@ and notarized.
 5. Open one **Play** page, starting with **Play Mix**, to change a layer's
    level. Use **Back** or the normal navigation controls to leave it.
 
-Synth is the guaranteed first sound path. A sampler is also available, but it
-needs samples supplied by you through the host/sample browser; release packages
-do not include the repository's sample library.
+Synth is the guaranteed first sound path. A sampler is also available with the
+complete 320-file inventory in release packages; you can add your own samples
+through the host/sample browser too.
 
 The simulator's keyboard and UI controls mirror the hardware ideas. The
 [controls cheat sheet](controls-cheat-sheet.md) has the complete map, and
@@ -40,6 +40,11 @@ The simulator also persists the same three desired-next-boot audio toggles as
 the Pi profiles: Jack Audio, USB Audio, and HDMI Audio. It does not change the
 desktop host's default audio endpoint. Keep at least one output enabled; the
 native menu refuses the final-output-off edit.
+
+The desktop simulator does not provide a USB gadget. USB Audio and USB MIDI in
+the shared menu are experimental/local bench-validation policy items, not public
+desktop support claims; their defaults remain disabled. For the board policy and
+the power warning, see the [release support matrix](release-support.md).
 
 ## What this path can and cannot tell you
 

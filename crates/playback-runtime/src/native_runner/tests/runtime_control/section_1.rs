@@ -51,7 +51,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     let mut note_ons = musical_note_ons(&first);
     note_ons.extend(musical_note_ons(&second));
     assert!(note_ons.iter().any(|(channel, _)| *channel == 0));
-    assert!(note_ons.iter().any(|(channel, _)| *channel == 1));
+    assert!(!note_ons.iter().any(|(channel, _)| *channel == 1));
 }
 
 #[test]

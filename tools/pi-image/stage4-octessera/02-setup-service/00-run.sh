@@ -247,8 +247,8 @@ for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty
 done
 
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
-install -d -m 0755 "$ROOTFS_DIR/home/pi/samples" "$ROOTFS_DIR/home/pi/presets"
-install -d -m 0755 "$ROOTFS_DIR/home/pi/samples/sd-card"
+bash "$LEGAL_REPOSITORY_ROOT/tools/pi-image/install-musical-assets.sh" "$STAGE_FILES/root" "$ROOTFS_DIR"
+install -d -m 0755 "$ROOTFS_DIR/home/pi/presets"
 install -D -o root -g root -m 0644 \
     "$LEGAL_REPOSITORY_ROOT/config/generated/pi/default.json" \
     "$ROOTFS_DIR/home/pi/presets/default.json"

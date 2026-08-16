@@ -10,10 +10,10 @@
     "machine_output_checked": false,
     "limitation": "cargo-about 0.9.1 is advisory here: custom first-party license-file metadata and policy review are not represented by its accepted identifiers, so the checked inventory is rendered from Cargo.lock, manifests, and the exact reviewed policy instead."
   },
-  "cargo_lock_sha256": "0225ccdf24258b816cc152df5571601f91e2c380afc06a44d9bf2157e87d6bae",
-  "package_count": 509,
+  "cargo_lock_sha256": "8fa7043b83b0b3a630c097508e96663997bc2153e2451d8005f5b000e24e36d9",
+  "package_count": 523,
   "license_classes": {
-    "permissive": 497,
+    "permissive": 511,
     "file-level-copyleft": 10,
     "reviewed-license-alternative": 2,
     "custom-or-unknown": 0
@@ -2036,7 +2036,7 @@
       "modified": true,
       "upstream_status": "modified-local-vendoring",
       "provenance_source": "third_party/cpal-0.15.3/PROVENANCE.md",
-      "provenance_sha256": "08bba0acb6c0c79e6d8b4e764e928eff60c96c6ed09ceeb41625be3392802ab6"
+      "provenance_sha256": "4dc9ecf0f1f57b9d74127b34b048fb6fdd2eb8524c9263606890411b8e814924"
     },
     {
       "name": "cpufeatures",
@@ -10302,6 +10302,37 @@
       }
     },
     {
+      "name": "rfd",
+      "version": "0.16.0",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "a15ad77d9e70a92437d8f74c35d99b4e4691128df018833e99f90bcd36152672",
+      "license_files": [
+        {
+          "source_file": "LICENSE",
+          "document_sha256": "65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071",
+          "bytes": 1079
+        }
+      ],
+      "manifest_sha256": "89036231d7bd2e67f06eb1f9da2cb81d78d9a388344bab1876bdcf1727dba539",
+      "manifest_authors": [
+        "Poly <marynczak.bartlomiej@gmail.com>"
+      ],
+      "manifest_repository": "https://github.com/PolyMeilex/rfd",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "72f5ca4cd85c9bdce78dc29e9276058a514d638625ff5e59e6c097010c018eee"
+      }
+    },
+    {
       "name": "rodio",
       "version": "0.20.1",
       "license": "MIT OR Apache-2.0",
@@ -12408,6 +12439,96 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "bb8d12fe8172e300e7d219127a5b91f54666ee51832ce8c270fabb4674f79a90"
+      }
+    },
+    {
+      "name": "tauri-plugin",
+      "version": "2.6.0",
+      "license": "Apache-2.0 OR MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "f8d5f58bfd0cdcfdbc0a68dc08b354eea2afc551b421de91b07b69e0dd769d57",
+      "license_files": [],
+      "manifest_sha256": "7da07bc1d712bc2f5664ca8232e30e09b55d11ca271062e52277cfdbacb8512a",
+      "manifest_authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "manifest_repository": "https://github.com/tauri-apps/tauri",
+      "manifest_license_file": null,
+      "license_file_status": "manifest-license-no-file",
+      "source_required": true,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "c92a4325d4a92654b575097d71366d988ba5dbdd4baf36fd228ab1b6edef0a48"
+      }
+    },
+    {
+      "name": "tauri-plugin-dialog",
+      "version": "2.7.2",
+      "license": "Apache-2.0 OR MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "b2d3c1dbe38037e7f590cdf2492594d5ceebe031e7bc7e827509b22a999d2940",
+      "license_files": [
+        {
+          "source_file": "LICENSE.spdx",
+          "document_sha256": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
+          "bytes": 888
+        }
+      ],
+      "manifest_sha256": "ce16b2966280692d752bf4c1bb1d05b1b6eefef668f7b5877bddd6937547c7d8",
+      "manifest_authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "manifest_repository": "https://github.com/tauri-apps/plugins-workspace",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "1bf27c804ec770808090e2095fd0db451664846e2a2a365c7a67b0f2ca1e83ef"
+      }
+    },
+    {
+      "name": "tauri-plugin-fs",
+      "version": "2.5.1",
+      "license": "Apache-2.0 OR MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "b7ecc274121aca0c036a2b42d1cbe83d368d348f54e0bb8a735c2b1548e8f371",
+      "license_files": [
+        {
+          "source_file": "LICENSE.spdx",
+          "document_sha256": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
+          "bytes": 888
+        }
+      ],
+      "manifest_sha256": "fd6876c76748f61fb19d1cf3b67bf0b00f0fe3c8e97b8dd2bf2739e8df8e31f2",
+      "manifest_authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "manifest_repository": "https://github.com/tauri-apps/plugins-workspace",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "9f052f004499a1dd8350cb138c922fff1164a78ed5db3cab1b38c870b275eada"
       }
     },
     {
@@ -15988,6 +16109,43 @@
     },
     {
       "name": "windows-sys",
+      "version": "0.60.2",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "f2f500e4d28234f72040990ec9d39e3a6b950f9f22d3dba18416c35882612bcb",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "aa08b6b0d5b166fe95ee3e2b6d3956de853140c09486d33367b05d70e4c47aa7",
+      "manifest_authors": [
+        "Microsoft"
+      ],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "e2ddc1afc14d388d3c899a5157ef21a9ac02afd876c468223edfe69b5894e9e0"
+      }
+    },
+    {
+      "name": "windows-sys",
       "version": "0.61.2",
       "license": "MIT OR Apache-2.0",
       "license_class": "permissive",
@@ -16093,6 +16251,41 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "3084c0a4016baa360e43bd79cf9dfd22862ba5b475f65275f8c5ddbbd0486109"
+      }
+    },
+    {
+      "name": "windows-targets",
+      "version": "0.53.5",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "4945f9f551b88e0d65f3db0bc25c33b8acea4d9e41163edf90dcd0b19f9069f3",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "4d409ff6af2cefe1fea154f20a8a42758806efcb11afcd9b2665188e40962c2a",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "beb57af8b85ce97bb4f003e19e8dd098a9bfa8a062db2403a5245f852d3c3da4"
       }
     },
     {
@@ -16242,6 +16435,41 @@
       }
     },
     {
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "a9d8416fa8b42f5c947f8482c43e7d89e73a173cead56d044f6a56104a6d1b53",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "9ce883210156a0365aba70b2e002e2603580233e8f989433cb7dd16ea2a52cc2",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "4c7c7879b09bd2a9840a1d768bff386f4915d44f5e7051dfc3cdec06880549e8"
+      }
+    },
+    {
       "name": "windows_aarch64_msvc",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
@@ -16313,6 +16541,41 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "de3f445893586cff65b0d6ce3fdc27e51378b3957ff06977517c27f92c562b73"
+      }
+    },
+    {
+      "name": "windows_aarch64_msvc",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "b9d782e804c2f632e395708e99a94275910eb9100b2114651e04744e9b125006",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "84fa9808eff6f9a8211909bf63957cba796277f63f16bc0a595461595f3fa775",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "8547162672177dc371a8f983e42d152257e549217154d9dd38a9ef2e9a419e8c"
       }
     },
     {
@@ -16390,6 +16653,41 @@
       }
     },
     {
+      "name": "windows_i686_gnu",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "960e6da069d81e09becb0ca57a65220ddff016ff2d6af6a223cf372a506593a3",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "de0db004807245aef1740277392774678ae24baa63057d3c6fffd133dbe63b68",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "3fe5cdba21e1fb87a294c463b67ecbd2d358fb726484688f5aaee54bc017b5b5"
+      }
+    },
+    {
       "name": "windows_i686_gnullvm",
       "version": "0.52.6",
       "license": "MIT OR Apache-2.0",
@@ -16424,6 +16722,41 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "ab13df29ebd08c26c4dfe0be0e129ec3f17bfee8d962ee5eab1b985a41d7a56d"
+      }
+    },
+    {
+      "name": "windows_i686_gnullvm",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "fa7359d10048f68ab8b09fa71c3daccfb0e9b559aed648a8f95469c27057180c",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "b603cfa602c233e75859322f81651ea1181e7b5f412e4cfd69e3faf0d2b5b715",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "0cedf5cbd22fe05e227ca38807c587194cec37cb6e0615f0596aafd51d7497d6"
       }
     },
     {
@@ -16501,6 +16834,41 @@
       }
     },
     {
+      "name": "windows_i686_msvc",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "1e7ac75179f18232fe9c285163565a57ef8d3c89254a30685b57d83a38d326c2",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "8fd07f7e0d0794cd149b8e41c2f279ebc5517621a3d30082b03faaac87150cac",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "5000a9227b0052257026c34e732e78459538ffbdebe4e1faf8b056829404f931"
+      }
+    },
+    {
       "name": "windows_x86_64_gnu",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
@@ -16572,6 +16940,41 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "6688b8cf8ef604b76d5d7419ee27ecf996ab0c07dcd8c928e83ffb07193530fd"
+      }
+    },
+    {
+      "name": "windows_x86_64_gnu",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "9c3842cdd74a865a8066ab39c8a7a473c0778a3f29370b5fd6b4b9aa7df4a499",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "f0e5d86c89067eccfc351f81bfdab94fbe2a3172f527741379a8a0a6b0e1b9b7",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "7dc9e99d840687ee3d2eb0346fe2d7bb8501c9c767333b95a70ad4633e6022b8"
       }
     },
     {
@@ -16649,6 +17052,41 @@
       }
     },
     {
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0ffa179e2d07eee8ad8f57493436566c7cc30ac536a3379fdf008f47f6bb7ae1",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "361cb8bf811d54b8387cafef5c11c5eb611a8d039c297fb6fe83c5b2d3d34788",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "eeefda0bff9b2dd83c4e2736224fcbd8d054b51bfed7813b211a00ac82713ba5"
+      }
+    },
+    {
       "name": "windows_x86_64_msvc",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
@@ -16720,6 +17158,41 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "a80c4689989a7851645f4adecd3cd312a8cac0517b311d189d6dc9c1b8022cdc"
+      }
+    },
+    {
+      "name": "windows_x86_64_msvc",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650",
+      "license_files": [
+        {
+          "source_file": "license-apache-2.0",
+          "document_sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+          "bytes": 11351
+        },
+        {
+          "source_file": "license-mit",
+          "document_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        }
+      ],
+      "manifest_sha256": "6e60ae5f5d58fc727d409e212a09b7a3bb14b77d48d08171af12d9602658ced7",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/microsoft/windows-rs",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "f51c7cd6c255fda782c5ccf4931be9c9280d538e5ec96534ea86881a0a14bd8a"
       }
     },
     {
@@ -17635,6 +18108,7 @@
     "tauri-build 2.6.0",
     "tauri-codegen 2.6.0",
     "tauri-macros 2.6.0",
+    "tauri-plugin 2.6.0",
     "tauri-runtime 2.11.0",
     "tauri-runtime-wry 2.11.0",
     "tauri-utils 2.9.0",
@@ -17659,7 +18133,7 @@
     "mpl": 10,
     "alternatives": 2
   },
-  "source_availability_review_count": 73,
+  "source_availability_review_count": 74,
   "workspace_license": [
     {
       "name": "octessera-desktop",

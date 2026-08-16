@@ -10,6 +10,7 @@ mod basics;
 mod behavior_menu_defaults;
 mod behavior_palette;
 mod browser_and_help;
+mod canonical_defaults;
 mod config_persistence;
 mod config_transactions;
 mod controls;
@@ -139,4 +140,24 @@ pub(crate) fn musical_note_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
             _ => None,
         })
         .collect()
+}
+
+pub(crate) fn normalize_integral_numbers(value: Value) -> Value {
+    match value {
+        Value::Array(values) => {
+            Value::Array(values.into_iter().map(normalize_integral_numbers).collect())
+        }
+        Value::Object(object) => Value::Object(
+            object
+                .into_iter()
+                .map(|(key, value)| (key, normalize_integral_numbers(value)))
+                .collect(),
+        ),
+        Value::Number(number) => number
+            .as_f64()
+            .filter(|value| value.fract() == 0.0)
+            .map(|value| json!(value as i64))
+            .unwrap_or(Value::Number(number)),
+        value => value,
+    }
 }

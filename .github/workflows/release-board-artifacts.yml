@@ -272,6 +272,8 @@ jobs:
           export OCTESSERA_REPOSITORY_ROOT="$GITHUB_WORKSPACE"
           echo "OCTESSERA_REPOSITORY_ROOT=$OCTESSERA_REPOSITORY_ROOT" >> "$GITHUB_ENV"
           stage_root=tools/pi-image/stage4-octessera/files/root
+          bash tools/pi-image/test-musical-assets.sh
+          bash tools/pi-image/stage-musical-assets.sh "$stage_root"
           cleanup() { sudo rm -rf "$stage_root/usr/share/doc/octessera"; }
           trap cleanup EXIT
           sudo rm -rf "$stage_root/usr/share/doc/octessera"

@@ -12,7 +12,11 @@ desktop and board assets available for the release you selected; names and
 formats may change. macOS distribution is paused until a signed and notarized
 path is available; do not treat an old macOS asset as current.
 
-Octessera supports two fixed compute-board paths: Raspberry Pi Zero 2 W and
+Read the [release support matrix](release-support.md) before treating a download
+as supported. Only an exact artifact and platform with a recorded manual FAT
+result qualify; source/build checks alone do not.
+
+Octessera documents two fixed compute-board paths: Raspberry Pi Zero 2 W and
 Orange Pi Zero 2W. They share the native runtime, but their images, pinouts,
 ports, and adapters are board-specific. Source and build checks are useful
 evidence, not physical-board qualification.
@@ -114,10 +118,11 @@ audio, every control, and access to the ports. If anything is unclear, use the
 ## Samples and OLED SD storage
 
 The repository contains the full sample library and its attribution inventory.
-Desktop release packages do not bundle that library: use your own samples
-through the host/sample browser when you choose a sampler. The Orange
-production image stages only the three generated-default samples. Raspberry's
-image defaults and the optional user-managed OLED SD card are a separate path.
+Desktop release packages and both production images ship the complete 320-file
+sample library with its attribution metadata. You can still add your own samples
+through the desktop host/sample browser or the board sample paths. The Raspberry
+and Orange images install their library during construction; first boot only
+seeds a missing default and does not replace user samples.
 
 For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2;
 the selected board's boot card is SD1. Octessera mounts SD2 at `SD card` and

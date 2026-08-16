@@ -44,29 +44,11 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
 
-      - name: Verify immutable source and canonical version
+      - name: Verify immutable source and current application version
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
-          version="$(python3 - <<'PY'
-          import json
-          import tomllib
-
-          with open("package.json", encoding="utf-8") as handle:
-              package_version = json.load(handle)["version"]
-          with open("apps/pi-zero/Cargo.toml", "rb") as handle:
-              pi_version = tomllib.load(handle)["package"]["version"]
-          with open("Cargo.toml", "rb") as handle:
-              workspace = tomllib.load(handle)["workspace"]
-          if "apps/pi-zero" not in workspace["members"]:
-              raise SystemExit("octessera-pi is not a workspace member")
-          versions = {"package.json": package_version, "apps/pi-zero/Cargo.toml": pi_version}
-          if len(set(versions.values())) != 1:
-              raise SystemExit(f"Canonical versions disagree: {versions}")
-          print(package_version)
-          PY
-          )"
-          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "Canonical Cargo version is not strict semver: $version" >&2; exit 1; }
+          version="$(python3 tools/release/check_version_consistency.py)"
           echo "OCTESSERA_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Validate checked trust manifest
@@ -172,12 +154,24 @@ jobs:
             --input-file Cargo.lock \
             --input-file Cargo.toml \
             --input-file package.json \
+            --input-file pnpm-workspace.yaml \
+            --input-file apps/desktop/package.json \
+            --input-file packages/device-contracts/package.json \
+            --input-file apps/desktop/src-tauri/Cargo.toml \
+            --input-file apps/desktop/src-tauri/tauri.conf.json \
+            --input-file crates/platform-capabilities-build/Cargo.toml \
+            --input-file crates/platform-core/Cargo.toml \
+            --input-file crates/playback-runtime/Cargo.toml \
+            --input-file crates/realtime-engine/Cargo.toml \
+            --input-file crates/rodio-engine-source/Cargo.toml \
+            --input-file crates/hal/Cargo.toml \
             --input-file apps/pi-zero/Cargo.toml \
             --input-file Cross.toml \
             --input-file Dockerfile.pi-zero \
             --input-file .github/workflows/respin-board-image.yml \
             --input-file tools/image-respin/runtime_bundle.py \
             --input-file tools/image-respin/boot_neutral.py \
+            --input-file tools/release/check_version_consistency.py \
             --input-file resources/legal/notice-bundle.json \
             --input-file tools/legal/stage_notices.py \
             --input-file tools/image-respin/notice_mutation.py \
@@ -253,6 +247,10 @@ jobs:
       - name: Respin the trusted parent image
         run: |
           set -euo pipefail
+          case "$SETUP_LAYER" in
+            runtime-only|setup-portal) ;;
+            *) echo "Unsupported respin setup layer: $SETUP_LAYER" >&2; exit 1 ;;
+          esac
           mkdir -p "$RESPIN_OUTPUT"
           case "$BOARD" in
             raspberry-pi-zero-2w) suffix=.zip ;;
@@ -274,7 +272,7 @@ jobs:
               --source-identity "$SOURCE_SHA" \
               "${boot_neutral_args[@]}" \
               --output "$output"
-          else
+          elif [[ "$SETUP_LAYER" == setup-portal ]]; then
             output="$RESPIN_OUTPUT/octessera-$OCTESSERA_VERSION-$BOARD-derived-setup-respin$suffix"
             setup_proof="$RESPIN_OUTPUT/setup-layer-proof.json"
             sudo python3 tools/image-respin/disk_setup_respin.py \
@@ -289,6 +287,9 @@ jobs:
               "${boot_neutral_args[@]}"
             sudo chown "$(id -u):$(id -g)" "$setup_proof"
             echo "SETUP_PROOF=$setup_proof" >> "$GITHUB_ENV"
+          else
+            echo "Runtime-only respins cannot invoke the setup mutator." >&2
+            exit 1
           fi
           sudo chown "$(id -u):$(id -g)" "$output" "$output.provenance.json"
           echo "RESPIN_ARTIFACT=$output" >> "$GITHUB_ENV"

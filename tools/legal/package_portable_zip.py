@@ -3,12 +3,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import shutil
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from package_notice_zip import package_notice_zip
 from verify_notice_archive import verify_notice_archive
+from tools.samples.sample_library import sample_media_payload_files
 
 
 def package_portable_zip(repository_root: Path, executable: Path, output: Path) -> None:
@@ -20,6 +24,11 @@ def package_portable_zip(repository_root: Path, executable: Path, output: Path) 
         with zipfile.ZipFile(notice_zip) as archive:
             archive.extractall(package)
         shutil.copyfile(executable, package / "octessera.exe")
+        sample_files = sample_media_payload_files(repository_root)
+        for name, payload in sample_files.items():
+            target = package / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload)
         names = sorted(path.relative_to(package).as_posix() for path in package.rglob("*") if path.is_file())
         checksum_names = [name for name in names if name != "SHA256SUMS"]
         (package / "SHA256SUMS").write_text(

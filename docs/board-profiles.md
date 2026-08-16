@@ -112,7 +112,12 @@ The Orange image-side USB gadget reads the persisted default at
 `/var/lib/octessera/presets/default.json`. `audioOutputs.usb` enables the fixed
 44.1 kHz stereo UAC2 function and `usb.midiOutEnabled` enables the fixed MIDI
 function. The valid compositions are no gadget, MIDI only, UAC2 only, and
-combined; HDMI and Jack do not change gadget composition.
+combined; HDMI and Jack do not change gadget composition. These source/runtime
+capabilities are not a public first-release support claim: USB Audio and USB
+MIDI remain experimental/local bench validation until an authorized identity and
+electrical/manual FAT are recorded for the exact image and assembled board. The
+current Linux Foundation VID/PID values are for local validation only, not a
+public product identity.
 The confirmed device apply lane uses one narrow root-owned socket rather than a
 general sudo command path. It accepts only exact `reboot\n` and `poweroff\n`
 requests. `reboot\n` validates the saved config before invoking

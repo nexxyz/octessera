@@ -39,11 +39,15 @@ is limited to the proven Seesaw reset/HW-ID check on `/dev/i2c-2`.
 Diagnostic image mode is explicit as `OCTESSERA_IMAGE_MODE=diagnostic`; it has no
 production runtime bundle or `octessera.service`. The production runtime
 supports the OLED, NeoTrellis, NeoKey, four encoders, persistent store, samples,
-MIDI, and the shared 44.1 kHz audio contract. Jack, USB Audio, and HDMI Audio
+and the shared 44.1 kHz audio contract. Jack, USB Audio, and HDMI Audio
 are independent desired-next-boot outputs. The selected Jack route is exactly
 `hw:CARD=octesseradac,DEV=0`; selected UAC2 and HDMI routes wait for their exact
-endpoints and recover when they return. MIDI uses the native host adapter,
-including USB MIDI when the configured gadget port is present.
+endpoints and recover when they return. USB Audio and USB MIDI remain
+experimental/local bench validation, not public first-release support. The
+current Linux Foundation VID/PID values are local-validation-only and are not a
+public product identity. MIDI uses the native host adapter when the configured
+gadget port is present, but capability and fake-configfs checks do not qualify
+the exact image or board.
 
 `octessera.service` runs the native runtime as the locked `octessera-runtime`
 system account. The separate interactive `octessera` account is for setup and
@@ -370,20 +374,21 @@ and its root-owned Wi-Fi-only helper. It is not enabled, does not replace the
 Orange first-boot portal or sidecar, and is fixed to `wlan0` with gateway
 `192.168.42.1` for bounded image validation only.
 
-The image stages the generated Pi-family default and only the three sample files
-referenced by that patch. Stage those assets before an Armbian build:
+The image stages the generated Pi-family default and the complete 320-file sample
+inventory during image construction. Stage those assets before an Armbian build:
 
 ```sh
 bash tools/armbian-image/stage-musical-assets.sh
 bash tools/armbian-image/test-musical-assets.sh
 ```
 
-The first-boot provisioning service copies the default to
-`/var/lib/octessera/presets/default.json` only when that file is absent, and
-copies samples to `/var/lib/octessera/samples` only when each destination is
-absent. The manifest records source URL, byte count, and SHA-256. The source
-repository is the Stargate sample pack; its upstream README describes the pack
-as free to use and redistribute, and the image retains that attribution.
+The first-boot provisioning service only seeds the default to
+`/var/lib/octessera/presets/default.json` when that file is absent. The complete
+sample inventory is already installed during image construction; boot does not
+copy or replace sample media. The manifest records source URL, byte count, and
+SHA-256. The source repository is the Stargate sample pack; its upstream README
+describes the pack as free to use and redistribute, and the image retains that
+attribution.
 
 The captive portal at `http://192.168.42.1/` configures:
 
@@ -537,7 +542,9 @@ Host-side checks for an authorized live qualification:
 - Confirm no storage function is exposed by the Orange Pi gadget configuration.
 
 The Linux Foundation VID/PID values used by the composer are only for local
-validation. Do not treat them as release USB IDs.
+validation. Do not treat them as release USB IDs or invent a replacement. Public
+USB support requires an authorized identity plus electrical and manual FAT for
+the exact image and assembled board. Defaults remain disabled.
 
 ## Peripheral validation
 

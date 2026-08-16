@@ -54,25 +54,25 @@ case "${DEBUGFS_CASE:-unit-valid}" in
     ;;
   sample-ext4)
     case "$2" in
-      'ls -p "/usr/share/octessera/samples/files"')
+      'ls -p "/var/lib/octessera/samples"')
         printf '%s\n' '/2/040755/0/0/./' '/2/040755/0/0/../' '/10/040755/0/0/Drum/'
         ;;
-      'ls -p "/usr/share/octessera/samples/files/Drum"')
+      'ls -p "/var/lib/octessera/samples/Drum"')
         printf '%s\n' '/10/040755/0/0/./' '/10/040755/0/0/../' '/11/040755/0/0/hihat open/'
         ;;
-      'ls -p "/usr/share/octessera/samples/files/Drum/hihat open"')
+      'ls -p "/var/lib/octessera/samples/Drum/hihat open"')
         printf '%s\n' '/11/040755/0/0/./' '/11/040755/0/0/../' '/12/100644/0/0/space.wav/'
         ;;
-      'stat "/usr/share/octessera/samples/files"')
+      'stat "/var/lib/octessera/samples"')
         printf '%s\n' 'Inode:   2   Type:   directory   Mode:    040755   Flags: 0x0' 'User:   0   Group:   0   Size:   4096'
         ;;
-      'stat "/usr/share/octessera/samples/files/Drum"')
+      'stat "/var/lib/octessera/samples/Drum"')
         printf '%s\n' 'Inode:   10   Type:   directory   Mode:    040755   Flags: 0x0' 'User:   0   Group:   0   Size:   4096'
         ;;
-      'stat "/usr/share/octessera/samples/files/Drum/hihat open"')
+      'stat "/var/lib/octessera/samples/Drum/hihat open"')
         printf '%s\n' 'Inode:   11   Type:   directory   Mode:    040755   Flags: 0x0' 'User:   0   Group:   0   Size:   4096'
         ;;
-      'stat "/usr/share/octessera/samples/files/Drum/hihat open/space.wav"')
+      'stat "/var/lib/octessera/samples/Drum/hihat open/space.wav"')
         printf '%s\n' 'Inode:   12   Type:   regular   Mode:    0644   Flags: 0x0' 'User:   0   Group:   0   Size:   11'
         ;;
     esac
@@ -202,31 +202,29 @@ hash_path() {
   sha256sum "$target/$1" | awk '{ print $1 }'
 }
 sample_path='Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav'
-sample_content='spaced sample'
-sample_size="${#sample_content}"
-sample_hash="$(printf '%s' "$sample_content" | sha256sum | awk '{ print $1 }')"
 kick_path='Drum/kick/Kick2.wav'
-kick_content='kick sample'
-kick_size="${#kick_content}"
-kick_hash="$(printf '%s' "$kick_content" | sha256sum | awk '{ print $1 }')"
-sample_manifest="$(printf '%s\n%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\n' \
-  '# path	size	sha256	source	license_source' \
-  "$sample_path" "$sample_size" "$sample_hash" \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav' \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE' \
-  "$kick_path" "$kick_size" "$kick_hash" \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav' \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE')"
+sample_stage="$work/sample-stage"
+python3 "$root/tools/samples/sample_library.py" \
+  --repository-root "$root" \
+  --media-destination "$sample_stage/samples/files" \
+  --metadata-destination "$sample_stage/samples" \
+  --manifest-destination "$sample_stage/samples/sample-manifest.tsv"
+sample_size="$(awk -F $'\t' -v path="$sample_path" '$1 == path { print $2; exit }' "$sample_stage/samples/sample-manifest.tsv")"
+sample_hash="$(awk -F $'\t' -v path="$sample_path" '$1 == path { print $3; exit }' "$sample_stage/samples/sample-manifest.tsv")"
+kick_size="$(awk -F $'\t' -v path="$kick_path" '$1 == path { print $2; exit }' "$sample_stage/samples/sample-manifest.tsv")"
+kick_hash="$(awk -F $'\t' -v path="$kick_path" '$1 == path { print $3; exit }' "$sample_stage/samples/sample-manifest.tsv")"
+sample_manifest="$(cat "$sample_stage/samples/sample-manifest.tsv")"
 
 make_sample_fixture() {
   local fixture="$1"
-  mkdir -p "$fixture/usr/share/octessera/samples/files/Drum/hihat open" "$fixture/usr/share/octessera/samples/files/Drum/kick"
-  printf '%s' "$sample_content" > "$fixture/usr/share/octessera/samples/files/$sample_path"
-  printf '%s' "$kick_content" > "$fixture/usr/share/octessera/samples/files/$kick_path"
-  chmod 0755 "$fixture/usr/share/octessera/samples/files" "$fixture/usr/share/octessera/samples/files/Drum" "$fixture/usr/share/octessera/samples/files/Drum/hihat open" "$fixture/usr/share/octessera/samples/files/Drum/kick"
-  chmod 0644 "$fixture/usr/share/octessera/samples/files/$sample_path" "$fixture/usr/share/octessera/samples/files/$kick_path"
+  mkdir -p "$fixture/usr/share/octessera/samples" "$fixture/var/lib/octessera/samples"
+  cp -a "$sample_stage/samples/files/." "$fixture/var/lib/octessera/samples/"
+  find -P "$fixture/var/lib/octessera/samples" -type d -exec chmod 0755 {} +
+  find -P "$fixture/var/lib/octessera/samples" -type f -exec chmod 0644 {} +
   if [[ "$(id -u)" == 0 ]]; then
-    chown root:root "$fixture/usr/share/octessera/samples/files" "$fixture/usr/share/octessera/samples/files/Drum" "$fixture/usr/share/octessera/samples/files/Drum/hihat open" "$fixture/usr/share/octessera/samples/files/Drum/kick" "$fixture/usr/share/octessera/samples/files/$sample_path" "$fixture/usr/share/octessera/samples/files/$kick_path"
+    chown -R root:root "$fixture/var/lib/octessera/samples"
+    chown 990:990 "$fixture/var/lib/octessera/samples"
+    [[ "$(stat -c '%u:%g:%a' "$fixture/var/lib/octessera/samples")" == '990:990:755' ]]
   fi
 }
 
@@ -250,7 +248,7 @@ fi
 
 extra_samples="$work/extra-samples"
 cp -a "$valid_samples" "$extra_samples"
-printf '%s' extra > "$extra_samples/usr/share/octessera/samples/files/Kick2.wav"
+printf '%s' extra > "$extra_samples/var/lib/octessera/samples/Kick2.wav"
 if validate_sample_fixture "$extra_samples" "$sample_manifest" extra; then
   echo 'Extra packaged sample file was accepted.' >&2
   exit 1
@@ -258,7 +256,7 @@ fi
 
 symlink_samples="$work/symlink-samples"
 cp -a "$valid_samples" "$symlink_samples"
-ln -s 165028__rodrigo-the-mad__mini-909ish-open-hat.wav "$symlink_samples/usr/share/octessera/samples/files/Drum/hihat open/extra-link.wav"
+ln -s 165028__rodrigo-the-mad__mini-909ish-open-hat.wav "$symlink_samples/var/lib/octessera/samples/Drum/hihat open/extra-link.wav"
 if validate_sample_fixture "$symlink_samples" "$sample_manifest" symlink; then
   echo 'Packaged sample symlink was accepted.' >&2
   exit 1
@@ -266,7 +264,7 @@ fi
 
 special_samples="$work/special-samples"
 cp -a "$valid_samples" "$special_samples"
-mkfifo "$special_samples/usr/share/octessera/samples/files/extra.fifo"
+mkfifo "$special_samples/var/lib/octessera/samples/extra.fifo"
 if validate_sample_fixture "$special_samples" "$sample_manifest" special; then
   echo 'Packaged sample special entry was accepted.' >&2
   exit 1
@@ -289,9 +287,9 @@ fi
 
 wrong_directory="$work/wrong-directory"
 cp -a "$valid_samples" "$wrong_directory"
-chmod 0700 "$wrong_directory/usr/share/octessera/samples/files/Drum"
+chmod 0700 "$wrong_directory/var/lib/octessera/samples/Drum"
 if [[ "$(id -u)" == 0 ]]; then
-  chown nobody:nogroup "$wrong_directory/usr/share/octessera/samples/files/Drum" 2>/dev/null || chown 65534:65534 "$wrong_directory/usr/share/octessera/samples/files/Drum"
+  chown nobody:nogroup "$wrong_directory/var/lib/octessera/samples/Drum" 2>/dev/null || chown 65534:65534 "$wrong_directory/var/lib/octessera/samples/Drum"
 fi
 if validate_sample_fixture "$wrong_directory" "$sample_manifest" wrong-directory; then
   echo 'Wrong packaged sample directory owner/mode was accepted.' >&2
@@ -300,7 +298,7 @@ fi
 
 export DEBUGFS_CASE=sample-ext4
 ext4_inventory="$work/ext4-inventory"
-octessera_collect_sample_inventory "$fake_image" usr/share/octessera/samples/files "$ext4_inventory"
+octessera_collect_sample_inventory "$fake_image" var/lib/octessera/samples "$ext4_inventory"
 grep -Fqx $'d\tDrum\t4096' "$ext4_inventory"
 grep -Fqx $'d\tDrum/hihat open\t4096' "$ext4_inventory"
 grep -Fqx $'f\tDrum/hihat open/space.wav\t11' "$ext4_inventory"
@@ -314,18 +312,20 @@ if [[ -n "$real_debugfs" && -n "$real_mkfs_ext4" && -n "$real_truncate" ]]; then
     usr \
     usr/share \
     usr/share/octessera \
-    usr/share/octessera/samples \
-    usr/share/octessera/samples/files \
-    usr/share/octessera/samples/files/Drum \
-    'usr/share/octessera/samples/files/Drum/hihat open'; do
+    var \
+    var/lib \
+    var/lib/octessera \
+    var/lib/octessera/samples \
+    var/lib/octessera/samples/Drum \
+    'var/lib/octessera/samples/Drum/hihat open'; do
     "$real_debugfs" -w -R "mkdir \"/$directory\"" "$real_image" >/dev/null 2>&1
   done
   printf '%s' 'real sample' > "$real_host_sample"
-  "$real_debugfs" -w -R "write \"$real_host_sample\" \"/usr/share/octessera/samples/files/Drum/hihat open/space.wav\"" "$real_image" >/dev/null 2>&1
+  "$real_debugfs" -w -R "write \"$real_host_sample\" \"/var/lib/octessera/samples/Drum/hihat open/space.wav\"" "$real_image" >/dev/null 2>&1
   real_ext4_inventory="$work/real-ext4-inventory"
   real_path="${PATH#"$mock_bin:"}"
-  PATH="$real_path" octessera_collect_sample_inventory "$real_image" usr/share/octessera/samples/files "$real_ext4_inventory"
-  real_symlink_path='usr/share/octessera/samples/files/quoted-target'
+  PATH="$real_path" octessera_collect_sample_inventory "$real_image" var/lib/octessera/samples "$real_ext4_inventory"
+  real_symlink_path='var/lib/octessera/samples/quoted-target'
   "$real_debugfs" -w -R "symlink \"/$real_symlink_path\" \"/opt/octessera/releases/1.2.3\"" "$real_image" >/dev/null 2>&1
   real_symlink_metadata="$(PATH="$real_path" octessera_debugfs_stat_metadata "$real_image" "$real_symlink_path")"
   [[ "$(octessera_debugfs_fast_link_target "$real_symlink_metadata")" == /opt/octessera/releases/1.2.3 ]] || {
@@ -434,6 +434,7 @@ read_file() {
     etc/octessera/image-contract.json) cat -- "$runtime_contract" ;;
     etc/systemd/system/octessera-device-apply-reboot.socket) cat -- "$device_apply_socket_unit" ;;
     etc/systemd/system/octessera-device-apply-reboot@.service) cat -- "$device_apply_service_unit" ;;
+    etc/passwd) printf '%s\n' 'octessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin' ;;
     usr/local/lib/octessera/device_config.py) cat -- "$device_config_validator" ;;
     usr/local/sbin/octessera-device-apply-reboot) cat -- "$device_apply_helper" ;;
     usr/share/octessera/defaults/pi-default.json) cat -- "$pi_default" ;;
@@ -446,6 +447,8 @@ reject_path() { runtime_rejected_paths+=("$1"); }
 octessera_require_orange_boot_service() { :; }
 octessera_require_orange_shutdown_service() { :; }
 octessera_require_orange_suspend_service() { :; }
+octessera_require_real_directory() { :; }
+octessera_require_owned_mode() { :; }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_IMAGE_CONTRACT_SHA256='"$runtime_contract_hash"$'\nOCTESSERA_RUNTIME_VERSION=none\nOCTESSERA_RUNTIME_BINARY_SHA256=none\nOCTESSERA_RUNTIME_MANIFEST_SHA256=none\nOCTESSERA_RUNTIME_METADATA_SHA256=none'
 octessera_inspect_runtime_mode "$profile_metadata" diagnostic
 [[ "${runtime_rejected_paths[*]}" == 'etc/systemd/system/octessera.service etc/systemd/system/multi-user.target.wants/octessera.service usr/local/bin/octessera-pi opt/octessera/current opt/octessera/releases' ]] || {

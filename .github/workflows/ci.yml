@@ -303,6 +303,12 @@ jobs:
           bash tools/orange-pi/test-orange-pi-usb-gadget.sh
           bash tools/pi-image/test-usb-gadget.sh
 
+          python3 -m unittest tools.samples.test_sample_library
+          python3 tools/legal/sample_attributions.py
+          sudo bash tools/pi-image/test-musical-assets.sh
+          sudo bash tools/armbian-image/test-musical-assets.sh
+          bash tools/armbian-image/test-inspector.sh
+
   board_profile_powershell:
     name: Board profile PowerShell checks
     runs-on: windows-latest
@@ -363,6 +369,18 @@ jobs:
         run: python3 -m unittest tools/assets/test_generated_image_equivalence.py
       - name: Run repository integrity gate
         run: bash tools/quality/repository-integrity.sh
+
+  release_version:
+    name: Release version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check current application versions
+        run: |
+          python3 tools/release/check_version_consistency.py
+          python3 tools/release/test_version_consistency.py
+          python3 -m unittest discover -s tools/release -p 'test_*.py'
 
   image_respin:
     name: Image respin tests

@@ -229,6 +229,18 @@ octessera_require_runtime_account() {
   printf '%s:%s' "$runtime_uid" "$runtime_gid"
 }
 
+octessera_runtime_owner_from_passwd() {
+  local passwd_content="$1"
+  local record
+  local runtime_name
+  local runtime_uid
+  local runtime_gid
+  record="$(printf '%s\n' "$passwd_content" | awk -F: '$1 == "octessera-runtime" { count++; row = $0 } END { if (count == 1) print row; else exit 1 }')" || { echo "Image is missing the unique octessera-runtime account." >&2; exit 1; }
+  IFS=: read -r runtime_name _ runtime_uid runtime_gid _ _ _ <<< "$record"
+  [[ "$runtime_name" == octessera-runtime && "$runtime_uid" =~ ^[0-9]+$ && "$runtime_gid" =~ ^[0-9]+$ && "$runtime_uid" -lt 1000 ]] || { echo "Image octessera-runtime ownership identity is invalid." >&2; exit 1; }
+  printf '%s:%s' "$runtime_uid" "$runtime_gid"
+}
+
 octessera_require_runtime_elf() {
   local path="$1"
   local binary_path
@@ -264,6 +276,7 @@ octessera_require_runtime_service() {
     'StartLimitBurst=3' \
     'After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target' \
     'Requires=octessera-device-apply-reboot.socket' \
+    'Requires=octessera-provision-musical-default.service' \
     'After=octessera-device-apply-reboot.socket' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
@@ -298,8 +311,9 @@ octessera_require_runtime_service() {
     exit 1
   fi
   while IFS= read -r line; do
-    [[ "$line" == 'Requires=octessera-device-apply-reboot.socket' ]] || { echo "Orange runtime service has an unexpected Requires dependency." >&2; exit 1; }
+    [[ "$line" == 'Requires=octessera-device-apply-reboot.socket' || "$line" == 'Requires=octessera-provision-musical-default.service' ]] || { echo "Orange runtime service has an unexpected Requires dependency." >&2; exit 1; }
   done < <(printf '%s\n' "$service_content" | grep '^Requires=' || true)
+  [[ "$(printf '%s\n' "$service_content" | grep -c '^Requires=')" == 2 ]] || { echo "Orange runtime service has an unexpected Requires dependency count." >&2; exit 1; }
 }
 
 octessera_require_runtime_udev_rule() {
@@ -488,6 +502,9 @@ octessera_inspect_runtime_mode() {
   case "$image_mode:$runtime_default" in
     diagnostic:false)
       octessera_require_image_contract diagnostic
+      octessera_require_real_directory var/lib/octessera/samples
+      runtime_owner="$(octessera_runtime_owner_from_passwd "$(read_file etc/passwd)")"
+      octessera_require_owned_mode var/lib/octessera/samples "$runtime_owner" 755
       for path in \
         etc/systemd/system/octessera.service \
         etc/systemd/system/multi-user.target.wants/octessera.service \

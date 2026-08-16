@@ -16,12 +16,16 @@ if [[ ! -d "$overlay_dir" ]]; then
 fi
 image_mode_helper="$overlay_dir/usr/local/lib/octessera/orange-image-mode.sh"
 diagnostic_payload_helper="$overlay_dir/usr/local/lib/octessera/diagnostic-payload.sh"
+sample_assets_helper="$overlay_dir/usr/local/lib/octessera/orange-sample-assets.sh"
 [[ -f "$image_mode_helper" && ! -L "$image_mode_helper" ]] || { echo "Missing Orange image mode helper." >&2; exit 1; }
 [[ -f "$diagnostic_payload_helper" && ! -L "$diagnostic_payload_helper" ]] || { echo "Missing diagnostic payload helper." >&2; exit 1; }
+[[ -f "$sample_assets_helper" && ! -L "$sample_assets_helper" ]] || { echo "Missing Orange sample asset helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh
 source "$image_mode_helper"
 # shellcheck source=userpatches/overlay/usr/local/lib/octessera/diagnostic-payload.sh
 source "$diagnostic_payload_helper"
+# shellcheck disable=SC1090
+source "$sample_assets_helper"
 spi_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts"
 [[ -f "$spi_dts" ]] || { echo "Missing Orange Pi SPI overlay source." >&2; exit 1; }
 input_routing_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts"
@@ -76,124 +80,6 @@ while IFS= read -r -d '' legal_file; do
   legal_relative="${legal_file#"$overlay_dir/usr/share/doc/octessera/"}"
   install -D -m 0644 -o root -g root "$legal_file" "/usr/share/doc/octessera/$legal_relative"
 done < <(find -P "$overlay_dir/usr/share/doc/octessera" -type f -print0)
-
-install_musical_assets() {
-  local overlay_root="$1"
-  local target_root="$2"
-  local overlay_samples="$overlay_root/usr/share/octessera/samples"
-  local overlay_manifest="$overlay_samples/sample-manifest.tsv"
-  local target_samples
-  local target_manifest
-  local target_files
-  local header
-  local sample_path
-  local sample_size
-  local sample_sha256
-  local sample_source
-  local expected_sample_source
-  local sample_license_source
-  local sample_source_path
-  local sample_destination
-  local relative_path
-  local extra
-  local -a manifest_entries=()
-  local -A manifest_paths=()
-  local -A manifest_sizes=()
-  local -A manifest_hashes=()
-
-  if [[ "$target_root" == "/" ]]; then
-    target_root=
-  fi
-  target_samples="$target_root/usr/share/octessera/samples"
-  target_manifest="$target_samples/sample-manifest.tsv"
-  target_files="$target_samples/files"
-  [[ -d "$overlay_samples" && ! -L "$overlay_samples" ]] || { echo "Missing staged sample directory: $overlay_samples" >&2; return 1; }
-  [[ -d "$overlay_samples/files" && ! -L "$overlay_samples/files" ]] || { echo "Missing staged sample files. Run tools/armbian-image/stage-musical-assets.sh." >&2; return 1; }
-  [[ -f "$overlay_manifest" && ! -L "$overlay_manifest" ]] || { echo "Missing staged sample manifest: $overlay_manifest" >&2; return 1; }
-  [[ -d "$target_samples" && ! -L "$target_samples" ]] || { echo "Missing installed sample directory: $target_samples" >&2; return 1; }
-  [[ -f "$target_manifest" && ! -L "$target_manifest" ]] || { echo "Installed sample manifest is missing: $target_manifest" >&2; return 1; }
-  cmp -s "$overlay_manifest" "$target_manifest" || { echo "Installed sample manifest differs from staged manifest." >&2; return 1; }
-  awk -F $'\t' 'NF != 5 { exit 1 }' "$target_manifest" || { echo "Invalid packaged sample manifest rows." >&2; return 1; }
-
-  {
-    IFS= read -r header
-    [[ "$header" == $'# path\tsize\tsha256\tsource\tlicense_source' ]] || { echo "Invalid packaged sample manifest header." >&2; return 1; }
-    while IFS=$'\t' read -r sample_path sample_size sample_sha256 sample_source sample_license_source extra; do
-      case "$sample_path" in
-        ''|/*|*..*|*\\*|*$'\t'*|*$'\r'*) echo "Invalid packaged sample path: $sample_path" >&2; return 1 ;;
-      esac
-      [[ -z "$extra" ]] || { echo "Invalid packaged sample manifest row: $sample_path" >&2; return 1; }
-      [[ "$sample_size" =~ ^[0-9]+$ ]] || { echo "Invalid packaged sample size: $sample_path" >&2; return 1; }
-      [[ "$sample_sha256" =~ ^[a-f0-9]{64}$ ]] || { echo "Invalid packaged sample hash: $sample_path" >&2; return 1; }
-      case "$sample_path" in
-        "Drum/claps/distkit-clap.wav") expected_sample_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/fugue-state-audio/drums/claps/distkit-clap.wav" ;;
-        "Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav") expected_sample_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav" ;;
-        "Drum/kick/Kick2.wav") expected_sample_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav" ;;
-        *) echo "Unexpected packaged sample path: $sample_path" >&2; return 1 ;;
-      esac
-      [[ "$sample_source" == "$expected_sample_source" ]] || { echo "Unexpected packaged sample source: $sample_path" >&2; return 1; }
-      [[ "$sample_license_source" == "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE" ]] || { echo "Unexpected packaged sample license source: $sample_path" >&2; return 1; }
-      if [[ -n "${manifest_paths["$sample_path"]+set}" ]]; then
-        echo "Duplicate packaged sample path: $sample_path" >&2
-        return 1
-      fi
-      manifest_paths["$sample_path"]=1
-      manifest_sizes["$sample_path"]="$sample_size"
-      manifest_hashes["$sample_path"]="$sample_sha256"
-      manifest_entries+=("$sample_path")
-    done
-  } < "$target_manifest"
-
-  while IFS= read -r -d '' sample_source_path; do
-    if [[ -L "$sample_source_path" || ( ! -f "$sample_source_path" && ! -d "$sample_source_path" ) ]]; then
-      echo "Unsafe staged sample entry: ${sample_source_path#"$overlay_samples/files/"}" >&2
-      return 1
-    fi
-    if [[ -f "$sample_source_path" ]]; then
-      relative_path="${sample_source_path#"$overlay_samples/files/"}"
-      [[ -n "${manifest_paths["$relative_path"]+set}" ]] || { echo "Unlisted staged sample: $relative_path" >&2; return 1; }
-    fi
-  done < <(find -P "$overlay_samples/files" -mindepth 1 -print0)
-
-  for sample_path in "${manifest_entries[@]}"; do
-    sample_source_path="$overlay_samples/files/$sample_path"
-    [[ -f "$sample_source_path" && ! -L "$sample_source_path" ]] || { echo "Missing packaged sample: $sample_path" >&2; return 1; }
-  done
-
-  if [[ -e "$target_files" || -L "$target_files" ]]; then
-    [[ -d "$target_files" && ! -L "$target_files" ]] || { echo "Sample destination is not a directory: $target_files" >&2; return 1; }
-  fi
-  rm -rf -- "$target_files"
-  install -d -m 0755 -o root -g root "$target_files"
-  for sample_path in "${manifest_entries[@]}"; do
-    sample_source_path="$overlay_samples/files/$sample_path"
-    sample_destination="$target_files/$sample_path"
-    install -D -m 0644 -o root -g root -- "$sample_source_path" "$sample_destination"
-  done
-  chown -R root:root "$target_files"
-  find -P "$target_files" -type d -exec chmod 0755 {} +
-  find -P "$target_files" -type f -exec chmod 0644 {} +
-  while IFS= read -r -d '' sample_source_path; do
-    if [[ -L "$sample_source_path" || ( ! -f "$sample_source_path" && ! -d "$sample_source_path" ) ]]; then
-      echo "Unsafe installed sample entry: ${sample_source_path#"$target_files/"}" >&2
-      return 1
-    fi
-    relative_path="${sample_source_path#"$target_files/"}"
-    if [[ -d "$sample_source_path" ]]; then
-      [[ "$(stat -c '%u:%g %a' "$sample_source_path")" == '0:0 755' ]] || { echo "Unsafe installed sample directory: $relative_path" >&2; return 1; }
-    else
-      [[ -n "${manifest_paths["$relative_path"]+set}" ]] || { echo "Unlisted installed sample: $relative_path" >&2; return 1; }
-      [[ "$(stat -c '%u:%g %a' "$sample_source_path")" == '0:0 644' ]] || { echo "Unsafe installed sample file: $relative_path" >&2; return 1; }
-    fi
-  done < <(find -P "$target_files" -mindepth 1 -print0)
-
-  for sample_path in "${manifest_entries[@]}"; do
-    sample_destination="$target_files/$sample_path"
-    [[ -f "$sample_destination" && ! -L "$sample_destination" ]] || { echo "Missing packaged sample: $sample_path" >&2; return 1; }
-    [[ "$(stat -c '%s' "$sample_destination")" == "${manifest_sizes["$sample_path"]}" ]] || { echo "Packaged sample size mismatch: $sample_path" >&2; return 1; }
-    [[ "$(sha256sum "$sample_destination" | awk '{ print $1 }')" == "${manifest_hashes["$sample_path"]}" ]] || { echo "Packaged sample hash mismatch: $sample_path" >&2; return 1; }
-  done
-}
 
 if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage)' "$overlay_dir"; then
   echo "Refusing Raspberry Pi-specific overlay content." >&2
@@ -397,6 +283,7 @@ install_overlay_file usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/
 install_overlay_file usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py 0644
 install_overlay_file usr/local/sbin/octessera-orange-oled-suspend /usr/local/sbin/octessera-orange-oled-suspend 0755
 install_overlay_file usr/local/sbin/octessera-provision-musical-default /usr/local/sbin/octessera-provision-musical-default 0755
+install_overlay_file usr/local/lib/octessera/orange-sample-assets.sh /usr/local/lib/octessera/orange-sample-assets.sh 0644
 install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644
 install_overlay_file etc/modules-load.d/octessera-orange-usb-gadget.conf /etc/modules-load.d/octessera-orange-usb-gadget.conf 0644
 install_overlay_file etc/systemd/system/octessera-orange-usb-gadget.service /etc/systemd/system/octessera-orange-usb-gadget.service 0644
@@ -415,12 +302,18 @@ install_overlay_file usr/local/share/octessera/oled/octessera-pi-booting.rgb565 
 install_overlay_file usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565 /usr/share/octessera/oled/octessera-pi-shutdown.rgb565 0644
 for musical_asset in \
   usr/share/octessera/defaults/pi-default.json \
-  usr/share/octessera/samples/sample-manifest.tsv; do
+  usr/share/octessera/samples/sample-manifest.tsv \
+  usr/share/octessera/samples/ATTRIBUTIONS.tsv \
+  usr/share/octessera/samples/upstream/LICENSE \
+  usr/share/octessera/samples/upstream/README.txt; do
   [[ -f "$overlay_dir/$musical_asset" && ! -L "$overlay_dir/$musical_asset" ]] || { echo "Missing staged regular musical asset: $musical_asset. Run tools/armbian-image/stage-musical-assets.sh." >&2; exit 1; }
 done
 install_overlay_file usr/share/octessera/defaults/pi-default.json /usr/share/octessera/defaults/pi-default.json 0644
 install_overlay_file usr/share/octessera/samples/sample-manifest.tsv /usr/share/octessera/samples/sample-manifest.tsv 0644
-install_musical_assets "$overlay_dir" /
+install_overlay_file usr/share/octessera/samples/ATTRIBUTIONS.tsv /usr/share/octessera/samples/ATTRIBUTIONS.tsv 0644
+install_overlay_file usr/share/octessera/samples/upstream/LICENSE /usr/share/octessera/samples/upstream/LICENSE 0644
+install_overlay_file usr/share/octessera/samples/upstream/README.txt /usr/share/octessera/samples/upstream/README.txt 0644
+install_orange_musical_assets "$overlay_dir" ""
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
 if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
   install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644

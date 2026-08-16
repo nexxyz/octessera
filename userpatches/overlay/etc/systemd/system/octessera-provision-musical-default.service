@@ -1,5 +1,5 @@
 [Unit]
-Description=Install the canonical Octessera Pi patch and samples
+Description=Seed a missing Octessera Pi default
 Before=octessera.service
 After=local-fs.target
 

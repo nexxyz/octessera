@@ -2,13 +2,13 @@
 
 This report records reviewed policy and packages requiring source-availability review before public binary release; it is not legal advice.
 
-Permissive packages: 497
+Permissive packages: 511
 Reviewed MPL packages: 10
 Reviewed license alternatives: 2
 Custom or unknown packages: 0
 Workspace license metadata missing: 0
-manifest-license-no-file informational packages: 68
-Packages requiring source-availability review before public binary release: 73
+manifest-license-no-file informational packages: 69
+Packages requiring source-availability review before public binary release: 74
 
 ## Reviewed MPL packages
 

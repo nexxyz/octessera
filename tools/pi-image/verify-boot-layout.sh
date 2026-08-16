@@ -232,6 +232,7 @@ require_octessera_raspberry_identity() {
         echo "constructor-required: Raspberry default config is not exact" >&2
         return 1
     fi
+    python3 "$REPOSITORY_ROOT/tools/pi-image/verify-rpi-samples.py" --root "$image_root" --repository-root "$REPOSITORY_ROOT" || return 1
     if [ ! -f "$validator_source" ] || [ -L "$validator_source" ] || [ ! -f "$validator" ] || [ -L "$validator" ] || [ "$(stat -c '%u:%g:%a' "$validator")" != 0:0:644 ]; then
         echo "constructor-required: Raspberry device config validator metadata is not exact" >&2
         return 1

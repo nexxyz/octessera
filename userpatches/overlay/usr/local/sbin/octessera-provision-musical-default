@@ -3,62 +3,140 @@ set -eu
 
 root_prefix=${OCTESSERA_PROVISION_ROOT:-}
 source_default="${root_prefix}/usr/share/octessera/defaults/pi-default.json"
-source_samples="${root_prefix}/usr/share/octessera/samples/files"
-destination_default="${root_prefix}/var/lib/octessera/presets/default.json"
-destination_samples="${root_prefix}/var/lib/octessera/samples"
-manifest="${root_prefix}/usr/share/octessera/samples/sample-manifest.tsv"
+state_directory="${root_prefix}/var/lib/octessera"
+presets_directory="$state_directory/presets"
+destination_default="$presets_directory/default.json"
+staging_directory="$state_directory/.provisioning"
+race_hook=${OCTESSERA_PROVISION_BEFORE_MOVE_HOOK:-}
 
-[ "$(id -u)" = 0 ] || [ -n "$root_prefix" ] || { echo "musical default provisioning requires root" >&2; exit 1; }
-[ -f "$source_default" ] || { echo "packaged Pi default is missing: $source_default" >&2; exit 1; }
-[ -f "$manifest" ] || { echo "packaged sample manifest is missing: $manifest" >&2; exit 1; }
+[ "$(id -u)" = 0 ] || { echo "musical default provisioning requires root" >&2; exit 1; }
+if [ ! -f "$source_default" ] || [ -L "$source_default" ]; then
+  echo "packaged Pi default is missing or unsafe: $source_default" >&2
+  exit 1
+fi
 
-install_owned() {
-  if [ "$(id -u)" = 0 ]; then
-    install -o root -g root "$@"
+identity_file() {
+  if [ -n "$root_prefix" ]; then
+    printf '%s\n' "$root_prefix/etc/$1"
   else
-    install "$@"
+    printf '%s\n' "/etc/$1"
   fi
 }
 
-install_owned -d -m 0755 "$(dirname "$destination_default")" "$destination_samples"
-
-if [ ! -e "$destination_default" ]; then
-  temporary="${destination_default}.tmp.$$"
-  install_owned -m 0644 "$source_default" "$temporary"
-  mv -n -- "$temporary" "$destination_default"
-  rm -f -- "$temporary"
+runtime_passwd_file=$(identity_file passwd)
+runtime_group_file=$(identity_file group)
+if [ ! -f "$runtime_passwd_file" ] || [ -L "$runtime_passwd_file" ]; then
+  echo "runtime passwd file is missing or unsafe: $runtime_passwd_file" >&2
+  exit 1
+fi
+if [ ! -f "$runtime_group_file" ] || [ -L "$runtime_group_file" ]; then
+  echo "runtime group file is missing or unsafe: $runtime_group_file" >&2
+  exit 1
+fi
+runtime_passwd=$(awk -F: '$1 == "octessera-runtime" { count++; row = $0 } END { if (count == 1) print row; else exit 1 }' "$runtime_passwd_file") || { echo "octessera-runtime account is not unique." >&2; exit 1; }
+runtime_group=$(awk -F: '$1 == "octessera-runtime" { count++; row = $0 } END { if (count == 1) print row; else exit 1 }' "$runtime_group_file") || { echo "octessera-runtime group is not unique." >&2; exit 1; }
+IFS=: read -r runtime_name _ runtime_uid runtime_gid _ _ _ <<EOF
+$runtime_passwd
+EOF
+IFS=: read -r runtime_group_name _ runtime_group_gid _ <<EOF
+$runtime_group
+EOF
+case "$runtime_uid" in ''|*[!0-9]*) echo "octessera-runtime identity is invalid." >&2; exit 1 ;; esac
+case "$runtime_gid" in ''|*[!0-9]*) echo "octessera-runtime identity is invalid." >&2; exit 1 ;; esac
+if [ "$runtime_name" != octessera-runtime ] || [ "$runtime_group_name" != octessera-runtime ] || [ "$runtime_gid" != "$runtime_group_gid" ] || [ "$runtime_uid" -eq 0 ] || [ "$runtime_gid" -eq 0 ] || [ "$runtime_uid" -ge 1000 ]; then
+  echo "octessera-runtime identity is invalid." >&2
+  exit 1
 fi
 
-while IFS="$(printf '\t')" read -r relative_path expected_size expected_sha256 source license_source; do
-  case "$relative_path" in
-    ''|'# path') continue ;;
-  esac
-  case "$relative_path" in
-    /*|*..*|*\\*) echo "unsafe packaged sample path: $relative_path" >&2; exit 1 ;;
-  esac
-  source_path="$source_samples/$relative_path"
-  destination_path="$destination_samples/$relative_path"
-  [ -f "$source_path" ] || { echo "packaged sample is missing: $source_path" >&2; exit 1; }
-  case "$relative_path" in
-    "Drum/claps/distkit-clap.wav") expected_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/fugue-state-audio/drums/claps/distkit-clap.wav" ;;
-    "Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav") expected_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav" ;;
-    "Drum/kick/Kick2.wav") expected_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav" ;;
-    *) echo "unexpected packaged sample path: $relative_path" >&2; exit 1 ;;
-  esac
-  [ "$source" = "$expected_source" ] || { echo "unexpected packaged sample source: $relative_path" >&2; exit 1; }
-  [ "$license_source" = "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE" ] || { echo "unexpected packaged sample license source: $relative_path" >&2; exit 1; }
-  [ "$(stat -c '%s' "$source_path")" = "$expected_size" ] || { echo "packaged sample size mismatch: $relative_path" >&2; exit 1; }
-  [ "$(sha256sum "$source_path" | awk '{ print $1 }')" = "$expected_sha256" ] || { echo "packaged sample hash mismatch: $relative_path" >&2; exit 1; }
-  if [ ! -e "$destination_path" ]; then
-    temporary="${destination_path}.tmp.$$"
-    install_owned -D -m 0644 "$source_path" "$temporary"
-    mv -n -- "$temporary" "$destination_path"
-    rm -f -- "$temporary"
+install_root() {
+  install -o root -g root "$@"
+}
+
+install_runtime() {
+  install -o "$runtime_uid" -g "$runtime_gid" "$@"
+}
+
+require_directory() {
+  path=$1
+  owner=$2
+  group=$3
+  mode=$4
+  if [ -L "$path" ] || [ ! -d "$path" ]; then
+    echo "required directory is unsafe: $path" >&2
+    exit 1
   fi
-done < "$manifest"
+  [ "$(stat -c '%u:%g:%a' "$path")" = "$owner:$group:$mode" ] || { echo "required directory ownership or mode is unsafe: $path" >&2; exit 1; }
+}
 
-if id octessera-runtime >/dev/null 2>&1; then
-  chown octessera-runtime:octessera-runtime "$destination_default"
-  chmod 0644 "$destination_default"
-  chown octessera-runtime:octessera-runtime "$destination_samples" "$(dirname "$destination_default")"
+ensure_directory() {
+  path=$1
+  owner=$2
+  group=$3
+  mode=$4
+  if [ -e "$path" ] || [ -L "$path" ]; then
+    require_directory "$path" "$owner" "$group" "$mode"
+  else
+    if [ "$owner:$group" = "$runtime_uid:$runtime_gid" ]; then
+      install_runtime -d -m "$mode" "$path"
+    else
+      install_root -d -m "$mode" "$path"
+    fi
+    require_directory "$path" "$owner" "$group" "$mode"
+  fi
+}
+
+ensure_directory "$state_directory" 0 0 755
+ensure_directory "$presets_directory" "$runtime_uid" "$runtime_gid" 755
+
+validate_default() {
+  path=$1
+  if [ ! -f "$path" ] || [ -L "$path" ]; then
+    echo "default destination is not a regular file: $path" >&2
+    exit 1
+  fi
+  [ "$(stat -c '%u:%g:%a' "$path")" = "$runtime_uid:$runtime_gid:644" ] || { echo "default destination ownership or mode is unsafe: $path" >&2; exit 1; }
+}
+
+if [ -e "$destination_default" ] || [ -L "$destination_default" ]; then
+  validate_default "$destination_default"
+  exit 0
 fi
+
+if [ -n "$race_hook" ]; then
+  [ -n "$root_prefix" ] || { echo "provision race hook is only allowed for rooted fixtures" >&2; exit 1; }
+  if [ ! -x "$race_hook" ] || [ -L "$race_hook" ]; then
+    echo "provision race hook is unsafe: $race_hook" >&2
+    exit 1
+  fi
+fi
+
+if [ -e "$staging_directory" ] || [ -L "$staging_directory" ]; then
+  require_directory "$staging_directory" 0 0 700
+else
+  install_root -d -m 0700 "$staging_directory"
+  require_directory "$staging_directory" 0 0 700
+fi
+if find -P "$staging_directory" -mindepth 1 -print -quit | grep -q .; then
+  echo "provision staging directory is not empty: $staging_directory" >&2
+  exit 1
+fi
+
+temporary=$(mktemp "$staging_directory/default.XXXXXX")
+cleanup() {
+  rm -f -- "$temporary"
+  rmdir -- "$staging_directory" 2>/dev/null || true
+}
+trap cleanup EXIT
+install_runtime -m 0644 "$source_default" "$temporary"
+
+if [ -n "$race_hook" ]; then
+  "$race_hook" "$destination_default"
+fi
+
+move_status=0
+mv -T -n -- "$temporary" "$destination_default" || move_status=$?
+if [ "$move_status" != 0 ] && [ ! -e "$destination_default" ] && [ ! -L "$destination_default" ]; then
+  echo "default destination move failed: $destination_default" >&2
+  exit "$move_status"
+fi
+validate_default "$destination_default"

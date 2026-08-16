@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from package_portable_zip import package_portable_zip
 from verify_notice_archive import verify_notice_archive
+from tools.samples.sample_library import sample_media_payload_files
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,6 +33,15 @@ class PortableZipTests(unittest.TestCase):
                     f"{hashlib.sha256(executable.read_bytes()).hexdigest()}  octessera.exe",
                     archive.read("SHA256SUMS").decode("utf-8").splitlines(),
                 )
+                samples = sample_media_payload_files(ROOT)
+                self.assertEqual(
+                    {name for name in archive.namelist() if name.startswith("samples/")},
+                    set(samples),
+                )
+                self.assertNotIn("samples/ATTRIBUTIONS.tsv", archive.namelist())
+                self.assertIn("legal/samples/ATTRIBUTIONS.tsv", archive.namelist())
+                for name, payload in samples.items():
+                    self.assertEqual(archive.read(name), payload)
 
     def test_rejects_tampered_legal_payload_with_recomputed_archive_checksum(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

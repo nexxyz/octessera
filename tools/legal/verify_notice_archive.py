@@ -3,11 +3,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
 
 from stage_notices import load_manifest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from tools.samples.sample_library import sample_media_payload_files
 
 
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
@@ -46,6 +50,8 @@ def verify_notice_archive(repository_root: Path, archive_path: Path, payload_nam
     canonical = _canonical_files(repository_root, manifest)
     manifest_bytes = (repository_root / "resources/legal/notice-bundle.json").read_bytes()
     legal_bytes = {**canonical, "legal/notice-bundle.json": manifest_bytes}
+    if payload_name is not None:
+        legal_bytes.update(sample_media_payload_files(repository_root))
     expected = {*legal_bytes, "SHA256SUMS"}
     if payload_name is not None:
         if not payload_name or payload_name.startswith("/") or "\\" in payload_name or ".." in Path(payload_name).parts or payload_name in expected:

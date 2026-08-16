@@ -126,6 +126,7 @@ runs:
         custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
         bash "$custom_root/tools/armbian-image/stage-canonical-welcome.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         python3 "$custom_root/tools/armbian-image/stage-device-config.py" "$GITHUB_WORKSPACE/build/userpatches/overlay"
+        bash "$custom_root/tools/armbian-image/stage-musical-assets.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay/usr/share/octessera"
         sudo python3 "$custom_root/tools/legal/stage_notices.py" \
           --repository-root "$custom_root" \
           --destination-root "$GITHUB_WORKSPACE/build/userpatches/overlay"

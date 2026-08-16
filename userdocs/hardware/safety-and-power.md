@@ -25,6 +25,13 @@ numbers or connector roles to Orange by physical position.
 
 ## USB host connections
 
+**USB Audio and USB MIDI are experimental local-bench paths, not public first-
+release support.** Use them only with an authorized identity and after the exact
+image and assembled board pass the electrical and manual FAT gates. The current
+Linux Foundation VID/PID values are local-validation-only and are not a public
+product identity; do not invent or publish replacement IDs. Defaults remain
+disabled.
+
 A normal host USB cable can send 5V back into a board that is already powered
 through the enclosure input. Software cannot block that power while keeping USB
 data. Use a data-only cable or a power-isolating adapter, and use the selected
