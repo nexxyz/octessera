@@ -11,7 +11,7 @@
     {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/install-rpi-kernel.py", "sha256": "d11d0bb4cccab96c10124ca65868cc509ef81979c1f95218808bef7301df038f", "size": 20317},
     {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/sbin/octessera-finalize-rpi-kernel", "sha256": "363cee7553a75c5a72654b55922afb21a09d591a15c336bc63017548a0208607", "size": 204},
     {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "995d149e029a38413a5cd2074536d73d8aa1ca0b3558a14b7eb287dca41f9412", "size": 1380},
-    {"path": "resources/legal/notice-bundle.json", "sha256": "694ec4208ee0c1e7081ef1456522a6cf5a1eff7230983aa0e52783a503de098f", "size": 6448},
+    {"path": "resources/legal/notice-bundle.json", "sha256": "988fd842db6ecf2ff2b77c2b639a0fc5a8f502b5f07d12a415691595c8808400", "size": 6448},
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320},
     {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "1706b941fb338d46b0b7b054ceb7a82c98af6bad97bfa49a9057889b9a9ac822", "size": 14662},
     {"path": "tools/pi-image/stage-musical-assets.sh", "sha256": "8600c8cac45c4468a024bab1edc5b0217a0c5e8daacbe0c3774282349ab3a07d", "size": 595},
