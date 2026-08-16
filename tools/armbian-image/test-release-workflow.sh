@@ -83,7 +83,7 @@ assert_contains "$release" 'Release version must be an exact semver.'
 assert_contains "$release" 'version=${RELEASE_TAG#v}'
 assert_contains "$release" 'Cargo package version'
 assert_contains "$release" 'git rev-parse "$RELEASE_TAG^{commit}"'
-assert_contains "$release" 'needs: [release_info, updater_protocol, windows, macos, ubuntu, board_artifacts, workflow_static]'
+assert_contains "$release" 'needs: [release_info, updater_protocol, windows, ubuntu, board_artifacts, workflow_static]'
 assert_contains "$release" 'The release must remain a draft until the final publish job.'
 assert_contains "$release" 'The release draft must not already contain assets.'
 assert_contains "$release" 'gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100"'
@@ -106,15 +106,14 @@ assert_contains "$release" 'verify_notice_archive.py --repository-root . --archi
 assert_contains "$release" 'device ZIP inventory is not exact'
 assert_contains "$release" 'device ZIP legal files do not match the release source'
 assert_contains "$release" 'expected_root_assets=('
-assert_contains "$release" 'expected_count=13'
+assert_contains "$release" 'expected_count=12'
 assert_contains "$release" 'expected_names = ["octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"]'
 assert_contains "$release" 'expected_mode = 0o755 if info.filename == "octessera-pi" else 0o644'
-assert_contains "$release" 'zip -9 -r "$evidence_zip" windows macos ubuntu raspberry orange legal'
+assert_contains "$release" 'zip -9 -r "$evidence_zip" windows ubuntu raspberry orange legal'
 assert_contains "$release" 'sha256sum "${root_payloads[@]}" > SHA256SUMS.txt'
 assert_contains "$release" 'sha256sum -c SHA256SUMS.txt'
 assert_contains "$release" '== "$expected_count" && "${final_files[*]}" == "${expected_files[*]}"'
 assert_contains "$release" 'require_exact_files "$root/octessera-windows-release-assets"'
-assert_contains "$release" 'require_exact_files "$root/octessera-macos-release-assets"'
 assert_contains "$release" 'require_exact_files "$root/octessera-ubuntu-release-assets"'
 assert_contains "$release" 'copy_asset()'
 assert_contains "$release" '[[ ! -e "$destination" ]]'
@@ -136,6 +135,10 @@ assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w.img
 assert_contains "$action" 'tools/legal/stage_notices.py'
 assert_contains "$root/resources/image-construction/boot-layers/raspberry-pi-zero-2w.json" 'resources/legal/notice-bundle.json'
 assert_absent "$action" 'legal-source'
+assert_absent "$release" 'macos'
+assert_absent "$release" 'macOS'
+assert_absent "$release" 'DMG'
+assert_absent "$release" 'dmg'
 
 workflow_static_block="$(sed -n '/^  workflow_static:/,/^  resolve_draft:/p' "$release")"
 if grep -qF 'permissions:' <<< "$workflow_static_block"; then
@@ -194,12 +197,6 @@ assert_order "$release" 'Revalidate exact draft immediately before upload' 'Uplo
 assert_order "$release" 'Upload assets without collision hiding' 'Revalidate uploaded asset set immediately before publish'
 assert_order "$release" 'Revalidate uploaded asset set immediately before publish' 'Publish the verified draft release last'
 
-macos_block="$(sed -n '/^  macos:/,/^  ubuntu:/p' "$release")"
-if grep -qF 'mapfile' <<< "$macos_block" || ! grep -qF 'shopt -s nullglob' <<< "$macos_block" || ! grep -qF 'dmg_files=(target/release/bundle/dmg/*.dmg)' <<< "$macos_block" || [[ "$(grep -cF '[[ "${#dmg_files[@]}" == 1 ]]' <<< "$macos_block")" != 1 ]]; then
-    echo 'macOS DMG selection must fail closed on exact count.' >&2
-    exit 1
-fi
-
 jq_draft_filter='[ .[][] | select(.tag_name == $tag) ] as $matches
   | if ($matches | length) != 1 then
       error("Expected exactly one release for tag \($tag)")
@@ -256,11 +253,9 @@ for removed_step in 'Start-Process -FilePath' 'hdiutil attach' 'dpkg-deb -x' '--
     assert_absent "$release" "$removed_step"
 done
 
-windows_block="$(sed -n '/^  windows:/,/^  macos:/p' "$release")"
-macos_block="$(sed -n '/^  macos:/,/^  ubuntu:/p' "$release")"
+windows_block="$(sed -n '/^  windows:/,/^  ubuntu:/p' "$release")"
 ubuntu_block="$(sed -n '/^  ubuntu:/,/^  board_artifacts:/p' "$release")"
 assert_block_contains "$windows_block" 'verify_notice_archive.py'
-assert_block_contains "$macos_block" 'shasum -a 256 ./*.dmg > SHA256SUMS-macos.txt'
 assert_block_contains "$ubuntu_block" 'sha256sum ./*.deb ./*.AppImage > SHA256SUMS-ubuntu.txt'
 
 assert_contains "$boards" 'hardware-raspberry-pi-zero-2w'
@@ -351,7 +346,7 @@ orange_builds="$(grep -cF -- 'cross build --release --target aarch64-unknown-lin
     echo 'Every board source-consuming job must checkout source_sha exactly once.' >&2
     exit 1
 }
-[[ "$(grep -cF 'ref: ${{ needs.release_info.outputs.source_sha }}' "$release")" == 5 ]] || {
+[[ "$(grep -cF 'ref: ${{ needs.release_info.outputs.source_sha }}' "$release")" == 4 ]] || {
     echo 'Every main release source-consuming job must checkout source_sha exactly once.' >&2
     exit 1
 }

@@ -199,43 +199,6 @@ jobs:
           path: ./release-assets/*
           if-no-files-found: error
 
-  macos:
-    name: macOS DMG
-    runs-on: macos-latest
-    needs: release_info
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release_info.outputs.source_sha }}
-      - name: Verify immutable source checkout
-        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: pnpm install --frozen-lockfile
-      - run: corepack pnpm --dir apps/desktop exec tauri build --bundles dmg --no-sign
-      - name: Prepare macOS assets
-        run: |
-          set -euo pipefail
-          mkdir -p release-assets
-          shopt -s nullglob
-          dmg_files=(target/release/bundle/dmg/*.dmg)
-          [[ "${#dmg_files[@]}" == 1 ]] || { echo "Expected exactly one macOS DMG, found ${#dmg_files[@]}." >&2; exit 1; }
-          dmg_asset="release-assets/${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
-          cp "${dmg_files[0]}" "$dmg_asset"
-          (cd release-assets && shasum -a 256 ./*.dmg > SHA256SUMS-macos.txt)
-      - uses: actions/upload-artifact@v4
-        with:
-          name: octessera-macos-release-assets
-          path: ./release-assets/*
-          if-no-files-found: error
-
   ubuntu:
     name: Ubuntu DEB and AppImage
     runs-on: ubuntu-22.04
@@ -295,7 +258,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [release_info, updater_protocol, windows, macos, ubuntu, board_artifacts, workflow_static]
+    needs: [release_info, updater_protocol, windows, ubuntu, board_artifacts, workflow_static]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -327,7 +290,7 @@ jobs:
           release_assets="$GITHUB_WORKSPACE/release-assets"
           evidence_staging="$GITHUB_WORKSPACE/release-evidence"
           mkdir -p "$release_assets" \
-            "$evidence_staging/windows" "$evidence_staging/macos" "$evidence_staging/ubuntu" \
+            "$evidence_staging/windows" "$evidence_staging/ubuntu" \
             "$evidence_staging/raspberry/image" "$evidence_staging/raspberry/device" \
             "$evidence_staging/raspberry/kernel" "$evidence_staging/raspberry/runtime" \
             "$evidence_staging/orange/image" "$evidence_staging/orange/device" \
@@ -359,7 +322,6 @@ jobs:
           rpi_image_dir="$root/octessera-raspberry-image-release-assets"
           rpi_device_dir="$root/octessera-raspberry-device-release-assets"
           require_exact_files "$root/octessera-windows-release-assets" "$prefix-windows-installer.exe" "$prefix-windows-portable.zip" SHA256SUMS-windows.txt
-          require_exact_files "$root/octessera-macos-release-assets" "$prefix-macos-unsigned.dmg" SHA256SUMS-macos.txt
           require_exact_files "$root/octessera-ubuntu-release-assets" "$prefix-ubuntu-amd64.deb" "$prefix-ubuntu-x86_64.AppImage" SHA256SUMS-ubuntu.txt
           RPI_KERNEL_ARTIFACT_VERSION="0.7.5"
           rpi_kernel_package="linux-image-6.12.93-octessera-rpi-v8-${RPI_KERNEL_ARTIFACT_VERSION}_6.12.93-octessera${RPI_KERNEL_ARTIFACT_VERSION}-1_arm64.deb"
@@ -380,7 +342,6 @@ jobs:
           require_exact_files "$orange_device_dir" "$orange_device_zip" "$orange_device_sums"
           copy_asset "$root/octessera-windows-release-assets/$prefix-windows-installer.exe" "$release_assets/$prefix-windows-installer.exe"
           copy_asset "$root/octessera-windows-release-assets/$prefix-windows-portable.zip" "$release_assets/$prefix-windows-portable.zip"
-          copy_asset "$root/octessera-macos-release-assets/$prefix-macos-unsigned.dmg" "$release_assets/$prefix-macos-unsigned.dmg"
           copy_asset "$root/octessera-ubuntu-release-assets/$prefix-ubuntu-amd64.deb" "$release_assets/$prefix-ubuntu-amd64.deb"
           copy_asset "$root/octessera-ubuntu-release-assets/$prefix-ubuntu-x86_64.AppImage" "$release_assets/$prefix-ubuntu-x86_64.AppImage"
           copy_asset "$rpi_image_dir/$prefix-raspberry-pi-zero-2w.img.zip" "$release_assets/$prefix-raspberry-pi-zero-2w.img.zip"
@@ -391,7 +352,6 @@ jobs:
           copy_asset "$orange_device_dir/$orange_device_zip" "$release_assets/$orange_device_zip"
           python3 tools/legal/verify_notice_archive.py --repository-root . --archive "$release_assets/$prefix-windows-portable.zip" --payload-name octessera.exe
           (cd "$root/octessera-windows-release-assets" && sha256sum -c SHA256SUMS-windows.txt)
-          (cd "$root/octessera-macos-release-assets" && sha256sum -c SHA256SUMS-macos.txt)
           (cd "$root/octessera-ubuntu-release-assets" && sha256sum -c SHA256SUMS-ubuntu.txt)
           (cd "$rpi_image_dir" && sha256sum -c SHA256SUMS-pi.txt)
           (cd "$rpi_device_dir" && sha256sum -c "$rpi_device_sums")
@@ -499,7 +459,6 @@ jobs:
                           raise SystemExit("Orange standalone device metadata claims unsupported updater behavior")
           PY
           copy_evidence "$root/octessera-windows-release-assets/SHA256SUMS-windows.txt" "$evidence_staging/windows/SHA256SUMS-windows.txt"
-          copy_evidence "$root/octessera-macos-release-assets/SHA256SUMS-macos.txt" "$evidence_staging/macos/SHA256SUMS-macos.txt"
           copy_evidence "$root/octessera-ubuntu-release-assets/SHA256SUMS-ubuntu.txt" "$evidence_staging/ubuntu/SHA256SUMS-ubuntu.txt"
           copy_evidence "$rpi_image_dir/SHA256SUMS-pi.txt" "$evidence_staging/raspberry/image/SHA256SUMS-pi.txt"
           copy_evidence "$rpi_image_dir/$rpi_manifest" "$evidence_staging/raspberry/image/$rpi_manifest"
@@ -521,12 +480,11 @@ jobs:
           python3 tools/legal/package_notice_zip.py --repository-root . --output "$evidence_staging/legal/$prefix-notices.zip"
           python3 tools/legal/verify_notice_archive.py --repository-root . --archive "$evidence_staging/legal/$prefix-notices.zip"
           evidence_zip="$release_assets/$prefix-release-evidence.zip"
-          (cd "$evidence_staging" && zip -9 -r "$evidence_zip" windows macos ubuntu raspberry orange legal)
+          (cd "$evidence_staging" && zip -9 -r "$evidence_zip" windows ubuntu raspberry orange legal)
           unzip -t "$evidence_zip" >/dev/null
           expected_root_assets=(
             "$prefix-windows-installer.exe"
             "$prefix-windows-portable.zip"
-            "$prefix-macos-unsigned.dmg"
             "$prefix-ubuntu-amd64.deb"
             "$prefix-ubuntu-x86_64.AppImage"
             "$prefix-raspberry-pi-zero-2w.img.zip"
@@ -538,7 +496,7 @@ jobs:
             "$prefix-release-evidence.zip"
             "SHA256SUMS.txt"
           )
-          expected_count=13
+          expected_count=12
           mapfile -t root_payloads < <(printf '%s\n' "${expected_root_assets[@]}" | grep -v '^SHA256SUMS\.txt$' | LC_ALL=C sort)
           (cd "$release_assets" && sha256sum "${root_payloads[@]}" > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
           mapfile -t final_files < <(find "$release_assets" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)

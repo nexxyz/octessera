@@ -130,7 +130,6 @@ Release assets:
 
 - `octessera-<version>-windows-installer.exe`: primary Windows installer.
 - `octessera-<version>-windows-portable.zip`: portable Windows alternative with the legal notice bundle.
-- `octessera-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
 - `octessera-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
 - `octessera-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
 - `octessera-<version>-raspberry-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
@@ -140,9 +139,11 @@ Release assets:
 - `octessera-<version>-orange-pi-zero-2w.img.xz`: Orange Pi production Armbian image.
 - `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`: Orange Pi production runtime bundle for manual installation containing `octessera-pi`, `octessera-runtime.json`, `SHA256SUMS`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`. It is not an OTA or device-update asset.
 - `octessera-<version>-release-evidence.zip`: supporting build material, including the checksums, kernel packages, image evidence, operational manifest copy, and legal bundle that are not root assets.
-- `SHA256SUMS.txt`: lowercase, sorted checksums for the other 12 custom root assets.
+- `SHA256SUMS.txt`: lowercase, sorted checksums for the other 11 custom root assets.
 
-The final publish gate expects exactly 13 custom release files. It checks the
+macOS distribution is paused until it can be properly signed and notarized, so
+it is not currently a GitHub release asset. The final publish gate expects
+exactly 12 custom release files. It checks the
 portable notice proof, exact four-entry Raspberry updater ZIP, exact six-entry
 Orange manual ZIP, image and kernel evidence, runtime identity, and root asset
 names/checksums. GitHub's automatic source ZIP and tar archives remain visible
@@ -157,7 +158,7 @@ Release process:
 5. Create a unique empty draft GitHub release such as `v0.5.0`.
 6. Run `Release Artifacts` manually with that existing tag. The workflow derives
    the future semver from the tag and confirms it against the package metadata.
-7. Confirm the installer, portable ZIP, macOS DMG, Ubuntu DEB/AppImage,
+7. Confirm the installer, portable ZIP, Ubuntu DEB/AppImage,
    Raspberry image and device assets, Orange production image and standalone
    runtime bundle, evidence ZIP, and root checksum file are attached before
    announcing the release. The Imager manifest is operational metadata, and
