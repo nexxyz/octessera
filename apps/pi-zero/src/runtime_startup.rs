@@ -2,16 +2,22 @@ use super::RuntimeThreadConfig;
 use crate::candidate_readiness::CandidateReadiness;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::input::MidiMessage;
+use crate::main_paths::ensure_samples_dir;
 use crate::normal_menu::is_normal_menu_snapshot;
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::initialize_host_state;
 use crate::sample_browser::SD_CARD_SAMPLE_BROWSER_DIR;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
+    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
+    RuntimeOperation, RuntimeStoreResult, SyncSource,
 };
 use std::sync::mpsc;
 use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
+const INITIAL_AUDIO_PREP_TIMEOUT: Duration = Duration::from_secs(10);
+const INITIAL_AUDIO_PREP_POLL: Duration = Duration::from_millis(10);
 
 pub(crate) struct PreparedRuntime {
     pub(super) midi_rx: mpsc::Receiver<MidiMessage>,
@@ -36,6 +42,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         encoder_rx,
         early_boot_splash,
     } = config;
+    ensure_samples_dir(&samples_dir)?;
     let (mut playback, mut runner) = init_runtime();
     if early_boot_splash {
         runner.skip_startup_splash();
@@ -63,6 +70,9 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         &mut adapter,
         message,
     )?;
+    if adapter.audio_service().is_some() {
+        wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter)?;
+    }
     Ok(PreparedRuntime {
         midi_rx,
         input_rx,
@@ -71,6 +81,53 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         runner,
         adapter,
         candidate_readiness: CandidateReadiness::from_env(),
+    })
+}
+
+fn wait_for_initial_audio_prep(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter,
+) -> Result<(), String> {
+    let deadline = Instant::now() + INITIAL_AUDIO_PREP_TIMEOUT;
+    loop {
+        for message in adapter.drain_platform_results(4) {
+            let outcome = initial_audio_prep_outcome(&message);
+            crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)?;
+            if let Some(outcome) = outcome {
+                return outcome;
+            }
+        }
+        if Instant::now() >= deadline {
+            return Err("initial Pi audio preparation timed out".into());
+        }
+        std::thread::sleep(INITIAL_AUDIO_PREP_POLL);
+    }
+}
+
+fn initial_audio_prep_outcome(message: &HostMessage) -> Option<Result<(), String>> {
+    let HostMessage::RuntimeResult { result } = message else {
+        return None;
+    };
+    let RuntimeStoreResult::Identified {
+        result,
+        request_id,
+        revision,
+    } = result
+    else {
+        return None;
+    };
+    if result.operation() != RuntimeOperation::AudioCommand || revision.is_none() {
+        return None;
+    }
+    Some(match result.error_facts() {
+        Some(facts) => Err(format!(
+            "initial Pi audio preparation failed (request {request_id}, revision {revision:?}, {:?}/{:?}): {}",
+            facts.domain,
+            facts.code,
+            facts.message.unwrap_or_else(|| "operation failed".into())
+        )),
+        None => Ok(()),
     })
 }
 
@@ -102,6 +159,9 @@ impl PreparedRuntime {
     }
 
     pub(crate) fn mark_candidate_ready(&mut self) -> Result<(), String> {
+        if let Some(audio) = self.adapter.audio_service() {
+            audio.ensure_route_readiness()?;
+        }
         self.candidate_readiness.mark_ready()
     }
 
@@ -149,4 +209,151 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
     })
     .expect("native runner should initialize");
     (playback, runner)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::test_service_with_prep_result_sender;
+    use crate::candidate_readiness::CandidateReadiness;
+    use std::sync::Arc;
+
+    #[test]
+    fn pi_startup_waits_for_the_identified_audio_prep_result() {
+        let (audio, result_tx) = test_service_with_prep_result_sender();
+        let root = std::env::temp_dir().join(format!(
+            "octessera-pi-startup-prep-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let mut adapter = PiPlaybackHostAdapter::new(
+            Some(audio),
+            root.join("store"),
+            root.join("samples"),
+            Arc::new(|_| {}),
+            false,
+            playback_runtime::AudioOutputSet::jack(),
+        );
+        let (mut playback, mut runner) = init_runtime();
+        let marker = root.join("candidate-ready.json");
+        let mut readiness = CandidateReadiness::new(Some(marker.clone()), "pi-prep".into());
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(20));
+            result_tx
+                .send(HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::Identified {
+                        result: Box::new(RuntimeStoreResult::OperationSucceeded {
+                            operation: RuntimeOperation::AudioCommand,
+                            request_id: None,
+                            revision: Some(1),
+                        }),
+                        request_id: "audio-initial".into(),
+                        revision: Some(1),
+                    },
+                })
+                .unwrap();
+        });
+
+        wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter).unwrap();
+
+        readiness.mark_ready().unwrap();
+        assert!(marker.exists());
+        drop(readiness);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn pi_initial_audio_prep_failure_does_not_publish_candidate_ready() {
+        let (audio, result_tx) = test_service_with_prep_result_sender();
+        let root = std::env::temp_dir().join(format!(
+            "octessera-pi-startup-prep-failure-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let mut adapter = PiPlaybackHostAdapter::new(
+            Some(audio),
+            root.join("store"),
+            root.join("samples"),
+            Arc::new(|_| {}),
+            false,
+            playback_runtime::AudioOutputSet::jack(),
+        );
+        let (mut playback, mut runner) = init_runtime();
+        let marker = root.join("candidate-ready.json");
+        let readiness = CandidateReadiness::new(Some(marker.clone()), "pi-prep-failure".into());
+        result_tx
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::RuntimeFailure {
+                        error: playback_runtime::RuntimeErrorFacts::new(
+                            playback_runtime::RuntimeErrorDomain::Sample,
+                            playback_runtime::RuntimeErrorCode::NotFound,
+                            RuntimeOperation::AudioCommand,
+                            Some("sample not found: samples/kick.wav".into()),
+                        ),
+                    }),
+                    request_id: "audio-initial".into(),
+                    revision: Some(1),
+                },
+            })
+            .unwrap();
+
+        let error =
+            wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter).unwrap_err();
+
+        assert!(error.contains("sample not found: samples/kick.wav"));
+        assert!(!marker.exists());
+        drop(readiness);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn pi_candidate_readiness_rechecks_selected_audio_routes() {
+        let (audio, _result_tx) = test_service_with_prep_result_sender();
+        let root = std::env::temp_dir().join(format!(
+            "octessera-pi-route-readiness-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let adapter = PiPlaybackHostAdapter::new(
+            Some(audio),
+            root.join("store"),
+            root.join("samples"),
+            Arc::new(|_| {}),
+            false,
+            playback_runtime::AudioOutputSet::jack(),
+        );
+        let (playback, runner) = init_runtime();
+        let (_, midi_rx) = mpsc::channel::<MidiMessage>();
+        let (_, input_rx) = mpsc::channel::<HostMessage>();
+        let (_, encoder_rx) = mpsc::channel::<HardwareEvent>();
+        let marker = root.join("candidate-ready.json");
+        let mut prepared = PreparedRuntime {
+            midi_rx,
+            input_rx,
+            encoder_rx,
+            playback,
+            runner,
+            adapter,
+            candidate_readiness: CandidateReadiness::new(
+                Some(marker.clone()),
+                "pi-route-readiness".into(),
+            ),
+        };
+
+        let error = prepared.mark_candidate_ready().unwrap_err();
+
+        assert_eq!(error, "selected Jack audio route is not active");
+        assert!(!marker.exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
 }

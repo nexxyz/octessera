@@ -1,7 +1,7 @@
 use crate::native_menu::{
     NativeAuxBindingConfig, NativeFxBusConfig, NativeLinkLfoConfig, NativeMenuAction,
     NativeMenuConfig, NativeMenuModel, NativeParamBindingSpec, NativeParamModsConfig,
-    NativePulsesLayerConfig, NativeValueLaneConfig,
+    NativePulsesLayerConfig, NativeSampleAvailability, NativeValueLaneConfig,
 };
 #[cfg(test)]
 use crate::protocol::{HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};
@@ -148,6 +148,7 @@ mod pan_mapping;
 mod pan_position;
 mod patch_device_payload;
 mod payload_assign;
+mod portable_patch_validation;
 mod pulses_config;
 mod pulses_payload;
 mod pulses_payload_apply;
@@ -211,6 +212,7 @@ use modulation_sampler::{RoutedMusicalEvents, TransposedHeldNote};
 use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use patch_device_payload::*;
+use portable_patch_validation::*;
 use pulses_config::*;
 use pulses_payload::*;
 use sample_assignment_payload::*;
@@ -335,6 +337,7 @@ pub struct NativeRunner {
     global_fx_slots: Vec<String>,
     global_fx_params: Vec<Value>,
     sample_browser: Option<NativeSampleBrowser>,
+    sample_availability: Vec<Vec<NativeSampleAvailability>>,
     sample_builtin_favourite_dirs: Vec<String>,
     sample_favourite_dirs: Vec<String>,
     menu: NativeMenuModel,

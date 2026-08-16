@@ -121,11 +121,9 @@ fn run_scheduler(
             break;
         }
         let audio_fault = audio.as_ref().and_then(|audio| {
-            if audio.required_jack_failed() {
-                Some("required Jack audio stream faulted".to_string())
-            } else {
-                audio.ensure_route_readiness().err()
-            }
+            audio
+                .required_jack_failed()
+                .then(|| "required Jack audio stream faulted".to_string())
         });
         if let Some(message) = audio_fault {
             let error = playback_runtime::RuntimeErrorFacts::new(

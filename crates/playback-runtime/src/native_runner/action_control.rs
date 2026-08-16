@@ -137,13 +137,13 @@ impl NativeRunner {
                         message: "MIDI panic sent".into(),
                         offset: 0,
                     });
-                    Ok(self.platform_effect_for_action(&action_type))
+                    self.platform_effect_for_action(&action_type)
                 } else if action_type == "system.controlsHelp" {
                     self.open_controls_help();
                     Ok(None)
                 } else if action_type == "system.info" {
                     self.open_system_info();
-                    Ok(self.platform_effect_for_action(&action_type))
+                    self.platform_effect_for_action(&action_type)
                 } else if action_type == "system.configureWifi" {
                     self.stop_for_setup_portal();
                     self.outbox
@@ -174,20 +174,30 @@ impl NativeRunner {
                         } else {
                             RuntimePlatformEffect::Shutdown
                         });
-                    Ok(self.platform_effect_for_action(&action_type))
+                    self.platform_effect_for_action(&action_type)
                 } else if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
                     self.show_toast("Audio: applying");
-                    Ok(self.platform_effect_for_action(&action_type))
+                    self.platform_effect_for_action(&action_type)
                 } else if action_type == "usb.sdTransferStart" {
                     self.transport.transport = RuntimeTransportState::Stopped;
                     self.reset_transport_position();
                     self.display.help_popup = None;
                     self.open_usb_sd_transfer_modal();
-                    Ok(self.platform_effect_for_action(&action_type))
+                    self.platform_effect_for_action(&action_type)
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))
                 } else {
-                    Ok(self.platform_effect_for_action(&action_type))
+                    let result = self.platform_effect_for_action(&action_type);
+                    if let Err(error) = &result {
+                        if matches!(
+                            action_type.as_str(),
+                            "preset.saveAs" | "preset.renameApply" | "preset.saveCurrent"
+                        ) {
+                            self.show_toast(format!("Preset save rejected: {error}"));
+                            return Ok(None);
+                        }
+                    }
+                    result
                 }
             }
             NativeMenuAction::SetParamBinding { target, binding } => {

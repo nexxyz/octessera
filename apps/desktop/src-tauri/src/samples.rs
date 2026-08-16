@@ -23,18 +23,34 @@ pub fn sample_list(dir: String) -> Result<Vec<SampleEntry>, String> {
 
 pub(crate) fn resolve_sample_file(path: &str) -> Option<String> {
     let root = resolve_samples_root().ok()?;
-    let user_root = resolve_user_samples_root().ok()?;
-    resolve_sample_file_from_roots(&root, &user_root, path)
+    let normalized = canonical_sample_relative_path(path).ok()?;
+    if normalized == "userdata" || normalized.starts_with("userdata/") {
+        let user_root = resolve_user_samples_root().ok()?;
+        return resolve_sample_file_from_roots(&root, &user_root, path);
+    }
+    resolve_sample_file_in_root(&root, &normalized)
 }
 
 fn sample_list_from_root(root: &PathBuf, dir: &str) -> Result<Vec<SampleEntry>, String> {
     let rel = canonical_sample_relative_path(dir)?;
-    let user_root = resolve_user_samples_root()?;
+    if rel == "userdata" || rel.starts_with("userdata/") {
+        let user_root = resolve_user_samples_root()?;
+        return sample_list_from_roots(root, &user_root, dir);
+    }
+    sample_list_from_roots(root, root, dir)
+}
+
+fn sample_list_from_roots(
+    root: &Path,
+    user_root: &Path,
+    dir: &str,
+) -> Result<Vec<SampleEntry>, String> {
+    let rel = canonical_sample_relative_path(dir)?;
     if rel == "userdata" || rel.starts_with("userdata/") {
         let user_rel = canonical_sample_relative_path(rel.strip_prefix("userdata/").unwrap_or(""))?;
-        let canon_user_root = fs::canonicalize(&user_root)
+        let canon_user_root = fs::canonicalize(user_root)
             .map_err(|e| format!("user samples root resolve failed: {e}"))?;
-        let canon_target = canonical_sample_dir(&user_root, &user_rel, &canon_user_root)?;
+        let canon_target = canonical_sample_dir(user_root, &user_rel, &canon_user_root)?;
         let mut out = read_sample_entries(&canon_target, &user_rel, "userdata")?;
         sort_sample_entries(&mut out);
         return Ok(out);
@@ -42,7 +58,7 @@ fn sample_list_from_root(root: &PathBuf, dir: &str) -> Result<Vec<SampleEntry>, 
     let canon_root =
         fs::canonicalize(root).map_err(|e| format!("samples root resolve failed: {e}"))?;
     let canon_target = canonical_sample_dir(root, &rel, &canon_root)?;
-    let mut out = read_sample_entries(&canon_target, &rel, "")?;
+    let mut out = read_sample_entries(&canon_target, &rel, "samples")?;
     sort_sample_entries(&mut out);
     Ok(out)
 }
@@ -112,6 +128,12 @@ fn sample_entry_from_dir_entry(
         ));
     }
     let file_name = entry.file_name().to_string_lossy().to_string();
+    if file_name.contains('\\') {
+        return Err(format!(
+            "sample tree contains an invalid filename: {}",
+            entry.path().display()
+        ));
+    }
     if !is_dir && !supported_sample_file(&entry.path()) {
         return Ok(None);
     }
@@ -247,6 +269,13 @@ fn sanitize_relative_dir(input: &str) -> Result<String, String> {
     if trimmed.starts_with('/') {
         return Err("absolute path is not allowed".to_string());
     }
+    if trimmed
+        .split('/')
+        .next()
+        .is_some_and(|part| part.ends_with(':'))
+    {
+        return Err("absolute path is not allowed".to_string());
+    }
     let mut parts: Vec<String> = Vec::new();
     for p in trimmed.split('/') {
         if p.is_empty() || p == "." {
@@ -262,6 +291,9 @@ fn sanitize_relative_dir(input: &str) -> Result<String, String> {
 
 fn canonical_sample_relative_path(input: &str) -> Result<String, String> {
     let rel = sanitize_relative_dir(input)?;
+    if rel == "sd-card" || rel.starts_with("sd-card/") {
+        return Err("SD card sample paths are not supported on desktop".to_string());
+    }
     if rel == "samples" {
         return Ok(String::new());
     }

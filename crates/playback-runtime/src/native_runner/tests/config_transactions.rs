@@ -58,8 +58,10 @@ pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
             payload: Some(default_payload),
         })
         .unwrap();
-    let RuntimePlatformEffect::StoreSaveDefault { payload, .. } =
-        source.platform_effect_for_action("default.save").unwrap()
+    let RuntimePlatformEffect::StoreSaveDefault { payload, .. } = source
+        .platform_effect_for_action("default.save")
+        .unwrap()
+        .unwrap()
     else {
         panic!("expected default save effect");
     };

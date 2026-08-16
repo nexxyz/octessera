@@ -34,6 +34,8 @@ mod modulation_runtime;
 mod modulation_runtime_commands;
 mod modulation_runtime_fx;
 mod modulation_runtime_phase3;
+mod portable_patch;
+mod portable_patch_samples;
 mod pulses_and_tones_menu;
 mod runtime_control;
 mod runtime_transport;
@@ -140,24 +142,4 @@ pub(crate) fn musical_note_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
             _ => None,
         })
         .collect()
-}
-
-pub(crate) fn normalize_integral_numbers(value: Value) -> Value {
-    match value {
-        Value::Array(values) => {
-            Value::Array(values.into_iter().map(normalize_integral_numbers).collect())
-        }
-        Value::Object(object) => Value::Object(
-            object
-                .into_iter()
-                .map(|(key, value)| (key, normalize_integral_numbers(value)))
-                .collect(),
-        ),
-        Value::Number(number) => number
-            .as_f64()
-            .filter(|value| value.fract() == 0.0)
-            .map(|value| json!(value as i64))
-            .unwrap_or(Value::Number(number)),
-        value => value,
-    }
 }

@@ -3145,6 +3145,7 @@ name = "rodio-engine-source"
 version = "0.7.5"
 dependencies = [
  "crossbeam-channel",
+ "hound",
  "realtime-engine",
  "rodio",
  "serde_json",

@@ -1,8 +1,20 @@
-use super::NativeRunner;
+use super::{NativeRunner, Value};
 use crate::native_menu::NativeMenuItem;
 use std::time::{Duration, Instant};
 
 impl NativeRunner {
+    pub fn test_config_payload(&self) -> Value {
+        self.config_payload()
+    }
+
+    pub fn test_device_config_payload(payload: Value) -> Value {
+        super::device_config_payload_from_payload(payload)
+    }
+
+    pub fn test_portable_patch_bytes(payload: &Value) -> Result<Vec<u8>, String> {
+        super::portable_patch_bytes(payload)
+    }
+
     pub fn test_confirmation_is_open(&self) -> bool {
         self.display.confirm_dialog.is_some()
     }

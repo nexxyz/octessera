@@ -266,12 +266,12 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
 
 #[test]
 pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
-    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     for action in ["system.reboot", "usb.applyReboot"] {
         let effect = runner.platform_effect_for_action(action).unwrap();
         let payload = match effect {
-            RuntimePlatformEffect::StoreSaveRecovery { payload }
-            | RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => payload,
+            Some(RuntimePlatformEffect::StoreSaveRecovery { payload })
+            | Some(RuntimePlatformEffect::ApplyDeviceConfigReboot { payload }) => payload,
             _ => panic!("unexpected effect"),
         };
         assert_eq!(payload["kind"], "octessera.config");

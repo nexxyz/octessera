@@ -34,8 +34,8 @@ mod signal;
 #[path = "orange_runtime_startup.rs"]
 mod startup;
 pub(crate) use startup::{
-    prepare_runtime, publish_prepared_acknowledged_snapshot, OrangeStartupReadinessGate,
-    PreparedRuntime,
+    prepare_runtime, publish_prepared_acknowledged_snapshot, wait_for_initial_audio_prep,
+    OrangeStartupReadinessGate, PreparedRuntime,
 };
 const POLLING_INTERVAL: Duration = Duration::from_millis(10);
 const RENDER_INTERVAL: Duration = Duration::from_millis(33);
@@ -177,7 +177,8 @@ pub(crate) fn run_prepared_runtime(
     audio.ensure_route_readiness()?;
     audio_manager.ensure_selected_routes()?;
     let result = (|| {
-        drain_host_work(&mut playback, &mut runner, &mut host)?;
+        let initial_audio_prep = wait_for_initial_audio_prep(&mut playback, &mut runner, &mut host);
+        readiness_gate.acknowledge_initial_audio_prep(initial_audio_prep)?;
         let first_snapshot_rendered = if initial_rendered {
             last_published_revision = playback.last_snapshot_revision();
             true

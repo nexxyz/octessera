@@ -64,14 +64,16 @@ this checklist; publication is a separate, explicit human decision.
       `octessera-device-release.json`, `LICENSE`, and `NOTICE`. The Orange
       standalone ZIP contains `octessera-pi`, `octessera-runtime.json`,
       `SHA256SUMS`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`.
-- [ ] Inspect the portable desktop ZIP: `octessera.exe`, the full 320-file
-      sample payload, its checksum file, and the legal notice tree are present;
-      verify the legal bundle rather than trusting its filename.
+- [ ] Inspect the portable desktop ZIP: `octessera.exe`, the complete 320-file
+      artifact inventory (318 WAV sampler rows plus two AIFF attribution rows),
+      its checksum file, and the legal notice tree are present; verify the legal
+      bundle rather than trusting its filename.
 - [ ] Verify the release-evidence ZIP contains the per-platform checksums,
       image/kernel evidence, runtime evidence, and generated legal notice bundle.
       Keep source-duty review separate from any claim of legal compliance.
-- [ ] Confirm the full 320-file sample library and canonical default patch are
-      present in the desktop package and both production images. Confirm user
+- [ ] Confirm the 318-file WAV sampler library and canonical default patch are
+      present in the desktop package and both image-construction outputs, with
+      the complete 320-row attribution inventory accounted for. Confirm user
       samples remain usable on each intended path.
 - [ ] Run desktop package launch/FAT on the exact named asset. Record OS,
       filename, SHA-256, launch result, and known warnings.

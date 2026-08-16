@@ -5,7 +5,8 @@ use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, InstrumentMenuConfig,
     NativeMenuAction, NativeMenuItem,
 };
-use crate::native_menu::NativeMenuValue;
+use crate::native_menu::NativeSampleAvailability;
+use crate::native_menu::{sample_display_name, NativeMenuValue};
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let sample_slot = config.sample_slot.min(7);
@@ -16,7 +17,12 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             vec!["1", "2", "3", "4", "5", "6", "7", "8"],
             sample_slot,
         ),
-        loaded_sample_item(config.index, sample_slot, config.sample_paths),
+        loaded_sample_item(
+            config.index,
+            sample_slot,
+            config.sample_paths,
+            config.sample_availability,
+        ),
         sample_browser_group(
             config.index,
             sample_slot,
@@ -160,19 +166,24 @@ fn loaded_sample_item(
     instrument_slot: usize,
     sample_slot: usize,
     sample_paths: &[Option<String>],
+    sample_availability: &[NativeSampleAvailability],
 ) -> NativeMenuItem {
     let path = sample_paths
         .get(sample_slot)
         .and_then(Option::as_deref)
         .unwrap_or("(empty)");
-    let label = path
-        .rsplit('/')
-        .next()
-        .filter(|name| !name.is_empty())
-        .unwrap_or(path);
+    let availability = sample_availability
+        .get(sample_slot)
+        .copied()
+        .unwrap_or(NativeSampleAvailability::Unknown);
+    let label = if path == "(empty)" {
+        path.to_string()
+    } else {
+        sample_display_name(path, availability)
+    };
     let browse_dir = sample_parent_dir(path);
     NativeMenuItem {
-        label: label.into(),
+        label,
         key: Some(format!(
             "sample.loaded:{instrument_slot}:{sample_slot}:{path}"
         )),

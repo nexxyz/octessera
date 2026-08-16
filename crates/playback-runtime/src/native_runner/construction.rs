@@ -16,6 +16,7 @@ impl NativeRunner {
         let ui = NativeUiState::default();
         let now = Instant::now();
         let instruments = default_instruments();
+        let sample_availability = default_sample_availability();
         let pulses_layers = default_pulses_layers();
         let fx_buses = default_fx_buses();
         let global_fx_slots = default_global_fx_slots();
@@ -61,6 +62,7 @@ impl NativeRunner {
             instrument_pan_positions: instrument_pan_positions(&instruments),
             instrument_sample_slots: instrument_sample_slots(&instruments),
             instrument_sample_paths: instrument_sample_paths(&instruments),
+            instrument_sample_availability: sample_availability.clone(),
             instrument_synth_configs: instrument_synth_configs(&instruments),
             instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&instruments),
             instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&instruments),
@@ -242,6 +244,7 @@ impl NativeRunner {
             global_fx_slots,
             global_fx_params,
             sample_browser: None,
+            sample_availability,
             sample_builtin_favourite_dirs: config.sample_builtin_favourite_dirs,
             sample_favourite_dirs: Vec::new(),
             menu,

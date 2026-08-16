@@ -1,4 +1,5 @@
 use super::*;
+use playback_runtime::{RuntimeOperation, RuntimeStoreResult};
 
 pub(crate) struct PreparedRuntime {
     pub(super) playback: PlaybackRuntime,
@@ -8,6 +9,7 @@ pub(crate) struct PreparedRuntime {
 
 pub(crate) struct OrangeStartupReadinessGate {
     acknowledged_initial_write: bool,
+    acknowledged_initial_audio_prep: bool,
     ready: bool,
 }
 
@@ -15,6 +17,7 @@ impl OrangeStartupReadinessGate {
     pub(crate) fn new(initial_rendered: bool) -> Self {
         Self {
             acknowledged_initial_write: initial_rendered,
+            acknowledged_initial_audio_prep: false,
             ready: false,
         }
     }
@@ -28,6 +31,15 @@ impl OrangeStartupReadinessGate {
         Ok(())
     }
 
+    pub(crate) fn acknowledge_initial_audio_prep(
+        &mut self,
+        result: Result<(), String>,
+    ) -> Result<(), String> {
+        result?;
+        self.acknowledged_initial_audio_prep = true;
+        Ok(())
+    }
+
     pub(crate) fn try_mark_ready(
         &mut self,
         route_status: OrangeDacStatus,
@@ -35,6 +47,7 @@ impl OrangeStartupReadinessGate {
     ) -> Result<(), String> {
         if self.ready
             || !self.acknowledged_initial_write
+            || !self.acknowledged_initial_audio_prep
             || route_status != OrangeDacStatus::Healthy
         {
             return Ok(());
@@ -129,4 +142,53 @@ pub(crate) fn publish_prepared_acknowledged_snapshot(
         .oled_publication_for_snapshot(&snapshot, true)?;
     render.publish_acknowledged_snapshot(snapshot, oled)?;
     Ok(revision)
+}
+
+pub(crate) fn wait_for_initial_audio_prep(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    host: &mut OrangeHostAdapter,
+) -> Result<(), String> {
+    const TIMEOUT: Duration = Duration::from_secs(10);
+    const POLL: Duration = Duration::from_millis(10);
+    let deadline = Instant::now() + TIMEOUT;
+    loop {
+        for message in host.drain_results(HOST_RESULT_BUDGET) {
+            let outcome = initial_audio_prep_outcome(&message);
+            super::dispatch(playback, runner, host, message)?;
+            if let Some(outcome) = outcome {
+                return outcome;
+            }
+        }
+        if Instant::now() >= deadline {
+            return Err("initial Orange audio preparation timed out".into());
+        }
+        thread::sleep(POLL);
+    }
+}
+
+fn initial_audio_prep_outcome(message: &HostMessage) -> Option<Result<(), String>> {
+    let HostMessage::RuntimeResult { result } = message else {
+        return None;
+    };
+    let RuntimeStoreResult::Identified {
+        result,
+        request_id,
+        revision,
+    } = result
+    else {
+        return None;
+    };
+    if result.operation() != RuntimeOperation::AudioCommand || revision.is_none() {
+        return None;
+    }
+    Some(match result.error_facts() {
+        Some(facts) => Err(format!(
+            "initial Orange audio preparation failed (request {request_id}, revision {revision:?}, {:?}/{:?}): {}",
+            facts.domain,
+            facts.code,
+            facts.message.unwrap_or_else(|| "operation failed".into())
+        )),
+        None => Ok(()),
+    })
 }

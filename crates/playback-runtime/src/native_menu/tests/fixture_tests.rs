@@ -1,6 +1,24 @@
 use super::*;
 
 #[test]
+pub(crate) fn unavailable_sample_display_uses_basename_across_separators() {
+    assert_eq!(
+        sample_display_name(
+            r"userdata\User Kit\missing.wav",
+            NativeSampleAvailability::Unavailable
+        ),
+        "N/A-missing.wav"
+    );
+    assert_eq!(
+        sample_display_name(
+            "samples/Drum/kick/Kick2.wav",
+            NativeSampleAvailability::Available
+        ),
+        "Kick2.wav"
+    );
+}
+
+#[test]
 pub(crate) fn fx_bus_and_global_fx_option_sets_only_share_supported_processors() {
     let shared_fx = [
         "none",
@@ -262,6 +280,42 @@ pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected(
     assert_eq!(
         snapshot.full_lines[selected_row].as_deref(),
         Some(">!Drum/kick/long-sample-file.wav")
+    );
+}
+
+#[test]
+pub(crate) fn unavailable_loaded_sample_row_shows_na_filename_but_keeps_source_key() {
+    let mut cfg = config();
+    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_sample_slots[0] = 2;
+    cfg.instrument_sample_paths[0][2] = Some("userdata/User Kit/missing.wav".into());
+    cfg.instrument_sample_availability[0][2] = NativeSampleAvailability::Unavailable;
+
+    let mut menu = NativeMenuModel::new(cfg);
+    let path = find_path_by_key(
+        &menu.root,
+        "sample.loaded:0:2:userdata/User Kit/missing.wav",
+    )
+    .unwrap();
+    menu.state.cursor = *path.last().unwrap();
+    menu.state.stack = path[..path.len() - 1].to_vec();
+    let snapshot = menu.snapshot();
+    let selected_row = snapshot.selected_row.unwrap();
+
+    assert_eq!(
+        snapshot.full_lines[selected_row].as_deref(),
+        Some(">!N/A-missing.wav")
+    );
+    assert_eq!(
+        find_item_by_key(
+            &menu.root,
+            "sample.loaded:0:2:userdata/User Kit/missing.wav"
+        )
+        .unwrap()
+        .value,
+        NativeMenuValue::Action(NativeMenuAction::PlatformEffect(
+            "sample.open:0:2:userdata/User Kit".into(),
+        ))
     );
 }
 

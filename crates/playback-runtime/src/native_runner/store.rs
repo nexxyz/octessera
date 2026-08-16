@@ -2,8 +2,9 @@ use crate::native_menu::NativeMenuAction;
 use crate::protocol::{RuntimeErrorFacts, RuntimePlatformEffect, RuntimeStoreResult};
 
 use super::{
-    clean_preset_name, native_factory_payload, wrap_help_text, NativeConfirmDialog, NativeRunner,
-    NativeRuntimeErrorPresentation, NativeSampleBrowser, NativeToast,
+    clean_preset_name, native_factory_payload, portable_patch_payload_for_save, wrap_help_text,
+    NativeConfirmDialog, NativeRunner, NativeRuntimeErrorPresentation, NativeSampleBrowser,
+    NativeToast,
 };
 
 impl NativeRunner {
@@ -30,8 +31,11 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn platform_effect_for_action(&self, action: &str) -> Option<RuntimePlatformEffect> {
-        match action {
+    pub(super) fn platform_effect_for_action(
+        &mut self,
+        action: &str,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
+        let effect = match action {
             "preset.refresh" => Some(RuntimePlatformEffect::StoreListPresets),
             "default.load" => Some(RuntimePlatformEffect::StoreLoadDefault),
             "default.save" => Some(RuntimePlatformEffect::StoreSaveDefault {
@@ -40,21 +44,22 @@ impl NativeRunner {
             }),
             "preset.saveAs" => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.preset_draft_name),
-                payload: self.patch_payload(),
+                payload: portable_patch_payload_for_save(&self.config_payload())?,
                 mode: None,
             }),
             "preset.renameApply" => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.preset_draft_name),
-                payload: self.patch_payload(),
+                payload: portable_patch_payload_for_save(&self.config_payload())?,
                 mode: None,
             }),
-            "preset.saveCurrent" => self.current_preset_name.as_ref().map(|name| {
-                RuntimePlatformEffect::StoreSavePreset {
-                    name: name.clone(),
-                    payload: self.patch_payload(),
+            "preset.saveCurrent" => match self.current_preset_name.clone() {
+                Some(name) => Some(RuntimePlatformEffect::StoreSavePreset {
+                    name,
+                    payload: portable_patch_payload_for_save(&self.config_payload())?,
                     mode: Some("overwrite".into()),
-                }
-            }),
+                }),
+                None => None,
+            },
             action if action.starts_with("preset.load:") => action
                 .strip_prefix("preset.load:")
                 .map(|name| RuntimePlatformEffect::StoreLoadPreset { name: name.into() }),
@@ -98,7 +103,8 @@ impl NativeRunner {
                 })
             }
             _ => None,
-        }
+        };
+        Ok(effect)
     }
 
     pub(super) fn confirmation_for_action(
@@ -347,6 +353,7 @@ impl NativeRunner {
             }
             RuntimeStoreResult::RuntimeFailure { error } => {
                 self.display.runtime_error_presentation = None;
+                let sample_changed = self.mark_sample_unavailable_from_error(&error);
                 if midi_input_list_failure(&error) {
                     self.display.runtime_error_presentation =
                         Some(NativeRuntimeErrorPresentation {
@@ -354,6 +361,9 @@ impl NativeRunner {
                             lines: vec!["MIDI unavailable".into()],
                         });
                     self.show_toast("MIDI unavailable");
+                }
+                if sample_changed {
+                    self.menu.rebuild(self.menu_config());
                 }
             }
             RuntimeStoreResult::ListPresetsResult { names } => {
@@ -389,6 +399,8 @@ impl NativeRunner {
                 dir,
                 entries,
             } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
+                let entries =
+                    self.browser_entries_for_result(instrument_slot, sample_slot, &dir, entries);
                 self.sample_browser = Some(NativeSampleBrowser {
                     instrument_slot,
                     sample_slot,
@@ -403,11 +415,12 @@ impl NativeRunner {
                 dir,
                 message,
             } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
+                let entries = self.unavailable_browser_entries(instrument_slot, sample_slot, &dir);
                 self.sample_browser = Some(NativeSampleBrowser {
                     instrument_slot,
                     sample_slot,
                     dir,
-                    entries: vec![],
+                    entries,
                 });
                 self.display.toast = Some(NativeToast { message, offset: 0 });
                 self.menu.rebuild(self.menu_config());

@@ -15,6 +15,21 @@ pub(crate) fn ensure_runtime_dirs(store_dir: &Path, samples_dir: &Path) {
     let _ = std::fs::create_dir_all(store_dir);
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn ensure_samples_dir(samples_dir: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(samples_dir)
+        .map_err(|error| format!("Pi samples directory is not usable: {error}"))?;
+    let metadata = std::fs::metadata(samples_dir)
+        .map_err(|error| format!("Pi samples directory cannot be inspected: {error}"))?;
+    if !metadata.is_dir() {
+        return Err(format!(
+            "Pi samples path is not a directory: {}",
+            samples_dir.display()
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn default_samples_dir() -> PathBuf {
     configured_dir(SAMPLES_DIR_ENV, "samples")
 }
@@ -44,6 +59,8 @@ fn home_dir() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    use super::ensure_samples_dir;
     use super::{configured_dir_from, SAMPLES_DIR_ENV, STORE_DIR_ENV};
     use std::path::PathBuf;
 
@@ -79,5 +96,33 @@ mod tests {
             configured_dir_from(None, None, "samples"),
             PathBuf::from("samples")
         );
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[test]
+    fn sample_root_creation_failure_is_returned() {
+        let root = std::env::temp_dir().join(format!(
+            "octessera-pi-samples-root-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("samples");
+        std::fs::write(&path, b"not a directory").unwrap();
+        let marker = root.join("candidate-ready.json");
+        let readiness = crate::candidate_readiness::CandidateReadiness::new(
+            Some(marker.clone()),
+            "pi-sample-root-failure".into(),
+        );
+
+        let error = ensure_samples_dir(&path).unwrap_err();
+
+        assert!(error.contains("Pi samples directory is not usable"));
+        assert!(!marker.exists());
+        drop(readiness);
+        let _ = std::fs::remove_dir_all(root);
     }
 }

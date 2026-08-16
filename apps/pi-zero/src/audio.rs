@@ -223,6 +223,38 @@ pub(crate) fn test_service() -> (
     (service, control_rx, event_rx)
 }
 
+#[cfg(test)]
+pub(crate) fn test_service_for_sample_prep() -> AudioService {
+    test_service_with_prep_result_sender().0
+}
+
+#[cfg(test)]
+pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<HostMessage>) {
+    let (control_tx, _control_rx) = std::sync::mpsc::channel();
+    let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
+    let service = AudioService {
+        realtime_txs: Arc::new(Mutex::new(Vec::new())),
+        replay_events: Arc::new(Mutex::new(ReplayCache::default())),
+        attach_gate: crate::audio_sink_registry::new_attach_gate(),
+        control_tx,
+        config_revision: Arc::new(AtomicU64::new(0)),
+        sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        sample_bank_signature: Arc::new(Mutex::new(String::new())),
+        route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
+        audio_outputs: AudioOutputSet::jack(),
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        required_jack_health: None,
+        prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        recorder: Arc::new(Mutex::new(crate::recording::RecorderService::new(
+            std::env::temp_dir().join("octessera-sample-prep-recordings"),
+        ))),
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        recording_tap: Arc::new(RwLock::new(None)),
+    };
+    (service, prep_result_tx)
+}
+
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn test_service_with_prep_sender() -> (
     AudioService,
