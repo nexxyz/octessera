@@ -310,7 +310,14 @@ bash "$armbian_extensions_resolver" 'other-extension preset-firstrun' | grep -qx
 bash "$alsa_sequencer_test"
 bash "$orange_kernel_package_test"
 bash "$orange_image_proof_test"
-bash "$root/tools/armbian-image/test-musical-assets.sh"
+if (( EUID == 0 )); then
+  bash "$root/tools/armbian-image/test-musical-assets.sh"
+elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+  sudo -n bash "$root/tools/armbian-image/test-musical-assets.sh"
+else
+  echo "Musical asset provisioning tests require root execution; run as root or configure passwordless sudo -n." >&2
+  exit 1
+fi
 bash "$root/tools/pi-image/test-wifi-foundation.sh"
 bash "$setup_layer_test"
 PYTHONDONTWRITEBYTECODE=1 python3 "$setup_sidecar_test"
