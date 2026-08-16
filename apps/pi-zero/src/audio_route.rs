@@ -78,21 +78,7 @@ pub(crate) fn readiness(
     if outputs.dac() && status(registry, AudioSink::Jack) != AudioRouteStatus::Active {
         return Err("selected Jack audio route is not active".into());
     }
-    for sink in [AudioSink::Usb, AudioSink::Hdmi] {
-        if outputs_for_sink(outputs, sink) && status(registry, sink) == AudioRouteStatus::Faulted {
-            return Err(format!("selected {sink:?} audio route faulted"));
-        }
-    }
     Ok(())
-}
-
-#[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
-fn outputs_for_sink(outputs: AudioOutputSet, sink: AudioSink) -> bool {
-    match sink {
-        AudioSink::Jack => outputs.dac(),
-        AudioSink::Usb => outputs.usb(),
-        AudioSink::Hdmi => outputs.hdmi(),
-    }
 }
 
 #[cfg(test)]
@@ -129,14 +115,46 @@ mod tests {
     }
 
     #[test]
-    fn readiness_requires_jack_but_allows_waiting_optional_routes() {
+    fn readiness_requires_jack_but_ignores_optional_route_faults() {
         let outputs = AudioOutputSet::from_flags(true, true, true).unwrap();
         let registry = new_registry(outputs);
         set_status(&registry, AudioSink::Jack, AudioRouteStatus::Active);
         assert!(readiness(outputs, &registry).is_ok());
-        set_status(&registry, AudioSink::Usb, AudioRouteStatus::Faulted);
+        for sink in [AudioSink::Usb, AudioSink::Hdmi] {
+            for route_status in [AudioRouteStatus::Waiting, AudioRouteStatus::Faulted] {
+                set_status(&registry, sink, route_status);
+                assert!(readiness(outputs, &registry).is_ok());
+                assert_eq!(status(&registry, sink), route_status);
+            }
+        }
+    }
+
+    #[test]
+    fn jack_fault_is_fatal() {
+        let outputs = AudioOutputSet::from_flags(true, true, true).unwrap();
+        let registry = new_registry(outputs);
+        set_status(&registry, AudioSink::Jack, AudioRouteStatus::Faulted);
+
         assert!(readiness(outputs, &registry).is_err());
-        set_status(&registry, AudioSink::Usb, AudioRouteStatus::Waiting);
+    }
+
+    #[test]
+    fn selected_routes_remain_registered_without_a_fallback_route() {
+        let outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+        let registry = new_registry(outputs);
+
+        assert_eq!(
+            AudioSink::selected(outputs),
+            vec![AudioSink::Jack, AudioSink::Usb]
+        );
+        assert_eq!(
+            registry.lock().unwrap().keys().copied().collect::<Vec<_>>(),
+            vec![AudioSink::Jack, AudioSink::Usb]
+        );
+        set_status(&registry, AudioSink::Jack, AudioRouteStatus::Active);
+        set_status(&registry, AudioSink::Usb, AudioRouteStatus::Faulted);
         assert!(readiness(outputs, &registry).is_ok());
+        assert_eq!(status(&registry, AudioSink::Usb), AudioRouteStatus::Faulted);
+        assert!(!registry.lock().unwrap().contains_key(&AudioSink::Hdmi));
     }
 }
