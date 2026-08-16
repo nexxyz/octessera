@@ -16,12 +16,17 @@ pub(super) fn parse_sample_action(rest: &str) -> Result<(usize, usize, Option<St
 }
 
 pub(super) fn parent_dir(dir: &str) -> String {
-    let mut layers = dir
+    let normalized = dir.replace('\\', "/");
+    let mut layers = normalized
         .split('/')
         .filter(|layer| !layer.is_empty())
         .collect::<Vec<_>>();
     let _ = layers.pop();
     layers.join("/")
+}
+
+pub(super) fn same_sample_path(left: &str, right: &str) -> bool {
+    left.replace('\\', "/") == right.replace('\\', "/")
 }
 
 pub(super) fn parse_slot_index(value: &str) -> Option<usize> {

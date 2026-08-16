@@ -1,5 +1,9 @@
 use super::*;
 
+pub(super) fn default_sample_availability() -> Vec<Vec<NativeSampleAvailability>> {
+    vec![vec![NativeSampleAvailability::Unknown; SAMPLE_SLOT_COUNT]; INSTRUMENT_COUNT]
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeInstrumentSlot {
     pub(super) kind: String,

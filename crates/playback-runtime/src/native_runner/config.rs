@@ -15,10 +15,11 @@ use super::{
     instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
     instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
     instrument_synth_osc2_waveforms, instrument_types, instrument_volumes,
-    param_binding_spec_from_native, param_mod_configs, param_mods_payload, patch_runtime_config,
-    pulses_layer_configs, pulses_layer_payload, sample_assignments_payload, sparks_fx_params_map,
-    sparks_fx_target_key, sparks_fx_type, velocity_curve_id, NativeLinkLfoConfig, NativeRunner,
-    Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION, PATCH_KIND,
+    param_binding_spec_from_native, param_mod_configs, param_mods_payload,
+    portable_patch_projection, pulses_layer_configs, pulses_layer_payload,
+    sample_assignments_payload, sparks_fx_params_map, sparks_fx_target_key, sparks_fx_type,
+    velocity_curve_id, NativeLinkLfoConfig, NativeRunner, Value, CONFIG_KIND,
+    CONFIG_SCHEMA_VERSION,
 };
 use serde_json::json;
 
@@ -66,6 +67,7 @@ impl NativeRunner {
             instrument_pan_positions: instrument_pan_positions(&self.instruments),
             instrument_sample_slots: instrument_sample_slots(&self.instruments),
             instrument_sample_paths: instrument_sample_paths(&self.instruments),
+            instrument_sample_availability: self.sample_availability.clone(),
             instrument_synth_configs: instrument_synth_configs(&self.instruments),
             instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&self.instruments),
             instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&self.instruments),
@@ -328,14 +330,9 @@ impl NativeRunner {
         })
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn patch_payload(&self) -> Value {
-        json!({
-            "kind": PATCH_KIND,
-            "schemaVersion": CONFIG_SCHEMA_VERSION,
-            "revision": self.config_revision,
-            "runtimeConfig": patch_runtime_config(self.config_payload()["runtimeConfig"].clone()),
-            "mappingConfig": self.base_mapping_config,
-        })
+        portable_patch_projection(&self.config_payload())
     }
 
     #[cfg_attr(not(test), allow(dead_code))]

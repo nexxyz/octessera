@@ -1,6 +1,7 @@
 use super::{
     drain_host_results, encoder_id, encoder_message, prepare_runtime, qualified_encoder_ids,
-    OrangeStartupReadinessGate, POLLING_INTERVAL, RENDER_INTERVAL, RUNTIME_TICK,
+    wait_for_initial_audio_prep, OrangeStartupReadinessGate, POLLING_INTERVAL, RENDER_INTERVAL,
+    RUNTIME_TICK,
 };
 use crate::audio::test_service_with_prep_sender;
 use crate::candidate_readiness::CandidateReadiness;
@@ -38,6 +39,68 @@ fn orange_candidate_uses_ten_millisecond_polling() {
     assert_eq!(POLLING_INTERVAL.as_millis(), 10);
     assert!(RUNTIME_TICK <= POLLING_INTERVAL);
     assert!(RENDER_INTERVAL > POLLING_INTERVAL);
+}
+
+#[test]
+fn orange_sample_root_creation_failure_does_not_publish_candidate_ready() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-orange-sample-root-failure-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&root).unwrap();
+    let samples = root.join("samples");
+    std::fs::write(&samples, b"not a directory").unwrap();
+    let marker = root.join("candidate-ready.json");
+    let _readiness = CandidateReadiness::new(Some(marker.clone()), "orange-root-failure".into());
+    let (audio, _, _) = crate::audio::test_service();
+
+    let error = match OrangeHostAdapter::with_directories(
+        audio,
+        root.join("store"),
+        samples,
+        Arc::new(|_| {}),
+        false,
+    ) {
+        Ok(_) => panic!("sample root failure should abort Orange startup"),
+        Err(error) => error,
+    };
+
+    assert!(error.contains("Orange samples directory is not usable"));
+    assert!(!marker.exists());
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn orange_startup_waits_for_the_identified_audio_prep_result() {
+    let (audio, _, _, result_tx) = test_service_with_prep_sender();
+    let (mut host, root) = test_host(audio);
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        result_tx
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::OperationSucceeded {
+                        operation: RuntimeOperation::AudioCommand,
+                        request_id: None,
+                        revision: Some(1),
+                    }),
+                    request_id: "audio-initial".into(),
+                    revision: Some(1),
+                },
+            })
+            .unwrap();
+    });
+
+    wait_for_initial_audio_prep(&mut playback, &mut runner, &mut host).unwrap();
+
+    assert!(host.drain_results(1).is_empty());
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
@@ -82,6 +145,13 @@ fn legacy_orange_readiness_gate_requires_ack_and_healthy_dac() {
     )
     .unwrap();
     assert!(!path.exists());
+    gate.try_mark_ready(
+        crate::audio_stream_health::AudioStreamStatus::Healthy,
+        &mut readiness,
+    )
+    .unwrap();
+    assert!(!path.exists());
+    gate.acknowledge_initial_audio_prep(Ok(())).unwrap();
     gate.try_mark_ready(
         crate::audio_stream_health::AudioStreamStatus::Healthy,
         &mut readiness,

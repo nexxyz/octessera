@@ -1,11 +1,11 @@
-use super::{supported_param_binding_key, Value};
+use super::{supported_param_binding_key, validate_portable_patch_sample_paths, Value};
 use serde_json::json;
 
-pub(super) fn patch_payload_from_payload(payload: Value) -> Value {
+pub(super) fn portable_patch_projection(payload: &Value) -> Value {
     let runtime = payload
         .get("runtimeConfig")
         .cloned()
-        .unwrap_or(payload.clone());
+        .unwrap_or_else(|| payload.clone());
     let mut patch = json!({
         "kind": "octessera.patch",
         "schemaVersion": 2,
@@ -14,7 +14,25 @@ pub(super) fn patch_payload_from_payload(payload: Value) -> Value {
     if let Some(mapping_config) = payload.get("mappingConfig") {
         patch["mappingConfig"] = mapping_config.clone();
     }
-    patch
+    canonicalize_json(patch)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn portable_patch_bytes(payload: &Value) -> Result<Vec<u8>, String> {
+    let patch = portable_patch_projection(payload);
+    validate_portable_patch_sample_paths(&patch, None)?;
+    serde_json::to_vec(&patch)
+        .map_err(|error| format!("portable patch cannot be serialized: {error}"))
+}
+
+pub(super) fn portable_patch_payload_for_save(payload: &Value) -> Result<Value, String> {
+    let patch = portable_patch_projection(payload);
+    validate_portable_patch_sample_paths(&patch, None)?;
+    Ok(patch)
+}
+
+pub(super) fn patch_payload_from_payload(payload: Value) -> Value {
+    portable_patch_projection(&payload)
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -189,6 +207,7 @@ fn merge_aux_side(
 fn is_musical_aux_turn_key(key: &str) -> bool {
     supported_param_binding_key(key)
         || key.starts_with("layers.")
+        || key.starts_with("linkLfos.")
         || key.starts_with("mixer.")
         || key.starts_with("transport.")
         || key.starts_with("sparks.")
@@ -240,3 +259,20 @@ const DEVICE_RUNTIME_KEYS: &[&str] = &[
     "audioOutputs",
     "recording",
 ];
+
+fn canonicalize_json(value: Value) -> Value {
+    match value {
+        Value::Array(values) => Value::Array(values.into_iter().map(canonicalize_json).collect()),
+        Value::Object(object) => {
+            let mut entries = object.into_iter().collect::<Vec<_>>();
+            entries.sort_by(|left, right| left.0.cmp(&right.0));
+            Value::Object(
+                entries
+                    .into_iter()
+                    .map(|(key, value)| (key, canonicalize_json(value)))
+                    .collect(),
+            )
+        }
+        value => value,
+    }
+}

@@ -408,3 +408,6 @@ fn permissions(mode: u32) -> std::fs::Permissions {
         std::fs::metadata(".").unwrap().permissions()
     }
 }
+
+#[path = "orange_host_adapter_parity_tests.rs"]
+mod parity_tests;

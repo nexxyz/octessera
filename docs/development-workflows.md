@@ -329,8 +329,14 @@ The documented input recipe lives in [`factory-patch-ui-scenario.md`](factory-pa
 Source defaults live under `config/defaults/`:
 
 - `base.json`: shared default runtime payload.
-- `desktop.json`: desktop overrides, including desktop brightness defaults.
-- `pi.json`: Pi-family hardware overrides.
+- `desktop.json`: desktop device-local brightness overrides.
+- `pi.json`: Pi-family device-local brightness overrides.
+
+The generator allowlist is deliberately narrow: platform files may override only
+`runtimeConfig.buttonBrightness`, `runtimeConfig.displayBrightness`, and
+`runtimeConfig.gridBrightness`, each as an integer from 0 through 100. Musical
+runtime, mapping, sample, instrument, layer, FX, and aux data belongs in the
+shared base or a portable patch, not in a platform override.
 
 Generate platform runtime defaults after editing those sources:
 
@@ -350,7 +356,17 @@ Check generated output freshness:
 corepack pnpm run config:check
 ```
 
-Preset saves use portable patch envelopes in `presets/patches/<name>.json`. Hosts still load legacy `presets/<name>.json`; when both files exist for one logical preset name, the patch-directory file wins, and delete removes both. Default and recovery files remain full local snapshots until the device/default split protocol is introduced.
+Preset saves use schema-versioned `octessera.patch` envelopes in
+`presets/patches/<name>.json`. The envelope carries musical patch state,
+including sampler paths, while device-local settings and device/system aux
+bindings stay with the host; musical aux bindings travel with the patch. Hosts
+still load legacy `presets/<name>.json`; when both files exist for one logical
+preset name, the patch-directory file wins, and delete removes both. The
+portable evidence contract is patch-projection equality plus verified
+sample-path loadability; it does not claim full device-config equality or
+physical-board qualification.
+Default, recovery, backup, and confirmed device-apply payloads remain full
+local configs.
 
 ## Focused Verification
 

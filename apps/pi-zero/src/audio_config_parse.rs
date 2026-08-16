@@ -102,17 +102,49 @@ pub(crate) fn prepare_sample_preview(
 }
 
 pub(crate) fn resolve_sample_path(samples_dir: &Path, path: &str) -> Option<PathBuf> {
-    let relative = Path::new(pi_relative_sample_path(path));
+    let normalized = path.trim().replace('\\', "/");
+    let relative = Path::new(pi_relative_sample_path(&normalized));
     if relative.is_absolute()
         || relative
             .components()
             .any(|component| matches!(component, Component::ParentDir | Component::Prefix(_)))
+        || relative
+            .to_str()
+            .and_then(|value| value.split('/').next())
+            .is_some_and(|part| part.ends_with(':'))
+    {
+        return None;
+    }
+    if std::fs::symlink_metadata(samples_dir)
+        .ok()?
+        .file_type()
+        .is_symlink()
     {
         return None;
     }
     let root = samples_dir.canonicalize().ok()?;
+    let mut component_root = root.clone();
+    for component in relative.components() {
+        let Component::Normal(component) = component else {
+            continue;
+        };
+        component_root.push(component);
+        if std::fs::symlink_metadata(&component_root)
+            .ok()
+            .is_some_and(|metadata| metadata.file_type().is_symlink())
+        {
+            return None;
+        }
+    }
     let target = root.join(relative).canonicalize().ok()?;
-    target.starts_with(&root).then_some(target)
+    if !target.starts_with(&root) || !target.is_file() {
+        return None;
+    }
+    target
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("wav"))
+        .then_some(target)
 }
 
 fn cached_sample_buffer(

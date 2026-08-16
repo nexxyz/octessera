@@ -1,6 +1,6 @@
 use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, text_item,
-    NativeMenuAction, NativeMenuItem, NativeSampleBrowserConfig,
+    NativeMenuAction, NativeMenuItem, NativeSampleAvailability, NativeSampleBrowserConfig,
 };
 
 mod midi;
@@ -25,6 +25,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) pan_pos: u8,
     pub(super) sample_slot: usize,
     pub(super) sample_paths: &'a [Option<String>],
+    pub(super) sample_availability: &'a [NativeSampleAvailability],
     pub(super) synth_config: Option<&'a serde_json::Value>,
     pub(super) synth_osc1_waveform: &'a str,
     pub(super) synth_osc2_waveform: &'a str,

@@ -151,8 +151,10 @@ sudo systemctl start octessera.service
 ## Samples and output paths
 
 The image stages the generated Raspberry/Pi-family default patch without
-replacing an existing user config. The complete 320-file sample inventory is
-installed during image construction. On first boot,
+replacing an existing user config. Image construction stages the complete
+320-file sample artifact inventory: 318 WAV rows are sampler-loadable, while two
+AIFF rows are retained as attribution-inventory metadata outside the WAV-only
+browser/decoder. On first boot,
 `octessera-provision-musical-default.service` only seeds the default to
 `/var/lib/octessera/presets/default.json` when that file is absent; it never
 copies or replaces sample media. Packaged sample bytes are verified by

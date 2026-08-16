@@ -118,7 +118,14 @@ pub(super) fn format_item_full_selected_line(
             .as_deref()
             .and_then(|key| key.strip_prefix("sample.loaded:"))
             .and_then(|rest| rest.splitn(3, ':').nth(2))
-            .map(|path| format_action_menu_line(path, true))
+            .map(|path| {
+                let display = if item.label.starts_with("N/A-") {
+                    item.label.as_str()
+                } else {
+                    path
+                };
+                format_action_menu_line(display, true)
+            })
             .or_else(|| Some(format_action_menu_line(&item.label, true))),
     }
 }

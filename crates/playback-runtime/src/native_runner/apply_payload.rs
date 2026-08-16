@@ -112,6 +112,8 @@ impl NativeRunner {
     ) -> Result<(), String> {
         self.drain_all_layer_engine_notes()?;
         candidate.pending_transpose_note_offs = self.pending_transpose_note_offs.clone();
+        candidate.preserve_sample_availability_from(self);
+        candidate.menu.rebuild(candidate.menu_config());
         candidate.config_revision = self.config_revision;
         let audio_changed = audio_config_changed(before_payload, &candidate.config_payload());
         candidate.audio_config_revision = self

@@ -61,7 +61,7 @@
       "aux2": null,
       "aux3": null
     },
-    "bpm": 120.0,
+    "bpm": 120,
     "buttonBrightness": 35,
     "dimTimerSeconds": 60,
     "displayBrightness": 75,
@@ -3422,7 +3422,7 @@
               "mixPct": 100,
               "ratio": 4,
               "releaseMs": 100,
-              "thresholdDb": -12.0
+              "thresholdDb": -12
             },
             "type": "compressor"
           },

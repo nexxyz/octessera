@@ -1,7 +1,8 @@
 use super::{
     merge_preserved_aux_payloads, migrate_legacy_modulation, normalize_audio_outputs,
     patch_payload_from_payload, strip_device_audio_fields, validate_audio_outputs,
-    validate_canonical_lfo_bank_shape, validate_config_payload, ConfigDto, Value,
+    validate_canonical_lfo_bank_shape, validate_config_payload, validate_portable_patch_fields,
+    ConfigDto, Value,
 };
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
@@ -81,6 +82,9 @@ pub(super) fn prepare_patch_payload(
     let (input, source_revision, version) = parse_envelope(input, PATCH_KIND)?;
     let mut input = input;
     validate_canonical_lfo_bank_shape(&input)?;
+    if version == EnvelopeVersion::V2 {
+        validate_portable_patch_fields(&input, current)?;
+    }
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
     }

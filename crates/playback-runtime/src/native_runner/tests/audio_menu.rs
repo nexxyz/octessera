@@ -63,7 +63,9 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
 
     assert!(runner.menu.focus_item_key("usb.sdTransferStop"));
     assert_eq!(
-        runner.platform_effect_for_action("usb.sdTransferStop"),
+        runner
+            .platform_effect_for_action("usb.sdTransferStop")
+            .unwrap(),
         Some(RuntimePlatformEffect::UsbSdTransferStop)
     );
 }

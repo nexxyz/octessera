@@ -58,5 +58,17 @@ pub use types::*;
 
 use model_root::build_root;
 
+pub(crate) fn sample_display_name(path: &str, availability: NativeSampleAvailability) -> String {
+    let filename = path
+        .rsplit(['/', '\\'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(path);
+    if availability == NativeSampleAvailability::Unavailable {
+        format!("N/A-{filename}")
+    } else {
+        filename.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests;
