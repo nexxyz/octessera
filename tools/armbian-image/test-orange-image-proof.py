@@ -331,6 +331,18 @@ def main() -> None:
         root, image, dtb, evidence, provenance = make_fixture(work)
         args = verifier_args(root, image, dtb, evidence, provenance)
         run_proof(args, True)
+        socket_link = root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
+        original_socket_target = socket_link.readlink()
+        for target, expected in (
+            ("/etc/systemd/system/octessera-device-apply-reboot.socket", True),
+            ("/etc/systemd/system/../system/octessera-device-apply-reboot.socket", False),
+            ("/tmp/octessera-device-apply-reboot.socket", False),
+        ):
+            socket_link.unlink()
+            socket_link.symlink_to(target)
+            run_proof(args, expected)
+        socket_link.unlink()
+        socket_link.symlink_to(original_socket_target)
         negative_root, negative_image, negative_evidence, negative_provenance = make_missing_builtin_fixture(work, root, image, evidence, provenance)
         negative_args = args
         for option, value in (("--root", negative_root), ("--linux-image", negative_image), ("--evidence", negative_evidence), ("--provenance", negative_provenance)):
