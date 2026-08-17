@@ -421,7 +421,7 @@ jobs:
             --manifest "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json" \
             --boot-proof-mode phase5-constructor \
             --construction-contract "$custom_root/resources/image-construction/boot-layers/orange-pi-zero-2w.json" \
-            --image-provenance release-assets/octessera-orange-image-proof.json \
+            --output release-assets/octessera-orange-image-proof.json \
             --mode production
           for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}" release-assets/octessera-orange-kernel-evidence.env release-assets/octessera-orange-kernel-provenance.txt release-assets/octessera-orange-image-proof.json; do
             test -f "$required" || { echo "Missing Orange release asset: $required" >&2; exit 1; }

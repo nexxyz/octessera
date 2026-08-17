@@ -41,6 +41,15 @@ assert_block_contains() {
     }
 }
 
+assert_block_absent() {
+    local block="$1"
+    local unexpected="$2"
+    if grep -qF -- "$unexpected" <<< "$block"; then
+        echo "Workflow block contains removed release coupling: $unexpected" >&2
+        exit 1
+    fi
+}
+
 assert_order() {
     local file="$1"
     local first="$2"
@@ -153,6 +162,8 @@ assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w.img
 orange_handoff_block="$(sed -n '/^      - name: Normalize and verify Orange release handoff$/,/^      - uses: actions\/upload-artifact@v4$/p' "$boards")"
 assert_block_contains "$orange_handoff_block" '--manifest "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json"'
 assert_block_contains "$orange_handoff_block" '--construction-contract "$custom_root/resources/image-construction/boot-layers/orange-pi-zero-2w.json"'
+assert_block_contains "$orange_handoff_block" '--output release-assets/octessera-orange-image-proof.json'
+assert_block_absent "$orange_handoff_block" '--image-provenance'
 assert_contains "$action" 'tools/legal/stage_notices.py'
 assert_contains "$action" 'tools/armbian-image/stage-musical-assets.sh'
 assert_contains "$root/resources/image-construction/boot-layers/raspberry-pi-zero-2w.json" 'resources/legal/notice-bundle.json'
