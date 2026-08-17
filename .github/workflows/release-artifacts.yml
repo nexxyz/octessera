@@ -23,7 +23,7 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
       - run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck && test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && python3 tools/release/test_version_consistency.py && python3 tools/release/test_release_asset_assembly.py && python3 tools/release/test_desktop_artifact.py && python3 tools/release/check_version_consistency.py && grep -q -- '--manifest tools/kernel-patches/orange-midi-interface-manifest.json' .github/workflows/release-artifacts.yml && bash tools/armbian-image/test-release-workflow.sh && bash -n tools/armbian-image/test-release-workflow.sh && shellcheck tools/armbian-image/test-release-workflow.sh
+          sudo apt-get update && sudo apt-get install -y shellcheck && test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && python3 tools/release/test_version_consistency.py && python3 -m unittest tools.release.test_release_asset_assembly && python3 tools/release/test_desktop_artifact.py && python3 tools/release/check_version_consistency.py && grep -q -- '--manifest tools/kernel-patches/orange-midi-interface-manifest.json' .github/workflows/release-artifacts.yml && bash tools/armbian-image/test-release-workflow.sh && bash -n tools/armbian-image/test-release-workflow.sh && shellcheck tools/armbian-image/test-release-workflow.sh
 
   resolve_draft:
     name: Resolve draft release through the API
@@ -91,6 +91,8 @@ jobs:
           git tag --points-at HEAD | grep -Fx "$RELEASE_TAG" >/dev/null
           checked_version="$(python3 tools/release/check_version_consistency.py --tag "$RELEASE_TAG")"
           [[ "$checked_version" == "$RELEASE_VERSION" ]] || { echo "Version checker returned $checked_version, expected $RELEASE_VERSION" >&2; exit 1; }
+          corepack pnpm run config:check
+          corepack pnpm run capabilities:check
           echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
 
   updater_protocol:

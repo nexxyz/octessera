@@ -2,11 +2,32 @@
 set -euo pipefail
 
 SETUP_LAYER_REQUIRED=false
-if [ "${1:-}" = "--setup-layer" ]; then
-    SETUP_LAYER_REQUIRED=true
-    shift
+RUNTIME_BUNDLE=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --setup-layer)
+            SETUP_LAYER_REQUIRED=true
+            shift
+            ;;
+        --runtime-bundle)
+            RUNTIME_BUNDLE="${2:?usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>}"
+            shift 2
+            ;;
+        --*)
+            echo "usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>" >&2
+            exit 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+ZIP_PATH="${1:?usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>}"
+shift
+if [ "$#" -ne 0 ]; then
+    echo "usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>" >&2
+    exit 2
 fi
-ZIP_PATH="${1:?usage: verify-sanitized-image.sh [--setup-layer] <image.zip>}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/verify-managed-runtime.sh"
@@ -276,7 +297,7 @@ if grep -RIE '(BEGIN (RSA|OPENSSH) PRIVATE KEY|ghp_|github_pat_|ssid=|psk=)' \
     exit 1
 fi
 
-require_managed_runtime_binary "$WORK_DIR/root"
+require_managed_runtime_binary "$WORK_DIR/root" "$RUNTIME_BUNDLE"
 require_path "$WORK_DIR/root/etc/systemd/system/octessera.service" "octessera.service"
 require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service" "enabled boot splash service"
 require_path "$WORK_DIR/root/etc/sudoers.d/octessera-shutdown" "shutdown sudoers rule"

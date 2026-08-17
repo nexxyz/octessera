@@ -84,6 +84,8 @@ assert_contains "$release" 'release_info:'
 assert_contains "$release" 'Release version must be an exact semver.'
 assert_contains "$release" 'version=${RELEASE_TAG#v}'
 assert_contains "$release" 'tools/release/check_version_consistency.py --tag "$RELEASE_TAG"'
+assert_contains "$release" 'python3 -m unittest tools.release.test_release_asset_assembly'
+assert_absent "$release" 'python3 tools/release/test_release_asset_assembly.py'
 assert_contains "$release" 'git rev-parse "$RELEASE_TAG^{commit}"'
 assert_contains "$release" 'needs: [release_info, updater_protocol, windows, ubuntu, board_artifacts, workflow_static]'
 assert_contains "$release" 'The release must remain a draft until manual publication.'
@@ -111,8 +113,9 @@ assert_contains "$release" 'draft_ready: ${{ steps.draft_handoff.outputs.draft_r
 assert_contains "$release" 'manual exact-artifact FAT and human publication'
 assert_absent "$release" 'Publish the verified draft release last'
 assert_contains "$release" 'EXPECTED_RELEASE_ID'
-assert_contains "$assembler" 'RPI_KERNEL_ARTIFACT_VERSION = "0.7.5"'
-assert_contains "$assembler" 'RPI_KERNEL_PACKAGE'
+assert_contains "$assembler" 'KERNEL_MANIFEST = Path("tools/kernel-patches/orange-midi-interface-manifest.json")'
+assert_contains "$assembler" 'def _package_filenames(manifest'
+assert_contains "$assembler" 'Raspberry package declaration'
 assert_contains "$assembler" 'package_notice_zip(root, notices)'
 assert_contains "$assembler" 'verify_notice_archive(root, portable, "octessera.exe")'
 assert_contains "$assembler" 'device ZIP inventory is not exact'
@@ -212,6 +215,12 @@ assert_block_contains "$publish_guard_block" 'EXPECTED_RELEASE_ID'
 assert_order "$release" 'Revalidate exact draft immediately before upload' 'Upload assets without collision hiding'
 assert_order "$release" 'Upload assets without collision hiding' 'Revalidate uploaded asset set after upload'
 assert_order "$release" 'Revalidate uploaded asset set after upload' 'Report populated draft ready for manual FAT and publication'
+
+release_source_block="$(sed -n '/^  release_info:/,/^  updater_protocol:/p' "$release")"
+assert_block_contains "$release_source_block" 'corepack pnpm run config:check'
+assert_block_contains "$release_source_block" 'corepack pnpm run capabilities:check'
+assert_order "$release" 'corepack pnpm run config:check' '  board_artifacts:'
+assert_order "$release" 'corepack pnpm run capabilities:check' '  board_artifacts:'
 
 jq_draft_filter='[ .[][] | select(.tag_name == $tag) ] as $matches
   | if ($matches | length) != 1 then
@@ -380,8 +389,10 @@ if grep -qE '^[[:space:]]+EOL$' <<< "$raspberry_config_block"; then
     exit 1
 fi
 
-raspberry_builds="$(grep -cF -- 'cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w' "$boards")"
-orange_builds="$(grep -cF -- 'cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w' "$boards")"
+assert_contains "$boards" 'cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w'
+assert_contains "$boards" 'cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w'
+raspberry_builds="$(grep -cF -- 'cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w' "$boards")"
+orange_builds="$(grep -cF -- 'cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w' "$boards")"
 [[ "$raspberry_builds" == 1 && "$orange_builds" == 1 ]] || {
     echo "Expected one exact release runtime build per board ($raspberry_builds Raspberry, $orange_builds Orange)." >&2
     exit 1
@@ -415,6 +426,7 @@ fi
 assert_contains "$sanitizer" 'Expected exactly one .img inside'
 assert_contains "$sanitizer" 'require_managed_runtime_binary "$WORK_DIR/root"'
 assert_contains "$sanitizer" 'source "$SCRIPT_DIR/verify-managed-runtime.sh"'
+assert_contains "$boards" 'verify-sanitized-image.sh --runtime-bundle runtime-bundle "$asset"'
 bash -n "$runtime_chain_helper" "$runtime_chain_test"
 bash "$runtime_chain_test"
 bash -n "$boot_layout_test"

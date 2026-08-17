@@ -10,7 +10,7 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path, PurePosixPath
-from typing import Iterable
+from typing import Iterable, Mapping, cast
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,13 +22,7 @@ from verify_notice_archive import verify_notice_archive  # type: ignore[import-n
 
 
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
-RPI_KERNEL_ARTIFACT_VERSION = "0.7.5"
-RPI_KERNEL_PACKAGE = (
-    "linux-image-6.12.93-octessera-rpi-v8-"
-    f"{RPI_KERNEL_ARTIFACT_VERSION}_6.12.93-octessera{RPI_KERNEL_ARTIFACT_VERSION}-1_arm64.deb"
-)
-ORANGE_KERNEL_IMAGE = "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb"
-ORANGE_KERNEL_DTB = "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
+KERNEL_MANIFEST = Path("tools/kernel-patches/orange-midi-interface-manifest.json")
 RUNTIME_FILES = ("SHA256SUMS", "octessera-pi", "octessera-runtime.json")
 
 
@@ -125,6 +119,38 @@ def _load_json(path: Path, label: str) -> dict[str, object]:
     return document
 
 
+def _manifest_mapping(value: object, label: str) -> dict[str, object]:
+    _require(isinstance(value, dict), f"{label} is missing or malformed")
+    return cast(dict[str, object], value)
+
+
+def _manifest_string(value: object, label: str) -> str:
+    _require(isinstance(value, str) and bool(value), f"{label} is missing or malformed")
+    return cast(str, value)
+
+
+def _package_filename(value: object, label: str) -> str:
+    filename = _manifest_string(value, f"{label} package declaration")
+    _require(filename.endswith(".deb") and PurePosixPath(filename).name == filename and "\\" not in filename, f"{label} package declaration is malformed or unsafe: {filename}")
+    return filename
+
+
+def _package_filenames(manifest: Mapping[str, object]) -> tuple[str, str, str]:
+    kernels = _manifest_mapping(manifest.get("kernels"), "kernel manifest kernels declaration")
+    raspberry = _manifest_mapping(kernels.get("raspberry"), "Raspberry kernel declaration")
+    raspberry_package = _manifest_mapping(raspberry.get("package"), "Raspberry package declaration")
+    raspberry_parts = [_manifest_string(raspberry_package.get(field), f"Raspberry package {field} declaration") for field in ("name", "version", "architecture")]
+    raspberry_package_name = _package_filename(f"{raspberry_parts[0]}_{raspberry_parts[1]}_{raspberry_parts[2]}.deb", "Raspberry")
+
+    orange = _manifest_mapping(kernels.get("orange"), "Orange kernel declaration")
+    orange_packages = orange.get("packages")
+    _require(isinstance(orange_packages, list), "Orange package declaration is missing or malformed")
+    _require(len(cast(list[object], orange_packages)) == 2, "Orange package declaration must contain exactly two packages")
+    orange_package_names = tuple(_package_filename(package, "Orange") for package in cast(list[object], orange_packages))
+    _require(len(set(orange_package_names)) == len(orange_package_names), "Orange package declaration contains duplicate packages")
+    return raspberry_package_name, orange_package_names[0], orange_package_names[1]
+
+
 def _run(root: Path, command: list[str], label: str) -> None:
     try:
         completed = subprocess.run(command, cwd=root, check=False, text=True)
@@ -216,17 +242,17 @@ def _load_json_bytes(payload: bytes, label: str) -> dict[str, object]:
     return document
 
 
-def _verify_raspberry_kernel(root: Path, kernel_dir: Path) -> None:
-    _require_exact_files(kernel_dir, (RPI_KERNEL_PACKAGE, "SHA256SUMS", "inventory.json", "provenance.json"))
+def _verify_raspberry_kernel(root: Path, kernel_dir: Path, package_name: str) -> None:
+    _require_exact_files(kernel_dir, (package_name, "SHA256SUMS", "inventory.json", "provenance.json"))
     _verify_checksum_file(kernel_dir, "SHA256SUMS")
     _run(
         root,
         [
             sys.executable,
             "tools/pi-kernel/validate-rpi-kernel-package.py",
-            str(kernel_dir / RPI_KERNEL_PACKAGE),
+            str(kernel_dir / package_name),
             "--manifest",
-            "tools/kernel-patches/orange-midi-interface-manifest.json",
+            KERNEL_MANIFEST.as_posix(),
             "--checksum-file",
             str(kernel_dir / "SHA256SUMS"),
             "--provenance-in",
@@ -238,17 +264,17 @@ def _verify_raspberry_kernel(root: Path, kernel_dir: Path) -> None:
     provenance = _load_json(kernel_dir / "provenance.json", "Raspberry kernel provenance")
     _require({key: value for key, value in provenance.items() if key != "build"} == inventory, "Raspberry inventory and provenance chain differ")
     package = inventory.get("package")
-    _require(isinstance(package, dict) and package.get("path") == RPI_KERNEL_PACKAGE, "Raspberry kernel inventory package path changed")
+    _require(isinstance(package, dict) and package.get("path") == package_name, "Raspberry kernel inventory package path changed")
 
 
-def _verify_orange_provenance(root: Path, image_dir: Path, source_sha: str) -> None:
+def _verify_orange_provenance(root: Path, image_dir: Path, source_sha: str, image_package: str, dtb_package: str) -> None:
     evidence_path = image_dir / "octessera-orange-kernel-evidence.env"
     provenance_path = image_dir / "octessera-orange-kernel-provenance.txt"
     values = dict(line.split("=", 1) for line in evidence_path.read_text(encoding="utf-8").splitlines())
     facts = dict(line.split("=", 1) for line in provenance_path.read_text(encoding="utf-8").splitlines() if "=" in line)
-    for key, filename in (("image_package_sha256", ORANGE_KERNEL_IMAGE), ("dtb_package_sha256", ORANGE_KERNEL_DTB)):
+    for key, filename in (("image_package_sha256", image_package), ("dtb_package_sha256", dtb_package)):
         _require(values.get(key) == _sha256(image_dir / filename), f"Orange provenance hash mismatch: {filename}")
-    _require(facts.get("image_package") == ORANGE_KERNEL_IMAGE and facts.get("dtb_package") == ORANGE_KERNEL_DTB, "Orange provenance package chain is incomplete")
+    _require(facts.get("image_package") == image_package and facts.get("dtb_package") == dtb_package, "Orange provenance package chain is incomplete")
     _require(
         facts.get("evidence_sha256") == _sha256(evidence_path)
         and facts.get("armbian_build_ref") == "fa7a7b2294d9e760a77630950afd460b7a0b2a26"
@@ -256,12 +282,12 @@ def _verify_orange_provenance(root: Path, image_dir: Path, source_sha: str) -> N
         and facts.get("kernel_source_repository") == "https://github.com/torvalds/linux.git",
         "Orange provenance evidence or build pin is not bound",
     )
-    for key, filename in (("image_package_native_basename", ORANGE_KERNEL_IMAGE), ("dtb_package_native_basename", ORANGE_KERNEL_DTB)):
+    for key, filename in (("image_package_native_basename", image_package), ("dtb_package_native_basename", dtb_package)):
         native_name = values.get(key, "")
         _require(native_name.startswith(filename.removesuffix(".deb") + "__") and native_name.endswith(".deb"), "Orange native package name is not canonical")
 
 
-def _verify_orange_image(root: Path, image_dir: Path, version: str) -> None:
+def _verify_orange_image(root: Path, image_dir: Path, version: str, image_package: str, dtb_package: str) -> None:
     image = image_dir / f"octessera-{version}-orange-pi-zero-2w.img.xz"
     _run(
         root,
@@ -272,15 +298,15 @@ def _verify_orange_image(root: Path, image_dir: Path, version: str) -> None:
             "--image",
             str(image),
             "--linux-image",
-            str(image_dir / ORANGE_KERNEL_IMAGE),
+            str(image_dir / image_package),
             "--linux-dtb",
-            str(image_dir / ORANGE_KERNEL_DTB),
+            str(image_dir / dtb_package),
             "--evidence",
             str(image_dir / "octessera-orange-kernel-evidence.env"),
             "--provenance",
             str(image_dir / "octessera-orange-kernel-provenance.txt"),
             "--manifest",
-            "tools/kernel-patches/orange-midi-interface-manifest.json",
+            KERNEL_MANIFEST.as_posix(),
             "--boot-proof-mode",
             "phase5-constructor",
             "--construction-contract",
@@ -334,6 +360,9 @@ def assemble_release_assets(
     gathered_root = gathered_root.resolve()
     release_assets = release_assets.resolve()
     evidence_staging = evidence_staging.resolve()
+    rpi_kernel_package, orange_kernel_image, orange_kernel_dtb = _package_filenames(
+        _load_json(root / KERNEL_MANIFEST, "kernel package manifest")
+    )
     _ensure_empty_directory(release_assets, "release asset output")
     _ensure_empty_directory(evidence_staging, "release evidence output")
     for relative in ("windows", "ubuntu", "raspberry/image", "raspberry/device", "raspberry/kernel", "raspberry/runtime", "orange/image", "orange/device", "orange/kernel", "orange/runtime", "legal"):
@@ -354,10 +383,10 @@ def assemble_release_assets(
 
     _require_exact_files(windows_dir, (f"{prefix}-windows-installer.exe", f"{prefix}-windows-portable.zip", "SHA256SUMS-windows.txt"))
     _require_exact_files(ubuntu_dir, (f"{prefix}-ubuntu-amd64.deb", f"{prefix}-ubuntu-x86_64.AppImage", "SHA256SUMS-ubuntu.txt"))
-    _require_exact_files(rpi_kernel_dir, (RPI_KERNEL_PACKAGE, "SHA256SUMS", "inventory.json", "provenance.json"))
+    _require_exact_files(rpi_kernel_dir, (rpi_kernel_package, "SHA256SUMS", "inventory.json", "provenance.json"))
     _require_exact_files(rpi_image_dir, (f"{prefix}-raspberry-pi-zero-2w.img.zip", rpi_manifest, "SHA256SUMS-pi.txt"))
     _require_exact_files(rpi_device_dir, (rpi_device_zip, rpi_device_sums))
-    _require_exact_files(orange_image_dir, (f"{prefix}-orange-pi-zero-2w.img.xz", f"{prefix}-orange-pi-zero-2w.img.xz.sha256", ORANGE_KERNEL_IMAGE, ORANGE_KERNEL_DTB, "octessera-orange-kernel-evidence.env", "octessera-orange-kernel-provenance.txt", "octessera-orange-image-proof.json", "SHA256SUMS-orange-pi-zero-2w.txt"))
+    _require_exact_files(orange_image_dir, (f"{prefix}-orange-pi-zero-2w.img.xz", f"{prefix}-orange-pi-zero-2w.img.xz.sha256", orange_kernel_image, orange_kernel_dtb, "octessera-orange-kernel-evidence.env", "octessera-orange-kernel-provenance.txt", "octessera-orange-image-proof.json", "SHA256SUMS-orange-pi-zero-2w.txt"))
     _require_exact_files(orange_device_dir, (orange_device_zip, "SHA256SUMS-orange-pi-zero-2w-device.txt"))
 
     for source, name in (
@@ -378,12 +407,12 @@ def assemble_release_assets(
     _verify_checksum_file(ubuntu_dir, "SHA256SUMS-ubuntu.txt")
     _verify_checksum_file(rpi_image_dir, "SHA256SUMS-pi.txt")
     _verify_checksum_file(rpi_device_dir, rpi_device_sums)
-    _verify_raspberry_kernel(root, rpi_kernel_dir)
+    _verify_raspberry_kernel(root, rpi_kernel_dir, rpi_kernel_package)
     _verify_checksum_file(orange_image_dir, f"{prefix}-orange-pi-zero-2w.img.xz.sha256")
     _verify_checksum_file(orange_image_dir, "SHA256SUMS-orange-pi-zero-2w.txt")
     _verify_checksum_file(orange_device_dir, "SHA256SUMS-orange-pi-zero-2w-device.txt")
-    _verify_orange_provenance(root, orange_image_dir, source_sha)
-    _verify_orange_image(root, orange_image_dir, version)
+    _verify_orange_provenance(root, orange_image_dir, source_sha, orange_kernel_image, orange_kernel_dtb)
+    _verify_orange_image(root, orange_image_dir, version, orange_kernel_image, orange_kernel_dtb)
     _verify_runtime_and_devices(root, raspberry_runtime, rpi_device_dir / rpi_device_zip, version, "raspberry-pi-zero-2w")
     _verify_runtime_and_devices(root, orange_runtime, orange_device_dir / orange_device_zip, version, "orange-pi-zero-2w")
 
@@ -395,15 +424,15 @@ def assemble_release_assets(
         (rpi_image_dir / "SHA256SUMS-pi.txt", evidence_staging / "raspberry/image/SHA256SUMS-pi.txt"),
         (rpi_image_dir / rpi_manifest, evidence_staging / f"raspberry/image/{rpi_manifest}"),
         (rpi_device_dir / rpi_device_sums, evidence_staging / f"raspberry/device/{rpi_device_sums}"),
-        (rpi_kernel_dir / RPI_KERNEL_PACKAGE, evidence_staging / f"raspberry/kernel/{RPI_KERNEL_PACKAGE}"),
+        (rpi_kernel_dir / rpi_kernel_package, evidence_staging / f"raspberry/kernel/{rpi_kernel_package}"),
         (rpi_kernel_dir / "SHA256SUMS", evidence_staging / "raspberry/kernel/SHA256SUMS"),
         (rpi_kernel_dir / "inventory.json", evidence_staging / "raspberry/kernel/inventory.json"),
         (rpi_kernel_dir / "provenance.json", evidence_staging / "raspberry/kernel/provenance.json"),
         (raspberry_runtime / "SHA256SUMS", evidence_staging / "raspberry/runtime/SHA256SUMS"),
         (orange_image_dir / f"{prefix}-orange-pi-zero-2w.img.xz.sha256", evidence_staging / f"orange/image/{prefix}-orange-pi-zero-2w.img.xz.sha256"),
         (orange_image_dir / "SHA256SUMS-orange-pi-zero-2w.txt", evidence_staging / "orange/image/SHA256SUMS-orange-pi-zero-2w.txt"),
-        (orange_image_dir / ORANGE_KERNEL_IMAGE, evidence_staging / f"orange/kernel/{ORANGE_KERNEL_IMAGE}"),
-        (orange_image_dir / ORANGE_KERNEL_DTB, evidence_staging / f"orange/kernel/{ORANGE_KERNEL_DTB}"),
+        (orange_image_dir / orange_kernel_image, evidence_staging / f"orange/kernel/{orange_kernel_image}"),
+        (orange_image_dir / orange_kernel_dtb, evidence_staging / f"orange/kernel/{orange_kernel_dtb}"),
         (orange_image_dir / "octessera-orange-kernel-evidence.env", evidence_staging / "orange/kernel/octessera-orange-kernel-evidence.env"),
         (orange_image_dir / "octessera-orange-kernel-provenance.txt", evidence_staging / "orange/kernel/octessera-orange-kernel-provenance.txt"),
         (orange_image_dir / "octessera-orange-image-proof.json", evidence_staging / "orange/image/octessera-orange-image-proof.json"),
