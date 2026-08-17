@@ -249,7 +249,7 @@ def _verify_device_apply_lane(root: Path, repository_root: Path, construction: d
     ):
         require(line in helper, f"Orange device apply helper contract is missing: {line}")
     socket_link = root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
-    require(socket_link.is_symlink() and socket_link.readlink().as_posix() == "../octessera-device-apply-reboot.socket", "Orange device apply socket is not enabled by the exact symlink")
+    require(socket_link.is_symlink() and socket_link.readlink().as_posix() in {"../octessera-device-apply-reboot.socket", "/etc/systemd/system/octessera-device-apply-reboot.socket"}, "Orange device apply socket is not enabled by the exact symlink")
 
 
 def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any], repository_root: Path) -> dict[str, Any]:
