@@ -246,8 +246,8 @@ def verifier_args(root: Path, image: Path, dtb: Path, evidence: Path, provenance
     ]
 
 
-def run_proof(args: list[str], expected: bool) -> None:
-    result = subprocess.run(args, capture_output=True, text=True)
+def run_proof(args: list[str], expected: bool, cwd: Path | None = None) -> None:
+    result = subprocess.run(args, capture_output=True, text=True, cwd=cwd)
     if (result.returncode == 0) != expected:
         raise AssertionError(result.stdout + result.stderr)
 
@@ -331,6 +331,8 @@ def main() -> None:
         root, image, dtb, evidence, provenance = make_fixture(work)
         args = verifier_args(root, image, dtb, evidence, provenance)
         run_proof(args, True)
+        relative_contract_args = replace_option(args, "--construction-contract", Path("resources/image-construction/boot-layers/orange-pi-zero-2w.json"))
+        run_proof(relative_contract_args, True, REPOSITORY)
         socket_link = root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
         original_socket_target = socket_link.readlink()
         for target, expected in (

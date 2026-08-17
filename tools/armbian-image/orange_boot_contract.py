@@ -410,7 +410,7 @@ def load_construction_contract(path: Path, repository_root: Path) -> tuple[Path,
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise BootContractError("Orange construction contract is unreadable") from error
     contract_hash = validate_construction_contract(repository_root, contract)
-    return path, contract, contract_hash
+    return expected, contract, contract_hash
 
 
 def verify_artifact(path: Path, expected: dict[str, Any]) -> None:
