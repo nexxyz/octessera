@@ -418,9 +418,9 @@ jobs:
             --linux-dtb "${canonical_release_paths[1]}" \
             --evidence release-assets/octessera-orange-kernel-evidence.env \
             --provenance release-assets/octessera-orange-kernel-provenance.txt \
-            --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
+            --manifest "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json" \
             --boot-proof-mode phase5-constructor \
-            --construction-contract resources/image-construction/boot-layers/orange-pi-zero-2w.json \
+            --construction-contract "$custom_root/resources/image-construction/boot-layers/orange-pi-zero-2w.json" \
             --image-provenance release-assets/octessera-orange-image-proof.json \
             --mode production
           for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}" release-assets/octessera-orange-kernel-evidence.env release-assets/octessera-orange-kernel-provenance.txt release-assets/octessera-orange-image-proof.json; do
