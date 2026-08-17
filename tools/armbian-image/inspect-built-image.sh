@@ -420,8 +420,8 @@ require_root_mode etc/systemd/system/octessera-orange-oled-suspend.service 644
 octessera_require_image_symlink etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service ../octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service
 reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service
 require_root_mode etc/systemd/system/octessera-provision-musical-default.service 644
-reject_path etc/initramfs-tools/hooks/octessera-orange-boot-splash
-reject_path etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash
+require_root_mode etc/initramfs-tools/hooks/octessera-orange-boot-splash 755
+require_root_mode etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 755
 reject_path lib/systemd/system-sleep/octessera-orange-oled
 reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
 require_root_mode usr/share/octessera/defaults/pi-default.json 644
