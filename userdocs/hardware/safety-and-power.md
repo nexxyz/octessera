@@ -14,8 +14,10 @@ warnings.
   instructions explicitly authorize it.
 - On Raspberry, do not power the Pi through its micro-USB power connector. The
   enclosure covers that connector and it is not an intended input.
-- Use a regulated 5V supply rated for at least 3A; 4A is recommended for LED
-  headroom. A 2A supply is likely marginal once the board and LEDs are running.
+- Use a dedicated, regulated 5V supply rated for at least 4A. A Raspberry Pi
+  power supply is a good fit; for example, the “GeeekPi for Raspberry Pi 4
+  20W 5V 4A” supply includes a handy inline power switch. A 2A supply is likely
+  marginal once the board and LEDs are running.
 
 The two boards do not share port assumptions. Raspberry uses the fixed Pi
 profile and wiring table. Orange uses a reviewed, board-specific Armbian
