@@ -5,10 +5,12 @@ import json
 import tempfile
 import unittest
 import zipfile
+from copy import deepcopy
 from pathlib import Path
 
 from tools.release.assemble_release_assets import (
     ReleaseArtifactError,
+    _package_filenames,
     _require_exact_files,
     _verify_checksum_file,
     _verify_device_zip,
@@ -17,6 +19,56 @@ from tools.release.assemble_release_assets import (
 
 
 class ReleaseAssetAssemblyTests(unittest.TestCase):
+    def test_kernel_package_filenames_derive_from_manifest_declarations(self) -> None:
+        manifest = {
+            "kernels": {
+                "raspberry": {
+                    "package": {
+                        "name": "linux-image-6.12.93-octessera-rpi-v8-0.7.5",
+                        "version": "6.12.93-octessera0.7.5-1",
+                        "architecture": "arm64",
+                    }
+                },
+                "orange": {
+                    "packages": [
+                        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+                        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+                    ]
+                },
+            }
+        }
+
+        self.assertEqual(
+            _package_filenames(manifest),
+            (
+                "linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb",
+                "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+                "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+            ),
+        )
+
+    def test_kernel_package_filenames_reject_malformed_missing_and_duplicate_declarations(self) -> None:
+        manifest = {
+            "kernels": {
+                "raspberry": {
+                    "package": {"name": "linux-image", "version": "1", "architecture": "arm64"}
+                },
+                "orange": {"packages": ["linux-image_arm64.deb", "linux-dtb_arm64.deb"]},
+            }
+        }
+        cases = (
+            ("missing Raspberry package", lambda value: value["kernels"]["raspberry"].pop("package"), "Raspberry package declaration"),
+            ("malformed Raspberry package", lambda value: value["kernels"]["raspberry"]["package"].update(version=None), "Raspberry package version declaration"),
+            ("missing Orange packages", lambda value: value["kernels"]["orange"].pop("packages"), "Orange package declaration"),
+            ("duplicate Orange packages", lambda value: value["kernels"]["orange"].update(packages=["linux-image_arm64.deb"] * 2), "duplicate packages"),
+        )
+        for name, mutate, expected in cases:
+            with self.subTest(name=name):
+                invalid = deepcopy(manifest)
+                mutate(invalid)
+                with self.assertRaisesRegex(ReleaseArtifactError, expected):
+                    _package_filenames(invalid)
+
     def test_exact_root_contract_and_checksum_success(self) -> None:
         with tempfile.TemporaryDirectory(prefix="octessera-release-assets-") as temporary:
             root = Path(temporary)

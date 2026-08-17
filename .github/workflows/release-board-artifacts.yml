@@ -39,7 +39,7 @@ jobs:
           sudo tar -xzf "$archive" -C /usr/local/bin
           cross --version
       - name: Build Raspberry runtime exactly once
-        run: cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
+        run: cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
       - name: Create and verify Raspberry runtime bundle
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -112,7 +112,7 @@ jobs:
           sudo tar -xzf "$archive" -C /usr/local/bin
           cross --version
       - name: Build Orange runtime exactly once
-        run: cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w
+        run: cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w
       - name: Create and verify Orange runtime bundle
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -327,7 +327,7 @@ jobs:
             --repository "$GITHUB_REPOSITORY" \
             --board-profile raspberry-pi-zero-2w \
             --manifest-out "release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.rpi-imager-manifest"
-          sudo bash tools/pi-image/verify-sanitized-image.sh "$asset"
+          sudo bash tools/pi-image/verify-sanitized-image.sh --runtime-bundle runtime-bundle "$asset"
           unzip -q "$asset" -d extracted-image
           mapfile -t images < <(find extracted-image -type f -name '*.img' -print | sort)
           [[ "${#images[@]}" == 1 ]] || { echo "Expected exactly one image extracted from the Raspberry ZIP, found ${#images[@]}." >&2; exit 1; }

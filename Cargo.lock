@@ -2518,7 +2518,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-desktop"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "midir",
  "playback-runtime",
@@ -2534,7 +2534,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-hal"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "gpiocdev",
  "i2cdev",
@@ -2549,7 +2549,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-pi"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "cpal",
  "image",
@@ -2749,14 +2749,14 @@ checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 
 [[package]]
 name = "platform-capabilities-build"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "platform-core"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "platform-capabilities-build",
  "rand",
@@ -2766,7 +2766,7 @@ dependencies = [
 
 [[package]]
 name = "playback-runtime"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2993,7 +2993,7 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
 name = "realtime-engine"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "platform-capabilities-build",
  "serde",
@@ -3142,7 +3142,7 @@ dependencies = [
 
 [[package]]
 name = "rodio-engine-source"
-version = "0.7.5"
+version = "0.8.0"
 dependencies = [
  "crossbeam-channel",
  "hound",
