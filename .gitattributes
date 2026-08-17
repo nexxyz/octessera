@@ -10,6 +10,7 @@
 /userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg text eol=lf
 /userpatches/overlay/usr/share/octessera/defaults/pi-default.json text eol=lf
 /packages/device-contracts/src/displayPalette.generated.ts text eol=lf
+/packages/device-contracts/src/platformCapabilities.generated.ts text eol=lf
 /apps/desktop/src/ui/displayPalette.generated.css text eol=lf
 /userdocs/print/displayPalette.generated.css text eol=lf
 /crates/platform-core/src/display_palette.generated.rs text eol=lf
