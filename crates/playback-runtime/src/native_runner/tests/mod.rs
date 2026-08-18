@@ -11,6 +11,7 @@ mod behavior_menu_defaults;
 mod behavior_palette;
 mod browser_and_help;
 mod canonical_defaults;
+mod config_dto;
 mod config_persistence;
 mod config_transactions;
 mod controls;

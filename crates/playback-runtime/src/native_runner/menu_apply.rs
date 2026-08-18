@@ -1,9 +1,12 @@
+#[cfg(test)]
+use super::ConfigurationRuntimePlan;
 use super::NativeRunner;
 
 impl NativeRunner {
     #[cfg(test)]
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         self.clear_deferred_menu_apply();
+        let before = self.configuration_aggregate();
         let current_key = self.menu.current_key().map(str::to_string);
         if current_key
             .as_deref()
@@ -88,9 +91,12 @@ impl NativeRunner {
             self.rolling_backups = next_rolling_backups;
             config_changed = true;
         }
-        if audio_config_changed {
-            self.audio_config_revision = self.audio_config_revision.saturating_add(1);
-        }
+        let plan = if audio_config_changed {
+            before.resolve_plan(&self.configuration_aggregate(), self.audio_config_revision)
+        } else {
+            ConfigurationRuntimePlan::NoRuntimeChange
+        };
+        self.commit_configuration_runtime_plan(&plan);
         if config_changed {
             self.mark_config_dirty();
             self.force_autosave_payload_due();

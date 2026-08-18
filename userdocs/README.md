@@ -50,8 +50,9 @@ Start with [troubleshooting](troubleshooting.md), then use the matching
 first-boot page](hardware/orange-pi-first-boot.md), [setup portal
 guide](hardware/setup-portal.md), or [board qualification and
 status](hardware/board-qualification.md). For a reflash, read [Data Backup and
-Restore](data-backup-restore.md) before erasing the source card. Keep the boards
-accessible until the open electrical checks pass.
+Restore](data-backup-restore.md) before erasing the source card. For a strict
+two-board acceptance run, use the [FAT quick run](hardware/fat-quick-run.md).
+Keep the boards accessible until the open electrical checks pass.
 
 ### I want to learn the instrument
 

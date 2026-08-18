@@ -1,6 +1,62 @@
 use super::*;
 
 #[test]
+pub(crate) fn no_op_config_edit_produces_no_runtime_plan_or_audio_revision() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.messages_with_snapshot().unwrap();
+    let payload = runner.config_payload();
+    let before = runner.configuration_aggregate();
+    let before_revision = runner.audio_config_revision;
+    let before_config_revision = runner.config_revision;
+
+    runner.apply_config_payload(payload).unwrap();
+
+    assert_eq!(
+        before.resolve_plan(&runner.configuration_aggregate(), before_revision),
+        ConfigurationRuntimePlan::NoRuntimeChange
+    );
+    assert_eq!(runner.audio_config_revision, before_revision);
+    assert_eq!(runner.config_revision, before_config_revision);
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands
+                .iter()
+                .any(|command| matches!(command, RuntimeAudioCommand::SetAudioConfig { .. }))
+    )));
+}
+
+#[test]
+pub(crate) fn one_config_transaction_produces_one_full_revisioned_update() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.messages_with_snapshot().unwrap();
+    let before = runner.configuration_aggregate();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["masterVolume"] = json!(81);
+    payload["runtimeConfig"]["instruments"][0]["synth"]["amp"]["gainPct"] = json!(71);
+
+    runner.apply_config_payload(payload).unwrap();
+
+    assert_eq!(
+        before.resolve_plan(&runner.configuration_aggregate(), 0),
+        ConfigurationRuntimePlan::FullRevisionedConfiguration { revision: 1 }
+    );
+    assert_eq!(runner.audio_config_revision, 1);
+    let messages = runner.messages_with_snapshot().unwrap();
+    let full_updates = messages
+        .iter()
+        .filter_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => Some(commands),
+            _ => None,
+        })
+        .flatten()
+        .filter(|command| matches!(command, RuntimeAudioCommand::SetAudioConfig { .. }))
+        .count();
+    assert_eq!(full_updates, 1);
+}
+
+#[test]
 pub(crate) fn config_envelope_round_trips_without_reinterpreting_state() {
     let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     source
@@ -214,10 +270,17 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.menu.state.stack = vec![0, 1];
     runner.menu.state.cursor = 2;
+    runner.xy_touch.active = true;
+    runner.xy_touch.x = 0.23;
+    runner.active_sparks_fx = vec![("mixer.volume".into(), "instruments.0".into())];
+    runner.sample_assign = Some((1, 2));
     let before_payload = runner.config_payload();
     let before_snapshot = runner.snapshot().unwrap();
     let before_transport = runner.transport.clone();
     let before_audio_revision = runner.audio_config_revision;
+    let before_xy_touch = runner.xy_touch.clone();
+    let before_active_sparks_fx = runner.active_sparks_fx.clone();
+    let before_sample_assign = runner.sample_assign;
     let mut invalid = before_payload.clone();
     invalid["runtimeConfig"]["layers"][0]["worlds"]["behaviorId"] = json!("unsupported-behavior");
 
@@ -229,6 +292,30 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     assert_eq!(runner.audio_config_revision, before_audio_revision);
     assert_eq!(runner.menu.state.stack, vec![0, 1]);
     assert_eq!(runner.menu.state.cursor, 2);
+    assert_eq!(runner.xy_touch, before_xy_touch);
+    assert_eq!(runner.active_sparks_fx, before_active_sparks_fx);
+    assert_eq!(runner.sample_assign, before_sample_assign);
+}
+
+#[test]
+pub(crate) fn failed_config_preparation_retains_pending_persistence_state() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.mark_fast_autosave_dirty();
+    let before_payload = runner.config_payload();
+    let before_dirty_revision = runner.dirty_revision;
+    let before_pending_autosave = runner.pending.pending_autosave_payload_due_at;
+    let mut invalid = before_payload.clone();
+    invalid["runtimeConfig"]["masterVolume"] = json!(u64::MAX);
+
+    assert!(runner.apply_config_payload(invalid).is_err());
+
+    assert_eq!(runner.config_payload(), before_payload);
+    assert!(runner.config_dirty);
+    assert_eq!(runner.dirty_revision, before_dirty_revision);
+    assert_eq!(
+        runner.pending.pending_autosave_payload_due_at,
+        before_pending_autosave
+    );
 }
 
 #[test]

@@ -186,7 +186,7 @@ impl NativeRunner {
             )
         };
         if changed {
-            self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+            self.commit_full_configuration_runtime_plan();
             self.mark_fast_autosave_dirty();
             self.rebase_and_recompose_modulation_key(key);
         }
@@ -207,10 +207,10 @@ impl NativeRunner {
                         config,
                     });
                 } else {
-                    self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+                    self.commit_full_configuration_runtime_plan();
                 }
             } else if self.instrument_audio_config(index).is_none() {
-                self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+                self.commit_full_configuration_runtime_plan();
             }
             self.mark_fast_autosave_dirty();
         }
@@ -354,7 +354,9 @@ impl NativeRunner {
     }
 
     pub(super) fn queue_audio_command(&mut self, command: RuntimeAudioCommand) {
-        self.outbox.push_audio_command(command);
+        self.enqueue_configuration_runtime_plan(
+            super::ConfigurationRuntimePlan::dynamic_audio_command(command),
+        );
     }
 }
 

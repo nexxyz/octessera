@@ -1,8 +1,8 @@
 use super::{
     default_sparks_fx_selected, prepare_config_payload, prepare_device_payload,
-    prepare_patch_payload, sanitize_sparks_fx_config, ConfigDto, NativeRunner, NativeRunnerConfig,
-    NativeSparksFxAssignment, PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED,
-    GRID_HEIGHT,
+    prepare_patch_payload, sanitize_sparks_fx_config, ConfigDto, ConfigurationAggregate,
+    ConfigurationRuntimePlan, NativeRunner, NativeRunnerConfig, NativeSparksFxAssignment,
+    PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -15,11 +15,16 @@ impl NativeRunner {
 
     pub fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
         let current = self.config_payload();
+        let before = self.configuration_aggregate();
         let prepared = prepare_config_payload(payload, &current)?;
         let candidate = self.build_transaction_candidate(&prepared, true)?;
+        let plan = before.resolve_plan(
+            &candidate.configuration_aggregate(),
+            self.audio_config_revision,
+        );
         let source_revision = prepared.source_revision;
         let migration_report = prepared.migration_report;
-        self.commit_transaction_candidate(candidate, source_revision, &current)?;
+        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
         if let Some(report) = migration_report {
             self.show_toast(report);
         }
@@ -108,17 +113,20 @@ impl NativeRunner {
         &mut self,
         mut candidate: NativeRunner,
         source_revision: Option<u64>,
-        before_payload: &Value,
+        before: &ConfigurationAggregate,
+        plan: ConfigurationRuntimePlan,
     ) -> Result<(), String> {
+        if before == &candidate.configuration_aggregate() {
+            self.commit_loaded_revision(source_revision);
+            return Ok(());
+        }
         self.drain_all_layer_engine_notes()?;
         candidate.pending_transpose_note_offs = self.pending_transpose_note_offs.clone();
         candidate.preserve_sample_availability_from(self);
         candidate.menu.rebuild(candidate.menu_config());
         candidate.config_revision = self.config_revision;
-        let audio_changed = audio_config_changed(before_payload, &candidate.config_payload());
-        candidate.audio_config_revision = self
-            .audio_config_revision
-            .saturating_add(u64::from(audio_changed));
+        candidate.audio_config_revision = self.audio_config_revision;
+        candidate.commit_configuration_runtime_plan(&plan);
         candidate.last_snapshot_audio_config_revision = self.last_snapshot_audio_config_revision;
         *self = candidate;
         self.commit_loaded_revision(source_revision);
@@ -143,10 +151,11 @@ impl NativeRunner {
         envelope: &ConfigDto,
     ) -> Result<(), String> {
         self.clear_all_link_arp_state();
-        let before_payload = self.config_payload();
-        let runtime = envelope.runtime_config();
-        reject_old_layer_schema(runtime)?;
-        reject_old_sparks_schema(runtime)?;
+        let raw_runtime = envelope.runtime_config();
+        reject_old_layer_schema(raw_runtime)?;
+        reject_old_sparks_schema(raw_runtime)?;
+        let runtime_value = envelope.typed_runtime_config_value()?;
+        let runtime = &runtime_value;
         reject_old_payload_sparks_schema(envelope.system())?;
         let desired_active_layer_index = runtime
             .get("activeLayerIndex")
@@ -202,10 +211,6 @@ impl NativeRunner {
         self.sync_engine_runtime_config();
         self.menu.state = Default::default();
         self.menu.rebuild(self.menu_config());
-        let after_payload = self.config_payload();
-        if audio_config_changed(&before_payload, &after_payload) {
-            self.audio_config_revision = self.audio_config_revision.saturating_add(1);
-        }
         Ok(())
     }
 
@@ -214,11 +219,16 @@ impl NativeRunner {
         payload: Value,
     ) -> Result<(), String> {
         let current = self.config_payload();
+        let before = self.configuration_aggregate();
         let prepared = prepare_patch_payload(payload, &current)?;
         let candidate = self.build_transaction_candidate(&prepared, false)?;
+        let plan = before.resolve_plan(
+            &candidate.configuration_aggregate(),
+            self.audio_config_revision,
+        );
         let source_revision = prepared.source_revision;
         let migration_report = prepared.migration_report;
-        self.commit_transaction_candidate(candidate, source_revision, &current)?;
+        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
         if let Some(report) = migration_report {
             self.show_toast(report);
         }
@@ -231,11 +241,16 @@ impl NativeRunner {
         payload: Value,
     ) -> Result<(), String> {
         let current = self.config_payload();
+        let before = self.configuration_aggregate();
         let prepared = prepare_device_payload(payload, &current)?;
         let candidate = self.build_transaction_candidate(&prepared, true)?;
+        let plan = before.resolve_plan(
+            &candidate.configuration_aggregate(),
+            self.audio_config_revision,
+        );
         let source_revision = prepared.source_revision;
         let migration_report = prepared.migration_report;
-        self.commit_transaction_candidate(candidate, source_revision, &current)?;
+        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
         if let Some(report) = migration_report {
             self.show_toast(report);
         }
@@ -369,18 +384,4 @@ fn contains_old_sparks_key(value: &Value) -> bool {
         Value::String(text) => text.starts_with("dance.fx"),
         _ => false,
     }
-}
-
-fn audio_config_changed(before: &Value, after: &Value) -> bool {
-    let before = before.get("runtimeConfig").unwrap_or(before);
-    let after = after.get("runtimeConfig").unwrap_or(after);
-    ["instruments", "mixer", "masterVolume", "voiceStealingMode"]
-        .into_iter()
-        .any(|key| before.get(key) != after.get(key))
-        || before
-            .get("sound")
-            .and_then(|sound| sound.get("voiceStealingMode"))
-            != after
-                .get("sound")
-                .and_then(|sound| sound.get("voiceStealingMode"))
 }
