@@ -1,8 +1,8 @@
 (export
 	(version "E")
 	(design
-		(source "octessera.kicad_sch")
-		(date "2026-06-18T15:09:07")
+		(source "F:\\dev\\octessera\\hardware\\pcb\\octessera.kicad_sch")
+		(date "2026-08-18T09:52:35")
 		(tool "Eeschema 10.0.1")
 		(sheet
 			(number "1")
@@ -75,7 +75,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -94,6 +94,60 @@
 				(tstamps "/")
 			)
 			(tstamps "510ed2fe-b5b3-440b-8966-2baf54814198")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "D1")
+			(value "SA5.0A")
+			(footprint "Diode_THT:D_DO-15_P10.16mm_Horizontal")
+			(description "5V TVS Diode")
+			(fields
+				(field
+					(name "Footprint") "Diode_THT:D_DO-15_P10.16mm_Horizontal")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "5V TVS Diode")
+			)
+			(libsource
+				(lib "Device")
+				(part "D_Zener")
+				(description "Zener diode")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "octessera.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "diode")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TO-???* *_Diode_* *SingleDiode* D_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "e1bf13bd-466e-45fc-a722-200223d965cc")
 			(units
 				(unit
 					(name "A")
@@ -135,7 +189,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -190,7 +244,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -253,7 +307,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -316,7 +370,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -379,7 +433,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -502,7 +556,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -662,7 +716,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -735,7 +789,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -799,7 +853,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -881,7 +935,7 @@
 			)
 			(property
 				(name "Sheetname")
-				(value "Root")
+				(value "")
 			)
 			(property
 				(name "Sheetfile")
@@ -952,6 +1006,43 @@
 				(pin
 					(num "2")
 					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "Device")
+			(part "D_Zener")
+			(description "Zener diode")
+			(footprints
+				(fp "TO-???*")
+				(fp "*_Diode_*")
+				(fp "*SingleDiode*")
+				(fp "D_*")
+			)
+			(fields
+				(field
+					(name "Reference") "D")
+				(field
+					(name "Value") "D_Zener")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Zener diode")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "K")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "A")
 					(type "passive")
 				)
 			)
@@ -1566,20 +1657,7 @@
 			)
 		)
 	)
-	(libraries
-		(library
-			(logical "Device")
-			(uri "${KICAD10_SYMBOL_DIR}/Device.kicad_sym")
-		)
-		(library
-			(logical "RASPBERRY_PI_ZERO_2_W")
-			(uri "kicad-libs/symbols/RASPBERRY_PI_ZERO_2_W.kicad_sym")
-		)
-		(library
-			(logical "adafruit-modules")
-			(uri "kicad-libs/symbols/adafruit-modules.kicad_sym")
-		)
-	)
+	(libraries)
 	(nets
 		(net
 			(code "1")
@@ -1588,6 +1666,12 @@
 			(node
 				(ref "C1")
 				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "D1")
+				(pin "1")
+				(pinfunction "K_1")
 				(pintype "passive")
 			)
 			(node
@@ -1640,6 +1724,12 @@
 			(node
 				(ref "C1")
 				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "D1")
+				(pin "2")
+				(pinfunction "A_2")
 				(pintype "passive")
 			)
 			(node
@@ -2248,7 +2338,7 @@
 				(ref "U1")
 				(pin "1")
 				(pinfunction "3V3_1_1")
-				(pintype "power_in")
+				(pintype "power_in+no_connect")
 			)
 		)
 		(net
@@ -2259,7 +2349,7 @@
 				(ref "U1")
 				(pin "17")
 				(pinfunction "3V3_17_17")
-				(pintype "power_in")
+				(pintype "power_in+no_connect")
 			)
 		)
 		(net
@@ -2270,7 +2360,7 @@
 				(ref "U1")
 				(pin "28")
 				(pinfunction "ID_SC_28")
-				(pintype "bidirectional")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
@@ -2281,7 +2371,7 @@
 				(ref "U1")
 				(pin "27")
 				(pinfunction "ID_SD_27")
-				(pintype "bidirectional")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
@@ -2292,7 +2382,7 @@
 				(ref "U2")
 				(pin "3V")
 				(pinfunction "3VO_3V")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2303,7 +2393,7 @@
 				(ref "U3")
 				(pin "CC1")
 				(pinfunction "CC1_CC1")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2314,7 +2404,7 @@
 				(ref "U3")
 				(pin "CC2")
 				(pinfunction "CC2_CC2")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2325,7 +2415,7 @@
 				(ref "U3")
 				(pin "D+")
 				(pinfunction "D+_D+")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2336,7 +2426,7 @@
 				(ref "U3")
 				(pin "D-")
 				(pinfunction "D-_D-")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2347,7 +2437,7 @@
 				(ref "U3")
 				(pin "SBU1")
 				(pinfunction "SBU1_SBU1")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2358,7 +2448,7 @@
 				(ref "U3")
 				(pin "SBU2")
 				(pinfunction "SBU2_SBU2")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2369,7 +2459,7 @@
 				(ref "U4")
 				(pin "3V")
 				(pinfunction "3V_3V")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2380,7 +2470,7 @@
 				(ref "U4")
 				(pin "DE")
 				(pinfunction "DE_DE")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2391,7 +2481,7 @@
 				(ref "U4")
 				(pin "FIL")
 				(pinfunction "FIL_FIL")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2402,7 +2492,7 @@
 				(ref "U4")
 				(pin "FM")
 				(pinfunction "FM_FM")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2413,7 +2503,7 @@
 				(ref "U4")
 				(pin "G")
 				(pinfunction "G_G")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2424,7 +2514,7 @@
 				(ref "U4")
 				(pin "LOUT")
 				(pinfunction "LOUT_LOUT")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2435,7 +2525,7 @@
 				(ref "U4")
 				(pin "MCK")
 				(pinfunction "MCK_MCK")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2446,7 +2536,7 @@
 				(ref "U4")
 				(pin "MU")
 				(pinfunction "MU_MU")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 		(net
@@ -2457,7 +2547,7 @@
 				(ref "U4")
 				(pin "ROUT")
 				(pinfunction "ROUT_ROUT")
-				(pintype "passive")
+				(pintype "passive+no_connect")
 			)
 		)
 	)
