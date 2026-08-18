@@ -99,7 +99,7 @@ pub(super) fn pulses_axis_lane_binding_group(
                 None,
                 None,
                 None,
-                vec!["linear", "exp", "log"],
+                vec!["linear", "curve"],
                 target,
             ),
         ],

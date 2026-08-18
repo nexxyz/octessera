@@ -163,6 +163,111 @@ pub(crate) fn behavior_specific_help_beats_wildcard_fallback() {
 }
 
 #[test]
+pub(crate) fn affected_behavior_help_targets_keep_one_accurate_row() {
+    let cases: &[(&str, &str, &str, &str, &[&str])] = &[
+        (
+            "Menu > Build > L*: * > Cell Life",
+            "*",
+            "key:layers.*.worlds.behaviorConfig.cellLife",
+            "number",
+            &["crystal growth", "dla"],
+        ),
+        (
+            "Menu > Build > L*: * > Seed",
+            "*",
+            "key:layers.*.worlds.behaviorConfig.seed",
+            "number",
+            &["twinkle", "pattern"],
+        ),
+        (
+            "Menu > Build > L*: * > Erosion",
+            "*",
+            "key:layers.*.worlds.behaviorConfig.erosionPct",
+            "number",
+            &["sand ripples", "rivers"],
+        ),
+        (
+            "Menu > Build > L*: * > Diffusion",
+            "*",
+            "key:layers.*.worlds.behaviorConfig.diffusionPct",
+            "number",
+            &["ink", "reaction diffusion"],
+        ),
+        (
+            "Menu > Build > L*: * > Growth",
+            "*",
+            "key:layers.*.worlds.behaviorConfig.growthPct",
+            "number",
+            &["coral", "vines"],
+        ),
+        (
+            "Menu > Build > L*: * > Branch",
+            "*",
+            "key:layers.*.worlds.behaviorConfig.branchPct",
+            "number",
+            &["cracks", "vines"],
+        ),
+        (
+            "Menu > Build > L*: * > Evaporation",
+            "*",
+            "key:layers.*.worlds.behaviorConfig.evaporationPct",
+            "number",
+            &["physarum", "rivers"],
+        ),
+        (
+            "Menu > Shape > Instruments > Instrument * > Synth > Amp Env",
+            "Menu > Shape > Instruments > Instrument * > Synth > Amp Env",
+            "",
+            "group",
+            &["synth", "adsr"],
+        ),
+        (
+            "Menu > Shape > Instruments > Instrument * > Synth > Filter Env",
+            "Menu > Shape > Instruments > Instrument * > Synth > Filter Env",
+            "",
+            "group",
+            &["synth", "adsr"],
+        ),
+    ];
+
+    for (target_path, row_path, key, kind, phrases) in cases {
+        let rows = crate::native_help::native_help_entries_for_tests()
+            .iter()
+            .filter(|entry| entry.path == *row_path && entry.key == *key && entry.kind == *kind)
+            .count();
+        assert_eq!(
+            rows, 1,
+            "expected one active help row for {key} at {row_path}"
+        );
+
+        let target = NativeMenuHelpTarget {
+            path: (*target_path).into(),
+            key: (*key).into(),
+            kind: (*kind).into(),
+            label: "affected target".into(),
+        };
+        let entry = crate::native_help::resolve_native_help_entry(&target)
+            .unwrap_or_else(|| panic!("missing help for {key} at {target_path}"));
+        let copy = format!("{} {}", entry.line1, entry.line2).to_lowercase();
+        for phrase in *phrases {
+            assert!(
+                copy.contains(phrase),
+                "help for {key} at {target_path} is missing {phrase:?}: {copy}"
+            );
+        }
+    }
+
+    let fallback = NativeMenuHelpTarget {
+        path: "Menu > Build > L*: * > Range Min".into(),
+        key: "key:layers.*.worlds.behaviorConfig.rangeMin".into(),
+        kind: "number".into(),
+        label: "Range Min".into(),
+    };
+    let fallback_entry = crate::native_help::resolve_native_help_entry(&fallback).unwrap();
+    assert_eq!(fallback_entry.key, "key:*.rangeMin");
+}
+
+#[test]
 pub(crate) fn binding_picker_leaves_use_bound_parameter_help_targets() {
     let target = NativeMenuHelpTarget {
         path: "Menu > Play > XY > X Target > System > Sound > Note Length".into(),

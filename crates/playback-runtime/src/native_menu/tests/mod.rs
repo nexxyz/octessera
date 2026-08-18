@@ -5,6 +5,7 @@ use platform_core::LAYER_COUNT;
 mod fixture_tests;
 mod fixtures;
 mod help;
+mod help_enum_tests;
 mod pulses;
 mod root;
 mod sparks;

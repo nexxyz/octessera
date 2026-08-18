@@ -302,6 +302,7 @@ Overrides:
 - `Velocity` lane modulates outgoing `note_on` velocity.
 - `Filter Cutoff` lane emits CC74 (mapped to lowpass cutoff).
 - `Filter Res` lane emits CC71 (mapped to lowpass resonance).
+- Each value lane applies its selected curve after `Grid Offs`: `linear` maps normalized position `t` directly, while `curve` uses the quadratic ease-in `t²`. Both clamp `t` to `0..1`, preserve the exact `From` and `To` endpoints, and stay within the inclusive range between them, including when `From > To`.
 - `Grid Offs` rotates axis indexing (offset=5 => cell 5 treated as first, then wraps).
 - `Grid Offs` bounds are derived: `-(GRID_SIZE-1) .. +(GRID_SIZE-1)` → `-7..7`.
 

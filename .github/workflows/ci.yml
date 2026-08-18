@@ -143,6 +143,8 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run Rust tests (exclude platform audio apps)
         run: cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source
+      - name: Verify native enum help covers runtime options
+        run: cargo test -p playback-runtime native_menu::tests::help_enum_tests
       - name: Run rodio engine source tests
         run: cargo test -p rodio-engine-source
       - name: Run vendored CPAL ALSA unit tests
