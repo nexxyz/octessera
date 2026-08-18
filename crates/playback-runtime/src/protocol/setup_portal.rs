@@ -56,11 +56,44 @@ impl Display for RuntimeSetupPortalErrorCode {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimeSetupPortalTransfer {
+    pub url: String,
+    pub code: String,
+}
+
+impl RuntimeSetupPortalTransfer {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.url.is_empty()
+            || self.url.len() > 128
+            || !self.url.starts_with("http://")
+            || self
+                .url
+                .chars()
+                .any(|character| character.is_control() || character.is_whitespace())
+        {
+            return Err("setup portal transfer url is invalid".into());
+        }
+        if self.code.len() < 6
+            || self.code.len() > 64
+            || !self
+                .code
+                .bytes()
+                .all(|character| character.is_ascii_alphanumeric())
+        {
+            return Err("setup portal transfer code is invalid".into());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeSetupPortalStatus {
     pub phase: RuntimeSetupPortalPhase,
     pub disposition: Option<RuntimeSetupPortalDisposition>,
     pub portal_suffix: Option<String>,
+    pub transfer: Option<RuntimeSetupPortalTransfer>,
     pub reboot_required: bool,
     pub error_code: Option<RuntimeSetupPortalErrorCode>,
 }
@@ -72,6 +105,9 @@ impl RuntimeSetupPortalStatus {
         }
         if let Some(suffix) = self.portal_suffix.as_deref() {
             validate_portal_suffix(suffix)?;
+        }
+        if let Some(transfer) = &self.transfer {
+            transfer.validate()?;
         }
         match self.phase {
             RuntimeSetupPortalPhase::Starting => {
@@ -95,16 +131,28 @@ impl RuntimeSetupPortalStatus {
                     return Err("portal_ready setup portal status requires portalSuffix".into());
                 }
             }
-            RuntimeSetupPortalPhase::Finalizing | RuntimeSetupPortalPhase::Succeeded => {
+            RuntimeSetupPortalPhase::Finalizing => {
                 if self.disposition.is_some()
                     || self.portal_suffix.is_some()
+                    || self.error_code.is_some()
+                {
+                    return Err("finalizing setup portal status contains an invalid field".into());
+                }
+            }
+            RuntimeSetupPortalPhase::Succeeded => {
+                if self.disposition.is_some()
+                    || self.portal_suffix.is_some()
+                    || self.transfer.is_some()
                     || self.error_code.is_some()
                 {
                     return Err("setup portal completion status contains an invalid field".into());
                 }
             }
             RuntimeSetupPortalPhase::Failed => {
-                if self.disposition.is_some() || self.portal_suffix.is_some() {
+                if self.disposition.is_some()
+                    || self.portal_suffix.is_some()
+                    || self.transfer.is_some()
+                {
                     return Err(
                         "failed setup portal status cannot contain disposition or suffix".into(),
                     );
@@ -119,7 +167,10 @@ impl RuntimeSetupPortalStatus {
                 }
             }
             RuntimeSetupPortalPhase::TimedOut => {
-                if self.disposition.is_some() || self.portal_suffix.is_some() {
+                if self.disposition.is_some()
+                    || self.portal_suffix.is_some()
+                    || self.transfer.is_some()
+                {
                     return Err(
                         "timed_out setup portal status cannot contain disposition or suffix".into(),
                     );
@@ -134,7 +185,10 @@ impl RuntimeSetupPortalStatus {
                 }
             }
             RuntimeSetupPortalPhase::Unsupported => {
-                if self.disposition.is_some() || self.portal_suffix.is_some() {
+                if self.disposition.is_some()
+                    || self.portal_suffix.is_some()
+                    || self.transfer.is_some()
+                {
                     return Err(
                         "unsupported setup portal status cannot contain disposition or suffix"
                             .into(),
@@ -173,13 +227,16 @@ impl Serialize for RuntimeSetupPortalStatus {
         S: Serializer,
     {
         self.validate().map_err(serde::ser::Error::custom)?;
-        let mut state = serializer.serialize_struct("RuntimeSetupPortalStatus", 5)?;
+        let mut state = serializer.serialize_struct("RuntimeSetupPortalStatus", 6)?;
         state.serialize_field("phase", &self.phase)?;
         if let Some(disposition) = &self.disposition {
             state.serialize_field("disposition", disposition)?;
         }
         if let Some(portal_suffix) = &self.portal_suffix {
             state.serialize_field("portalSuffix", portal_suffix)?;
+        }
+        if let Some(transfer) = &self.transfer {
+            state.serialize_field("transfer", transfer)?;
         }
         state.serialize_field("rebootRequired", &false)?;
         if let Some(error_code) = &self.error_code {
@@ -200,6 +257,7 @@ impl<'de> Deserialize<'de> for RuntimeSetupPortalStatus {
                 "phase",
                 "disposition",
                 "portalSuffix",
+                "transfer",
                 "rebootRequired",
                 "errorCode",
             ],
@@ -224,6 +282,7 @@ impl<'de> Visitor<'de> for RuntimeSetupPortalStatusVisitor {
         let mut phase = None;
         let mut disposition = None;
         let mut portal_suffix = None;
+        let mut transfer = None;
         let mut reboot_required = None;
         let mut error_code = None;
         while let Some(field) = map.next_key::<RuntimeSetupPortalStatusField>()? {
@@ -246,6 +305,12 @@ impl<'de> Visitor<'de> for RuntimeSetupPortalStatusVisitor {
                     }
                     portal_suffix = Some(map.next_value()?);
                 }
+                RuntimeSetupPortalStatusField::Transfer => {
+                    if transfer.is_some() {
+                        return Err(serde::de::Error::duplicate_field("transfer"));
+                    }
+                    transfer = Some(map.next_value()?);
+                }
                 RuntimeSetupPortalStatusField::RebootRequired => {
                     if reboot_required.is_some() {
                         return Err(serde::de::Error::duplicate_field("rebootRequired"));
@@ -264,6 +329,7 @@ impl<'de> Visitor<'de> for RuntimeSetupPortalStatusVisitor {
             phase: phase.ok_or_else(|| serde::de::Error::missing_field("phase"))?,
             disposition,
             portal_suffix,
+            transfer,
             reboot_required: reboot_required
                 .ok_or_else(|| serde::de::Error::missing_field("rebootRequired"))?,
             error_code,
@@ -279,6 +345,7 @@ enum RuntimeSetupPortalStatusField {
     Phase,
     Disposition,
     PortalSuffix,
+    Transfer,
     RebootRequired,
     ErrorCode,
 }

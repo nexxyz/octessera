@@ -9,6 +9,7 @@ action="$root/.github/actions/build-armbian-image/action.yml"
 assembler="$root/tools/release/assemble_release_assets.py"
 desktop_verifier="$root/tools/release/verify_desktop_artifact.py"
 device_packager="$root/tools/device-update/package_device_bundle.py"
+updater_profiles="$root/tools/device-update/updater_profiles.py"
 sanitizer="$root/tools/pi-image/verify-sanitized-image.sh"
 runtime_chain_helper="$root/tools/pi-image/verify-managed-runtime.sh"
 runtime_chain_test="$root/tools/pi-image/test-sanitized-image-runtime-chain.sh"
@@ -129,7 +130,7 @@ assert_contains "$assembler" 'package_notice_zip(root, notices)'
 assert_contains "$assembler" 'verify_notice_archive(root, portable, "octessera.exe")'
 assert_contains "$assembler" 'device ZIP inventory is not exact'
 assert_contains "$assembler" 'expected_root_assets = ['
-assert_contains "$assembler" 'len(expected_root_assets) == 12'
+assert_contains "$assembler" 'len(expected_root_assets) == 14'
 assert_contains "$assembler" 'expected_names'
 assert_contains "$assembler" 'expected_mode = 0o755 if entry.filename == "octessera-pi" else 0o644'
 assert_contains "$assembler" '_make_evidence_zip'
@@ -351,8 +352,10 @@ assert_contains "$device_packager" '"updater_supported": False'
 assert_contains "$device_packager" '"candidate_health_protocol": 1'
 assert_contains "$device_packager" '"distribution": "standalone-manual"'
 assert_contains "$device_packager" 'standalone-manual-aarch64.zip'
+assert_contains "$updater_profiles" 'runtime-updater-aarch64.zip'
+assert_contains "$device_packager" 'updater_manifest = release_manifest(profile, tag, version, updater=True)'
 [[ "$(grep -cF '"updater_protocol": 2' "$device_packager")" == 1 ]] || {
-    echo 'Only the Raspberry device metadata may claim updater_protocol 2.' >&2
+    echo 'The shared updater manifest contract must declare updater_protocol 2 exactly once.' >&2
     exit 1
 }
 if grep -qF 'orange-pi-zero-2w-device-aarch64.zip' "$release" "$boards"; then

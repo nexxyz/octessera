@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -93,13 +95,24 @@ def require_runtime_service(root: Path, require: Require) -> None:
         requires == [
             "Requires=octessera-device-apply-reboot.socket",
             "Requires=octessera-provision-musical-default.service",
+            "Requires=octessera-update-recovery.service",
         ],
         "production service has an unexpected dependency",
     )
     require(not any(line.startswith(prefix) for line in service_content.splitlines() for prefix in ("StartLimitAction=", "OnFailure=", "Requisite=", "BindsTo=", "PartOf=")), "production service has an unapproved failure dependency")
     require("LimitRTPRIO=80" not in service_content, "production service grants an overly broad realtime priority")
     require("PrivateDevices=yes" not in service_content and "DevicePolicy=" not in service_content, "production service blocks hardware access")
-    require("octessera-update" not in service_content, "production service claims unsupported updater behavior")
+    require(
+        not any(
+            "octessera-update-" in line
+            and line not in {
+                "Requires=octessera-update-recovery.service",
+                "After=octessera-update-recovery.service",
+            }
+            for line in service_content.splitlines()
+        ),
+        "production service claims unsupported updater behavior",
+    )
     require(
         enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera.service", "/etc/systemd/system/octessera.service"},
         "production service is not enabled",
@@ -204,19 +217,78 @@ def require_runtime_udev_rule(root: Path, require: Require) -> None:
     require(rule.read_text(encoding="utf-8") == expected, "Orange runtime udev rule content is not exact")
 
 
-def reject_unsupported_updater(root: Path, require: Require) -> None:
-    for relative in (
-        "etc/systemd/system/octessera-update-recovery.service",
-        "etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service",
-        "usr/local/sbin/octessera-update",
-        "usr/local/sbin/octessera-update-guard",
-        "usr/local/sbin/octessera-update-recovery",
-        "usr/local/lib/octessera/updater_protocol.py",
-        "usr/local/lib/octessera/updater_state.py",
-        "usr/local/lib/octessera/updater_assets.py",
-        "usr/local/lib/octessera/updater_guard.py",
-        "usr/local/lib/octessera/updater_cli.py",
-        "etc/sudoers.d/octessera-update",
-    ):
-        path = root / relative
-        require(not path.exists() and not path.is_symlink(), f"production image contains unsupported updater path: {relative}")
+def require_production_updater(root: Path, construction: dict, repository_root: Path, version: str, require: Require) -> None:
+    assets = (
+        ("tools/device-update/updater_protocol.py", "usr/local/lib/octessera/updater_protocol.py", 0o644),
+        ("tools/device-update/updater_state.py", "usr/local/lib/octessera/updater_state.py", 0o644),
+        ("tools/device-update/updater_assets.py", "usr/local/lib/octessera/updater_assets.py", 0o644),
+        ("tools/device-update/updater_guard.py", "usr/local/lib/octessera/updater_guard.py", 0o644),
+        ("tools/device-update/updater_cli.py", "usr/local/lib/octessera/updater_cli.py", 0o644),
+        ("tools/device-update/updater_profiles.py", "usr/local/lib/octessera/updater_profiles.py", 0o644),
+        ("tools/device-update/octessera-update-broker", "usr/local/sbin/octessera-update-broker", 0o755),
+        ("userpatches/overlay/usr/local/sbin/octessera-update", "usr/local/sbin/octessera-update", 0o755),
+        ("userpatches/overlay/usr/local/sbin/octessera-update-guard", "usr/local/sbin/octessera-update-guard", 0o755),
+        ("userpatches/overlay/usr/local/sbin/octessera-update-recovery", "usr/local/sbin/octessera-update-recovery", 0o755),
+        ("userpatches/overlay/etc/systemd/system/octessera-update-guard.service", "etc/systemd/system/octessera-update-guard.service", 0o644),
+        ("userpatches/overlay/etc/systemd/system/octessera-update-recovery.service", "etc/systemd/system/octessera-update-recovery.service", 0o644),
+        ("userpatches/overlay/etc/systemd/system/octessera-update.socket", "etc/systemd/system/octessera-update.socket", 0o644),
+        ("userpatches/overlay/etc/systemd/system/octessera-update@.service", "etc/systemd/system/octessera-update@.service", 0o644),
+        ("userpatches/overlay/etc/sudoers.d/octessera-update", "etc/sudoers.d/octessera-update", 0o440),
+    )
+    exact_inputs = {item["path"]: item for item in construction["exact_inputs"]}
+    for source_relative, installed_relative, mode in assets:
+        source = repository_root / source_relative
+        installed = root / installed_relative
+        expected = exact_inputs.get(source_relative)
+        require(expected is not None, f"Orange updater source identity is missing: {source_relative}")
+        if expected is None:
+            raise ValueError(f"Orange updater source identity is missing: {source_relative}")
+        require(source.is_file() and not source.is_symlink(), f"Orange updater source is missing or symlinked: {source_relative}")
+        require(installed.is_file() and not installed.is_symlink(), f"Orange updater asset is missing or symlinked: {installed_relative}")
+        require(hashlib.sha256(source.read_bytes()).hexdigest() == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange updater source identity changed: {source_relative}")
+        require(installed.read_bytes() == source.read_bytes(), f"Orange updater asset differs from its canonical source: {installed_relative}")
+        require_owner_mode(installed, 0, 0, mode, require)
+    recovery = root / "etc/systemd/system/octessera-update-recovery.service"
+    recovery_enabled = root / "etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service"
+    require_owner_mode(recovery, 0, 0, 0o644, require)
+    require(recovery_enabled.is_symlink() and recovery_enabled.lstat().st_uid == 0 and recovery_enabled.lstat().st_gid == 0 and recovery_enabled.readlink().as_posix() in {"../octessera-update-recovery.service", "/etc/systemd/system/octessera-update-recovery.service"}, "Orange updater recovery service is not enabled")
+    socket = root / "etc/systemd/system/octessera-update.socket"
+    socket_enabled = root / "etc/systemd/system/sockets.target.wants/octessera-update.socket"
+    socket_content = socket.read_text(encoding="utf-8")
+    require(
+        all(line in socket_content for line in (
+            "ListenStream=/run/octessera-update/update.sock",
+            "SocketMode=0660",
+            "SocketUser=root",
+            "SocketGroup=octessera-runtime",
+            "DirectoryMode=0755",
+            "Accept=yes",
+        )),
+        "Orange update socket permissions are not narrow",
+    )
+    require(socket_enabled.is_symlink() and socket_enabled.lstat().st_uid == 0 and socket_enabled.lstat().st_gid == 0 and socket_enabled.readlink().as_posix() in {"../octessera-update.socket", "/etc/systemd/system/octessera-update.socket"}, "Orange update socket is not enabled")
+    broker_service = root / "etc/systemd/system/octessera-update@.service"
+    broker_service_content = broker_service.read_text(encoding="utf-8")
+    require(
+        all(line in broker_service_content for line in (
+            "User=root",
+            "Group=root",
+            "StandardInput=socket",
+            "StandardOutput=socket",
+            "ExecStart=/usr/local/sbin/octessera-update-broker",
+            "ProtectSystem=strict",
+            "ReadWritePaths=/opt/octessera /usr/local/bin /run/octessera",
+        )),
+        "Orange update broker service is not root-owned and constrained",
+    )
+    sudoers = root / "etc/sudoers.d/octessera-update"
+    require("octessera-runtime" not in sudoers.read_text(encoding="utf-8"), "Orange runtime account appears in updater sudoers")
+    state_path = root / "opt/octessera/update-state.json"
+    release = root / f"opt/octessera/releases/{version}"
+    manifest_path = release / "update-manifest.json"
+    require_owner_mode(state_path, 0, 0, 0o644, require)
+    require_owner_mode(manifest_path, 0, 0, 0o444, require)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    require(manifest == {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "updater_supported": True, "distribution": "runtime-updater", "tag": f"v{version}", "version": version, "board_profile": "orange-pi-zero-2w", "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]}, "Orange updater manifest is not exact")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    require(state == {"schema_version": 2, "phase": "committed", "current": version, "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": manifest, "asset": None}, "Orange updater state is not an exact committed initial state")

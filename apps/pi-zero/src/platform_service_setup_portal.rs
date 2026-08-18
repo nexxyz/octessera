@@ -6,10 +6,24 @@ impl PiPlatformService {
     pub fn start_setup_portal(
         &self,
         request: &RuntimePlatformRequest,
-    ) -> Result<(), SetupPortalFailure> {
+    ) -> Result<HostMessage, SetupPortalFailure> {
         let token = self.setup_portal.prepare(request)?;
-        self.setup_portal.publish(&token)?;
-        Ok(())
+        if self.user_data_transfer.start().is_err() {
+            self.setup_portal.revoke(&token);
+            return Err(SetupPortalFailure::unavailable());
+        }
+        if let Err(error) = self.setup_portal.publish(&token) {
+            self.user_data_transfer.stop();
+            return Err(error);
+        }
+        match self.user_data_transfer.starting_status(request) {
+            Ok(status) => Ok(status),
+            Err(_) => {
+                self.user_data_transfer.stop();
+                self.setup_portal.revoke(&token);
+                Err(SetupPortalFailure::internal())
+            }
+        }
     }
 
     pub fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {

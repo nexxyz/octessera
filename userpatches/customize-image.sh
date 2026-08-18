@@ -248,7 +248,7 @@ fi
 spi_dts_sha256="$(sha256sum "$spi_dts_image" | awk '{ print $1 }')"
 spi_dtbo_sha256="$(sha256sum "$spi_dtbo" | awk '{ print $1 }')"
 
-octessera_require_diagnostic_updater_overlay "$overlay_dir"
+octessera_require_updater_overlay "$overlay_dir"
 for wifi_foundation_file in \
   usr/local/sbin/octessera-wifi-foundation \
   etc/systemd/system/octessera-wifi-foundation.service; do
@@ -262,16 +262,16 @@ install -D -m 0644 -o root -g root "$welcome_overlay" /etc/profile.d/octessera-w
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file etc/octessera/image-contract.json /etc/octessera/image-contract.json 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
-if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
-  install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
-  install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
-  install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
-  install_overlay_file usr/local/lib/octessera/updater_protocol.py /usr/local/lib/octessera/updater_protocol.py 0644
-  install_overlay_file usr/local/lib/octessera/updater_state.py /usr/local/lib/octessera/updater_state.py 0644
-  install_overlay_file usr/local/lib/octessera/updater_assets.py /usr/local/lib/octessera/updater_assets.py 0644
-  install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644
-  install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
-fi
+install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
+install_overlay_file usr/local/sbin/octessera-update-broker /usr/local/sbin/octessera-update-broker 0755
+install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
+install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
+install_overlay_file usr/local/lib/octessera/updater_protocol.py /usr/local/lib/octessera/updater_protocol.py 0644
+install_overlay_file usr/local/lib/octessera/updater_state.py /usr/local/lib/octessera/updater_state.py 0644
+install_overlay_file usr/local/lib/octessera/updater_assets.py /usr/local/lib/octessera/updater_assets.py 0644
+install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644
+install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
+install_overlay_file usr/local/lib/octessera/updater_profiles.py /usr/local/lib/octessera/updater_profiles.py 0644
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
 install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
 device_config_overlay="$overlay_dir/usr/local/lib/octessera/device_config.py"
@@ -315,11 +315,11 @@ install_overlay_file usr/share/octessera/samples/upstream/LICENSE /usr/share/oct
 install_overlay_file usr/share/octessera/samples/upstream/README.txt /usr/share/octessera/samples/upstream/README.txt 0644
 install_orange_musical_assets "$overlay_dir" ""
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
-if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
-  install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
-  install_overlay_file etc/systemd/system/octessera-update-recovery.service /etc/systemd/system/octessera-update-recovery.service 0644
-  install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
-fi
+install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
+install_overlay_file etc/systemd/system/octessera-update-recovery.service /etc/systemd/system/octessera-update-recovery.service 0644
+install_overlay_file etc/systemd/system/octessera-update.socket /etc/systemd/system/octessera-update.socket 0644
+install_overlay_file etc/systemd/system/octessera-update@.service /etc/systemd/system/octessera-update@.service 0644
+install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
 if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
   [[ -f "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" && ! -L "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" ]] || { echo "Missing exact Orange runtime udev rule." >&2; exit 1; }
   install_overlay_file etc/udev/rules.d/70-octessera-orange-runtime.rules /etc/udev/rules.d/70-octessera-orange-runtime.rules 0644
@@ -373,9 +373,8 @@ systemctl enable octessera-provision-musical-default.service >/dev/null
 systemctl enable octessera-orange-boot-splash.service >/dev/null
 systemctl enable octessera-orange-oled-shutdown.service >/dev/null
 systemctl enable octessera-orange-oled-suspend.service >/dev/null
-if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
-  systemctl enable octessera-update-recovery.service >/dev/null
-fi
+systemctl enable octessera-update-recovery.service >/dev/null
+systemctl enable octessera-update.socket >/dev/null
 if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
   systemctl enable octessera.service >/dev/null
 fi

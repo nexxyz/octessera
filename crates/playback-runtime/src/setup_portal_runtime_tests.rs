@@ -37,6 +37,7 @@ fn typed_setup_portal_failure_keeps_the_native_lifecycle_presentation() {
             phase: RuntimeSetupPortalPhase::Failed,
             disposition: None,
             portal_suffix: None,
+            transfer: None,
             reboot_required: false,
             error_code: Some(RuntimeSetupPortalErrorCode::OperationFailed),
         },

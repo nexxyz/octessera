@@ -85,7 +85,7 @@ octessera_require_runtime_entry_set() {
     done <<< "$listing"
   fi
   entries_text="$(printf '%s\n' "${entries[@]}" | LC_ALL=C sort | paste -sd ' ' -)"
-  [[ "$entries_text" == 'regular:SHA256SUMS regular:octessera-pi regular:octessera-runtime.json' || "$entries_text" == 'f:SHA256SUMS f:octessera-pi f:octessera-runtime.json' ]] || {
+  [[ "$entries_text" == 'regular:SHA256SUMS regular:octessera-pi regular:octessera-runtime.json regular:update-manifest.json' || "$entries_text" == 'f:SHA256SUMS f:octessera-pi f:octessera-runtime.json f:update-manifest.json' ]] || {
     echo "Runtime release contains unexpected entries: $release_path." >&2
     exit 1
   }
@@ -306,14 +306,14 @@ octessera_require_runtime_service() {
     'RestartSec=5s'; do
     printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
   done
-  if printf '%s\n' "$service_content" | grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80|^(PrivateDevices|DevicePolicy)=|^(Restart=always|StartLimitAction=|OnFailure=|Requisite=|BindsTo=|PartOf=)|octessera-update'; then
+  if printf '%s\n' "$service_content" | grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80|^(PrivateDevices|DevicePolicy)=|^(Restart=always|StartLimitAction=|OnFailure=|Requisite=|BindsTo=|PartOf=)|octessera-update-(guard|broker|socket)'; then
     echo "Orange runtime service has an unsafe device or unsupported updater policy." >&2
     exit 1
   fi
   while IFS= read -r line; do
-    [[ "$line" == 'Requires=octessera-device-apply-reboot.socket' || "$line" == 'Requires=octessera-provision-musical-default.service' ]] || { echo "Orange runtime service has an unexpected Requires dependency." >&2; exit 1; }
+    [[ "$line" == 'Requires=octessera-device-apply-reboot.socket' || "$line" == 'Requires=octessera-provision-musical-default.service' || "$line" == 'Requires=octessera-update-recovery.service' ]] || { echo "Orange runtime service has an unexpected Requires dependency." >&2; exit 1; }
   done < <(printf '%s\n' "$service_content" | grep '^Requires=' || true)
-  [[ "$(printf '%s\n' "$service_content" | grep -c '^Requires=')" == 2 ]] || { echo "Orange runtime service has an unexpected Requires dependency count." >&2; exit 1; }
+  [[ "$(printf '%s\n' "$service_content" | grep -c '^Requires=')" == 3 ]] || { echo "Orange runtime service has an unexpected Requires dependency count." >&2; exit 1; }
 }
 
 octessera_require_runtime_udev_rule() {
@@ -532,9 +532,35 @@ octessera_inspect_runtime_mode() {
         usr/local/lib/octessera/updater_assets.py \
         usr/local/lib/octessera/updater_guard.py \
         usr/local/lib/octessera/updater_cli.py \
+        usr/local/lib/octessera/updater_profiles.py \
+        usr/local/sbin/octessera-update-broker \
+        etc/systemd/system/octessera-update.socket \
+        etc/systemd/system/octessera-update@.service \
         etc/sudoers.d/octessera-update; do
-        octessera_require_absent_path "$path"
+        stat_path "$path" || { echo "Production image is missing updater path: $path." >&2; exit 1; }
       done
+      require_root_mode usr/local/sbin/octessera-update 755
+      require_root_mode usr/local/sbin/octessera-update-broker 755
+      require_root_mode usr/local/sbin/octessera-update-guard 755
+      require_root_mode usr/local/sbin/octessera-update-recovery 755
+      require_root_mode usr/local/lib/octessera/updater_protocol.py 644
+      require_root_mode usr/local/lib/octessera/updater_state.py 644
+      require_root_mode usr/local/lib/octessera/updater_assets.py 644
+      require_root_mode usr/local/lib/octessera/updater_guard.py 644
+      require_root_mode usr/local/lib/octessera/updater_cli.py 644
+      require_root_mode usr/local/lib/octessera/updater_profiles.py 644
+      require_root_mode etc/systemd/system/octessera-update.socket 644
+      require_root_mode etc/systemd/system/octessera-update@.service 644
+      require_root_mode etc/sudoers.d/octessera-update 440
+      octessera_require_image_symlink etc/systemd/system/sockets.target.wants/octessera-update.socket ../octessera-update.socket /etc/systemd/system/octessera-update.socket
+      update_socket_unit="$(read_file etc/systemd/system/octessera-update.socket)"
+      printf '%s\n' "$update_socket_unit" | grep -q '^SocketMode=0660$' || { echo "Production update socket mode is not narrow." >&2; exit 1; }
+      printf '%s\n' "$update_socket_unit" | grep -q '^SocketGroup=octessera-runtime$' || { echo "Production update socket group is not narrow." >&2; exit 1; }
+      update_sudoers="$(read_file etc/sudoers.d/octessera-update)"
+      if printf '%s\n' "$update_sudoers" | grep -Eq 'octessera-runtime|ALL=\(ALL\)'; then
+        echo "Production updater sudoers grants runtime or broad privilege." >&2
+        exit 1
+      fi
       version="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_VERSION)"
       binary_hash="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_BINARY_SHA256)"
       manifest_hash="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_MANIFEST_SHA256)"
@@ -551,6 +577,7 @@ octessera_inspect_runtime_mode() {
       require_root_mode "$release_path/octessera-pi" 555
       require_root_mode "$release_path/octessera-runtime.json" 444
       require_root_mode "$release_path/SHA256SUMS" 444
+      require_root_mode "$release_path/update-manifest.json" 444
       actual_binary_hash="$(hash_path "$release_path/octessera-pi")"
       actual_manifest_hash="$(hash_path "$release_path/SHA256SUMS")"
       [[ "$actual_binary_hash" == "$binary_hash" ]] || { echo "Production runtime binary hash mismatch." >&2; exit 1; }

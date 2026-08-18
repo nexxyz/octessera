@@ -1,0 +1,21 @@
+[Unit]
+Description=Octessera root-owned runtime update broker
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+StandardInput=socket
+StandardOutput=socket
+ExecStart=/usr/local/sbin/octessera-update-broker
+TimeoutStartSec=180s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/octessera /usr/local/bin /run/octessera
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+UMask=0077

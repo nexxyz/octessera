@@ -32,7 +32,6 @@ mod audio_sink_registry;
 mod audio_stream_health;
 mod boot_oled_handoff;
 mod candidate_readiness;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod device_update;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod diagnostics;
@@ -112,6 +111,10 @@ mod ui_profile;
 mod update_menu_fixture_tests;
 #[cfg(feature = "native-audio")]
 mod usb_config;
+mod user_data_archive;
+mod user_data_media_paths;
+mod user_data_restore;
+mod user_data_transfer;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod wake_trace;
 

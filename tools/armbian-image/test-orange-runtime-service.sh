@@ -4,12 +4,35 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 service="$root/userpatches/overlay/etc/systemd/system/octessera.service"
 socket="$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket"
+update_socket="$root/userpatches/overlay/etc/systemd/system/octessera-update.socket"
+update_service="$root/userpatches/overlay/etc/systemd/system/octessera-update@.service"
 udev_rule="$root/userpatches/overlay/etc/udev/rules.d/70-octessera-orange-runtime.rules"
 gadget="$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service"
 
 [[ -f "$service" ]] || { echo "Missing Orange runtime service." >&2; exit 1; }
+[[ -f "$update_socket" && -f "$update_service" ]] || { echo "Missing Orange update broker units." >&2; exit 1; }
 grep -qFx 'Before=sound.target octessera.service' "$socket"
 grep -qFx 'After=local-fs.target' "$socket"
+for required_line in \
+  'ListenStream=/run/octessera-update/update.sock' \
+  'SocketMode=0660' \
+  'SocketUser=root' \
+  'SocketGroup=octessera-runtime' \
+  'DirectoryMode=0755' \
+  'Accept=yes'; do
+  grep -qFx "$required_line" "$update_socket" || { echo "Update socket is missing: $required_line" >&2; exit 1; }
+done
+for required_line in \
+  'User=root' \
+  'Group=root' \
+  'StandardInput=socket' \
+  'StandardOutput=socket' \
+  'ExecStart=/usr/local/sbin/octessera-update-broker' \
+  'ProtectSystem=strict' \
+  'ReadWritePaths=/opt/octessera /usr/local/bin /run/octessera'; do
+  grep -qFx "$required_line" "$update_service" || { echo "Update broker service is missing: $required_line" >&2; exit 1; }
+done
+! grep -qE 'sudo|octessera-runtime' "$update_service" || { echo 'Update broker service has an unsafe privilege path.' >&2; exit 1; }
 if grep -qFx 'After=local-fs.target octessera-provision-musical-default.service' "$socket"; then
   echo 'Orange apply socket must not wait for musical provisioning.' >&2
   exit 1
@@ -22,6 +45,7 @@ for required_line in \
   'Group=octessera-runtime' \
   'Requires=octessera-device-apply-reboot.socket' \
   'Requires=octessera-provision-musical-default.service' \
+  'Requires=octessera-update-recovery.service' \
   'After=octessera-device-apply-reboot.socket' \
   'Wants=octessera-orange-boot-splash.service' \
   'After=octessera-orange-boot-splash.service' \
@@ -54,7 +78,7 @@ assert restarts(1)
 print("Orange runtime exit-status restart policy fixture passed")
 PY
 ! grep -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$service" || { echo 'Orange runtime service has an unapproved failure dependency.' >&2; exit 1; }
-[[ "$(grep -c '^Requires=' "$service")" == 2 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
+[[ "$(grep -c '^Requires=' "$service")" == 3 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
 if grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$service"; then
   echo 'Runtime service grants ambient SYS_NICE or priority 80.' >&2
   exit 1
@@ -82,10 +106,15 @@ mkdir -p "$work/etc/systemd/system/basic.target.wants" "$work/etc/systemd/system
 cp "$service" "$work/etc/systemd/system/octessera.service"
 cp "$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket" "$work/etc/systemd/system/octessera-device-apply-reboot.socket"
 cp "$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service" "$work/etc/systemd/system/octessera-device-apply-reboot@.service"
+cp "$update_socket" "$work/etc/systemd/system/octessera-update.socket"
+cp "$update_service" "$work/etc/systemd/system/octessera-update@.service"
 cp "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" "$work/etc/systemd/system/octessera-orange-boot-splash.service"
+cp "$root/userpatches/overlay/etc/systemd/system/octessera-update-recovery.service" "$work/etc/systemd/system/octessera-update-recovery.service"
 chmod 0644 "$work/etc/systemd/system/octessera.service"
 chmod 0644 "$work/etc/systemd/system/octessera-device-apply-reboot.socket"
 chmod 0644 "$work/etc/systemd/system/octessera-device-apply-reboot@.service"
+chmod 0644 "$work/etc/systemd/system/octessera-update.socket"
+chmod 0644 "$work/etc/systemd/system/octessera-update@.service"
 chmod 0644 "$work/etc/systemd/system/octessera-orange-boot-splash.service"
 printf '%s\n' '#!/bin/sh' 'exit 0' > "$work/usr/local/bin/octessera-pi"
 chmod 0755 "$work/usr/local/bin/octessera-pi"
@@ -96,6 +125,7 @@ printf '%s\n' 'root:x:0:' 'octessera-runtime:x:990:' > "$work/etc/group"
 for unit in octessera-provision-musical-default.service octessera-orange-usb-gadget.service; do
   printf '%s\n' '[Unit]' "Description=$unit" '[Service]' 'Type=oneshot' 'ExecStart=/bin/true' > "$work/etc/systemd/system/$unit"
 done
+printf '%s\n' '[Unit]' 'Description=update recovery' '[Service]' 'Type=oneshot' 'ExecStart=/bin/true' > "$work/etc/systemd/system/octessera-update-recovery.service"
 printf '%s\n' '[Unit]' 'Description=Orange boot splash' '[Service]' 'Type=oneshot' 'ExecStart=/bin/true' > "$work/etc/systemd/system/octessera-orange-boot-splash.service"
 for unit in sysinit.target sound.target local-fs.target sockets.target; do
   printf '%s\n' '[Unit]' "Description=$unit" > "$work/etc/systemd/system/$unit"
@@ -106,8 +136,10 @@ ln -s ../sysinit.target "$work/etc/systemd/system/basic.target.wants/sysinit.tar
 ln -s ../sockets.target "$work/etc/systemd/system/basic.target.wants/sockets.target"
 ln -s ../basic.target "$work/etc/systemd/system/multi-user.target.wants/basic.target"
 ln -s ../octessera-device-apply-reboot.socket "$work/etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
+ln -s ../octessera-update.socket "$work/etc/systemd/system/sockets.target.wants/octessera-update.socket"
 ln -s ../octessera-provision-musical-default.service "$work/etc/systemd/system/multi-user.target.wants/octessera-provision-musical-default.service"
 ln -s ../octessera.service "$work/etc/systemd/system/multi-user.target.wants/octessera.service"
+ln -s ../octessera-update-recovery.service "$work/etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service"
 verify_output="$work/systemd-verify.out"
 if ! systemd-analyze --root="$work" verify multi-user.target >"$verify_output" 2>&1; then
   cat "$verify_output" >&2

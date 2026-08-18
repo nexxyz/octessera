@@ -1,4 +1,3 @@
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::device_update;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::orange_device_apply::OrangeDeviceApplyTransaction;
@@ -8,6 +7,7 @@ use crate::sample_browser::sample_entries;
 use crate::setup_portal::SetupPortalEnvironment;
 use crate::setup_portal::SetupPortalService;
 use crate::setup_portal_worker;
+use crate::user_data_transfer::UserDataTransferService;
 use playback_runtime::{
     HostMessage, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfoError,
 };
@@ -44,19 +44,15 @@ pub struct PiPlatformService {
     result_lane: Arc<PlatformResultLane>,
     setup_portal: SetupPortalService,
     setup_portal_stop: Arc<AtomicBool>,
+    user_data_transfer: UserDataTransferService,
 }
 
 impl PiPlatformService {
     pub fn new(store_dir: PathBuf, samples_dir: PathBuf) -> Self {
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        {
-            Self::new_with_executor(store_dir, samples_dir, device_update::production_executor())
-        }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        Self::new_with_executor(store_dir, samples_dir)
+        Self::new_with_executor(store_dir, samples_dir, device_update::production_executor())
     }
 
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    #[cfg(test)]
     pub(crate) fn new_with_update_executor(
         store_dir: PathBuf,
         samples_dir: PathBuf,
@@ -68,16 +64,19 @@ impl PiPlatformService {
     fn new_with_executor(
         store_dir: PathBuf,
         samples_dir: PathBuf,
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] update_executor: Arc<
-            dyn device_update::UpdateExecutor,
-        >,
+        update_executor: Arc<dyn device_update::UpdateExecutor>,
     ) -> Self {
         let setup_portal = SetupPortalService::production();
+        let user_data_transfer = UserDataTransferService::production(
+            store_dir.clone(),
+            samples_dir.clone(),
+            setup_portal.random_source(),
+        );
         Self::new_with_setup_portal(
             store_dir,
             samples_dir,
             setup_portal,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            user_data_transfer,
             update_executor,
         )
     }
@@ -86,9 +85,8 @@ impl PiPlatformService {
         store_dir: PathBuf,
         samples_dir: PathBuf,
         setup_portal: SetupPortalService,
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] update_executor: Arc<
-            dyn device_update::UpdateExecutor,
-        >,
+        user_data_transfer: UserDataTransferService,
+        update_executor: Arc<dyn device_update::UpdateExecutor>,
     ) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
         let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
@@ -99,8 +97,8 @@ impl PiPlatformService {
             result_lane.clone(),
             setup_portal.clone(),
             setup_portal_stop.clone(),
+            user_data_transfer.clone(),
         );
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         platform_service_worker::spawn(
             worker_store_dir,
             samples_dir,
@@ -108,8 +106,6 @@ impl PiPlatformService {
             result_lane.clone(),
             update_executor,
         );
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        platform_service_worker::spawn(worker_store_dir, samples_dir, jobs_rx, result_lane.clone());
         Self {
             store_dir,
             jobs: jobs_tx,
@@ -119,6 +115,7 @@ impl PiPlatformService {
             result_lane,
             setup_portal,
             setup_portal_stop,
+            user_data_transfer,
         }
     }
 
@@ -128,11 +125,17 @@ impl PiPlatformService {
         samples_dir: PathBuf,
         environment: SetupPortalEnvironment,
     ) -> Self {
+        let setup_portal = SetupPortalService::test(environment);
+        let user_data_transfer = UserDataTransferService::test(
+            store_dir.clone(),
+            samples_dir.clone(),
+            setup_portal.random_source(),
+        );
         Self::new_with_setup_portal(
             store_dir,
             samples_dir,
-            SetupPortalService::test(environment),
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            setup_portal,
+            user_data_transfer,
             device_update::production_executor(),
         )
     }
@@ -151,11 +154,16 @@ impl PiPlatformService {
             TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
         })
     }
+
+    pub(crate) fn handle_transfer_input(&self, input: &serde_json::Value) {
+        self.user_data_transfer.handle_physical_input(input);
+    }
 }
 
 impl Drop for PiPlatformService {
     fn drop(&mut self) {
         self.setup_portal_stop.store(true, Ordering::Release);
+        self.user_data_transfer.stop();
     }
 }
 pub struct PlatformJob {
@@ -195,11 +203,8 @@ pub enum PlatformJobKind {
     UsbSdTransferStart,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     UsbSdTransferStop,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     UpdateCheck,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     UpdateApply,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     Rollback,
     SystemInfo,
     #[cfg(test)]
@@ -222,7 +227,6 @@ fn handle_job(
     store_dir: &Path,
     samples_dir: &Path,
     job: PlatformJob,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     update_executor: &dyn device_update::UpdateExecutor,
 ) -> RuntimeStoreResult {
     let request = job.request;
@@ -292,11 +296,8 @@ fn handle_job(
         PlatformJobKind::UsbSdTransferStart => run_usb_storage_command("storage-start"),
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         PlatformJobKind::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         PlatformJobKind::UpdateCheck => device_update::run("check", update_executor),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         PlatformJobKind::UpdateApply => device_update::run("apply", update_executor),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         PlatformJobKind::Rollback => device_update::run("rollback", update_executor),
         PlatformJobKind::SystemInfo => match system_info::collect() {
             Ok(info) => RuntimeStoreResult::SystemInfoResult {
@@ -445,7 +446,11 @@ pub fn preset_load_path(store_dir: &Path, name: &str) -> Result<PathBuf, String>
 fn preset_name_from_file_name(file_name: &str) -> Option<String> {
     if matches!(
         file_name,
-        "default.json" | "default.patch.json" | "device.json" | "recovery-save.json"
+        "default.json"
+            | "default.patch.json"
+            | "current.json"
+            | "device.json"
+            | "recovery-save.json"
     ) || file_name.starts_with("bak-")
     {
         return None;

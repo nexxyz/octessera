@@ -156,16 +156,18 @@ Release assets:
 - `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip`: Raspberry Pi profile-qualified updater payload containing exactly `octessera-pi`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`; the binary entry is executable.
 - `SHA256SUMS-raspberry-pi-zero-2w-device.txt`: legacy one-line checksum retained only for existing installed Raspberry updater clients.
 - `octessera-<version>-orange-pi-zero-2w.img.xz`: Orange Pi production Armbian image.
-- `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`: Orange Pi production runtime bundle for manual installation containing `octessera-pi`, `octessera-runtime.json`, `SHA256SUMS`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`. It is not an OTA or device-update asset.
+- `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`: Orange Pi production runtime bundle for manual installation containing `octessera-pi`, `octessera-runtime.json`, `SHA256SUMS`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`. It remains a manual bundle and is not an OTA asset.
+- `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip`: Orange Pi profile-qualified runtime-only updater payload containing exactly `octessera-pi`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`.
+- `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`: checksum for the exact Orange runtime-updater ZIP.
 - `octessera-<version>-release-evidence.zip`: supporting build material, including the checksums, kernel packages, image evidence, operational manifest copy, and legal bundle that are not root assets.
-- `SHA256SUMS.txt`: lowercase, sorted checksums for the other 11 custom root assets.
+- `SHA256SUMS.txt`: lowercase, sorted checksums for the other 13 custom root assets.
 
 macOS distribution is paused until it can be properly signed and notarized, so
 it is not currently a GitHub release asset. The final populated-draft gate expects
-exactly 12 custom release files. It checks the
+exactly 14 custom release files. It checks the
 portable notice proof, exact four-entry Raspberry updater ZIP, exact six-entry
-Orange manual ZIP, image and kernel evidence, runtime identity, and root asset
-names/checksums. GitHub's automatic source ZIP and tar archives remain visible
+Orange manual ZIP, exact four-entry Orange runtime-updater ZIP, image and kernel
+evidence, runtime identity, and root asset names/checksums. GitHub's automatic source ZIP and tar archives remain visible
 source archives but are not custom assets or entries in `SHA256SUMS.txt`.
 
 Release process and owner handoff:
@@ -223,9 +225,15 @@ images. Assets are profile-qualified: the Raspberry Pi updater fetches
 `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip` with
 `SHA256SUMS-raspberry-pi-zero-2w-device.txt`, verifies the checksum and embedded
 board-profile manifest, and stages an immutable candidate under
-`/opt/octessera/releases/<version>`. Orange update check, apply, rollback, and
-OTA remain unsupported; Orange must not consume Raspberry assets or
-pretend that a manual image install is an OTA update.
+`/opt/octessera/releases/<version>`. Orange Check/Apply/Rollback goes through the
+root-owned update broker and guarded updater, which accepts only the Orange
+profile's `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip`
+and `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt` pair. It updates only the
+managed runtime release and binary link. Full Armbian, kernel, device-tree, and
+image replacement remains manual; the standalone manual ZIP is not an OTA asset.
+Missing or mismatched profile, asset, manifest, checksum, or health precondition
+fails closed. Orange never consumes Raspberry assets or falls back to the manual
+ZIP or a full image path.
 
 On supported Raspberry installations, Apply and rollback use a guarded
 transaction. The guard verifies the candidate service restart, process identity,
@@ -589,7 +597,7 @@ source-bound boot-layer contract, not from a trusted parent respin:
 ./tools/pi/build-pi-cross.ps1 -BoardProfile orange-pi-zero-2w -Backend wsl-docker
 ```
 
-That output declares `hardware-orange-pi-zero-2w` in its adjacent metadata sidecar. Raspberry deploy, provision, preflight, and pi-gen image tooling accepts only the Raspberry profile. The Orange production image uses the Armbian path and ships the native runtime as `octessera.service` under the locked `octessera-runtime` account. Every non-empty Jack/USB/HDMI output set is valid; Jack is fatal/required only when selected, recognized disconnected USB or HDMI may wait, selected route faults block readiness, and no route is a fallback. Simultaneous physical outputs use independent unsynchronized clocks and can drift or echo; this phase does not provide sample alignment. Readiness follows selected-route status, initialized control-surface devices, and the first rendered snapshot. FIFO priority 70 is granted through `LimitRTPRIO=70`; no `CAP_SYS_NICE` or ambient capability is added. The observed Orange HDMI connector path is `/sys/class/drm/card0-HDMI-A-1`. On the live Raspberry Pi Zero 2 W, kernel `6.12.93+rpt-rpi-v8` exposes the exact `/sys/class/drm/card0-HDMI-A-1/{status,edid}` paths; Raspberry code pins card0 and does not fall back to card1. This is connector identity evidence only, not connected HDMI audio or audible qualification. Orange update check/apply/rollback and OTA remain unsupported.
+That output declares `hardware-orange-pi-zero-2w` in its adjacent metadata sidecar. Raspberry deploy, provision, preflight, and pi-gen image tooling accepts only the Raspberry profile. The Orange production image uses the Armbian path and ships the native runtime as `octessera.service` under the locked `octessera-runtime` account. Every non-empty Jack/USB/HDMI output set is valid; Jack is fatal/required only when selected, recognized disconnected USB or HDMI may wait, selected route faults block readiness, and no route is a fallback. Simultaneous physical outputs use independent unsynchronized clocks and can drift or echo; this phase does not provide sample alignment. Readiness follows selected-route status, initialized control-surface devices, and the first rendered snapshot. FIFO priority 70 is granted through `LimitRTPRIO=70`; no `CAP_SYS_NICE` or ambient capability is added. The observed Orange HDMI connector path is `/sys/class/drm/card0-HDMI-A-1`. On the live Raspberry Pi Zero 2 W, kernel `6.12.93+rpt-rpi-v8` exposes the exact `/sys/class/drm/card0-HDMI-A-1/{status,edid}` paths; Raspberry code pins card0 and does not fall back to card1. This is connector identity evidence only, not connected HDMI audio or audible qualification. Orange runtime-only Check/Apply/Rollback uses the guarded, profile-qualified updater and explicit runtime-updater ZIP; full Armbian, kernel, device-tree, and image replacement remains manual, and the standalone manual ZIP is not an OTA asset. Profile or asset mismatches fail closed without Raspberry or manual/image fallback.
 
 For a local Orange Pi cross-build, use the WSL Docker-only builder. It never
 contacts or deploys to a board, installs the aarch64 GNU linker/sysroot in its

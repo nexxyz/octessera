@@ -21,9 +21,10 @@ Orange Pi Zero 2W. They share the native runtime, but their images, pinouts,
 ports, and adapters are board-specific. Source and build checks are useful
 evidence, not physical-board qualification.
 
-The enclosure is currently an active v21 design and test-fit model, not a
-production-final enclosure. Cost depends on the current BOM, suppliers,
-shipping, taxes, and printing. There is no fixed price promise.
+The available v21 enclosure builds have been built and validated, but v21 is
+still a test-fit design rather than a production-final enclosure. Cost depends
+on the current BOM, suppliers, shipping, taxes, and printing. There is no fixed
+price promise.
 
 ## Start by what you want to do
 
@@ -48,8 +49,9 @@ Start with [troubleshooting](troubleshooting.md), then use the matching
 [Raspberry first-boot page](hardware/raspberry-pi-first-boot.md) or [Orange
 first-boot page](hardware/orange-pi-first-boot.md), [setup portal
 guide](hardware/setup-portal.md), or [board qualification and
-status](hardware/board-qualification.md). Keep the boards accessible until the
-open electrical checks pass.
+status](hardware/board-qualification.md). For a reflash, read [Data Backup and
+Restore](data-backup-restore.md) before erasing the source card. Keep the boards
+accessible until the open electrical checks pass.
 
 ### I want to learn the instrument
 

@@ -225,6 +225,23 @@ use system_info::*;
 use trigger_probability_payload::*;
 use velocity_curve::*;
 
+pub(crate) fn normalize_user_data_patch_payload(
+    payload: Value,
+    canonical_defaults: &Value,
+) -> Result<Value, String> {
+    let payload = if payload.get("kind").and_then(Value::as_str) == Some(CONFIG_KIND) {
+        portable_patch_payload_for_save(&payload)?
+    } else {
+        payload
+    };
+    let prepared = prepare_patch_payload(payload, canonical_defaults)?;
+    Ok(portable_patch_projection(&prepared.payload))
+}
+
+pub(crate) fn validate_user_data_config_payload(payload: &Value) -> Result<(), String> {
+    validate_config_payload(payload)
+}
+
 const DEFAULT_ALGORITHM_STEP_RED: u32 = 12;
 const OLED_BODY_ROWS: usize = 7;
 #[cfg(not(test))]

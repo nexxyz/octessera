@@ -1,5 +1,7 @@
 use super::*;
-use crate::{RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode};
+use crate::{
+    RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode, RuntimeSetupPortalTransfer,
+};
 
 fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
     let (disposition, suffix, error_code) = match phase {
@@ -27,6 +29,7 @@ fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
             phase,
             disposition,
             portal_suffix: suffix,
+            transfer: None,
             reboot_required: false,
             error_code,
         },
@@ -124,10 +127,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         (RuntimeSetupPortalPhase::Succeeded, "Setup complete"),
         (RuntimeSetupPortalPhase::Failed, "Setup failed"),
         (RuntimeSetupPortalPhase::TimedOut, "Setup timed out"),
-        (
-            RuntimeSetupPortalPhase::Unsupported,
-            "Not available on desktop",
-        ),
+        (RuntimeSetupPortalPhase::Unsupported, "Not available on"),
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.stop_for_setup_portal();
@@ -140,7 +140,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         let lines = display_lines(&messages);
         assert!(lines.iter().any(|line| line == expected));
         assert!(lines.len() <= 7);
-        assert!(lines.iter().all(|line| line.chars().count() <= 28));
+        assert!(lines.iter().all(|line| line.chars().count() <= 20));
         assert_eq!(
             snapshot["selectedRow"].as_u64(),
             Some((lines.len() - 1) as u64)
@@ -148,6 +148,36 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         assert!(snapshot["display"]["scrollOffset"].is_null());
         assert!(lines.last().unwrap().starts_with("> "));
     }
+}
+
+#[test]
+pub(crate) fn portal_transfer_details_are_visible_without_exceeding_oled_bounds() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.stop_for_setup_portal();
+    let result = RuntimeStoreResult::SetupPortalStatus {
+        status: RuntimeSetupPortalStatus {
+            phase: RuntimeSetupPortalPhase::PortalReady,
+            disposition: None,
+            portal_suffix: Some("1a2f".into()),
+            transfer: Some(RuntimeSetupPortalTransfer {
+                url: "http://192.168.42.1:8081".into(),
+                code: "Ab12Cd".into(),
+            }),
+            reboot_required: false,
+            error_code: None,
+        },
+    }
+    .with_identity("setup-1".into(), Some(1));
+    let messages = runner.send(HostMessage::RuntimeResult { result }).unwrap();
+    let lines = display_lines(&messages);
+    assert!(lines.iter().any(|line| line == "Data 192.168.42.1"));
+    assert!(lines.iter().any(|line| line == "Port 8081"));
+    assert!(lines.iter().any(|line| line == "Code Ab12Cd"));
+    assert!(lines.len() <= 7);
+    assert!(lines.iter().all(|line| line.chars().count() <= 20));
+    assert!(lines.iter().any(|line| line == "Octessera Setup 1a2f"));
+    assert!(lines.iter().any(|line| line == "Timeout: 30 minutes"));
+    assert!(lines.last().unwrap().starts_with("> "));
 }
 
 #[test]
@@ -159,6 +189,7 @@ pub(crate) fn already_running_is_presented_as_the_same_starting_lifecycle() {
             phase: RuntimeSetupPortalPhase::Starting,
             disposition: Some(RuntimeSetupPortalDisposition::AlreadyRunning),
             portal_suffix: None,
+            transfer: None,
             reboot_required: false,
             error_code: None,
         },

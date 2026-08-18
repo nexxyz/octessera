@@ -43,6 +43,12 @@ pub enum PiPowerRequest {
     Shutdown,
 }
 impl PiPlaybackHostAdapter {
+    pub(crate) fn handle_transfer_input(&self, message: &playback_runtime::HostMessage) {
+        if let playback_runtime::HostMessage::DeviceInput { input, .. } = message {
+            self.platform_service.handle_transfer_input(input);
+        }
+    }
+
     pub fn new<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -294,10 +300,10 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 ))
             }
             RuntimePlatformEffect::SetupPortalOpen => {
-                if let Err(failure) = self.platform_service.start_setup_portal(request) {
-                    return Ok(vec![start_failure_message(request, failure)]);
+                match self.platform_service.start_setup_portal(request) {
+                    Ok(status) => return Ok(vec![status]),
+                    Err(failure) => return Ok(vec![start_failure_message(request, failure)]),
                 }
-                return Ok(Vec::new());
             }
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = self.midi.select_output(id.clone());

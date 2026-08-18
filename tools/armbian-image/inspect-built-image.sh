@@ -487,12 +487,13 @@ printf '%s\n' "$input_routing_source_content" | grep -q 'status = "disabled"' ||
 printf '%s\n' "$input_routing_source_content" | grep -q 'pins = "PH0", "PH1"' || { echo "Input-routing overlay must release PH0/PH1." >&2; exit 1; }
 printf '%s\n' "$input_routing_source_content" | grep -q 'stdout-path = ""' || { echo "Input-routing overlay must clear stdout-path." >&2; exit 1; }
 
-if [[ "$expected_image_mode" == diagnostic ]]; then
+if [[ "$expected_image_mode" == diagnostic || "$expected_image_mode" == production ]]; then
   for path in \
     etc/systemd/system/octessera-update-guard.service \
     etc/systemd/system/octessera-update-recovery.service \
     etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service \
     usr/local/sbin/octessera-update \
+    usr/local/sbin/octessera-update-broker \
     usr/local/sbin/octessera-update-guard \
     usr/local/sbin/octessera-update-recovery \
     usr/local/lib/octessera/updater_protocol.py \
@@ -500,10 +501,14 @@ if [[ "$expected_image_mode" == diagnostic ]]; then
     usr/local/lib/octessera/updater_assets.py \
     usr/local/lib/octessera/updater_guard.py \
     usr/local/lib/octessera/updater_cli.py \
+    usr/local/lib/octessera/updater_profiles.py \
+    etc/systemd/system/octessera-update.socket \
+    etc/systemd/system/octessera-update@.service \
     etc/sudoers.d/octessera-update; do
     stat_path "$path" || { echo "Missing updater protocol path: $path" >&2; exit 1; }
   done
   require_root_mode usr/local/sbin/octessera-update 755
+  require_root_mode usr/local/sbin/octessera-update-broker 755
   require_root_mode usr/local/sbin/octessera-update-guard 755
   require_root_mode usr/local/sbin/octessera-update-recovery 755
   require_root_mode usr/local/lib/octessera/updater_protocol.py 644
@@ -511,7 +516,19 @@ if [[ "$expected_image_mode" == diagnostic ]]; then
   require_root_mode usr/local/lib/octessera/updater_assets.py 644
   require_root_mode usr/local/lib/octessera/updater_guard.py 644
   require_root_mode usr/local/lib/octessera/updater_cli.py 644
+  require_root_mode usr/local/lib/octessera/updater_profiles.py 644
+  require_root_mode etc/systemd/system/octessera-update.socket 644
+  require_root_mode etc/systemd/system/octessera-update@.service 644
   require_root_mode etc/sudoers.d/octessera-update 440
+
+  octessera_require_image_symlink etc/systemd/system/sockets.target.wants/octessera-update.socket ../octessera-update.socket /etc/systemd/system/octessera-update.socket
+  update_socket_unit="$(read_file etc/systemd/system/octessera-update.socket)"
+  printf '%s\n' "$update_socket_unit" | grep -q '^ListenStream=/run/octessera-update/update.sock$' || { echo "Armbian update socket path is not exact." >&2; exit 1; }
+  printf '%s\n' "$update_socket_unit" | grep -q '^SocketMode=0660$' || { echo "Armbian update socket mode is not narrow." >&2; exit 1; }
+  printf '%s\n' "$update_socket_unit" | grep -q '^SocketGroup=octessera-runtime$' || { echo "Armbian update socket group is not narrow." >&2; exit 1; }
+  update_broker_service="$(read_file etc/systemd/system/octessera-update@.service)"
+  printf '%s\n' "$update_broker_service" | grep -q '^User=root$' || { echo "Armbian update broker is not root-owned." >&2; exit 1; }
+  printf '%s\n' "$update_broker_service" | grep -q '^ExecStart=/usr/local/sbin/octessera-update-broker$' || { echo "Armbian update broker helper is not exact." >&2; exit 1; }
 
   recovery_unit="$(read_file etc/systemd/system/octessera-update-recovery.service)"
   printf '%s\n' "$recovery_unit" | grep -q '^RemainAfterExit=yes$' || {
@@ -523,6 +540,10 @@ if [[ "$expected_image_mode" == diagnostic ]]; then
     exit 1
   fi
   sudoers="$(read_file etc/sudoers.d/octessera-update)"
+  if printf '%s\n' "$sudoers" | grep -Eq 'octessera-runtime|ALL=\(ALL\)'; then
+    echo "Armbian updater sudoers must not grant runtime or broad privilege." >&2
+    exit 1
+  fi
   if printf '%s\n' "$sudoers" | grep -Eq 'octessera-update-(guard|recovery)'; then
     echo "Armbian sudoers must not expose updater internals." >&2
     exit 1

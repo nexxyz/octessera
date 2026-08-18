@@ -8,8 +8,8 @@ use playback_runtime::{
     HostMessage, RuntimePlatformRequest, RuntimeSetupPortalDisposition, RuntimeSetupPortalPhase,
     RuntimeSetupPortalStatus, RuntimeStoreResult,
 };
-pub(crate) use protocol::SetupPortalEnvironment;
 use protocol::{make_request_token, valid_boot_id, ValidatedStatusEnvelope};
+pub(crate) use protocol::{RandomSource, SetupPortalEnvironment};
 use std::collections::BTreeMap;
 #[cfg(test)]
 use std::collections::VecDeque;
@@ -34,6 +34,10 @@ impl Clone for SetupPortalService {
 impl SetupPortalService {
     pub(crate) fn production() -> Self {
         Self::new(SetupPortalEnvironment::production())
+    }
+
+    pub(crate) fn random_source(&self) -> protocol::RandomSource {
+        self.environment.random.clone()
     }
 
     #[cfg(test)]
@@ -99,6 +103,18 @@ impl SetupPortalService {
         }
     }
 
+    pub(crate) fn revoke(&self, token: &str) {
+        if let Ok(mut state) = self.state.lock() {
+            state.pending.remove(token);
+        }
+        if std::fs::read_to_string(&self.environment.paths.request)
+            .ok()
+            .is_some_and(|value| value.trim() == token)
+        {
+            let _ = std::fs::remove_file(&self.environment.paths.request);
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn start(
         &self,
@@ -109,10 +125,10 @@ impl SetupPortalService {
         Ok(token)
     }
 
-    pub(crate) fn has_published_pending(&self) -> bool {
+    pub(crate) fn has_pending(&self) -> bool {
         self.state
             .lock()
-            .map(|state| state.pending.values().any(|pending| pending.published))
+            .map(|state| !state.pending.is_empty())
             .unwrap_or(false)
     }
 
@@ -411,6 +427,7 @@ fn failure_message(
         phase: RuntimeSetupPortalPhase::Failed,
         disposition: None,
         portal_suffix: None,
+        transfer: None,
         reboot_required: false,
         error_code: Some(failure.setup_error_code()),
     };
@@ -432,6 +449,7 @@ pub(crate) fn start_failure_message(
                 phase: RuntimeSetupPortalPhase::Failed,
                 disposition: None,
                 portal_suffix: None,
+                transfer: None,
                 reboot_required: false,
                 error_code: Some(failure.setup_error_code()),
             },

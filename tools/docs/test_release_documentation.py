@@ -40,7 +40,7 @@ class ReleaseDocumentationTests(unittest.TestCase):
             "ci",
             "populated draft",
             "unpublished",
-            "twelve custom",
+            "fourteen custom",
             "exact names",
             "checksum",
             "zip",

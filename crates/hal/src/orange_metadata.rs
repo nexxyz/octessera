@@ -220,7 +220,9 @@ pub fn validate_executable_name_for(
                 executable.display()
             )
         })?;
-    if name != expected_binary {
+    let matches_expected =
+        name == expected_binary || (cfg!(windows) && name == format!("{expected_binary}.exe"));
+    if !matches_expected {
         return Err(format!(
             "metadata mode requires executable filename {expected_binary}, got {name}"
         ));

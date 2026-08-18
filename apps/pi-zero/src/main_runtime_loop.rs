@@ -205,6 +205,7 @@ fn dispatch_or_log(
     adapter: &mut PiPlaybackHostAdapter,
     message: HostMessage,
 ) {
+    adapter.handle_transfer_input(&message);
     let message = prepare_dispatch_message(playback, message);
     if let Err(error) = dispatch_runtime_message(playback, runner, adapter, message) {
         eprintln!("pi runtime dispatch failed: {error}");

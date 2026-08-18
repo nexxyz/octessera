@@ -1,8 +1,7 @@
 use super::*;
 use crate::audio::test_service;
 use playback_runtime::{
-    HostAdapter, RuntimeErrorCode, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeStoreResult,
+    HostAdapter, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -223,41 +222,6 @@ fn deferred_default_save_can_be_flushed() {
     let _ = std::fs::remove_dir_all(samples);
 }
 
-#[test]
-fn orange_update_effects_fail_closed_as_unsupported() {
-    let (mut adapter, store, samples) = adapter();
-    for (effect, message) in [
-        (
-            RuntimePlatformEffect::UpdateCheck,
-            "does not support update checks",
-        ),
-        (
-            RuntimePlatformEffect::UpdateApply,
-            "does not support update apply",
-        ),
-        (RuntimePlatformEffect::Rollback, "does not support rollback"),
-    ] {
-        let request_id = format!("orange-update-{message}");
-        let responses = adapter
-            .handle_platform_effect(&request(effect, &request_id))
-            .unwrap();
-        let [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RuntimeFailure { error },
-        }] = responses.as_slice()
-        else {
-            panic!("expected unsupported update result");
-        };
-        assert_eq!(error.code, RuntimeErrorCode::Unsupported);
-        assert_eq!(error.operation, RuntimeOperation::DeviceUpdate);
-        assert_eq!(error.request_id.as_deref(), Some(request_id.as_str()));
-        assert_eq!(error.revision, Some(1));
-        assert!(error.message.as_deref().unwrap().contains(message));
-    }
-    assert!(adapter.drain_results(4).is_empty());
-    let _ = std::fs::remove_dir_all(store.parent().unwrap());
-    let _ = std::fs::remove_dir_all(samples);
-}
-
 #[cfg(any(unix, windows))]
 #[test]
 fn orange_adapter_supports_setup_portal_effect() {
@@ -315,7 +279,24 @@ fn orange_adapter_supports_setup_portal_effect() {
         "orange-setup".into(),
         Some(3),
     );
-    assert!(adapter.handle_platform_effect(&request).unwrap().is_empty());
+    let started = adapter.handle_platform_effect(&request).unwrap();
+    let HostMessage::RuntimeResult {
+        result:
+            RuntimeStoreResult::Identified {
+                result,
+                request_id,
+                revision,
+            },
+    } = &started[0]
+    else {
+        panic!("starting setup portal status");
+    };
+    assert_eq!(request_id, "orange-setup");
+    assert_eq!(*revision, Some(3));
+    let RuntimeStoreResult::SetupPortalStatus { status } = result.as_ref() else {
+        panic!("starting setup portal result");
+    };
+    assert!(status.transfer.is_some());
     let token = fs::read_to_string(&paths.request)
         .unwrap()
         .trim()

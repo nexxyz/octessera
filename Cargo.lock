@@ -2562,6 +2562,7 @@ dependencies = [
  "rodio-engine-source",
  "serde",
  "serde_json",
+ "sha2",
  "simple_logger",
 ]
 

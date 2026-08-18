@@ -147,7 +147,13 @@ The two smoke binaries are diagnostic-only. The local `octessera-pi` output is
 for development and qualification; building any output does not run it against
 a board. The production release artifact is
 `octessera-0.7.5-orange-pi-zero-2w.img.xz`, built with explicit production image
-mode. Orange update check, apply, rollback, and OTA remain unsupported.
+mode. Runtime-only Orange Check/Apply/Rollback use the root-owned guarded
+updater and the explicit
+`octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` plus
+`SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`. Full Armbian, kernel,
+device-tree, and image replacement remains manual; the standalone manual
+runtime ZIP is not an OTA asset. Profile or asset mismatches fail closed without
+Raspberry, manual-ZIP, or image fallback.
 The offline builder test uses a temporary binary and adjacent sidecar, checks a
 tampered sidecar, and confirms failed verification removes both artifacts.
 The offline host checks are:

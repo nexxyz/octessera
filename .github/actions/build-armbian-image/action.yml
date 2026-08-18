@@ -136,6 +136,7 @@ runs:
         install -m 0644 custom/tools/device-update/updater_assets.py build/userpatches/overlay/usr/local/lib/octessera/updater_assets.py
         install -m 0644 custom/tools/device-update/updater_guard.py build/userpatches/overlay/usr/local/lib/octessera/updater_guard.py
         install -m 0644 custom/tools/device-update/updater_cli.py build/userpatches/overlay/usr/local/lib/octessera/updater_cli.py
+        install -m 0644 custom/tools/device-update/updater_profiles.py build/userpatches/overlay/usr/local/lib/octessera/updater_profiles.py
         if [[ "$OCTESSERA_IMAGE_KIND" == production ]]; then
           runtime_bundle="$(cd "$OCTESSERA_RUNTIME_BUNDLE_PATH" && pwd)"
           production_runtime="build/userpatches/overlay/usr/local/lib/octessera/production-runtime"

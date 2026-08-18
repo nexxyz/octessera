@@ -74,7 +74,24 @@ fn raspberry_adapter_supports_setup_portal_effect() {
         "pi-setup".into(),
         Some(2),
     );
-    assert!(adapter.handle_platform_effect(&request).unwrap().is_empty());
+    let started = adapter.handle_platform_effect(&request).unwrap();
+    let HostMessage::RuntimeResult {
+        result:
+            RuntimeStoreResult::Identified {
+                result,
+                request_id,
+                revision,
+            },
+    } = &started[0]
+    else {
+        panic!("starting setup portal status");
+    };
+    assert_eq!(request_id, "pi-setup");
+    assert_eq!(*revision, Some(2));
+    let RuntimeStoreResult::SetupPortalStatus { status } = result.as_ref() else {
+        panic!("starting setup portal result");
+    };
+    assert!(status.transfer.is_some());
     let token = fs::read_to_string(&paths.request)
         .unwrap()
         .trim()

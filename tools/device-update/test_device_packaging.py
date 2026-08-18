@@ -21,6 +21,7 @@ sys.path.insert(0, str(HERE))
 _updater_protocol = importlib.import_module("updater_protocol")
 UpdateError = _updater_protocol.UpdateError
 Updater = _updater_protocol.Updater
+from updater_profiles import updater_asset_names
 
 
 VERSION = "1.2.3"
@@ -209,6 +210,74 @@ class DevicePackagingTests(unittest.TestCase):
             sums.read_text(encoding="ascii"),
             f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n",
         )
+
+    def test_orange_updater_archive_is_explicit_and_accepted(self):
+        runtime, binary, manual_archive, _ = self.package(ORANGE)
+        archive_name, sums_name = updater_asset_names(ORANGE, VERSION)
+        archive = self.work / f"{ORANGE}-release" / archive_name
+        sums = archive.parent / sums_name
+        with zipfile.ZipFile(archive) as source:
+            self.assertEqual(
+                source.namelist(),
+                ["octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"],
+            )
+            manifest = json.loads(source.read("octessera-device-release.json"))
+            self.assertEqual(
+                set(manifest),
+                {
+                    "schema_version",
+                    "updater_protocol",
+                    "candidate_health_protocol",
+                    "updater_supported",
+                    "distribution",
+                    "tag",
+                    "version",
+                    "board_profile",
+                    "arch",
+                    "binary",
+                    "platforms",
+                },
+            )
+            self.assertEqual(manifest["board_profile"], ORANGE)
+            self.assertTrue(manifest["updater_supported"])
+            self.assertEqual(manifest["distribution"], "runtime-updater")
+            self.assertEqual(source.read("octessera-pi"), binary)
+        self.assertEqual(
+            sums.read_text(encoding="ascii"),
+            f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n",
+        )
+        root = self.work / "orange-updater-root"
+        (root / "releases").mkdir(parents=True, exist_ok=True)
+        (root / "etc/octessera").mkdir(parents=True, exist_ok=True)
+        (root / "etc/octessera/board-profile.env").write_text(
+            f"OCTESSERA_BOARD_PROFILE_ID={ORANGE}\n", encoding="utf-8"
+        )
+        environment = {
+            "OCTESSERA_UPDATE_ROOT": str(root),
+            "OCTESSERA_UPDATE_BOARD_PROFILE": ORANGE,
+            "OCTESSERA_UPDATE_TEST_MODE": "1",
+        }
+        with patch.dict(os.environ, environment):
+            updater = Updater()
+            with self.assertRaises(UpdateError):
+                updater.extract_zip(manual_archive, root / "releases" / "manual", VERSION)
+            extracted = root / "releases" / VERSION
+            manifest = updater.extract_zip(archive, extracted, VERSION)
+            self.assertEqual(updater.validate_release(extracted), manifest)
+            self.assertEqual((extracted / "octessera-pi").read_bytes(), binary)
+            installed = root / "releases" / "0.1.0"
+            installed.mkdir()
+            for name in ("octessera-pi", "LICENSE", "NOTICE"):
+                shutil.copyfile(extracted / name, installed / name)
+            shutil.copyfile(runtime / "octessera-runtime.json", installed / "octessera-runtime.json")
+            shutil.copyfile(runtime / "SHA256SUMS", installed / "SHA256SUMS")
+            installed_manifest = dict(manifest)
+            installed_manifest["tag"] = "v0.1.0"
+            installed_manifest["version"] = "0.1.0"
+            (installed / "update-manifest.json").write_text(
+                json.dumps(installed_manifest), encoding="utf-8"
+            )
+            self.assertEqual(updater.validate_release(installed), installed_manifest)
 
     def test_runtime_inputs_and_release_identity_are_validated(self):
         runtime, _ = self.runtime_bundle(RASPBERRY)

@@ -21,7 +21,7 @@ pub use results::{
 };
 pub use setup_portal::{
     RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase,
-    RuntimeSetupPortalStatus, SETUP_PORTAL_SUFFIX_MAX_CHARS,
+    RuntimeSetupPortalStatus, RuntimeSetupPortalTransfer, SETUP_PORTAL_SUFFIX_MAX_CHARS,
 };
 pub use status::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,

@@ -9,13 +9,16 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from updater_profiles import (
+    ORANGE_PROFILE,
+    RASPBERRY_PROFILE,
+    updater_asset_names,
+)
 
 BINARY = "octessera-pi"
 RUNTIME_METADATA = "octessera-runtime.json"
 RUNTIME_SUMS = "SHA256SUMS"
 MANIFEST = "octessera-device-release.json"
-RASPBERRY_PROFILE = "raspberry-pi-zero-2w"
-ORANGE_PROFILE = "orange-pi-zero-2w"
 VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 TAG_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
@@ -77,8 +80,8 @@ def validate_runtime(
     return binary, metadata_bytes, sums_bytes
 
 
-def release_manifest(profile: str, tag: str, version: str) -> bytes:
-    if profile == RASPBERRY_PROFILE:
+def release_manifest(profile: str, tag: str, version: str, updater: bool = False) -> bytes:
+    if profile == RASPBERRY_PROFILE or updater:
         payload = {
             "schema_version": 2,
             "updater_protocol": 2,
@@ -90,6 +93,9 @@ def release_manifest(profile: str, tag: str, version: str) -> bytes:
             "binary": BINARY,
             "platforms": [profile, "linux-aarch64-device"],
         }
+        if profile == ORANGE_PROFILE:
+            payload["updater_supported"] = True
+            payload["distribution"] = "runtime-updater"
     else:
         payload = {
             "schema_version": 2,
@@ -200,16 +206,17 @@ def package_bundle(
     notice_bytes = regular_file(repository_root / "NOTICE", "NOTICE")
     manifest = release_manifest(profile, tag, version)
     if profile == RASPBERRY_PROFILE:
-        archive_name = f"octessera-{version}-{profile}-device-aarch64.zip"
+        archive_name, checksum_name = updater_asset_names(profile, version)
         entries = [
             (BINARY, binary, 0o755),
             (MANIFEST, manifest, 0o644),
             ("LICENSE", license_bytes, 0o644),
             ("NOTICE", notice_bytes, 0o644),
         ]
+        archives = [(archive_name, entries)]
     else:
         archive_name = f"octessera-{version}-{profile}-standalone-manual-aarch64.zip"
-        entries = [
+        manual_entries = [
             (BINARY, binary, 0o755),
             (RUNTIME_METADATA, runtime_metadata, 0o644),
             (RUNTIME_SUMS, runtime_sums, 0o644),
@@ -217,15 +224,35 @@ def package_bundle(
             ("LICENSE", license_bytes, 0o644),
             ("NOTICE", notice_bytes, 0o644),
         ]
+        updater_archive_name, checksum_name = updater_asset_names(profile, version)
+        updater_manifest = release_manifest(profile, tag, version, updater=True)
+        updater_entries = [
+            (BINARY, binary, 0o755),
+            (MANIFEST, updater_manifest, 0o644),
+            ("LICENSE", license_bytes, 0o644),
+            ("NOTICE", notice_bytes, 0o644),
+        ]
+        archives = [(archive_name, manual_entries), (updater_archive_name, updater_entries)]
     archive_path = output_dir / archive_name
-    write_archive(archive_path, entries)
-    validate_archive(archive_path, entries)
-    checksum_path = output_dir / f"SHA256SUMS-{profile}-device.txt"
-    atomic_write(
-        checksum_path,
-        f"{sha256_bytes(archive_path.read_bytes())}  {archive_name}\n".encode("ascii"),
-    )
-    return archive_path, checksum_path
+    checksum_path = output_dir / checksum_name
+    for name, entries in archives:
+        path = output_dir / name
+        write_archive(path, entries)
+        validate_archive(path, entries)
+        if name == archive_name:
+            archive_path = path
+        if name == updater_asset_names(profile, version)[0]:
+            checksum_path = output_dir / checksum_name
+            atomic_write(
+                checksum_path,
+                f"{sha256_bytes(path.read_bytes())}  {name}\n".encode("ascii"),
+            )
+        elif profile == ORANGE_PROFILE:
+            atomic_write(
+                output_dir / f"SHA256SUMS-{profile}-device.txt",
+                f"{sha256_bytes(path.read_bytes())}  {name}\n".encode("ascii"),
+            )
+    return archive_path, output_dir / f"SHA256SUMS-{profile}-device.txt"
 
 
 def parse_args() -> argparse.Namespace:
