@@ -106,7 +106,7 @@ fn apply_value_lane_binding_value(lane: &mut NativeValueLane, field: &str, value
         "from" => apply_u8_value(&mut lane.from, value, 127),
         "to" => apply_u8_value(&mut lane.to, value, 127),
         "gridOffset" => apply_i32_value(&mut lane.grid_offset, value, -7, 7),
-        "curve" => apply_string_value(&mut lane.curve, value, &["linear", "exp", "log"]),
+        "curve" => apply_string_value(&mut lane.curve, value, &["linear", "curve"]),
         _ => false,
     }
 }

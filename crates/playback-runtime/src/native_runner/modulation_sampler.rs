@@ -420,13 +420,21 @@ pub(super) fn velocity_from_intent(
     )
 }
 
-fn value_from_lane(index: usize, size: usize, lane: &NativeValueLane) -> u8 {
+pub(super) fn value_from_lane(index: usize, size: usize, lane: &NativeValueLane) -> u8 {
     let size = size.max(1);
     let shifted = ((index as i32 + lane.grid_offset).rem_euclid(size as i32)) as f32;
-    let norm = shifted / (size.saturating_sub(1).max(1) as f32);
-    (f32::from(lane.from) + norm * (f32::from(lane.to) - f32::from(lane.from)))
+    let norm = (shifted / (size.saturating_sub(1).max(1) as f32)).clamp(0.0, 1.0);
+    let shaped = if lane.curve == "curve" {
+        norm * norm
+    } else {
+        norm
+    };
+    (f32::from(lane.from) + shaped * (f32::from(lane.to) - f32::from(lane.from)))
         .round()
-        .clamp(0.0, 127.0) as u8
+        .clamp(
+            f32::from(lane.from.min(lane.to)),
+            f32::from(lane.from.max(lane.to)),
+        ) as u8
 }
 
 pub(super) fn sampler_assignment_velocity(
