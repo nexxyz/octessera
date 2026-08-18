@@ -73,18 +73,13 @@ fn system_info_job_returns_identified_typed_result() {
         ),
         PlatformJobKind::SystemInfo,
     );
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let result = {
-        let update_executor = device_update::production_executor();
-        handle_job(
-            Path::new("."),
-            Path::new("."),
-            job,
-            update_executor.as_ref(),
-        )
-    };
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    let result = handle_job(Path::new("."), Path::new("."), job);
+    let update_executor = device_update::production_executor();
+    let result = handle_job(
+        Path::new("."),
+        Path::new("."),
+        job,
+        update_executor.as_ref(),
+    );
     assert!(matches!(
         result,
         RuntimeStoreResult::Identified { result, request_id, revision }

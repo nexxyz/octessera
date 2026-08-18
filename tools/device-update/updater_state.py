@@ -12,7 +12,7 @@ try:
 except ImportError:
     fcntl = None
 
-from updater_protocol import BINARY, CANDIDATE_HEALTH_PROTOCOL, LOCK_TIMEOUT_SECONDS, MANIFEST, MANIFEST_SCHEMA, MAX_JSON_BYTES, UPDATER_PROTOCOL, UpdateError, read_json, same_path, version
+from updater_protocol import BINARY, CANDIDATE_HEALTH_PROTOCOL, LOCK_TIMEOUT_SECONDS, MANIFEST, MANIFEST_SCHEMA, MAX_JSON_BYTES, ORANGE_PROFILE, UPDATER_PROTOCOL, UpdateError, read_json, same_path, version
 
 
 class UpdaterStateMixin:
@@ -87,6 +87,13 @@ class UpdaterStateMixin:
             raise UpdateError("Release is not compatible with this device")
         if manifest_profile is not None and manifest_profile not in platforms:
             raise UpdateError("Release manifest board profile is not listed in platforms")
+        if profile == ORANGE_PROFILE and (
+            set(payload) != {"schema_version", "updater_protocol", "candidate_health_protocol", "updater_supported", "distribution", "tag", "version", "board_profile", "arch", "binary", "platforms"}
+            or
+            payload.get("updater_supported") is not True
+            or payload.get("distribution") != "runtime-updater"
+        ):
+            raise UpdateError("Orange release manifest is not an explicit runtime updater asset")
         return payload
 
     @staticmethod
@@ -166,6 +173,8 @@ class UpdaterStateMixin:
         if not binary.is_file() or binary.is_symlink() or not os.access(binary, os.X_OK):
             raise UpdateError(f"Release binary is invalid: {directory}")
         allowed = {BINARY, MANIFEST, "update-asset.json", "LICENSE", "NOTICE"}
+        if self.profile == ORANGE_PROFILE:
+            allowed.update({"octessera-runtime.json", "SHA256SUMS"})
         for child in directory.iterdir():
             if child.name not in allowed or child.is_symlink() or not child.is_file():
                 raise UpdateError(f"Release contains an unsafe entry: {child}")

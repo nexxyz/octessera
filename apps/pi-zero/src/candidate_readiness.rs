@@ -59,6 +59,12 @@ impl CandidateReadiness {
             self.attempted = true;
             return Ok(());
         };
+        if self.invocation_id.is_empty() {
+            self.attempted = true;
+            return Err(format!(
+                "candidate readiness marker unavailable: {path:?}: systemd invocation identity is unavailable"
+            ));
+        }
         let payload = CandidateHealthPayload {
             schema_version: 1,
             pid,
@@ -297,6 +303,19 @@ mod tests {
         let error = readiness.mark_ready().unwrap_err();
 
         assert!(error.contains("candidate readiness marker unavailable"));
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn configured_marker_requires_systemd_invocation_identity() {
+        let directory = temporary_directory("missing-invocation");
+        let path = directory.join("candidate-ready.json");
+        let mut readiness = CandidateReadiness::new(Some(path.clone()), String::new());
+
+        let error = readiness.mark_ready_at(1234, 42).unwrap_err();
+
+        assert!(error.contains("systemd invocation identity is unavailable"));
+        assert!(!path.exists());
         let _ = std::fs::remove_dir_all(directory);
     }
 }

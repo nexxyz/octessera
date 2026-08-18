@@ -54,9 +54,15 @@ if ($actual -ne $expected) { throw "image SHA-256 mismatch" }
 ```
 
 Do not substitute a diagnostic image, a checksum for another asset, or a local
-runtime binary for the checksum-verified production image artifact. Image update,
-rollback, and OTA remain unsupported; use a checksum-verified production image
-artifact from the selected release for an update.
+runtime binary for the checksum-verified production image artifact. Orange also
+supports runtime-only Check/Apply/Rollback through its root-owned broker and
+guarded updater. That path accepts the profile-qualified
+`octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` with
+`SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`; it does not replace the
+Armbian image, kernel, device tree, or other full-image assets. Full image
+replacement remains manual. The standalone manual runtime ZIP remains a manual
+bundle and is not an OTA asset. Profile or asset mismatches fail closed rather
+than selecting a Raspberry asset or falling back to the manual ZIP or image.
 
 ## Before first boot
 

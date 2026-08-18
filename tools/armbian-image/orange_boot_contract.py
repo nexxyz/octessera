@@ -17,11 +17,11 @@ from typing import Any
 from orange_boot_selection import parse_boot_selectors, safe_resolve
 from orange_phase5_proof import verify_selected_initramfs
 from verify_runtime_account import (
-    reject_unsupported_updater,
     require_orange_boot_service,
     require_orange_shutdown_service,
     require_orange_suspend_service,
     require_owner_mode,
+    require_production_updater,
     require_runtime_service,
     require_runtime_udev_rule,
     runtime_account,
@@ -341,7 +341,7 @@ def verify_dpkg_status(root: Path, package: dict[str, Any]) -> None:
             require(installed[key] == identity[key], f"dpkg status identity changed: {identity['Package']} {key}")
 
 
-def verify_runtime(root: Path, mode: str) -> dict[str, str]:
+def verify_runtime(root: Path, mode: str, construction: dict[str, Any], repository_root: Path) -> dict[str, str]:
     metadata_path = root / "etc/octessera/build-metadata.env"
     require_owner_mode(metadata_path, 0, 0, 0o644, require)
     metadata = read_kv(metadata_path)
@@ -359,7 +359,7 @@ def verify_runtime(root: Path, mode: str) -> dict[str, str]:
     require(all(re.fullmatch(r"[0-9a-f]{64}", value or "") for value in (binary_hash, metadata_hash, sums_hash)), "production runtime hashes are invalid")
     release_root = root / f"opt/octessera/releases/{version}"
     binary, runtime_metadata_path, sums = release_root / "octessera-pi", release_root / "octessera-runtime.json", release_root / "SHA256SUMS"
-    require(release_root.is_dir() and binary.is_file() and runtime_metadata_path.is_file() and sums.is_file(), "production runtime bundle is incomplete")
+    require(release_root.is_dir() and binary.is_file() and runtime_metadata_path.is_file() and sums.is_file() and (release_root / "update-manifest.json").is_file(), "production runtime bundle is incomplete")
     require(sha256_file(binary) == binary_hash and sha256_file(runtime_metadata_path) == metadata_hash and sha256_file(sums) == sums_hash, "production runtime hash mismatch")
     require(sums.read_text(encoding="utf-8") == f"{binary_hash}  octessera-pi\n", "production runtime checksum manifest is not exact")
     binary_bytes = binary.read_bytes()
@@ -377,7 +377,7 @@ def verify_runtime(root: Path, mode: str) -> dict[str, str]:
     require((root / "opt/octessera/current").is_symlink() and (root / "opt/octessera/current").readlink().as_posix() == f"/opt/octessera/releases/{version}", "production current runtime symlink is wrong")
     require((root / "usr/local/bin/octessera-pi").is_symlink() and (root / "usr/local/bin/octessera-pi").readlink().as_posix() == "/opt/octessera/current/octessera-pi", "production executable symlink is wrong")
     require_runtime_service(root, require)
-    reject_unsupported_updater(root, require)
+    require_production_updater(root, construction, repository_root, version, require)
     return {"runtime_binary_sha256": binary_hash, "runtime_metadata_sha256": metadata_hash, "runtime_service_mode": "enabled"}
 
 
@@ -436,5 +436,5 @@ def constructor_proof(root: Path, args: Any, image_hash: str, image_name: str, c
         package = verify_package_chain(args.linux_image, args.linux_dtb, evidence, provenance, manifest, Path(temporary))
     boot = verify_boot(root, package, contract, repository_root)
     verify_dpkg_status(root, package)
-    runtime = verify_runtime(root, args.mode)
+    runtime = verify_runtime(root, args.mode, contract, repository_root)
     return {"schema": "octessera.image-proof/v2", "schema_version": 2, "proof_mode": "phase5-constructor", "phase5_claim": True, "boot_state": "phase5-v1", "artifact": {"name": image_name, "sha256": image_hash, "compression": compression}, "board_profile": "orange-pi-zero-2w", "runtime": runtime, "kernel": {"release": package["release"], "linux_image_package": provenance["image_package"], "linux_dtb_package": provenance["dtb_package"], "evidence_sha256": evidence["_sha256"], "provenance_sha256": provenance["_sha256"]}, "device_config_validator": boot["device_config_validator"], "contract": {"path": str(contract_path.relative_to(repository_root)), "sha256": contract_hash}}

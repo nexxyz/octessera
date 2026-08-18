@@ -8,6 +8,7 @@ your musical box.
 For hotspot, apply, or credential problems, use [troubleshooting](../troubleshooting.md).
 For power and host-cable handling while setup is running, see [safety and
 power](safety-and-power.md).
+For moving user data before a reflash, see [Data Backup and Restore](../data-backup-restore.md).
 
 ## Open it from the instrument
 
@@ -23,6 +24,16 @@ power](safety-and-power.md).
 The portal lasts 30 minutes. Do not power off the instrument while it says it
 is applying settings. The hotspot disappearing after a successful connection is
 expected: the instrument is joining the chosen Wi-Fi. Success needs no reboot.
+
+## Data Backup/Restore during setup
+
+On Raspberry Pi and Orange Pi, the active `Configure WiFi` session also starts a
+short-lived local transfer server. The OLED shows its host, port, and transfer
+code; build the URL as `http://` plus the displayed host and port. Use that
+service to export or upload an archive; uploading pauses at a physical
+confirmation step. Press the Main encoder to restore or Back to cancel. The
+transfer does not include Wi-Fi, SSH, or admin credentials. Desktop reports this
+transfer path as unsupported.
 
 ## OLED modal behaviour
 

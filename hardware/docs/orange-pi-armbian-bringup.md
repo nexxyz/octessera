@@ -56,10 +56,18 @@ control-surface devices, and the first rendered runtime frame. The service
 gets FIFO priority 70 through `LimitRTPRIO=70`; it does not use `CAP_SYS_NICE`,
 ambient capabilities, or other realtime capability elevation.
 
-Orange update check, apply, rollback, and OTA remain unsupported.
-Use a verified production image artifact for an image update. The historical
-foreground `runtime-candidate` procedure is retained in the selection history
-only as bring-up history; it is not the production artifact or service path.
+Orange supports profile-qualified runtime-only Check/Apply/Rollback through the
+root-owned broker and guarded updater. It accepts only
+`octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` with
+`SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`, validates the board profile,
+manifest, checksum, and candidate health, and fails closed on a mismatch. It
+does not replace the Armbian image, kernel, device tree, or other full-image
+assets. Full image replacement remains manual, and the standalone manual
+runtime ZIP remains a manual bundle rather than an OTA asset. Orange never
+consumes Raspberry updater assets or falls back to a manual/image path. The
+historical foreground `runtime-candidate` procedure is retained in the
+selection history only as bring-up history; it is not the production artifact
+or service path.
 
 The production service uses `/var/lib/octessera/presets` for its persistent
 store and `/var/lib/octessera/samples` for samples. Both paths belong to
@@ -598,8 +606,11 @@ FIFO priority 70 comes from
 `LimitRTPRIO=70`; the service does not use `CAP_SYS_NICE` or ambient
 capabilities.
 
-Orange update check, apply, rollback, and OTA remain unsupported. Use the
-verified production image artifact for an image update. The diagnostic image
-mode and the historical smoke utilities remain separate from this service
-path. Normal SIGINT cleanup joins workers after the shutdown frame, black
-Trellis/NeoKey frames, and OLED-off operation.
+Orange runtime-only Check/Apply/Rollback use the profile-qualified guarded
+updater and explicit runtime-updater ZIP described above. The updater changes
+only the managed runtime release; full Armbian, kernel, device-tree, and image
+replacement still requires the verified production image artifact and a
+manual image operation. The standalone manual runtime ZIP is not an OTA asset.
+The diagnostic image mode and the historical smoke utilities remain separate
+from this service path. Normal SIGINT cleanup joins workers after the shutdown
+frame, black Trellis/NeoKey frames, and OLED-off operation.

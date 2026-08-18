@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 
 HERE = Path(__file__).resolve().parent
@@ -179,33 +180,30 @@ class UpdaterProtocolSafetyTests(UpdaterProtocolFixture):
         }
         self.assertEqual(before, after)
 
-    def test_orange_check_and_apply_reject_before_network(self):
-        sentinel = self.work / "curl-called"
+    def test_orange_profile_uses_explicit_updater_asset_contract(self):
+        from updater_profiles import updater_asset_names
+        from updater_protocol import Updater
+
         (self.root / "etc/octessera/board-profile.env").write_text(
             "OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w\n", encoding="utf-8"
         )
-        result = self.invoke(
-            "check",
-            "v1.0.1",
-            check=False,
-            env={
+        with patch.dict(
+            os.environ,
+            {
                 "OCTESSERA_UPDATE_BOARD_PROFILE": "orange-pi-zero-2w",
-                "CURL_SENTINEL": str(sentinel),
+                "OCTESSERA_UPDATE_ROOT": str(self.root),
+                "OCTESSERA_UPDATE_TEST_MODE": "1",
             },
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(sentinel.exists())
-        result = self.invoke(
-            "apply",
-            "v1.0.1",
-            check=False,
-            env={
-                "OCTESSERA_UPDATE_BOARD_PROFILE": "orange-pi-zero-2w",
-                "CURL_SENTINEL": str(sentinel),
-            },
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(sentinel.exists())
+        ):
+            updater = Updater()
+            self.assertEqual(
+                updater.asset_names("1.0.1"),
+                updater_asset_names("orange-pi-zero-2w", "1.0.1"),
+            )
+            self.assertEqual(
+                updater.asset_names("1.0.1")[0],
+                "octessera-1.0.1-orange-pi-zero-2w-runtime-updater-aarch64.zip",
+            )
 
     def test_absent_profile_fails_closed(self):
         (self.root / "etc/octessera/board-profile.env").unlink()

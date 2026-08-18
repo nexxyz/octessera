@@ -55,10 +55,10 @@ for item in contract["managed_outputs"]:
         assert item == {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"}
     elif item.get("kind") == "symlink":
         exact(item, ["path", "kind", "target", "uid", "gid"])
-        assert item["target"] in {"../octessera-orange-boot-splash.service", "../octessera-orange-oled-suspend.service", "../octessera-device-apply-reboot.socket", "/dev/null"} and item["uid"] == 0 and item["gid"] == 0
+        assert item["target"] in {"../octessera-orange-boot-splash.service", "../octessera-orange-oled-suspend.service", "../octessera-device-apply-reboot.socket", "../octessera-update-recovery.service", "../octessera-update.socket", "/dev/null"} and item["uid"] == 0 and item["gid"] == 0
     else:
         exact(item, ["path", "mode", "uid", "gid"])
-        assert item["mode"] in {420, 493} and item["uid"] == 0 and item["gid"] == 0
+        assert item["mode"] in {288, 420, 493} and item["uid"] == 0 and item["gid"] == 0
 
 assert all(isinstance(path, str) and path.startswith("tools/armbian-image/") for path in contract["proofs"])
 assert "tools/armbian-image/validate.sh" in contract["proofs"]
@@ -68,6 +68,10 @@ for path in (
     "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot",
     "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket",
     "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service",
+    "tools/device-update/octessera-update-broker",
+    "userpatches/overlay/usr/local/sbin/octessera-update-broker",
+    "userpatches/overlay/etc/systemd/system/octessera-update.socket",
+    "userpatches/overlay/etc/systemd/system/octessera-update@.service",
     "userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget",
     "userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service",
 ):
@@ -95,6 +99,9 @@ for path in (
     "etc/systemd/system/octessera-orange-usb-gadget.service",
     "etc/systemd/system/octessera-device-apply-reboot.socket",
     "etc/systemd/system/octessera-device-apply-reboot@.service",
+    "etc/systemd/system/octessera-update.socket",
+    "etc/systemd/system/octessera-update@.service",
+    "usr/local/sbin/octessera-update-broker",
     "usr/local/lib/octessera/device_config.py",
     "usr/local/sbin/octessera-device-apply-reboot",
     "usr/share/octessera/defaults/pi-default.json",

@@ -126,7 +126,5 @@ pub(super) fn open_orange_audio_sink_with_health(
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn recordings_dir() -> std::path::PathBuf {
-    std::env::var("OCTESSERA_PI_RECORDINGS_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from("/home/pi/recordings"))
+    crate::user_data_media_paths::recordings_dir()
 }

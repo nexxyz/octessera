@@ -33,7 +33,7 @@ class UpdaterLayoutTests(unittest.TestCase):
             self.assertNotIn("ConditionPathExists=", text)
             self.assertIn("RemainAfterExit=yes", text)
 
-    def test_production_service_is_installed_and_enabled_without_updater_claims(self):
+    def test_orange_production_service_waits_for_recovery(self):
         service = (
             REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera.service"
         )
@@ -42,7 +42,8 @@ class UpdaterLayoutTests(unittest.TestCase):
         self.assertIn("Group=octessera-runtime", text)
         self.assertIn("ExecStart=/usr/local/bin/octessera-pi", text)
         self.assertIn("LimitRTPRIO=70", text)
-        self.assertNotIn("octessera-update", text)
+        self.assertIn("Requires=octessera-update-recovery.service", text)
+        self.assertNotIn("octessera-update-guard.service", text)
         customize = (REPOSITORY / "userpatches/customize-image.sh").read_text(
             encoding="utf-8"
         )
@@ -50,6 +51,44 @@ class UpdaterLayoutTests(unittest.TestCase):
             "install_overlay_file etc/systemd/system/octessera.service", customize
         )
         self.assertIn("systemctl enable octessera.service", customize)
+
+    def test_orange_runtime_uses_the_narrow_update_socket(self):
+        socket = (
+            REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-update.socket"
+        ).read_text(encoding="utf-8")
+        service = (
+            REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-update@.service"
+        ).read_text(encoding="utf-8")
+        for line in (
+            "ListenStream=/run/octessera-update/update.sock",
+            "SocketMode=0660",
+            "SocketUser=root",
+            "SocketGroup=octessera-runtime",
+            "DirectoryMode=0755",
+            "Accept=yes",
+        ):
+            self.assertIn(line, socket)
+        for line in (
+            "User=root",
+            "Group=root",
+            "StandardInput=socket",
+            "StandardOutput=socket",
+            "ExecStart=/usr/local/sbin/octessera-update-broker",
+        ):
+            self.assertIn(line, service)
+        self.assertNotIn("sudo", service)
+        self.assertNotIn("octessera-runtime", service)
+        customize = (REPOSITORY / "userpatches/customize-image.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("install_overlay_file usr/local/sbin/octessera-update-broker", customize)
+        self.assertIn("install_overlay_file etc/systemd/system/octessera-update.socket", customize)
+        self.assertIn("systemctl enable octessera-update.socket", customize)
+        sudoers = (
+            REPOSITORY / "userpatches/overlay/etc/sudoers.d/octessera-update"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("octessera-runtime", sudoers)
+        self.assertNotIn("ALL=(ALL)", sudoers)
 
     def test_raspberry_release_stages_canonical_updater_modules(self):
         workflow = (
@@ -61,12 +100,17 @@ class UpdaterLayoutTests(unittest.TestCase):
             "updater_assets.py",
             "updater_guard.py",
             "updater_cli.py",
+            "updater_profiles.py",
         ):
             self.assertIn(name, workflow)
         self.assertIn(
             '"tools/device-update/$updater_file" "$stage_root/usr/local/lib/octessera/$updater_file"',
             workflow,
         )
+        stage = (
+            REPOSITORY / "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("updater_profiles.py", stage)
         self.assertNotIn("zip_basename=", workflow)
         self.assertEqual(
             workflow.count("tools/device-update/package_device_bundle.py"), 2

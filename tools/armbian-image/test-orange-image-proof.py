@@ -125,6 +125,21 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "usr/local/sbin/octessera-device-apply-reboot": "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot",
         "etc/systemd/system/octessera-device-apply-reboot.socket": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket",
         "etc/systemd/system/octessera-device-apply-reboot@.service": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service",
+        "usr/local/sbin/octessera-update": "userpatches/overlay/usr/local/sbin/octessera-update",
+        "usr/local/sbin/octessera-update-broker": "userpatches/overlay/usr/local/sbin/octessera-update-broker",
+        "usr/local/sbin/octessera-update-guard": "userpatches/overlay/usr/local/sbin/octessera-update-guard",
+        "usr/local/sbin/octessera-update-recovery": "userpatches/overlay/usr/local/sbin/octessera-update-recovery",
+        "usr/local/lib/octessera/updater_protocol.py": "tools/device-update/updater_protocol.py",
+        "usr/local/lib/octessera/updater_state.py": "tools/device-update/updater_state.py",
+        "usr/local/lib/octessera/updater_assets.py": "tools/device-update/updater_assets.py",
+        "usr/local/lib/octessera/updater_guard.py": "tools/device-update/updater_guard.py",
+        "usr/local/lib/octessera/updater_cli.py": "tools/device-update/updater_cli.py",
+        "usr/local/lib/octessera/updater_profiles.py": "tools/device-update/updater_profiles.py",
+        "etc/systemd/system/octessera-update-guard.service": "userpatches/overlay/etc/systemd/system/octessera-update-guard.service",
+        "etc/systemd/system/octessera-update-recovery.service": "userpatches/overlay/etc/systemd/system/octessera-update-recovery.service",
+        "etc/systemd/system/octessera-update.socket": "userpatches/overlay/etc/systemd/system/octessera-update.socket",
+        "etc/systemd/system/octessera-update@.service": "userpatches/overlay/etc/systemd/system/octessera-update@.service",
+        "etc/sudoers.d/octessera-update": "userpatches/overlay/etc/sudoers.d/octessera-update",
         "usr/share/octessera/defaults/pi-default.json": "config/generated/pi/default.json",
         "usr/share/octessera/oled/octessera-mark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg",
         "usr/share/octessera/oled/octessera-wordmark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
@@ -136,8 +151,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         write(target, (REPOSITORY / source_path).read_bytes())
         managed = next(item for item in CONSTRUCTION["managed_outputs"] if item["path"] == installed_path)
         os.chmod(target, managed["mode"])
-        if installed_path in {"usr/local/lib/octessera/device_config.py", "usr/share/octessera/defaults/pi-default.json", "etc/systemd/system/octessera-device-apply-reboot.socket", "etc/systemd/system/octessera-device-apply-reboot@.service"}: os.chown(target, 0, 0); os.chmod(target, 0o644)  # type: ignore[attr-defined]
-        if installed_path == "usr/local/sbin/octessera-device-apply-reboot": os.chown(target, 0, 0); os.chmod(target, 0o755)  # type: ignore[attr-defined]
+        os.chown(target, 0, 0)  # type: ignore[attr-defined]
     for module_name in CONSTRUCTION["selected_initramfs"]["required_python_modules"]:
         write(final_root / f"usr/lib/python3.13/lib-dynload/{module_name}.cpython-313-aarch64-linux-gnu.so", b"synthetic-python-extension")
     write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
@@ -151,6 +165,8 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     (final_root / "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service").symlink_to("../octessera-orange-oled-suspend.service")
     (final_root / "etc/systemd/system/sockets.target.wants").mkdir(parents=True, exist_ok=True)
     (final_root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket").symlink_to("../octessera-device-apply-reboot.socket")
+    (final_root / "etc/systemd/system/sockets.target.wants/octessera-update.socket").symlink_to("../octessera-update.socket")
+    (final_root / "etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service").symlink_to("../octessera-update-recovery.service")
     initramfs = make_cpio_initramfs(work, final_root)
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
     write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))
@@ -469,6 +485,8 @@ def main() -> None:
         write(release_dir / "SHA256SUMS", f"{binary_hash}  octessera-pi\n")
         runtime_metadata = {"artifact_kind": "production-runtime", "binary_sha256": binary_hash, "name": "octessera-pi", "profile": "orange-pi-zero-2w", "runtime_ready": True, "version": version}
         write(release_dir / "octessera-runtime.json", json.dumps(runtime_metadata, sort_keys=True, indent=2) + "\n")
+        updater_manifest = {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "updater_supported": True, "distribution": "runtime-updater", "tag": f"v{version}", "version": version, "board_profile": "orange-pi-zero-2w", "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]}
+        write(release_dir / "update-manifest.json", json.dumps(updater_manifest) + "\n")
         (production / "opt/octessera/current").symlink_to(f"/opt/octessera/releases/{version}")
         (production / "usr/local/bin").mkdir(parents=True)
         (production / "usr/local/bin/octessera-pi").symlink_to("/opt/octessera/current/octessera-pi")
@@ -484,9 +502,12 @@ def main() -> None:
             "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\n"
             "spi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\n",
         )
+        write(production / "opt/octessera/update-state.json", json.dumps({"schema_version": 2, "phase": "committed", "current": version, "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": updater_manifest, "asset": None}) + "\n")
+        os.chown(production / "opt/octessera/update-state.json", 0, 0)  # type: ignore[attr-defined]
+        os.chmod(production / "opt/octessera/update-state.json", 0o644)
         (production / "var/lib/octessera/presets").mkdir(parents=True)
         (production / "var/lib/octessera/samples").mkdir(parents=True, exist_ok=True)
-        write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\nRequires=octessera-device-apply-reboot.socket\nRequires=octessera-provision-musical-default.service\nAfter=octessera-device-apply-reboot.socket\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartPreventExitStatus=78\nRestartSec=5s\n")
+        write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\nRequires=octessera-device-apply-reboot.socket\nRequires=octessera-provision-musical-default.service\nRequires=octessera-update-recovery.service\nAfter=octessera-device-apply-reboot.socket\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartPreventExitStatus=78\nRestartSec=5s\n")
         write(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"spidev1.0\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"gpiochip1\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
         write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
         (production / "etc/udev/rules.d/09-disabled.rules").symlink_to("/dev/null")
@@ -500,7 +521,7 @@ def main() -> None:
             try:
                 subprocess.run(["sudo", "-n", "chown", "-R", "root:root", str(release_dir)], check=True)
                 subprocess.run(["sudo", "-n", "chmod", "0555", str(release_dir), str(release_dir / "octessera-pi")], check=True)
-                subprocess.run(["sudo", "-n", "chmod", "0444", str(release_dir / "octessera-runtime.json"), str(release_dir / "SHA256SUMS")], check=True)
+                subprocess.run(["sudo", "-n", "chmod", "0444", str(release_dir / "octessera-runtime.json"), str(release_dir / "SHA256SUMS"), str(release_dir / "update-manifest.json")], check=True)
                 subprocess.run(["sudo", "-n", "chown", "-R", "990:990", str(production / "var/lib/octessera")], check=True)
                 subprocess.run(["sudo", "-n", "chown", "0:0", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
                 subprocess.run(["sudo", "-n", "chmod", "0644", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)

@@ -20,7 +20,8 @@ for updater_file in \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_state.py" \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_assets.py" \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_guard.py" \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_cli.py"; do
+    "$STAGE_FILES/root/usr/local/lib/octessera/updater_cli.py" \
+    "$STAGE_FILES/root/usr/local/lib/octessera/updater_profiles.py"; do
     if [ ! -f "$updater_file" ]; then
         echo "Pi image setup requires the canonical updater runtime artifacts; run the release staging copy first." >&2
         exit 2
@@ -161,6 +162,9 @@ install -D -m 0644 \
 install -D -m 0644 \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_cli.py" \
     "$ROOTFS_DIR/usr/local/lib/octessera/updater_cli.py"
+install -D -m 0644 \
+    "$STAGE_FILES/root/usr/local/lib/octessera/updater_profiles.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/updater_profiles.py"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-update-guard.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-update-guard.service"

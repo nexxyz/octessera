@@ -29,6 +29,12 @@ pub(crate) struct OrangeHostAdapter {
 }
 
 impl OrangeHostAdapter {
+    pub(crate) fn handle_transfer_input(&self, message: &HostMessage) {
+        if let HostMessage::DeviceInput { input, .. } = message {
+            self.platform_service.handle_transfer_input(input);
+        }
+    }
+
     pub(crate) fn audio_service(&self) -> AudioService {
         self.audio.clone()
     }
@@ -376,28 +382,29 @@ impl HostAdapter for OrangeHostAdapter {
                 )
             }
             RuntimePlatformEffect::UpdateCheck => {
-                return Ok(self.unsupported(
-                    request,
-                    "Orange foreground runtime candidate does not support update checks; no updater or network access is available",
-                ));
+                return Ok(
+                    self.enqueue(request, PlatformJobKind::UpdateCheck, |message| {
+                        format!("Update check queue failed: {message}")
+                    }),
+                );
             }
             RuntimePlatformEffect::UpdateApply => {
-                return Ok(self.unsupported(
-                    request,
-                    "Orange foreground runtime candidate does not support update apply; no updater or deployment path is available",
-                ));
+                return Ok(
+                    self.enqueue(request, PlatformJobKind::UpdateApply, |message| {
+                        format!("Update apply queue failed: {message}")
+                    }),
+                );
             }
             RuntimePlatformEffect::Rollback => {
-                return Ok(self.unsupported(
-                    request,
-                    "Orange foreground runtime candidate does not support rollback; no release manager or deployment path is available",
-                ));
+                return Ok(self.enqueue(request, PlatformJobKind::Rollback, |message| {
+                    format!("Rollback queue failed: {message}")
+                }));
             }
             RuntimePlatformEffect::SetupPortalOpen => {
-                if let Err(failure) = self.platform_service.start_setup_portal(request) {
-                    return Ok(vec![start_failure_message(request, failure)]);
+                match self.platform_service.start_setup_portal(request) {
+                    Ok(status) => return Ok(vec![status]),
+                    Err(failure) => return Ok(vec![start_failure_message(request, failure)]),
                 }
-                return Ok(Vec::new());
             }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
@@ -486,3 +493,6 @@ mod apply_tests;
 #[cfg(test)]
 #[path = "orange_host_adapter_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "orange_host_adapter_update_tests.rs"]
+mod update_tests;

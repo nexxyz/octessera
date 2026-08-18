@@ -14,14 +14,19 @@ of public support claims.
 
 | Platform | Asset type and intended use | Source/build evidence (not FAT) | Manual FAT status | Known limitations |
 |---|---|---|---|---|
-| Desktop | Windows installer or portable ZIP; Ubuntu DEB or AppImage for the hardware-free simulator. | Desktop package build, simulator tests, and the package/legal checks in the [contributor workflow](../docs/development-workflows.md#hardware-free-verification-matrix). | **UNQUALIFIED — exact package launch record is still required.** | macOS distribution is paused. An unsigned Windows build may show the normal Windows warning. Desktop cannot qualify GPIO, OLED, DAC, power, or USB gadget behavior. |
-| Raspberry Pi Zero 2 W | The exact versioned Raspberry image ZIP and its Imager manifest for a fresh install; the profile-qualified device ZIP only where its updater path is explicitly recorded. | Raspberry profile, native cross-build, image-contract, sample, and sanitization checks in the [development workflow](../docs/development-workflows.md#pi-hardware-build). | **UNQUALIFIED — exact image, PCB, power path, controls, audio, and enclosure FAT are still required.** | USB Audio/MIDI is experimental local-bench validation only. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The enclosure is the active v21 test-fit design. |
-| Orange Pi Zero 2W | The exact versioned production Armbian image; the standalone manual runtime ZIP is not an OTA asset. | Orange profile, Armbian image/kernel proof, native cross-build, and staged sample checks in the [Orange bring-up procedure](../hardware/docs/orange-pi-armbian-bringup.md). | **UNQUALIFIED — exact image, PCB, power path, controls, audio, and enclosure FAT are still required.** | USB Audio/MIDI is experimental local-bench validation only. There is no OTA or rollback path. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The enclosure is the active v21 test-fit design. |
+| Desktop | Windows installer or portable ZIP; Ubuntu DEB or AppImage for the hardware-free simulator. | Desktop package build, simulator tests, and the package/legal checks in the [contributor workflow](../docs/development-workflows.md#hardware-free-verification-matrix). | **UNQUALIFIED — exact package launch record is still required.** | macOS distribution is paused. An unsigned Windows build may show the normal Windows warning. Desktop cannot qualify GPIO, OLED, DAC, power, or USB gadget behavior. Desktop Configure WiFi/Data Backup/Restore transfer remains unsupported. |
+| Raspberry Pi Zero 2 W | The exact versioned Raspberry image ZIP and its Imager manifest for a fresh install; the profile-qualified device ZIP only where its updater path is explicitly recorded. | Raspberry profile, native cross-build, image-contract, sample, and sanitization checks in the [development workflow](../docs/development-workflows.md#pi-hardware-build). | **UNQUALIFIED — exact image, PCB, power path, controls, and audio FAT are still required.** | USB Audio/MIDI is experimental local-bench validation only. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
+| Orange Pi Zero 2W | The exact versioned production Armbian image for full image installation, plus the profile-qualified runtime-only updater ZIP `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`. The standalone manual runtime ZIP remains manual and is not an OTA asset. | Orange profile, Armbian image/kernel proof, native cross-build, and staged sample checks in the [Orange bring-up procedure](../hardware/docs/orange-pi-armbian-bringup.md). | **UNQUALIFIED — exact image, PCB, power path, controls, and audio FAT are still required.** | Runtime-only Check/Apply/Rollback use the guarded updater; full Armbian, kernel, device-tree, and image replacement remains manual. USB Audio/MIDI is experimental local-bench validation only. Profile or asset mismatches fail closed without a Raspberry, manual-ZIP, or image fallback. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
 
-The exact asset names, current twelve-file custom release count, checksum files,
+The exact asset names, current fourteen-file custom release count, checksum files,
 and ZIP contracts remain in [Explicit GitHub Releases](../docs/development-workflows.md#explicit-github-releases).
 Those names describe packaging; they do not turn an artifact into a supported
 hardware release.
+
+Data Backup/Restore is a Pi-only local transfer path during `Configure WiFi`.
+Board-side export, reflash, media restore, and physical confirmation still need
+the corresponding manual FAT evidence; this feature does not qualify an image
+or board release by itself.
 
 ## USB policy
 
@@ -54,16 +59,21 @@ this checklist; publication is a separate, explicit human decision.
       passed against that SHA. Record the tag-to-commit identity.
 - [ ] Confirm the populated draft is still a draft and has not been announced or
       published.
-- [ ] Compare the draft with the exact current asset contract: twelve custom
+- [ ] Compare the draft with the exact current asset contract: fourteen custom
       root assets, exact names, no extras, and no missing files. Do not count
       GitHub’s automatic source archives as custom assets.
 - [ ] Verify every checksum file and the root `SHA256SUMS.txt` against the exact
       bytes. Keep the checksums with the release evidence.
-- [ ] Open both board device ZIPs and verify their exact contents and modes. The
-      Raspberry ZIP contains `octessera-pi`,
+- [ ] Open the Raspberry updater ZIP and both Orange runtime ZIPs and verify their
+      exact contents and modes. The Raspberry ZIP contains `octessera-pi`,
       `octessera-device-release.json`, `LICENSE`, and `NOTICE`. The Orange
       standalone ZIP contains `octessera-pi`, `octessera-runtime.json`,
       `SHA256SUMS`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`.
+      The Orange runtime-updater ZIP is named
+      `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and
+      contains `octessera-pi`, `octessera-device-release.json`, `LICENSE`, and
+      `NOTICE`; its checksum is
+      `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`.
 - [ ] Inspect the portable desktop ZIP: `octessera.exe`, the complete 320-file
       artifact inventory (318 WAV sampler rows plus two AIFF attribution rows),
       its checksum file, and the legal notice tree are present; verify the legal
@@ -89,10 +99,14 @@ this checklist; publication is a separate, explicit human decision.
 - [ ] Have a human review source duties for the pinned upstream inputs, source,
       patches, configuration, and build scripts. Do not call that review legal
       compliance.
-- [ ] Record known limitations: paused macOS, the v21 enclosure test-fit, no
-      Orange OTA/rollback, unsynchronized multi-output drift, any unsigned
-      Windows warning, and the boundary between runtime-only respins and
-      constructor qualification.
+- [ ] Record known limitations: paused macOS, full Orange Armbian/kernel/
+      device-tree/image replacement remains manual, the standalone manual ZIP
+      is not an OTA asset, unsynchronized multi-output drift, any unsigned
+      Windows warning, desktop Data Backup/Restore transfer remains unsupported,
+      the v21 test-fit enclosure boundary, and the boundary between runtime-only
+      updates and constructor qualification. The available enclosure builds
+      have been validated; this is not a promise of production-final mechanical
+      support.
 - [ ] Only after the exact evidence is attached, the draft remains correct, and
       a human has reviewed the result: explicitly publish. Otherwise leave it
       populated and unpublished.

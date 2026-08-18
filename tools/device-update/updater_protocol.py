@@ -10,9 +10,9 @@ import tempfile
 import time
 from pathlib import Path
 
+from updater_profiles import ORANGE_PROFILE, RASPBERRY_PROFILE, UPDATER_ASSET_PROFILES, updater_asset_names
 VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 TAG_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
-RASPBERRY_PROFILE = "raspberry-pi-zero-2w"
 BINARY = "octessera-pi"
 MANIFEST = "update-manifest.json"
 TRANSACTION_SCHEMA = 2
@@ -153,7 +153,7 @@ class Updater(UpdaterStateMixin):
 
     def require_profile_asset(self) -> None:
         self.require_profile()
-        if self.profile != RASPBERRY_PROFILE:
+        if self.profile not in UPDATER_ASSET_PROFILES:
             raise UpdateError(
                 f"No published updater asset exists for board profile {self.profile}; refusing network access."
             )
@@ -195,10 +195,10 @@ class Updater(UpdaterStateMixin):
         return payload
 
     def asset_names(self, release_version: str) -> tuple[str, str]:
-        return (
-            f"octessera-{release_version}-{self.profile}-device-aarch64.zip",
-            f"SHA256SUMS-{self.profile}-device.txt",
-        )
+        try:
+            return updater_asset_names(self.profile, release_version)
+        except ValueError as error:
+            raise UpdateError(str(error)) from error
 
     def asset_url(self, payload: dict, name: str, tag: str) -> str:
         assets = payload.get("assets")

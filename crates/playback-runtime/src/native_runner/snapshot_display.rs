@@ -168,7 +168,11 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
         ),
         super::RuntimeSetupPortalPhase::Failed => (
             "Wi-Fi Setup".to_string(),
-            vec!["Setup failed".into(), "Settings may be partial".into()],
+            vec![
+                "Setup failed".into(),
+                "Settings may be".into(),
+                "partial".into(),
+            ],
             "Close",
         ),
         super::RuntimeSetupPortalPhase::TimedOut => (
@@ -178,10 +182,21 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
         ),
         super::RuntimeSetupPortalPhase::Unsupported => (
             "Wi-Fi Setup".to_string(),
-            vec!["Not available on desktop".into()],
+            vec!["Not available on".into(), "desktop".into()],
             "Close",
         ),
     };
+    if let Some(transfer) = &state.status.transfer {
+        let transfer_lines = setup_transfer_display_lines(transfer);
+        if matches!(
+            state.status.phase,
+            super::RuntimeSetupPortalPhase::PortalReady
+        ) {
+            lines.splice(2..3, transfer_lines);
+        } else {
+            lines.extend(transfer_lines);
+        }
+    }
     lines.push(format!("> {action}"));
     let line_count = lines.len();
     DisplaySnapshot {
@@ -193,6 +208,19 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
         scroll: None,
         selected_row: Some(line_count - 1),
     }
+}
+
+fn setup_transfer_display_lines(transfer: &crate::RuntimeSetupPortalTransfer) -> Vec<String> {
+    let address = transfer
+        .url
+        .strip_prefix("http://")
+        .unwrap_or(&transfer.url);
+    let (host, port) = address.rsplit_once(':').unwrap_or((address, ""));
+    vec![
+        format!("Data {host}"),
+        format!("Port {port}"),
+        format!("Code {}", transfer.code),
+    ]
 }
 
 fn usb_sd_transfer_modal_display(modal: &super::NativeUsbSdTransferModal) -> DisplaySnapshot {

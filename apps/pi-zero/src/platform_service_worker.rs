@@ -6,14 +6,9 @@ pub(super) fn spawn(
     samples_dir: PathBuf,
     jobs: Receiver<PlatformJob>,
     results: Arc<PlatformResultLane>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] update_executor: Arc<
-        dyn device_update::UpdateExecutor,
-    >,
+    update_executor: Arc<dyn device_update::UpdateExecutor>,
 ) {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     thread::spawn(move || run(store_dir, samples_dir, jobs, results, update_executor));
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    thread::spawn(move || run(store_dir, samples_dir, jobs, results));
 }
 
 fn run(
@@ -21,9 +16,7 @@ fn run(
     samples_dir: PathBuf,
     jobs: Receiver<PlatformJob>,
     results: Arc<PlatformResultLane>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] update_executor: Arc<
-        dyn device_update::UpdateExecutor,
-    >,
+    update_executor: Arc<dyn device_update::UpdateExecutor>,
 ) {
     while let Ok(job) = jobs.recv() {
         #[cfg(test)]
@@ -43,10 +36,7 @@ fn run(
             let _ = completed.send(result);
             continue;
         }
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let result = handle_job(&store_dir, &samples_dir, job, update_executor.as_ref());
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let result = handle_job(&store_dir, &samples_dir, job);
         if results
             .send_platform(HostMessage::RuntimeResult { result })
             .is_err()

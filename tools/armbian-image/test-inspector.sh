@@ -44,11 +44,11 @@ case "${DEBUGFS_CASE:-unit-valid}" in
       'stat "/opt/octessera/current"')
         printf '%s\n' 'Inode:   8   Type:   symlink   Mode:    0777   Flags: 0x0' 'Fast    link    dest:    "/opt/octessera/releases/1.2.3"'
         ;;
-      'stat "/opt/octessera/releases/1.2.3/SHA256SUMS"'|'stat "/opt/octessera/releases/1.2.3/octessera-pi"'|'stat "/opt/octessera/releases/1.2.3/octessera-runtime.json"')
+      'stat "/opt/octessera/releases/1.2.3/SHA256SUMS"'|'stat "/opt/octessera/releases/1.2.3/octessera-pi"'|'stat "/opt/octessera/releases/1.2.3/octessera-runtime.json"'|'stat "/opt/octessera/releases/1.2.3/update-manifest.json"')
         printf '%s\n' 'Inode:   9   Type:   regular   Mode:    0100555   Flags: 0x0'
         ;;
       'ls -p "/opt/octessera/releases/1.2.3"')
-        printf '%s\n' '/9/0100555/0/0/SHA256SUMS/' '/10/0100555/0/0/octessera-pi/' '/11/0100444/0/0/octessera-runtime.json/'
+        printf '%s\n' '/9/0100555/0/0/SHA256SUMS/' '/10/0100555/0/0/octessera-pi/' '/11/0100444/0/0/octessera-runtime.json/' '/12/0100444/0/0/update-manifest.json/'
         ;;
     esac
     ;;
@@ -197,7 +197,6 @@ require_root_mode() {
   [[ "$(stat -c '%a' "$target/$path")" == "$mode" ]] || return 1
   [[ "$(id -u)" != 0 || "$(stat -c '%u:%g' "$target/$path")" == 0:0 ]]
 }
-# shellcheck disable=SC2317
 hash_path() {
   sha256sum "$target/$1" | awk '{ print $1 }'
 }
@@ -465,6 +464,29 @@ printf '%s\n' 'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=
 printf '%s\n' 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"' > "$runtime_root/etc/udev/rules.d/10-wifi-power-save.rules"
 ln -s /dev/null "$runtime_root/etc/udev/rules.d/09-disabled.rules"
 target="$runtime_root"
+hash_path() {
+  case "$1" in
+    opt/octessera/releases/1.2.3/octessera-pi) printf '%s\n' "$runtime_binary_hash" ;;
+    opt/octessera/releases/1.2.3/SHA256SUMS) printf '%s\n' "$runtime_manifest_hash" ;;
+    opt/octessera/releases/1.2.3/octessera-runtime.json) printf '%s\n' "$runtime_metadata_hash" ;;
+    *) return 1 ;;
+  esac
+}
+require_root_mode() { :; }
+stat_path() {
+  case "$1" in
+    etc/systemd/system/octessera-update-guard.service|etc/systemd/system/octessera-update-recovery.service|etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service|usr/local/sbin/octessera-update|usr/local/sbin/octessera-update-broker|usr/local/sbin/octessera-update-guard|usr/local/sbin/octessera-update-recovery|usr/local/lib/octessera/updater_protocol.py|usr/local/lib/octessera/updater_state.py|usr/local/lib/octessera/updater_assets.py|usr/local/lib/octessera/updater_guard.py|usr/local/lib/octessera/updater_cli.py|usr/local/lib/octessera/updater_profiles.py|etc/systemd/system/octessera-update.socket|etc/systemd/system/octessera-update@.service|etc/sudoers.d/octessera-update)
+      return 0
+      ;;
+    *) [[ -e "$target/$1" || -L "$target/$1" ]] ;;
+  esac
+}
+octessera_require_image_contract() { [[ "$1" == production ]]; }
+octessera_require_absent_path() { :; }
+octessera_require_runtime_entry_set() { :; }
+octessera_require_real_directory() { :; }
+octessera_require_runtime_elf() { :; }
+octessera_require_owned_mode() { :; }
 read_file() {
   case "$1" in
     etc/shadow) printf '%s\n' 'octessera-runtime:!:19000:0:99999:7:::' ;;
@@ -475,6 +497,8 @@ read_file() {
     etc/systemd/system/octessera.service) cat "$root/userpatches/overlay/etc/systemd/system/octessera.service" ;;
     etc/systemd/system/octessera-device-apply-reboot.socket) cat "$device_apply_socket_unit" ;;
     etc/systemd/system/octessera-device-apply-reboot@.service) cat "$device_apply_service_unit" ;;
+    etc/systemd/system/octessera-update.socket) cat "$root/userpatches/overlay/etc/systemd/system/octessera-update.socket" ;;
+    etc/sudoers.d/octessera-update) cat "$root/userpatches/overlay/etc/sudoers.d/octessera-update" ;;
     usr/local/lib/octessera/device_config.py) cat "$device_config_validator" ;;
     usr/local/sbin/octessera-device-apply-reboot) cat "$device_apply_helper" ;;
     usr/share/octessera/defaults/pi-default.json) cat "$pi_default" ;;
@@ -483,27 +507,11 @@ read_file() {
     *) return 1 ;;
   esac
 }
-hash_path() {
-  case "$1" in
-    opt/octessera/releases/1.2.3/octessera-pi) printf '%s\n' "$runtime_binary_hash" ;;
-    opt/octessera/releases/1.2.3/SHA256SUMS) printf '%s\n' "$runtime_manifest_hash" ;;
-    opt/octessera/releases/1.2.3/octessera-runtime.json) printf '%s\n' "$runtime_metadata_hash" ;;
-    *) return 1 ;;
-  esac
-}
-require_root_mode() { :; }
-stat_path() { [[ -e "$target/$1" || -L "$target/$1" ]]; }
-octessera_require_image_contract() { [[ "$1" == production ]]; }
-octessera_require_absent_path() { :; }
-octessera_require_runtime_entry_set() { :; }
-octessera_require_real_directory() { :; }
-octessera_require_runtime_elf() { :; }
-octessera_require_owned_mode() { :; }
 runtime_links=()
 octessera_require_image_symlink() { runtime_links+=("$1=$2"); }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION=1.2.3\nOCTESSERA_RUNTIME_BINARY_SHA256='"$runtime_binary_hash"$'\nOCTESSERA_RUNTIME_MANIFEST_SHA256='"$runtime_manifest_hash"$'\nOCTESSERA_RUNTIME_METADATA_SHA256='"$runtime_metadata_hash"
 octessera_inspect_runtime_mode "$profile_metadata" production
-[[ "${runtime_links[*]}" == 'etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket=../octessera-device-apply-reboot.socket opt/octessera/current=/opt/octessera/releases/1.2.3 usr/local/bin/octessera-pi=/opt/octessera/current/octessera-pi etc/systemd/system/multi-user.target.wants/octessera.service=../octessera.service' ]] || {
+[[ "${runtime_links[*]}" == 'etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket=../octessera-device-apply-reboot.socket etc/systemd/system/sockets.target.wants/octessera-update.socket=../octessera-update.socket opt/octessera/current=/opt/octessera/releases/1.2.3 usr/local/bin/octessera-pi=/opt/octessera/current/octessera-pi etc/systemd/system/multi-user.target.wants/octessera.service=../octessera.service' ]] || {
   echo 'Production inspector did not require the exact symlink chain.' >&2
   exit 1
 }

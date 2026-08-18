@@ -12,23 +12,21 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Mapping, cast
 
-
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools" / "legal"))
+sys.path.insert(0, str(ROOT / "tools" / "device-update"))
 
 from package_notice_zip import package_notice_zip  # type: ignore[import-not-found]
 from verify_notice_archive import verify_notice_archive  # type: ignore[import-not-found]
-
+from updater_profiles import updater_asset_names  # type: ignore[import-not-found]
 
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
 KERNEL_MANIFEST = Path("tools/kernel-patches/orange-midi-interface-manifest.json")
 RUNTIME_FILES = ("SHA256SUMS", "octessera-pi", "octessera-runtime.json")
 
-
 class ReleaseArtifactError(ValueError):
     pass
-
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
@@ -40,7 +38,6 @@ def _regular_file(path: Path, label: str) -> None:
     metadata = path.lstat()
     _require(stat.S_ISREG(metadata.st_mode), f"{label} is not a regular file: {path}")
 
-
 def _directory_entries(path: Path, label: str) -> list[Path]:
     _require(path.is_dir() and not path.is_symlink(), f"{label} is not a real directory: {path}")
     entries = sorted(path.iterdir(), key=lambda item: item.name)
@@ -50,7 +47,6 @@ def _directory_entries(path: Path, label: str) -> list[Path]:
         _require(stat.S_ISREG(metadata.st_mode) or stat.S_ISDIR(metadata.st_mode), f"{label} contains a special file: {entry}")
     return entries
 
-
 def _require_exact_files(directory: Path, expected: Iterable[str]) -> None:
     expected_names = sorted(expected)
     entries = _directory_entries(directory, "release artifact directory")
@@ -58,10 +54,8 @@ def _require_exact_files(directory: Path, expected: Iterable[str]) -> None:
     _require(len(entries) == len(actual_names), f"release artifact directory contains a non-file entry: {directory}")
     _require(actual_names == expected_names, f"Unexpected files under {directory}: {actual_names}")
 
-
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
 
 def _safe_name(name: str) -> PurePosixPath:
     relative = PurePosixPath(name)
@@ -92,7 +86,6 @@ def _verify_checksum_file(directory: Path, checksum_name: str) -> None:
         _regular_file(target, "checksum target")
         _require(_sha256(target) == digest, f"checksum mismatch: {target}")
 
-
 def _write_checksums(directory: Path, checksum_name: str, names: Iterable[str]) -> None:
     sorted_names = sorted(names)
     (directory / checksum_name).write_text(
@@ -101,13 +94,11 @@ def _write_checksums(directory: Path, checksum_name: str, names: Iterable[str]) 
     )
     _verify_checksum_file(directory, checksum_name)
 
-
 def _copy_file(source: Path, destination: Path, label: str) -> None:
     _regular_file(source, label)
     _require(not destination.exists() and not destination.is_symlink(), f"release asset collision: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination)
-
 
 def _load_json(path: Path, label: str) -> dict[str, object]:
     _regular_file(path, label)
@@ -118,16 +109,13 @@ def _load_json(path: Path, label: str) -> dict[str, object]:
     _require(isinstance(document, dict), f"{label} is not a JSON object: {path}")
     return document
 
-
 def _manifest_mapping(value: object, label: str) -> dict[str, object]:
     _require(isinstance(value, dict), f"{label} is missing or malformed")
     return cast(dict[str, object], value)
 
-
 def _manifest_string(value: object, label: str) -> str:
     _require(isinstance(value, str) and bool(value), f"{label} is missing or malformed")
     return cast(str, value)
-
 
 def _package_filename(value: object, label: str) -> str:
     filename = _manifest_string(value, f"{label} package declaration")
@@ -190,12 +178,10 @@ def _zip_entries(archive: zipfile.ZipFile, label: str) -> list[zipfile.ZipInfo]:
     return entries
 
 
-def _verify_device_zip(root: Path, bundle: Path, zip_path: Path, version: str, profile: str) -> None:
-    expected_names = (
-        ["octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"]
-        if profile == "raspberry-pi-zero-2w"
-        else ["octessera-pi", "octessera-runtime.json", "SHA256SUMS", "octessera-device-release.json", "LICENSE", "NOTICE"]
-    )
+def _verify_device_zip(root: Path, bundle: Path, zip_path: Path, version: str, profile: str, updater: bool = False) -> None:
+    expected_names = ["octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"]
+    if profile == "orange-pi-zero-2w" and not updater:
+        expected_names = ["octessera-pi", "octessera-runtime.json", "SHA256SUMS", *expected_names[1:]]
     _regular_file(zip_path, "device archive")
     try:
         with zipfile.ZipFile(zip_path) as archive:
@@ -209,13 +195,19 @@ def _verify_device_zip(root: Path, bundle: Path, zip_path: Path, version: str, p
             _require(archive.read("NOTICE") == (root / "NOTICE").read_bytes(), f"{profile} device ZIP NOTICE differs")
             _require(archive.read("octessera-pi") == (bundle / "octessera-pi").read_bytes(), f"{profile} device ZIP binary differs")
             manifest = _load_json_bytes(archive.read("octessera-device-release.json"), "device release metadata")
-            if profile == "raspberry-pi-zero-2w":
+            if profile == "raspberry-pi-zero-2w" or updater:
                 _require(
                     manifest.get("updater_protocol") == 2
                     and manifest.get("board_profile") == profile
                     and manifest.get("version") == version,
-                    "Raspberry device metadata is not updater-compatible",
+                    f"{profile} device metadata is not updater-compatible",
                 )
+                if profile == "orange-pi-zero-2w":
+                    _require(
+                        manifest.get("updater_supported") is True
+                        and manifest.get("distribution") == "runtime-updater",
+                        "Orange updater metadata does not declare the runtime-updater contract",
+                    )
             else:
                 _require(
                     archive.read("octessera-runtime.json") == (bundle / "octessera-runtime.json").read_bytes()
@@ -380,6 +372,7 @@ def assemble_release_assets(
     rpi_device_zip = f"{prefix}-raspberry-pi-zero-2w-device-aarch64.zip"
     rpi_device_sums = "SHA256SUMS-raspberry-pi-zero-2w-device.txt"
     orange_device_zip = f"{prefix}-orange-pi-zero-2w-standalone-manual-aarch64.zip"
+    orange_updater_zip, orange_updater_sums = updater_asset_names("orange-pi-zero-2w", version)
 
     _require_exact_files(windows_dir, (f"{prefix}-windows-installer.exe", f"{prefix}-windows-portable.zip", "SHA256SUMS-windows.txt"))
     _require_exact_files(ubuntu_dir, (f"{prefix}-ubuntu-amd64.deb", f"{prefix}-ubuntu-x86_64.AppImage", "SHA256SUMS-ubuntu.txt"))
@@ -387,7 +380,7 @@ def assemble_release_assets(
     _require_exact_files(rpi_image_dir, (f"{prefix}-raspberry-pi-zero-2w.img.zip", rpi_manifest, "SHA256SUMS-pi.txt"))
     _require_exact_files(rpi_device_dir, (rpi_device_zip, rpi_device_sums))
     _require_exact_files(orange_image_dir, (f"{prefix}-orange-pi-zero-2w.img.xz", f"{prefix}-orange-pi-zero-2w.img.xz.sha256", orange_kernel_image, orange_kernel_dtb, "octessera-orange-kernel-evidence.env", "octessera-orange-kernel-provenance.txt", "octessera-orange-image-proof.json", "SHA256SUMS-orange-pi-zero-2w.txt"))
-    _require_exact_files(orange_device_dir, (orange_device_zip, "SHA256SUMS-orange-pi-zero-2w-device.txt"))
+    _require_exact_files(orange_device_dir, (orange_device_zip, "SHA256SUMS-orange-pi-zero-2w-device.txt", orange_updater_zip, orange_updater_sums))
 
     for source, name in (
         (windows_dir / f"{prefix}-windows-installer.exe", f"{prefix}-windows-installer.exe"),
@@ -400,6 +393,8 @@ def assemble_release_assets(
         (rpi_device_dir / rpi_device_sums, rpi_device_sums),
         (orange_image_dir / f"{prefix}-orange-pi-zero-2w.img.xz", f"{prefix}-orange-pi-zero-2w.img.xz"),
         (orange_device_dir / orange_device_zip, orange_device_zip),
+        (orange_device_dir / orange_updater_zip, orange_updater_zip),
+        (orange_device_dir / orange_updater_sums, orange_updater_sums),
     ):
         _copy_file(source, release_assets / name, "release asset")
 
@@ -411,10 +406,12 @@ def assemble_release_assets(
     _verify_checksum_file(orange_image_dir, f"{prefix}-orange-pi-zero-2w.img.xz.sha256")
     _verify_checksum_file(orange_image_dir, "SHA256SUMS-orange-pi-zero-2w.txt")
     _verify_checksum_file(orange_device_dir, "SHA256SUMS-orange-pi-zero-2w-device.txt")
+    _verify_checksum_file(orange_device_dir, orange_updater_sums)
     _verify_orange_provenance(root, orange_image_dir, source_sha, orange_kernel_image, orange_kernel_dtb)
     _verify_orange_image(root, orange_image_dir, version, orange_kernel_image, orange_kernel_dtb)
     _verify_runtime_and_devices(root, raspberry_runtime, rpi_device_dir / rpi_device_zip, version, "raspberry-pi-zero-2w")
     _verify_runtime_and_devices(root, orange_runtime, orange_device_dir / orange_device_zip, version, "orange-pi-zero-2w")
+    _verify_device_zip(root, orange_runtime, orange_device_dir / orange_updater_zip, version, "orange-pi-zero-2w", updater=True)
 
     portable = release_assets / f"{prefix}-windows-portable.zip"
     verify_notice_archive(root, portable, "octessera.exe")
@@ -437,6 +434,7 @@ def assemble_release_assets(
         (orange_image_dir / "octessera-orange-kernel-provenance.txt", evidence_staging / "orange/kernel/octessera-orange-kernel-provenance.txt"),
         (orange_image_dir / "octessera-orange-image-proof.json", evidence_staging / "orange/image/octessera-orange-image-proof.json"),
         (orange_device_dir / "SHA256SUMS-orange-pi-zero-2w-device.txt", evidence_staging / "orange/device/SHA256SUMS-orange-pi-zero-2w-device.txt"),
+        (orange_device_dir / orange_updater_sums, evidence_staging / f"orange/device/{orange_updater_sums}"),
         (orange_runtime / "SHA256SUMS", evidence_staging / "orange/runtime/SHA256SUMS"),
     ):
         _copy_file(source, destination, "release evidence")
@@ -458,12 +456,14 @@ def assemble_release_assets(
         rpi_device_sums,
         f"{prefix}-orange-pi-zero-2w.img.xz",
         orange_device_zip,
+        orange_updater_zip,
+        orange_updater_sums,
         f"{prefix}-release-evidence.zip",
     ]
     _write_checksums(release_assets, "SHA256SUMS.txt", expected_root_assets)
     expected_root_assets.append("SHA256SUMS.txt")
     _require_exact_files(release_assets, expected_root_assets)
-    _require(len(expected_root_assets) == 12, "release root asset contract is not exactly twelve files")
+    _require(len(expected_root_assets) == 14, "release root asset contract is not exactly fourteen files")
 
 
 def main(argv: list[str] | None = None) -> int:

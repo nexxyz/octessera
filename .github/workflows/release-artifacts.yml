@@ -111,7 +111,7 @@ jobs:
       - name: Run targeted tests and static workflow gates
         run: |
           set -euo pipefail
-          python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
+          python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/updater_profiles.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
           python3 -m unittest discover -s tools/device-update -p 'test_*.py'
           bash tools/device-update/smoke-test.sh
           bash tools/armbian-image/test-build-armbian-action.sh

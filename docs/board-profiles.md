@@ -231,10 +231,15 @@ The native runtime contract exposes Jack Audio, USB Audio, and HDMI Audio
 independently on the Orange profile under the selected-route rules above. The
 smoke artifacts remain diagnostic-only. The production runtime routes internal
 synth/sample audio through the realtime engine and emits MIDI through the native
-host adapter. Orange update check, apply, rollback, and OTA remain
-unsupported and return typed unavailable status before an updater or network
-path is touched. The production service has no Orange device-update path; use a
-verified production image artifact for image updates.
+host adapter. Orange Check, Apply, and Rollback use the root-owned broker and
+guarded updater with the explicit profile-qualified
+`octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and
+`SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt` pair. Profile, asset,
+manifest, checksum, and health failures return typed failure and stop; no
+Raspberry asset, standalone manual ZIP, or full-image fallback is selected.
+The updater changes only the managed runtime release. Full Armbian, kernel,
+device-tree, and image replacement remains manual, and the standalone manual
+runtime ZIP is not an OTA asset.
 SIGINT
 performs the normal shutdown frame, bounded 750 ms black-LED cleanup/retry, and
 OLED-off acknowledgement; workers join only after an acknowledgement and are
