@@ -31,7 +31,7 @@ pub(crate) fn resolve_sample_file(path: &str) -> Option<String> {
     resolve_sample_file_in_root(&root, &normalized)
 }
 
-fn sample_list_from_root(root: &PathBuf, dir: &str) -> Result<Vec<SampleEntry>, String> {
+fn sample_list_from_root(root: &Path, dir: &str) -> Result<Vec<SampleEntry>, String> {
     let rel = canonical_sample_relative_path(dir)?;
     if rel == "userdata" || rel.starts_with("userdata/") {
         let user_root = resolve_user_samples_root()?;
@@ -210,10 +210,8 @@ fn resolve_dev_samples_root() -> Result<PathBuf, String> {
         .and_then(|p| p.parent())
         .map(|p| p.join("samples"));
     if let Some(path) = repo_root_samples {
-        if path.exists() {
-            if path.is_dir() && !path.is_symlink() {
-                return Ok(path);
-            }
+        if path.exists() && path.is_dir() && !path.is_symlink() {
+            return Ok(path);
         }
     }
     for candidate in sample_root_candidates(&cwd, &manifest_dir) {

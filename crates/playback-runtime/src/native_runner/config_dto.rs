@@ -1,6 +1,24 @@
 use super::{Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION};
 use serde_json::Map;
 
+#[path = "config_dto_device.rs"]
+mod device;
+#[path = "config_dto_instrument.rs"]
+mod instrument;
+#[path = "config_dto_layer.rs"]
+mod layer;
+#[path = "config_dto_mixer.rs"]
+mod mixer;
+#[path = "config_dto_runtime.rs"]
+mod runtime;
+pub(super) use device::DeviceRuntimeConfigDto;
+pub(super) use instrument::InstrumentDto;
+pub(super) use layer::LayerDto;
+pub(super) use mixer::MixerDto;
+pub(super) use runtime::{
+    AudioOutputsDto, AuxBindingDto, HdmiDto, MidiDto, ParamModsDto, RuntimeConfigDto, UsbDto,
+};
+
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct ConfigDto {
     kind: String,
@@ -128,8 +146,17 @@ impl ConfigDto {
         self.revision
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn runtime_config(&self) -> &Value {
         &self.runtime_config
+    }
+
+    pub(super) fn typed_runtime_config(&self) -> Result<RuntimeConfigDto, String> {
+        RuntimeConfigDto::from_value(&self.runtime_config)
+    }
+
+    pub(super) fn typed_runtime_config_value(&self) -> Result<Value, String> {
+        self.typed_runtime_config()?.to_value()
     }
 
     pub(super) fn mapping_config(&self) -> Option<&Value> {

@@ -132,7 +132,7 @@ impl NativeRunner {
             if let Some(mode) = super::normalize_voice_stealing_mode(value) {
                 if self.voice_stealing_mode != mode {
                     self.voice_stealing_mode = mode.into();
-                    self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+                    self.commit_full_configuration_runtime_plan();
                     return true;
                 }
             }

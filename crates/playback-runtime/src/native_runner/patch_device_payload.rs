@@ -1,4 +1,7 @@
-use super::{supported_param_binding_key, validate_portable_patch_sample_paths, Value};
+use super::{
+    supported_param_binding_key, validate_portable_patch_sample_paths, DeviceRuntimeConfigDto,
+    RuntimeConfigDto, Value,
+};
 use serde_json::json;
 
 pub(super) fn portable_patch_projection(payload: &Value) -> Value {
@@ -41,44 +44,28 @@ pub(super) fn device_config_payload_from_payload(payload: Value) -> Value {
     json!({ "runtimeConfig": device_runtime_config(runtime) })
 }
 
-pub(super) fn patch_runtime_config(mut runtime: Value) -> Value {
-    let Some(object) = runtime.as_object_mut() else {
-        return runtime;
-    };
-    for key in DEVICE_RUNTIME_KEYS {
-        object.remove(*key);
+pub(super) fn patch_runtime_config(runtime: Value) -> Value {
+    let mut runtime = RuntimeConfigDto::from_value(&runtime)
+        .expect("validated runtime config must decode as a typed DTO")
+        .portable_value()
+        .expect("typed runtime config must serialize");
+    if let Some(object) = runtime.as_object_mut() {
+        split_aux_payloads(object, true);
     }
-    if let Some(sound) = object.get_mut("sound").and_then(Value::as_object_mut) {
-        sound.remove("audioOutputBufferFrames");
-    }
-    split_aux_payloads(object, true);
     runtime
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn device_runtime_config(runtime: Value) -> Value {
-    let mut device = serde_json::Map::new();
-    let Some(object) = runtime.as_object() else {
-        return Value::Object(device);
-    };
-    for key in DEVICE_RUNTIME_KEYS {
-        if let Some(value) = object.get(*key) {
-            device.insert((*key).into(), value.clone());
-        }
+    let typed = RuntimeConfigDto::from_value(&runtime)
+        .expect("validated runtime config must decode as a typed DTO");
+    let mut device = DeviceRuntimeConfigDto::from_runtime(&typed)
+        .to_value()
+        .expect("typed runtime config must serialize");
+    if let Some(object) = device.as_object_mut() {
+        split_aux_payloads(object, false);
     }
-    if let Some(value) = object
-        .get("sound")
-        .and_then(|sound| sound.get("audioOutputBufferFrames"))
-    {
-        device.insert("sound".into(), json!({ "audioOutputBufferFrames": value }));
-    }
-    if let Some(aux) = object.get("auxBindings") {
-        device.insert("auxBindings".into(), split_aux_payload(aux, false));
-    }
-    if let Some(aux) = object.get("shiftAuxBindings") {
-        device.insert("shiftAuxBindings".into(), split_aux_payload(aux, false));
-    }
-    Value::Object(device)
+    device
 }
 
 pub(super) fn merge_preserved_aux_payloads(payload: &mut Value, preserved: &Value, musical: bool) {
@@ -238,27 +225,6 @@ fn is_musical_platform_effect_action(action: &str) -> bool {
         || action.starts_with("trigger.probability.assign:")
         || action.starts_with("synth.preset:")
 }
-
-const DEVICE_RUNTIME_KEYS: &[&str] = &[
-    "masterVolume",
-    "sampleFavouriteDirs",
-    "hdmi",
-    "ghostCells",
-    "inputEventsWhilePaused",
-    "numericDisplayMode",
-    "dimTimerSeconds",
-    "screenSleepSeconds",
-    "displayBrightness",
-    "gridBrightness",
-    "buttonBrightness",
-    "autoSaveDefault",
-    "rollingBackups",
-    "auxAutoMapEnabled",
-    "midi",
-    "usb",
-    "audioOutputs",
-    "recording",
-];
 
 fn canonicalize_json(value: Value) -> Value {
     match value {

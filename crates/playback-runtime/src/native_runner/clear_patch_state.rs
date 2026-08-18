@@ -111,7 +111,7 @@ impl NativeRunner {
         self.pending.pending_menu_apply = None;
         self.pending.pending_autosave_payload_due_at = None;
         self.mark_config_dirty();
-        self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+        self.commit_full_configuration_runtime_plan();
         self.show_toast("Cleared all");
         self.menu.rebuild(self.menu_config());
         Ok(())

@@ -307,7 +307,7 @@ impl NativeRunner {
             return false;
         };
         if value_changed(&mut self.voice_stealing_mode, mode.into()) {
-            self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+            self.commit_full_configuration_runtime_plan();
             self.rebase_and_recompose_modulation_key("sound.voiceStealingMode");
             self.mark_fast_autosave_dirty();
         }

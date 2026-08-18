@@ -13,39 +13,18 @@ observation are currently available. Raspberry on-device evidence and the
 remaining Orange qualification gates are deferred. Prefer PC evidence plus safe
 Orange diagnostics where they establish a real additional fact.
 
-1. **T1 remaining: qualify Seesaw in available evidence layers.** Now, use a
-   hash-bound Orange diagnostic and fail-closed service restoration to verify
-   `/dev/i2c-2`, fixed addresses, hardware IDs, bounded reads/writes, timeout
-   behavior, shutdown, and sustained retained-descriptor health. Later, verify
-   Orange inputs, coordinates, and LED appearance physically. When Raspberry is
-   available, verify interrupt initialization/clear, all inputs and coordinates,
-   GRB output, and sustained writes on `/dev/i2c-1`. Do not treat the Orange
-   automated transaction result as visual/input qualification.
-2. **Finish F2 desktop queue admission policy.** Platform requests are already
-   bounded. Define explicit loss, retry, coalescing, emergency, and shutdown
-   semantics before bounding runtime-worker commands, audio-prep control
-   requests, audio trigger events, native MIDI events, audio failures, or result
-   channels. Do not infer those policies from the downstream rodio queues.
-3. **Complete nested persisted NativeRunner configuration DTOs (remaining
-   scope).** Type the remaining runtime, layer, instrument, mixer, and device
-   structures while retaining validated extension JSON for behavior-specific
-   and FX parameters. The outer/application DTO slice is complete. Preserve
-   strict schema validation and migrations before decoding; verify defaults,
-   factory payloads, malformed fields, migrations, and round trips before the
-   transaction item builds on typed aggregates.
-4. **Make NativeRunner configuration transactions explicit (5–6 days).**
-   Extract the transaction-owned configuration aggregate and have config/menu
-   changes produce one audio update plan: none, dynamic commands, or a full
-   revisioned configuration. Avoid a broad runner rewrite. Verify live-state
-   preservation and exactly one audio revision per committed transaction.
+Desktop queue admission policy is not product work. The desktop is a
+non-authoritative simulator and harness; native runtime queues and their policy
+remain the authoritative implementation boundary.
 
-## Legal and attribution follow-up
+## Manual FAT — current open checks
 
-- Before any future public board-image release, review the applicable source
-  duties for its pinned upstream inputs and the Octessera source, patches,
-  configuration, and build scripts; see [`release-licensing.md`](release-licensing.md).
+Use the [two-board FAT quick run](../userdocs/hardware/fat-quick-run.md) first.
+It intentionally covers boot, native handoff, OLED startup, service readiness,
+setup, basic controls, selected ordinary audio, and a known runtime sound once
+per board. Do not repeat those checks while closing the gaps below.
 
-## Phase 5 Boot OLED Qualification
+### Boot, OLED, and lifecycle
 
 - Run the full Raspberry and Orange constructors from the source-bound boot-layer contracts: `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and `resources/image-construction/boot-layers/orange-pi-zero-2w.json`. Regenerate both selected initramfs images and record source hashes plus mounted-image proof. A trusted `v0.7.5` runtime/setup parent respin is not proof of this layer.
 - On each new image, prove the root systemd animator starts concurrently, native startup releases and adopts without resetting the OLED, and animation stops before the acknowledged first normal menu frame. Prove the permitted initial blank interval, lack of static/flickering/dual-writer behavior after service start, and clean handoff.
@@ -53,15 +32,22 @@ Orange diagnostics where they establish a real additional fact.
 - Orange runtime recovery is fail-closed: systemd permits the initial start plus two retries in 30 seconds, then requires `sudo systemctl reset-failed octessera.service` followed by `sudo systemctl start octessera.service`. The OLED animator deadline is 30 seconds monotonic; timeout and cleanup failures attempt black then display-off independently and leave a native-recoverable failed handoff. Exact Trellis wiring and addresses remain required; no alternate fallback is supported.
 - Both selected initramfs images are source-tested for their static frame and closure; both boards' systemd boot animations are source-tested for readiness and handoff. Constructor-image qualification remains open; the completed bounded live cold-boot result is recorded in the [shared board-profile qualification result](board-profiles.md#bounded-boot-result-historical). Linux system suspend/resume and shutdown remain separate physical qualification gates; confirm they do not race the boot writer or borrow the boot animation contract.
 
-## Hardware Validation
+### Setup and data continuity
 
 - Setup portal qualification remains open on both boards: verify AP creation and joining, the captive page, successful Wi-Fi credential/hostname/SSH/login application, reconnect on the new network, attachment to an already-running setup service, the 30-minute timeout, failure and partial-state messaging, and absence of secrets in the AP, HTTP responses, status/receipt files, logs, and artifacts.
+- Data Backup/Restore remains a FAT item, not a source backlog item: pre-flash export, no-media and media-inclusive restore, physical Main/Back confirmation, invalid/incompatible archive reporting, rejected-restore preservation, and recovery after a controlled reflash. The transfer service is Pi-only; desktop transfer remains unsupported.
+
+### Physical controls and displays
+
 - The current Raspberry and Orange SSD1351 modules are operational for the bounded cold-boot static-logo, animation, and menu-handoff qualification above. Broader OLED interaction, brightness, sleep/resume, and lifecycle checks remain open.
 - Orange OLED orientation, edge alignment, boot handoff, default idle sleep, and first-input-consumed wake are qualified. Raspberry still needs the full checklist. Both boards still need physical brightness, startup/help toast wording, help dialogs, confirm dialogs, and long sample-browser row checks.
-- NeoTrellis checklist: validate coordinate orientation, lower-left grid semantics, Play Fn columns, overlay priority, XY marker position, sample/probability assignment colors, and full-frame stability on hardware after the corrected connector path is installed.
+- NeoTrellis checklist: validate coordinate orientation, lower-left grid semantics, Play Fn columns, overlay priority, XY marker position, sample/probability assignment colors, and full-frame stability on hardware after the corrected connector path is installed. Standard NeoTrellis/NeoKey operation and fail-hard absence behavior are accepted engineering contracts; physical input, coordinate, and LED checks belong here.
 - NeoKey checklist: validate Back, Space, Shift, Fn, combined Shift+Fn, modifier-held hints, button LED colors, and help chord entry on the PCB.
 - Encoders checklist: validate main encoder turn/press, all aux encoder directions, aux push switches, Fn+Aux binding, turn/press overlay indicators, and no-binding/not-active toasts.
+
+### Audio and USB gaps
+
 - Audio-adjacent UX checklist: validate audio-device startup status, sample preview feedback, sampler assignment feedback, Play FX assignment feedback, MIDI panic/status, and user-visible errors without requiring full audio quality sign-off.
 - Validate runtime audio through the selected exact routes beyond the successful ALSA 440 Hz test tone, including independent unsynchronized USB/HDMI clocks, possible drift/echo, and recovery after endpoint loss; this phase does not provide sample alignment. Every non-empty output set is valid. Jack is fatal/required only when selected, recognized disconnected USB/HDMI may wait, selected faults block readiness, and no route is a fallback.
 - Validate sample preview, loaded sample banks, and runtime audio config sync through the Pi host adapter.
-- Qualify Data Backup/Restore on both boards: pre-flash export, no-media and media-inclusive restore, physical Main/Back confirmation, invalid/incompatible archive reporting, and recovery after a reflash. The transfer service is Pi-only; desktop transfer remains unsupported.
+- USB Audio/MIDI remains a dedicated gap test: authorized identity, port role, VBUS/CC and no-backfeed safety, host enumeration, intended UAC2 audio, intended MIDI, reconnect, and absence of mass storage. Do not count ordinary DAC/Jack audio from the quick run as USB evidence.
