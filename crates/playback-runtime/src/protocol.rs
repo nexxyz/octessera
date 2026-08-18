@@ -11,6 +11,8 @@ mod audio_tests;
 #[cfg(test)]
 mod setup_portal_tests;
 #[cfg(test)]
+mod setup_portal_transfer_tests;
+#[cfg(test)]
 mod tests;
 
 pub use audio::{RuntimeAudioCommand, RuntimeMomentaryFxTarget};
