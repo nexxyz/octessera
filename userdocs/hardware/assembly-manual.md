@@ -45,6 +45,7 @@ keep source proof and physical proof separate.
 | 1 | USB-C power breakout | [Adafruit `4090`](https://www.adafruit.com/product/4090), Mouser `485-4090` | Power the device here, not through the compute board. |
 | 4 | Horizontal rotary encoder with switch | [RS `781-6811`](https://at.rs-online.com/web/p/mechanische-drehgeber/7816811), Bourns `PEC12R-4225F-S0024` | The PCB uses four encoders. |
 | 1 | Polarized capacitor | [`470uF`, 16V, radial, about 8x12mm](https://de.aliexpress.com/item/1005010415990713.html) | PCB footprint: `CP_Radial_D8.0mm_P3.50mm`. Any equivalent 470uF polarized radial capacitor with 3.5mm lead pitch and >5V rating is fine. |
+| 1 | 5V TVS diode | `SA5.0A`, axial DO-15, `Diode_THT:D_DO-15_P10.16mm_Horizontal` | PCB reference `D1`. The banded cathode goes to the PCB `K/+5V` pad; the unbanded anode goes to `A/GND`. This protects the shared 5V rail from transients. |
 | 1 | 1x5 right-angle male header, 2.54mm pitch | Any standard breakaway right-angle male pin header | Cut to 5 pins for the NeoTrellis connector on the PCB. The PCB connector indicator still applies; no PCB/Gerber change is needed. |
 | 1 | 5-wire female-to-female Dupont cable, about 10cm | Any 2.54mm female-to-female jumper cable set | Use five adjacent leads to connect the NeoTrellis array to the PCB. |
 | 25 pins | Straight male pin header, 2.54mm pitch | Any standard breakaway male pin header strip | Use 20 pins to link the four NeoTrellis boards together, plus 5 pins for the external connection point on the upper-left NeoTrellis board. |
@@ -115,8 +116,9 @@ Solder low-profile sockets and headers first. They define module height and alig
 
 1. Solder the low-profile sockets for the selected compute board, OLED, DAC, USB-C power breakout, and any other socketed modules.
 2. Solder the 1x5 right-angle male header for the NeoTrellis connector.
-3. Solder `C1`, the `470uF` polarized capacitor. Match polarity to the PCB markings.
-4. Solder the four rotary encoders into `SW1` through `SW4`.
+3. Solder `D1`, the `SA5.0A` 5V TVS diode. Install the banded cathode lead in the PCB `K/+5V` hole and the unbanded anode lead in the `A/GND` hole. Confirm the diode body and leads cannot short against nearby pads or metal parts.
+4. Solder `C1`, the `470uF` polarized capacitor. Match polarity to the PCB markings.
+5. Solder the four rotary encoders into `SW1` through `SW4`.
 
 You can leave the capacitor legs a little longer than usual so the capacitor can bend sideways if you need to save vertical space. Keep polarity correct and make sure the legs cannot short against nearby pads or metal parts.
 
