@@ -52,10 +52,10 @@ and root names/checksums.
    desktop launch, per-board FAT, source duties, and limitations. Do not
    announce or publish until a human explicitly makes that decision.
 
-For the v0.8.0 draft, retain Raspberry mounted-image and kernel proof with the
+For the v0.8.1 draft, retain Raspberry mounted-image and kernel proof with the
 exact draft and image SHA. Constructor evidence exists for both boards, but
 physical FAT remains the retirement gate. Trusted-parent machinery is frozen
-legacy recovery and is not a v0.8.0 qualification path.
+legacy recovery and is not a v0.8.1 qualification path.
 
 ## Image staging and update boundaries
 

@@ -14,7 +14,7 @@ The fixed production path is Armbian Debian 13/Trixie for the exact board ID
 provenance set. Its build metadata contains `OCTESSERA_IMAGE_MODE=production`
 and its runtime metadata declares `artifact_kind=production-runtime`,
 `runtime_ready=true`, and `orange-pi-zero-2w`.
-This is the retained v0.7.5 artifact contract; v0.8.0 constructor evidence is
+This is the retained v0.7.5 artifact contract; v0.8.1 constructor evidence is
 source-bound and still awaits physical FAT for its exact release artifact.
 
 Production stages the exact hash-bound three-file runtime bundle:

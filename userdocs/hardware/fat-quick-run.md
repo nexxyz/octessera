@@ -59,8 +59,8 @@ restore:
 ```powershell
 .\tools\fat\prepare-evidence.ps1 `
   -Operator "NAME" `
-  -Version "0.8.0" `
-  -ReleaseTag "v0.8.0" `
+  -Version "0.8.1" `
+  -ReleaseTag "v0.8.1" `
   -RaspberryImage ".\octessera-<version>-raspberry-pi-zero-2w.img.zip" `
   -OrangeImage ".\octessera-<version>-orange-pi-zero-2w.img.xz" `
   -RaspberryChecksum ".\SHA256SUMS.txt" `

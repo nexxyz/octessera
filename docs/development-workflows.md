@@ -2,7 +2,7 @@
 
 This page is the contributor index. Start user-facing work at
 [`userdocs/README.md`](../userdocs/README.md); start release-owner work at the
-[release support matrix](../userdocs/release-support.md). The v0.8.0 Raspberry
+[release support matrix](../userdocs/release-support.md). The v0.8.1 Raspberry
 and Orange constructor/source-bound evidence exists, but it does not close
 physical FAT for exact release artifacts.
 

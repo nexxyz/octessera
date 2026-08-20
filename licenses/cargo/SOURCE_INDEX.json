@@ -1,7 +1,7 @@
 {
   "generated": true,
   "scope": "cargo-lock-overinclusive",
-  "cargo_lock_sha256": "3557d9f124d2172be06e4111057b8532126fd247d6bfa541ccaf41ab840aafff",
+  "cargo_lock_sha256": "737be27afc4a9eacb92d82a4b8018d4c140e2f72d01d40dce8c6f8262cecffce",
   "release_target_profiles": [
     {
       "name": "desktop",
