@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 validator="$root/tools/armbian-image/validate-orange-kernel-package.sh"
 finder="$root/tools/armbian-image/find-orange-kernel-packages.sh"
 module_inspector="$root/tools/armbian-image/inspect-orange-kernel-module.sh"
@@ -361,16 +363,10 @@ grep -q '^octessera_follow_up_patch_sha256=' "$provenance"
 grep -q '^image_package_handoff_sha256=' "$provenance"
 grep -q '^dtb_package_handoff_sha256=' "$provenance"
 grep -q '^github_source_sha=' "$provenance"
-if grep -q 'unavailable' "$provenance"; then
-  echo 'Orange provenance emitted unavailable evidence.' >&2
-  exit 1
-fi
+octessera_reject_file_match 'Orange provenance emitted unavailable evidence.' -q 'unavailable' "$provenance"
 grep -q '^armbian_build_ref=fa7a7b2294d9e760a77630950afd460b7a0b2a26$' "$provenance"
 for removed_field in kernel_source_remote_url kernel_source_checkout_path kernel_source_checkout_head kernel_source_base_commit kernel_source_base_is_ancestor; do
-  if grep -q "^${removed_field}=" "$provenance"; then
-    echo "Orange provenance emitted removed field: $removed_field" >&2
-    exit 1
-  fi
+  octessera_reject_file_match "Orange provenance emitted removed field: $removed_field" -q "^${removed_field}=" "$provenance"
 done
 sed 's/^module_decompressed_sha256=.*/module_decompressed_sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$evidence" > "$work/tampered-evidence.env"
 if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=fa7a7b2294d9e760a77630950afd460b7a0b2a26 OCTESSERA_ORANGE_TEST_MODE=1 bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-provenance.txt" "$work/tampered-evidence.env" "" "$good_config_sha256" >/dev/null 2>&1; then

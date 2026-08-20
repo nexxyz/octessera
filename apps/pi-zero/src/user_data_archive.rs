@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 
 #[path = "user_data_archive_media.rs"]
 mod media;
+pub(crate) use media::is_packaged_sample;
 use media::{
     directory_media, kind_name, media_key, media_kind_byte, media_kind_from_byte, media_stage_dir,
     sample_media,

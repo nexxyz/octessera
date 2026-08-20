@@ -27,7 +27,8 @@ from requested_build_record import (
 )
 from setup_contract import contract_for_board, load_contract
 from notice_mutation import _canonical_output_inventory, _expected_paths, _manifest_sources, _tool_model
-from workflow_record_common import RecordError as WorkflowRecordError, identity
+from record_paths import identity
+from record_validation import RecordError as WorkflowRecordError
 from disk_layout import DiskLayout
 from disk_packaging import compression_identity
 from disk_provenance import build_derived_provenance, provenance_bytes

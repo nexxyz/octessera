@@ -1,4 +1,5 @@
-use super::{LedColor, NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH};
+use super::led_color::LedColor;
+use super::{NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::MusicalEvent;
 
 pub(super) fn sparks_transpose_offset_at(x: usize, y: usize) -> Option<i8> {

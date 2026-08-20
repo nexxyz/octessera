@@ -1,4 +1,5 @@
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxPress, ResolvedAuxSlot, ResolvedAuxTurn};
+use super::sparks_fx_config::sparks_fx_type;
 use super::*;
 
 impl NativeRunner {

@@ -45,8 +45,10 @@ impl NativeRunner {
         self.advance_toast_state();
         let snapshot = self.next_snapshot()?;
         self.display.transients.acknowledge_snapshot_pending();
+        let restore_blocks_config_writes = self.restore_blocks_config_writes();
         let autosave_pending = self.pending.pending_autosave_payload_due_at.is_some();
-        let backup_due = self.config_dirty
+        let backup_due = !restore_blocks_config_writes
+            && self.config_dirty
             && self.rolling_backups
             && !autosave_pending
             && self
@@ -58,24 +60,31 @@ impl NativeRunner {
             .pending_save_revision
             .zip(self.dirty_revision)
             .is_some_and(|(pending, dirty)| pending == dirty);
-        let payload =
-            if (self.auto_save_default && self.config_dirty && !autosave_pending && !save_pending)
-                || backup_due
-            {
-                Some(self.config_payload())
-            } else {
-                None
-            };
-        let save_default_effect =
-            if self.auto_save_default && self.config_dirty && !autosave_pending && !save_pending {
-                self.pending.pending_save_revision = Some(self.config_revision);
-                Some(RuntimePlatformEffect::StoreSaveDefault {
-                    payload: payload.clone().expect("autosave payload"),
-                    mode: Some("deferred".into()),
-                })
-            } else {
-                None
-            };
+        let payload = if (self.auto_save_default
+            && !restore_blocks_config_writes
+            && self.config_dirty
+            && !autosave_pending
+            && !save_pending)
+            || backup_due
+        {
+            Some(self.config_payload())
+        } else {
+            None
+        };
+        let save_default_effect = if self.auto_save_default
+            && !restore_blocks_config_writes
+            && self.config_dirty
+            && !autosave_pending
+            && !save_pending
+        {
+            self.pending.pending_save_revision = Some(self.config_revision);
+            Some(RuntimePlatformEffect::StoreSaveDefault {
+                payload: payload.clone().expect("autosave payload"),
+                mode: Some("deferred".into()),
+            })
+        } else {
+            None
+        };
         let backup_effect = if backup_due {
             self.last_backup_save_at = Some(std::time::Instant::now());
             Some(RuntimePlatformEffect::StoreSaveBackup {

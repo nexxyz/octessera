@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 service="$root/userpatches/overlay/etc/systemd/system/octessera.service"
 socket="$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket"
 update_socket="$root/userpatches/overlay/etc/systemd/system/octessera-update.socket"
@@ -32,11 +34,8 @@ for required_line in \
   'ReadWritePaths=/opt/octessera /usr/local/bin /run/octessera'; do
   grep -qFx "$required_line" "$update_service" || { echo "Update broker service is missing: $required_line" >&2; exit 1; }
 done
-! grep -qE 'sudo|octessera-runtime' "$update_service" || { echo 'Update broker service has an unsafe privilege path.' >&2; exit 1; }
-if grep -qFx 'After=local-fs.target octessera-provision-musical-default.service' "$socket"; then
-  echo 'Orange apply socket must not wait for musical provisioning.' >&2
-  exit 1
-fi
+octessera_reject_file_match 'Update broker service has an unsafe privilege path.' -qE 'sudo|octessera-runtime' "$update_service"
+octessera_reject_file_match 'Orange apply socket must not wait for musical provisioning.' -qFx 'After=local-fs.target octessera-provision-musical-default.service' "$socket"
 grep -qFx 'After=systemd-modules-load.service sys-kernel-config.mount local-fs.target octessera-provision-musical-default.service' "$gadget"
 grep -qFx 'Before=sound.target octessera.service' "$gadget"
 grep -qFx 'Requires=octessera-provision-musical-default.service' "$gadget"
@@ -61,7 +60,7 @@ done
 for required_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartPreventExitStatus=78' 'RestartSec=5s'; do
   grep -qFx "$required_line" "$service" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
 done
-! grep -qFx 'Restart=always' "$service" || { echo 'Orange runtime service still restarts always.' >&2; exit 1; }
+octessera_reject_file_match 'Orange runtime service still restarts always.' -qFx 'Restart=always' "$service"
 python3 - "$service" <<'PY'
 from pathlib import Path
 import sys
@@ -77,12 +76,9 @@ assert not restarts(78)
 assert restarts(1)
 print("Orange runtime exit-status restart policy fixture passed")
 PY
-! grep -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$service" || { echo 'Orange runtime service has an unapproved failure dependency.' >&2; exit 1; }
+octessera_reject_file_match 'Orange runtime service has an unapproved failure dependency.' -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$service"
 [[ "$(grep -c '^Requires=' "$service")" == 3 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
-if grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$service"; then
-  echo 'Runtime service grants ambient SYS_NICE or priority 80.' >&2
-  exit 1
-fi
+octessera_reject_file_match 'Runtime service grants ambient SYS_NICE or priority 80.' -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$service"
 expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
 [[ "$(cat -- "$udev_rule")" == "$expected_udev_rule" ]] || { echo 'Orange runtime udev rule content is not exact.' >&2; exit 1; }
 profile_gpio_label="$(sed -n 's/^GPIO_LABEL = "\(.*\)"/\1/p' "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo")"
@@ -149,6 +145,9 @@ if grep -Eiq 'ordering cycle|job .* (deleted|deletion)' "$verify_output"; then
   cat "$verify_output" >&2
   echo 'Orange runtime target graph reported an ordering cycle or deleted job.' >&2
   exit 1
+else
+  status=$?
+  [[ "$status" == 1 ]] || { cat "$verify_output" >&2; echo "Unable to inspect Orange runtime target graph (grep status $status)." >&2; exit "$status"; }
 fi
 rm "$work/etc/systemd/system/octessera-device-apply-reboot.socket"
 if systemd-analyze --root="$work" verify octessera.service >"$work/missing-socket.out" 2>&1; then

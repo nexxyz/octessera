@@ -104,6 +104,15 @@ fn handle_export(inner: &Arc<TransferInner>, stream: &mut TcpStream, query: Opti
             return;
         }
     };
+    let Ok(_store_guard) = inner.store_lock.lock() else {
+        respond(
+            stream,
+            503,
+            "application/json",
+            br#"{"error":"export_unavailable"}"#,
+        );
+        return;
+    };
     let plan = match user_export_plan(inner, include_media) {
         Ok(plan) => plan,
         Err(_) => {
@@ -203,14 +212,19 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             return;
         }
     };
+    let Ok(_store_guard) = inner.store_lock.lock() else {
+        respond(
+            stream,
+            503,
+            "application/json",
+            br#"{"error":"restore_unavailable"}"#,
+        );
+        return;
+    };
     let upload_path = inner.store_dir.join(format!(".user-data-upload-{session}"));
     let stage_root = inner.store_dir.join(format!(".user-data-stage-{session}"));
     let result = (|| {
         fs::create_dir_all(&inner.store_dir).map_err(io_error)?;
-        fs::create_dir(&stage_root).map_err(io_error)?;
-        for directory in ["samples", "audio", "screen"] {
-            fs::create_dir(stage_root.join(directory)).map_err(io_error)?;
-        }
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true)

@@ -1,8 +1,7 @@
-use crate::protocol::{HostMessage, RunnerMessage};
-use std::time::Instant;
+use crate::protocol::RunnerMessage;
 
 use super::{
-    wrap_help_text, DeviceInput, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeToast,
+    wrap_help_text, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeToast,
     NativeUsbSdTransferModal, RuntimeTransportState, SyncSource, TransportFlash,
 };
 
@@ -94,7 +93,7 @@ impl NativeRunner {
         self.execute_confirmed_action(confirm.action)
     }
 
-    fn send_transport_pulse_step(
+    pub(super) fn send_transport_pulse_step(
         &mut self,
         pulses: u32,
         request_snapshot: Option<bool>,
@@ -131,22 +130,7 @@ impl NativeRunner {
         Ok(out)
     }
 
-    fn send_device_input(
-        &mut self,
-        input: serde_json::Value,
-        request_snapshot: Option<bool>,
-    ) -> Result<Vec<RunnerMessage>, String> {
-        let input = serde_json::from_value::<DeviceInput>(input).unwrap_or(DeviceInput::Other);
-        if request_snapshot.unwrap_or(true) {
-            return self.handle_device_input(input);
-        }
-        self.pending.suppress_snapshot_response = true;
-        let messages = self.handle_device_input(input);
-        self.pending.suppress_snapshot_response = false;
-        messages
-    }
-
-    fn send_midi_realtime_start(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(super) fn send_midi_realtime_start(&mut self) -> Result<Vec<RunnerMessage>, String> {
         if self.should_ignore_external_start_stop() {
             return self.messages_with_snapshot();
         }
@@ -159,7 +143,7 @@ impl NativeRunner {
         self.messages_with_snapshot()
     }
 
-    fn send_midi_realtime_continue(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(super) fn send_midi_realtime_continue(&mut self) -> Result<Vec<RunnerMessage>, String> {
         if self.should_ignore_external_start_stop() {
             return self.messages_with_snapshot();
         }
@@ -167,7 +151,7 @@ impl NativeRunner {
         self.messages_with_snapshot()
     }
 
-    fn send_midi_realtime_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(super) fn send_midi_realtime_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
         if self.should_ignore_external_start_stop() {
             return self.messages_with_snapshot();
         }
@@ -176,13 +160,16 @@ impl NativeRunner {
         self.messages_with_snapshot()
     }
 
-    fn send_transport_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(super) fn send_transport_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.transport.transport = RuntimeTransportState::Stopped;
         self.reset_transport_position();
         self.messages_with_snapshot()
     }
 
-    fn send_midi_realtime_clock(&mut self, pulses: u32) -> Result<Vec<RunnerMessage>, String> {
+    pub(super) fn send_midi_realtime_clock(
+        &mut self,
+        pulses: u32,
+    ) -> Result<Vec<RunnerMessage>, String> {
         if self.transport.sync_source == SyncSource::External && !self.midi_clock_in_enabled {
             return self.messages_with_snapshot();
         }
@@ -244,7 +231,7 @@ impl NativeRunner {
         Ok(out)
     }
 
-    fn send_runtime_result(
+    pub(super) fn send_runtime_result(
         &mut self,
         result: crate::protocol::RuntimeStoreResult,
     ) -> Result<Vec<RunnerMessage>, String> {
@@ -255,31 +242,5 @@ impl NativeRunner {
     fn should_ignore_external_start_stop(&self) -> bool {
         self.transport.sync_source == SyncSource::External
             && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop)
-    }
-}
-
-impl super::CoreRunner for NativeRunner {
-    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-        let flush_time = Instant::now();
-        let mut messages = match message {
-            HostMessage::TransportPulseStep {
-                pulses,
-                request_snapshot,
-                ..
-            } => self.send_transport_pulse_step(pulses, request_snapshot),
-            HostMessage::DeviceInput {
-                input,
-                request_snapshot,
-            } => self.send_device_input(input, request_snapshot),
-            HostMessage::MidiRealtimeStart => self.send_midi_realtime_start(),
-            HostMessage::MidiRealtimeContinue => self.send_midi_realtime_continue(),
-            HostMessage::MidiRealtimeStop => self.send_midi_realtime_stop(),
-            HostMessage::TransportStop => self.send_transport_stop(),
-            HostMessage::MidiRealtimeClock { pulses } => self.send_midi_realtime_clock(pulses),
-            HostMessage::RuntimeResult { result } => self.send_runtime_result(result),
-        }?;
-        messages.extend(self.flush_deferred_menu_apply_at(flush_time)?);
-        self.append_runtime_config_if_changed(&mut messages);
-        Ok(messages)
     }
 }

@@ -10,16 +10,21 @@ No open FAT result is closed by this documentation pass. Until a release record
 marks an exact row **FAT-passed**, keep that row **UNQUALIFIED** or leave it out
 of public support claims.
 
+For v0.8.0, the Raspberry and Orange constructor/source-bound evidence now
+exists. It does not replace physical FAT for the exact draft artifacts. Retain
+the Raspberry mounted-image and kernel proof with that exact draft; trusted
+parent machinery remains frozen legacy recovery until FAT closes.
+
 ## Support matrix
 
 | Platform | Asset type and intended use | Source/build evidence (not FAT) | Manual FAT status | Known limitations |
 |---|---|---|---|---|
-| Desktop | Windows installer or portable ZIP; Ubuntu DEB or AppImage for the hardware-free simulator. | Desktop package build, simulator tests, and the package/legal checks in the [contributor workflow](../docs/development-workflows.md#hardware-free-verification-matrix). | **UNQUALIFIED — exact package launch record is still required.** | macOS distribution is paused. An unsigned Windows build may show the normal Windows warning. Desktop cannot qualify GPIO, OLED, DAC, power, or USB gadget behavior. Desktop Configure WiFi/Data Backup/Restore transfer remains unsupported. |
-| Raspberry Pi Zero 2 W | The exact versioned Raspberry image ZIP and its Imager manifest for a fresh install; the profile-qualified device ZIP only where its updater path is explicitly recorded. | Raspberry profile, native cross-build, image-contract, sample, and sanitization checks in the [development workflow](../docs/development-workflows.md#pi-hardware-build). | **UNQUALIFIED — exact image, PCB, power path, controls, and audio FAT are still required.** | USB Audio/MIDI is experimental local-bench validation only. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
-| Orange Pi Zero 2W | The exact versioned production Armbian image for full image installation, plus the profile-qualified runtime-only updater ZIP `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`. The standalone manual runtime ZIP remains manual and is not an OTA asset. | Orange profile, Armbian image/kernel proof, native cross-build, and staged sample checks in the [Orange bring-up procedure](../hardware/docs/orange-pi-armbian-bringup.md). | **UNQUALIFIED — exact image, PCB, power path, controls, and audio FAT are still required.** | Runtime-only Check/Apply/Rollback use the guarded updater; full Armbian, kernel, device-tree, and image replacement remains manual. USB Audio/MIDI is experimental local-bench validation only. Profile or asset mismatches fail closed without a Raspberry, manual-ZIP, or image fallback. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
+| Desktop | Windows installer or portable ZIP; Ubuntu DEB or AppImage for the hardware-free simulator. | Desktop package build, simulator tests, and package/legal checks in the [desktop workflow](../docs/workflows/desktop-development.md#hardware-free-verification-matrix). | **UNQUALIFIED — exact package launch record is still required.** | macOS distribution is paused. An unsigned Windows build may show the normal Windows warning. Desktop cannot qualify GPIO, OLED, DAC, power, or USB gadget behavior. Desktop Configure WiFi/Data Backup/Restore transfer remains unsupported. |
+| Raspberry Pi Zero 2 W | The exact versioned Raspberry image ZIP and its Imager manifest for a fresh install; the profile-qualified device ZIP only where its updater path is explicitly recorded. | v0.8.0 Raspberry constructor/source-bound evidence, including retained mounted-image and kernel proof for the exact draft, plus Raspberry profile, native cross-build, image-contract, sample, and sanitization checks in the [image workflow](../docs/workflows/image-construction-and-proof.md#source-bound-constructor-procedure). | **UNQUALIFIED — exact image, PCB, power path, controls, and audio FAT are still required.** | Raspberry full-image update remains manual. USB Audio/MIDI is experimental local-bench validation only. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
+| Orange Pi Zero 2W | The exact versioned production Armbian image for full image installation, plus the profile-qualified runtime-only updater ZIP `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`. The standalone manual runtime ZIP remains manual and is not an OTA asset. | v0.8.0 Orange constructor/source-bound evidence, plus Orange profile, Armbian image/kernel proof, native cross-build, and staged sample checks in the [Orange bring-up procedure](../hardware/docs/orange-pi-armbian-bringup.md). | **UNQUALIFIED — exact image, PCB, power path, controls, and audio FAT are still required.** | Runtime-only Check/Apply/Rollback use the guarded updater; full Armbian, kernel, device-tree, and image replacement remains manual. USB Audio/MIDI is experimental local-bench validation only. Profile or asset mismatches fail closed without a Raspberry, manual-ZIP, or image fallback. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
 
 The exact asset names, current fourteen-file custom release count, checksum files,
-and ZIP contracts remain in [Explicit GitHub Releases](../docs/development-workflows.md#explicit-github-releases).
+and ZIP contracts remain in [Release assembly](../docs/workflows/release-assembly.md#custom-release-assets).
 Those names describe packaging; they do not turn an artifact into a supported
 hardware release.
 
@@ -49,14 +54,15 @@ Read [safety and power](hardware/safety-and-power.md) first.
 
 ## Release-owner checklist
 
-The [release workflow](../docs/development-workflows.md#explicit-github-releases)
+The [release workflow](../docs/workflows/release-assembly.md#owner-handoff)
 should end with a populated draft. Keep it unpublished while the owner performs
 this checklist; publication is a separate, explicit human decision.
 
 - [ ] Choose a unique semantic version, tag, and release name. Confirm every
       manifest, package version, board profile, and release metadata agrees.
 - [ ] Confirm the workflow used the clean, exact source SHA and that its CI gates
-      passed against that SHA. Record the tag-to-commit identity.
+      passed against that SHA. Record the tag-to-commit identity and retain the
+      Raspberry mounted-image/kernel proof for the exact draft.
 - [ ] Confirm the populated draft is still a draft and has not been announced or
       published.
 - [ ] Compare the draft with the exact current asset contract: fourteen custom
@@ -89,10 +95,12 @@ this checklist; publication is a separate, explicit human decision.
       filename, SHA-256, launch result, and known warnings.
 - [ ] Run Raspberry FAT on the exact image and assembled board: power, OLED,
       controls, DAC/audio, ports, samples, and enclosure fit. Record the exact
-      image SHA and PCB/board revisions.
+      image SHA and PCB/board revisions. The mounted-image and kernel proof must
+      remain attached to this exact draft; it is not a substitute for FAT.
 - [ ] Run Orange FAT on the exact image and assembled board with the same
       evidence, using Orange-specific pin, port, and recovery checks. Do not
-      substitute a runtime-only respin for constructor qualification.
+      substitute a runtime-only respin or the frozen trusted-parent recovery
+      lane for constructor qualification.
 - [ ] If USB is exercised, record the authorized identity and the electrical and
       manual no-backfeed/host tests. Otherwise keep USB Audio/MIDI experimental
       and out of supported-release claims.
@@ -104,7 +112,8 @@ this checklist; publication is a separate, explicit human decision.
       is not an OTA asset, unsynchronized multi-output drift, any unsigned
       Windows warning, desktop Data Backup/Restore transfer remains unsupported,
       the v21 test-fit enclosure boundary, and the boundary between runtime-only
-      updates and constructor qualification. The available enclosure builds
+      Raspberry full-image update remains manual; record the boundary
+      between runtime-only updates and constructor qualification. The available enclosure builds
       have been validated; this is not a promise of production-final mechanical
       support.
 - [ ] Only after the exact evidence is attached, the draft remains correct, and

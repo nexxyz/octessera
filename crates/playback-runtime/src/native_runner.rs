@@ -8,7 +8,8 @@ use crate::protocol::{HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeSt
 use crate::protocol::{
     MidiPort, RuntimeErrorCode, RuntimeMomentaryFxTarget, RuntimePlatformEffect,
     RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeSystemInfo, RuntimeSystemInfoError,
-    RuntimeTransportState, SampleEntry, SyncSource,
+    RuntimeTransportState, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus, SampleEntry,
+    SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
 use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
@@ -31,19 +32,10 @@ use platform_core::{
 #[cfg(test)]
 use platform_core::{CellTriggerIntent, MusicalEvent};
 use serde_json::{json, Value};
-use sparks_fx_utils::{
-    default_sparks_fx_selected, momentary_fx_color, sanitize_sparks_fx_config,
-    sparks_fx_param_default, sparks_fx_param_keys, sparks_fx_params, sparks_fx_params_map,
-    sparks_fx_target_key, sparks_fx_type,
-};
 #[cfg(any(test, feature = "test-support"))]
 use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
-use visual_utils::{
-    clip_display_line, scan_index_for_overlay, scan_section_count, scrolled_toast,
-    touch_pan_pos_from_grid_x, trigger_gate_color, trigger_probability_allows, LedColor,
-};
 
 mod action_bindings;
 mod action_control;
@@ -74,9 +66,11 @@ mod config_dto;
 mod config_schema;
 mod config_schema_validation;
 mod configuration_transaction;
+mod confirmation_dialog_policy;
 mod construction;
 mod construction_deferred;
 mod construction_engine;
+mod construction_seed;
 mod defaults;
 mod deferred_flush;
 mod delay_fx_timing;
@@ -90,6 +84,7 @@ mod fx_targets;
 mod grid_assign;
 mod grid_coords;
 mod help_text;
+mod instrument_audio_payload;
 mod instrument_collections;
 mod instrument_runtime;
 mod json_path;
@@ -122,8 +117,11 @@ mod menu_apply_layers;
 mod menu_apply_pulses_fx;
 mod menu_apply_structural;
 mod menu_value_apply;
+mod message_dispatch;
 mod modulation;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
+mod error_presentation_results;
+mod midi_results;
 mod modulation_assignment_validation;
 mod modulation_audio;
 mod modulation_fx;
@@ -158,22 +156,26 @@ mod runtime_config;
 mod runtime_io;
 mod sample_assignment_payload;
 mod sample_browser;
+mod sample_browser_results;
 mod sample_paths;
 mod scan_overlay;
 mod setup_portal_state;
+mod setup_system_results;
 mod snapshot;
 mod snapshot_audio_settings;
 mod snapshot_display;
 mod snapshot_leds;
 mod snapshot_messages;
 mod sparks_control;
-mod sparks_fx_utils;
+mod sparks_fx_config;
+mod sparks_fx_presentation;
 mod sparks_transpose;
 mod sparks_trigger_gate;
 mod state_instrument_types;
 mod state_pulses;
 mod state_types;
 mod store;
+mod store_persistence_results;
 mod synth_config;
 mod system_info;
 #[cfg(any(test, feature = "test-support"))]
@@ -182,8 +184,9 @@ mod toast_state;
 mod toast_text;
 mod trigger_probability;
 mod trigger_probability_payload;
+mod user_data_restore_results;
+mod user_data_restore_state;
 mod velocity_curve;
-mod visual_utils;
 
 use crate::{clean_preset_name, fresh_preset_name};
 pub use audio_outputs::AudioOutputSet;
@@ -202,6 +205,7 @@ use fx_bus_config::*;
 use fx_targets::*;
 use grid_coords::*;
 use help_text::*;
+use instrument_audio_payload::*;
 use instrument_collections::*;
 use instrument_runtime::*;
 use json_path::*;
@@ -231,13 +235,21 @@ pub(crate) fn normalize_user_data_patch_payload(
     payload: Value,
     canonical_defaults: &Value,
 ) -> Result<Value, String> {
+    let prepared = apply_user_data_patch_payload(payload, canonical_defaults)?;
+    portable_patch_projection(&prepared)
+}
+
+pub(crate) fn apply_user_data_patch_payload(
+    payload: Value,
+    canonical_defaults: &Value,
+) -> Result<Value, String> {
     let payload = if payload.get("kind").and_then(Value::as_str) == Some(CONFIG_KIND) {
-        portable_patch_payload_for_save(&payload)?
+        let migrated = prepare_config_payload(payload, canonical_defaults)?.payload;
+        portable_patch_payload_for_save(&migrated)?
     } else {
         payload
     };
-    let prepared = prepare_patch_payload(payload, canonical_defaults)?;
-    Ok(portable_patch_projection(&prepared.payload))
+    Ok(prepare_patch_payload(payload, canonical_defaults)?.payload)
 }
 
 pub(crate) fn validate_user_data_config_payload(payload: &Value) -> Result<(), String> {

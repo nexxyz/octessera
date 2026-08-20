@@ -104,7 +104,7 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
     runner.apply_config_payload(musical_change).unwrap();
 
     let device_before = runner.config_payload()["runtimeConfig"].clone();
-    let mut patch = runner.patch_payload();
+    let mut patch = runner.patch_payload().unwrap();
     patch["runtimeConfig"]["instruments"][0]["mixer"]["volume"] = json!(63);
     patch["runtimeConfig"]["masterVolume"] = json!(12);
     patch["runtimeConfig"]["displayBrightness"] = json!(1);
@@ -123,8 +123,8 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
         device_before["displayBrightness"]
     );
 
-    let musical_before_device = runner.patch_payload();
-    let mut device = runner.device_config_payload();
+    let musical_before_device = runner.patch_payload().unwrap();
+    let mut device = runner.device_config_payload().unwrap();
     device["runtimeConfig"]["masterVolume"] = json!(22);
     device["runtimeConfig"]["displayBrightness"] = json!(17);
     device["runtimeConfig"]["audioOutputs"] = json!({
@@ -145,7 +145,7 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
         .apply_device_config_payload_preserving_patch(device)
         .unwrap();
 
-    assert_eq!(runner.patch_payload(), musical_before_device);
+    assert_eq!(runner.patch_payload().unwrap(), musical_before_device);
     assert_eq!(runner.config_payload()["runtimeConfig"]["masterVolume"], 22);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["displayBrightness"],
@@ -349,5 +349,119 @@ pub(crate) fn invalid_v2_is_rejected_before_typed_decode() {
     assert_eq!(
         prepare_config_payload(invalid, &canonical).unwrap_err(),
         "configuration.runtimeConfig.masterVolume is outside the supported range"
+    );
+}
+
+#[test]
+pub(crate) fn full_config_to_portable_conversion_is_fallible_and_migrates_v1_first() {
+    let canonical = canonical_factory_payload();
+    let mut malformed = canonical.clone();
+    malformed["runtimeConfig"]["masterVolume"] = json!("broken");
+    let error = normalize_user_data_patch_payload(malformed, &canonical).unwrap_err();
+    assert!(error.contains("masterVolume"), "{error}");
+
+    let mut legacy = canonical.clone();
+    legacy["schemaVersion"] = json!(1);
+    legacy["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("linkLfos");
+    legacy["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("xy");
+    legacy["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
+        "enabled": true,
+        "target": {
+            "key": "instruments.0.mixer.volume",
+            "kind": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1
+        },
+        "period": "1/4",
+        "depthPct": 37
+    });
+    let patch = normalize_user_data_patch_payload(legacy, &canonical).unwrap();
+    assert_eq!(patch["kind"], "octessera.patch");
+    assert_eq!(patch["schemaVersion"], 2);
+    assert_eq!(patch["runtimeConfig"]["linkLfos"][0]["enabled"], true);
+    assert_eq!(patch["runtimeConfig"]["linkLfos"][0]["depthPct"], 37);
+    assert!(patch["runtimeConfig"]["masterVolume"].is_null());
+}
+
+fn opaque_scalar_collision_fixture() -> Value {
+    json!({
+        "revision": "behavior-owned revision",
+        "enabled": "behavior-owned enabled",
+        "durationMs": "behavior-owned duration",
+        "channel": "behavior-owned channel",
+        "masterVolume": "behavior-owned volume",
+        "params": {
+            "revision": "parameter revision",
+            "enabled": "parameter enabled",
+            "durationMs": "parameter duration",
+            "channel": "parameter channel"
+        }
+    })
+}
+
+#[test]
+pub(crate) fn opaque_subtrees_accept_colliding_scalar_names_but_canonical_paths_remain_strict() {
+    let canonical = canonical_factory_payload();
+    let mut payload = canonical.clone();
+    let worlds = payload["runtimeConfig"]["layers"][0]["worlds"]
+        .as_object_mut()
+        .unwrap();
+    let collision = opaque_scalar_collision_fixture();
+    worlds.insert("behaviorConfig".into(), collision.clone());
+    worlds.insert(
+        "behaviorConfigHistory".into(),
+        json!({ "collision": collision.clone() }),
+    );
+    worlds.insert("savedState".into(), collision.clone());
+    worlds.insert("behaviorState".into(), collision.clone());
+
+    validate_config_payload(&payload).unwrap();
+    let prepared = prepare_config_payload(payload.clone(), &canonical).unwrap();
+    for key in ["behaviorConfig", "savedState", "behaviorState"] {
+        let output = prepared.payload["runtimeConfig"]["layers"][0]["worlds"][key]
+            .as_object()
+            .unwrap();
+        for (field, value) in collision.as_object().unwrap() {
+            assert_eq!(output.get(field), Some(value));
+        }
+    }
+    let history = prepared.payload["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]
+        ["collision"]
+        .as_object()
+        .unwrap();
+    for (field, value) in collision.as_object().unwrap() {
+        assert_eq!(history.get(field), Some(value));
+    }
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_config_payload(payload).unwrap();
+    let output = runner.config_payload();
+    for (field, value) in collision.as_object().unwrap() {
+        assert_eq!(
+            output["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfig"].get(field),
+            Some(value)
+        );
+    }
+    assert_eq!(
+        output["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]["collision"],
+        collision
+    );
+
+    let mut unknown_state = canonical.clone();
+    unknown_state["runtimeConfig"]["layers"][0]["worlds"]["state"] = collision.clone();
+    assert!(prepare_config_payload(unknown_state, &runner.config_payload()).is_err());
+
+    let mut invalid = canonical;
+    invalid["runtimeConfig"]["masterVolume"] = json!(101);
+    let error = prepare_config_payload(invalid, &runner.config_payload()).unwrap_err();
+    assert!(
+        error.contains("configuration.runtimeConfig.masterVolume"),
+        "{error}"
     );
 }

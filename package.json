@@ -21,7 +21,7 @@
     "test": "corepack pnpm run quality:test && corepack pnpm -r test",
     "test:coverage": "corepack pnpm -r test:coverage",
     "quality:audit": "node tools/quality/quality-audit.mjs",
-    "quality:test": "node --test tools/quality/quality-audit-parser.test.mjs",
+    "quality:test": "node --test tools/quality/quality-audit-parser.test.mjs tools/quality/quality-audit.test.mjs",
     "tauri:build": "corepack pnpm --filter @octessera/desktop tauri:build",
     "tauri:build:ci": "corepack pnpm --filter @octessera/desktop tauri:build:ci"
   },

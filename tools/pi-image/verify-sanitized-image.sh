@@ -76,6 +76,7 @@ require_updater_protocol() {
         "$WORK_DIR/root/usr/local/sbin/octessera-update-guard" \
         "$WORK_DIR/root/usr/local/sbin/octessera-update-recovery" \
         "$WORK_DIR/root/usr/local/lib/octessera/updater_protocol.py" \
+        "$WORK_DIR/root/usr/local/lib/octessera/updater_contract.py" \
         "$WORK_DIR/root/usr/local/lib/octessera/updater_state.py" \
         "$WORK_DIR/root/usr/local/lib/octessera/updater_assets.py" \
         "$WORK_DIR/root/usr/local/lib/octessera/updater_guard.py" \
@@ -91,6 +92,7 @@ require_updater_protocol() {
     require_root_mode "$WORK_DIR/root/usr/local/sbin/octessera-update-guard" 755
     require_root_mode "$WORK_DIR/root/usr/local/sbin/octessera-update-recovery" 755
     require_root_mode "$WORK_DIR/root/usr/local/lib/octessera/updater_protocol.py" 644
+    require_root_mode "$WORK_DIR/root/usr/local/lib/octessera/updater_contract.py" 644
     require_root_mode "$WORK_DIR/root/usr/local/lib/octessera/updater_state.py" 644
     require_root_mode "$WORK_DIR/root/usr/local/lib/octessera/updater_assets.py" 644
     require_root_mode "$WORK_DIR/root/usr/local/lib/octessera/updater_guard.py" 644

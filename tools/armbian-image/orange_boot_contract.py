@@ -35,6 +35,20 @@ class BootContractError(ValueError):
     pass
 
 
+SOURCE_BOUND_PROOF_SOURCES = {
+    "tools/armbian-image/verify-orange-image.py",
+    "tools/armbian-image/orange_boot_contract.py",
+    "tools/armbian-image/orange_boot_inventory.py",
+    "tools/armbian-image/orange_boot_selection.py",
+    "tools/armbian-image/orange_image_mount.py",
+    "tools/armbian-image/orange_initramfs.py",
+    "tools/armbian-image/orange_phase5_proof.py",
+    "tools/armbian-image/orange_trusted_parent_proof.py",
+    "tools/armbian-image/verify_runtime_account.py",
+    "tools/kernel-patches/orange-midi-interface-manifest.json",
+}
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise BootContractError(message)
@@ -237,7 +251,7 @@ def _verify_device_apply_lane(root: Path, repository_root: Path, construction: d
         require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange device apply source identity changed: {source_relative}")
         require(installed.read_bytes() == source.read_bytes(), f"Orange installed device apply asset differs from its canonical source: {installed_relative}")
         require_owner_mode(installed, 0, 0, mode, require)
-    helper = (repository_root / assets[2][0]).read_text(encoding="utf-8")
+    device_apply_script = (repository_root / assets[2][0]).read_text(encoding="utf-8")
     for line in (
         'SYSTEMCTL_PATH = "/usr/bin/systemctl"',
         'REBOOT_REQUEST = b"reboot\\n"',
@@ -247,7 +261,7 @@ def _verify_device_apply_lane(root: Path, repository_root: Path, construction: d
         'output_stream.write(ACCEPTED)',
         'output_stream.write(REJECTED)',
     ):
-        require(line in helper, f"Orange device apply helper contract is missing: {line}")
+        require(line in device_apply_script, f"Orange device apply script contract is missing: {line}")
     socket_link = root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
     require(socket_link.is_symlink() and socket_link.readlink().as_posix() in {"../octessera-device-apply-reboot.socket", "/etc/systemd/system/octessera-device-apply-reboot.socket"}, "Orange device apply socket is not enabled by the exact symlink")
 
@@ -392,12 +406,17 @@ def validate_construction_contract(root: Path, contract: dict[str, Any]) -> str:
     require(contract.get("terminal_invariants") == {"welcome_path": "etc/profile.d/octessera-welcome.sh", "hushlogin_path": "home/octessera/.hushlogin", "hushlogin_mode": 420, "hushlogin_empty": True, "forbidden_pam_update_motd_overrides": True}, "Orange terminal invariants changed")
     require(contract.get("uart_invariants") == {"overlay_name": "octessera-h618-input-routing", "forbidden_console_token": "console=ttyS0", "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service", "uart0_status": "disabled", "stdout_path": ""}, "Orange UART invariants changed")
     exact_inputs = contract.get("exact_inputs", [])
+    require(isinstance(exact_inputs, list) and bool(exact_inputs), "Orange construction source inputs are empty")
+    exact_input_paths: set[str] = set()
     validator_inputs = [item for item in exact_inputs if item.get("path") == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
     require(len(validator_inputs) == 1, "Orange device config validator source identity is not unique")
     for item in exact_inputs:
         require(set(item) == {"path", "sha256", "size", "mode"}, "Orange construction source input changed")
+        require(isinstance(item["path"], str) and not Path(item["path"]).is_absolute() and ".." not in Path(item["path"]).parts and item["path"] not in exact_input_paths, "Orange construction source input path is unsafe or duplicated")
+        exact_input_paths.add(item["path"])
         source = root / item["path"]
         require(source.is_file() and not source.is_symlink() and sha256_file(source) == item["sha256"] and source.stat().st_size == item["size"], f"Orange construction source input changed: {source}")
+    require(SOURCE_BOUND_PROOF_SOURCES <= exact_input_paths, "Orange verifier source identities are incomplete")
     return sha256_file(root / "resources/image-construction/boot-layers/orange-pi-zero-2w.json")
 
 

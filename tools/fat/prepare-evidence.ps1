@@ -8,6 +8,9 @@ param(
   [ValidateNotNullOrEmpty()]
   [string]$Version,
 
+  [string]$ExpectedSourceSha = "",
+  [string]$ReleaseTag = "",
+
   [Parameter(Mandatory = $true)]
   [string]$RaspberryImage,
 
@@ -64,11 +67,76 @@ function Write-Utf8NoBom {
   )
 
   $encoding = New-Object System.Text.UTF8Encoding($false)
-  [IO.File]::WriteAllText($Path, $Content, $encoding)
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+  try {
+    $writer = New-Object IO.StreamWriter($stream, $encoding)
+    try {
+      $writer.Write($Content)
+    } finally {
+      $writer.Dispose()
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+
+function Assert-NonReparseDirectory {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string]$Name
+  )
+
+  $item = Get-Item -LiteralPath $Path
+  if (-not $item.PSIsContainer) {
+    throw "$Name is not a directory: $Path"
+  }
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw "$Name must not be a reparse point: $Path"
+  }
+  $item
+}
+
+function New-EvidenceRoot {
+  param([Parameter(Mandatory = $true)][string]$Path)
+
+  if (Test-Path -LiteralPath $Path) {
+    throw "EvidenceRoot must be newly created and unused: $Path"
+  }
+  $parent = Split-Path -Parent $Path
+  if ([string]::IsNullOrWhiteSpace($parent)) {
+    throw "EvidenceRoot must have an existing parent directory: $Path"
+  }
+  if (-not (Test-Path -LiteralPath $parent -PathType Container)) {
+    [IO.Directory]::CreateDirectory($parent) | Out-Null
+  }
+  Assert-NonReparseDirectory $parent "EvidenceRoot parent" | Out-Null
+  New-Item -ItemType Directory -Path $Path | Out-Null
+  Assert-NonReparseDirectory $Path "EvidenceRoot" | Out-Null
+  (Resolve-Path -LiteralPath $Path).Path
 }
 
 Assert-SingleLineInput $Operator "Operator"
 Assert-SingleLineInput $Version "Version"
+
+$hasExpectedSourceSha = -not [string]::IsNullOrWhiteSpace($ExpectedSourceSha)
+$hasReleaseTag = -not [string]::IsNullOrWhiteSpace($ReleaseTag)
+if ($hasExpectedSourceSha -eq $hasReleaseTag) {
+  throw "Provide exactly one of ExpectedSourceSha or ReleaseTag."
+}
+if ($hasExpectedSourceSha) {
+  Assert-SingleLineInput $ExpectedSourceSha "ExpectedSourceSha"
+  if ($ExpectedSourceSha -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "ExpectedSourceSha must be a full 40-character hexadecimal git commit SHA."
+  }
+}
+if ($hasReleaseTag) {
+  Assert-SingleLineInput $ReleaseTag "ReleaseTag"
+  if ($ReleaseTag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+    throw "ReleaseTag must use the exact vX.Y.Z form."
+  }
+}
 
 $raspberryImagePath = Resolve-InputFile $RaspberryImage "RaspberryImage"
 $orangeImagePath = Resolve-InputFile $OrangeImage "OrangeImage"
@@ -92,6 +160,28 @@ if ($LASTEXITCODE -ne 0 -or $gitShaOutput.Count -ne 1) {
 }
 $gitSha = ([string]$gitShaOutput[0]).Trim()
 
+$sourceIdentityKind = $null
+$sourceIdentityValue = $null
+if ($hasExpectedSourceSha) {
+  $expectedSourceShaNormalized = $ExpectedSourceSha.ToLowerInvariant()
+  if ($gitSha.ToLowerInvariant() -ne $expectedSourceShaNormalized) {
+    throw "ExpectedSourceSha does not match the current repository HEAD."
+  }
+  $sourceIdentityKind = "expected-source-sha"
+  $sourceIdentityValue = $expectedSourceShaNormalized
+} else {
+  $tagShaOutput = @(& git -C $repoRoot rev-parse --verify "refs/tags/$ReleaseTag^{commit}")
+  if ($LASTEXITCODE -ne 0 -or $tagShaOutput.Count -ne 1) {
+    throw "ReleaseTag was not found as an exact local git tag: $ReleaseTag"
+  }
+  $tagSha = ([string]$tagShaOutput[0]).Trim().ToLowerInvariant()
+  if ($tagSha -ne $gitSha.ToLowerInvariant()) {
+    throw "ReleaseTag does not resolve to the current repository HEAD."
+  }
+  $sourceIdentityKind = "release-tag"
+  $sourceIdentityValue = $ReleaseTag
+}
+
 if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
   $stamp = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
   $EvidenceRoot = Join-Path (Get-Location).Path (Join-Path "artifacts\fat" $stamp)
@@ -99,10 +189,7 @@ if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
   $EvidenceRoot = Join-Path (Get-Location).Path $EvidenceRoot
 }
 
-if (Test-Path -LiteralPath $EvidenceRoot -PathType Leaf) {
-  throw "EvidenceRoot is an existing file: $EvidenceRoot"
-}
-New-Item -ItemType Directory -Path $EvidenceRoot -Force | Out-Null
+$EvidenceRoot = New-EvidenceRoot $EvidenceRoot
 
 $createdUtc = [DateTime]::UtcNow.ToString("o")
 $assets = @(
@@ -143,7 +230,12 @@ $session = [ordered]@{
   operator = $Operator
   version = $Version
   gitSha = $gitSha
-  evidenceRoot = (Resolve-Path -LiteralPath $EvidenceRoot).Path
+  sourceIdentity = [ordered]@{
+    kind = $sourceIdentityKind
+    value = $sourceIdentityValue
+    commitSha = $gitSha
+  }
+  evidenceRoot = $EvidenceRoot
   boards = @(
     [ordered]@{ board = "raspberry-pi-zero-2w"; image = $assetRecords[0] }
     [ordered]@{ board = "orange-pi-zero-2w"; image = $assetRecords[1] }
@@ -151,14 +243,14 @@ $session = [ordered]@{
 }
 
 $destructiveCommands = @"
-PRINT ONLY. This helper does not flash, reboot, shut down, alter a board, or run a restore.
+PRINT ONLY. This evidence-preparation script does not flash, reboot, shut down, alter a board, or run a restore.
 
 Raspberry Pi card flash: use Raspberry Pi Imager with $([IO.Path]::GetFileName($raspberryImagePath)).
 Orange Pi card flash: use an image flasher with $([IO.Path]::GetFileName($orangeImagePath)).
 Both operations destroy the selected card contents. Confirm the target card twice.
 
 Preferred instrument actions: System > Reboot; System > Shutdown.
-Administrative commands below are printed for review only, not executed by this helper:
+Administrative commands below are printed for review only, not executed by this evidence-preparation script:
 sudo systemctl reboot
 sudo systemctl poweroff
 
@@ -176,6 +268,7 @@ Write-Utf8NoBom (Join-Path $EvidenceRoot "00-destructive-commands.txt") $destruc
 
 Write-Output "Evidence folder created: $EvidenceRoot"
 Write-Output "Recorded git SHA: $gitSha"
+Write-Output "Recorded source identity: $sourceIdentityValue ($sourceIdentityKind)"
 Write-Output "Hashed exact image and supplied checksum assets; no board or card was touched."
 Write-Output ""
 Write-Output $destructiveCommands.TrimStart()

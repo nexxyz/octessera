@@ -96,6 +96,7 @@ class UpdaterLayoutTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         for name in (
             "updater_protocol.py",
+            "updater_contract.py",
             "updater_state.py",
             "updater_assets.py",
             "updater_guard.py",

@@ -597,10 +597,12 @@ native_binding_range_min	*	key:*.rangeMin	number	Range Min	Sets the low end of t
 native_binding_range_max	*	key:*.rangeMax	number	Range Max	Sets the high end of the current numeric binding's user range.	Set equal to Range Min for a fixed modulation value.
 native_link_delay	*	key:layers.*.pulses.mapping.*.delaySteps	number	Link Delay	Delays this Link event target by layer link ticks.	0 is immediate; delayed events use the already-routed event and do not re-roll probability.
 native_link_retrigger	*	key:layers.*.pulses.mapping.*.retriggerCount	number	Link Retrig	Adds extra repeats after this Link event target.	A value of 2 repeats at delay+1 and delay+2 layer ticks.
-native_fx_amount	*	key:mixer.buses.*.slot*.params.amountPct	number	Duck Amount	Sets how strongly ducking reduces the target bus.	Higher percentages create deeper ducking.
-native_fx_attack	*	key:mixer.buses.*.slot*.params.attackMs	number	Attack	Sets how quickly this effect reacts after input crosses its trigger condition.	Short values respond faster.
-native_fx_release	*	key:mixer.buses.*.slot*.params.releaseMs	number	Release	Sets how quickly this effect returns after release or input falls away.	Longer values decay more slowly.
-native_fx_threshold	*	key:mixer.buses.*.slot*.params.threshold	number	Threshold	Sets the normalized trigger level for this effect.	Lower values trigger more easily.
+native_fx_amount	*	key:mixer.buses.*.slot*.params.amountPct	number	Duck Amount	Sets how strongly ducking reduces the target bus (0–100%).	Higher percentages create deeper ducking.
+native_fx_attack	Menu > Shape > FX Buses > B*: * > Slot *: * > Attack		number	Attack	Sets how quickly this effect reacts after input crosses its trigger condition.	Short values respond faster.
+native_fx_attack_duck	Menu > Shape > FX Buses > B*: * > Slot *: Duck > Attack		number	Attack	Sets Duck attack time; accepted values are 1–500 ms.	Short values respond faster.
+native_fx_release	Menu > Shape > FX Buses > B*: * > Slot *: * > Release		number	Release	Sets how quickly this effect returns after release or input falls away.	Longer values decay more slowly.
+native_fx_release_duck	Menu > Shape > FX Buses > B*: * > Slot *: Duck > Release		number	Release	Sets Duck release time; accepted values are 1–5000 ms.	Longer values decay more slowly.
+native_fx_threshold	*	key:mixer.buses.*.slot*.params.threshold	number	Threshold	Sets the normalized trigger level for this effect from 0 to 1.	Lower values trigger more easily.
 native_fx_threshold_db	*	key:mixer.*.slots.*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_mix	*	key:mixer.*.slots.*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
 native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Delay Time Mode	ms stores a fixed millisecond delay; note follows a musical note unit and current BPM.	Changing Time Note selects note mode; changing Time ms selects millisecond mode.

@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 hook="$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
 premount_script="$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
 boot_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
@@ -13,8 +15,8 @@ oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
 
 [[ -f "$hook" ]] || { echo "Missing Orange initramfs boot-splash hook." >&2; exit 1; }
 grep -qF '/usr/bin/setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script" || { echo "Orange initramfs must invoke the renderer through /usr/bin/python3." >&2; exit 1; }
-! grep -qF '/usr/bin/setsid /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script" || { echo "Orange initramfs must not execute the renderer through its env shebang." >&2; exit 1; }
-! grep -qF '/usr/bin/env' "$premount_script" || { echo "Orange initramfs must not depend on /usr/bin/env." >&2; exit 1; }
+octessera_reject_file_match "Orange initramfs must not execute the renderer through its env shebang." -qF '/usr/bin/setsid /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script"
+octessera_reject_file_match "Orange initramfs must not depend on /usr/bin/env." -qF '/usr/bin/env' "$premount_script"
 for required_line in \
     'Type=notify' \
     'NotifyAccess=main' \
@@ -31,7 +33,7 @@ for required_line in \
     'Restart=no'; do
     grep -qFx "$required_line" "$boot_service" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
 done
-! grep -q '^Restart=always$' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo 'Orange boot splash must not restart always.' >&2; exit 1; }
+octessera_reject_file_match 'Orange boot splash must not restart always.' -q '^Restart=always$' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
 grep -qFx 'Restart=no' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo 'Orange boot splash restart policy changed.' >&2; exit 1; }
 for required_line in \
     'DevicePolicy=closed' \
@@ -39,7 +41,7 @@ for required_line in \
     'DeviceAllow=/dev/gpiochip1 rw'; do
     grep -qFx "$required_line" "$boot_service" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
 done
-! grep -q '^Conflicts=' "$boot_service" || { echo "Orange boot service must not conflict with runtime." >&2; exit 1; }
+octessera_reject_file_match "Orange boot service must not conflict with runtime." -q '^Conflicts=' "$boot_service"
 grep -qFx 'After=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service local-fs.target' "$boot_service"
 grep -qFx 'Before=sysinit.target octessera.service' "$boot_service"
 for required_line in \
@@ -57,14 +59,14 @@ for required_line in \
     'TimeoutStopSec=8'; do
     grep -qFx "$required_line" "$shutdown_service" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
 done
-! grep -q '^Before=' "$shutdown_service" || { echo 'Orange shutdown service must not use target ordering.' >&2; exit 1; }
-! grep -qE '^WantedBy=(shutdown|reboot|halt)\.target$' "$shutdown_service" || { echo 'Orange shutdown service must be enabled at multi-user.' >&2; exit 1; }
+octessera_reject_file_match 'Orange shutdown service must not use target ordering.' -q '^Before=' "$shutdown_service"
+octessera_reject_file_match 'Orange shutdown service must not be enabled at shutdown targets.' -qE '^WantedBy=(shutdown|reboot|halt)\.target$' "$shutdown_service"
 grep -qFx 'WantedBy=multi-user.target' "$shutdown_service" || { echo 'Orange shutdown service is not a multi-user service.' >&2; exit 1; }
-! grep -qE 'orange-oled-logo (shutdown|boot)' "$shutdown_service" || { echo 'Orange shutdown service must not write a logo.' >&2; exit 1; }
+octessera_reject_file_match 'Orange shutdown service must not write a logo.' -qE 'orange-oled-logo (shutdown|boot)' "$shutdown_service"
 [[ ! -e "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" ]] || { echo 'Orange system-sleep hook must be removed.' >&2; exit 1; }
 grep -qF '["gpioset", "--chip", self.chip, f"{offset}={value}"]' "$oled_logo" || { echo 'Orange OLED GPIO control must use the fixed libgpiod v2 syntax.' >&2; exit 1; }
-! grep -qF -- '--mode=wait' "$oled_logo" || { echo 'Orange OLED GPIO control must not use the removed libgpiod v1 mode option.' >&2; exit 1; }
-! grep -qE -- '--(daemonize|toggle|hold-period)' "$oled_logo" || { echo 'Orange OLED GPIO control must retain process-held ownership.' >&2; exit 1; }
+octessera_reject_file_match 'Orange OLED GPIO control must not use the removed libgpiod v1 mode option.' -qF -- '--mode=wait' "$oled_logo"
+octessera_reject_file_match 'Orange OLED GPIO control must retain process-held ownership.' -qE -- '--(daemonize|toggle|hold-period)' "$oled_logo"
 for required_line in \
     'After=octessera.service' \
     'Requisite=octessera.service' \
@@ -83,8 +85,8 @@ for required_line in \
     'TimeoutStopSec=8'; do
     grep -qFx "$required_line" "$suspend_service" || { echo "Orange suspend service is missing: $required_line" >&2; exit 1; }
 done
-! grep -qFx 'SupplementaryGroups=audio i2c spi gpio' "$suspend_service" || { echo 'Orange suspend service must use the runtime account without named supplementary groups.' >&2; exit 1; }
-! grep -qE '(^|[[:space:]])(systemctl|dbus|Conflicts=)' "$suspend_service" || { echo 'Orange suspend service contains a forbidden lifecycle dependency.' >&2; exit 1; }
+octessera_reject_file_match 'Orange suspend service must use the runtime account without named supplementary groups.' -qFx 'SupplementaryGroups=audio i2c spi gpio' "$suspend_service"
+octessera_reject_file_match 'Orange suspend service contains a forbidden lifecycle dependency.' -qE '(^|[[:space:]])(systemctl|dbus|Conflicts=)' "$suspend_service"
 
 require_boot_service_contract() {
     local candidate="$1"
@@ -141,14 +143,8 @@ fi
 bash -n "$hook"
 [[ "$(sh "$hook" prereqs)" == "" ]] || { echo "Orange boot-splash hook has unexpected prerequisites." >&2; exit 1; }
 
-if grep -qF 'copy_dir' "$hook"; then
-    echo "Orange initramfs hook uses unavailable copy_dir." >&2
-    exit 1
-fi
-if grep -qF 'find ' "$hook"; then
-    echo "Orange initramfs hook must use the explicit Python runtime closure." >&2
-    exit 1
-fi
+octessera_reject_file_match "Orange initramfs hook uses unavailable copy_dir." -qF 'copy_dir' "$hook"
+octessera_reject_file_match "Orange initramfs hook must use the explicit Python runtime closure." -qF 'find ' "$hook"
 grep -qF 'for python_dir in /usr/lib/python3.*;' "$hook" || { echo "Python standard-library path enumeration is missing." >&2; exit 1; }
 grep -qF "\"\$python_dir/encodings/__init__.py\"" "$hook" || { echo "Python encoding runtime path is missing." >&2; exit 1; }
 grep -qF "\"\$python_dir/re/_parser.py\"" "$hook" || { echo "Python regular-expression runtime path is missing." >&2; exit 1; }
@@ -163,9 +159,9 @@ grep -qF 'or origin.is_symlink()' "$hook" || { echo "Python extension discovery 
 grep -qF 'or origin.parent != dynload' "$hook" || { echo "Python extension discovery must keep origins in lib-dynload." >&2; exit 1; }
 grep -qF 'or origin.name not in {module_name + suffix for suffix in importlib.machinery.EXTENSION_SUFFIXES}' "$hook" || { echo "Python extension discovery must reject wrong suffixes." >&2; exit 1; }
 grep -qF "copy_exec \"\$python_origin\" \"\$python_origin\"" "$hook" || { echo "Validated Python extensions are not copied with dependencies." >&2; exit 1; }
-! grep -qF "for python_file in \"\$python_dir/lib-dynload" "$hook" || { echo "Python extension discovery must not use a glob fallback." >&2; exit 1; }
+octessera_reject_file_match "Python extension discovery must not use a glob fallback." -qF "for python_file in \"\$python_dir/lib-dynload" "$hook"
 grep -qF "\"\$python_dir/_collections_abc.py\"" "$hook" || { echo "Python 3.13 _collections_abc.py closure path is missing." >&2; exit 1; }
-! grep -qF "\"\$python_dir/collections/abc.py\"" "$hook" || { echo "Removed Python 3.13 collections/abc.py path is still required." >&2; exit 1; }
+octessera_reject_file_match "Removed Python 3.13 collections/abc.py path is still required." -qF "\"\$python_dir/collections/abc.py\"" "$hook"
 grep -qF 'missing Python target file:' "$hook" || { echo "Missing Python target-file diagnostic is absent." >&2; exit 1; }
 grep -qF 'rejected Python target module:' "$hook" || { echo "Rejected Python target-module diagnostic is absent." >&2; exit 1; }
 
@@ -182,19 +178,19 @@ for required_line in \
     'copy_file asset /usr/share/octessera/oled/octessera-pi-shutdown.rgb565'; do
     grep -qF "$required_line" "$hook" || { echo "Orange initramfs dependency was removed: $required_line" >&2; exit 1; }
 done
-! grep -qF 'copy_file asset /usr/share/octessera/oled/octessera-mark.svg' "$hook" || { echo "Obsolete Orange SVG initramfs dependency returned." >&2; exit 1; }
-! grep -qF 'copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg' "$hook" || { echo "Obsolete Orange SVG initramfs dependency returned." >&2; exit 1; }
+octessera_reject_file_match "Obsolete Orange SVG initramfs dependency returned." -qF 'copy_file asset /usr/share/octessera/oled/octessera-mark.svg' "$hook"
+octessera_reject_file_match "Obsolete Orange SVG initramfs dependency returned." -qF 'copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg' "$hook"
 for removed_line in \
     'manual_add_modules spi-sun6i' \
     'manual_add_modules spidev' \
     'manual_add_modules pinctrl-sunxi'; do
-    ! grep -qF "$removed_line" "$hook" || { echo "Obsolete Orange initramfs module addition returned: $removed_line" >&2; exit 1; }
+    octessera_reject_file_match "Obsolete Orange initramfs module addition returned: $removed_line" -qF "$removed_line" "$hook"
 done
 for removed_line in \
     'modprobe spi-sun6i' \
     'modprobe spidev' \
     'modprobe pinctrl-sunxi'; do
-    ! grep -qF "$removed_line" "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash" || { echo "Obsolete Orange initramfs module load returned: $removed_line" >&2; exit 1; }
+    octessera_reject_file_match "Obsolete Orange initramfs module load returned: $removed_line" -qF "$removed_line" "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
 done
 for json_file in json/__init__.py json/decoder.py json/encoder.py json/scanner.py; do
     grep -qF "\$python_dir/$json_file" "$hook" || { echo "Orange initramfs JSON closure is missing: $json_file" >&2; exit 1; }
@@ -264,12 +260,8 @@ EOF
         rm -rf "$work"
         exit 1
     }
-    ! grep -qF 'lib-dynload' "$copy_log" || { echo "Built-in Python fixture copied an extension." >&2; rm -rf "$work"; exit 1; }
-    if grep -qF 'collections/abc.py' "$copy_log"; then
-        echo "Python 3.13 fixture hook copied the removed collections/abc.py path." >&2
-        rm -rf "$work"
-        exit 1
-    fi
+    octessera_reject_file_match "Built-in Python fixture copied an extension." -qF 'lib-dynload' "$copy_log" || { rm -rf "$work"; exit 1; }
+    octessera_reject_file_match "Python 3.13 fixture hook copied the removed collections/abc.py path." -qF 'collections/abc.py' "$copy_log"
 
     rm "$python_dir/_collections_abc.py"
     if OCTESSERA_COPY_LOG="$copy_log" sh "$fixture_hook" >"$work/missing-file.out" 2>&1; then
@@ -388,8 +380,8 @@ run_extracted_runtime_test() {
     grep -qF 'usr/local/sbin/octessera-orange-oled-logo' "$work/contents" || { echo "Extracted initramfs is missing the OLED executable." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/local/sbin/octessera-orange-oled-handoff.py' "$work/contents" || { echo "Extracted initramfs is missing the OLED handoff module." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/local/sbin/octessera-orange-oled-lifecycle.py' "$work/contents" || { echo "Extracted initramfs is missing the OLED lifecycle module." >&2; rm -rf "$work"; exit 1; }
-    ! grep -qF 'usr/share/octessera/oled/octessera-mark.svg' "$work/contents" || { echo "Extracted initramfs contains the obsolete mark SVG." >&2; rm -rf "$work"; exit 1; }
-    ! grep -qF 'usr/share/octessera/oled/octessera-wordmark.svg' "$work/contents" || { echo "Extracted initramfs contains the obsolete wordmark SVG." >&2; rm -rf "$work"; exit 1; }
+    octessera_reject_file_match "Extracted initramfs contains the obsolete mark SVG." -qF 'usr/share/octessera/oled/octessera-mark.svg' "$work/contents" || { rm -rf "$work"; exit 1; }
+    octessera_reject_file_match "Extracted initramfs contains the obsolete wordmark SVG." -qF 'usr/share/octessera/oled/octessera-wordmark.svg' "$work/contents" || { rm -rf "$work"; exit 1; }
     grep -qF 'usr/share/octessera/oled/octessera-pi-booting.rgb565' "$work/contents" || { echo "Extracted initramfs is missing the boot frame asset." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/share/octessera/oled/octessera-pi-shutdown.rgb565' "$work/contents" || { echo "Extracted initramfs is missing the shutdown frame asset." >&2; rm -rf "$work"; exit 1; }
     unmkinitramfs "$archive" "$extracted"
@@ -415,7 +407,7 @@ run_extracted_runtime_test() {
     set -e
     [[ "$runtime_status" == 1 ]] || { echo "Extracted OLED Python runtime did not reject invalid input as expected." >&2; cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usage: octessera-orange-oled-logo boot-once|boot-static|boot-loop|resume|sleep|shutdown' "$runtime_output" || { echo "Extracted OLED Python runtime did not execute the installed script." >&2; cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
-    ! grep -qE 'ModuleNotFoundError|ImportError' "$runtime_output" || { echo "Extracted OLED Python runtime has an incomplete import closure." >&2; cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
+    octessera_reject_file_match "Extracted OLED Python runtime has an incomplete import closure." -qE 'ModuleNotFoundError|ImportError' "$runtime_output" || { cat "$runtime_output" >&2; rm -rf "$work"; exit 1; }
     rm -rf "$work"
     printf 'Orange initramfs extracted runtime validation passed\n'
 }

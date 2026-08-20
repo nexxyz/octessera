@@ -142,7 +142,7 @@ impl OrangeApplyHost for FailingHost {
 }
 
 #[test]
-fn apply_orders_panic_silence_helper_then_teardown() {
+fn apply_orders_panic_silence_reboot_request_then_teardown() {
     let directory = root("order");
     fs::write(default_path(&directory), b"old").unwrap();
     let transaction = prepare_at(&directory, &serde_json::json!({"new": true}), boot('a')).unwrap();
@@ -150,20 +150,25 @@ fn apply_orders_panic_silence_helper_then_teardown() {
     let mut host = OrderedHost {
         events: events.clone(),
     };
-    let helper_events = events.clone();
-    resolve_shutdown_request_with_helper(
+    let reboot_request_events = events.clone();
+    resolve_shutdown_request_with_reboot_request(
         OrangeShutdownRequest::ApplyDeviceConfig(transaction),
         &mut host,
         move || {
-            helper_events.lock().unwrap().push("helper");
-            OrangeHelperOutcome::Accepted
+            reboot_request_events.lock().unwrap().push("reboot-request");
+            OrangePowerRequestOutcome::Accepted
         },
     )
     .unwrap();
     events.lock().unwrap().push("teardown");
     assert_eq!(
         events.lock().unwrap().as_slice(),
-        ["midi-panic", "internal-silence", "helper", "teardown"]
+        [
+            "midi-panic",
+            "internal-silence",
+            "reboot-request",
+            "teardown"
+        ]
     );
     let _ = fs::remove_dir_all(directory);
 }
@@ -171,10 +176,10 @@ fn apply_orders_panic_silence_helper_then_teardown() {
 #[test]
 fn apply_outcome_matrix_has_expected_exit_policy() {
     for (outcome, code, restores) in [
-        (OrangeHelperOutcome::Accepted, 0, false),
-        (OrangeHelperOutcome::Rejected, 1, true),
-        (OrangeHelperOutcome::NotSubmitted, 1, true),
-        (OrangeHelperOutcome::Indeterminate, 78, false),
+        (OrangePowerRequestOutcome::Accepted, 0, false),
+        (OrangePowerRequestOutcome::Rejected, 1, true),
+        (OrangePowerRequestOutcome::NotSubmitted, 1, true),
+        (OrangePowerRequestOutcome::Indeterminate, 78, false),
     ] {
         let directory = root("matrix");
         fs::write(default_path(&directory), b"old").unwrap();
@@ -183,7 +188,7 @@ fn apply_outcome_matrix_has_expected_exit_policy() {
         let mut host = OrderedHost {
             events: Arc::new(Mutex::new(Vec::new())),
         };
-        let result = resolve_shutdown_request_with_helper(
+        let result = resolve_shutdown_request_with_reboot_request(
             OrangeShutdownRequest::ApplyDeviceConfig(transaction),
             &mut host,
             || outcome,
@@ -210,10 +215,10 @@ fn silence_failure_rolls_back_before_ordinary_exit() {
         panic_failure: false,
         silence_failure: true,
     };
-    let result = resolve_shutdown_request_with_helper(
+    let result = resolve_shutdown_request_with_reboot_request(
         OrangeShutdownRequest::ApplyDeviceConfig(transaction),
         &mut host,
-        || panic!("helper must not run after silence failure"),
+        || panic!("reboot request must not run after silence failure"),
     )
     .unwrap_err();
     assert_eq!(result.exit_code(), 1);
@@ -231,10 +236,10 @@ fn rollback_failure_is_special_exit_78() {
     let mut host = OrderedHost {
         events: Arc::new(Mutex::new(Vec::new())),
     };
-    let result = resolve_shutdown_request_with_helper(
+    let result = resolve_shutdown_request_with_reboot_request(
         OrangeShutdownRequest::ApplyDeviceConfig(transaction),
         &mut host,
-        || OrangeHelperOutcome::Rejected,
+        || OrangePowerRequestOutcome::Rejected,
     )
     .unwrap_err();
     assert_eq!(result.exit_code(), 78);
@@ -251,17 +256,20 @@ fn ordinary_and_special_exit_mapping_is_typed() {
 }
 
 #[test]
-fn ordinary_reboot_resolution_defers_helper_until_teardown() {
+fn ordinary_reboot_resolution_defers_power_request_until_teardown() {
     let events = Arc::new(Mutex::new(Vec::new()));
     let mut host = OrderedHost {
         events: events.clone(),
     };
-    let result =
-        resolve_shutdown_request_with_helper(OrangeShutdownRequest::Reboot, &mut host, || {
-            events.lock().unwrap().push("helper");
-            OrangeHelperOutcome::Accepted
-        })
-        .unwrap();
+    let result = resolve_shutdown_request_with_reboot_request(
+        OrangeShutdownRequest::Reboot,
+        &mut host,
+        || {
+            events.lock().unwrap().push("reboot-request");
+            OrangePowerRequestOutcome::Accepted
+        },
+    )
+    .unwrap();
     assert!(matches!(
         &result,
         OrangeShutdownResolution::Power {
@@ -270,14 +278,19 @@ fn ordinary_reboot_resolution_defers_helper_until_teardown() {
         }
     ));
     events.lock().unwrap().push("teardown");
-    finish_shutdown_resolution_with_helper(result, || {
-        events.lock().unwrap().push("helper");
-        OrangeHelperOutcome::Accepted
+    finish_shutdown_resolution_with_power_request(result, || {
+        events.lock().unwrap().push("power-request");
+        OrangePowerRequestOutcome::Accepted
     })
     .unwrap();
     assert_eq!(
         events.lock().unwrap().as_slice(),
-        ["midi-panic", "internal-silence", "teardown", "helper"]
+        [
+            "midi-panic",
+            "internal-silence",
+            "teardown",
+            "power-request"
+        ]
     );
 }
 
@@ -289,14 +302,15 @@ fn ordinary_reboot_safety_failure_attempts_both_and_fails_closed() {
         panic_failure: true,
         silence_failure: false,
     };
-    let resolution =
-        resolve_shutdown_request_with_helper(OrangeShutdownRequest::Reboot, &mut host, || {
-            panic!("ordinary helper must wait for safe shutdown")
-        })
-        .unwrap();
+    let resolution = resolve_shutdown_request_with_reboot_request(
+        OrangeShutdownRequest::Reboot,
+        &mut host,
+        || panic!("ordinary power request must wait for safe shutdown"),
+    )
+    .unwrap();
     events.lock().unwrap().push("teardown");
-    let error = finish_shutdown_resolution_with_helper(resolution, || {
-        panic!("ordinary helper must not run after safety failure")
+    let error = finish_shutdown_resolution_with_power_request(resolution, || {
+        panic!("ordinary power request must not run after safety failure")
     })
     .unwrap_err();
     assert_eq!(error.exit_code(), 1);
@@ -312,12 +326,15 @@ fn ordinary_shutdown_completes_after_both_safety_steps() {
     let mut host = OrderedHost {
         events: events.clone(),
     };
-    let resolution =
-        resolve_shutdown_request_with_helper(OrangeShutdownRequest::Shutdown, &mut host, || {
+    let resolution = resolve_shutdown_request_with_reboot_request(
+        OrangeShutdownRequest::Shutdown,
+        &mut host,
+        || {
             events.lock().unwrap().push("poweroff");
-            OrangeHelperOutcome::Accepted
-        })
-        .unwrap();
+            OrangePowerRequestOutcome::Accepted
+        },
+    )
+    .unwrap();
     assert!(matches!(
         resolution,
         OrangeShutdownResolution::Power {
@@ -326,9 +343,9 @@ fn ordinary_shutdown_completes_after_both_safety_steps() {
         }
     ));
     events.lock().unwrap().push("teardown");
-    finish_shutdown_resolution_with_helper(resolution, || {
+    finish_shutdown_resolution_with_power_request(resolution, || {
         events.lock().unwrap().push("poweroff");
-        OrangeHelperOutcome::Accepted
+        OrangePowerRequestOutcome::Accepted
     })
     .unwrap();
     assert_eq!(
@@ -345,14 +362,15 @@ fn ordinary_shutdown_safety_failure_prevents_power_action() {
         panic_failure: false,
         silence_failure: true,
     };
-    let resolution =
-        resolve_shutdown_request_with_helper(OrangeShutdownRequest::Shutdown, &mut host, || {
-            panic!("shutdown helper must wait for safe shutdown")
-        })
-        .unwrap();
+    let resolution = resolve_shutdown_request_with_reboot_request(
+        OrangeShutdownRequest::Shutdown,
+        &mut host,
+        || panic!("shutdown power request must wait for safe shutdown"),
+    )
+    .unwrap();
     events.lock().unwrap().push("teardown");
-    let error = finish_shutdown_resolution_with_helper(resolution, || {
-        panic!("shutdown helper must not run after safety failure")
+    let error = finish_shutdown_resolution_with_power_request(resolution, || {
+        panic!("shutdown power request must not run after safety failure")
     })
     .unwrap_err();
     assert_eq!(error.exit_code(), 1);
@@ -365,14 +383,17 @@ fn ordinary_shutdown_safety_failure_prevents_power_action() {
 #[test]
 fn ordinary_power_outcome_matrix_is_typed_and_never_panics() {
     for (action, outcome) in [
-        (OrangePowerAction::Reboot, OrangeHelperOutcome::Rejected),
         (
             OrangePowerAction::Reboot,
-            OrangeHelperOutcome::Indeterminate,
+            OrangePowerRequestOutcome::Rejected,
+        ),
+        (
+            OrangePowerAction::Reboot,
+            OrangePowerRequestOutcome::Indeterminate,
         ),
         (
             OrangePowerAction::Shutdown,
-            OrangeHelperOutcome::NotSubmitted,
+            OrangePowerRequestOutcome::NotSubmitted,
         ),
     ] {
         let mut host = OrderedHost {
@@ -383,8 +404,9 @@ fn ordinary_power_outcome_matrix_is_typed_and_never_panics() {
             OrangePowerAction::Shutdown => OrangeShutdownRequest::Shutdown,
         };
         let resolution =
-            resolve_shutdown_request_with_helper(request, &mut host, || outcome).unwrap();
-        let error = finish_shutdown_resolution_with_helper(resolution, || outcome).unwrap_err();
+            resolve_shutdown_request_with_reboot_request(request, &mut host, || outcome).unwrap();
+        let error =
+            finish_shutdown_resolution_with_power_request(resolution, || outcome).unwrap_err();
         assert_eq!(error.exit_code(), 1);
     }
 }

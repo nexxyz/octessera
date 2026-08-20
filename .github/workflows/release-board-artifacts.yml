@@ -246,7 +246,7 @@ jobs:
           for entry in octessera-pi octessera-runtime.json SHA256SUMS; do
             install -m 0644 "runtime-bundle/$entry" "$stage_root/usr/local/lib/octessera/production-runtime/$entry"
           done
-          for updater_file in updater_protocol.py updater_state.py updater_assets.py updater_guard.py updater_cli.py updater_profiles.py; do install -D -m 0644 "tools/device-update/$updater_file" "$stage_root/usr/local/lib/octessera/$updater_file"; done
+          for updater_file in updater_protocol.py updater_contract.py updater_state.py updater_assets.py updater_guard.py updater_cli.py updater_profiles.py; do install -D -m 0644 "tools/device-update/$updater_file" "$stage_root/usr/local/lib/octessera/$updater_file"; done
           cmp runtime-bundle/octessera-pi "$stage_root/usr/local/bin/octessera-pi"
       - name: Generate Raspberry image assets
         run: python3 tools/assets/generate_pi_logo_pngs.py

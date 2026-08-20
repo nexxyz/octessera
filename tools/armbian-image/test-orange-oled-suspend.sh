@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 unit="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
 helper="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend"
 customize="$root/userpatches/customize-image.sh"
@@ -28,10 +30,10 @@ for required_line in \
   'TimeoutStopSec=8'; do
   grep -qFx "$required_line" "$unit" || { echo "Orange OLED suspend unit is missing: $required_line" >&2; exit 1; }
 done
-! grep -qFx 'WantedBy=sleep.target' "$unit" || { echo 'Orange OLED suspend unit must not use a non-required sleep target dependency.' >&2; exit 1; }
-! grep -qF 'sleep.target.wants' "$unit" || { echo 'Orange OLED suspend unit must not use the wants directory.' >&2; exit 1; }
-! grep -qFx 'SupplementaryGroups=audio i2c spi gpio' "$unit" || { echo 'Orange OLED suspend unit must not require named supplementary groups.' >&2; exit 1; }
-! grep -qE '^(Conflicts=|Requires=|BusName=)|systemctl|dbus' "$unit" || { echo 'Orange OLED suspend unit has a forbidden dependency.' >&2; exit 1; }
+octessera_reject_file_match 'Orange OLED suspend unit must not use a non-required sleep target dependency.' -qFx 'WantedBy=sleep.target' "$unit"
+octessera_reject_file_match 'Orange OLED suspend unit must not use the wants directory.' -qF 'sleep.target.wants' "$unit"
+octessera_reject_file_match 'Orange OLED suspend unit must not require named supplementary groups.' -qFx 'SupplementaryGroups=audio i2c spi gpio' "$unit"
+octessera_reject_file_match 'Orange OLED suspend unit has a forbidden dependency.' -qE '^(Conflicts=|Requires=|BusName=)|systemctl|dbus' "$unit"
 for required_text in \
   'prepare/release' 'prepare/commit' 'resume/release' 'resume/complete' 'rollback' \
   'SOCKET_RETRY_DELAYS' 'stage' \
@@ -50,12 +52,12 @@ grep -qF 'force_latest_frame' "$root/apps/pi-zero/src/render/oled_ownership.rs"
 grep -qF 'detach_preserving' "$root/apps/pi-zero/src/boot_oled_handoff_unix.rs"
 grep -qF 'FirstMenuRendered' "$root/apps/pi-zero/src/boot_oled_handoff_unix.rs"
 grep -qF 'should_run_cleanup' "$root/crates/hal/src/orange_hardware.rs"
-! grep -qE 'systemctl|dbus|runuser|sudo|su ' "$helper" || { echo 'Orange OLED suspend helper contains an unrelated privilege or lifecycle fallback.' >&2; exit 1; }
+octessera_reject_file_match 'Orange OLED suspend helper contains an unrelated privilege or lifecycle fallback.' -qE 'systemctl|dbus|runuser|sudo|su ' "$helper"
 [[ ! -e "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" ]] || { echo 'Obsolete Orange system-sleep hook remains.' >&2; exit 1; }
-! grep -qF 'system-sleep/octessera-orange-oled' "$customize" || { echo 'Image installer still installs the obsolete sleep hook.' >&2; exit 1; }
+octessera_reject_file_match 'Image installer still installs the obsolete sleep hook.' -qF 'system-sleep/octessera-orange-oled' "$customize"
 grep -qF 'install_overlay_file usr/local/sbin/octessera-orange-oled-suspend' "$customize"
 grep -qF 'systemctl enable octessera-orange-oled-suspend.service' "$customize"
-! grep -qF 'sleep.target.wants' "$customize" || { echo 'Image installer must not create a soft sleep target dependency.' >&2; exit 1; }
+octessera_reject_file_match 'Image installer must not create a soft sleep target dependency.' -qF 'sleep.target.wants' "$customize"
 
 if command -v systemd-analyze >/dev/null 2>&1; then
   work="$(mktemp -d)"

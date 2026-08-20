@@ -98,6 +98,7 @@ octessera_require_updater_overlay() {
     usr/local/sbin/octessera-update-guard \
     usr/local/sbin/octessera-update-recovery \
     usr/local/lib/octessera/updater_protocol.py \
+    usr/local/lib/octessera/updater_contract.py \
     usr/local/lib/octessera/updater_state.py \
     usr/local/lib/octessera/updater_assets.py \
     usr/local/lib/octessera/updater_guard.py \

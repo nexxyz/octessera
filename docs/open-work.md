@@ -19,14 +19,15 @@ remain the authoritative implementation boundary.
 
 ## Manual FAT — current open checks
 
-Use the [two-board FAT quick run](../userdocs/hardware/fat-quick-run.md) first.
+Use the [two-board FAT orchestrator](../userdocs/hardware/fat-quick-run.md) first.
 It intentionally covers boot, native handoff, OLED startup, service readiness,
 setup, basic controls, selected ordinary audio, and a known runtime sound once
 per board. Do not repeat those checks while closing the gaps below.
 
 ### Boot, OLED, and lifecycle
 
-- Run the full Raspberry and Orange constructors from the source-bound boot-layer contracts: `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and `resources/image-construction/boot-layers/orange-pi-zero-2w.json`. Regenerate both selected initramfs images and record source hashes plus mounted-image proof. A trusted `v0.7.5` runtime/setup parent respin is not proof of this layer.
+- The v0.8.0 Raspberry and Orange constructors/source-bound evidence now exists. Retain the exact draft's image, source hashes, selected boot outputs, and Raspberry mounted-image/kernel proof; physical exact-artifact FAT remains open. A trusted-parent respin is not proof of this layer.
+- Keep `tools/image-respin`, its trusted proof scripts, workflows, and recovery machinery as frozen legacy recovery until FAT closes. Do not use that lane as v0.8.0 qualification or delete it in this pre-FAT step. Raspberry full-image update remains manual.
 - On each new image, prove the root systemd animator starts concurrently, native startup releases and adopts without resetting the OLED, and animation stops before the acknowledged first normal menu frame. Prove the permitted initial blank interval, lack of static/flickering/dual-writer behavior after service start, and clean handoff.
 - Exercise restart and failure paths on both boards: animator restart, native startup failure, OLED write failure, stale/mismatched status, lock contention/timeout, and recovery without orphaned processes, writers, lock state, or temporary handoff files. Orange also proves Jack-route readiness gating and selected optional USB/HDMI wait/recovery behavior.
 - Orange runtime recovery is fail-closed: systemd permits the initial start plus two retries in 30 seconds, then requires `sudo systemctl reset-failed octessera.service` followed by `sudo systemctl start octessera.service`. The OLED animator deadline is 30 seconds monotonic; timeout and cleanup failures attempt black then display-off independently and leave a native-recoverable failed handoff. Exact Trellis wiring and addresses remain required; no alternate fallback is supported.

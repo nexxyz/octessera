@@ -141,7 +141,7 @@ fn media_reference_for_file(
     })
 }
 
-fn is_packaged_sample(name: &str) -> bool {
+pub(crate) fn is_packaged_sample(name: &str) -> bool {
     include_str!("../../../samples/ATTRIBUTIONS.tsv")
         .lines()
         .skip(1)

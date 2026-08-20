@@ -1,6 +1,6 @@
 use super::*;
 use crate::behavior::{BehaviorContext, CellTriggerType, DeviceInput, GridInteraction};
-use crate::behaviors::native_impl::common::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
 use serde_json::Value;
 use std::collections::HashSet;
 

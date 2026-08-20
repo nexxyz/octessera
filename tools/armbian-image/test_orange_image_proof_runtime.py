@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import struct
+import subprocess
+from pathlib import Path
+
+from test_orange_image_proof_support import run_proof, sha256, verifier_args, write
+
+
+def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, provenance: Path) -> None:
+    production = work / "production"
+    shutil.copytree(work / "final-root", production, symlinks=True)
+    os.chown(production / "home/octessera/.hushlogin", 1000, 1000)  # type: ignore[attr-defined]
+    binary = b"\x7fELF\x02\x01\x01" + bytes(11) + struct.pack("<H", 183) + bytes(64)
+    version = "0.5.0"
+    release_dir = production / f"opt/octessera/releases/{version}"
+    release_dir.mkdir(parents=True)
+    write(release_dir / "octessera-pi", binary)
+    binary_hash = sha256(release_dir / "octessera-pi")
+    write(release_dir / "SHA256SUMS", f"{binary_hash}  octessera-pi\n")
+    runtime_metadata = {"artifact_kind": "production-runtime", "binary_sha256": binary_hash, "name": "octessera-pi", "profile": "orange-pi-zero-2w", "runtime_ready": True, "version": version}
+    write(release_dir / "octessera-runtime.json", json.dumps(runtime_metadata, sort_keys=True, indent=2) + "\n")
+    updater_manifest = {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "updater_supported": True, "distribution": "runtime-updater", "tag": f"v{version}", "version": version, "board_profile": "orange-pi-zero-2w", "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]}
+    write(release_dir / "update-manifest.json", json.dumps(updater_manifest) + "\n")
+    (production / "opt/octessera/current").symlink_to(f"/opt/octessera/releases/{version}")
+    (production / "usr/local/bin").mkdir(parents=True)
+    (production / "usr/local/bin/octessera-pi").symlink_to("/opt/octessera/current/octessera-pi")
+    write(production / "etc/octessera/image-contract.json", '{"schema_version": 1, "image_kind": "production", "runtime_enabled_default": true}\n')
+    write(production / "etc/passwd", "octessera:x:1000:1000:Octessera:/home/octessera:/bin/bash\n" "octessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin\n")
+    write(production / "etc/shadow", "octessera:*:1:0:99999:7:::\noctessera-runtime:!:1:0:99999:7:::\n")
+    write(production / "etc/group", "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\nspi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\n")
+    write(production / "opt/octessera/update-state.json", json.dumps({"schema_version": 2, "phase": "committed", "current": version, "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": updater_manifest, "asset": None}) + "\n")
+    os.chown(production / "opt/octessera/update-state.json", 0, 0)  # type: ignore[attr-defined]
+    os.chmod(production / "opt/octessera/update-state.json", 0o644)
+    (production / "var/lib/octessera/presets").mkdir(parents=True)
+    (production / "var/lib/octessera/samples").mkdir(parents=True, exist_ok=True)
+    write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\nRequires=octessera-device-apply-reboot.socket\nRequires=octessera-provision-musical-default.service\nRequires=octessera-update-recovery.service\nAfter=octessera-device-apply-reboot.socket\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartPreventExitStatus=78\nRestartSec=5s\n")
+    write(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"spidev1.0\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"gpiochip1\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
+    write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
+    (production / "etc/udev/rules.d/09-disabled.rules").symlink_to("/dev/null")
+    (production / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True, exist_ok=True)
+    (production / "etc/systemd/system/multi-user.target.wants/octessera.service").symlink_to("/etc/systemd/system/octessera.service")
+    runtime_metadata_hash = sha256(release_dir / "octessera-runtime.json")
+    sums_hash = sha256(release_dir / "SHA256SUMS")
+    write(production / "etc/octessera/build-metadata.env", f"OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION={version}\nOCTESSERA_RUNTIME_BINARY_SHA256={binary_hash}\nOCTESSERA_RUNTIME_METADATA_SHA256={runtime_metadata_hash}\nOCTESSERA_RUNTIME_MANIFEST_SHA256={sums_hash}\n")
+    can_privilege = shutil.which("sudo") is not None and subprocess.run(["sudo", "-n", "true"], check=False, capture_output=True).returncode == 0
+    if can_privilege:
+        try:
+            subprocess.run(["sudo", "-n", "chown", "-R", "root:root", str(release_dir)], check=True)
+            subprocess.run(["sudo", "-n", "chmod", "0555", str(release_dir), str(release_dir / "octessera-pi")], check=True)
+            subprocess.run(["sudo", "-n", "chmod", "0444", str(release_dir / "octessera-runtime.json"), str(release_dir / "SHA256SUMS"), str(release_dir / "update-manifest.json")], check=True)
+            subprocess.run(["sudo", "-n", "chown", "-R", "990:990", str(production / "var/lib/octessera")], check=True)
+            subprocess.run(["sudo", "-n", "chown", "0:0", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
+            subprocess.run(["sudo", "-n", "chmod", "0644", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
+            run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), True)
+            enabled = production / "etc/systemd/system/multi-user.target.wants/octessera.service"
+            enabled.unlink()
+            run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), False)
+        finally:
+            owner = work.stat()
+            subprocess.run(["sudo", "-n", "chown", "-R", f"{owner.st_uid}:{owner.st_gid}", str(work)], check=False)

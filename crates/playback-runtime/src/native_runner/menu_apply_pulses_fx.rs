@@ -1,10 +1,12 @@
 #[cfg(test)]
 use super::menu_apply_fx_state::{apply_fx_bus_menu_state, apply_global_fx_slot_menu_state};
+use super::sparks_fx_config::{
+    sparks_fx_param_default, sparks_fx_param_keys, sparks_fx_target_key, sparks_fx_type,
+};
 use super::{
     apply_value_lane_menu_state, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
-    set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, sparks_fx_param_default,
-    sparks_fx_param_keys, sparks_fx_target_key, sparks_fx_type, NativePulsesLayer, NativeRunner,
-    Value,
+    set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, NativePulsesLayer,
+    NativeRunner, Value,
 };
 impl NativeRunner {
     #[cfg(test)]

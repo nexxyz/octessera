@@ -31,15 +31,14 @@ the release evidence ZIP. Board device ZIPs carry exact root-level `LICENSE` and
 
 ## GitHub release surface
 
-The committed release procedure and exact current 12-asset custom release
-contract live in [`docs/development-workflows.md`](../docs/development-workflows.md).
-It also explains the operational Imager manifest, supporting evidence ZIP,
-global checksum, automatic GitHub source archives, and the legacy Raspberry
-updater checksum. macOS distribution remains paused until it can be properly
-signed and notarized, so it is not a published asset. The [release support
-matrix and owner checklist](../userdocs/release-support.md) define the evidence
-needed before an exact asset/platform is called supported. A populated draft is
-not a public release; a human must explicitly publish it.
+The committed release procedure and exact current fourteen-file custom release
+contract live in [`docs/workflows/release-assembly.md`](../docs/workflows/release-assembly.md).
+The [workflow index](../docs/development-workflows.md) links that procedure with
+the other contributor lanes. macOS distribution remains paused until it can be
+properly signed and notarized, so it is not a published asset. The [release
+support matrix and owner checklist](../userdocs/release-support.md) define the
+evidence needed before an exact asset/platform is called supported. A populated draft
+is not a public release; a human must explicitly publish it.
 
 ## Artifact-surface naming
 

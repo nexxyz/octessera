@@ -220,6 +220,7 @@ def require_runtime_udev_rule(root: Path, require: Require) -> None:
 def require_production_updater(root: Path, construction: dict, repository_root: Path, version: str, require: Require) -> None:
     assets = (
         ("tools/device-update/updater_protocol.py", "usr/local/lib/octessera/updater_protocol.py", 0o644),
+        ("tools/device-update/updater_contract.py", "usr/local/lib/octessera/updater_contract.py", 0o644),
         ("tools/device-update/updater_state.py", "usr/local/lib/octessera/updater_state.py", 0o644),
         ("tools/device-update/updater_assets.py", "usr/local/lib/octessera/updater_assets.py", 0o644),
         ("tools/device-update/updater_guard.py", "usr/local/lib/octessera/updater_guard.py", 0o644),

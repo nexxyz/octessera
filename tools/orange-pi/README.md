@@ -130,7 +130,7 @@ Docker volumes. Outputs and their checked metadata stay under
 `target/orange-pi-cross/`. The supported local outputs are the canonical
 `orange-oled-smoke`, `orange-seesaw-smoke`, and `octessera-pi` development
 binaries beside matching `.metadata.json` sidecars. Each sidecar is schema 2
-and binds the copied ELF with its lowercase SHA-256. This helper does not build
+and binds the copied ELF with its lowercase SHA-256. This development builder does not build
 the 0.7.5 production image or its hash-bound `production-runtime` bundle, and
 it never deploys an artifact. The production image and service support the
 shared 44.1 kHz runtime, the OLED, NeoTrellis, NeoKey, four encoders, store,

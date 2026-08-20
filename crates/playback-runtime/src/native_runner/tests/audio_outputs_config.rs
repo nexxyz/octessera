@@ -192,10 +192,10 @@ pub(crate) fn device_payload_split_keeps_audio_outputs_local() {
         }
     });
 
-    let patch = patch_payload_from_payload(payload.clone());
+    let patch = patch_payload_from_payload(payload.clone()).unwrap();
     assert!(patch["runtimeConfig"]["audioOutputs"].is_null());
 
-    let device = device_config_payload_from_payload(payload);
+    let device = device_config_payload_from_payload(payload).unwrap();
     assert_eq!(
         device["runtimeConfig"]["audioOutputs"],
         json!({ "dac": true, "usb": true, "hdmi": false })

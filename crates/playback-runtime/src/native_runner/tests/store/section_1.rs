@@ -101,7 +101,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     runner.midi_enabled = true;
     runner.audio_output_buffer_frames = 512;
 
-    let patch = runner.patch_payload();
+    let patch = runner.patch_payload().unwrap();
     assert_eq!(patch["kind"], "octessera.patch");
     assert_eq!(patch["schemaVersion"], 2);
     assert!(patch["runtimeConfig"]["usb"].is_null());
@@ -110,7 +110,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     assert!(patch["runtimeConfig"]["sound"]["audioOutputBufferFrames"].is_null());
     assert!(patch["runtimeConfig"]["auxBindings"].is_object());
 
-    let device = runner.device_config_payload();
+    let device = runner.device_config_payload().unwrap();
     assert_eq!(
         device["runtimeConfig"]["audioOutputs"],
         json!({ "dac": true, "usb": true, "hdmi": false })

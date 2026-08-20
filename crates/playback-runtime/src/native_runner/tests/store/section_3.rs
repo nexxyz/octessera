@@ -11,7 +11,7 @@ pub(crate) fn patch_envelope_round_trips_and_preserves_local_aux_bindings() {
             }
         }))
         .unwrap();
-    let payload = source.patch_payload();
+    let payload = source.patch_payload().unwrap();
 
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.aux_bindings[0] = Some(NativeAuxBinding {
@@ -85,8 +85,8 @@ pub(crate) fn patch_and_device_apply_split_mixed_aux_binding_sides() {
         turn_key: Some("displayBrightness".into()),
         press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
     });
-    let patch = source.patch_payload();
-    let device = source.device_config_payload();
+    let patch = source.patch_payload().unwrap();
+    let device = source.device_config_payload().unwrap();
     assert!(!patch["runtimeConfig"]["auxBindings"]["aux1"].is_null());
     assert!(patch["runtimeConfig"]["auxBindings"]["aux2"].is_null());
     assert!(device["runtimeConfig"]["auxBindings"]["aux1"].is_null());
@@ -145,8 +145,8 @@ pub(crate) fn aux_platform_effect_clicks_split_musical_from_device_actions() {
         press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
     });
 
-    let patch = source.patch_payload();
-    let device = source.device_config_payload();
+    let patch = source.patch_payload().unwrap();
+    let device = source.device_config_payload().unwrap();
     assert!(!patch["runtimeConfig"]["auxBindings"]["aux1"].is_null());
     assert!(!patch["runtimeConfig"]["auxBindings"]["aux2"].is_null());
     assert!(patch["runtimeConfig"]["auxBindings"]["aux3"].is_null());
@@ -184,7 +184,7 @@ pub(crate) fn aux_platform_effect_clicks_split_musical_from_device_actions() {
 #[test]
 pub(crate) fn patch_load_preserves_device_aux_turn_keys() {
     let source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let patch = source.patch_payload();
+    let patch = source.patch_payload().unwrap();
 
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.aux_bindings[0] = Some(NativeAuxBinding {

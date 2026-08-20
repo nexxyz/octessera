@@ -20,7 +20,7 @@ Raspberry Pi provisioning rejects `orange-pi-zero-2w`; Orange Pi uses the
 separate Armbian bring-up path.
 
 The shared transport wrapper reads an encrypted-key passphrase only from the
-process environment and removes its temporary askpass helper when it exits.
+process environment and removes its temporary askpass script when it exits.
 Set `OCTESSERA_PI_PASSPHRASE` in the current PowerShell process first:
 
 ```powershell

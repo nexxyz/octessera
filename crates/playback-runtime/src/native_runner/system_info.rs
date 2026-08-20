@@ -1,4 +1,5 @@
-use super::{clip_display_line, RuntimeErrorCode, RuntimeSystemInfo, RuntimeSystemInfoError};
+use super::toast_text::clip_display_line;
+use super::{RuntimeErrorCode, RuntimeSystemInfo, RuntimeSystemInfoError};
 
 pub(super) const SYSTEM_INFO_LINE_WIDTH: usize = 18;
 

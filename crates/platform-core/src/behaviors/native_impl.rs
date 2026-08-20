@@ -1,4 +1,6 @@
-pub mod common;
+pub mod config_items;
+pub mod grid_transitions;
+pub mod state_codec;
 use super::{cellular, fields, geometry, growth, motion, play};
 
 pub use cellular::ant::{
@@ -26,7 +28,6 @@ pub use cellular::twinkle::{
     twinkle_config_menu, twinkle_deserialize, twinkle_init, twinkle_on_input, twinkle_on_tick,
     twinkle_render_model, twinkle_serialize, TwinkleState,
 };
-pub use common::{deserialize, serialize};
 pub use fields::ink::{
     ink_config_menu, ink_deserialize, ink_init, ink_on_input, ink_on_tick, ink_render_model,
     ink_serialize, InkState,
@@ -133,3 +134,4 @@ pub use play::looper::{
     grid_interaction_for_looper, looper_config_menu, looper_deserialize, looper_init,
     looper_on_input, looper_on_tick, looper_render_model, looper_serialize, LooperState,
 };
+pub use state_codec::{deserialize, serialize};

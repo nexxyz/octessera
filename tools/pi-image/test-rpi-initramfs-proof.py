@@ -102,7 +102,7 @@ def main() -> int:
         PROOF._verify_selected_initramfs_entries(initramfs, contract, root)
 
         canonical_listing = _canonical_listing(script, runtime)
-        records = PROOF.parse_initramfs_listing(canonical_listing)
+        records = HELPER.parse_initramfs_listing(canonical_listing)
         HELPER.validate_command_records(records, contract["selected_initramfs"])
         canonical_records = FIXTURES.canonical_command_records()
         runtime_link = root / "usr/local/bin/octessera-pi"
@@ -170,7 +170,7 @@ def main() -> int:
         trailing_listing = canonical_listing + "\n" + "\n".join(
             _listing_line(f"usr/lib/fixture-trailing/{index:04d}") for index in range(8192)
         )
-        assert "usr/bin/sh" in {record["name"] for record in PROOF.parse_initramfs_listing(trailing_listing)}
+        assert "usr/bin/sh" in {record["name"] for record in HELPER.parse_initramfs_listing(trailing_listing)}
 
         for executable in contract["selected_initramfs"]["required_regular_executables"]:
             initramfs.write_bytes(
@@ -287,7 +287,7 @@ def main() -> int:
 
         duplicate_listing = canonical_listing + "\n" + _listing_line("usr/bin/sleep", size=7)
         _expect_rejected(
-            lambda: PROOF.parse_initramfs_listing(duplicate_listing),
+            lambda: HELPER.parse_initramfs_listing(duplicate_listing),
             "duplicate command target",
         )
 
@@ -328,11 +328,11 @@ def main() -> int:
             ("oversized", f"-rwxr-xr-x 1 root root 67108865 Jan 1 1970 {entry}"),
         ):
             _expect_rejected(
-                lambda record=record: PROOF.extract_regular_files(initramfs, [entry], lambda _: record, (), contract["selected_initramfs"]),
+                lambda record=record: HELPER.extract_regular_files(initramfs, [entry], lambda _: record, (), contract["selected_initramfs"]),
                 f"{label} initramfs entry",
             )
         _expect_rejected(
-            lambda: PROOF.extract_regular_files(initramfs, [entry], lambda _: f"{record}\n{record}", (), contract["selected_initramfs"]),
+            lambda: HELPER.extract_regular_files(initramfs, [entry], lambda _: f"{record}\n{record}", (), contract["selected_initramfs"]),
             "duplicate initramfs entry",
         )
     print("Raspberry initramfs rootfs-byte binding tests passed")

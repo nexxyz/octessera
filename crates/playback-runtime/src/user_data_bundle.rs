@@ -1,5 +1,8 @@
 use crate::is_valid_preset_name;
-use crate::native_runner::{normalize_user_data_patch_payload, validate_user_data_config_payload};
+use crate::native_runner::{
+    apply_user_data_patch_payload, normalize_user_data_patch_payload,
+    validate_user_data_config_payload,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
@@ -119,31 +122,6 @@ pub struct UserDataBundle {
     pub media: Vec<UserDataMediaReference>,
 }
 
-impl UserDataBundle {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        metadata: UserDataBundleMetadata,
-        presets: Vec<UserDataPreset>,
-        current_state: UserDataMusicalState,
-        default_state: UserDataMusicalState,
-        preferences: UserPreferenceDelta,
-        media_included: bool,
-        media: Vec<UserDataMediaReference>,
-        canonical_defaults: &Value,
-    ) -> Result<Self, String> {
-        new_user_data_bundle(
-            metadata,
-            presets,
-            current_state,
-            default_state,
-            preferences,
-            media_included,
-            media,
-            canonical_defaults,
-        )
-    }
-}
-
 pub fn is_safe_user_data_name(name: &str) -> bool {
     name.chars().count() <= USER_DATA_MAX_PRESET_NAME_CHARS && is_valid_preset_name(name)
 }
@@ -194,8 +172,9 @@ pub fn new_user_data_bundle(
         media_included,
         media,
     };
-    bundle.manifest = manifest_for_user_data_bundle(&bundle)?;
-    validate_user_data_bundle(&bundle, canonical_defaults)?;
+    validation::structural(&bundle)?;
+    bundle.manifest = manifest_for_validated_user_data_bundle(&bundle)?;
+    validate_user_data_bundle_contents(&bundle, canonical_defaults)?;
     Ok(bundle)
 }
 
@@ -203,7 +182,7 @@ pub fn manifest_for_user_data_bundle(
     bundle: &UserDataBundle,
 ) -> Result<Vec<UserDataManifestEntry>, String> {
     validation::structural(bundle)?;
-    format::manifest(bundle)
+    manifest_for_validated_user_data_bundle(bundle)
 }
 
 pub fn validate_user_data_bundle(
@@ -211,8 +190,15 @@ pub fn validate_user_data_bundle(
     canonical_defaults: &Value,
 ) -> Result<(), String> {
     validation::structural(bundle)?;
+    validate_user_data_bundle_contents(bundle, canonical_defaults)
+}
+
+fn validate_user_data_bundle_contents(
+    bundle: &UserDataBundle,
+    canonical_defaults: &Value,
+) -> Result<(), String> {
     validate_user_data_config_payload(canonical_defaults)?;
-    if bundle.manifest != manifest_for_user_data_bundle(bundle)? {
+    if bundle.manifest != manifest_for_validated_user_data_bundle(bundle)? {
         return Err("user-data bundle manifest does not match its contents".into());
     }
     for (path, patch) in [
@@ -244,7 +230,7 @@ pub fn encode_user_data_bundle(bundle: &UserDataBundle) -> Result<Vec<u8>, Strin
         .media
         .sort_by(|left, right| format::media_sort_key(left).cmp(&format::media_sort_key(right)));
     validation::structural(&canonical_bundle)?;
-    if canonical_bundle.manifest != manifest_for_user_data_bundle(&canonical_bundle)? {
+    if canonical_bundle.manifest != manifest_for_validated_user_data_bundle(&canonical_bundle)? {
         return Err("user-data bundle manifest does not match its contents".into());
     }
     let bytes = format::bundle_bytes(&canonical_bundle)?;
@@ -292,7 +278,8 @@ pub fn migrate_user_data_bundle(
         .map_err(|error| format!("user-data bundle fields are invalid: {error}"))?;
     if version == USER_DATA_BUNDLE_SCHEMA_VERSION {
         validation::manifest_shape(&bundle)?;
-        if bundle.manifest != manifest_for_user_data_bundle(&bundle)? {
+        validation::structural(&bundle)?;
+        if bundle.manifest != manifest_for_validated_user_data_bundle(&bundle)? {
             return Err("user-data bundle manifest does not match its contents".into());
         }
     }
@@ -309,7 +296,7 @@ pub fn migrate_user_data_bundle(
         .sort_by(|left, right| format::media_sort_key(left).cmp(&format::media_sort_key(right)));
     bundle.kind = USER_DATA_BUNDLE_KIND.into();
     bundle.schema_version = USER_DATA_BUNDLE_SCHEMA_VERSION;
-    bundle.manifest = manifest_for_user_data_bundle(&bundle)?;
+    bundle.manifest = manifest_for_validated_user_data_bundle(&bundle)?;
     validate_user_data_bundle(&bundle, canonical_defaults)?;
     Ok(bundle)
 }
@@ -341,6 +328,21 @@ pub fn apply_user_preference_delta(
     validate_user_data_config_payload(canonical_defaults)?;
     preferences::validate(delta, canonical_defaults)?;
     preferences::apply(canonical_defaults, delta)
+}
+
+pub fn apply_user_data_patch_and_preferences(
+    canonical_defaults: &Value,
+    patch: &Value,
+    preferences: &UserPreferenceDelta,
+) -> Result<Value, String> {
+    let base = apply_user_preference_delta(canonical_defaults, preferences)?;
+    apply_user_data_patch_payload(patch.clone(), &base)
+}
+
+fn manifest_for_validated_user_data_bundle(
+    bundle: &UserDataBundle,
+) -> Result<Vec<UserDataManifestEntry>, String> {
+    format::manifest(bundle)
 }
 
 pub fn media_reference_from_bytes(

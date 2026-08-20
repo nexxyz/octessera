@@ -132,6 +132,7 @@ runs:
           --destination-root "$GITHUB_WORKSPACE/build/userpatches/overlay"
         mkdir -p build/userpatches/overlay/usr/local/lib/octessera
         install -m 0644 custom/tools/device-update/updater_protocol.py build/userpatches/overlay/usr/local/lib/octessera/updater_protocol.py
+        install -m 0644 custom/tools/device-update/updater_contract.py build/userpatches/overlay/usr/local/lib/octessera/updater_contract.py
         install -m 0644 custom/tools/device-update/updater_state.py build/userpatches/overlay/usr/local/lib/octessera/updater_state.py
         install -m 0644 custom/tools/device-update/updater_assets.py build/userpatches/overlay/usr/local/lib/octessera/updater_assets.py
         install -m 0644 custom/tools/device-update/updater_guard.py build/userpatches/overlay/usr/local/lib/octessera/updater_guard.py

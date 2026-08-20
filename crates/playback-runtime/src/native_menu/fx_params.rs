@@ -3,6 +3,15 @@ use super::{enum_item_from_strings, number_item, NativeMenuItem};
 use crate::delay_timing::normalized_delay_params;
 use crate::timing_units::{note_unit_selection_index, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
+const DUCK_THRESHOLD_MIN: i32 = 0;
+const DUCK_THRESHOLD_MAX: i32 = 100;
+const DUCK_AMOUNT_MIN: i32 = 0;
+const DUCK_AMOUNT_MAX: i32 = 100;
+const DUCK_ATTACK_MS_MIN: i32 = 1;
+const DUCK_ATTACK_MS_MAX: i32 = 500;
+const DUCK_RELEASE_MS_MIN: i32 = 1;
+const DUCK_RELEASE_MS_MAX: i32 = 5000;
+
 pub(super) fn fx_param_items(
     slot_type: &str,
     prefix: &str,
@@ -123,8 +132,8 @@ fn duck_param_items(
             prefix,
             params,
             "threshold",
-            0,
-            100,
+            DUCK_THRESHOLD_MIN,
+            DUCK_THRESHOLD_MAX,
             1,
             100.0,
             0.08,
@@ -134,20 +143,30 @@ fn duck_param_items(
             prefix,
             params,
             "amountPct",
-            0,
-            100,
+            DUCK_AMOUNT_MIN,
+            DUCK_AMOUNT_MAX,
             1,
             1.0,
             60.0,
         ),
-        fx_number_item("Attack", prefix, params, "attackMs", 1, 500, 1, 1.0, 8.0),
+        fx_number_item(
+            "Attack",
+            prefix,
+            params,
+            "attackMs",
+            DUCK_ATTACK_MS_MIN,
+            DUCK_ATTACK_MS_MAX,
+            1,
+            1.0,
+            8.0,
+        ),
         fx_number_item(
             "Release",
             prefix,
             params,
             "releaseMs",
-            1,
-            5000,
+            DUCK_RELEASE_MS_MIN,
+            DUCK_RELEASE_MS_MAX,
             5,
             1.0,
             160.0,

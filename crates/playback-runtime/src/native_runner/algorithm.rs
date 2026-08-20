@@ -1,7 +1,6 @@
 use super::modulation::RoutedMusicalEvents;
-use super::{
-    trigger_probability_allows, NativeRunner, RuntimeTransportState, TransportFlash, GRID_HEIGHT,
-};
+use super::trigger_probability::trigger_probability_allows;
+use super::{NativeRunner, RuntimeTransportState, TransportFlash, GRID_HEIGHT};
 use platform_core::DeviceInput;
 
 pub(super) use super::link_routing::LinkRoutingInput;

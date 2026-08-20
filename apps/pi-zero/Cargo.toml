@@ -38,8 +38,13 @@ raspberry-runtime = [
 ]
 external-midi = ["native-audio", "dep:midir"]
 hardware-raspberry-pi-zero-2w = ["octessera-hal/raspberry-pi-zero-2w", "raspberry-runtime"]
-hardware-rpi-zero-2w = ["hardware-raspberry-pi-zero-2w"]
-hardware-pi = ["hardware-raspberry-pi-zero-2w"]
+hardware-rpi-zero-2w = [
+    "hardware-raspberry-pi-zero-2w",
+    "legacy-hardware-rpi-zero-2w",
+]
+hardware-pi = ["hardware-raspberry-pi-zero-2w", "legacy-hardware-pi"]
+legacy-hardware-rpi-zero-2w = []
+legacy-hardware-pi = []
 hardware-orange-pi-zero-2w = ["octessera-hal/orange-pi-zero-2w", "external-midi"]
 
 [build-dependencies]

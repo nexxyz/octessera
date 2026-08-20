@@ -7,9 +7,11 @@ use std::fs;
 #[cfg(unix)]
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 #[cfg(test)]
-pub(crate) use crate::orange_reboot::OrangeHelperOutcome;
+pub(crate) use crate::orange_reboot::OrangePowerRequestOutcome;
 
 pub(crate) const TRANSACTION_FILE_NAME: &str = "orange-device-config-reboot.transaction";
 const DEFAULT_FILE_NAME: &str = "default.json";
@@ -50,6 +52,7 @@ pub(crate) struct OrangeDeviceApplyTransaction {
     store_dir: PathBuf,
     boot_id: String,
     prior_default_bytes: Option<Vec<u8>>,
+    store_lock: Option<Arc<Mutex<()>>>,
 }
 
 #[derive(Debug)]
@@ -85,9 +88,12 @@ impl OrangeApplyHost for OrangeHostAdapter {
 pub(crate) fn prepare(
     store_dir: &Path,
     payload: &Value,
+    store_lock: Arc<Mutex<()>>,
 ) -> Result<OrangeDeviceApplyTransaction, String> {
     let boot_id = current_boot_id()?;
-    prepare_at(store_dir, payload, &boot_id)
+    let mut transaction = prepare_at(store_dir, payload, &boot_id)?;
+    transaction.store_lock = Some(store_lock);
+    Ok(transaction)
 }
 
 fn prepare_at(
@@ -128,6 +134,7 @@ fn prepare_at(
         store_dir: store_dir.to_path_buf(),
         boot_id: boot_id.into(),
         prior_default_bytes,
+        store_lock: None,
     })
 }
 
@@ -163,11 +170,22 @@ pub(crate) use shutdown::{
 };
 #[cfg(test)]
 pub(crate) use shutdown::{
-    finish_shutdown_resolution_with_helper, resolve_shutdown_request_with_helper, OrangePowerAction,
+    finish_shutdown_resolution_with_power_request, resolve_shutdown_request_with_reboot_request,
+    OrangePowerAction,
 };
 
 impl OrangeDeviceApplyTransaction {
     pub(crate) fn rollback(self) -> Result<(), String> {
+        if let Some(store_lock) = self.store_lock.clone() {
+            let _guard = store_lock
+                .lock()
+                .map_err(|_| "pi store is unavailable".to_string())?;
+            return self.rollback_unlocked();
+        }
+        self.rollback_unlocked()
+    }
+
+    fn rollback_unlocked(self) -> Result<(), String> {
         let record = OrangeApplyRecord {
             schema: 1,
             boot_id: self.boot_id,

@@ -1,5 +1,14 @@
 use super::types::FxBusSlotConfig;
 
+const DUCK_THRESHOLD_MIN: f32 = 0.0;
+const DUCK_THRESHOLD_MAX: f32 = 1.0;
+const DUCK_AMOUNT_MIN: f32 = 0.0;
+const DUCK_AMOUNT_MAX: f32 = 100.0;
+const DUCK_ATTACK_MS_MIN: f32 = 1.0;
+const DUCK_ATTACK_MS_MAX: f32 = 500.0;
+const DUCK_RELEASE_MS_MIN: f32 = 1.0;
+const DUCK_RELEASE_MS_MAX: f32 = 5000.0;
+
 #[derive(Clone, Copy, Debug)]
 pub(super) enum FilterLfoKind {
     FilterLfo,
@@ -131,10 +140,14 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
         },
         "duck" => FxBusParams::Duck {
             source: duck_source(param_str(cfg, "source", "I1").as_str()),
-            threshold: param_f32(cfg, "threshold", 0.08).clamp(0.0, 1.0),
-            amount: pct(cfg, "amountPct", 60.0),
-            attack_ms: param_f32(cfg, "attackMs", 8.0).clamp(0.1, 200.0),
-            release_ms: param_f32(cfg, "releaseMs", 160.0).clamp(1.0, 2000.0),
+            threshold: param_f32(cfg, "threshold", 0.08)
+                .clamp(DUCK_THRESHOLD_MIN, DUCK_THRESHOLD_MAX),
+            amount: param_f32(cfg, "amountPct", 60.0).clamp(DUCK_AMOUNT_MIN, DUCK_AMOUNT_MAX)
+                / 100.0,
+            attack_ms: param_f32(cfg, "attackMs", 8.0)
+                .clamp(DUCK_ATTACK_MS_MIN, DUCK_ATTACK_MS_MAX),
+            release_ms: param_f32(cfg, "releaseMs", 160.0)
+                .clamp(DUCK_RELEASE_MS_MIN, DUCK_RELEASE_MS_MAX),
         },
         "saturator" => FxBusParams::Saturator {
             drive: param_f32(cfg, "drive", 1.8).clamp(0.0, 20.0),

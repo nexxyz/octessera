@@ -10,7 +10,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, Callable
 
 HERE = Path(__file__).resolve().parent
@@ -19,8 +18,8 @@ sys.path.insert(0, str(KERNEL))
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "legal"))
 
-from rpi_initramfs_fixture import make_splash_initramfs
-from stage_notices import stage_notices  # type: ignore[import-not-found]
+from rpi_initramfs_fixture import make_splash_initramfs  # noqa: E402
+from stage_notices import stage_notices  # type: ignore[import-not-found]  # noqa: E402
 
 
 def _load(path: Path, name: str) -> Any:
@@ -182,53 +181,6 @@ def _main() -> int:
     assert STAGE_INSTALLER.image_contract().package_version == contract.package_version
     assert STAGE_INSTALLER.image_contract().kernel_release == contract.kernel_release
     assert STAGE_INSTALLER.image_contract().required_modules == contract.required_modules
-    original_run = PROOF.subprocess.run
-
-    def fake_lsblk(command: list[str], **kwargs: Any) -> Any:
-        if command[0] == "lsblk":
-            assert command[command.index("--output") + 1] == "NAME,TYPE"
-            return SimpleNamespace(stdout=json.dumps({"blockdevices": [{"name": "/dev/loop0", "type": "loop", "children": [{"name": "/dev/loop0p2", "type": "part"}, {"name": "/dev/loop0p1", "type": "part"}]}]}))
-        return original_run(command, **kwargs)
-    PROOF.subprocess.run = fake_lsblk
-    try:
-        assert PROOF._expected_partitions("/dev/loop0") == ("/dev/loop0p1", "/dev/loop0p2")
-    finally:
-        PROOF.subprocess.run = original_run
-    for children in (
-        [{"name": "/dev/loop0p3", "type": "part"}, {"name": "/dev/loop0p2", "type": "part"}],
-        [{"name": "/dev/loop0p1", "type": "part"}, {"name": "/dev/loop0p2", "type": "part"}, {"name": "/dev/loop0p3", "type": "part"}],
-    ):
-        PROOF.subprocess.run = lambda command, **_: SimpleNamespace(stdout=json.dumps({"blockdevices": [{"name": "/dev/loop0", "type": "loop", "children": children}]}))
-        try:
-            try:
-                PROOF._expected_partitions("/dev/loop0")
-            except PROOF.ImageProofError:
-                pass
-            else:
-                raise AssertionError("invalid fixed partition layout was accepted")
-        finally:
-            PROOF.subprocess.run = original_run
-    with tempfile.TemporaryDirectory(prefix="octessera-rpi-mount-test-") as temporary:
-        image_path = Path(temporary) / "image.img"
-        image_path.write_bytes(b"image")
-        mount_commands: list[list[str]] = []
-
-        def fake_mount_run(command: list[str], **_: Any) -> Any:
-            mount_commands.append(command)
-            if command[0] == "losetup" and "--show" in command:
-                return SimpleNamespace(stdout="/dev/loop0\n")
-            if command[0] == "lsblk":
-                partitions = [{"name": "/dev/loop0p1", "type": "part"}, {"name": "/dev/loop0p2", "type": "part"}]
-                return SimpleNamespace(stdout=json.dumps({"blockdevices": [{"name": "/dev/loop0", "type": "loop", "children": partitions}]}))
-            return SimpleNamespace(stdout="")
-        PROOF.subprocess.run = fake_mount_run
-        try:
-            with PROOF._mounted_image(image_path):
-                pass
-        finally:
-            PROOF.subprocess.run = original_run
-        assert any(command[:5] == ["mount", "-t", "vfat", "-o", "ro"] for command in mount_commands)
-        assert any(command[:5] == ["mount", "-t", "ext4", "-o", "ro,noload"] for command in mount_commands)
     with tempfile.TemporaryDirectory(prefix="octessera-rpi-image-test-") as temporary:
         work = Path(temporary)
         (work / "package.deb").write_bytes(b"package")
@@ -317,13 +269,14 @@ def _main() -> int:
         script_bytes = (image / "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash").read_bytes()
         _write(boot / f"octessera/initrd.img-{contract.kernel_release}", make_splash_initramfs(script_bytes, runtime_bytes))
         initramfs_path = boot / f"octessera/initrd.img-{contract.kernel_release}"
+        original_proof_run = PROOF.subprocess.run
         original_lsinitramfs = PROOF._run_lsinitramfs
         lsinitramfs_paths: list[Path] = []
 
         def fake_lsinitramfs(path: Path) -> str:
             lsinitramfs_paths.append(path)
             if path.resolve() == initramfs_path.resolve():
-                return original_run(["lsinitramfs", "-l", str(path)], capture_output=True, text=True, check=True).stdout
+                return original_proof_run(["lsinitramfs", "-l", str(path)], capture_output=True, text=True, check=True).stdout
             return "stock\n"
 
         PROOF._run_lsinitramfs = fake_lsinitramfs

@@ -257,7 +257,12 @@ Expected:
 - I2C devices remain detectable after service stop.
 - Runtime input/output behavior matches hardware semantics.
 
-## Test Harness Command
+## Interactive Hardware Test Command
+
+This is the explicit Raspberry-only interactive owner. It actuates LEDs, scans
+physical inputs, and plays a test tone under operator control. It is not the
+safe profile diagnostic; use `--fat-diagnostic --board-profile
+<raspberry-pi-zero-2w>` for passive evidence collection.
 
 Run the no-OLED interactive hardware-test mode directly over SSH:
 
@@ -270,7 +275,17 @@ sudo systemctl stop octessera.service
 The mode initializes NeoTrellis, NeoKey, DAC, and encoders without requiring an OLED. It then runs the LED checks, logs grid/key/encoder events to stdout, and launches the ALSA test tone.
 It prints a final `SUMMARY` with warning and failure counts.
 
+Do not combine `--hardware-test` or `--hardware-noise-test` with
+`--diagnostic` or `--fat-diagnostic`. The command exits before hardware access
+when modes are combined.
+
 For unattended launch, set `OCTESSERA_PI_HARDWARE_TEST=1` instead of passing `--hardware-test`.
+
+`OCTESSERA_PI_DIAGNOSTIC=1` selects the safe diagnostic owner, not this
+interactive test. It is a deprecated Raspberry compatibility alias and is
+rejected when combined with `--board-profile`, `--profile`, `--hardware-test`,
+or `--hardware-noise-test`. Do not leave it set in the service environment
+when launching an interactive test.
 
 To run only the no-touch input noise check:
 

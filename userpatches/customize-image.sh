@@ -267,6 +267,7 @@ install_overlay_file usr/local/sbin/octessera-update-broker /usr/local/sbin/octe
 install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
 install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
 install_overlay_file usr/local/lib/octessera/updater_protocol.py /usr/local/lib/octessera/updater_protocol.py 0644
+install_overlay_file usr/local/lib/octessera/updater_contract.py /usr/local/lib/octessera/updater_contract.py 0644
 install_overlay_file usr/local/lib/octessera/updater_state.py /usr/local/lib/octessera/updater_state.py 0644
 install_overlay_file usr/local/lib/octessera/updater_assets.py /usr/local/lib/octessera/updater_assets.py 0644
 install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644

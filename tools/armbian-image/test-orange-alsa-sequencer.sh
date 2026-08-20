@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 extension="$root/userpatches/extensions/octessera_midi.sh"
 module_file="$root/userpatches/overlay/etc/modules-load.d/octessera-orange-midi.conf"
 customize="$root/userpatches/customize-image.sh"
@@ -10,7 +12,7 @@ customize="$root/userpatches/customize-image.sh"
 [[ -f "$module_file" ]] || { echo "Missing Orange ALSA module-load file." >&2; exit 1; }
 bash -n "$extension"
 
-# shellcheck disable=SC1090
+# shellcheck source=userpatches/extensions/octessera_midi.sh
 source "$extension"
 opts_n=()
 opts_y=()
@@ -29,10 +31,7 @@ for index in "${!expected_options[@]}"; do
     }
 done
 
-if grep -Eq 'CONFIG_RT_GROUP_SCHED[[:space:]]*=[[:space:]]*[ym]|opts_n.*RT_GROUP_SCHED|opts_y.*RT_GROUP_SCHED' "$extension"; then
-    echo "ALSA extension must use opts_val to force RT_GROUP_SCHED=n." >&2
-    exit 1
-fi
+octessera_reject_file_match "ALSA extension must use opts_val to force RT_GROUP_SCHED=n." -Eq 'CONFIG_RT_GROUP_SCHED[[:space:]]*=[[:space:]]*[ym]|opts_n.*RT_GROUP_SCHED|opts_y.*RT_GROUP_SCHED' "$extension"
 grep -qF 'opts_val["RT_GROUP_SCHED"]="n"' "$extension" || {
     echo "ALSA extension is missing the final RT_GROUP_SCHED=n override." >&2
     exit 1
@@ -41,7 +40,7 @@ grep -qF 'opts_val["RT_GROUP_SCHED"]="n"' "$extension" || {
 assert_rt_group_sched_disabled() {
     local config="$1"
     printf '%s\n' "$config" | grep -qxF '# CONFIG_RT_GROUP_SCHED is not set' || return 1
-    ! printf '%s\n' "$config" | grep -qxF 'CONFIG_RT_GROUP_SCHED=y'
+    octessera_reject_text_match 'RT_GROUP_SCHED=y is not disabled.' "$config" -qxF 'CONFIG_RT_GROUP_SCHED=y'
 }
 
 assert_rt_group_sched_disabled '# CONFIG_RT_GROUP_SCHED is not set' || {
@@ -56,24 +55,15 @@ if assert_rt_group_sched_disabled 'CONFIG_RT_GROUP_SCHED=m'; then
     echo "RT_GROUP_SCHED=m was accepted by the static config assertion." >&2
     exit 1
 fi
-if grep -Eiq 'sysctl|sched_rt_(period|runtime)|cgroup|CAP_SYS_NICE|CapabilityBoundingSet|AmbientCapabilities' "$extension" "$module_file" "$customize"; then
-    echo "ALSA kernel fix must not change global RT throttling, cgroup mode, or capabilities." >&2
-    exit 1
-fi
+octessera_reject_file_match "ALSA kernel fix must not change global RT throttling, cgroup mode, or capabilities." -Eiq 'sysctl|sched_rt_(period|runtime)|cgroup|CAP_SYS_NICE|CapabilityBoundingSet|AmbientCapabilities' "$extension" "$module_file" "$customize"
 
-if grep -Eq 'CONFIG_SND_SEQ([_=[:space:]]|$)|SND_.*OSS|modprobe|lsmod|udevadm|/sys/class|/dev/snd' "$extension"; then
-    echo "ALSA extension contains obsolete, OSS, or generic discovery behavior." >&2
-    exit 1
-fi
+octessera_reject_file_match "ALSA extension contains obsolete, OSS, or generic discovery behavior." -Eq 'CONFIG_SND_SEQ([_=[:space:]]|$)|SND_.*OSS|modprobe|lsmod|udevadm|/sys/class|/dev/snd' "$extension"
 
 printf '%s\n' snd_seq snd_seq_midi | cmp -s - "$module_file" || {
     echo "Orange ALSA module-load content is not the minimal exact list." >&2
     exit 1
 }
-if grep -Eq 'find|lsmod|modprobe|udevadm|/sys/class|/dev/snd|snd_seq_oss|snd-seq-oss' "$module_file"; then
-    echo "Orange ALSA module-load file contains generic discovery or OSS behavior." >&2
-    exit 1
-fi
+octessera_reject_file_match "Orange ALSA module-load file contains generic discovery or OSS behavior." -Eq 'find|lsmod|modprobe|udevadm|/sys/class|/dev/snd|snd_seq_oss|snd-seq-oss' "$module_file"
 
 grep -qF 'install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644' "$customize" || {
     echo "Orange ALSA module-load file is not installed by customize-image." >&2

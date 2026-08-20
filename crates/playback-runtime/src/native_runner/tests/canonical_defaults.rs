@@ -31,12 +31,12 @@ pub(crate) fn legacy_rpi_default_reproduces_complete_canonical_projections() {
         .unwrap();
 
     assert_eq!(
-        runner.patch_payload()["runtimeConfig"]["activeBehavior"],
+        runner.patch_payload().unwrap()["runtimeConfig"]["activeBehavior"],
         "life"
     );
     assert_eq!(
-        device_config_payload_from_payload(runner.config_payload()),
-        device_config_payload_from_payload(base.clone())
+        device_config_payload_from_payload(runner.config_payload()).unwrap(),
+        device_config_payload_from_payload(base.clone()).unwrap()
     );
 
     let mut expected_desktop = runner_with_config(base.clone());
@@ -48,16 +48,16 @@ pub(crate) fn legacy_rpi_default_reproduces_complete_canonical_projections() {
         .apply_device_config_payload_preserving_patch(pi_override)
         .unwrap();
     assert_eq!(
-        device_config_payload_from_payload(desktop.clone()),
-        device_config_payload_from_payload(expected_desktop.config_payload())
+        device_config_payload_from_payload(desktop.clone()).unwrap(),
+        device_config_payload_from_payload(expected_desktop.config_payload()).unwrap()
     );
     assert_eq!(
-        device_config_payload_from_payload(pi.clone()),
-        device_config_payload_from_payload(expected_pi.config_payload())
+        device_config_payload_from_payload(pi.clone()).unwrap(),
+        device_config_payload_from_payload(expected_pi.config_payload()).unwrap()
     );
     assert_eq!(
-        device_config_payload_from_payload(base.clone()),
-        device_config_payload_from_payload(pi.clone())
+        device_config_payload_from_payload(base.clone()).unwrap(),
+        device_config_payload_from_payload(pi.clone()).unwrap()
     );
 
     assert_eq!(

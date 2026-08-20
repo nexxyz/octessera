@@ -2,9 +2,12 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 extension="$root/userpatches/extensions/octessera_image_sanitize.sh"
 customize="$root/userpatches/customize-image.sh"
 inspector="$root/tools/armbian-image/inspect-built-image.sh"
+account_ssh_inspector="$root/tools/armbian-image/inspect-account-ssh.sh"
 authorized_key_paths_helper="$root/tools/armbian-image/authorized-key-paths.sh"
 inspect_path_helper="$root/tools/armbian-image/inspect-path.sh"
 
@@ -53,10 +56,7 @@ for explicit_path in '/root/.ssh/authorized_keys' '/etc/ssh/authorized_keys' '/e
         exit 1
     }
 done
-if grep -Eq '(^|[[:space:]])(cat|read|grep|sha(1|224|256|384|512)sum|md5sum|od|hexdump|base64|strings)([[:space:]]|$)' "$extension"; then
-    echo "Image sanitization must not read, hash, or inspect authorization contents." >&2
-    exit 1
-fi
+octessera_reject_file_match "Image sanitization must not read, hash, or inspect authorization contents." -Eq '(^|[[:space:]])(cat|read|grep|sha(1|224|256|384|512)sum|md5sum|od|hexdump|base64|strings)([[:space:]]|$)' "$extension"
 grep -qF "rm -f -- \"\$authorized_key_path\"" "$extension" || {
     echo "Image sanitization must remove only its explicit authorization paths." >&2
     exit 1
@@ -81,11 +81,11 @@ grep -qF 'rm -f /root/.ssh/authorized_keys /home/octessera/.ssh/authorized_keys'
     echo "Existing early customizer authorization cleanup must remain." >&2
     exit 1
 }
-grep -qF 'local key_paths=(root/.ssh/authorized_keys etc/ssh/authorized_keys etc/dropbear/authorized_keys)' "$inspector" || {
+grep -qF 'local -a key_paths=(root/.ssh/authorized_keys etc/ssh/authorized_keys etc/dropbear/authorized_keys)' "$account_ssh_inspector" || {
     echo "Built-image inspection must retain its explicit authorization paths." >&2
     exit 1
 }
-grep -qF "key_paths+=(\"\$key_path\")" "$inspector" || {
+grep -qF "key_paths+=(\"\$key_path\")" "$account_ssh_inspector" || {
     echo "Built-image inspection must retain account-home authorization checks." >&2
     exit 1
 }
@@ -94,9 +94,9 @@ grep -qF "octessera_stat_path \"\$target\" \"\$1\"" "$inspector" || {
     exit 1
 }
 
-# shellcheck disable=SC1090
+# shellcheck source=tools/armbian-image/authorized-key-paths.sh
 source "$authorized_key_paths_helper"
-# shellcheck disable=SC1090
+# shellcheck source=tools/armbian-image/inspect-path.sh
 source "$inspect_path_helper"
 grep -qF "printf '%s\\n' \"\${home#/}/.ssh/authorized_keys\"" "$authorized_key_paths_helper" || {
     echo "The account-home helper must derive supported authorization paths." >&2
@@ -221,7 +221,7 @@ set -euo pipefail
 extension="$1"
 mount_root="$2"
 hook_trace="$3"
-# shellcheck disable=SC1090,SC1091
+# shellcheck source=userpatches/extensions/octessera_image_sanitize.sh
 source "$extension"
 display_alert() { :; }
 export MOUNT="$mount_root"

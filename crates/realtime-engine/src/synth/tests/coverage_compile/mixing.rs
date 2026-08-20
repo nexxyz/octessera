@@ -2,30 +2,34 @@ use super::param_fixtures::*;
 
 #[test]
 fn compiles_mixing_fx_params_with_expected_defaults_and_clamps() {
-    match compile_fx_bus_params(&fx_config(
-        "duck",
-        BTreeMap::from([
-            ("source".to_string(), json!("B2")),
-            ("threshold".to_string(), json!(0.5)),
-            ("amountPct".to_string(), json!(125.0)),
-            ("attackMs".to_string(), json!(0.01)),
-            ("releaseMs".to_string(), json!(5_000.0)),
-        ]),
-    )) {
-        FxBusParams::Duck {
-            source,
-            threshold,
-            amount,
-            attack_ms,
-            release_ms,
-        } => {
-            assert!(matches!(source, DuckSource::Bus(1)));
-            assert_close(threshold, 0.5);
-            assert_close(amount, 1.0);
-            assert_close(attack_ms, 0.1);
-            assert_close(release_ms, 2_000.0);
+    for (threshold_value, amount_value, attack_value, release_value) in
+        [(0.0, 0.0, 1.0, 1.0), (1.0, 100.0, 500.0, 5_000.0)]
+    {
+        match compile_fx_bus_params(&fx_config(
+            "duck",
+            BTreeMap::from([
+                ("source".to_string(), json!("B2")),
+                ("threshold".to_string(), json!(threshold_value)),
+                ("amountPct".to_string(), json!(amount_value)),
+                ("attackMs".to_string(), json!(attack_value)),
+                ("releaseMs".to_string(), json!(release_value)),
+            ]),
+        )) {
+            FxBusParams::Duck {
+                source,
+                threshold,
+                amount,
+                attack_ms,
+                release_ms,
+            } => {
+                assert!(matches!(source, DuckSource::Bus(1)));
+                assert_close(threshold, threshold_value);
+                assert_close(amount, amount_value / 100.0);
+                assert_close(attack_ms, attack_value);
+                assert_close(release_ms, release_value);
+            }
+            _ => panic!("expected duck params"),
         }
-        _ => panic!("expected duck params"),
     }
 
     match compile_fx_bus_params(&fx_config(

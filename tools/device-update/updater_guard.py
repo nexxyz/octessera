@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import TypedDict
 
-from updater_protocol import BINARY, CANDIDATE_HEALTH_PROTOCOL, MARKER_SCHEMA, MAX_JSON_BYTES, read_json, same_path
+from updater_contract import BINARY, CANDIDATE_HEALTH_PROTOCOL, MARKER_SCHEMA, MAX_JSON_BYTES, read_json, same_path
 
 
 class ServiceSnapshot(TypedDict):
@@ -199,35 +199,3 @@ def guard_transaction(updater) -> None:
                 raise error(f"Updater recovery failed: {rollback_error}") from exc
             raise error(f"Updater guard failed: {exc}") from exc
         _restore(updater, payload, activation_attempted, exc)
-
-
-def stop_service_verified(updater) -> None:
-    before = systemctl_properties(updater)
-    if before["MainPID"] == "0" and before["ActiveState"] in ("inactive", "failed"):
-        return
-    updater.systemctl_call(["stop", updater.service_name])
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        state = systemctl_properties(updater)
-        if state["MainPID"] == "0" and state["ActiveState"] in ("inactive", "failed"):
-            return
-        time.sleep(0.1)
-    raise updater.error("Candidate service did not stop")
-
-
-def start_service_verified(updater, expected_version: str) -> None:
-    updater.systemctl_call(["start", updater.service_name])
-    expected = (updater.releases / expected_version / BINARY).resolve(strict=False)
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        state = systemctl_properties(updater)
-        if state["ActiveState"] == "active" and int(state["MainPID"] or "0") > 0:
-            try:
-                executable = Path(os.readlink(Path(os.environ.get("OCTESSERA_UPDATE_PROC_ROOT", "/proc")) / state["MainPID"] / "exe")).resolve(strict=False)
-            except OSError as exc:
-                raise updater.error("Fallback process executable is unavailable") from exc
-            if not same_path(executable, expected):
-                raise updater.error("Fallback service executable identity mismatch")
-            return
-        time.sleep(0.1)
-    raise updater.error("Fallback service did not become active")

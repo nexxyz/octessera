@@ -1,6 +1,7 @@
+use super::toast_text::scrolled_toast;
 use super::{
-    display_index, json, scrolled_toast, velocity_curve_id, GridInteraction, NativeOledMode,
-    NativeRunner, RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH,
+    display_index, json, velocity_curve_id, GridInteraction, NativeOledMode, NativeRunner,
+    RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {

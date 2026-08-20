@@ -87,7 +87,7 @@ pub(crate) fn portable_sample_ids_are_manifest_wavs_and_invalid_ids_are_rejected
             .apply_config_payload(generated_pi_default())
             .unwrap();
         let error = prepare_patch_payload(
-            portable_patch_projection(&payload),
+            portable_patch_projection(&payload).unwrap(),
             &validation_runner.config_payload(),
         )
         .unwrap_err();
@@ -133,7 +133,7 @@ pub(crate) fn retained_sample_paths_are_rejected_for_non_sampler_v2_loads() {
     for instrument_type in ["synth", "midi", "none"] {
         let payload =
             transitioned_sample_path_payload("userdata/User Kit/custom.wav", instrument_type);
-        let patch = portable_patch_projection(&payload);
+        let patch = portable_patch_projection(&payload).unwrap();
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.apply_config_payload(generated_pi_default()).unwrap();
         let error = runner

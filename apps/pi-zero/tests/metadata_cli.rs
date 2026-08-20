@@ -1,4 +1,4 @@
-#![cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#![cfg(feature = "hardware-raspberry-pi-zero-2w")]
 
 use std::process::Command;
 

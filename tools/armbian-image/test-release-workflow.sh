@@ -3,6 +3,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 release="$root/.github/workflows/release-artifacts.yml"
 boards="$root/.github/workflows/release-board-artifacts.yml"
 action="$root/.github/actions/build-armbian-image/action.yml"
@@ -27,10 +29,7 @@ assert_contains() {
 assert_absent() {
     local file="$1"
     local unexpected="$2"
-    if grep -qF -- "$unexpected" "$file"; then
-        echo "$file contains removed release coupling: $unexpected" >&2
-        exit 1
-    fi
+    octessera_reject_file_match "$file contains removed release coupling: $unexpected" -qF -- "$unexpected" "$file"
 }
 
 assert_block_contains() {
@@ -45,10 +44,7 @@ assert_block_contains() {
 assert_block_absent() {
     local block="$1"
     local unexpected="$2"
-    if grep -qF -- "$unexpected" <<< "$block"; then
-        echo "Workflow block contains removed release coupling: $unexpected" >&2
-        exit 1
-    fi
+    octessera_reject_text_match "Workflow block contains removed release coupling: $unexpected" "$block" -qF -- "$unexpected"
 }
 
 assert_order() {
@@ -175,42 +171,22 @@ assert_absent "$release" 'DMG'
 assert_absent "$release" 'dmg'
 
 workflow_static_block="$(sed -n '/^  workflow_static:/,/^  resolve_draft:/p' "$release")"
-if grep -qF 'permissions:' <<< "$workflow_static_block"; then
-    echo 'workflow_static must inherit the top-level read-only permissions.' >&2
-    exit 1
-fi
-if ! grep -qF 'bash -n tools/armbian-image/test-release-workflow.sh' <<< "$workflow_static_block" || ! grep -qF 'shellcheck tools/armbian-image/test-release-workflow.sh' <<< "$workflow_static_block"; then
-    echo 'workflow_static must run syntax and ShellCheck validation.' >&2
-    exit 1
-fi
+octessera_reject_text_match 'workflow_static must inherit the top-level read-only permissions.' "$workflow_static_block" -qF 'permissions:'
+octessera_require_text_match 'workflow_static must run syntax validation.' "$workflow_static_block" -qF 'bash -n tools/armbian-image/test-release-workflow.sh'
+octessera_require_text_match 'workflow_static must run ShellCheck validation.' "$workflow_static_block" -qF 'shellcheck tools/armbian-image/test-release-workflow.sh'
 resolver_block="$(sed -n '/^  resolve_draft:/,/^  release_info:/p' "$release")"
-if grep -qF 'actions/checkout' <<< "$resolver_block" || grep -qE '(^|[[:space:]])(python3|bash|sh|pnpm|cargo)[[:space:]]|tools/' <<< "$resolver_block" || grep -qF 'upload-artifact' <<< "$resolver_block"; then
-    echo 'Draft resolver must remain API-only without checkout, scripts, or artifacts.' >&2
-    exit 1
-fi
+octessera_reject_text_match 'Draft resolver must remain API-only without checkout, scripts, or artifacts.' "$resolver_block" -qF 'actions/checkout'
+octessera_reject_text_match 'Draft resolver must remain API-only without checkout, scripts, or artifacts.' "$resolver_block" -qE '(^|[[:space:]])(python3|bash|sh|pnpm|cargo)[[:space:]]|tools/'
+octessera_reject_text_match 'Draft resolver must remain API-only without checkout, scripts, or artifacts.' "$resolver_block" -qF 'upload-artifact'
 publisher_block="$(sed -n '/^  publish_release_assets:/,$p' "$release")"
-if ! grep -qF $'    permissions:\n      contents: write' <<< "$resolver_block" || ! grep -qF $'    permissions:\n      contents: write' <<< "$publisher_block"; then
-    echo 'Contents write must belong to the resolver and publisher jobs.' >&2
-    exit 1
-fi
+octessera_require_text_match 'Contents write must belong to the resolver job.' "$resolver_block" -qF $'    permissions:\n      contents: write'
+octessera_require_text_match 'Contents write must belong to the publisher job.' "$publisher_block" -qF $'    permissions:\n      contents: write'
 updater_block="$(sed -n '/^  updater_protocol:/,/^  windows:/p' "$release")"
-if grep -qF 'bash tools/armbian-image/test-release-workflow.sh' <<< "$updater_block"; then
-    echo 'The source-tag updater job must not run the workflow static test.' >&2
-    exit 1
-fi
-if grep -qE 'shellcheck .*&&' <<< "$updater_block"; then
-    echo 'Independent ShellCheck groups must fail separately.' >&2
-    exit 1
-fi
-if grep -qE '^  release:' "$release"; then
-    echo 'Release workflow must not trigger from publication.' >&2
-    exit 1
-fi
+octessera_reject_text_match 'The source-tag updater job must not run the workflow static test.' "$updater_block" -qF 'bash tools/armbian-image/test-release-workflow.sh'
+octessera_reject_text_match 'Independent ShellCheck groups must fail separately.' "$updater_block" -qE 'shellcheck .*&&'
+octessera_reject_file_match 'Release workflow must not trigger from publication.' -qE '^  release:' "$release"
 
-if grep -qF '/releases/tags/' "$release"; then
-    echo 'Draft release validation must not use the by-tag releases endpoint.' >&2
-    exit 1
-fi
+octessera_reject_file_match 'Draft release validation must not use the by-tag releases endpoint.' -qF '/releases/tags/' "$release"
 [[ "$(grep -cF 'gh api "repos/$GITHUB_REPOSITORY/releases/$EXPECTED_RELEASE_ID"' "$release")" == 2 ]] || {
     echo 'Both final release validations must fetch by the resolved release ID.' >&2
     exit 1
@@ -339,10 +315,7 @@ assert_contains "$boards" 'tools/pi-image/test-rpi-kernel-image.sh'
 raspberry_synthetic_tests_block="$(sed -n '/^      - name: Run synthetic kernel tests first$/,/^      - name: Install Raspberry kernel constructor dependencies$/p' "$boards")"
 assert_block_contains "$raspberry_synthetic_tests_block" 'bash tools/pi-kernel/test-rpi-kernel.sh'
 assert_block_contains "$raspberry_synthetic_tests_block" 'sudo bash tools/pi-image/test-rpi-kernel-image.sh'
-if grep -qF 'sudo bash tools/pi-kernel/test-rpi-kernel.sh' <<< "$raspberry_synthetic_tests_block"; then
-    echo 'The Raspberry kernel synthetic test must remain unprivileged.' >&2
-    exit 1
-fi
+octessera_reject_text_match 'The Raspberry kernel synthetic test must remain unprivileged.' "$raspberry_synthetic_tests_block" -qF 'sudo bash tools/pi-kernel/test-rpi-kernel.sh'
 assert_contains "$boards" 'runtime_bundle_path:'
 assert_contains "$boards" 'CROSS_SHA256: 642375d1bcf3bd88272c32ba90e999f3d983050adf45e66bd2d3887e8e838bad'
 assert_contains "$boards" 'https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz'
@@ -358,10 +331,7 @@ assert_contains "$device_packager" 'updater_manifest = release_manifest(profile,
     echo 'The shared updater manifest contract must declare updater_protocol 2 exactly once.' >&2
     exit 1
 }
-if grep -qF 'orange-pi-zero-2w-device-aarch64.zip' "$release" "$boards"; then
-    echo 'Orange standalone device ZIP must use the explicit manual filename.' >&2
-    exit 1
-fi
+octessera_reject_file_match 'Orange standalone device ZIP must use the explicit manual filename.' -qF 'orange-pi-zero-2w-device-aarch64.zip' "$release" "$boards"
 assert_contains "$boards" 'octessera-orange-kernel-provenance.txt'
 assert_contains "$boards" 'canonical_release_paths='
 assert_contains "$boards" '"release-assets/${canonical_packages[0]}"'
@@ -401,10 +371,7 @@ preserve_env_command="$(grep -F -- 'sudo --preserve-env=' <<< "$raspberry_config
     echo 'Raspberry pi-gen config heredoc must close with one standalone EOF.' >&2
     exit 1
 }
-if grep -qE '^[[:space:]]+EOL$' <<< "$raspberry_config_block"; then
-    echo 'Raspberry pi-gen config heredoc must not use EOL as its terminator.' >&2
-    exit 1
-fi
+octessera_reject_text_match 'Raspberry pi-gen config heredoc must not use EOL as its terminator.' "$raspberry_config_block" -qE '^[[:space:]]+EOL$'
 
 assert_contains "$boards" 'cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w'
 assert_contains "$boards" 'cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w'
@@ -427,18 +394,10 @@ orange_builds="$(grep -cF -- 'cross build --release --locked --target aarch64-un
     exit 1
 }
 
-if grep -qE 'find[^\n]*\|[[:space:]]*head[[:space:]]+-n[[:space:]]*1' "$release" "$boards"; then
-    echo 'Release workflows must not select an ambiguous artifact with find|head -n1.' >&2
-    exit 1
-fi
-if grep -qF -- '--clobber' "$release" "$boards"; then
-    echo 'Release workflows must not hide collisions with --clobber.' >&2
-    exit 1
-fi
-if grep -qF 'curl -sSL' "$boards" || grep -qF '| sudo tar' "$boards"; then
-    echo 'Cross installation must verify a downloaded archive before extraction.' >&2
-    exit 1
-fi
+octessera_reject_file_match 'Release workflows must not select an ambiguous artifact with find|head -n1.' -qE 'find[^\n]*\|[[:space:]]*head[[:space:]]+-n[[:space:]]*1' "$release" "$boards"
+octessera_reject_file_match 'Release workflows must not hide collisions with --clobber.' -qF -- '--clobber' "$release" "$boards"
+octessera_reject_file_match 'Cross installation must verify a downloaded archive before extraction.' -qF 'curl -sSL' "$boards"
+octessera_reject_file_match 'Cross installation must verify a downloaded archive before extraction.' -qF '| sudo tar' "$boards"
 
 assert_contains "$sanitizer" 'Expected exactly one .img inside'
 assert_contains "$sanitizer" 'require_managed_runtime_binary "$WORK_DIR/root"'

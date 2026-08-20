@@ -1,11 +1,12 @@
 use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSampleEntryConfig};
 use crate::protocol::SyncSource;
 
+use super::sparks_fx_config::{sparks_fx_params_map, sparks_fx_target_key, sparks_fx_type};
 use super::{
     aux_binding_configs, aux_bindings_payload, device_runtime_config, fx_bus_configs,
-    fx_slot_payload_with_params, instrument_auto_names, instrument_labels,
-    instrument_midi_channels, instrument_midi_duration_ms, instrument_midi_enabled,
-    instrument_midi_velocity, instrument_names, instrument_note_behaviors,
+    fx_slot_payload_with_params, instrument_audio_payload, instrument_auto_names,
+    instrument_labels, instrument_midi_channels, instrument_midi_duration_ms,
+    instrument_midi_enabled, instrument_midi_velocity, instrument_names, instrument_note_behaviors,
     instrument_pan_positions, instrument_routes, instrument_sample_amp_envs,
     instrument_sample_amp_velocity_sensitivity_pct, instrument_sample_base_velocity,
     instrument_sample_filter_envs, instrument_sample_filters, instrument_sample_gain_pct,
@@ -16,10 +17,8 @@ use super::{
     instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
     instrument_synth_osc2_waveforms, instrument_types, instrument_volumes,
     param_binding_spec_from_native, param_mod_configs, param_mods_payload,
-    portable_patch_projection, pulses_layer_configs, pulses_layer_payload,
-    sample_assignments_payload, sparks_fx_params_map, sparks_fx_target_key, sparks_fx_type,
-    velocity_curve_id, NativeLinkLfoConfig, NativeRunner, Value, CONFIG_KIND,
-    CONFIG_SCHEMA_VERSION,
+    portable_patch_projection, pulses_layer_configs, pulses_layer_payload, velocity_curve_id,
+    NativeLinkLfoConfig, NativeRunner, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION,
 };
 use serde_json::json;
 
@@ -226,54 +225,7 @@ impl NativeRunner {
                     "cycleMeasures": self.display.hdmi.cycle_measures
                 },
                 "instruments": self.instruments.iter().map(|instrument| {
-                    let sample_slots = instrument
-                        .sample_paths
-                        .iter()
-                        .map(|path| json!({ "path": path }))
-                        .collect::<Vec<_>>();
-                    json!({
-                        "type": instrument.kind,
-                        "noteBehavior": instrument.note_behavior,
-                        "autoName": instrument.auto_name,
-                        "name": instrument.name,
-                        "synth": instrument.synth_config,
-                        "sample": {
-                            "selectedSlot": instrument.selected_sample_slot,
-                            "baseVelocity": instrument.sample_base_velocity,
-                            "slots": sample_slots,
-                            "assignments": sample_assignments_payload(&instrument.sample_assignments),
-                            "tuneSemis": instrument.sample_tune_semis,
-                            "amp": {
-                                "gainPct": instrument.sample_gain_pct,
-                                "velocitySensitivityPct": instrument.sample_amp_velocity_sensitivity_pct
-                            },
-                            "ampEnv": instrument.sample_amp_env,
-                            "filter": instrument.sample_filter,
-                            "filterEnv": instrument.sample_filter_env,
-                            "velocityLevelsEnabled": instrument.sample_velocity_levels_enabled,
-                            "velocityLevels": {
-                                "high": instrument.sample_velocity_high,
-                                "medium": instrument.sample_velocity_medium,
-                                "low": instrument.sample_velocity_low
-                            }
-                        },
-                        "midi": {
-                            "enabled": instrument.midi_enabled,
-                            "channel": instrument.midi_channel,
-                            "velocity": instrument.midi_velocity,
-                            "durationMs": instrument.midi_duration_ms
-                        },
-                        "midiEngine": {
-                            "channel": instrument.midi_channel,
-                            "velocity": instrument.midi_velocity,
-                            "durationMs": instrument.midi_duration_ms
-                        },
-                        "mixer": {
-                            "volume": instrument.volume,
-                            "panPos": instrument.pan_pos,
-                            "route": instrument.route.clone()
-                        }
-                    })
+                    instrument_audio_payload(instrument)
                 }).collect::<Vec<_>>(),
                 "mixer": self.mixer_payload(),
                 "masterVolume": self.display.ui.master_volume,
@@ -331,18 +283,19 @@ impl NativeRunner {
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn patch_payload(&self) -> Value {
+    pub(super) fn patch_payload(&self) -> Result<Value, String> {
         portable_patch_projection(&self.config_payload())
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn device_config_payload(&self) -> Value {
-        json!({
+    pub(super) fn device_config_payload(&self) -> Result<Value, String> {
+        let runtime = device_runtime_config(self.config_payload()["runtimeConfig"].clone())?;
+        Ok(json!({
             "kind": CONFIG_KIND,
             "schemaVersion": CONFIG_SCHEMA_VERSION,
             "revision": self.config_revision,
-            "runtimeConfig": device_runtime_config(self.config_payload()["runtimeConfig"].clone()),
-        })
+            "runtimeConfig": runtime,
+        }))
     }
 
     pub(super) fn mixer_payload(&self) -> Value {

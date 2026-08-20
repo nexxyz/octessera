@@ -39,3 +39,67 @@ pub(crate) fn grouped_runtime_state_keeps_transport_snapshot_and_deferred_flush_
     }));
     assert!(runner.pending.pending_autosave_payload_due_at.is_none());
 }
+
+#[test]
+pub(crate) fn host_dispatch_preserves_effect_audio_snapshot_status_order() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .outbox
+        .push_platform_effect(RuntimePlatformEffect::MidiPanic);
+    runner
+        .outbox
+        .push_audio_command(RuntimeAudioCommand::SamplePreview {
+            instrument_slot: 0,
+            sample_slot: 0,
+            path: "kick.wav".into(),
+            velocity: 100,
+        });
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "other" }),
+            request_snapshot: Some(true),
+        })
+        .unwrap();
+
+    let platform_index = messages
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::PlatformEffects { .. }))
+        .unwrap();
+    let audio_index = messages
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::AudioCommands { .. }))
+        .unwrap();
+    let snapshot_index = messages
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::Snapshot { .. }))
+        .unwrap();
+    let status_index = messages
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::RuntimeStatus { .. }))
+        .unwrap();
+
+    assert!(platform_index < audio_index);
+    assert!(audio_index < snapshot_index);
+    assert!(snapshot_index < status_index);
+}
+
+#[test]
+pub(crate) fn input_dispatch_owns_temporary_snapshot_suppression() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "other" }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert!(!messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::RuntimeStatus { .. })));
+    assert!(!runner.pending.suppress_snapshot_response);
+}

@@ -8,7 +8,11 @@ impl PiPlatformService {
         request: &RuntimePlatformRequest,
     ) -> Result<HostMessage, SetupPortalFailure> {
         let token = self.setup_portal.prepare(request)?;
-        if self.user_data_transfer.start().is_err() {
+        if self
+            .user_data_transfer
+            .start_with_request(Some(request))
+            .is_err()
+        {
             self.setup_portal.revoke(&token);
             return Err(SetupPortalFailure::unavailable());
         }
@@ -29,6 +33,10 @@ impl PiPlatformService {
     pub fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut results = Vec::new();
         for _ in 0..max_results {
+            if let Some(result) = self.take_transfer_status() {
+                results.push(result);
+                continue;
+            }
             if let Some(result) = self
                 .preserved_results
                 .lock()

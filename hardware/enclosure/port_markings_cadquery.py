@@ -22,12 +22,14 @@ from top_wall_port_cutouts import (
     PI_USB_HEIGHT,
     PI_USB_INDENT_HEIGHT,
     PI_USB_Z_SHIFT,
-    PORT_INDENT_Z_PAD,
     POWER_Z_SHIFT,
+)
+from top_wall_port_geometry import (
+    PORT_INDENT_Z_PAD,
     WEST_EXTENSION,
-    z_bounds,
-    z_center,
-    z_shift_centered_on,
+    centered_indent_z_shift,
+    wall_port_z_bounds,
+    wall_port_z_center,
 )
 
 
@@ -386,15 +388,15 @@ def usb_mark(side: Side, center_u: float, bottom_z: float, dot_count: int, d0: f
 
 
 def icon_bottom_from_indent(indent_height: float, indent_z_shift: float, icon_height: float) -> float:
-    indent_bottom, _ = z_bounds(indent_height, PORT_INDENT_Z_PAD, indent_z_shift)
+    indent_bottom, _ = wall_port_z_bounds(indent_height, PORT_INDENT_Z_PAD, indent_z_shift)
     return indent_bottom - ICON_GAP_BELOW_INDENT - icon_height
 
 
 def port_icon_bottoms() -> dict[str, float]:
-    audio_indent_z_shift = z_center(8.2, AUDIO_Z_SHIFT) - z_center(5.2)
+    audio_indent_z_shift = wall_port_z_center(8.2, AUDIO_Z_SHIFT) - wall_port_z_center(5.2)
     pi_usb_bottom = icon_bottom_from_indent(
         PI_USB_INDENT_HEIGHT,
-        z_shift_centered_on(PI_USB_HEIGHT, PI_USB_Z_SHIFT, PI_USB_INDENT_HEIGHT),
+        centered_indent_z_shift(PI_USB_HEIGHT, PI_USB_Z_SHIFT, PI_USB_INDENT_HEIGHT),
         SOUTH_ICON_HEIGHT,
     )
     return {
@@ -402,12 +404,12 @@ def port_icon_bottoms() -> dict[str, float]:
         "USB-C power": icon_bottom_from_indent(4.6, POWER_Z_SHIFT, ICON_HEIGHT),
         "Pi microSD": icon_bottom_from_indent(
             PI_SD_INDENT_HEIGHT,
-            z_shift_centered_on(PI_SD_HEIGHT, PI_SD_HOLE_Z_SHIFT, PI_SD_INDENT_HEIGHT),
+            centered_indent_z_shift(PI_SD_HEIGHT, PI_SD_HOLE_Z_SHIFT, PI_SD_INDENT_HEIGHT),
             ICON_HEIGHT,
         ),
         "Pi mini-HDMI": icon_bottom_from_indent(
             PI_HDMI_INDENT_HEIGHT,
-            z_shift_centered_on(PI_HDMI_HEIGHT, PI_HDMI_Z_SHIFT, PI_HDMI_INDENT_HEIGHT),
+            centered_indent_z_shift(PI_HDMI_HEIGHT, PI_HDMI_Z_SHIFT, PI_HDMI_INDENT_HEIGHT),
             SCREEN_ICON_HEIGHT,
         ),
         "Pi USB data": pi_usb_bottom,

@@ -51,8 +51,13 @@ first-boot page](hardware/orange-pi-first-boot.md), [setup portal
 guide](hardware/setup-portal.md), or [board qualification and
 status](hardware/board-qualification.md). For a reflash, read [Data Backup and
 Restore](data-backup-restore.md) before erasing the source card. For a strict
-two-board acceptance run, use the [FAT quick run](hardware/fat-quick-run.md).
-Keep the boards accessible until the open electrical checks pass.
+two-board acceptance run, use the [FAT orchestrator](hardware/fat-quick-run.md).
+Its linked [software coverage](hardware/fat-software-coverage.md), [diagnostic
+harness](hardware/fat-diagnostic-harness.md), [board end-to-end
+paths](hardware/fat-board-end-to-end.md), and [gap tests](hardware/fat-gap-tests.md)
+keep automated evidence, operator observations, and closeout accounting in
+their proper lanes. Keep the boards accessible until the open electrical checks
+pass.
 
 ### I want to learn the instrument
 

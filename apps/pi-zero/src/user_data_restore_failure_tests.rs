@@ -2,6 +2,7 @@ use super::*;
 use playback_runtime::{
     new_user_data_bundle, UserDataBundleMetadata, UserDataMusicalState, UserPreferenceDelta,
 };
+use serde_json::{json, Value};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -162,6 +163,25 @@ fn pre_restore_backup_failure_leaves_live_store_and_samples_untouched() {
 }
 
 #[test]
+fn recovery_path_collision_keeps_the_new_pre_restore_archive() {
+    let fixture = Fixture::new("recovery-collision");
+    let old_path = fixture.root.join(".octessera-store-old-recovery-collision");
+    fs::create_dir(&old_path).unwrap();
+    fs::write(old_path.join("recovery-marker"), b"keep me").unwrap();
+
+    assert!(fixture.restore("recovery-collision", true).is_err());
+    fixture.assert_live_data();
+    assert_eq!(
+        fs::read(old_path.join("recovery-marker")).unwrap(),
+        b"keep me"
+    );
+    assert!(fixture
+        .root
+        .join("octessera-pre-restore-recovery-collision.oct")
+        .is_file());
+}
+
+#[test]
 fn protected_tree_symlink_fails_without_mutating_live_data() {
     let fixture = Fixture::new("protected-symlink");
     let target = fixture.root.join("outside");
@@ -227,7 +247,7 @@ fn swap_failure_rolls_back_an_already_swapped_tree() {
     let result = swap_tree(trees[1].0, trees[1].1, trees[1].2);
     assert!(result.is_err());
     for (current, replacement, old) in trees[..1].iter().rev() {
-        rollback_tree(current, old, replacement);
+        rollback_tree(current, old, replacement).unwrap();
     }
 
     assert_eq!(
@@ -245,4 +265,169 @@ fn swap_failure_rolls_back_an_already_swapped_tree() {
     assert!(!old_store.exists());
     assert!(!old_samples.exists());
     let _ = fs::remove_dir_all(root);
+}
+
+fn transaction_fixture(name: &str) -> (PathBuf, Vec<(PathBuf, PathBuf, PathBuf)>) {
+    let root = temp_root(name);
+    let mut trees = Vec::new();
+    for name in ["store", "samples"] {
+        let current = root.join(name);
+        let replacement = root.join(format!("{name}-new"));
+        let old = root.join(format!("{name}-old"));
+        fs::create_dir_all(&current).unwrap();
+        fs::create_dir_all(&replacement).unwrap();
+        fs::write(current.join("state"), format!("live {name}")).unwrap();
+        fs::write(replacement.join("state"), format!("new {name}")).unwrap();
+        trees.push((current, replacement, old));
+    }
+    (root, trees)
+}
+
+fn tree_refs(trees: &[(PathBuf, PathBuf, PathBuf)]) -> Vec<(&Path, &Path, &Path)> {
+    trees
+        .iter()
+        .map(|(current, replacement, old)| {
+            (current.as_path(), replacement.as_path(), old.as_path())
+        })
+        .collect()
+}
+
+#[test]
+fn injected_replacement_failure_preserves_recovery_tree_after_verified_rollback() {
+    let (root, trees) = transaction_fixture("replacement-failure");
+    let refs = tree_refs(&trees);
+    let mut faults = FaultInjection {
+        replacement_failure_at: Some(1),
+        ..FaultInjection::default()
+    };
+
+    let result = replace_trees_with_faults(&refs, &mut faults);
+    assert!(result.is_err());
+    assert_eq!(fs::read(trees[0].0.join("state")).unwrap(), b"live store");
+    assert_eq!(fs::read(trees[1].0.join("state")).unwrap(), b"live samples");
+    assert!(trees[0].1.is_dir());
+    assert!(trees[1].1.is_dir());
+    assert!(!trees[0].2.exists());
+    assert!(!trees[1].2.exists());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn injected_rollback_failure_propagates_and_preserves_old_and_new_trees() {
+    let (root, trees) = transaction_fixture("rollback-failure");
+    let refs = tree_refs(&trees);
+    let mut faults = FaultInjection {
+        replacement_failure_at: Some(0),
+        rollback_failure_at: Some(0),
+        ..FaultInjection::default()
+    };
+
+    let result = replace_trees_with_faults(&refs, &mut faults).unwrap_err();
+    assert!(result.contains("rollback failed"));
+    assert!(trees[0].2.is_dir());
+    assert!(trees[0].1.is_dir());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn injected_post_swap_rollback_failure_propagates_and_preserves_recovery_trees() {
+    let (root, trees) = transaction_fixture("post-swap-rollback-failure");
+    let refs = tree_refs(&trees);
+    let mut faults = FaultInjection {
+        replacement_failure_at: Some(1),
+        post_swap_rollback_failure_at: Some(0),
+        ..FaultInjection::default()
+    };
+
+    let result = replace_trees_with_faults(&refs, &mut faults).unwrap_err();
+    assert!(result.contains("rollback failed"));
+    assert!(trees[0].1.is_dir());
+    assert!(trees[0].2.is_dir());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn restore_rehydrates_migrated_patch_preferences_and_split_aux_ownership() {
+    let fixture = Fixture::new("rehydrate-runtime-owned-config");
+    let canonical = user_data_archive::canonical_defaults();
+    let mut staged = fixture.staged(false);
+    staged
+        .bundle
+        .preferences
+        .values
+        .insert("displayBrightness".into(), json!(42));
+    staged.bundle.preferences.values.insert(
+        "audioOutputs".into(),
+        json!({ "dac": false, "usb": true, "hdmi": false }),
+    );
+    staged.bundle.current_state.patch = json!({
+        "kind": "octessera.patch",
+        "schemaVersion": 1,
+        "runtimeConfig": {
+            "masterVolume": 1,
+            "layers": [{
+                "worlds": { "behaviorId": "sequencer" },
+                "linkLfo": {
+                    "enabled": true,
+                    "target": { "key": "instruments.0.mixer.volume", "kind": "number" },
+                    "period": "1/4",
+                    "depthPct": 37
+                }
+            }],
+            "auxBindings": {
+                "aux1": {
+                    "turnKey": "sound.noteLengthMs",
+                    "pressAction": { "kind": "behavior_action", "actionType": "clear" }
+                },
+                "aux2": {
+                    "turnKey": "displayBrightness",
+                    "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
+                }
+            }
+        }
+    });
+    staged.bundle.default_state.patch = json!({
+        "kind": "octessera.patch",
+        "schemaVersion": 2,
+        "runtimeConfig": {}
+    });
+
+    super::restore(
+        &fixture.store,
+        &fixture.samples,
+        &fixture.recordings,
+        &fixture.screen_recordings,
+        "rehydrate-runtime-owned-config",
+        staged,
+    )
+    .unwrap();
+
+    let current: Value =
+        serde_json::from_slice(&fs::read(fixture.store.join("current.json")).unwrap()).unwrap();
+    let default: Value =
+        serde_json::from_slice(&fs::read(fixture.store.join("default.json")).unwrap()).unwrap();
+    assert_eq!(current["runtimeConfig"]["displayBrightness"], 42);
+    assert_eq!(
+        current["runtimeConfig"]["audioOutputs"],
+        json!({ "dac": false, "usb": true, "hdmi": false })
+    );
+    assert_eq!(
+        current["runtimeConfig"]["masterVolume"],
+        canonical["runtimeConfig"]["masterVolume"]
+    );
+    assert_eq!(current["runtimeConfig"]["linkLfos"][0]["enabled"], true);
+    assert_eq!(current["runtimeConfig"]["linkLfos"][0]["depthPct"], 37);
+    assert_eq!(
+        current["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
+        "sound.noteLengthMs"
+    );
+    assert_eq!(
+        current["runtimeConfig"]["auxBindings"]["aux2"],
+        canonical["runtimeConfig"]["auxBindings"]["aux2"]
+    );
+    let mut expected_default = canonical.clone();
+    expected_default["runtimeConfig"]["displayBrightness"] = json!(42);
+    expected_default["runtimeConfig"]["audioOutputs"] =
+        json!({ "dac": false, "usb": true, "hdmi": false });
+    assert_eq!(default, expected_default);
 }

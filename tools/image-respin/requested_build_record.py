@@ -5,34 +5,14 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .workflow_record_common import (
-        RecordError,
-        identity,
-        require,
-        require_keys,
-        tool_identity,
-        verify_docker_digests,
-        verify_docker_id,
-        verify_identity,
-        verify_source,
-        verify_tool,
-        resolve,
-    )
+    from .record_paths import identity, resolve, verify_identity
+    from .record_tool_contract import tool_identity, verify_tool
+    from .record_validation import RecordError, require, require_keys, verify_docker_digests, verify_docker_id, verify_source
     from .setup_contract import load_contract, validate_tracked_sources
 except ImportError:
-    from workflow_record_common import (
-        RecordError,
-        identity,
-        require,
-        require_keys,
-        tool_identity,
-        verify_docker_digests,
-        verify_docker_id,
-        verify_identity,
-        verify_source,
-        verify_tool,
-        resolve,
-    )
+    from record_paths import identity, resolve, verify_identity
+    from record_tool_contract import tool_identity, verify_tool
+    from record_validation import RecordError, require, require_keys, verify_docker_digests, verify_docker_id, verify_source
     from setup_contract import load_contract, validate_tracked_sources
 
 
@@ -53,7 +33,7 @@ REQUIRED_FILES = {
     "tools/legal/stage_notices.py",
     "tools/image-respin/notice_mutation.py",
 }
-SETUP_TOOL_FILES = tuple(f"tools/image-respin/{name}" for name in ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "disk_setup_respin.py", "boot_neutral.py", "setup_workflow_record.py", "workflow_records.py", "requested_build_record.py", "post_proof_record.py", "trust_manifest.py", "workflow_record_common.py"))
+SETUP_TOOL_FILES = tuple(f"tools/image-respin/{name}" for name in ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "disk_setup_respin.py", "boot_neutral.py", "setup_workflow_record.py", "workflow_records.py", "requested_build_record.py", "post_proof_record.py", "trust_manifest.py", "record_validation.py", "record_hashing.py", "record_paths.py", "record_documents.py", "record_tool_contract.py"))
 PROOF_PACKAGES = {
     "cpio",
     "zstd",

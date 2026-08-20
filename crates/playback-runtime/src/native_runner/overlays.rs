@@ -1,6 +1,8 @@
+use super::led_color::LedColor;
+use super::scan_overlay::{scan_index_for_overlay, scan_section_count};
 use super::{
-    display_index, native_binding_from_spec, scan_index_for_overlay, scan_section_count, LedColor,
-    NativeInstrumentSlot, NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
+    display_index, native_binding_from_spec, NativeInstrumentSlot, NativeParamBinding,
+    NativeRunner, GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {

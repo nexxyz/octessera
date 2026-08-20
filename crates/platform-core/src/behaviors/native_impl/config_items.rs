@@ -1,20 +1,4 @@
-use crate::behavior::{BehaviorConfigItem, BehaviorConfigItemType, CellTriggerType};
-use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
-pub(crate) const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
-
-pub(crate) fn trigger_types_from_cells(previous: &[bool], next: &[bool]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
-        .map(|index| match (previous[index], next[index]) {
-            (false, true) => CellTriggerType::Activate,
-            (true, false) => CellTriggerType::Deactivate,
-            (true, true) => CellTriggerType::Stable,
-            (false, false) => CellTriggerType::None,
-        })
-        .collect()
-}
+use crate::behavior::{BehaviorConfigItem, BehaviorConfigItemType};
 
 pub(crate) fn number_item(
     key: &str,
@@ -56,12 +40,4 @@ pub(crate) fn action_item(key: &str, label: &str) -> BehaviorConfigItem {
         step: None,
         options: None,
     }
-}
-
-pub fn serialize<T: Serialize>(state: &T) -> Result<Value, String> {
-    serde_json::to_value(state).map_err(|error| error.to_string())
-}
-
-pub fn deserialize<T: for<'de> Deserialize<'de>>(data: Value) -> Result<T, String> {
-    serde_json::from_value(data).map_err(|error| error.to_string())
 }

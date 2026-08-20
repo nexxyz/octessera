@@ -33,12 +33,12 @@ mod audio_stream_health;
 mod boot_oled_handoff;
 mod candidate_readiness;
 mod device_update;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod diagnostics;
 mod dsp_profile;
 mod dsp_scenarios;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod encoder_queue;
+mod fat_diagnostic;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_fault;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -115,6 +115,7 @@ mod user_data_archive;
 mod user_data_media_paths;
 mod user_data_restore;
 mod user_data_transfer;
+mod utility_mode;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod wake_trace;
 
@@ -139,9 +140,32 @@ use octessera_pi::board_profile;
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 fn main() {
-    if octessera_pi::board_profile::metadata_requested() {
+    let utility_mode = match utility_mode::from_process() {
+        Ok(mode) => mode,
+        Err(error) => {
+            eprintln!("Utility mode error: {error}");
+            std::process::exit(2);
+        }
+    };
+    if utility_mode == utility_mode::UtilityMode::Normal
+        && octessera_pi::board_profile::metadata_requested()
+    {
         octessera_pi::board_profile::print_build_metadata();
         return;
+    }
+    match utility_mode {
+        utility_mode::UtilityMode::LegacyDiagnostic => {
+            std::process::exit(compatibility_diagnostic_exit_code())
+        }
+        utility_mode::UtilityMode::FatDiagnostic => std::process::exit(fat_diagnostic_exit_code()),
+        utility_mode::UtilityMode::InteractiveHardware
+        | utility_mode::UtilityMode::InteractiveNoise => {
+            eprintln!(
+                "interactive hardware test is only available on the canonical Raspberry build"
+            );
+            std::process::exit(2);
+        }
+        utility_mode::UtilityMode::Normal => {}
     }
     if dsp_profile::profile_requested() && orange_audio_benchmark::requested() {
         eprintln!("--profile-dsp and --benchmark-orange-audio cannot be combined");
@@ -165,9 +189,29 @@ fn main() {
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn main() {
-    if board_profile::metadata_requested() {
+    let utility_mode = match utility_mode::from_process() {
+        Ok(mode) => mode,
+        Err(error) => {
+            eprintln!("Utility mode error: {error}");
+            std::process::exit(2);
+        }
+    };
+    if utility_mode == utility_mode::UtilityMode::Normal && board_profile::metadata_requested() {
         board_profile::print_build_metadata();
         return;
+    }
+    match utility_mode {
+        utility_mode::UtilityMode::LegacyDiagnostic => {
+            std::process::exit(compatibility_diagnostic_exit_code())
+        }
+        utility_mode::UtilityMode::FatDiagnostic => std::process::exit(fat_diagnostic_exit_code()),
+        utility_mode::UtilityMode::InteractiveHardware => {
+            std::process::exit(exit_code(hardware_test::run_interactive()))
+        }
+        utility_mode::UtilityMode::InteractiveNoise => {
+            std::process::exit(exit_code(hardware_test::run_noise_only()))
+        }
+        utility_mode::UtilityMode::Normal => {}
     }
 
     let _ = simple_logger::init();
@@ -281,17 +325,28 @@ fn run_requested_utility() {
     if timing_probe::requested() {
         std::process::exit(exit_code(timing_probe::run()));
     }
-    if diagnostics::diagnostic_requested() {
-        std::process::exit(exit_code(diagnostics::run_pre_hardware_diagnostics()));
-    }
     if oled_test::requested() {
         std::process::exit(exit_code(oled_test::run()));
     }
-    if hardware_test::noise_requested() {
-        std::process::exit(exit_code(hardware_test::run_noise_only()));
-    }
-    if hardware_test::requested() {
-        std::process::exit(exit_code(hardware_test::run()));
+}
+
+fn fat_diagnostic_exit_code() -> i32 {
+    diagnostic_result_exit_code(fat_diagnostic::run())
+}
+
+fn compatibility_diagnostic_exit_code() -> i32 {
+    diagnostic_result_exit_code(diagnostics::run_pre_hardware_diagnostics())
+}
+
+fn diagnostic_result_exit_code(result: Result<bool, String>) -> i32 {
+    match result {
+        Ok(true) => 0,
+        Ok(false) => 1,
+        Err(error) if error == "help requested" => 0,
+        Err(error) => {
+            eprintln!("FAT diagnostic argument/error: {error}");
+            2
+        }
     }
 }
 

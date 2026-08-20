@@ -205,7 +205,11 @@ fn dispatch_or_log(
     adapter: &mut PiPlaybackHostAdapter,
     message: HostMessage,
 ) {
-    adapter.handle_transfer_input(&message);
+    let dispatch = adapter.handle_transfer_input(&message);
+    dispatch_transfer_statuses(playback, runner, adapter);
+    if !dispatch {
+        return;
+    }
     let message = prepare_dispatch_message(playback, message);
     if let Err(error) = dispatch_runtime_message(playback, runner, adapter, message) {
         eprintln!("pi runtime dispatch failed: {error}");
@@ -296,6 +300,19 @@ fn shutdown_if_requested(
     )
 }
 
+fn dispatch_transfer_statuses(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter,
+) {
+    while let Some(status) = adapter.take_transfer_status() {
+        if let Err(error) = dispatch_runtime_message(playback, runner, adapter, status) {
+            eprintln!("pi transfer status dispatch failed: {error}");
+            break;
+        }
+    }
+}
+
 fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     {
@@ -334,17 +351,17 @@ fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 fn orange_power_result(
     action: &str,
-    outcome: crate::orange_reboot::OrangeHelperOutcome,
+    outcome: crate::orange_reboot::OrangePowerRequestOutcome,
 ) -> Result<(), String> {
     match outcome {
-        crate::orange_reboot::OrangeHelperOutcome::Accepted => Ok(()),
-        crate::orange_reboot::OrangeHelperOutcome::Rejected => {
+        crate::orange_reboot::OrangePowerRequestOutcome::Accepted => Ok(()),
+        crate::orange_reboot::OrangePowerRequestOutcome::Rejected => {
             Err(format!("Orange {action} request was rejected"))
         }
-        crate::orange_reboot::OrangeHelperOutcome::NotSubmitted => {
+        crate::orange_reboot::OrangePowerRequestOutcome::NotSubmitted => {
             Err(format!("Orange {action} request was not submitted"))
         }
-        crate::orange_reboot::OrangeHelperOutcome::Indeterminate => {
+        crate::orange_reboot::OrangePowerRequestOutcome::Indeterminate => {
             Err(format!("Orange {action} request outcome is indeterminate"))
         }
     }

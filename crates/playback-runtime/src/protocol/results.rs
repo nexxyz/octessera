@@ -1,6 +1,6 @@
 use super::{
     RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
-    RuntimeSetupPortalPhase, RuntimeSetupPortalStatus,
+    RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeUserDataRestoreStatus,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -161,6 +161,10 @@ pub enum RuntimeStoreResult {
         #[serde(flatten)]
         status: RuntimeSetupPortalStatus,
     },
+    UserDataRestoreStatus {
+        #[serde(flatten)]
+        status: RuntimeUserDataRestoreStatus,
+    },
     UsbSdTransferStatus {
         active: bool,
         message: String,
@@ -216,6 +220,7 @@ impl RuntimeStoreResult {
                 RuntimeOperation::SystemInfo
             }
             Self::SetupPortalStatus { .. } => RuntimeOperation::SetupPortal,
+            Self::UserDataRestoreStatus { .. } => RuntimeOperation::Persistence,
             Self::UsbSdTransferStatus { .. } => RuntimeOperation::RuntimeDispatch,
         }
     }
@@ -289,6 +294,7 @@ impl RuntimeStoreResult {
                     None,
                 ));
             }
+            Self::UserDataRestoreStatus { .. } => return None,
             _ => return None,
         };
         Some(RuntimeErrorFacts::new(

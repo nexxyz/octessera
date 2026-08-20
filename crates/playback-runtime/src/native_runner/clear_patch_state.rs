@@ -1,3 +1,4 @@
+use super::sparks_fx_config::default_sparks_fx_selected;
 use super::*;
 
 impl NativeRunner {
