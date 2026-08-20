@@ -269,6 +269,7 @@ class DevicePackagingTests(unittest.TestCase):
             installed.mkdir()
             for name in ("octessera-pi", "LICENSE", "NOTICE"):
                 shutil.copyfile(extracted / name, installed / name)
+            (installed / "octessera-pi").chmod(0o755)
             shutil.copyfile(runtime / "octessera-runtime.json", installed / "octessera-runtime.json")
             shutil.copyfile(runtime / "SHA256SUMS", installed / "SHA256SUMS")
             installed_manifest = dict(manifest)
