@@ -6,7 +6,9 @@ use std::sync::Arc;
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
 use std::io::{Read, Write};
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
-use std::os::unix::net::{Shutdown, UnixStream};
+use std::net::Shutdown;
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+use std::os::unix::net::UnixStream;
 
 const MAX_UPDATE_OUTPUT_CHARS: usize = 512;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
