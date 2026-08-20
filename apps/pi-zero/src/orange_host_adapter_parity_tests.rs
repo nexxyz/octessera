@@ -144,7 +144,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
         );
     }
     let native_payload = runner.test_config_payload();
-    let device = NativeRunner::test_device_config_payload(native_payload.clone());
+    let device = NativeRunner::test_device_config_payload(native_payload.clone()).unwrap();
     assert_eq!(
         device["runtimeConfig"]["displayBrightness"],
         native_payload["runtimeConfig"]["displayBrightness"]

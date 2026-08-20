@@ -98,6 +98,7 @@ jobs:
           ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
           ARMBIAN_RUN_BUILD: ${{ inputs.run_build }}
           ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
+          OCTESSERA_IMAGE_MODE: diagnostic
           PUBLIC_PRESET_CONFIGURATION_URL: ${{ steps.public-inputs.outputs.public_preset_configuration_url }}
           PAYLOAD_URL: ${{ steps.public-inputs.outputs.payload_url }}
           PAYLOAD_SHA256: ${{ steps.public-inputs.outputs.payload_sha256 }}
@@ -124,6 +125,7 @@ jobs:
           armbian_build_ref: ${{ inputs.armbian_build_ref }}
           boot_proof_mode: phase5-constructor
           construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
+          image_kind: diagnostic
           share_log: yes
         env:
           PRESET_CONFIGURATION: ${{ needs.validate.outputs.public_preset_configuration_url }}
@@ -206,6 +208,7 @@ jobs:
           armbian_build_ref: ${{ inputs.armbian_build_ref }}
           boot_proof_mode: phase5-constructor
           construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
+          image_kind: diagnostic
           share_log: no
         env:
           PRESET_CONFIGURATION: ${{ secrets.ARMBIAN_PRESET_CONFIGURATION_URL }}

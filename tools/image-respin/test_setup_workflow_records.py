@@ -20,7 +20,8 @@ from setup_contract import contract_for_board, load_contract
 from setup_mutation import SETUP_TOOL_IDENTITY
 from setup_provenance import setup_tool_code_model
 from setup_workflow_record import SETUP_PROOF_TOOLS, _production_proof_identities, _validate_production_proofs, _validate_provenance, _validate_setup_proof_tools
-from workflow_record_common import RecordError, identity
+from record_paths import identity
+from record_validation import RecordError
 from test_workflow_records import notice_record, write_orange_proof, write_respin_provenance
 from trust_manifest import load_manifest, parent_context_for_board
 

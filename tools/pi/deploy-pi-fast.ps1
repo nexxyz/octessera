@@ -234,7 +234,7 @@ rm -rf $syncDirValue $remoteArchiveValue
       "cd $remoteRepoValue"
     )
     if (-not $SkipBuild) {
-      $buildCommands += "CARGO_BUILD_JOBS=1 cargo build --profile $buildProfileValue -p octessera-pi --features $featureValue"
+      $buildCommands += "CARGO_BUILD_JOBS=1 cargo build --profile $buildProfileValue -p octessera-pi --no-default-features --features $featureValue"
     }
     $buildCommands += @(
       "test -x $buildBinaryValue",

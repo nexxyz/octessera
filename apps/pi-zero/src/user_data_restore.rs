@@ -1,10 +1,17 @@
 use crate::persistence::atomic_write_json;
 use crate::user_data_archive::{self, StagedRestore};
-use playback_runtime::apply_user_preference_delta;
+use playback_runtime::apply_user_data_patch_and_preferences;
 use serde_json::Value;
 use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
+
+#[path = "user_data_restore_transaction.rs"]
+mod transaction;
+#[cfg(test)]
+pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
+#[cfg(test)]
+pub(super) use transaction::{rollback_tree, swap_tree};
 
 pub(crate) fn restore(
     store_dir: &Path,
@@ -19,6 +26,12 @@ pub(crate) fn restore(
         .ok_or_else(|| "store path has no parent".to_string())?;
     fs::create_dir_all(parent).map_err(io_error)?;
     let backup_path = parent.join(format!("octessera-pre-restore-{session}.oct"));
+    if fs::symlink_metadata(&backup_path).is_ok() {
+        return Err(format!(
+            "pre-restore backup already exists: {}",
+            backup_path.display()
+        ));
+    }
     write_pre_restore_backup(
         store_dir,
         samples_dir,
@@ -28,9 +41,16 @@ pub(crate) fn restore(
     )?;
 
     let canonical = user_data_archive::canonical_defaults();
-    let base = apply_user_preference_delta(&canonical, &staged.bundle.preferences)?;
-    let current = merged_config(&base, &staged.bundle.current_state.patch);
-    let default = merged_config(&base, &staged.bundle.default_state.patch);
+    let current = apply_user_data_patch_and_preferences(
+        &canonical,
+        &staged.bundle.current_state.patch,
+        &staged.bundle.preferences,
+    )?;
+    let default = apply_user_data_patch_and_preferences(
+        &canonical,
+        &staged.bundle.default_state.patch,
+        &staged.bundle.preferences,
+    )?;
     let new_store = parent.join(format!(".octessera-store-new-{session}"));
     let new_samples = parent.join(format!(".octessera-samples-new-{session}"));
     let old_store = parent.join(format!(".octessera-store-old-{session}"));
@@ -39,7 +59,7 @@ pub(crate) fn restore(
     let new_screen_recordings = sibling_path(screen_recordings_dir, "new", session);
     let old_recordings = sibling_path(recordings_dir, "old", session);
     let old_screen_recordings = sibling_path(screen_recordings_dir, "old", session);
-    cleanup_paths([
+    for path in [
         &new_store,
         &new_samples,
         &old_store,
@@ -48,7 +68,14 @@ pub(crate) fn restore(
         &new_screen_recordings,
         &old_recordings,
         &old_screen_recordings,
-    ]);
+    ] {
+        if fs::symlink_metadata(path).is_ok() {
+            return Err(format!(
+                "restore recovery path already exists: {}",
+                path.display()
+            ));
+        }
+    }
     let result = (|| {
         build_store_tree(store_dir, &new_store, &staged.bundle, &current, &default)?;
         build_samples_tree(
@@ -85,35 +112,8 @@ pub(crate) fn restore(
                 old_screen_recordings.as_path(),
             ),
         ];
-        for (index, (current, replacement, old)) in trees.iter().enumerate() {
-            if let Err(error) = swap_tree(current, replacement, old) {
-                for (current, replacement, old) in trees[..index].iter().rev() {
-                    rollback_tree(current, old, replacement);
-                }
-                return Err(error);
-            }
-        }
-        Ok::<_, String>(())
+        transaction::replace_trees(&trees)
     })();
-    if result.is_ok() {
-        cleanup_paths([
-            &old_store,
-            &old_samples,
-            &old_recordings,
-            &old_screen_recordings,
-        ]);
-    } else {
-        cleanup_paths([
-            &new_store,
-            &new_samples,
-            &old_store,
-            &old_samples,
-            &new_recordings,
-            &new_screen_recordings,
-            &old_recordings,
-            &old_screen_recordings,
-        ]);
-    }
     result
 }
 
@@ -257,64 +257,11 @@ fn copy_packaged_samples(root: &Path, current: &Path, target: &Path) -> Result<(
             .replace('\\', "/");
         if metadata.is_dir() {
             copy_packaged_samples(root, &path, &target.join(relative))?;
-        } else if metadata.is_file() && is_packaged_sample(&relative) {
+        } else if metadata.is_file() && user_data_archive::is_packaged_sample(&relative) {
             copy_file(&path, &target.join(relative))?;
         }
     }
     Ok(())
-}
-
-fn merged_config(base: &Value, patch: &Value) -> Value {
-    let mut result = base.clone();
-    if let Some(patch) = patch.as_object() {
-        for key in ["runtimeConfig", "mappingConfig", "system"] {
-            if let Some(value) = patch.get(key) {
-                merge_value(
-                    result
-                        .as_object_mut()
-                        .expect("canonical configuration is an object")
-                        .entry(key)
-                        .or_insert(Value::Null),
-                    value,
-                );
-            }
-        }
-    }
-    result
-}
-
-fn merge_value(target: &mut Value, source: &Value) {
-    if let Value::Object(source) = source {
-        if let Some(target) = target.as_object_mut() {
-            for (key, value) in source {
-                merge_value(target.entry(key.clone()).or_insert(Value::Null), value);
-            }
-            return;
-        }
-    }
-    *target = source.clone();
-}
-
-fn swap_tree(current: &Path, replacement: &Path, old: &Path) -> Result<(), String> {
-    if current.exists() {
-        fs::rename(current, old).map_err(io_error)?;
-    }
-    if let Err(error) = fs::rename(replacement, current) {
-        if old.exists() {
-            let _ = fs::rename(old, current);
-        }
-        return Err(io_error(error));
-    }
-    Ok(())
-}
-
-fn rollback_tree(current: &Path, old: &Path, replacement: &Path) {
-    if current.exists() {
-        let _ = fs::rename(current, replacement);
-    }
-    if old.exists() {
-        let _ = fs::rename(old, current);
-    }
 }
 
 fn copy_tree_if_present(source: &Path, target: &Path) -> Result<(), String> {
@@ -358,42 +305,8 @@ fn copy_file(source: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn cleanup_paths<const N: usize>(paths: [&Path; N]) {
-    for path in paths {
-        if path.is_dir() {
-            let _ = fs::remove_dir_all(path);
-        } else {
-            let _ = fs::remove_file(path);
-        }
-    }
-}
-
-fn is_packaged_sample(name: &str) -> bool {
-    include_str!("../../../samples/ATTRIBUTIONS.tsv")
-        .lines()
-        .skip(1)
-        .filter_map(|line| line.split('\t').next())
-        .any(|path| path == name)
-}
-
 fn io_error(error: io::Error) -> String {
     error.to_string()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn merge_replaces_arrays_and_merges_objects() {
-        let mut value = serde_json::json!({"runtimeConfig":{"a":1,"b":[1]}});
-        merge_value(
-            &mut value,
-            &serde_json::json!({"runtimeConfig":{"a":2,"b":[3]}}),
-        );
-        assert_eq!(value["runtimeConfig"]["a"], 2);
-        assert_eq!(value["runtimeConfig"]["b"], serde_json::json!([3]));
-    }
 }
 
 #[cfg(test)]

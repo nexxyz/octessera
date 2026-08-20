@@ -17,6 +17,7 @@ python3 "$LEGAL_STAGER" \
 
 for updater_file in \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_protocol.py" \
+    "$STAGE_FILES/root/usr/local/lib/octessera/updater_contract.py" \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_state.py" \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_assets.py" \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_guard.py" \
@@ -150,6 +151,9 @@ install -D -m 0755 \
 install -D -m 0644 \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_protocol.py" \
     "$ROOTFS_DIR/usr/local/lib/octessera/updater_protocol.py"
+install -D -m 0644 \
+    "$STAGE_FILES/root/usr/local/lib/octessera/updater_contract.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/updater_contract.py"
 install -D -m 0644 \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_state.py" \
     "$ROOTFS_DIR/usr/local/lib/octessera/updater_state.py"

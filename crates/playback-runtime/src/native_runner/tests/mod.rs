@@ -12,11 +12,15 @@ mod behavior_palette;
 mod browser_and_help;
 mod canonical_defaults;
 mod config_dto;
+mod config_field_partition;
 mod config_persistence;
+mod config_schema_validation_matrix;
 mod config_transactions;
+mod construction_defaults;
 mod controls;
 mod dim_sleep;
 mod display_transients;
+mod duck_fx_ranges;
 mod fast_dispatch_parity;
 mod happy_path;
 mod hdmi;
@@ -50,10 +54,12 @@ mod sparks_menu;
 mod sparks_overlay;
 mod step_rates;
 mod store;
+mod store_result_contracts;
 mod structural_draft;
 mod trigger_gates;
 mod twinkle;
 mod ui_scenario;
+mod user_data_restore;
 
 pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
     messages

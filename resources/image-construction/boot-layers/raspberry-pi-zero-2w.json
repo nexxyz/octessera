@@ -13,7 +13,7 @@
     {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "995d149e029a38413a5cd2074536d73d8aa1ca0b3558a14b7eb287dca41f9412", "size": 1380},
     {"path": "resources/legal/notice-bundle.json", "sha256": "3ad7318375701154924a41eb90734d81ac01f7b7a33e0ca9997be6cd1b44e7a3", "size": 6448},
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320},
-    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "3bf854bf1c1b3098f7988b2846db6715765af9f7ba0e7b3e9ac3ab7cdecff25e", "size": 14885},
+    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "61f26c2f8d9e4c6cec7b868a8bb23c411c3956eb293418ed3041b334e1777568", "size": 15108},
     {"path": "tools/pi-image/stage-musical-assets.sh", "sha256": "8600c8cac45c4468a024bab1edc5b0217a0c5e8daacbe0c3774282349ab3a07d", "size": 595},
     {"path": "tools/pi-image/install-musical-assets.sh", "sha256": "9d647ef3b17e9cae47a97b8fe1faffcfc3e0240846fe275c4c8d939db33ba91f", "size": 1639},
     {"path": "tools/samples/sample_library.py", "sha256": "b23ee501d0c200ac8bdd68fede900ff55442be0e7a891ff0c190c2cb75fcef33", "size": 13680},
@@ -28,18 +28,22 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "sha256": "f016d0be1aaeef4c0d60f745f149374837f975ddb4ab2bf87eefeca7a2c2b65e", "size": 1535},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service", "sha256": "120d44a26c390ec700cd4d0daab2d0e6a88fe9e5bdae56fa27f37e3e002f34ef", "size": 1020},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service", "sha256": "0f558ef3da2169e919262c17a746e4f00fdc42eb712dc1dc62eaa1f919b83bd1", "size": 904},
-    {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "be4ee0698557cf0e18e7b643ca37e5914d9e93c73b258dd4828f9b4afb205337", "size": 29775},
+    {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "620e6fc8a651e7f47317fb97871a6961a481899fa75d9f1dbe1b4b4aef580dcc", "size": 6403},
+    {"path": "tools/pi-image/rpi_kernel_image_mount.py", "sha256": "e665a41335a1cb8998e8072829ddcb12eb21749acea94845ce1836d082d67df2", "size": 3678},
+    {"path": "tools/pi-image/rpi_kernel_boot_proof.py", "sha256": "d0c1a5c0cc594ce548d84bfc0153c0bcbb41b78cf65b34e25a0e2c03c4f9cff1", "size": 16675},
+    {"path": "tools/pi-image/rpi_kernel_payload_proof.py", "sha256": "07aa3455ecc66259d114abf2c37d7fade32b05729e879b8d658d2b4af62731d8", "size": 3316},
+    {"path": "tools/pi-image/rpi_kernel_stock_recovery.py", "sha256": "57344adbcc39bd067c77f2ee06822e9b9fb808d7ab9cf3a4ba4b755f7c505ac4", "size": 2406},
     {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "22d8ba31cf016c665f562d3fa7b9004e00c280984eef08d646f86862b1093d32", "size": 23278},
     {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "f7cac2565eac097cc95fbeb0a8f092392964e13788420f65a725d98e3fffcf6d", "size": 18664},
     {"path": "tools/pi-image/verify-rpi-samples.py", "sha256": "d6fcce97fc244aa4668bf92a768b852f315241193eb93863c75f755db3be3231", "size": 3351},
     {"path": "tools/pi/provision/files/boot/config.txt.initramfs.append", "sha256": "c14d03356c1edcbf170d91c4eda896705fda0930ac8b61b9c631a5ebec89fe92", "size": 73},
     {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},
     {"path": "tools/pi/provision/files/etc/systemd/system/octessera.service.template", "sha256": "526ae581ef89c27f1b465ee32a34b7edd6ae84a61698fcad5afc7dcddf044857", "size": 922},
-    {"path": "tools/pi/provision/provision.sh", "sha256": "54cd00421ae23f53b0a7d52de206bc0a387f74b604cb18e1993d1a2927e4c3a1", "size": 14447}
+    {"path": "tools/pi/provision/provision.sh", "sha256": "5309db2d7d66abf221636d48b06b189b538d29ff2095a0999d0238105d00ea03", "size": 14552}
   ],
   "live_parity_inputs": [
-    {"path": "tools/pi/deploy-pi.sh", "sha256": "f6b0adeb72e2e0d23a979b092aab1ffa45f5fb4e44ae0bf9084cb666ebcf127d", "size": 17225},
-    {"path": "tools/pi/provision/provision.sh", "sha256": "54cd00421ae23f53b0a7d52de206bc0a387f74b604cb18e1993d1a2927e4c3a1", "size": 14447}
+    {"path": "tools/pi/deploy-pi.sh", "sha256": "54ea212f4fefa218315d3a9a9e982e3cfcc311cea832be339e8733ce6b1179ce", "size": 17245},
+    {"path": "tools/pi/provision/provision.sh", "sha256": "5309db2d7d66abf221636d48b06b189b538d29ff2095a0999d0238105d00ea03", "size": 14552}
   ],
   "notice_bundle": {
     "manifest": "resources/legal/notice-bundle.json",

@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from updater_protocol import BINARY, MANIFEST, MAX_ARCHIVE_BYTES, MAX_ENTRY_BYTES, MAX_SUMS_BYTES, MAX_TOTAL_UNCOMPRESSED_BYTES, MAX_ZIP_ENTRIES
+from updater_contract import BINARY, MANIFEST, MAX_ARCHIVE_BYTES, MAX_ENTRY_BYTES, MAX_SUMS_BYTES, MAX_TOTAL_UNCOMPRESSED_BYTES, MAX_ZIP_ENTRIES
 
 
 def extract_zip(updater, archive: Path, destination: Path, expected_version: str) -> dict:

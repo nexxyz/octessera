@@ -399,7 +399,18 @@ fn dispatch(
     host: &mut OrangeHostAdapter,
     message: HostMessage,
 ) -> Result<(), String> {
-    host.handle_transfer_input(&message);
+    let dispatch_input = host.handle_transfer_input(&message);
+    while let Some(status) = host.take_transfer_status() {
+        let output = playback.dispatch(
+            playback_runtime::RuntimeDispatchInput::HostMessage(status),
+            runner,
+            host,
+        )?;
+        process_runtime_output(playback, runner, host, output)?;
+    }
+    if !dispatch_input {
+        return Ok(());
+    }
     let output = playback.dispatch(
         playback_runtime::RuntimeDispatchInput::HostMessage(message),
         runner,

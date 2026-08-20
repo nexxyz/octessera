@@ -119,7 +119,7 @@ function Invoke-DockerBuild {
       -e PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/ `
       -e PKG_CONFIG_ALLOW_CROSS=1 `
       $Image `
-      bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --features $cargoFeature; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
+      bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --no-default-features --features $cargoFeature; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
   }
 }
 
@@ -162,7 +162,7 @@ function Invoke-NativeCrossBuild {
   Write-Output "Building octessera-pi for $Target ($Profile) with native cross tools"
   Invoke-CheckedCommand "rustup target add" { & rustup target add $Target }
   Invoke-CheckedCommand "cargo build" {
-    & cargo build --target $Target --profile $Profile -p octessera-pi --features $cargoFeature
+    & cargo build --target $Target --profile $Profile -p octessera-pi --no-default-features --features $cargoFeature
   }
 }
 

@@ -12,22 +12,6 @@ use crate::hardware_test_noise::input_idle_noise_check;
 const TEST_DURATION: Duration = Duration::from_secs(90);
 const NEOKEY_DEBOUNCE_SAMPLES: u8 = 2;
 
-pub(crate) fn requested() -> bool {
-    std::env::args().skip(1).any(|arg| arg == "--hardware-test")
-        || std::env::var("OCTESSERA_PI_HARDWARE_TEST")
-            .ok()
-            .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"))
-}
-
-pub(crate) fn noise_requested() -> bool {
-    std::env::args()
-        .skip(1)
-        .any(|arg| arg == "--hardware-noise-test")
-        || std::env::var("OCTESSERA_PI_HARDWARE_NOISE_TEST")
-            .ok()
-            .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"))
-}
-
 pub(crate) fn run_noise_only() -> bool {
     println!("octessera no-touch hardware noise test mode");
     let options = NoiseTestOptions::from_args();
@@ -93,8 +77,8 @@ impl NoiseTestOptions {
     }
 }
 
-pub(crate) fn run() -> bool {
-    println!("octessera hardware test mode");
+pub(crate) fn run_interactive() -> bool {
+    println!("octessera interactive hardware test mode");
     let _i2c = match I2CBus::new(1) {
         Ok(bus) => bus,
         Err(error) => return fail(format!("I2C init failed: {error}")),

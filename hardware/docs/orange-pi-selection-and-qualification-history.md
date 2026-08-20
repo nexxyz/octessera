@@ -141,7 +141,7 @@ This section describes the separate diagnostic image and smoke-utility path. Run
 it in order on one identified board when qualifying hardware. It intentionally
 does not install or enable the production service. The production path is
 documented in the [current Armbian bring-up procedure](orange-pi-armbian-bringup.md)
-and under [Runtime service status](orange-pi-armbian-bringup.md#runtime-service-status).
+and under [Runtime service status](orange-pi-production-reference.md#production-service-contract).
 Record the board revision, PCB/harness revision, image/kernel/DT identity,
 artifact SHA-256, and timestamps for every gate.
 

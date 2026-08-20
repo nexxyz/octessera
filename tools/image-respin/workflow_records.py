@@ -8,12 +8,14 @@ try:
     from .post_proof_record import build_record as build_post_record, validate_record as validate_post_record
     from .requested_build_record import build_record as build_requested_record, validate_record as validate_requested_record
     from .setup_workflow_record import build_record as build_setup_post_record, validate_record as validate_setup_post_record
-    from .workflow_record_common import RecordError, load_json, require, write_new
+    from .record_documents import load_json, write_new
+    from .record_validation import RecordError, require
 except ImportError:
     from post_proof_record import build_record as build_post_record, validate_record as validate_post_record
     from requested_build_record import build_record as build_requested_record, validate_record as validate_requested_record
     from setup_workflow_record import build_record as build_setup_post_record, validate_record as validate_setup_post_record
-    from workflow_record_common import RecordError, load_json, require, write_new
+    from record_documents import load_json, write_new
+    from record_validation import RecordError, require
 
 
 def _assignment(value: str, label: str) -> tuple[str, str]:

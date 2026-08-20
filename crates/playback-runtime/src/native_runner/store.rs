@@ -1,26 +1,11 @@
-use crate::native_menu::NativeMenuAction;
-use crate::protocol::{RuntimeErrorFacts, RuntimePlatformEffect, RuntimeStoreResult};
+use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 
 use super::{
-    clean_preset_name, native_factory_payload, portable_patch_payload_for_save, wrap_help_text,
-    NativeConfirmDialog, NativeRunner, NativeRuntimeErrorPresentation, NativeSampleBrowser,
+    clean_preset_name, native_factory_payload, portable_patch_payload_for_save, NativeRunner,
     NativeToast,
 };
 
 impl NativeRunner {
-    fn acknowledge_config_save(&mut self, revision: Option<u64>) {
-        let Some(revision) = revision else {
-            return;
-        };
-        if self.pending.pending_save_revision == Some(revision) {
-            self.pending.pending_save_revision = None;
-        }
-        if self.dirty_revision == Some(revision) && self.config_revision == revision {
-            self.config_dirty = false;
-            self.dirty_revision = None;
-        }
-    }
-
     pub(super) fn apply_factory_payload(&mut self) -> Result<(), String> {
         self.apply_config_payload(native_factory_payload())?;
         self.stop_for_config_load();
@@ -107,129 +92,6 @@ impl NativeRunner {
         Ok(effect)
     }
 
-    pub(super) fn confirmation_for_action(
-        &self,
-        action: &NativeMenuAction,
-    ) -> Option<NativeConfirmDialog> {
-        let instrument_detail = match action {
-            NativeMenuAction::CloneInstrument { index } => {
-                Some(("Confirm Clone", format!("Clone instrument I{}?", index + 1)))
-            }
-            NativeMenuAction::ResetInstrument { index } => {
-                Some(("Confirm Reset", format!("Reset instrument I{}?", index + 1)))
-            }
-            _ => None,
-        };
-        if let Some((title, detail)) = instrument_detail {
-            return Some(NativeConfirmDialog {
-                title: title.into(),
-                lines: wrap_help_text(&detail, 28),
-                options: vec!["Cancel".into(), "Confirm".into()],
-                cursor: 0,
-                action: action.clone(),
-                cancel_toast: Some("Cancelled".into()),
-                confirm_before_execute: false,
-            });
-        }
-        let NativeMenuAction::PlatformEffect(action_type) = action else {
-            return None;
-        };
-        let (title, detail) = if action_type == "preset.saveAs" {
-            (
-                "Confirm Save",
-                format!(
-                    "Save preset {}?",
-                    clean_preset_name(&self.preset_draft_name)
-                ),
-            )
-        } else if action_type == "preset.saveCurrent" {
-            let name = self.current_preset_name.as_ref()?;
-            ("Confirm Save", format!("Overwrite preset {name}?"))
-        } else if action_type == "preset.renameApply" {
-            let from = self.preset_rename_source.as_ref()?;
-            (
-                "Confirm Rename",
-                format!(
-                    "Rename {from} to {}?",
-                    clean_preset_name(&self.preset_draft_name)
-                ),
-            )
-        } else if let Some(name) = action_type.strip_prefix("preset.load:") {
-            ("Confirm Load", format!("Load preset {name}?"))
-        } else if let Some(name) = action_type.strip_prefix("preset.delete:") {
-            ("Confirm Delete", format!("Delete preset {name}?"))
-        } else if action_type == "default.save" {
-            ("Confirm Default", "Save current default?".into())
-        } else if action_type == "default.load" {
-            ("Confirm Default", "Load saved default?".into())
-        } else if action_type == "factory.load" {
-            ("Confirm Factory", "Load factory settings?".into())
-        } else if action_type == "system.clearAll" {
-            ("Confirm Load Empty", "Load empty patch state?".into())
-        } else if action_type == "midi.panic" {
-            ("Confirm MIDI", "Send MIDI panic?".into())
-        } else if action_type == "system.reboot" {
-            ("Confirm Reboot", "Reboot Octessera?".into())
-        } else if action_type == "system.shutdown" {
-            ("Confirm Shutdown", "Shut down Octessera?".into())
-        } else if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
-            ("Confirm Audio", "Save audio settings and reboot?".into())
-        } else if action_type == "usb.sdTransferStart" {
-            (
-                "Confirm SD2 Transfer",
-                "USB audio/MIDI disconnect. Host owns OLED SD2 until stopped.".into(),
-            )
-        } else if action_type == "usb.sdTransferStop" {
-            (
-                "Confirm SD2 Transfer",
-                "Eject OLED SD2 on the host first, then stop transfer.".into(),
-            )
-        } else if action_type == "system.hardwareTest" {
-            ("Confirm Hardware Test", "Run the hardware test?".into())
-        } else if action_type == "system.configureWifi" {
-            return Some(NativeConfirmDialog {
-                title: "Open Wi-Fi Setup".into(),
-                lines: vec![
-                    "Playback stops.".into(),
-                    "Wi-Fi disconnects.".into(),
-                    "Setup may change:".into(),
-                    "SSH, hostname,".into(),
-                    "and login.".into(),
-                ],
-                options: vec!["Cancel".into(), "Open Portal".into()],
-                cursor: 0,
-                action: action.clone(),
-                cancel_toast: Some("Cancelled".into()),
-                confirm_before_execute: false,
-            });
-        } else if action_type == "system.updateApply" {
-            ("Confirm Update", "Apply the update now?".into())
-        } else if action_type == "system.rollback" {
-            (
-                "Confirm Rollback",
-                "Rollback to the previous release?".into(),
-            )
-        } else {
-            let rest = action_type.strip_prefix("synth.preset:")?;
-            let preset = rest.split(':').nth(1).unwrap_or("preset");
-            ("Confirm Synth", format!("Load synth preset {preset}?"))
-        };
-        let options = if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
-            vec!["Cancel".into(), "Save & Reboot".into()]
-        } else {
-            vec!["Cancel".into(), "Confirm".into()]
-        };
-        Some(NativeConfirmDialog {
-            title: title.into(),
-            lines: wrap_help_text(&detail, 28),
-            options,
-            cursor: 0,
-            action: action.clone(),
-            cancel_toast: Some("Cancelled".into()),
-            confirm_before_execute: false,
-        })
-    }
-
     pub(super) fn apply_store_result(&mut self, result: RuntimeStoreResult) -> Result<(), String> {
         match result {
             RuntimeStoreResult::Identified {
@@ -241,224 +103,105 @@ impl NativeRunner {
                     self.apply_setup_portal_status(status.clone(), Some(request_id), revision);
                     return Ok(());
                 }
+                if let RuntimeStoreResult::UserDataRestoreStatus { status } = result.as_ref() {
+                    self.apply_user_data_restore_status(status.clone(), Some(request_id), revision);
+                    return Ok(());
+                }
                 let operation = result.operation();
                 let succeeded = result.error_facts().is_none();
-                self.apply_store_result(*result)?;
-                if succeeded
-                    && matches!(
-                        operation,
-                        crate::protocol::RuntimeOperation::StoreSavePreset
-                            | crate::protocol::RuntimeOperation::StoreSaveDefault
-                    )
-                {
+                let is_save_operation = matches!(
+                    &operation,
+                    crate::protocol::RuntimeOperation::StoreSavePreset
+                        | crate::protocol::RuntimeOperation::StoreSaveDefault
+                );
+                let apply_result = self.apply_store_result(*result);
+                if let Err(error) = apply_result {
+                    if operation == crate::protocol::RuntimeOperation::StoreLoadDefault
+                        && self.restore_rehydration_pending()
+                    {
+                        self.fail_restore_rehydration();
+                    }
+                    return Err(error);
+                }
+                if !succeeded && is_save_operation {
+                    self.retry_config_save_after_restore_failure();
+                }
+                if succeeded && is_save_operation {
                     self.acknowledge_config_save(revision);
                 }
             }
-            RuntimeStoreResult::LoadDefaultResult {
-                payload: Some(payload),
-            } => {
-                self.apply_config_payload(payload)?;
-                self.stop_for_config_load();
-                self.display.toast = Some(NativeToast {
-                    message: "Default loaded".into(),
-                    offset: 0,
-                });
-            }
-            RuntimeStoreResult::LoadPresetResult { name, payload } => {
-                if let Some(payload) = payload {
-                    self.apply_patch_payload_preserving_device(payload)?;
-                    self.stop_for_config_load();
+            result => {
+                let operation = result.operation();
+                let failed = result.error_facts().is_some();
+                let is_save_operation = matches!(
+                    &operation,
+                    crate::protocol::RuntimeOperation::StoreSavePreset
+                        | crate::protocol::RuntimeOperation::StoreSaveDefault
+                );
+                if failed && is_save_operation {
+                    self.retry_config_save_after_restore_failure();
                 }
-                self.display.toast = Some(NativeToast {
-                    message: format!("Loaded {name}"),
-                    offset: 0,
-                });
-                self.current_preset_name = Some(name);
-            }
-            RuntimeStoreResult::SavePresetResult { name, .. } => {
-                if let Some(source) = self.preset_rename_source.take() {
-                    if source != name {
-                        self.outbox.push_platform_effect(
-                            RuntimePlatformEffect::StoreDeletePreset { name: source },
-                        );
+                if failed
+                    && operation == crate::protocol::RuntimeOperation::StoreLoadDefault
+                    && self.restore_rehydration_pending()
+                {
+                    self.fail_restore_rehydration();
+                }
+                let apply_result = self.apply_unidentified_store_result(result);
+                if let Err(error) = apply_result {
+                    if operation == crate::protocol::RuntimeOperation::StoreLoadDefault
+                        && self.restore_rehydration_pending()
+                    {
+                        self.fail_restore_rehydration();
                     }
-                }
-                self.display.toast = Some(NativeToast {
-                    message: format!("Saved {name}"),
-                    offset: 0,
-                });
-                self.current_preset_name = Some(name);
-                self.acknowledge_config_save(None);
-                self.menu.rebuild(self.menu_config());
-            }
-            RuntimeStoreResult::DeletePresetResult { name, ok } if ok => {
-                if self.current_preset_name.as_deref() == Some(name.as_str()) {
-                    self.current_preset_name = None;
-                }
-                self.display.toast = Some(NativeToast {
-                    message: format!("Deleted {name}"),
-                    offset: 0,
-                });
-            }
-            RuntimeStoreResult::SaveDefaultResult { ok, is_auto: _ } if ok => {
-                self.show_saved_default_feedback();
-                self.acknowledge_config_save(None);
-            }
-            RuntimeStoreResult::SaveBackupResult { .. }
-            | RuntimeStoreResult::SaveRecoveryResult { .. } => {}
-            RuntimeStoreResult::StoreError { message } => {
-                self.display.usb_sd_transfer_modal = None;
-                self.display.toast = Some(NativeToast { message, offset: 0 });
-            }
-            RuntimeStoreResult::UsbSdTransferStatus { active, message } => {
-                if !active {
-                    self.display.usb_sd_transfer_modal = None;
-                }
-                self.display.toast = Some(NativeToast { message, offset: 0 });
-            }
-            RuntimeStoreResult::DeviceUpdateStatus { message, .. } => {
-                self.display.toast = Some(NativeToast { message, offset: 0 });
-            }
-            RuntimeStoreResult::SystemInfoResult { info } => {
-                if let Some(modal) = self.display.system_info_modal.as_mut() {
-                    modal.state = super::NativeSystemInfoState::Ready(info.sanitized());
-                    modal.scroll = 0;
+                    return Err(error);
                 }
             }
-            RuntimeStoreResult::SystemInfoError { error } => {
-                if let Some(modal) = self.display.system_info_modal.as_mut() {
-                    Self::set_system_info_error(modal, error);
-                    modal.scroll = 0;
-                }
-            }
-            RuntimeStoreResult::SetupPortalStatus { status } => {
-                self.apply_setup_portal_status(status, None, None);
-            }
-            RuntimeStoreResult::RuntimeFailure { error }
-                if error.operation == crate::RuntimeOperation::SystemInfo =>
-            {
-                self.display.runtime_error_presentation = None;
-                if let Some(modal) = self.display.system_info_modal.as_mut() {
-                    Self::set_system_info_error(
-                        modal,
-                        super::RuntimeSystemInfoError {
-                            code: error.code,
-                            message: error
-                                .message
-                                .unwrap_or_else(|| "system info request failed".into()),
-                        },
-                    );
-                    modal.scroll = 0;
-                }
-            }
-            RuntimeStoreResult::RuntimeFailure { error } => {
-                self.display.runtime_error_presentation = None;
-                let sample_changed = self.mark_sample_unavailable_from_error(&error);
-                if midi_input_list_failure(&error) {
-                    self.display.runtime_error_presentation =
-                        Some(NativeRuntimeErrorPresentation {
-                            title: "MIDI INPUTS".into(),
-                            lines: vec!["MIDI unavailable".into()],
-                        });
-                    self.show_toast("MIDI unavailable");
-                }
-                if sample_changed {
-                    self.menu.rebuild(self.menu_config());
-                }
-            }
-            RuntimeStoreResult::ListPresetsResult { names } => {
-                self.preset_names = names;
-                self.menu.rebuild(self.menu_config());
-            }
-            RuntimeStoreResult::MidiListOutputsResult { outputs } => {
-                self.midi_outputs = outputs;
-                self.menu.rebuild(self.menu_config());
-            }
-            RuntimeStoreResult::MidiListInputsResult { inputs } => {
-                self.midi_inputs = inputs;
-                self.display.runtime_error_presentation = None;
-                self.menu.rebuild(self.menu_config());
-            }
-            RuntimeStoreResult::MidiStatus {
-                ok,
-                message,
-                selected_out_id,
-                selected_in_id,
-            } => {
-                self.midi_status = Some(if ok {
-                    "MIDI ok".into()
-                } else {
-                    message.unwrap_or_else(|| "MIDI error".into())
-                });
-                self.selected_midi_output_id = selected_out_id;
-                self.selected_midi_input_id = selected_in_id;
-            }
-            RuntimeStoreResult::SampleListResult {
-                instrument_slot,
-                sample_slot,
-                dir,
-                entries,
-            } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
-                let entries =
-                    self.browser_entries_for_result(instrument_slot, sample_slot, &dir, entries);
-                self.sample_browser = Some(NativeSampleBrowser {
-                    instrument_slot,
-                    sample_slot,
-                    dir,
-                    entries,
-                });
-                self.menu.rebuild(self.menu_config());
-            }
-            RuntimeStoreResult::SampleListError {
-                instrument_slot,
-                sample_slot,
-                dir,
-                message,
-            } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
-                let entries = self.unavailable_browser_entries(instrument_slot, sample_slot, &dir);
-                self.sample_browser = Some(NativeSampleBrowser {
-                    instrument_slot,
-                    sample_slot,
-                    dir,
-                    entries,
-                });
-                self.display.toast = Some(NativeToast { message, offset: 0 });
-                self.menu.rebuild(self.menu_config());
-            }
-            _ => {}
         }
         Ok(())
     }
 
-    fn set_system_info_error(
-        modal: &mut super::NativeSystemInfoModal,
-        error: super::RuntimeSystemInfoError,
-    ) {
-        modal.state = if error.code == crate::RuntimeErrorCode::Unavailable {
-            super::NativeSystemInfoState::Unavailable(error)
-        } else {
-            super::NativeSystemInfoState::Error(error)
-        };
+    fn apply_unidentified_store_result(
+        &mut self,
+        result: RuntimeStoreResult,
+    ) -> Result<(), String> {
+        match result {
+            result @ (RuntimeStoreResult::ListPresetsResult { .. }
+            | RuntimeStoreResult::LoadPresetResult { .. }
+            | RuntimeStoreResult::SavePresetResult { .. }
+            | RuntimeStoreResult::DeletePresetResult { .. }
+            | RuntimeStoreResult::LoadDefaultResult { .. }
+            | RuntimeStoreResult::SaveDefaultResult { .. }
+            | RuntimeStoreResult::SaveBackupResult { .. }
+            | RuntimeStoreResult::SaveRecoveryResult { .. }) => {
+                self.apply_store_persistence_result(result)
+            }
+            result @ (RuntimeStoreResult::MidiListOutputsResult { .. }
+            | RuntimeStoreResult::MidiListInputsResult { .. }
+            | RuntimeStoreResult::MidiStatus { .. }) => self.apply_midi_result(result),
+            result @ (RuntimeStoreResult::SampleListResult { .. }
+            | RuntimeStoreResult::SampleListError { .. }) => {
+                self.apply_sample_browser_result(result)
+            }
+            result @ (RuntimeStoreResult::SystemInfoResult { .. }
+            | RuntimeStoreResult::SystemInfoError { .. }
+            | RuntimeStoreResult::SetupPortalStatus { .. }) => {
+                self.apply_setup_system_result(result)
+            }
+            result @ RuntimeStoreResult::UserDataRestoreStatus { .. } => {
+                self.apply_user_data_restore_result(result)
+            }
+            result @ (RuntimeStoreResult::StoreError { .. }
+            | RuntimeStoreResult::DeviceUpdateStatus { .. }
+            | RuntimeStoreResult::UsbSdTransferStatus { .. }
+            | RuntimeStoreResult::RuntimeFailure { .. }) => {
+                self.apply_error_presentation_result(result)
+            }
+            RuntimeStoreResult::Identified { .. }
+            | RuntimeStoreResult::OperationSucceeded { .. }
+            | RuntimeStoreResult::SamplePreviewError { .. } => Ok(()),
+        }
     }
-
-    fn sample_browser_matches(
-        &self,
-        instrument_slot: usize,
-        sample_slot: usize,
-        dir: &str,
-    ) -> bool {
-        self.sample_browser.as_ref().is_some_and(|browser| {
-            browser.instrument_slot == instrument_slot
-                && browser.sample_slot == sample_slot
-                && browser.dir == dir
-        })
-    }
-}
-
-fn midi_input_list_failure(error: &RuntimeErrorFacts) -> bool {
-    error.domain == crate::RuntimeErrorDomain::Midi
-        && error.code == crate::RuntimeErrorCode::OperationFailed
-        && error.operation == crate::RuntimeOperation::MidiListInputs
 }
 
 #[cfg(test)]

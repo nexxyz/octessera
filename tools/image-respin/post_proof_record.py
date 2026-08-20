@@ -16,7 +16,11 @@ try:
     from .boot_neutral import load_policy
     from .setup_contract import load_contract as load_setup_contract
     from .setup_provenance import setup_tool_code_model
-    from .workflow_record_common import RecordError, SHA_RE, canonical_bytes, identity, load_json, project_path, require, require_keys, resolve, tool_identity, verify_identity, verify_source, verify_tool
+    from .record_documents import load_json
+    from .record_hashing import canonical_bytes
+    from .record_paths import identity, project_path, resolve, verify_identity
+    from .record_tool_contract import tool_identity, verify_tool
+    from .record_validation import RecordError, SHA_RE, require, require_keys, verify_source
 except ImportError:
     from requested_build_record import BOARDS as BUILD_BOARDS, validate_record as validate_requested
     from disk_packaging import compression_identity
@@ -28,7 +32,11 @@ except ImportError:
     from boot_neutral import load_policy
     from setup_contract import load_contract as load_setup_contract
     from setup_provenance import setup_tool_code_model
-    from workflow_record_common import RecordError, SHA_RE, canonical_bytes, identity, load_json, project_path, require, require_keys, resolve, tool_identity, verify_identity, verify_source, verify_tool
+    from record_documents import load_json
+    from record_hashing import canonical_bytes
+    from record_paths import identity, project_path, resolve, verify_identity
+    from record_tool_contract import tool_identity, verify_tool
+    from record_validation import RecordError, SHA_RE, require, require_keys, verify_source
 
 
 SCHEMA = "octessera.image-respin-post-proof/v1"

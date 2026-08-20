@@ -251,7 +251,7 @@ jobs:
           grep -F 'PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig/"' Dockerfile.pi-zero
           grep -F 'PKG_CONFIG_ALLOW_CROSS=1' Dockerfile.pi-zero
       - name: Build Pi app with cross
-        run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
+        run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-raspberry-pi-zero-2w
       - name: Compile deprecated Pi app compatibility alias hardware-rpi-zero-2w
         run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-rpi-zero-2w
       - name: Compile deprecated Pi app compatibility alias hardware-pi
@@ -297,10 +297,11 @@ jobs:
           python3 tools/pi-image/test-welcome.py
           sudo bash tools/pi-image/test-sanitized-image-boot-layout.sh
           sudo python3 tools/pi-image/test-rpi-kernel-image.py
-          bash tools/armbian-image/validate.sh
+          OCTESSERA_IMAGE_MODE=diagnostic bash tools/armbian-image/validate.sh
           bash tools/armbian-image/test-build-armbian-action.sh
           python3 tools/kernel-patches/test-orange-midi-interface-source-gate.py
-          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/stage4-octessera/03-boot-config/00-run.sh tools/pi/provision/provision.sh tools/pi-image/verify-boot-layout.sh tools/pi-image/verify-trusted-parent-v0.7.5.sh tools/armbian-image/stage-canonical-welcome.sh
+          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/orange-pi/test-orange-pi-usb-gadget.sh tools/orange-pi/test-orange-pi-usb-gadget-electrical.sh tools/orange-pi/test-orange-pi-usb-gadget-fixture.sh tools/orange-pi/test-orange-pi-usb-gadget-function.sh tools/orange-pi/test-orange-pi-usb-gadget-host-enumeration.sh tools/orange-pi/test-orange-pi-usb-gadget-passive.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh tools/pi-image/test-usb-gadget-electrical.sh tools/pi-image/test-usb-gadget-fixture.sh tools/pi-image/test-usb-gadget-gadget.sh tools/pi-image/test-usb-gadget-host.sh tools/pi-image/test-usb-gadget-layout.sh tools/pi-image/test-sanitized-image-boot-layout.sh tools/pi-image/test-sanitized-image-boot-layout-boot.sh tools/pi-image/test-sanitized-image-boot-layout-fixture.sh tools/pi-image/test-sanitized-image-boot-layout-layout.sh tools/pi-image/test-sanitized-image-boot-layout-sanitization.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/stage4-octessera/03-boot-config/00-run.sh tools/pi/provision/provision.sh tools/pi-image/verify-boot-layout.sh tools/pi-image/verify-trusted-parent-v0.7.5.sh tools/armbian-image/stage-canonical-welcome.sh tools/armbian-image/test-inspector.sh tools/armbian-image/test-orange-image-proof.sh tools/armbian-image/inspect-account-ssh.sh tools/armbian-image/inspect-device-tree.sh tools/armbian-image/inspect-mode.sh tools/armbian-image/inspect-network.sh tools/armbian-image/inspect-path.sh tools/armbian-image/inspect-runtime-account.sh tools/armbian-image/inspect-runtime-contracts.sh tools/armbian-image/inspect-runtime-device-apply.sh tools/armbian-image/inspect-runtime-mode.sh tools/armbian-image/inspect-runtime-oled.sh tools/armbian-image/inspect-runtime-service.sh tools/armbian-image/inspect-runtime-udev.sh tools/armbian-image/inspect-runtime.sh tools/armbian-image/validation-assertions.sh tools/armbian-image/test-inspector-account.sh tools/armbian-image/test-inspector-device-tree.sh tools/armbian-image/test-inspector-fixture.sh tools/armbian-image/test-inspector-network.sh tools/armbian-image/test-inspector-runtime.sh
+          shellcheck userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh userpatches/extensions/octessera_midi.sh userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh userpatches/overlay/usr/local/lib/octessera/orange-sample-assets.sh tools/armbian-image/validation-runner.sh tools/armbian-image/validation-assertions.sh tools/armbian-image/inspect-path.sh tools/armbian-image/inspect-mode.sh tools/armbian-image/validate.sh tools/armbian-image/validate-device-tree.sh tools/armbian-image/validate-security-policy.sh tools/armbian-image/validate-image-proof.sh tools/armbian-image/test-validation-runner.sh tools/armbian-image/test-musical-assets.sh tools/armbian-image/test-image-mode.sh tools/armbian-image/test-orange-alsa-sequencer.sh
           bash tools/orange-pi/test-opi-bringup-probe.sh
           bash tools/orange-pi/test-orange-pi-usb-gadget.sh
           bash tools/pi-image/test-usb-gadget.sh
@@ -320,6 +321,12 @@ jobs:
       - name: Validate Raspberry profile boundaries
         shell: pwsh
         run: ./tools/pi/test-board-profile.ps1
+      - name: Validate Raspberry preflight shared-evidence sanitization
+        shell: pwsh
+        run: ./tools/pi/test-pi-preflight.ps1
+      - name: Validate FAT evidence preparation safety
+        shell: pwsh
+        run: ./tools/fat/test-prepare-evidence.ps1
       - name: Validate fast deployment target handling
         shell: pwsh
         run: ./tools/pi/test-deploy-pi-fast.ps1
@@ -435,7 +442,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Check updater Python transitions
         run: |
-          python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/updater_profiles.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
+          python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_contract.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/updater_profiles.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
           python3 -m unittest discover -s tools/device-update -p 'test_*.py'
           bash tools/device-update/smoke-test.sh
       - name: Check updater shells and canonical copies

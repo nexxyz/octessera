@@ -47,6 +47,65 @@ pub(crate) fn configure_wifi_uses_a_stable_resolvable_action_help_key() {
 }
 
 #[test]
+pub(crate) fn duck_range_help_does_not_resolve_for_compressor_slots() {
+    for (parameter, label, range) in [
+        ("attackMs", "Attack", "1–500 ms"),
+        ("releaseMs", "Release", "1–5000 ms"),
+    ] {
+        let duck_target = fx_bus_parameter_help_target("duck", "Duck", parameter, label);
+        let duck_entry =
+            crate::native_help::resolve_native_help_entry(&duck_target).expect("Duck help entry");
+        assert_eq!(duck_entry.kind, "number");
+        assert!(duck_entry.path.contains(&format!("Slot *: Duck > {label}")));
+        assert!(
+            format!("{} {}", duck_entry.line1, duck_entry.line2).contains(range),
+            "Duck {parameter} help omitted {range:?}"
+        );
+
+        let compressor_target =
+            fx_bus_parameter_help_target("compressor", "Compressor", parameter, label);
+        let compressor_entry = crate::native_help::resolve_native_help_entry(&compressor_target)
+            .expect("Compressor help entry");
+        let compressor_copy = format!("{} {}", compressor_entry.line1, compressor_entry.line2);
+        assert_eq!(compressor_entry.kind, "number");
+        assert!(compressor_entry
+            .path
+            .contains(&format!("Slot *: * > {label}")));
+        assert!(compressor_entry.key.is_empty());
+        assert!(
+            !compressor_copy.contains("Duck"),
+            "target {compressor_target:?} resolved {compressor_entry:?}"
+        );
+        assert!(!compressor_copy.contains(range), "{compressor_entry:?}");
+        assert!(
+            compressor_copy.contains("this effect"),
+            "{compressor_entry:?}"
+        );
+    }
+}
+
+fn fx_bus_parameter_help_target(
+    slot_type: &str,
+    slot_label: &str,
+    parameter: &str,
+    label: &str,
+) -> NativeMenuHelpTarget {
+    let mut config = config();
+    config.fx_buses[0].slot1_type = slot_type.into();
+    config.fx_buses[0].slot1_params = serde_json::json!({});
+    NativeMenuModel::new(config)
+        .help_targets()
+        .into_iter()
+        .find(|target| {
+            target.label == label
+                && target.key.starts_with("key:mixer.buses.")
+                && target.key.ends_with(&format!(".params.{parameter}"))
+                && target.path.contains(&format!("Slot 1: {slot_label}"))
+        })
+        .unwrap_or_else(|| panic!("missing {slot_type} {parameter} help target"))
+}
+
+#[test]
 pub(crate) fn specific_native_help_tsv_rows_are_self_resolvable() {
     let unresolved = crate::native_help::native_help_entries_for_tests()
         .iter()

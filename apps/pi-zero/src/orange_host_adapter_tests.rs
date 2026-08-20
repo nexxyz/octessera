@@ -1,9 +1,12 @@
 use super::*;
 use crate::audio::test_service;
 use playback_runtime::{
-    HostAdapter, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
+    CoreRunner, HostAdapter, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
+    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult, RuntimeUserDataRestorePhase,
+    RuntimeUserDataRestoreStatus,
 };
 use serde_json::json;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 fn directories() -> (PathBuf, PathBuf) {
@@ -218,6 +221,103 @@ fn deferred_default_save_can_be_flushed() {
         }
     ));
     assert!(store.join("default.json").is_file());
+    let _ = std::fs::remove_dir_all(store.parent().unwrap());
+    let _ = std::fs::remove_dir_all(samples);
+}
+
+#[test]
+fn restore_barrier_cancels_pending_deferred_save_before_flush() {
+    let (mut adapter, store, samples) = adapter();
+    let request = request(
+        RuntimePlatformEffect::StoreSaveDefault {
+            payload: json!({"stale": true}),
+            mode: Some("deferred".into()),
+        },
+        "restore-race",
+    );
+    assert!(adapter.handle_platform_effect(&request).unwrap().is_empty());
+    let entry = adapter.pending_default_save.take_now().unwrap();
+    adapter
+        .pending_default_save
+        .schedule(entry.payload, Instant::now(), entry.request);
+
+    adapter.platform_service.invalidate_store_writes_for_test();
+    assert!(adapter.flush_due_default_save().unwrap().is_empty());
+    assert!(!adapter.pending_default_save.is_pending());
+    assert!(!store.join("default.json").exists());
+
+    adapter.platform_service.acknowledge_restored_state();
+    let _ = std::fs::remove_dir_all(store.parent().unwrap());
+    let _ = std::fs::remove_dir_all(samples);
+}
+
+#[test]
+fn runtime_restore_loads_default_before_orange_barrier_acknowledgement() {
+    let (mut adapter, store, samples) = adapter();
+    let mut payload = crate::user_data_archive::canonical_defaults();
+    payload["runtimeConfig"]["masterVolume"] = json!(81);
+    std::fs::write(
+        store.join("default.json"),
+        serde_json::to_vec(&payload).unwrap(),
+    )
+    .unwrap();
+    adapter.platform_service.invalidate_store_writes_for_test();
+
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let status_messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::UserDataRestoreStatus {
+                status: RuntimeUserDataRestoreStatus {
+                    phase: RuntimeUserDataRestorePhase::Succeeded,
+                },
+            }
+            .with_identity("restore-e2e".into(), Some(3)),
+        })
+        .unwrap();
+    assert!(adapter.platform_service.store_writes_blocked());
+    playback
+        .dispatch_runner_messages(status_messages, &mut runner, &mut adapter)
+        .unwrap();
+
+    assert!(!adapter.platform_service.store_writes_blocked());
+    assert_eq!(
+        playback.last_snapshot().unwrap()["settings"]["masterVolume"],
+        81
+    );
+    let _ = std::fs::remove_dir_all(store.parent().unwrap());
+    let _ = std::fs::remove_dir_all(samples);
+}
+
+#[test]
+fn failed_runtime_restore_apply_keeps_orange_barrier_blocked() {
+    let (mut adapter, store, samples) = adapter();
+    let recovery = br#"{"recovery":true}"#;
+    std::fs::write(store.join("default.json"), br#"{"runtimeConfig":"bad"}"#).unwrap();
+    std::fs::write(store.join("recovery-save.json"), recovery).unwrap();
+    adapter.platform_service.invalidate_store_writes_for_test();
+
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let status_messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::UserDataRestoreStatus {
+                status: RuntimeUserDataRestoreStatus {
+                    phase: RuntimeUserDataRestorePhase::Succeeded,
+                },
+            }
+            .with_identity("restore-failed".into(), Some(4)),
+        })
+        .unwrap();
+    playback
+        .dispatch_runner_messages(status_messages, &mut runner, &mut adapter)
+        .unwrap();
+
+    assert!(adapter.platform_service.store_writes_blocked());
+    assert_eq!(
+        std::fs::read(store.join("recovery-save.json")).unwrap(),
+        recovery
+    );
     let _ = std::fs::remove_dir_all(store.parent().unwrap());
     let _ = std::fs::remove_dir_all(samples);
 }

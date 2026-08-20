@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 orange="$root/userpatches/overlay"
 raspberry="$root/tools/pi-image/stage4-octessera/files/root"
 
@@ -50,23 +52,23 @@ check_common() {
   grep -qF 'fcntl.flock' "$status"
   grep -qF 'ATTEMPT_RE = re.compile(r"^[0-9a-f]{32}$")' "$status"
   grep -qF 'BOOT_RE = re.compile' "$status"
-  if grep -Eq 'ThreadingHTTPServer|os\.environ|setup-force|sudoers' "$sidecar"; then exit 1; fi
+  octessera_reject_file_match 'Setup sidecar contains an unapproved server, environment, or privilege path.' -Eq 'ThreadingHTTPServer|os\.environ|setup-force|sudoers' "$sidecar"
   grep -qF "USER = \"$user\"" "$sidecar"
   grep -qF "REQUEST_OWNER = \"$owner\"" "$helper"
   grep -qF "PROFILE = \"$profile\"" "$helper"
   grep -qF 'metadata.st_size == 33' "$helper"
   grep -qF 'os.rename(REQUEST_PATH, claim_path)' "$helper"
-  if grep -qF 'os.link(' "$helper"; then exit 1; fi
+  octessera_reject_file_match 'Setup request helper must not use hard links.' -qF 'os.link(' "$helper"
   grep -qF 'start-or-attach' "$helper"
   grep -qF 'REQUEST_PATH = "/run/octessera/setup-portal.request"' "$helper"
   grep -qF 'CONTROL_DIR = "/run/octessera-setup-control"' "$helper"
   grep -qF '["systemctl", "start", SETUP_UNIT]' "$helper"
-  if grep -Eq 'systemctl.*restart|list-unit-files|shell=True|setup-force' "$helper"; then exit 1; fi
+  octessera_reject_file_match 'Setup request helper contains an unapproved restart or shell fallback.' -Eq 'systemctl.*restart|list-unit-files|shell=True|setup-force' "$helper"
   grep -qF 'interface=wlan0' "$wrapper"
   # shellcheck disable=SC2016
   grep -qF '/sys/class/net/$interface/address' "$wrapper"
   grep -qF 'remaining_seconds' "$wrapper"
-  if grep -Eq 'attempt_id|token_hex|OCTESSERA_SETUP|setup-force|systemctl|sudo' "$wrapper"; then exit 1; fi
+  octessera_reject_file_match 'Setup Wi-Fi wrapper contains setup or privilege state.' -Eq 'attempt_id|token_hex|OCTESSERA_SETUP|setup-force|systemctl|sudo' "$wrapper"
   grep -qFx 'PathExists=/run/octessera/setup-portal.request' "$tree/etc/systemd/system/octessera-setup-request.path"
   grep -qFx 'Unit=octessera-setup-request.service' "$tree/etc/systemd/system/octessera-setup-request.path"
   grep -qFx 'User=root' "$tree/etc/systemd/system/octessera-setup-request.service"
@@ -88,7 +90,7 @@ check_common() {
   grep -qFx 'RestrictNamespaces=yes' "$setup_unit"
   grep -qFx 'LockPersonality=yes' "$setup_unit"
   grep -qFx 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6' "$setup_unit"
-  if grep -q '^TimeoutStartSec=' "$setup_unit"; then exit 1; fi
+  octessera_reject_file_match 'Setup service must not impose a startup timeout.' -q '^TimeoutStartSec=' "$setup_unit"
   for line in UMask=0077 PrivateTmp=yes ProtectKernelModules=yes ProtectControlGroups=yes ProtectKernelLogs=yes RestrictNamespaces=yes LockPersonality=yes RestrictAddressFamilies=AF_UNIX; do
     grep -qFx "$line" "$request_unit"
   done
@@ -145,7 +147,7 @@ grep -qF 'install -D -o root -g root -m 0755' "$root/tools/pi-image/stage4-octes
 grep -qF 'octessera-setup-request.path' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'octessera-setup-request.path' "$root/userpatches/customize-image.sh"
 grep -qF 'systemctl enable octessera-setup-request.path' "$root/userpatches/customize-image.sh"
-if grep -Eq 'enable.*octessera-setup\.service|multi-user\.target\.wants.*octessera-setup\.service' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"; then exit 1; fi
+octessera_reject_file_match 'Raspberry setup must not enable the interactive setup service at image construction time.' -Eq 'enable.*octessera-setup\.service|multi-user\.target\.wants.*octessera-setup\.service' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'systemctl enable octessera-setup.service' "$root/userpatches/customize-image.sh"
 grep -qF 'octessera-setup-request.path' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'setup-finalize-failed' "$root/userpatches/customize-image.sh"

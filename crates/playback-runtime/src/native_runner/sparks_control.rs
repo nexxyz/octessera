@@ -1,9 +1,10 @@
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
 use super::modulation_source::ModulationSourceId;
+use super::pan_mapping::touch_pan_pos_from_grid_x;
+use super::sparks_fx_config::{sparks_fx_params, sparks_fx_target_key, sparks_fx_type};
 use super::{
-    momentary_fx_target, sparks_fx_cell_id, sparks_fx_params, sparks_fx_target_key, sparks_fx_type,
-    touch_pan_pos_from_grid_x, trigger_gate_mode_for_column, NativeRunner,
+    momentary_fx_target, sparks_fx_cell_id, trigger_gate_mode_for_column, NativeRunner,
     NativeSparksFxAssignment, NativeToast, NativeXyTouch, GRID_HEIGHT, GRID_WIDTH,
     SPARKS_FX_MAX_CONCURRENT,
 };

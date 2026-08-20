@@ -3,6 +3,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 service="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service"
 runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"
 template="$root/tools/pi/provision/files/etc/systemd/system/octessera.service.template"
@@ -41,10 +43,10 @@ for required_line in \
     'DeviceAllow=/dev/gpiochip0 rw'; do
     grep -qFx "$required_line" "$service"
 done
-! grep -q '^Type=oneshot$' "$service"
-! grep -q '^ExecStart=-' "$service"
-! grep -q '^Conflicts=' "$service"
-! grep -q 'OCTESSERA_EARLY_BOOT_SPLASH' "$runtime" "$template"
+octessera_reject_file_match 'Raspberry boot service must not be oneshot.' -q '^Type=oneshot$' "$service"
+octessera_reject_file_match 'Raspberry boot service must not use a one-shot ExecStart.' -q '^ExecStart=-' "$service"
+octessera_reject_file_match 'Raspberry boot service must not conflict with runtime.' -q '^Conflicts=' "$service"
+octessera_reject_file_match 'Raspberry runtime must not use the removed early boot splash flag.' -q 'OCTESSERA_EARLY_BOOT_SPLASH' "$runtime" "$template"
 
 for required_line in \
     'Wants=octessera-boot-splash.service' \
@@ -53,8 +55,8 @@ for required_line in \
     grep -qFx "$required_line" "$runtime"
     grep -qFx "$required_line" "$template"
 done
-! grep -q '^Conflicts=' "$runtime"
-! grep -q '^Conflicts=' "$template"
+octessera_reject_file_match 'Raspberry runtime service must not conflict with the boot splash.' -q '^Conflicts=' "$runtime"
+octessera_reject_file_match 'Raspberry runtime template must not conflict with the boot splash.' -q '^Conflicts=' "$template"
 grep -qFx 'ExecStart=/usr/local/bin/octessera-pi' "$runtime"
 grep -qFx 'ExecStart=/usr/local/bin/octessera-pi' "$template"
 grep -qF '/etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service' "$root/tools/pi/provision/provision.sh"

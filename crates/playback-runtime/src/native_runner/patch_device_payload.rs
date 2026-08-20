@@ -4,7 +4,7 @@ use super::{
 };
 use serde_json::json;
 
-pub(super) fn portable_patch_projection(payload: &Value) -> Value {
+pub(super) fn portable_patch_projection(payload: &Value) -> Result<Value, String> {
     let runtime = payload
         .get("runtimeConfig")
         .cloned()
@@ -12,60 +12,54 @@ pub(super) fn portable_patch_projection(payload: &Value) -> Value {
     let mut patch = json!({
         "kind": "octessera.patch",
         "schemaVersion": 2,
-        "runtimeConfig": patch_runtime_config(runtime),
+        "runtimeConfig": patch_runtime_config(runtime)?,
     });
     if let Some(mapping_config) = payload.get("mappingConfig") {
         patch["mappingConfig"] = mapping_config.clone();
     }
-    canonicalize_json(patch)
+    Ok(canonicalize_json(patch))
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn portable_patch_bytes(payload: &Value) -> Result<Vec<u8>, String> {
-    let patch = portable_patch_projection(payload);
+    let patch = portable_patch_projection(payload)?;
     validate_portable_patch_sample_paths(&patch, None)?;
     serde_json::to_vec(&patch)
         .map_err(|error| format!("portable patch cannot be serialized: {error}"))
 }
 
 pub(super) fn portable_patch_payload_for_save(payload: &Value) -> Result<Value, String> {
-    let patch = portable_patch_projection(payload);
+    let patch = portable_patch_projection(payload)?;
     validate_portable_patch_sample_paths(&patch, None)?;
     Ok(patch)
 }
 
-pub(super) fn patch_payload_from_payload(payload: Value) -> Value {
+pub(super) fn patch_payload_from_payload(payload: Value) -> Result<Value, String> {
     portable_patch_projection(&payload)
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn device_config_payload_from_payload(payload: Value) -> Value {
+pub(super) fn device_config_payload_from_payload(payload: Value) -> Result<Value, String> {
     let runtime = payload.get("runtimeConfig").cloned().unwrap_or(payload);
-    json!({ "runtimeConfig": device_runtime_config(runtime) })
+    Ok(json!({ "runtimeConfig": device_runtime_config(runtime)? }))
 }
 
-pub(super) fn patch_runtime_config(runtime: Value) -> Value {
-    let mut runtime = RuntimeConfigDto::from_value(&runtime)
-        .expect("validated runtime config must decode as a typed DTO")
-        .portable_value()
-        .expect("typed runtime config must serialize");
+pub(super) fn patch_runtime_config(runtime: Value) -> Result<Value, String> {
+    let mut runtime = RuntimeConfigDto::from_value(&runtime)?.portable_value()?;
     if let Some(object) = runtime.as_object_mut() {
         split_aux_payloads(object, true);
     }
-    runtime
+    Ok(runtime)
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn device_runtime_config(runtime: Value) -> Value {
-    let typed = RuntimeConfigDto::from_value(&runtime)
-        .expect("validated runtime config must decode as a typed DTO");
-    let mut device = DeviceRuntimeConfigDto::from_runtime(&typed)
-        .to_value()
-        .expect("typed runtime config must serialize");
+pub(super) fn device_runtime_config(runtime: Value) -> Result<Value, String> {
+    let typed = RuntimeConfigDto::from_value(&runtime)?;
+    let mut device = DeviceRuntimeConfigDto::from_runtime(&typed).to_value()?;
     if let Some(object) = device.as_object_mut() {
         split_aux_payloads(object, false);
     }
-    device
+    Ok(device)
 }
 
 pub(super) fn merge_preserved_aux_payloads(payload: &mut Value, preserved: &Value, musical: bool) {

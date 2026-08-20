@@ -12,7 +12,8 @@ try:
 except ImportError:
     fcntl = None
 
-from updater_protocol import BINARY, CANDIDATE_HEALTH_PROTOCOL, LOCK_TIMEOUT_SECONDS, MANIFEST, MANIFEST_SCHEMA, MAX_JSON_BYTES, ORANGE_PROFILE, UPDATER_PROTOCOL, UpdateError, read_json, same_path, version
+from updater_contract import BINARY, CANDIDATE_HEALTH_PROTOCOL, LOCK_TIMEOUT_SECONDS, MANIFEST, MANIFEST_SCHEMA, MAX_JSON_BYTES, UPDATER_PROTOCOL, UpdateError, atomic_json, read_json, same_path, version
+from updater_profiles import ORANGE_PROFILE
 
 
 class UpdaterStateMixin:
@@ -106,7 +107,6 @@ class UpdaterStateMixin:
         )
 
     def mark_activation_attempted(self, payload: dict) -> None:
-        from updater_protocol import atomic_json
         payload["activation_attempted"] = True
         atomic_json(self.transaction_path, payload)
 
@@ -137,7 +137,6 @@ class UpdaterStateMixin:
         if self.profile not in platforms:
             platforms.insert(0, self.profile)
         migrated["platforms"] = platforms
-        from updater_protocol import atomic_json
         atomic_json(self.releases / current / MANIFEST, migrated)
         self.immutable(self.releases / current)
         self.write_committed_state(current, previous, migrated, asset)

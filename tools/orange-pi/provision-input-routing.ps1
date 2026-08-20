@@ -30,20 +30,20 @@ if (-not (Test-Path -LiteralPath $KnownHosts -PathType Leaf)) {
   throw "Orange Pi SSH known_hosts file was not found: $KnownHosts"
 }
 
-function New-AskPassHelper {
-  $helperPath = $null
+function New-AskPassScript {
+  $askPassScriptPath = $null
   $stream = $null
   try {
     for ($attempt = 0; $attempt -lt 16 -and $null -eq $stream; $attempt++) {
       $candidatePath = Join-Path ([IO.Path]::GetTempPath()) ("octessera-orange-routing-askpass-" + [guid]::NewGuid().ToString("N") + ".cmd")
       try {
         $stream = [IO.File]::Open($candidatePath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
-        $helperPath = $candidatePath
+        $askPassScriptPath = $candidatePath
       } catch [IO.IOException] {
       }
     }
     if ($null -eq $stream) {
-      throw "Could not create a unique temporary SSH_ASKPASS helper."
+      throw "Could not create a unique temporary SSH_ASKPASS script."
     }
 
     $contents = @(
@@ -58,13 +58,13 @@ function New-AskPassHelper {
     $stream.Flush()
     $stream.Dispose()
     $stream = $null
-    return $helperPath
+    return $askPassScriptPath
   } catch {
     if ($null -ne $stream) {
       $stream.Dispose()
     }
-    if ($null -ne $helperPath) {
-      [IO.File]::Delete($helperPath)
+    if ($null -ne $askPassScriptPath) {
+      [IO.File]::Delete($askPassScriptPath)
     }
     throw
   }
@@ -118,15 +118,15 @@ foreach ($file in $localFiles) {
   }
 }
 
-$helperPath = $null
+$askPassScriptPath = $null
 $savedAskPass = [Environment]::GetEnvironmentVariable("SSH_ASKPASS", "Process")
 $savedAskPassRequire = [Environment]::GetEnvironmentVariable("SSH_ASKPASS_REQUIRE", "Process")
 $savedDisplay = [Environment]::GetEnvironmentVariable("DISPLAY", "Process")
 
 try {
   if ($passphraseConfigured) {
-    $helperPath = New-AskPassHelper
-    [Environment]::SetEnvironmentVariable("SSH_ASKPASS", $helperPath, "Process")
+    $askPassScriptPath = New-AskPassScript
+    [Environment]::SetEnvironmentVariable("SSH_ASKPASS", $askPassScriptPath, "Process")
     [Environment]::SetEnvironmentVariable("SSH_ASKPASS_REQUIRE", "force", "Process")
     [Environment]::SetEnvironmentVariable("DISPLAY", "octessera", "Process")
   }
@@ -144,11 +144,11 @@ try {
     if ([string]::IsNullOrWhiteSpace($RollbackId)) {
       $arguments += @(
         "--overlay-source", "$remoteRoot/octessera-h618-input-routing.dts",
-        "--validation-helper", "$remoteRoot/input-routing-overlay-validation.sh",
-        "--boot-config-helper", "$remoteRoot/input-routing-boot-config.sh",
-        "--boot-dtb-helper", "$remoteRoot/boot-dtb-selection.sh",
-        "--common-validation-helper", "$remoteRoot/spi-overlay-validation.sh",
-        "--environment-helper", "$remoteRoot/armbian-env-token.sh"
+        "--overlay-validation-script", "$remoteRoot/input-routing-overlay-validation.sh",
+        "--boot-config-script", "$remoteRoot/input-routing-boot-config.sh",
+        "--boot-dtb-selection-script", "$remoteRoot/boot-dtb-selection.sh",
+        "--spi-overlay-validation-script", "$remoteRoot/spi-overlay-validation.sh",
+        "--armbian-environment-script", "$remoteRoot/armbian-env-token.sh"
       )
     }
     Invoke-Checked "ssh" ($sshArgs + @((($arguments | ForEach-Object { ConvertTo-ShellLiteral ([string]$_) }) -join " ")))
@@ -163,11 +163,11 @@ try {
   [Environment]::SetEnvironmentVariable("SSH_ASKPASS_REQUIRE", $savedAskPassRequire, "Process")
   [Environment]::SetEnvironmentVariable("DISPLAY", $savedDisplay, "Process")
 
-  if ($null -ne $helperPath) {
+  if ($null -ne $askPassScriptPath) {
     try {
-      [IO.File]::Delete($helperPath)
+      [IO.File]::Delete($askPassScriptPath)
     } catch {
-      throw "Could not remove the temporary SSH_ASKPASS helper: $helperPath"
+      throw "Could not remove the temporary SSH_ASKPASS script: $askPassScriptPath"
     }
   }
 }

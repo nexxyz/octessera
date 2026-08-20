@@ -167,11 +167,11 @@ impl AudioService {
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), String> {
-        let tap = self
+        let mut recorder = self
             .recorder
             .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?
-            .start_audio(max_minutes)?;
+            .map_err(|_| "recorder lock poisoned".to_string())?;
+        let tap = recorder.start_audio(max_minutes)?;
         *self
             .recording_tap
             .write()
@@ -181,14 +181,36 @@ impl AudioService {
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn stop_recording(&self) -> Result<(), String> {
+        let mut recorder = self
+            .recorder
+            .lock()
+            .map_err(|_| "recorder lock poisoned".to_string())?;
         *self
             .recording_tap
             .write()
             .map_err(|_| "recording tap lock poisoned".to_string())? = None;
-        self.recorder
+        recorder.stop_audio();
+        Ok(())
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    pub(crate) fn prepare_restore(&self) -> Result<(), String> {
+        let mut recorder = self
+            .recorder
             .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?
-            .stop_audio();
+            .map_err(|_| "recorder lock poisoned".to_string())?;
+        let active = self
+            .recording_tap
+            .read()
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .is_some();
+        if active {
+            *self
+                .recording_tap
+                .write()
+                .map_err(|_| "recording tap lock poisoned".to_string())? = None;
+            recorder.stop_audio();
+        }
         Ok(())
     }
 
@@ -253,6 +275,20 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         recording_tap: Arc::new(RwLock::new(None)),
     };
     (service, prep_result_tx)
+}
+
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restore_preflight_finalizes_active_recording() {
+        let service = test_service_for_sample_prep();
+        service.start_recording(1).unwrap();
+        assert!(service.is_recording().unwrap());
+        service.prepare_restore().unwrap();
+        assert!(!service.is_recording().unwrap());
+    }
 }
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]

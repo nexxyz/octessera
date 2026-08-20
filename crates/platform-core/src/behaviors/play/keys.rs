@@ -2,7 +2,8 @@ use crate::behavior::{
     BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType, DeviceInput,
     GridInteraction,
 };
-use crate::behaviors::native_impl::common::{enum_item, CELL_COUNT};
+use crate::behaviors::native_impl::config_items::enum_item;
+use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

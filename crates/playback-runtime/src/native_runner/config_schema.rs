@@ -94,7 +94,7 @@ pub(super) fn prepare_patch_payload(
     } else {
         None
     };
-    let mut patch = patch_payload_from_payload(input);
+    let mut patch = patch_payload_from_payload(input)?;
     merge_preserved_aux_payloads(&mut patch, current, true);
     let mut payload = merge_values(current, &patch);
     discard_incompatible_layer_state(&mut payload, &patch, current);
@@ -136,7 +136,7 @@ pub(super) fn prepare_device_payload(
         None
     };
     validate_supplied_audio_outputs(&input)?;
-    let mut device = super::device_config_payload_from_payload(input);
+    let mut device = super::device_config_payload_from_payload(input)?;
     merge_preserved_aux_payloads(&mut device, current, false);
     let mut merge_base = current.clone();
     clear_audio_output_conflict_for_input(&mut merge_base, &device);

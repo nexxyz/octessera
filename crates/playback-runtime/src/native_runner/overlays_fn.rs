@@ -1,7 +1,9 @@
+use super::led_color::{trigger_gate_color, LedColor};
+use super::sparks_fx_config::sparks_fx_type;
+use super::sparks_fx_presentation::momentary_fx_color;
 use super::{
-    momentary_fx_color, pan_marker_left_cell, sparks_fx_cell_id, sparks_fx_type,
-    trigger_gate_color, LedColor, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT,
-    SPARKS_FX_MAX_CONCURRENT,
+    pan_marker_left_cell, sparks_fx_cell_id, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
+    INSTRUMENT_COUNT, SPARKS_FX_MAX_CONCURRENT,
 };
 
 impl NativeRunner {

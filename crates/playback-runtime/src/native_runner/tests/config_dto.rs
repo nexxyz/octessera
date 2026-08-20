@@ -89,7 +89,7 @@ pub(crate) fn device_dto_keeps_device_fields_out_of_portable_projection() {
     assert!(device.get("instruments").is_none());
     assert!(device.get("mixer").is_none());
 
-    let portable = portable_patch_projection(&json!({ "runtimeConfig": runtime }));
+    let portable = portable_patch_projection(&json!({ "runtimeConfig": runtime })).unwrap();
     let portable_runtime = &portable["runtimeConfig"];
     assert!(portable_runtime.get("masterVolume").is_none());
     assert!(portable_runtime.get("audioOutputs").is_none());

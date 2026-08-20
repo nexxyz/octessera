@@ -3,6 +3,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 action="$root/.github/actions/build-armbian-image/action.yml"
 provenance_writer="$root/tools/armbian-image/write-orange-kernel-provenance.sh"
 
@@ -68,32 +70,17 @@ assert_action_contains 'apt-get install -y --no-install-recommends cpio zstd'
 assert_action_contains 'octessera-orange-image-proof.json'
 assert_action_contains 'Prove final Orange image against exact packages'
 assert_action_contains 'tools/legal/stage_notices.py'
-if grep -qF 'legal-source' "$action"; then
-    echo 'Armbian build action must not create a generated legal source tree.' >&2
-    exit 1
-fi
+octessera_reject_file_match 'Armbian build action must not create a generated legal source tree.' -qF 'legal-source' "$action"
 assert_action_contains 'Clean generated legal staging from disposable output'
 
-if grep -qF "printf '%s\\n' \"github_source_sha=\$GITHUB_SOURCE_SHA\"" "$action"; then
-    echo 'Armbian build action must not contain a dead provenance printf shim.' >&2
-    exit 1
-fi
+octessera_reject_file_match 'Armbian build action must not contain a dead provenance printf shim.' -qF "printf '%s\\n' \"github_source_sha=\$GITHUB_SOURCE_SHA\"" "$action"
 
-if grep -qF "KERNELBRANCH=\"\$OCTESSERA_ARMBIAN_KERNEL_BRANCH\"" "$action"; then
-    echo 'Armbian build action must not pass the rolling kernel branch as KERNELBRANCH.' >&2
-    exit 1
-fi
+octessera_reject_file_match 'Armbian build action must not pass the rolling kernel branch as KERNELBRANCH.' -qF "KERNELBRANCH=\"\$OCTESSERA_ARMBIAN_KERNEL_BRANCH\"" "$action"
 
-if grep -qF -- '--expected-config-sha256' "$action"; then
-    echo 'Armbian build action must use the manifest packaged config hash without a caller-supplied override.' >&2
-    exit 1
-fi
+octessera_reject_file_match 'Armbian build action must use the manifest packaged config hash without a caller-supplied override.' -qF -- '--expected-config-sha256' "$action"
 
 for removed_field in kernel_source_remote_url kernel_source_checkout_path kernel_source_checkout_head kernel_source_base_commit kernel_source_base_is_ancestor; do
-    if grep -qF "$removed_field" "$provenance_writer"; then
-        echo "Orange provenance must not contain removed kernel worktree field: $removed_field" >&2
-        exit 1
-    fi
+    octessera_reject_file_match "Orange provenance must not contain removed kernel worktree field: $removed_field" -qF "$removed_field" "$provenance_writer"
 done
 
 printf 'Armbian build action static checks passed\n'

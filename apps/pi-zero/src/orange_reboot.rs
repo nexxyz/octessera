@@ -24,72 +24,72 @@ const MAX_RESPONSE_BYTES: usize = 32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
-pub(crate) enum OrangeHelperOutcome {
+pub(crate) enum OrangePowerRequestOutcome {
     Accepted,
     Rejected,
     NotSubmitted,
     Indeterminate,
 }
 
-pub(crate) fn request_reboot() -> OrangeHelperOutcome {
+pub(crate) fn request_reboot() -> OrangePowerRequestOutcome {
     #[cfg(unix)]
     {
         request_action_at(Path::new(REBOOT_SOCKET), REBOOT_REQUEST)
     }
     #[cfg(not(unix))]
     {
-        OrangeHelperOutcome::NotSubmitted
+        OrangePowerRequestOutcome::NotSubmitted
     }
 }
 
-pub(crate) fn request_shutdown() -> OrangeHelperOutcome {
+pub(crate) fn request_shutdown() -> OrangePowerRequestOutcome {
     #[cfg(unix)]
     {
         request_action_at(Path::new(REBOOT_SOCKET), POWEROFF_REQUEST)
     }
     #[cfg(not(unix))]
     {
-        OrangeHelperOutcome::NotSubmitted
+        OrangePowerRequestOutcome::NotSubmitted
     }
 }
 
 #[cfg(unix)]
-fn request_action_at(path: &Path, request: &[u8]) -> OrangeHelperOutcome {
+fn request_action_at(path: &Path, request: &[u8]) -> OrangePowerRequestOutcome {
     let mut stream = match UnixStream::connect(path) {
         Ok(stream) => stream,
-        Err(_) => return OrangeHelperOutcome::NotSubmitted,
+        Err(_) => return OrangePowerRequestOutcome::NotSubmitted,
     };
     if stream
         .set_read_timeout(Some(TIMEOUT))
         .and_then(|_| stream.set_write_timeout(Some(TIMEOUT)))
         .is_err()
     {
-        return OrangeHelperOutcome::NotSubmitted;
+        return OrangePowerRequestOutcome::NotSubmitted;
     }
     let mut submitted = 0;
     while submitted < request.len() {
         match stream.write(&request[submitted..]) {
-            Ok(0) => return OrangeHelperOutcome::Indeterminate,
+            Ok(0) => return OrangePowerRequestOutcome::Indeterminate,
             Ok(bytes) => submitted += bytes,
-            Err(_) if submitted == 0 => return OrangeHelperOutcome::NotSubmitted,
-            Err(_) => return OrangeHelperOutcome::Indeterminate,
+            Err(_) if submitted == 0 => return OrangePowerRequestOutcome::NotSubmitted,
+            Err(_) => return OrangePowerRequestOutcome::Indeterminate,
         }
     }
     if stream.shutdown(std::net::Shutdown::Write).is_err() {
-        return OrangeHelperOutcome::Indeterminate;
+        return OrangePowerRequestOutcome::Indeterminate;
     }
     let mut response = Vec::new();
     let mut buffer = [0; 8];
     loop {
         match stream.read(&mut buffer) {
-            Ok(0) if response == ACCEPTED => return OrangeHelperOutcome::Accepted,
-            Ok(0) if response == REJECTED => return OrangeHelperOutcome::Rejected,
-            Ok(0) => return OrangeHelperOutcome::Indeterminate,
+            Ok(0) if response == ACCEPTED => return OrangePowerRequestOutcome::Accepted,
+            Ok(0) if response == REJECTED => return OrangePowerRequestOutcome::Rejected,
+            Ok(0) => return OrangePowerRequestOutcome::Indeterminate,
             Ok(bytes) if response.len() + bytes <= MAX_RESPONSE_BYTES => {
                 response.extend_from_slice(&buffer[..bytes]);
             }
-            Ok(_) => return OrangeHelperOutcome::Indeterminate,
-            Err(_) => return OrangeHelperOutcome::Indeterminate,
+            Ok(_) => return OrangePowerRequestOutcome::Indeterminate,
+            Err(_) => return OrangePowerRequestOutcome::Indeterminate,
         }
     }
 }
@@ -125,7 +125,7 @@ mod tests {
         let join = serve(&path, REBOOT_REQUEST, ACCEPTED);
         assert_eq!(
             request_action_at(&path, REBOOT_REQUEST),
-            OrangeHelperOutcome::Accepted
+            OrangePowerRequestOutcome::Accepted
         );
         join.join().unwrap();
         let _ = std::fs::remove_file(path);
@@ -137,7 +137,7 @@ mod tests {
         let join = serve(&path, POWEROFF_REQUEST, ACCEPTED);
         assert_eq!(
             request_action_at(&path, POWEROFF_REQUEST),
-            OrangeHelperOutcome::Accepted
+            OrangePowerRequestOutcome::Accepted
         );
         join.join().unwrap();
         let _ = std::fs::remove_file(path);
@@ -149,7 +149,7 @@ mod tests {
         let join = serve(&path, REBOOT_REQUEST, REJECTED);
         assert_eq!(
             request_action_at(&path, REBOOT_REQUEST),
-            OrangeHelperOutcome::Rejected
+            OrangePowerRequestOutcome::Rejected
         );
         join.join().unwrap();
         let _ = std::fs::remove_file(path);
@@ -161,7 +161,7 @@ mod tests {
         let join = serve(&path, POWEROFF_REQUEST, b"accepted\nextra");
         assert_eq!(
             request_action_at(&path, POWEROFF_REQUEST),
-            OrangeHelperOutcome::Indeterminate
+            OrangePowerRequestOutcome::Indeterminate
         );
         join.join().unwrap();
         let _ = std::fs::remove_file(path);
@@ -171,7 +171,7 @@ mod tests {
         let join = serve(&path, REBOOT_REQUEST, response);
         assert_eq!(
             request_action_at(&path, REBOOT_REQUEST),
-            OrangeHelperOutcome::Indeterminate
+            OrangePowerRequestOutcome::Indeterminate
         );
         join.join().unwrap();
         let _ = std::fs::remove_file(path);
@@ -184,7 +184,7 @@ mod tests {
         });
         assert_eq!(
             request_action_at(&path, POWEROFF_REQUEST),
-            OrangeHelperOutcome::Indeterminate
+            OrangePowerRequestOutcome::Indeterminate
         );
         join.join().unwrap();
         let _ = std::fs::remove_file(path);
@@ -197,7 +197,7 @@ mod tests {
                 Path::new("/tmp/octessera-missing-reboot.sock"),
                 REBOOT_REQUEST,
             ),
-            OrangeHelperOutcome::NotSubmitted
+            OrangePowerRequestOutcome::NotSubmitted
         );
     }
 }

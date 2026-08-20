@@ -24,6 +24,7 @@ impl PlaybackRuntime {
         };
         while let Some(next) = queue.pop_front() {
             self.observe_host_message(&next, None);
+            let acknowledge_restored_state = successful_default_load(&next);
             let responses = match runner.send(next) {
                 Ok(responses) => responses,
                 Err(message) => {
@@ -38,6 +39,9 @@ impl PlaybackRuntime {
                     break;
                 }
             };
+            if acknowledge_restored_state {
+                host.acknowledge_restored_state()?;
+            }
             let ingest = self.ingest_core_messages(responses, runner, host)?;
             output.messages.extend(ingest.messages);
             queue.extend(ingest.follow_ups);
@@ -241,4 +245,18 @@ impl PlaybackRuntime {
         self.append_presentations(&mut output);
         Ok(output)
     }
+}
+
+fn successful_default_load(message: &crate::protocol::HostMessage) -> bool {
+    let crate::protocol::HostMessage::RuntimeResult { result } = message else {
+        return false;
+    };
+    let result = match result {
+        crate::protocol::RuntimeStoreResult::Identified { result, .. } => result.as_ref(),
+        result => result,
+    };
+    matches!(
+        result,
+        crate::protocol::RuntimeStoreResult::LoadDefaultResult { payload: Some(_) }
+    )
 }

@@ -13,6 +13,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = ROOT / "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json"
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+IMPORTED_PROOF_SOURCES = {
+    "tools/pi-image/rpi_kernel_image_mount.py",
+    "tools/pi-image/rpi_kernel_boot_proof.py",
+    "tools/pi-image/rpi_kernel_payload_proof.py",
+    "tools/pi-image/rpi_kernel_stock_recovery.py",
+}
 TOP_KEYS = {
     "schema",
     "schema_version",
@@ -60,6 +66,8 @@ def validate(document: dict[str, Any], root: Path) -> None:
         actual = root / source["path"]
         if not actual.is_file() or hashlib.sha256(actual.read_bytes()).hexdigest() != source["sha256"] or actual.stat().st_size != source["size"]:
             raise ValueError(f"source input digest is stale: {source['path']}")
+    if not IMPORTED_PROOF_SOURCES.issubset(paths):
+        raise ValueError("Raspberry kernel proof module source inputs are incomplete")
     validator_sources = [source for source in source_inputs if source["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
     if len(validator_sources) != 1:
         raise ValueError("Raspberry validator source identity is not unique")
@@ -69,8 +77,8 @@ def validate(document: dict[str, Any], root: Path) -> None:
 
     live_inputs = document["live_parity_inputs"]
     if live_inputs != [
-        {"path": "tools/pi/deploy-pi.sh", "sha256": "f6b0adeb72e2e0d23a979b092aab1ffa45f5fb4e44ae0bf9084cb666ebcf127d", "size": 17225},
-        {"path": "tools/pi/provision/provision.sh", "sha256": "54cd00421ae23f53b0a7d52de206bc0a387f74b604cb18e1993d1a2927e4c3a1", "size": 14447},
+        {"path": "tools/pi/deploy-pi.sh", "sha256": "54ea212f4fefa218315d3a9a9e982e3cfcc311cea832be339e8733ce6b1179ce", "size": 17245},
+        {"path": "tools/pi/provision/provision.sh", "sha256": "5309db2d7d66abf221636d48b06b189b538d29ff2095a0999d0238105d00ea03", "size": 14552},
     ]:
         raise ValueError("Raspberry live parity input identities are not exact")
     for source in live_inputs:
@@ -220,6 +228,14 @@ class BootLayerContractTests(unittest.TestCase):
         composer["sha256"] = "0" * 64
         with self.assertRaises(ValueError):
             validate(altered, ROOT)
+
+    def test_imported_raspberry_proof_source_digests_are_bound(self) -> None:
+        for path in sorted(IMPORTED_PROOF_SOURCES):
+            altered = copy.deepcopy(self.document)
+            source = next(item for item in altered["source_inputs"] if item["path"] == path)
+            source["sha256"] = "0" * 64
+            with self.assertRaises(ValueError):
+                validate(altered, ROOT)
 
     def test_missing_required_initramfs_entry_is_rejected(self) -> None:
         altered = copy.deepcopy(self.document)

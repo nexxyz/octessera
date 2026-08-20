@@ -142,6 +142,7 @@ install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update" /usr/local/sbin/
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update-guard" /usr/local/sbin/octessera-update-guard
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update-recovery" /usr/local/sbin/octessera-update-recovery
 install_file 0644 "$DEVICE_UPDATE_ROOT/updater_protocol.py" /usr/local/lib/octessera/updater_protocol.py
+install_file 0644 "$DEVICE_UPDATE_ROOT/updater_contract.py" /usr/local/lib/octessera/updater_contract.py
 install_file 0644 "$DEVICE_UPDATE_ROOT/updater_state.py" /usr/local/lib/octessera/updater_state.py
 install_file 0644 "$DEVICE_UPDATE_ROOT/updater_assets.py" /usr/local/lib/octessera/updater_assets.py
 install_file 0644 "$DEVICE_UPDATE_ROOT/updater_guard.py" /usr/local/lib/octessera/updater_guard.py

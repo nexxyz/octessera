@@ -1,4 +1,5 @@
-use super::{json, sanitize_sparks_fx_config, sparks_fx_target_key, NativeRunner};
+use super::sparks_fx_config::{sanitize_sparks_fx_config, sparks_fx_target_key};
+use super::{json, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn fast_sparks_fx_type_key(&mut self, key: &str) -> bool {

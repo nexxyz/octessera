@@ -3,7 +3,8 @@ use crate::usb_config::UsbAudioOut;
 
 #[test]
 fn preset_path_rejects_unsafe_names() {
-    let adapter = PiPlaybackHostAdapter::new(
+    let store_dir = PathBuf::from("store");
+    let _adapter = PiPlaybackHostAdapter::new(
         None,
         PathBuf::from("store"),
         PathBuf::from("samples"),
@@ -11,10 +12,10 @@ fn preset_path_rejects_unsafe_names() {
         false,
         UsbAudioOut::Jack,
     );
-    assert!(crate::platform_service::preset_path(&adapter.store_dir, "safe").is_ok());
+    assert!(crate::platform_service::preset_path(&store_dir, "safe").is_ok());
     for name in ["bad/name", r"bad\name", r"C:\x", "CON", "bad:name"] {
         assert!(
-            crate::platform_service::preset_path(&adapter.store_dir, name).is_err(),
+            crate::platform_service::preset_path(&store_dir, name).is_err(),
             "{name:?}"
         );
     }

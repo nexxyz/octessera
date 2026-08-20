@@ -58,6 +58,14 @@ foreach ($value in @(
 
 $deployScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "deploy-pi-fast.ps1"))
 $remoteDeployScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "deploy-pi-fast-remote.sh"))
+$crossBuildScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "build-pi-cross.ps1"))
+$wslCrossBuildScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "build-pi-cross-wsl.sh"))
+if ($crossBuildScript -notmatch "--no-default-features --features") {
+  throw "Pi PowerShell cross-build must disable default features before selecting a board feature."
+}
+if ($wslCrossBuildScript -notmatch "--no-default-features --features") {
+  throw "Pi WSL cross-build must disable default features before selecting a board feature."
+}
 $candidateCheckIndex = $remoteDeployScript.IndexOf('"$STAGING_RELEASE/octessera-pi" --print-build-metadata', [StringComparison]::Ordinal)
 $activationIndex = $remoteDeployScript.LastIndexOf('ACTIVATED=1', [StringComparison]::Ordinal)
 $serviceIndex = $remoteDeployScript.LastIndexOf('systemctl restart "$SERVICE"', [StringComparison]::Ordinal)

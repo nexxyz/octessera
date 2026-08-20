@@ -1,4 +1,5 @@
-use super::{clip_display_line, json, NativeRunner, Value, OLED_BODY_ROWS};
+use super::toast_text::clip_display_line;
+use super::{json, NativeRunner, Value, OLED_BODY_ROWS};
 
 const DISPLAY_LINE_WIDTH: usize = 28;
 const SELECTED_LINE_SCROLL_TICKS_PER_CHAR: usize = 4;
@@ -25,7 +26,9 @@ impl NativeRunner {
         &self,
         menu: crate::native_menu::NativeMenuSnapshot,
     ) -> DisplaySnapshot {
-        let mut display = if let Some(confirm) = &self.display.confirm_dialog {
+        let mut display = if let Some(restore) = &self.display.user_data_restore {
+            user_data_restore_display(restore)
+        } else if let Some(confirm) = &self.display.confirm_dialog {
             confirm_dialog_display(confirm)
         } else if let Some(setup) = self
             .display
@@ -50,7 +53,7 @@ impl NativeRunner {
             .setup_portal
             .as_ref()
             .is_some_and(|setup| setup.visible);
-        if !setup_visible {
+        if !setup_visible && self.display.user_data_restore.is_none() {
             if let Some(error) = &self.display.runtime_error_presentation {
                 display.title = error.title.clone();
                 display.lines = error.lines.clone();
@@ -86,6 +89,34 @@ impl NativeRunner {
         display.bar_values.truncate(display.lines.len());
         display.full_lines.truncate(display.lines.len());
         display
+    }
+}
+
+fn user_data_restore_display(state: &super::NativeUserDataRestoreState) -> DisplaySnapshot {
+    let (title, lines, selected_row) = match state.status.phase {
+        super::RuntimeUserDataRestorePhase::Restoring => {
+            ("Restoring...".into(), vec!["Please wait".into()], None)
+        }
+        super::RuntimeUserDataRestorePhase::Succeeded => (
+            "Restore complete".into(),
+            vec!["Data restored".into(), "> Close".into()],
+            Some(1),
+        ),
+        super::RuntimeUserDataRestorePhase::Failed => (
+            "Restore failed".into(),
+            vec!["Pre-restore kept".into(), "> Close".into()],
+            Some(1),
+        ),
+    };
+    let line_count = lines.len();
+    DisplaySnapshot {
+        title,
+        lines,
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
+        bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
+        scroll: None,
+        selected_row,
     }
 }
 

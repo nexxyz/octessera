@@ -1,5 +1,5 @@
 use super::{OrangeApplyHost, OrangeDeviceApplyTransaction, OrangeRunError, OrangeShutdownRequest};
-use crate::orange_reboot::{self, OrangeHelperOutcome};
+use crate::orange_reboot::{self, OrangePowerRequestOutcome};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum OrangePowerAction {
@@ -20,17 +20,17 @@ pub(crate) fn resolve_shutdown_request<H: OrangeApplyHost>(
     request: OrangeShutdownRequest,
     host: &mut H,
 ) -> Result<OrangeShutdownResolution, OrangeRunError> {
-    resolve_shutdown_request_with_helper(request, host, orange_reboot::request_reboot)
+    resolve_shutdown_request_with_reboot_request(request, host, orange_reboot::request_reboot)
 }
 
-pub(crate) fn resolve_shutdown_request_with_helper<H, F>(
+pub(crate) fn resolve_shutdown_request_with_reboot_request<H, F>(
     request: OrangeShutdownRequest,
     host: &mut H,
-    helper: F,
+    reboot_request: F,
 ) -> Result<OrangeShutdownResolution, OrangeRunError>
 where
     H: OrangeApplyHost,
-    F: FnOnce() -> OrangeHelperOutcome,
+    F: FnOnce() -> OrangePowerRequestOutcome,
 {
     let power_action = match &request {
         OrangeShutdownRequest::Reboot => Some(OrangePowerAction::Reboot),
@@ -62,17 +62,16 @@ where
                     format!("internal audio silence failed: {error}"),
                 );
             }
-            match helper() {
-                OrangeHelperOutcome::Accepted => Ok(OrangeShutdownResolution::Complete),
-                OrangeHelperOutcome::Indeterminate => Err(OrangeRunError::SpecialExit78(
+            match reboot_request() {
+                OrangePowerRequestOutcome::Accepted => Ok(OrangeShutdownResolution::Complete),
+                OrangePowerRequestOutcome::Indeterminate => Err(OrangeRunError::SpecialExit78(
                     "Orange device apply reboot outcome is indeterminate".into(),
                 )),
-                outcome @ (OrangeHelperOutcome::Rejected | OrangeHelperOutcome::NotSubmitted) => {
-                    rollback_after_failure(
-                        transaction,
-                        format!("Orange device apply helper outcome: {outcome:?}"),
-                    )
-                }
+                outcome @ (OrangePowerRequestOutcome::Rejected
+                | OrangePowerRequestOutcome::NotSubmitted) => rollback_after_failure(
+                    transaction,
+                    format!("Orange device apply reboot request outcome: {outcome:?}"),
+                ),
             }
         }
     }
@@ -117,19 +116,19 @@ pub(crate) fn finish_shutdown_resolution(
         OrangeShutdownResolution::Complete => None,
         OrangeShutdownResolution::Power { action, .. } => Some(*action),
     };
-    finish_shutdown_resolution_with_helper(resolution, || match action {
+    finish_shutdown_resolution_with_power_request(resolution, || match action {
         Some(OrangePowerAction::Reboot) => orange_reboot::request_reboot(),
         Some(OrangePowerAction::Shutdown) => orange_reboot::request_shutdown(),
-        None => unreachable!("complete shutdown resolution does not invoke a helper"),
+        None => unreachable!("complete shutdown resolution does not invoke a power request"),
     })
 }
 
-pub(crate) fn finish_shutdown_resolution_with_helper<F>(
+pub(crate) fn finish_shutdown_resolution_with_power_request<F>(
     resolution: OrangeShutdownResolution,
-    helper: F,
+    power_request: F,
 ) -> Result<(), OrangeRunError>
 where
-    F: FnOnce() -> OrangeHelperOutcome,
+    F: FnOnce() -> OrangePowerRequestOutcome,
 {
     match resolution {
         OrangeShutdownResolution::Complete => Ok(()),
@@ -140,10 +139,10 @@ where
         OrangeShutdownResolution::Power {
             action,
             safety_failure: None,
-        } => match helper() {
-            OrangeHelperOutcome::Accepted => Ok(()),
+        } => match power_request() {
+            OrangePowerRequestOutcome::Accepted => Ok(()),
             outcome => Err(OrangeRunError::Ordinary(format!(
-                "Orange {} helper did not accept ordinary power action: {outcome:?}",
+                "Orange {} power request did not accept ordinary power action: {outcome:?}",
                 power_action_name(action)
             ))),
         },

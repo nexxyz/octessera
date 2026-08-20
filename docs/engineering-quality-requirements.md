@@ -115,9 +115,9 @@ The audit enforces the 500-line source-file limit, warning above 300 LOC and fai
 
 ## File Size And Refactoring
 
-- The hard source-file limit is 500 lines.
+- Treat approximately 300 lines as a design-review threshold. Files from 300 to 500 lines are tolerated, but 500 is a hard ceiling and never a design target.
 - There are currently no active file-length exceptions checked into this repository.
-- Prefer focused extraction when working near large functions or oversized files.
+- When a file approaches 300 lines, review its responsibilities and extract only along real ownership boundaries. Do not compress or split code merely to satisfy a line count.
 
 ## Fallback Policy
 

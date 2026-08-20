@@ -52,6 +52,7 @@ def stage_fixture(root: Path) -> None:
     (root / "etc/systemd/system/sockets.target.wants/octessera-update.socket").symlink_to("../octessera-update.socket")
     for source_relative, installed_relative in (
         ("tools/device-update/updater_protocol.py", "usr/local/lib/octessera/updater_protocol.py"),
+        ("tools/device-update/updater_contract.py", "usr/local/lib/octessera/updater_contract.py"),
         ("tools/device-update/updater_state.py", "usr/local/lib/octessera/updater_state.py"),
         ("tools/device-update/updater_assets.py", "usr/local/lib/octessera/updater_assets.py"),
         ("tools/device-update/updater_guard.py", "usr/local/lib/octessera/updater_guard.py"),

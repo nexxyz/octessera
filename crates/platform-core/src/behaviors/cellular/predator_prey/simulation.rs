@@ -1,5 +1,5 @@
 use crate::behavior::CellTriggerType;
-use crate::behaviors::native_impl::common::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 

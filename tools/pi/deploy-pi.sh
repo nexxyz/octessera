@@ -383,7 +383,7 @@ sudo tee /opt/octessera/update-state.json >/dev/null <<EOL
 EOL
 
 UPDATE_SOURCE=/home/pi/octessera/tools/device-update
-for file in updater_protocol.py updater_state.py updater_assets.py updater_guard.py updater_cli.py; do
+for file in updater_protocol.py updater_contract.py updater_state.py updater_assets.py updater_guard.py updater_cli.py; do
     sudo install -D -m 0644 "$UPDATE_SOURCE/$file" "/usr/local/lib/octessera/$file"
 done
 for file in octessera-update octessera-update-guard octessera-update-recovery; do

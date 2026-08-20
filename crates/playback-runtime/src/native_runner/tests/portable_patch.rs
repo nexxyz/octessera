@@ -45,8 +45,8 @@ fn assert_same_portable_bytes(expected: (&str, &Value), actual: (&str, &Value)) 
     if expected_bytes == actual_bytes {
         return;
     }
-    let expected_patch = portable_patch_projection(expected.1);
-    let actual_patch = portable_patch_projection(actual.1);
+    let expected_patch = portable_patch_projection(expected.1).unwrap();
+    let actual_patch = portable_patch_projection(actual.1).unwrap();
     let path = first_json_difference(&expected_patch, &actual_patch, "$")
         .unwrap_or_else(|| "$.<serialized-bytes>".into());
     panic!(
@@ -107,8 +107,8 @@ pub(crate) fn portable_projection_excludes_history_and_device_fields_without_num
 {
     let pi = generated_pi_default();
     let orange = explicit_orange_default_payload(pi.clone());
-    let pi_patch = portable_patch_projection(&pi);
-    let orange_patch = portable_patch_projection(&orange);
+    let pi_patch = portable_patch_projection(&pi).unwrap();
+    let orange_patch = portable_patch_projection(&orange).unwrap();
 
     assert_eq!(
         portable_patch_bytes(&pi).unwrap(),
@@ -150,7 +150,7 @@ pub(crate) fn lfo_aux_bindings_are_musical_in_both_aux_banks() {
         "turnKey": "linkLfos.1.period"
     });
 
-    let patch = portable_patch_projection(&payload);
+    let patch = portable_patch_projection(&payload).unwrap();
 
     assert_eq!(
         patch["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
@@ -174,7 +174,7 @@ pub(crate) fn portable_save_load_round_trip_preserves_canonical_bytes_and_projec
         press_action: None,
     });
     let source_payload = source.config_payload();
-    let saved_patch = portable_patch_projection(&source_payload);
+    let saved_patch = portable_patch_projection(&source_payload).unwrap();
     let saved_bytes = portable_patch_bytes(&source_payload).unwrap();
 
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -191,7 +191,7 @@ pub(crate) fn portable_save_load_round_trip_preserves_canonical_bytes_and_projec
         .apply_patch_payload_preserving_device(saved_payload)
         .unwrap();
 
-    assert_eq!(loaded.patch_payload(), saved_patch);
+    assert_eq!(loaded.patch_payload().unwrap(), saved_patch);
     assert_eq!(
         portable_patch_bytes(&loaded.config_payload()).unwrap(),
         saved_bytes
@@ -209,12 +209,12 @@ pub(crate) fn portable_save_load_round_trip_preserves_canonical_bytes_and_projec
 #[test]
 pub(crate) fn v2_portable_patch_unknown_fields_report_json_paths() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut unknown_runtime = runner.patch_payload();
+    let mut unknown_runtime = runner.patch_payload().unwrap();
     unknown_runtime["runtimeConfig"]["futureField"] = json!(true);
     let error = prepare_patch_payload(unknown_runtime, &runner.config_payload()).unwrap_err();
     assert!(error.contains("$.runtimeConfig.futureField"), "{error}");
 
-    let mut unknown_lfo = runner.patch_payload();
+    let mut unknown_lfo = runner.patch_payload().unwrap();
     unknown_lfo["runtimeConfig"]["linkLfos"][0]["futureField"] = json!(true);
     let error = prepare_patch_payload(unknown_lfo, &runner.config_payload()).unwrap_err();
     assert!(
@@ -222,7 +222,7 @@ pub(crate) fn v2_portable_patch_unknown_fields_report_json_paths() {
         "{error}"
     );
 
-    let mut unknown_system = runner.patch_payload();
+    let mut unknown_system = runner.patch_payload().unwrap();
     unknown_system["system"] = json!({ "futureField": true });
     let error = prepare_patch_payload(unknown_system, &runner.config_payload()).unwrap_err();
     assert!(error.contains("$.system.futureField"), "{error}");
@@ -238,7 +238,7 @@ pub(crate) fn orange_uses_pi_default_source_and_preserves_portable_projection() 
     );
 
     let orange_startup = include_str!("../../../../../apps/pi-zero/src/orange_host_adapter.rs");
-    assert!(orange_startup.contains("load_json(&self.store_dir.join(\"default.json\"))"));
+    assert!(orange_startup.contains("load_default_now()"));
     assert!(orange_startup.contains("RuntimeStoreResult::LoadDefaultResult { payload }"));
     assert!(orange_startup.contains("payload: payload.clone(),"));
 

@@ -22,7 +22,10 @@ try:
     from .setup_mutation import SETUP_TOOL_IDENTITY
     from .setup_provenance import setup_tool_code_model
     from .trust_manifest import load_manifest, parent_context_for_board
-    from .workflow_record_common import RecordError, SHA_RE, identity, load_json, require, require_keys, resolve, tool_identity, verify_identity, verify_tool
+    from .record_documents import load_json
+    from .record_paths import identity, resolve, verify_identity
+    from .record_tool_contract import tool_identity, verify_tool
+    from .record_validation import RecordError, SHA_RE, require, require_keys
 except ImportError:
     from disk_packaging import compression_identity, file_digest
     from post_proof_record import ORANGE_TOOLS, RPI_TOOLS, RUNTIME_KEYS, _bundle_identity, _companion_records, _read_proof, _validate_notice, _validate_orange_provenance
@@ -33,7 +36,10 @@ except ImportError:
     from setup_mutation import SETUP_TOOL_IDENTITY
     from setup_provenance import setup_tool_code_model
     from trust_manifest import load_manifest, parent_context_for_board
-    from workflow_record_common import RecordError, SHA_RE, identity, load_json, require, require_keys, resolve, tool_identity, verify_identity, verify_tool
+    from record_documents import load_json
+    from record_paths import identity, resolve, verify_identity
+    from record_tool_contract import tool_identity, verify_tool
+    from record_validation import RecordError, SHA_RE, require, require_keys
 
 
 SCHEMA = "octessera.image-respin-setup-post-proof/v1"

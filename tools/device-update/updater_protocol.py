@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import copy
 import datetime as dt
-import json
 import os
 import re
 import shutil
@@ -10,95 +9,41 @@ import tempfile
 import time
 from pathlib import Path
 
+from updater_contract import (
+    BINARY,
+    CANDIDATE_HEALTH_PROTOCOL,
+    LOCK_TIMEOUT_SECONDS,
+    MANIFEST,
+    MANIFEST_SCHEMA,
+    MARKER_SCHEMA,
+    MAX_ARCHIVE_BYTES,
+    MAX_ENTRY_BYTES,
+    MAX_JSON_BYTES,
+    MAX_SUMS_BYTES,
+    MAX_TOTAL_UNCOMPRESSED_BYTES,
+    MAX_ZIP_ENTRIES,
+    UPDATER_PROTOCOL,
+    UpdateError,
+    VERSION_RE,
+    atomic_json,
+    atomic_symlink,
+    read_json,
+    same_path,
+    version,
+)
 from updater_profiles import ORANGE_PROFILE, RASPBERRY_PROFILE, UPDATER_ASSET_PROFILES, updater_asset_names
-VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+from updater_state import UpdaterStateMixin
+
 TAG_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
-BINARY = "octessera-pi"
-MANIFEST = "update-manifest.json"
 TRANSACTION_SCHEMA = 2
-MARKER_SCHEMA = CANDIDATE_HEALTH_PROTOCOL = 1
-MANIFEST_SCHEMA = UPDATER_PROTOCOL = 2
-MAX_JSON_BYTES = 2 * 1024 * 1024
-MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
-MAX_SUMS_BYTES = 2 * 1024 * 1024
-MAX_ENTRY_BYTES = 128 * 1024 * 1024
-MAX_TOTAL_UNCOMPRESSED_BYTES = 128 * 1024 * 1024
-MAX_ZIP_ENTRIES = 16
 SYSTEMCTL_TIMEOUT_SECONDS = 15
-LOCK_TIMEOUT_SECONDS = 10
 DEFAULT_SERVICE = "octessera.service"
 DEFAULT_SERVICE_PATH = "/etc/systemd/system/octessera.service"
 DEFAULT_RECOVERY_SERVICE = "octessera-update-recovery.service"
 
 
-class UpdateError(Exception):
-    pass
-
-
 def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def version(value: object) -> bool:
-    return isinstance(value, str) and bool(VERSION_RE.fullmatch(value))
-
-
-def same_path(left: Path, right: Path) -> bool:
-    normalize = lambda value: os.path.normcase(os.path.normpath(str(value).removeprefix("\\\\?\\")))
-    return normalize(left) == normalize(right)
-
-
-def read_json(path: Path, max_bytes: int | None = None) -> object:
-    try:
-        if max_bytes is not None and path.stat().st_size > max_bytes:
-            raise UpdateError(f"JSON exceeds size limit: {path}")
-        with path.open(encoding="utf-8") as handle:
-            return json.load(handle)
-    except (OSError, ValueError) as exc:
-        raise UpdateError(f"Invalid JSON: {path}") from exc
-
-
-from updater_state import UpdaterStateMixin
-
-
-def atomic_json(path: Path, value: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}-{os.urandom(4).hex()}")
-    payload = (json.dumps(value, indent=2) + "\n").encode("utf-8")
-    try:
-        with temporary.open("wb") as handle:
-            os.chmod(temporary, 0o644)
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-        try:
-            directory = os.open(path.parent, os.O_RDONLY)
-        except OSError:
-            directory = -1
-        if directory >= 0:
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
-def atomic_symlink(path: Path, target: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}-{os.urandom(4).hex()}")
-    try:
-        os.symlink(target, temporary)
-        try:
-            os.replace(temporary, path)
-        except PermissionError:
-            if os.name != "nt":
-                raise
-            path.unlink(missing_ok=True)
-            os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 class Updater(UpdaterStateMixin):

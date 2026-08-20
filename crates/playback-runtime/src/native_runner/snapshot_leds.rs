@@ -1,5 +1,6 @@
+use super::led_color::LedColor;
 use super::{
-    display_index, DisplayTransientPresentation, LedColor, NativeRunner, RuntimeTransportState,
+    display_index, DisplayTransientPresentation, NativeRunner, RuntimeTransportState,
     TransportFlash, Value, GRID_HEIGHT, GRID_WIDTH,
 };
 

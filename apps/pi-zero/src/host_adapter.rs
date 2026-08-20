@@ -4,16 +4,16 @@ mod host_adapter_construction;
 mod host_adapter_oled;
 #[path = "host_adapter_store.rs"]
 mod host_adapter_store;
-#[path = "host_adapter_system_info.rs"]
-mod host_adapter_system_info;
 
 use crate::audio::AudioService;
 use crate::audio_event::musical_event_to_engine_event;
 use crate::host_audio_command::send_audio_command;
 use crate::midi_host::{MidiHost, RuntimeOutputSink};
 use crate::oled_frame_cache::OledFrameCache;
-use crate::platform_service::{PiPlatformService, PlatformJob, PlatformJobKind};
-use crate::setup_portal::start_failure_message;
+use crate::platform_service::{
+    dispatch_midi_effect, dispatch_shared_effect, PiPlatformService, PlatformJob, PlatformJobKind,
+    QueueFailureStyle,
+};
 use playback_runtime::{
     AudioOutputSet, DeferredDefaultSave, HostAdapter, HostMessage,
     MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
@@ -26,10 +26,10 @@ use std::time::Instant;
 
 pub struct PiPlaybackHostAdapter {
     audio: Option<AudioService>,
-    store_dir: PathBuf,
     samples_dir: PathBuf,
     pub(crate) platform_service: PiPlatformService,
     pending_default_save: DeferredDefaultSave,
+    pending_default_save_generation: Option<u64>,
     midi: MidiHost,
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
@@ -43,10 +43,25 @@ pub enum PiPowerRequest {
     Shutdown,
 }
 impl PiPlaybackHostAdapter {
-    pub(crate) fn handle_transfer_input(&self, message: &playback_runtime::HostMessage) {
+    pub(crate) fn handle_transfer_input(&self, message: &playback_runtime::HostMessage) -> bool {
         if let playback_runtime::HostMessage::DeviceInput { input, .. } = message {
-            self.platform_service.handle_transfer_input(input);
+            return self.platform_service.handle_transfer_input(input);
         }
+        true
+    }
+
+    pub(crate) fn take_transfer_status(&mut self) -> Option<HostMessage> {
+        if self
+            .pending_default_save_generation
+            .is_some_and(|generation| {
+                generation != self.platform_service.store_write_generation()
+                    || self.platform_service.store_writes_blocked()
+            })
+        {
+            self.pending_default_save.cancel();
+            self.pending_default_save_generation = None;
+        }
+        self.platform_service.take_transfer_status()
     }
 
     pub fn new<T: Into<AudioOutputSet>>(
@@ -60,7 +75,6 @@ impl PiPlaybackHostAdapter {
         let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
         Self::with_platform_service(
             audio,
-            store_dir,
             samples_dir,
             midi_in_handler,
             usb_midi_out_enabled,
@@ -78,18 +92,48 @@ impl PiPlaybackHostAdapter {
     }
 
     pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
+        if self
+            .pending_default_save_generation
+            .is_some_and(|generation| {
+                generation != self.platform_service.store_write_generation()
+                    || self.platform_service.store_writes_blocked()
+            })
+        {
+            self.pending_default_save.cancel();
+            self.pending_default_save_generation = None;
+            return Ok(Vec::new());
+        }
         let Some(entry) = self.pending_default_save.take_due(Instant::now()) else {
             return Ok(Vec::new());
         };
+        let generation = self.pending_default_save_generation.take();
         let payload = entry.payload;
         let request = entry.request;
-        if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-            request.clone(),
-            PlatformJobKind::SaveDefault {
-                payload: payload.clone(),
-                is_auto: Some(true),
-            },
-        )) {
+        let job = match generation {
+            Some(generation) => PlatformJob::with_store_write_generation(
+                request.clone(),
+                PlatformJobKind::SaveDefault {
+                    payload: payload.clone(),
+                    is_auto: Some(true),
+                },
+                generation,
+            ),
+            None => PlatformJob::new(
+                request.clone(),
+                PlatformJobKind::SaveDefault {
+                    payload: payload.clone(),
+                    is_auto: Some(true),
+                },
+            ),
+        };
+        if let Err(message) = self.platform_service.enqueue(job) {
+            if self.platform_service.store_writes_blocked()
+                || generation.is_some_and(|generation| {
+                    generation != self.platform_service.store_write_generation()
+                })
+            {
+                return Ok(Vec::new());
+            }
             self.pending_default_save.retry(
                 playback_runtime::DeferredDefaultSaveEntry {
                     payload,
@@ -98,6 +142,7 @@ impl PiPlaybackHostAdapter {
                 },
                 retry_default_save_at(),
             );
+            self.pending_default_save_generation = generation;
             return Ok(vec![identified_failure(
                 &request,
                 format!("Auto-save queue failed: {message}"),
@@ -131,59 +176,16 @@ impl HostAdapter for PiPlaybackHostAdapter {
         &mut self,
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if let Some(result) =
+            dispatch_shared_effect(&self.platform_service, request, QueueFailureStyle::Pi)
+        {
+            return Ok(result);
+        }
+        if let Some(result) = dispatch_midi_effect(&mut self.midi, &request.effect)? {
+            return Ok(vec![HostMessage::RuntimeResult { result }]);
+        }
         let effect = &request.effect;
         let result = match effect {
-            RuntimePlatformEffect::StoreListPresets => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::ListPresets,
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Preset list queued failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::StoreLoadPreset { name } => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::LoadPreset { name: name.clone() },
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Load {name} queued failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::SavePreset {
-                        name: name.clone(),
-                        payload: payload.clone(),
-                    },
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Save {name} queued failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::StoreDeletePreset { name } => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::DeletePreset { name: name.clone() },
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Delete {name} queued failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
             RuntimePlatformEffect::StoreLoadDefault => self.load_default_result()?,
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
                 match self.save_default_result(request, payload, mode.as_deref())? {
@@ -193,6 +195,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
             }
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 self.pending_default_save.cancel();
+                self.pending_default_save_generation = None;
                 if let Err(message) = self.platform_service.save_default_now(payload) {
                     return Ok(vec![store_error(format!(
                         "device/audio apply save failed: {message}"
@@ -258,20 +261,6 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 }
                 return Ok(Vec::new());
             }
-            RuntimePlatformEffect::StoreSaveBackup { payload } => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::SaveBackup {
-                        payload: payload.clone(),
-                    },
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Save backup queued failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
             RuntimePlatformEffect::StoreSaveRecovery { payload } => {
                 self.latest_recovery_payload = Some(payload.clone());
                 if let Err(message) = self.platform_service.save_recovery_now(payload) {
@@ -282,46 +271,6 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 return Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
                 }]);
-            }
-            RuntimePlatformEffect::MidiListOutputsRequest => {
-                RuntimeStoreResult::MidiListOutputsResult {
-                    outputs: self.midi.list_outputs()?,
-                }
-            }
-            RuntimePlatformEffect::MidiListInputsRequest => {
-                RuntimeStoreResult::MidiListInputsResult {
-                    inputs: self.midi.list_inputs()?,
-                }
-            }
-            RuntimePlatformEffect::SystemInfoRequest => {
-                return Ok(host_adapter_system_info::request(
-                    &self.platform_service,
-                    request,
-                ))
-            }
-            RuntimePlatformEffect::SetupPortalOpen => {
-                match self.platform_service.start_setup_portal(request) {
-                    Ok(status) => return Ok(vec![status]),
-                    Err(failure) => return Ok(vec![start_failure_message(request, failure)]),
-                }
-            }
-            RuntimePlatformEffect::MidiSelectOutput { id } => {
-                let result = self.midi.select_output(id.clone());
-                RuntimeStoreResult::MidiStatus {
-                    ok: result.is_ok(),
-                    message: result.err(),
-                    selected_out_id: self.midi.selected_output_id(),
-                    selected_in_id: self.midi.selected_input_id(),
-                }
-            }
-            RuntimePlatformEffect::MidiSelectInput { id } => {
-                let result = self.midi.select_input(id.clone());
-                RuntimeStoreResult::MidiStatus {
-                    ok: result.is_ok(),
-                    message: result.err(),
-                    selected_out_id: self.midi.selected_output_id(),
-                    selected_in_id: self.midi.selected_input_id(),
-                }
             }
             RuntimePlatformEffect::MidiPanic => {
                 let audio_error = self.silence_internal_audio().err();
@@ -362,69 +311,20 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 println!("system.hardwareTest requested (planned guided hardware diagnostic)");
                 return Ok(Vec::new());
             }
-            RuntimePlatformEffect::UpdateCheck => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::UpdateCheck,
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Update check queue failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::UpdateApply => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::UpdateApply,
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Update apply queue failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::Rollback => {
-                if let Err(message) = self
-                    .platform_service
-                    .enqueue(PlatformJob::new(request.clone(), PlatformJobKind::Rollback))
-                {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Rollback queue failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::SampleListRequest {
-                instrument_slot,
-                sample_slot,
-                dir,
-            } => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::ListSamples {
-                        instrument_slot: *instrument_slot,
-                        sample_slot: *sample_slot,
-                        dir: dir.clone(),
-                    },
-                )) {
-                    return Ok(vec![identified_failure(
-                        request,
-                        format!("Sample list queued failed: {message}"),
-                    )]);
-                }
-                return Ok(Vec::new());
-            }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
                 return Ok(Vec::new());
             }
+            _ => unreachable!("shared platform effect was not dispatched"),
         };
         Ok(vec![HostMessage::RuntimeResult { result }])
     }
+
+    fn acknowledge_restored_state(&mut self) -> Result<(), RuntimeAdapterError> {
+        self.platform_service.acknowledge_restored_state();
+        Ok(())
+    }
+
     fn handle_audio_command(
         &mut self,
         command: &RuntimeAudioCommand,

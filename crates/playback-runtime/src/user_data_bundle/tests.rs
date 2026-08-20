@@ -170,6 +170,48 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
 }
 
 #[test]
+fn user_data_rehydration_applies_preferences_before_migrated_portable_patch() {
+    let defaults = canonical_defaults();
+    let mut preferences = UserPreferenceDelta::empty();
+    preferences
+        .values
+        .insert("displayBrightness".into(), json!(42));
+    let patch = json!({
+        "kind": "octessera.patch",
+        "schemaVersion": 1,
+        "runtimeConfig": {
+            "masterVolume": 1,
+            "layers": [{
+                "name": "Portable layer",
+                "linkLfo": {
+                    "enabled": true,
+                    "target": { "key": "instruments.0.mixer.volume", "kind": "number" },
+                    "period": "1/4",
+                    "depthPct": 37
+                }
+            }]
+        }
+    });
+
+    let restored = apply_user_data_patch_and_preferences(&defaults, &patch, &preferences).unwrap();
+    assert_eq!(restored["runtimeConfig"]["displayBrightness"], 42);
+    assert_eq!(
+        restored["runtimeConfig"]["masterVolume"],
+        defaults["runtimeConfig"]["masterVolume"]
+    );
+    assert_eq!(
+        restored["runtimeConfig"]["layers"][0]["name"],
+        "Portable layer"
+    );
+    assert_eq!(
+        restored["runtimeConfig"]["layers"][1],
+        defaults["runtimeConfig"]["layers"][1]
+    );
+    assert_eq!(restored["runtimeConfig"]["linkLfos"][0]["enabled"], true);
+    assert_eq!(restored["runtimeConfig"]["linkLfos"][0]["depthPct"], 37);
+}
+
+#[test]
 fn optional_media_is_explicit_and_manifested_without_device_paths() {
     let media = media_reference_from_bytes(
         UserDataMediaKind::Sample,
@@ -203,6 +245,31 @@ fn optional_media_is_explicit_and_manifested_without_device_paths() {
     let bytes = encode_user_data_bundle(&result).unwrap();
     let restored = decode_user_data_bundle(&bytes, &canonical_defaults()).unwrap();
     assert_eq!(restored, result);
+}
+
+#[test]
+fn media_reference_from_bytes_hashes_and_validates_content() {
+    let reference = media_reference_from_bytes(
+        UserDataMediaKind::Audio,
+        "kick".into(),
+        "Kick.wav".into(),
+        b"sample bytes",
+    )
+    .unwrap();
+    assert_eq!(reference.size, 12);
+    assert_eq!(
+        reference.sha256,
+        "8e13f6c598de092f99affe5c64d3aca48f4b4e0bea6e396bc257c40482674e3a"
+    );
+
+    let error = media_reference_from_bytes(
+        UserDataMediaKind::Audio,
+        "../escape".into(),
+        "Kick.wav".into(),
+        b"sample bytes",
+    )
+    .unwrap_err();
+    assert!(error.contains("media id"));
 }
 
 #[test]

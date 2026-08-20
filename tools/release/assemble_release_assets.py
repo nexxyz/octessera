@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "tools" / "device-update"))
 
 from package_notice_zip import package_notice_zip  # type: ignore[import-not-found]
 from verify_notice_archive import verify_notice_archive  # type: ignore[import-not-found]
-from updater_profiles import updater_asset_names  # type: ignore[import-not-found]
+from updater_profiles import ORANGE_PROFILE, RASPBERRY_PROFILE, updater_asset_names  # type: ignore[import-not-found]
 
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
 KERNEL_MANIFEST = Path("tools/kernel-patches/orange-midi-interface-manifest.json")
@@ -369,10 +369,9 @@ def assemble_release_assets(
     orange_image_dir = gathered_root / "octessera-orange-image-release-assets"
     orange_device_dir = gathered_root / "octessera-orange-device-release-assets"
     rpi_manifest = f"{prefix}-raspberry-pi-zero-2w.rpi-imager-manifest"
-    rpi_device_zip = f"{prefix}-raspberry-pi-zero-2w-device-aarch64.zip"
-    rpi_device_sums = "SHA256SUMS-raspberry-pi-zero-2w-device.txt"
+    rpi_device_zip, rpi_device_sums = updater_asset_names(RASPBERRY_PROFILE, version)
     orange_device_zip = f"{prefix}-orange-pi-zero-2w-standalone-manual-aarch64.zip"
-    orange_updater_zip, orange_updater_sums = updater_asset_names("orange-pi-zero-2w", version)
+    orange_updater_zip, orange_updater_sums = updater_asset_names(ORANGE_PROFILE, version)
 
     _require_exact_files(windows_dir, (f"{prefix}-windows-installer.exe", f"{prefix}-windows-portable.zip", "SHA256SUMS-windows.txt"))
     _require_exact_files(ubuntu_dir, (f"{prefix}-ubuntu-amd64.deb", f"{prefix}-ubuntu-x86_64.AppImage", "SHA256SUMS-ubuntu.txt"))

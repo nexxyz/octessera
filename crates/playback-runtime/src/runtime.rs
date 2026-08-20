@@ -97,6 +97,10 @@ pub trait HostAdapter {
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError>;
 
+    fn acknowledge_restored_state(&mut self) -> Result<(), RuntimeAdapterError> {
+        Ok(())
+    }
+
     fn handle_audio_command(
         &mut self,
         command: &RuntimeAudioCommand,

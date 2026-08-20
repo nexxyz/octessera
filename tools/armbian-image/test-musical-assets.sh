@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 fixture_root="$(mktemp -d)"
 trap 'rm -rf "$fixture_root"' EXIT
 bash "$root/tools/armbian-image/stage-musical-assets.sh" "$fixture_root/usr/share/octessera"
@@ -83,10 +85,7 @@ grep -qF 'mv -T -n' "$root/userpatches/overlay/usr/local/sbin/octessera-provisio
 # shellcheck disable=SC2016
 grep -qF 'temporary=$(mktemp "$staging_directory/' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 # shellcheck disable=SC2016
-if grep -qF 'mktemp "$presets_directory/' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"; then
-  echo "Provisioner stages candidates inside the runtime-writable presets directory." >&2
-  exit 1
-fi
+octessera_reject_file_match "Provisioner stages candidates inside the runtime-writable presets directory." -qF 'mktemp "$presets_directory/' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 grep -q 'ExecStart=/usr/local/sbin/octessera-provision-musical-default' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
 grep -qFx 'Description=Seed a missing Octessera Pi default' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
 run_as_root() {
@@ -125,7 +124,7 @@ set -euo pipefail
 installer="$1"
 overlay_root="$2"
 target_root="$3"
-# shellcheck disable=SC1090,SC1091
+# shellcheck source=userpatches/overlay/usr/local/lib/octessera/orange-sample-assets.sh
 source "$installer"
 install_orange_musical_assets "$overlay_root" "$target_root"
 EOF

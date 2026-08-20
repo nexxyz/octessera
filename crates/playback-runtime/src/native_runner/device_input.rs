@@ -67,6 +67,9 @@ impl NativeRunner {
             return self.messages_with_forced_snapshot();
         }
         trace_device_input_wake(trace_context.as_ref(), false, false, "active_dispatch");
+        if self.display.user_data_restore.is_some() {
+            return self.handle_user_data_restore_input(input);
+        }
         if self.display.confirm_dialog.is_some() {
             return self.handle_confirm_device_input(input);
         }
@@ -146,6 +149,22 @@ impl NativeRunner {
             self.mark_modifier_consumed();
         }
         result
+    }
+
+    fn handle_user_data_restore_input(
+        &mut self,
+        input: DeviceInput,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        if !self.user_data_restore_is_active()
+            && (matches!(
+                input,
+                DeviceInput::EncoderPress { ref id }
+                    if id.as_deref().unwrap_or("main") == "main"
+            ) || matches!(input, DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true)))
+        {
+            self.display.user_data_restore = None;
+        }
+        self.messages_with_snapshot()
     }
 
     fn handle_confirm_device_input(

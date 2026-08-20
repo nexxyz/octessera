@@ -48,12 +48,13 @@ PRE_AFTER=
 
 run_prepush() {
   local repo="$1"
+  local checks_file="${PRE_PUSH_CHECKS_FILE_OVERRIDE:-$TMP/checks.sh}"
   shift
   PRE_BEFORE="$(snapshot "$repo")"
   set +e
   (
     cd "$repo"
-    PRE_PUSH_CHECKS_FILE="$TMP/checks.sh" PRE_PUSH_FAKE_FAIL="${FAKE_FAIL:-0}" bash "$RUNNER" "$@"
+    PRE_PUSH_CHECKS_FILE="$checks_file" PRE_PUSH_FAKE_FAIL="${FAKE_FAIL:-0}" bash "$RUNNER" "$@"
   ) >"$TMP/last.out" 2>"$TMP/last.err"
   PRE_RC=$?
   set -e
@@ -190,5 +191,67 @@ run_prepush "$repo" --bogus
 expect_rc "sc9" 2
 expect_no_mutation "sc9"
 pass "unknown flag exits 2 without mutation"
+
+cat > "$TMP/file-length-checks.sh" <<EOF
+source "$ROOT/tools/quality/pre-push-checks.sh"
+run_pre_push_checks() {
+  run_check "file length" check_file_length
+}
+EOF
+
+write_fixture_lines() {
+  local file="$1" count="$2" trailing_newline="${3:-yes}"
+  : > "$file"
+  for ((line = 1; line <= count; line += 1)); do
+    printf 'fixture line %s' "$line" >> "$file"
+    if [ "$line" -lt "$count" ] || [ "$trailing_newline" = yes ]; then
+      printf '\n' >> "$file"
+    fi
+  done
+}
+
+# 10. Owned script extensions are included and generated/vendor/CAD artifacts are excluded.
+FAKE_FAIL=0
+PRE_PUSH_CHECKS_FILE_OVERRIDE="$TMP/file-length-checks.sh"
+repo="$TMP/sc10"
+make_repo "$repo"
+mkdir -p "$repo/src"
+for extension in bash js mjs ps1 psm1 py rs sh ts tsx; do
+  printf 'source\n' > "$repo/src/included.$extension"
+done
+printf 'not scanned\n' > "$repo/src/excluded.txt"
+for directory in .opencode .slim artifacts build gen generated release-artifacts target third_party vendor; do
+  mkdir -p "$repo/$directory"
+  write_fixture_lines "$repo/$directory/excluded.py" 501
+done
+mkdir -p "$repo/hardware/enclosure/review" "$repo/hardware/pcb/gerber"
+write_fixture_lines "$repo/hardware/enclosure/review/excluded.py" 501
+write_fixture_lines "$repo/hardware/pcb/gerber/excluded.py" 501
+printf '#!/bin/sh\nsource\n' > "$repo/src/shebang-script"
+write_fixture_lines "$repo/src/no-shebang" 501
+write_fixture_lines "$repo/src/exact-500.py" 500
+write_fixture_lines "$repo/src/exact-500-no-newline.sh" 500 no
+deployment_root="$repo/tools/pi-image/stage4-octessera/files/root/usr/local/sbin"
+mkdir -p "$deployment_root"
+write_fixture_lines "$deployment_root/deployment-script" 500 no
+mkdir -p "$repo/release-artifacts"
+printf '#!/bin/sh\n' > "$repo/release-artifacts/artifact-script"
+for ((line = 1; line <= 500; line += 1)); do
+  printf 'artifact line %s\n' "$line" >> "$repo/release-artifacts/artifact-script"
+done
+run_prepush "$repo" --allow-dirty
+expect_rc "sc10" 0
+expect_no_mutation "sc10"
+pass "owned extensions are included while generated/vendor/CAD fixtures are excluded"
+
+# 11. Exact-500 scripts pass, then both newline forms fail at 501 logical lines.
+write_fixture_lines "$repo/src/exact-500.py" 501
+write_fixture_lines "$repo/src/exact-500-no-newline.sh" 501 no
+run_prepush "$repo" --allow-dirty
+expect_rc "sc11" 1
+expect_err_match "sc11" "src/exact-500.py (501 lines, max 500)"
+expect_err_match "sc11" "src/exact-500-no-newline.sh (501 lines, max 500)"
+expect_no_mutation "sc11"
+pass "exact-500 scripts pass and both 501-line forms are rejected"
 
 printf '\nPASS: %d pre-push fixture scenarios\n' "$PASS_COUNT"

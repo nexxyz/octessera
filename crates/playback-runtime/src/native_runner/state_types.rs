@@ -51,6 +51,7 @@ pub(super) struct NativeDisplayState {
     pub(super) usb_sd_transfer_modal: Option<NativeUsbSdTransferModal>,
     pub(super) system_info_modal: Option<NativeSystemInfoModal>,
     pub(super) setup_portal: Option<NativeSetupPortalState>,
+    pub(super) user_data_restore: Option<NativeUserDataRestoreState>,
     pub(super) transients: display_transients::DisplayTransients,
     pub(super) auto_save_flash_serial: u64,
     pub(super) auto_save_flash_until: Option<Instant>,
@@ -62,15 +63,10 @@ pub(super) struct NativeDisplayState {
 }
 
 impl NativeDisplayState {
-    pub(super) fn new(ui: NativeUiState, now: Instant) -> Self {
+    pub(super) fn new(ui: NativeUiState, now: Instant, hdmi: NativeHdmiConfig) -> Self {
         Self {
             ui,
-            hdmi: NativeHdmiConfig {
-                mode: "none".into(),
-                show_gridlines: false,
-                cycle_measures: 4,
-                source_layer_index: 0,
-            },
+            hdmi,
             oled_mode: NativeOledMode::Splash,
             oled_splash_text: OLED_STARTUP_SPLASH_KEY.into(),
             oled_splash_until: Some(now + Duration::from_millis(OLED_STARTUP_SPLASH_MS)),
@@ -83,6 +79,7 @@ impl NativeDisplayState {
             usb_sd_transfer_modal: None,
             system_info_modal: None,
             setup_portal: None,
+            user_data_restore: None,
             transients: display_transients::DisplayTransients::new(now),
             auto_save_flash_serial: 0,
             auto_save_flash_until: None,
@@ -101,6 +98,14 @@ pub(super) struct NativeSetupPortalState {
     pub(super) request_id: Option<String>,
     pub(super) revision: Option<u64>,
     pub(super) visible: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct NativeUserDataRestoreState {
+    pub(super) status: RuntimeUserDataRestoreStatus,
+    pub(super) request_id: Option<String>,
+    pub(super) revision: Option<u64>,
+    pub(super) rehydration_pending: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -127,7 +132,12 @@ pub(super) struct NativeTransportState {
 }
 
 impl NativeTransportState {
-    pub(super) fn new(bpm: f64, swing_pct: u8, sync_source: SyncSource) -> Self {
+    pub(super) fn new(
+        bpm: f64,
+        swing_pct: u8,
+        sync_source: SyncSource,
+        algorithm_step_pulses: u32,
+    ) -> Self {
         Self {
             transport: RuntimeTransportState::Stopped,
             sync_source,
@@ -138,9 +148,9 @@ impl NativeTransportState {
             swung_ppqn_pulse: 0,
             tick: 0,
             layer_ticks: vec![0; LAYER_COUNT],
-            algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_RED,
+            algorithm_step_pulses,
             algorithm_pulse_accumulator: 0,
-            layer_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT],
+            layer_algorithm_step_pulses: vec![algorithm_step_pulses; LAYER_COUNT],
             layer_pulse_accumulators: vec![0; LAYER_COUNT],
         }
     }

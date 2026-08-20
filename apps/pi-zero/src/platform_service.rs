@@ -1,30 +1,32 @@
 use crate::device_update;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::orange_device_apply::OrangeDeviceApplyTransaction;
-use crate::persistence::atomic_write_json;
-use crate::sample_browser::sample_entries;
 #[cfg(all(test, any(unix, windows)))]
 use crate::setup_portal::SetupPortalEnvironment;
 use crate::setup_portal::SetupPortalService;
 use crate::setup_portal_worker;
-use crate::user_data_transfer::UserDataTransferService;
-use playback_runtime::{
-    HostMessage, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfoError,
-};
+use crate::user_data_transfer::{StoreWriteBarrier, UserDataTransferService};
+use playback_runtime::{HostMessage, RuntimePlatformRequest, RuntimeStoreResult};
 use std::collections::VecDeque;
-use std::path::{Path, PathBuf};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use std::process::Command;
+#[cfg(test)]
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 #[path = "platform_result_lane.rs"]
 mod platform_result_lane;
+#[path = "platform_service_dispatcher.rs"]
+mod platform_service_dispatcher;
+#[path = "platform_service_executor.rs"]
+mod platform_service_executor;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[path = "platform_service_orange_apply.rs"]
 mod platform_service_orange_apply;
 #[path = "platform_service_setup_portal.rs"]
 mod platform_service_setup_portal;
+#[path = "platform_service_store.rs"]
+mod platform_service_store;
 #[cfg(test)]
 #[path = "platform_service_test_support.rs"]
 mod platform_service_test_support;
@@ -33,8 +35,26 @@ mod platform_service_worker;
 #[path = "system_info.rs"]
 mod system_info;
 pub(crate) use platform_result_lane::PlatformResultLane;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) use platform_service_dispatcher::enqueue_job;
+pub(crate) use platform_service_dispatcher::{
+    dispatch as dispatch_shared_effect, dispatch_midi_effect, QueueFailureStyle,
+};
+#[cfg(test)]
+use platform_service_executor::handle_job;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(test)]
+use platform_service_executor::usb_storage_message;
+#[cfg(test)]
+use platform_service_store::delete_preset_payload;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+pub(crate) use platform_service_store::preset_path;
+pub(crate) use platform_service_store::{
+    list_presets, load_json, preset_load_path, preset_patch_path, save_json,
+};
 const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
+
 pub struct PiPlatformService {
     store_dir: PathBuf,
     jobs: SyncSender<PlatformJob>,
@@ -42,6 +62,8 @@ pub struct PiPlatformService {
     preserved_results: Mutex<VecDeque<HostMessage>>,
     #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
     result_lane: Arc<PlatformResultLane>,
+    store_lock: Arc<Mutex<()>>,
+    store_write_barrier: StoreWriteBarrier,
     setup_portal: SetupPortalService,
     setup_portal_stop: Arc<AtomicBool>,
     user_data_transfer: UserDataTransferService,
@@ -67,16 +89,21 @@ impl PiPlatformService {
         update_executor: Arc<dyn device_update::UpdateExecutor>,
     ) -> Self {
         let setup_portal = SetupPortalService::production();
+        let store_lock = Arc::new(Mutex::new(()));
         let user_data_transfer = UserDataTransferService::production(
             store_dir.clone(),
             samples_dir.clone(),
             setup_portal.random_source(),
+            store_lock.clone(),
         );
+        let store_write_barrier = user_data_transfer.store_write_barrier();
         Self::new_with_setup_portal(
             store_dir,
             samples_dir,
             setup_portal,
             user_data_transfer,
+            store_lock,
+            store_write_barrier,
             update_executor,
         )
     }
@@ -86,6 +113,8 @@ impl PiPlatformService {
         samples_dir: PathBuf,
         setup_portal: SetupPortalService,
         user_data_transfer: UserDataTransferService,
+        store_lock: Arc<Mutex<()>>,
+        store_write_barrier: StoreWriteBarrier,
         update_executor: Arc<dyn device_update::UpdateExecutor>,
     ) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
@@ -104,6 +133,8 @@ impl PiPlatformService {
             samples_dir,
             jobs_rx,
             result_lane.clone(),
+            store_lock.clone(),
+            store_write_barrier.clone(),
             update_executor,
         );
         Self {
@@ -113,6 +144,8 @@ impl PiPlatformService {
             preserved_results: Mutex::new(VecDeque::new()),
             #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
             result_lane,
+            store_lock,
+            store_write_barrier,
             setup_portal,
             setup_portal_stop,
             user_data_transfer,
@@ -126,37 +159,108 @@ impl PiPlatformService {
         environment: SetupPortalEnvironment,
     ) -> Self {
         let setup_portal = SetupPortalService::test(environment);
-        let user_data_transfer = UserDataTransferService::test(
+        let user_data_transfer = UserDataTransferService::test_with_store_lock(
             store_dir.clone(),
             samples_dir.clone(),
             setup_portal.random_source(),
+            Arc::new(Mutex::new(())),
         );
+        let store_lock = user_data_transfer.store_lock();
+        let store_write_barrier = user_data_transfer.store_write_barrier();
         Self::new_with_setup_portal(
             store_dir,
             samples_dir,
             setup_portal,
             user_data_transfer,
+            store_lock,
+            store_write_barrier,
             device_update::production_executor(),
         )
     }
 
     pub fn save_recovery_now(&self, payload: &serde_json::Value) -> Result<(), String> {
+        let _guard = self
+            .store_lock
+            .lock()
+            .map_err(|_| "pi store is unavailable".to_string())?;
         save_json(&self.store_dir.join("recovery-save.json"), payload)
     }
+
+    pub(crate) fn load_default_now(&self) -> Result<Option<serde_json::Value>, String> {
+        let _guard = self
+            .store_lock
+            .lock()
+            .map_err(|_| "pi store is unavailable".to_string())?;
+        load_json(&self.store_dir.join("default.json"))
+    }
+
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn save_default_now(&self, payload: &serde_json::Value) -> Result<(), String> {
+        let generation = self.store_write_barrier.current_generation();
+        let _guard = self
+            .store_lock
+            .lock()
+            .map_err(|_| "pi store is unavailable".to_string())?;
+        self.ensure_store_write_allowed(generation)?;
         save_json(&self.store_dir.join("default.json"), payload)
     }
 
-    pub fn enqueue(&self, job: PlatformJob) -> Result<(), String> {
+    pub fn enqueue(&self, mut job: PlatformJob) -> Result<(), String> {
+        if job.kind.is_store_write() {
+            if self.store_write_barrier.is_blocked() {
+                return Err("restore is awaiting restored-state acknowledgement".into());
+            }
+            if job.store_write_generation.is_none() {
+                job.store_write_generation = Some(self.store_write_barrier.current_generation());
+            }
+        }
         self.jobs.try_send(job).map_err(|error| match error {
             TrySendError::Full(_) => "pi platform service queue is full".to_string(),
             TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
         })
     }
 
-    pub(crate) fn handle_transfer_input(&self, input: &serde_json::Value) {
-        self.user_data_transfer.handle_physical_input(input);
+    pub(crate) fn handle_transfer_input(&self, input: &serde_json::Value) -> bool {
+        self.user_data_transfer.handle_physical_input(input)
+    }
+
+    pub(crate) fn take_transfer_status(&self) -> Option<HostMessage> {
+        self.user_data_transfer.take_runtime_status()
+    }
+
+    pub(crate) fn set_restore_preflight(
+        &self,
+        preflight: crate::user_data_transfer::RestorePreflight,
+    ) {
+        self.user_data_transfer.set_restore_preflight(preflight);
+    }
+
+    pub(crate) fn store_write_generation(&self) -> u64 {
+        self.store_write_barrier.current_generation()
+    }
+
+    pub(crate) fn store_writes_blocked(&self) -> bool {
+        self.store_write_barrier.is_blocked()
+    }
+
+    pub(crate) fn acknowledge_restored_state(&self) {
+        self.store_write_barrier.acknowledge();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn invalidate_store_writes_for_test(&self) {
+        self.store_write_barrier.invalidate();
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    fn ensure_store_write_allowed(&self, generation: u64) -> Result<(), String> {
+        if self.store_write_barrier.is_blocked() {
+            return Err("restore is awaiting restored-state acknowledgement".into());
+        }
+        if generation != self.store_write_barrier.current_generation() {
+            return Err("store write was superseded by restore".into());
+        }
+        Ok(())
     }
 }
 
@@ -166,10 +270,13 @@ impl Drop for PiPlatformService {
         self.user_data_transfer.stop();
     }
 }
+
 pub struct PlatformJob {
     pub request: RuntimePlatformRequest,
     pub kind: PlatformJobKind,
+    store_write_generation: Option<u64>,
 }
+
 pub enum PlatformJobKind {
     ListPresets,
     LoadPreset {
@@ -218,275 +325,41 @@ pub enum PlatformJobKind {
         release: Receiver<()>,
     },
 }
+
 impl PlatformJob {
     pub fn new(request: RuntimePlatformRequest, kind: PlatformJobKind) -> Self {
-        Self { request, kind }
+        Self {
+            request,
+            kind,
+            store_write_generation: None,
+        }
     }
-}
-fn handle_job(
-    store_dir: &Path,
-    samples_dir: &Path,
-    job: PlatformJob,
-    update_executor: &dyn device_update::UpdateExecutor,
-) -> RuntimeStoreResult {
-    let request = job.request;
-    let result = match job.kind {
-        PlatformJobKind::ListPresets => match list_presets(store_dir) {
-            Ok(names) => RuntimeStoreResult::ListPresetsResult { names },
-            Err(message) => store_error(format!("Preset list failed: {message}")),
-        },
-        PlatformJobKind::LoadPreset { name } => {
-            match preset_load_path(store_dir, &name).and_then(|path| load_json(&path)) {
-                Ok(payload) => RuntimeStoreResult::LoadPresetResult { payload, name },
-                Err(message) => store_error(format!("Load {name} failed: {message}")),
-            }
+
+    pub(crate) fn with_store_write_generation(
+        request: RuntimePlatformRequest,
+        kind: PlatformJobKind,
+        generation: u64,
+    ) -> Self {
+        Self {
+            request,
+            kind,
+            store_write_generation: Some(generation),
         }
-        PlatformJobKind::SavePreset { name, payload } => {
-            match preset_patch_path(store_dir, &name) {
-                Ok(path) => {
-                    let existed = path.is_file();
-                    match save_json(&path, &payload) {
-                        Ok(()) => RuntimeStoreResult::SavePresetResult {
-                            name,
-                            outcome: if existed { "overwritten" } else { "created" }.into(),
-                        },
-                        Err(message) => store_error(format!("Save {name} failed: {message}")),
-                    }
-                }
-                Err(message) => store_error(format!("Save {name} failed: {message}")),
-            }
-        }
-        PlatformJobKind::DeletePreset { name } => RuntimeStoreResult::DeletePresetResult {
-            ok: delete_preset_payload(store_dir, &name),
-            name,
-        },
-        PlatformJobKind::SaveDefault { payload, is_auto } => {
-            match save_json(&store_dir.join("default.json"), &payload) {
-                Ok(()) => RuntimeStoreResult::SaveDefaultResult { ok: true, is_auto },
-                Err(message) => store_error(format!("Save default failed: {message}")),
-            }
-        }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        PlatformJobKind::PrepareOrangeDeviceApply { .. } => {
-            unreachable!("Orange device apply jobs are completed by the platform worker")
-        }
-        PlatformJobKind::SaveBackup { payload } => match save_backup(store_dir, &payload) {
-            Ok(()) => RuntimeStoreResult::SaveBackupResult { ok: true },
-            Err(message) => store_error(format!("Save backup failed: {message}")),
-        },
-        PlatformJobKind::ListSamples {
-            instrument_slot,
-            sample_slot,
-            dir,
-        } => match sample_entries(samples_dir, &dir) {
-            Ok(entries) => RuntimeStoreResult::SampleListResult {
-                instrument_slot,
-                sample_slot,
-                dir,
-                entries,
-            },
-            Err(message) => RuntimeStoreResult::SampleListError {
-                instrument_slot,
-                sample_slot,
-                dir,
-                message,
-            },
-        },
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        PlatformJobKind::UsbSdTransferStart => run_usb_storage_command("storage-start"),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        PlatformJobKind::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
-        PlatformJobKind::UpdateCheck => device_update::run("check", update_executor),
-        PlatformJobKind::UpdateApply => device_update::run("apply", update_executor),
-        PlatformJobKind::Rollback => device_update::run("rollback", update_executor),
-        PlatformJobKind::SystemInfo => match system_info::collect() {
-            Ok(info) => RuntimeStoreResult::SystemInfoResult {
-                info: info.sanitized(),
-            },
-            Err(message) => RuntimeStoreResult::SystemInfoError {
-                error: RuntimeSystemInfoError::unavailable(message),
-            },
-        },
-        #[cfg(test)]
-        PlatformJobKind::TestBarrier { .. } | PlatformJobKind::TestGate { .. } => {
-            unreachable!("test synchronization job is handled by worker")
-        }
-    };
-    let result = match result {
-        RuntimeStoreResult::StoreError { message } => RuntimeStoreResult::RuntimeFailure {
-            error: request.failure_facts(message),
-        },
-        result => result,
-    };
-    result.with_identity(request.request_id, request.revision)
-}
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
-    match Command::new("sudo")
-        .args(["-n", "/usr/local/sbin/octessera-usb-gadget", action])
-        .output()
-    {
-        Ok(output) if output.status.success() => RuntimeStoreResult::UsbSdTransferStatus {
-            active: action == "storage-start",
-            message: usb_storage_message(action, &String::from_utf8_lossy(&output.stdout)),
-        },
-        Ok(output) => store_error(format!(
-            "USB SD2 transfer {action} failed: {}{}",
-            String::from_utf8_lossy(&output.stderr),
-            String::from_utf8_lossy(&output.stdout)
-        )),
-        Err(error) => store_error(format!("USB SD2 transfer {action} failed: {error}")),
-    }
-}
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn usb_storage_message(action: &str, stdout: &str) -> String {
-    if action != "storage-start" {
-        return "USB SD2 transfer stopped".into();
-    }
-    if stdout
-        .lines()
-        .any(|line| line.trim() == "HOST_STATE=configured")
-    {
-        "USB SD2 transfer active".into()
-    } else {
-        "USB SD2 transfer waiting for host".into()
     }
 }
 
-fn save_backup(store_dir: &Path, payload: &serde_json::Value) -> Result<(), String> {
-    let dir = store_dir.join("backups");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let millis = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_millis();
-    save_json(&dir.join(format!("bak-{millis}.json")), payload)?;
-    let mut paths = Vec::new();
-    for entry in std::fs::read_dir(&dir).map_err(|e| e.to_string())? {
-        let path = entry.map_err(|e| e.to_string())?.path();
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            continue;
-        };
-        if name.starts_with("bak-") && name.ends_with(".json") {
-            paths.push(path);
+impl PlatformJobKind {
+    fn is_store_write(&self) -> bool {
+        match self {
+            Self::SavePreset { .. }
+            | Self::DeletePreset { .. }
+            | Self::SaveDefault { .. }
+            | Self::SaveBackup { .. } => true,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            Self::PrepareOrangeDeviceApply { .. } => true,
+            _ => false,
         }
     }
-    paths.sort();
-    for path in paths.iter().take(paths.len().saturating_sub(20)) {
-        std::fs::remove_file(path).map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-fn store_error(message: String) -> RuntimeStoreResult {
-    RuntimeStoreResult::StoreError { message }
-}
-
-pub fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
-    let mut names = std::collections::BTreeSet::new();
-    if !store_dir.is_dir() {
-        return Ok(Vec::new());
-    }
-    for entry in std::fs::read_dir(store_dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if !entry.path().is_file() {
-            continue;
-        }
-        if let Some(name) = entry
-            .path()
-            .file_name()
-            .and_then(|name| name.to_str())
-            .and_then(preset_name_from_file_name)
-        {
-            names.insert(name);
-        }
-    }
-    let patch_dir = store_dir.join("patches");
-    if patch_dir.is_dir() {
-        for entry in std::fs::read_dir(&patch_dir).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            if !entry.path().is_file() {
-                continue;
-            }
-            if let Some(name) = entry
-                .path()
-                .file_name()
-                .and_then(|name| name.to_str())
-                .and_then(preset_name_from_file_name)
-            {
-                names.insert(name);
-            }
-        }
-    }
-    Ok(names.into_iter().collect())
-}
-
-pub fn preset_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    if !playback_runtime::is_valid_preset_name(name) {
-        return Err(format!("Unsafe preset name: {name:?}"));
-    }
-    Ok(store_dir.join(format!("{name}.json")))
-}
-
-pub fn preset_patch_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    if !playback_runtime::is_valid_preset_name(name) {
-        return Err(format!("Unsafe preset name: {name:?}"));
-    }
-    Ok(store_dir.join("patches").join(format!("{name}.json")))
-}
-
-pub fn preset_load_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    let patch = preset_patch_path(store_dir, name)?;
-    if patch.is_file() {
-        return Ok(patch);
-    }
-    preset_path(store_dir, name)
-}
-
-fn preset_name_from_file_name(file_name: &str) -> Option<String> {
-    if matches!(
-        file_name,
-        "default.json"
-            | "default.patch.json"
-            | "current.json"
-            | "device.json"
-            | "recovery-save.json"
-    ) || file_name.starts_with("bak-")
-    {
-        return None;
-    }
-    let name = file_name.strip_suffix(".json")?;
-    playback_runtime::is_valid_preset_name(name).then(|| name.to_string())
-}
-
-pub fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String> {
-    if !path.is_file() {
-        return Ok(None);
-    }
-    let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content)
-        .map(Some)
-        .map_err(|error| error.to_string())
-}
-
-pub fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
-    atomic_write_json(path, payload)
-}
-
-fn delete_preset_payload(store_dir: &Path, name: &str) -> bool {
-    let Ok(legacy) = preset_path(store_dir, name) else {
-        return false;
-    };
-    let Ok(patch) = preset_patch_path(store_dir, name) else {
-        return false;
-    };
-    let mut removed = false;
-    for path in [legacy, patch] {
-        if path.is_file() && std::fs::remove_file(path).is_ok() {
-            removed = true;
-        }
-    }
-    removed
 }
 
 #[cfg(test)]

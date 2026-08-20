@@ -44,6 +44,8 @@ command -v strings >/dev/null 2>&1 || { echo "strings is required for Orange ker
 command -v readelf >/dev/null 2>&1 || { echo "readelf is required for Orange kernel package validation." >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required for Orange kernel package validation." >&2; exit 1; }
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=tools/armbian-image/validation-assertions.sh
+source "$root/tools/armbian-image/validation-assertions.sh"
 manifest="${manifest_override:-$root/tools/kernel-patches/orange-midi-interface-manifest.json}"
 [[ -f "$manifest" ]] || { echo "Missing Orange kernel package manifest: $manifest" >&2; exit 1; }
 if [[ -n "$manifest_override" && "${OCTESSERA_ORANGE_TEST_MODE:-}" != 1 ]]; then
@@ -185,10 +187,7 @@ assert_config_line_once() {
 }
 
 assert_config_line_once '# CONFIG_RT_GROUP_SCHED is not set'
-if grep -qE '^CONFIG_RT_GROUP_SCHED=' "$config"; then
-  echo "Packaged kernel config must not enable or modularize RT_GROUP_SCHED." >&2
-  exit 1
-fi
+octessera_reject_file_match "Packaged kernel config must not enable or modularize RT_GROUP_SCHED." -qE '^CONFIG_RT_GROUP_SCHED=' "$config"
 assert_config_line_once 'CONFIG_SPI_SUN6I=y'
 assert_config_line_once 'CONFIG_SPI_SPIDEV=y'
 assert_config_line_once 'CONFIG_PINCTRL_SUNXI=y'

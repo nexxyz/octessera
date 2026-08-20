@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# The five helper paths are intentionally supplied dynamically by the provisioning adapter.
+# The five provisioning script paths are intentionally supplied dynamically by the provisioning adapter.
 # shellcheck disable=SC1091
 set -euo pipefail
 
 mode=preflight
 overlay_source=
-validation_helper=
-boot_config_helper=
-boot_dtb_helper=
-common_validation_helper=
-environment_helper=
+overlay_validation_script=
+boot_config_script=
+boot_dtb_selection_script=
+spi_overlay_validation_script=
+armbian_environment_script=
 rollback_id=
 backup_root=/var/lib/octessera/input-routing-backups
 boot_config=/boot/armbianEnv.txt
@@ -20,8 +20,8 @@ installed_dtbo="$overlay_dir/$overlay_name.dtbo"
 state_file=/etc/octessera/orange-input-routing.state
 
 usage() {
-  printf '%s\n' "Usage: $0 --preflight --overlay-source PATH --validation-helper PATH --boot-config-helper PATH --boot-dtb-helper PATH --common-validation-helper PATH --environment-helper PATH" \
-    "       $0 --apply --overlay-source PATH --validation-helper PATH --boot-config-helper PATH --boot-dtb-helper PATH --common-validation-helper PATH --environment-helper PATH" \
+  printf '%s\n' "Usage: $0 --preflight --overlay-source PATH --overlay-validation-script PATH --boot-config-script PATH --boot-dtb-selection-script PATH --spi-overlay-validation-script PATH --armbian-environment-script PATH" \
+    "       $0 --apply --overlay-source PATH --overlay-validation-script PATH --boot-config-script PATH --boot-dtb-selection-script PATH --spi-overlay-validation-script PATH --armbian-environment-script PATH" \
     "       $0 --rollback BACKUP_ID"
 }
 
@@ -31,11 +31,11 @@ while (($#)); do
     --apply) mode=apply ;;
     --rollback) mode=rollback; shift; rollback_id="${1:-}" ;;
     --overlay-source) shift; overlay_source="${1:-}" ;;
-    --validation-helper) shift; validation_helper="${1:-}" ;;
-    --boot-config-helper) shift; boot_config_helper="${1:-}" ;;
-    --boot-dtb-helper) shift; boot_dtb_helper="${1:-}" ;;
-    --common-validation-helper) shift; common_validation_helper="${1:-}" ;;
-    --environment-helper) shift; environment_helper="${1:-}" ;;
+    --overlay-validation-script) shift; overlay_validation_script="${1:-}" ;;
+    --boot-config-script) shift; boot_config_script="${1:-}" ;;
+    --boot-dtb-selection-script) shift; boot_dtb_selection_script="${1:-}" ;;
+    --spi-overlay-validation-script) shift; spi_overlay_validation_script="${1:-}" ;;
+    --armbian-environment-script) shift; armbian_environment_script="${1:-}" ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -56,22 +56,22 @@ require_orange_board() {
   [[ "$board" == orangepizero2w ]] || { echo "Input-routing provisioning requires Armbian board orangepizero2w." >&2; exit 1; }
 }
 
-load_helpers() {
-  require_file "$common_validation_helper"
-  require_file "$environment_helper"
-  require_file "$validation_helper"
-  require_file "$boot_config_helper"
-  require_file "$boot_dtb_helper"
+load_provisioning_scripts() {
+  require_file "$spi_overlay_validation_script"
+  require_file "$armbian_environment_script"
+  require_file "$overlay_validation_script"
+  require_file "$boot_config_script"
+  require_file "$boot_dtb_selection_script"
   # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh
-  source "$common_validation_helper"
+  source "$spi_overlay_validation_script"
   # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh
-  source "$environment_helper"
+  source "$armbian_environment_script"
   # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh
-  source "$validation_helper"
+  source "$overlay_validation_script"
   # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh
-  source "$boot_config_helper"
+  source "$boot_config_script"
   # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
-  source "$boot_dtb_helper"
+  source "$boot_dtb_selection_script"
 }
 
 resolve_dtb() {
@@ -267,7 +267,7 @@ fi
 [[ "$mode" == preflight || "$mode" == apply ]] || { usage >&2; exit 2; }
 require_orange_board
 [[ -f "$boot_config" ]] || { echo "Missing Armbian boot configuration: $boot_config" >&2; exit 1; }
-load_helpers
+load_provisioning_scripts
 require_file "$overlay_source"
 base_dtb="$(resolve_dtb)"
 dt_work="$(mktemp -d)"

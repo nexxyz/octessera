@@ -1,9 +1,11 @@
 use super::*;
 use crate::user_data_archive::{build_export_plan, write_archive};
+use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 fn root(name: &str) -> PathBuf {
@@ -226,6 +228,7 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
     .unwrap();
     service.start().unwrap();
     let code = service.test_code().unwrap();
+    let generation = service.store_write_barrier().current_generation();
     let archive = archive_for(&service, true);
     assert_eq!(
         request(&service, "POST", "/restore", &code, &archive, "").0,
@@ -235,8 +238,22 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
         "type":"encoder_press",
         "id":"main"
     }));
-    let status = request(&service, "GET", "/restore/status", &code, &[], "");
-    assert!(String::from_utf8(status.1).unwrap().contains("restored"));
+    assert_eq!(
+        service.store_write_barrier().current_generation(),
+        generation + 1
+    );
+    let mut status_body = String::new();
+    for _ in 0..100 {
+        let status = request(&service, "GET", "/restore/status", &code, &[], "");
+        status_body = String::from_utf8(status.1).unwrap();
+        if status_body.contains("restored") {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    assert!(status_body.contains("restored"), "{status_body}");
+    assert!(service.store_write_barrier().is_blocked());
+    service.store_write_barrier().acknowledge();
     let default = crate::platform_service::load_json(&service.inner.store_dir.join("default.json"))
         .unwrap()
         .unwrap();
@@ -273,6 +290,73 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
 }
 
 #[test]
+fn active_recording_restore_is_rejected_before_tree_mutation() {
+    let (service, root) = service("active-recording-restore");
+    let recording = Arc::new(AtomicBool::new(true));
+    let recording_for_preflight = recording.clone();
+    service.set_restore_preflight(Arc::new(move || {
+        if recording_for_preflight.load(Ordering::Acquire) {
+            return Err(
+                "restore blocked: audio recording is active; stop recording before restore".into(),
+            );
+        }
+        Ok(())
+    }));
+    let original = fs::read(service.inner.store_dir.join("default.json")).unwrap();
+    service.start().unwrap();
+    let code = service.test_code().unwrap();
+    let archive = archive_for(&service, false);
+    assert_eq!(
+        request(&service, "POST", "/restore", &code, &archive, "").0,
+        202
+    );
+    service.handle_physical_input(&serde_json::json!({
+        "type":"encoder_press",
+        "id":"main"
+    }));
+
+    let mut status_body = String::new();
+    for _ in 0..100 {
+        let status = request(&service, "GET", "/restore/status", &code, &[], "");
+        status_body = String::from_utf8(status.1).unwrap();
+        if status_body.contains("blocked_recording_active") {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(
+        status_body.contains("blocked_recording_active"),
+        "{status_body}"
+    );
+    assert!(!service.store_write_barrier().is_blocked());
+    assert_eq!(
+        fs::read(service.inner.store_dir.join("default.json")).unwrap(),
+        original
+    );
+    assert!(!root
+        .read_dir()
+        .unwrap()
+        .filter_map(Result::ok)
+        .any(|entry| entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with("octessera-pre-restore-")));
+    assert!(!service
+        .inner
+        .store_dir
+        .read_dir()
+        .unwrap()
+        .filter_map(Result::ok)
+        .any(|entry| entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".user-data-stage-")));
+    recording.store(false, Ordering::Release);
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn pending_restore_times_out_and_removes_staged_data() {
     let (service, root) = service("restore-timeout");
     service.start().unwrap();
@@ -300,6 +384,58 @@ fn pending_restore_times_out_and_removes_staged_data() {
             .file_name()
             .to_string_lossy()
             .starts_with(".user-data-stage-")));
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn confirmation_publishes_blocking_status_before_store_worker_runs() {
+    let (service, root) = service("blocking-status");
+    let request_identity = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::SetupPortalOpen,
+        "restore-status".into(),
+        Some(4),
+    );
+    service.start_with_request(Some(&request_identity)).unwrap();
+    let code = service.test_code().unwrap();
+    let archive = archive_for(&service, false);
+    assert_eq!(
+        request(&service, "POST", "/restore", &code, &archive, "").0,
+        202
+    );
+    let store_guard = service.inner.store_lock.lock().unwrap();
+    assert!(!service.handle_physical_input(&serde_json::json!({
+        "type":"encoder_press",
+        "id":"main"
+    })));
+    let status = service.take_runtime_status().unwrap();
+    assert!(matches!(
+        status,
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { result, request_id, revision: Some(4) }
+        } if request_id == "restore-status"
+            && matches!(result.as_ref(), RuntimeStoreResult::UserDataRestoreStatus { status } if status.phase == RuntimeUserDataRestorePhase::Restoring)
+    ));
+    assert!(!service.handle_physical_input(&serde_json::json!({"type":"grid_press"})));
+    drop(store_guard);
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn confirmation_input_is_consumed_when_restore_finishes_immediately() {
+    let (service, root) = service("fast-confirmation");
+    service.start().unwrap();
+    let code = service.test_code().unwrap();
+    let archive = archive_for(&service, false);
+    assert_eq!(
+        request(&service, "POST", "/restore", &code, &archive, "").0,
+        202
+    );
+    assert!(!service.handle_physical_input(&serde_json::json!({
+        "type":"encoder_press",
+        "id":"main"
+    })));
     service.stop();
     let _ = fs::remove_dir_all(root);
 }

@@ -57,7 +57,7 @@ mod tests {
     }
 
     #[test]
-    fn atomic_power_terminal_completes_before_helper_without_double_teardown() {
+    fn atomic_power_terminal_completes_before_power_request_without_double_teardown() {
         let render = RenderWorker::terminated_for_test();
         let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
 
@@ -72,14 +72,17 @@ mod tests {
             Ok(resolution) => resolution,
             Err(_) => unreachable!(),
         };
-        let helper_events = std::sync::Arc::clone(&events);
-        crate::orange_device_apply::finish_shutdown_resolution_with_helper(resolution, move || {
-            assert!(render.is_terminated());
-            helper_events.lock().unwrap().push("helper");
-            crate::orange_device_apply::OrangeHelperOutcome::Accepted
-        })
+        let power_request_events = std::sync::Arc::clone(&events);
+        crate::orange_device_apply::finish_shutdown_resolution_with_power_request(
+            resolution,
+            move || {
+                assert!(render.is_terminated());
+                power_request_events.lock().unwrap().push("power-request");
+                crate::orange_device_apply::OrangePowerRequestOutcome::Accepted
+            },
+        )
         .unwrap();
-        assert_eq!(*events.lock().unwrap(), ["terminal", "helper"]);
+        assert_eq!(*events.lock().unwrap(), ["terminal", "power-request"]);
     }
 
     #[test]

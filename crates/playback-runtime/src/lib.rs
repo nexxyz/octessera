@@ -24,7 +24,8 @@ pub use protocol::{
     RuntimeRecovery, RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode,
     RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeSetupPortalTransfer, RuntimeStatus,
     RuntimeStatusState, RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError,
-    RuntimeTransportState, SampleEntry, SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
+    RuntimeTransportState, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus, SampleEntry,
+    SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
 };
 pub use runtime::{
     CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
@@ -34,6 +35,7 @@ pub use timing_probe::{
     parse_timing_probe_durations, parse_timing_probe_scenarios, print_timing_probe_summary,
     run_timing_probe, TimingProbeOptions, TimingProbeReport, TimingProbeScenario,
 };
+pub use user_data_bundle::apply_user_data_patch_and_preferences;
 pub use user_data_bundle::{
     apply_user_preference_delta, decode_user_data_bundle, encode_user_data_bundle,
     is_safe_user_data_name, manifest_for_user_data_bundle, media_reference_from_bytes,

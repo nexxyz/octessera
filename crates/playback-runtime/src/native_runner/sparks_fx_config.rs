@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::{json, LedColor, Value};
+use super::{json, Value};
 
 pub(super) fn default_sparks_fx_selected() -> Value {
     json!({ "fxType": "none", "targetKey": "master", "params": {} })
@@ -100,15 +100,5 @@ pub(super) fn sparks_fx_param_default(fx_type: &str, key: &str) -> i32 {
         ("pitch_shift", "cents") => 0,
         ("pitch_shift", "mixPct") => 100,
         _ => 0,
-    }
-}
-
-pub(super) fn momentary_fx_color(fx_type: &str) -> LedColor {
-    match fx_type {
-        "stutter" => LedColor::YELLOW,
-        "freeze" => LedColor::BLUE,
-        "filter_sweep" => LedColor::GREEN,
-        "pitch_shift" => LedColor::RED,
-        _ => LedColor::SYSTEM,
     }
 }

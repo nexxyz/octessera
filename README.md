@@ -126,7 +126,12 @@ Canonical specs:
 Contributor/reference docs:
 
 - [`docs/runtime-boundaries.md`](docs/runtime-boundaries.md): crate/host responsibilities and dependency boundaries.
-- [`docs/development-workflows.md`](docs/development-workflows.md): current development, build, verification, and capability-generation commands.
+- [`docs/development-workflows.md`](docs/development-workflows.md): contributor workflow index and shared verification/source-of-truth commands.
+- [`docs/workflows/desktop-development.md`](docs/workflows/desktop-development.md): desktop simulator, builds, and hardware-free checks.
+- [`docs/workflows/pi-development-and-profiling.md`](docs/workflows/pi-development-and-profiling.md): Pi host builds and profiling.
+- [`docs/workflows/image-construction-and-proof.md`](docs/workflows/image-construction-and-proof.md): board image construction and proof.
+- [`docs/workflows/release-assembly.md`](docs/workflows/release-assembly.md): release asset and populated-draft contract.
+- [`docs/workflows/deployment.md`](docs/workflows/deployment.md): board deployment and hardware debug loops.
 - [`docs/engineering-quality-requirements.md`](docs/engineering-quality-requirements.md): current quality gates and definition of done.
 - [`docs/open-work.md`](docs/open-work.md): current actionable work only.
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -7,12 +8,39 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = ROOT / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"
 SETUP_CONTRACT_PATH = ROOT / "resources/image-mutations/orange-pi-zero-2w-setup.json"
+SOURCE_BOUND_PROOF_SOURCES = {
+    "tools/armbian-image/verify-orange-image.py",
+    "tools/armbian-image/orange_boot_contract.py",
+    "tools/armbian-image/orange_boot_inventory.py",
+    "tools/armbian-image/orange_boot_selection.py",
+    "tools/armbian-image/orange_image_mount.py",
+    "tools/armbian-image/orange_initramfs.py",
+    "tools/armbian-image/orange_phase5_proof.py",
+    "tools/armbian-image/orange_trusted_parent_proof.py",
+    "tools/armbian-image/verify_runtime_account.py",
+    "tools/kernel-patches/orange-midi-interface-manifest.json",
+}
 contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
 setup_contract = json.loads(SETUP_CONTRACT_PATH.read_text(encoding="utf-8"))
 
 
 def exact(value, keys):
     assert set(value) == set(keys)
+
+
+def validate_source_inputs(document, root):
+    paths = set()
+    for item in document["exact_inputs"]:
+        exact(item, ["path", "sha256", "size", "mode"])
+        assert item["path"] not in paths
+        assert not Path(item["path"]).is_absolute() and ".." not in Path(item["path"]).parts
+        paths.add(item["path"])
+        source = root / item["path"]
+        assert source.is_file() and not source.is_symlink(), source
+        assert hashlib.sha256(source.read_bytes()).hexdigest() == item["sha256"], source
+        assert source.stat().st_size == item["size"], source
+        assert item["mode"] in {420, 493}
+    assert SOURCE_BOUND_PROOF_SOURCES <= paths
 
 
 exact(contract, ["schema_version", "proof_mode", "contract_kind", "construction_kind", "board_profile", "constructor_required", "trusted_parent_finalization", "mutation_authority", "regeneration_required", "expected_changes", "exact_inputs", "managed_outputs", "notice_bundle", "terminal_invariants", "uart_invariants", "enabled_sysinit_wants", "device_dependencies", "required_builtin_kernel_config_lines", "selected_initramfs", "mounted_proof", "proofs"])
@@ -26,13 +54,27 @@ assert contract["trusted_parent_finalization"] == "forbidden"
 assert contract["regeneration_required"] == ["initramfs", "python_closure"]
 assert contract["expected_changes"] == {"packages": [], "accounts": [], "kernel": False, "firmware": False}
 
-for item in contract["exact_inputs"]:
-    exact(item, ["path", "sha256", "size", "mode"])
-    source = ROOT / item["path"]
-    assert source.is_file() and not source.is_symlink(), source
-    assert hashlib.sha256(source.read_bytes()).hexdigest() == item["sha256"], source
-    assert source.stat().st_size == item["size"], source
-    assert item["mode"] in {420, 493}
+validate_source_inputs(contract, ROOT)
+
+for path in sorted(SOURCE_BOUND_PROOF_SOURCES):
+    altered = copy.deepcopy(contract)
+    source = next(item for item in altered["exact_inputs"] if item["path"] == path)
+    source["sha256"] = "0" * 64
+    try:
+        validate_source_inputs(altered, ROOT)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(f"tampered Orange proof source was accepted: {path}")
+
+    altered = copy.deepcopy(contract)
+    altered["exact_inputs"] = [item for item in altered["exact_inputs"] if item["path"] != path]
+    try:
+        validate_source_inputs(altered, ROOT)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(f"missing Orange proof source was accepted: {path}")
 
 construction_inputs = {item["path"]: item for item in contract["exact_inputs"]}
 assert (ROOT / "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash").is_file()

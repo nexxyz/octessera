@@ -2,6 +2,31 @@
 
 The enclosure CAD is under construction. Use the CadQuery generator as the source of truth for the current two-level faceplate.
 
+## Source ownership
+
+`generate_two_level_enclosure_cadquery.py` remains the preferred source-of-truth
+entrypoint. Its domain modules keep the same solids and measurements while
+making ownership explicit:
+
+- `top_wave_geometry.py` owns the raised roof, shoulders, tier transition
+  ramps, wave walls, and ventilation slots.
+- `top_body_assembly.py` owns the tier plates, perimeter skirts, support
+  assembly, and final body union/cut sequence.
+- `top_faceplate_features.py` owns OLED, encoder, NeoKey, and NeoTrellis
+  faceplate features.
+- `top_branding_variants.py` owns branding solids and board-specific variants.
+- `top_enclosure_export.py` owns branded model composition and STEP/STL export.
+- `top_wall_port_geometry.py`, `top_wall_port_indent_geometry.py`, and
+  `top_wall_port_recess_geometry.py` own reusable wall-port profiles, indent
+  transitions, and recess solids.
+- `top_wall_port_cutouts.py` owns the fixed v21 board/port layout policy and
+  applies those reusable solids without changing their coordinates.
+
+Fit-critical case, PCB, and port spans remain sourced from the checked-in v21
+parameters in `enclosure_params.json`. The fixed OLED microSD opening policy
+remains in `top_wall_port_cutouts.py`; this cohesion cleanup changes module
+ownership only, not measured or checked-in layout values.
+
 ## Edit loop
 
 1. Edit `wave_guidance.py`.

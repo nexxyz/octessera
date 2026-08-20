@@ -204,7 +204,7 @@ rpi-imager --repo "https://github.com/nexxyz/octessera/releases/download/v<versi
 
 Use the actual release tag and version from the release page. The embedded manifest inside the ZIP is for packaged metadata; do not extract the ZIP just to load the manifest.
 
-For manual Pi setup and developer deploy/update workflows, see [`../../docs/development-workflows.md`](../../docs/development-workflows.md).
+For manual Pi setup and developer deploy/update workflows, see the [board deployment runbook](../../docs/workflows/deployment.md).
 
 ### Orange Pi Zero 2W image
 

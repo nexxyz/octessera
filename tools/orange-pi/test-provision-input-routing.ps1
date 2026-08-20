@@ -49,10 +49,10 @@ function Assert-TransportPolicy {
     $Records |
       Where-Object { $_.tool -eq "ssh" } |
       ForEach-Object { @($_.arguments) } |
-      Where-Object { $_ -match "--environment-helper" }
+      Where-Object { $_ -match "--armbian-environment-script" }
   )
   if ($provisionArguments.Count -ne 1) {
-    throw "Input-routing SSH provision did not receive the Armbian environment helper exactly once."
+    throw "Input-routing SSH provision did not receive the Armbian environment script exactly once."
   }
   foreach ($record in $Records) {
     $arguments = @($record.arguments)
