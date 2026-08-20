@@ -17,7 +17,7 @@ fn bundle(media_included: bool, media: Vec<UserDataMediaReference>) -> UserDataB
     new_user_data_bundle(
         UserDataBundleMetadata {
             board_profile: "desktop-simulator".into(),
-            runtime_version: "0.8.0".into(),
+            runtime_version: "0.8.1".into(),
         },
         vec![UserDataPreset {
             display_name: "Zed".into(),

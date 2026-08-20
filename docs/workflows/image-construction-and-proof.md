@@ -104,7 +104,7 @@ contract, not from a trusted-parent respin:
 4. Preserve image, source hashes, selected boot outputs, and proof logs. Only
    then perform the physical loop in [`../open-work.md`](../open-work.md).
 
-The v0.8.0 Raspberry and Orange constructor/source-bound evidence exists, but
+The v0.8.1 Raspberry and Orange constructor/source-bound evidence exists, but
 physical FAT remains the gate for exact release artifacts.
 
 ## Phase 5 OLED boot layer
@@ -214,7 +214,7 @@ node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
 Root-required mutation and disk fixtures run in CI as
 `sudo python3 tools/image-respin/test_setup_mutation.py` and
 `sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
-The trusted v0.7.5 parent exercise is frozen legacy recovery, not v0.8.0
+The trusted v0.7.5 parent exercise is frozen legacy recovery, not v0.8.1
 qualification. If explicitly required, run both board lanes:
 
 ```bash
