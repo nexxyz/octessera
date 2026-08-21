@@ -124,6 +124,7 @@ impl NativeRunner {
                 self.display.oled_mode = NativeOledMode::Normal;
                 self.display.oled_splash_text.clear();
                 self.display.oled_splash_until = None;
+                self.display.last_interaction_at = now;
                 if self.display.runtime_error_presentation.is_none() {
                     self.show_toast("Help: Sh+Fn+Enter");
                 }
