@@ -77,8 +77,8 @@ class DiskSetupRespinTests(unittest.TestCase):
                 _prerequisites(root, board)
                 if board == ORANGE:
                     _setup_preimages(root, contract)
-                    enabled = next(item for item in contract["symlinks"] if item["classification"] == "first-boot-setup-enabled")
-                    (root / enabled["target"]).symlink_to(enabled["link_target"])
+                    disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
+                    (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
                     path = root / "etc/ssh/sshd_config.d/10-octessera-setup.conf"
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")

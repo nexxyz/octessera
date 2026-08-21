@@ -14,6 +14,16 @@ require_setup_layer() {
   local setup_unit=etc/systemd/system/octessera-setup.service
   local request_path=etc/systemd/system/octessera-setup-request.path
   local request_unit=etc/systemd/system/octessera-setup-request.service
+  require_absent_setup_path() {
+    local path="$1" status
+    if stat_path "$path"; then
+      echo "Orange setup path must be absent: $path." >&2
+      exit 1
+    else
+      status=$?
+    fi
+    [[ "$status" == 1 ]] || { echo "Unable to inspect Orange setup path: $path." >&2; exit 1; }
+  }
   for path in "$profile_file" "$sidecar" "$wrapper" "$request_helper" "$request_cleanup" "$start_helper" "$cleanup_helper" "$status_tool" "$status_cli" "$call_tool" "$setup_unit" "$request_path" "$request_unit"; do
     stat_path "$path" || { echo "Missing setup layer path: $path." >&2; exit 1; }
   done
@@ -58,6 +68,6 @@ require_setup_layer() {
     run/octessera-setup-control; do
     reject_path "$path"
   done
-  stat_path etc/systemd/system/multi-user.target.wants/octessera-setup-request.path || { echo "Setup request path is not enabled." >&2; exit 1; }
-  stat_path etc/systemd/system/multi-user.target.wants/octessera-setup.service || { echo "Orange setup service is not enabled." >&2; exit 1; }
+  octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera-setup-request.path ../octessera-setup-request.path
+  require_absent_setup_path etc/systemd/system/multi-user.target.wants/octessera-setup.service
 }

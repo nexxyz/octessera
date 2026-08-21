@@ -384,6 +384,11 @@ def mutate_setup(root: Path, board_profile: str, source_identity: object, *, con
             if mutation_hook:
                 mutation_hook(f"installed:{item['target']}")
         for item in contract["symlinks"]:
+            if item["type"] == "absent":
+                remove_path(rooted(root, item["target"]))
+                if mutation_hook:
+                    mutation_hook(f"disabled:{item['target']}")
+        for item in contract["symlinks"]:
             if item["postimage"] == "required":
                 _install_symlink(root, item)
         after = build_inventory(root)

@@ -159,15 +159,16 @@ class LifecycleOled:
 
 
 def run_lifecycle(handoff, oled, clock, signal_module, cleanup_oled=None, oled_error=None, render_frame=None):
-    names = ("Handoff", "Oled", "open_cleanup_oled", "logo_canvas", "render_canvas", "time", "signal")
+    names = ("Handoff", "Oled", "open_cleanup_oled", "logo_canvas", "render_canvas", "render_housekeeping", "time", "signal")
     saved = {name: getattr(logo, name) for name in names}
     try:
         handoff.clock = clock
         logo.Handoff = types.SimpleNamespace(open=lambda create_lock: handoff)
         logo.Oled = lambda: (_ for _ in ()).throw(oled_error) if oled_error is not None else oled
         logo.open_cleanup_oled = lambda: cleanup_oled if cleanup_oled is not None else (_ for _ in ()).throw(RuntimeError("cleanup factory failed"))
-        logo.logo_canvas = lambda kind: object()
+        logo.logo_canvas = lambda kind: kind
         logo.render_canvas = lambda canvas, frame=None: render_frame(frame) if render_frame is not None else b"render"
+        logo.render_housekeeping = lambda: render_frame("housekeeping") if render_frame is not None else b"render"
         logo.time = clock
         logo.signal = signal_module
         return logo._run_loop()
@@ -222,7 +223,7 @@ run_lifecycle(
     LifecycleOled(continuous_events),
     continuous_clock,
     FakeSignal(),
-    render_frame=lambda frame: b"clean" if frame is None else bytes((frame,)),
+    render_frame=lambda frame: b"clean" if frame is None else b"housekeeping" if frame == "housekeeping" else bytes((frame,)),
 )
 continuous_frames = [event[1] for event in continuous_events if event[0] == "frame"]
 assert logo.BOOT_SWEEP_FRAME_COUNT == 30
@@ -233,6 +234,22 @@ assert continuous_clock.now == continuous_handoff.stop_at
 assert max(continuous_clock.sleeps[16:]) <= logo.BOOT_SWEEP_REST_CHECK_NS / 1_000_000_000
 assert continuous_clock.now < logo.BOOT_SWEEP_DURATION_NS + logo.BOOT_SWEEP_REST_NS
 assert not any(event[0] == "command" for event in continuous_events)
+
+housekeeping_handoff = LifecycleHandoff(stop_at=31 * 1_000_000_000)
+housekeeping_events = []
+housekeeping_clock = FakeClock()
+run_lifecycle(
+    housekeeping_handoff,
+    LifecycleOled(housekeeping_events),
+    housekeeping_clock,
+    FakeSignal(),
+    render_frame=lambda frame: b"housekeeping" if frame == "housekeeping" else b"clean" if frame is None else bytes((frame,)),
+)
+housekeeping_frames = [event[1] for event in housekeeping_events if event[0] == "frame"]
+assert housekeeping_handoff.release_calls == 1 and housekeeping_handoff.mark_failed_calls == 0
+assert housekeeping_frames.count(b"housekeeping") == 1
+assert housekeeping_frames[-1] == b"housekeeping"
+assert housekeeping_clock.now == housekeeping_handoff.stop_at
 
 stale_status = {"phase": "animating", "bootId": "01234567-89ab-cdef-0123-456789abcdef"}
 stale_events = []
@@ -274,21 +291,38 @@ run_lifecycle(before_deadline_handoff, LifecycleOled(before_deadline_events), be
 assert before_deadline_handoff.release_calls == 1 and before_deadline_handoff.mark_failed_calls == 0
 assert before_deadline_clock.now < stop_at_deadline
 
-timeout_handoff = LifecycleHandoff()
-timeout_events = []
-try:
-    run_lifecycle(timeout_handoff, LifecycleOled(timeout_events), FakeClock(), FakeSignal())
-except RuntimeError as error:
-    assert str(error) == "Orange OLED native handoff timed out after 30 seconds"
-else:
-    raise AssertionError("OLED handoff timeout was accepted")
-assert timeout_handoff.mark_failed_calls == 1
-assert [event[0:1] for event in timeout_events[-2:]] == [("command",), ("close",)]
-assert timeout_events[-2][1] == 0xAE
-assert bytes(32768) in [event[1] for event in timeout_events if event[0] == "frame"]
-assert timeout_events.count(("close", False)) == 1
-assert timeout_handoff.status["bootId"] == timeout_handoff.boot_id
-assert len(timeout_handoff.status["requestId"]) == 32
+termination_handoff = LifecycleHandoff(stop_at=31 * 1_000_000_000)
+termination_events = []
+termination_signal = FakeSignal()
+termination_clock = FakeClock(termination_signal)
+termination_oled = LifecycleOled(termination_events)
+termination_stream_frame = termination_oled.stream_frame
+
+
+def terminate_after_housekeeping(frame):
+    return b"housekeeping" if frame == "housekeeping" else b"render"
+
+
+def terminate_after_housekeeping_status(payload):
+    termination_stream_frame(payload)
+    if payload == b"housekeeping":
+        termination_signal.trigger_on_sleep = True
+
+
+termination_oled.stream_frame = terminate_after_housekeeping_status
+
+
+run_lifecycle(
+    termination_handoff,
+    termination_oled,
+    termination_clock,
+    termination_signal,
+    render_frame=terminate_after_housekeeping,
+)
+assert termination_handoff.release_calls == 0
+assert termination_handoff.mark_failed_calls == 1
+assert termination_events.count(("frame", b"housekeeping")) == 1
+assert_cleanup(termination_events)
 
 for signum in (signal.SIGTERM, signal.SIGINT):
     signal_module = FakeSignal()
@@ -306,7 +340,12 @@ for signum in (signal.SIGTERM, signal.SIGINT):
 black_failure_handoff = LifecycleHandoff()
 black_failure_events = []
 try:
-    run_lifecycle(black_failure_handoff, LifecycleOled(black_failure_events, fail_black=True), FakeClock(), FakeSignal())
+    run_lifecycle(
+        black_failure_handoff,
+        LifecycleOled(black_failure_events, fail_render=True, fail_black=True),
+        FakeClock(),
+        FakeSignal(),
+    )
 except RuntimeError:
     pass
 else:
@@ -318,7 +357,12 @@ assert black_failure_events.count(("close", False)) == 1
 off_failure_handoff = LifecycleHandoff()
 off_failure_events = []
 try:
-    run_lifecycle(off_failure_handoff, LifecycleOled(off_failure_events, fail_off=True), FakeClock(), FakeSignal())
+    run_lifecycle(
+        off_failure_handoff,
+        LifecycleOled(off_failure_events, fail_render=True, fail_off=True),
+        FakeClock(),
+        FakeSignal(),
+    )
 except RuntimeError:
     pass
 else:

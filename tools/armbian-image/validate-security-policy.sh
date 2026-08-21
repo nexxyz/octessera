@@ -49,6 +49,7 @@ boot_script="$overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange
 grep -q 'copy_exec /usr/local/sbin/octessera-orange-oled-logo' "$boot_hook"
 grep -q 'copy_file asset /usr/share/octessera/oled/octessera-pi-booting.rgb565' "$boot_hook"
 grep -q 'copy_file asset /usr/share/octessera/oled/octessera-pi-shutdown.rgb565' "$boot_hook"
+grep -q '^ConditionPathExists=/opt/octessera/current$' "$overlay/etc/systemd/system/octessera-orange-boot-splash.service"
 octessera_reject_file_match 'Orange initramfs must not copy obsolete SVG assets.' -qE 'octessera-(mark|wordmark)\.svg' "$boot_hook"
 grep -q 'setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot-static' "$boot_script"
 octessera_reject_file_match 'Orange initramfs must not execute the renderer through its env shebang.' -q 'setsid /usr/local/sbin/octessera-orange-oled-logo boot-static' "$boot_script"

@@ -7,6 +7,7 @@ const WIDTH: usize = 128;
 const HEIGHT: usize = 128;
 const BYTES_PER_PIXEL: usize = 2;
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
+const NATIVE_HANDOFF_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum OledUtility {
@@ -145,15 +146,23 @@ fn run_boot_splash_loop() -> bool {
             return false;
         }
     };
+    let handoff_deadline = Instant::now() + NATIVE_HANDOFF_TIMEOUT;
     let result = (|| -> Result<(), String> {
         let mut oled = OledSsd1351::new()?;
         oled.display_on()?;
         let frames = crate::render::boot_sweep_frames();
         let clean_frame = crate::render::boot_sweep_base_frame();
+        let housekeeping_frame = crate::boot_housekeeping::render_frame();
         let mut frame_index = 0;
         let mut cycle_start = Instant::now();
         loop {
-            sleep_until(crate::render::boot_sweep_deadline(cycle_start, frame_index));
+            sleep_until(
+                crate::render::boot_sweep_deadline(cycle_start, frame_index).min(handoff_deadline),
+            );
+            if Instant::now() >= handoff_deadline {
+                render_housekeeping_and_wait(&mut oled, &mut handoff, &housekeeping_frame)?;
+                break Ok(());
+            }
             oled.write_frame(&frames[frame_index])?;
             let stop_requested = handoff.stop_requested()?;
             if frame_index == crate::render::BOOT_SWEEP_FRAMES - 1 {
@@ -162,14 +171,25 @@ fn run_boot_splash_loop() -> bool {
                 }
                 let cycle_end =
                     cycle_start + Duration::from_nanos(crate::render::BOOT_SWEEP_CYCLE_NS);
-                sleep_until(cycle_end);
+                sleep_until(cycle_end.min(handoff_deadline));
+                if handoff.stop_requested()? {
+                    break Ok(());
+                }
+                if Instant::now() >= handoff_deadline {
+                    render_housekeeping_and_wait(&mut oled, &mut handoff, &housekeeping_frame)?;
+                    break Ok(());
+                }
                 oled.write_frame(&clean_frame)?;
                 if handoff.stop_requested()? {
                     break Ok(());
                 }
                 let (next_cycle_start, next_frame_index) =
                     advance_boot_sweep(cycle_start, frame_index);
-                if sleep_boot_sweep_rest(&mut handoff, cycle_end)? {
+                if sleep_boot_sweep_rest(&mut handoff, cycle_end, handoff_deadline)? {
+                    break Ok(());
+                }
+                if Instant::now() >= handoff_deadline {
+                    render_housekeeping_and_wait(&mut oled, &mut handoff, &housekeeping_frame)?;
                     break Ok(());
                 }
                 handoff.publish_cycle()?;
@@ -198,6 +218,7 @@ fn run_boot_splash_loop() -> bool {
 fn sleep_boot_sweep_rest(
     handoff: &mut crate::boot_oled_handoff::AnimatorHandoff,
     rest_start: Instant,
+    handoff_deadline: Instant,
 ) -> Result<bool, String> {
     let rest_deadline = rest_start + Duration::from_nanos(crate::render::BOOT_SWEEP_REST_NS);
     loop {
@@ -205,11 +226,33 @@ fn sleep_boot_sweep_rest(
             return Ok(true);
         }
         let now = Instant::now();
+        if now >= handoff_deadline {
+            return Ok(false);
+        }
         if now >= rest_deadline {
             return Ok(false);
         }
         let check_deadline = now + Duration::from_nanos(crate::render::BOOT_SWEEP_REST_CHECK_NS);
-        sleep_until(check_deadline.min(rest_deadline));
+        sleep_until(check_deadline.min(rest_deadline).min(handoff_deadline));
+    }
+}
+
+fn render_housekeeping_and_wait(
+    oled: &mut OledSsd1351,
+    handoff: &mut crate::boot_oled_handoff::AnimatorHandoff,
+    frame: &[u8],
+) -> Result<(), String> {
+    if handoff.stop_requested()? {
+        return Ok(());
+    }
+    oled.write_frame(frame)?;
+    loop {
+        if handoff.stop_requested()? {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_nanos(
+            crate::render::BOOT_SWEEP_REST_CHECK_NS,
+        ));
     }
 }
 
@@ -327,6 +370,26 @@ mod cli_tests {
         assert!(!static_body.contains("thread::sleep"));
         assert!(!static_body.contains("animator_start"));
         assert!(!static_body.contains("marker"));
+    }
+
+    #[test]
+    fn boot_loop_uses_one_delayed_housekeeping_frame_and_keeps_polling_handoff() {
+        let source = include_str!("oled_test.rs");
+        let loop_body = source
+            .split_once("fn run_boot_splash_loop()")
+            .and_then(|(_, body)| body.split_once("fn sleep_boot_sweep_rest("))
+            .map(|(body, _)| body)
+            .expect("boot splash loop body");
+        assert!(loop_body.contains("NATIVE_HANDOFF_TIMEOUT"));
+        assert!(loop_body.contains("boot_housekeeping::render_frame"));
+        assert_eq!(loop_body.matches("render_housekeeping_and_wait").count(), 3);
+        let housekeeping_body = source
+            .split_once("fn render_housekeeping_and_wait(")
+            .and_then(|(_, body)| body.split_once("fn run_all_on("))
+            .map(|(body, _)| body)
+            .expect("housekeeping wait body");
+        assert!(housekeeping_body.contains("thread::sleep(Duration::from_nanos("));
+        assert!(!loop_body.contains("display_off"));
     }
 
     #[test]

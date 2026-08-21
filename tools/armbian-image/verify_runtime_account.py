@@ -121,9 +121,10 @@ def require_runtime_service(root: Path, require: Require) -> None:
 
 def require_orange_boot_service(root: Path, require: Require) -> None:
     service = root / "etc/systemd/system/octessera-orange-boot-splash.service"
-    enabled = root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service"
+    enabled_path = root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service"
     content = service.read_text(encoding="utf-8")
     for line in (
+        "ConditionPathExists=/opt/octessera/current",
         "User=octessera-runtime",
         "Group=octessera-runtime",
         "ExecStart=/usr/local/sbin/octessera-orange-oled-logo boot-loop",
@@ -138,7 +139,7 @@ def require_orange_boot_service(root: Path, require: Require) -> None:
     ):
         require(line in content, f"Orange boot service is missing: {line}")
     require("Conflicts=" not in content, "Orange boot service conflicts with runtime")
-    require(enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera-orange-boot-splash.service", "/etc/systemd/system/octessera-orange-boot-splash.service"}, "Orange boot service is not enabled at sysinit")
+    require(enabled_path.is_symlink() and enabled_path.readlink().as_posix() in {"../octessera-orange-boot-splash.service", "/etc/systemd/system/octessera-orange-boot-splash.service"}, "Orange boot service is not enabled at sysinit")
 
 
 def require_orange_shutdown_service(root: Path, require: Require) -> None:

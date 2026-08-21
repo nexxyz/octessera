@@ -126,6 +126,10 @@ for first in range(logo.BOOT_SWEEP_FRAME_COUNT):
 assert logo.logo_canvas("boot") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565").read_bytes())
 assert logo.logo_canvas("shutdown") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565").read_bytes())
 assert logo.logo_canvas("shutdown") == logo.logo_canvas("boot")
+housekeeping_frame = logo.render_housekeeping()
+assert len(housekeeping_frame) == logo.FRAME_BYTES
+assert housekeeping_frame.count(logo.HOUSEKEEPING_STATUS_COLOR_RGB565.to_bytes(2, "big")) > 0
+assert b"\xff\xff" not in housekeeping_frame
 assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off")] == ["boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off"]
 for invalid in ([], ["boot"], ["boot-once", "sleep"], ["unknown"]):
     try:

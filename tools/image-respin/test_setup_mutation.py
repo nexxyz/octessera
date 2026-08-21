@@ -97,8 +97,8 @@ def _fixture(board: str, work: Path) -> Path:
     _write(root / "usr/share/common-licenses/GPL-3", b"vendor GPL\n")
     if board == ORANGE:
         _setup_preimages(root, contract)
-        enabled = next(item for item in contract["symlinks"] if item["classification"] == "first-boot-setup-enabled")
-        (root / enabled["target"]).symlink_to(enabled["link_target"])
+        disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
+        (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
         _write(root / "etc/ssh/sshd_config.d/10-octessera-setup.conf", b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n", 0o664)
         policy = load_policy(ROOT)
         _write(root / "boot/Image", b"kernel")
@@ -150,7 +150,7 @@ class SetupMutationTests(unittest.TestCase):
                 enabled = root / "etc/systemd/system/multi-user.target.wants/octessera-setup-request.path"
                 self.assertEqual(enabled.readlink().as_posix(), "../octessera-setup-request.path")
                 service = root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service"
-                self.assertEqual(service.is_symlink(), board == ORANGE)
+                self.assertFalse(service.exists() or service.is_symlink())
                 if board == ORANGE:
                     for item in contract["entries"]:
                         if item["target"].startswith("usr/local/share/octessera-setup-ui/"):
@@ -249,12 +249,13 @@ class SetupMutationTests(unittest.TestCase):
             before = inventory_digest(build_inventory(root))
 
             def interrupted_orange(stage: str) -> None:
-                if stage.startswith("installed:"):
+                if stage.startswith("disabled:"):
                     raise RuntimeError("interrupted")
 
             with self.assertRaises(Exception):
                 mutate_setup(root, ORANGE, "a" * 40, mutation_hook=interrupted_orange)
             self.assertEqual(before, inventory_digest(build_inventory(root)))
+            self.assertTrue((root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service").is_symlink())
             directory = root / "usr/local/share/octessera-setup-ui"
             self.assertEqual((directory.stat().st_uid, directory.stat().st_gid), (1001, 1001))
             for item in load_contract(contract_for_board(ORANGE))[0]["entries"]:

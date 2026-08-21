@@ -30,6 +30,8 @@ mod audio_route;
 mod audio_sink_registry;
 #[cfg(feature = "native-audio")]
 mod audio_stream_health;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod boot_housekeeping;
 mod boot_oled_handoff;
 mod candidate_readiness;
 mod device_update;
