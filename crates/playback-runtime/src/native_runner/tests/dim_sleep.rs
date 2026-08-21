@@ -140,6 +140,30 @@ pub(crate) fn fresh_startup_timed_snapshots_reach_sleep_without_input() {
 }
 
 #[test]
+pub(crate) fn startup_splash_completion_resets_sleep_deadline() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.display.ui.screen_sleep_seconds = 1;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "");
+    assert_eq!(display["off"], false);
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "");
+    assert_eq!(display["off"], false);
+
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    let messages = runner.messages_with_snapshot().unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "sleep");
+    assert_eq!(display["off"], false);
+}
+
+#[test]
 pub(crate) fn suppressed_input_wake_still_emits_display_snapshot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
