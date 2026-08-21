@@ -24,7 +24,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/README.md", "sha256": "6deecb7f76852b977107175c0ab10e28d73182d5602af4e7b9cad14f249c59dd", "size": 720},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/octessera-mark.svg", "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "size": 638},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "sha256": "36de4cd2cecc87676a1e0053f44ea9e4fcd5a8c54465f67225f7a7ad301a81d0", "size": 1488},
-    {"path": "userpatches/customize-image.sh", "sha256": "7874433ff5abd98cc95bc692e3ee8e80adabbe80d60cc00b86cc18e66fe14c02", "size": 27170},
+    {"path": "userpatches/customize-image.sh", "sha256": "721b149f5693a4fc40d8e2d5370f082d0488266dc6bd3b7e4d6cfaf1317828d8", "size": 27118},
     {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "995d149e029a38413a5cd2074536d73d8aa1ca0b3558a14b7eb287dca41f9412", "size": 1380},
     {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "61f26c2f8d9e4c6cec7b868a8bb23c411c3956eb293418ed3041b334e1777568", "size": 15108},
     {"path": "tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh", "sha256": "1cb185902a7cbd32d47ce47b93bc36059d96aaded43a6363817d8efaa96c7c87", "size": 1152}

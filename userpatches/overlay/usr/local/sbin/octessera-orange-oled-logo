@@ -46,6 +46,7 @@ BOOT_SWEEP_TRAIN_WIDTH = 48
 BOOT_SWEEP_COLORS_RGB565 = (0xF81F, 0x07E0, 0xFFE0, 0x07FF)
 BOOT_SWEEP_COLORS = ((255, 0, 255), (0, 255, 0), (255, 255, 0), (0, 255, 255))
 BOOT_SWEEP_CONTRACT_SHA256 = "18dabe8ebf4ba27dc36c23c0a5f3d91ed816f205ce796583b19c3ba4b9e7a2af"
+HOUSEKEEPING_STATUS_COLOR_RGB565 = 0x8410
 NATIVE_HANDOFF_PHASES = {"released", "native_owned", "first_menu_rendered"}
 NATIVE_HANDOFF_TIMEOUT_SECONDS = 30
 READY_NOTIFY_REQUIRED_ENV = "OCTESSERA_OLED_READY_NOTIFY_REQUIRED"
@@ -196,6 +197,65 @@ def logo_canvas(kind):
     if len(pixels) != expected:
         raise ValueError(f"{source} must contain exactly {expected} RGB565 bytes")
     return pixels
+
+
+STATUS_GLYPHS = {
+    "A": ("0110", "1001", "1111", "1001", "1001"),
+    "E": ("1111", "1000", "1110", "1000", "1111"),
+    "F": ("1111", "1000", "1110", "1000", "1000"),
+    "G": ("0111", "1000", "1011", "1001", "0111"),
+    "H": ("1001", "1001", "1111", "1001", "1001"),
+    "I": ("1111", "0110", "0110", "0110", "1111"),
+    "K": ("1001", "1010", "1100", "1010", "1001"),
+    "L": ("1000", "1000", "1000", "1000", "1111"),
+    "N": ("1001", "1101", "1011", "1001", "1001"),
+    "O": ("0110", "1001", "1001", "1001", "0110"),
+    "P": ("1110", "1001", "1110", "1000", "1000"),
+    "R": ("1110", "1001", "1110", "1010", "1001"),
+    "S": ("0111", "1000", "0110", "0001", "1110"),
+    "T": ("1111", "0110", "0110", "0110", "0110"),
+    "U": ("1001", "1001", "1001", "1001", "0110"),
+    "W": ("1001", "1001", "1011", "1111", "1010"),
+    "-": ("0000", "0000", "1111", "0000", "0000"),
+}
+
+
+def render_housekeeping():
+    canvas = logo_canvas("boot")
+    for y in range(80, 112):
+        for x in range(WIDTH):
+            offset = (y * WIDTH + x) * 2
+            canvas[offset:offset + 2] = b"\x00\x00"
+    dim_rgb565_frame(canvas)
+    for text, y in (("FIRST-RUN", 82), ("HOUSEKEEPING", 92), ("PLEASE WAIT", 102)):
+        draw_status_text(canvas, text, y)
+    return render_canvas(canvas)
+
+
+def dim_rgb565_frame(frame):
+    for offset in range(0, len(frame), 2):
+        color = int.from_bytes(frame[offset:offset + 2], "big")
+        dimmed = (((color >> 11) & 0x1F) // 3 << 11) | (((color >> 5) & 0x3F) // 3 << 5) | ((color & 0x1F) // 3)
+        frame[offset:offset + 2] = dimmed.to_bytes(2, "big")
+
+
+def draw_status_text(frame, text, y):
+    scale = 2
+    advance = 5 * scale
+    x = max(0, (WIDTH - (len(text) * advance - scale)) // 2)
+    for character in text:
+        glyph = STATUS_GLYPHS.get(character, ("0000",) * 5 if character == " " else None)
+        if glyph is None:
+            raise ValueError(f"unsupported housekeeping status glyph: {character!r}")
+        for row, bits in enumerate(glyph):
+            for column, bit in enumerate(bits):
+                if bit != "1":
+                    continue
+                for dy in range(scale):
+                    for dx in range(scale):
+                        offset = ((y + row * scale + dy) * WIDTH + x + column * scale + dx) * 2
+                        frame[offset:offset + 2] = HOUSEKEEPING_STATUS_COLOR_RGB565.to_bytes(2, "big")
+        x += advance
 
 
 def sweep_band_left(frame, y):

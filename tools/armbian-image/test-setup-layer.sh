@@ -147,8 +147,10 @@ grep -qF 'install -D -o root -g root -m 0755' "$root/tools/pi-image/stage4-octes
 grep -qF 'octessera-setup-request.path' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'octessera-setup-request.path' "$root/userpatches/customize-image.sh"
 grep -qF 'systemctl enable octessera-setup-request.path' "$root/userpatches/customize-image.sh"
+octessera_reject_file_match 'Orange construction must not enable the interactive setup service.' -qF 'systemctl enable octessera-setup.service' "$root/userpatches/customize-image.sh"
+grep -qF 'setup_service_link=/etc/systemd/system/multi-user.target.wants/octessera-setup.service' "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
+grep -qF "rm -f \"\$setup_service_link\"" "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
 octessera_reject_file_match 'Raspberry setup must not enable the interactive setup service at image construction time.' -Eq 'enable.*octessera-setup\.service|multi-user\.target\.wants.*octessera-setup\.service' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
-grep -qF 'systemctl enable octessera-setup.service' "$root/userpatches/customize-image.sh"
 grep -qF 'octessera-setup-request.path' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'setup-finalize-failed' "$root/userpatches/customize-image.sh"
 grep -qF 'setup-finalize-failed' "$root/tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh"
@@ -156,7 +158,32 @@ grep -qF 'setup-image-layer.sh' "$root/userpatches/customize-image.sh"
 grep -qF 'install -D -o root -g root' "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
 grep -qF -- '--setup-layer' "$root/tools/armbian-image/inspect-built-image.sh"
 grep -qF -- '--setup-layer' "$root/tools/pi-image/verify-sanitized-image.sh"
+grep -qF 'Orange setup path must be absent' "$root/tools/armbian-image/setup-layer-proof.sh"
+grep -qF 'octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera-setup-request.path ../octessera-setup-request.path' "$root/tools/armbian-image/setup-layer-proof.sh"
 bash -n "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
+
+# shellcheck source=tools/armbian-image/inspect-runtime.sh
+source "$root/tools/armbian-image/inspect-runtime.sh"
+setup_link_root="$(mktemp -d)"
+trap 'rm -rf "$setup_link_root"' EXIT
+mkdir -p "$setup_link_root/etc/systemd/system/multi-user.target.wants"
+target="$setup_link_root"
+stat_path() { [[ -e "$target/$1" || -L "$target/$1" ]]; }
+setup_link_path=etc/systemd/system/multi-user.target.wants/octessera-setup-request.path
+ln -s ../octessera-setup-request.path "$setup_link_root/$setup_link_path"
+octessera_require_image_symlink "$setup_link_path" ../octessera-setup-request.path
+rm "$setup_link_root/$setup_link_path"
+printf '%s\n' wrong > "$setup_link_root/$setup_link_path"
+if (octessera_require_image_symlink "$setup_link_path" ../octessera-setup-request.path); then
+  echo 'Setup request path proof accepted a regular file.' >&2
+  exit 1
+fi
+rm "$setup_link_root/$setup_link_path"
+ln -s ../wrong-request.path "$setup_link_root/$setup_link_path"
+if (octessera_require_image_symlink "$setup_link_path" ../octessera-setup-request.path); then
+  echo 'Setup request path proof accepted a wrong symlink target.' >&2
+  exit 1
+fi
 
 for path in \
   "$root/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh" \

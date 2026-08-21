@@ -19,6 +19,7 @@ octessera_reject_file_match "Orange initramfs must not execute the renderer thro
 octessera_reject_file_match "Orange initramfs must not depend on /usr/bin/env." -qF '/usr/bin/env' "$premount_script"
 for required_line in \
     'Type=notify' \
+    'ConditionPathExists=/opt/octessera/current' \
     'NotifyAccess=main' \
     'Environment=OCTESSERA_OLED_READY_NOTIFY_REQUIRED=1' \
     'User=octessera-runtime' \

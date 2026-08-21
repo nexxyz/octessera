@@ -5,6 +5,13 @@ orchestrator](fat-quick-run.md). Use the exact flashed release asset and
 assembled board. The [diagnostic harness](fat-diagnostic-harness.md) is
 additional sanitized evidence; it does not replace these operator observations.
 
+On either board, if native ownership has not arrived by the 30-second handoff
+window, the existing splash owner should show persistent dimmed `FIRST-RUN` /
+`HOUSEKEEPING` / `PLEASE WAIT` text and continue single-writer handoff polling.
+This is a delayed-start legibility/recovery mitigation, not proof that
+filesystem expansion is active or complete. Only genuine errors or termination
+signals should produce black/off failure cleanup.
+
 ## Raspberry end-to-end
 
 **Time box: 00:15–00:50.** After the operator actions give the board network
@@ -104,12 +111,15 @@ metadata into shared evidence:
 
 1. Flash the exact Orange production image with the selected image flasher. Do
    not use the diagnostic image or a Raspberry asset.
-2. Watch the OLED from power-on through the normal menu. Join the setup hotspot,
-   open `http://192.168.42.1`, apply a test Wi-Fi network and SSH key, and wait
-   for the reconnect.
-3. Turn and press the Main encoder, press Back and Space, press one lower-left
+2. Watch the OLED from power-on through the normal menu. At the instrument,
+   choose `System > Configure WiFi` and confirm `Open Portal`.
+3. Wait for `Octessera Setup` or `Octessera Setup <4-char code>`, join the setup
+   hotspot, open `http://192.168.42.1`, apply a test Wi-Fi network and SSH key,
+   and wait for the reconnect. Do not expect an automatic hotspot on a fresh
+   Orange production image.
+4. Turn and press the Main encoder, press Back and Space, press one lower-left
    grid cell, start the default patch, and make one small parameter change.
-4. With the selected Jack DAC connected and safe volume, trigger one known
+5. With the selected Jack DAC connected and safe volume, trigger one known
    default patch sound. The documented selected Jack route is
    `hw:CARD=octesseradac,DEV=0`; use the existing short tone shape if needed:
 

@@ -1,18 +1,21 @@
 # Orange Pi first boot setup
 
-The Orange Pi Zero 2W image starts a small setup website when it does not know
-a Wi-Fi network. Read [board qualification and status](board-qualification.md)
+Newly constructed Orange Pi Zero 2W images include a small setup website, but
+keep it closed until you deliberately open it. Retained legacy images built from
+the v0.7.5 setup parent are explicitly outside this opt-in flow and retain their
+legacy first-boot setup behavior. Read [board qualification and status](board-qualification.md)
 before treating a successful login or image boot as a ready instrument.
 
 ## Published image and current constructor boundary
 
-The boot, OLED handoff, and lifecycle expectations in this page are current
-source-defined constructor contracts. They apply only to an image built from
-those contracts and identified by release and qualification evidence. The live
-trusted v0.7.5 images are runtime/setup parents. They remain usable published
-images for their documented runtime and setup paths, but they do not prove the
-current constructor layer. A new full constructor image still needs build
-validation and physical qualification.
+The boot, OLED handoff, lifecycle, and opt-in setup expectations in this page are
+current source-defined constructor contracts. They apply only to a newly
+constructed image built from those contracts and identified by release and
+qualification evidence. The retained trusted v0.7.5 images are runtime/setup
+parents with legacy first-boot behavior. They remain usable published images for
+their documented runtime and setup paths, but they do not prove the current
+constructor layer or the new opt-in setup behavior. A new full constructor image
+still needs build validation and physical qualification.
 
 ## Select the correct image
 
@@ -84,28 +87,40 @@ selected build passed its power, USB-role, or live-pinmux gates.
 
 ## First boot and setup
 
+If native ownership has not arrived by the 30-second handoff window, the
+existing splash owner writes a persistent dimmed `FIRST-RUN` / `HOUSEKEEPING` /
+`PLEASE WAIT` status and continues polling the handoff state as the sole OLED
+writer. This is a delayed-start legibility/recovery mitigation, not proof that
+filesystem expansion is active or complete. A timeout alone does not invoke
+black/off failure cleanup; only a genuine writer error or termination signal
+does.
+
 1. Flash the Octessera Orange Pi Armbian production image to a microSD card.
 2. Put the card in the Orange Pi and power it on.
-3. Wait for `Octessera Setup` or `Octessera Setup xxxx`.
-4. Join that network from a phone or laptop.
-5. If the page does not appear automatically, open `http://192.168.42.1/`.
-6. Choose your Wi-Fi network.
-7. Pick SSH access:
+3. Wait for the normal Octessera runtime startup.
+4. On the instrument, choose `System > Configure WiFi` and confirm `Open Portal`.
+   This deliberate action emits the setup request; the installed request-path
+   watcher then starts the setup service.
+5. Wait for `Octessera Setup` or `Octessera Setup xxxx`.
+6. Join that network from a phone or laptop.
+7. Open `http://192.168.42.1/`.
+8. Choose your Wi-Fi network.
+9. Pick SSH access:
    - an SSH key is best; it becomes the admin credential and can use `sudo`
      without a password;
    - an SSH password also works, and the same password is used for `sudo`; or
    - leave SSH off.
-8. Set a hostname if you want one.
-9. Press the final connect button.
+10. Set a hostname if you want one.
+11. Press the final connect button.
 
 The setup hotspot disappears when the Orange Pi joins your Wi-Fi.
 
 ### Security note
 
-The setup hotspot is for nearby, first-boot setup. Until setup finishes, anyone
-close enough to join it can configure the device. Set it up near the device and
-do not leave it powered on in setup mode in a public place. SSH keys are safer
-than passwords.
+The setup hotspot is for nearby, deliberately opened setup sessions. It does not
+start automatically on first boot. Until setup finishes, anyone close enough to
+join it can configure the device. Set it up near the device and do not leave it
+powered on in setup mode in a public place. SSH keys are safer than passwords.
 
 Octessera does not add a shared SSH password or baked SSH key. The underlying
 Armbian image may still expose its normal first-run console/bootstrap
@@ -118,9 +133,12 @@ remains closed until setup enables it.
 
 ### If setup does not appear
 
-- Give the Orange Pi a minute or two after first power-on.
-- If the hotspot disappeared before setup finished, reboot the board or restart
-  `octessera-setup.service` from a console. The hotspot intentionally times out.
+- Confirm the normal runtime has started, then choose `System > Configure WiFi`
+  and confirm `Open Portal` again.
+- If the hotspot disappeared before setup finished, reboot the board. After the
+  normal runtime starts, deliberately choose `System > Configure WiFi` and
+  confirm `Open Portal` again. A deliberately opened hotspot intentionally
+  times out.
 - Check that the phone or laptop is not clinging to another Wi-Fi network.
 - Try `http://192.168.42.1/` directly.
 - If the setup network never appears, use serial/console access and check:

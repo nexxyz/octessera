@@ -366,7 +366,6 @@ fi
 rm -f /etc/ssh/ssh_host_*
 systemctl disable --now serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
-systemctl enable octessera-setup.service >/dev/null
 systemctl enable octessera-setup-request.path >/dev/null
 systemctl enable octessera-orange-usb-gadget.service >/dev/null
 systemctl enable octessera-device-apply-reboot.socket >/dev/null

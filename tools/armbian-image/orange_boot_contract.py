@@ -266,6 +266,25 @@ def _verify_device_apply_lane(root: Path, repository_root: Path, construction: d
     require(socket_link.is_symlink() and socket_link.readlink().as_posix() in {"../octessera-device-apply-reboot.socket", "/etc/systemd/system/octessera-device-apply-reboot.socket"}, "Orange device apply socket is not enabled by the exact symlink")
 
 
+def _verify_oled_assets(root: Path, repository_root: Path, construction: dict[str, Any]) -> None:
+    exact_inputs = {item["path"]: item for item in construction["exact_inputs"]}
+    for source_relative, installed_relative in (
+        ("userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565", "usr/share/octessera/oled/octessera-pi-booting.rgb565"),
+        ("userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565", "usr/share/octessera/oled/octessera-pi-shutdown.rgb565"),
+    ):
+        source = repository_root / source_relative
+        installed = root / installed_relative
+        expected = exact_inputs.get(source_relative)
+        require(expected is not None, f"Orange OLED asset source identity is missing: {source_relative}")
+        if expected is None:
+            raise BootContractError(f"Orange OLED asset source identity is missing: {source_relative}")
+        require(source.is_file() and not source.is_symlink(), f"Orange OLED asset source is missing or symlinked: {source_relative}")
+        require(installed.is_file() and not installed.is_symlink(), f"Orange installed OLED asset is missing or symlinked: {installed_relative}")
+        require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange OLED asset source identity changed: {source_relative}")
+        require(installed.read_bytes() == source.read_bytes(), f"Orange installed OLED asset differs from its canonical source: {installed_relative}")
+        require_owner_mode(installed, 0, 0, 0o644, require)
+
+
 def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any], repository_root: Path) -> dict[str, Any]:
     _verify_notice_bundle(root, repository_root, construction)
     release = package["release"]
@@ -294,6 +313,7 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
     require_orange_shutdown_service(root, require)
     require_orange_suspend_service(root, require)
     _verify_device_apply_lane(root, repository_root, construction)
+    _verify_oled_assets(root, repository_root, construction)
     welcome = root / construction["terminal_invariants"]["welcome_path"]
     require(welcome.is_file() and not welcome.is_symlink(), "canonical Orange welcome file is missing or symlinked")
     require_owner_mode(welcome, 0, 0, 0o644, require)

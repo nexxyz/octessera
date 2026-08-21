@@ -50,3 +50,12 @@ install_required etc/systemd/system/octessera-setup-request.service /etc/systemd
 for setup_ui_file in app.js index.html styles.css README.md octessera-mark.svg octessera-wordmark.svg; do
   install_required "usr/local/share/octessera-setup-ui/$setup_ui_file" "/usr/local/share/octessera-setup-ui/$setup_ui_file" 0644
 done
+
+setup_service_link=/etc/systemd/system/multi-user.target.wants/octessera-setup.service
+if [[ -L "$setup_service_link" ]]; then
+  [[ "$(readlink "$setup_service_link")" == "/etc/systemd/system/octessera-setup.service" ]] || { echo "Unexpected setup service enablement link." >&2; exit 1; }
+  rm -f "$setup_service_link"
+elif [[ -e "$setup_service_link" ]]; then
+  echo "Unexpected setup service enablement path." >&2
+  exit 1
+fi

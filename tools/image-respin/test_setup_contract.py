@@ -40,12 +40,14 @@ class SetupContractTests(unittest.TestCase):
                 self.assertEqual(contract["directories"][0]["preimage"]["kind"], "absent" if board == "raspberry-pi-zero-2w" else "exact")
                 if board == "orange-pi-zero-2w":
                     self.assertEqual(set(contract["directories"][0]["preimage"]) - {"kind"}, {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"})
-                    enabled = next(item for item in contract["symlinks"] if item["classification"] == "first-boot-setup-enabled")
-                    self.assertEqual((enabled["link_target"], enabled["preimage"]["link_target"], enabled["postimage"]), (ORANGE_SETUP_SERVICE_TARGET, ORANGE_SETUP_SERVICE_TARGET, "preserve"))
+                    disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
+                    self.assertEqual((disabled["type"], disabled["preimage"]["link_target"], disabled["postimage"]), ("absent", ORANGE_SETUP_SERVICE_TARGET, "absent"))
                 self.assertFalse(any(contract["recipe"][key] for key in ("account_mutation", "package_mutation", "network_mutation", "boot_mutation", "firmware_mutation")))
                 classifications = {item["classification"] for item in contract["entries"]}
                 self.assertTrue({"setup-profile", "wifi-wrapper", "sidecar", "static-ui", "setup-unit", "request-path-unit", "request-unit"} <= classifications)
-                self.assertEqual({item["classification"] for item in contract["symlinks"]}, {"enabled-request-path", "setup-service-disabled"} if board == "raspberry-pi-zero-2w" else {"enabled-request-path", "first-boot-setup-enabled"})
+                self.assertEqual({item["classification"] for item in contract["symlinks"]}, {"enabled-request-path", "setup-service-disabled"})
+                self.assertEqual(contract["recipe"]["enabled_units"], ["octessera-setup-request.path"])
+                self.assertEqual(contract["recipe"]["disabled_units"], ["octessera-setup.service"])
 
     def test_contract_rejects_source_digest_and_preimage_changes(self) -> None:
         contract, _ = load_contract(contract_for_board("raspberry-pi-zero-2w"))

@@ -55,6 +55,9 @@ userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before
 /tools/armbian-image/fixtures/python313-initramfs-closure/*.py text eol=lf
 /tools/armbian-image/orange_initramfs.py text eol=lf
 /tools/armbian-image/orange_phase5_proof.py text eol=lf
+/tools/armbian-image/orange_trusted_parent_proof.py text eol=lf
+/tools/armbian-image/verify_runtime_account.py text eol=lf
+/tools/kernel-patches/orange-midi-interface-manifest.json text eol=lf
 /tools/armbian-image/test-orange-boot-splash-hook.sh text eol=lf
 /userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash text eol=lf
 /userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash text eol=lf

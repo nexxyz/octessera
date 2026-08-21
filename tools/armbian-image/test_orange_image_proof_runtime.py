@@ -11,6 +11,10 @@ from test_orange_image_proof_support import run_proof, sha256, verifier_args, wr
 
 
 def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, provenance: Path) -> None:
+    diagnostic = work / "final-root"
+    assert "ConditionPathExists=/opt/octessera/current" in (diagnostic / "etc/systemd/system/octessera-orange-boot-splash.service").read_text()
+    assert (diagnostic / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").is_symlink()
+    assert not (diagnostic / "opt/octessera/current").exists()
     production = work / "production"
     shutil.copytree(work / "final-root", production, symlinks=True)
     os.chown(production / "home/octessera/.hushlogin", 1000, 1000)  # type: ignore[attr-defined]

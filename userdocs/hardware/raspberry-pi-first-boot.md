@@ -55,6 +55,14 @@ startup waits for the exclusive `/run/octessera-boot` lock, adopts the already
 initialized OLED without resetting it, and stops the animation immediately
 before an acknowledged first normal menu frame. A queued frame is not enough.
 
+If native ownership has not arrived by the 30-second handoff window, that same
+splash owner writes a persistent dimmed `FIRST-RUN` / `HOUSEKEEPING` / `PLEASE
+WAIT` status and continues polling the handoff state as the sole OLED writer.
+This is a delayed-start legibility/recovery mitigation, not proof that
+filesystem expansion is active or complete. A timeout alone does not invoke
+black/off failure cleanup; only a genuine writer error or termination signal
+does.
+
 For selected audio outputs, every non-empty set is valid. Jack is required only
 when selected; recognized disconnected USB or HDMI routes may wait; a selected
 route fault blocks readiness; and no route is a fallback. The live Raspberry

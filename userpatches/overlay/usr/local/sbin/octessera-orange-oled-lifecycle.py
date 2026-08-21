@@ -15,7 +15,7 @@ def _wait_for_rest(logo, handoff, termination_requested, rest_start, handoff_dea
             return False
         now = logo["time"].monotonic_ns()
         if now >= handoff_deadline:
-            raise RuntimeError(f"Orange OLED native handoff timed out after {logo['NATIVE_HANDOFF_TIMEOUT_SECONDS']} seconds")
+            return False
         if now >= rest_deadline:
             return False
         next_deadline = min(
@@ -24,6 +24,21 @@ def _wait_for_rest(logo, handoff, termination_requested, rest_start, handoff_dea
             now + logo["BOOT_SWEEP_REST_CHECK_NS"],
         )
         logo["_sleep_until"](next_deadline)
+
+
+def _render_housekeeping_and_wait(logo, oled, handoff, termination_requested, frame):
+    if handoff.stop_requested():
+        return True
+    if termination_requested[0]:
+        return False
+    oled.stream_frame(frame)
+    while True:
+        if handoff.stop_requested():
+            return True
+        if termination_requested[0]:
+            return False
+        now = logo["time"].monotonic_ns()
+        logo["_sleep_until"](now + logo["BOOT_SWEEP_REST_CHECK_NS"])
 
 
 def _install_signal_handlers(termination_requested):
@@ -125,6 +140,7 @@ def run_loop(logo):
             for frame in range(logo["BOOT_SWEEP_FRAME_COUNT"])
         ]
         clean_frame = logo["render_canvas"](canvas)
+        housekeeping_frame = logo["render_housekeeping"]()
         logo["notify_systemd_ready"]()
         oled.begin_frame_stream()
         cycle_start = logo["time"].monotonic_ns()
@@ -139,7 +155,17 @@ def run_loop(logo):
             if termination_requested[0]:
                 return
             if logo["time"].monotonic_ns() >= handoff_deadline:
-                raise RuntimeError(f"Orange OLED native handoff timed out after {logo['NATIVE_HANDOFF_TIMEOUT_SECONDS']} seconds")
+                if _render_housekeeping_and_wait(
+                    logo,
+                    oled,
+                    handoff,
+                    termination_requested,
+                    housekeeping_frame,
+                ):
+                    handoff.release()
+                    close_oled_without_off()
+                    released = True
+                return
             oled.stream_frame(frames[frame])
             if frame == logo["BOOT_SWEEP_FRAME_COUNT"] - 1:
                 if handoff.stop_requested():
@@ -159,7 +185,17 @@ def run_loop(logo):
                 if termination_requested[0]:
                     return
                 if logo["time"].monotonic_ns() >= handoff_deadline:
-                    raise RuntimeError(f"Orange OLED native handoff timed out after {logo['NATIVE_HANDOFF_TIMEOUT_SECONDS']} seconds")
+                    if _render_housekeeping_and_wait(
+                        logo,
+                        oled,
+                        handoff,
+                        termination_requested,
+                        housekeeping_frame,
+                    ):
+                        handoff.release()
+                        close_oled_without_off()
+                        released = True
+                    return
                 oled.stream_frame(clean_frame)
                 if _wait_for_rest(
                     logo,
@@ -171,6 +207,18 @@ def run_loop(logo):
                     handoff.release()
                     close_oled_without_off()
                     released = True
+                    return
+                if logo["time"].monotonic_ns() >= handoff_deadline:
+                    if _render_housekeeping_and_wait(
+                        logo,
+                        oled,
+                        handoff,
+                        termination_requested,
+                        housekeeping_frame,
+                    ):
+                        handoff.release()
+                        close_oled_without_off()
+                        released = True
                     return
                 next_cycle_start = cycle_start + logo["BOOT_SWEEP_DURATION_NS"] + logo["BOOT_SWEEP_REST_NS"]
                 handoff.publish_cycle()

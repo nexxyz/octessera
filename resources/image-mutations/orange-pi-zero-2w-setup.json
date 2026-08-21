@@ -24,7 +24,7 @@
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/README.md", "sha256": "64e66ee4eab95bb7672f578c1914bf52d87c03f3d0f9e2e7653569f994959fbe", "size": 723},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg", "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "size": 638},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "sha256": "ff136b332cf364f997b8ff103c8fa8b8bef3189aa4fcd7c62d7ccea88f9deec9", "size": 1622},
-    {"path": "userpatches/customize-image.sh", "sha256": "7874433ff5abd98cc95bc692e3ee8e80adabbe80d60cc00b86cc18e66fe14c02", "size": 27170}
+    {"path": "userpatches/customize-image.sh", "sha256": "721b149f5693a4fc40d8e2d5370f082d0488266dc6bd3b7e4d6cfaf1317828d8", "size": 27118}
   ],
   "directories": [
     {"target": "usr/local/share/octessera-setup-ui", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "preimage": {"kind": "exact", "type": "directory", "mode": 493, "uid": 1001, "gid": 1001, "symlink": false, "xattrs": {}, "capability": null}, "postimage": "required"}
@@ -52,7 +52,7 @@
   ],
   "symlinks": [
     {"classification": "enabled-request-path", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup-request.path", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "../octessera-setup-request.path", "preimage": {"kind": "absent"}, "postimage": "required"},
-    {"classification": "first-boot-setup-enabled", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup.service", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "/etc/systemd/system/octessera-setup.service", "preimage": {"kind": "exact", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "/etc/systemd/system/octessera-setup.service"}, "postimage": "preserve"}
+    {"classification": "setup-service-disabled", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup.service", "type": "absent", "preimage": {"kind": "exact", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "/etc/systemd/system/octessera-setup.service"}, "postimage": "absent"}
   ],
   "preserved_paths": [
     {"classification": "ssh-setup-config", "target": "etc/ssh/sshd_config.d/10-octessera-setup.conf", "preimage": {"kind": "exact", "type": "file", "mode": 436, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "4fe030c3c19a2a63fee3323e4e24036963591ad418ecfd7704c259a0e3c77573"}, "postimage": "preserve"}
@@ -66,5 +66,5 @@
     "accounts": [{"user": "octessera", "group": "octessera", "home": "/home/octessera", "shell": "/bin/bash"}, {"user": "octessera-runtime", "group": "octessera-runtime", "home": "/nonexistent", "shell": "/usr/sbin/nologin"}],
     "services": ["ssh.service", "NetworkManager.service", "dnsmasq.service"]
   },
-  "recipe": {"account_mutation": false, "package_mutation": false, "network_mutation": false, "boot_mutation": false, "firmware_mutation": false, "enabled_units": ["octessera-setup.service", "octessera-setup-request.path"], "disabled_units": [], "proof": "tools/armbian-image/inspect-built-image.sh --setup-layer --mode production"}
+  "recipe": {"account_mutation": false, "package_mutation": false, "network_mutation": false, "boot_mutation": false, "firmware_mutation": false, "enabled_units": ["octessera-setup-request.path"], "disabled_units": ["octessera-setup.service"], "proof": "tools/armbian-image/inspect-built-image.sh --setup-layer --mode production"}
 }

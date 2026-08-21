@@ -12,6 +12,11 @@ octessera_load_image_contract "$root/userpatches/overlay"
   exit 1
 }
 grep -qF 'octessera_configure_runtime_account' "$root/userpatches/customize-image.sh"
+if grep -qF 'systemctl enable octessera-setup.service' "$root/userpatches/customize-image.sh"; then
+  echo 'Orange image construction must not enable the setup service.' >&2
+  exit 1
+fi
+grep -qF 'systemctl enable octessera-setup-request.path' "$root/userpatches/customize-image.sh"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
