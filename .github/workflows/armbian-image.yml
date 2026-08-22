@@ -24,9 +24,9 @@ on:
         required: true
         default: sha,img,xz
       extensions:
-        description: Space-separated Armbian extensions; Octessera MIDI and image sanitization are mandatory, and preset-firstrun enables first-run presets
+        description: Space-separated Armbian extensions; Octessera MIDI, AHUB audio, and image sanitization are mandatory, and preset-firstrun enables first-run presets
         required: false
-        default: preset-firstrun octessera_midi octessera_image_sanitize
+        default: preset-firstrun octessera_midi octessera_audio octessera_image_sanitize
       armbian_build_ref:
         description: Reviewed immutable armbian/build commit SHA for image builds; mutable refs are validation-only
         required: true

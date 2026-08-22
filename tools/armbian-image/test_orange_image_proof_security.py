@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import os
-import shutil
 from pathlib import Path
 from typing import Callable
 
-from test_orange_image_proof_support import REPOSITORY, root_args, run_proof, verifier_args, write
+from test_orange_image_proof_support import REPOSITORY, copy_fixture_root, root_args, run_proof, verifier_args, write
 
 
 def run_security_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path) -> None:
@@ -14,7 +13,7 @@ def run_security_proof(work: Path, root: Path, image: Path, dtb: Path, evidence:
 
     def reject_terminal_fixture(name: str, mutate: Callable[[Path], object]) -> None:
         negative = work / f"negative-terminal-{name}"
-        shutil.copytree(root, negative, symlinks=True)
+        copy_fixture_root(root, negative)
         mutate(negative)
         run_proof(root_args(args, negative), False)
 
@@ -52,10 +51,12 @@ def run_security_proof(work: Path, root: Path, image: Path, dtb: Path, evidence:
     reject_terminal_fixture("wrong-group-gid", lambda path: path.joinpath("etc/group").write_text(path.joinpath("etc/group").read_text().replace("octessera:x:1000:", "octessera:x:1001:")))
     reject_terminal_fixture("pam-override", lambda path: write(path / "etc/pam.d/10-octessera", b"override\n"))
     reject_terminal_fixture("motd-override", lambda path: write(path / "etc/update-motd.d/10-octessera", b"override\n"))
+    reject_terminal_fixture("unrestricted-sudoers", lambda path: write(path / "etc/sudoers", b"octessera ALL=(ALL) NOPASSWD: ALL\n"))
+    reject_terminal_fixture("unrestricted-sudoers-dropin", lambda path: write(path / "etc/sudoers.d/negative", b"octessera ALL=(ALL) NOPASSWD: ALL\n"))
 
     def reject_notice_fixture(name: str, mutate: Callable[[Path], object]) -> None:
         negative = work / f"negative-notice-{name}"
-        shutil.copytree(root, negative, symlinks=True)
+        copy_fixture_root(root, negative)
         mutate(negative)
         run_proof(root_args(args, negative), False)
 

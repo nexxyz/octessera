@@ -31,7 +31,7 @@ NATIVE_IMAGE = f"{IMAGE_NAME}_{REVISION}_arm64__fixture.deb"
 NATIVE_DTB = f"{DTB_NAME}_{REVISION}_arm64__fixture.deb"
 DTB_RELATIVE = f"usr/lib/linux-image-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb"
 MODULE_RELATIVE = f"lib/modules/{RELEASE}/kernel/drivers/usb/gadget/function/usb_f_midi.ko"
-BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y")
+BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y")
 
 
 def sha256(path: Path) -> str:
@@ -41,6 +41,12 @@ def sha256(path: Path) -> str:
 def write(path: Path, content: bytes | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content if isinstance(content, bytes) else content.encode())
+
+
+def copy_fixture_root(source: Path, destination: Path) -> None:
+    shutil.copytree(source, destination, symlinks=True)
+    os.chown(destination / "home/octessera/.hushlogin", 1000, 1000)  # type: ignore[attr-defined]
+    os.chown(destination / "var/lib/octessera/samples", 990, 990)  # type: ignore[attr-defined]
 
 
 def make_uboot_initramfs(payload: bytes) -> bytes:
@@ -91,6 +97,27 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     kernel = b"synthetic-orange-kernel-" + RELEASE.encode()
     config = b"# CONFIG_RT_GROUP_SCHED is not set\n" + b"\n".join(line.encode() for line in BUILTIN_CONFIG_LINES) + b"\nCONFIG_SND_SEQUENCER=m\n"
     dtb = b"\xd0\x0d\xfe\xedsynthetic-zero2w-dtb"
+    base_dts = REPOSITORY / "tools/armbian-image/fixtures/h618-orange-ahub-base.dts"
+    stock_dts = REPOSITORY / "tools/armbian-image/fixtures/h618-stock-i2c1-pi.dts"
+    base_dtb = work / "base.dtb"
+    stock_dtbo = work / "stock-i2c1-pi.dtbo"
+    subprocess.run(["dtc", "-@", "-I", "dts", "-O", "dtb", "-o", str(base_dtb), str(base_dts)], check=True, capture_output=True)
+    subprocess.run(["dtc", "-@", "-I", "dts", "-O", "dtb", "-o", str(stock_dtbo), str(stock_dts)], check=True, capture_output=True)
+    overlay_sources = {
+        "spi": REPOSITORY / "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts",
+        "input": REPOSITORY / "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts",
+        "audio": REPOSITORY / "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
+    }
+    overlay_dtb = {}
+    for name, source in overlay_sources.items():
+        output = work / f"{name}.dtbo"
+        subprocess.run(["dtc", "-@", "-I", "dts", "-O", "dtb", "-o", str(output), str(source)], check=True, capture_output=True)
+        overlay_dtb[name] = output
+    subprocess.run(["fdtoverlay", "-i", str(base_dtb), "-o", str(work / "stock-merged.dtb"), str(stock_dtbo)], check=True, capture_output=True)
+    subprocess.run(["fdtoverlay", "-i", str(work / "stock-merged.dtb"), "-o", str(work / "spi-merged.dtb"), str(overlay_dtb["spi"])], check=True, capture_output=True)
+    subprocess.run(["fdtoverlay", "-i", str(work / "spi-merged.dtb"), "-o", str(work / "spi-input-merged.dtb"), str(overlay_dtb["input"])], check=True, capture_output=True)
+    subprocess.run(["fdtoverlay", "-i", str(work / "spi-input-merged.dtb"), "-o", str(work / "merged.dtb"), str(overlay_dtb["audio"])], check=True, capture_output=True)
+    dtb = base_dtb.read_bytes()
     module = b"\x7fELF" + b"\x02\x01\x01" + bytes(11) + struct.pack("<H", 183) + b"vermagic=" + RELEASE.encode() + b" SMP\ninterface_string\ninterface_string\nf_midi_opts_attr_interface_string\nmidi_interface_string\n"
     write(image_root / f"usr/lib/linux-image-{RELEASE}/Image", kernel)
     write(image_root / f"boot/config-{RELEASE}", config)
@@ -100,6 +127,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     for module_name in ("snd-seq.ko", "snd-seq-midi.ko", "snd-rawmidi.ko", "snd-usb-audio.ko"):
         write(image_root / f"lib/modules/{RELEASE}/kernel/sound/{module_name}", b"synthetic-module")
     write(dtb_root / f"boot/dtb-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb", dtb)
+    write(dtb_root / f"boot/dtb-{RELEASE}/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo", stock_dtbo.read_bytes())
     packages = work / "packages"
     packages.mkdir()
     subprocess.run(["dpkg-deb", "--build", str(image_root), str(packages / NATIVE_IMAGE)], check=True, capture_output=True)
@@ -153,6 +181,17 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         managed = next(item for item in CONSTRUCTION["managed_outputs"] if item["path"] == installed_path)
         os.chmod(target, managed["mode"])
         os.chown(target, 0, 0)  # type: ignore[attr-defined]
+    overlay_names = {"spi": "octessera-h618-spi1-cs0", "input": "octessera-h618-input-routing", "audio": "octessera-ahub0-pcm5102"}
+    for name, source in overlay_sources.items():
+        overlay_name = overlay_names[name]
+        source_target = final_root / f"usr/local/share/octessera/device-tree/{overlay_name}.dts"
+        dtbo_target = final_root / f"boot/overlay-user/{overlay_name}.dtbo"
+        write(source_target, source.read_bytes())
+        write(dtbo_target, overlay_dtb[name].read_bytes())
+        for target in (source_target, dtbo_target):
+            managed = next(item for item in CONSTRUCTION["managed_outputs"] if item["path"] == target.relative_to(final_root).as_posix())
+            os.chmod(target, managed["mode"])
+            os.chown(target, 0, 0)  # type: ignore[attr-defined]
     for module_name in CONSTRUCTION["selected_initramfs"]["required_python_modules"]:
         write(final_root / f"usr/lib/python3.13/lib-dynload/{module_name}.cpython-313-aarch64-linux-gnu.so", b"synthetic-python-extension")
     write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
@@ -172,15 +211,14 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
     write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))
     (final_root / "boot/uInitrd").symlink_to(f"initrd.img-{RELEASE}")
-    write(final_root / "boot/armbianEnv.txt", "verbosity=1\n")
-    write(final_root / "boot/overlay-user/octessera-h618-input-routing.dtbo", b"synthetic-input-routing-dtbo")
-    write(final_root / "usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts", b"synthetic-input-routing-dts")
+    write(final_root / "boot/armbianEnv.txt", "verbosity=1\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi\n")
     (final_root / "etc/systemd/system").mkdir(parents=True, exist_ok=True)
     (final_root / "etc/systemd/system/serial-getty@ttyS0.service").symlink_to("/dev/null")
     write(final_root / "etc/os-release", "ID=armbian\n")
-    write(final_root / "etc/octessera/build-metadata.env", "OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\n")
+    write(final_root / "etc/octessera/build-metadata.env", f"OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_AHUB0_PCM5102_DTS_SHA256={sha256(overlay_sources['audio'])}\nOCTESSERA_AHUB0_PCM5102_DTBO_SHA256={sha256(overlay_dtb['audio'])}\n")
     write(final_root / "etc/octessera/image-contract.json", '{"schema_version": 1, "image_kind": "diagnostic", "runtime_enabled_default": false}\n')
     write(final_root / "etc/passwd", "octessera:x:1000:1000:Octessera:/home/octessera:/bin/bash\noctessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin\n")
+    write(final_root / "etc/sudoers", "octessera ALL=(root) NOPASSWD: /sbin/shutdown\n")
     (final_root / "home/octessera").mkdir(parents=True, exist_ok=True)
     write(final_root / "home/octessera/.hushlogin", b"")
     os.chown(final_root / "home/octessera/.hushlogin", 1000, 1000)  # type: ignore[attr-defined]
@@ -201,6 +239,11 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "image_dtb_sha256": hashlib.sha256(dtb).hexdigest(),
         "dtb_package_dtb_sha256": hashlib.sha256(dtb).hexdigest(),
         "dtb_byte_equal": "true",
+        "stock_i2c1_dtbo_path": f"boot/dtb-{RELEASE}/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo",
+        "stock_i2c1_dtbo_sha256": sha256(stock_dtbo),
+        "audio_dts_path": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
+        "audio_dts_sha256": sha256(overlay_sources["audio"]),
+        "audio_dtbo_forbidden": "octessera-ahub0-pcm5102.dtbo",
         "packaged_config_expected_sha256": "fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352",
         "final_config_sha256": hashlib.sha256(config).hexdigest(),
         "module_relative_path": MODULE_RELATIVE,
@@ -243,6 +286,12 @@ def run_proof(args: list[str], expected: bool, cwd: Path | None = None) -> None:
         raise AssertionError(result.stdout + result.stderr)
 
 
+def run_proof_failure(args: list[str], expected_reason: str) -> None:
+    result = subprocess.run(args, capture_output=True, text=True)
+    if result.returncode == 0 or expected_reason not in result.stderr:
+        raise AssertionError(f"Expected image proof failure {expected_reason!r}:\n{result.stdout}{result.stderr}")
+
+
 def root_args(args: list[str], root: Path) -> list[str]:
     result = list(args)
     result[result.index("--root") + 1] = str(root)
@@ -262,7 +311,7 @@ def replace_option(args: list[str], option: str, value: Path) -> list[str]:
 
 def make_missing_builtin_fixture(work: Path, root: Path, image: Path, evidence: Path, provenance: Path) -> tuple[Path, Path, Path, Path]:
     negative_root = work / "negative-missing-builtin"
-    shutil.copytree(root, negative_root, symlinks=True)
+    copy_fixture_root(root, negative_root)
     config_path = negative_root / f"boot/config-{RELEASE}"
     config = config_path.read_bytes().replace(b"CONFIG_SPI_SPIDEV=y\n", b"", 1)
     write(config_path, config)

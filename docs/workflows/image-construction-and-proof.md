@@ -80,8 +80,13 @@ For an extracted root filesystem or ext4 root partition image, inspect the
 artifact directly:
 
 ```bash
-tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
+tools/armbian-image/inspect-built-image.sh --verification-profile full-constructor <rootfs-dir-or-ext4-image>
 ```
+
+Use `full-constructor` for source-built images. Trusted v0.7.5 runtime-only
+respins use `legacy-runtime-only`; setup-layer respins use
+`legacy-setup-layer`. Their boot integrity comes from the separate trusted
+v0.7.5 boot-neutral proof.
 
 ## Source-bound constructor procedure
 

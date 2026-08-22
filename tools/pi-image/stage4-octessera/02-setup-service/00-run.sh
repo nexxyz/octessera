@@ -6,6 +6,8 @@ STAGE_FILES="$(cd "$SCRIPT_DIR/.." && pwd)/files"
 LEGAL_REPOSITORY_ROOT="${OCTESSERA_REPOSITORY_ROOT:?OCTESSERA_REPOSITORY_ROOT must point to the canonical source checkout}"
 LEGAL_STAGER="$LEGAL_REPOSITORY_ROOT/tools/legal/stage_notices.py"
 test -f "$LEGAL_STAGER"
+# shellcheck source=tools/pi-image/validate-rpi-parent-sudoers.sh
+source "$LEGAL_REPOSITORY_ROOT/tools/pi-image/validate-rpi-parent-sudoers.sh"
 
 python3 "$LEGAL_STAGER" \
     --repository-root "$LEGAL_REPOSITORY_ROOT" \
@@ -36,6 +38,8 @@ for wifi_foundation_file in \
         exit 2
     fi
 done
+
+octessera_remove_raspberry_parent_sudoers "$ROOTFS_DIR"
 
 rm -f \
     "$ROOTFS_DIR/etc/initramfs-tools/hooks/cellsymphony-boot-splash" \
@@ -112,6 +116,9 @@ install -D -o root -g root -m 0755 \
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/octessera/setup-profile" \
     "$ROOTFS_DIR/etc/octessera/setup-profile"
+install -D -o root -g root -m 0644 \
+    "$STAGE_FILES/root/etc/default/locale" \
+    "$ROOTFS_DIR/etc/default/locale"
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-setup.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-setup.service"
@@ -245,6 +252,15 @@ ln -sf ../octessera-network-health.timer \
 ln -sf ../octessera-setup-request.path \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-setup-request.path"
 
+rm -f \
+    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-setup.service" \
+    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/dnsmasq.service" \
+    "$ROOTFS_DIR/etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service" \
+    "$ROOTFS_DIR/etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service"
+rm -f "$ROOTFS_DIR/etc/systemd/system/ssh.service" "$ROOTFS_DIR/etc/systemd/system/ssh.socket"
+ln -s /dev/null "$ROOTFS_DIR/etc/systemd/system/ssh.service"
+ln -s /dev/null "$ROOTFS_DIR/etc/systemd/system/ssh.socket"
+
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/bluetooth.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/hciuart.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/getty.target.wants"/serial-getty@*.service
@@ -274,6 +290,10 @@ if [ -e "$hushlogin" ] || [ -L "$hushlogin" ]; then
     fi
 else
     install -D -m 0644 /dev/null "$hushlogin"
+fi
+bashrc="$ROOTFS_DIR$pi_home/.bashrc"
+if [ -f "$bashrc" ] && [ ! -L "$bashrc" ]; then
+    sed -i -E '/^[[:space:]]*(export[[:space:]]+)?(LANG|LANGUAGE|LC_[[:alnum:]_]+)[[:space:]]*=/d' "$bashrc"
 fi
 chroot "$ROOTFS_DIR" chown "$pi_user:$pi_user" "$pi_home/.hushlogin"
 chroot "$ROOTFS_DIR" chown -R pi:pi /home/pi/samples /home/pi/presets

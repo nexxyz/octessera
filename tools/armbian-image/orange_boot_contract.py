@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from orange_boot_selection import parse_boot_selectors, safe_resolve
+from orange_audio_proof import verify_audio_overlay
 from orange_phase5_proof import verify_selected_initramfs
 from verify_runtime_account import (
     require_orange_boot_service,
@@ -43,8 +44,10 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/orange_image_mount.py",
     "tools/armbian-image/orange_initramfs.py",
     "tools/armbian-image/orange_phase5_proof.py",
+    "tools/armbian-image/orange_audio_proof.py",
     "tools/armbian-image/orange_trusted_parent_proof.py",
     "tools/armbian-image/verify_runtime_account.py",
+    "userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh",
     "tools/kernel-patches/orange-midi-interface-manifest.json",
 }
 
@@ -172,15 +175,27 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
     image_root, dtb_root = work / "package-image", work / "package-dtb"
     _extract_package(image_package, image_root)
     _extract_package(dtb_package, dtb_root)
+    audio = armbian["audio_overlay"]
+    require(not any(path.is_file() and "octessera-ahub0-pcm5102" in path.name.lower() for path in image_root.rglob("*")), "exact linux-image package embeds the Octessera audio DTBO")
+    require(not any(path.is_file() and "octessera-ahub0-pcm5102" in path.name.lower() for path in dtb_root.rglob("*")), "exact linux-dtb package embeds the Octessera audio DTBO")
     config = image_root / f"boot/config-{release}"
     require(config.is_file() and not config.is_symlink(), "exact package kernel config is missing")
     config_hash = sha256_file(config)
     require(config_hash == evidence["final_config_sha256"] and evidence["packaged_config_expected_sha256"] == armbian["packaged_config_sha256"], "package kernel config evidence changed")
+    require(evidence.get("audio_dts_path") == audio["canonical_dts"] and evidence.get("audio_dts_sha256") == audio["canonical_dts_sha256"] and evidence.get("audio_dtbo_forbidden") == audio["dtbo_name"], "Orange audio package evidence changed")
+    config_lines = config.read_text(encoding="utf-8").splitlines()
+    for line in audio["required_builtin_config_lines"]:
+        require(config_lines.count(line) == 1, f"exact package kernel config must contain exactly one: {line}")
     required_dtb = armbian["required_dtb"]
     image_dtb = image_root / f"usr/lib/linux-image-{release}/allwinner/{required_dtb}"
     dtb_payload = dtb_root / f"boot/dtb-{release}/allwinner/{required_dtb}"
     require(image_dtb.is_file() and dtb_payload.is_file() and image_dtb.read_bytes() == dtb_payload.read_bytes() and image_dtb.read_bytes()[:4] == b"\xd0\x0d\xfe\xed", "exact package Zero 2W DTB is invalid")
     require(_file_hash(image_dtb.read_bytes()) == evidence["image_dtb_sha256"] and _file_hash(dtb_payload.read_bytes()) == evidence["dtb_package_dtb_sha256"], "package DTB hash does not match evidence")
+    stock_i2c1_dtbo_path = f"boot/dtb-{release}/allwinner/overlay/{audio['stock_i2c1_dtbo_name']}"
+    stock_i2c1_dtbo = dtb_root / stock_i2c1_dtbo_path
+    require(stock_i2c1_dtbo.is_file() and not stock_i2c1_dtbo.is_symlink(), "exact package stock i2c1-pi DTBO is missing or symlinked")
+    stock_i2c1_dtbo_sha256 = sha256_file(stock_i2c1_dtbo)
+    require(evidence.get("stock_i2c1_dtbo_path") == stock_i2c1_dtbo_path and evidence.get("stock_i2c1_dtbo_sha256") == stock_i2c1_dtbo_sha256, "stock i2c1-pi DTBO evidence changed")
     kernel_candidates = [path for path in (image_root / "boot/Image", image_root / f"boot/vmlinuz-{release}", image_root / f"usr/lib/linux-image-{release}/Image", image_root / f"usr/lib/linux-image-{release}/boot/Image", image_root / f"usr/lib/linux-image-{release}/vmlinuz") if path.is_file() and not path.is_symlink()]
     require(len(kernel_candidates) == 1, "exact package must contain one canonical boot kernel")
     modules = sorted(path for path in (image_root / f"lib/modules/{release}").rglob("usb_f_midi.ko*") if path.is_file())
@@ -192,7 +207,7 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
     require(facts["interface_options"] == evidence["module_interface_options_marker"], "package usb_f_midi options marker does not match evidence")
     require(facts["interface_runtime"] == evidence["module_interface_runtime_marker"], "package usb_f_midi runtime marker does not match evidence")
     require(str(modules[0].relative_to(image_root)) == evidence["module_relative_path"], "package usb_f_midi path does not match evidence")
-    return {"release": release, "config_hash": config_hash, "kernel": kernel_candidates[0].read_bytes(), "dtb": dtb_payload.read_bytes(), "module": facts, "module_relative_path": evidence["module_relative_path"], "image_identity": image_identity, "dtb_identity": dtb_identity}
+    return {"release": release, "config_hash": config_hash, "kernel": kernel_candidates[0].read_bytes(), "dtb": dtb_payload.read_bytes(), "stock_i2c1_dtbo_path": stock_i2c1_dtbo_path, "stock_i2c1_dtbo_sha256": stock_i2c1_dtbo_sha256, "stock_i2c1_dtbo": stock_i2c1_dtbo.read_bytes(), "module": facts, "module_relative_path": evidence["module_relative_path"], "image_identity": image_identity, "dtb_identity": dtb_identity}
 
 
 def _verify_symlink(path: Path, root: Path, release: str, label: str) -> None:
@@ -283,8 +298,6 @@ def _verify_oled_assets(root: Path, repository_root: Path, construction: dict[st
         require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange OLED asset source identity changed: {source_relative}")
         require(installed.read_bytes() == source.read_bytes(), f"Orange installed OLED asset differs from its canonical source: {installed_relative}")
         require_owner_mode(installed, 0, 0, 0o644, require)
-
-
 def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any], repository_root: Path) -> dict[str, Any]:
     _verify_notice_bundle(root, repository_root, construction)
     release = package["release"]
@@ -357,8 +370,9 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
     ):
         require(output.is_file() and not output.is_symlink(), f"Orange UART overlay output is missing or symlinked: {output}")
         require_owner_mode(output, 0, 0, 0o644, require)
+    audio_proof = verify_audio_overlay(root, selected["fdt"], repository_root, construction, require, sha256_file, require_owner_mode, package)
     verify_selected_initramfs(root, initrd, construction, require)
-    return {"selected_kernel": str(selected["linux"].relative_to(root)), "selected_initramfs": str(initrd.relative_to(root)), "selected_dtb": str(selected["fdt"].relative_to(root)), "device_config_validator": {"path": validator_input[0]["path"], "sha256": validator_source_hash, "size": validator_source_size}}
+    return {"selected_kernel": str(selected["linux"].relative_to(root)), "selected_initramfs": str(initrd.relative_to(root)), "selected_dtb": str(selected["fdt"].relative_to(root)), "device_config_validator": {"path": validator_input[0]["path"], "sha256": validator_source_hash, "size": validator_source_size}, "audio_overlay": audio_proof}
 
 
 def verify_dpkg_status(root: Path, package: dict[str, Any]) -> None:
@@ -419,7 +433,7 @@ def validate_construction_contract(root: Path, contract: dict[str, Any]) -> str:
     require(contract.get("proof_mode") == "phase5-constructor", "Orange construction proof mode is not phase5-constructor")
     require(contract.get("constructor_required") is True and contract.get("trusted_parent_finalization") == "forbidden" and contract.get("mutation_authority") == "none", "Orange construction authority is invalid")
     require(contract.get("board_profile") == "orange-pi-zero-2w", "Orange construction board is invalid")
-    require(contract.get("required_builtin_kernel_config_lines") == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y"], "Orange built-in kernel config contract changed")
+    require(contract.get("required_builtin_kernel_config_lines") == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y"], "Orange built-in kernel config contract changed")
     selected_initramfs = contract.get("selected_initramfs")
     require(isinstance(selected_initramfs, dict) and selected_initramfs.get("required_python_modules") == ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"], "Orange Python module contract changed")
     require(contract.get("notice_bundle") == {"manifest": "resources/legal/notice-bundle.json", "stager": "tools/legal/stage_notices.py", "installed_root": "usr/share/doc/octessera", "installed_outputs": "manifest-files", "proof": "tools/armbian-image/orange_boot_contract.py", "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"]}, "Orange legal notice contract is not exact")
@@ -430,6 +444,11 @@ def validate_construction_contract(root: Path, contract: dict[str, Any]) -> str:
     exact_input_paths: set[str] = set()
     validator_inputs = [item for item in exact_inputs if item.get("path") == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
     require(len(validator_inputs) == 1, "Orange device config validator source identity is not unique")
+    audio_inputs = [item for item in exact_inputs if item.get("path") == "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts"]
+    require(len(audio_inputs) == 1, "canonical Orange audio DTS source identity is not unique")
+    require(any(item.get("path") == "usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts" for item in contract.get("managed_outputs", [])), "Orange audio DTS managed output is missing")
+    require(any(item.get("path") == "boot/overlay-user/octessera-ahub0-pcm5102.dtbo" for item in contract.get("managed_outputs", [])), "Orange audio DTBO managed output is missing")
+    require(any(item.get("path") == "etc/octessera/build-metadata.env" for item in contract.get("managed_outputs", [])), "Orange build metadata managed output is missing")
     for item in exact_inputs:
         require(set(item) == {"path", "sha256", "size", "mode"}, "Orange construction source input changed")
         require(isinstance(item["path"], str) and not Path(item["path"]).is_absolute() and ".." not in Path(item["path"]).parts and item["path"] not in exact_input_paths, "Orange construction source input path is unsafe or duplicated")
@@ -467,7 +486,7 @@ def constructor_proof(root: Path, args: Any, image_hash: str, image_name: str, c
     evidence = read_kv(args.evidence)
     provenance = read_kv(args.provenance)
     evidence["_sha256"], provenance["_sha256"] = sha256_file(args.evidence), sha256_file(args.provenance)
-    required = {"image_package_native_basename", "dtb_package_native_basename", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "image_dtb_sha256", "dtb_package_dtb_sha256", "dtb_byte_equal", "packaged_config_expected_sha256", "final_config_sha256", "module_relative_path", "module_compressed_sha256", "module_decompressed_sha256", "module_vermagic", "module_interface_string_marker", "module_interface_options_marker", "module_interface_runtime_marker"}
+    required = {"image_package_native_basename", "dtb_package_native_basename", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "image_dtb_sha256", "dtb_package_dtb_sha256", "dtb_byte_equal", "stock_i2c1_dtbo_path", "stock_i2c1_dtbo_sha256", "audio_dts_path", "audio_dts_sha256", "audio_dtbo_forbidden", "packaged_config_expected_sha256", "final_config_sha256", "module_relative_path", "module_compressed_sha256", "module_decompressed_sha256", "module_vermagic", "module_interface_string_marker", "module_interface_options_marker", "module_interface_runtime_marker"}
     require(set(evidence) - {"_sha256"} == required and evidence.get("dtb_byte_equal") == "true", "Orange kernel evidence fields changed")
     for key in ("image_package", "dtb_package", "image_package_native", "dtb_package_native", "image_package_sha256", "dtb_package_sha256", "evidence_sha256", "kernel_source_repository", "kernel_source_commit", "kernel_release"):
         require(key in provenance, f"Orange kernel provenance omits required field: {key}")

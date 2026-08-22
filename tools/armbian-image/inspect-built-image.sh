@@ -2,17 +2,71 @@
 set -euo pipefail
 
 expected_image_mode=diagnostic
+mode_selected=false
+verification_profile=""
+constructor_policy_required=false
 setup_layer_required=false
-if [[ "${1:-}" == --setup-layer ]]; then setup_layer_required=true; shift; fi
-if [[ "${1:-}" == --mode ]]; then expected_image_mode="${2:-}"; shift 2; fi
-if [[ "$expected_image_mode" != diagnostic && "$expected_image_mode" != production ]] || [[ $# -ne 1 ]]; then
-  echo "Usage: $0 [--setup-layer] [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
+usage() {
+  echo "Usage: $0 --verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
+}
+
+target=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verification-profile)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      [[ -z "$verification_profile" ]] || { echo "verification profile selected more than once." >&2; usage; exit 2; }
+      verification_profile="$2"
+      shift 2
+      ;;
+    --mode)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      [[ "$mode_selected" == false ]] || { echo "image mode selected more than once." >&2; usage; exit 2; }
+      expected_image_mode="$2"
+      mode_selected=true
+      shift 2
+      ;;
+    --*)
+      usage
+      exit 2
+      ;;
+    *)
+      [[ -z "$target" ]] || { usage; exit 2; }
+      target="$1"
+      shift
+      ;;
+  esac
+done
+
+case "$verification_profile" in
+  full-constructor)
+    constructor_policy_required=true
+    setup_layer_required=true
+    ;;
+  legacy-runtime-only)
+    ;;
+  legacy-setup-layer)
+    setup_layer_required=true
+    ;;
+  "")
+    echo "--verification-profile is required." >&2
+    usage
+    exit 2
+    ;;
+  *)
+    echo "Invalid verification profile: $verification_profile." >&2
+    usage
+    exit 2
+    ;;
+esac
+
+if [[ "$expected_image_mode" != diagnostic && "$expected_image_mode" != production ]] || [[ -z "$target" ]]; then
+  usage
   exit 2
 fi
-target="$1"
 module_dir="$(dirname "${BASH_SOURCE[0]}")"
-spi_source_path=usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts
-spi_dtbo_path=boot/overlay-user/octessera-h618-spi1-cs0.dtbo
+export spi_source_path=usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts
+export spi_dtbo_path=boot/overlay-user/octessera-h618-spi1-cs0.dtbo
 # shellcheck source=tools/armbian-image/validation-assertions.sh
 source "$module_dir/validation-assertions.sh"
 # shellcheck source=tools/armbian-image/inspect-mode.sh
@@ -33,6 +87,8 @@ source "$module_dir/inspect-device-tree.sh"
 source "$module_dir/inspect-runtime-contracts.sh"
 # shellcheck source=tools/armbian-image/inspect-runtime.sh
 source "$module_dir/inspect-runtime.sh"
+# shellcheck source=tools/armbian-image/verification-profile.sh
+source "$module_dir/verification-profile.sh"
 
 inspect_work="$(mktemp -d)"
 cleanup() { rm -rf "$inspect_work"; }
@@ -109,8 +165,6 @@ reject_path() {
   fi
 }
 
-unit_masked() { octessera_unit_masked_path "$target" "$1"; }
-
 octessera_require_account_ssh_contract
 profile_metadata="$(read_file etc/octessera/build-metadata.env)"
 default_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_PI_DEFAULT_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"
@@ -120,8 +174,9 @@ printf '%s\n' "$profile_metadata" | grep -q '^OCTESSERA_BOARD_PROFILE_ID=orange-
 reject_path etc/systemd/system/multi-user.target.wants/octessera-wifi-foundation.service
 octessera_require_wifi_foundation
 if [[ "$setup_layer_required" == true ]]; then require_setup_layer; fi
+if [[ "$constructor_policy_required" == true ]]; then require_orange_constructor_policy; fi
 octessera_inspect_runtime_mode "$profile_metadata" "$expected_image_mode"
-octessera_require_device_tree_contract "$profile_metadata"
+octessera_require_constructor_device_tree_contract "$verification_profile" "$profile_metadata"
 octessera_require_built_updater_contract
 
 for path in \
@@ -165,7 +220,4 @@ gadget_script="$(read_file usr/local/sbin/octessera-orange-usb-gadget)"
 printf '%s\n' "$gadget_script" | grep -q 'musb-hdrc.4.auto'
 octessera_reject_text_match 'Orange USB gadget contains a Raspberry Pi assumption or generic fallback.' "$gadget_script" -Eq 'dwc2|BCM[0-9]|/home/pi|config\.txt'
 
-unit_masked etc/systemd/system/ssh.service || { echo 'ssh.service is not masked in the built image.' >&2; exit 1; }
-unit_masked etc/systemd/system/ssh.socket || { echo 'ssh.socket is not masked in the built image.' >&2; exit 1; }
-unit_masked etc/systemd/system/serial-getty@ttyS0.service || { echo 'serial-getty@ttyS0.service is not masked in the built image.' >&2; exit 1; }
 echo "Built Armbian image inspection passed ($expected_image_mode mode)."

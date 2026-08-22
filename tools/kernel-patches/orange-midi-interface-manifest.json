@@ -54,7 +54,24 @@
         "path": "config/kernel/linux-sunxi64-current.config",
         "sha256": "299e1aa0b2355fa9da03507e76a263833da7c69e73fdd8bbccbda3d7fdcc4363"
       },
-      "packaged_config_sha256": "fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352"
+      "packaged_config_sha256": "fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352",
+      "audio_overlay": {
+        "canonical_dts": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
+        "canonical_dts_sha256": "727b9a817de68446c3a536da5641af3292834820fa42755fc3a675788bd13e79",
+        "dtbo_name": "octessera-ahub0-pcm5102.dtbo",
+        "stock_i2c1_dtbo_name": "sun50i-h616-i2c1-pi.dtbo",
+        "required_builtin_config_lines": [
+          "CONFIG_SOUND=y",
+          "CONFIG_SND=y",
+          "CONFIG_SND_SOC=y",
+          "CONFIG_REGMAP_MMIO=y",
+          "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y",
+          "CONFIG_SND_SOC_SUNXI_AHUB=y",
+          "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y",
+          "CONFIG_SND_SOC_SUNXI_MACH=y",
+          "CONFIG_NVMEM_SUNXI_SID=y"
+        ]
+      }
     },
     "pi_gen": {
       "repository": "https://github.com/RPi-Distro/pi-gen.git",

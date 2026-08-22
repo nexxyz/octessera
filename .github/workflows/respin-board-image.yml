@@ -322,9 +322,9 @@ jobs:
           set -euo pipefail
           sanitation_proof="$RESPIN_OUTPUT/raspberry-sanitized-image-proof.txt"
           if [[ "$SETUP_LAYER" == setup-portal ]]; then
-            sudo bash tools/pi-image/verify-sanitized-image.sh --setup-layer "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" 2>&1 | tee "$sanitation_proof"
+            sudo bash tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-setup-layer "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" 2>&1 | tee "$sanitation_proof"
           else
-            sudo bash tools/pi-image/verify-sanitized-image.sh "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" 2>&1 | tee "$sanitation_proof"
+            sudo bash tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-runtime-only "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" 2>&1 | tee "$sanitation_proof"
           fi
           sudo chown "$(id -u):$(id -g)" "$sanitation_proof"
 

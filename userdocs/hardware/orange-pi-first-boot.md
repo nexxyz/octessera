@@ -87,6 +87,11 @@ selected build passed its power, USB-role, or live-pinmux gates.
 
 ## First boot and setup
 
+The freshly flashed image boots offline without waiting for a network. NetworkManager
+remains available, but the standalone DNS and wait-online units stay disabled and no
+hotspot or SSH service starts by itself. Networking and SSH are deliberate opt-in
+actions from `System > Configure WiFi > Open Portal`.
+
 If native ownership has not arrived by the 30-second handoff window, the
 existing splash owner writes a persistent dimmed `FIRST-RUN` / `HOUSEKEEPING` /
 `PLEASE WAIT` status and continues polling the handoff state as the sole OLED
@@ -210,6 +215,10 @@ Defaults remain disabled. The current Linux Foundation VID/PID values are
 local-validation-only and are not a public product identity. A kernel capability
 check does not qualify the exact image or board; an authorized identity plus
 electrical/manual FAT is required.
+
+The production image itself constructs the already-qualified AHUB0 vendor
+dummy-codec route and exact playback card `octessera-dac`; there is no manual or
+experimental audio overlay step during first boot.
 
 Independent physical output clocks can drift or echo; this phase does not
 provide sample alignment.

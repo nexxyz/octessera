@@ -37,7 +37,7 @@ assert_action_contains 'Production runtime bundle must contain exactly'
 assert_action_contains 'image-contract.json'
 assert_action_contains 'runtime_enabled_default": true'
 assert_action_contains 'Expected exactly one image artifact'
-assert_action_contains 'inspect-output-images.sh" --mode "$OCTESSERA_IMAGE_KIND"'
+assert_action_contains 'inspect-output-images.sh" --verification-profile full-constructor --mode "$OCTESSERA_IMAGE_KIND"'
 assert_action_contains "find build/output/images -maxdepth 1 -type f -name '*.img.xz.sha'"
 assert_action_contains 'sha256sum -c'
 assert_action_contains 'Expected exactly one generated .img.xz.sha checksum file'
@@ -62,6 +62,7 @@ assert_provenance_contains 'module_interface_options_marker'
 assert_provenance_contains 'module_interface_runtime_marker'
 assert_provenance_contains 'kernel_config_expected_packaged_sha256'
 assert_action_contains 'GITHUB_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}'
+assert_action_contains 'octessera_audio'
 assert_action_contains "octessera_checkout_head=\"\$(git -C \"\$custom_root\" rev-parse HEAD)\""
 assert_action_contains "\"\$octessera_checkout_head\" == \"\$GITHUB_SOURCE_SHA\""
 assert_action_contains 'build/output/images'

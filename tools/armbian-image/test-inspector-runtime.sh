@@ -110,7 +110,7 @@ read_file() {
     etc/shadow) printf '%s\n' 'octessera-runtime:!:19000:0:99999:7:::' ;;
     etc/passwd) printf '%s\n' 'octessera:x:1000:1000:Octessera:/home/octessera:/bin/bash' 'octessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin' ;;
     etc/group) printf '%s\n' 'octessera:x:1000:' 'octessera-runtime:x:990:' 'audio:x:29:octessera-runtime' 'i2c:x:100:octessera-runtime' 'spi:x:999:octessera-runtime' 'gpio:x:997:octessera-runtime' ;;
-    etc/sudoers) printf '%s\n' 'octessera-runtime ALL=(ALL) NOPASSWD:ALL' ;;
+    etc/sudoers) printf '%s\n' "$sudoers_fixture" ;;
     etc/udev/rules.d/70-octessera-orange-runtime.rules) printf '%s\n' 'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"' ;;
     etc/systemd/system/octessera.service) cat "$root/userpatches/overlay/etc/systemd/system/octessera.service" ;;
     etc/systemd/system/octessera-device-apply-reboot.socket) cat "$device_apply_socket_unit" ;;
@@ -125,6 +125,7 @@ read_file() {
     *) return 1 ;;
   esac
 }
+sudoers_fixture='octessera-runtime ALL=(ALL) NOPASSWD:ALL'
 runtime_links=()
 octessera_require_image_symlink() { runtime_links+=("$1=$2"); }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION=1.2.3\nOCTESSERA_RUNTIME_BINARY_SHA256='"$runtime_binary_hash"$'\nOCTESSERA_RUNTIME_MANIFEST_SHA256='"$runtime_manifest_hash"$'\nOCTESSERA_RUNTIME_METADATA_SHA256='"$runtime_metadata_hash"
@@ -132,6 +133,10 @@ octessera_inspect_runtime_mode "$profile_metadata" production
 [[ "${runtime_links[*]}" == 'etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket=../octessera-device-apply-reboot.socket etc/systemd/system/sockets.target.wants/octessera-update.socket=../octessera-update.socket opt/octessera/current=/opt/octessera/releases/1.2.3 usr/local/bin/octessera-pi=/opt/octessera/current/octessera-pi etc/systemd/system/multi-user.target.wants/octessera.service=../octessera.service' ]] || { echo 'Production inspector did not require the exact symlink chain.' >&2; exit 1; }
 touch "$runtime_root/etc/sudoers"
 if ( octessera_require_runtime_account "$(read_file etc/passwd)" "$(read_file etc/group)" ); then echo 'Runtime account appeared in sudoers.' >&2; exit 1; fi
+sudoers_fixture='octessera ALL=(root) NOPASSWD: /sbin/shutdown'
+octessera_require_runtime_account "$(read_file etc/passwd)" "$(read_file etc/group)" >/dev/null
+sudoers_fixture='octessera ALL=(ALL) NOPASSWD: ALL'
+if ( octessera_require_runtime_account "$(read_file etc/passwd)" "$(read_file etc/group)" ); then echo 'Unrestricted passwordless sudo was accepted.' >&2; exit 1; fi
 rm -f "$runtime_root/etc/sudoers"
 bad_groups="$(read_file etc/group)"$'\n''sudo:x:27:octessera-runtime'
 if ( octessera_require_runtime_account "$(read_file etc/passwd)" "$bad_groups" ); then echo 'Runtime account appeared in the sudo admin group.' >&2; exit 1; fi

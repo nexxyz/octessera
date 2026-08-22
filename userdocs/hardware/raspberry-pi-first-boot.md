@@ -39,6 +39,11 @@ inactive, GPIO14 remains an input for reliable `SW3` operation.
 
 ## Expected boot and first menu
 
+The freshly flashed image boots offline without waiting for a network. NetworkManager
+remains available, but the standalone DNS and wait-online units stay disabled and no
+hotspot or SSH service starts by itself. Networking and SSH are deliberate opt-in
+actions from `System > Configure WiFi > Open Portal`.
+
 On a constructor-qualified image, the OLED boot sweep is:
 
 - magenta, green, yellow, and cyan bands, 8 px each;

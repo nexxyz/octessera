@@ -67,7 +67,7 @@ make_required_fixture() {
 }
 assert_inspector_failure() {
   local fixture="$1" expected="$2" stderr_path="$work/inspector.stderr"
-  if bash "$inspector" "$fixture" >"$work/inspector.stdout" 2>"$stderr_path"; then
+  if bash "$inspector" --verification-profile legacy-runtime-only "$fixture" >"$work/inspector.stdout" 2>"$stderr_path"; then
     echo "Inspector accepted malformed required files in $fixture." >&2
     exit 1
   fi

@@ -2,20 +2,60 @@
 set -euo pipefail
 
 expected_image_mode=diagnostic
-if [[ "${1:-}" == --mode ]]; then
-  expected_image_mode="${2:-}"
-  shift 2
-fi
-if [[ "$expected_image_mode" != diagnostic && "$expected_image_mode" != production ]]; then
-  echo "Usage: $0 [--mode diagnostic|production] <armbian-output-images-dir>" >&2
-  exit 2
-fi
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 [--mode diagnostic|production] <armbian-output-images-dir>" >&2
+mode_selected=false
+verification_profile=""
+image_dir=""
+usage() {
+  echo "Usage: $0 --verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer [--mode diagnostic|production] <armbian-output-images-dir>" >&2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verification-profile)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      [[ -z "$verification_profile" ]] || { echo "verification profile selected more than once." >&2; usage; exit 2; }
+      verification_profile="$2"
+      shift 2
+      ;;
+    --mode)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      [[ "$mode_selected" == false ]] || { echo "image mode selected more than once." >&2; usage; exit 2; }
+      expected_image_mode="$2"
+      mode_selected=true
+      shift 2
+      ;;
+    --*)
+      usage
+      exit 2
+      ;;
+    *)
+      [[ -z "$image_dir" ]] || { usage; exit 2; }
+      image_dir="$1"
+      shift
+      ;;
+  esac
+done
+
+case "$verification_profile" in
+  full-constructor|legacy-runtime-only|legacy-setup-layer)
+    ;;
+  "")
+    echo "--verification-profile is required." >&2
+    usage
+    exit 2
+    ;;
+  *)
+    echo "Invalid verification profile: $verification_profile." >&2
+    usage
+    exit 2
+    ;;
+esac
+
+if [[ "$expected_image_mode" != diagnostic && "$expected_image_mode" != production ]] || [[ -z "$image_dir" ]]; then
+  usage
   exit 2
 fi
 
-image_dir="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 tmp_dirs=()
 
@@ -41,7 +81,7 @@ inspect_disk_image() {
 
   rootfs="$work/rootfs.ext4"
   dd if="$image" of="$rootfs" bs=512 skip="$start" count="$sectors" status=none
-  bash "$root/tools/armbian-image/inspect-built-image.sh" --mode "$expected_image_mode" "$rootfs"
+  bash "$root/tools/armbian-image/inspect-built-image.sh" --verification-profile "$verification_profile" --mode "$expected_image_mode" "$rootfs"
 }
 
 found=0

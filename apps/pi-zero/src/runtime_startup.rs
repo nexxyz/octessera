@@ -1,6 +1,7 @@
 use super::RuntimeThreadConfig;
 use crate::candidate_readiness::CandidateReadiness;
 use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::initial_audio_prep::{interpret_initial_audio_prep, InitialAudioPrepBoard};
 use crate::input::MidiMessage;
 use crate::main_paths::ensure_samples_dir;
 use crate::normal_menu::is_normal_menu_snapshot;
@@ -9,8 +10,7 @@ use crate::runtime_loop::initialize_host_state;
 use crate::sample_browser::SD_CARD_SAMPLE_BROWSER_DIR;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
-    RuntimeOperation, RuntimeStoreResult, SyncSource,
+    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
 };
 use std::sync::mpsc;
 use std::thread::JoinHandle;
@@ -91,8 +91,32 @@ fn wait_for_initial_audio_prep(
 ) -> Result<(), String> {
     let deadline = Instant::now() + INITIAL_AUDIO_PREP_TIMEOUT;
     loop {
+        let audio = adapter
+            .audio_service()
+            .expect("initial Pi audio preparation requires an audio service");
+        if let Some(message) = audio.drain_prep_results(1).into_iter().next() {
+            let outcome = interpret_initial_audio_prep(
+                &message,
+                audio
+                    .config_revision
+                    .load(std::sync::atomic::Ordering::SeqCst),
+                InitialAudioPrepBoard::Pi,
+            );
+            crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)?;
+            if let Some(outcome) = outcome {
+                return outcome;
+            }
+        }
         for message in adapter.drain_platform_results(4) {
-            let outcome = initial_audio_prep_outcome(&message);
+            let outcome = interpret_initial_audio_prep(
+                &message,
+                adapter
+                    .audio_service()
+                    .expect("initial Pi audio preparation requires an audio service")
+                    .config_revision
+                    .load(std::sync::atomic::Ordering::SeqCst),
+                InitialAudioPrepBoard::Pi,
+            );
             crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)?;
             if let Some(outcome) = outcome {
                 return outcome;
@@ -103,32 +127,6 @@ fn wait_for_initial_audio_prep(
         }
         std::thread::sleep(INITIAL_AUDIO_PREP_POLL);
     }
-}
-
-fn initial_audio_prep_outcome(message: &HostMessage) -> Option<Result<(), String>> {
-    let HostMessage::RuntimeResult { result } = message else {
-        return None;
-    };
-    let RuntimeStoreResult::Identified {
-        result,
-        request_id,
-        revision,
-    } = result
-    else {
-        return None;
-    };
-    if result.operation() != RuntimeOperation::AudioCommand || revision.is_none() {
-        return None;
-    }
-    Some(match result.error_facts() {
-        Some(facts) => Err(format!(
-            "initial Pi audio preparation failed (request {request_id}, revision {revision:?}, {:?}/{:?}): {}",
-            facts.domain,
-            facts.code,
-            facts.message.unwrap_or_else(|| "operation failed".into())
-        )),
-        None => Ok(()),
-    })
 }
 
 impl PreparedRuntime {
@@ -216,6 +214,7 @@ mod tests {
     use super::*;
     use crate::audio::test_service_with_prep_result_sender;
     use crate::candidate_readiness::CandidateReadiness;
+    use playback_runtime::{RuntimeOperation, RuntimeStoreResult};
     use std::sync::Arc;
 
     #[test]
@@ -248,10 +247,10 @@ mod tests {
                         result: Box::new(RuntimeStoreResult::OperationSucceeded {
                             operation: RuntimeOperation::AudioCommand,
                             request_id: None,
-                            revision: Some(1),
+                            revision: Some(0),
                         }),
                         request_id: "audio-initial".into(),
-                        revision: Some(1),
+                        revision: Some(0),
                     },
                 })
                 .unwrap();
@@ -299,7 +298,7 @@ mod tests {
                         ),
                     }),
                     request_id: "audio-initial".into(),
-                    revision: Some(1),
+                    revision: Some(0),
                 },
             })
             .unwrap();
@@ -357,3 +356,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 }
+
+#[cfg(test)]
+#[path = "runtime_startup_prep_tests.rs"]
+mod prep_tests;

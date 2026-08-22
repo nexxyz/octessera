@@ -16,8 +16,10 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/orange_image_mount.py",
     "tools/armbian-image/orange_initramfs.py",
     "tools/armbian-image/orange_phase5_proof.py",
+    "tools/armbian-image/orange_audio_proof.py",
     "tools/armbian-image/orange_trusted_parent_proof.py",
     "tools/armbian-image/verify_runtime_account.py",
+    "userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh",
     "tools/kernel-patches/orange-midi-interface-manifest.json",
 }
 contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
@@ -77,6 +79,12 @@ for path in sorted(SOURCE_BOUND_PROOF_SOURCES):
         raise AssertionError(f"missing Orange proof source was accepted: {path}")
 
 construction_inputs = {item["path"]: item for item in contract["exact_inputs"]}
+assert "CONFIG_SND_SOC_PCM5102A" not in (ROOT / "userpatches/extensions/octessera_audio.sh").read_text(encoding="utf-8")
+assert all(any(item["path"] == path for item in contract["managed_outputs"]) for path in (
+    "usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
+    "boot/overlay-user/octessera-ahub0-pcm5102.dtbo",
+    "etc/octessera/build-metadata.env",
+))
 assert (ROOT / "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash").is_file()
 assert (ROOT / "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash").is_file()
 assert "userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" not in construction_inputs
@@ -158,7 +166,7 @@ assert all("sleep.target.wants/octessera-orange-oled-suspend.service" not in ite
 service = (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_text(encoding="utf-8")
 assert "RequiredBy=sleep.target" in service and "WantedBy=sleep.target" not in service
 assert contract["device_dependencies"] == {"spi_device": "/dev/spidev1.0", "gpio_device": "/dev/gpiochip1", "gpio_label": "300b000.pinctrl", "gpio_offsets": {"reset": 76, "dc": 270}, "udev_rule": "etc/udev/rules.d/70-octessera-orange-runtime.rules"}
-assert contract["required_builtin_kernel_config_lines"] == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y"]
+assert contract["required_builtin_kernel_config_lines"] == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y"]
 exact(contract["selected_initramfs"], ["required_paths", "forbidden_paths", "required_tools", "python_files", "required_python_modules", "installed_output_matches"])
 assert contract["selected_initramfs"]["required_python_modules"] == ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"]
 assert contract["selected_initramfs"]["forbidden_paths"] == ["usr/bin/gpiodetect", "usr/share/octessera/oled/octessera-mark.svg", "usr/share/octessera/oled/octessera-wordmark.svg"]

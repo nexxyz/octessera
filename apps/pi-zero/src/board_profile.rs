@@ -85,7 +85,7 @@ pub struct FatDiagnosticBoard {
 }
 
 const RASPBERRY_AUDIO_CARD_FRAGMENTS: &[&str] = &["hifiberry", "pcm5102a", "snd_rpi_hifiberry"];
-const ORANGE_AUDIO_CARD_FRAGMENTS: &[&str] = &["octesseradac", "pcm5102a"];
+const ORANGE_AUDIO_CARD_FRAGMENTS: &[&str] = &["octesseradac"];
 
 pub const FAT_RASPBERRY_PI_ZERO_2W: FatDiagnosticBoard = FatDiagnosticBoard {
     profile_id: RASPBERRY_PI_ZERO_2W_ID,
@@ -249,6 +249,18 @@ mod tests {
         );
         assert_eq!(orange.required_udc, Some("musb-hdrc.4.auto"));
         assert!(super::fat_diagnostic_board("desktop").is_none());
+    }
+
+    #[test]
+    fn audio_card_identity_keeps_raspberry_fragments_but_requires_orange_octesseradac() {
+        assert_eq!(
+            super::FAT_ORANGE_PI_ZERO_2W.audio_card_fragments,
+            &["octesseradac"]
+        );
+        assert_eq!(
+            super::FAT_RASPBERRY_PI_ZERO_2W.audio_card_fragments,
+            &["hifiberry", "pcm5102a", "snd_rpi_hifiberry"]
+        );
     }
 
     #[cfg(not(any(

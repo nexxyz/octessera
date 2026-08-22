@@ -55,7 +55,11 @@ def _fixture(work: Path) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str
     prerequisites = {"packages_sha256": "1" * 64, "accounts": {f"user:{item['user']}": "user" for item in contract["prerequisites"]["accounts"]} | {f"group:{item['group']}": "group" for item in contract["prerequisites"]["accounts"]}, "passwd_sha256": "2" * 64, "group_sha256": "3" * 64, "executables": {item: {"path": item, "type": "file", "uid": 0, "gid": 0, "mode": 493, "symlink": False, "target": None, "sha256": "0" * 64, "xattrs": {}, "capability": None} for item in contract["prerequisites"]["executables"]}, "services": {item: "service" for item in contract["prerequisites"]["services"]}}
     setup_parent = {"board_profile": BOARD, "preimage_source": contract["preimage_source"], "prerequisites": prerequisites, "preimage_digest": "4" * 64}
     source_inputs = [identity(ROOT / item["path"], ROOT) for item in contract["source_inputs"]]
-    setup_paths = sorted([item["target"] for item in contract["directories"]] + [item["target"] for item in contract["entries"]])
+    setup_paths = sorted(
+        [item["target"] for item in contract["directories"]]
+        + [item["target"] for item in contract["entries"]]
+        + [item["target"] for item in contract["symlinks"] if item["postimage"] == "absent"]
+    )
     setup_mutation = {"proof_schema": "octessera.image-setup-mutation-provenance.v1", "schema_version": 1, "board_profile": BOARD, "source_identity": "a" * 40, "parent": {"identity": setup_parent, "digest": digest_object(setup_parent)}, "setup_layer": {"contract_digest": contract_digest, "source_inputs": source_inputs}, "inventories": {"pre": "5" * 64, "post": "6" * 64}, "changed_paths": setup_paths, "finalizer": {"source_identity": "a" * 40, "tool_identity": SETUP_TOOL_IDENTITY, "tool_code_digest": setup_tool_code_model(ROOT / "tools/image-respin")["digest"]}}
     proof = {"proof": "setup-layer-mounted", "schema_version": 1, "board_profile": BOARD, "contract_sha256": contract_digest, "inventory_sha256": "6" * 64, "prerequisites": prerequisites, "verified_paths": setup_paths}
     layout = DiskLayout(BOARD, 8, "dos", "disk", 0, 7, 1, (PartitionIdentity(1, "", 1, 2, "type", "p1", "vfat", "f1", "boot"), PartitionIdentity(2, "", 3, 2, "type", "p2", "ext4", "f2", "root")), _sha(b"a"), _sha(b"bc"))

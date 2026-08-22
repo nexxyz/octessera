@@ -308,6 +308,7 @@ assert_block_contains "$ubuntu_block" 'python3 tools/release/verify_desktop_arti
 
 assert_contains "$boards" 'hardware-raspberry-pi-zero-2w'
 assert_contains "$boards" 'hardware-orange-pi-zero-2w'
+assert_contains "$boards" 'extensions: octessera_midi octessera_audio octessera_image_sanitize'
 assert_contains "$boards" 'd7a31c6aa09f4b867902c51da2b45807c0a1709e'
 assert_contains "$boards" 'STAGE_LIST="stage0 stage1 stage2 stage3-octessera-kernel stage4-octessera"'
 assert_contains "$boards" 'tools/pi-kernel/test-rpi-kernel.sh'
@@ -402,7 +403,7 @@ octessera_reject_file_match 'Cross installation must verify a downloaded archive
 assert_contains "$sanitizer" 'Expected exactly one .img inside'
 assert_contains "$sanitizer" 'require_managed_runtime_binary "$WORK_DIR/root"'
 assert_contains "$sanitizer" 'source "$SCRIPT_DIR/verify-managed-runtime.sh"'
-assert_contains "$boards" 'verify-sanitized-image.sh --runtime-bundle runtime-bundle "$asset"'
+assert_contains "$boards" 'verify-sanitized-image.sh --verification-profile full-constructor --runtime-bundle runtime-bundle "$asset"'
 bash -n "$runtime_chain_helper" "$runtime_chain_test"
 bash "$runtime_chain_test"
 bash -n "$boot_layout_test"

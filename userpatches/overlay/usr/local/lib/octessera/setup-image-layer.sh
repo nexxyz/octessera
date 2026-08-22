@@ -13,6 +13,7 @@ install_required() {
 
 for setup_file in \
   etc/octessera/setup-profile \
+  etc/default/locale \
   usr/local/sbin/octessera-wifi-connect \
   usr/local/sbin/octessera-setup-sidecar \
   usr/local/sbin/octessera-setup-request \
@@ -59,3 +60,17 @@ elif [[ -e "$setup_service_link" ]]; then
   echo "Unexpected setup service enablement path." >&2
   exit 1
 fi
+
+remove_disabled_link() {
+  local path="$1"
+  if [[ -L "$path" ]]; then
+    rm -f "$path"
+  elif [[ -e "$path" ]]; then
+    echo "Unexpected enabled service path: $path" >&2
+    exit 1
+  fi
+}
+
+remove_disabled_link /etc/systemd/system/multi-user.target.wants/dnsmasq.service
+remove_disabled_link /etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service
+remove_disabled_link /etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service
