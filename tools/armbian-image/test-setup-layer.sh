@@ -174,6 +174,13 @@ grep -qF 'install -D -o root -g root -m 0755' "$root/tools/pi-image/stage4-octes
 grep -qF 'octessera-setup-request.path' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'octessera-setup-request.path' "$root/userpatches/customize-image.sh"
 grep -qF 'systemctl enable octessera-setup-request.path' "$root/userpatches/customize-image.sh"
+customize_enable_line="$(grep -nF 'systemctl enable octessera-setup-request.path' "$root/userpatches/customize-image.sh" | cut -d: -f1)"
+customize_symlink_line="$(grep -nF "[[ -L \"\$setup_request_link\" ]]" "$root/userpatches/customize-image.sh" | cut -d: -f1)"
+customize_target_line="$(grep -nF "setup_request_target=\"\$(readlink \"\$setup_request_link\")\"" "$root/userpatches/customize-image.sh" | cut -d: -f1)"
+customize_allowed_line="$(grep -nF "[[ \"\$setup_request_target\" == \"/etc/systemd/system/octessera-setup-request.path\" || \"\$setup_request_target\" == \"../octessera-setup-request.path\" ]]" "$root/userpatches/customize-image.sh" | cut -d: -f1)"
+customize_canonicalize_line="$(grep -nF "ln -s ../octessera-setup-request.path \"\$setup_request_link\"" "$root/userpatches/customize-image.sh" | cut -d: -f1)"
+[[ -n "$customize_enable_line" && -n "$customize_symlink_line" && -n "$customize_target_line" && -n "$customize_allowed_line" && -n "$customize_canonicalize_line" && "$customize_symlink_line" -gt "$customize_enable_line" && "$customize_target_line" -gt "$customize_symlink_line" && "$customize_allowed_line" -gt "$customize_target_line" && "$customize_canonicalize_line" -gt "$customize_allowed_line" ]] || { echo 'Orange setup request path canonicalization is not fail-closed or ordered after enable.' >&2; exit 1; }
+grep -qF "[[ \"\$(readlink \"\$setup_request_link\")\" == \"../octessera-setup-request.path\" ]]" "$root/userpatches/customize-image.sh"
 for unit in dnsmasq.service systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
   grep -qF "$unit" "$root/userpatches/customize-image.sh"
   grep -qF "$unit" "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"

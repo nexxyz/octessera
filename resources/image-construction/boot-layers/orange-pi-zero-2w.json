@@ -21,7 +21,7 @@
     {"path": "userpatches/overlay/etc/default/locale", "sha256": "a168159d33de0c86614b65ea1e6d2165c79ea7c05372d36a4794e108d8ddf8f0", "size": 45, "mode": 420},
     {"path": "tools/armbian-image/stage-canonical-welcome.sh", "sha256": "1048803ddfe6132d4906444d29fe16065445eafc5080bcf6d8fff999762f321b", "size": 593, "mode": 493},
     {"path": "config/generated/pi/default.json", "sha256": "c076628ca5240ff82c63cdaa0886e9bb0828b9e1cd02188498251cc474f018ce", "size": 83596, "mode": 420},
-    {"path": "userpatches/customize-image.sh", "sha256": "108b95a51ba932c1978f0b6ab2b458b76d481542295444ff7a351bd313346183", "size": 32198, "mode": 493},
+    {"path": "userpatches/customize-image.sh", "sha256": "c7d0ba50d4b88d546cae90569bb9e5092f2408eee76c6ff08567f536d7841a39", "size": 32929, "mode": 493},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh", "sha256": "d08a8a3292d1c2affa06e5613efcd25a666d7f3c360d74059688549c7a030bde", "size": 3890, "mode": 420},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "b342ea39da8dcfd6f725fa377084d439a1b624d79c216ffc345cc7e69286a6bc", "size": 3821, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot", "sha256": "143952471c60d6329960041ebc5a105c89a4015a44fa9908d3657c2aa5311b29", "size": 3103, "mode": 420},

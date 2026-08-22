@@ -439,6 +439,13 @@ rm -f /etc/ssh/ssh_host_*
 systemctl disable --now serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl enable octessera-setup-request.path >/dev/null
+setup_request_link=/etc/systemd/system/multi-user.target.wants/octessera-setup-request.path
+[[ -L "$setup_request_link" ]] || { echo "Setup request path was not enabled as a symlink." >&2; exit 1; }
+setup_request_target="$(readlink "$setup_request_link")"
+[[ "$setup_request_target" == "/etc/systemd/system/octessera-setup-request.path" || "$setup_request_target" == "../octessera-setup-request.path" ]] || { echo "Setup request path has an unexpected preimage target." >&2; exit 1; }
+rm -f "$setup_request_link"
+ln -s ../octessera-setup-request.path "$setup_request_link"
+[[ "$(readlink "$setup_request_link")" == "../octessera-setup-request.path" ]] || { echo "Setup request path symlink target is not canonical." >&2; exit 1; }
 systemctl enable octessera-orange-usb-gadget.service >/dev/null
 systemctl enable octessera-device-apply-reboot.socket >/dev/null
 systemctl enable octessera-provision-musical-default.service >/dev/null
