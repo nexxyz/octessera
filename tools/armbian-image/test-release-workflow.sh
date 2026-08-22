@@ -179,6 +179,7 @@ octessera_reject_text_match 'Draft resolver must remain API-only without checkou
 octessera_reject_text_match 'Draft resolver must remain API-only without checkout, scripts, or artifacts.' "$resolver_block" -qE '(^|[[:space:]])(python3|bash|sh|pnpm|cargo)[[:space:]]|tools/'
 octessera_reject_text_match 'Draft resolver must remain API-only without checkout, scripts, or artifacts.' "$resolver_block" -qF 'upload-artifact'
 publisher_block="$(sed -n '/^  publish_release_assets:/,$p' "$release")"
+publisher_dependencies_step="$(sed -n '/^      - name: Verify source and install final image proof dependencies$/,/^      - name:/p' "$release")"
 octessera_require_text_match 'Contents write must belong to the resolver job.' "$resolver_block" -qF $'    permissions:\n      contents: write'
 octessera_require_text_match 'Contents write must belong to the publisher job.' "$publisher_block" -qF $'    permissions:\n      contents: write'
 updater_block="$(sed -n '/^  updater_protocol:/,/^  windows:/p' "$release")"
@@ -344,7 +345,7 @@ assert_contains "$boards" 'sha256sum "$(basename "$image.sha256")" "${canonical_
 assert_contains "$release" 'git/ref/tags/$EXPECTED_RELEASE_TAG'
 assert_contains "$release" 'git/tags/$tag_object'
 assert_contains "$assembler" 'native_name.startswith(filename.removesuffix(".deb") + "__")'
-assert_contains "$release" 'apt-get install -y --no-install-recommends cpio zstd'
+assert_block_contains "$publisher_dependencies_step" 'sudo apt-get install -y --no-install-recommends cpio device-tree-compiler zstd'
 assert_contains "$assembler" 'kernel_source_repository'
 assert_absent "$release" 'expected_count=28'
 assert_absent "$release" 'release-assets/$prefix-notices.zip'
