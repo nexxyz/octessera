@@ -93,7 +93,10 @@ aliases and are covered by CI compile checks. The HAL also exposes the
 backend. The Orange production `octessera-pi` runtime uses the shared 44.1 kHz
 rate and supports the OLED, NeoTrellis, NeoKey, all four encoders, persistent
 store, samples, MIDI, and the selected audio routes. A selected Jack route
-uses exactly `hw:CARD=octesseradac,DEV=0` with verified stereo support.
+uses exactly `hw:CARD=octesseradac,DEV=0` with verified stereo support. The
+production image constructs the already-qualified AHUB0 vendor dummy-codec
+route and exact `octessera-dac` playback card; it does not depend on a manual
+or experimental audio overlay.
 The native menu persists Jack Audio, USB Audio, and HDMI Audio independently;
 every non-empty output set is valid. Jack is fatal/required only when selected;
 recognized disconnected USB or HDMI routes may wait, selected route faults block

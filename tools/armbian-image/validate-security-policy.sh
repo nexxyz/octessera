@@ -27,9 +27,10 @@ grep -q 'dtc -@ -I dts -O dtb' "$customize"
 grep -q 'fdtoverlay' "$customize"
 grep -q '/boot/overlay-user' "$customize"
 grep -q 'user_overlays=octessera-h618-spi1-cs0' "$customize"
+grep -q 'octessera-ahub0-pcm5102' "$customize"
 grep -qF "mv -f -- \"\$spi_dtbo_tmp\" \"\$spi_dtbo\"" "$customize"
 grep -qF "mv -f -- \"\$armbian_env_tmp\" \"\$armbian_env\"" "$customize"
-for metadata_key in OCTESSERA_SPI1_CS0_DTS_SHA256 OCTESSERA_SPI1_CS0_DTBO_SHA256 OCTESSERA_INPUT_ROUTING_DTS_SHA256 OCTESSERA_INPUT_ROUTING_DTBO_SHA256; do
+for metadata_key in OCTESSERA_SPI1_CS0_DTS_SHA256 OCTESSERA_SPI1_CS0_DTBO_SHA256 OCTESSERA_INPUT_ROUTING_DTS_SHA256 OCTESSERA_INPUT_ROUTING_DTBO_SHA256 OCTESSERA_AHUB0_PCM5102_DTS_SHA256 OCTESSERA_AHUB0_PCM5102_DTBO_SHA256; do
   grep -q "$metadata_key" "$customize"
 done
 
@@ -109,7 +110,7 @@ octessera_reject_file_match 'Orange runtime service must not grant ambient SYS_N
 expected_udev=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
 [[ "$(cat -- "$overlay/etc/udev/rules.d/70-octessera-orange-runtime.rules")" == "$expected_udev" ]]
 octessera_reject_file_match 'Orange runtime service must not block fixed hardware devices.' -qE '^(PrivateDevices|DevicePolicy)=' "$runtime_service"
-grep -qF 'default: preset-firstrun octessera_midi octessera_image_sanitize' "$workflow"
+grep -qF 'default: preset-firstrun octessera_midi octessera_audio octessera_image_sanitize' "$workflow"
 [[ "$(grep -cF "extensions: \${{ inputs.extensions }}" "$workflow")" == 2 ]]
 
 octessera_reject_file_match 'Forbidden Raspberry Pi assumption or secret-like pattern found in Orange image sources.' -RInE --exclude-dir=doc '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage|wpa_passphrase|BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|BEGIN PRIVATE KEY|default_password|changeme|raspberry)' "$overlay" "$workflow"

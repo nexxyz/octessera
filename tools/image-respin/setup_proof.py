@@ -35,7 +35,7 @@ def _check_postimage(root: Path, inventory: Inventory, contract: dict[str, Any])
         entry = inventory.get(item["target"])
         if item["postimage"] == "absent":
             if entry is not None:
-                raise MutationError(f"setup proof found a disabled unit link: {item['target']}")
+                raise MutationError(f"setup proof found an absent setup path: {item['target']}")
         elif entry is None or entry.get("type") != "symlink" or entry.get("mode") != item["mode"] or entry.get("target") != item["link_target"]:
             raise MutationError(f"setup proof enabled link is not exact: {item['target']}")
     for item in contract["preserved_paths"]:
@@ -55,7 +55,11 @@ def _check_postimage(root: Path, inventory: Inventory, contract: dict[str, Any])
         rooted(root, item["target"])
     for item in contract["entries"]:
         rooted(root, item["target"])
-    return sorted([item["target"] for item in contract["directories"]] + [item["target"] for item in contract["entries"]])
+    return sorted(
+        [item["target"] for item in contract["directories"]]
+        + [item["target"] for item in contract["entries"]]
+        + [item["target"] for item in contract["symlinks"] if item["postimage"] == "absent"]
+    )
 
 
 def prove_setup_root(root: Path, board_profile: str, *, contract_path: Path | None = None) -> dict[str, Any]:

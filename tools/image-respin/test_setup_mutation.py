@@ -66,6 +66,13 @@ def _setup_preimages(root: Path, contract: dict) -> None:
         _owner(root / item["target"], preimage["uid"], preimage["gid"])
 
 
+def _rpi_parent_sudoers_preimage(root: Path, contract: dict) -> None:
+    item = next(item for item in contract["symlinks"] if item["classification"] == "parent-sudoers-removed")
+    preimage = item["preimage"]
+    _write(root / item["target"], b"pi ALL=(ALL) NOPASSWD: ALL\n", preimage["mode"])
+    _owner(root / item["target"], preimage["uid"], preimage["gid"])
+
+
 def _prerequisites(root: Path, board: str) -> None:
     packages = "\n\n".join(f"Package: {name}\nStatus: install ok installed\nVersion: 1.0" for name in ("openssh-server", "network-manager", "dnsmasq", "python3-minimal"))
     _write(root / "var/lib/dpkg/status", packages + "\n")
@@ -93,6 +100,8 @@ def _fixture(board: str, work: Path) -> Path:
     contract, _ = load_contract(contract_for_board(board))
     _parents(root, contract)
     _prerequisites(root, board)
+    if board == RPI:
+        _rpi_parent_sudoers_preimage(root, contract)
     _write(root / "usr/share/doc/base-files/copyright", b"vendor copyright\n")
     _write(root / "usr/share/common-licenses/GPL-3", b"vendor GPL\n")
     if board == ORANGE:
@@ -147,6 +156,12 @@ class SetupMutationTests(unittest.TestCase):
                 self.assertEqual(len(result.provenance["setup_layer"]["source_inputs"]), len(contract["source_inputs"]))
                 self.assertRegex(result.provenance["finalizer"]["tool_code_digest"], r"^[0-9a-f]{64}$")
                 self.assertIn("etc/octessera/setup-profile", result.changed_paths)
+                if board == RPI:
+                    self.assertIn("etc/sudoers.d/010_pi-nopasswd", result.changed_paths)
+                    self.assertFalse((root / "etc/sudoers.d/010_pi-nopasswd").exists())
+                    self.assertIn("etc/sudoers.d/010_pi-nopasswd", proof["verified_paths"])
+                else:
+                    self.assertNotIn("etc/sudoers.d/010_pi-nopasswd", result.changed_paths)
                 enabled = root / "etc/systemd/system/multi-user.target.wants/octessera-setup-request.path"
                 self.assertEqual(enabled.readlink().as_posix(), "../octessera-setup-request.path")
                 service = root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service"
@@ -262,6 +277,40 @@ class SetupMutationTests(unittest.TestCase):
                 if item["target"].startswith("usr/local/share/octessera-setup-ui/"):
                     metadata = (root / item["target"]).stat()
                     self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 1001, 1001))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(RPI, Path(temporary))
+            sudoers = root / "etc/sudoers.d/010_pi-nopasswd"
+            sudoers.write_bytes(b"pi ALL=(ALL) NOPASSWD: /bin/true\n")
+            before = inventory_digest(build_inventory(root))
+            with self.assertRaises(ConstructorRequired):
+                mutate_setup(root, RPI, "a" * 40)
+            self.assertEqual(before, inventory_digest(build_inventory(root)))
+            self.assertTrue(sudoers.is_file())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(RPI, Path(temporary))
+            sudoers = root / "etc/sudoers.d/010_pi-nopasswd"
+            sudoers.unlink()
+            sudoers.symlink_to("/etc/sudoers.d/other")
+            before = inventory_digest(build_inventory(root))
+            with self.assertRaises(ConstructorRequired):
+                mutate_setup(root, RPI, "a" * 40)
+            self.assertEqual(before, inventory_digest(build_inventory(root)))
+            self.assertTrue(sudoers.is_symlink())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(RPI, Path(temporary))
+            before = inventory_digest(build_inventory(root))
+
+            def interrupted_sudoers(stage: str) -> None:
+                if stage == "disabled:etc/sudoers.d/010_pi-nopasswd":
+                    raise RuntimeError("interrupted")
+
+            with self.assertRaises(Exception):
+                mutate_setup(root, RPI, "a" * 40, mutation_hook=interrupted_sudoers)
+            self.assertEqual(before, inventory_digest(build_inventory(root)))
+            self.assertEqual((root / "etc/sudoers.d/010_pi-nopasswd").read_bytes(), b"pi ALL=(ALL) NOPASSWD: ALL\n")
 
     def test_prerequisite_account_and_package_removal_is_constructor_required(self) -> None:
         for board in (RPI, ORANGE):

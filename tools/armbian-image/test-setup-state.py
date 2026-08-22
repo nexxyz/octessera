@@ -168,6 +168,39 @@ def run_dynamic(status, directory):
     assert next_receipt["status"] == {"type": "setup_portal_status", "phase": "starting", "disposition": "accepted", "rebootRequired": False}
     assert cli.main(status, ["setup-status.py", "fail-pending"]) == 0
     assert not (control / "active.json").exists()
+
+    status.unit_state = lambda: "inactive"
+    terminal_token = "56789abcdef0123456789abcdef01234"
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        assert status.start_or_attach(terminal_token, True, str(control / "claims" / "claim-terminal")) == 0
+    terminal_attempt = json.loads(output.getvalue())["attemptId"]
+    assert status.terminal_status("succeeded", None, None) == 0
+    terminal_current = json.loads((public / "current.json").read_text(encoding="utf-8"))
+    terminal_receipt = json.loads((public / "receipts" / f"{terminal_token}.json").read_text(encoding="utf-8"))
+    assert not (control / "active.json").exists()
+    assert terminal_current["attemptId"] == terminal_receipt["attemptId"] == terminal_attempt
+    assert terminal_current["sequence"] == terminal_receipt["sequence"]
+    assert terminal_current["status"] == terminal_receipt["status"] == {"type": "setup_portal_status", "phase": "succeeded", "rebootRequired": False}
+    assert len(list((public / "receipts").glob(f"{terminal_token}.json"))) == 1
+
+    restart = load(Path(status.__file__), "state_status_restart")
+    for name, value in {
+        "CONTROL_DIR": str(control),
+        "PUBLIC_DIR": str(public),
+        "RECEIPT_DIR": str(public / "receipts"),
+        "LOCK_PATH": str(control / "status.lock"),
+        "ACTIVE_PATH": str(control / "active.json"),
+        "SEQUENCE_PATH": str(control / "sequence"),
+        "BOOT_ID_PATH": str(boot),
+        "MARKER_PATH": str(marker),
+        "group_id": lambda: 0,
+    }.items():
+        setattr(restart, name, value)
+    assert restart.stop() == 0
+    assert not (control / "active.json").exists()
+    assert json.loads((public / "current.json").read_text(encoding="utf-8")) == terminal_current
+    assert json.loads((public / "receipts" / f"{terminal_token}.json").read_text(encoding="utf-8")) == terminal_receipt
     return True
 
 

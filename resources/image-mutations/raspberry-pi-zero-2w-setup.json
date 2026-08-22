@@ -15,7 +15,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status.py", "sha256": "d4c44d563fe31955d68616ee401bb410d7f584a722010dce1cdb67242f363226", "size": 19554},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status-cli.py", "sha256": "59de1b78c4927e12415611065e6c201a890077ffc4f10483f66f95d5da400320", "size": 2522},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-call.py", "sha256": "daf443aa5c901e3cf34fe59c8e06a45e5f2b0cf64e5007c75829fa80679ed237", "size": 1008},
-    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup.service", "sha256": "0486bb627f13b670d61f59a46467e2351c0de11a1c1107fa3515ec6cfe5d7a93", "size": 1035},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup.service", "sha256": "e424df444b5b0bb7b7300471ebb9907ef0bc51d098264f9ec17b4ff9f41cd4ca", "size": 1037},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup-request.path", "sha256": "fc00cf638f529a2b8690bd4f3d70424e0ae62b14b90310af1f0b9bdf6d3409ea", "size": 193},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup-request.service", "sha256": "e88c36753fcb650b6c27b347aee19e4a46bccc08cc88fc774ba6bcadb21023a6", "size": 536},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/app.js", "sha256": "fdf6c0014afb8244ec21ca3f2610563b702128838d2a2154b38ca29261ee83dd", "size": 7303},
@@ -24,9 +24,9 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/README.md", "sha256": "6deecb7f76852b977107175c0ab10e28d73182d5602af4e7b9cad14f249c59dd", "size": 720},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/octessera-mark.svg", "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "size": 638},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "sha256": "36de4cd2cecc87676a1e0053f44ea9e4fcd5a8c54465f67225f7a7ad301a81d0", "size": 1488},
-    {"path": "userpatches/customize-image.sh", "sha256": "721b149f5693a4fc40d8e2d5370f082d0488266dc6bd3b7e4d6cfaf1317828d8", "size": 27118},
+    {"path": "userpatches/customize-image.sh", "sha256": "f1f9905294d0086e4f3c8bf92f44f701c0008ab5713833c59e4935c6a27954a9", "size": 32195},
     {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "995d149e029a38413a5cd2074536d73d8aa1ca0b3558a14b7eb287dca41f9412", "size": 1380},
-    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "61f26c2f8d9e4c6cec7b868a8bb23c411c3956eb293418ed3041b334e1777568", "size": 15108},
+    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "0cb1614a1fc32b14d61e5504ad646569427432dd7aa399f5abf9cbdd1f3068fb", "size": 16220},
     {"path": "tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh", "sha256": "1cb185902a7cbd32d47ce47b93bc36059d96aaded43a6363817d8efaa96c7c87", "size": 1152}
   ],
   "directories": [
@@ -43,7 +43,7 @@
     {"classification": "status-helper", "source": "usr/local/lib/octessera/setup-status.py", "target": "usr/local/lib/octessera/setup-status.py", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "d4c44d563fe31955d68616ee401bb410d7f584a722010dce1cdb67242f363226", "preimage": {"kind": "absent"}},
     {"classification": "status-helper", "source": "usr/local/lib/octessera/setup-status-cli.py", "target": "usr/local/lib/octessera/setup-status-cli.py", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "59de1b78c4927e12415611065e6c201a890077ffc4f10483f66f95d5da400320", "preimage": {"kind": "absent"}},
     {"classification": "call-helper", "source": "usr/local/lib/octessera/setup-call.py", "target": "usr/local/lib/octessera/setup-call.py", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "daf443aa5c901e3cf34fe59c8e06a45e5f2b0cf64e5007c75829fa80679ed237", "preimage": {"kind": "absent"}},
-    {"classification": "setup-unit", "source": "etc/systemd/system/octessera-setup.service", "target": "etc/systemd/system/octessera-setup.service", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "0486bb627f13b670d61f59a46467e2351c0de11a1c1107fa3515ec6cfe5d7a93", "preimage": {"kind": "absent"}},
+    {"classification": "setup-unit", "source": "etc/systemd/system/octessera-setup.service", "target": "etc/systemd/system/octessera-setup.service", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "e424df444b5b0bb7b7300471ebb9907ef0bc51d098264f9ec17b4ff9f41cd4ca", "preimage": {"kind": "absent"}},
     {"classification": "request-path-unit", "source": "etc/systemd/system/octessera-setup-request.path", "target": "etc/systemd/system/octessera-setup-request.path", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "fc00cf638f529a2b8690bd4f3d70424e0ae62b14b90310af1f0b9bdf6d3409ea", "preimage": {"kind": "absent"}},
     {"classification": "request-unit", "source": "etc/systemd/system/octessera-setup-request.service", "target": "etc/systemd/system/octessera-setup-request.service", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "e88c36753fcb650b6c27b347aee19e4a46bccc08cc88fc774ba6bcadb21023a6", "preimage": {"kind": "absent"}},
     {"classification": "static-ui", "source": "usr/local/share/octessera-setup-ui/app.js", "target": "usr/local/share/octessera-setup-ui/app.js", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "fdf6c0014afb8244ec21ca3f2610563b702128838d2a2154b38ca29261ee83dd", "preimage": {"kind": "absent"}},
@@ -55,7 +55,8 @@
   ],
   "symlinks": [
     {"classification": "enabled-request-path", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup-request.path", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "../octessera-setup-request.path", "preimage": {"kind": "absent"}, "postimage": "required"},
-    {"classification": "setup-service-disabled", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup.service", "type": "absent", "preimage": {"kind": "absent"}, "postimage": "absent"}
+    {"classification": "setup-service-disabled", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup.service", "type": "absent", "preimage": {"kind": "absent"}, "postimage": "absent"},
+    {"classification": "parent-sudoers-removed", "target": "etc/sudoers.d/010_pi-nopasswd", "type": "absent", "preimage": {"kind": "exact", "type": "file", "mode": 288, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "aa7549b5a2544e53652d7c844af396ca05044e41b05f56372162dc8b0cf3f089"}, "postimage": "absent"}
   ],
   "preserved_paths": [
     {"classification": "ssh-setup-config", "target": "etc/ssh/sshd_config.d/10-octessera-setup.conf", "preimage": {"kind": "absent"}, "postimage": "absent"}
@@ -69,5 +70,5 @@
     "accounts": [{"user": "pi", "group": "pi", "home": "/home/pi", "shell": "/bin/bash"}],
     "services": ["ssh.service", "NetworkManager.service", "dnsmasq.service"]
   },
-  "recipe": {"account_mutation": false, "package_mutation": false, "network_mutation": false, "boot_mutation": false, "firmware_mutation": false, "enabled_units": ["octessera-setup-request.path"], "disabled_units": ["octessera-setup.service"], "proof": "tools/pi-image/verify-sanitized-image.sh --setup-layer"}
+  "recipe": {"account_mutation": false, "package_mutation": false, "network_mutation": false, "boot_mutation": false, "firmware_mutation": false, "enabled_units": ["octessera-setup-request.path"], "disabled_units": ["octessera-setup.service"], "proof": "tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-setup-layer"}
 }

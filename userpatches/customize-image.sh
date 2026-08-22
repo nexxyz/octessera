@@ -30,6 +30,8 @@ spi_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-spi1-
 [[ -f "$spi_dts" ]] || { echo "Missing Orange Pi SPI overlay source." >&2; exit 1; }
 input_routing_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts"
 [[ -f "$input_routing_dts" ]] || { echo "Missing Orange Pi input-routing overlay source." >&2; exit 1; }
+audio_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts"
+[[ -f "$audio_dts" ]] || { echo "Missing Orange Pi AHUB0 audio overlay source." >&2; exit 1; }
 midi_modules_file="$overlay_dir/etc/modules-load.d/octessera-orange-midi.conf"
 [[ -f "$midi_modules_file" ]] || { echo "Missing Orange ALSA sequencer module-load file." >&2; exit 1; }
 install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples /var/lib/octessera/presets
@@ -99,6 +101,10 @@ input_routing_validation_helper="$overlay_dir/usr/local/share/octessera/device-t
 [[ -f "$input_routing_validation_helper" ]] || { echo "Missing input-routing overlay validation helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh
 source "$input_routing_validation_helper"
+audio_validation_helper="$overlay_dir/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh"
+[[ -f "$audio_validation_helper" ]] || { echo "Missing Orange Pi AHUB0 audio validation helper." >&2; exit 1; }
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh
+source "$audio_validation_helper"
 input_routing_boot_helper="$overlay_dir/usr/local/share/octessera/device-tree/input-routing-boot-config.sh"
 [[ -f "$input_routing_boot_helper" ]] || { echo "Missing input-routing boot configuration helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh
@@ -113,24 +119,31 @@ spi_user_overlay_assignment='user_overlays=octessera-h618-spi1-cs0'
 spi_user_overlay_token="${spi_user_overlay_assignment#*=}"
 input_routing_overlay_name=octessera-h618-input-routing
 input_routing_user_overlay_token="$input_routing_overlay_name"
+audio_overlay_name=octessera-ahub0-pcm5102
+audio_user_overlay_token="$audio_overlay_name"
 spi_overlay_dir=/boot/overlay-user
 spi_dtbo="$spi_overlay_dir/$spi_overlay_name.dtbo"
 spi_dts_image=/usr/local/share/octessera/device-tree/$spi_overlay_name.dts
 input_routing_dtbo="$spi_overlay_dir/$input_routing_overlay_name.dtbo"
 input_routing_dts_image=/usr/local/share/octessera/device-tree/$input_routing_overlay_name.dts
+audio_dtbo="$spi_overlay_dir/$audio_overlay_name.dtbo"
+audio_dts_image=/usr/local/share/octessera/device-tree/$audio_overlay_name.dts
 spi_work="$(mktemp -d)"
 input_routing_work="$(mktemp -d)"
+audio_work="$(mktemp -d)"
 spi_dtbo_tmp=
 spi_dts_tmp=
 input_routing_dtbo_tmp=
 input_routing_dts_tmp=
+audio_dtbo_tmp=
+audio_dts_tmp=
 armbian_env_tmp=
 boot_args_tmp=
 extlinux_tmp=
 work=
 cleanup() {
-  rm -rf "${spi_work:-}" "${input_routing_work:-}" "${work:-}"
-  rm -f "${spi_dtbo_tmp:-}" "${spi_dts_tmp:-}" "${input_routing_dtbo_tmp:-}" "${input_routing_dts_tmp:-}" "${armbian_env_tmp:-}" "${boot_args_tmp:-}" "${extlinux_tmp:-}"
+  rm -rf "${spi_work:-}" "${input_routing_work:-}" "${audio_work:-}" "${work:-}"
+  rm -f "${spi_dtbo_tmp:-}" "${spi_dts_tmp:-}" "${input_routing_dtbo_tmp:-}" "${input_routing_dts_tmp:-}" "${audio_dtbo_tmp:-}" "${audio_dts_tmp:-}" "${armbian_env_tmp:-}" "${boot_args_tmp:-}" "${extlinux_tmp:-}"
 }
 trap cleanup EXIT
 install -d -m 0755 "$spi_overlay_dir"
@@ -141,6 +154,10 @@ if ! spi_base_dtb="$(octessera_resolve_boot_dtb /)"; then
   exit 1
 fi
 [[ -n "$spi_base_dtb" ]] || { echo "Missing exact H618 Orange Pi Zero 2W base DTB." >&2; exit 1; }
+[[ "$(basename "$(dirname "$spi_base_dtb")")" == allwinner ]] || { echo "Selected H618 DTB is not in an allwinner DTB tree." >&2; exit 1; }
+selected_dtb_tree="$(dirname "$spi_base_dtb")"
+stock_i2c1_dtbo="$selected_dtb_tree/overlay/sun50i-h616-i2c1-pi.dtbo"
+[[ -f "$stock_i2c1_dtbo" && ! -L "$stock_i2c1_dtbo" ]] || { echo "Missing regular stock i2c1-pi DTBO beside the selected H618 DTB." >&2; exit 1; }
 command -v dtc >/dev/null 2>&1 || { echo "dtc is required for SPI overlay installation." >&2; exit 1; }
 command -v fdtoverlay >/dev/null 2>&1 || { echo "fdtoverlay is required for SPI overlay installation." >&2; exit 1; }
 command -v fdtget >/dev/null 2>&1 || { echo "fdtget is required for SPI overlay installation." >&2; exit 1; }
@@ -148,8 +165,15 @@ command -v fdtget >/dev/null 2>&1 || { echo "fdtget is required for SPI overlay 
 spi_dtbo_tmp="$(mktemp "$spi_overlay_dir/.${spi_overlay_name}.dtbo.XXXXXX")"
 octessera_run_strict_diagnostic "$spi_work" compile_spi_overlay dtc -@ -I dts -O dtb -o "$spi_dtbo_tmp" "$spi_dts" || exit 1
 octessera_run_strict_diagnostic "$spi_work" inspect_spi_overlay dtc -I dtb -O dts -o "$spi_work/$spi_overlay_name.dts" "$spi_dtbo_tmp" || exit 1
+stock_i2c1_merged_dtb="$spi_work/stock-i2c1-merged.dtb"
+octessera_run_strict_diagnostic "$spi_work" merge_stock_i2c1_overlay fdtoverlay -i "$spi_base_dtb" -o "$stock_i2c1_merged_dtb" "$stock_i2c1_dtbo" || exit 1
+octessera_run_dtc_inspection "$spi_work" inspect_stock_i2c1_overlay dtc -q -I dtb -O dts -o "$spi_work/stock-i2c1-merged.dts" "$stock_i2c1_merged_dtb" || exit 1
+if ! octessera_assert_orange_preserved_peripherals "$spi_base_dtb" "$stock_i2c1_merged_dtb" "Orange Pi stock i2c1-pi composition"; then
+  echo "Orange Pi stock i2c1-pi composition assertions failed." >&2
+  exit 1
+fi
 spi_merged_dtb="$spi_work/$spi_overlay_name-merged.dtb"
-octessera_run_strict_diagnostic "$spi_work" merge_spi_overlay fdtoverlay -i "$spi_base_dtb" -o "$spi_merged_dtb" "$spi_dtbo_tmp" || exit 1
+octessera_run_strict_diagnostic "$spi_work" merge_spi_overlay fdtoverlay -i "$stock_i2c1_merged_dtb" -o "$spi_merged_dtb" "$spi_dtbo_tmp" || exit 1
 octessera_run_dtc_inspection "$spi_work" inspect_merged_spi_overlay dtc -q -I dtb -O dts -o "$spi_work/$spi_overlay_name-merged.dts" "$spi_merged_dtb" || exit 1
 
 spi1_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi1)"
@@ -158,7 +182,7 @@ spi1_cs0_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi1_cs0_pin)"
 spi0_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi0)"
 i2c1_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ i2c1)"
 [[ -n "$spi1_path" && -n "$spi1_pins_path" && -n "$spi1_cs0_path" && -n "$spi0_path" && -n "$i2c1_path" ]] || { echo "H618 base DTB is missing required bus symbols." >&2; exit 1; }
-if ! octessera_assert_spi1_merge "$spi_base_dtb" "$spi_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi0_path" "$i2c1_path" "Orange Pi"; then
+if ! octessera_assert_spi1_merge "$stock_i2c1_merged_dtb" "$spi_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi0_path" "$i2c1_path" "Orange Pi"; then
   echo "Orange Pi SPI1 merge assertions failed." >&2
   exit 1
 fi
@@ -167,13 +191,38 @@ input_routing_dtbo_tmp="$(mktemp "$spi_overlay_dir/.${input_routing_overlay_name
 octessera_run_strict_diagnostic "$input_routing_work" compile_input_routing_overlay dtc -@ -I dts -O dtb -o "$input_routing_dtbo_tmp" "$input_routing_dts" || exit 1
 octessera_run_strict_diagnostic "$input_routing_work" inspect_input_routing_overlay dtc -I dtb -O dts -o "$input_routing_work/$input_routing_overlay_name.dts" "$input_routing_dtbo_tmp" || exit 1
 input_routing_merged_dtb="$input_routing_work/$input_routing_overlay_name-merged.dtb"
-octessera_run_strict_diagnostic "$input_routing_work" merge_input_routing_overlay fdtoverlay -i "$spi_base_dtb" -o "$input_routing_merged_dtb" "$input_routing_dtbo_tmp" || exit 1
+octessera_run_strict_diagnostic "$input_routing_work" merge_input_routing_overlay fdtoverlay -i "$spi_merged_dtb" -o "$input_routing_merged_dtb" "$input_routing_dtbo_tmp" || exit 1
 octessera_run_dtc_inspection "$input_routing_work" inspect_merged_input_routing_overlay dtc -q -I dtb -O dts -o "$input_routing_work/$input_routing_overlay_name-merged.dts" "$input_routing_merged_dtb" || exit 1
 uart0_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ uart0)"
 pio_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ pio)"
 [[ -n "$uart0_path" && -n "$pio_path" ]] || { echo "H618 base DTB is missing UART0 or pinctrl symbols." >&2; exit 1; }
-if ! octessera_assert_input_routing_merge "$spi_base_dtb" "$input_routing_merged_dtb" "$uart0_path" "$pio_path" /chosen "Orange Pi"; then
+if ! octessera_assert_input_routing_merge "$spi_merged_dtb" "$input_routing_merged_dtb" "$uart0_path" "$pio_path" /chosen "Orange Pi"; then
   echo "Orange Pi input-routing merge assertions failed." >&2
+  exit 1
+fi
+
+audio_dtbo_tmp="$(mktemp "$spi_overlay_dir/.${audio_overlay_name}.dtbo.XXXXXX")"
+octessera_run_strict_diagnostic "$audio_work" compile_audio_overlay dtc -@ -I dts -O dtb -o "$audio_dtbo_tmp" "$audio_dts" || exit 1
+octessera_run_strict_diagnostic "$audio_work" inspect_audio_overlay dtc -I dtb -O dts -o "$audio_work/$audio_overlay_name.dts" "$audio_dtbo_tmp" || exit 1
+production_spi_input_dtb="$audio_work/$audio_overlay_name-spi-input-merged.dtb"
+production_merged_dtb="$audio_work/$audio_overlay_name-production-merged.dtb"
+cp -f -- "$input_routing_merged_dtb" "$production_spi_input_dtb"
+octessera_run_strict_diagnostic "$audio_work" merge_production_user_overlays fdtoverlay -i "$production_spi_input_dtb" -o "$production_merged_dtb" "$audio_dtbo_tmp" || exit 1
+octessera_run_dtc_inspection "$audio_work" inspect_production_user_overlays dtc -q -I dtb -O dts -o "$audio_work/$audio_overlay_name-production-merged.dts" "$production_merged_dtb" || exit 1
+if ! octessera_assert_spi1_merge "$stock_i2c1_merged_dtb" "$production_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi0_path" "$i2c1_path" "Orange Pi production composition"; then
+  echo "Orange Pi SPI1 production composition assertions failed." >&2
+  exit 1
+fi
+if ! octessera_assert_input_routing_merge "$spi_merged_dtb" "$production_merged_dtb" "$uart0_path" "$pio_path" /chosen "Orange Pi production composition"; then
+  echo "Orange Pi input-routing production composition assertions failed." >&2
+  exit 1
+fi
+if ! octessera_assert_orange_audio_merge "$production_spi_input_dtb" "$production_merged_dtb" "Orange Pi production composition"; then
+  echo "Orange Pi AHUB0 production composition assertions failed." >&2
+  exit 1
+fi
+if ! octessera_assert_orange_preserved_peripherals "$spi_base_dtb" "$production_merged_dtb" "Orange Pi production composition"; then
+  echo "Orange Pi preserved-peripheral production composition assertions failed." >&2
   exit 1
 fi
 
@@ -197,8 +246,18 @@ chown root:root "$input_routing_dtbo_tmp"
 mv -f -- "$input_routing_dtbo_tmp" "$input_routing_dtbo"
 input_routing_dtbo_tmp=
 
+install -d -m 0755 "$(dirname "$audio_dts_image")"
+audio_dts_tmp="$(mktemp "${audio_dts_image}.XXXXXX")"
+install -m 0644 -o root -g root "$audio_dts" "$audio_dts_tmp"
+mv -f -- "$audio_dts_tmp" "$audio_dts_image"
+audio_dts_tmp=
+chmod 0644 "$audio_dtbo_tmp"
+chown root:root "$audio_dtbo_tmp"
+mv -f -- "$audio_dtbo_tmp" "$audio_dtbo"
+audio_dtbo_tmp=
+
 armbian_env_tmp="$(mktemp "${armbian_env}.XXXXXX")"
-if ! octessera_armbian_env_update "$armbian_env" "$armbian_env_tmp" "$spi_user_overlay_token" i2c1-pi "$input_routing_user_overlay_token"; then
+if ! octessera_armbian_env_update "$armbian_env" "$armbian_env_tmp" "$spi_user_overlay_token" i2c1-pi "$input_routing_user_overlay_token" "$audio_user_overlay_token" 1; then
   echo "Refusing malformed or ambiguous Armbian overlay configuration." >&2
   exit 1
 fi
@@ -247,6 +306,8 @@ fi
 
 spi_dts_sha256="$(sha256sum "$spi_dts_image" | awk '{ print $1 }')"
 spi_dtbo_sha256="$(sha256sum "$spi_dtbo" | awk '{ print $1 }')"
+audio_dts_sha256="$(sha256sum "$audio_dts_image" | awk '{ print $1 }')"
+audio_dtbo_sha256="$(sha256sum "$audio_dtbo" | awk '{ print $1 }')"
 
 octessera_require_updater_overlay "$overlay_dir"
 for wifi_foundation_file in \
@@ -344,6 +405,10 @@ if [[ -e "$hushlogin" || -L "$hushlogin" ]]; then
 else
   install -D -m 0644 -o "$octessera_user" -g "$octessera_user" /dev/null "$hushlogin"
 fi
+bashrc="$octessera_home/.bashrc"
+if [[ -f "$bashrc" && ! -L "$bashrc" ]]; then
+  sed -i -E '/^[[:space:]]*(export[[:space:]]+)?(LANG|LANGUAGE|LC_[[:alnum:]_]+)[[:space:]]*=/d' "$bashrc"
+fi
 rm -f /root/.ssh/authorized_keys /home/octessera/.ssh/authorized_keys
 install -d -m 0755 /etc/ssh/sshd_config.d
 cat >/etc/ssh/sshd_config.d/10-octessera-setup.conf <<'EOF'
@@ -363,6 +428,13 @@ if systemctl list-unit-files sshd.socket >/dev/null 2>&1; then
   systemctl disable sshd.socket >/dev/null 2>&1 || true
   systemctl mask sshd.socket >/dev/null 2>&1 || true
 fi
+for unit in dnsmasq.service systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
+  systemctl disable "$unit" >/dev/null 2>&1 || true
+done
+rm -f \
+  /etc/systemd/system/multi-user.target.wants/dnsmasq.service \
+  /etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service \
+  /etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service
 rm -f /etc/ssh/ssh_host_*
 systemctl disable --now serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
@@ -395,6 +467,8 @@ OCTESSERA_SPI1_CS0_DTS_SHA256=${spi_dts_sha256}
 OCTESSERA_SPI1_CS0_DTBO_SHA256=${spi_dtbo_sha256}
 OCTESSERA_INPUT_ROUTING_DTS_SHA256=$(sha256sum "$input_routing_dts_image" | awk '{ print $1 }')
 OCTESSERA_INPUT_ROUTING_DTBO_SHA256=$(sha256sum "$input_routing_dtbo" | awk '{ print $1 }')
+OCTESSERA_AHUB0_PCM5102_DTS_SHA256=${audio_dts_sha256}
+OCTESSERA_AHUB0_PCM5102_DTBO_SHA256=${audio_dtbo_sha256}
 OCTESSERA_PI_DEFAULT_SHA256=$(sha256sum /usr/share/octessera/defaults/pi-default.json | awk '{ print $1 }')
 OCTESSERA_SAMPLES_MANIFEST_SHA256=$(sha256sum /usr/share/octessera/samples/sample-manifest.tsv | awk '{ print $1 }')
 EOF

@@ -328,7 +328,7 @@ def _validate_output(root: Path, before: Inventory, after: Inventory, contract: 
         entry = after.get(item["target"])
         if item["postimage"] == "absent":
             if entry is not None:
-                raise MutationError(f"disabled setup unit is enabled: {item['target']}")
+                raise MutationError(f"setup absent postimage remains present: {item['target']}")
         else:
             if entry is None or entry["type"] != "symlink" or entry["mode"] != item["mode"] or entry["target"] != item["link_target"]:
                 raise MutationError(f"enabled setup path is not exact: {item['target']}")

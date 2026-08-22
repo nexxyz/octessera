@@ -110,6 +110,14 @@ password immediately if used. Octessera masks `ssh.service` and `ssh.socket`
 until setup finalizes SSH, and SSH host keys are generated on-device only when
 SSH is enabled.
 
+The production image boots offline without waiting for a network. `NetworkManager`
+remains installed and available, while `dnsmasq.service`,
+`systemd-networkd-wait-online.service`, and `NetworkManager-wait-online.service`
+are disabled. The setup service is disabled, and only
+`octessera-setup-request.path` is enabled. Networking and SSH are deliberate
+opt-in actions from `System > Configure WiFi > Open Portal`; the image does not
+start a hotspot or SSH automatically.
+
 The production image's SPI1/CS0 overlay is board-specific:
 
 - Source: `userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts`.
@@ -125,6 +133,16 @@ boot-selected DTB and records non-secret DTS/DTBO hashes in
 `/etc/octessera/build-metadata.env`; DTBO and boot-environment writes are
 atomic. Before any OLED transfer, prove the live SPI1 node and pinmux and keep
 a recovery path for `/boot/armbianEnv.txt`.
+
+The production DAC is owned by the Octessera AHUB audio overlay and is enabled
+only by the mandatory `octessera_audio` Armbian extension. The boot composition
+is the selected H618 DTB, stock `sun50i-h616-i2c1-pi.dtbo`, SPI1, input-routing,
+then `octessera-ahub0-pcm5102.dtbo`. The audio overlay uses APB0/DMA3/TDM0,
+PI1/PI2 `i2s0`, and PI3 `i2s0_dout0` to expose the playback-only
+`octessera-dac` card. The exact ALSA card identity is `octesseradac`, with the
+playback route `hw:CARD=octesseradac,DEV=0`; the fixed image does not depend on a
+`CONFIG_SND_SOC_PCM5102A` driver or a PCM5102A codec node/link. The overlay
+uses the vendor dummy-codec topology and does not claim MCLK.
 
 The image stages the complete 320-file sample inventory and only seeds the
 default preset when `/var/lib/octessera/presets/default.json` is absent. Boot

@@ -43,6 +43,7 @@ bash "$root/tools/armbian-image/test-inspector.sh"
 bash "$root/tools/armbian-image/test-image-mode.sh"
 bash "$root/tools/armbian-image/test-orange-runtime-service.sh"
 bash "$root/tools/armbian-image/test-orange-alsa-sequencer.sh"
+bash "$root/tools/armbian-image/test-orange-audio-extension.sh"
 bash "$root/tools/armbian-image/test-orange-kernel-package.sh"
 bash "$root/tools/armbian-image/test-orange-image-proof.sh"
 bash "$root/tools/armbian-image/test-build-armbian-action.sh"
@@ -51,6 +52,7 @@ run_root_test 'Musical asset provisioning tests' bash "$root/tools/armbian-image
 bash "$root/tools/pi-image/test-wifi-foundation.sh"
 bash "$root/tools/pi-image/test-rpi-boot-splash.sh"
 bash "$root/tools/pi-image/test-rpi-boot-services.sh"
+run_root_test 'Raspberry parent sudoers construction tests' bash "$root/tools/pi-image/test-rpi-sudoers-construction.sh"
 run_root_test 'Raspberry initramfs proof tests' python3 "$root/tools/pi-image/test-rpi-initramfs-proof.py"
 python3 "$root/tools/pi-image/test-boot-layer-contract.py"
 run_root_test 'Raspberry sanitized-image boot-layout tests' bash "$root/tools/pi-image/test-sanitized-image-boot-layout.sh"
@@ -62,11 +64,11 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-http.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-flow.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-state.py"
 
-bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" '' | grep -qxF 'octessera_midi octessera_image_sanitize'
-bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" preset-firstrun | grep -qxF 'preset-firstrun octessera_midi octessera_image_sanitize'
-bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun octessera_midi' | grep -qxF 'preset-firstrun octessera_midi octessera_image_sanitize'
-bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun,octessera_midi' | grep -qxF 'preset-firstrun,octessera_midi octessera_image_sanitize'
-bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'other-extension preset-firstrun' | grep -qxF 'other-extension preset-firstrun octessera_midi octessera_image_sanitize'
+bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" '' | grep -qxF 'octessera_midi octessera_audio octessera_image_sanitize'
+bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" preset-firstrun | grep -qxF 'preset-firstrun octessera_midi octessera_audio octessera_image_sanitize'
+bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun octessera_midi' | grep -qxF 'preset-firstrun octessera_midi octessera_audio octessera_image_sanitize'
+bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun,octessera_midi' | grep -qxF 'preset-firstrun,octessera_midi octessera_audio octessera_image_sanitize'
+bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'other-extension preset-firstrun' | grep -qxF 'other-extension preset-firstrun octessera_midi octessera_audio octessera_image_sanitize'
 
 cmp "$root/tools/device-update/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update"
 cmp "$root/tools/device-update/octessera-update-broker" "$root/userpatches/overlay/usr/local/sbin/octessera-update-broker"
@@ -87,7 +89,8 @@ fi
 
 grep -qF 'resolve-armbian-extensions.sh' "$root/.github/actions/build-armbian-image/action.yml"
 grep -qF "ENABLE_EXTENSIONS=\"\$effective_extensions\"" "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF 'default: octessera_midi octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml"
+grep -qF 'default: octessera_midi octessera_audio octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml"
+grep -qF 'octessera_audio' "$root/.github/actions/build-armbian-image/action.yml"
 grep -qF 'octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml"
 grep -q 'ARMBIAN_BOARD:.*inputs.board' "$root/.github/workflows/armbian-image.yml"
 grep -q 'ARMBIAN_BUILD_REF:.*inputs.armbian_build_ref' "$root/.github/workflows/armbian-image.yml"
@@ -98,8 +101,11 @@ grep -qF 'image_kind: production' "$root/.github/workflows/release-board-artifac
 grep -qF 'construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json' "$root/.github/workflows/release-board-artifacts.yml"
 grep -q 'OCTESSERA_ARMBIAN_BOARD.*orangepizero2w' "$root/.github/actions/build-armbian-image/action.yml"
 grep -q 'ARMBIAN_BUILD_REF.*40' "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF '[--setup-layer] [--mode diagnostic|production]' "$root/tools/armbian-image/inspect-built-image.sh"
-grep -qF '[--mode diagnostic|production]' "$root/tools/armbian-image/inspect-output-images.sh"
+grep -qF -- '--verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer' "$root/tools/armbian-image/inspect-built-image.sh"
+grep -qF -- '--verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer' "$root/tools/armbian-image/inspect-output-images.sh"
+grep -qF "octessera_require_constructor_device_tree_contract \"\$verification_profile\" \"\$profile_metadata\"" "$root/tools/armbian-image/inspect-built-image.sh"
+grep -qF 'full-constructor)' "$root/tools/armbian-image/verification-profile.sh"
+grep -qF 'legacy-runtime-only|legacy-setup-layer)' "$root/tools/armbian-image/verification-profile.sh"
 grep -qF 'spi_source_path=usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts' "$root/tools/armbian-image/inspect-built-image.sh"
 grep -qF 'spi_dtbo_path=boot/overlay-user/octessera-h618-spi1-cs0.dtbo' "$root/tools/armbian-image/inspect-built-image.sh"
 action="$root/.github/actions/build-armbian-image/action.yml"

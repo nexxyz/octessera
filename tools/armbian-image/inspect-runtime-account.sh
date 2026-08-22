@@ -10,6 +10,10 @@ octessera_reject_runtime_sudoers() {
       echo "Production runtime account appears in sudoers: $candidate." >&2
       return 1
     fi
+    if printf '%s\n' "$content" | grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)'; then
+      echo "Production image contains unrestricted passwordless sudo: $candidate." >&2
+      return 1
+    fi
   }
   for path in etc/sudoers etc/sudoers.d/octessera-update etc/sudoers.d/octessera-ssh-key-admin; do
     if stat_path "$path"; then check_sudoers_file "$path" || return 1; else status=$?; [[ "$status" == 1 ]] || { echo "Unable to inspect sudoers path: $path." >&2; return 1; }; fi

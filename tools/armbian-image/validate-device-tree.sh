@@ -7,6 +7,7 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 device_tree_root="$root/userpatches/overlay/usr/local/share/octessera/device-tree"
 spi_dts="$device_tree_root/octessera-h618-spi1-cs0.dts"
 input_dts="$device_tree_root/octessera-h618-input-routing.dts"
+audio_dts="$device_tree_root/octessera-ahub0-pcm5102.dts"
 spi_fixture="$root/tools/armbian-image/fixtures/h618-spi-base.dts"
 spi_name=octessera-h618-spi1-cs0
 work="$(mktemp -d)"
@@ -30,20 +31,26 @@ source "$device_tree_root/input-routing-overlay-validation.sh"
 source "$device_tree_root/input-routing-boot-config.sh"
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
 source "$device_tree_root/boot-dtb-selection.sh"
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh
+source "$device_tree_root/orange-ahub-overlay-validation.sh"
 
 env_work="$work/env"
 mkdir -p "$env_work"
 run_env_case() {
-  local name="$1" expected="$2" input="$3" output="$4" extra="${5:-}"
+  local name="$1" expected="$2" input="$3" output="$4" extra="${5:-octessera-h618-input-routing}"
   local actual input_file="$env_work/$name.in" output_file="$env_work/$name.out"
   printf '%s' "$input" > "$input_file"
-  if octessera_armbian_env_update "$input_file" "$output_file" octessera-h618-spi1-cs0 i2c1-pi "$extra" 2>"$input_file.stderr"; then actual=0; else actual=$?; fi
+  if octessera_armbian_env_update "$input_file" "$output_file" octessera-h618-spi1-cs0 i2c1-pi "$extra" octessera-ahub0-pcm5102 1 2>"$input_file.stderr"; then actual=0; else actual=$?; fi
   [[ "$actual" == "$expected" ]] || { echo "Unexpected status for Armbian environment case $name." >&2; exit 1; }
   if [[ "$expected" == 0 ]]; then printf '%s' "$output" > "$input_file.expected"; cmp "$input_file.expected" "$output_file"; fi
 }
-run_env_case no_assign 0 $'keep=one\n' $'keep=one\nuser_overlays=octessera-h618-spi1-cs0\noverlays=i2c1-pi\n'
-run_env_case existing_tokens 0 $'overlays=i2c1-pi\nuser_overlays=foo octessera-h618-spi1-cs0\n' $'overlays=i2c1-pi\nuser_overlays=foo octessera-h618-spi1-cs0\n'
-run_env_case add_tokens 0 $'overlays=foo\nuser_overlays=bar\n' $'overlays=foo i2c1-pi\nuser_overlays=bar octessera-h618-spi1-cs0\n'
+run_env_case no_assign 0 $'keep=one\n' $'keep=one\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi\n'
+run_env_case existing_tokens 0 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\n' $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\n'
+run_env_case extra_user_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102 extra\n' ''
+run_env_case extra_overlay_token 2 $'overlays=i2c1-pi spidev1_0\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\n' ''
+run_env_case missing_audio_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing\n' ''
+run_env_case duplicate_audio_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102 octessera-ahub0-pcm5102\n' ''
+run_env_case wrong_user_order 2 $'overlays=i2c1-pi\nuser_overlays=octessera-ahub0-pcm5102 octessera-h618-spi1-cs0 octessera-h618-input-routing\n' ''
 run_env_case duplicate_user 2 $'user_overlays=foo\nuser_overlays=bar\n' ''
 run_env_case duplicate_token 2 $'user_overlays=octessera-h618-spi1-cs0 octessera-h618-spi1-cs0\n' ''
 run_env_case commented_assignment 2 $'# user_overlays=user-overlay\n' ''
@@ -52,7 +59,7 @@ run_env_case malformed_assignment 2 $'user_overlays = foo\n' ''
 run_env_case duplicate_i2c 2 $'overlays=i2c1-pi\noverlays=foo\n' ''
 run_env_case commented_i2c 2 $'# overlays=i2c1-pi\n' ''
 run_env_case malformed_i2c 2 $'overlays = foo\n' ''
-run_env_case add_input_routing 0 $'user_overlays=octessera-h618-spi1-cs0\noverlays=i2c1-pi\n' $'user_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing\noverlays=i2c1-pi\n' octessera-h618-input-routing
+run_env_case add_input_routing 2 $'user_overlays=octessera-h618-spi1-cs0\noverlays=i2c1-pi\n' '' octessera-h618-input-routing
 run_env_case duplicate_input_routing 2 $'user_overlays=octessera-h618-input-routing octessera-h618-input-routing\n' '' octessera-h618-input-routing
 
 printf '%s\n' 'extraargs=root=UUID=abc console=ttyS0,115200n8 quiet' 'keep=one' > "$env_work/boot.in"
@@ -186,4 +193,10 @@ octessera_run_dtc_inspection "$work" inspect_merged_input_routing_fixture dtc -q
 fixture_uart0_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ uart0)"
 fixture_pio_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ pio)"
 [[ -n "$fixture_uart0_path" && -n "$fixture_pio_path" ]]
+octessera_run_strict_diagnostic "$work" compile_audio_overlay dtc -@ -I dts -O dtb -o "$work/octessera-ahub0-pcm5102.dtbo" "$audio_dts"
+octessera_run_strict_diagnostic "$work" compile_audio_fixture dtc -@ -I dts -O dtb -o "$work/h618-audio-base.dtb" "$root/tools/armbian-image/fixtures/h618-orange-ahub-base.dts"
+octessera_run_strict_diagnostic "$work" merge_audio_fixture fdtoverlay -i "$work/h618-audio-base.dtb" -o "$work/h618-audio-merged.dtb" "$work/octessera-ahub0-pcm5102.dtbo"
+octessera_run_dtc_inspection "$work" inspect_audio_fixture dtc -q -I dtb -O dts -o "$work/h618-audio-merged.dts" "$work/h618-audio-merged.dtb"
+grep -q 'soundcard-mach,name = "octessera-dac"' "$work/h618-audio-merged.dts"
+octessera_reject_file_match 'Canonical AHUB0 overlay must not claim a PCM5102A codec or MCLK.' -Eiq 'pcm5102a|mclk|sound-dai[[:space:]]*=.*codec' "$audio_dts"
 octessera_assert_input_routing_merge "$work/h618-spi-base.dtb" "$work/h618-input-routing-merged.dtb" "$fixture_uart0_path" "$fixture_pio_path" /chosen fixture

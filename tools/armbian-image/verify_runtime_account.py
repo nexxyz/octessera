@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -56,7 +57,9 @@ def runtime_account(root: Path, require: Require) -> tuple[int, int]:
         sudoers.extend(path for path in sudoers_dir.rglob("*") if path.is_file() and not path.is_symlink())
     for path in sudoers:
         if path.is_file():
-            require("octessera-runtime" not in path.read_text(encoding="utf-8"), f"octessera-runtime appears in sudoers: {path}")
+            content = path.read_text(encoding="utf-8")
+            require("octessera-runtime" not in content, f"octessera-runtime appears in sudoers: {path}")
+            require(not re.search(r"(?im)^\s*[^#\n]*\bNOPASSWD\s*:\s*ALL(?:\s|$)", content), f"unrestricted passwordless sudo appears in sudoers: {path}")
     return uid, gid
 
 

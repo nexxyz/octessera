@@ -95,6 +95,10 @@ impl OrangeHostAdapter {
         results
     }
 
+    pub(crate) fn drain_startup_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
+        self.platform_service.drain_results(max_results)
+    }
+
     pub(crate) fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
         if self
             .pending_default_save_generation

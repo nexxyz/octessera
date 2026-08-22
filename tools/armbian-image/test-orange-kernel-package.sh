@@ -25,7 +25,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SYNTHETIC_FIXTURE=y'
+good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SOUND=y\nCONFIG_SND=y\nCONFIG_SND_SOC=y\nCONFIG_REGMAP_MMIO=y\nCONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y\nCONFIG_SND_SOC_SUNXI_AHUB=y\nCONFIG_SND_SOC_SUNXI_AHUB_DAM=y\nCONFIG_SND_SOC_SUNXI_MACH=y\nCONFIG_NVMEM_SUNXI_SID=y\nCONFIG_SYNTHETIC_FIXTURE=y'
 good_config_sha256="$(printf '%s\n' "$good_config" | sha256sum | awk '{print $1}')"
 source_config_sha256="$(python3 -c 'import json; print(json.load(open("tools/kernel-patches/orange-midi-interface-manifest.json"))["build_frameworks"]["armbian"]["config_base"]["sha256"])')"
 
@@ -144,8 +144,9 @@ make_pair() {
     [[ "$image_dtb_mode" == bad-image-magic ]] && printf '\x00\x00\x00\x00' > "$image_root/usr/lib/linux-image-$kernel_release/allwinner/sun50i-h618-orangepi-zero2w.dtb"
   }
   [[ "$image_dtb_mode" == missing-package ]] || {
-    mkdir -p "$dtb_root/boot/dtb-$kernel_release/allwinner"
+    mkdir -p "$dtb_root/boot/dtb-$kernel_release/allwinner/overlay"
     make_fdt "$dtb_root/boot/dtb-$kernel_release/allwinner/sun50i-h618-orangepi-zero2w.dtb"
+    printf 'stock-i2c1-pi-fixture\n' > "$dtb_root/boot/dtb-$kernel_release/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo"
     [[ "$image_dtb_mode" == bad-package-magic ]] && printf '\x00\x00\x00\x00' > "$dtb_root/boot/dtb-$kernel_release/allwinner/sun50i-h618-orangepi-zero2w.dtb"
   }
   : > "$image_root/lib/modules/$kernel_release/kernel/sound/core/seq/snd-seq.ko"
@@ -236,6 +237,12 @@ if run_validator good "$source_config_sha256" >/dev/null 2>&1; then
   echo 'Orange package validation accepted the source config hash as the final config hash.' >&2
   exit 1
 fi
+mkdir -p "$work/good-dtb/boot/dtb-6.18.38-current-sunxi64/overlay"
+: > "$work/good-dtb/boot/dtb-6.18.38-current-sunxi64/overlay/octessera-ahub0-pcm5102.dtbo"
+dpkg-deb --build "$work/good-dtb" "$(dtb_package good)" >/dev/null
+reject_validator good
+rm -f "$work/good-dtb/boot/dtb-6.18.38-current-sunxi64/overlay/octessera-ahub0-pcm5102.dtbo"
+make_pair good "$good_config"
 make_pair compressed-gzip "$good_config" 26.8.0-trunk.417 26.8.0-trunk.417 arm64 linux-6.18.38 6.18.38-current-sunxi64 6.18.38-current-sunxi64 good compressed-gzip
 run_validator compressed-gzip "$good_config_sha256"
 make_pair compressed-xz "$good_config" 26.8.0-trunk.417 26.8.0-trunk.417 arm64 linux-6.18.38 6.18.38-current-sunxi64 6.18.38-current-sunxi64 good compressed-xz
@@ -339,6 +346,10 @@ ARMBIAN_BUILD_REF=fa7a7b2294d9e760a77630950afd460b7a0b2a26 \
   OCTESSERA_ORANGE_TEST_MODE=1 bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$provenance" "$evidence" "" "$good_config_sha256" "$handoff" >/dev/null
 grep -q '^image_package_sha256=' "$provenance"
 grep -q '^dtb_package_sha256=' "$provenance"
+grep -q '^audio_dts_path=userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts$' "$provenance"
+grep -q '^audio_dtbo_forbidden=octessera-ahub0-pcm5102.dtbo$' "$provenance"
+grep -q '^stock_i2c1_dtbo_path=boot/dtb-6.18.38-current-sunxi64/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo$' "$provenance"
+grep -q '^stock_i2c1_dtbo_sha256=' "$provenance"
 grep -q '^image_package_native=linux-image-current-sunxi64_26.8.0-trunk.417_arm64__fixture.deb$' "$provenance"
 grep -q '^dtb_package_native=linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64__fixture.deb$' "$provenance"
 grep -q '^artifact_suffix=fixture$' "$provenance"

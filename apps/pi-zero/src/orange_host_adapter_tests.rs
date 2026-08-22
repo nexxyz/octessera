@@ -9,6 +9,9 @@ use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+#[path = "orange_host_adapter_drain_tests.rs"]
+mod drain_tests;
+
 fn directories() -> (PathBuf, PathBuf) {
     let root = std::env::temp_dir().join(format!(
         "octessera-orange-host-{}-{}",

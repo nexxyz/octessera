@@ -1,5 +1,5 @@
 use super::*;
-use playback_runtime::{RuntimeOperation, RuntimeStoreResult};
+use crate::initial_audio_prep::{interpret_initial_audio_prep, InitialAudioPrepBoard};
 
 pub(crate) struct PreparedRuntime {
     pub(super) playback: PlaybackRuntime,
@@ -79,7 +79,7 @@ pub(crate) fn prepare_runtime(
     }
     let mut host = OrangeHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?;
     initialize_host_state(&mut playback, &mut runner, &mut host)?;
-    drain_host_work(&mut playback, &mut runner, &mut host)?;
+    drain_startup_host_work(&mut playback, &mut runner, &mut host)?;
     dispatch(
         &mut playback,
         &mut runner,
@@ -96,6 +96,25 @@ pub(crate) fn prepare_runtime(
         runner,
         host,
     })
+}
+
+fn drain_startup_host_work(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    host: &mut OrangeHostAdapter,
+) -> Result<(), String> {
+    let responses = runner.flush_deferred_menu_apply()?;
+    if !responses.is_empty() {
+        let output = playback.dispatch_runner_messages(responses, runner, host)?;
+        process_runtime_output(playback, runner, host, output)?;
+    }
+    for follow_up in host.flush_due_default_save()? {
+        dispatch(playback, runner, host, follow_up)?;
+    }
+    for result in host.drain_startup_platform_results(HOST_RESULT_BUDGET) {
+        dispatch(playback, runner, host, result)?;
+    }
+    Ok(())
 }
 
 fn initialize_host_state(
@@ -153,8 +172,28 @@ pub(crate) fn wait_for_initial_audio_prep(
     const POLL: Duration = Duration::from_millis(10);
     let deadline = Instant::now() + TIMEOUT;
     loop {
+        let audio = host.audio_service();
+        if let Some(message) = audio.drain_prep_results(1).into_iter().next() {
+            let outcome = interpret_initial_audio_prep(
+                &message,
+                audio
+                    .config_revision
+                    .load(std::sync::atomic::Ordering::SeqCst),
+                InitialAudioPrepBoard::Orange,
+            );
+            super::dispatch(playback, runner, host, message)?;
+            if let Some(outcome) = outcome {
+                return outcome;
+            }
+        }
         for message in host.drain_results(HOST_RESULT_BUDGET) {
-            let outcome = initial_audio_prep_outcome(&message);
+            let outcome = interpret_initial_audio_prep(
+                &message,
+                host.audio_service()
+                    .config_revision
+                    .load(std::sync::atomic::Ordering::SeqCst),
+                InitialAudioPrepBoard::Orange,
+            );
             super::dispatch(playback, runner, host, message)?;
             if let Some(outcome) = outcome {
                 return outcome;
@@ -165,30 +204,4 @@ pub(crate) fn wait_for_initial_audio_prep(
         }
         thread::sleep(POLL);
     }
-}
-
-fn initial_audio_prep_outcome(message: &HostMessage) -> Option<Result<(), String>> {
-    let HostMessage::RuntimeResult { result } = message else {
-        return None;
-    };
-    let RuntimeStoreResult::Identified {
-        result,
-        request_id,
-        revision,
-    } = result
-    else {
-        return None;
-    };
-    if result.operation() != RuntimeOperation::AudioCommand || revision.is_none() {
-        return None;
-    }
-    Some(match result.error_facts() {
-        Some(facts) => Err(format!(
-            "initial Orange audio preparation failed (request {request_id}, revision {revision:?}, {:?}/{:?}): {}",
-            facts.domain,
-            facts.code,
-            facts.message.unwrap_or_else(|| "operation failed".into())
-        )),
-        None => Ok(()),
-    })
 }

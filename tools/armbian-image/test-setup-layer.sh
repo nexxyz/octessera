@@ -20,6 +20,7 @@ check_common() {
   local request_unit="$tree/etc/systemd/system/octessera-setup-request.service"
   for path in \
     "$tree/etc/octessera/setup-profile" \
+    "$tree/etc/default/locale" \
     "$wrapper" \
     "$sidecar" \
     "$helper" \
@@ -38,6 +39,9 @@ check_common() {
     [[ -f "$path" && ! -L "$path" ]] || { echo "Missing setup layer file: $path" >&2; exit 1; }
   done
   grep -qxF "$profile" "$tree/etc/octessera/setup-profile"
+  grep -qxF 'LANG=C.UTF-8' "$tree/etc/default/locale"
+  grep -qxF 'LANGUAGE=en' "$tree/etc/default/locale"
+  grep -qxF 'LC_MESSAGES=C.UTF-8' "$tree/etc/default/locale"
   grep -qF 'ALLOWED_ORIGINS = frozenset(("http://192.168.42.1", "http://192.168.42.1:80"))' "$sidecar"
   grep -qF 'ipaddress.ip_network("192.168.42.0/24")' "$sidecar"
   grep -qF 'MAX_BODY = 16384' "$sidecar"
@@ -76,6 +80,7 @@ check_common() {
   grep -qFx 'ExecStart=/usr/local/sbin/octessera-setup-request' "$tree/etc/systemd/system/octessera-setup-request.service"
   grep -qFx 'ExecStopPost=/usr/local/sbin/octessera-setup-request-cleanup' "$tree/etc/systemd/system/octessera-setup-request.service"
   grep -qFx 'RuntimeDirectory=octessera-setup' "$setup_unit"
+  grep -qF ' -/run/octessera-setup-control -/run/octessera-setup-status' "$setup_unit"
   grep -qFx 'RuntimeDirectoryMode=0700' "$setup_unit"
   grep -qFx 'RuntimeMaxSec=1800s' "$setup_unit"
   grep -qFx 'ExecStartPre=/usr/local/sbin/octessera-setup-start' "$setup_unit"
@@ -104,7 +109,29 @@ check_common() {
 check_common "$orange" octessera orange-pi-zero-2w octessera-runtime
 check_common "$raspberry" pi raspberry-pi-zero-2w pi
 
+sudoers_fixture="$(mktemp -d)"
+sudoers_pattern='^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)'
+printf '%s\n' 'octessera ALL=(root) NOPASSWD: /sbin/shutdown' > "$sudoers_fixture/sudoers"
+if grep -Eiq "$sudoers_pattern" "$sudoers_fixture/sudoers"; then exit 1; fi
+printf '%s\n' 'octessera ALL=(ALL) NOPASSWD: ALL' > "$sudoers_fixture/sudoers"
+grep -Eiq "$sudoers_pattern" "$sudoers_fixture/sudoers"
+mkdir "$sudoers_fixture/sudoers.d"
+printf '%s\n' 'octessera ALL=(root) NOPASSWD: /usr/local/sbin/octessera-update' > "$sudoers_fixture/sudoers.d/octessera-update"
+if grep -Eiq "$sudoers_pattern" "$sudoers_fixture/sudoers.d/octessera-update"; then exit 1; fi
+printf '%s\n' 'octessera ALL=(ALL) NOPASSWD: ALL' > "$sudoers_fixture/sudoers.d/negative"
+grep -Eiq "$sudoers_pattern" "$sudoers_fixture/sudoers.d/negative"
+rm -rf "$sudoers_fixture"
+
+locale_fixture="$(mktemp)"
+locale_pattern='^[[:space:]]*(export[[:space:]]+)?(LANG|LANGUAGE|LC_[[:alnum:]_]+)[[:space:]]*='
+printf '%s\n' 'export LC_MESSAGES=de_DE.UTF-8' 'LC_TIME=de_DE.UTF-8' > "$locale_fixture"
+grep -Eq "$locale_pattern" "$locale_fixture"
+printf '%s\n' 'export LC_ALL=de_DE.UTF-8' > "$locale_fixture"
+grep -Eq "$locale_pattern" "$locale_fixture"
+rm -f "$locale_fixture"
+
 raspberry_setup_assets=(
+  tools/pi-image/stage4-octessera/files/root/etc/default/locale
   tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-wifi-connect
   tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-sidecar
   tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-request
@@ -147,17 +174,68 @@ grep -qF 'install -D -o root -g root -m 0755' "$root/tools/pi-image/stage4-octes
 grep -qF 'octessera-setup-request.path' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'octessera-setup-request.path' "$root/userpatches/customize-image.sh"
 grep -qF 'systemctl enable octessera-setup-request.path' "$root/userpatches/customize-image.sh"
+for unit in dnsmasq.service systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
+  grep -qF "$unit" "$root/userpatches/customize-image.sh"
+  grep -qF "$unit" "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+done
+grep -qF '(LANG|LANGUAGE|LC_[[:alnum:]_]+)' "$root/userpatches/customize-image.sh"
+grep -qF '(LANG|LANGUAGE|LC_[[:alnum:]_]+)' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+grep -qF 'RuntimeDirectory=octessera-setup' "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service"
+grep -qF 'RuntimeDirectory=octessera-setup' "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup.service"
+grep -qF ' -/run/octessera-setup-control -/run/octessera-setup-status' "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service"
+grep -qF ' -/run/octessera-setup-control -/run/octessera-setup-status' "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup.service"
 octessera_reject_file_match 'Orange construction must not enable the interactive setup service.' -qF 'systemctl enable octessera-setup.service' "$root/userpatches/customize-image.sh"
 grep -qF 'setup_service_link=/etc/systemd/system/multi-user.target.wants/octessera-setup.service' "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
 grep -qF "rm -f \"\$setup_service_link\"" "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
-octessera_reject_file_match 'Raspberry setup must not enable the interactive setup service at image construction time.' -Eq 'enable.*octessera-setup\.service|multi-user\.target\.wants.*octessera-setup\.service' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+octessera_reject_file_match 'Raspberry setup must not enable the interactive setup service at image construction time.' -Eq 'enable.*octessera-setup\.service|ln -s[f]?.*multi-user\.target\.wants/octessera-setup\.service' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'octessera-setup-request.path' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'setup-finalize-failed' "$root/userpatches/customize-image.sh"
 grep -qF 'setup-finalize-failed' "$root/tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh"
 grep -qF 'setup-image-layer.sh' "$root/userpatches/customize-image.sh"
 grep -qF 'install -D -o root -g root' "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
-grep -qF -- '--setup-layer' "$root/tools/armbian-image/inspect-built-image.sh"
-grep -qF -- '--setup-layer' "$root/tools/pi-image/verify-sanitized-image.sh"
+grep -qF -- '--verification-profile legacy-setup-layer' "$root/resources/image-mutations/orange-pi-zero-2w-setup.json"
+grep -qF -- '--verification-profile legacy-setup-layer' "$root/resources/image-mutations/raspberry-pi-zero-2w-setup.json"
+grep -qF -- '--verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer' "$root/tools/armbian-image/inspect-built-image.sh"
+grep -qF -- '--verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer' "$root/tools/pi-image/verify-sanitized-image.sh"
+grep -qF 'require_orange_constructor_policy' "$root/tools/armbian-image/setup-layer-proof.sh"
+grep -qF 'require_raspberry_constructor_policy' "$root/tools/pi-image/verify-sanitized-image.sh"
+grep -qF 'constructor_policy_required=true' "$root/tools/armbian-image/inspect-built-image.sh"
+grep -qF 'setup_layer_required=true' "$root/tools/armbian-image/inspect-built-image.sh"
+grep -qF 'CONSTRUCTOR_POLICY_REQUIRED=true' "$root/tools/pi-image/verify-sanitized-image.sh"
+grep -qF 'SETUP_LAYER_REQUIRED=true' "$root/tools/pi-image/verify-sanitized-image.sh"
+grep -qF 'octessera_remove_raspberry_parent_sudoers' "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+if bash "$root/tools/armbian-image/inspect-built-image.sh" fixture >/dev/null 2>&1; then
+  echo 'Orange image inspection accepted a missing verification profile.' >&2
+  exit 1
+fi
+if bash "$root/tools/armbian-image/inspect-built-image.sh" --verification-profile invalid fixture >/dev/null 2>&1; then
+  echo 'Orange image inspection accepted an invalid verification profile.' >&2
+  exit 1
+fi
+if bash "$root/tools/armbian-image/inspect-built-image.sh" --verification-profile legacy-runtime-only --verification-profile legacy-setup-layer fixture >/dev/null 2>&1; then
+  echo 'Orange image inspection accepted conflicting verification profiles.' >&2
+  exit 1
+fi
+if bash "$root/tools/pi-image/verify-sanitized-image.sh" fixture >/dev/null 2>&1; then
+  echo 'Raspberry image inspection accepted a missing verification profile.' >&2
+  exit 1
+fi
+if bash "$root/tools/pi-image/verify-sanitized-image.sh" --verification-profile invalid fixture >/dev/null 2>&1; then
+  echo 'Raspberry image inspection accepted an invalid verification profile.' >&2
+  exit 1
+fi
+if bash "$root/tools/pi-image/verify-sanitized-image.sh" --verification-profile legacy-runtime-only --verification-profile legacy-setup-layer fixture >/dev/null 2>&1; then
+  echo 'Raspberry image inspection accepted conflicting verification profiles.' >&2
+  exit 1
+fi
+if bash "$root/tools/armbian-image/inspect-output-images.sh" --mode diagnostic fixture >/dev/null 2>&1; then
+  echo 'Armbian output inspection accepted a missing verification profile.' >&2
+  exit 1
+fi
+if bash "$root/tools/armbian-image/inspect-output-images.sh" --verification-profile invalid --mode diagnostic fixture >/dev/null 2>&1; then
+  echo 'Armbian output inspection accepted an invalid verification profile.' >&2
+  exit 1
+fi
 grep -qF 'Orange setup path must be absent' "$root/tools/armbian-image/setup-layer-proof.sh"
 grep -qF 'octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera-setup-request.path ../octessera-setup-request.path' "$root/tools/armbian-image/setup-layer-proof.sh"
 bash -n "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"

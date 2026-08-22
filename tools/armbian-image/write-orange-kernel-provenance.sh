@@ -124,6 +124,11 @@ required_evidence = {
     "image_dtb_sha256",
     "dtb_package_dtb_sha256",
     "dtb_byte_equal",
+    "stock_i2c1_dtbo_path",
+    "stock_i2c1_dtbo_sha256",
+    "audio_dts_path",
+    "audio_dts_sha256",
+    "audio_dtbo_forbidden",
     "packaged_config_expected_sha256",
     "final_config_sha256",
     "module_relative_path",
@@ -136,6 +141,12 @@ required_evidence = {
 }
 if set(evidence) != required_evidence:
     raise SystemExit("Orange kernel evidence fields changed")
+audio = armbian["audio_overlay"]
+if evidence["audio_dts_path"] != audio["canonical_dts"] or evidence["audio_dts_sha256"] != audio["canonical_dts_sha256"] or evidence["audio_dtbo_forbidden"] != audio["dtbo_name"]:
+    raise SystemExit("Orange audio evidence does not match the manifest")
+expected_stock_path = f"boot/dtb-{armbian['kernel_release']}/allwinner/overlay/{audio['stock_i2c1_dtbo_name']}"
+if evidence["stock_i2c1_dtbo_path"] != expected_stock_path or not re.fullmatch(r"[0-9a-f]{64}", evidence["stock_i2c1_dtbo_sha256"]):
+    raise SystemExit("Orange stock i2c1-pi evidence does not match the manifest")
 native_patterns = armbian["native_package_patterns"]
 if len(native_patterns) != 2:
     raise SystemExit("Orange provenance native package patterns changed")
@@ -251,6 +262,9 @@ lines = [
     f"artifact_suffix={evidence['artifact_suffix']}",
     f"package_architecture={expected_architecture}",
     f"required_dtb={armbian['required_dtb']}",
+    f"audio_dts_path={evidence['audio_dts_path']}",
+    f"audio_dts_sha256={evidence['audio_dts_sha256']}",
+    f"audio_dtbo_forbidden={evidence['audio_dtbo_forbidden']}",
     f"kernel_config_path={armbian['config_base']['path']}",
     f"kernel_config_source_sha256={armbian['config_base']['sha256']}",
     f"kernel_config_expected_packaged_sha256={expected_packaged_config_sha256}",
@@ -258,6 +272,8 @@ lines = [
     f"kernel_config_sha256_match={str(config_hash_match).lower()}",
     f"image_dtb_sha256={evidence['image_dtb_sha256']}",
     f"dtb_package_dtb_sha256={evidence['dtb_package_dtb_sha256']}",
+    f"stock_i2c1_dtbo_path={evidence['stock_i2c1_dtbo_path']}",
+    f"stock_i2c1_dtbo_sha256={evidence['stock_i2c1_dtbo_sha256']}",
     f"core_series_path={armbian['core_series']['path']}",
     f"core_series_sha256={armbian['core_series']['sha256']}",
     f"core_series_active_patch_count={armbian['core_series']['active_patch_count']}",

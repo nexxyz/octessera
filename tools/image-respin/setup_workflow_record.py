@@ -274,7 +274,11 @@ def _validate_proof(proof: dict[str, Any], board: str, contract_identity: dict[s
     require(proof["proof"] == "setup-layer-mounted" and proof["schema_version"] == 1 and proof["board_profile"] == board and proof["contract_sha256"] == contract_identity["sha256"], "setup proof identity is not exact")
     _sha(proof["inventory_sha256"], "setup proof inventory")
     _validate_prerequisites(proof["prerequisites"], contract, "setup proof prerequisites")
-    expected_paths = sorted([item["target"] for item in contract["directories"]] + [item["target"] for item in contract["entries"]])
+    expected_paths = sorted(
+        [item["target"] for item in contract["directories"]]
+        + [item["target"] for item in contract["entries"]]
+        + [item["target"] for item in contract["symlinks"] if item["postimage"] == "absent"]
+    )
     require(proof["verified_paths"] == expected_paths, "setup proof paths are not exact")
 
 

@@ -13,6 +13,8 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FILE_SPEC_KEYS = {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"}
 SETUP_UI_DIRECTORY = "usr/local/share/octessera-setup-ui"
 SETUP_UI_FILES = {"app.js", "index.html", "styles.css", "README.md", "octessera-mark.svg", "octessera-wordmark.svg"}
+RASPBERRY_PARENT_SUDOERS_TARGET = "etc/sudoers.d/010_pi-nopasswd"
+RASPBERRY_PARENT_SUDOERS_SHA256 = "aa7549b5a2544e53652d7c844af396ca05044e41b05f56372162dc8b0cf3f089"
 
 
 def _keys(value: Any, expected: set[str], label: str) -> dict[str, Any]:
@@ -154,7 +156,7 @@ def _directories(value: Any, board: str) -> None:
         raise SetupContractSchemaError("directories[0].postimage is invalid")
 
 
-def _symlinks(value: Any) -> None:
+def _symlinks(value: Any, board: str) -> None:
     if not isinstance(value, list) or not value:
         raise SetupContractSchemaError("symlinks is invalid")
     targets: set[str] = set()
@@ -165,6 +167,9 @@ def _symlinks(value: Any) -> None:
             _preimage(entry["preimage"], f"symlinks[{index}].preimage")
             if entry["postimage"] != "absent":
                 raise SetupContractSchemaError(f"symlinks[{index}] absent postimage is invalid")
+            if entry["target"] in targets:
+                raise SetupContractSchemaError("symlinks contains duplicate targets")
+            targets.add(entry["target"])
             continue
         entry = _keys(item, {"classification", "target", "type", "mode", "uid", "gid", "symlink", "xattrs", "capability", "link_target", "preimage", "postimage"}, f"symlinks[{index}]")
         _path(entry["target"], f"symlinks[{index}].target")
@@ -177,6 +182,16 @@ def _symlinks(value: Any) -> None:
         if entry["target"] in targets:
             raise SetupContractSchemaError("symlinks contains duplicate targets")
         targets.add(entry["target"])
+    parent_sudoers = [item for item in value if item["target"] == RASPBERRY_PARENT_SUDOERS_TARGET]
+    if board == "raspberry-pi-zero-2w":
+        if len(parent_sudoers) != 1:
+            raise SetupContractSchemaError("Raspberry setup contract must remove the parent sudoers grant")
+        item = parent_sudoers[0]
+        expected_preimage = {"kind": "exact", "type": "file", "mode": 288, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None, "sha256": RASPBERRY_PARENT_SUDOERS_SHA256}
+        if item != {"classification": "parent-sudoers-removed", "target": RASPBERRY_PARENT_SUDOERS_TARGET, "type": "absent", "preimage": expected_preimage, "postimage": "absent"}:
+            raise SetupContractSchemaError("Raspberry parent sudoers removal is not exact")
+    elif parent_sudoers:
+        raise SetupContractSchemaError("Orange setup contract must not remove the Raspberry parent sudoers grant")
 
 
 def validate_setup_contract(contract: Any) -> None:
@@ -196,7 +211,7 @@ def validate_setup_contract(contract: Any) -> None:
     _directories(top["directories"], top["board_profile"])
     _entries(top["entries"], "entries")
     _validate_ui_preimages(top["entries"], top["board_profile"])
-    _symlinks(top["symlinks"])
+    _symlinks(top["symlinks"], top["board_profile"])
     if not isinstance(top["preserved_paths"], list) or not top["preserved_paths"]:
         raise SetupContractSchemaError("preserved_paths is invalid")
     for index, item in enumerate(top["preserved_paths"]):

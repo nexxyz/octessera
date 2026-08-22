@@ -1,20 +1,29 @@
 #!/bin/bash
 set -euo pipefail
 
+VERIFICATION_PROFILE=""
+CONSTRUCTOR_POLICY_REQUIRED=false
 SETUP_LAYER_REQUIRED=false
 RUNTIME_BUNDLE=""
+usage() {
+    echo "Usage: $0 --verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer [--runtime-bundle <dir>] <image.zip>" >&2
+}
+
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --setup-layer)
-            SETUP_LAYER_REQUIRED=true
-            shift
+        --verification-profile)
+            [ "$#" -ge 2 ] || { usage; exit 2; }
+            [ -z "$VERIFICATION_PROFILE" ] || { echo "verification profile selected more than once" >&2; usage; exit 2; }
+            VERIFICATION_PROFILE="$2"
+            shift 2
             ;;
         --runtime-bundle)
-            RUNTIME_BUNDLE="${2:?usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>}"
+            [ "$#" -ge 2 ] || { usage; exit 2; }
+            RUNTIME_BUNDLE="$2"
             shift 2
             ;;
         --*)
-            echo "usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>" >&2
+            usage
             exit 2
             ;;
         *)
@@ -22,10 +31,37 @@ while [ "$#" -gt 0 ]; do
             ;;
     esac
 done
-ZIP_PATH="${1:?usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>}"
+
+case "$VERIFICATION_PROFILE" in
+    full-constructor)
+        CONSTRUCTOR_POLICY_REQUIRED=true
+        SETUP_LAYER_REQUIRED=true
+        ;;
+    legacy-runtime-only)
+        ;;
+    legacy-setup-layer)
+        SETUP_LAYER_REQUIRED=true
+        ;;
+    "")
+        echo "--verification-profile is required" >&2
+        usage
+        exit 2
+        ;;
+    *)
+        echo "invalid verification profile: $VERIFICATION_PROFILE" >&2
+        usage
+        exit 2
+        ;;
+esac
+
+if [ "$#" -lt 1 ]; then
+    usage
+    exit 2
+fi
+ZIP_PATH="$1"
 shift
 if [ "$#" -ne 0 ]; then
-    echo "usage: verify-sanitized-image.sh [--setup-layer] [--runtime-bundle <dir>] <image.zip>" >&2
+    usage
     exit 2
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -123,6 +159,22 @@ require_updater_protocol() {
     fi
 }
 
+require_no_unrestricted_sudoers() {
+    local path="$WORK_DIR/root/etc/sudoers"
+    if [ -f "$path" ] && [ ! -L "$path" ] && grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)' "$path"; then
+        echo "Sanitation check failed: unrestricted passwordless sudo at $path" >&2
+        exit 1
+    fi
+    if [ -d "$WORK_DIR/root/etc/sudoers.d" ] && [ ! -L "$WORK_DIR/root/etc/sudoers.d" ]; then
+        while IFS= read -r -d '' path; do
+            if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)' "$path"; then
+                echo "Sanitation check failed: unrestricted passwordless sudo at $path" >&2
+                exit 1
+            fi
+        done < <(find -P "$WORK_DIR/root/etc/sudoers.d" -type f -print0)
+    fi
+}
+
 require_wifi_foundation() {
     local helper="$WORK_DIR/root/usr/local/sbin/octessera-wifi-foundation"
     local unit="$WORK_DIR/root/etc/systemd/system/octessera-wifi-foundation.service"
@@ -169,6 +221,45 @@ require_wifi_foundation() {
         exit 1
     fi
 }
+
+require_raspberry_constructor_policy() {
+    local root="$WORK_DIR/root"
+    local locale="$root/etc/default/locale"
+    require_no_unrestricted_sudoers
+    require_path "$locale" "constructor locale"
+    require_root_mode "$locale" 644
+    [ "$(cat "$locale")" = $'LANG=C.UTF-8\nLANGUAGE=en\nLC_MESSAGES=C.UTF-8' ] || { echo "Sanitation check failed: Raspberry default locale is not exact" >&2; exit 1; }
+    if [ -f "$root/home/pi/.bashrc" ] && grep -Eq '^[[:space:]]*(export[[:space:]]+)?(LANG|LANGUAGE|LC_[[:alnum:]_]+)[[:space:]]*=' "$root/home/pi/.bashrc"; then
+        echo "Sanitation check failed: Raspberry appliance user profile overrides the default locale" >&2
+        exit 1
+    fi
+    for path in \
+        "$root/etc/systemd/system/multi-user.target.wants/dnsmasq.service" \
+        "$root/etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service" \
+        "$root/etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service" \
+        "$root/etc/systemd/system/multi-user.target.wants/ssh.service" \
+        "$root/etc/systemd/system/sockets.target.wants/ssh.socket"; do
+        if [ -e "$path" ] || [ -L "$path" ]; then
+            echo "Sanitation check failed: standalone or SSH service remains enabled at $path" >&2
+            exit 1
+        fi
+    done
+    if [ ! -L "$root/etc/systemd/system/ssh.service" ] || [ "$(readlink "$root/etc/systemd/system/ssh.service")" != /dev/null ]; then
+        echo "Sanitation check failed: SSH service is not masked" >&2
+        exit 1
+    fi
+    if [ ! -L "$root/etc/systemd/system/ssh.socket" ] || [ "$(readlink "$root/etc/systemd/system/ssh.socket")" != /dev/null ]; then
+        echo "Sanitation check failed: SSH socket is not masked" >&2
+        exit 1
+    fi
+    for unit in NetworkManager.service dnsmasq.service systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
+        if [ ! -e "$root/etc/systemd/system/$unit" ] && [ ! -e "$root/lib/systemd/system/$unit" ] && [ ! -e "$root/usr/lib/systemd/system/$unit" ]; then
+            echo "Sanitation check failed: missing required systemd unit $unit" >&2
+            exit 1
+        fi
+    done
+}
+
 require_setup_layer() {
     local root="$WORK_DIR/root"
     local profile="$root/etc/octessera/setup-profile"
@@ -204,6 +295,8 @@ require_setup_layer() {
     grep -qF 'interface=wlan0' "$wrapper" || { echo "Setup wrapper interface is not fixed" >&2; exit 1; }
     grep -qF "/sys/class/net/\$interface/address" "$wrapper" || { echo "Setup wrapper MAC path is not fixed" >&2; exit 1; }
     grep -qF 'PathExists=/run/octessera/setup-portal.request' "$request_path" || { echo "Setup request path watches the wrong path" >&2; exit 1; }
+    grep -qF 'RuntimeDirectory=octessera-setup' "$setup_unit" || { echo "Setup runtime directory is not exact" >&2; exit 1; }
+    grep -qF ' -/run/octessera-setup-control -/run/octessera-setup-status' "$setup_unit" || { echo "Optional setup status paths are not namespace-safe" >&2; exit 1; }
     grep -qF 'RuntimeDirectoryMode=0700' "$setup_unit" || { echo "Setup nonce runtime directory is not private" >&2; exit 1; }
     grep -qF 'RuntimeMaxSec=1800s' "$setup_unit" || { echo "Setup runtime timeout is not fixed" >&2; exit 1; }
     if grep -q '^TimeoutStartSec=' "$setup_unit"; then echo "Setup must not rely on TimeoutStartSec" >&2; exit 1; fi
@@ -217,7 +310,8 @@ require_setup_layer() {
         "$root/var/lib/octessera/setup-finalize-failed" \
         "$root/run/octessera/setup-portal.request" \
         "$root/run/octessera-setup/nonce" \
-        "$root/run/octessera-setup-control"; do
+        "$root/run/octessera-setup-control" \
+        "$root/run/octessera-setup-status"; do
         if [ -e "$path" ] || [ -L "$path" ]; then
             echo "Sanitation check failed: setup runtime material remains at $path" >&2
             exit 1
@@ -276,15 +370,6 @@ if find "$WORK_DIR/root" \( -path '*/.ssh/authorized_keys' -o -path '*/.ssh/id_*
     exit 1
 fi
 
-for path in \
-    "$WORK_DIR/root/etc/systemd/system/multi-user.target.wants/ssh.service" \
-    "$WORK_DIR/root/etc/systemd/system/sockets.target.wants/ssh.socket"; do
-    if [ -e "$path" ]; then
-        echo "Sanitation check failed: SSH is enabled by default at $path" >&2
-        exit 1
-    fi
-done
-
 if find "$WORK_DIR/root/etc/NetworkManager/system-connections" -type f 2>/dev/null | grep -q .; then
     echo "Sanitation check failed: found NetworkManager connection profiles" >&2
     exit 1
@@ -300,6 +385,9 @@ if grep -RIE '(BEGIN (RSA|OPENSSH) PRIVATE KEY|ghp_|github_pat_|ssid=|psk=)' \
 fi
 
 require_managed_runtime_binary "$WORK_DIR/root" "$RUNTIME_BUNDLE"
+if [ "$CONSTRUCTOR_POLICY_REQUIRED" = true ]; then
+    require_raspberry_constructor_policy
+fi
 require_path "$WORK_DIR/root/etc/systemd/system/octessera.service" "octessera.service"
 require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service" "enabled boot splash service"
 require_path "$WORK_DIR/root/etc/sudoers.d/octessera-shutdown" "shutdown sudoers rule"

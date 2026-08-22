@@ -45,9 +45,24 @@ class SetupContractTests(unittest.TestCase):
                 self.assertFalse(any(contract["recipe"][key] for key in ("account_mutation", "package_mutation", "network_mutation", "boot_mutation", "firmware_mutation")))
                 classifications = {item["classification"] for item in contract["entries"]}
                 self.assertTrue({"setup-profile", "wifi-wrapper", "sidecar", "static-ui", "setup-unit", "request-path-unit", "request-unit"} <= classifications)
-                self.assertEqual({item["classification"] for item in contract["symlinks"]}, {"enabled-request-path", "setup-service-disabled"})
+                expected_symlink_classifications = {"enabled-request-path", "setup-service-disabled"}
+                if board == "raspberry-pi-zero-2w":
+                    expected_symlink_classifications.add("parent-sudoers-removed")
+                    removed = next(item for item in contract["symlinks"] if item["classification"] == "parent-sudoers-removed")
+                    self.assertEqual(removed["target"], "etc/sudoers.d/010_pi-nopasswd")
+                    self.assertEqual(removed["preimage"]["type"], "file")
+                    self.assertEqual(removed["preimage"]["mode"], 0o440)
+                    self.assertEqual(removed["preimage"]["uid"], 0)
+                    self.assertEqual(removed["preimage"]["gid"], 0)
+                    self.assertEqual(removed["preimage"]["sha256"], "aa7549b5a2544e53652d7c844af396ca05044e41b05f56372162dc8b0cf3f089")
+                    self.assertEqual(removed["postimage"], "absent")
+                else:
+                    self.assertNotIn("etc/sudoers.d/010_pi-nopasswd", {item["target"] for item in contract["symlinks"]})
+                self.assertEqual({item["classification"] for item in contract["symlinks"]}, expected_symlink_classifications)
                 self.assertEqual(contract["recipe"]["enabled_units"], ["octessera-setup-request.path"])
                 self.assertEqual(contract["recipe"]["disabled_units"], ["octessera-setup.service"])
+                expected_proof = "tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-setup-layer" if board == "raspberry-pi-zero-2w" else "tools/armbian-image/inspect-built-image.sh --verification-profile legacy-setup-layer --mode production"
+                self.assertEqual(contract["recipe"]["proof"], expected_proof)
 
     def test_contract_rejects_source_digest_and_preimage_changes(self) -> None:
         contract, _ = load_contract(contract_for_board("raspberry-pi-zero-2w"))
@@ -60,6 +75,23 @@ class SetupContractTests(unittest.TestCase):
             validate_sources(loaded, ROOT)
         pinned = subprocess.check_output(["git", "-c", f"safe.directory={ROOT.as_posix()}", "show", "4eec2b7edf6619fa22c709d4a589237a5748de78:userpatches/overlay/usr/local/sbin/octessera-setup-sidecar"], cwd=ROOT)
         self.assertEqual(len(pinned), 9323)
+
+    def test_parent_sudoers_removal_is_raspberry_only_and_exact(self) -> None:
+        orange, _ = load_contract(contract_for_board("orange-pi-zero-2w"))
+        altered = json.loads(json.dumps(orange))
+        altered["symlinks"].append(
+            {
+                "classification": "parent-sudoers-removed",
+                "target": "etc/sudoers.d/010_pi-nopasswd",
+                "type": "absent",
+                "preimage": {"kind": "absent"},
+                "postimage": "absent",
+            }
+        )
+        path = Path(tempfile.mkdtemp()) / "orange-contract.json"
+        path.write_text(json.dumps(altered), encoding="utf-8")
+        with self.assertRaises(ValueError):
+            load_contract(path)
 
     def _fixture_repository(self) -> tuple[Path, dict]:
         temporary = tempfile.TemporaryDirectory()

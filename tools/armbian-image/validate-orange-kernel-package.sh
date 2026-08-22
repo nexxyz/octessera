@@ -53,6 +53,31 @@ if [[ -n "$manifest_override" && "${OCTESSERA_ORANGE_TEST_MODE:-}" != 1 ]]; then
   exit 2
 fi
 
+audio_contract_values=()
+mapfile -t audio_contract_values < <(python3 - "$manifest" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    audio = json.load(handle)["build_frameworks"]["armbian"]["audio_overlay"]
+print(audio["canonical_dts"])
+print(audio["canonical_dts_sha256"])
+print(audio["dtbo_name"])
+print(audio["stock_i2c1_dtbo_name"])
+for line in audio["required_builtin_config_lines"]:
+    print(line)
+PY
+)
+[[ "${#audio_contract_values[@]}" == 13 ]] || { echo "Orange audio kernel package manifest contract is incomplete." >&2; exit 1; }
+audio_dts_relative="${audio_contract_values[0]}"
+audio_dts_sha256_expected="${audio_contract_values[1]}"
+audio_dtbo_name="${audio_contract_values[2]}"
+stock_i2c1_dtbo_name="${audio_contract_values[3]}"
+audio_dts_path="$root/$audio_dts_relative"
+[[ -f "$audio_dts_path" && ! -L "$audio_dts_path" ]] || { echo "Canonical Orange audio DTS is missing or symlinked." >&2; exit 1; }
+[[ "$(sha256sum -- "$audio_dts_path" | awk '{print $1}')" == "$audio_dts_sha256_expected" ]] || { echo "Canonical Orange audio DTS hash mismatch." >&2; exit 1; }
+[[ "$audio_dtbo_name" == octessera-ahub0-pcm5102.dtbo && "$stock_i2c1_dtbo_name" == sun50i-h616-i2c1-pi.dtbo ]] || { echo "Orange audio DTBO identity is not canonical." >&2; exit 1; }
+
 mapfile -t contract_values < <(python3 - "$manifest" <<'PY'
 import json
 import sys
@@ -165,6 +190,11 @@ dpkg-deb -x "$dtb_package" "$work/dtb"
 image_root="$work/image"
 dtb_root="$work/dtb"
 
+if find "$image_root" "$dtb_root" -type f -iname '*octessera-ahub0-pcm5102*' -print -quit | grep -q .; then
+  echo "Orange kernel packages must not embed the Octessera audio DTBO." >&2
+  exit 1
+fi
+
 mapfile -t configs < <(find "$image_root/boot" -maxdepth 1 -type f -name 'config-*' -print 2>/dev/null | LC_ALL=C sort)
 [[ "${#configs[@]}" == 1 ]] || { echo "Expected exactly one packaged kernel config." >&2; exit 1; }
 config="${configs[0]}"
@@ -194,6 +224,9 @@ assert_config_line_once 'CONFIG_PINCTRL_SUNXI=y'
 assert_config_line_once 'CONFIG_SND_SEQUENCER=m'
 assert_config_line_once 'CONFIG_SND_RAWMIDI=m'
 assert_config_line_once 'CONFIG_SND_USB_AUDIO=m'
+for audio_config_line in "${audio_contract_values[@]:4}"; do
+  assert_config_line_once "$audio_config_line"
+done
 
 assert_module_file() {
   local module="$1"
@@ -212,6 +245,9 @@ image_dtb="$image_root/usr/lib/linux-image-$expected_kernel_release/allwinner/$e
 package_dtb="$dtb_root/boot/dtb-$expected_kernel_release/allwinner/$expected_dtb"
 [[ -s "$image_dtb" ]] || { echo "Required Zero 2W DTB is missing from linux-image." >&2; exit 1; }
 [[ -s "$package_dtb" ]] || { echo "Required Zero 2W DTB is missing from linux-dtb." >&2; exit 1; }
+stock_i2c1_dtbo="$dtb_root/boot/dtb-$expected_kernel_release/allwinner/overlay/$stock_i2c1_dtbo_name"
+[[ -f "$stock_i2c1_dtbo" && ! -L "$stock_i2c1_dtbo" ]] || { echo "Required stock i2c1-pi DTBO is missing or symlinked from linux-dtb." >&2; exit 1; }
+stock_i2c1_dtbo_sha256="$(sha256sum -- "$stock_i2c1_dtbo" | awk '{print $1}')"
 fdt_magic() {
   local value
   value="$(od -An -tx1 -N4 -- "$1" | tr -d '[:space:]')"
@@ -276,6 +312,11 @@ if [[ -n "$evidence_output" ]]; then
     "image_dtb_sha256=$image_dtb_sha256" \
     "dtb_package_dtb_sha256=$dtb_package_dtb_sha256" \
     "dtb_byte_equal=true" \
+    "stock_i2c1_dtbo_path=boot/dtb-$expected_kernel_release/allwinner/overlay/$stock_i2c1_dtbo_name" \
+    "stock_i2c1_dtbo_sha256=$stock_i2c1_dtbo_sha256" \
+    "audio_dts_path=$audio_dts_relative" \
+    "audio_dts_sha256=$audio_dts_sha256_expected" \
+    "audio_dtbo_forbidden=$audio_dtbo_name" \
     "packaged_config_expected_sha256=$manifest_packaged_config_sha256" \
     "final_config_sha256=$config_sha256" \
     "module_relative_path=$module_relative_path" \

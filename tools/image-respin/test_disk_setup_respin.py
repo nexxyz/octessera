@@ -19,7 +19,7 @@ import disk_setup_respin
 from disk_packaging import file_digest
 from test_disk_respin import ORANGE, RPI, _context, _orange_policy, _run, _resource_sets
 from test_runtime_mutation import _bundle, _fixture
-from test_setup_mutation import _parents, _prerequisites, _setup_preimages
+from test_setup_mutation import _parents, _prerequisites, _rpi_parent_sudoers_preimage, _setup_preimages
 from setup_contract import contract_for_board, load_contract
 
 
@@ -83,6 +83,8 @@ class DiskSetupRespinTests(unittest.TestCase):
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")
                     os.chmod(path, 0o664)
+                else:
+                    _rpi_parent_sudoers_preimage(root, contract)
                 image = _image(work, board, root)
                 source = work / (f"octessera-0.7.5-{board}.img.xz" if board == ORANGE else f"octessera-0.7.5-{board}.img.zip")
                 if board == ORANGE:

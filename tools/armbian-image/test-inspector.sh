@@ -6,7 +6,8 @@ for module in \
   test-inspector-account.sh \
   test-inspector-network.sh \
   test-inspector-device-tree.sh \
-  test-inspector-runtime.sh; do
+  test-inspector-runtime.sh \
+  test-inspector-profile.sh; do
   bash "$root/tools/armbian-image/$module"
 done
 

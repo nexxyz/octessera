@@ -163,6 +163,11 @@ Before active transfers, GPIO requests, audio, or gadget binding:
 - expose the expected I2S card, use `hw:CARD=octesseradac,DEV=0` at 44.1 kHz,
   and run a short playback plus underrun check.
 
+The production image constructs the already-qualified AHUB0 dummy-codec route
+on APB0/DMA3/TDM0 and names the playback card exactly `octessera-dac`
+(`octesseradac` in ALSA). It installs and composes the canonical overlay during
+image construction; this is not an experimental or manual overlay procedure.
+
 An HDMI/default ALSA sound is not an I2S pass. I2S remains blocked until the
 DAC pins and live audio card are proven.
 

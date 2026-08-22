@@ -448,10 +448,10 @@ jobs:
       - name: Check updater shells and canonical copies
         run: |
           bash -n tools/device-update/octessera-update tools/device-update/octessera-update-guard tools/device-update/octessera-update-recovery tools/device-update/smoke-test.sh
-          bash -n tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh
+          bash -n tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/test-rpi-sudoers-construction.sh tools/pi-image/validate-rpi-parent-sudoers.sh tools/pi-image/verify-sanitized-image.sh
           bash -n tools/pi/provision/provision.sh tools/pi/deploy-pi.sh userpatches/customize-image.sh tools/armbian-image/validate.sh tools/armbian-image/inspect-built-image.sh
           shellcheck tools/device-update/*.sh
-          shellcheck tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh userpatches/overlay/usr/local/sbin/octessera-wifi-foundation
+          shellcheck tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/test-rpi-sudoers-construction.sh tools/pi-image/validate-rpi-parent-sudoers.sh tools/pi-image/verify-sanitized-image.sh userpatches/overlay/usr/local/sbin/octessera-wifi-foundation
           cmp tools/device-update/octessera-update tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update userpatches/overlay/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update-guard tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard

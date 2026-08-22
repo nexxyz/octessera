@@ -6,8 +6,10 @@ octessera_armbian_env_update() {
   local user_token="$3"
   local i2c_token="$4"
   local extra_user_token="${5:-}"
+  local extra_user_token2="${6:-}"
+  local exact_assignments="${7:-0}"
 
-  awk -v user_token="$user_token" -v extra_user_token="$extra_user_token" -v i2c_token="$i2c_token" '
+  awk -v user_token="$user_token" -v extra_user_token="$extra_user_token" -v extra_user_token2="$extra_user_token2" -v i2c_token="$i2c_token" -v exact_assignments="$exact_assignments" '
     function invalid(message) {
       print "Invalid Armbian environment: " message > "/dev/stderr"
       failed = 1
@@ -22,8 +24,16 @@ octessera_armbian_env_update() {
       if (clean == "") {
         return 0
       }
+      normalized = clean
+      gsub(/[[:space:]]+/, " ", normalized)
+      expected = key == "overlays" ? i2c_token : user_token (extra_user_token == "" ? "" : " " extra_user_token) (extra_user_token2 == "" ? "" : " " extra_user_token2)
+      if (exact_assignments == "1" && normalized != expected) {
+        invalid(key " must contain exactly the fixed production tokens")
+      }
       count = split(clean, token_values, /[[:space:]]+/)
       found = 0
+      extra_found = 0
+      extra_found2 = 0
       for (position = 1; position <= count; position++) {
         token = token_values[position]
         if (token !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) {
@@ -39,12 +49,18 @@ octessera_armbian_env_update() {
         if (extra_target != "" && token == extra_target) {
           extra_found++
         }
+        if (extra_target2 != "" && token == extra_target2) {
+          extra_found2++
+        }
       }
       if (found > 1) {
         invalid(key " contains the target token more than once")
       }
       if (extra_found > 1) {
         invalid(key " contains the additional target token more than once")
+      }
+      if (extra_found2 > 1) {
+        invalid(key " contains the second additional target token more than once")
       }
       return found
     }
@@ -63,12 +79,21 @@ octessera_armbian_env_update() {
         }
         value = substr(line, length("user_overlays=") + 1)
         extra_target = extra_user_token
+        extra_target2 = extra_user_token2
         user_found = parse_tokens("user_overlays", value, user_token)
+        if (exact_assignments == "1") {
+          line = "user_overlays=" user_token (extra_user_token == "" ? "" : " " extra_user_token) (extra_user_token2 == "" ? "" : " " extra_user_token2)
+          print line
+          next
+        }
         if (!user_found) {
           line = line " " user_token
         }
         if (extra_user_token != "" && !extra_found) {
           line = line " " extra_user_token
+        }
+        if (extra_user_token2 != "" && !extra_found2) {
+          line = line " " extra_user_token2
         }
         print line
         next
@@ -82,6 +107,11 @@ octessera_armbian_env_update() {
         }
         value = substr(line, length("overlays=") + 1)
         overlay_found = parse_tokens("overlays", value, i2c_token)
+        if (exact_assignments == "1") {
+          line = "overlays=" i2c_token
+          print line
+          next
+        }
         if (!overlay_found) {
           line = line " " i2c_token
         }
@@ -95,7 +125,7 @@ octessera_armbian_env_update() {
     }
     END {
       if (!user_assignments) {
-        print "user_overlays=" user_token (extra_user_token == "" ? "" : " " extra_user_token)
+        print "user_overlays=" user_token (extra_user_token == "" ? "" : " " extra_user_token) (extra_user_token2 == "" ? "" : " " extra_user_token2)
       }
       if (!overlay_assignments) {
         print "overlays=" i2c_token

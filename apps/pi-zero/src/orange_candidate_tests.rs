@@ -8,8 +8,9 @@ use crate::candidate_readiness::CandidateReadiness;
 use crate::orange_host_adapter::OrangeHostAdapter;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage,
-    RuntimeConfig, RuntimeDispatchInput, RuntimeOperation, RuntimeStoreResult,
+    CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
+    PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimeDispatchInput,
+    RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -88,10 +89,10 @@ fn orange_startup_waits_for_the_identified_audio_prep_result() {
                     result: Box::new(RuntimeStoreResult::OperationSucceeded {
                         operation: RuntimeOperation::AudioCommand,
                         request_id: None,
-                        revision: Some(1),
+                        revision: Some(0),
                     }),
                     request_id: "audio-initial".into(),
-                    revision: Some(1),
+                    revision: Some(0),
                 },
             })
             .unwrap();
@@ -100,6 +101,98 @@ fn orange_startup_waits_for_the_identified_audio_prep_result() {
     wait_for_initial_audio_prep(&mut playback, &mut runner, &mut host).unwrap();
 
     assert!(host.drain_results(1).is_empty());
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn orange_prepare_runtime_preserves_audio_prep_for_startup_wait() {
+    let (audio, control_rx, _event_rx, result_tx) = test_service_with_prep_sender();
+    result_tx
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::OperationSucceeded {
+                operation: RuntimeOperation::AudioCommand,
+                request_id: None,
+                revision: Some(0),
+            },
+        })
+        .unwrap();
+    let mut prepared = prepare_runtime(audio, Arc::new(|_| {}), false, true).unwrap();
+
+    wait_for_initial_audio_prep(
+        &mut prepared.playback,
+        &mut prepared.runner,
+        &mut prepared.host,
+    )
+    .unwrap();
+
+    drop(control_rx);
+}
+
+#[test]
+fn orange_startup_audio_is_not_starved_by_a_platform_backlog() {
+    let (audio, control_rx, _event_rx, result_tx) = test_service_with_prep_sender();
+    let (mut host, root) = test_host(audio);
+    for index in 0..8 {
+        assert!(host
+            .handle_platform_effect(&RuntimePlatformRequest::new(
+                RuntimePlatformEffect::StoreListPresets,
+                format!("startup-backlog-{index}"),
+                Some(1),
+            ))
+            .unwrap()
+            .is_empty());
+    }
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    result_tx
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::OperationSucceeded {
+                operation: RuntimeOperation::AudioCommand,
+                request_id: None,
+                revision: Some(0),
+            },
+        })
+        .unwrap();
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    wait_for_initial_audio_prep(&mut playback, &mut runner, &mut host).unwrap();
+
+    drop(control_rx);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn orange_startup_accepts_the_native_runner_initial_audio_result_shape() {
+    let (audio, control_rx, _event_rx, result_tx) = test_service_with_prep_sender();
+    crate::host_audio_prep::spawn_audio_control_worker(control_rx, audio.clone(), result_tx);
+    let (mut host, root) = test_host(audio);
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::LoadDefaultResult { payload: None },
+        })
+        .unwrap();
+    let command = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => commands.iter().find_map(|command| {
+                matches!(
+                    command,
+                    RuntimeAudioCommand::SetAudioConfig {
+                        request_id: None,
+                        ..
+                    }
+                )
+                .then(|| command.clone())
+            }),
+            _ => None,
+        })
+        .expect("NativeRunner should emit its initial unidentified audio config");
+    host.handle_audio_command(&command).unwrap();
+
+    wait_for_initial_audio_prep(&mut playback, &mut runner, &mut host).unwrap();
+
     let _ = std::fs::remove_dir_all(root);
 }
 
