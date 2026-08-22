@@ -203,7 +203,7 @@ fi
 
 audio_dtbo_tmp="$(mktemp "$spi_overlay_dir/.${audio_overlay_name}.dtbo.XXXXXX")"
 octessera_run_strict_diagnostic "$audio_work" compile_audio_overlay dtc -@ -I dts -O dtb -o "$audio_dtbo_tmp" "$audio_dts" || exit 1
-octessera_run_strict_diagnostic "$audio_work" inspect_audio_overlay dtc -I dtb -O dts -o "$audio_work/$audio_overlay_name.dts" "$audio_dtbo_tmp" || exit 1
+octessera_run_strict_diagnostic "$audio_work" inspect_audio_overlay dtc -q -I dtb -O dts -o "$audio_work/$audio_overlay_name.dts" "$audio_dtbo_tmp" || exit 1
 production_spi_input_dtb="$audio_work/$audio_overlay_name-spi-input-merged.dtb"
 production_merged_dtb="$audio_work/$audio_overlay_name-production-merged.dtb"
 cp -f -- "$input_routing_merged_dtb" "$production_spi_input_dtb"

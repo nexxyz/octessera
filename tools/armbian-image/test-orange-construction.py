@@ -135,6 +135,11 @@ for line in (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8"
 customize = (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8")
 assert "notice_tree=\"$overlay_dir/usr/share/doc/octessera\"" in customize and "tools/legal/stage_notices.py" in customize and "/usr/share/doc/octessera" in customize
 assert "install_orange_musical_assets \"$overlay_dir\" \"\"" in customize
+assert 'octessera_run_strict_diagnostic "$audio_work" compile_audio_overlay dtc -@ -I dts -O dtb' in customize
+assert 'octessera_run_strict_diagnostic "$audio_work" inspect_audio_overlay dtc -q -I dtb -O dts' in customize
+assert 'octessera_run_strict_diagnostic "$audio_work" merge_production_user_overlays fdtoverlay' in customize
+assert 'octessera_run_dtc_inspection "$audio_work" inspect_production_user_overlays dtc -q -I dtb -O dts' in customize
+assert 'octessera_assert_orange_audio_merge "$production_spi_input_dtb" "$production_merged_dtb"' in customize
 provisioner = (ROOT / "userpatches/overlay/usr/local/sbin/octessera-provision-musical-default").read_text(encoding="utf-8")
 assert "samples" not in provisioner
 inspector = (ROOT / "tools/armbian-image/inspect-path.sh").read_text(encoding="utf-8")
