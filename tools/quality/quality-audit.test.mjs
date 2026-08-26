@@ -8,6 +8,8 @@ import test from "node:test";
 
 const AUDIT = fileURLToPath(new URL("./quality-audit.mjs", import.meta.url));
 const REQUIRED_ASSETS = [
+  "tools/storage/octessera-sd-card",
+  "tools/storage/octessera-sd-card-lib.sh",
   "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-sd-card",
   "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-sd-card.service",
   "tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d/99-octessera-sd-card.rules",
@@ -87,7 +89,7 @@ test("quality audit includes owned script extensions and excludes generated arti
 
     const passing = runAudit(root);
     assert.equal(passing.status, 0, passing.stderr);
-    assert.match(passing.stdout, /Files scanned: 15/);
+    assert.match(passing.stdout, /Files scanned: 16/);
     assert.match(passing.stdout, /Files over enforced limit \(> 500 LOC\): 0/);
     assert.match(passing.stdout, /deployment-script: 500 LOC/);
     assert.doesNotMatch(
