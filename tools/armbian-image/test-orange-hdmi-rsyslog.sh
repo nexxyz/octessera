@@ -58,6 +58,7 @@ neighbors = [
 ]
 with tempfile.TemporaryDirectory(prefix="octessera-orange-hdmi-rsyslog-") as temporary:
     work = Path(temporary)
+    work.chmod(0o755)
     fixture = work / "input.log"
     output = work / "output.log"
     with fixture.open("w", encoding="utf-8") as stream:
