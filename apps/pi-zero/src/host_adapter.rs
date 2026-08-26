@@ -34,13 +34,14 @@ pub struct PiPlaybackHostAdapter {
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
     power_request: Option<PiPowerRequest>,
-    latest_recovery_payload: Option<serde_json::Value>,
+    recovery_save_status: Option<Result<(), String>>,
     pub(crate) oled_frame_cache: OledFrameCache,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PiPowerRequest {
     Reboot,
     Shutdown,
+    ApplyDeviceConfigReboot,
 }
 impl PiPlaybackHostAdapter {
     pub(crate) fn handle_transfer_input(&self, message: &playback_runtime::HostMessage) -> bool {
@@ -85,6 +86,23 @@ impl PiPlaybackHostAdapter {
 
     pub fn take_power_request(&mut self) -> Option<PiPowerRequest> {
         self.power_request.take()
+    }
+
+    pub(crate) fn shutdown_pending(&self) -> bool {
+        self.power_request.is_some()
+    }
+
+    pub(crate) fn save_recovery_for_power(&mut self) -> Result<(), String> {
+        self.recovery_save_status
+            .take()
+            .unwrap_or_else(|| Err("recovery save did not complete".into()))
+    }
+
+    fn recovery_save_ready(&self) -> Result<(), String> {
+        self.recovery_save_status
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| Err("recovery save did not complete".into()))
     }
 
     pub(crate) fn audio_service(&self) -> Option<AudioService> {
@@ -166,6 +184,9 @@ impl HostAdapter for PiPlaybackHostAdapter {
         &mut self,
         event: &RuntimeMusicalEvent,
     ) -> Result<(), RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return Ok(());
+        }
         let Some(audio) = &self.audio else {
             return Ok(());
         };
@@ -176,6 +197,17 @@ impl HostAdapter for PiPlaybackHostAdapter {
         &mut self,
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return match &request.effect {
+                RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown => {
+                    Ok(vec![identified_failure(
+                        request,
+                        "ordinary power request is already pending".into(),
+                    )])
+                }
+                _ => Ok(Vec::new()),
+            };
+        }
         if let Some(result) =
             dispatch_shared_effect(&self.platform_service, request, QueueFailureStyle::Pi)
         {
@@ -201,7 +233,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
                         "device/audio apply save failed: {message}"
                     ))]);
                 }
-                self.power_request = Some(PiPowerRequest::Reboot);
+                self.power_request = Some(PiPowerRequest::ApplyDeviceConfigReboot);
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::RecordingStartAudio { max_minutes } => {
@@ -262,15 +294,20 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::StoreSaveRecovery { payload } => {
-                self.latest_recovery_payload = Some(payload.clone());
-                if let Err(message) = self.platform_service.save_recovery_now(payload) {
-                    return Ok(vec![store_error(format!(
-                        "Save recovery failed: {message}"
-                    ))]);
-                }
-                return Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
-                }]);
+                let result = self
+                    .platform_service
+                    .save_recovery_now(payload)
+                    .map_err(|message| format!("Save recovery failed: {message}"));
+                self.recovery_save_status = Some(result.clone());
+                return match result {
+                    Ok(()) => Ok(vec![HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
+                    }]),
+                    Err(error) => {
+                        eprintln!("pi recovery save failed: {error}");
+                        Ok(vec![store_error(error)])
+                    }
+                };
             }
             RuntimePlatformEffect::MidiPanic => {
                 let audio_error = self.silence_internal_audio().err();
@@ -286,23 +323,15 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 }
             }
             RuntimePlatformEffect::Reboot => {
-                if let Some(payload) = &self.latest_recovery_payload {
-                    if let Err(message) = self.platform_service.save_recovery_now(payload) {
-                        return Ok(vec![store_error(format!(
-                            "Save recovery failed: {message}"
-                        ))]);
-                    }
+                if let Err(error) = self.recovery_save_ready() {
+                    return Ok(vec![identified_failure(request, error)]);
                 }
                 self.power_request = Some(PiPowerRequest::Reboot);
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::Shutdown => {
-                if let Some(payload) = &self.latest_recovery_payload {
-                    if let Err(message) = self.platform_service.save_recovery_now(payload) {
-                        return Ok(vec![store_error(format!(
-                            "Save recovery failed: {message}"
-                        ))]);
-                    }
+                if let Err(error) = self.recovery_save_ready() {
+                    return Ok(vec![identified_failure(request, error)]);
                 }
                 self.power_request = Some(PiPowerRequest::Shutdown);
                 return Ok(Vec::new());
@@ -329,9 +358,15 @@ impl HostAdapter for PiPlaybackHostAdapter {
         &mut self,
         command: &RuntimeAudioCommand,
     ) -> Result<(), RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return Ok(());
+        }
         send_audio_command(self.audio.clone(), command, &self.samples_dir)
     }
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return Ok(());
+        }
         self.midi
             .send(bytes)
             .map_err(RuntimeAdapterError::operation_failed)

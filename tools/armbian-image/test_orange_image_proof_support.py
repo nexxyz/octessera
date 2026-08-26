@@ -31,7 +31,28 @@ NATIVE_IMAGE = f"{IMAGE_NAME}_{REVISION}_arm64__fixture.deb"
 NATIVE_DTB = f"{DTB_NAME}_{REVISION}_arm64__fixture.deb"
 DTB_RELATIVE = f"usr/lib/linux-image-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb"
 MODULE_RELATIVE = f"lib/modules/{RELEASE}/kernel/drivers/usb/gadget/function/usb_f_midi.ko"
-BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y")
+BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y")
+RESIZE_SERVICE_RELATIVE = "usr/lib/systemd/system/armbian-resize-filesystem.service"
+RESIZE_ENABLE_RELATIVE = "etc/systemd/system/basic.target.wants/armbian-resize-filesystem.service"
+RESIZE_SERVICE = """# Armbian resize filesystem service
+# Resizes partition and filesystem on first/second boot
+# This service may block the boot process for up to 3 minutes
+
+[Unit]
+Description=Armbian filesystem resize
+Before=basic.target
+After=sysinit.target local-fs.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/armbian/armbian-resize-filesystem start
+TimeoutStartSec=6min
+
+[Install]
+WantedBy=basic.target
+"""
 
 
 def sha256(path: Path) -> str:
@@ -95,7 +116,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     )
     write(dtb_root / "DEBIAN/control", f"Package: {DTB_NAME}\nVersion: {REVISION}\nArchitecture: arm64\n")
     kernel = b"synthetic-orange-kernel-" + RELEASE.encode()
-    config = b"# CONFIG_RT_GROUP_SCHED is not set\n" + b"\n".join(line.encode() for line in BUILTIN_CONFIG_LINES) + b"\nCONFIG_SND_SEQUENCER=m\n"
+    config = b"# CONFIG_RT_GROUP_SCHED is not set\n" + b"\n".join(line.encode() for line in BUILTIN_CONFIG_LINES) + b"\nCONFIG_MMC_SPI=m\nCONFIG_SND_SEQUENCER=m\n"
     dtb = b"\xd0\x0d\xfe\xedsynthetic-zero2w-dtb"
     base_dts = REPOSITORY / "tools/armbian-image/fixtures/h618-orange-ahub-base.dts"
     stock_dts = REPOSITORY / "tools/armbian-image/fixtures/h618-stock-i2c1-pi.dts"
@@ -104,7 +125,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     subprocess.run(["dtc", "-@", "-I", "dts", "-O", "dtb", "-o", str(base_dtb), str(base_dts)], check=True, capture_output=True)
     subprocess.run(["dtc", "-@", "-I", "dts", "-O", "dtb", "-o", str(stock_dtbo), str(stock_dts)], check=True, capture_output=True)
     overlay_sources = {
-        "spi": REPOSITORY / "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts",
+        "spi": REPOSITORY / "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-oled-sd2.dts",
         "input": REPOSITORY / "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts",
         "audio": REPOSITORY / "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
     }
@@ -126,6 +147,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     write(image_root / f"lib/modules/{RELEASE}/modules.dep", b"kernel/drivers/usb/gadget/function/usb_f_midi.ko:\n")
     for module_name in ("snd-seq.ko", "snd-seq-midi.ko", "snd-rawmidi.ko", "snd-usb-audio.ko"):
         write(image_root / f"lib/modules/{RELEASE}/kernel/sound/{module_name}", b"synthetic-module")
+    write(image_root / f"lib/modules/{RELEASE}/kernel/drivers/mmc/host/mmc_spi.ko", b"synthetic-module")
     write(dtb_root / f"boot/dtb-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb", dtb)
     write(dtb_root / f"boot/dtb-{RELEASE}/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo", stock_dtbo.read_bytes())
     packages = work / "packages"
@@ -170,10 +192,11 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "etc/systemd/system/octessera-update@.service": "userpatches/overlay/etc/systemd/system/octessera-update@.service",
         "etc/sudoers.d/octessera-update": "userpatches/overlay/etc/sudoers.d/octessera-update",
         "usr/share/octessera/defaults/pi-default.json": "config/generated/pi/default.json",
-        "usr/share/octessera/oled/octessera-mark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg",
-        "usr/share/octessera/oled/octessera-wordmark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
+        "usr/share/octessera/oled/octessera-mark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-mark.svg",
+        "usr/share/octessera/oled/octessera-wordmark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg",
         "usr/share/octessera/oled/octessera-pi-booting.rgb565": "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565",
         "usr/share/octessera/oled/octessera-pi-shutdown.rgb565": "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565",
+        "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf": "userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf",
     }
     for installed_path, source_path in phase5_outputs.items():
         target = final_root / installed_path
@@ -181,7 +204,29 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         managed = next(item for item in CONSTRUCTION["managed_outputs"] if item["path"] == installed_path)
         os.chmod(target, managed["mode"])
         os.chown(target, 0, 0)  # type: ignore[attr-defined]
-    overlay_names = {"spi": "octessera-h618-spi1-cs0", "input": "octessera-h618-input-routing", "audio": "octessera-ahub0-pcm5102"}
+    for installed_path, source_path in {
+        "usr/local/sbin/octessera-sd-card": "tools/storage/octessera-sd-card",
+        "usr/local/lib/octessera/octessera-sd-card-lib.sh": "tools/storage/octessera-sd-card-lib.sh",
+        "usr/local/sbin/octessera-orange-storage": "tools/storage/octessera-orange-storage",
+        "usr/local/sbin/octessera-orange-storage-control": "tools/storage/octessera-orange-storage-control",
+        "etc/systemd/system/octessera-orange-sd-card.service": "userpatches/overlay/etc/systemd/system/octessera-orange-sd-card.service",
+        "etc/udev/rules.d/99-octessera-orange-sd-card.rules": "userpatches/overlay/etc/udev/rules.d/99-octessera-orange-sd-card.rules",
+        "etc/systemd/system/octessera-orange-storage-control.socket": "userpatches/overlay/etc/systemd/system/octessera-orange-storage-control.socket",
+        "etc/systemd/system/octessera-orange-storage-control@.service": "userpatches/overlay/etc/systemd/system/octessera-orange-storage-control@.service",
+    }.items():
+        target = final_root / installed_path
+        write(target, (REPOSITORY / source_path).read_bytes())
+        os.chmod(target, 0o755 if installed_path.endswith(("octessera-sd-card", "octessera-orange-storage", "octessera-orange-storage-control")) else 0o644)
+        os.chown(target, 0, 0)  # type: ignore[attr-defined]
+    write(final_root / "etc/modules-load.d/octessera-orange-sd-card.conf", "mmc_spi\n")
+    write(final_root / "etc/modules-load.d/octessera-orange-usb-gadget.conf", "musb_hdrc\nlibcomposite\nusb_f_uac2\nusb_f_midi\nusb_f_mass_storage\n")
+    os.chown(final_root / "etc/modules-load.d/octessera-orange-sd-card.conf", 0, 0)  # type: ignore[attr-defined]
+    os.chmod(final_root / "etc/modules-load.d/octessera-orange-sd-card.conf", 0o644)
+    (final_root / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True, exist_ok=True)
+    (final_root / "etc/systemd/system/multi-user.target.wants/octessera-orange-sd-card.service").symlink_to("../octessera-orange-sd-card.service")
+    (final_root / "etc/systemd/system/sockets.target.wants").mkdir(parents=True, exist_ok=True)
+    (final_root / "etc/systemd/system/sockets.target.wants/octessera-orange-storage-control.socket").symlink_to("../octessera-orange-storage-control.socket")
+    overlay_names = {"spi": "octessera-h618-spi1-oled-sd2", "input": "octessera-h618-input-routing", "audio": "octessera-ahub0-pcm5102"}
     for name, source in overlay_sources.items():
         overlay_name = overlay_names[name]
         source_target = final_root / f"usr/local/share/octessera/device-tree/{overlay_name}.dts"
@@ -211,11 +256,11 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
     write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))
     (final_root / "boot/uInitrd").symlink_to(f"initrd.img-{RELEASE}")
-    write(final_root / "boot/armbianEnv.txt", "verbosity=1\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi\n")
+    write(final_root / "boot/armbianEnv.txt", "verbosity=1\nconsole=display\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi\n")
     (final_root / "etc/systemd/system").mkdir(parents=True, exist_ok=True)
     (final_root / "etc/systemd/system/serial-getty@ttyS0.service").symlink_to("/dev/null")
     write(final_root / "etc/os-release", "ID=armbian\n")
-    write(final_root / "etc/octessera/build-metadata.env", f"OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_AHUB0_PCM5102_DTS_SHA256={sha256(overlay_sources['audio'])}\nOCTESSERA_AHUB0_PCM5102_DTBO_SHA256={sha256(overlay_dtb['audio'])}\n")
+    write(final_root / "etc/octessera/build-metadata.env", f"OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_SPI1_OLED_SD2_DTS_SHA256={sha256(overlay_sources['spi'])}\nOCTESSERA_SPI1_OLED_SD2_DTBO_SHA256={sha256(overlay_dtb['spi'])}\nOCTESSERA_AHUB0_PCM5102_DTS_SHA256={sha256(overlay_sources['audio'])}\nOCTESSERA_AHUB0_PCM5102_DTBO_SHA256={sha256(overlay_dtb['audio'])}\n")
     write(final_root / "etc/octessera/image-contract.json", '{"schema_version": 1, "image_kind": "diagnostic", "runtime_enabled_default": false}\n')
     write(final_root / "etc/passwd", "octessera:x:1000:1000:Octessera:/home/octessera:/bin/bash\noctessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin\n")
     write(final_root / "etc/sudoers", "octessera ALL=(root) NOPASSWD: /sbin/shutdown\n")
@@ -225,7 +270,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     write(final_root / "etc/pam.d/20-vendor-login", b"vendor\n")
     write(final_root / "etc/update-motd.d/20-vendor-status", b"vendor\n")
     write(final_root / "etc/shadow", "octessera:!:1:0:99999:7:::\noctessera-runtime:!:1:0:99999:7:::\n")
-    write(final_root / "etc/group", "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\nspi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\n")
+    write(final_root / "etc/group", "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\nspi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\nvideo:x:44:octessera-runtime\n")
     (final_root / "var/lib/octessera/samples").mkdir(parents=True, exist_ok=True)
     os.chown(final_root / "var/lib/octessera/samples", 990, 990)  # type: ignore[attr-defined]
     write(final_root / "var/lib/dpkg/status", f"Package: {IMAGE_NAME}\nStatus: install ok installed\nVersion: {REVISION}\nArchitecture: arm64\n\n" f"Package: {DTB_NAME}\nStatus: install ok installed\nVersion: {REVISION}\nArchitecture: arm64\n")

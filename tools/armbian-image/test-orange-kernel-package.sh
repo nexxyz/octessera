@@ -25,7 +25,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SOUND=y\nCONFIG_SND=y\nCONFIG_SND_SOC=y\nCONFIG_REGMAP_MMIO=y\nCONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y\nCONFIG_SND_SOC_SUNXI_AHUB=y\nCONFIG_SND_SOC_SUNXI_AHUB_DAM=y\nCONFIG_SND_SOC_SUNXI_MACH=y\nCONFIG_NVMEM_SUNXI_SID=y\nCONFIG_SYNTHETIC_FIXTURE=y'
+good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_MMC=y\nCONFIG_MMC_BLOCK=y\nCONFIG_MMC_SPI=m\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SOUND=y\nCONFIG_SND=y\nCONFIG_SND_SOC=y\nCONFIG_REGMAP_MMIO=y\nCONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y\nCONFIG_SND_SOC_SUNXI_AHUB=y\nCONFIG_SND_SOC_SUNXI_AHUB_DAM=y\nCONFIG_SND_SOC_SUNXI_MACH=y\nCONFIG_NVMEM_SUNXI_SID=y\nCONFIG_SYNTHETIC_FIXTURE=y'
 good_config_sha256="$(printf '%s\n' "$good_config" | sha256sum | awk '{print $1}')"
 source_config_sha256="$(python3 -c 'import json; print(json.load(open("tools/kernel-patches/orange-midi-interface-manifest.json"))["build_frameworks"]["armbian"]["config_base"]["sha256"])')"
 
@@ -114,11 +114,12 @@ make_pair() {
   local image_root="$work/$name-image"
   local dtb_root="$work/$name-dtb"
   local module_dir="$image_root/lib/modules/$kernel_release/kernel/drivers/usb/gadget/function"
+  local mmc_module_dir="$image_root/lib/modules/$kernel_release/kernel/drivers/mmc/host"
   local package_dir="$work/$name-packages"
 
   mkdir -p "$package_dir"
   mkdir -p "$image_root/DEBIAN" "$dtb_root/DEBIAN" "$image_root/boot" "$dtb_root/boot"
-  mkdir -p "$module_dir" \
+  mkdir -p "$module_dir" "$mmc_module_dir" \
     "$image_root/lib/modules/$kernel_release/kernel/sound/core/seq" \
     "$image_root/lib/modules/$kernel_release/kernel/sound/core" \
     "$image_root/lib/modules/$kernel_release/kernel/sound/usb"
@@ -153,6 +154,7 @@ make_pair() {
   : > "$image_root/lib/modules/$kernel_release/kernel/sound/core/seq/snd-seq-midi.ko"
   : > "$image_root/lib/modules/$kernel_release/kernel/sound/core/snd-rawmidi.ko"
   : > "$image_root/lib/modules/$kernel_release/kernel/sound/usb/snd-usb-audio.ko"
+  : > "$mmc_module_dir/mmc_spi.ko"
   [[ "$module_mode" == missing ]] || make_module "$module_dir/usb_f_midi.ko" plain "$module_vermagic" "$module_marker" "$module_elf_mode"
   [[ "$module_mode" == multiple ]] && make_module "$module_dir/usb_f_midi.ko.gz" gzip "$module_vermagic" "$module_marker" "$module_elf_mode"
   case "$module_mode" in

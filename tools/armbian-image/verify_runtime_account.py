@@ -45,7 +45,7 @@ def runtime_account(root: Path, require: Require) -> tuple[int, int]:
     runtime_group = [record for record in groups if record[0] == "octessera-runtime"]
     require(len(runtime_group) == 1 and runtime_group[0][2].isdigit(), "octessera-runtime primary group is malformed")
     require(int(runtime_group[0][2]) == gid, "octessera-runtime primary group is invalid")
-    for name in ("audio", "i2c", "spi", "gpio"):
+    for name in ("audio", "i2c", "spi", "gpio", "video"):
         group = [record for record in groups if record[0] == name]
         require(len(group) == 1 and "octessera-runtime" in group[0][3].split(","), f"octessera-runtime is missing from group {name}")
     for name in ("sudo", "admin"):
@@ -77,9 +77,14 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples",
         "Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json",
         "Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1",
+        "TTYPath=/dev/tty1",
+        "TTYReset=yes",
+        "SupplementaryGroups=audio i2c spi gpio tty video",
         "NoNewPrivileges=yes",
+        "AmbientCapabilities=CAP_SYS_TTY_CONFIG",
+        "CapabilityBoundingSet=CAP_SYS_TTY_CONFIG",
         "ProtectSystem=strict",
-        "ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot",
+        "ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox",
         "PrivateTmp=yes",
         "ProtectHome=yes",
         "RuntimeDirectory=octessera",
@@ -91,7 +96,10 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "RestartSec=5s",
     ):
         require(line in service_content, f"production service is missing: {line}")
-    require("AmbientCapabilities=" not in service_content and "CapabilityBoundingSet=" not in service_content, "production service grants ambient priority capability")
+    require(service_content.count("AmbientCapabilities=") == 1 and service_content.count("CapabilityBoundingSet=") == 1, "production service has duplicate capability directives")
+    require("StandardInput=tty" not in service_content and "ExecStopPost=" not in service_content, "production service contains a prohibited tty lifecycle directive")
+    require(not re.search(r"^(TTY(?:VHangup|VTDisallocate|Force|Fail)|DevicePolicy|DeviceAllow)=", service_content, re.MULTILINE), "production service contains a prohibited tty or device directive")
+    require(not re.search(r"(?i)(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)", service_content), "production service contains a graphics stack or forced display mode")
     require("Restart=always" not in service_content, "production service restarts always")
     requires = [line for line in service_content.splitlines() if line.startswith("Requires=")]
     require(
@@ -103,6 +111,10 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "production service has an unexpected dependency",
     )
     require(not any(line.startswith(prefix) for line in service_content.splitlines() for prefix in ("StartLimitAction=", "OnFailure=", "Requisite=", "BindsTo=", "PartOf=")), "production service has an unapproved failure dependency")
+    require(
+        re.search(r"(?i)NetworkManager|network-manager|\bssh(?:d)?\b", service_content) is None,
+        "production service couples runtime failure or shutdown to NetworkManager or SSH",
+    )
     require("LimitRTPRIO=80" not in service_content, "production service grants an overly broad realtime priority")
     require("PrivateDevices=yes" not in service_content and "DevicePolicy=" not in service_content, "production service blocks hardware access")
     require(

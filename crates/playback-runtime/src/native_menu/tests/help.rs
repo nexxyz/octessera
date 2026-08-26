@@ -47,6 +47,40 @@ pub(crate) fn configure_wifi_uses_a_stable_resolvable_action_help_key() {
 }
 
 #[test]
+pub(crate) fn hdmi_help_covers_terminal_and_bars_per_cycle_copy() {
+    let mut config = config();
+    config.hdmi_mode = "cycle-behaviors".into();
+    let menu = NativeMenuModel::new(config);
+
+    let mode_target = menu
+        .help_targets()
+        .into_iter()
+        .find(|target| target.key == "key:hdmi.mode")
+        .expect("HDMI mode help target");
+    let mode_entry =
+        crate::native_help::resolve_native_help_entry(&mode_target).expect("HDMI mode help entry");
+    let mode_copy = format!("{} {}", mode_entry.line1, mode_entry.line2).to_lowercase();
+    for phrase in ["terminal", "none", "live-grid", "cycle-behaviors"] {
+        assert!(
+            mode_copy.contains(phrase),
+            "HDMI mode help omitted {phrase}"
+        );
+    }
+
+    let cycle_target = menu
+        .help_targets()
+        .into_iter()
+        .find(|target| target.key == "key:hdmi.cycleMeasures")
+        .expect("Bars per cycle help target");
+    let cycle_entry = crate::native_help::resolve_native_help_entry(&cycle_target)
+        .expect("Bars per cycle help entry");
+    assert_eq!(cycle_entry.title, "Bars per cycle");
+    let cycle_copy = format!("{} {}", cycle_entry.line1, cycle_entry.line2);
+    assert!(cycle_copy.contains("musical bars each behavior remains shown"));
+    assert!(cycle_copy.contains("before Cycle Behaviors advances"));
+}
+
+#[test]
 pub(crate) fn duck_range_help_does_not_resolve_for_compressor_slots() {
     for (parameter, label, range) in [
         ("attackMs", "Attack", "1–500 ms"),
@@ -405,43 +439,44 @@ pub(crate) fn populated_sample_browser_help_uses_actual_sample_action_keys() {
 }
 
 #[test]
-pub(crate) fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
+pub(crate) fn menu_help_tsv_rows_meet_resource_contract() {
     let mut ids = HashSet::new();
     let mut problems = Vec::new();
 
     for (line_number, line) in MENU_HELP_TSV.lines().enumerate().skip(1) {
+        let row = line_number + 1;
         if line.trim().is_empty() || line.trim_start().starts_with('#') {
             continue;
         }
         let cols = line.split('\t').collect::<Vec<_>>();
         if cols.len() != 7 {
-            problems.push(format!(
-                "line {} has {} columns",
-                line_number + 1,
-                cols.len()
-            ));
+            problems.push(format!("line {row} has {} columns", cols.len()));
             continue;
         }
-        let [id, _path, _key, _kind, title, line1, line2] = cols.as_slice() else {
-            unreachable!();
-        };
+        let (id, title, line1, line2) = (cols[0], cols[4], cols[5], cols[6]);
         if !ids.insert((*id).to_string()) {
             problems.push(format!("duplicate id {id}"));
         }
         if id.trim().is_empty() || title.trim().is_empty() {
-            problems.push(format!("line {} has empty id/title", line_number + 1));
+            problems.push(format!("line {row} has empty id/title"));
         }
         if line1.trim().is_empty() && line2.trim().is_empty() {
-            problems.push(format!("line {} has no detail text", line_number + 1));
+            problems.push(format!("line {row} has no detail text"));
         }
-        for (label, value) in [("line1", *line1), ("line2", *line2)] {
-            if value.chars().count() > 150 {
+        for (label, value, limit) in [
+            ("title", title, 28usize),
+            ("line1", line1, 150),
+            ("line2", line2, 150),
+        ] {
+            if value.chars().count() > limit {
                 problems.push(format!(
-                    "line {} {label} is too long to wrap cleanly in the help popup",
-                    line_number + 1
+                    "line {} {label} has {} chars: {value}",
+                    row,
+                    value.chars().count()
                 ));
             }
         }
+        let copy = format!("{title} {line1} {line2}").to_lowercase();
         for forbidden in [
             "opens this submenu",
             "shows related settings",
@@ -453,44 +488,11 @@ pub(crate) fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
             "see above",
             "see below",
         ] {
-            if format!("{title} {line1} {line2}")
-                .to_lowercase()
-                .contains(forbidden)
-            {
-                problems.push(format!("line {} uses generic help text", line_number + 1));
+            if copy.contains(forbidden) {
+                problems.push(format!("line {row} uses generic help text"));
             }
         }
     }
 
     assert!(problems.is_empty(), "help TSV problems: {problems:#?}");
-}
-
-#[test]
-pub(crate) fn menu_help_tsv_lines_stay_concise() {
-    let mut long = Vec::new();
-    for (line_number, line) in MENU_HELP_TSV.lines().enumerate().skip(1) {
-        if line.trim().is_empty() || line.trim_start().starts_with('#') {
-            continue;
-        }
-        let cols = line.split('\t').collect::<Vec<_>>();
-        if cols.len() != 7 {
-            continue;
-        }
-        for (label, value, limit) in [
-            ("title", cols[4], 28usize),
-            ("line1", cols[5], 150usize),
-            ("line2", cols[6], 150usize),
-        ] {
-            if value.chars().count() > limit {
-                long.push(format!(
-                    "line {} {label} has {} chars: {}",
-                    line_number + 1,
-                    value.chars().count(),
-                    value
-                ));
-            }
-        }
-    }
-
-    assert!(long.is_empty(), "overlong help TSV fields: {long:#?}");
 }

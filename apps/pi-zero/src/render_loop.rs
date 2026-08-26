@@ -1,23 +1,35 @@
 use crate::oled_frame_cache::OledFramePublication;
 use crate::render::{
-    initial_snapshot_render_result, mark_handoff_failed_decision, ownership_stage_for_render,
-    render_leds_only, render_snapshot_cached, restore_after_dropped_ack_for_render,
-    retry_oled_decision, select_snapshot_render, snapshot_requires_oled_ack, HardwareRenderCache,
-    HardwareRenderTargets, OledOwnershipStage, OledOwnershipState, SnapshotRenderDecision,
+    HardwareRenderCache, HardwareRenderTargets, OledOwnershipStage, OledOwnershipState,
 };
+use crate::render_loop_queue::{merge_snapshot_command, RenderCommand, RenderState};
+#[cfg(test)]
 use crate::render_loop_queue::{
-    merge_snapshot_command, pending_work_wins_over_expired_animation_deadline, RenderCommand,
-    RenderState, SnapshotCommand,
+    pending_work_wins_over_expired_animation_deadline, SnapshotCommand,
 };
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
+#[cfg(all(
+    test,
+    not(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    ))
+))]
+#[path = "render/hdmi_render_loop_tests.rs"]
+mod hdmi_render_loop_tests;
 #[path = "render_loop_terminal.rs"]
 mod terminal;
+#[path = "render_loop_worker.rs"]
+mod worker;
+use worker::render_worker_loop;
+#[cfg(test)]
+use worker::take_next_command;
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
@@ -123,9 +135,13 @@ impl RenderWorker {
         state.command = Some(RenderCommand::MarkFailed { ack: ack_tx });
         ready.notify_one();
         drop(state);
-        ack_rx
+        let result = ack_rx
             .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
-            .map_err(|error| format!("OLED failure acknowledgement failed: {error}"))?
+            .map_err(|error| format!("OLED failure acknowledgement failed: {error}"))?;
+        if let Err(error) = &result {
+            eprintln!("OLED failure-state publication acknowledgement failed: {error}");
+        }
+        result
     }
 
     #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
@@ -203,200 +219,6 @@ impl crate::orange_oled_suspend_policy::RenderOwnershipControl for RenderWorker 
     }
 }
 
-fn render_worker_loop(
-    state: Arc<(Mutex<RenderState>, Condvar)>,
-    targets: &mut HardwareRenderTargets,
-) {
-    let mut cache = HardwareRenderCache::default();
-    let mut animation_deadline = None;
-    let mut latest_snapshot = None;
-    let mut latest_oled = None;
-    let mut ownership = OledOwnershipState::default();
-    loop {
-        let command = take_next_command(&state, animation_deadline);
-        match command {
-            Some(RenderCommand::Snapshot {
-                snapshot,
-                oled,
-                rendered_acks,
-            }) => {
-                latest_snapshot = Some(snapshot.clone());
-                latest_oled = Some(oled.clone());
-                let require_oled_ack = snapshot_requires_oled_ack(rendered_acks.len());
-                let mut full_render_result = None;
-                animation_deadline = select_snapshot_render(ownership, |decision| match decision {
-                    SnapshotRenderDecision::OledAndLeds => {
-                        let rendered_before = require_oled_ack.then(|| cache.oled_render_count());
-                        let deadline =
-                            render_snapshot_cached(targets, &snapshot, &oled, &mut cache);
-                        let render_result = initial_snapshot_render_result(
-                            require_oled_ack,
-                            rendered_before
-                                .is_some_and(|before| cache.oled_render_count() > before),
-                        );
-                        full_render_result = render_result;
-                        deadline
-                    }
-                    SnapshotRenderDecision::LedsOnly => {
-                        let deadline =
-                            render_leds_only(targets, &snapshot, &mut cache, Instant::now());
-                        full_render_result =
-                            initial_snapshot_render_result(require_oled_ack, false);
-                        deadline
-                    }
-                });
-                if full_render_result
-                    .as_ref()
-                    .is_some_and(|result| result.is_err())
-                    && mark_handoff_failed_decision(ownership)
-                {
-                    if let Some(handoff) = targets.oled_handoff.as_ref() {
-                        handoff.mark_failed();
-                    }
-                }
-                if let Some(render_result) = full_render_result {
-                    if render_result.is_ok() && require_oled_ack {
-                        if let Ok(mut state) = state.0.lock() {
-                            state.acknowledged_snapshot_rendered = true;
-                        }
-                    }
-                    for ack in rendered_acks {
-                        let _ = ack.send(render_result.clone());
-                    }
-                } else {
-                    for ack in rendered_acks {
-                        let _ = ack.send(Ok(()));
-                    }
-                }
-            }
-            Some(RenderCommand::MarkFirstMenuRendered { ack }) => {
-                let result = targets
-                    .oled_handoff
-                    .as_mut()
-                    .map_or(Ok(()), |handoff| handoff.mark_first_menu_rendered());
-                let _ = ack.send(result);
-            }
-            Some(RenderCommand::MarkFailed { ack }) => {
-                if mark_handoff_failed_decision(ownership) {
-                    if let Some(handoff) = targets.oled_handoff.as_ref() {
-                        handoff.mark_failed();
-                    }
-                }
-                let _ = ack.send(Ok(()));
-            }
-            Some(RenderCommand::Ownership {
-                stage,
-                cancellation,
-                ack,
-            }) => {
-                let cancelled = ownership_command_cancelled(&cancellation);
-                if !cancelled && stage == OledOwnershipStage::ResumeComplete {
-                    if let Some(SnapshotCommand {
-                        snapshot,
-                        oled,
-                        rendered_acks,
-                    }) = state
-                        .0
-                        .lock()
-                        .ok()
-                        .and_then(|mut state| state.snapshot.take())
-                    {
-                        latest_snapshot = Some(snapshot.clone());
-                        latest_oled = Some(oled);
-                        animation_deadline =
-                            render_leds_only(targets, &snapshot, &mut cache, Instant::now());
-                        for ack in rendered_acks {
-                            let _ = ack.send(Ok(()));
-                        }
-                    }
-                }
-                let result = if cancelled {
-                    Err("OLED ownership command was cancelled".into())
-                } else {
-                    ownership_stage_for_render(
-                        stage,
-                        targets,
-                        &mut cache,
-                        &latest_snapshot,
-                        &latest_oled,
-                        &mut ownership,
-                    )
-                };
-                if let Err(error) = restore_after_dropped_ack_for_render(
-                    ack.send(result).is_err(),
-                    targets,
-                    &mut cache,
-                    &latest_snapshot,
-                    &latest_oled,
-                    &mut ownership,
-                ) {
-                    eprintln!(
-                        "OLED ownership rollback after dropped acknowledgement failed: {error}"
-                    );
-                }
-            }
-            Some(RenderCommand::Shutdown { ack }) => {
-                let result = terminal::handle_shutdown(
-                    targets,
-                    &mut cache,
-                    &latest_snapshot,
-                    &latest_oled,
-                    &mut ownership,
-                );
-                let _ = ack.send(result);
-                break;
-            }
-            Some(RenderCommand::PreserveTerminal {
-                snapshot,
-                oled,
-                ack,
-            }) => {
-                let result = terminal::handle_preserve_terminal(
-                    targets,
-                    &mut cache,
-                    &latest_snapshot,
-                    &latest_oled,
-                    &mut ownership,
-                    &snapshot,
-                    &oled,
-                );
-                let _ = ack.send(result);
-                break;
-            }
-            Some(RenderCommand::Abort { ack }) => {
-                let result = terminal::handle_abort(
-                    targets,
-                    &mut cache,
-                    &latest_snapshot,
-                    &latest_oled,
-                    &mut ownership,
-                );
-                let _ = ack.send(result);
-                break;
-            }
-            None => {
-                let pending_work = {
-                    let state = state.0.lock().expect("render worker state mutex poisoned");
-                    pending_work_wins_over_expired_animation_deadline(&state)
-                };
-                if pending_work {
-                    animation_deadline = None;
-                } else {
-                    let now = Instant::now();
-                    let sleep_deadline = cache.render_sleep_tick(targets, now);
-                    let retry_deadline = if retry_oled_decision(ownership) {
-                        crate::render::retry_oled_if_due(&mut targets.oled, &mut cache, now)
-                    } else {
-                        None
-                    };
-                    animation_deadline =
-                        crate::render::next_deadline(sleep_deadline, retry_deadline);
-                }
-            }
-        }
-    }
-}
-
 fn validate_oled_publication(
     snapshot: &Value,
     oled: &OledFramePublication,
@@ -441,42 +263,6 @@ fn ownership_command_cancelled(cancellation: &AtomicBool) -> bool {
     cancellation.load(Ordering::Acquire)
 }
 
-fn take_next_command(
-    state: &Arc<(Mutex<RenderState>, Condvar)>,
-    animation_deadline: Option<Instant>,
-) -> Option<RenderCommand> {
-    let (lock, ready) = &**state;
-    let mut guard = lock.lock().expect("render worker state mutex poisoned");
-    loop {
-        if let Some(command) = guard.command.take() {
-            return Some(command);
-        }
-        if let Some(snapshot) = guard.snapshot.take() {
-            return Some(RenderCommand::Snapshot {
-                snapshot: snapshot.snapshot,
-                oled: snapshot.oled,
-                rendered_acks: snapshot.rendered_acks,
-            });
-        }
-        let Some(deadline) = animation_deadline else {
-            guard = ready
-                .wait(guard)
-                .expect("render worker state mutex poisoned while waiting");
-            continue;
-        };
-        let timeout = deadline.saturating_duration_since(Instant::now());
-        if timeout.is_zero() {
-            return None;
-        }
-        let (next_guard, result) = ready
-            .wait_timeout(guard, timeout)
-            .expect("render worker state mutex poisoned while waiting");
-        guard = next_guard;
-        if result.timed_out() && !pending_work_wins_over_expired_animation_deadline(&guard) {
-            return None;
-        }
-    }
-}
 #[cfg(test)]
 #[path = "render_loop_tests.rs"]
 mod tests;

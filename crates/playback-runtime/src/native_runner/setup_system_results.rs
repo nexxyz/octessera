@@ -23,6 +23,9 @@ impl NativeRunner {
             RuntimeStoreResult::SetupPortalStatus { status } => {
                 self.apply_setup_portal_status(status, None, None);
             }
+            RuntimeStoreResult::UserDataTransferStatus { status } => {
+                self.apply_user_data_transfer_status(status, None, None);
+            }
             _ => {}
         }
         Ok(())

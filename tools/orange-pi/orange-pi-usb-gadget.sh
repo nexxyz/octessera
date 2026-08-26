@@ -12,6 +12,7 @@ DEVICE_CONFIG_VALIDATOR=${OCTESSERA_DEVICE_CONFIG_VALIDATOR:-/usr/local/lib/octe
 ACTION=
 MODE=
 UDC=$REQUIRED_UDC
+LOCK_HELD=0
 
 usage() {
     cat <<EOF
@@ -58,6 +59,10 @@ esac
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --lock-held)
+            LOCK_HELD=1
+            shift
+            ;;
         --config)
             require_value "$@"
             CONFIG=$2
@@ -386,9 +391,17 @@ teardown_gadget_unlocked() {
 
 case "$ACTION" in
     setup)
-        with_lifecycle_lock setup_gadget_unlocked
+        if [ "$LOCK_HELD" = 1 ]; then
+            setup_gadget_unlocked
+        else
+            with_lifecycle_lock setup_gadget_unlocked
+        fi
         ;;
     teardown)
-        with_lifecycle_lock teardown_gadget_unlocked
+        if [ "$LOCK_HELD" = 1 ]; then
+            teardown_gadget_unlocked
+        else
+            with_lifecycle_lock teardown_gadget_unlocked
+        fi
         ;;
 esac

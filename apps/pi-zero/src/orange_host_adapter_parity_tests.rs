@@ -53,7 +53,11 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     };
     assert_eq!(loaded, expected);
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        sample_builtin_favourite_dirs: crate::sample_browser::builtin_favourite_dirs(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     playback
         .dispatch(
             RuntimeDispatchInput::HostMessage(response),
@@ -160,6 +164,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     let portable: Value = serde_json::from_slice(&orange_bytes).unwrap();
     assert!(portable["runtimeConfig"].get("displayBrightness").is_none());
     assert!(portable["runtimeConfig"].get("audioOutputs").is_none());
+    crate::sample_browser::assert_builtin_favourite_menu(&mut runner);
     let _ = std::fs::remove_dir_all(store.parent().unwrap());
 }
 

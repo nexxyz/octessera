@@ -1,0 +1,21 @@
+[Unit]
+Description=Octessera root-owned Orange SD2 storage control
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+StandardInput=socket
+StandardOutput=socket
+ExecStart=/usr/local/sbin/octessera-orange-storage-control
+TimeoutStartSec=5s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run /sys/kernel/config /var/lib/octessera/samples
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+UMask=0077

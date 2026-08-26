@@ -64,6 +64,11 @@ def _setup_preimages(root: Path, contract: dict) -> None:
         preimage = item["preimage"]
         _write(root / item["target"], _orange_preimage(item["source"]), preimage["mode"])
         _owner(root / item["target"], preimage["uid"], preimage["gid"])
+    for item in contract["symlinks"]:
+        preimage = item["preimage"]
+        if item["classification"] == "stale-ui-root-asset" and preimage["kind"] == "exact":
+            _write(root / item["target"], _orange_preimage(item["target"]), preimage["mode"])
+            _owner(root / item["target"], preimage["uid"], preimage["gid"])
 
 
 def _rpi_parent_sudoers_preimage(root: Path, contract: dict) -> None:
@@ -74,7 +79,7 @@ def _rpi_parent_sudoers_preimage(root: Path, contract: dict) -> None:
 
 
 def _prerequisites(root: Path, board: str) -> None:
-    packages = "\n\n".join(f"Package: {name}\nStatus: install ok installed\nVersion: 1.0" for name in ("openssh-server", "network-manager", "dnsmasq", "python3-minimal"))
+    packages = "\n\n".join(f"Package: {name}\nStatus: install ok installed\nVersion: 1.0" for name in ("openssh-server", "network-manager", "dnsmasq", "python3-minimal", "iw", "iproute2", "coreutils", "util-linux"))
     _write(root / "var/lib/dpkg/status", packages + "\n")
     if board == RPI:
         passwd = "root:x:0:0:root:/root:/bin/bash\npi:x:1000:1000:Pi:/home/pi:/bin/bash\n"
@@ -86,6 +91,8 @@ def _prerequisites(root: Path, board: str) -> None:
     _write(root / "etc/group", group)
     _write(root / "usr/local/bin/wifi-connect", b"wifi-connect", 0o755)
     _write(root / "usr/bin/python3", b"python3", 0o755)
+    for command in ("usr/sbin/iw", "usr/bin/nmcli", "usr/sbin/ip", "usr/bin/timeout", "usr/bin/ss", "usr/bin/setsid"):
+        _write(root / command, command.encode(), 0o755)
     for service in ("ssh.service", "NetworkManager.service", "dnsmasq.service"):
         _write(root / "etc/systemd/system" / service, "[Unit]\n")
 
@@ -213,6 +220,29 @@ class SetupMutationTests(unittest.TestCase):
             _write(root / "usr/local/share/octessera-setup-ui/undeclared", b"unexpected")
             with self.assertRaises(ValueError):
                 prove_setup_root(root, RPI)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(RPI, Path(temporary))
+            mutate_setup(root, RPI, "a" * 40)
+            os.chmod(root / "usr/local/share/octessera-setup-ui/js", 0o700)
+            with self.assertRaises(ValueError):
+                prove_setup_root(root, RPI)
+
+    def test_old_root_ui_assets_are_removed_during_mutation(self) -> None:
+        stale = (
+            "usr/local/share/octessera-setup-ui/app.js",
+            "usr/local/share/octessera-setup-ui/styles.css",
+            "usr/local/share/octessera-setup-ui/octessera-mark.svg",
+            "usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
+        )
+        for board in (RPI, ORANGE):
+            with self.subTest(board=board), tempfile.TemporaryDirectory() as temporary:
+                root = _fixture(board, Path(temporary))
+                if board == RPI:
+                    for path in stale:
+                        _write(root / path, b"stale", 0o644)
+                mutate_setup(root, board, "a" * 40)
+                for path in stale:
+                    self.assertFalse((root / path).exists())
 
     def test_symlink_escape_owner_mode_and_unauthorized_diff_fail_closed_with_rollback(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

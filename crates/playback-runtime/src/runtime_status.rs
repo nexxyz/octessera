@@ -1,10 +1,11 @@
 use super::oled::same_semantic_snapshot;
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeIngest};
 use crate::protocol::{
-    HostMessage, RunnerMessage, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeErrorMetadata,
-    RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState, RuntimeStoreResult,
+    is_midi_input_list_failure, HostMessage, RunnerMessage, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState,
+    RuntimeStoreResult, MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
 impl PlaybackRuntime {
     pub fn latch_facts(&mut self, facts: RuntimeErrorFacts) {
@@ -56,6 +57,14 @@ impl PlaybackRuntime {
         if let Some(facts) = setup_portal_lifecycle_error_facts(result) {
             self.clear_error_with_identity(
                 RuntimeOperation::SetupPortal,
+                facts.request_id.as_deref(),
+                facts.revision,
+            );
+            return;
+        }
+        if let Some(facts) = user_data_transfer_lifecycle_error_facts(result) {
+            self.clear_error_with_identity(
+                RuntimeOperation::UserDataTransfer,
                 facts.request_id.as_deref(),
                 facts.revision,
             );
@@ -277,6 +286,11 @@ impl PlaybackRuntime {
                 return;
             };
             snapshot.insert("runtimeError".into(), error);
+            if let Some(error) = self.latched_errors.last() {
+                if is_midi_input_list_failure(&error.domain, &error.code, &error.operation) {
+                    rehydrate_midi_input_display(&mut snapshot);
+                }
+            }
             Value::Object(snapshot)
         } else {
             raw_snapshot.clone()
@@ -312,6 +326,24 @@ impl PlaybackRuntime {
     }
 }
 
+fn rehydrate_midi_input_display(snapshot: &mut serde_json::Map<String, Value>) {
+    let Some(display) = snapshot.get_mut("display").and_then(Value::as_object_mut) else {
+        return;
+    };
+    display.insert("title".into(), json!(MIDI_INPUTS_ERROR_TITLE));
+    display.insert("bodyLayout".into(), json!("rows"));
+    display.insert("lines".into(), json!([MIDI_INPUTS_ERROR_LINE]));
+    display.insert(
+        "colors".into(),
+        json!([platform_core::palette::WHITE_RGB565]),
+    );
+    display.insert("barValues".into(), json!([null]));
+    display.insert("scrollOffset".into(), Value::Null);
+    display.insert("totalRows".into(), Value::Null);
+    display.insert("visibleRows".into(), Value::Null);
+    snapshot.insert("selectedRow".into(), Value::Null);
+}
+
 fn setup_portal_lifecycle_error_facts(result: &RuntimeStoreResult) -> Option<RuntimeErrorFacts> {
     let phase = match result {
         RuntimeStoreResult::SetupPortalStatus { status } => &status.phase,
@@ -331,6 +363,29 @@ fn setup_portal_lifecycle_error_facts(result: &RuntimeStoreResult) -> Option<Run
     } else {
         None
     }
+}
+
+fn user_data_transfer_lifecycle_error_facts(
+    result: &RuntimeStoreResult,
+) -> Option<RuntimeErrorFacts> {
+    let status = match result {
+        RuntimeStoreResult::UserDataTransferStatus { status } => status,
+        RuntimeStoreResult::Identified { result, .. } => match result.as_ref() {
+            RuntimeStoreResult::UserDataTransferStatus { status } => status,
+            _ => return None,
+        },
+        _ => return None,
+    };
+    (status.phase == crate::RuntimeUserDataTransferPhase::Unsupported).then(|| {
+        result.error_facts().unwrap_or_else(|| {
+            RuntimeErrorFacts::new(
+                RuntimeErrorDomain::Runtime,
+                crate::RuntimeErrorCode::Unsupported,
+                RuntimeOperation::UserDataTransfer,
+                None,
+            )
+        })
+    })
 }
 
 fn recovery_for_facts(facts: &RuntimeErrorFacts) -> RuntimeRecovery {

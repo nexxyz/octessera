@@ -189,6 +189,29 @@ jobs:
       - name: Run per-crate Rust coverage
         run: bash ./tools/quality/check-rust-coverage.sh
 
+  pi_zero_host_tests:
+    name: Pi Zero host tests (${{ matrix.board }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: Raspberry Pi Zero 2W
+            feature: hardware-raspberry-pi-zero-2w
+          - board: Orange Pi Zero 2W
+            feature: hardware-orange-pi-zero-2w
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Linux audio build deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2.9.1
+      - name: Run canonical host tests
+        run: cargo test -p octessera-pi --no-default-features --features "${{ matrix.feature }}"
+
   pi_zero_hal_build:
     name: Pi Zero HAL Build Check
     runs-on: ubuntu-latest
@@ -258,10 +281,6 @@ jobs:
         run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
       - name: Check Orange foreground tests for AArch64
         run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w --tests
-      - name: Install host audio test dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev
-      - name: Test Orange foreground runtime on host
-        run: cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
       - name: Build Orange foreground runtime candidate
         run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
       - name: Lint Orange foreground runtime candidate
@@ -292,6 +311,9 @@ jobs:
           python3 tools/pi-image/test-board-profile.py
           sudo bash tools/pi-image/test-rpi-boot-splash.sh
           sudo bash tools/pi-image/test-rpi-boot-services.sh
+          bash tools/armbian-image/test-octessera-sd-card.sh
+          bash tools/armbian-image/test-orange-storage-lifecycle.sh
+          python3 tools/armbian-image/test-orange-storage-control.py
           python3 tools/pi-image/test-boot-layer-contract.py
           sudo python3 tools/pi-image/test-rpi-initramfs-proof.py
           python3 tools/pi-image/test-welcome.py
@@ -305,12 +327,18 @@ jobs:
           bash tools/orange-pi/test-opi-bringup-probe.sh
           bash tools/orange-pi/test-orange-pi-usb-gadget.sh
           bash tools/pi-image/test-usb-gadget.sh
+          shellcheck tools/storage/octessera-sd-card tools/storage/octessera-sd-card-lib.sh tools/storage/octessera-orange-storage tools/armbian-image/test-orange-storage-lifecycle.sh userpatches/overlay/usr/local/sbin/octessera-sd-card userpatches/overlay/usr/local/sbin/octessera-orange-storage
 
           python3 -m unittest tools.samples.test_sample_library
           python3 tools/legal/sample_attributions.py
           sudo bash tools/pi-image/test-musical-assets.sh
           sudo bash tools/armbian-image/test-musical-assets.sh
           bash tools/armbian-image/test-inspector.sh
+
+      - name: Test Orange rolling-pin bootstrap
+        run: |
+          shellcheck -x tools/armbian-image/prepare-orange-rolling-pin-bootstrap.sh tools/armbian-image/capture-orange-rolling-pin-bootstrap.sh tools/armbian-image/test-orange-rolling-pin-bootstrap.sh
+          bash tools/armbian-image/test-orange-rolling-pin-bootstrap.sh
 
   board_profile_powershell:
     name: Board profile PowerShell checks
@@ -410,7 +438,7 @@ jobs:
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Lint workflows and every embedded shell script
         run: |
-          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml .github/workflows/orange-ahub-kernel.yml
+          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml .github/workflows/orange-ahub-kernel.yml .github/workflows/orange-rolling-pin-bootstrap.yml
       - name: Compile all image respin Python files
         run: python3 -m py_compile tools/image-respin/*.py
       - name: Run disk and runtime image respin tests as root

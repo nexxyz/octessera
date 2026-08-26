@@ -12,7 +12,9 @@ BOARDS = {"raspberry-pi-zero-2w", "orange-pi-zero-2w"}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FILE_SPEC_KEYS = {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"}
 SETUP_UI_DIRECTORY = "usr/local/share/octessera-setup-ui"
-SETUP_UI_FILES = {"app.js", "index.html", "styles.css", "README.md", "octessera-mark.svg", "octessera-wordmark.svg"}
+SETUP_UI_FILES = {"js/app.js", "index.html", "css/styles.css", "README.md", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
+SETUP_UI_NEW_FILES = {"js/app.js", "css/styles.css", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
+SETUP_UI_STALE_ROOT_FILES = {"usr/local/share/octessera-setup-ui/app.js", "usr/local/share/octessera-setup-ui/styles.css", "usr/local/share/octessera-setup-ui/octessera-mark.svg", "usr/local/share/octessera-setup-ui/octessera-wordmark.svg"}
 RASPBERRY_PARENT_SUDOERS_TARGET = "etc/sudoers.d/010_pi-nopasswd"
 RASPBERRY_PARENT_SUDOERS_SHA256 = "aa7549b5a2544e53652d7c844af396ca05044e41b05f56372162dc8b0cf3f089"
 
@@ -131,6 +133,9 @@ def _validate_ui_preimages(value: list[dict[str, Any]], board: str) -> None:
         if board == "raspberry-pi-zero-2w":
             if preimage != {"kind": "absent"}:
                 raise SetupContractSchemaError(f"Raspberry setup UI preimage is not absent: {entry['target']}")
+        elif entry["target"][len(prefix):] in SETUP_UI_NEW_FILES:
+            if preimage != {"kind": "absent"}:
+                raise SetupContractSchemaError(f"Orange setup UI new-path preimage is not absent: {entry['target']}")
         elif preimage != {"kind": "exact", "type": "file", "mode": 420, "uid": 1001, "gid": 1001, "symlink": False, "xattrs": {}, "capability": None, "sha256": preimage.get("sha256")}:
             raise SetupContractSchemaError(f"Orange setup UI preimage ownership is not exact: {entry['target']}")
 
@@ -183,6 +188,12 @@ def _symlinks(value: Any, board: str) -> None:
             raise SetupContractSchemaError("symlinks contains duplicate targets")
         targets.add(entry["target"])
     parent_sudoers = [item for item in value if item["target"] == RASPBERRY_PARENT_SUDOERS_TARGET]
+    stale_ui = [item for item in value if item["target"] in SETUP_UI_STALE_ROOT_FILES]
+    if board == "orange-pi-zero-2w":
+        if {item["target"] for item in stale_ui} != SETUP_UI_STALE_ROOT_FILES or any(item["classification"] != "stale-ui-root-asset" or item["type"] != "absent" or item["postimage"] != "absent" for item in stale_ui):
+            raise SetupContractSchemaError("Orange stale UI root cleanup is not exact")
+    elif stale_ui:
+        raise SetupContractSchemaError("Raspberry stale UI root cleanup must use runtime markers")
     if board == "raspberry-pi-zero-2w":
         if len(parent_sudoers) != 1:
             raise SetupContractSchemaError("Raspberry setup contract must remove the parent sudoers grant")
@@ -224,6 +235,10 @@ def validate_setup_contract(contract: Any) -> None:
         raise SetupContractSchemaError("stale_runtime_markers is invalid")
     for marker in top["stale_runtime_markers"]:
         _path(marker, "stale runtime marker")
+    if top["board_profile"] == "raspberry-pi-zero-2w" and not SETUP_UI_STALE_ROOT_FILES <= set(top["stale_runtime_markers"]):
+        raise SetupContractSchemaError("Raspberry stale UI root cleanup markers are incomplete")
+    if top["board_profile"] == "orange-pi-zero-2w" and SETUP_UI_STALE_ROOT_FILES & set(top["stale_runtime_markers"]):
+        raise SetupContractSchemaError("Orange stale UI root cleanup must use exact absent entries")
     prerequisites = _keys(top["prerequisites"], {"packages", "executables", "accounts", "services"}, "prerequisites")
     if not isinstance(prerequisites["packages"], list) or not prerequisites["packages"] or any(not isinstance(item, str) or not item for item in prerequisites["packages"]):
         raise SetupContractSchemaError("package prerequisites are invalid")

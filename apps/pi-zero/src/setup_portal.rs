@@ -2,20 +2,15 @@
 mod errors;
 #[path = "setup_portal_protocol.rs"]
 mod protocol;
+
 use crate::setup_portal_files::{create_request_marker, read_status_file, SetupFileError};
 pub(crate) use errors::SetupPortalFailure;
 use playback_runtime::{
     HostMessage, RuntimePlatformRequest, RuntimeSetupPortalDisposition, RuntimeSetupPortalPhase,
     RuntimeSetupPortalStatus, RuntimeStoreResult,
 };
-use protocol::{make_request_token, valid_boot_id, ValidatedStatusEnvelope};
-pub(crate) use protocol::{RandomSource, SetupPortalEnvironment};
-use std::collections::BTreeMap;
-#[cfg(test)]
-use std::collections::VecDeque;
+pub(crate) use protocol::SetupPortalEnvironment;
 use std::sync::{Arc, Mutex};
-
-const RECEIPT_TIMEOUT_MS: u64 = 10_000;
 
 pub(crate) struct SetupPortalService {
     environment: SetupPortalEnvironment,
@@ -36,10 +31,6 @@ impl SetupPortalService {
         Self::new(SetupPortalEnvironment::production())
     }
 
-    pub(crate) fn random_source(&self) -> protocol::RandomSource {
-        self.environment.random.clone()
-    }
-
     #[cfg(test)]
     pub(crate) fn test(environment: SetupPortalEnvironment) -> Self {
         Self::new(environment)
@@ -55,63 +46,50 @@ impl SetupPortalService {
     pub(crate) fn prepare(
         &self,
         request: &RuntimePlatformRequest,
-    ) -> Result<String, SetupPortalFailure> {
-        let token = make_request_token(&self.environment.random)
-            .map_err(|_| SetupPortalFailure::random())?;
+    ) -> Result<(), SetupPortalFailure> {
         let mut state = self
             .state
             .lock()
             .map_err(|_| SetupPortalFailure::internal())?;
-        if state.pending.contains_key(&token) {
-            return Err(SetupPortalFailure::random());
+        if state.pending.is_some() {
+            return Err(SetupPortalFailure::already_running());
         }
-        let now = (self.environment.clock)();
-        state.pending.insert(
-            token.clone(),
-            PendingRequest {
-                request: request.clone(),
-                deadline: now.saturating_add(RECEIPT_TIMEOUT_MS),
-                published: false,
-                binding: None,
-                last_sequence: None,
-            },
-        );
-        Ok(token)
+        state.pending = Some(PendingRequest {
+            request: request.clone(),
+            published: false,
+            observed_starting: false,
+            last_status: None,
+        });
+        Ok(())
     }
 
-    pub(crate) fn publish(&self, token: &str) -> Result<(), SetupPortalFailure> {
+    pub(crate) fn publish(&self) -> Result<RuntimeSetupPortalDisposition, SetupPortalFailure> {
         let mut state = self
             .state
             .lock()
             .map_err(|_| SetupPortalFailure::internal())?;
-        if !state.pending.contains_key(token) {
+        if state.pending.is_none() {
             return Err(SetupPortalFailure::internal());
         }
-        match create_request_marker(&self.environment.paths.request, token) {
-            Ok(()) | Err(SetupFileError::Published) => {
-                if let Some(pending) = state.pending.get_mut(token) {
-                    pending.published = true;
-                    Ok(())
-                } else {
-                    Err(SetupPortalFailure::internal())
+        let (disposition, observed_starting) =
+            match create_request_marker(&self.environment.paths.request) {
+                Ok(()) | Err(SetupFileError::Published) => {
+                    (RuntimeSetupPortalDisposition::Accepted, false)
                 }
-            }
-            Err(error) => {
-                state.pending.remove(token);
-                Err(SetupPortalFailure::from_file(error))
-            }
-        }
-    }
-
-    pub(crate) fn revoke(&self, token: &str) {
-        if let Ok(mut state) = self.state.lock() {
-            state.pending.remove(token);
-        }
-        if std::fs::read_to_string(&self.environment.paths.request)
-            .ok()
-            .is_some_and(|value| value.trim() == token)
-        {
-            let _ = std::fs::remove_file(&self.environment.paths.request);
+                Err(SetupFileError::Exists) => {
+                    (RuntimeSetupPortalDisposition::AlreadyRunning, true)
+                }
+                Err(error) => {
+                    state.pending = None;
+                    return Err(SetupPortalFailure::from_file(error));
+                }
+            };
+        if let Some(pending) = state.pending.as_mut() {
+            pending.published = true;
+            pending.observed_starting = observed_starting;
+            Ok(disposition)
+        } else {
+            Err(SetupPortalFailure::internal())
         }
     }
 
@@ -119,222 +97,62 @@ impl SetupPortalService {
     pub(crate) fn start(
         &self,
         request: &RuntimePlatformRequest,
-    ) -> Result<String, SetupPortalFailure> {
-        let token = self.prepare(request)?;
-        self.publish(&token)?;
-        Ok(token)
+    ) -> Result<RuntimeSetupPortalDisposition, SetupPortalFailure> {
+        self.prepare(request)?;
+        self.publish()
     }
 
     pub(crate) fn has_pending(&self) -> bool {
         self.state
             .lock()
-            .map(|state| !state.pending.is_empty())
+            .map(|state| state.pending.is_some())
             .unwrap_or(false)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn has_buffered_result(&self) -> bool {
-        self.state
-            .lock()
-            .map(|state| !state.buffered_results.is_empty())
-            .unwrap_or(false)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn take_buffered_result(&self) -> Option<HostMessage> {
-        self.state
-            .lock()
-            .ok()
-            .and_then(|mut state| state.buffered_results.pop_front())
-    }
-
-    #[cfg(test)]
-    pub(crate) fn buffer_result(&self, result: HostMessage) {
-        if let Ok(mut state) = self.state.lock() {
-            state.buffered_results.push_back(result);
-        }
-    }
-
-    pub(crate) fn poll_one(&self) -> Option<HostMessage> {
-        let token = self.next_token()?;
-        self.poll_token(&token)
     }
 
     #[cfg(all(test, any(unix, windows)))]
     pub(crate) fn pending_count(&self) -> usize {
-        self.state.lock().unwrap().pending.len()
+        usize::from(self.has_pending())
     }
 
-    fn next_token(&self) -> Option<String> {
-        let state = self.state.lock().ok()?;
-        let first = state
-            .pending
-            .iter()
-            .find(|(_, pending)| pending.published)
-            .map(|(token, _)| token.clone())?;
-        let selected = state
-            .cursor
-            .as_ref()
-            .and_then(|cursor| {
-                state
-                    .pending
-                    .range((
-                        std::ops::Bound::Excluded(cursor.clone()),
-                        std::ops::Bound::Unbounded,
-                    ))
-                    .find(|(_, pending)| pending.published)
-                    .map(|(key, _)| key.clone())
-            })
-            .unwrap_or(first);
-        drop(state);
-        if let Ok(mut state) = self.state.lock() {
-            state.cursor = Some(selected.clone());
-        }
-        Some(selected)
-    }
-
-    fn poll_token(&self, token: &str) -> Option<HostMessage> {
-        let session = self.state.lock().ok()?.pending.get(token).cloned()?;
+    pub(crate) fn poll_one(&self) -> Option<HostMessage> {
+        let session = self.state.lock().ok()?.pending.clone()?;
         if !session.published {
             return None;
         }
-        let now = (self.environment.clock)();
-        if session.binding.is_none() {
-            return self.poll_receipt(token, session, now);
-        }
-        self.poll_current(token, session, now)
-    }
-
-    fn poll_receipt(&self, token: &str, session: PendingRequest, now: u64) -> Option<HostMessage> {
-        let receipt = match self.read_envelope(Some(token)) {
-            Ok(Some(receipt)) => receipt,
-            Ok(None) if now < session.deadline => return None,
-            Ok(None) => {
-                return self.fail_token(token, session, SetupPortalFailure::receipt_timeout(), None)
-            }
-            Err(error) => return self.fail_token(token, session, error, None),
-        };
-        let expected_boot = match (self.environment.boot_id)() {
-            Ok(boot_id) if valid_boot_id(&boot_id) => boot_id,
-            Ok(_) | Err(_) => {
-                return self.fail_token(token, session, SetupPortalFailure::stale(), None)
-            }
-        };
-        if receipt.boot_id != expected_boot {
-            return self.fail_token(
-                token,
-                session,
-                SetupPortalFailure::stale(),
-                Some(receipt.sequence),
-            );
-        }
-        let current = match self.read_envelope(None) {
-            Ok(Some(current)) => {
-                if current.boot_id != receipt.boot_id || current.attempt_id != receipt.attempt_id {
-                    return self.fail_token(
-                        token,
-                        session,
-                        SetupPortalFailure::wrong_receipt(),
-                        Some(receipt.sequence),
-                    );
-                }
-                if current.sequence < receipt.sequence {
-                    return None;
-                }
-                Some(current)
-            }
-            Ok(None) => None,
-            Err(error) => return self.fail_token(token, session, error, None),
-        };
-        let receipt_status = receipt.status;
-        if !matches!(receipt_status.phase, RuntimeSetupPortalPhase::Starting) {
-            return self.emit_terminal(token, session, receipt_status, receipt.sequence);
-        }
-        if !matches!(
-            receipt_status.disposition,
-            Some(RuntimeSetupPortalDisposition::Accepted)
-                | Some(RuntimeSetupPortalDisposition::AlreadyRunning)
-        ) {
-            return self.fail_token(
-                token,
-                session,
-                SetupPortalFailure::wrong_receipt(),
-                Some(receipt.sequence),
-            );
-        }
-        let binding = PortalBinding {
-            boot_id: receipt.boot_id,
-            attempt_id: receipt.attempt_id,
-            sequence: receipt.sequence,
-        };
-        if let Ok(mut state) = self.state.lock() {
-            if let Some(pending) = state.pending.get_mut(token) {
-                pending.binding = Some(binding);
-                pending.last_sequence = Some(
-                    current
-                        .as_ref()
-                        .map_or(receipt.sequence, |current| current.sequence),
-                );
-            }
-        }
-        if let Some(current) = current {
-            let current_status = current.status;
-            let message = status_message(&session, current_status.clone(), current.sequence);
-            if is_terminal(&current_status.phase) {
-                self.remove_token(token);
-            }
-            return Some(message);
-        }
-        Some(status_message(&session, receipt_status, receipt.sequence))
-    }
-
-    fn poll_current(&self, token: &str, session: PendingRequest, now: u64) -> Option<HostMessage> {
-        let current = match self.read_envelope(None) {
+        let current = match self.read_status() {
             Ok(Some(current)) => current,
-            Ok(None) if now < session.deadline => return None,
-            Ok(None) => {
-                return self.fail_token(token, session, SetupPortalFailure::receipt_timeout(), None)
-            }
-            Err(error) => return self.fail_token(token, session, error, None),
+            Ok(None) => return None,
+            Err(error) => return self.fail_pending(session, error),
         };
-        let binding = session.binding.as_ref()?;
-        if current.boot_id != binding.boot_id || current.attempt_id != binding.attempt_id {
-            return self.fail_token(
-                token,
-                session,
-                SetupPortalFailure::stale(),
-                Some(current.sequence),
-            );
+        if !session.observed_starting && current.phase != RuntimeSetupPortalPhase::Starting {
+            return None;
         }
-        let last_sequence = session.last_sequence.unwrap_or(binding.sequence);
-        if current.sequence < last_sequence {
-            return self.fail_token(
-                token,
-                session,
-                SetupPortalFailure::non_monotonic(),
-                Some(current.sequence),
-            );
+        if !session.observed_starting {
+            if let Ok(mut state) = self.state.lock() {
+                if let Some(pending) = state.pending.as_mut() {
+                    pending.observed_starting = true;
+                    pending.last_status = Some(current.clone());
+                }
+            }
         }
-        if current.sequence == last_sequence {
+        if session.last_status.as_ref().is_some_and(|last| {
+            last == &current || status_rank(&current.phase) < status_rank(&last.phase)
+        }) {
             return None;
         }
         if let Ok(mut state) = self.state.lock() {
-            if let Some(pending) = state.pending.get_mut(token) {
-                pending.last_sequence = Some(current.sequence);
+            if let Some(pending) = state.pending.as_mut() {
+                pending.last_status = Some(current.clone());
             }
         }
-        let current_status = current.status;
-        let message = status_message(&session, current_status.clone(), current.sequence);
-        if is_terminal(&current_status.phase) {
-            self.remove_token(token);
+        let message = status_message(&session, current.clone());
+        if is_terminal(&current.phase) {
+            self.remove_pending();
         }
         Some(message)
     }
 
-    fn read_envelope(
-        &self,
-        receipt_token: Option<&str>,
-    ) -> Result<Option<ValidatedStatusEnvelope>, SetupPortalFailure> {
+    fn read_status(&self) -> Result<Option<RuntimeSetupPortalStatus>, SetupPortalFailure> {
         let group = self
             .environment
             .status_group
@@ -342,7 +160,6 @@ impl SetupPortalService {
             .map_err(|_| SetupPortalFailure::unavailable())?;
         let bytes = match read_status_file(
             &self.environment.paths,
-            receipt_token,
             self.environment.expected_owner_uid,
             group,
         ) {
@@ -351,91 +168,76 @@ impl SetupPortalService {
             Err(SetupFileError::Missing) => return Ok(None),
             Err(error) => return Err(SetupPortalFailure::from_file(error)),
         };
-        serde_json::from_slice(&bytes).map_err(|_| SetupPortalFailure::malformed())
+        serde_json::from_slice::<protocol::ValidatedStatusEnvelope>(&bytes)
+            .map(|envelope| Some(envelope.status))
+            .map_err(|_| SetupPortalFailure::malformed())
     }
 
-    fn fail_token(
+    fn fail_pending(
         &self,
-        token: &str,
         session: PendingRequest,
         failure: SetupPortalFailure,
-        sequence: Option<u64>,
     ) -> Option<HostMessage> {
-        self.remove_token(token);
-        Some(failure_message(&session, failure, sequence))
+        self.remove_pending();
+        Some(failure_message(&session, failure))
     }
 
-    fn emit_terminal(
-        &self,
-        token: &str,
-        session: PendingRequest,
-        status: RuntimeSetupPortalStatus,
-        sequence: u64,
-    ) -> Option<HostMessage> {
-        self.remove_token(token);
-        Some(status_message(&session, status, sequence))
-    }
-
-    fn remove_token(&self, token: &str) {
+    fn remove_pending(&self) {
         if let Ok(mut state) = self.state.lock() {
-            state.pending.remove(token);
+            state.pending = None;
         }
     }
 }
 
 #[derive(Default)]
 struct PortalState {
-    pending: BTreeMap<String, PendingRequest>,
-    cursor: Option<String>,
-    #[cfg(test)]
-    buffered_results: VecDeque<HostMessage>,
+    pending: Option<PendingRequest>,
 }
 
 #[derive(Clone)]
 struct PendingRequest {
     request: RuntimePlatformRequest,
-    deadline: u64,
     published: bool,
-    binding: Option<PortalBinding>,
-    last_sequence: Option<u64>,
+    observed_starting: bool,
+    last_status: Option<RuntimeSetupPortalStatus>,
 }
 
-#[derive(Clone)]
-struct PortalBinding {
-    boot_id: String,
-    attempt_id: String,
-    sequence: u64,
-}
-
-fn status_message(
-    session: &PendingRequest,
-    status: RuntimeSetupPortalStatus,
-    sequence: u64,
-) -> HostMessage {
+fn status_message(session: &PendingRequest, status: RuntimeSetupPortalStatus) -> HostMessage {
     HostMessage::RuntimeResult {
         result: RuntimeStoreResult::SetupPortalStatus { status }
-            .with_identity(session.request.request_id.clone(), Some(sequence)),
+            .with_identity(session.request.request_id.clone(), session.request.revision),
     }
 }
 
-fn failure_message(
-    session: &PendingRequest,
-    failure: SetupPortalFailure,
-    sequence: Option<u64>,
-) -> HostMessage {
+fn failure_message(session: &PendingRequest, failure: SetupPortalFailure) -> HostMessage {
     let status = RuntimeSetupPortalStatus {
         phase: RuntimeSetupPortalPhase::Failed,
         disposition: None,
         portal_suffix: None,
-        transfer: None,
         reboot_required: false,
         error_code: Some(failure.setup_error_code()),
     };
     HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::SetupPortalStatus { status }.with_identity(
-            session.request.request_id.clone(),
-            sequence.or(session.request.revision),
-        ),
+        result: RuntimeStoreResult::SetupPortalStatus { status }
+            .with_identity(session.request.request_id.clone(), session.request.revision),
+    }
+}
+
+pub(crate) fn starting_message(
+    request: &RuntimePlatformRequest,
+    disposition: RuntimeSetupPortalDisposition,
+) -> HostMessage {
+    HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::SetupPortalStatus {
+            status: RuntimeSetupPortalStatus {
+                phase: RuntimeSetupPortalPhase::Starting,
+                disposition: Some(disposition),
+                portal_suffix: None,
+                reboot_required: false,
+                error_code: None,
+            },
+        }
+        .with_identity(request.request_id.clone(), request.revision),
     }
 }
 
@@ -449,12 +251,23 @@ pub(crate) fn start_failure_message(
                 phase: RuntimeSetupPortalPhase::Failed,
                 disposition: None,
                 portal_suffix: None,
-                transfer: None,
                 reboot_required: false,
                 error_code: Some(failure.setup_error_code()),
             },
         }
         .with_identity(request.request_id.clone(), request.revision),
+    }
+}
+
+fn status_rank(phase: &RuntimeSetupPortalPhase) -> u8 {
+    match phase {
+        RuntimeSetupPortalPhase::Starting => 0,
+        RuntimeSetupPortalPhase::PortalReady => 1,
+        RuntimeSetupPortalPhase::Finalizing => 2,
+        RuntimeSetupPortalPhase::Succeeded
+        | RuntimeSetupPortalPhase::Failed
+        | RuntimeSetupPortalPhase::TimedOut
+        | RuntimeSetupPortalPhase::Unsupported => 3,
     }
 }
 

@@ -3,16 +3,11 @@ use playback_runtime::RuntimeSetupPortalErrorCode;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum SetupPortalFailureKind {
-    MarkerExists,
+    AlreadyRunning,
     Permission,
-    ReceiptTimeout,
     Malformed,
     Unsafe,
-    Stale,
-    WrongReceipt,
-    NonMonotonic,
     Unavailable,
-    Random,
     Operation,
 }
 
@@ -26,7 +21,7 @@ impl SetupPortalFailure {
         Self {
             kind: match error {
                 SetupFileError::Missing => SetupPortalFailureKind::Unavailable,
-                SetupFileError::Exists => SetupPortalFailureKind::MarkerExists,
+                SetupFileError::Exists => SetupPortalFailureKind::AlreadyRunning,
                 SetupFileError::Permission => SetupPortalFailureKind::Permission,
                 SetupFileError::Unsafe => SetupPortalFailureKind::Unsafe,
                 SetupFileError::Oversized => SetupPortalFailureKind::Malformed,
@@ -42,39 +37,15 @@ impl SetupPortalFailure {
         }
     }
 
-    pub(crate) fn random() -> Self {
+    pub(crate) fn already_running() -> Self {
         Self {
-            kind: SetupPortalFailureKind::Random,
-        }
-    }
-
-    pub(crate) fn receipt_timeout() -> Self {
-        Self {
-            kind: SetupPortalFailureKind::ReceiptTimeout,
+            kind: SetupPortalFailureKind::AlreadyRunning,
         }
     }
 
     pub(crate) fn malformed() -> Self {
         Self {
             kind: SetupPortalFailureKind::Malformed,
-        }
-    }
-
-    pub(crate) fn stale() -> Self {
-        Self {
-            kind: SetupPortalFailureKind::Stale,
-        }
-    }
-
-    pub(crate) fn wrong_receipt() -> Self {
-        Self {
-            kind: SetupPortalFailureKind::WrongReceipt,
-        }
-    }
-
-    pub(crate) fn non_monotonic() -> Self {
-        Self {
-            kind: SetupPortalFailureKind::NonMonotonic,
         }
     }
 
@@ -86,18 +57,17 @@ impl SetupPortalFailure {
 
     pub(crate) fn setup_error_code(&self) -> RuntimeSetupPortalErrorCode {
         match self.kind {
-            SetupPortalFailureKind::ReceiptTimeout | SetupPortalFailureKind::Unavailable => {
-                RuntimeSetupPortalErrorCode::Unavailable
+            SetupPortalFailureKind::Unavailable => RuntimeSetupPortalErrorCode::Unavailable,
+            SetupPortalFailureKind::Malformed | SetupPortalFailureKind::Unsafe => {
+                RuntimeSetupPortalErrorCode::InvalidPayload
             }
-            SetupPortalFailureKind::Malformed
-            | SetupPortalFailureKind::Unsafe
-            | SetupPortalFailureKind::Stale
-            | SetupPortalFailureKind::WrongReceipt
-            | SetupPortalFailureKind::NonMonotonic => RuntimeSetupPortalErrorCode::InvalidPayload,
-            SetupPortalFailureKind::MarkerExists
+            SetupPortalFailureKind::AlreadyRunning
             | SetupPortalFailureKind::Permission
-            | SetupPortalFailureKind::Random
             | SetupPortalFailureKind::Operation => RuntimeSetupPortalErrorCode::OperationFailed,
         }
+    }
+
+    pub(crate) fn is_already_running(&self) -> bool {
+        self.kind == SetupPortalFailureKind::AlreadyRunning
     }
 }

@@ -16,9 +16,13 @@ const STATUS_NAME: &str = "status.json";
 #[cfg(unix)]
 const STOP_NAME: &str = "stop.request";
 #[cfg(unix)]
+const FATAL_NAME: &str = "fatal.json";
+#[cfg(unix)]
 const MAX_STATUS_BYTES: usize = 4096;
 #[cfg(unix)]
 const MAX_STOP_BYTES: usize = 1024;
+#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+const MAX_FATAL_BYTES: usize = 256;
 #[cfg(unix)]
 const DIRECTORY_MODE: u32 = 0o750;
 #[cfg(unix)]
@@ -27,6 +31,71 @@ const LOCK_MODE: u32 = 0o600;
 const STATUS_MODE: u32 = 0o640;
 #[cfg(unix)]
 const STOP_MODE: u32 = 0o600;
+#[cfg(unix)]
+const FATAL_MODE: u32 = 0o600;
+
+#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg_attr(not(unix), allow(dead_code))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StartupFatalCode {
+    TrellisUnavailable,
+    NeokeyUnavailable,
+    ControlsUnavailable,
+    AudioUnavailable,
+    OledUnavailable,
+    StartupFailed,
+}
+
+#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+impl StartupFatalCode {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::TrellisUnavailable => "trellis_unavailable",
+            Self::NeokeyUnavailable => "neokey_unavailable",
+            Self::ControlsUnavailable => "controls_unavailable",
+            Self::AudioUnavailable => "audio_unavailable",
+            Self::OledUnavailable => "oled_unavailable",
+            Self::StartupFailed => "startup_failed",
+        }
+    }
+}
+
+#[cfg(all(unix, test))]
+impl StartupFatalCode {
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "trellis_unavailable" => Self::TrellisUnavailable,
+            "neokey_unavailable" => Self::NeokeyUnavailable,
+            "controls_unavailable" => Self::ControlsUnavailable,
+            "audio_unavailable" => Self::AudioUnavailable,
+            "oled_unavailable" => Self::OledUnavailable,
+            "startup_failed" => Self::StartupFailed,
+            _ => return None,
+        })
+    }
+}
+
+#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StartupFatal {
+    pub(crate) boot_id: String,
+    pub(crate) code: StartupFatalCode,
+}
+
+#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+impl StartupFatal {
+    fn new(boot_id: String, code: StartupFatalCode) -> Self {
+        Self { boot_id, code }
+    }
+
+    fn json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "schema": HANDOFF_SCHEMA,
+            "bootId": self.boot_id,
+            "code": self.code.as_str(),
+        })
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HandoffMode {
@@ -154,11 +223,19 @@ impl StopRequest {
 #[path = "boot_oled_handoff_unix.rs"]
 mod unix_impl;
 
+#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) use unix_impl::native_attach_after_startup_clear;
+#[cfg(all(test, unix))]
+pub(crate) use unix_impl::native_guard_for_test;
+#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) use unix_impl::publish_startup_fatal;
 #[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use unix_impl::AnimatorHandoff;
+#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) use unix_impl::NativeOledGuard;
 #[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use unix_impl::{animator_start, utility_lock};
-#[cfg(unix)]
+#[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use unix_impl::{native_attach, NativeOledGuard};
 
 #[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
@@ -175,8 +252,18 @@ pub(crate) fn animator_start() -> Result<AnimatorHandoff, String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 
-#[cfg(not(unix))]
+#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) fn native_attach() -> Result<NativeOledGuard, String> {
+    Err("OLED boot handoff requires Unix file locking".into())
+}
+
+#[cfg(all(not(unix), feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn publish_startup_fatal(_code: StartupFatalCode) -> Result<(), String> {
+    Err("OLED boot handoff requires Unix file locking".into())
+}
+
+#[cfg(all(not(unix), feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn native_attach_after_startup_clear() -> Result<NativeOledGuard, String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 
@@ -201,6 +288,14 @@ impl AnimatorHandoff {
 
 #[cfg(not(unix))]
 impl NativeOledGuard {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(crate) fn mark_unavailable_and_failed(
+        &self,
+        _code: StartupFatalCode,
+    ) -> Result<(), String> {
+        Err("OLED boot handoff requires Unix file locking".into())
+    }
+
     pub(crate) fn detach_preserving(&mut self) -> Result<(), String> {
         Err("OLED boot handoff requires Unix file locking".into())
     }
@@ -210,6 +305,10 @@ impl NativeOledGuard {
     pub(crate) fn mark_first_menu_rendered(&mut self) -> Result<(), String> {
         Err("OLED boot handoff requires Unix file locking".into())
     }
+    pub(crate) fn mark_failed_result(&self) -> Result<(), String> {
+        Err("OLED boot handoff requires Unix file locking".into())
+    }
+    #[allow(dead_code)]
     pub(crate) fn mark_failed(&self) {}
 }
 

@@ -10,6 +10,12 @@ After=octessera-update-recovery.service
 [Service]
 Type=simple
 User=pi
+NoNewPrivileges=yes
+TTYPath=/dev/tty1
+TTYReset=yes
+SupplementaryGroups=tty
+AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG
+CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG
 EnvironmentFile=-/etc/octessera/board-profile.env
 Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w
 WorkingDirectory=@REMOTE_REPO@

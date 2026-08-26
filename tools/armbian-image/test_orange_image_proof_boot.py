@@ -69,11 +69,19 @@ def run_boot_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Pat
         target = negative / (f"boot/config-{RELEASE}" if name == "config" else MODULE_RELATIVE if name == "module" else "var/lib/dpkg/status")
         mutate(target)
         run_proof(root_args(args, negative), False)
+    for name, mutate, reason in (
+        ("missing-hdmi-rsyslog", lambda path: path.unlink(), "installed HDMI rsyslog drop-in is missing or symlinked"),
+        ("wrong-hdmi-rsyslog", lambda path: write(path, b"wrong\n"), "installed HDMI rsyslog drop-in differs from its canonical source"),
+    ):
+        negative = work / name
+        copy_fixture_root(root, negative)
+        mutate(negative / "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf")
+        run_proof_failure(root_args(args, negative), reason)
 
     audio_dtbo = root / "boot/overlay-user/octessera-ahub0-pcm5102.dtbo"
     for name, mutate, reason in (
         ("missing-audio-dtbo", lambda path: path.unlink(), "installed Orange audio DTBO is missing or symlinked"),
-        ("wrong-audio-dtbo", lambda path: shutil.copyfile(root / "boot/overlay-user/octessera-h618-spi1-cs0.dtbo", path), "Orange audio DTBO topology or overlay composition proof failed"),
+        ("wrong-audio-dtbo", lambda path: shutil.copyfile(root / "boot/overlay-user/octessera-h618-spi1-oled-sd2.dtbo", path), "Orange audio DTBO topology or overlay composition proof failed"),
     ):
         negative = work / name
         copy_fixture_root(root, negative)
@@ -140,12 +148,17 @@ def run_boot_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Pat
     run_proof_failure(root_args(args, negative), "installed stock i2c1-pi DTBO differs from the supplied linux-dtb package")
 
     for name, environment, reason in (
-        ("missing-audio-token", "verbosity=1\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing\noverlays=i2c1-pi\n", "Orange Armbian user_overlays assignment is not exact"),
-        ("duplicate-audio-token", "verbosity=1\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102 octessera-ahub0-pcm5102\noverlays=i2c1-pi\n", "Orange Armbian user_overlays assignment is not exact"),
-        ("extra-user-overlay-token", "verbosity=1\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102 extra\noverlays=i2c1-pi\n", "Orange Armbian user_overlays assignment is not exact"),
-        ("extra-overlay-token", "verbosity=1\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi spidev1_0\n", "Orange Armbian overlays assignment is not exact"),
+        ("missing-audio-token", "verbosity=1\nconsole=display\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing\noverlays=i2c1-pi\n", "Orange Armbian user_overlays assignment is not exact"),
+        ("duplicate-audio-token", "verbosity=1\nconsole=display\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102 octessera-ahub0-pcm5102\noverlays=i2c1-pi\n", "Orange Armbian user_overlays assignment is not exact"),
+        ("extra-user-overlay-token", "verbosity=1\nconsole=display\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102 extra\noverlays=i2c1-pi\n", "Orange Armbian user_overlays assignment is not exact"),
+        ("extra-overlay-token", "verbosity=1\nconsole=display\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi spidev1_0\n", "Orange Armbian overlays assignment is not exact"),
     ):
         negative = work / name
         copy_fixture_root(root, negative)
         write(negative / "boot/armbianEnv.txt", environment)
         run_proof_failure(root_args(args, negative), reason)
+
+    negative = work / "masked-tty1-getty"
+    copy_fixture_root(root, negative)
+    (negative / "etc/systemd/system/getty@tty1.service").symlink_to("/dev/null")
+    run_proof(root_args(args, negative), False)

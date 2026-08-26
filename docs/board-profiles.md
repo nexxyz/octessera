@@ -24,11 +24,18 @@ owners. They remain accepted for existing Cargo commands and are covered by CI;
 use canonical names for new commands. No alias removal date is promised.
 
 Both board profiles expose the same native `System > Configure WiFi` menu
-contract and typed setup-portal status flow. Their fixed accounts, image
-provisioning paths, and parent-image preconditions differ: Raspberry uses the
-Pi image path and `pi` account, while Orange uses the Armbian path with separate
-`octessera` setup and `octessera-runtime` service accounts. Physical setup-portal
-qualification on both boards remains pending.
+contract and typed setup-portal status flow. The confirmed `Open Portal` action
+writes the exact `start\n` marker at
+`/run/octessera-setup-request/inbox/start`; one root service then coordinates the
+portal and publishes `/run/octessera-setup-status/current.json`. The pinned
+patched wifi-connect owns AP, DHCP, HTTP, and network switching. Fresh images do
+not start an automatic hotspot. Their fixed accounts, image provisioning paths,
+and parent-image preconditions differ: Raspberry uses the Pi image path and `pi`
+account, while Orange uses the Armbian path with separate `octessera` setup and
+`octessera-runtime` service accounts. Physical setup-portal qualification on both
+boards remains pending.
+The same System menu exposes standalone `Backup & Restore`; Pi uses the regular
+`wlan0` IPv4 service on port 8081, while desktop is unsupported.
 
 ## Shared OLED boot handoff and qualification
 
@@ -54,6 +61,15 @@ outputs still require a new constructor image and physical qualification. Both
 boards may remain blank before their initramfs writer runs; systemd then owns
 the only OLED animator. Reboot retains the clean shutdown logo+wordmark.
 
+### HDMI and physical display qualification
+
+`Terminal` leaves `/dev/tty1` with Linux; native grid mode owns a native VT lease
+around `/dev/fb0`, without connector forcing or a display server. Missing `fb0` is
+nonfatal and retried. The splash observes handoff until `first_menu_rendered`, then
+reclaims OLED presentation for a native fatal status when startup fails. Physical
+Orange/Raspberry HDMI connector, framebuffer, VT, and OLED qualification remains
+deferred; this source contract is not hardware proof.
+
 ### Bounded boot result (historical)
 
 Bounded attended result: both boards cold-booted with the static logo+wordmark,
@@ -72,10 +88,11 @@ Orange runtime startup allows three attempts in a 30-second systemd start-limit
 window: the initial start and two five-second failure retries. After
 `start-limit-hit`, run `sudo systemctl reset-failed octessera.service` and then
 `sudo systemctl start octessera.service`. The OLED boot-loop handoff uses a
-monotonic 30-second deadline starting immediately after handoff start. Timeout,
-signal, and unexpected post-ownership failures attempt a 32768-byte black RGB565
-frame and display-off; either cleanup operation may fail, but both are attempted
-and the handoff is marked failed for native recovery.
+monotonic 30-second deadline starting immediately after handoff start. Timeout
+writes the static `STARTUP DELAYED` / `PLEASE WAIT` frame once and continues
+polling; only signal and unexpected writer failures attempt a 32768-byte black
+RGB565 frame and display-off. Either cleanup operation may fail, but both are
+attempted and the handoff is marked failed for native recovery.
 
 Both constructors also stage the same interactive terminal welcome without
 changing PAM or update-motd. Raspberry declares its UART inactive in the

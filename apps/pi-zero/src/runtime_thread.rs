@@ -1,50 +1,35 @@
 use crate::audio::AudioService;
 use crate::encoder_queue::PendingEncoderTurns;
+use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::input::MidiMessage;
-use crate::main_runtime_loop::{
-    drain_encoder_events, drain_host_messages, flush_pending_encoder_turns, maybe_advance_runtime,
-};
+use crate::main_runtime_loop::{drain_encoder_events, drain_host_messages, maybe_advance_runtime};
 use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
-use crate::snapshot_cadence::SnapshotCadence;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
-use playback_runtime::{
-    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
-};
+use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
-
-const PLAYBACK_TICK_MS: u64 = 8;
-const SNAPSHOT_INTERVAL_MS: u64 = 33;
-const RENDER_INTERVAL_MS: u64 = 33;
-const SCHEDULER_IDLE_SLEEP_MAX_MS: u64 = 4;
-const SCHEDULER_STOPPED_SLEEP_MAX_MS: u64 = 20;
+use std::time::Instant;
 
 #[path = "runtime_startup.rs"]
 mod startup;
 pub(crate) use startup::{prepare, PreparedRuntime};
 
 struct SchedulerState {
-    last_tick: Instant,
-    last_render: Instant,
-    snapshot_cadence: SnapshotCadence,
-    last_published_snapshot_revision: u64,
+    scheduler: HardwareRuntimeScheduler,
     pending_encoder_turns: PendingEncoderTurns,
     ui_profiler: UiProfiler,
 }
 
 impl SchedulerState {
-    fn new() -> Self {
+    fn new(initial_published_revision: u64) -> Self {
+        let now = Instant::now();
         Self {
-            last_tick: Instant::now(),
-            last_render: Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS),
-            snapshot_cadence: SnapshotCadence::new(Instant::now(), 0),
-            last_published_snapshot_revision: 0,
+            scheduler: HardwareRuntimeScheduler::new(now, initial_published_revision),
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler: UiProfiler::from_process(),
         }
@@ -97,11 +82,7 @@ fn run_scheduler(
         candidate_readiness: _,
     } = prepared;
     let audio = adapter.audio_service();
-    let mut state = SchedulerState::new();
-    state
-        .snapshot_cadence
-        .observe_accepted_snapshot(Instant::now(), initial_rendered_revision);
-    state.last_published_snapshot_revision = initial_rendered_revision;
+    let mut state = SchedulerState::new(initial_rendered_revision);
     let profile_enabled = state.profile_enabled();
     let mut last_loop_start = profile_enabled.then(Instant::now);
 
@@ -157,14 +138,8 @@ fn run_scheduler(
             break;
         }
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
-        state
-            .snapshot_cadence
-            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(&input_rx, &mut playback, &mut runner, &mut adapter);
-        state
-            .snapshot_cadence
-            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
         if let Some(started) = host_input_started {
             state.ui_profiler.record_host_input(started.elapsed());
         }
@@ -184,15 +159,6 @@ fn run_scheduler(
             &mut runner,
             &mut adapter,
         );
-        flush_pending_encoder_turns(
-            &mut state.pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-        );
-        state
-            .snapshot_cadence
-            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
         if advance(
             &mut state,
             &mut playback,
@@ -215,52 +181,12 @@ fn run_scheduler(
         ) {
             break;
         }
-        thread::sleep(state.idle_sleep_duration(&playback, &runner));
+        thread::sleep(
+            state
+                .scheduler
+                .sleep_duration(Instant::now(), &playback, &runner),
+        );
     }
-}
-
-impl SchedulerState {
-    fn idle_sleep_duration(&self, playback: &PlaybackRuntime, runner: &NativeRunner) -> Duration {
-        let now = Instant::now();
-        let mut next_due = None;
-        if runtime_tick_needed(playback) {
-            next_due = Some(self.last_tick + Duration::from_millis(PLAYBACK_TICK_MS));
-        }
-        if render_tick_needed(self, playback) {
-            next_due = Some(earliest_due(
-                next_due,
-                self.last_render + Duration::from_millis(RENDER_INTERVAL_MS),
-            ));
-        }
-        if let Some(display_deadline) = self.snapshot_cadence.next_timed_display_deadline(runner) {
-            next_due = Some(earliest_due(next_due, display_deadline));
-        }
-        let max_sleep = if runtime_tick_needed(playback) || render_tick_needed(self, playback) {
-            Duration::from_millis(SCHEDULER_IDLE_SLEEP_MAX_MS)
-        } else {
-            Duration::from_millis(SCHEDULER_STOPPED_SLEEP_MAX_MS)
-        };
-        next_due
-            .and_then(|due| due.checked_duration_since(now))
-            .unwrap_or(max_sleep)
-            .min(max_sleep)
-    }
-}
-
-fn runtime_tick_needed(playback: &PlaybackRuntime) -> bool {
-    playback.has_scheduled_midi()
-        || (playback.config().sync_source == SyncSource::Internal
-            && playback
-                .last_status()
-                .is_some_and(|status| status.transport == RuntimeTransportState::Playing))
-}
-
-fn render_tick_needed(state: &SchedulerState, playback: &PlaybackRuntime) -> bool {
-    playback.last_snapshot_revision() != state.last_published_snapshot_revision
-}
-
-fn earliest_due(current: Option<Instant>, candidate: Instant) -> Instant {
-    current.map_or(candidate, |current| current.min(candidate))
 }
 
 fn advance(
@@ -271,14 +197,7 @@ fn advance(
     render_worker: &RenderWorker,
 ) -> bool {
     maybe_advance_runtime(
-        &mut state.last_tick,
-        Duration::from_millis(PLAYBACK_TICK_MS),
-        Duration::from_millis(SNAPSHOT_INTERVAL_MS),
-        &mut state.last_render,
-        Duration::from_millis(RENDER_INTERVAL_MS),
-        &mut state.snapshot_cadence,
-        &mut state.last_published_snapshot_revision,
-        &mut state.pending_encoder_turns,
+        &mut state.scheduler,
         playback,
         runner,
         adapter,

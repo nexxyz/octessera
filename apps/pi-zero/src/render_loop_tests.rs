@@ -1,12 +1,30 @@
 use super::*;
 use crate::oled_frame_cache::OledFramePublication;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
 use octessera_hal::OledSsd1351;
 use playback_runtime::oled_frame::OLED_FRAME_BYTES;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
 use serde_json::json;
+#[cfg(all(
+    unix,
+    not(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    ))
+))]
+use std::fs;
+use std::time::Instant;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
 fn native_snapshot() -> Value {
     json!({
         "display": { "off": false },
@@ -66,7 +84,7 @@ fn preserving_terminal_teardown_acknowledges_and_joins_worker() {
         oled: OledSsd1351::new().unwrap(),
         seesaw_tx,
         oled_handoff: None,
-        hdmi: None,
+        hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
 
     worker
@@ -146,7 +164,7 @@ fn atomic_terminal_rejects_stale_snapshot_and_uses_supplied_command() {
         oled: OledSsd1351::new().unwrap(),
         seesaw_tx,
         oled_handoff: None,
-        hdmi: None,
+        hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     };
     let handle = thread::spawn(move || {
         let (lock, ready) = &*worker_gate;
@@ -304,6 +322,60 @@ fn snapshot_publication_reports_a_pending_shutdown() {
 }
 
 #[test]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
+fn mark_failed_ack_succeeds_without_an_attached_handoff() {
+    let (seesaw_tx, _seesaw_rx) = mpsc::channel();
+    let worker = RenderWorker::spawn(HardwareRenderTargets {
+        oled: OledSsd1351::new().unwrap(),
+        seesaw_tx,
+        oled_handoff: None,
+        hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
+    });
+
+    assert_eq!(worker.mark_oled_failed(), Ok(()));
+    worker.abort().unwrap();
+}
+
+#[test]
+#[cfg(all(
+    unix,
+    not(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    ))
+))]
+fn mark_failed_ack_reports_failed_status_persistence() {
+    let path = std::env::temp_dir().join(format!(
+        "octessera-render-failed-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let handoff = crate::boot_oled_handoff::native_guard_for_test(&path).unwrap();
+    fs::remove_file(path.join("status.json")).unwrap();
+    fs::create_dir(path.join("status.json")).unwrap();
+    let (seesaw_tx, _seesaw_rx) = mpsc::channel();
+    let worker = RenderWorker::spawn(HardwareRenderTargets {
+        oled: OledSsd1351::new().unwrap(),
+        seesaw_tx,
+        oled_handoff: Some(handoff),
+        hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
+    });
+
+    assert!(worker
+        .mark_oled_failed()
+        .unwrap_err()
+        .contains("failed status publication"));
+    worker.abort().unwrap();
+    fs::remove_dir_all(path).unwrap();
+}
+
+#[test]
 fn ownership_lane_keeps_latest_snapshot_pending() {
     let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
     let (ack, _received) = mpsc::channel();
@@ -335,7 +407,10 @@ fn ownership_timeout_cancels_late_command_execution() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
 fn initial_snapshot_ack_is_current_and_cannot_be_reused() {
     let readiness_path = std::env::temp_dir().join(format!(
         "octessera-render-readiness-{}-{}",
@@ -354,8 +429,7 @@ fn initial_snapshot_ack_is_current_and_cannot_be_reused() {
         oled: OledSsd1351::new().unwrap(),
         seesaw_tx,
         oled_handoff: None,
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        hdmi: None,
+        hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
     assert_eq!(
         worker.mark_first_menu_rendered(),
@@ -383,7 +457,10 @@ fn initial_snapshot_ack_is_current_and_cannot_be_reused() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
 fn initial_snapshot_rejects_missing_or_mismatched_native_frame() {
     let make_worker = || {
         let (seesaw_tx, _seesaw_rx) = mpsc::channel();
@@ -391,7 +468,7 @@ fn initial_snapshot_rejects_missing_or_mismatched_native_frame() {
             oled: OledSsd1351::new().unwrap(),
             seesaw_tx,
             oled_handoff: None,
-            hdmi: None,
+            hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
         })
     };
 

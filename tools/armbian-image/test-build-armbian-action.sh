@@ -28,7 +28,34 @@ assert_provenance_contains() {
 }
 
 assert_action_contains 'KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394'
+assert_action_contains 'REVISION=26.8.0-trunk.417'
+[[ "$(grep -cF 'KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394' "$action")" == 1 ]] || {
+    echo 'Ordinary Armbian builds must retain exactly one old KERNELBRANCH pin.' >&2
+    exit 1
+}
 assert_action_contains 'OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current'
+assert_action_contains 'rolling_pin_bootstrap:'
+assert_action_contains 'default: false'
+assert_action_contains 'prepare-orange-rolling-pin-bootstrap.sh'
+assert_action_contains 'capture-orange-rolling-pin-bootstrap.sh'
+assert_action_contains 'Rolling-pin bootstrap is allowed only from workflow_dispatch.'
+assert_action_contains '3da49cffcb8ac58a919d86816fec4659c410ff1e'
+assert_action_contains "effective_extensions\" == 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'"
+assert_action_contains "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}"
+inspect_condition="$(sed -n '/^    - name: Inspect built image$/,/^      shell: bash$/p' "$action")"
+grep -qF "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}" <<< "$inspect_condition" || {
+    echo 'Bootstrap builds must skip the old manifest-bound image inspection.' >&2
+    exit 1
+}
+octessera_reject_file_match 'Armbian build action must not contain the rolling-pin source-lock implementation.' -qF 'artifact-config-dump-json' "$action"
+octessera_reject_file_match 'Armbian build action must not contain the rolling-pin evidence implementation.' -qF 'dpkg-deb -f' "$action"
+bootstrap_build_step="$(sed -n '/^    - name: Build image$/,/^    - name: Capture rolling-pin bootstrap evidence$/p' "$action")"
+bootstrap_candidate_branch="$(sed -n '/^        if \[\[ "\$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true \]\]; then$/,/^        else$/p' <<< "$bootstrap_build_step")"
+grep -qF 'build_args+=(REVISION=26.11.0-trunk.22)' <<< "$bootstrap_candidate_branch" || {
+    echo 'Bootstrap build must force the candidate revision.' >&2
+    exit 1
+}
+octessera_reject_text_match 'Bootstrap build must omit KERNELBRANCH.' "$bootstrap_candidate_branch" -qF 'KERNELBRANCH='
 assert_action_contains 'image_kind:'
 assert_action_contains 'default: diagnostic'
 assert_action_contains 'runtime_bundle_path:'
@@ -71,6 +98,18 @@ assert_action_contains 'apt-get install -y --no-install-recommends cpio zstd'
 assert_action_contains 'octessera-orange-image-proof.json'
 assert_action_contains 'Prove final Orange image against exact packages'
 assert_action_contains 'tools/legal/stage_notices.py'
+assert_action_contains 'tools/wifi-connect/build-patched-ci.sh'
+assert_action_contains 'target/wifi-connect-patched'
+assert_action_contains 'third_party/wifi-connect-4.11.84'
+assert_action_contains '929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc'
+assert_action_contains '3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939'
+assert_action_contains 'usr/local/share/octessera/wifi-connect'
+assert_action_contains 'custom/tools/storage/octessera-sd-card'
+assert_action_contains 'custom/tools/storage/octessera-sd-card-lib.sh'
+assert_action_contains 'custom/tools/storage/octessera-orange-storage'
+assert_action_contains 'custom/tools/storage/octessera-orange-storage-control'
+assert_action_contains 'octessera_sd2'
+octessera_reject_file_match 'Armbian image construction must not download upstream wifi-connect.' -qE 'wifi-connect(-aarch64-unknown-linux-gnu)?\.tar\.gz|github\.com/balena-os/wifi-connect/releases' "$action"
 octessera_reject_file_match 'Armbian build action must not create a generated legal source tree.' -qF 'legal-source' "$action"
 assert_action_contains 'Clean generated legal staging from disposable output'
 

@@ -44,6 +44,7 @@ impl NativeRunner {
         let mut snapshot = json!({
             "display": {
                 "page": self.behavior.id(),
+                "bodyLayout": display.body_layout,
                 "title": display.title,
                 "lines": display.lines,
                 "colors": display.colors,

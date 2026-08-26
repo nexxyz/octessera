@@ -2,6 +2,7 @@ export { GRID_DOMAIN } from "./coreTypes";
 export type {
   DeviceInput,
   DisplayFrame,
+  OledDisplayLayout,
   GridInteraction,
   LedCell,
   LedMatrixFrame,
@@ -59,6 +60,9 @@ export {
   RUNTIME_SETUP_PORTAL_ERROR_CODES,
   RUNTIME_SETUP_PORTAL_PHASES,
   SETUP_PORTAL_SUFFIX_MAX_CHARS,
+  RUNTIME_USER_DATA_TRANSFER_PHASES,
+  USER_DATA_TRANSFER_CODE_LENGTH,
+  USER_DATA_TRANSFER_CODE_PATTERN,
   RUNTIME_STATUS_STATES,
   RUNTIME_TRANSPORT_STATES,
 } from "./runtimeProtocol";
@@ -90,6 +94,8 @@ export type {
   RuntimeSetupPortalPhase,
   RuntimeSetupPortalSuffix,
   RuntimeSetupPortalStatus,
+  RuntimeUserDataTransferPhase,
+  RuntimeUserDataTransferStatus,
   RuntimeStatus,
   RuntimeStatusMessage,
   RuntimeStatusState,
@@ -102,5 +108,6 @@ export {
   isPositiveOledFrameRevision,
   isRuntimeSetupPortalStatus,
   isRuntimeSetupPortalSuffix,
+  isRuntimeUserDataTransferStatus,
   isRuntimeSnapshotMessage,
 } from "./runtimeProtocol";

@@ -88,7 +88,7 @@ validate_baseline() {
     /proc/device-tree/model \
     "$machine" \
     /boot/armbianEnv.txt \
-    /boot/overlay-user/octessera-h618-spi1-cs0.dtbo \
+    /boot/overlay-user/octessera-h618-spi1-oled-sd2.dtbo \
     /dev/i2c-2 \
     /sys/bus/i2c/devices/i2c-2/of_node \
     /dev/spidev1.0 \

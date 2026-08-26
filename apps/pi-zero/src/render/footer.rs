@@ -2,6 +2,7 @@ use platform_core::palette;
 use serde_json::Value;
 
 use super::{draw_text_clipped, fill_rect, rgb565, scale};
+use playback_runtime::oled_frame::{fit_line_ellipsis, TOAST_RECT};
 
 #[rustfmt::skip]
 pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
@@ -27,7 +28,15 @@ pub(super) fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     if !toast.is_empty() {
         let background = rgb565(scale(palette::BLACK, brightness));
         fill_rect(frame, 0, 114, 128, 14, background);
-        draw_text_clipped(frame, toast, 5, 118, 17, text);
+        let toast = fit_line_ellipsis(toast, TOAST_RECT.columns());
+        draw_text_clipped(
+            frame,
+            &toast,
+            TOAST_RECT.x as i32,
+            TOAST_RECT.y as i32,
+            TOAST_RECT.columns(),
+            text,
+        );
         return;
     }
     draw_transport_icon(frame, snapshot, brightness);

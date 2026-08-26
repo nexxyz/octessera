@@ -18,8 +18,8 @@ inputs:
     description: Armbian COMPRESS_OUTPUTIMAGE value
   extensions:
     required: false
-    default: octessera_midi octessera_audio octessera_image_sanitize
-    description: Space-separated Armbian extensions; Octessera MIDI, AHUB audio, and image sanitization are always added when absent
+    default: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize
+    description: Space-separated Armbian extensions; Octessera MIDI, AHUB audio, SPI1 SD2, and image sanitization are always added when absent
   armbian_build_ref:
     required: true
     description: Reviewed immutable armbian/build commit SHA
@@ -44,6 +44,10 @@ inputs:
   construction_contract:
     required: true
     description: Exact Orange Phase 5 construction contract path
+  rolling_pin_bootstrap:
+    required: false
+    default: false
+    description: Temporary non-release rolling-pin discovery lane; only the exact candidate framework SHA is accepted
 runs:
   using: composite
   steps:
@@ -66,6 +70,7 @@ runs:
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
         OCTESSERA_BOOT_PROOF_MODE: ${{ inputs.boot_proof_mode }}
         OCTESSERA_CONSTRUCTION_CONTRACT: ${{ inputs.construction_contract }}
+        OCTESSERA_ROLLING_PIN_BOOTSTRAP: ${{ inputs.rolling_pin_bootstrap }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
@@ -80,7 +85,11 @@ runs:
         effective_extensions="$(bash "$GITHUB_ACTION_PATH/../../../tools/armbian-image/resolve-armbian-extensions.sh" "$OCTESSERA_ARMBIAN_EXTENSIONS")"
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_midi([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_midi.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_audio([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_audio.' >&2; exit 1; }
+        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_sd2([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_sd2.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
+        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
+          [[ "$effective_extensions" == 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' ]] || { echo 'Rolling-pin bootstrap requires the exact effective extension set.' >&2; exit 1; }
+        fi
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
         [[ "$OCTESSERA_IMAGE_KIND" == diagnostic || "$OCTESSERA_IMAGE_KIND" == production ]] || { echo 'image_kind must be diagnostic or production.' >&2; exit 1; }
         if [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -n "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]]; then
@@ -98,7 +107,16 @@ runs:
         [[ "$OCTESSERA_BOOT_PROOF_MODE" == phase5-constructor ]] || { echo 'Orange image proof mode must be phase5-constructor.' >&2; exit 1; }
         [[ "$OCTESSERA_CONSTRUCTION_CONTRACT" == resources/image-construction/boot-layers/orange-pi-zero-2w.json ]] || { echo 'Orange construction contract path is not exact.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
-        [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
+        [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true || "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == false ]] || { echo 'rolling_pin_bootstrap must be true or false.' >&2; exit 1; }
+        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
+          [[ "${GITHUB_EVENT_NAME:-}" == workflow_dispatch ]] || { echo 'Rolling-pin bootstrap is allowed only from workflow_dispatch.' >&2; exit 1; }
+          [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w && "$OCTESSERA_ARMBIAN_RELEASE" == trixie && "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current ]] || { echo 'Rolling-pin bootstrap requires the exact Orange trixie/current build tuple.' >&2; exit 1; }
+          [[ "$OCTESSERA_ARMBIAN_UI" == minimal && "$OCTESSERA_ARMBIAN_COMPRESSION" == sha,img,xz && "$OCTESSERA_ARMBIAN_SHARE_LOG" == yes ]] || { echo 'Rolling-pin bootstrap requires the exact diagnostic/minimal build settings.' >&2; exit 1; }
+          [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -z "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Rolling-pin bootstrap requires a diagnostic image without a runtime bundle.' >&2; exit 1; }
+          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Rolling-pin bootstrap requires the exact candidate Armbian source pin.' >&2; exit 1; }
+        else
+          [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
+        fi
     - name: Free runner disk space
       shell: bash
       run: |
@@ -128,10 +146,36 @@ runs:
         bash "$custom_root/tools/armbian-image/stage-canonical-welcome.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         python3 "$custom_root/tools/armbian-image/stage-device-config.py" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         bash "$custom_root/tools/armbian-image/stage-musical-assets.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay/usr/share/octessera"
+        bash "$custom_root/tools/wifi-connect/build-patched-ci.sh"
         sudo python3 "$custom_root/tools/legal/stage_notices.py" \
           --repository-root "$custom_root" \
           --destination-root "$GITHUB_WORKSPACE/build/userpatches/overlay"
-        mkdir -p build/userpatches/overlay/usr/local/lib/octessera
+        wifi_connect_artifact_root="$custom_root/target/wifi-connect-patched"
+        wifi_connect_legal_root="$custom_root/third_party/wifi-connect-4.11.84"
+        wifi_connect_stage="$GITHUB_WORKSPACE/build/userpatches/overlay/usr/local/share/octessera/wifi-connect"
+        wifi_connect_expected_sha256=929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc
+        wifi_connect_patch_sha256=3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939
+        for wifi_connect_file in wifi-connect wifi-connect.metadata.json cargo-metadata.json; do
+          test -f "$wifi_connect_artifact_root/$wifi_connect_file" && test ! -L "$wifi_connect_artifact_root/$wifi_connect_file"
+        done
+        for wifi_connect_file in LICENSE THIRD-PARTY-NOTICES.md portal-address-readiness.patch; do
+          test -f "$wifi_connect_legal_root/$wifi_connect_file" && test ! -L "$wifi_connect_legal_root/$wifi_connect_file"
+        done
+        echo "$wifi_connect_expected_sha256  $wifi_connect_artifact_root/wifi-connect" | sha256sum -c -
+        echo "$wifi_connect_patch_sha256  $wifi_connect_legal_root/portal-address-readiness.patch" | sha256sum -c -
+        install -d -m 0755 "$wifi_connect_stage"
+        for wifi_connect_file in wifi-connect.metadata.json cargo-metadata.json; do
+          install -m 0644 "$wifi_connect_artifact_root/$wifi_connect_file" "$wifi_connect_stage/$wifi_connect_file"
+        done
+        install -m 0755 "$wifi_connect_artifact_root/wifi-connect" "$wifi_connect_stage/wifi-connect"
+        for wifi_connect_file in LICENSE THIRD-PARTY-NOTICES.md; do
+          install -m 0644 "$wifi_connect_legal_root/$wifi_connect_file" "$wifi_connect_stage/$wifi_connect_file"
+        done
+        mkdir -p build/userpatches/overlay/usr/local/lib/octessera build/userpatches/overlay/usr/local/sbin
+        install -m 0755 custom/tools/storage/octessera-sd-card build/userpatches/overlay/usr/local/sbin/octessera-sd-card
+        install -m 0644 custom/tools/storage/octessera-sd-card-lib.sh build/userpatches/overlay/usr/local/lib/octessera/octessera-sd-card-lib.sh
+        install -m 0755 custom/tools/storage/octessera-orange-storage build/userpatches/overlay/usr/local/sbin/octessera-orange-storage
+        install -m 0755 custom/tools/storage/octessera-orange-storage-control build/userpatches/overlay/usr/local/sbin/octessera-orange-storage-control
         install -m 0644 custom/tools/device-update/updater_protocol.py build/userpatches/overlay/usr/local/lib/octessera/updater_protocol.py
         install -m 0644 custom/tools/device-update/updater_contract.py build/userpatches/overlay/usr/local/lib/octessera/updater_contract.py
         install -m 0644 custom/tools/device-update/updater_state.py build/userpatches/overlay/usr/local/lib/octessera/updater_state.py
@@ -164,6 +208,14 @@ runs:
         cd build
         sudo ./compile.sh requirements
         sudo chown -R "$USER:$USER" .
+    - name: Prepare rolling-pin candidate source lock
+      if: ${{ inputs.rolling_pin_bootstrap == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        bash "$custom_root/tools/armbian-image/prepare-orange-rolling-pin-bootstrap.sh" \
+          "$GITHUB_WORKSPACE/build" "$GITHUB_WORKSPACE/rolling-pin-bootstrap-capture"
     - name: Build image
       shell: bash
       env:
@@ -176,6 +228,7 @@ runs:
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
+        OCTESSERA_ROLLING_PIN_BOOTSTRAP: ${{ inputs.rolling_pin_bootstrap }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
@@ -191,9 +244,20 @@ runs:
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_midi([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_midi.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_audio([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_audio.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
+        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
+          [[ "$effective_extensions" == 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' ]] || { echo 'Rolling-pin bootstrap requires the exact effective extension set.' >&2; exit 1; }
+        fi
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
-        [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
+        [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true || "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == false ]] || { echo 'rolling_pin_bootstrap must be true or false.' >&2; exit 1; }
+        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
+          [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w && "$OCTESSERA_ARMBIAN_RELEASE" == trixie && "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current ]] || { echo 'Rolling-pin bootstrap requires the exact Orange trixie/current build tuple.' >&2; exit 1; }
+          [[ "$OCTESSERA_ARMBIAN_UI" == minimal && "$OCTESSERA_ARMBIAN_COMPRESSION" == sha,img,xz && "$OCTESSERA_ARMBIAN_SHARE_LOG" == yes ]] || { echo 'Rolling-pin bootstrap requires the exact diagnostic/minimal build settings.' >&2; exit 1; }
+          [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -z "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Rolling-pin bootstrap requires a diagnostic image without a runtime bundle.' >&2; exit 1; }
+          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Rolling-pin bootstrap requires the exact candidate Armbian source pin.' >&2; exit 1; }
+        else
+          [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
+        fi
         cd build
         build_desktop=no
         build_minimal=no
@@ -206,22 +270,41 @@ runs:
           desktop_environment="$OCTESSERA_ARMBIAN_UI"
           desktop_tier=mid
         fi
-        ./compile.sh build \
-          BOARD="$OCTESSERA_ARMBIAN_BOARD" \
-          BRANCH="$OCTESSERA_ARMBIAN_KERNEL_BRANCH" \
-          REVISION=26.8.0-trunk.417 \
-          KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394 \
-          RELEASE="$OCTESSERA_ARMBIAN_RELEASE" \
-          KERNEL_CONFIGURE=no \
-          BUILD_DESKTOP="$build_desktop" \
-          BUILD_MINIMAL="$build_minimal" \
-          DESKTOP_ENVIRONMENT="$desktop_environment" \
-          DESKTOP_TIER="$desktop_tier" \
-          ENABLE_EXTENSIONS="$effective_extensions" \
-          COMPRESS_OUTPUTIMAGE="$OCTESSERA_ARMBIAN_COMPRESSION" \
-          SHARE_LOG="$OCTESSERA_ARMBIAN_SHARE_LOG" \
+        build_args=(
+          build
+          "BOARD=$OCTESSERA_ARMBIAN_BOARD"
+          "BRANCH=$OCTESSERA_ARMBIAN_KERNEL_BRANCH"
+        )
+        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
+          build_args+=(REVISION=26.11.0-trunk.22)
+        else
+          build_args+=(REVISION=26.8.0-trunk.417 KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394)
+        fi
+        build_args+=(
+          "RELEASE=$OCTESSERA_ARMBIAN_RELEASE"
+          KERNEL_CONFIGURE=no
+          "BUILD_DESKTOP=$build_desktop"
+          "BUILD_MINIMAL=$build_minimal"
+          "DESKTOP_ENVIRONMENT=$desktop_environment"
+          "DESKTOP_TIER=$desktop_tier"
+          "ENABLE_EXTENSIONS=$effective_extensions"
+          "COMPRESS_OUTPUTIMAGE=$OCTESSERA_ARMBIAN_COMPRESSION"
+          "SHARE_LOG=$OCTESSERA_ARMBIAN_SHARE_LOG"
           EXPERT=yes
+        )
+        ./compile.sh "${build_args[@]}"
+    - name: Capture rolling-pin bootstrap evidence
+      if: ${{ inputs.rolling_pin_bootstrap == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        bash "$custom_root/tools/armbian-image/capture-orange-rolling-pin-bootstrap.sh" \
+          "$GITHUB_WORKSPACE/build" \
+          "$GITHUB_WORKSPACE/rolling-pin-bootstrap-capture/captured-candidate-source-lock.json" \
+          "$GITHUB_WORKSPACE/build/output/bootstrap-evidence"
     - name: Validate built Orange kernel package
+      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -233,6 +316,7 @@ runs:
           "${linux_kernel_packages[0]}" "${linux_kernel_packages[1]}" \
           --evidence-output "$package_evidence"
     - name: Stage canonical Orange kernel packages for release handoff
+      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -259,6 +343,7 @@ runs:
           install -m 0644 "${linux_kernel_packages[$index]}" "$destination"
         done
     - name: Inspect built image
+      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       env:
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
@@ -282,6 +367,7 @@ runs:
           )
         done
     - name: Record qualification provenance
+      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       env:
         GITHUB_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
@@ -299,6 +385,7 @@ runs:
           build/output/images/octessera-qualification-metadata.txt \
           build/output/images/octessera-orange-kernel-evidence.env build '' build/output/images
     - name: Prove final Orange image against exact packages
+      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       env:
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}

@@ -40,6 +40,7 @@ keep source proof and physical proof separate.
 | 4 | Silicone 4x4 keypad | [Adafruit `1611`](https://www.adafruit.com/product/1611), Mouser `485-1611` | One per NeoTrellis board. |
 | 1 | NeoKey 1x4 QT | [Adafruit `4980`](https://www.adafruit.com/product/4980), Mouser `485-4980` | Holds the four Cherry MX keys. |
 | 1 | Compute board | [Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) for the Raspberry path, or [Orange Pi Zero 2W](../../hardware/docs/orange-pi-armbian-bringup.md#target-context) for the Orange path | Choose one documented board profile. Confirm the exact board revision, header orientation, pinout, and mechanical fit before soldering or powering it. |
+| 1 | Wi-Fi antenna (Orange Pi only, optional) | Orange Pi Zero 2W-compatible antenna | May improve Wi-Fi quality. Connect it before final assembly and leave it connected. Secure it with non-conductive tape to a free PCB area where it cannot cover pads, touch exposed contacts, be pinched, or strain the connector. |
 | 1 | SSD1351 OLED breakout with microSD holder | [Adafruit `1431`](https://www.adafruit.com/product/1431), Mouser `485-1431` | SPI display. |
 | 1 | PCM5102 I2S DAC | [Adafruit `6250`](https://www.adafruit.com/product/6250), Mouser `485-6250` | Line/headphone output path. |
 | 1 | USB-C power breakout | [Adafruit `4090`](https://www.adafruit.com/product/4090), Mouser `485-4090` | Power the device here, not through the compute board. |
@@ -264,6 +265,10 @@ Only assemble the enclosure after the electrical test and System-menu diagnostic
 
 Before you start with the enclosure, you need to remove the keyswitches from the NeoKey, but you can leave the keycaps on.
 Remove the selected compute board's microSD card and the OLED microSD card first. They can catch on the enclosure and break during installation.
+
+### Optional Orange Pi Wi-Fi antenna
+
+An Orange Pi Wi-Fi antenna may improve Wi-Fi quality. Connect it before final assembly and leave it connected. Secure it with non-conductive tape to a free PCB area where it cannot cover pads, touch exposed contacts, be pinched, or strain the connector. A placement photo will be added later.
 
 1. Place the bottom enclosure on the bench.
    - Before closing the case, it can also be a useful soldering fixture: set the NeoTrellis array upside-down in the bottom, secure it with its top pins so the four boards stay perfectly aligned, then solder the boards to one another.

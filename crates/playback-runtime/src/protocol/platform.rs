@@ -58,6 +58,8 @@ pub enum RuntimePlatformEffect {
     Rollback,
     SystemInfoRequest,
     SetupPortalOpen,
+    UserDataTransferOpen,
+    UserDataTransferClose,
     SampleListRequest {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,
@@ -101,6 +103,9 @@ impl RuntimePlatformEffect {
             | Self::HardwareTest => RuntimeOperation::RuntimeDispatch,
             Self::SystemInfoRequest => RuntimeOperation::SystemInfo,
             Self::SetupPortalOpen => RuntimeOperation::SetupPortal,
+            Self::UserDataTransferOpen | Self::UserDataTransferClose => {
+                RuntimeOperation::UserDataTransfer
+            }
         }
     }
 
@@ -143,6 +148,7 @@ impl RuntimePlatformEffect {
             | Self::StoreSaveRecovery { .. } => RuntimeErrorDomain::Storage,
             Self::SystemInfoRequest => RuntimeErrorDomain::Runtime,
             Self::SetupPortalOpen => RuntimeErrorDomain::Runtime,
+            Self::UserDataTransferOpen | Self::UserDataTransferClose => RuntimeErrorDomain::Runtime,
             _ => RuntimeErrorDomain::Runtime,
         }
     }

@@ -11,7 +11,11 @@ source ./tools/pi/board-profile.sh
 require_supported_pi_board_profile "$BOARD_PROFILE"
 CARGO_FEATURE="$(get_pi_board_cargo_feature "$BOARD_PROFILE")"
 
-docker build -f Dockerfile.pi-zero -t "$IMAGE" .
+BUILD_CONTEXT="$(mktemp -d)"
+trap 'rm -rf -- "$BUILD_CONTEXT"' EXIT
+DOCKERFILE="$BUILD_CONTEXT/Dockerfile.pi-zero"
+cp "$PWD/Dockerfile.pi-zero" "$DOCKERFILE"
+docker build -f "$DOCKERFILE" -t "$IMAGE" "$BUILD_CONTEXT"
 docker run --rm \
   -v "$PWD:/work" \
   -v octessera-pi-cargo-registry:/usr/local/cargo/registry \

@@ -1,0 +1,30 @@
+/dts-v1/;
+/plugin/;
+
+&pio {
+    spi1_cs1_pin: spi1-cs1-pin {
+        pins = "PH9";
+        function = "spi1";
+    };
+};
+
+&spi1 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    pinctrl-names = "default";
+    pinctrl-0 = <&spi1_pins &spi1_cs0_pin &spi1_cs1_pin>;
+    status = "okay";
+
+    spidev@0 {
+        compatible = "rohm,dh2228fv";
+        reg = <0>;
+        spi-max-frequency = <16000000>;
+    };
+
+    mmc@1 {
+        compatible = "mmc-spi-slot";
+        reg = <1>;
+        spi-max-frequency = <10000000>;
+        voltage-ranges = <3300 3300>;
+    };
+};

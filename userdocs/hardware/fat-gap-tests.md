@@ -83,9 +83,9 @@ covers lifecycle teardown, power submission, and return/recovery only.
 verified off-board storage, and at least 25 minutes remaining. This slot covers
 one board; a full two-board result needs a separate 25-minute slot for the other
 board. Otherwise mark the entire row `NOT RUN — mandatory FAT follow-up`; do not
-squeeze in an uncontrolled reflash. This is a board-side transfer path on
-Raspberry Pi and Orange Pi; desktop transfer is unsupported. See [Data Backup
-and Restore](../data-backup-restore.md) for the complete transfer contract.
+squeeze in an uncontrolled reflash. Use the standalone `System > Backup & Restore`
+action on Pi; desktop is unsupported. See [Data Backup and Restore](../data-backup-restore.md)
+for the complete transfer contract. This is separate from the setup-portal FAT.
 
 ### Automated preparation and capture
 
@@ -97,37 +97,42 @@ and Restore](../data-backup-restore.md) for the complete transfer contract.
 
 ### Operator action
 
-1. On the source board, open `System > Configure WiFi`, join the displayed local
-   portal, and export a data-only archive. Export media-inclusive data too when
-   custom samples or recordings are part of the claim. Use the documented
-   transfer shape, replacing placeholders with the displayed values:
+1. On the source board, choose `System > Backup & Restore`. Read the regular IP,
+   port, and 10-character code from the OLED Ready card, then export a data-only
+   archive. Export media-inclusive data too when custom samples or recordings
+   are part of the claim. Use the displayed values:
 
    ```sh
-   URL="http://192.168.42.1:8081"
-   CODE="TRANSFER_CODE"
+   URL="http://<regular-ip>:8081"
+   CODE="<10-character code>"
    curl -fL -H "X-Octessera-Transfer-Code: $CODE" -o octessera-user-data.oct "$URL/export"
    curl -fL -H "X-Octessera-Transfer-Code: $CODE" -o octessera-user-data-media.oct "$URL/export?media=1"
    ```
 
-2. Verify both archive hashes off-board. Flash the matching image to the
-   controlled spare card, complete first boot/setup, and open the transfer
-   service again.
-3. Upload one archive using the [documented restore command](../data-backup-restore.md#pre-flash-and-restore-flow).
-   Press Main to apply only after staged validation says confirmation is
-   required; use Back for the cancel case if time allows. Wait for the terminal
-   result.
+2. Press Back and reopen the action; confirm the same URL and code remain with
+   no lifetime extension. After export, select `> Stop service` and confirm the
+   code is revoked. If a controlled no-address case is available, confirm the
+   action is unavailable without binding or retrying.
+3. Verify both archive hashes off-board. Flash the matching image to the
+   controlled spare card, complete first boot and regular network setup, then
+   choose `System > Backup & Restore` again for the new displayed URL and code.
+4. Upload one archive using the [documented restore command](../data-backup-restore.md#pre-flash-and-restore-flow).
+   Press Main to apply only after validation says confirmation is required; use
+   Back for the cancel case if time allows. Wait for the terminal result.
 
 ### Observation and implicit coverage
 
 Record `backup/export-result.txt`, `backup/restore-result.txt`, archive hashes,
-physical Main/Back choice, image SHA, and final board state. A pass requires
-no-media restore, media-inclusive restore when claimed, physical confirmation
-behavior, and recovery after the controlled reflash. Do not record the transfer
-code or archive contents in plain-text evidence.
+physical Main/Back choice, image SHA, card lifetime/reopen behavior, service-stop
+result, and final board state. Where testable, record expiry or authentication
+revocation closing the service. A pass requires no-media restore, media-inclusive
+restore when claimed, physical confirmation behavior, and recovery after the
+controlled reflash. Do not record the transfer code or archive contents in
+plain-text evidence.
 
-The end-to-end paths already covered first boot, setup AP, native handoff, and
-ordinary runtime after setup. This stage adds export, archive validation, staged
-restore, physical confirmation, and post-image-update data continuity.
+The end-to-end paths already cover first boot, the setup AP, native handoff, and
+ordinary runtime separately. This stage adds the standalone transfer, archive
+validation, physical confirmation, and post-image-update data continuity.
 
 If the time box expires, the mandatory follow-up still includes invalid and
 incompatible archive reporting, rejected-restore data preservation, no-media and

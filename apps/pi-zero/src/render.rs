@@ -7,7 +7,6 @@ use serde_json::Value;
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) mod hdmi;
 mod oled;
 mod oled_output;
@@ -57,6 +56,11 @@ const SPLASH_SLEEP_SHUTDOWN: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
 const SLEEP_DIM_SCALE: f32 = 0.08;
 const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
+
+pub(crate) fn shutdown_splash_base_frame() -> Vec<u8> {
+    SPLASH_SLEEP_SHUTDOWN.to_vec()
+}
+
 #[path = "render/boot_sweep.rs"]
 mod boot_sweep;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
@@ -80,8 +84,7 @@ pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,
     pub seesaw_tx: Sender<SeesawCommand>,
     pub oled_handoff: Option<crate::boot_oled_handoff::NativeOledGuard>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    pub hdmi: Option<hdmi::HdmiFramebuffer>,
+    pub hdmi: hdmi::HdmiFramebuffer,
 }
 
 pub struct HardwareRenderCache {
@@ -95,7 +98,6 @@ pub struct HardwareRenderCache {
     oled_retry_publication: Option<OledFramePublication>,
     oled_retry_display_off: bool,
     oled_error_log_at: Option<Instant>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     hdmi_signature: u64,
 }
 
@@ -112,7 +114,6 @@ impl HardwareRenderCache {
             oled_retry_publication: None,
             oled_retry_display_off: false,
             oled_error_log_at: None,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             hdmi_signature: 0,
         }
     }
@@ -130,28 +131,48 @@ pub fn render_snapshot_cached(
     oled: &OledFramePublication,
     cache: &mut HardwareRenderCache,
 ) -> Option<Instant> {
+    let oled_retry_deadline = render_oled_and_leds_cached(targets, snapshot, oled, cache);
+    let hdmi_retry_deadline =
+        render_hdmi_if_changed(&mut targets.hdmi, snapshot, cache, Instant::now());
+    next_deadline(oled_retry_deadline, hdmi_retry_deadline)
+}
+
+pub(crate) fn render_oled_and_leds_cached(
+    targets: &mut HardwareRenderTargets,
+    snapshot: &Value,
+    oled: &OledFramePublication,
+    cache: &mut HardwareRenderCache,
+) -> Option<Instant> {
     let animation_deadline = render_leds_at(targets, snapshot, cache, Instant::now());
     let oled_retry_deadline =
         render_oled_if_changed(&mut targets.oled, snapshot, oled, cache, Instant::now());
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let mut hdmi_failed = false;
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    if let Some(hdmi) = targets.hdmi.as_mut() {
-        let signature = hdmi::hdmi_signature(snapshot);
-        if cache.hdmi_signature != signature {
-            cache.hdmi_signature = signature;
-            if let Err(error) = hdmi.render(snapshot) {
-                eprintln!("pi HDMI framebuffer render failed: {error}");
-                hdmi_failed = true;
-            }
-        }
-    }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    if hdmi_failed {
-        targets.hdmi = None;
-    }
     next_deadline(animation_deadline, oled_retry_deadline)
+}
+
+pub(crate) fn retry_hdmi_if_due(
+    targets: &mut HardwareRenderTargets,
+    snapshot: &Value,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> Option<Instant> {
+    render_hdmi_if_changed(&mut targets.hdmi, snapshot, cache, now)
+}
+
+fn render_hdmi_if_changed(
+    hdmi: &mut hdmi::HdmiFramebuffer,
+    snapshot: &Value,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> Option<Instant> {
+    let signature = hdmi::hdmi_signature(snapshot);
+    if cache.hdmi_signature == signature && !hdmi.has_pending_retry() {
+        return None;
+    }
+    let outcome = hdmi.render(snapshot, now);
+    if outcome.applied {
+        cache.hdmi_signature = signature;
+    }
+    outcome.retry_at
 }
 
 pub(crate) fn render_leds_only(
@@ -438,6 +459,9 @@ pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "render/boot_sweep_tests.rs"]
 mod boot_sweep_tests;
+#[cfg(test)]
+#[path = "render/hdmi_cache_tests.rs"]
+mod hdmi_cache_tests;
 #[cfg(test)]
 #[path = "render/native_frame_sleep_wake_tests.rs"]
 mod native_frame_sleep_wake_tests;

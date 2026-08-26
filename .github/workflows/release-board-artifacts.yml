@@ -237,6 +237,8 @@ jobs:
         with:
           name: octessera-raspberry-kernel-release-assets
           path: kernel-bundle
+      - name: Build pinned patched wifi-connect
+        run: bash tools/wifi-connect/build-patched-ci.sh
       - name: Stage the matching runtime into stage4
         run: |
           set -euo pipefail
@@ -368,7 +370,7 @@ jobs:
           kernel_branch: current
           ui: minimal
           compression: sha,img,xz
-          extensions: octessera_midi octessera_audio octessera_image_sanitize
+          extensions: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize
           armbian_build_ref: fa7a7b2294d9e760a77630950afd460b7a0b2a26
           share_log: yes
           image_kind: production

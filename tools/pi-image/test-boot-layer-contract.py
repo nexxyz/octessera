@@ -89,6 +89,22 @@ def validate(document: dict[str, Any], root: Path) -> None:
     provision = (root / "tools/pi/provision/provision.sh").read_text(encoding="utf-8")
     setup = (root / "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh").read_text(encoding="utf-8")
     boot_config = (root / "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh").read_text(encoding="utf-8")
+    install_deps = (root / "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh").read_text(encoding="utf-8")
+    for text in (install_deps, setup):
+        if re.search(r"wifi-connect-aarch64-unknown-linux-gnu\.tar\.gz|github\.com/balena-os/wifi-connect/releases|curl\s+.*wifi-connect|(^|\s)tar\s+.*wifi-connect", text):
+            raise ValueError("Raspberry constructor downloads upstream wifi-connect")
+    for required in (
+        "target/wifi-connect-patched",
+        "third_party/wifi-connect-4.11.84",
+        "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc",
+        "3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939",
+        "wifi-connect.metadata.json",
+        "cargo-metadata.json",
+        "THIRD-PARTY-NOTICES.md",
+        "sha256sum -c -",
+    ):
+        if required not in setup:
+            raise ValueError(f"Raspberry constructor is missing patched wifi-connect integration: {required}")
     console_pattern = r"(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)"
     for text in (deploy, provision):
         if re.search(r"(?:cat|tee)[^\n]*octessera-welcome\.sh[^\n]*<<", text):
@@ -104,7 +120,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
         raise ValueError("Raspberry deploy parity does not remove and prove absence of the stale UART utility")
     if 'sudo rm -f "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"' not in provision or 'test ! -e "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"' not in provision:
         raise ValueError("Raspberry provision parity does not use SYSROOT-aware stale UART cleanup")
-    if console_pattern not in boot_config or "grep -qxF 'dtoverlay=disable-bt'" not in boot_config or "grep -qxF 'enable_uart=0'" not in boot_config:
+    if "console=(serial0|ttyAMA0|ttyS0)" not in boot_config or "console=tty1" not in boot_config or "grep -qxF 'dtoverlay=disable-bt'" not in boot_config or "grep -qxF 'enable_uart=0'" not in boot_config:
         raise ValueError("Raspberry constructor does not enforce exact inactive-UART boot state")
     if 'getty.target.wants"/serial-getty@*.service' not in setup:
         raise ValueError("Raspberry constructor does not remove serial-getty enablement links")
@@ -193,6 +209,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
     if document["uart_invariants"] != {
         "required_config": ["dtoverlay=disable-bt", "enable_uart=0"],
         "forbidden_config": ["enable_uart=1"],
+        "required_cmdline": ["console=tty1"],
         "forbidden_cmdline_prefixes": ["console=serial0", "console=ttyAMA0", "console=ttyS0"],
         "masks": ["serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service"],
         "disabled_services": ["bluetooth.service", "hciuart.service"],

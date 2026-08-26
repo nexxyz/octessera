@@ -72,6 +72,7 @@ impl NativeRunner {
             "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
             "system.info" => Some(RuntimePlatformEffect::SystemInfoRequest),
             "system.configureWifi" => Some(RuntimePlatformEffect::SetupPortalOpen),
+            "system.backupRestore" => Some(RuntimePlatformEffect::UserDataTransferOpen),
             "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
             "system.updateApply" => Some(RuntimePlatformEffect::UpdateApply),
             "system.rollback" => Some(RuntimePlatformEffect::Rollback),
@@ -105,6 +106,14 @@ impl NativeRunner {
                 }
                 if let RuntimeStoreResult::UserDataRestoreStatus { status } = result.as_ref() {
                     self.apply_user_data_restore_status(status.clone(), Some(request_id), revision);
+                    return Ok(());
+                }
+                if let RuntimeStoreResult::UserDataTransferStatus { status } = result.as_ref() {
+                    self.apply_user_data_transfer_status(
+                        status.clone(),
+                        Some(request_id),
+                        revision,
+                    );
                     return Ok(());
                 }
                 let operation = result.operation();
@@ -190,6 +199,9 @@ impl NativeRunner {
             }
             result @ RuntimeStoreResult::UserDataRestoreStatus { .. } => {
                 self.apply_user_data_restore_result(result)
+            }
+            result @ RuntimeStoreResult::UserDataTransferStatus { .. } => {
+                self.apply_user_data_transfer_result(result)
             }
             result @ (RuntimeStoreResult::StoreError { .. }
             | RuntimeStoreResult::DeviceUpdateStatus { .. }

@@ -35,10 +35,19 @@ pub fn process_runtime_output(
         .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
     let fault_output = playback.report_oled_cache_fault(fault);
     ingest_oled_messages(adapter, &fault_output.messages);
+    if adapter.shutdown_pending() {
+        return Ok(());
+    }
     for follow_up in fault_output.follow_ups {
+        if adapter.shutdown_pending() {
+            break;
+        }
         dispatch_runtime_message(playback, runner, adapter, follow_up)?;
     }
     for follow_up in output.follow_ups {
+        if adapter.shutdown_pending() {
+            break;
+        }
         dispatch_runtime_message(playback, runner, adapter, follow_up)?;
     }
     Ok(())
@@ -58,16 +67,28 @@ pub fn handle_deferred_host_work(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) -> Result<(), String> {
+    if adapter.shutdown_pending() {
+        return Ok(());
+    }
     let responses = runner.flush_deferred_menu_apply()?;
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, adapter)?;
         process_runtime_output(playback, runner, adapter, output)?;
     }
+    if adapter.shutdown_pending() {
+        return Ok(());
+    }
     let follow_ups = adapter.flush_due_default_save()?;
     for follow_up in follow_ups {
+        if adapter.shutdown_pending() {
+            break;
+        }
         dispatch_runtime_message(playback, runner, adapter, follow_up)?;
     }
     for result in adapter.drain_platform_results(PLATFORM_RESULT_BUDGET) {
+        if adapter.shutdown_pending() {
+            break;
+        }
         dispatch_runtime_message(playback, runner, adapter, result)?;
     }
     Ok(())

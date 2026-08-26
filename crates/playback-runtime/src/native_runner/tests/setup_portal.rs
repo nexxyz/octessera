@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode, RuntimeSetupPortalTransfer,
-};
+use crate::{RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode};
 
 fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
     let (disposition, suffix, error_code) = match phase {
@@ -29,7 +27,6 @@ fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
             phase,
             disposition,
             portal_suffix: suffix,
-            transfer: None,
             reboot_required: false,
             error_code,
         },
@@ -121,13 +118,45 @@ pub(crate) fn configure_wifi_replay_confirms_with_one_stop_panic_and_portal_effe
 #[test]
 pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
     for (phase, expected) in [
-        (RuntimeSetupPortalPhase::Starting, "Starting hotspot..."),
-        (RuntimeSetupPortalPhase::PortalReady, "Octessera Setup 1a2f"),
-        (RuntimeSetupPortalPhase::Finalizing, "Applying settings..."),
-        (RuntimeSetupPortalPhase::Succeeded, "Setup complete"),
-        (RuntimeSetupPortalPhase::Failed, "Setup failed"),
-        (RuntimeSetupPortalPhase::TimedOut, "Setup timed out"),
-        (RuntimeSetupPortalPhase::Unsupported, "Not available on"),
+        (
+            RuntimeSetupPortalPhase::Starting,
+            vec!["Starting hotspot...", "> Hide"],
+        ),
+        (
+            RuntimeSetupPortalPhase::PortalReady,
+            vec![
+                "Hotspot:",
+                "Octessera Setup 1a2f",
+                "Open 192.168.42.1",
+                "Portal: 10 minutes",
+                "> Hide",
+            ],
+        ),
+        (
+            RuntimeSetupPortalPhase::Finalizing,
+            vec!["Applying settings...", "> Hide"],
+        ),
+        (
+            RuntimeSetupPortalPhase::Succeeded,
+            vec![
+                "Setup complete",
+                "IP in System > Info",
+                "No reboot needed",
+                "> Close",
+            ],
+        ),
+        (
+            RuntimeSetupPortalPhase::Failed,
+            vec!["Setup failed", "Check the device status", "> Close"],
+        ),
+        (
+            RuntimeSetupPortalPhase::TimedOut,
+            vec!["Setup timed out", "Portal closed", "> Close"],
+        ),
+        (
+            RuntimeSetupPortalPhase::Unsupported,
+            vec!["Not available on", "desktop", "> Close"],
+        ),
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.stop_for_setup_portal();
@@ -138,9 +167,21 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             .unwrap();
         let snapshot = snapshot_from(&messages);
         let lines = display_lines(&messages);
-        assert!(lines.iter().any(|line| line == expected));
+        if matches!(
+            phase,
+            RuntimeSetupPortalPhase::Succeeded | RuntimeSetupPortalPhase::TimedOut
+        ) {
+            assert_eq!(snapshot["display"]["title"], "MENU");
+            assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
+            continue;
+        }
+        assert_eq!(snapshot["display"]["bodyLayout"], "card");
+        assert_eq!(
+            lines,
+            expected.into_iter().map(str::to_string).collect::<Vec<_>>()
+        );
         assert!(lines.len() <= 7);
-        assert!(lines.iter().all(|line| line.chars().count() <= 20));
+        assert!(lines.iter().all(|line| line.chars().count() <= 28));
         assert_eq!(
             snapshot["selectedRow"].as_u64(),
             Some((lines.len() - 1) as u64)
@@ -148,36 +189,6 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         assert!(snapshot["display"]["scrollOffset"].is_null());
         assert!(lines.last().unwrap().starts_with("> "));
     }
-}
-
-#[test]
-pub(crate) fn portal_transfer_details_are_visible_without_exceeding_oled_bounds() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.stop_for_setup_portal();
-    let result = RuntimeStoreResult::SetupPortalStatus {
-        status: RuntimeSetupPortalStatus {
-            phase: RuntimeSetupPortalPhase::PortalReady,
-            disposition: None,
-            portal_suffix: Some("1a2f".into()),
-            transfer: Some(RuntimeSetupPortalTransfer {
-                url: "http://192.168.42.1:8081".into(),
-                code: "Ab12Cd".into(),
-            }),
-            reboot_required: false,
-            error_code: None,
-        },
-    }
-    .with_identity("setup-1".into(), Some(1));
-    let messages = runner.send(HostMessage::RuntimeResult { result }).unwrap();
-    let lines = display_lines(&messages);
-    assert!(lines.iter().any(|line| line == "Data 192.168.42.1"));
-    assert!(lines.iter().any(|line| line == "Port 8081"));
-    assert!(lines.iter().any(|line| line == "Code Ab12Cd"));
-    assert!(lines.len() <= 7);
-    assert!(lines.iter().all(|line| line.chars().count() <= 20));
-    assert!(lines.iter().any(|line| line == "Octessera Setup 1a2f"));
-    assert!(lines.iter().any(|line| line == "Timeout: 30 minutes"));
-    assert!(lines.last().unwrap().starts_with("> "));
 }
 
 #[test]
@@ -189,7 +200,6 @@ pub(crate) fn already_running_is_presented_as_the_same_starting_lifecycle() {
             phase: RuntimeSetupPortalPhase::Starting,
             disposition: Some(RuntimeSetupPortalDisposition::AlreadyRunning),
             portal_suffix: None,
-            transfer: None,
             reboot_required: false,
             error_code: None,
         },
@@ -239,12 +249,127 @@ pub(crate) fn portal_hide_suppresses_current_phase_but_reopens_for_completion() 
             result: identified(RuntimeSetupPortalPhase::Succeeded, 1),
         })
         .unwrap();
+    assert_eq!(snapshot_from(&succeeded)["display"]["title"], "MENU");
     assert_eq!(
-        snapshot_from(&succeeded)["display"]["lines"][0],
-        "Setup complete"
+        runner.display.setup_portal.as_ref().unwrap().status.phase,
+        RuntimeSetupPortalPhase::Succeeded
     );
+    assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
     let _ = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
-    assert!(runner.display.setup_portal.is_none());
+    assert!(runner.display.setup_portal.is_some());
+    assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
+}
+
+#[test]
+pub(crate) fn succeeded_status_keeps_an_invisible_terminal_tombstone() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.stop_for_setup_portal();
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::PortalReady, 1))
+        .unwrap();
+    assert!(runner.display.setup_portal.as_ref().unwrap().visible);
+
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::Succeeded, 1))
+        .unwrap();
+    let state = runner.display.setup_portal.as_ref().unwrap();
+    assert_eq!(state.status.phase, RuntimeSetupPortalPhase::Succeeded);
+    assert_eq!(state.request_id.as_deref(), Some("setup-1"));
+    assert_eq!(state.revision, Some(1));
+    assert!(!state.visible);
+}
+
+#[test]
+pub(crate) fn timed_out_status_keeps_an_invisible_terminal_tombstone() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.stop_for_setup_portal();
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::PortalReady, 1))
+        .unwrap();
+    assert!(runner.display.setup_portal.as_ref().unwrap().visible);
+
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::TimedOut, 1))
+        .unwrap();
+    let state = runner.display.setup_portal.as_ref().unwrap();
+    assert_eq!(state.status.phase, RuntimeSetupPortalPhase::TimedOut);
+    assert_eq!(state.request_id.as_deref(), Some("setup-1"));
+    assert_eq!(state.revision, Some(1));
+    assert!(!state.visible);
+}
+
+#[test]
+pub(crate) fn failed_and_unsupported_statuses_are_dismissible_tombstones() {
+    for phase in [
+        RuntimeSetupPortalPhase::Failed,
+        RuntimeSetupPortalPhase::Unsupported,
+    ] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner.stop_for_setup_portal();
+        runner
+            .apply_store_result(identified(RuntimeSetupPortalPhase::PortalReady, 1))
+            .unwrap();
+        runner
+            .apply_store_result(identified(phase.clone(), 1))
+            .unwrap();
+        assert!(runner.display.setup_portal.as_ref().unwrap().visible);
+
+        let _ = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
+        let state = runner.display.setup_portal.as_ref().unwrap();
+        assert_eq!(state.status.phase, phase);
+        assert_eq!(state.request_id.as_deref(), Some("setup-1"));
+        assert_eq!(state.revision, Some(1));
+        assert!(!state.visible);
+    }
+}
+
+#[test]
+pub(crate) fn stale_portal_ready_status_cannot_reopen_an_invisible_terminal() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.stop_for_setup_portal();
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::PortalReady, 1))
+        .unwrap();
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::Succeeded, 1))
+        .unwrap();
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::PortalReady, 2))
+        .unwrap();
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::PortalReady, 0))
+        .unwrap();
+
+    let state = runner.display.setup_portal.as_ref().unwrap();
+    assert_eq!(state.status.phase, RuntimeSetupPortalPhase::Succeeded);
+    assert_eq!(state.request_id.as_deref(), Some("setup-1"));
+    assert_eq!(state.revision, Some(1));
+    assert!(!state.visible);
+}
+
+#[test]
+pub(crate) fn new_setup_portal_request_can_display_after_a_terminal_tombstone() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.stop_for_setup_portal();
+    runner
+        .apply_store_result(identified(RuntimeSetupPortalPhase::Succeeded, 1))
+        .unwrap();
+    runner
+        .apply_store_result(
+            portal_status(RuntimeSetupPortalPhase::PortalReady)
+                .with_identity("setup-2".into(), Some(2)),
+        )
+        .unwrap();
+
+    let state = runner.display.setup_portal.as_ref().unwrap();
+    assert_eq!(state.status.phase, RuntimeSetupPortalPhase::PortalReady);
+    assert_eq!(state.request_id.as_deref(), Some("setup-2"));
+    assert_eq!(state.revision, Some(2));
+    assert!(state.visible);
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["title"],
+        "Wi-Fi Setup"
+    );
 }
 
 #[test]

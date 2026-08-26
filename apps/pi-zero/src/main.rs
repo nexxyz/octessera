@@ -4,9 +4,7 @@ mod input;
 mod orange_candidate;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_device_apply;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod render;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod render_loop;
 mod render_loop_queue;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -30,21 +28,21 @@ mod audio_route;
 mod audio_sink_registry;
 #[cfg(feature = "native-audio")]
 mod audio_stream_health;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod boot_housekeeping;
 mod boot_oled_handoff;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod boot_startup_delayed;
 mod candidate_readiness;
 mod device_update;
 mod diagnostics;
 mod dsp_profile;
 mod dsp_scenarios;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod encoder_queue;
 mod fat_diagnostic;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_fault;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_init;
+mod hardware_runtime_scheduler;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_test;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -61,7 +59,6 @@ mod host_audio_prep;
 mod initial_audio_prep;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod input;
-#[cfg(feature = "native-audio")]
 mod main_paths;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod main_runtime_loop;
@@ -85,12 +82,9 @@ mod orange_oled_suspend_policy;
 mod orange_reboot;
 mod persistence;
 mod platform_service;
-#[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
+mod power_lifecycle;
+#[cfg(feature = "native-audio")]
 mod recording;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod render;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod render_loop;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -105,8 +99,6 @@ mod setup_portal_files;
 mod setup_portal_paths;
 mod setup_portal_worker;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod snapshot_cadence;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod timing_probe;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod ui_profile;
@@ -116,7 +108,6 @@ mod update_menu_fixture_tests;
 #[cfg(feature = "native-audio")]
 mod usb_config;
 mod user_data_archive;
-mod user_data_media_paths;
 mod user_data_restore;
 mod user_data_transfer;
 mod utility_mode;
@@ -297,13 +288,7 @@ fn main() {
         encoder_rx: event_rx,
         early_boot_splash: handoff_mode == boot_oled_handoff::HandoffMode::V1,
     };
-    let hdmi = match render::hdmi::HdmiFramebuffer::open_from_env() {
-        Ok(hdmi) => hdmi,
-        Err(error) => {
-            eprintln!("pi HDMI framebuffer disabled: {error}");
-            None
-        }
-    };
+    let hdmi = render::hdmi::HdmiFramebuffer::new();
     if handoff_mode == boot_oled_handoff::HandoffMode::V1 {
         rpi_oled_handoff_runtime::run(runtime_config, seesaw_io.command_tx.clone(), hdmi);
     } else {

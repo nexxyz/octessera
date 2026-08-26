@@ -108,18 +108,30 @@ function Invoke-DockerBuild {
   Require-Command "docker" "Docker is required for the docker backend"
   $repoMount = $RepoRoot.Replace("\", "/")
   $outMount = $OutputDir.Replace("\", "/")
-  Invoke-CheckedCommand "Docker image build" {
-    & docker build -f Dockerfile.pi-zero -t $Image .
-  }
-  Invoke-CheckedCommand "Docker Pi cross-build" {
-    & docker run --rm `
-      -v "${repoMount}:/work" `
-      -w /work `
-      -e CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc `
-      -e PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/ `
-      -e PKG_CONFIG_ALLOW_CROSS=1 `
-      $Image `
-      bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --no-default-features --features $cargoFeature; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
+  $buildContext = Join-Path ([IO.Path]::GetTempPath()) ("octessera-pi-cross-" + [Guid]::NewGuid().ToString("N"))
+  $dockerfilePath = Join-Path $buildContext "Dockerfile.pi-zero"
+  $contextCreated = $false
+  try {
+    New-Item -ItemType Directory -Path $buildContext | Out-Null
+    $contextCreated = $true
+    Copy-Item -LiteralPath (Join-Path $RepoRoot "Dockerfile.pi-zero") -Destination $dockerfilePath
+    Invoke-CheckedCommand "Docker image build" {
+      & docker build -f $dockerfilePath -t $Image $buildContext
+    }
+    Invoke-CheckedCommand "Docker Pi cross-build" {
+      & docker run --rm `
+        -v "${repoMount}:/work" `
+        -w /work `
+        -e CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc `
+        -e PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/ `
+        -e PKG_CONFIG_ALLOW_CROSS=1 `
+        $Image `
+        bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --no-default-features --features $cargoFeature; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
+    }
+  } finally {
+    if ($contextCreated -and (Test-Path -LiteralPath $buildContext)) {
+      Remove-Item -LiteralPath $buildContext -Recurse -Force
+    }
   }
 }
 

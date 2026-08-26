@@ -10,7 +10,11 @@ use footer::{draw_footer, draw_status_indicators};
 use platform_core::palette;
 
 use super::{brightness_scale, dim, rgb565, scale, SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
-use playback_runtime::oled_frame::{runtime_error_rows, OledRuntimeErrorMetadata};
+use playback_runtime::oled_frame::{
+    fit_line_ellipsis, layout_card_body, layout_rows, runtime_error_rows, OledDisplayLayout,
+    OledRuntimeErrorMetadata, CARD_BODY_RECT, MENU_BODY_RECT, RUNTIME_ERROR_BODY_RECT,
+    SPLASH_TOAST_RECT,
+};
 
 pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 
@@ -56,7 +60,6 @@ fn is_concise_runtime_error_presentation(error: &Value) -> bool {
         && error.get("operation").and_then(Value::as_str) == Some("midi_list_inputs")
 }
 
-#[rustfmt::skip]
 fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let display = snapshot.get("display").unwrap_or(&Value::Null);
     let title = display
@@ -67,39 +70,86 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let title_color = rgb565(scale(palette::WHITE, brightness));
     let dim_color = rgb565(scale(dim(palette::GRAY, 4), brightness));
     let text_color = rgb565(scale(palette::WHITE, brightness));
-    fill_rect(frame, 0, 0, 128, 16, rgb565(scale(palette::BLACK, brightness)));
+    fill_rect(
+        frame,
+        0,
+        0,
+        128,
+        16,
+        rgb565(scale(palette::BLACK, brightness)),
+    );
     draw_text_clipped(frame, &title, 5, 5, 15, title_color);
     draw_status_indicators(frame, snapshot, brightness);
 
+    let body_layout = body_layout(display);
     let selected_row = snapshot
         .get("selectedRow")
         .and_then(Value::as_u64)
         .map(|value| value as usize);
-    if let Some(lines) = display.get("lines").and_then(Value::as_array) {
-        for (index, line) in lines.iter().take(7).enumerate() {
-            let line = line.as_str().unwrap_or_default();
-            let y = 18 + index * 13;
-            let color = display_color(display, index, brightness).unwrap_or(text_color);
-            let selected = selected_row == Some(index);
-            let bar = bar_value(display, index);
-            if selected {
-                fill_rect(frame, 3, y - 1, 122, 11, color);
-            }
-            if let Some((frac, ref style)) = bar {
-                draw_bar(frame, 87, y - 1, frac, color, selected, style.as_deref());
-            }
-            let text = if selected {
-                rgb565(scale(palette::BLACK, brightness))
-            } else {
-                color
-            };
-            let text_x = if line.starts_with("  ") { 4 } else { 6 };
-            let text_width = if bar.is_some() { 13 } else { 19 };
-            draw_text_clipped(frame, line, text_x, y as i32, text_width, text);
+    let lines = display
+        .get("lines")
+        .and_then(Value::as_array)
+        .map(|lines| {
+            lines
+                .iter()
+                .map(|line| line.as_str().unwrap_or_default().to_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let body_rect = match body_layout {
+        OledDisplayLayout::Rows => MENU_BODY_RECT,
+        OledDisplayLayout::Card => CARD_BODY_RECT,
+    };
+    let layout = match body_layout {
+        OledDisplayLayout::Rows => layout_rows(&lines, selected_row, body_rect),
+        OledDisplayLayout::Card => layout_card_body(&lines, selected_row, body_rect),
+    };
+    for (index, row) in layout.iter().enumerate() {
+        let y = body_rect.y + index * body_rect.row_advance;
+        let color = display_color(display, row.source_index, brightness).unwrap_or(text_color);
+        let selected = row.selected;
+        let bar = if body_layout == OledDisplayLayout::Rows {
+            bar_value(display, row.source_index)
+        } else {
+            None
+        };
+        if selected {
+            fill_rect(frame, 3, y - 1, 122, 11, color);
         }
+        if let Some((frac, ref style)) = bar {
+            draw_bar(frame, 87, y - 1, frac, color, selected, style.as_deref());
+        }
+        let text = if selected {
+            rgb565(scale(palette::BLACK, brightness))
+        } else {
+            color
+        };
+        let text_x = if body_layout == OledDisplayLayout::Card {
+            body_rect.x
+        } else if row.text.starts_with("  ") {
+            4
+        } else {
+            6
+        };
+        let text_width = if bar.is_some() {
+            13
+        } else {
+            body_rect.columns()
+        };
+        draw_text_clipped(frame, &row.text, text_x as i32, y as i32, text_width, text);
     }
-    draw_scrollbar(frame, display, dim_color, text_color);
+    if body_layout == OledDisplayLayout::Rows {
+        draw_scrollbar(frame, display, dim_color, text_color);
+    }
     draw_footer(frame, snapshot, brightness);
+}
+
+fn body_layout(display: &Value) -> OledDisplayLayout {
+    match display.get("bodyLayout").and_then(Value::as_str) {
+        Some("rows") => OledDisplayLayout::Rows,
+        Some("card") => OledDisplayLayout::Card,
+        _ => panic!("required display.bodyLayout"),
+    }
 }
 
 pub(super) fn title_text_for_oled(title: &str) -> String {
@@ -245,8 +295,24 @@ fn render_runtime_error_frame(frame: &mut [u8], error: &Value, brightness: f32) 
     );
     let lines = runtime_error_rows(&runtime_error_metadata(error));
     for (index, line) in lines.iter().enumerate() {
-        draw_text_clipped(frame, line, 10, 34 + index as i32 * 12, 18, text);
+        draw_text_clipped(
+            frame,
+            line,
+            RUNTIME_ERROR_BODY_RECT.x as i32,
+            (RUNTIME_ERROR_BODY_RECT.y + index * RUNTIME_ERROR_BODY_RECT.row_advance) as i32,
+            RUNTIME_ERROR_BODY_RECT.columns(),
+            text,
+        );
     }
+    let footer = fit_line_ellipsis("Back/Press: close", RUNTIME_ERROR_BODY_RECT.columns());
+    draw_text_clipped(
+        frame,
+        &footer,
+        RUNTIME_ERROR_BODY_RECT.x as i32,
+        117,
+        RUNTIME_ERROR_BODY_RECT.columns(),
+        text,
+    );
 }
 
 pub(super) fn runtime_error_metadata(error: &Value) -> OledRuntimeErrorMetadata {
@@ -285,12 +351,13 @@ fn overlay_toast(frame: &mut [u8], toast: &str, brightness: f32) {
         18,
         rgb565(scale(palette::BLACK, brightness)),
     );
-    draw_text(
+    let toast = fit_line_ellipsis(toast, SPLASH_TOAST_RECT.columns());
+    draw_text_clipped(
         frame,
-        toast,
-        12,
+        &toast,
+        SPLASH_TOAST_RECT.x as i32,
         105,
-        1,
+        SPLASH_TOAST_RECT.columns(),
         rgb565(scale(palette::GRAY, brightness)),
     );
 }

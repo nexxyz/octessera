@@ -28,9 +28,9 @@ required_files=(
   "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
   "$root/userpatches/overlay/etc/default/locale"
   "$root/tools/pi-image/stage4-octessera/files/root/etc/default/locale"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-request-cleanup"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-start"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-cleanup"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-setup"
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_config.py"
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py"
   "$root/tools/armbian-image/stage-musical-assets.sh"
   "$root/tools/armbian-image/test-musical-assets.sh"
   "$root/tools/armbian-image/test-image-sanitization.sh"
@@ -43,6 +43,7 @@ required_files=(
   "$root/tools/armbian-image/test-inspector-profile.sh"
   "$root/tools/armbian-image/test-image-mode.sh"
   "$root/tools/armbian-image/test-orange-runtime-service.sh"
+  "$root/tools/armbian-image/test-orange-hdmi-rsyslog.sh"
   "$root/tools/armbian-image/test-orange-alsa-sequencer.sh"
   "$root/tools/armbian-image/test-orange-audio-extension.sh"
   "$root/tools/armbian-image/test-orange-kernel-package.sh"
@@ -77,6 +78,12 @@ required_files=(
   "$root/tools/armbian-image/test_orange_oled_lifecycle.py"
   "$root/tools/armbian-image/test-orange-runtime-identity.py"
   "$root/tools/armbian-image/test-orange-construction.py"
+  "$root/tools/armbian-image/test-orange-storage-control.py"
+  "$root/tools/storage/octessera-sd-card"
+  "$root/tools/storage/octessera-sd-card-lib.sh"
+  "$root/tools/storage/octessera-orange-storage"
+  "$root/tools/storage/octessera-orange-storage-control"
+  "$root/tools/armbian-image/test-octessera-sd-card.sh"
   "$root/tools/armbian-image/test-orange-updater.py"
   "$root/tools/armbian-image/test-orange-update-broker.py"
   "$root/tools/device-update/test_updater_layout.py"
@@ -96,6 +103,8 @@ required_files=(
   "$root/tools/armbian-image/test-setup-http.py"
   "$root/tools/armbian-image/test-setup-flow.py"
   "$root/tools/armbian-image/test-setup-state.py"
+  "$root/tools/armbian-image/test-setup-readiness.py"
+  "$root/tools/armbian-image/test-setup-ui.py"
   "$root/tools/orange-pi/input-routing-provision.sh"
   "$root/tools/orange-pi/orange-pi-usb-gadget.sh"
   "$root/tools/orange-pi/test-orange-pi-usb-gadget.sh"
@@ -140,16 +149,15 @@ required_files=(
   "$root/tools/pi-image/install-rpi-kernel.py"
   "$root/tools/pi-image/rpi_initramfs_fixture.py"
   "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-sidecar"
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-request"
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status.py"
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status-cli.py"
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-call.py"
+  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup"
+  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py"
+  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_http.py"
+  "$root/tools/pi-image/stage4-octessera/files/root/etc/tmpfiles.d/octessera-setup-request.conf"
   "$root/userpatches/customize-image.sh"
   "$root/userpatches/extensions/octessera_midi.sh"
   "$root/userpatches/extensions/octessera_audio.sh"
+  "$root/userpatches/extensions/octessera_sd2.sh"
   "$root/userpatches/extensions/octessera_image_sanitize.sh"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
   "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation"
   "$root/userpatches/overlay/etc/systemd/system/octessera-wifi-foundation.service"
   "$root/userpatches/overlay/usr/local/sbin/octessera-update"
@@ -160,9 +168,10 @@ required_files=(
   "$root/userpatches/overlay/etc/systemd/system/octessera-update-recovery.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-update.socket"
   "$root/userpatches/overlay/etc/systemd/system/octessera-update@.service"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-setup"
   "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service"
   "$root/userpatches/overlay/etc/octessera/image-contract.json"
+  "$root/userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf"
   "$root/userpatches/overlay/etc/systemd/system/octessera.service"
   "$root/userpatches/overlay/etc/modules-load.d/octessera-orange-usb-gadget.conf"
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service"
@@ -173,6 +182,12 @@ required_files=(
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-orange-storage"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-orange-storage-control"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-sd-card"
+  "$root/userpatches/overlay/usr/local/lib/octessera/octessera-sd-card-lib.sh"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-storage-control.socket"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-storage-control@.service"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py"
@@ -182,6 +197,9 @@ required_files=(
   "$root/userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"
   "$root/userpatches/overlay/usr/local/lib/octessera/diagnostic-payload.sh"
   "$root/userpatches/overlay/usr/local/lib/octessera/orange-sample-assets.sh"
+  "$root/userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-sd-card.service"
+  "$root/userpatches/overlay/etc/udev/rules.d/99-octessera-orange-sd-card.rules"
   "$root/userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh"
   "$root/userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts"
   "$root/userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh"
@@ -191,15 +209,13 @@ required_files=(
   "$root/userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh"
   "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
   "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-status.py"
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-status-cli.py"
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-call.py"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-request"
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_config.py"
+  "$root/userpatches/overlay/etc/tmpfiles.d/octessera-setup-request.conf"
   "$root/userpatches/overlay/etc/octessera/setup-profile"
   "$root/userpatches/overlay/etc/udev/rules.d/70-octessera-orange-runtime.rules"
-  "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/app.js"
-  "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg"
-  "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg"
+  "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js"
+  "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-mark.svg"
+  "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg"
   "$root/resources/image-construction/boot-layers/orange-pi-zero-2w.json"
   "$root/resources/image-construction/boot-layers/raspberry-pi-zero-2w.json"
   "$root/resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json"
@@ -242,9 +258,6 @@ bash_files=(
   "$root/tools/armbian-image/test-setup-layer.sh"
   "$root/tools/armbian-image/test-validation-negative-fixtures.sh"
   "$root/userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-start"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-cleanup"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-request-cleanup"
   "$root/tools/armbian-image/stage-musical-assets.sh"
   "$root/tools/armbian-image/test-musical-assets.sh"
   "$root/tools/armbian-image/test-image-sanitization.sh"
@@ -257,6 +270,8 @@ bash_files=(
   "$root/tools/armbian-image/test-inspector-profile.sh"
   "$root/tools/armbian-image/test-image-mode.sh"
   "$root/tools/armbian-image/test-orange-runtime-service.sh"
+  "$root/tools/armbian-image/test-orange-hdmi-rsyslog.sh"
+  "$root/tools/armbian-image/test-octessera-sd-card.sh"
   "$root/tools/armbian-image/test-orange-alsa-sequencer.sh"
   "$root/tools/armbian-image/test-orange-kernel-package.sh"
   "$root/tools/armbian-image/validate-orange-kernel-package.sh"
@@ -298,8 +313,8 @@ bash_files=(
   "$root/tools/pi-image/verify-trusted-parent-v0.7.5.sh"
   "$root/userpatches/extensions/octessera_midi.sh"
   "$root/userpatches/extensions/octessera_audio.sh"
+  "$root/userpatches/extensions/octessera_sd2.sh"
   "$root/userpatches/extensions/octessera_image_sanitize.sh"
-  "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
   "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation"
   "$root/userpatches/overlay/usr/local/sbin/octessera-update"
   "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard"
@@ -317,6 +332,12 @@ bash_files=(
   "$root/userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"
   "$root/userpatches/overlay/usr/local/lib/octessera/diagnostic-payload.sh"
   "$root/userpatches/overlay/usr/local/lib/octessera/orange-sample-assets.sh"
+  "$root/userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh"
+  "$root/tools/storage/octessera-sd-card"
+  "$root/tools/storage/octessera-orange-storage"
+  "$root/tools/storage/octessera-sd-card-lib.sh"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-orange-storage"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-sd-card"
 )
 for file in "${bash_files[@]}"; do
   bash -n "$file"
@@ -334,11 +355,9 @@ python3 -m py_compile \
   "$root/tools/device-update/test_updater_layout.py" \
   "$root/tools/device-update/octessera-update-broker" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-update-broker" \
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar" \
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-request" \
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-status.py" \
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-status-cli.py" \
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-call.py" \
+  "$root/userpatches/overlay/usr/local/sbin/octessera-setup" \
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_config.py" \
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py" \
   "$root/userpatches/overlay/usr/local/lib/octessera/device_config.py" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" \
@@ -367,6 +386,8 @@ python3 -m py_compile \
   "$root/tools/armbian-image/orange_initramfs.py" \
   "$root/tools/armbian-image/orange_phase5_proof.py" \
   "$root/tools/armbian-image/orange_audio_proof.py" \
+  "$root/tools/armbian-image/orange_sd_card_proof.py" \
+  "$root/tools/armbian-image/test-orange-storage-control.py" \
   "$root/tools/armbian-image/verify_runtime_account.py" \
   "$root/tools/armbian-image/test-orange-updater.py" \
   "$root/tools/armbian-image/test-orange-update-broker.py" \
@@ -384,23 +405,32 @@ python3 -m py_compile \
   "$root/tools/armbian-image/test-setup-http.py" \
   "$root/tools/armbian-image/test-setup-flow.py" \
   "$root/tools/armbian-image/test-setup-state.py" \
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-sidecar" \
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-request" \
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status.py" \
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status-cli.py" \
-  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-call.py" \
+  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup" \
+  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py" \
+  "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_http.py" \
   "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" \
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar" \
-  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-request" \
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-status.py" \
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-status-cli.py" \
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup-call.py" \
+  "$root/userpatches/overlay/usr/local/sbin/octessera-setup" \
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_config.py" \
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py" \
   "$root/userpatches/overlay/usr/local/lib/octessera/device_config.py" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" \
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py"
+
+for setup_unit in \
+  "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service" \
+  "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup.service"; do
+  grep -qFx 'NoNewPrivileges=no' "$setup_unit"
+  grep -qFx '# dnsmasq needs privilege-transition capabilities to drop from root while serving the setup AP.' "$setup_unit"
+done
+for protected_unit in \
+  "$root/userpatches/overlay/etc/systemd/system/octessera.service" \
+  "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"; do
+  grep -qFx 'NoNewPrivileges=yes' "$protected_unit"
+  if grep -qFx 'NoNewPrivileges=no' "$protected_unit"; then exit 1; fi
+done
 
 PYTHONDONTWRITEBYTECODE=1 python3 - "$root/.github/workflows/armbian-image.yml" "$root/.github/actions/build-armbian-image/action.yml" <<'PY'
 import sys
@@ -413,7 +443,7 @@ for path in sys.argv[1:]:
 PY
 
 if command -v node >/dev/null 2>&1; then
-  node --check "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/app.js"
+  node --check "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js"
 else
   echo 'Node.js unavailable; setup UI syntax check skipped.' >&2
 fi

@@ -17,6 +17,7 @@ from typing import Any
 from orange_boot_selection import parse_boot_selectors, safe_resolve
 from orange_audio_proof import verify_audio_overlay
 from orange_phase5_proof import verify_selected_initramfs
+from orange_sd_card_proof import verify_orange_sd_card
 from verify_runtime_account import (
     require_orange_boot_service,
     require_orange_shutdown_service,
@@ -45,9 +46,21 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/orange_initramfs.py",
     "tools/armbian-image/orange_phase5_proof.py",
     "tools/armbian-image/orange_audio_proof.py",
+    "tools/armbian-image/orange_sd_card_proof.py",
     "tools/armbian-image/orange_trusted_parent_proof.py",
     "tools/armbian-image/verify_runtime_account.py",
+    "tools/storage/octessera-sd-card",
+    "tools/storage/octessera-sd-card-lib.sh",
+    "tools/storage/octessera-orange-storage",
+    "tools/storage/octessera-orange-storage-control",
+    "userpatches/overlay/usr/local/lib/octessera/octessera-sd-card-lib.sh",
+    "userpatches/overlay/usr/local/sbin/octessera-orange-storage",
+    "userpatches/overlay/usr/local/sbin/octessera-orange-storage-control",
+    "userpatches/overlay/etc/systemd/system/octessera-orange-storage-control.socket",
+    "userpatches/overlay/etc/systemd/system/octessera-orange-storage-control@.service",
     "userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh",
+    "userpatches/overlay/etc/systemd/system/octessera-orange-sd-card.service",
+    "userpatches/overlay/etc/udev/rules.d/99-octessera-orange-sd-card.rules",
     "tools/kernel-patches/orange-midi-interface-manifest.json",
 }
 
@@ -184,6 +197,13 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
     require(config_hash == evidence["final_config_sha256"] and evidence["packaged_config_expected_sha256"] == armbian["packaged_config_sha256"], "package kernel config evidence changed")
     require(evidence.get("audio_dts_path") == audio["canonical_dts"] and evidence.get("audio_dts_sha256") == audio["canonical_dts_sha256"] and evidence.get("audio_dtbo_forbidden") == audio["dtbo_name"], "Orange audio package evidence changed")
     config_lines = config.read_text(encoding="utf-8").splitlines()
+    for line in ("CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y"):
+        require(config_lines.count(line) == 1, f"exact package kernel config must contain exactly one: {line}")
+    mmc_spi_values = [line.removeprefix("CONFIG_MMC_SPI=") for line in config_lines if re.fullmatch(r"CONFIG_MMC_SPI=[ym]", line)]
+    require(len(mmc_spi_values) == 1, "exact package kernel config must contain exactly one enabled: CONFIG_MMC_SPI")
+    mmc_spi_modules = sorted(path for path in (image_root / f"lib/modules/{release}").rglob("mmc_spi.ko*") if path.is_file())
+    require((mmc_spi_values[0] == "m") == (len(mmc_spi_modules) == 1), "exact package mmc_spi module state does not match CONFIG_MMC_SPI")
+    require(mmc_spi_values[0] != "y" or not mmc_spi_modules, "built-in CONFIG_MMC_SPI must not ship an mmc_spi module")
     for line in audio["required_builtin_config_lines"]:
         require(config_lines.count(line) == 1, f"exact package kernel config must contain exactly one: {line}")
     required_dtb = armbian["required_dtb"]
@@ -207,7 +227,7 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
     require(facts["interface_options"] == evidence["module_interface_options_marker"], "package usb_f_midi options marker does not match evidence")
     require(facts["interface_runtime"] == evidence["module_interface_runtime_marker"], "package usb_f_midi runtime marker does not match evidence")
     require(str(modules[0].relative_to(image_root)) == evidence["module_relative_path"], "package usb_f_midi path does not match evidence")
-    return {"release": release, "config_hash": config_hash, "kernel": kernel_candidates[0].read_bytes(), "dtb": dtb_payload.read_bytes(), "stock_i2c1_dtbo_path": stock_i2c1_dtbo_path, "stock_i2c1_dtbo_sha256": stock_i2c1_dtbo_sha256, "stock_i2c1_dtbo": stock_i2c1_dtbo.read_bytes(), "module": facts, "module_relative_path": evidence["module_relative_path"], "image_identity": image_identity, "dtb_identity": dtb_identity}
+    return {"release": release, "config_hash": config_hash, "config_lines": config_lines, "kernel": kernel_candidates[0].read_bytes(), "dtb": dtb_payload.read_bytes(), "stock_i2c1_dtbo_path": stock_i2c1_dtbo_path, "stock_i2c1_dtbo_sha256": stock_i2c1_dtbo_sha256, "stock_i2c1_dtbo": stock_i2c1_dtbo.read_bytes(), "module": facts, "module_relative_path": evidence["module_relative_path"], "image_identity": image_identity, "dtb_identity": dtb_identity}
 
 
 def _verify_symlink(path: Path, root: Path, release: str, label: str) -> None:
@@ -248,25 +268,22 @@ def _verify_notice_bundle(root: Path, repository_root: Path, construction: dict[
         require(path.is_file() and not path.is_symlink() and path.stat().st_size > 0, f"Orange parent legal sentinel is missing or empty: {relative}")
 
 
-def _verify_device_apply_lane(root: Path, repository_root: Path, construction: dict[str, Any]) -> None:
-    assets = (
-        ("userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket", "etc/systemd/system/octessera-device-apply-reboot.socket", 0o644),
-        ("userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service", "etc/systemd/system/octessera-device-apply-reboot@.service", 0o644),
-        ("userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot", "usr/local/sbin/octessera-device-apply-reboot", 0o755),
-    )
+def _verify_exact_installed_files(root: Path, repository_root: Path, construction: dict[str, Any], assets: tuple[tuple[str, str, int, str, str], ...]) -> None:
     exact_inputs = {item["path"]: item for item in construction["exact_inputs"]}
-    for source_relative, installed_relative, mode in assets:
+    for source_relative, installed_relative, mode, source_label, installed_label in assets:
         source = repository_root / source_relative
         installed = root / installed_relative
-        expected = exact_inputs.get(source_relative)
-        if expected is None:
-            raise BootContractError(f"Orange device apply source identity is missing: {source_relative}")
-        require(source.is_file() and not source.is_symlink(), f"Orange device apply source is missing or symlinked: {source_relative}")
-        require(installed.is_file() and not installed.is_symlink(), f"Orange installed device apply asset is missing or symlinked: {installed_relative}")
-        require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange device apply source identity changed: {source_relative}")
-        require(installed.read_bytes() == source.read_bytes(), f"Orange installed device apply asset differs from its canonical source: {installed_relative}")
+        expected = exact_inputs.get(source_relative, {})
+        require(expected, f"{source_label} source identity is missing: {source_relative}")
+        require(source.is_file() and not source.is_symlink(), f"{source_label} source is missing or symlinked: {source_relative}")
+        require(installed.is_file() and not installed.is_symlink(), f"Orange installed {installed_label} is missing or symlinked: {installed_relative}")
+        require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"{source_label} source identity changed: {source_relative}")
+        require(installed.read_bytes() == source.read_bytes(), f"Orange installed {installed_label} differs from its canonical source: {installed_relative}")
         require_owner_mode(installed, 0, 0, mode, require)
-    device_apply_script = (repository_root / assets[2][0]).read_text(encoding="utf-8")
+
+
+def _verify_device_apply_contract(root: Path, repository_root: Path) -> None:
+    device_apply_script = (repository_root / "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot").read_text(encoding="utf-8")
     for line in (
         'SYSTEMCTL_PATH = "/usr/bin/systemctl"',
         'REBOOT_REQUEST = b"reboot\\n"',
@@ -281,23 +298,6 @@ def _verify_device_apply_lane(root: Path, repository_root: Path, construction: d
     require(socket_link.is_symlink() and socket_link.readlink().as_posix() in {"../octessera-device-apply-reboot.socket", "/etc/systemd/system/octessera-device-apply-reboot.socket"}, "Orange device apply socket is not enabled by the exact symlink")
 
 
-def _verify_oled_assets(root: Path, repository_root: Path, construction: dict[str, Any]) -> None:
-    exact_inputs = {item["path"]: item for item in construction["exact_inputs"]}
-    for source_relative, installed_relative in (
-        ("userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565", "usr/share/octessera/oled/octessera-pi-booting.rgb565"),
-        ("userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565", "usr/share/octessera/oled/octessera-pi-shutdown.rgb565"),
-    ):
-        source = repository_root / source_relative
-        installed = root / installed_relative
-        expected = exact_inputs.get(source_relative)
-        require(expected is not None, f"Orange OLED asset source identity is missing: {source_relative}")
-        if expected is None:
-            raise BootContractError(f"Orange OLED asset source identity is missing: {source_relative}")
-        require(source.is_file() and not source.is_symlink(), f"Orange OLED asset source is missing or symlinked: {source_relative}")
-        require(installed.is_file() and not installed.is_symlink(), f"Orange installed OLED asset is missing or symlinked: {installed_relative}")
-        require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange OLED asset source identity changed: {source_relative}")
-        require(installed.read_bytes() == source.read_bytes(), f"Orange installed OLED asset differs from its canonical source: {installed_relative}")
-        require_owner_mode(installed, 0, 0, 0o644, require)
 def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any], repository_root: Path) -> dict[str, Any]:
     _verify_notice_bundle(root, repository_root, construction)
     release = package["release"]
@@ -322,48 +322,54 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
         require(len([path for path in module_root.rglob(f"{module_name}*") if path.is_file()]) == 1, f"selected kernel is missing exactly one {module_name} module")
     module_candidates = sorted(path for path in module_root.rglob("usb_f_midi.ko*") if path.is_file())
     require(len(module_candidates) == 1 and _module_facts(module_candidates[0], release) == package["module"], "selected usb_f_midi module differs from exact package evidence")
+    verify_orange_sd_card(root, repository_root, construction, config_lines, module_root, require, sha256_file, require_owner_mode)
     require_orange_boot_service(root, require)
     require_orange_shutdown_service(root, require)
     require_orange_suspend_service(root, require)
-    _verify_device_apply_lane(root, repository_root, construction)
-    _verify_oled_assets(root, repository_root, construction)
-    welcome = root / construction["terminal_invariants"]["welcome_path"]
-    require(welcome.is_file() and not welcome.is_symlink(), "canonical Orange welcome file is missing or symlinked")
-    require_owner_mode(welcome, 0, 0, 0o644, require)
+    _verify_exact_installed_files(root, repository_root, construction, (
+        ("userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket", "etc/systemd/system/octessera-device-apply-reboot.socket", 0o644, "Orange device apply", "device apply asset"),
+        ("userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service", "etc/systemd/system/octessera-device-apply-reboot@.service", 0o644, "Orange device apply", "device apply asset"),
+        ("userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot", "usr/local/sbin/octessera-device-apply-reboot", 0o755, "Orange device apply", "device apply asset"),
+        ("userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565", "usr/share/octessera/oled/octessera-pi-booting.rgb565", 0o644, "Orange OLED asset", "OLED asset"),
+        ("userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565", "usr/share/octessera/oled/octessera-pi-shutdown.rgb565", 0o644, "Orange OLED asset", "OLED asset"),
+        ("userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf", "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf", 0o644, "Orange HDMI rsyslog", "HDMI rsyslog drop-in"),
+        ("tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", construction["terminal_invariants"]["welcome_path"], 0o644, "canonical Orange welcome", "Orange welcome"),
+        ("config/generated/pi/default.json", "usr/share/octessera/defaults/pi-default.json", 0o644, "Orange default input", "Orange default config"),
+        ("tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "usr/local/lib/octessera/device_config.py", 0o644, "canonical Orange device config validator", "Orange device config validator"),
+    ))
+    _verify_device_apply_contract(root, repository_root)
+    require(next((item for item in construction["managed_outputs"] if item["path"] == "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf"), None) == {"path": "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf", "mode": 420, "uid": 0, "gid": 0}, "Orange HDMI rsyslog managed output changed")
     welcome_inputs = [item for item in construction["exact_inputs"] if item["path"] == "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh"]
     require(len(welcome_inputs) == 1, "canonical Orange welcome input is not unique")
-    welcome_source = repository_root / welcome_inputs[0]["path"]
-    require(welcome_source.is_file() and not welcome_source.is_symlink() and sha256_file(welcome_source) == welcome_inputs[0]["sha256"] and welcome_source.stat().st_size == welcome_inputs[0]["size"], "canonical Orange welcome input changed")
-    require(welcome.read_bytes() == welcome_source.read_bytes() and sha256_file(welcome) == welcome_inputs[0]["sha256"], "installed Orange welcome differs from canonical input")
     require(next((item for item in construction["managed_outputs"] if item["path"] == construction["terminal_invariants"]["welcome_path"]), None) == {"path": "etc/profile.d/octessera-welcome.sh", "mode": 420, "uid": 0, "gid": 0}, "Orange welcome managed output changed")
     default_source = repository_root / "config/generated/pi/default.json"
-    default = root / "usr/share/octessera/defaults/pi-default.json"
     default_input = next((item for item in construction["exact_inputs"] if item["path"] == "config/generated/pi/default.json"), None)
     require(default_input == {"path": "config/generated/pi/default.json", "sha256": sha256_file(default_source), "size": default_source.stat().st_size, "mode": 420}, "Orange default input identity changed")
-    require(default.is_file() and not default.is_symlink(), "Orange default config is missing or symlinked")
-    require_owner_mode(default, 0, 0, 0o644, require)
-    require(default.read_bytes() == default_source.read_bytes(), "Orange default config differs from canonical input")
     require(next((item for item in construction["managed_outputs"] if item["path"] == "usr/share/octessera/defaults/pi-default.json"), None) == {"path": "usr/share/octessera/defaults/pi-default.json", "mode": 420, "uid": 0, "gid": 0}, "Orange default managed output changed")
     validator_input = [item for item in construction["exact_inputs"] if item["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
     require(len(validator_input) == 1, "canonical Orange device config validator input is not unique")
     validator_source = repository_root / validator_input[0]["path"]
-    validator = root / "usr/local/lib/octessera/device_config.py"
-    require(validator_source.is_file() and not validator_source.is_symlink(), "canonical Orange device config validator source is missing or symlinked")
     validator_source_hash = sha256_file(validator_source)
     validator_source_size = validator_source.stat().st_size
     require(validator_input[0]["sha256"] == validator_source_hash and validator_input[0]["size"] == validator_source_size, "canonical Orange device config validator input changed")
-    require(validator.is_file() and not validator.is_symlink(), "Orange device config validator is missing or symlinked")
-    require_owner_mode(validator, 0, 0, 0o644, require)
-    require(sha256_file(validator) == validator_source_hash and validator.stat().st_size == validator_source_size, "installed Orange device config validator is not byte-identical to the canonical source")
     require(next((item for item in construction["managed_outputs"] if item["path"] == "usr/local/lib/octessera/device_config.py"), None) == {"path": "usr/local/lib/octessera/device_config.py", "mode": 420, "uid": 0, "gid": 0}, "Orange validator managed output changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == construction["terminal_invariants"]["hushlogin_path"]), None) == {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"}, "Orange hushlogin managed output changed")
     _verify_terminal_identity(root, construction)
     uart = construction["uart_invariants"]
+    armbian_env = root / "boot/armbianEnv.txt"
+    require(armbian_env.is_file() and not armbian_env.is_symlink(), "Orange Armbian boot environment is missing or symlinked")
+    console_assignments = [line.strip() for line in armbian_env.read_text(encoding="utf-8").splitlines() if re.fullmatch(r"console=display", line.strip())]
+    require(uart.get("console_assignment") == "console=display", "Orange console assignment contract changed")
+    require(console_assignments == ["console=display"], "Orange Armbian console assignment is not exactly console=display")
     for boot_config in (root / "boot/armbianEnv.txt", root / "boot/extlinux/extlinux.conf"):
         if boot_config.is_file() and re.search(r"(^|[ \t])console=ttyS0(?:,|[ \t]|$)", boot_config.read_text(encoding="utf-8"), re.MULTILINE):
             require(False, f"Orange boot configuration still selects {uart['forbidden_console_token']}")
     mask = root / uart["serial_getty_mask"]
     require(mask.is_symlink() and mask.readlink().as_posix() == "/dev/null", "Orange UART serial-getty mask is not /dev/null")
+    tty1_mask = root / "etc/systemd/system/getty@tty1.service"
+    tty1_enablement = root / "etc/systemd/system/getty.target.wants/getty@tty1.service"
+    require(not (tty1_mask.is_symlink() and tty1_mask.readlink().as_posix() == "/dev/null"), "Orange tty1 getty is masked")
+    require(not (tty1_enablement.is_symlink() and tty1_enablement.readlink().as_posix() == "/dev/null"), "Orange tty1 getty enablement is masked")
     for output in (
         root / "usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts",
         root / "boot/overlay-user/octessera-h618-input-routing.dtbo",
@@ -382,9 +388,8 @@ def verify_dpkg_status(root: Path, package: dict[str, Any]) -> None:
     records = status_path.read_text(encoding="utf-8").split("\n\n")
     fields = {values["Package"]: values for values in ({key: value for key, _, value in (line.partition(": ") for line in record.splitlines()) if _} for record in records) if values.get("Package")}
     for identity in (package["image_identity"], package["dtb_identity"]):
-        installed = fields.get(identity["Package"])
-        require(installed is not None and installed.get("Status") == "install ok installed", f"dpkg status omits installed kernel package: {identity['Package']}")
-        assert installed is not None
+        installed = fields.get(identity["Package"], {})
+        require(installed.get("Status") == "install ok installed", f"dpkg status omits installed kernel package: {identity['Package']}")
         for key in ("Version", "Architecture"):
             require(installed[key] == identity[key], f"dpkg status identity changed: {identity['Package']} {key}")
 
@@ -433,12 +438,12 @@ def validate_construction_contract(root: Path, contract: dict[str, Any]) -> str:
     require(contract.get("proof_mode") == "phase5-constructor", "Orange construction proof mode is not phase5-constructor")
     require(contract.get("constructor_required") is True and contract.get("trusted_parent_finalization") == "forbidden" and contract.get("mutation_authority") == "none", "Orange construction authority is invalid")
     require(contract.get("board_profile") == "orange-pi-zero-2w", "Orange construction board is invalid")
-    require(contract.get("required_builtin_kernel_config_lines") == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y"], "Orange built-in kernel config contract changed")
+    require(contract.get("required_builtin_kernel_config_lines") == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y"], "Orange built-in kernel config contract changed")
     selected_initramfs = contract.get("selected_initramfs")
     require(isinstance(selected_initramfs, dict) and selected_initramfs.get("required_python_modules") == ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"], "Orange Python module contract changed")
     require(contract.get("notice_bundle") == {"manifest": "resources/legal/notice-bundle.json", "stager": "tools/legal/stage_notices.py", "installed_root": "usr/share/doc/octessera", "installed_outputs": "manifest-files", "proof": "tools/armbian-image/orange_boot_contract.py", "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"]}, "Orange legal notice contract is not exact")
     require(contract.get("terminal_invariants") == {"welcome_path": "etc/profile.d/octessera-welcome.sh", "hushlogin_path": "home/octessera/.hushlogin", "hushlogin_mode": 420, "hushlogin_empty": True, "forbidden_pam_update_motd_overrides": True}, "Orange terminal invariants changed")
-    require(contract.get("uart_invariants") == {"overlay_name": "octessera-h618-input-routing", "forbidden_console_token": "console=ttyS0", "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service", "uart0_status": "disabled", "stdout_path": ""}, "Orange UART invariants changed")
+    require(contract.get("uart_invariants") == {"overlay_name": "octessera-h618-input-routing", "console_assignment": "console=display", "forbidden_console_token": "console=ttyS0", "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service", "uart0_status": "disabled", "stdout_path": ""}, "Orange UART invariants changed")
     exact_inputs = contract.get("exact_inputs", [])
     require(isinstance(exact_inputs, list) and bool(exact_inputs), "Orange construction source inputs are empty")
     exact_input_paths: set[str] = set()
@@ -471,17 +476,10 @@ def load_construction_contract(path: Path, repository_root: Path) -> tuple[Path,
     return expected, contract, contract_hash
 
 
-def verify_artifact(path: Path, expected: dict[str, Any]) -> None:
-    actual = json.loads(path.read_text(encoding="utf-8"))
-    require(actual == expected, "Orange structured proof changed")
-
-
 def constructor_proof(root: Path, args: Any, image_hash: str, image_name: str, compression: str, repository_root: Path) -> dict[str, Any]:
     contract_path, contract, contract_hash = load_construction_contract(args.construction_contract, repository_root)
     require(args.manifest is not None, "--manifest is required for phase5-constructor")
     manifest_path = args.manifest
-    if manifest_path is None:
-        raise BootContractError("--manifest is required for phase5-constructor")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     evidence = read_kv(args.evidence)
     provenance = read_kv(args.provenance)

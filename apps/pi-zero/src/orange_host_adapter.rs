@@ -28,6 +28,7 @@ pub(crate) struct OrangeHostAdapter {
     midi: MidiHost,
     oled_frame_cache: OledFrameCache,
     shutdown_request: Option<OrangeShutdownRequest>,
+    recovery_save_status: Option<Result<(), String>>,
 }
 
 impl OrangeHostAdapter {
@@ -62,6 +63,29 @@ impl OrangeHostAdapter {
 
     pub(crate) fn take_shutdown_request(&mut self) -> Option<OrangeShutdownRequest> {
         self.shutdown_request.take()
+    }
+
+    pub(crate) fn save_recovery_for_power(&mut self) -> Result<(), String> {
+        let recovery = self
+            .recovery_save_status
+            .take()
+            .unwrap_or_else(|| Err("recovery save did not complete".into()));
+        let recording = self.audio.stop_recording();
+        match (recovery, recording) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(recovery), Ok(())) => Err(recovery),
+            (Ok(()), Err(recording)) => Err(format!("recording stop failed: {recording}")),
+            (Err(recovery), Err(recording)) => {
+                Err(format!("{recovery}; recording stop failed: {recording}"))
+            }
+        }
+    }
+
+    fn recovery_save_ready(&self) -> Result<(), String> {
+        self.recovery_save_status
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| Err("recovery save did not complete".into()))
     }
     pub(crate) fn ingest_oled_frame(&mut self, message: &playback_runtime::RunnerMessage) {
         self.oled_frame_cache.ingest(message);
@@ -255,10 +279,18 @@ impl HostAdapter for OrangeHostAdapter {
                 ));
             }
             RuntimePlatformEffect::StoreSaveRecovery { payload } => {
-                self.platform_service
+                let result = self
+                    .platform_service
                     .save_recovery_now(payload)
-                    .map_err(RuntimeAdapterError::operation_failed)?;
-                RuntimeStoreResult::SaveRecoveryResult { ok: true }
+                    .map_err(|error| format!("Save recovery failed: {error}"));
+                self.recovery_save_status = Some(result.clone());
+                match result {
+                    Ok(()) => RuntimeStoreResult::SaveRecoveryResult { ok: true },
+                    Err(error) => {
+                        eprintln!("Orange recovery save failed: {error}");
+                        return Ok(vec![failure_message(request, error)]);
+                    }
+                }
             }
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 if self.shutdown_pending() {
@@ -283,6 +315,9 @@ impl HostAdapter for OrangeHostAdapter {
                         "Orange shutdown request is already pending".into(),
                     )]);
                 }
+                if let Err(error) = self.recovery_save_ready() {
+                    return Ok(vec![failure_message(request, error)]);
+                }
                 self.shutdown_request = Some(OrangeShutdownRequest::Reboot);
                 return Ok(Vec::new());
             }
@@ -292,6 +327,9 @@ impl HostAdapter for OrangeHostAdapter {
                         request,
                         "Orange shutdown request is already pending".into(),
                     )]);
+                }
+                if let Err(error) = self.recovery_save_ready() {
+                    return Ok(vec![failure_message(request, error)]);
                 }
                 self.shutdown_request = Some(OrangeShutdownRequest::Shutdown);
                 return Ok(Vec::new());
@@ -304,6 +342,52 @@ impl HostAdapter for OrangeHostAdapter {
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
                 return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::RecordingStartAudio { max_minutes } => {
+                self.audio.start_recording(*max_minutes)?;
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::RecordingStop => {
+                self.audio.stop_recording()?;
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::UsbSdTransferStart => {
+                if self.audio.usb_output_enabled() {
+                    return Ok(vec![failure_message(
+                        request,
+                        "USB SD2 transfer blocked while USB audio out is active".into(),
+                    )]);
+                }
+                if self.midi.usb_midi_out_enabled() {
+                    return Ok(vec![failure_message(
+                        request,
+                        "USB SD2 transfer blocked while USB MIDI out is enabled".into(),
+                    )]);
+                }
+                if self.audio.is_recording()? {
+                    return Ok(vec![failure_message(
+                        request,
+                        "USB SD2 transfer blocked while recording is active".into(),
+                    )]);
+                }
+                self.silence_internal_audio()?;
+                self.panic_external_midi()?;
+                return Ok(enqueue_job(
+                    &self.platform_service,
+                    request,
+                    PlatformJobKind::UsbSdTransferStart,
+                    QueueFailureStyle::Orange,
+                    "USB SD2 transfer start".into(),
+                ));
+            }
+            RuntimePlatformEffect::UsbSdTransferStop => {
+                return Ok(enqueue_job(
+                    &self.platform_service,
+                    request,
+                    PlatformJobKind::UsbSdTransferStop,
+                    QueueFailureStyle::Orange,
+                    "USB SD2 transfer stop".into(),
+                ));
             }
             _ => return Ok(self.unsupported(request, "unsupported in Orange foreground runtime")),
         };

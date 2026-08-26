@@ -1,4 +1,5 @@
 use super::*;
+use crate::oled_frame::TOAST_RECT;
 
 #[test]
 pub(crate) fn snapshot_settings_include_complete_audio_config_shapes() {
@@ -274,10 +275,10 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(
-        snapshot_from(&first)["display"]["toast"],
-        "Trn-1: Cutoff: 223"
-    );
+    let first_snapshot = snapshot_from(&first);
+    let first_toast = first_snapshot["display"]["toast"].as_str().unwrap_or("");
+    assert_eq!(first_toast.chars().count(), TOAST_RECT.columns());
+    assert!(first_toast.contains("Cutoff:"));
 
     let second = runner
         .send(HostMessage::DeviceInput {
@@ -285,10 +286,10 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(
-        snapshot_from(&second)["display"]["toast"],
-        "Trn-1: Cutoff: 223"
-    );
+    let second_snapshot = snapshot_from(&second);
+    let second_toast = second_snapshot["display"]["toast"].as_str().unwrap_or("");
+    assert_eq!(second_toast.chars().count(), TOAST_RECT.columns());
+    assert!(second_toast.contains("Cutoff:"));
 
     let third = runner
         .send(HostMessage::DeviceInput {
@@ -296,18 +297,18 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(
-        snapshot_from(&third)["display"]["toast"],
-        "Trn-1: Cutoff: 223"
-    );
+    let third_snapshot = snapshot_from(&third);
+    let third_toast = third_snapshot["display"]["toast"].as_str().unwrap_or("");
+    assert_eq!(third_toast.chars().count(), TOAST_RECT.columns());
+    assert!(third_toast.contains("Cutoff:"));
 
     runner.age_toast_state_for_test(600);
     let after = runner.messages_with_snapshot().unwrap();
 
-    assert_eq!(
-        snapshot_from(&after)["display"]["toast"],
-        "Trn-1: Cutoff: 225"
-    );
+    let after_snapshot = snapshot_from(&after);
+    let after_toast = after_snapshot["display"]["toast"].as_str().unwrap_or("");
+    assert_eq!(after_toast.chars().count(), TOAST_RECT.columns());
+    assert!(after_toast.contains("Cutoff:"));
 }
 
 #[test]

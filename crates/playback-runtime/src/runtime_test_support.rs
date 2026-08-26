@@ -10,6 +10,7 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
         "display": {
             "off": false,
             "splash": "",
+            "bodyLayout": "rows",
             "title": title,
             "lines": ["line"],
             "colors": [65535],
@@ -122,7 +123,9 @@ impl CoreRunner for FakeRunner {
                     error: None,
                 },
             }]),
-            HostMessage::DeviceInput { .. } | HostMessage::MidiRealtimeContinue => Ok(vec![]),
+            HostMessage::DeviceInput { .. }
+            | HostMessage::PresentedRuntimeErrorInput { .. }
+            | HostMessage::MidiRealtimeContinue => Ok(vec![]),
         }
     }
 }
@@ -135,6 +138,8 @@ pub(super) struct FakeHost {
     pub effects: Vec<RuntimePlatformEffect>,
     pub silence_calls: usize,
     pub fail_internal_silence: bool,
+    pub setup_portal_result: Option<RuntimeStoreResult>,
+    pub setup_portal_results_sent: Vec<RuntimeStoreResult>,
 }
 
 impl HostAdapter for FakeHost {
@@ -149,6 +154,13 @@ impl HostAdapter for FakeHost {
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
         let effect = &request.effect;
         self.effects.push(effect.clone());
+        if matches!(effect, RuntimePlatformEffect::SetupPortalOpen) {
+            if let Some(result) = self.setup_portal_result.take() {
+                let result = result.with_identity(request.request_id.clone(), request.revision);
+                self.setup_portal_results_sent.push(result.clone());
+                return Ok(vec![HostMessage::RuntimeResult { result }]);
+            }
+        }
         if matches!(effect, RuntimePlatformEffect::StoreListPresets) {
             return Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::ListPresetsResult {

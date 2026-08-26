@@ -44,10 +44,13 @@ BOOT_SWEEP_LEAN_PIXELS = -1
 BOOT_SWEEP_LEAN_DENOMINATOR = 1
 BOOT_SWEEP_TRAIN_WIDTH = 48
 BOOT_SWEEP_COLORS_RGB565 = (0xF81F, 0x07E0, 0xFFE0, 0x07FF)
-BOOT_SWEEP_COLORS = ((255, 0, 255), (0, 255, 0), (255, 255, 0), (0, 255, 255))
 BOOT_SWEEP_CONTRACT_SHA256 = "18dabe8ebf4ba27dc36c23c0a5f3d91ed816f205ce796583b19c3ba4b9e7a2af"
-HOUSEKEEPING_STATUS_COLOR_RGB565 = 0x8410
-NATIVE_HANDOFF_PHASES = {"released", "native_owned", "first_menu_rendered"}
+STARTUP_DELAY_TEXT_COLOR_RGB565 = 0xFFFF
+STARTUP_DELAY_PANEL_COLOR_RGB565 = 0x0000
+STARTUP_STATUS_TOP = 83
+STARTUP_STATUS_BOTTOM = HEIGHT
+STARTUP_FATAL_DIM_NUMERATOR = 1
+STARTUP_FATAL_DIM_DENOMINATOR = 4
 NATIVE_HANDOFF_TIMEOUT_SECONDS = 30
 READY_NOTIFY_REQUIRED_ENV = "OCTESSERA_OLED_READY_NOTIFY_REQUIRED"
 SPI_IOC_WR_MODE = 0x40016B01
@@ -199,63 +202,99 @@ def logo_canvas(kind):
     return pixels
 
 
-STATUS_GLYPHS = {
-    "A": ("0110", "1001", "1111", "1001", "1001"),
-    "E": ("1111", "1000", "1110", "1000", "1111"),
-    "F": ("1111", "1000", "1110", "1000", "1000"),
-    "G": ("0111", "1000", "1011", "1001", "0111"),
-    "H": ("1001", "1001", "1111", "1001", "1001"),
-    "I": ("1111", "0110", "0110", "0110", "1111"),
-    "K": ("1001", "1010", "1100", "1010", "1001"),
-    "L": ("1000", "1000", "1000", "1000", "1111"),
-    "N": ("1001", "1101", "1011", "1001", "1001"),
-    "O": ("0110", "1001", "1001", "1001", "0110"),
-    "P": ("1110", "1001", "1110", "1000", "1000"),
-    "R": ("1110", "1001", "1110", "1010", "1001"),
-    "S": ("0111", "1000", "0110", "0001", "1110"),
-    "T": ("1111", "0110", "0110", "0110", "0110"),
-    "U": ("1001", "1001", "1001", "1001", "0110"),
-    "W": ("1001", "1001", "1011", "1111", "1010"),
-    "-": ("0000", "0000", "1111", "0000", "0000"),
+STARTUP_STATUS_GLYPHS = {
+    "A": ("01110", "10001", "10001", "11111", "10001", "10001", "10001"),
+    "B": ("11110", "10001", "10001", "11110", "10001", "10001", "11110"),
+    "C": ("01111", "10000", "10000", "10000", "10000", "10000", "01111"),
+    "D": ("11110", "10001", "10001", "10001", "10001", "10001", "11110"),
+    "E": ("11111", "10000", "10000", "11110", "10000", "10000", "11111"),
+    "F": ("11111", "10000", "10000", "11110", "10000", "10000", "10000"),
+    "G": ("01111", "10000", "10000", "10111", "10001", "10001", "01111"),
+    "H": ("10001", "10001", "10001", "11111", "10001", "10001", "10001"),
+    "I": ("11111", "00100", "00100", "00100", "00100", "00100", "11111"),
+    "K": ("10001", "10010", "10100", "11000", "10100", "10010", "10001"),
+    "L": ("10000", "10000", "10000", "10000", "10000", "10000", "11111"),
+    "N": ("10001", "11001", "11001", "10101", "10011", "10011", "10001"),
+    "O": ("01110", "10001", "10001", "10001", "10001", "10001", "01110"),
+    "P": ("11110", "10001", "10001", "11110", "10000", "10000", "10000"),
+    "R": ("11110", "10001", "10001", "11110", "10100", "10010", "10001"),
+    "S": ("01111", "10000", "10000", "01110", "00001", "00001", "11110"),
+    "T": ("11111", "00100", "00100", "00100", "00100", "00100", "00100"),
+    "U": ("10001", "10001", "10001", "10001", "10001", "10001", "01110"),
+    "V": ("10001", "10001", "10001", "10001", "10001", "01010", "00100"),
+    "W": ("10001", "10001", "10001", "10101", "10101", "10101", "01010"),
+    "Y": ("10001", "10001", "01010", "00100", "00100", "00100", "00100"),
+}
+
+STARTUP_FATAL_TEXT = {
+    "trellis_unavailable": ("GRID NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "neokey_unavailable": ("NEOKEY NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "controls_unavailable": ("CONTROLS NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "audio_unavailable": ("AUDIO NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "startup_failed": ("STARTUP FAILED", "POWER OFF", "TRY AGAIN", "CHECK SERVICE LOG"),
+    "oled_unavailable": ("OLED NOT READY", "POWER OFF", "TRY AGAIN", "CHECK SERVICE LOG"),
 }
 
 
-def render_housekeeping():
-    canvas = logo_canvas("boot")
-    for y in range(80, 112):
+def clear_startup_status(canvas):
+    panel_color = STARTUP_DELAY_PANEL_COLOR_RGB565.to_bytes(2, "big")
+    for y in range(STARTUP_STATUS_TOP, STARTUP_STATUS_BOTTOM):
         for x in range(WIDTH):
             offset = (y * WIDTH + x) * 2
-            canvas[offset:offset + 2] = b"\x00\x00"
-    dim_rgb565_frame(canvas)
-    for text, y in (("FIRST-RUN", 82), ("HOUSEKEEPING", 92), ("PLEASE WAIT", 102)):
-        draw_status_text(canvas, text, y)
-    return render_canvas(canvas)
+            canvas[offset:offset + 2] = panel_color
 
 
-def dim_rgb565_frame(frame):
-    for offset in range(0, len(frame), 2):
-        color = int.from_bytes(frame[offset:offset + 2], "big")
-        dimmed = (((color >> 11) & 0x1F) // 3 << 11) | (((color >> 5) & 0x3F) // 3 << 5) | ((color & 0x1F) // 3)
-        frame[offset:offset + 2] = dimmed.to_bytes(2, "big")
-
-
-def draw_status_text(frame, text, y):
-    scale = 2
-    advance = 5 * scale
-    x = max(0, (WIDTH - (len(text) * advance - scale)) // 2)
+def draw_startup_status_text(frame, text, y, x=None):
+    if any(character not in STARTUP_STATUS_GLYPHS and character != " " for character in text):
+        raise ValueError(f"unsupported startup status glyph in {text!r}")
+    width = len(text) * 6 - 1
+    if x is None:
+        x = (WIDTH - width) // 2
+    if x < 0 or x + width > WIDTH or y < STARTUP_STATUS_TOP or y + 7 > STARTUP_STATUS_BOTTOM:
+        raise ValueError(f"startup status text does not fit: {text!r}")
     for character in text:
-        glyph = STATUS_GLYPHS.get(character, ("0000",) * 5 if character == " " else None)
-        if glyph is None:
-            raise ValueError(f"unsupported housekeeping status glyph: {character!r}")
+        glyph = STARTUP_STATUS_GLYPHS.get(character, ("00000",) * 7)
         for row, bits in enumerate(glyph):
             for column, bit in enumerate(bits):
                 if bit != "1":
                     continue
-                for dy in range(scale):
-                    for dx in range(scale):
-                        offset = ((y + row * scale + dy) * WIDTH + x + column * scale + dx) * 2
-                        frame[offset:offset + 2] = HOUSEKEEPING_STATUS_COLOR_RGB565.to_bytes(2, "big")
-        x += advance
+                offset = ((y + row) * WIDTH + x + column) * 2
+                frame[offset:offset + 2] = STARTUP_DELAY_TEXT_COLOR_RGB565.to_bytes(2, "big")
+        x += 6
+
+
+def render_startup_delayed():
+    canvas = logo_canvas("shutdown")
+    clear_startup_status(canvas)
+    draw_startup_status_text(canvas, "STARTUP DELAYED", 96)
+    draw_startup_status_text(canvas, "PLEASE WAIT", 106)
+    return render_canvas(canvas)
+
+
+def dim_rgb565_frame(frame):
+    dimmed = bytearray(len(frame))
+    for offset in range(0, len(frame), 2):
+        pixel = int.from_bytes(frame[offset:offset + 2], "big")
+        if pixel == 0:
+            continue
+        red = ((pixel >> 11) & 0x1F) * STARTUP_FATAL_DIM_NUMERATOR // STARTUP_FATAL_DIM_DENOMINATOR
+        green = ((pixel >> 5) & 0x3F) * STARTUP_FATAL_DIM_NUMERATOR // STARTUP_FATAL_DIM_DENOMINATOR
+        blue = (pixel & 0x1F) * STARTUP_FATAL_DIM_NUMERATOR // STARTUP_FATAL_DIM_DENOMINATOR
+        dimmed[offset:offset + 2] = ((red << 11) | (green << 5) | blue).to_bytes(2, "big")
+    return dimmed
+
+
+def render_startup_fatal(code, dimmed=False):
+    try:
+        lines = STARTUP_FATAL_TEXT[code]
+    except KeyError as error:
+        raise ValueError(f"unsupported startup fatal code: {code!r}") from error
+    canvas = logo_canvas("shutdown")
+    clear_startup_status(canvas)
+    for index, line in enumerate(lines):
+        draw_startup_status_text(canvas, line, STARTUP_STATUS_TOP + index * 8)
+    frame = render_canvas(canvas)
+    return dim_rgb565_frame(frame) if dimmed else frame
 
 
 def sweep_band_left(frame, y):
@@ -299,10 +338,6 @@ def render_canvas(canvas, frame=None):
     if frame is None:
         return rotated
     return apply_sweep(rotated, frame)
-
-
-def render_logo(kind, frame=None):
-    return render_canvas(logo_canvas(kind), frame)
 
 
 def rotate_clockwise_rgb565(pixels):

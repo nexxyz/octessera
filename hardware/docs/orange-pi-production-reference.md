@@ -59,6 +59,21 @@ not connected HDMI audio or audible qualification.
 Normal SIGINT cleanup joins workers after the shutdown frame, black
 Trellis/NeoKey frames, and OLED-off operation.
 
+## HDMI plug-event log mitigation
+
+A loose or intermittent HDMI plug was proven to make the fixed H618 controller
+repeat `sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin` until Armbian's 50 MB RAM log
+filled. Newly constructed Orange images install
+`/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf` with root ownership and
+mode `0644`. Its exact `$msg` match stops only that rsyslog file-writing copy,
+before the default file rules; other HDMI and kernel messages remain visible.
+Journald keeps its bounded diagnostic copy.
+
+This prevents duplicate text-log space consumption. It does not repair a loose
+connector, cable, or physical HDMI fault. Inspect and reseat the hardware with
+the board powered down, then use `rsyslogd -N1 -f /etc/rsyslog.conf` and
+`journalctl -k --no-pager` for read-only checks.
+
 ## Runtime-only updater contract
 
 Orange Check/Apply/Rollback goes through the root-owned broker and guarded
@@ -118,21 +133,27 @@ are disabled. The setup service is disabled, and only
 opt-in actions from `System > Configure WiFi > Open Portal`; the image does not
 start a hotspot or SSH automatically.
 
-The production image's SPI1/CS0 overlay is board-specific:
+The production image's SPI1 OLED+SD2 overlay is board-specific:
 
-- Source: `userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts`.
-- Installed source: `/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts`.
-- Installed DTBO: `/boot/overlay-user/octessera-h618-spi1-cs0.dtbo`.
-- Boot enablement: `user_overlays=octessera-h618-spi1-cs0` in `/boot/armbianEnv.txt`.
+- Source: `userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-oled-sd2.dts`.
+- Installed source: `/usr/local/share/octessera/device-tree/octessera-h618-spi1-oled-sd2.dts`.
+- Installed DTBO: `/boot/overlay-user/octessera-h618-spi1-oled-sd2.dtbo`.
+- Boot enablement: `user_overlays=octessera-h618-spi1-oled-sd2` in `/boot/armbianEnv.txt`.
 - Required I2C enablement: `overlays=i2c1-pi` in `/boot/armbianEnv.txt`.
 
-It enables SPI1/CS0 on the reviewed H618 pin groups and creates one
-`rohm,dh2228fv` device capped at 16 MHz. It does not touch SPI0, CS1, GPIO
-lines, services, or authorization. Image customization resolves the
+It enables SPI1 data plus CS0 and CS1 on the reviewed H618 pin groups, creates
+one `rohm,dh2228fv` OLED device capped at 16 MHz, and creates an
+`mmc-spi-slot` SD2 device on CS1 capped at 10 MHz. It does not add GPIO chip
+select, card-detect, broken-card-detect, or non-removable properties. Image customization resolves the
 boot-selected DTB and records non-secret DTS/DTBO hashes in
 `/etc/octessera/build-metadata.env`; DTBO and boot-environment writes are
 atomic. Before any OLED transfer, prove the live SPI1 node and pinmux and keep
 a recovery path for `/boot/armbianEnv.txt`.
+
+On the fixed PCB, SD2 chip select is header pin 26. H618 PH9 is the local
+SPI1 CS1 pin and uses mux `0x4`; the OLED remains SPI1 CS0. Physical
+coexistence of the OLED and microSD wiring is intentionally unqualified in
+this source/image stage and still needs electrical and live-kernel proof.
 
 The production DAC is owned by the Octessera AHUB audio overlay and is enabled
 only by the mandatory `octessera_audio` Armbian extension. The boot composition
@@ -143,6 +164,11 @@ PI1/PI2 `i2s0`, and PI3 `i2s0_dout0` to expose the playback-only
 playback route `hw:CARD=octesseradac,DEV=0`; the fixed image does not depend on a
 `CONFIG_SND_SOC_PCM5102A` driver or a PCM5102A codec node/link. The overlay
 uses the vendor dummy-codec topology and does not claim MCLK.
+
+SD2 requires `CONFIG_MMC=y` and `CONFIG_MMC_BLOCK=y`. `CONFIG_MMC_SPI` may be
+built in or modular: a modular build installs `mmc_spi` through
+`/etc/modules-load.d/octessera-orange-sd-card.conf`; a built-in build does not
+install a module-load entry or an `mmc_spi` module.
 
 The image stages the complete 320-file sample inventory and only seeds the
 default preset when `/var/lib/octessera/presets/default.json` is absent. Boot
@@ -224,8 +250,14 @@ unqualified DAC/UAC2 callback promotion.
 The Orange combined configfs service accepts only the verified UDC
 `musb-hdrc.4.auto`; absence, a different controller, a bound controller, or an
 existing configfs gadget fails closed. It creates only UAC2 and MIDI functions,
-binds the UDC last, and exposes no mass storage. Teardown unbinds first, removes
-configuration links and functions, then removes the gadget tree.
+binds the UDC last, and exposes no mass storage during normal operation.
+SD2 transfer is a separate fixed root-owned storage-control action using the
+same UDC and lifecycle lock. It unmounts the label-safe `OCTESSERA_SD` card
+before binding a writable/removable mass-storage LUN and restores the normal
+UAC2/MIDI gadget after host eject and stop. Source and fake-configfs contracts
+are present; physical Orange UDC, host-eject, and recovery qualification remain
+pending. Teardown unbinds first, removes configuration links and functions,
+then removes the gadget tree.
 
 The installed service can be inspected without binding a new gadget:
 

@@ -1,11 +1,14 @@
 use super::toast_text::clip_display_line;
 use super::{json, NativeRunner, Value, OLED_BODY_ROWS};
+use crate::native_menu::NativeMenuSnapshot;
+use crate::oled_frame::OledDisplayLayout;
 
 const DISPLAY_LINE_WIDTH: usize = 28;
 const SELECTED_LINE_SCROLL_TICKS_PER_CHAR: usize = 4;
 const SELECTED_LINE_SCROLL_GAP: [char; 3] = [' ', ' ', ' '];
 
 pub(super) struct DisplaySnapshot {
+    pub(super) body_layout: OledDisplayLayout,
     pub(super) title: String,
     pub(super) lines: Vec<String>,
     pub(super) colors: Vec<u16>,
@@ -37,6 +40,13 @@ impl NativeRunner {
             .filter(|setup| setup.visible)
         {
             setup_portal_display(setup)
+        } else if let Some(transfer) = self
+            .display
+            .user_data_transfer
+            .as_ref()
+            .filter(|transfer| transfer.visible)
+        {
+            user_data_transfer_display(transfer)
         } else if let Some(modal) = &self.display.usb_sd_transfer_modal {
             usb_sd_transfer_modal_display(modal)
         } else if let Some(modal) = &self.display.system_info_modal {
@@ -55,6 +65,7 @@ impl NativeRunner {
             .is_some_and(|setup| setup.visible);
         if !setup_visible && self.display.user_data_restore.is_none() {
             if let Some(error) = &self.display.runtime_error_presentation {
+                display.body_layout = OledDisplayLayout::Rows;
                 display.title = error.title.clone();
                 display.lines = error.lines.clone();
                 display.colors = vec![platform_core::palette::WHITE_RGB565; display.lines.len()];
@@ -65,26 +76,28 @@ impl NativeRunner {
             }
         }
         display.title = clip_display_line(&display.title, DISPLAY_LINE_WIDTH);
-        display.lines = display
-            .lines
-            .into_iter()
-            .take(OLED_BODY_ROWS)
-            .enumerate()
-            .map(|(row, line)| {
-                if display.selected_row == Some(row) && !self.menu.state.editing {
-                    clip_display_line(
-                        &scroll_display_line_once(
-                            &line,
-                            display.full_lines.get(row).and_then(|line| line.as_deref()),
-                            self.display.menu_scroll_offset,
-                        ),
-                        DISPLAY_LINE_WIDTH,
-                    )
-                } else {
-                    clip_display_line(&line, DISPLAY_LINE_WIDTH)
-                }
-            })
-            .collect();
+        if display.body_layout == OledDisplayLayout::Rows {
+            display.lines = display
+                .lines
+                .into_iter()
+                .take(OLED_BODY_ROWS)
+                .enumerate()
+                .map(|(row, line)| {
+                    if display.selected_row == Some(row) && !self.menu.state.editing {
+                        clip_display_line(
+                            &scroll_display_line_once(
+                                &line,
+                                display.full_lines.get(row).and_then(|line| line.as_deref()),
+                                self.display.menu_scroll_offset,
+                            ),
+                            DISPLAY_LINE_WIDTH,
+                        )
+                    } else {
+                        clip_display_line(&line, DISPLAY_LINE_WIDTH)
+                    }
+                })
+                .collect();
+        }
         display.colors.truncate(display.lines.len());
         display.bar_values.truncate(display.lines.len());
         display.full_lines.truncate(display.lines.len());
@@ -110,6 +123,7 @@ fn user_data_restore_display(state: &super::NativeUserDataRestoreState) -> Displ
     };
     let line_count = lines.len();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
         title,
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
@@ -151,6 +165,7 @@ fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapsh
     lines.truncate(OLED_BODY_ROWS);
     let line_count = lines.len();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
         title: confirm.title.clone(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
@@ -183,7 +198,7 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
                     state.status.portal_suffix.as_deref().unwrap_or("----")
                 ),
                 "Open 192.168.42.1".into(),
-                "Timeout: 30 minutes".into(),
+                "Portal: 10 minutes".into(),
             ],
             "Hide",
         ),
@@ -194,16 +209,16 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
         ),
         super::RuntimeSetupPortalPhase::Succeeded => (
             "Wi-Fi Setup".to_string(),
-            vec!["Setup complete".into(), "No reboot needed".into()],
+            vec![
+                "Setup complete".into(),
+                "IP in System > Info".into(),
+                "No reboot needed".into(),
+            ],
             "Close",
         ),
         super::RuntimeSetupPortalPhase::Failed => (
             "Wi-Fi Setup".to_string(),
-            vec![
-                "Setup failed".into(),
-                "Settings may be".into(),
-                "partial".into(),
-            ],
+            vec!["Setup failed".into(), "Check the device status".into()],
             "Close",
         ),
         super::RuntimeSetupPortalPhase::TimedOut => (
@@ -217,20 +232,10 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
             "Close",
         ),
     };
-    if let Some(transfer) = &state.status.transfer {
-        let transfer_lines = setup_transfer_display_lines(transfer);
-        if matches!(
-            state.status.phase,
-            super::RuntimeSetupPortalPhase::PortalReady
-        ) {
-            lines.splice(2..3, transfer_lines);
-        } else {
-            lines.extend(transfer_lines);
-        }
-    }
     lines.push(format!("> {action}"));
     let line_count = lines.len();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Card,
         title,
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
@@ -241,17 +246,63 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
     }
 }
 
-fn setup_transfer_display_lines(transfer: &crate::RuntimeSetupPortalTransfer) -> Vec<String> {
-    let address = transfer
-        .url
+fn user_data_transfer_display(state: &super::NativeUserDataTransferState) -> DisplaySnapshot {
+    let (title, lines) = match state.status.phase {
+        super::RuntimeUserDataTransferPhase::Ready => {
+            let url = state.status.url.as_deref().unwrap_or_default();
+            let (host, port) = transfer_url_host_port(url);
+            let expires = state
+                .status
+                .expires_in_seconds
+                .map(|seconds| u32::from(seconds).div_ceil(60))
+                .unwrap_or_default();
+            (
+                "Backup & Restore".into(),
+                vec![
+                    "Use local client".into(),
+                    format!("IP {host}"),
+                    format!("PORT {port}"),
+                    format!("CODE {}", state.status.code.as_deref().unwrap_or_default()),
+                    format!("Ends in {expires} min"),
+                    "> Stop service".into(),
+                ],
+            )
+        }
+        super::RuntimeUserDataTransferPhase::Unsupported => (
+            "Backup & Restore".into(),
+            vec![
+                "Not supported here".into(),
+                "Use a Pi device".into(),
+                "> Close".into(),
+            ],
+        ),
+        super::RuntimeUserDataTransferPhase::Closed => unreachable!("closed transfer is cleared"),
+    };
+    let line_count = lines.len();
+    DisplaySnapshot {
+        body_layout: OledDisplayLayout::Card,
+        title,
+        lines,
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
+        bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
+        scroll: None,
+        selected_row: Some(line_count.saturating_sub(1)),
+    }
+}
+
+fn transfer_url_host_port(url: &str) -> (&str, &str) {
+    let authority = url
         .strip_prefix("http://")
-        .unwrap_or(&transfer.url);
-    let (host, port) = address.rsplit_once(':').unwrap_or((address, ""));
-    vec![
-        format!("Data {host}"),
-        format!("Port {port}"),
-        format!("Code {}", transfer.code),
-    ]
+        .unwrap_or_default()
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or_default();
+    if let Some((host, port)) = authority.rsplit_once(':') {
+        (host.trim_start_matches('[').trim_end_matches(']'), port)
+    } else {
+        (authority, "80")
+    }
 }
 
 fn usb_sd_transfer_modal_display(modal: &super::NativeUsbSdTransferModal) -> DisplaySnapshot {
@@ -260,6 +311,7 @@ fn usb_sd_transfer_modal_display(modal: &super::NativeUsbSdTransferModal) -> Dis
     lines.truncate(OLED_BODY_ROWS);
     let line_count = lines.len();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
         title: modal.title.clone(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
@@ -275,6 +327,7 @@ fn system_info_modal_display(modal: &super::NativeSystemInfoModal) -> DisplaySna
     lines.push("> Back".into());
     let line_count = lines.len();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
         title: "System Info".into(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
@@ -300,6 +353,7 @@ fn help_popup_display(help: &super::NativeHelpPopup) -> DisplaySnapshot {
     lines.push("> Close".into());
     let line_count = lines.len();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
         title: help.title.clone(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
@@ -318,6 +372,7 @@ fn help_popup_display(help: &super::NativeHelpPopup) -> DisplaySnapshot {
 fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
     let line_count = lines.len();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
         title,
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
@@ -334,39 +389,29 @@ fn menu_display(
 ) -> DisplaySnapshot {
     let bar_values = menu
         .bar_values
-        .into_iter()
+        .iter()
         .map(|bar| {
-            bar.map(|bar| {
-                json!({
-                    "frac": f32::from(bar.frac_pct) / 100.0,
-                    "numChars": bar.num_chars,
-                    "style": bar.style,
+            bar.as_ref()
+                .map(|bar| {
+                    json!({
+                        "frac": f32::from(bar.frac_pct) / 100.0,
+                        "numChars": bar.num_chars,
+                        "style": bar.style,
+                    })
                 })
-            })
-            .unwrap_or(Value::Null)
+                .unwrap_or(Value::Null)
         })
         .collect::<Vec<_>>();
     let rows = menu
         .lines
-        .into_iter()
+        .iter()
+        .cloned()
         .enumerate()
-        .map(|(row, line)| {
-            let prefix = runner.auto_map_prefix_for_line(
-                menu.line_keys.get(row).and_then(|key| key.as_deref()),
-                menu.line_actions
-                    .get(row)
-                    .and_then(|action| action.as_ref()),
-            );
-            let full_line = menu
-                .full_lines
-                .get(row)
-                .and_then(|line| line.clone())
-                .map(|full_line| prefix_line(full_line, prefix.clone()));
-            (prefix_line(line, prefix), full_line)
-        })
+        .map(|(row, line)| menu_row_presentation(runner, &menu, row, line))
         .collect::<Vec<_>>();
     let (lines, full_lines): (Vec<_>, Vec<_>) = rows.into_iter().unzip();
     DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
         title: menu.path,
         lines,
         colors: menu.colors,
@@ -379,6 +424,36 @@ fn menu_display(
         }),
         selected_row: menu.selected_row,
     }
+}
+
+pub(super) fn selected_menu_presentation_line(
+    runner: &NativeRunner,
+    menu: &NativeMenuSnapshot,
+) -> Option<String> {
+    let row = menu.selected_row?;
+    let line = menu.lines.get(row)?.clone();
+    let (line, full_line) = menu_row_presentation(runner, menu, row, line);
+    Some(full_line.unwrap_or(line))
+}
+
+fn menu_row_presentation(
+    runner: &NativeRunner,
+    menu: &NativeMenuSnapshot,
+    row: usize,
+    line: String,
+) -> (String, Option<String>) {
+    let prefix = runner.auto_map_prefix_for_line(
+        menu.line_keys.get(row).and_then(|key| key.as_deref()),
+        menu.line_actions
+            .get(row)
+            .and_then(|action| action.as_ref()),
+    );
+    let full_line = menu
+        .full_lines
+        .get(row)
+        .and_then(|line| line.clone())
+        .map(|full_line| prefix_line(full_line, prefix.clone()));
+    (prefix_line(line, prefix), full_line)
 }
 
 fn prefix_line(line: String, prefix: Option<String>) -> String {
@@ -408,27 +483,5 @@ fn prefix_line(line: String, prefix: Option<String>) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::prefix_line;
-
-    #[test]
-    fn auto_mapped_action_rows_keep_equal_prefix_alignment() {
-        assert_eq!(
-            prefix_line(">!Do It".into(), Some("1!".into())),
-            "> 1!Do It"
-        );
-        assert_eq!(prefix_line(" !Do It".into(), Some("1!".into())), "1!Do It");
-    }
-
-    #[test]
-    fn auto_mapped_value_rows_keep_turn_prefix_alignment() {
-        assert_eq!(
-            prefix_line("> Cutoff".into(), Some("1-".into())),
-            "> 1-Cutoff"
-        );
-        assert_eq!(
-            prefix_line("  Cutoff".into(), Some("1-".into())),
-            "1-Cutoff"
-        );
-    }
-}
+#[path = "snapshot_display_tests.rs"]
+mod tests;

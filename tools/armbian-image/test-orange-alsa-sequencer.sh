@@ -7,6 +7,7 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 extension="$root/userpatches/extensions/octessera_midi.sh"
 module_file="$root/userpatches/overlay/etc/modules-load.d/octessera-orange-midi.conf"
 customize="$root/userpatches/customize-image.sh"
+runtime_assets="$root/userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh"
 
 [[ -f "$extension" ]] || { echo "Missing ALSA sequencer kernel extension." >&2; exit 1; }
 [[ -f "$module_file" ]] || { echo "Missing Orange ALSA module-load file." >&2; exit 1; }
@@ -65,8 +66,8 @@ printf '%s\n' snd_seq snd_seq_midi | cmp -s - "$module_file" || {
 }
 octessera_reject_file_match "Orange ALSA module-load file contains generic discovery or OSS behavior." -Eq 'find|lsmod|modprobe|udevadm|/sys/class|/dev/snd|snd_seq_oss|snd-seq-oss' "$module_file"
 
-grep -qF 'install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644' "$customize" || {
-    echo "Orange ALSA module-load file is not installed by customize-image." >&2
+grep -qF 'install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644' "$runtime_assets" || {
+    echo "Orange ALSA module-load file is not installed by the Orange runtime asset installer." >&2
     exit 1
 }
 

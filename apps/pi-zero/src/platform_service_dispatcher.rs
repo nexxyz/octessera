@@ -107,6 +107,12 @@ pub(crate) fn dispatch(
             Ok(status) => vec![status],
             Err(failure) => vec![start_failure_message(request, failure)],
         }),
+        RuntimePlatformEffect::UserDataTransferOpen => {
+            Some(vec![service.open_user_data_transfer(request)])
+        }
+        RuntimePlatformEffect::UserDataTransferClose => {
+            Some(vec![service.close_user_data_transfer(request)])
+        }
         _ => None,
     };
     result

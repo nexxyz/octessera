@@ -1,5 +1,4 @@
 use super::{AudioControlRequest, AudioService};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::audio_recording::recording_owner;
 use crate::audio_replay::default_replay_events;
 use crate::audio_route::{new_registry, set_status, AudioRouteRegistry};
@@ -17,13 +16,11 @@ mod audio_output_open;
 mod cpal_audio_output;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_audio_recovery;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::recording::RecordingTap;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use audio_output_open::open_audio_sink;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use audio_output_open::open_orange_audio_sink;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use audio_output_open::recordings_dir;
 use audio_output_open::AudioSinkOpener;
 use cpal::Stream;
@@ -34,7 +31,6 @@ use playback_runtime::AudioOutputSet;
 use playback_runtime::HostMessage;
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 
@@ -97,10 +93,7 @@ fn startup_open_action(
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) type RecordingTapState = Arc<RwLock<Option<RecordingTap>>>;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-type RecordingTapState = ();
 
 impl AudioManager {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -181,20 +174,15 @@ impl AudioManager {
         let mut optional_recovery = Vec::new();
         let realtime_txs = Arc::new(Mutex::new(Vec::new()));
         let replay_events = Arc::new(Mutex::new(default_replay_events()));
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let recorder = Arc::new(Mutex::new(crate::recording::RecorderService::new(
             recordings_dir(),
         )));
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let recording_tap = Arc::new(RwLock::new(None));
         for sink in sinks {
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             let tap = (recording_owner(match policy {
                 AudioOpenPolicy::Outputs(outputs) => outputs,
             }) == Some(sink))
             .then(|| recording_tap.clone());
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            let tap = None;
             match open_sink(output_buffer_frames, sink, tap) {
                 Ok(opened) => {
                     set_status(
@@ -267,9 +255,7 @@ impl AudioManager {
             },
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             required_jack_health: required_jack_health.clone(),
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             recorder,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             recording_tap: recording_tap.clone(),
         };
         crate::host_audio_prep::spawn_audio_control_worker(
@@ -294,6 +280,8 @@ impl AudioManager {
             }
         }
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let AudioOpenPolicy::Outputs(outputs) = policy;
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let orange_dac_recovery = orange_jack_opened
             .map(|opened| {
                 OrangeRecoveryController::new_required(
@@ -301,12 +289,12 @@ impl AudioManager {
                     output_buffer_frames,
                     realtime_txs.clone(),
                     replay_events.clone(),
+                    (recording_owner(outputs) == Some(AudioSink::Jack))
+                        .then_some(recording_tap.clone()),
                     attach_gate.clone(),
                 )
             })
             .transpose()?;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let AudioOpenPolicy::Outputs(outputs) = policy;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let orange_recovery = [AudioSink::Usb, AudioSink::Hdmi]
             .into_iter()
@@ -323,6 +311,7 @@ impl AudioManager {
                         output_buffer_frames,
                         realtime_txs.clone(),
                         replay_events.clone(),
+                        (recording_owner(outputs) == Some(sink)).then_some(recording_tap.clone()),
                         attach_gate.clone(),
                     ),
                     None => Ok(OrangeRecoveryController::new_optional_missing(
@@ -330,6 +319,7 @@ impl AudioManager {
                         output_buffer_frames,
                         realtime_txs.clone(),
                         replay_events.clone(),
+                        (recording_owner(outputs) == Some(sink)).then_some(recording_tap.clone()),
                         attach_gate.clone(),
                     )),
                 }

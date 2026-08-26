@@ -14,6 +14,9 @@ pub enum HostMessage {
         #[serde(default, rename = "requestSnapshot")]
         request_snapshot: Option<bool>,
     },
+    PresentedRuntimeErrorInput {
+        input: Value,
+    },
     TransportPulseStep {
         pulses: u32,
         source: SyncSource,
@@ -66,4 +69,5 @@ pub enum RunnerMessage {
     RuntimeConfigChanged {
         config: RuntimeConfig,
     },
+    PresentedRuntimeErrorDismissed,
 }

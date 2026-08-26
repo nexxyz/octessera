@@ -184,6 +184,11 @@ impl MidiHost {
     pub(crate) fn selected_input_id(&self) -> Option<String> {
         self.selected_midi_input_id.clone()
     }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(crate) fn usb_midi_out_enabled(&self) -> bool {
+        self.usb_midi_out_enabled
+    }
 }
 
 fn resolve_port_id(requested: &str, ids: &[String]) -> Result<String, String> {

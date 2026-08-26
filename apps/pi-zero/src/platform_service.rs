@@ -5,8 +5,12 @@ use crate::orange_device_apply::OrangeDeviceApplyTransaction;
 use crate::setup_portal::SetupPortalEnvironment;
 use crate::setup_portal::SetupPortalService;
 use crate::setup_portal_worker;
-use crate::user_data_transfer::{StoreWriteBarrier, UserDataTransferService};
-use playback_runtime::{HostMessage, RuntimePlatformRequest, RuntimeStoreResult};
+use crate::user_data_transfer::{
+    production_random_source, StoreWriteBarrier, UserDataTransferService,
+};
+use playback_runtime::{
+    HostMessage, RuntimePlatformRequest, RuntimeSetupPortalDisposition, RuntimeStoreResult,
+};
 use std::collections::VecDeque;
 #[cfg(test)]
 use std::path::Path;
@@ -52,6 +56,7 @@ pub(crate) use platform_service_store::preset_path;
 pub(crate) use platform_service_store::{
     list_presets, load_json, preset_load_path, preset_patch_path, save_json,
 };
+pub(crate) use system_info::{regular_wlan0_ipv4, RegularWlan0Ipv4};
 const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
 
@@ -93,7 +98,7 @@ impl PiPlatformService {
         let user_data_transfer = UserDataTransferService::production(
             store_dir.clone(),
             samples_dir.clone(),
-            setup_portal.random_source(),
+            production_random_source(),
             store_lock.clone(),
         );
         let store_write_barrier = user_data_transfer.store_write_barrier();
@@ -126,7 +131,6 @@ impl PiPlatformService {
             result_lane.clone(),
             setup_portal.clone(),
             setup_portal_stop.clone(),
-            user_data_transfer.clone(),
         );
         platform_service_worker::spawn(
             worker_store_dir,
@@ -162,7 +166,10 @@ impl PiPlatformService {
         let user_data_transfer = UserDataTransferService::test_with_store_lock(
             store_dir.clone(),
             samples_dir.clone(),
-            setup_portal.random_source(),
+            std::sync::Arc::new(|bytes: &mut [u8]| {
+                bytes.fill(0);
+                Ok(())
+            }),
             Arc::new(Mutex::new(())),
         );
         let store_lock = user_data_transfer.store_lock();
@@ -225,7 +232,16 @@ impl PiPlatformService {
     }
 
     pub(crate) fn take_transfer_status(&self) -> Option<HostMessage> {
+        self.user_data_transfer.expire_if_needed();
         self.user_data_transfer.take_runtime_status()
+    }
+
+    pub(crate) fn open_user_data_transfer(&self, request: &RuntimePlatformRequest) -> HostMessage {
+        self.user_data_transfer.open(request)
+    }
+
+    pub(crate) fn close_user_data_transfer(&self, request: &RuntimePlatformRequest) -> HostMessage {
+        self.user_data_transfer.close(request)
     }
 
     pub(crate) fn set_restore_preflight(
@@ -306,9 +322,7 @@ pub enum PlatformJobKind {
         sample_slot: usize,
         dir: String,
     },
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     UsbSdTransferStart,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     UsbSdTransferStop,
     UpdateCheck,
     UpdateApply,

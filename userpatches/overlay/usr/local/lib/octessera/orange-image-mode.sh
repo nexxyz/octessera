@@ -126,7 +126,7 @@ octessera_configure_runtime_hardware_groups() {
   local group_gid
   local runtime_group_name
 
-  for runtime_group_name in audio i2c spi gpio; do
+  for runtime_group_name in audio i2c spi gpio video; do
     group_record="$(getent group "$runtime_group_name" || true)"
     if [[ -z "$group_record" ]]; then
       groupadd --system "$runtime_group_name" || return 1
@@ -138,7 +138,7 @@ octessera_configure_runtime_hardware_groups() {
       return 1
     }
   done
-  usermod --groups audio,i2c,spi,gpio octessera-runtime || return 1
+  usermod --groups audio,i2c,spi,gpio,video octessera-runtime || return 1
 }
 
 octessera_configure_runtime_account() {

@@ -20,6 +20,7 @@ import {
   RUNTIME_PLATFORM_EFFECT_FIXTURES,
   RUNTIME_SETUP_PORTAL_STATUS_FIXTURES,
   RUNTIME_STORE_RESULT_FIXTURES,
+  RUNTIME_USER_DATA_TRANSFER_STATUS_FIXTURES,
 } from "./runtimeProtocolFixtures";
 
 type AssertNever<T extends never> = T;
@@ -192,12 +193,18 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
     "rollback",
     "system_info_request",
     "setup_portal_open",
+    "user_data_transfer_open",
+    "user_data_transfer_close",
     "sample_list_request",
     "audio_command",
   ]);
   assertRoundTripsThroughJson(
     RUNTIME_SETUP_PORTAL_STATUS_FIXTURES,
     new Array(10).fill("setup_portal_status"),
+  );
+  assertRoundTripsThroughJson(
+    RUNTIME_USER_DATA_TRANSFER_STATUS_FIXTURES,
+    new Array(3).fill("user_data_transfer_status"),
   );
   assertRoundTripsThroughJson(RUNTIME_STORE_RESULT_FIXTURES, [
     "list_presets_result",
@@ -223,5 +230,6 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
     "system_info_error",
     "setup_portal_status",
     "identified",
+    "user_data_transfer_status",
   ]);
 });

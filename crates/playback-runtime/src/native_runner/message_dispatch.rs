@@ -18,11 +18,21 @@ impl NativeRunner {
         self.pending.suppress_snapshot_response = false;
         messages
     }
+
+    fn send_presented_runtime_error_input(
+        &mut self,
+        input: serde_json::Value,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        let input = serde_json::from_value::<DeviceInput>(input).unwrap_or(DeviceInput::Other);
+        self.handle_presented_runtime_error_input(input)
+    }
 }
 
 impl super::CoreRunner for NativeRunner {
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
         let flush_time = Instant::now();
+        let presented_error_input =
+            matches!(&message, HostMessage::PresentedRuntimeErrorInput { .. });
         let mut messages = match message {
             HostMessage::TransportPulseStep {
                 pulses,
@@ -33,6 +43,9 @@ impl super::CoreRunner for NativeRunner {
                 input,
                 request_snapshot,
             } => self.send_device_input(input, request_snapshot),
+            HostMessage::PresentedRuntimeErrorInput { input } => {
+                self.send_presented_runtime_error_input(input)
+            }
             HostMessage::MidiRealtimeStart => self.send_midi_realtime_start(),
             HostMessage::MidiRealtimeContinue => self.send_midi_realtime_continue(),
             HostMessage::MidiRealtimeStop => self.send_midi_realtime_stop(),
@@ -40,6 +53,9 @@ impl super::CoreRunner for NativeRunner {
             HostMessage::MidiRealtimeClock { pulses } => self.send_midi_realtime_clock(pulses),
             HostMessage::RuntimeResult { result } => self.send_runtime_result(result),
         }?;
+        if presented_error_input {
+            return Ok(messages);
+        }
         messages.extend(self.flush_deferred_menu_apply_at(flush_time)?);
         self.append_runtime_config_if_changed(&mut messages);
         Ok(messages)

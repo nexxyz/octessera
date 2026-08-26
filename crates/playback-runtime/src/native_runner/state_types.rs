@@ -51,6 +51,7 @@ pub(super) struct NativeDisplayState {
     pub(super) usb_sd_transfer_modal: Option<NativeUsbSdTransferModal>,
     pub(super) system_info_modal: Option<NativeSystemInfoModal>,
     pub(super) setup_portal: Option<NativeSetupPortalState>,
+    pub(super) user_data_transfer: Option<NativeUserDataTransferState>,
     pub(super) user_data_restore: Option<NativeUserDataRestoreState>,
     pub(super) transients: display_transients::DisplayTransients,
     pub(super) auto_save_flash_serial: u64,
@@ -79,6 +80,7 @@ impl NativeDisplayState {
             usb_sd_transfer_modal: None,
             system_info_modal: None,
             setup_portal: None,
+            user_data_transfer: None,
             user_data_restore: None,
             transients: display_transients::DisplayTransients::new(now),
             auto_save_flash_serial: 0,
@@ -95,6 +97,14 @@ impl NativeDisplayState {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeSetupPortalState {
     pub(super) status: RuntimeSetupPortalStatus,
+    pub(super) request_id: Option<String>,
+    pub(super) revision: Option<u64>,
+    pub(super) visible: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct NativeUserDataTransferState {
+    pub(super) status: RuntimeUserDataTransferStatus,
     pub(super) request_id: Option<String>,
     pub(super) revision: Option<u64>,
     pub(super) visible: bool,

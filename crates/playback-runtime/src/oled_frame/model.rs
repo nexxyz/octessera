@@ -1,3 +1,5 @@
+use super::OledDisplayLayout;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct OledPresentationInput {
     pub display: OledDisplayInput,
@@ -15,6 +17,7 @@ pub struct OledPresentationInput {
 pub struct OledDisplayInput {
     pub off: bool,
     pub splash: OledSplash,
+    pub body_layout: OledDisplayLayout,
     pub title: String,
     pub lines: Vec<String>,
     pub colors: Vec<u16>,

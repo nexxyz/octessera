@@ -5,12 +5,28 @@ orchestrator](fat-quick-run.md). Use the exact flashed release asset and
 assembled board. The [diagnostic harness](fat-diagnostic-harness.md) is
 additional sanitized evidence; it does not replace these operator observations.
 
+Normal first boot does not wait six minutes. Upstream filesystem resize is ordered
+before runtime; live Orange evidence saw resize complete from about 19.4 s to
+22.7 s, with runtime starting at 24.3 s. Six minutes is only the upstream maximum
+timeout, not a planned user-visible duration. The normal animated splash covers
+this boot work.
+
 On either board, if native ownership has not arrived by the 30-second handoff
-window, the existing splash owner should show persistent dimmed `FIRST-RUN` /
-`HOUSEKEEPING` / `PLEASE WAIT` text and continue single-writer handoff polling.
-This is a delayed-start legibility/recovery mitigation, not proof that
-filesystem expansion is active or complete. Only genuine errors or termination
-signals should produce black/off failure cleanup.
+window, the existing splash owner should show one static polished `STARTUP
+DELAYED` / `PLEASE WAIT` frame and continue single-writer handoff polling. This
+is delayed-start legibility/recovery mitigation, not a claim about resize state.
+Only genuine errors or termination signals should produce black/off failure
+cleanup.
+
+For setup, the browser submission is provisional; the OLED terminal result is
+authoritative. Success requires NetworkManager connected with a usable `wlan0`
+IPv4 address, not Internet access, a default route, DNS, or ICMP. After success,
+use `System > Info` for the `wlan0` IP; no reboot is required. `System > Updates`
+is runtime-only Check/Apply/Rollback when Internet is available, not a full
+OS/image, kernel, or device-tree update path.
+
+These end-to-end setup steps keep the setup AP qualification separate. Use the
+standalone `System > Backup & Restore` action in the gap stage for data transfer.
 
 ## Raspberry end-to-end
 
@@ -51,10 +67,11 @@ before retaining any excerpt:
 
 1. Flash the exact Raspberry asset with Raspberry Pi Imager. Insert the card and
    power only through the enclosure USB-C input.
-2. Watch the OLED from power-on through the normal menu. Join `Octessera Setup`
-   or `Octessera Setup <4-char code>` and open `http://192.168.42.1`.
-3. Apply a test Wi-Fi network, hostname, and SSH key if needed. Wait for the
-   hotspot to disappear and reconnect on the new network.
+2. Watch the OLED from power-on through the normal menu. At the instrument,
+   choose `System > Configure WiFi` and confirm `Open Portal`.
+3. Join `Octessera Setup` or `Octessera Setup <4-char suffix>`, open
+   `http://192.168.42.1`, and apply a test Wi-Fi network, hostname, and SSH key
+   if needed. Wait for the OLED result, then reconnect on the new network.
 4. At the instrument, turn and press the Main encoder, press Back and Space,
    press one lower-left grid cell, start the default patch, and make one small
    parameter change. Do not start a full 64-cell or LED orientation sweep here.
@@ -113,10 +130,10 @@ metadata into shared evidence:
    not use the diagnostic image or a Raspberry asset.
 2. Watch the OLED from power-on through the normal menu. At the instrument,
    choose `System > Configure WiFi` and confirm `Open Portal`.
-3. Wait for `Octessera Setup` or `Octessera Setup <4-char code>`, join the setup
-   hotspot, open `http://192.168.42.1`, apply a test Wi-Fi network and SSH key,
-   and wait for the reconnect. Do not expect an automatic hotspot on a fresh
-   Orange production image.
+3. Wait for `Octessera Setup` or `Octessera Setup <4-char suffix>`, join the
+   setup hotspot, open `http://192.168.42.1`, apply a test Wi-Fi network and SSH
+   key, and wait for the OLED result before reconnecting. Do not expect an
+   automatic hotspot on a fresh Orange production image.
 4. Turn and press the Main encoder, press Back and Space, press one lower-left
    grid cell, start the default patch, and make one small parameter change.
 5. With the selected Jack DAC connected and safe volume, trigger one known

@@ -56,7 +56,13 @@ export function createInitialRuntimeSnapshot(): LocalBootstrapSnapshot {
       active: Array.from({ length: ledCount }, () => false),
     },
     transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-    display: { page: 'boot', title: 'Boot', lines: [], editing: false },
+    display: {
+      page: 'boot',
+      bodyLayout: 'rows',
+      title: 'Boot',
+      lines: [],
+      editing: false,
+    },
     activeBehavior: 'life',
     gridInteraction: 'paint',
     neoKeyLeds: {

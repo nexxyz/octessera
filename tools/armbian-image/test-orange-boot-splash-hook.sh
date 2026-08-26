@@ -12,6 +12,8 @@ suspend_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-o
 python313_files="$root/tools/armbian-image/fixtures/python313-initramfs-closure-files.txt"
 python313_fixture="$root/tools/armbian-image/fixtures/python313-initramfs-closure"
 oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
+oled_handoff="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
+oled_lifecycle="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py"
 
 [[ -f "$hook" ]] || { echo "Missing Orange initramfs boot-splash hook." >&2; exit 1; }
 grep -qF '/usr/bin/setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script" || { echo "Orange initramfs must invoke the renderer through /usr/bin/python3." >&2; exit 1; }
@@ -68,6 +70,10 @@ octessera_reject_file_match 'Orange shutdown service must not write a logo.' -qE
 grep -qF '["gpioset", "--chip", self.chip, f"{offset}={value}"]' "$oled_logo" || { echo 'Orange OLED GPIO control must use the fixed libgpiod v2 syntax.' >&2; exit 1; }
 octessera_reject_file_match 'Orange OLED GPIO control must not use the removed libgpiod v1 mode option.' -qF -- '--mode=wait' "$oled_logo"
 octessera_reject_file_match 'Orange OLED GPIO control must retain process-held ownership.' -qE -- '--(daemonize|toggle|hold-period)' "$oled_logo"
+grep -qF 'def unlock_preserving' "$oled_handoff" || { echo 'Orange OLED handoff must preserve descriptors while unlocking.' >&2; exit 1; }
+grep -qF 'def reacquire_nonblocking' "$oled_handoff" || { echo 'Orange OLED handoff must support nonblocking reclaim.' >&2; exit 1; }
+grep -qF 'def _stream_frame' "$oled_lifecycle" || { echo 'Orange OLED lifecycle must gate readiness on a physical frame.' >&2; exit 1; }
+grep -qF 'logo["notify_systemd_ready"]()' "$oled_lifecycle" || { echo 'Orange OLED lifecycle readiness notification is missing.' >&2; exit 1; }
 for required_line in \
     'After=octessera.service' \
     'Requisite=octessera.service' \

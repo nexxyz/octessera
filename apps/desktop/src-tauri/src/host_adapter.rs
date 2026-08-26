@@ -13,7 +13,8 @@ use playback_runtime::{
     DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
     RuntimeAdapterError, RuntimeAudioCommand, RuntimeOperation, RuntimePlatformEffect,
     RuntimePlatformRequest, RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase,
-    RuntimeSetupPortalStatus, RuntimeStoreResult,
+    RuntimeSetupPortalStatus, RuntimeStoreResult, RuntimeUserDataTransferPhase,
+    RuntimeUserDataTransferStatus,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use std::collections::HashMap;
@@ -277,9 +278,30 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                         phase: RuntimeSetupPortalPhase::Unsupported,
                         disposition: None,
                         portal_suffix: None,
-                        transfer: None,
                         reboot_required: false,
                         error_code: Some(RuntimeSetupPortalErrorCode::Unsupported),
+                    },
+                }
+                .with_identity(request.request_id.clone(), request.revision),
+            }]),
+            RuntimePlatformEffect::UserDataTransferOpen => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::UserDataTransferStatus {
+                    status: RuntimeUserDataTransferStatus {
+                        phase: RuntimeUserDataTransferPhase::Unsupported,
+                        url: None,
+                        code: None,
+                        expires_in_seconds: None,
+                    },
+                }
+                .with_identity(request.request_id.clone(), request.revision),
+            }]),
+            RuntimePlatformEffect::UserDataTransferClose => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::UserDataTransferStatus {
+                    status: RuntimeUserDataTransferStatus {
+                        phase: RuntimeUserDataTransferPhase::Closed,
+                        url: None,
+                        code: None,
+                        expires_in_seconds: None,
                     },
                 }
                 .with_identity(request.request_id.clone(), request.revision),

@@ -19,11 +19,43 @@ fi
 
 cmdline="$BOOT_DIR/cmdline.txt"
 test -f "$cmdline"
-while grep -Eq '(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)' "$cmdline"; do
-    sed -i -E 's/(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)/\1\4/' "$cmdline"
-done
-if grep -Eq '(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)' "$cmdline"; then
-    echo "Serial console token remains in the Raspberry Pi kernel command line." >&2
+cmdline_tmp="$(mktemp "${cmdline}.console.XXXXXX")"
+if ! awk '
+    {
+        if (NR > 1) {
+            failed = 1
+        }
+        count = 0
+        output = ""
+        for (position = 1; position <= NF; position++) {
+            token = $position
+            if (token ~ /^console=(serial0|ttyAMA0|ttyS0)(,.*)?$/) {
+                continue
+            }
+            if (token == "console=tty1") {
+                count++
+            }
+            output = output (output == "" ? "" : " ") token
+        }
+        if (count == 0) {
+            output = output (output == "" ? "" : " ") "console=tty1"
+        }
+        if (count > 1) {
+            failed = 1
+        }
+        print output
+    }
+    END { exit(failed ? 1 : 0) }
+  ' "$cmdline" > "$cmdline_tmp"; then
+    rm -f "$cmdline_tmp"
+    echo "Raspberry Pi kernel command line must contain exactly one console=tty1 token." >&2
+    exit 1
+fi
+chmod --reference="$cmdline" "$cmdline_tmp"
+chown --reference="$cmdline" "$cmdline_tmp"
+mv -f "$cmdline_tmp" "$cmdline"
+if [[ "$(grep -oE '(^|[[:space:]])console=tty1([[:space:]]|$)' "$cmdline" | wc -l)" != 1 ]]; then
+    echo "Raspberry Pi kernel command line must contain exactly one console=tty1 token." >&2
     exit 1
 fi
 grep -qxF 'dtoverlay=disable-bt' "$BOOT_DIR/config.txt"

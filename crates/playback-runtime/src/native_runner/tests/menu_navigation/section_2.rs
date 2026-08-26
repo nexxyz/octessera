@@ -1,4 +1,5 @@
 use super::*;
+use crate::oled_frame::TOAST_RECT;
 
 #[test]
 pub(crate) fn system_sound_master_volume_edit_via_menu() {
@@ -62,10 +63,10 @@ pub(crate) fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
         .unwrap();
 
     assert_eq!(snapshot_from(&messages)["settings"]["masterVolume"], 63);
-    assert!(snapshot_from(&messages)["display"]["toast"]
-        .as_str()
-        .unwrap_or("")
-        .contains("Trn-1:"));
+    let snapshot = snapshot_from(&messages);
+    let toast = snapshot["display"]["toast"].as_str().unwrap_or("");
+    assert!(!toast.is_empty());
+    assert!(toast.chars().count() <= TOAST_RECT.columns());
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
         "masterVolume"

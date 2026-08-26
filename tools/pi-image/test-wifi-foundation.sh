@@ -57,13 +57,22 @@ if grep -Eiq 'enable.*octessera-wifi-foundation|multi-user\.target\.wants.*octes
     exit 1
 fi
 
-grep -qF 'wifi-connect-aarch64-unknown-linux-gnu.tar.gz' "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh"
-grep -qF 'wifi-connect-aarch64-unknown-linux-gnu.tar.gz' "$ROOT/userpatches/customize-image.sh"
-grep -qF 'wifi_connect_version=4.11.84' "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh"
-grep -qF 'wifi_connect_version=4.11.84' "$ROOT/userpatches/customize-image.sh"
-grep -qF 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936' "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh"
-grep -qF 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936' "$ROOT/userpatches/customize-image.sh"
-grep -qF 'sha256sum -c -' "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh"
+if grep -Eq 'wifi-connect-aarch64-unknown-linux-gnu\.tar\.gz|github\.com/balena-os/wifi-connect/releases|curl[[:space:]].*wifi-connect|(^|[[:space:]])tar[[:space:]].*wifi-connect' \
+    "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh" "$ROOT/userpatches/customize-image.sh"; then
+    echo "Wi-Fi constructors must not download upstream wifi-connect." >&2
+    exit 1
+fi
+for constructor in "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh" "$ROOT/userpatches/customize-image.sh"; do
+    grep -qF '929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc' "$constructor"
+    grep -qF '3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939' "$constructor"
+    grep -qF 'wifi-connect.metadata.json' "$constructor"
+    grep -qF 'cargo-metadata.json' "$constructor"
+    grep -qF 'THIRD-PARTY-NOTICES.md' "$constructor"
+    grep -qF 'sha256sum -c -' "$constructor"
+done
+grep -qF 'target/wifi-connect-patched' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+grep -qF 'usr/local/share/doc/octessera/wifi-connect' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+grep -qF 'usr/local/share/octessera/wifi-connect' "$ROOT/userpatches/customize-image.sh"
 grep -qF 'sha256sum -c -' "$ROOT/userpatches/customize-image.sh"
 for dependency in network-manager dnsmasq wireless-tools iw; do
     grep -qF "$dependency" "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh"

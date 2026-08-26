@@ -117,6 +117,31 @@ pub(crate) fn parse_stop(bytes: &[u8]) -> Result<StopRequest, String> {
     })
 }
 
+#[cfg(test)]
+pub(crate) fn parse_fatal(bytes: &[u8]) -> Result<StartupFatal, String> {
+    let value: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|error| format!("malformed OLED fatal.json: {error}"))?;
+    let object = value
+        .as_object()
+        .ok_or_else(|| "OLED fatal.json must be an object".to_string())?;
+    exact_keys(object, &["schema", "bootId", "code"], "fatal.json")?;
+    if object.get("schema").and_then(|value| value.as_u64()) != Some(u64::from(HANDOFF_SCHEMA)) {
+        return Err("OLED fatal.json has an invalid schema".into());
+    }
+    let boot_id = object
+        .get("bootId")
+        .and_then(|value| value.as_str())
+        .filter(|value| super::valid_boot_id(value))
+        .map(str::to_owned)
+        .ok_or_else(|| "OLED fatal.json has an invalid bootId".to_string())?;
+    let code = object
+        .get("code")
+        .and_then(|value| value.as_str())
+        .and_then(StartupFatalCode::parse)
+        .ok_or_else(|| "OLED fatal.json has an invalid code".to_string())?;
+    Ok(StartupFatal { boot_id, code })
+}
+
 fn exact_keys(
     object: &serde_json::Map<String, serde_json::Value>,
     expected: &[&str],

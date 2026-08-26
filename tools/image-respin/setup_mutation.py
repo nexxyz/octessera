@@ -98,15 +98,43 @@ def _check_preimage(root: Path, inventory: Inventory, relative: str, preimage: d
         _check_exact(entry, preimage, label)
 
 
-def _owned_directory_paths(contract: dict[str, Any], directory: str) -> set[str]:
+def _owned_directory_paths(inventory: Inventory, contract: dict[str, Any], directory: str, *, output: bool) -> set[str]:
     prefix = directory + "/"
-    return {item["target"] for section in ("entries", "symlinks", "preserved_paths") for item in contract[section] if item["target"].startswith(prefix)}
+    expected: set[str] = set()
+    for section in ("entries", "symlinks", "preserved_paths"):
+        for item in contract[section]:
+            if not item["target"].startswith(prefix):
+                continue
+            if not output and item["preimage"]["kind"] == "absent":
+                continue
+            if output and section == "symlinks" and item["postimage"] == "absent":
+                continue
+            expected.add(item["target"])
+    if not output:
+        expected.update(marker for marker in contract["stale_runtime_markers"] if marker.startswith(prefix) and marker in inventory)
+    if output:
+        expected.update(path for path in _implicit_directory_paths(contract) if path.startswith(prefix))
+    return expected
 
 
-def _validate_owned_directory(inventory: Inventory, contract: dict[str, Any], directory: str, label: str) -> None:
+def _implicit_directory_paths(contract: dict[str, Any]) -> set[str]:
+    declared = {item["target"] for item in contract["directories"]}
+    implicit: set[str] = set()
+    for item in contract["entries"]:
+        for directory in declared:
+            prefix = directory + "/"
+            if not item["target"].startswith(prefix):
+                continue
+            parts = item["target"][len(prefix) :].split("/")[:-1]
+            for index in range(1, len(parts) + 1):
+                implicit.add(prefix + "/".join(parts[:index]))
+    return implicit
+
+
+def _validate_owned_directory(inventory: Inventory, contract: dict[str, Any], directory: str, label: str, *, output: bool = False) -> None:
     prefix = directory + "/"
     actual = {path for path in inventory if path.startswith(prefix)}
-    expected = _owned_directory_paths(contract, directory)
+    expected = _owned_directory_paths(inventory, contract, directory, output=output)
     if actual != expected:
         raise ConstructorRequired(f"{label} contains undeclared children")
 
@@ -207,6 +235,7 @@ def _validate_markers(root: Path, inventory: Inventory, markers: list[str], requ
 def _validate_parent(root: Path, inventory: Inventory, contract: dict[str, Any]) -> dict[str, Any]:
     parent_paths: set[str] = set()
     directory_paths = {item["target"] for item in contract["directories"]}
+    implicit_directory_paths = _implicit_directory_paths(contract)
     directory_preimages = {item["target"]: item["preimage"] for item in contract["directories"]}
     for item in contract["directories"]:
         _check_preimage(root, inventory, item["target"], item["preimage"], item["target"])
@@ -231,6 +260,8 @@ def _validate_parent(root: Path, inventory: Inventory, contract: dict[str, Any])
             current /= part
             cumulative = current.relative_to(root).as_posix()
             if cumulative in directory_paths and directory_preimages[cumulative]["kind"] == "absent":
+                continue
+            if cumulative in implicit_directory_paths and not current.exists() and not current.is_symlink():
                 continue
             try:
                 metadata = current.lstat()
@@ -299,6 +330,22 @@ def _prepare_directory(root: Path, item: dict[str, Any]) -> None:
     _set_metadata(destination, target_spec(item))
 
 
+def _prepare_implicit_directories(root: Path, contract: dict[str, Any]) -> None:
+    for relative in sorted(_implicit_directory_paths(contract), key=lambda path: (path.count("/"), path)):
+        destination = rooted(root, relative)
+        if destination.exists() or destination.is_symlink():
+            if not destination.is_dir() or destination.is_symlink():
+                raise ConstructorRequired(f"setup implicit directory is not a real directory: {relative}")
+            continue
+        try:
+            destination.mkdir(mode=0o755, exist_ok=False)
+        except FileExistsError as exc:
+            raise ConstructorRequired(f"setup implicit directory appeared after preimage validation: {relative}") from exc
+        except OSError as exc:
+            raise MutationError(f"cannot create setup implicit directory: {relative}") from exc
+        _set_metadata(destination, {"type": "directory", "mode": 0o755, "uid": 0, "gid": 0, "xattrs": {}})
+
+
 def _install_symlink(root: Path, item: dict[str, Any]) -> None:
     destination = rooted(root, item["target"])
     current = destination.lstat() if destination.exists() or destination.is_symlink() else None
@@ -318,7 +365,12 @@ def _validate_output(root: Path, before: Inventory, after: Inventory, contract: 
         if entry is None or entry["type"] != "directory":
             raise MutationError(f"setup directory output is not exact: {item['target']}")
         check_spec(entry, target_spec(item), item["target"])
-        _validate_owned_directory(after, contract, item["target"], item["target"])
+        _validate_owned_directory(after, contract, item["target"], item["target"], output=True)
+    for relative in _implicit_directory_paths(contract):
+        entry = after.get(relative)
+        if entry is None or entry["type"] != "directory":
+            raise MutationError(f"setup implicit directory output is not exact: {relative}")
+        check_spec(entry, {"type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None}, relative)
     for item in contract["entries"]:
         entry = after.get(item["target"])
         if entry is None or entry["type"] != "file" or entry["sha256"] != item["sha256"]:
@@ -341,7 +393,7 @@ def _validate_output(root: Path, before: Inventory, after: Inventory, contract: 
             raise MutationError(f"setup preserved path changed: {item['target']}")
     if any(marker in after for marker in contract["stale_runtime_markers"]):
         raise MutationError("stale setup runtime material remains")
-    allowed = {item["target"] for item in contract["directories"]} | {item["target"] for item in contract["entries"]} | {item["target"] for item in contract["symlinks"]} | set(contract["stale_runtime_markers"])
+    allowed = {item["target"] for item in contract["directories"]} | _implicit_directory_paths(contract) | {item["target"] for item in contract["entries"]} | {item["target"] for item in contract["symlinks"]} | set(contract["stale_runtime_markers"])
     changed = sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
     for path in changed:
         if path not in allowed:
@@ -366,7 +418,7 @@ def mutate_setup(root: Path, board_profile: str, source_identity: object, *, con
         parent = _validate_parent(root, before, contract)
     except (InventoryError, SetupContractError, UnicodeError) as exc:
         raise MutationError(str(exc)) from exc
-    mutable = [item["target"] for item in contract["directories"]] + [item["target"] for item in contract["entries"]] + [item["target"] for item in contract["symlinks"]] + contract["stale_runtime_markers"]
+    mutable = [item["target"] for item in contract["directories"]] + list(_implicit_directory_paths(contract)) + [item["target"] for item in contract["entries"]] + [item["target"] for item in contract["symlinks"]] + contract["stale_runtime_markers"]
     mutable += [path.rsplit("/", 1)[0] for path in mutable if "/" in path]
     snapshot = MutableSnapshot.capture(root, before, tuple(dict.fromkeys(mutable)), tuple())
     try:
@@ -379,6 +431,10 @@ def mutate_setup(root: Path, board_profile: str, source_identity: object, *, con
             _prepare_directory(root, item)
             if mutation_hook:
                 mutation_hook(f"prepared-directory:{item['target']}")
+        _prepare_implicit_directories(root, contract)
+        for relative in sorted(_implicit_directory_paths(contract)):
+            if mutation_hook:
+                mutation_hook(f"prepared-directory:{relative}")
         for item in contract["entries"]:
             _install_entry(root, contract, item)
             if mutation_hook:

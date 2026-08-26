@@ -25,6 +25,7 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
         snapshot: {
           display: {
             page: "life",
+            bodyLayout: "rows",
             title: "Build",
             lines: ["grid press"],
             editing: false,
@@ -185,6 +186,16 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
         type: "runtime_result",
         result: { type: "list_presets_result", names: ["Factory", "Live Set"] },
       },
+      {
+        type: "runtime_result",
+        result: {
+          type: "user_data_transfer_status",
+          phase: "ready",
+          url: "http://192.168.42.1:8081",
+          code: "Ab2Cd3Ef4G",
+          expiresInSeconds: 900,
+        },
+      },
     ],
     runnerMessages: [
       {
@@ -200,6 +211,7 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
         snapshot: {
           display: {
             page: "system",
+            bodyLayout: "rows",
             title: "System",
             lines: ["presets updated"],
             editing: false,
@@ -248,7 +260,13 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
       {
         type: "snapshot",
         snapshot: {
-          display: { page: "life", title: "Play", lines: [], editing: false },
+          display: {
+            page: "life",
+            bodyLayout: "rows",
+            title: "Play",
+            lines: [],
+            editing: false,
+          },
           leds: {
             width: 8,
             height: 8,
@@ -277,6 +295,8 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
           { type: "update_check" },
           { type: "update_apply" },
           { type: "rollback" },
+          { type: "user_data_transfer_open" },
+          { type: "user_data_transfer_close" },
         ],
       },
     ],

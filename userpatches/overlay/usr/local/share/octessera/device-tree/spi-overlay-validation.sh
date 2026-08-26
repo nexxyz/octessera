@@ -95,7 +95,7 @@ octessera_require_fdt_numbers() {
   local image="$1"
   local path="$2"
   local property="$3"
-  local expected="$4"
+  local expected="${*:4}"
   local actual
   if ! actual="$(fdtget -t u "$image" "$path" "$property")"; then
     echo "Missing ${property} at ${path}." >&2
@@ -166,11 +166,13 @@ octessera_assert_spi1_merge() {
   local spi1_path="$3"
   local spi1_pins_path="$4"
   local spi1_cs0_path="$5"
-  local spi0_path="$6"
-  local i2c1_path="$7"
-  local context="$8"
+  local spi1_cs1_path="$6"
+  local spi0_path="$7"
+  local i2c1_path="$8"
+  local context="$9"
   local spi1_pins_phandle
   local spi1_cs0_phandle
+  local spi1_cs1_phandle
   local spi1_pinctrl
   local image
   for image in "$base" "$merged"; do
@@ -178,6 +180,13 @@ octessera_assert_spi1_merge() {
     octessera_require_fdt_string "$image" "$spi1_pins_path" function spi1 || return 1
     octessera_require_fdt_strings "$image" "$spi1_cs0_path" pins PH5 || return 1
     octessera_require_fdt_string "$image" "$spi1_cs0_path" function spi1 || return 1
+    if fdtget -t s "$image" "$spi1_cs1_path" pins >/dev/null 2>&1; then
+      octessera_require_fdt_strings "$image" "$spi1_cs1_path" pins PH9 || return 1
+      octessera_require_fdt_string "$image" "$spi1_cs1_path" function spi1 || return 1
+    elif [[ "$image" != "$base" ]]; then
+      echo "Merged ${context} tree is missing the local SPI1 CS1 group." >&2
+      return 1
+    fi
   done
   octessera_require_fdt_string "$merged" "$spi1_path" status okay || return 1
   octessera_require_fdt_string "$merged" "$spi1_path" pinctrl-names default || return 1
@@ -185,15 +194,20 @@ octessera_assert_spi1_merge() {
   octessera_require_fdt_numbers "$merged" "$spi1_path" '#size-cells' 0 || return 1
   spi1_pins_phandle="$(fdtget -t u "$merged" "$spi1_pins_path" phandle)" || return 1
   spi1_cs0_phandle="$(fdtget -t u "$merged" "$spi1_cs0_path" phandle)" || return 1
+  spi1_cs1_phandle="$(fdtget -t u "$merged" "$spi1_cs1_path" phandle)" || return 1
   spi1_pinctrl="$(fdtget -t u "$merged" "$spi1_path" pinctrl-0)" || return 1
-  [[ "$(octessera_normalize_fdt_numbers "$spi1_pinctrl")" == "$(octessera_normalize_fdt_numbers "$spi1_pins_phandle $spi1_cs0_phandle")" ]] || {
-    echo "Merged ${context} SPI1 pinctrl does not select the expected data and CS0 groups." >&2
+  [[ "$(octessera_normalize_fdt_numbers "$spi1_pinctrl")" == "$(octessera_normalize_fdt_numbers "$spi1_pins_phandle $spi1_cs0_phandle $spi1_cs1_phandle")" ]] || {
+    echo "Merged ${context} SPI1 pinctrl does not select the expected data, CS0, and CS1 groups." >&2
     return 1
   }
   octessera_require_fdt_string "$merged" "$spi1_path/spidev@0" compatible rohm,dh2228fv || return 1
   octessera_require_fdt_numbers "$merged" "$spi1_path/spidev@0" reg 0 || return 1
   octessera_require_fdt_numbers "$merged" "$spi1_path/spidev@0" spi-max-frequency 16000000 || return 1
-  [[ "$(fdtget -l "$merged" "$spi1_path")" == spidev@0 ]] || {
+  octessera_require_fdt_string "$merged" "$spi1_path/mmc@1" compatible mmc-spi-slot || return 1
+  octessera_require_fdt_numbers "$merged" "$spi1_path/mmc@1" reg 1 || return 1
+  octessera_require_fdt_numbers "$merged" "$spi1_path/mmc@1" spi-max-frequency 10000000 || return 1
+  octessera_require_fdt_numbers "$merged" "$spi1_path/mmc@1" voltage-ranges 3300 3300 || return 1
+  [[ "$(fdtget -l "$merged" "$spi1_path" | sort)" == $'mmc@1\nspidev@0' ]] || {
     echo "Merged ${context} SPI1 node has an unexpected child set." >&2
     return 1
   }

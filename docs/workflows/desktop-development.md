@@ -23,7 +23,9 @@ board qualification.
 | Desktop format | `corepack pnpm --filter @octessera/desktop format:check` | Desktop Prettier checks pass | Runtime behavior or hardware integration |
 | Desktop tests | `corepack pnpm --filter @octessera/desktop test` | Simulator/runtime-facing test cases pass | Board timing, GPIO, DAC, or USB behavior |
 | Native host tests | `cargo test -p platform-core -p playback-runtime -p realtime-engine` | Native behavior and rendering logic pass on the host | A particular board, enclosure, power supply, or assembled control surface |
-| Orange-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w orange_` | Orange-specific host tests pass without opening board hardware | Orange boot, GPIO, OLED, audio-device, or physical qualification behavior |
+| Pi default host tests | `cargo test -p octessera-pi` | Default Pi host-stub tests pass without board hardware | Boot images, peripheral wiring, or physical qualification |
+| Raspberry-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-raspberry-pi-zero-2w` | Canonical Raspberry code and board-neutral host tests pass | Raspberry boot, GPIO, OLED, audio-device, or physical qualification behavior |
+| Orange-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w` | Canonical Orange code and board-neutral host tests pass | Orange boot, GPIO, OLED, audio-device, or physical qualification behavior |
 | Pi host-stub build | `cargo build -p octessera-pi` | The Pi application builds without hardware | Boot images, peripheral wiring, or physical qualification |
 
 Keep those limits visible in reports. The desktop lint and format rows run real

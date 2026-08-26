@@ -1,0 +1,319 @@
+#!/bin/sh
+set -eu
+
+CONFIGFS_ROOT=/sys/kernel/config
+GADGET_ROOT=$CONFIGFS_ROOT/usb_gadget
+GADGET=$GADGET_ROOT/octessera-orange-pi
+UDC_ROOT=/sys/class/udc
+UDC=musb-hdrc.4.auto
+UDC_PATH=$UDC_ROOT/$UDC
+GADGET_SCRIPT=/usr/local/sbin/octessera-orange-usb-gadget
+GADGET_LOCK=/run/lock/octessera-orange-usb-gadget.lock
+SD_LOCK=/run/octessera-sd-card.lock
+STORAGE_STATE=/run/octessera-usb-storage.state
+SD_MOUNT=/var/lib/octessera/samples/sd-card
+SD_OWNER=octessera-runtime
+STORAGE_FUNCTION=$GADGET/functions/mass_storage.usb0
+STORAGE_LUN=$STORAGE_FUNCTION/lun.0
+: "$SD_OWNER"
+
+# shellcheck source=tools/storage/octessera-sd-card-lib.sh
+. /usr/local/lib/octessera/octessera-sd-card-lib.sh
+
+storage_log() { logger -t octessera-orange-storage "$*"; echo "octessera-orange-storage: $*" >&2; }
+
+require_configfs() {
+  [ -d "$GADGET_ROOT" ] || {
+    storage_log "configfs USB gadget directory is missing: $GADGET_ROOT"
+    return 1
+  }
+}
+
+require_udc() {
+  [ -d "$UDC_ROOT" ] || { storage_log "UDC class is missing"; return 1; }
+  [ -e "$UDC_PATH" ] || { storage_log "required Orange UDC is missing: $UDC"; return 1; }
+}
+
+read_bound_udc() {
+  [ -r "$GADGET/UDC" ] || return 0
+  cat "$GADGET/UDC" 2>/dev/null
+}
+
+refuse_prebound_udc() {
+  bound_function=$UDC_PATH/function
+  if [ -r "$bound_function" ] && [ -n "$(cat "$bound_function" 2>/dev/null || true)" ]; then
+    storage_log "refusing pre-bound UDC: $UDC"
+    return 1
+  fi
+  for candidate in "$GADGET_ROOT"/*; do
+    [ -d "$candidate" ] || continue
+    [ "$candidate" = "$GADGET" ] && continue
+    bound="$(cat "$candidate/UDC" 2>/dev/null || true)"
+    [ "$bound" != "$UDC" ] || {
+      storage_log "refusing UDC already bound by: $candidate"
+      return 1
+    }
+  done
+}
+
+unbind_storage_gadget() {
+  [ -e "$GADGET/UDC" ] || return 0
+  bound="$(read_bound_udc)" || {
+    storage_log "could not read Orange gadget UDC"
+    return 1
+  }
+  [ -n "$bound" ] || return 0
+  [ "$bound" = "$UDC" ] || {
+    storage_log "refusing storage gadget bound to unexpected UDC: $bound"
+    return 1
+  }
+  printf '\n' > "$GADGET/UDC" || {
+    storage_log "could not unbind storage gadget from $UDC"
+    return 1
+  }
+  [ -z "$(read_bound_udc)" ] || {
+    storage_log "storage gadget remained bound to $UDC"
+    return 1
+  }
+}
+
+remove_link() {
+  path=$1
+  [ -e "$path" ] || [ -L "$path" ] || return 0
+  rm -f -- "$path" || return 1
+  [ ! -e "$path" ] && [ ! -L "$path" ]
+}
+
+remove_directory() {
+  path=$1
+  [ -d "$path" ] || return 0
+  rmdir -- "$path" || return 1
+  [ ! -e "$path" ] && [ ! -L "$path" ]
+}
+
+clear_storage_function() {
+  status=0
+  if [ -e "$STORAGE_LUN/forced_eject" ]; then
+    printf '1\n' > "$STORAGE_LUN/forced_eject" || status=1
+  fi
+  if [ -e "$STORAGE_LUN/file" ]; then
+    printf '\n' > "$STORAGE_LUN/file" || status=1
+  fi
+  remove_link "$GADGET/configs/c.1/mass_storage.usb0" || status=1
+  remove_directory "$STORAGE_FUNCTION" || status=1
+  return "$status"
+}
+
+remove_storage_gadget() {
+  status=0
+  remove_directory "$GADGET/configs/c.1/strings/0x409" || status=1
+  remove_directory "$GADGET/configs/c.1" || status=1
+  remove_directory "$GADGET/strings/0x409" || status=1
+  remove_directory "$GADGET" || status=1
+  return "$status"
+}
+
+storage_present() { [ -d "$STORAGE_FUNCTION" ] || [ -e "$STORAGE_FUNCTION" ]; }
+
+normal_teardown() {
+  "$GADGET_SCRIPT" teardown --lock-held >/dev/null
+}
+
+normal_setup() {
+  "$GADGET_SCRIPT" setup --lock-held >/dev/null
+}
+
+write_storage_state() {
+  umask 077
+  {
+    printf 'DEV=%s\n' "$1"
+    printf 'WAS_MOUNTED=%s\n' "$2"
+  } > "$STORAGE_STATE.tmp" || return 1
+  mv -f -- "$STORAGE_STATE.tmp" "$STORAGE_STATE"
+  chmod 600 "$STORAGE_STATE"
+  chown root:root "$STORAGE_STATE"
+}
+
+read_storage_state() {
+  [ -f "$STORAGE_STATE" ] || return 1
+  [ "$(stat -c %u "$STORAGE_STATE" 2>/dev/null || true)" = 0 ] || {
+    storage_log "storage state is not root-owned"
+    return 1
+  }
+  [ "$(stat -c %a "$STORAGE_STATE" 2>/dev/null || true)" = 600 ] || {
+    storage_log "storage state has unsafe permissions"
+    return 1
+  }
+  dev="$(sed -n 's/^DEV=//p' "$STORAGE_STATE")"
+  mounted="$(sed -n 's/^WAS_MOUNTED=//p' "$STORAGE_STATE")"
+  [ "$(grep -c '^DEV=' "$STORAGE_STATE")" = 1 ] || return 1
+  [ "$(grep -c '^WAS_MOUNTED=' "$STORAGE_STATE")" = 1 ] || return 1
+  case "$dev" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  [ -n "$dev" ] || return 1
+  [ "$mounted" = 0 ] || [ "$mounted" = 1 ] || return 1
+  [ "$(canonical_block "$dev" 2>/dev/null || true)" = "$dev" ] || return 1
+  DEV=$dev
+  WAS_MOUNTED=$mounted
+}
+
+create_storage_gadget() {
+  require_configfs || return 1
+  require_udc || return 1
+  refuse_prebound_udc || return 1
+  for candidate in "$GADGET_ROOT"/*; do
+    [ -d "$candidate" ] || continue
+    storage_log "refusing existing gadget: $candidate"
+    return 1
+  done
+  mkdir "$GADGET" || return 1
+  mkdir -p "$GADGET/configs/c.1/strings/0x409" "$GADGET/strings/0x409" "$STORAGE_FUNCTION" || return 1
+  printf '%s\n' 0x1d6b > "$GADGET/idVendor"
+  printf '%s\n' 0x0104 > "$GADGET/idProduct"
+  printf '%s\n' 0x0200 > "$GADGET/bcdUSB"
+  printf '%s\n' 0x0100 > "$GADGET/bcdDevice"
+  printf '%s\n' Octessera > "$GADGET/strings/0x409/manufacturer"
+  printf '%s\n' 'Octessera SD2 Transfer' > "$GADGET/strings/0x409/product"
+  printf '%s\n' octessera-orange-pi > "$GADGET/strings/0x409/serialnumber"
+  printf '%s\n' 250 > "$GADGET/configs/c.1/MaxPower"
+  printf '%s\n' 'Octessera SD2 Transfer' > "$GADGET/configs/c.1/strings/0x409/configuration"
+  printf '%s\n' 1 > "$STORAGE_FUNCTION/stall"
+  printf '%s\n' 0 > "$STORAGE_LUN/ro"
+  printf '%s\n' 1 > "$STORAGE_LUN/removable"
+  [ ! -e "$STORAGE_LUN/nofua" ] || printf '%s\n' 0 > "$STORAGE_LUN/nofua"
+  [ ! -e "$STORAGE_LUN/file" ] || printf '%s\n' "$DEV" > "$STORAGE_LUN/file"
+  [ -L "$GADGET/configs/c.1/mass_storage.usb0" ] || ln -s "$STORAGE_FUNCTION" "$GADGET/configs/c.1/mass_storage.usb0"
+  [ -L "$GADGET/configs/c.1/mass_storage.usb0" ] || return 1
+  if mountpoint -q "$SD_MOUNT"; then
+    storage_log "refusing to expose a locally mounted SD card"
+    return 1
+  fi
+  printf '%s\n' "$UDC" > "$GADGET/UDC" || return 1
+  bound="$(read_bound_udc)"
+  [ "$bound" = "$UDC" ] || {
+    storage_log "storage gadget UDC readback did not match: $bound"
+    return 1
+  }
+  host_state=unknown
+  if [ -r "$UDC_PATH/state" ]; then
+    case "$(cat "$UDC_PATH/state" 2>/dev/null || true)" in
+      configured) host_state=configured ;;
+      'not attached') host_state='not attached' ;;
+      *) host_state=unknown ;;
+    esac
+  fi
+  printf 'HOST_STATE=%s\n' "$host_state"
+}
+
+cleanup_storage() {
+  status=0
+  unbind_storage_gadget || status=1
+  clear_storage_function || status=1
+  remove_storage_gadget || status=1
+  if [ "$status" != 0 ]; then
+    storage_log "storage gadget cleanup was incomplete"
+  fi
+  return "$status"
+}
+
+restore_after_start_failure() {
+  status=0
+  cleanup_storage || status=1
+  if [ "${WAS_MOUNTED:-0}" = 1 ]; then
+    remount_card "$DEV" || status=1
+  fi
+  if [ "$status" = 0 ]; then
+    rm -f -- "$STORAGE_STATE" "$STORAGE_STATE.tmp" || status=1
+    normal_setup || status=1
+  fi
+  [ "$status" = 0 ] || storage_log "storage-start cleanup or normal gadget restoration was incomplete"
+  return "$status"
+}
+
+storage_start_unlocked() {
+  if storage_present || [ -e "$STORAGE_STATE" ]; then
+    storage_log "USB SD2 transfer is already active or incomplete"
+    return 1
+  fi
+  if dev="$(configured_device)"; then
+    :
+  else
+    status=$?
+    [ "$status" = 1 ] && storage_log "no OCTESSERA_SD card found"
+    return 1
+  fi
+  safe_partition "$dev" || { storage_log "refusing unsafe SD candidate $dev"; return 1; }
+  refuse_mount_elsewhere "$dev" || return 1
+  DEV=$dev
+  WAS_MOUNTED=0
+  if mountpoint -q "$SD_MOUNT"; then
+    mounted_dev="$(mounted_device)" || return 1
+    [ "$mounted_dev" = "$dev" ] || {
+      storage_log "$SD_MOUNT is mounted from $mounted_dev, expected $dev"
+      return 1
+    }
+    WAS_MOUNTED=1
+    umount "$SD_MOUNT" || { storage_log "failed to unmount $SD_MOUNT"; return 1; }
+  fi
+  write_storage_state "$DEV" "$WAS_MOUNTED" || { storage_log "could not write storage state"; return 1; }
+  if ! normal_teardown; then
+    storage_log "could not disconnect normal Orange gadget"
+    restore_after_start_failure || true
+    return 1
+  fi
+  if create_storage_gadget; then
+    storage_log "configured Orange USB SD2 transfer backing=$DEV"
+    return 0
+  fi
+  storage_log "storage-start failed while creating the storage gadget"
+  restore_after_start_failure || true
+  return 1
+}
+
+storage_stop_unlocked() {
+  state_available=0
+  if read_storage_state; then
+    state_available=1
+  fi
+  storage_available=0
+  if storage_present; then
+    storage_available=1
+  fi
+  [ "$state_available" = 1 ] || [ "$storage_available" = 1 ] || return 0
+  status=0
+  cleanup_storage || status=1
+  if [ "$storage_available" = 1 ]; then
+    normal_teardown || status=1
+  fi
+  if [ "$state_available" = 1 ] && [ "$WAS_MOUNTED" = 1 ]; then
+    remount_card "$DEV" || status=1
+  fi
+  if [ "$status" = 0 ]; then
+    rm -f -- "$STORAGE_STATE" "$STORAGE_STATE.tmp" || status=1
+  fi
+  if [ "$status" = 0 ]; then
+    normal_setup || status=1
+  fi
+  if [ "$status" = 0 ]; then
+    printf 'HOST_STATE=not attached\n'
+    return 0
+  fi
+  storage_log "storage-stop failed; storage state or gadget cleanup remains incomplete"
+  return 1
+}
+
+with_storage_locks() {
+  (
+    flock -n 9 || { storage_log "Orange gadget lifecycle operation is already in progress"; exit 1; }
+    flock -n 8 || { storage_log "SD card operation is already in progress"; exit 1; }
+    "$@"
+  ) 9>"$GADGET_LOCK" 8>"$SD_LOCK"
+}
+
+case "${1:-}" in
+  storage-start) with_storage_locks storage_start_unlocked ;;
+  storage-stop) with_storage_locks storage_stop_unlocked ;;
+  *) storage_log 'fixed storage action is required'; exit 2 ;;
+esac

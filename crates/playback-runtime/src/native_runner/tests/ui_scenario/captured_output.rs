@@ -67,7 +67,8 @@ impl CapturedOutput {
                 }
                 RunnerMessage::Snapshot { .. }
                 | RunnerMessage::OledFrame { .. }
-                | RunnerMessage::RuntimeConfigChanged { .. } => {}
+                | RunnerMessage::RuntimeConfigChanged { .. }
+                | RunnerMessage::PresentedRuntimeErrorDismissed => {}
             }
         }
     }

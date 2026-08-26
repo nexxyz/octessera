@@ -7,7 +7,7 @@ use crate::main_paths::ensure_samples_dir;
 use crate::normal_menu::is_normal_menu_snapshot;
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::initialize_host_state;
-use crate::sample_browser::SD_CARD_SAMPLE_BROWSER_DIR;
+use crate::sample_browser::builtin_favourite_dirs;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
@@ -202,7 +202,7 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
     });
     let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
-        sample_builtin_favourite_dirs: vec![String::new(), SD_CARD_SAMPLE_BROWSER_DIR.into()],
+        sample_builtin_favourite_dirs: builtin_favourite_dirs(),
         ..NativeRunnerConfig::default()
     })
     .expect("native runner should initialize");
@@ -354,6 +354,13 @@ mod tests {
         assert_eq!(error, "selected Jack audio route is not active");
         assert!(!marker.exists());
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn pi_startup_uses_canonical_builtin_sample_favourites() {
+        let (_, mut runner) = init_runtime();
+
+        crate::sample_browser::assert_builtin_favourite_menu(&mut runner);
     }
 }
 

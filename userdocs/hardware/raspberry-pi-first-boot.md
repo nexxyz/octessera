@@ -41,8 +41,13 @@ inactive, GPIO14 remains an input for reliable `SW3` operation.
 
 The freshly flashed image boots offline without waiting for a network. NetworkManager
 remains available, but the standalone DNS and wait-online units stay disabled and no
-hotspot or SSH service starts by itself. Networking and SSH are deliberate opt-in
-actions from `System > Configure WiFi > Open Portal`.
+hotspot or SSH service starts by itself. To configure networking and SSH, choose
+`System > Configure WiFi > Open Portal`; do not expect a fresh production image to
+start an automatic hotspot.
+
+Normal first boot does not wait six minutes. Upstream filesystem resize is ordered
+before runtime. The six-minute figure is only the upstream maximum timeout, not a
+planned user-visible duration; the animated splash covers the boot work.
 
 On a constructor-qualified image, the OLED boot sweep is:
 
@@ -61,12 +66,11 @@ initialized OLED without resetting it, and stops the animation immediately
 before an acknowledged first normal menu frame. A queued frame is not enough.
 
 If native ownership has not arrived by the 30-second handoff window, that same
-splash owner writes a persistent dimmed `FIRST-RUN` / `HOUSEKEEPING` / `PLEASE
-WAIT` status and continues polling the handoff state as the sole OLED writer.
-This is a delayed-start legibility/recovery mitigation, not proof that
-filesystem expansion is active or complete. A timeout alone does not invoke
-black/off failure cleanup; only a genuine writer error or termination signal
-does.
+splash owner writes one static polished `STARTUP DELAYED` / `PLEASE WAIT` frame
+and continues polling the handoff state as the sole OLED writer. This is a
+delayed-start legibility/recovery mitigation, not a claim about resize state. A
+timeout alone does not invoke black/off failure cleanup; only a genuine writer
+error or termination signal does.
 
 For selected audio outputs, every non-empty set is valid. Jack is required only
 when selected; recognized disconnected USB or HDMI routes may wait; a selected
@@ -98,6 +102,16 @@ For the shared setup flow, see [Open or reopen the full setup portal](setup-port
 The Raspberry gadget reads the saved default from
 `/home/pi/presets/default.json`. Save device settings and use the confirmed
 apply/reboot action before changing the host-visible USB composition.
+
+The browser's Applying screen is provisional; an AP disconnect is expected while
+settings apply. Wait for the OLED result. The AP remains available for 10 minutes
+after readiness. Success needs only a usable global `wlan0` IPv4 address, and the
+address is shown in `System > Info` afterward. Success and timeout cards auto-hide;
+failure remains dismissible, and another attempt needs a new `Open Portal` action.
+
+When Internet is available, `System > Updates` only checks, applies, or rolls back
+the Octessera runtime. It does not update the Armbian OS/image, kernel, device
+tree, or other full-image assets; those remain manual image operations.
 
 Image construction stages the complete 320-file sample artifact under
 `/home/pi/samples`: 318 WAV rows are sampler-loadable, while two AIFF rows are

@@ -93,6 +93,37 @@ require_root_mode() {
     fi
 }
 
+require_setup_executable() {
+    local path="$1" label="$2" resolved target link_count
+    require_path "$path" "$label"
+    resolved="$path"
+    link_count=0
+    while [ -L "$resolved" ]; do
+        link_count=$((link_count + 1))
+        [ "$link_count" -le 8 ] || { echo "Sanitation check failed: setup command symlink chain is too deep at $path" >&2; exit 1; }
+        target="$(readlink -- "$resolved")" || { echo "Sanitation check failed: unreadable setup command symlink at $path" >&2; exit 1; }
+        if [[ "$target" == /* ]]; then
+            resolved="$WORK_DIR/root$target"
+        else
+            resolved="$(dirname -- "$resolved")/$target"
+        fi
+        resolved="$(realpath -m -- "$resolved")" || { echo "Sanitation check failed: unsafe setup command symlink at $path" >&2; exit 1; }
+    done
+    case "$resolved" in
+        "$WORK_DIR/root/"*) ;;
+        *) echo "Sanitation check failed: setup command symlink escapes the image at $path" >&2; exit 1 ;;
+    esac
+    if [ ! -f "$resolved" ] || [ ! -x "$resolved" ]; then
+        echo "Sanitation check failed: setup command is not an executable regular file at $path" >&2
+        exit 1
+    fi
+    if [ "$resolved" = "$path" ]; then
+        require_root_mode "$path" 755
+    else
+        require_root_mode "$resolved" 755
+    fi
+}
+
 require_raspberry_board_profile() {
     local profile_file="$WORK_DIR/root/etc/octessera/board-profile.env"
     local metadata_file="$WORK_DIR/root/etc/octessera/board-profile.json"
@@ -178,12 +209,31 @@ require_no_unrestricted_sudoers() {
 require_wifi_foundation() {
     local helper="$WORK_DIR/root/usr/local/sbin/octessera-wifi-foundation"
     local unit="$WORK_DIR/root/etc/systemd/system/octessera-wifi-foundation.service"
+    local wifi_connect_doc_root="$WORK_DIR/root/usr/local/share/doc/octessera/wifi-connect"
     for path in "$helper" "$unit" "$WORK_DIR/root/usr/local/bin/wifi-connect"; do
         require_path "$path" "inactive Wi-Fi foundation path"
     done
     require_root_mode "$helper" 755
     require_root_mode "$unit" 644
     require_root_mode "$WORK_DIR/root/usr/local/bin/wifi-connect" 755
+    if [ "$CONSTRUCTOR_POLICY_REQUIRED" = true ]; then
+        for path in "$wifi_connect_doc_root/LICENSE" "$wifi_connect_doc_root/THIRD-PARTY-NOTICES.md" "$wifi_connect_doc_root/wifi-connect.metadata.json" "$wifi_connect_doc_root/cargo-metadata.json"; do
+            require_path "$path" "patched wifi-connect documentation path"
+            require_root_mode "$path" 644
+        done
+        echo "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc  $WORK_DIR/root/usr/local/bin/wifi-connect" | sha256sum -c - >/dev/null 2>&1 || {
+            echo "Sanitation check failed: patched wifi-connect binary has the wrong SHA-256" >&2
+            exit 1
+        }
+        grep -qF '"binary_sha256": "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
+            echo "Sanitation check failed: patched wifi-connect metadata has the wrong binary SHA-256" >&2
+            exit 1
+        }
+        grep -qF '"patch_sha256": "3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
+            echo "Sanitation check failed: patched wifi-connect metadata has the wrong patch SHA-256" >&2
+            exit 1
+        }
+    fi
     grep -qF -- '--portal-interface wlan0' "$helper" || {
         echo "Sanitation check failed: Wi-Fi foundation does not fix wlan0" >&2
         exit 1
@@ -263,45 +313,54 @@ require_raspberry_constructor_policy() {
 require_setup_layer() {
     local root="$WORK_DIR/root"
     local profile="$root/etc/octessera/setup-profile"
-    local sidecar="$root/usr/local/sbin/octessera-setup-sidecar"
-    local wrapper="$root/usr/local/sbin/octessera-wifi-connect"
-    local request_helper="$root/usr/local/sbin/octessera-setup-request"
-    local request_cleanup="$root/usr/local/sbin/octessera-setup-request-cleanup"
-    local start_helper="$root/usr/local/sbin/octessera-setup-start"
-    local cleanup_helper="$root/usr/local/sbin/octessera-setup-cleanup"
-    local status_tool="$root/usr/local/lib/octessera/setup-status.py"
-    local status_cli="$root/usr/local/lib/octessera/setup-status-cli.py"
-    local call_tool="$root/usr/local/lib/octessera/setup-call.py"
+    local coordinator="$root/usr/local/sbin/octessera-setup"
+    local config="$root/usr/local/lib/octessera/setup_config.py"
+    local http="$root/usr/local/lib/octessera/setup_http.py"
+    local request_tmpfiles="$root/etc/tmpfiles.d/octessera-setup-request.conf"
     local setup_unit="$root/etc/systemd/system/octessera-setup.service"
     local request_path="$root/etc/systemd/system/octessera-setup-request.path"
-    local request_unit="$root/etc/systemd/system/octessera-setup-request.service"
-    for path in "$profile" "$sidecar" "$wrapper" "$request_helper" "$request_cleanup" "$start_helper" "$cleanup_helper" "$status_tool" "$status_cli" "$call_tool" "$setup_unit" "$request_path" "$request_unit"; do
+    for path in "$profile" "$coordinator" "$config" "$http" "$setup_unit" "$request_path" "$request_tmpfiles"; do
         require_path "$path" "setup layer path"
     done
-    for entry in \
-        "$profile:644" "$sidecar:755" "$wrapper:755" "$request_helper:755" \
-        "$request_cleanup:755" "$start_helper:755" "$cleanup_helper:755" "$status_tool:755" "$status_cli:644" "$call_tool:755" "$setup_unit:644" "$request_path:644" "$request_unit:644"; do
+    for entry in "$profile:644" "$coordinator:755" "$config:644" "$http:644" "$setup_unit:644" "$request_path:644" "$request_tmpfiles:644"; do
         IFS=: read -r path mode <<< "$entry"
         require_root_mode "$path" "$mode"
     done
+    for command in \
+        "$WORK_DIR/root/usr/local/bin/wifi-connect" "$WORK_DIR/root/usr/bin/python3" \
+        "$WORK_DIR/root/usr/sbin/iw" "$WORK_DIR/root/usr/bin/nmcli" \
+        "$WORK_DIR/root/usr/sbin/ip" "$WORK_DIR/root/usr/bin/ss"; do
+        require_setup_executable "$command" "setup prerequisite command"
+    done
     grep -qx 'raspberry-pi-zero-2w' "$profile" || { echo "Raspberry setup profile is not fixed" >&2; exit 1; }
-    grep -qF 'ALLOWED_ORIGINS = frozenset(("http://192.168.42.1", "http://192.168.42.1:80"))' "$sidecar" || { echo "Setup origins are not exact" >&2; exit 1; }
-    grep -qF 'ipaddress.ip_network("192.168.42.0/24")' "$sidecar" || { echo "Setup client network is not exact" >&2; exit 1; }
-    grep -qF 'PUBLIC_DIR = "/run/octessera-setup-status"' "$status_tool" || { echo "Setup public status path is not fixed" >&2; exit 1; }
-    grep -qF 'RECEIPT_DIR' "$status_tool" || { echo "Setup receipts are not staged" >&2; exit 1; }
-    grep -qF 'MAX_BODY = 16384' "$sidecar" || { echo "Setup body limit is not fixed" >&2; exit 1; }
-    grep -qF 'Transfer-Encoding' "$sidecar" || { echo "Setup transfer encoding is not rejected" >&2; exit 1; }
-    grep -qF 'content_type != "application/json"' "$sidecar" || { echo "Setup content type is not fixed" >&2; exit 1; }
-    grep -qF 'interface=wlan0' "$wrapper" || { echo "Setup wrapper interface is not fixed" >&2; exit 1; }
-    grep -qF "/sys/class/net/\$interface/address" "$wrapper" || { echo "Setup wrapper MAC path is not fixed" >&2; exit 1; }
-    grep -qF 'PathExists=/run/octessera/setup-portal.request' "$request_path" || { echo "Setup request path watches the wrong path" >&2; exit 1; }
-    grep -qF 'RuntimeDirectory=octessera-setup' "$setup_unit" || { echo "Setup runtime directory is not exact" >&2; exit 1; }
-    grep -qF ' -/run/octessera-setup-control -/run/octessera-setup-status' "$setup_unit" || { echo "Optional setup status paths are not namespace-safe" >&2; exit 1; }
-    grep -qF 'RuntimeDirectoryMode=0700' "$setup_unit" || { echo "Setup nonce runtime directory is not private" >&2; exit 1; }
-    grep -qF 'RuntimeMaxSec=1800s' "$setup_unit" || { echo "Setup runtime timeout is not fixed" >&2; exit 1; }
+    grep -qF 'ALLOWED_ORIGINS' "$http" || { echo "Setup origins are not installed" >&2; exit 1; }
+    grep -qF 'ALLOWED_HOSTS' "$http" || { echo "Setup host validation is not installed" >&2; exit 1; }
+    grep -qF 'ipaddress.ip_network("192.168.42.0/24")' "$http" || { echo "Setup client network is not exact" >&2; exit 1; }
+    grep -qF 'STATUS_DIR = "/run/octessera-setup-status"' "$coordinator" || { echo "Setup status path is not fixed" >&2; exit 1; }
+    grep -qF 'MAX_BODY = 16384' "$http" || { echo "Setup body limit is not fixed" >&2; exit 1; }
+    grep -qF 'Transfer-Encoding' "$http" || { echo "Setup transfer encoding is not rejected" >&2; exit 1; }
+    grep -qF 'Content-Type' "$http" || { echo "Setup content type is not fixed" >&2; exit 1; }
+    grep -qF 'class SetupHandler' "$http" || { echo "Setup HTTP handler is not installed" >&2; exit 1; }
+    grep -qF 'class SetupHTTPServer' "$http" || { echo "Setup HTTP server is not installed" >&2; exit 1; }
+    grep -qF 'PORTAL_WINDOW_SECONDS = 600' "$coordinator" || { echo "Setup portal window is not fixed" >&2; exit 1; }
+    grep -qF 'INTERNAL_APPLY_SECONDS = 60' "$coordinator" || { echo "Setup apply window is not fixed" >&2; exit 1; }
+    grep -qF 'cleanup_profiles' "$coordinator" || { echo "Setup AP cleanup is not fixed" >&2; exit 1; }
+    grep -qFx 'After=systemd-tmpfiles-setup.service' "$request_path" || { echo "Setup request path is not ordered after tmpfiles" >&2; exit 1; }
+    grep -qFx 'PathExists=/run/octessera-setup-request/inbox/start' "$request_path" || { echo "Setup request path watches the wrong path" >&2; exit 1; }
+    grep -qFx 'Unit=octessera-setup.service' "$request_path" || { echo "Setup request path target is not direct" >&2; exit 1; }
+    grep -qFx 'd /run/octessera-setup-request 0711 root root -' "$request_tmpfiles" || { echo "Raspberry setup request root tmpfile is not exact" >&2; exit 1; }
+    grep -qFx 'd /run/octessera-setup-request/inbox 0700 pi pi -' "$request_tmpfiles" || { echo "Raspberry setup inbox tmpfile is not exact" >&2; exit 1; }
+    grep -qFx 'ExecStart=/usr/local/sbin/octessera-setup' "$setup_unit" || { echo "Setup coordinator is not direct" >&2; exit 1; }
+    grep -qFx 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK' "$setup_unit" || { echo "Setup address families are not exact" >&2; exit 1; }
+    grep -qFx 'NoNewPrivileges=no' "$setup_unit" || { echo "Setup service must retain dnsmasq privilege-transition capability behavior" >&2; exit 1; }
+    grep -qFx '# dnsmasq needs privilege-transition capabilities to drop from root while serving the setup AP.' "$setup_unit" || { echo "Setup service NNP exception rationale is missing" >&2; exit 1; }
+    grep -qFx 'NoNewPrivileges=yes' "$root/etc/systemd/system/octessera.service" || { echo "Raspberry runtime service lost its NNP boundary" >&2; exit 1; }
+    grep -qFx 'ReadWritePaths=/run/octessera-setup-request/inbox' "$root/etc/systemd/system/octessera.service" || { echo "Raspberry request inbox access is not exact" >&2; exit 1; }
+    grep -qF 'RuntimeMaxSec=670s' "$setup_unit" || { echo "Setup runtime timeout is not fixed" >&2; exit 1; }
+    grep -qF 'TimeoutStopSec=10s' "$setup_unit" || { echo "Setup stop timeout is not fixed" >&2; exit 1; }
     if grep -q '^TimeoutStartSec=' "$setup_unit"; then echo "Setup must not rely on TimeoutStartSec" >&2; exit 1; fi
-    if grep -RIE 'OCTESSERA_SETUP|setup-force|BEGIN (RSA|OPENSSH|PRIVATE) KEY|wpa_passphrase|ssid=|psk=' "$sidecar" "$wrapper" "$request_helper"; then
-        echo "Setup layer contains secret, connection, or persistent-force material" >&2
+    if grep -RIE 'setup-status\.py|setup-status-cli\.py|setup-call\.py|sidecar|receipt|active\.json|sequence|attemptId|requestToken|replay|retry|nonce|OCTESSERA_SETUP|setup-force|BEGIN (RSA|OPENSSH|PRIVATE) KEY|wpa_passphrase|ssid=|psk=' "$coordinator" "$config" "$http"; then
+        echo "Setup layer contains removed orchestration or secret material" >&2
         exit 1
     fi
     for path in \
@@ -309,7 +368,10 @@ require_setup_layer() {
         "$root/var/lib/octessera/setup-force" \
         "$root/var/lib/octessera/setup-finalize-failed" \
         "$root/run/octessera/setup-portal.request" \
-        "$root/run/octessera-setup/nonce" \
+        "$root/run/octessera-setup-queue" \
+        "$root/run/octessera-setup-request" \
+        "$root/run/octessera-setup-request/inbox/start" \
+        "$root/run/octessera-setup" \
         "$root/run/octessera-setup-control" \
         "$root/run/octessera-setup-status"; do
         if [ -e "$path" ] || [ -L "$path" ]; then

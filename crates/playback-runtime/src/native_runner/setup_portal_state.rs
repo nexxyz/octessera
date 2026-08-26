@@ -45,10 +45,17 @@ impl NativeRunner {
                 return;
             }
         }
-        let visible = prior_visibility
-            .filter(|(_, same_request, same_phase)| *same_request && *same_phase)
-            .map(|(visible, _, _)| visible)
-            .unwrap_or(true);
+        let visible = if matches!(
+            status.phase,
+            RuntimeSetupPortalPhase::Succeeded | RuntimeSetupPortalPhase::TimedOut
+        ) {
+            false
+        } else {
+            prior_visibility
+                .filter(|(_, same_request, same_phase)| *same_request && *same_phase)
+                .map(|(visible, _, _)| visible)
+                .unwrap_or(true)
+        };
         self.display.setup_portal = Some(NativeSetupPortalState {
             status,
             request_id,
@@ -66,7 +73,6 @@ impl NativeRunner {
                 phase: RuntimeSetupPortalPhase::Starting,
                 disposition: Some(RuntimeSetupPortalDisposition::Accepted),
                 portal_suffix: None,
-                transfer: None,
                 reboot_required: false,
                 error_code: None,
             },
@@ -85,14 +91,7 @@ impl NativeRunner {
             DeviceInput::EncoderPress { ref id } if id.as_deref().unwrap_or("main") == "main"
         ) || matches!(input, DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true));
         if close_requested {
-            let terminal = self
-                .display
-                .setup_portal
-                .as_ref()
-                .is_some_and(|setup| is_setup_terminal(&setup.status.phase));
-            if terminal {
-                self.display.setup_portal = None;
-            } else if let Some(setup) = self.display.setup_portal.as_mut() {
+            if let Some(setup) = self.display.setup_portal.as_mut() {
                 setup.visible = false;
             }
         }

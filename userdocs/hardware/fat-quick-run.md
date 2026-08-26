@@ -10,7 +10,7 @@ The detailed procedures are split by responsibility:
 - [software and musical-function coverage](fat-software-coverage.md);
 - [fixed-board diagnostic harness](fat-diagnostic-harness.md);
 - [Raspberry and Orange end-to-end paths](fat-board-end-to-end.md); and
-- [USB, lifecycle, Backup/Restore, and remaining gap tests](fat-gap-tests.md).
+- [USB, lifecycle, standalone Backup/Restore, and remaining gap tests](fat-gap-tests.md).
 
 ## Time box
 
@@ -21,7 +21,7 @@ The detailed procedures are split by responsibility:
 | 00:50–01:25 | First end-to-end path | Orange | [Board end-to-end](fat-board-end-to-end.md#orange-end-to-end) |
 | 01:25–01:45 | Dedicated USB Audio/MIDI gap | Both, only if safe and authorized | [Gap tests](fat-gap-tests.md#usb-audiomidi) |
 | 01:45–02:00 | Reboot, shutdown, and recovery | Both | [Gap tests](fat-gap-tests.md#reboot-shutdown-and-recovery) |
-| 02:00–02:25 | Data Backup/Restore around a controlled image update | Optional; otherwise mandatory follow-up | [Gap tests](fat-gap-tests.md#data-backuprestore) |
+| 02:00–02:25 | Standalone Data Backup/Restore around a controlled image update | Optional; otherwise mandatory follow-up | [Gap tests](fat-gap-tests.md#data-backuprestore) |
 | 02:25–02:40 | Remaining board-specific checks and closeout | Both | [Gap tests](fat-gap-tests.md#remaining-board-specific-checks-and-closeout) |
 
 The first end-to-end path is deliberately broad. Do not repeat its boot, native
@@ -114,7 +114,7 @@ debugging, keep them outside the shared tree and review/redact excerpts first.
 3. Complete the [Raspberry end-to-end](fat-board-end-to-end.md#raspberry-end-to-end)
    path, then the [Orange end-to-end](fat-board-end-to-end.md#orange-end-to-end)
    path. Record every required observation before moving on.
-4. Run the distinct [USB Audio/MIDI, lifecycle, and Backup/Restore gap
+4. Run the distinct [USB Audio/MIDI, lifecycle, and standalone Backup/Restore gap
    tests](fat-gap-tests.md). Do not use a DAC/Jack tone as USB evidence.
 5. Use the remaining slot for [board-specific checks and
    closeout](fat-gap-tests.md#remaining-board-specific-checks-and-closeout).

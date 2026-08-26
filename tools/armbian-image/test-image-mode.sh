@@ -63,44 +63,16 @@ if ln -s octessera-pi "$bundle/unexpected-link" 2>/dev/null; then
   rm -f "$bundle/unexpected-link"
 fi
 
-diagnostic_root="$work/diagnostic-image"
-mkdir -p "$diagnostic_root/etc/octessera" "$diagnostic_root/etc/systemd/system" "$diagnostic_root/usr/local/lib/octessera" "$diagnostic_root/run" "$diagnostic_root/var/lib/octessera"
-cp "$root/userpatches/overlay/usr/local/lib/octessera/setup-status.py" "$diagnostic_root/usr/local/lib/octessera/setup-status.py"
-cp "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service" "$diagnostic_root/etc/systemd/system/octessera-setup.service"
-printf '%s\n' orange-pi-zero-2w > "$diagnostic_root/etc/octessera/setup-profile"
-printf '%s\n' 'octessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin' > "$diagnostic_root/etc/passwd"
-printf '%s\n' 'octessera-runtime:x:990:' > "$diagnostic_root/etc/group"
-if python3 -c 'import fcntl, os; raise SystemExit(0 if hasattr(os, "geteuid") and os.geteuid() == 0 else 1)' 2>/dev/null; then
-python3 - "$diagnostic_root" <<'PY'
-import importlib.util
-import json
-import sys
-from importlib.machinery import SourceFileLoader
-from pathlib import Path
-
-root = Path(sys.argv[1])
-path = root / "usr/local/lib/octessera/setup-status.py"
-spec = importlib.util.spec_from_loader("diagnostic_setup_status", SourceFileLoader("diagnostic_setup_status", str(path)))
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-module.CONTROL_DIR = str(root / "run/octessera-setup-control")
-module.PUBLIC_DIR = str(root / "run/octessera-setup-status")
-module.RECEIPT_DIR = str(root / "run/octessera-setup-status/receipts")
-module.LOCK_PATH = str(root / "run/octessera-setup-control/status.lock")
-module.ACTIVE_PATH = str(root / "run/octessera-setup-control/active.json")
-module.SEQUENCE_PATH = str(root / "run/octessera-setup-control/sequence")
-module.BOOT_ID_PATH = str(root / "boot-id")
-module.MARKER_PATH = str(root / "var/lib/octessera/setup-complete")
-module.group_id = lambda: 990
-(root / "boot-id").write_text("01234567-89ab-cdef-0123-456789abcdef\n", encoding="ascii")
-assert module.ensure_firstboot() == 0
-active = json.loads((root / "run/octessera-setup-control/active.json").read_text(encoding="utf-8"))
-status = json.loads((root / "run/octessera-setup-status/current.json").read_text(encoding="utf-8"))
-assert active["reentry"] is False and active["priorSetupComplete"] is False
-assert status["status"] == {"type": "setup_portal_status", "phase": "starting", "disposition": "accepted", "rebootRequired": False}
-assert not (root / "etc/systemd/system/octessera.service").exists()
-assert not (root / "usr/local/lib/octessera/production-runtime").exists()
-PY
+grep -qF 'PORTAL_WINDOW_SECONDS = 600' "$root/userpatches/overlay/usr/local/sbin/octessera-setup"
+grep -qF 'INTERNAL_APPLY_SECONDS = 60' "$root/userpatches/overlay/usr/local/sbin/octessera-setup"
+grep -qF 'class SetupHandler' "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py"
+grep -qF 'class SetupHTTPServer' "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py"
+if grep -RIE 'setup-status\.py|setup-status-cli\.py|setup-call\.py|setup-sidecar|active\.json|sequence|receipt|attemptId|requestToken' \
+  "$root/userpatches/overlay/usr/local/sbin/octessera-setup" \
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_config.py" \
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py"; then
+  echo 'Diagnostic setup sources retain removed orchestration state.' >&2
+  exit 1
 fi
 
 (
@@ -118,7 +90,7 @@ fi
   }
   usermod() { runtime_groups="$*"; }
   octessera_configure_runtime_hardware_groups
-  [[ "${groupadd_calls[*]}" == spi && "$runtime_groups" == '--groups audio,i2c,spi,gpio octessera-runtime' ]] || {
+  [[ "${groupadd_calls[*]}" == 'spi video' && "$runtime_groups" == '--groups audio,i2c,spi,gpio,video octessera-runtime' ]] || {
     echo 'Missing Orange hardware groups were not created or assigned exactly.' >&2
     exit 1
   }

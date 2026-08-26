@@ -221,6 +221,10 @@ octessera_reject_file_match "Packaged kernel config must not enable or modulariz
 assert_config_line_once 'CONFIG_SPI_SUN6I=y'
 assert_config_line_once 'CONFIG_SPI_SPIDEV=y'
 assert_config_line_once 'CONFIG_PINCTRL_SUNXI=y'
+assert_config_line_once 'CONFIG_MMC=y'
+assert_config_line_once 'CONFIG_MMC_BLOCK=y'
+mapfile -t mmc_spi_config < <(grep -E '^CONFIG_MMC_SPI=[ym]$' "$config" || true)
+[[ "${#mmc_spi_config[@]}" == 1 ]] || { echo 'Packaged kernel config must contain exactly one enabled CONFIG_MMC_SPI.' >&2; exit 1; }
 assert_config_line_once 'CONFIG_SND_SEQUENCER=m'
 assert_config_line_once 'CONFIG_SND_RAWMIDI=m'
 assert_config_line_once 'CONFIG_SND_USB_AUDIO=m'
@@ -240,6 +244,14 @@ assert_module_file snd-seq.ko
 assert_module_file snd-seq-midi.ko
 assert_module_file snd-rawmidi.ko
 assert_module_file snd-usb-audio.ko
+if [[ "${mmc_spi_config[0]#*=}" == m ]]; then
+  assert_module_file mmc_spi.ko
+else
+  if find "$image_root/lib/modules/$expected_kernel_release" -type f \( -name 'mmc_spi.ko' -o -name 'mmc_spi.ko.*' \) -print -quit | grep -q .; then
+    echo 'Built-in CONFIG_MMC_SPI package must not contain an mmc_spi module.' >&2
+    exit 1
+  fi
+fi
 
 image_dtb="$image_root/usr/lib/linux-image-$expected_kernel_release/allwinner/$expected_dtb"
 package_dtb="$dtb_root/boot/dtb-$expected_kernel_release/allwinner/$expected_dtb"

@@ -34,7 +34,8 @@ impl OrangeHostAdapter {
         let store_dir = prepare_directory(&store_dir, "Orange store")?;
         let samples_dir = prepare_directory(&samples_dir, "Orange samples")?;
         let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
-        platform_service.set_restore_preflight(Arc::new(orange_restore_recording_preflight));
+        let restore_audio = audio.clone();
+        platform_service.set_restore_preflight(Arc::new(move || restore_audio.prepare_restore()));
         Ok(Self {
             audio: audio.clone(),
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
@@ -44,6 +45,7 @@ impl OrangeHostAdapter {
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             oled_frame_cache: OledFrameCache::default(),
             shutdown_request: None,
+            recovery_save_status: None,
         })
     }
 
@@ -63,7 +65,8 @@ impl OrangeHostAdapter {
             samples_dir.clone(),
             environment,
         );
-        platform_service.set_restore_preflight(Arc::new(orange_restore_recording_preflight));
+        let restore_audio = audio.clone();
+        platform_service.set_restore_preflight(Arc::new(move || restore_audio.prepare_restore()));
         Ok(Self {
             audio: audio.clone(),
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
@@ -73,6 +76,7 @@ impl OrangeHostAdapter {
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             oled_frame_cache: OledFrameCache::default(),
             shutdown_request: None,
+            recovery_save_status: None,
         })
     }
 }
@@ -90,8 +94,4 @@ fn prepare_directory(path: &Path, label: &str) -> Result<PathBuf, String> {
     }
     path.canonicalize()
         .map_err(|error| format!("{label} directory cannot be resolved: {error}"))
-}
-
-fn orange_restore_recording_preflight() -> Result<(), String> {
-    Ok(())
 }

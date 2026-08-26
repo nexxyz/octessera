@@ -316,9 +316,11 @@ fn authorized(inner: &Arc<TransferInner>, candidate: Option<&String>) -> bool {
     if !valid {
         state.auth_failures = state.auth_failures.saturating_add(1);
         if state.auth_failures >= MAX_AUTH_FAILURES {
-            state.active = false;
-            state.code = None;
-            inner.stop.store(true, Ordering::Release);
+            drop(state);
+            if let Some(pending) = super::revoke_inner(inner) {
+                super::remove_stage(&pending.staged);
+            }
+            return false;
         }
     }
     valid
@@ -328,7 +330,12 @@ fn peer_allowed(inner: &Arc<TransferInner>, peer: SocketAddr) -> bool {
     if inner.config.loopback_peer {
         return peer.ip() == IpAddr::V4(Ipv4Addr::LOCALHOST);
     }
-    matches!(peer.ip(), IpAddr::V4(ip) if ip.octets()[0..3] == [192, 168, 42])
+    inner
+        .state
+        .lock()
+        .ok()
+        .and_then(|state| state.network)
+        .is_some_and(|network| matches!(peer.ip(), IpAddr::V4(ip) if network.contains(ip)))
 }
 
 fn expected_host(inner: &Arc<TransferInner>) -> String {
@@ -336,9 +343,9 @@ fn expected_host(inner: &Arc<TransferInner>) -> String {
         .state
         .lock()
         .ok()
-        .and_then(|state| state.endpoint)
-        .map(|endpoint| format!("{}:{}", inner.config.public_host, endpoint.port()))
-        .unwrap_or_else(|| format!("{}:{}", inner.config.public_host, TRANSFER_PORT))
+        .and_then(|state| state.endpoint.zip(state.network))
+        .map(|(endpoint, network)| format!("{}:{}", network.address, endpoint.port()))
+        .unwrap_or_else(|| format!("0.0.0.0:{TRANSFER_PORT}"))
 }
 
 fn validate_free_space(
@@ -405,7 +412,10 @@ fn random_session(random: &RandomSource) -> Result<String, String> {
     random(&mut bytes)?;
     Ok(bytes
         .into_iter()
-        .map(|byte| CODE_ALPHABET[byte as usize % CODE_ALPHABET.len()] as char)
+        .map(|byte| {
+            USER_DATA_TRANSFER_CODE_ALPHABET[byte as usize % USER_DATA_TRANSFER_CODE_ALPHABET.len()]
+                as char
+        })
         .collect())
 }
 

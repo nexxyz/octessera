@@ -4,6 +4,12 @@ use std::path::PathBuf;
 
 const STORE_DIR_ENV: &str = "OCTESSERA_PI_STORE_DIR";
 const SAMPLES_DIR_ENV: &str = "OCTESSERA_PI_SAMPLES_DIR";
+const RECORDINGS_DIR_ENV: &str = "OCTESSERA_PI_RECORDINGS_DIR";
+const SCREEN_RECORDINGS_DIR_ENV: &str = "OCTESSERA_PI_SCREEN_RECORDINGS_DIR";
+const RASPBERRY_RECORDINGS_DIR: &str = "/home/pi/recordings";
+const RASPBERRY_SCREEN_RECORDINGS_DIR: &str = "/home/pi/screen-recordings";
+const ORANGE_RECORDINGS_DIR: &str = "/var/lib/octessera/recordings";
+const ORANGE_SCREEN_RECORDINGS_DIR: &str = "/var/lib/octessera/screen-recordings";
 
 pub(crate) fn default_store_dir() -> PathBuf {
     configured_dir(STORE_DIR_ENV, "presets")
@@ -34,6 +40,40 @@ pub(crate) fn default_samples_dir() -> PathBuf {
     configured_dir(SAMPLES_DIR_ENV, "samples")
 }
 
+pub(crate) fn default_recordings_dir() -> PathBuf {
+    configured_media_dir(
+        RECORDINGS_DIR_ENV,
+        RASPBERRY_RECORDINGS_DIR,
+        ORANGE_RECORDINGS_DIR,
+    )
+}
+
+pub(crate) fn default_screen_recordings_dir() -> PathBuf {
+    configured_media_dir(
+        SCREEN_RECORDINGS_DIR_ENV,
+        RASPBERRY_SCREEN_RECORDINGS_DIR,
+        ORANGE_SCREEN_RECORDINGS_DIR,
+    )
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+fn configured_media_dir(_environment_variable: &str, _raspberry: &str, orange: &str) -> PathBuf {
+    PathBuf::from(orange)
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn configured_media_dir(environment_variable: &str, raspberry: &str, _orange: &str) -> PathBuf {
+    configured_media_dir_from(
+        std::env::var_os(environment_variable).map(PathBuf::from),
+        raspberry,
+    )
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn configured_media_dir_from(configured: Option<PathBuf>, raspberry: &str) -> PathBuf {
+    configured.unwrap_or_else(|| PathBuf::from(raspberry))
+}
+
 fn configured_dir(environment_variable: &str, fallback_name: &str) -> PathBuf {
     configured_dir_from(
         std::env::var_os(environment_variable).map(PathBuf::from),
@@ -60,8 +100,12 @@ fn home_dir() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    use super::configured_media_dir_from;
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     use super::ensure_samples_dir;
     use super::{configured_dir_from, SAMPLES_DIR_ENV, STORE_DIR_ENV};
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    use super::{default_recordings_dir, default_screen_recordings_dir};
     use std::path::PathBuf;
 
     #[test]
@@ -95,6 +139,36 @@ mod tests {
         assert_eq!(
             configured_dir_from(None, None, "samples"),
             PathBuf::from("samples")
+        );
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[test]
+    fn raspberry_media_roots_preserve_the_existing_absolute_paths() {
+        assert_eq!(
+            configured_media_dir_from(None, "/home/pi/recordings"),
+            PathBuf::from("/home/pi/recordings")
+        );
+        assert_eq!(
+            configured_media_dir_from(None, "/home/pi/screen-recordings"),
+            PathBuf::from("/home/pi/screen-recordings")
+        );
+        assert_eq!(
+            configured_media_dir_from(Some(PathBuf::from("configured/recordings")), "unused"),
+            PathBuf::from("configured/recordings")
+        );
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn orange_media_roots_are_explicitly_outside_protected_home() {
+        assert_eq!(
+            default_recordings_dir(),
+            PathBuf::from("/var/lib/octessera/recordings")
+        );
+        assert_eq!(
+            default_screen_recordings_dir(),
+            PathBuf::from("/var/lib/octessera/screen-recordings")
         );
     }
 

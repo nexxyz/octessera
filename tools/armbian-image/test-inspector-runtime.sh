@@ -109,7 +109,7 @@ read_file() {
   case "$1" in
     etc/shadow) printf '%s\n' 'octessera-runtime:!:19000:0:99999:7:::' ;;
     etc/passwd) printf '%s\n' 'octessera:x:1000:1000:Octessera:/home/octessera:/bin/bash' 'octessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin' ;;
-    etc/group) printf '%s\n' 'octessera:x:1000:' 'octessera-runtime:x:990:' 'audio:x:29:octessera-runtime' 'i2c:x:100:octessera-runtime' 'spi:x:999:octessera-runtime' 'gpio:x:997:octessera-runtime' ;;
+    etc/group) printf '%s\n' 'octessera:x:1000:' 'octessera-runtime:x:990:' 'audio:x:29:octessera-runtime' 'i2c:x:100:octessera-runtime' 'spi:x:999:octessera-runtime' 'gpio:x:997:octessera-runtime' 'video:x:44:octessera-runtime' ;;
     etc/sudoers) printf '%s\n' "$sudoers_fixture" ;;
     etc/udev/rules.d/70-octessera-orange-runtime.rules) printf '%s\n' 'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"' ;;
     etc/systemd/system/octessera.service) cat "$root/userpatches/overlay/etc/systemd/system/octessera.service" ;;
