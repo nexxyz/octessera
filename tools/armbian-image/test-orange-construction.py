@@ -204,7 +204,18 @@ assert "chmod 0644 /etc/octessera/build-metadata.env" in customize
 assert construction_inputs["userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf"]["mode"] == 420
 assert (ROOT / "userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf").read_text(encoding="utf-8") == 'if ($msg == "sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin") then stop\n'
 assert "install_overlay_file etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf /etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf 0644" in runtime_assets
-assert "rsyslogd -N1 -f /etc/rsyslog.conf" in runtime_assets
+assert "octessera_validate_orange_rsyslog_configuration()" in runtime_assets
+assert 'validation_config="$(mktemp /tmp/octessera-rsyslog-validation.XXXXXX)"' in runtime_assets
+assert 'global(net.enableDNS="off")' in runtime_assets
+assert 'include(file="/etc/rsyslog.conf")' in runtime_assets
+assert 'if printf \'%s\\n\' \'global(net.enableDNS="off")\' \'include(file="/etc/rsyslog.conf")\' > "$validation_config"; then' in runtime_assets
+assert 'rsyslogd -N1 -f "$validation_config"' in runtime_assets
+assert 'validation_status=$?' in runtime_assets
+assert 'if rm -f -- "$validation_config"; then' in runtime_assets
+assert 'return "$validation_status"' in runtime_assets
+assert "rsyslogd -N1 -f /etc/rsyslog.conf" not in runtime_assets
+for forbidden in ("rsyslogd -x", "/etc/hosts", "/etc/hostname", "hostnamectl"):
+    assert forbidden not in runtime_assets
 assert any(item["path"] == "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" for item in contract["exact_inputs"])
 default_input = next(item for item in contract["exact_inputs"] if item["path"] == "config/generated/pi/default.json")
 assert default_input == {"path": "config/generated/pi/default.json", "sha256": "c076628ca5240ff82c63cdaa0886e9bb0828b9e1cd02188498251cc474f018ce", "size": 83596, "mode": 420}

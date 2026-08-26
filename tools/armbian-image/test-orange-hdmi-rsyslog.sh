@@ -31,7 +31,18 @@ assert next(item for item in construction["managed_outputs"] if item["path"] == 
 customize = customize_path.read_text(encoding="utf-8")
 runtime_assets = runtime_assets_path.read_text(encoding="utf-8")
 assert 'install_overlay_file etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf /etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf 0644' in runtime_assets
-assert "rsyslogd -N1 -f /etc/rsyslog.conf" in runtime_assets
+assert "octessera_validate_orange_rsyslog_configuration()" in runtime_assets
+assert 'validation_config="$(mktemp /tmp/octessera-rsyslog-validation.XXXXXX)"' in runtime_assets
+assert 'global(net.enableDNS="off")' in runtime_assets
+assert 'include(file="/etc/rsyslog.conf")' in runtime_assets
+assert 'if printf \'%s\\n\' \'global(net.enableDNS="off")\' \'include(file="/etc/rsyslog.conf")\' > "$validation_config"; then' in runtime_assets
+assert 'rsyslogd -N1 -f "$validation_config"' in runtime_assets
+assert 'validation_status=$?' in runtime_assets
+assert 'if rm -f -- "$validation_config"; then' in runtime_assets
+assert 'return "$validation_status"' in runtime_assets
+assert "rsyslogd -N1 -f /etc/rsyslog.conf" not in runtime_assets
+for forbidden in ("rsyslogd -x", "/etc/hosts", "/etc/hostname", "hostnamectl"):
+    assert forbidden not in runtime_assets
 assert not (root / "userpatches/overlay/etc/rsyslog.conf").exists()
 assert not (root / "userpatches/overlay/etc/systemd/journald.conf").exists()
 for forbidden in ("SystemMaxUse", "RuntimeMaxUse", "RateLimit", "rateLimit", "Storage="):
@@ -85,6 +96,23 @@ with tempfile.TemporaryDirectory(prefix="octessera-orange-hdmi-rsyslog-") as tem
         syntax = subprocess.run([rsyslogd, "-N1", "-f", str(rsyslog_config)], capture_output=True, text=True)
         if syntax.returncode != 0:
             raise AssertionError(f"rsyslogd fixture syntax check failed: {syntax.stdout}{syntax.stderr}")
+
+        malformed_include = work / "malformed.conf"
+        malformed_include.write_text('global(net.enableDNS="off"\n', encoding="utf-8")
+        malformed_wrapper = work / "malformed-wrapper.conf"
+        malformed_wrapper.write_text(
+            "\n".join(
+                [
+                    'global(net.enableDNS="off")',
+                    f'include(file="{malformed_include}")',
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        malformed = subprocess.run([rsyslogd, "-N1", "-f", str(malformed_wrapper)], capture_output=True, text=True)
+        assert malformed.returncode != 0, f"rsyslogd accepted malformed included config: {malformed.stdout}{malformed.stderr}"
+
         process = subprocess.Popen([rsyslogd, "-n", "-f", str(rsyslog_config), "-i", str(work / "rsyslog.pid")], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         deadline = time.monotonic() + 20
         expected_output = [message.rstrip("\n") for message in neighbors]
