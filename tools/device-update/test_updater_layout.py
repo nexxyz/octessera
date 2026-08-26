@@ -44,11 +44,17 @@ class UpdaterLayoutTests(unittest.TestCase):
         self.assertIn("LimitRTPRIO=70", text)
         self.assertIn("Requires=octessera-update-recovery.service", text)
         self.assertNotIn("octessera-update-guard.service", text)
-        customize = (REPOSITORY / "userpatches/customize-image.sh").read_text(
+        runtime_assets = (
+            REPOSITORY
+            / "userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh"
+        ).read_text(
             encoding="utf-8"
         )
         self.assertIn(
-            "install_overlay_file etc/systemd/system/octessera.service", customize
+            "install_overlay_file etc/systemd/system/octessera.service", runtime_assets
+        )
+        customize = (REPOSITORY / "userpatches/customize-image.sh").read_text(
+            encoding="utf-8"
         )
         self.assertIn("systemctl enable octessera.service", customize)
 
