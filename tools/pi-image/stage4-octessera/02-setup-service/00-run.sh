@@ -39,6 +39,41 @@ for wifi_foundation_file in \
     fi
 done
 
+wifi_connect_artifact_root="$LEGAL_REPOSITORY_ROOT/target/wifi-connect-patched"
+wifi_connect_legal_root="$LEGAL_REPOSITORY_ROOT/third_party/wifi-connect-4.11.84"
+wifi_connect_expected_sha256=929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc
+wifi_connect_patch_sha256=3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939
+for wifi_connect_file in wifi-connect wifi-connect.metadata.json cargo-metadata.json; do
+    test -f "$wifi_connect_artifact_root/$wifi_connect_file" && test ! -L "$wifi_connect_artifact_root/$wifi_connect_file"
+done
+for wifi_connect_file in LICENSE THIRD-PARTY-NOTICES.md portal-address-readiness.patch; do
+    test -f "$wifi_connect_legal_root/$wifi_connect_file" && test ! -L "$wifi_connect_legal_root/$wifi_connect_file"
+done
+echo "$wifi_connect_expected_sha256  $wifi_connect_artifact_root/wifi-connect" | sha256sum -c -
+echo "$wifi_connect_patch_sha256  $wifi_connect_legal_root/portal-address-readiness.patch" | sha256sum -c -
+python3 - "$wifi_connect_artifact_root/wifi-connect.metadata.json" "$wifi_connect_expected_sha256" "$wifi_connect_patch_sha256" <<'PY'
+import json
+import sys
+
+metadata = json.loads(open(sys.argv[1], encoding="utf-8").read())
+assert metadata["binary_sha256"] == sys.argv[2]
+assert metadata["patch_sha256"] == sys.argv[3]
+assert metadata["target"] == "aarch64-unknown-linux-gnu"
+PY
+install -D -o root -g root -m 0755 \
+    "$wifi_connect_artifact_root/wifi-connect" \
+    "$ROOTFS_DIR/usr/local/bin/wifi-connect"
+for wifi_connect_doc in LICENSE THIRD-PARTY-NOTICES.md; do
+    install -D -o root -g root -m 0644 \
+        "$wifi_connect_legal_root/$wifi_connect_doc" \
+        "$ROOTFS_DIR/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
+done
+for wifi_connect_doc in wifi-connect.metadata.json cargo-metadata.json; do
+    install -D -o root -g root -m 0644 \
+        "$wifi_connect_artifact_root/$wifi_connect_doc" \
+        "$ROOTFS_DIR/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
+done
+
 octessera_remove_raspberry_parent_sudoers "$ROOTFS_DIR"
 
 rm -f \
@@ -81,38 +116,23 @@ install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/usr/local/lib/octessera/device_config.py" \
     "$ROOTFS_DIR/usr/local/lib/octessera/device_config.py"
 install -D -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-sd-card" \
+    "$LEGAL_REPOSITORY_ROOT/tools/storage/octessera-sd-card" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-sd-card"
+install -D -o root -g root -m 0644 \
+    "$LEGAL_REPOSITORY_ROOT/tools/storage/octessera-sd-card-lib.sh" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/octessera-sd-card-lib.sh"
 install -D -o root -g root -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-wifi-foundation" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-wifi-foundation"
 install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-wifi-connect" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-wifi-connect"
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-setup-sidecar" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-sidecar"
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-setup-request" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-request"
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-setup-request-cleanup" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-request-cleanup"
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-setup-start" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-start"
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-setup-cleanup" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-cleanup"
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/setup-status.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/setup-status.py"
+    "$STAGE_FILES/root/usr/local/sbin/octessera-setup" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-setup"
 install -D -o root -g root -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/setup-status-cli.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/setup-status-cli.py"
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/setup-call.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/setup-call.py"
+    "$STAGE_FILES/root/usr/local/lib/octessera/setup_config.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/setup_config.py"
+install -D -o root -g root -m 0644 \
+    "$STAGE_FILES/root/usr/local/lib/octessera/setup_http.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/setup_http.py"
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/octessera/setup-profile" \
     "$ROOTFS_DIR/etc/octessera/setup-profile"
@@ -120,32 +140,50 @@ install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/default/locale" \
     "$ROOTFS_DIR/etc/default/locale"
 install -D -o root -g root -m 0644 \
+    "$STAGE_FILES/root/etc/tmpfiles.d/octessera-setup-request.conf" \
+    "$ROOTFS_DIR/etc/tmpfiles.d/octessera-setup-request.conf"
+install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-setup.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-setup.service"
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-setup-request.path" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-setup-request.path"
-install -D -o root -g root -m 0644 \
-    "$STAGE_FILES/root/etc/systemd/system/octessera-setup-request.service" \
-    "$ROOTFS_DIR/etc/systemd/system/octessera-setup-request.service"
+rm -f \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-wifi-connect" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-sidecar" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-request" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-request-cleanup" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-start" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-cleanup" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/setup-status.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/setup-status-cli.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/setup-call.py" \
+    "$ROOTFS_DIR/etc/tmpfiles.d/octessera-setup-queue.conf" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-setup-request.service" \
+    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-setup-request.service"
+rm -f \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/app.js" \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/styles.css" \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/octessera-mark.svg" \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/octessera-wordmark.svg"
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/index.html" \
     "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/index.html"
 install -D -o root -g root -m 0644 \
-    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/app.js" \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/app.js"
+    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/js/app.js" \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/js/app.js"
 install -D -o root -g root -m 0644 \
-    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/styles.css" \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/styles.css"
+    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/css/styles.css" \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/css/styles.css"
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/README.md" \
     "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/README.md"
 install -D -o root -g root -m 0644 \
-    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/octessera-mark.svg" \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/octessera-mark.svg"
+    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/img/octessera-mark.svg" \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/img/octessera-mark.svg"
 install -D -o root -g root -m 0644 \
-    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/octessera-wordmark.svg" \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/octessera-wordmark.svg"
+    "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg" \
+    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg"
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-update" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-update"

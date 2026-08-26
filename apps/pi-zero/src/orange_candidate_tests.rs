@@ -1,12 +1,12 @@
+use super::handoff::{startup_fatal_code, OrangeStartupOperation};
 use super::{
-    drain_host_results, encoder_id, encoder_message, prepare_runtime, qualified_encoder_ids,
-    wait_for_initial_audio_prep, OrangeStartupReadinessGate, POLLING_INTERVAL, RENDER_INTERVAL,
-    RUNTIME_TICK,
+    drain_host_results, encoder_id, prepare_runtime, qualified_encoder_ids,
+    wait_for_initial_audio_prep, OrangeStartupReadinessGate,
 };
 use crate::audio::test_service_with_prep_sender;
 use crate::candidate_readiness::CandidateReadiness;
+use crate::hardware_runtime_scheduler::{MAINTENANCE_TICK, PLAYBACK_TICK, SNAPSHOT_TICK};
 use crate::orange_host_adapter::OrangeHostAdapter;
-use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
     CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
     PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimeDispatchInput,
@@ -36,10 +36,34 @@ fn test_host(audio: crate::audio::AudioService) -> (OrangeHostAdapter, PathBuf) 
 }
 
 #[test]
-fn orange_candidate_uses_ten_millisecond_polling() {
-    assert_eq!(POLLING_INTERVAL.as_millis(), 10);
-    assert!(RUNTIME_TICK <= POLLING_INTERVAL);
-    assert!(RENDER_INTERVAL > POLLING_INTERVAL);
+fn orange_candidate_uses_shared_runtime_cadence() {
+    assert_eq!(PLAYBACK_TICK.as_millis(), 8);
+    assert_eq!(SNAPSHOT_TICK.as_millis(), 33);
+    assert_eq!(MAINTENANCE_TICK.as_millis(), 50);
+}
+
+#[test]
+fn orange_startup_operations_map_to_typed_fatal_codes() {
+    assert_eq!(
+        startup_fatal_code(OrangeStartupOperation::Trellis),
+        crate::boot_oled_handoff::StartupFatalCode::TrellisUnavailable
+    );
+    assert_eq!(
+        startup_fatal_code(OrangeStartupOperation::Neokey),
+        crate::boot_oled_handoff::StartupFatalCode::NeokeyUnavailable
+    );
+    assert_eq!(
+        startup_fatal_code(OrangeStartupOperation::Controls),
+        crate::boot_oled_handoff::StartupFatalCode::ControlsUnavailable
+    );
+    assert_eq!(
+        startup_fatal_code(OrangeStartupOperation::Audio),
+        crate::boot_oled_handoff::StartupFatalCode::AudioUnavailable
+    );
+    assert_eq!(
+        startup_fatal_code(OrangeStartupOperation::Oled),
+        crate::boot_oled_handoff::StartupFatalCode::OledUnavailable
+    );
 }
 
 #[test]
@@ -262,29 +286,6 @@ fn qualified_encoder_ids_preserve_main_and_aux_semantics() {
     assert_eq!(encoder_id(2), Ok("encoder_aux_2"));
     assert_eq!(encoder_id(3), Ok("encoder_aux_3"));
     assert!(encoder_id(4).is_err());
-}
-
-#[test]
-fn orange_encoder_events_use_native_input_messages() {
-    let HostMessage::DeviceInput { input, .. } = encoder_message(HardwareEvent::EncoderTurn {
-        id: "encoder_main",
-        delta: 1,
-    })
-    .unwrap() else {
-        panic!("expected main encoder turn input");
-    };
-    assert_eq!(input["type"], "encoder_turn");
-    assert_eq!(input["id"], "main");
-
-    let HostMessage::DeviceInput { input, .. } = encoder_message(HardwareEvent::EncoderPress {
-        id: "encoder_aux_2",
-    })
-    .unwrap() else {
-        panic!("expected aux encoder press input");
-    };
-    assert_eq!(input["type"], "encoder_press");
-    assert_eq!(input["id"], "aux2");
-    assert!(encoder_message(HardwareEvent::EncoderRelease { id: "encoder_main" }).is_none());
 }
 
 #[test]

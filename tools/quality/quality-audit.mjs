@@ -77,7 +77,8 @@ const thresholds = {
 };
 
 const requiredPiImageAssets = [
-  "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-sd-card",
+  "tools/storage/octessera-sd-card",
+  "tools/storage/octessera-sd-card-lib.sh",
   "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-sd-card.service",
   "tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d/99-octessera-sd-card.rules"
 ];

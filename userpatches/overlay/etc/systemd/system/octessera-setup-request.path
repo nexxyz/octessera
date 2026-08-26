@@ -1,9 +1,10 @@
 [Unit]
-Description=Watch for an Octessera setup portal request
+Description=Watch for an Octessera setup request marker
+After=systemd-tmpfiles-setup.service
 
 [Path]
-PathExists=/run/octessera/setup-portal.request
-Unit=octessera-setup-request.service
+PathExists=/run/octessera-setup-request/inbox/start
+Unit=octessera-setup.service
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,295 @@
+diff --git a/src/errors.rs b/src/errors.rs
+--- a/src/errors.rs
++++ b/src/errors.rs
+@@ -102,7 +102,22 @@
+         RootPrivilegesRequired(app: String) {
+             description("Root privileges required")
+             display("You need root privileges to run {}", app)
+         }
++
++        PortalAddressReadinessTimeout(address: String) {
++            description("Timed out waiting for the portal address")
++            display("Timed out waiting for portal address '{}'", address)
++        }
++
++        PortalAddressBind(address: String, reason: String) {
++            description("Cannot bind the portal address")
++            display("Cannot bind portal address '{}': {}", address, reason)
++        }
++
++        PortalActivation(state: String) {
++            description("Portal activation did not reach the Activated state")
++            display("Portal activation ended in state '{}'", state)
++        }
+     }
+ }
+ 
+@@ -127,8 +142,10 @@
+         ErrorKind::StartNetworkManager => 19,
+         ErrorKind::BlockExitSignals => 21,
+         ErrorKind::TrapExitSignals => 22,
+         ErrorKind::RootPrivilegesRequired(_) => 23,
+         ErrorKind::UnmanagedDevice(_) => 24,
++        ErrorKind::PortalAddressReadinessTimeout(_) => 25,
++        ErrorKind::PortalActivation(_) => 26,
+         _ => 1,
+     }
+ }
+diff --git a/src/network.rs b/src/network.rs
+--- a/src/network.rs
++++ b/src/network.rs
+@@ -63,6 +63,8 @@
+         let access_points = get_access_points(&device)?;
+ 
+         let portal_connection = Some(create_portal(&device, config)?);
++        // Modified by Octessera: wait for the configured portal address before starting dnsmasq and HTTP.
++        wait_for_portal_address(config.gateway, config.listening_port)?;
+ 
+         let dnsmasq = start_dnsmasq(config, &device)?;
+ 
+@@ -448,13 +450,19 @@
+ fn create_portal_impl(
+     device: &Device,
+     ssid: &str,
+     gateway: &Ipv4Addr,
+     passphrase: &Option<&str>,
+ ) -> Result<Connection> {
+     info!("Starting access point...");
+     let wifi_device = device.as_wifi_device().unwrap();
+-    let (portal_connection, _) = wifi_device.create_hotspot(ssid, *passphrase, Some(*gateway))?;
++    let (portal_connection, initial_state) =
++        wifi_device.create_hotspot(ssid, *passphrase, Some(*gateway))?;
++    ensure_portal_activated(initial_state, || {
++        portal_connection
++            .activate()
++            .map_err(|error| -> Error { error.into() })
++    })?;
+     info!("Access point '{}' created", ssid);
+     Ok(portal_connection)
+ }
+ 
+@@ -570,16 +578,224 @@
+ fn is_same_ssid(connection: &Connection, ssid: &str) -> bool {
+     connection_ssid_as_str(connection) == Some(ssid)
+ }
+ 
+ fn connection_ssid_as_str(connection: &Connection) -> Option<&str> {
+     // An access point SSID could be random bytes and not a UTF-8 encoded string
+     connection.settings().ssid.as_str().ok()
+ }
+ 
+ fn is_access_point_connection(connection: &Connection) -> bool {
+     is_wifi_connection(connection) && connection.settings().mode == "ap"
+ }
+ 
+ fn is_wifi_connection(connection: &Connection) -> bool {
+     connection.settings().kind == "802-11-wireless"
+ }
++
++fn ensure_portal_activated<F>(
++    initial_state: ConnectionState,
++    mut activate: F,
++) -> Result<()>
++where
++    F: FnMut() -> Result<ConnectionState>,
++{
++    if initial_state == ConnectionState::Activated {
++        return Ok(());
++    }
++
++    let final_state = activate()?;
++    if final_state != ConnectionState::Activated {
++        bail!(ErrorKind::PortalActivation(format!("{:?}", final_state)));
++    }
++
++    Ok(())
++}
++
++fn wait_for_portal_address(gateway: Ipv4Addr, listening_port: u16) -> Result<()> {
++    let address = ::std::net::SocketAddrV4::new(gateway, listening_port);
++
++    wait_for_portal_address_with(
++        address,
++        Duration::from_secs(10),
++        Duration::from_millis(100),
++        |address| ::std::net::TcpListener::bind(address).map(|listener| drop(listener)),
++        |duration| thread::sleep(duration),
++    )
++}
++
++fn wait_for_portal_address_with<F, S>(
++    address: ::std::net::SocketAddrV4,
++    timeout: Duration,
++    interval: Duration,
++    mut bind: F,
++    mut sleep: S,
++) -> Result<()>
++where
++    F: FnMut(::std::net::SocketAddrV4) -> ::std::io::Result<()>,
++    S: FnMut(Duration),
++{
++    let deadline = ::std::time::Instant::now() + timeout;
++
++    loop {
++        match bind(address) {
++            Ok(()) => return Ok(()),
++            Err(error) if error.kind() == ::std::io::ErrorKind::AddrNotAvailable => {
++                if ::std::time::Instant::now() >= deadline {
++                    bail!(ErrorKind::PortalAddressReadinessTimeout(address.to_string()));
++                }
++                sleep(interval);
++            }
++            Err(error) => {
++                bail!(ErrorKind::PortalAddressBind(
++                    address.to_string(),
++                    error.to_string(),
++                ));
++            }
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::io;
++    use std::net::{Ipv4Addr, SocketAddrV4};
++    use std::time::Duration;
++
++    #[test]
++    fn portal_activation_skips_activate_when_already_activated() {
++        let mut calls = 0;
++        let result = ensure_portal_activated(ConnectionState::Activated, || {
++            calls += 1;
++            Ok(ConnectionState::Activated)
++        });
++
++        assert!(result.is_ok());
++        assert_eq!(calls, 0);
++    }
++
++    #[test]
++    fn portal_activation_activates_once_from_activating() {
++        let mut calls = 0;
++        let result = ensure_portal_activated(ConnectionState::Activating, || {
++            calls += 1;
++            Ok(ConnectionState::Activated)
++        });
++
++        assert!(result.is_ok());
++        assert_eq!(calls, 1);
++    }
++
++    #[test]
++    fn portal_activation_rejects_non_activated_final_states() {
++        let cases = vec![
++            (ConnectionState::Activating, ConnectionState::Deactivated),
++            (ConnectionState::Unknown, ConnectionState::Unknown),
++        ];
++
++        for (initial_state, final_state) in cases.into_iter() {
++            let expected_state = format!("{:?}", final_state);
++            let activation_state = final_state.clone();
++            let mut calls = 0;
++            let error = ensure_portal_activated(initial_state, || {
++                calls += 1;
++                Ok(activation_state.clone())
++            })
++            .unwrap_err();
++
++            assert_eq!(calls, 1);
++            assert_eq!(exit_code(&error), 26);
++            assert!(error.to_string().contains(&expected_state));
++        }
++    }
++
++    #[test]
++    fn portal_activation_propagates_activate_errors() {
++        let mut activation_error: Option<network_manager::errors::Error> = Some(
++            network_manager::errors::ErrorKind::NetworkManager(
++                "activation failed".to_string(),
++            )
++            .into(),
++        );
++        let mut calls = 0;
++        let error = ensure_portal_activated(ConnectionState::Activating, || {
++            calls += 1;
++            Err(activation_error.take().unwrap().into())
++        })
++        .unwrap_err();
++
++        assert_eq!(calls, 1);
++        assert!(error.to_string().contains("activation failed"));
++        assert_eq!(exit_code(&error), 1);
++    }
++
++    #[test]
++    fn portal_address_readiness_retries_address_not_available() {
++        let address = SocketAddrV4::new(Ipv4Addr::new(192, 168, 42, 1), 80);
++        let mut attempts = 0;
++        let mut sleeps = Vec::new();
++
++        let result = wait_for_portal_address_with(
++            address,
++            Duration::from_secs(1),
++            Duration::from_millis(100),
++            |_address| {
++                attempts += 1;
++                if attempts == 1 {
++                    Err(io::Error::new(io::ErrorKind::AddrNotAvailable, "address is not ready"))
++                } else {
++                    Ok(())
++                }
++            },
++            |duration| sleeps.push(duration),
++        );
++
++        assert!(result.is_ok());
++        assert_eq!(attempts, 2);
++        assert_eq!(sleeps, vec![Duration::from_millis(100)]);
++    }
++
++    #[test]
++    fn portal_address_readiness_times_out_with_address() {
++        let address = SocketAddrV4::new(Ipv4Addr::new(192, 168, 42, 1), 80);
++        let mut attempts = 0;
++
++        let error = wait_for_portal_address_with(
++            address,
++            Duration::from_millis(0),
++            Duration::from_millis(100),
++            |_address| {
++                attempts += 1;
++                Err(io::Error::new(io::ErrorKind::AddrNotAvailable, "address is not ready"))
++            },
++            |_duration| {},
++        )
++        .unwrap_err();
++
++        assert_eq!(attempts, 1);
++        assert_eq!(exit_code(&error), 25);
++        assert!(error.to_string().contains("192.168.42.1:80"));
++    }
++
++    #[test]
++    fn portal_address_readiness_fails_immediately_for_other_errors() {
++        let address = SocketAddrV4::new(Ipv4Addr::new(192, 168, 42, 1), 80);
++        let mut attempts = 0;
++
++        let error = wait_for_portal_address_with(
++            address,
++            Duration::from_secs(10),
++            Duration::from_millis(100),
++            |_address| {
++                attempts += 1;
++                Err(io::Error::new(io::ErrorKind::AddrInUse, "port is already used"))
++            },
++            |_duration| panic!("non-transient bind errors must not sleep"),
++        )
++        .unwrap_err();
++
++        assert_eq!(attempts, 1);
++        assert_eq!(exit_code(&error), 1);
++        assert!(error.to_string().contains("192.168.42.1:80"));
++    }
++}

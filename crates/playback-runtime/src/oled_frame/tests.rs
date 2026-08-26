@@ -3,12 +3,13 @@ use super::model::*;
 use super::pixels::rgb565;
 use super::render::render_oled_frame;
 use super::splash::{SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
+use super::OledDisplayLayout;
 use super::OLED_FRAME_BYTES;
 use platform_core::palette;
 
 const NORMAL_SELECTED_FNV1A64: u64 = 0xAFAB_0247_A45C_1F39;
 const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x176C_78B8_3179_27FF;
-const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x286B_843D_8F90_6A69;
+const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x2E40_726F_83B0_07C9;
 const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x247E_FFE5_93FC_3319;
 const STARTUP_SPLASH_100_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const STARTUP_SPLASH_50_FNV1A64: u64 = 0x4AB2_E39F_7B90_AA8E;
@@ -117,6 +118,39 @@ fn runtime_error_fallback_and_path_punctuation_are_visible_in_the_fixed_font() {
     assert!((70..=74).any(|x| (70..77).any(|y| pixel(&frame, x, y) == text)));
 }
 
+#[test]
+fn runtime_error_dismissal_affordance_stays_inside_the_error_card() {
+    let frame = render_oled_frame(&full_runtime_error());
+    let text = rgb565(palette::GRAY);
+    let footer_pixels = (0..128)
+        .flat_map(|y| (0..128).map(move |x| (x, y)))
+        .filter(|(x, y)| *y >= 114 && pixel(&frame, *x, *y) == text)
+        .collect::<Vec<_>>();
+    assert!(!footer_pixels.is_empty());
+    assert!(footer_pixels
+        .iter()
+        .all(|(x, y)| (4..=123).contains(x) && (114..=123).contains(y)));
+    assert!((0..128).all(|x| pixel(&frame, x, 124) != text));
+}
+
+#[test]
+fn card_layout_ignores_row_bars_and_scroll_metadata() {
+    let mut with_metadata = base();
+    with_metadata.display.body_layout = OledDisplayLayout::Card;
+    with_metadata.display.lines = vec!["Setup complete".into(), "> Close".into()];
+    with_metadata.selected_row = Some(1);
+    let mut clean = with_metadata.clone();
+    with_metadata.display.bars = vec![Some(OledBarInput::default()), None];
+    with_metadata.display.scroll = Some(OledScrollInput {
+        offset: 1,
+        total_rows: 8,
+        visible_rows: 7,
+    });
+    clean.display.bars = vec![None, None];
+    clean.display.scroll = None;
+    assert_eq!(render_oled_frame(&with_metadata), render_oled_frame(&clean));
+}
+
 fn normal_selected() -> OledPresentationInput {
     base()
 }
@@ -195,6 +229,7 @@ fn glyph_fixture(text: &str) -> OledPresentationInput {
 fn base() -> OledPresentationInput {
     OledPresentationInput {
         display: OledDisplayInput {
+            body_layout: OledDisplayLayout::Rows,
             title: "Voice FX/Aux".into(),
             lines: [
                 "  Volume +3",

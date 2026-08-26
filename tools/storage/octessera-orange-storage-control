@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+import os
+import select
+import subprocess
+import sys
+import time
+
+
+STORAGE_PATH = "/usr/local/sbin/octessera-orange-storage"
+START_REQUEST = b"storage-start\n"
+STOP_REQUEST = b"storage-stop\n"
+ACCEPTED = b"accepted\n"
+REJECTED = b"rejected\n"
+MAX_REQUEST_BYTES = 32
+MAX_RESPONSE_BYTES = 512
+REQUEST_TIMEOUT_SECONDS = 5.0
+EXTRA_BYTE_WAIT_SECONDS = 0.05
+STORAGE_TIMEOUT_SECONDS = 4.0
+HOST_STATES = {"configured", "not attached", "unknown"}
+
+
+def _wait_readable(descriptor, deadline):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("storage control request timed out")
+    readable, _, _ = select.select([descriptor], [], [], remaining)
+    if not readable:
+        raise TimeoutError("storage control request timed out")
+
+
+def _read_request(stream):
+    try:
+        descriptor = stream.fileno()
+    except (AttributeError, OSError):
+        line = stream.readline(MAX_REQUEST_BYTES + 1)
+        extra = stream.read(1)
+    else:
+        data = bytearray()
+        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+        while len(data) <= MAX_REQUEST_BYTES:
+            _wait_readable(descriptor, deadline)
+            chunk = os.read(descriptor, 1)
+            if not chunk:
+                break
+            data.extend(chunk)
+            if chunk == b"\n":
+                break
+        line = bytes(data)
+        readable, _, _ = select.select([descriptor], [], [], EXTRA_BYTE_WAIT_SECONDS)
+        extra = os.read(descriptor, 1) if readable else b""
+    if line not in (START_REQUEST, STOP_REQUEST) or extra:
+        raise ValueError("invalid storage control request")
+    return line[:-1].decode("ascii")
+
+
+def _bounded_text(value):
+    text = value.decode("utf-8", errors="replace")
+    text = "".join(" " if character.isspace() or not character.isprintable() else character if ord(character) < 128 else "?" for character in text)
+    return text.strip()[:256]
+
+
+def _host_state(stdout):
+    state = "unknown"
+    for line in stdout.decode("utf-8", errors="replace").splitlines():
+        if line.startswith("HOST_STATE="):
+            candidate = line.removeprefix("HOST_STATE=").strip()
+            if candidate in HOST_STATES:
+                state = candidate
+    return state
+
+
+def _write_response(stream, accepted, stdout=b"", stderr=b""):
+    state = _host_state(stdout)
+    error = _bounded_text(stderr or stdout)
+    if accepted:
+        payload = ACCEPTED + f"HOST_STATE={state}\n".encode("ascii")
+    else:
+        payload = REJECTED + f"HOST_STATE={state}\n".encode("ascii")
+        if not error:
+            error = "storage action rejected"
+        payload += f"ERROR={error}\n".encode("utf-8")
+    stream.write(payload[:MAX_RESPONSE_BYTES])
+    stream.flush()
+
+
+def handle_request(input_stream, output_stream):
+    try:
+        action = _read_request(input_stream)
+    except (OSError, TimeoutError, ValueError) as error:
+        _write_response(output_stream, False, stderr=str(error).encode("utf-8"))
+        raise
+    try:
+        result = subprocess.run(
+            [STORAGE_PATH, action],
+            check=False,
+            capture_output=True,
+            timeout=STORAGE_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        _write_response(output_stream, False, stderr=str(error).encode("utf-8"))
+        raise
+    accepted = result.returncode == 0
+    _write_response(output_stream, accepted, result.stdout, result.stderr)
+    return accepted
+
+
+def main():
+    if os.geteuid() != 0:
+        return 1
+    try:
+        return 0 if handle_request(sys.stdin.buffer, sys.stdout.buffer) else 1
+    except (OSError, TimeoutError, ValueError, subprocess.SubprocessError):
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -13,7 +13,6 @@ fn setup_status(
             phase,
             disposition,
             portal_suffix: portal_suffix.map(str::to_owned),
-            transfer: None,
             reboot_required,
             error_code,
         },

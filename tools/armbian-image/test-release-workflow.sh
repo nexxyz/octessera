@@ -8,6 +8,7 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 release="$root/.github/workflows/release-artifacts.yml"
 boards="$root/.github/workflows/release-board-artifacts.yml"
 action="$root/.github/actions/build-armbian-image/action.yml"
+bootstrap="$root/.github/workflows/orange-rolling-pin-bootstrap.yml"
 assembler="$root/tools/release/assemble_release_assets.py"
 desktop_verifier="$root/tools/release/verify_desktop_artifact.py"
 device_packager="$root/tools/device-update/package_device_bundle.py"
@@ -61,6 +62,16 @@ assert_order() {
 }
 
 assert_contains "$release" 'workflow_dispatch:'
+[[ -f "$bootstrap" ]] || { echo 'Missing Orange rolling-pin bootstrap workflow.' >&2; exit 1; }
+assert_absent "$boards" 'rolling_pin_bootstrap: true'
+assert_absent "$release" 'orange-rolling-pin-bootstrap'
+assert_absent "$boards" 'orange-rolling-pin-bootstrap'
+assert_contains "$boards" 'armbian_build_ref: fa7a7b2294d9e760a77630950afd460b7a0b2a26'
+mapfile -t bootstrap_workflows < <(grep -RIlF --include='*.yml' --include='*.yaml' -- 'rolling_pin_bootstrap: true' "$root/.github/workflows" || true)
+[[ "${#bootstrap_workflows[@]}" == 1 && "${bootstrap_workflows[0]}" == "$bootstrap" ]] || {
+    echo 'Exactly one workflow may enable rolling-pin bootstrap, and it must be the bootstrap workflow.' >&2
+    exit 1
+}
 armbian_inputs="$root/.github/workflows/armbian-image.yml"
 [[ "$(sed -n '/^    inputs:/,/^permissions:/p' "$armbian_inputs" | grep -cE '^      [A-Za-z0-9_-]+:$')" == 10 ]] || {
     echo 'Armbian workflow_dispatch must retain exactly ten inputs.' >&2
@@ -147,6 +158,8 @@ assert_contains "$boards" 'tools/device-update/package_device_bundle.py'
 assert_contains "$boards" '--board-profile raspberry-pi-zero-2w'
 assert_contains "$boards" '--board-profile orange-pi-zero-2w'
 assert_contains "$boards" 'Stage Raspberry legal notices and copy disposable stage4'
+assert_contains "$boards" 'tools/wifi-connect/build-patched-ci.sh'
+assert_order "$boards" 'tools/wifi-connect/build-patched-ci.sh' 'Stage the matching runtime into stage4'
 assert_contains "$boards" 'tools/legal/stage_notices.py'
 assert_contains "$boards" 'tools/pi-image/stage-musical-assets.sh'
 assert_contains "$boards" 'sudo bash tools/pi-image/test-musical-assets.sh'
@@ -309,7 +322,7 @@ assert_block_contains "$ubuntu_block" 'python3 tools/release/verify_desktop_arti
 
 assert_contains "$boards" 'hardware-raspberry-pi-zero-2w'
 assert_contains "$boards" 'hardware-orange-pi-zero-2w'
-assert_contains "$boards" 'extensions: octessera_midi octessera_audio octessera_image_sanitize'
+assert_contains "$boards" 'extensions: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'
 assert_contains "$boards" 'd7a31c6aa09f4b867902c51da2b45807c0a1709e'
 assert_contains "$boards" 'STAGE_LIST="stage0 stage1 stage2 stage3-octessera-kernel stage4-octessera"'
 assert_contains "$boards" 'tools/pi-kernel/test-rpi-kernel.sh'

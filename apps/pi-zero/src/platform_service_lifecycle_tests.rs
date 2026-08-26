@@ -10,7 +10,6 @@ fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
     use crate::setup_portal::SetupPortalEnvironment;
     use crate::setup_portal_files::SetupPortalPaths;
     use playback_runtime::{RuntimePlatformEffect, RuntimeStoreResult};
-    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
     let root = std::env::temp_dir().join(format!(
@@ -23,30 +22,18 @@ fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
     ));
     let public = root.join("public");
     let paths = SetupPortalPaths {
-        request: root.join("request").join("setup-portal.request"),
-        receipts: public.join("receipts"),
+        request: root.join("request").join("inbox").join("start"),
         current: public.join("current.json"),
         public,
-        boot_id: root.join("boot-id"),
     };
     std::fs::create_dir_all(paths.request.parent().unwrap()).unwrap();
-    std::fs::create_dir_all(&paths.receipts).unwrap();
+    set_mode(paths.request.parent().unwrap(), 0o700);
+    std::fs::create_dir_all(&paths.public).unwrap();
     set_mode(&paths.public, 0o750);
-    set_mode(&paths.receipts, 0o750);
-    let clock = Arc::new(AtomicU64::new(1));
     let service = PiPlatformService::new_with_setup_environment(
         root.join("store"),
         root.join("samples"),
-        SetupPortalEnvironment::test(
-            paths.clone(),
-            0,
-            Arc::new(move || clock.load(Ordering::SeqCst)),
-            Arc::new(|bytes| {
-                bytes.fill(3);
-                Ok(())
-            }),
-            Arc::new(|| Ok("01234567-89ab-cdef-0123-456789abcdef".into())),
-        ),
+        SetupPortalEnvironment::test(paths.clone(), 0),
     );
     for index in 0..64 {
         let _ = service.enqueue(PlatformJob::new(
@@ -64,29 +51,31 @@ fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
         Some(9),
     );
     service.start_setup_portal(&request).unwrap();
-    let token = std::fs::read_to_string(&paths.request)
-        .unwrap()
-        .trim()
-        .to_string();
+    assert_eq!(std::fs::read(&paths.request).unwrap(), b"start\n");
+    assert!(service.take_transfer_status().is_none());
     std::fs::remove_file(&paths.request).unwrap();
-    let receipt = serde_json::json!({
+    let starting = serde_json::json!({
         "schema": 1,
-        "bootId": "01234567-89ab-cdef-0123-456789abcdef",
-        "attemptId": "cccccccccccccccccccccccccccccccc",
-        "sequence": 1,
         "status": {"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}
     });
-    let receipt_path = paths.receipts.join(format!("{token}.json"));
-    std::fs::write(&receipt_path, serde_json::to_vec(&receipt).unwrap()).unwrap();
-    set_mode(&receipt_path, 0o640);
+    std::fs::write(&paths.current, serde_json::to_vec(&starting).unwrap()).unwrap();
+    set_mode(&paths.current, 0o640);
+    std::thread::sleep(Duration::from_millis(40));
+    let ready = serde_json::json!({
+        "schema": 1,
+        "status": {"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}
+    });
+    std::fs::write(&paths.current, serde_json::to_vec(&ready).unwrap()).unwrap();
+    set_mode(&paths.current, 0o640);
     let mut found = false;
     for _ in 0..200 {
         found |= service.drain_results(64).into_iter().any(|message| {
             matches!(
                 message,
                 HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::Identified { request_id, result, .. }
+                    result: RuntimeStoreResult::Identified { request_id, revision, result, .. }
                 } if request_id == "setup-after-queue"
+                    && revision == Some(9)
                     && matches!(*result, RuntimeStoreResult::SetupPortalStatus { .. })
             )
         });
@@ -109,7 +98,6 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
     use crate::setup_portal::SetupPortalEnvironment;
     use crate::setup_portal_files::SetupPortalPaths;
     use playback_runtime::RuntimePlatformEffect;
-    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
     let root = std::env::temp_dir().join(format!(
@@ -122,30 +110,18 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
     ));
     let public = root.join("public");
     let paths = SetupPortalPaths {
-        request: root.join("request").join("setup-portal.request"),
-        receipts: public.join("receipts"),
+        request: root.join("request").join("inbox").join("start"),
         current: public.join("current.json"),
         public,
-        boot_id: root.join("boot-id"),
     };
     std::fs::create_dir_all(paths.request.parent().unwrap()).unwrap();
-    std::fs::create_dir_all(&paths.receipts).unwrap();
+    set_mode(paths.request.parent().unwrap(), 0o700);
+    std::fs::create_dir_all(&paths.public).unwrap();
     set_mode(&paths.public, 0o750);
-    set_mode(&paths.receipts, 0o750);
-    let clock = Arc::new(AtomicU64::new(1));
     let service = PiPlatformService::new_with_setup_environment(
         root.join("store"),
         root.join("samples"),
-        SetupPortalEnvironment::test(
-            paths.clone(),
-            0,
-            Arc::new(move || clock.load(Ordering::SeqCst)),
-            Arc::new(|bytes| {
-                bytes.fill(3);
-                Ok(())
-            }),
-            Arc::new(|| Ok("01234567-89ab-cdef-0123-456789abcdef".into())),
-        ),
+        SetupPortalEnvironment::test(paths.clone(), 0),
     );
     for index in 0..31 {
         enqueue_system_info(&service, index);
@@ -162,21 +138,21 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
         Some(9),
     );
     service.start_setup_portal(&request).unwrap();
-    let token = std::fs::read_to_string(&paths.request)
-        .unwrap()
-        .trim()
-        .to_string();
+    assert_eq!(std::fs::read(&paths.request).unwrap(), b"start\n");
     std::fs::remove_file(&paths.request).unwrap();
-    let receipt = serde_json::json!({
+    let starting = serde_json::json!({
         "schema": 1,
-        "bootId": "01234567-89ab-cdef-0123-456789abcdef",
-        "attemptId": "cccccccccccccccccccccccccccccccc",
-        "sequence": 1,
         "status": {"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}
     });
-    let receipt_path = paths.receipts.join(format!("{token}.json"));
-    std::fs::write(&receipt_path, serde_json::to_vec(&receipt).unwrap()).unwrap();
-    set_mode(&receipt_path, 0o640);
+    std::fs::write(&paths.current, serde_json::to_vec(&starting).unwrap()).unwrap();
+    set_mode(&paths.current, 0o640);
+    std::thread::sleep(Duration::from_millis(40));
+    let ready = serde_json::json!({
+        "schema": 1,
+        "status": {"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}
+    });
+    std::fs::write(&paths.current, serde_json::to_vec(&ready).unwrap()).unwrap();
+    set_mode(&paths.current, 0o640);
 
     for _ in 0..200 {
         if service.result_lane.setup_send_waiting() {

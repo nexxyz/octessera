@@ -19,6 +19,7 @@ pub(super) fn menu_snapshot() -> Value {
         "display": {
             "off": false,
             "splash": "",
+            "bodyLayout": "rows",
             "title": "Voice FX/Aux",
             "lines": ["  Volume +3", "@@ FX/Aux 1", "*Velocity", "  sample_1", "  (empty)", "  Q/V X", "  J+K"],
             "colors": [

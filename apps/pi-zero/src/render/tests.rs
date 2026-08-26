@@ -1,13 +1,7 @@
 use super::oled_error_tests::{menu_snapshot, pixel};
 use super::*;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use crate::oled_frame_cache::OledFramePublication;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use octessera_hal::OledSsd1351;
 use platform_core::palette;
 use serde_json::{json, Value};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 fn rgb565_to_rgb(value: u16) -> [u8; 3] {
@@ -349,99 +343,6 @@ fn sleeping_animation_uses_display_off_instead_of_dim_timer_state() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn sleeping_animation_emits_at_entry_and_deadlines_only() {
-    let (command_tx, command_rx) = mpsc::channel();
-    let mut targets = HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
-        seesaw_tx: command_tx,
-        oled_handoff: None,
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        hdmi: None,
-    };
-    let sleeping = {
-        let mut snapshot = snapshot_with_leds();
-        snapshot["display"]["off"] = json!(true);
-        snapshot
-    };
-    let mut cache = HardwareRenderCache::default();
-
-    let deadline = render_snapshot_cached(
-        &mut targets,
-        &sleeping,
-        &OledFramePublication::ExplicitBlack,
-        &mut cache,
-    )
-    .unwrap();
-    assert_eq!(command_rx.try_iter().count(), 2);
-
-    let repeated_deadline = render_snapshot_cached(
-        &mut targets,
-        &sleeping,
-        &OledFramePublication::ExplicitBlack,
-        &mut cache,
-    )
-    .unwrap();
-    assert_eq!(repeated_deadline, deadline);
-    assert_eq!(command_rx.try_iter().count(), 0);
-
-    let _ = cache.render_sleep_tick(&mut targets, deadline - Duration::from_millis(1));
-    assert_eq!(command_rx.try_iter().count(), 0);
-    let _ = cache.render_sleep_tick(&mut targets, deadline);
-    assert!(command_rx.try_iter().count() > 0);
-}
-
-#[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
-    let (command_tx, command_rx) = mpsc::channel();
-    let mut targets = HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
-        seesaw_tx: command_tx,
-        oled_handoff: None,
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        hdmi: None,
-    };
-    let sleeping = {
-        let mut snapshot = snapshot_with_leds();
-        snapshot["display"]["off"] = json!(true);
-        snapshot
-    };
-    let awake = snapshot_with_leds();
-    let mut cache = HardwareRenderCache::default();
-
-    render_snapshot_cached(
-        &mut targets,
-        &sleeping,
-        &OledFramePublication::ExplicitBlack,
-        &mut cache,
-    );
-    let _ = command_rx.try_iter().count();
-    render_snapshot_cached(
-        &mut targets,
-        &awake,
-        &OledFramePublication::ExplicitBlack,
-        &mut cache,
-    );
-    let wake_commands = command_rx.try_iter().collect::<Vec<_>>();
-    assert_eq!(wake_commands.len(), 2);
-    assert!(wake_commands.iter().any(|command| {
-        matches!(command, crate::seesaw_io::SeesawCommand::GridFrame(frame) if *frame == led_frame(&awake).unwrap())
-    }));
-    assert!(wake_commands.iter().any(|command| {
-        matches!(command, crate::seesaw_io::SeesawCommand::NeoKeyColors(colors) if *colors == neokey_colors(&awake))
-    }));
-
-    render_snapshot_cached(
-        &mut targets,
-        &awake,
-        &OledFramePublication::ExplicitBlack,
-        &mut cache,
-    );
-    assert_eq!(command_rx.try_iter().count(), 0);
-}
-
-#[test]
 fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
     let start = Instant::now();
     let mut animation = SleepLedAnimation::with_seed(9);
@@ -468,4 +369,131 @@ fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
 
     let expired = animation.frames_at(first_key.2);
     assert_eq!(expired.keys[key], [0; 3]);
+}
+
+#[cfg(not(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "hardware-orange-pi-zero-2w"
+)))]
+mod hardware_render_tests {
+    use super::*;
+    use crate::oled_frame_cache::OledFramePublication;
+    use octessera_hal::OledSsd1351;
+    use std::sync::mpsc;
+
+    #[test]
+    fn hdmi_failure_does_not_block_oled_publication() {
+        let (seesaw_tx, _seesaw_rx) = mpsc::channel();
+        let mut targets = HardwareRenderTargets {
+            oled: OledSsd1351::new().unwrap(),
+            seesaw_tx,
+            oled_handoff: None,
+            hdmi: hdmi::HdmiFramebuffer::new(),
+        };
+        let mut snapshot = snapshot_with_leds();
+        snapshot["hdmi"] = json!({
+            "mode": "live-grid",
+            "grid": { "rgb": vec![255; 8 * 8 * 3] }
+        });
+        let mut cache = HardwareRenderCache::default();
+
+        let _ = render_snapshot_cached(
+            &mut targets,
+            &snapshot,
+            &OledFramePublication::ExplicitBlack,
+            &mut cache,
+        );
+
+        assert_eq!(cache.oled_render_count(), 1);
+        assert_eq!(cache.hdmi_signature, 0);
+    }
+
+    #[test]
+    fn sleeping_animation_emits_at_entry_and_deadlines_only() {
+        let (command_tx, command_rx) = mpsc::channel();
+        let mut targets = HardwareRenderTargets {
+            oled: OledSsd1351::new().unwrap(),
+            seesaw_tx: command_tx,
+            oled_handoff: None,
+            hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
+        };
+        let sleeping = {
+            let mut snapshot = snapshot_with_leds();
+            snapshot["display"]["off"] = json!(true);
+            snapshot
+        };
+        let mut cache = HardwareRenderCache::default();
+
+        let deadline = render_snapshot_cached(
+            &mut targets,
+            &sleeping,
+            &OledFramePublication::ExplicitBlack,
+            &mut cache,
+        )
+        .unwrap();
+        assert_eq!(command_rx.try_iter().count(), 2);
+
+        let repeated_deadline = render_snapshot_cached(
+            &mut targets,
+            &sleeping,
+            &OledFramePublication::ExplicitBlack,
+            &mut cache,
+        )
+        .unwrap();
+        assert_eq!(repeated_deadline, deadline);
+        assert_eq!(command_rx.try_iter().count(), 0);
+
+        let _ = cache.render_sleep_tick(&mut targets, deadline - Duration::from_millis(1));
+        assert_eq!(command_rx.try_iter().count(), 0);
+        let _ = cache.render_sleep_tick(&mut targets, deadline);
+        assert!(command_rx.try_iter().count() > 0);
+    }
+
+    #[test]
+    fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
+        let (command_tx, command_rx) = mpsc::channel();
+        let mut targets = HardwareRenderTargets {
+            oled: OledSsd1351::new().unwrap(),
+            seesaw_tx: command_tx,
+            oled_handoff: None,
+            hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
+        };
+        let sleeping = {
+            let mut snapshot = snapshot_with_leds();
+            snapshot["display"]["off"] = json!(true);
+            snapshot
+        };
+        let awake = snapshot_with_leds();
+        let mut cache = HardwareRenderCache::default();
+
+        render_snapshot_cached(
+            &mut targets,
+            &sleeping,
+            &OledFramePublication::ExplicitBlack,
+            &mut cache,
+        );
+        let _ = command_rx.try_iter().count();
+        render_snapshot_cached(
+            &mut targets,
+            &awake,
+            &OledFramePublication::ExplicitBlack,
+            &mut cache,
+        );
+        let wake_commands = command_rx.try_iter().collect::<Vec<_>>();
+        assert_eq!(wake_commands.len(), 2);
+        assert!(wake_commands.iter().any(|command| {
+            matches!(command, crate::seesaw_io::SeesawCommand::GridFrame(frame) if *frame == led_frame(&awake).unwrap())
+        }));
+        assert!(wake_commands.iter().any(|command| {
+            matches!(command, crate::seesaw_io::SeesawCommand::NeoKeyColors(colors) if *colors == neokey_colors(&awake))
+        }));
+
+        render_snapshot_cached(
+            &mut targets,
+            &awake,
+            &OledFramePublication::ExplicitBlack,
+            &mut cache,
+        );
+        assert_eq!(command_rx.try_iter().count(), 0);
+    }
 }

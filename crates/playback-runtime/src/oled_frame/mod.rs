@@ -7,6 +7,7 @@ mod presentation_input;
 mod render;
 mod splash;
 mod text;
+mod text_layout;
 
 pub const OLED_WIDTH: usize = 128;
 pub const OLED_HEIGHT: usize = 128;
@@ -21,6 +22,12 @@ pub use model::{
 pub(crate) use presentation_input::presentation_input_from_snapshot;
 pub use render::render_oled_frame;
 pub(crate) use render::render_oled_frame_into;
+pub use text_layout::{
+    fit_line_ellipsis, force_line_ellipsis, layout_card_body, layout_rows, normalize_text,
+    wrap_text, LaidOutTextRow, OledDisplayLayout, TextLayoutRect, CARD_BODY_RECT, FONT_ADVANCE_X,
+    FONT_GLYPH_HEIGHT, FONT_GLYPH_WIDTH, MENU_BODY_RECT, RUNTIME_ERROR_BODY_RECT,
+    SPLASH_TOAST_RECT, TOAST_RECT,
+};
 
 #[cfg(test)]
 #[path = "error_layout_tests.rs"]
@@ -28,6 +35,9 @@ mod error_layout_tests;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod text_layout_tests;
 
 #[cfg(feature = "test-support")]
 pub mod test_support {

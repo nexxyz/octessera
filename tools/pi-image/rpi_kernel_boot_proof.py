@@ -183,7 +183,7 @@ def load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str,
         validate_selected_initramfs_contract(selected)
     except ValueError as error:
         raise ImageProofError(str(error)) from error
-    if contract.get("uart_invariants") != {"required_config": ["dtoverlay=disable-bt", "enable_uart=0"], "forbidden_config": ["enable_uart=1"], "forbidden_cmdline_prefixes": ["console=serial0", "console=ttyAMA0", "console=ttyS0"], "masks": ["serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service"], "disabled_services": ["bluetooth.service", "hciuart.service"]}:
+    if contract.get("uart_invariants") != {"required_config": ["dtoverlay=disable-bt", "enable_uart=0"], "forbidden_config": ["enable_uart=1"], "required_cmdline": ["console=tty1"], "forbidden_cmdline_prefixes": ["console=serial0", "console=ttyAMA0", "console=ttyS0"], "masks": ["serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service"], "disabled_services": ["bluetooth.service", "hciuart.service"]}:
         raise ImageProofError("Raspberry UART invariants changed")
     return contract
 

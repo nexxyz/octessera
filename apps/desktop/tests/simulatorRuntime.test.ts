@@ -55,6 +55,7 @@ function snapshotMessage(
       transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
       display: {
         page: 'boot',
+        bodyLayout: 'rows',
         title: 'Boot',
         lines: [],
         editing: false,
@@ -146,7 +147,13 @@ function sparseAudioSnapshotMessage(
         active: Array.from({ length: GRID_WIDTH * GRID_HEIGHT }, () => false),
       },
       transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-      display: { page: 'boot', title: 'Boot', lines: [], editing: false },
+      display: {
+        page: 'boot',
+        bodyLayout: 'rows',
+        title: 'Boot',
+        lines: [],
+        editing: false,
+      },
       activeBehavior: 'life',
       gridInteraction: 'paint' as const,
       neoKeyLeds: {

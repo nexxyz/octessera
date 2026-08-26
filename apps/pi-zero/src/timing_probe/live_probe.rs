@@ -180,6 +180,7 @@ fn message_label(message: &HostMessage) -> String {
                 format!("{kind}:{id}")
             }
         }
+        HostMessage::PresentedRuntimeErrorInput { .. } => "presented_runtime_error_input".into(),
         HostMessage::TransportPulseStep { pulses, .. } => format!("pulse:{pulses}"),
         HostMessage::MidiRealtimeStart => "midi_start".into(),
         HostMessage::MidiRealtimeContinue => "midi_continue".into(),

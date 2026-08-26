@@ -247,6 +247,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 NativeMenuAction::PlatformEffect("system.configureWifi".into()),
             ),
             action_item(
+                "Backup & Restore",
+                "system.backupRestore",
+                NativeMenuAction::PlatformEffect("system.backupRestore".into()),
+            ),
+            action_item(
                 "Basic Help",
                 "system.controlsHelp",
                 NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
@@ -266,45 +271,41 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
 }
 
 fn hdmi_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    group(
-        "HDMI",
+    let mode_values = [
+        "none",
+        "live-grid",
+        "plain-grid",
+        "active-behavior",
+        "cycle-behaviors",
+    ];
+    let mut children = vec![enum_item(
+        "Mode",
+        "hdmi.mode",
         vec![
-            enum_item(
-                "Mode",
-                "hdmi.mode",
-                vec![
-                    "none",
-                    "live-grid",
-                    "plain-grid",
-                    "active-behavior",
-                    "cycle-behaviors",
-                ],
-                selected_index(
-                    &[
-                        "none",
-                        "live-grid",
-                        "plain-grid",
-                        "active-behavior",
-                        "cycle-behaviors",
-                    ],
-                    &config.hdmi_mode,
-                ),
-            ),
-            number_item(
-                "Cycle Bars",
-                "hdmi.cycleMeasures",
-                i32::from(config.hdmi_cycle_measures),
-                1,
-                64,
-                1,
-            ),
-            bool_item(
-                "Grid Lines",
-                "hdmi.showGridlines",
-                config.hdmi_show_gridlines,
-            ),
+            "Terminal",
+            "live-grid",
+            "plain-grid",
+            "active-behavior",
+            "cycle-behaviors",
         ],
-    )
+        selected_index(&mode_values, &config.hdmi_mode),
+    )];
+    if config.hdmi_mode == "cycle-behaviors" {
+        children.push(number_item(
+            "Bars per cycle",
+            "hdmi.cycleMeasures",
+            i32::from(config.hdmi_cycle_measures),
+            1,
+            64,
+            1,
+        ));
+    }
+    children.push(bool_item(
+        "Grid Lines",
+        "hdmi.showGridlines",
+        config.hdmi_show_gridlines,
+    ));
+    group("HDMI", children)
 }
 
 fn updates_group() -> NativeMenuItem {

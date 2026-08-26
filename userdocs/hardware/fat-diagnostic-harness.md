@@ -90,7 +90,7 @@ The harness writes `fat-diagnostic.json`, a tab-separated
 | Harness check | Credits in this run | Still requires an operator or existing validator |
 |---|---|---|
 | Identity/profile, service, readiness, OLED handoff markers | Live model/profile contract, compiled binary metadata, service state, current readiness correlation, and native OLED ownership markers | Exact flashed image bytes, image constructor proof, and readable/stable OLED/normal-menu observation |
-| Store/backup paths | Safe path shape and default store readability | Setup-status hygiene unless a real `05-setup-status.txt` observation is present and passes; actual Backup/Restore workflow and data continuity |
+| Store/backup paths | Safe path shape and default store readability | Setup-status hygiene unless a real `05-setup-status.txt` observation is present and passes; standalone Backup & Restore workflow and data continuity |
 | Audio route status | Expected ALSA card listing and selected route label | Audible sound, safe volume, and physical DAC qualification |
 | Physical input observation | No automated credit; the harness records this as operator-required | Presses, turns, clicks, grid orientation, LED color, debounce, and physical wiring |
 | USB gadget state | Passive UDC/configfs/service state and fixed Orange UDC identity | Authorized port role, cable/VBUS/CC/no-backfeed gate, host enumeration, Audio/MIDI |

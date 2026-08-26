@@ -1,0 +1,1 @@
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA_SD", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"

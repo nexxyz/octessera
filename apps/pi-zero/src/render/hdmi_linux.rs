@@ -1,11 +1,19 @@
 use super::*;
+use device::{FramebufferGeometry, FramebufferHandle, HdmiDevice, HdmiIo, TtyHandle};
 use std::convert::TryFrom;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Seek, SeekFrom, Write};
 use std::os::fd::AsRawFd;
+use std::os::unix::fs::OpenOptionsExt;
+use std::time::Instant;
 
 const FBIOGET_VSCREENINFO: libc::c_ulong = 0x4600;
 const FBIOGET_FSCREENINFO: libc::c_ulong = 0x4602;
+const FBIOBLANK: libc::c_ulong = 0x4611;
+const KDSETMODE: libc::c_ulong = 0x4B3A;
+const KD_TEXT: libc::c_ulong = 0;
+const KD_GRAPHICS: libc::c_ulong = 1;
+const FB_BLANK_UNBLANK: libc::c_ulong = 0;
 
 #[repr(C)]
 #[derive(Default)]
@@ -69,108 +77,101 @@ struct FbFixScreenInfo {
     reserved: [u16; 2],
 }
 
-struct FramebufferGeometry {
-    width: usize,
-    height: usize,
-    stride: usize,
-    bytes_per_pixel: usize,
-}
-
 pub struct HdmiFramebuffer {
-    file: Option<File>,
-    path: String,
-    width: usize,
-    height: usize,
-    stride: usize,
-    bytes_per_pixel: usize,
+    device: HdmiDevice,
 }
 
 impl HdmiFramebuffer {
-    pub fn open_from_env() -> Result<Option<Self>, HdmiError> {
-        if std::env::var("OCTESSERA_HDMI_DISABLE").ok().as_deref() == Some("1") {
-            return Ok(None);
-        }
-        let path = std::env::var("OCTESSERA_HDMI_FB").unwrap_or_else(|_| "/dev/fb0".into());
-        let (file, geometry) = open_framebuffer(&path)?;
-        Ok(Some(Self::from_geometry(path, file, geometry)))
-    }
-
-    pub fn render(&mut self, snapshot: &Value) -> Result<(), HdmiError> {
-        if hdmi_mode(snapshot) == Some("none") {
-            return self.blank_and_close();
-        }
-        if self.file.is_none() {
-            let (file, geometry) = open_framebuffer(&self.path)?;
-            *self = Self::from_geometry(self.path.clone(), file, geometry);
-        }
-        let Some(frame) = compose_frame_with_stride(
-            snapshot,
-            self.width,
-            self.height,
-            self.stride,
-            self.bytes_per_pixel,
-        ) else {
-            return Ok(());
-        };
-        let Some(file) = self.file.as_mut() else {
-            return Ok(());
-        };
-        file.seek(SeekFrom::Start(0))
-            .map_err(|source| HdmiError::Io {
-                operation: "seek",
-                path: self.path.clone(),
-                source,
-            })?;
-        file.write_all(&frame).map_err(|source| HdmiError::Io {
-            operation: "write",
-            path: self.path.clone(),
-            source,
-        })?;
-        Ok(())
-    }
-
-    fn from_geometry(path: String, file: File, geometry: FramebufferGeometry) -> Self {
+    pub fn new() -> Self {
+        let framebuffer_path =
+            std::env::var("OCTESSERA_HDMI_FB").unwrap_or_else(|_| "/dev/fb0".into());
         Self {
-            file: Some(file),
-            path,
-            width: geometry.width,
-            height: geometry.height,
-            stride: geometry.stride,
-            bytes_per_pixel: geometry.bytes_per_pixel,
+            device: HdmiDevice::new(Box::new(LinuxIo), framebuffer_path, "/dev/tty1"),
         }
     }
 
-    fn blank_and_close(&mut self) -> Result<(), HdmiError> {
-        if let Some(mut file) = self.file.take() {
-            let frame = vec![0_u8; self.stride * self.height];
-            file.seek(SeekFrom::Start(0))
-                .map_err(|source| HdmiError::Io {
-                    operation: "seek",
-                    path: self.path.clone(),
-                    source,
-                })?;
-            file.write_all(&frame).map_err(|source| HdmiError::Io {
-                operation: "write",
-                path: self.path.clone(),
-                source,
-            })?;
-        }
-        Ok(())
+    #[cfg(test)]
+    pub(crate) fn from_device(device: HdmiDevice) -> Self {
+        Self { device }
+    }
+
+    pub(crate) fn has_pending_retry(&self) -> bool {
+        self.device.has_pending_retry()
+    }
+
+    pub(crate) fn render(&mut self, snapshot: &Value, now: Instant) -> device::HdmiRenderOutcome {
+        self.device
+            .render(snapshot, hdmi_mode(snapshot) == Some("none"), now)
     }
 }
 
-fn open_framebuffer(path: &str) -> Result<(File, FramebufferGeometry), HdmiError> {
-    let file = OpenOptions::new()
-        .read(true)
+struct LinuxIo;
+
+impl HdmiIo for LinuxIo {
+    fn open_framebuffer(&mut self, path: &str) -> Result<Box<dyn FramebufferHandle>, HdmiError> {
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path)
+            .map_err(|source| io_error("open", path, source))?;
+        let geometry = discover_geometry(&file, path)?;
+        Ok(Box::new(LinuxFramebuffer { file, geometry }))
+    }
+
+    fn open_tty(&mut self, path: &str) -> Result<Box<dyn TtyHandle>, HdmiError> {
+        let file = open_tty_file(path).map_err(|source| io_error("open", path, source))?;
+        Ok(Box::new(LinuxTty { file }))
+    }
+}
+
+fn open_tty_file(path: &str) -> io::Result<File> {
+    OpenOptions::new()
         .write(true)
+        .custom_flags(libc::O_NOCTTY | libc::O_CLOEXEC)
         .open(path)
-        .map_err(|source| HdmiError::Io {
-            operation: "open",
-            path: path.to_owned(),
-            source,
-        })?;
-    let geometry = discover_geometry(&file, path)?;
-    Ok((file, geometry))
+}
+
+struct LinuxFramebuffer {
+    file: File,
+    geometry: FramebufferGeometry,
+}
+
+impl FramebufferHandle for LinuxFramebuffer {
+    fn geometry(&self) -> FramebufferGeometry {
+        self.geometry
+    }
+
+    fn unblank(&mut self) -> io::Result<()> {
+        ioctl(&self.file, FBIOBLANK, FB_BLANK_UNBLANK)
+    }
+
+    fn write_frame(&mut self, frame: &[u8]) -> io::Result<()> {
+        self.file.seek(SeekFrom::Start(0))?;
+        self.file.write_all(frame)
+    }
+}
+
+struct LinuxTty {
+    file: File,
+}
+
+impl TtyHandle for LinuxTty {
+    fn set_graphics(&mut self) -> io::Result<()> {
+        ioctl(&self.file, KDSETMODE, KD_GRAPHICS)
+    }
+
+    fn set_text(&mut self) -> io::Result<()> {
+        ioctl(&self.file, KDSETMODE, KD_TEXT)
+    }
+}
+
+fn ioctl(file: &File, request: libc::c_ulong, value: libc::c_ulong) -> io::Result<()> {
+    let result = unsafe { libc::ioctl(file.as_raw_fd(), request, value) };
+    if result < 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
 }
 
 fn discover_geometry(file: &File, path: &str) -> Result<FramebufferGeometry, HdmiError> {
@@ -186,7 +187,7 @@ fn discover_geometry(file: &File, path: &str) -> Result<FramebufferGeometry, Hdm
             return Err(io_error(
                 "query variable geometry for",
                 path,
-                std::io::Error::last_os_error(),
+                io::Error::last_os_error(),
             ));
         }
         if libc::ioctl(
@@ -198,7 +199,7 @@ fn discover_geometry(file: &File, path: &str) -> Result<FramebufferGeometry, Hdm
             return Err(io_error(
                 "query fixed geometry for",
                 path,
-                std::io::Error::last_os_error(),
+                io::Error::last_os_error(),
             ));
         }
     }
@@ -229,7 +230,12 @@ fn discover_geometry(file: &File, path: &str) -> Result<FramebufferGeometry, Hdm
         .ok_or_else(|| invalid_geometry(path, &variable, &fixed))?;
     let memory_bytes =
         usize::try_from(fixed.smem_len).map_err(|_| invalid_geometry(path, &variable, &fixed))?;
-    if width == 0 || height == 0 || stride < minimum_stride || frame_bytes > memory_bytes {
+    if !supported_offsets(variable.xoffset, variable.yoffset)
+        || width == 0
+        || height == 0
+        || stride < minimum_stride
+        || frame_bytes > memory_bytes
+    {
         return Err(invalid_geometry(path, &variable, &fixed));
     }
     Ok(FramebufferGeometry {
@@ -326,5 +332,17 @@ mod tests {
         assert!(supported_format(&format));
         format.transp.length = 8;
         assert!(!supported_format(&format));
+    }
+
+    #[test]
+    fn tty_adapter_opens_write_only_and_close_on_exec() {
+        let file = open_tty_file("/dev/null").unwrap();
+        let status_flags = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFL) };
+        assert!(status_flags >= 0);
+        assert_eq!(status_flags & libc::O_ACCMODE, libc::O_WRONLY);
+
+        let descriptor_flags = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFD) };
+        assert!(descriptor_flags >= 0);
+        assert_ne!(descriptor_flags & libc::FD_CLOEXEC, 0);
     }
 }

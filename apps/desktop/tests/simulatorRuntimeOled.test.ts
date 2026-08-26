@@ -1,156 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  createOledFrameRevision,
-  GRID_HEIGHT,
-  GRID_WIDTH,
-  OLED_HEIGHT,
-  OLED_WIDTH,
-  type NativeRuntimeSnapshot,
-  type RuntimeOledFrameMessage,
-  type RuntimeRunnerMessage,
-} from '@octessera/device-contracts';
 import { oledFaultCopy } from '../src/ui/RuntimeStatusToaster';
-import { createSimulatorRuntime } from '../src/runtime/simulatorRuntime';
-import type { RuntimeScheduler } from '../src/runtime/runtimeScheduler';
 import type { OledFrameCacheFault } from '../src/runtime/oledFrameCache';
-
-const FRAME_BYTES = OLED_WIDTH * OLED_HEIGHT * 2;
-
-class FakeScheduler implements RuntimeScheduler {
-  start(): void {}
-  stop(): void {}
-}
-
-type Harness = {
-  runtime: ReturnType<typeof createSimulatorRuntime>;
-  setResponse: (messages: RuntimeRunnerMessage[]) => void;
-  emitAsync: (seq: number, messages: RuntimeRunnerMessage[]) => void;
-  emitAudioLoad: (status: { ratio: number; voiceSteal: boolean }) => void;
-};
-
-function base64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
-}
-
-function oledFrame(revision: number, fill: number): RuntimeOledFrameMessage {
-  return {
-    type: 'oled_frame',
-    revision: createOledFrameRevision(revision),
-    width: OLED_WIDTH,
-    height: OLED_HEIGHT,
-    format: 'rgb565be',
-    pixelsBase64: base64(new Uint8Array(FRAME_BYTES).fill(fill)),
-  };
-}
-
-function snapshot(
-  revision: number | null,
-  title = 'Boot',
-  transportPlaying = false,
-  masterVolume = 73,
-): RuntimeRunnerMessage {
-  const snapshotFields = {
-    display: { page: 'boot', title, lines: [], editing: false },
-    leds: {
-      width: GRID_WIDTH,
-      height: GRID_HEIGHT,
-      rgb: new Array<number>(GRID_WIDTH * GRID_HEIGHT * 3).fill(0),
-      active: new Array<boolean>(GRID_WIDTH * GRID_HEIGHT).fill(false),
-    },
-    transport: { playing: transportPlaying, bpm: 120, tick: 0, ppqnPulse: 0 },
-    activeBehavior: 'life',
-    gridInteraction: 'paint' as const,
-    neoKeyLeds: {
-      back: [221, 130, 205] as [number, number, number],
-      space: [221, 130, 205] as [number, number, number],
-      shift: [67, 68, 71] as [number, number, number],
-      fn: [67, 68, 71] as [number, number, number],
-    },
-    eventDotOn: false,
-    transportIcon: 'stop' as const,
-    transportFlash: 'none' as const,
-    settings: {
-      displayBrightness: 75,
-      buttonBrightness: 75,
-      masterVolume,
-      voiceStealingMode: 'auto-balanced' as const,
-      autoSaveFlash: 'none' as const,
-      stopLatched: false,
-      shiftHeld: false,
-      fnHeld: false,
-      combinedModifierHeld: false,
-      midi: {
-        enabled: false,
-        outId: null,
-        inId: null,
-        syncMode: 'internal' as const,
-        clockOutEnabled: false,
-        clockInEnabled: false,
-      },
-    },
-  };
-  const withRevision =
-    revision === null
-      ? snapshotFields
-      : {
-          ...snapshotFields,
-          oledFrameRevision:
-            revision > 0
-              ? createOledFrameRevision(revision)
-              : (revision as unknown as NativeRuntimeSnapshot['oledFrameRevision']),
-        };
-  return {
-    type: 'snapshot',
-    snapshot: withRevision as NativeRuntimeSnapshot,
-  };
-}
-
-function harness(): Harness {
-  let response: RuntimeRunnerMessage[] = [];
-  let emitAsync: Harness['emitAsync'] = () => {};
-  let emitAudioLoad: Harness['emitAudioLoad'] = () => {};
-  const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async () => response,
-    asyncRuntimeBatchListener: (handler) => {
-      emitAsync = handler;
-    },
-    audioLoadService: {
-      listenAudioLoad: async (handler) => {
-        emitAudioLoad = handler;
-        return () => {};
-      },
-    },
-  });
-  return {
-    runtime,
-    setResponse: (messages) => {
-      response = messages;
-    },
-    emitAsync: (seq, messages) => emitAsync(seq, messages),
-    emitAudioLoad: (status) => emitAudioLoad(status),
-  };
-}
-
-async function send(harness: Harness, messages: RuntimeRunnerMessage[]) {
-  harness.setResponse(messages);
-  harness.runtime.dispatch({ type: 'grid_press', x: 1, y: 1 });
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function pixelBytes(harness: Harness): Uint8Array {
-  return harness.runtime.getSnapshot().frame.oled.pixels;
-}
-
-async function acceptedHarness(revision = 1): Promise<Harness> {
-  const result = harness();
-  await send(result, [oledFrame(revision, 0x11), snapshot(revision)]);
-  return result;
-}
+import {
+  acceptedHarness,
+  harness,
+  oledFrame,
+  pixelBytes,
+  send,
+  snapshot,
+  wait,
+} from './simulatorRuntimeOledHarness';
 
 test('simulator bootstraps a black OLED and hides an unreferenced candidate', async () => {
   const result = harness();
@@ -192,12 +52,12 @@ test('suppressed async OLED batches replay in order with their semantic snapshot
 
   result.emitAsync(2, [oledFrame(2, 0x22), snapshot(2, 'Async two')]);
   result.emitAsync(3, [oledFrame(3, 0x33), snapshot(3, 'Async three')]);
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await wait();
 
   assert.equal(result.runtime.getSnapshot().frame.display.title, 'Boot');
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 
-  await new Promise((resolve) => setTimeout(resolve, 130));
+  await wait(130);
 
   const current = result.runtime.getSnapshot();
   assert.equal(current.frame.display.title, 'Async three');
@@ -214,7 +74,7 @@ test('suppressed async OLED batches replay in order with their semantic snapshot
 
 test('split async OLED delivery publishes no transient fault during healthy recovery', async () => {
   const result = await acceptedHarness();
-  await new Promise((resolve) => setTimeout(resolve, 130));
+  await wait(130);
   const published: Array<{
     fault: string | null;
     available: boolean;
@@ -230,7 +90,7 @@ test('split async OLED delivery publishes no transient fault during healthy reco
 
   result.emitAsync(2, [snapshot(2, 'Async reference')]);
   result.emitAsync(3, [oledFrame(2, 0x2a)]);
-  await new Promise((resolve) => setTimeout(resolve, 30));
+  await wait(30);
 
   const current = result.runtime.getSnapshot();
   assert.ok(published.every(({ fault }) => fault === null));
@@ -250,13 +110,13 @@ test('split async OLED delivery publishes no transient fault during healthy reco
 
 test('unresolved async OLED future becomes visible after the bounded turn and keeps last-good pixels', async () => {
   const result = await acceptedHarness();
-  await new Promise((resolve) => setTimeout(resolve, 130));
+  await wait(130);
 
   result.emitAsync(2, [snapshot(2, 'Unresolved future')]);
   assert.equal(result.runtime.getSnapshot().oledFrameFault, null);
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 
-  await new Promise((resolve) => setTimeout(resolve, 30));
+  await wait(30);
 
   const current = result.runtime.getSnapshot();
   assert.equal(current.oledFrameFault, 'future');
@@ -264,20 +124,20 @@ test('unresolved async OLED future becomes visible after the bounded turn and ke
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 
   result.emitAsync(3, [oledFrame(2, 0x2a)]);
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await wait();
   assert.equal(result.runtime.getSnapshot().oledFrameFault, 'future');
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 });
 
 test('equal async references do not extend the original grace deadline', async () => {
   const result = await acceptedHarness();
-  await new Promise((resolve) => setTimeout(resolve, 130));
+  await wait(130);
 
   result.emitAsync(2, [snapshot(2, 'First reference')]);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await wait(10);
   result.emitAsync(3, [snapshot(2, 'Repeated reference')]);
   assert.equal(result.runtime.getSnapshot().oledFrameFault, null);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await wait(10);
 
   assert.equal(result.runtime.getSnapshot().oledFrameFault, 'future');
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
@@ -292,9 +152,9 @@ test('direct snapshot-before-frame keeps its typed fault when a later async fram
   assert.equal(current.oledFrameAvailable, false);
   assert.ok(pixelBytes(result).every((byte) => byte === 0));
 
-  await new Promise((resolve) => setTimeout(resolve, 140));
+  await wait(140);
   result.emitAsync(2, [oledFrame(1, 0x45)]);
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await wait();
   current = result.runtime.getSnapshot();
   assert.equal(current.oledFrameFault, 'future');
   assert.equal(current.oledFrameAvailable, false);
@@ -303,18 +163,18 @@ test('direct snapshot-before-frame keeps its typed fault when a later async fram
 
 test('direct OLED candidate conflict cancels grace and preserves the last-good frame', async () => {
   const result = await acceptedHarness();
-  await new Promise((resolve) => setTimeout(resolve, 130));
+  await wait(130);
   result.emitAsync(2, [snapshot(2, 'Async reference')]);
   await send(result, [oledFrame(2, 0x22)]);
   result.emitAsync(3, [oledFrame(2, 0x33)]);
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await wait();
 
   let current = result.runtime.getSnapshot();
   assert.equal(current.oledFrameFault, 'conflict');
   assert.equal(current.oledFrameAvailable, true);
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 
-  await new Promise((resolve) => setTimeout(resolve, 30));
+  await wait(30);
   current = result.runtime.getSnapshot();
   assert.equal(current.oledFrameFault, 'conflict');
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
@@ -330,14 +190,14 @@ test('superseded async OLED references cannot accept an older frame', async () =
 
   for (const [baseRevision, pending, superseding, fault] of cases) {
     const result = await acceptedHarness(baseRevision);
-    await new Promise((resolve) => setTimeout(resolve, 130));
+    await wait(130);
 
     result.emitAsync(2, [snapshot(pending)]);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await wait();
     result.emitAsync(3, [superseding]);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await wait();
     result.emitAsync(4, [oledFrame(pending, 0x2a)]);
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wait(30);
 
     const current = result.runtime.getSnapshot();
     assert.equal(current.oledFrameFault, fault);
@@ -355,7 +215,7 @@ test('async batches matching direct responses remain duplicate-suppressed', asyn
 
   await send(result, [oledFrame(2, 0x22), snapshot(2, 'Direct')]);
   result.emitAsync(2, [oledFrame(2, 0x22), snapshot(2, 'Direct')]);
-  await new Promise((resolve) => setTimeout(resolve, 130));
+  await wait(130);
 
   assert.equal(matchingSnapshots, 1);
   assert.ok(pixelBytes(result).every((byte) => byte === 0x22));

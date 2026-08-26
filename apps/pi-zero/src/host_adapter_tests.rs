@@ -1,5 +1,98 @@
 use super::*;
 use crate::usb_config::UsbAudioOut;
+use playback_runtime::{
+    HostMessage, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeSetupPortalPhase,
+    RuntimeStoreResult,
+};
+
+fn assert_sd2_store_error(response: &[HostMessage], message: &str) {
+    let [HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::StoreError { message: actual },
+    }] = response
+    else {
+        panic!("expected one SD2 gate failure");
+    };
+    assert_eq!(actual, message);
+}
+
+#[test]
+fn raspberry_sd2_start_rejects_active_usb_audio() {
+    let root =
+        std::env::temp_dir().join(format!("octessera-pi-sd2-usb-audio-{}", std::process::id()));
+    let mut adapter = PiPlaybackHostAdapter::new(
+        None,
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        UsbAudioOut::Usb,
+    );
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UsbSdTransferStart,
+        "sd2-usb-audio".into(),
+        None,
+    );
+    let response = adapter.handle_platform_effect(&request).unwrap();
+    assert_sd2_store_error(
+        &response,
+        "USB SD2 transfer blocked while USB audio out is active",
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn raspberry_sd2_start_rejects_enabled_usb_midi() {
+    let root =
+        std::env::temp_dir().join(format!("octessera-pi-sd2-usb-midi-{}", std::process::id()));
+    let mut adapter = PiPlaybackHostAdapter::new(
+        None,
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        true,
+        UsbAudioOut::Jack,
+    );
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UsbSdTransferStart,
+        "sd2-usb-midi".into(),
+        None,
+    );
+    let response = adapter.handle_platform_effect(&request).unwrap();
+    assert_sd2_store_error(
+        &response,
+        "USB SD2 transfer blocked while USB MIDI out is enabled",
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn raspberry_sd2_start_rejects_active_recording() {
+    let root =
+        std::env::temp_dir().join(format!("octessera-pi-sd2-recording-{}", std::process::id()));
+    let audio = crate::audio::test_service_with_prep_worker();
+    audio.start_recording(1).unwrap();
+    let mut adapter = PiPlaybackHostAdapter::new(
+        Some(audio.clone()),
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        UsbAudioOut::Jack,
+    );
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UsbSdTransferStart,
+        "sd2-recording".into(),
+        None,
+    );
+    let response = adapter.handle_platform_effect(&request).unwrap();
+    assert_sd2_store_error(
+        &response,
+        "USB SD2 transfer blocked while recording is active",
+    );
+    assert!(audio.is_recording().unwrap());
+    audio.stop_recording().unwrap();
+    let _ = std::fs::remove_dir_all(root);
+}
 
 #[test]
 fn preset_path_rejects_unsafe_names() {
@@ -21,6 +114,46 @@ fn preset_path_rejects_unsafe_names() {
     }
 }
 
+#[test]
+fn raspberry_power_request_requires_recovery_save_before_acceptance() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-power-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::create_dir_all(root.join("store")).unwrap();
+    std::fs::create_dir_all(root.join("samples")).unwrap();
+    let mut adapter = PiPlaybackHostAdapter::new(
+        None,
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        UsbAudioOut::Jack,
+    );
+    let reboot = RuntimePlatformRequest::new(RuntimePlatformEffect::Reboot, "reboot".into(), None);
+    assert!(!adapter.handle_platform_effect(&reboot).unwrap().is_empty());
+    assert!(adapter.take_power_request().is_none());
+
+    let recovery = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreSaveRecovery {
+            payload: serde_json::json!({"runtimeConfig": {}}),
+        },
+        "recovery".into(),
+        None,
+    );
+    assert_eq!(adapter.handle_platform_effect(&recovery).unwrap().len(), 1);
+    assert!(adapter.handle_platform_effect(&reboot).unwrap().is_empty());
+    assert!(!adapter.handle_platform_effect(&reboot).unwrap().is_empty());
+    assert_eq!(adapter.take_power_request(), Some(PiPowerRequest::Reboot));
+    assert_eq!(adapter.save_recovery_for_power(), Ok(()));
+    let _ = std::fs::remove_dir_all(root);
+}
+
 #[cfg(any(unix, windows))]
 #[test]
 fn raspberry_adapter_supports_setup_portal_effect() {
@@ -32,7 +165,6 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     use crate::setup_portal_files::SetupPortalPaths;
     use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult};
     use std::fs;
-    use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -40,27 +172,15 @@ fn raspberry_adapter_supports_setup_portal_effect() {
         std::env::temp_dir().join(format!("octessera-pi-setup-adapter-{}", std::process::id()));
     let public = root.join("public");
     let paths = SetupPortalPaths {
-        request: root.join("request").join("setup-portal.request"),
-        receipts: public.join("receipts"),
+        request: root.join("request").join("inbox").join("start"),
         current: public.join("current.json"),
         public,
-        boot_id: root.join("boot-id"),
     };
     fs::create_dir_all(paths.request.parent().unwrap()).unwrap();
-    fs::create_dir_all(&paths.receipts).unwrap();
+    fs::create_dir_all(&paths.public).unwrap();
+    fs::set_permissions(paths.request.parent().unwrap(), permissions(0o700)).unwrap();
     fs::set_permissions(&paths.public, permissions(0o750)).unwrap();
-    fs::set_permissions(&paths.receipts, permissions(0o750)).unwrap();
-    let clock = Arc::new(AtomicU64::new(1));
-    let environment = SetupPortalEnvironment::test(
-        paths.clone(),
-        0,
-        Arc::new(move || clock.load(Ordering::SeqCst)),
-        Arc::new(|bytes| {
-            bytes.fill(1);
-            Ok(())
-        }),
-        Arc::new(|| Ok("01234567-89ab-cdef-0123-456789abcdef".into())),
-    );
+    let environment = SetupPortalEnvironment::test(paths.clone(), 0);
     let mut adapter = PiPlaybackHostAdapter::new_with_setup_environment(
         None,
         root.join("store"),
@@ -92,24 +212,16 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     let RuntimeStoreResult::SetupPortalStatus { status } = result.as_ref() else {
         panic!("starting setup portal result");
     };
-    assert!(status.transfer.is_some());
-    let token = fs::read_to_string(&paths.request)
-        .unwrap()
-        .trim()
-        .to_string();
+    assert_eq!(status.phase, RuntimeSetupPortalPhase::Starting);
+    assert_eq!(fs::read(&paths.request).unwrap(), b"start\n");
     fs::remove_file(&paths.request).unwrap();
-    let status = serde_json::json!({"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false});
-    let payload = serde_json::json!({"schema":1,"bootId":"01234567-89ab-cdef-0123-456789abcdef","attemptId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","sequence":1,"status":status});
-    fs::write(
-        paths.receipts.join(format!("{token}.json")),
-        serde_json::to_vec(&payload).unwrap(),
-    )
-    .unwrap();
-    fs::set_permissions(
-        paths.receipts.join(format!("{token}.json")),
-        permissions(0o640),
-    )
-    .unwrap();
+    let payload = serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}});
+    fs::write(&paths.current, serde_json::to_vec(&payload).unwrap()).unwrap();
+    fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
+    std::thread::sleep(Duration::from_millis(40));
+    let ready = serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}});
+    fs::write(&paths.current, serde_json::to_vec(&ready).unwrap()).unwrap();
+    fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
     let mut responses = Vec::new();
     for _ in 0..100 {
         responses = adapter.drain_platform_results(4);
@@ -118,10 +230,16 @@ fn raspberry_adapter_supports_setup_portal_effect() {
         }
         std::thread::sleep(Duration::from_millis(2));
     }
-    assert!(matches!(
-        responses.as_slice(),
-        [HostMessage::RuntimeResult { result: RuntimeStoreResult::Identified { request_id, revision: Some(1), .. } }] if request_id == "pi-setup"
-    ));
+    assert!(responses.iter().any(|message| matches!(
+        message,
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified {
+                request_id,
+                revision: Some(2),
+                ..
+            }
+        } if request_id == "pi-setup"
+    )));
     let _ = fs::remove_dir_all(root);
 }
 

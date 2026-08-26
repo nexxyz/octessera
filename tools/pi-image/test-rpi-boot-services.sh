@@ -51,10 +51,32 @@ octessera_reject_file_match 'Raspberry runtime must not use the removed early bo
 for required_line in \
     'Wants=octessera-boot-splash.service' \
     'After=octessera-boot-splash.service' \
-    'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1'; do
+    'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
+    'NoNewPrivileges=yes' \
+    'TTYPath=/dev/tty1' \
+    'TTYReset=yes' \
+    'SupplementaryGroups=tty' \
+    'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
+    'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
     grep -qFx "$required_line" "$runtime"
     grep -qFx "$required_line" "$template"
 done
+for required_line in \
+    'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
+    'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
+    grep -qFx "$required_line" "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf"
+done
+for unit in "$runtime" "$template" "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf"; do
+    [[ "$(grep -Ec '^(AmbientCapabilities|CapabilityBoundingSet)=' "$unit")" == 2 ]]
+    if [[ "$unit" != *audio-realtime.conf ]]; then
+        for directive in TTYPath TTYReset SupplementaryGroups; do
+            [[ "$(grep -c "^${directive}=" "$unit")" == 1 ]]
+        done
+    fi
+    octessera_reject_file_match 'Raspberry runtime contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$unit"
+done
+grep -q 'console=tty1' "$root/tools/pi-image/stage4-octessera/03-boot-config/00-run.sh"
+octessera_reject_file_match 'Raspberry constructor must not force a graphics mode or switch virtual terminals.' -Eiq 'chvt|xrandr|wlr-randr|modetest|video=|StandardInput=tty' "$root/tools/pi-image/stage4-octessera/03-boot-config/00-run.sh"
 octessera_reject_file_match 'Raspberry runtime service must not conflict with the boot splash.' -q '^Conflicts=' "$runtime"
 octessera_reject_file_match 'Raspberry runtime template must not conflict with the boot splash.' -q '^Conflicts=' "$template"
 grep -qFx 'ExecStart=/usr/local/bin/octessera-pi' "$runtime"
@@ -95,7 +117,7 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_root/usr/local/bin/octessera-pi"
     chmod 0755 "$systemd_root/usr/local/bin/octessera-pi"
     printf '%s\n' 'root:x:0:0:root:/root:/bin/sh' 'pi:x:1000:1000:pi:/home/pi:/bin/sh' > "$systemd_root/etc/passwd"
-    printf '%s\n' 'root:x:0:' 'pi:x:1000:' > "$systemd_root/etc/group"
+    printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'tty:x:5:' > "$systemd_root/etc/group"
     for unit in \
         sysinit.target \
         systemd-modules-load.service \

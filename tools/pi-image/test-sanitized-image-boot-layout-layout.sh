@@ -109,9 +109,20 @@ if [ "$(id -u)" -eq 0 ]; then
         echo 'Boot layout accepted an exact serial console token.' >&2
         exit 1
     fi
+    printf '%s\n' 'console=tty1 console=tty1 root=/dev/mmcblk0p2' > "$fixture/boot/cmdline.txt"
+    if require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"; then
+        echo 'Boot layout accepted duplicate tty1 console tokens.' >&2
+        exit 1
+    fi
     printf '%s\n' 'console=tty1 root=/dev/mmcblk0p2' > "$fixture/boot/cmdline.txt"
     export OCTESSERA_BOOT_LAYER_CLASSIFICATION=constructor-required
     require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"
+    ln -s /dev/null "$fixture/root/etc/systemd/system/getty@tty1.service"
+    if require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"; then
+        echo 'Boot layout accepted a masked tty1 getty.' >&2
+        exit 1
+    fi
+    rm "$fixture/root/etc/systemd/system/getty@tty1.service"
 
     mkdir -p "$fixture/root/boot/firmware"
     ln "$fixture/boot/config.txt" "$fixture/root/boot/firmware/config.txt"

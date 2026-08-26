@@ -1,42 +1,20 @@
 # Data Backup and Restore
 
-Data Backup/Restore moves your Octessera user data before a reflash. It is a
-local, board-side transfer for Raspberry Pi Zero 2 W and Orange Pi Zero 2W.
-Desktop transfer remains unsupported.
-
-## What the backup contains
-
-The archive contains:
-
-- every named patch, with its exact display name preserved;
-- the current state and saved default state;
-- a delta from Octessera's canonical defaults for supported editable
-  preferences, including audio outputs, output buffer, display/UI choices, and
-  selected MIDI, HDMI, recording, autosave, and backup preferences; and
-- optional media: non-standard user samples, plus persisted audio and screen
-  recordings when those files are present.
-
-Packaged samples are not duplicated. The archive is user data, not a board
-image: it contains no application or device binaries, OS images, firmware,
-Wi-Fi/SSH/admin credentials, hardware identity, or device-specific port/path
-identity. It may carry a board profile and runtime version as compatibility
-metadata.
+Use the standalone `System > Backup & Restore` action to move Octessera user
+data before a reflash. It is separate from `Configure WiFi`: it never opens the
+setup AP or uses the root setup coordinator. Desktop is unsupported.
 
 ## Start a transfer
 
-1. On the board, choose `System > Configure WiFi` and confirm `Open Portal`.
-2. Join the `Octessera Setup <4-character suffix>` hotspot shown on the OLED.
-3. Build the transfer `URL` as `http://` plus the displayed host and port, and
-   use the `Code` shown on the OLED. The transfer server is local and
-   short-lived; it is not a cloud service. Use it promptly, before the
-   setup/transfer session closes.
-
-The current transfer service is a small authenticated HTTP endpoint. A local
-HTTP client can export the data-only archive like this:
+1. On a Pi board, choose `System > Backup & Restore`.
+2. The OLED Ready card shows the regular network `IP`, `PORT 8081`, a generated
+   10-character `CODE`, and the remaining lifetime. Build `URL` as
+   `http://<regular-ip>:8081` and use the displayed code.
+3. Use the existing authenticated HTTP API. There is no new themed web app.
 
 ```sh
-URL="http://192.168.42.1:8081" # use the displayed host and port
-CODE="TRANSFER_CODE"            # use the transfer code shown on the OLED
+URL="http://<regular-ip>:8081"
+CODE="<10-character code shown on the OLED>"
 curl -fL -H "X-Octessera-Transfer-Code: $CODE" \
   -o octessera-user-data.oct "$URL/export"
 ```
@@ -44,25 +22,34 @@ curl -fL -H "X-Octessera-Transfer-Code: $CODE" \
 To include optional user media, request `$URL/export?media=1` instead. Keep the
 download somewhere safe before removing or flashing the source card.
 
+If the board has no current usable regular `wlan0` IPv4 address, the action is
+unavailable and does not bind or retry. Choosing the action again while the
+service is active shows the same URL and code with its remaining lifetime; it
+does not extend the session. Back hides the Ready card while the service keeps
+running. Select `> Stop service` to close it and revoke the code. Expiry or
+authentication revocation closes it automatically.
+
 ## Pre-flash and restore flow
 
 1. Export from the old board before flashing it. Include media if you need
    custom samples or saved recordings.
 2. Save `octessera-user-data.oct` off the board.
 3. Flash the matching Raspberry or Orange image and complete its normal first
-   boot and setup.
-4. On the fresh board, open `System > Configure WiFi` again, join the hotspot,
-   and upload the archive to the transfer URL:
+   boot and regular network setup.
+4. On the fresh board, choose `System > Backup & Restore` again. Use the new
+   dynamic `URL` and OLED code:
 
    ```sh
    curl -f -X POST --data-binary @octessera-user-data.oct \
      -H "X-Octessera-Transfer-Code: $CODE" "$URL/restore"
    ```
 
-5. Uploading only stages the restore. When the transfer reports that physical
-   confirmation is required, press the Main encoder to apply it or Back to
-   cancel it. No user data is changed before that confirmation.
-6. Wait for the final restore result before closing the setup session.
+5. Uploading validates and prepares the restore, but does not change user data.
+   When physical confirmation is required, press the Main encoder to apply it
+   or Back to cancel it. During restore the OLED shows `Restoring...` and
+   `Please wait`, and normal device input is blocked until the result.
+6. Wait for the final restore result before stopping the service or powering
+   down. The existing status endpoint is available at `$URL/restore/status`.
 
 Restore validation checks the archive format and version, patch/settings
 compatibility, safe names, manifest hashes, media sizes and hashes, and
@@ -75,5 +62,7 @@ Corrupt, incompatible, too-large, unsafe, or unsupported media and settings
 are reported as a failed or invalid restore. They are not silently replaced
 with defaults, and a rejected restore leaves the existing data untouched.
 
-Desktop's `Configure WiFi` status is `unsupported`, so it does not start this
-transfer server or provide a desktop backup/restore path.
+The `System > Saves > Default > Backups` setting remains the ordinary rolling
+local safety-backup feature; it is separate from this user-data transfer.
+The OLED SD2 `octessera/saves` directory is user-managed and is outside both
+Backup and Restore; copy it manually when you want to preserve those files.

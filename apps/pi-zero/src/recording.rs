@@ -126,6 +126,12 @@ impl RecorderService {
     }
 }
 
+impl Drop for RecorderService {
+    fn drop(&mut self) {
+        self.stop_audio();
+    }
+}
+
 fn write_recording(
     dir: PathBuf,
     rx: mpsc::Receiver<RecordingChunk>,
@@ -166,9 +172,17 @@ fn write_wav_stream(
     let mut file = File::create(partial).map_err(|e| e.to_string())?;
     write_header(&mut file, 0)?;
     let mut samples_written = 0_u64;
-    while !stop.load(Ordering::Relaxed) && samples_written < max_samples {
-        let Ok(chunk) = rx.recv() else {
-            break;
+    while samples_written < max_samples {
+        let chunk = if stop.load(Ordering::Relaxed) {
+            match rx.try_recv() {
+                Ok(chunk) => chunk,
+                Err(mpsc::TryRecvError::Empty | mpsc::TryRecvError::Disconnected) => break,
+            }
+        } else {
+            let Ok(chunk) = rx.recv() else {
+                break;
+            };
+            chunk
         };
         let remaining = ((max_samples - samples_written) * u64::from(CHANNELS)) as usize;
         let samples = chunk.samples();
@@ -274,6 +288,23 @@ mod tests {
         .unwrap();
         assert_eq!(samples, 2);
         assert_eq!(fs::metadata(final_path).unwrap().len(), 44 + 8);
+    }
+
+    #[test]
+    fn recorder_stop_flushes_samples_already_queued_by_the_tap() {
+        let dir = tempfile_dir("stop-flush");
+        let mut recorder = RecorderService::new(dir.clone());
+        let tap = recorder.start_audio(1).unwrap();
+        tap.push_chunk(chunk(&[7, 8, 9, 10]));
+        recorder.stop_audio();
+
+        let path = fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| path.extension().and_then(|extension| extension.to_str()) == Some("wav"))
+            .unwrap();
+        let bytes = fs::read(path).unwrap();
+        assert_eq!(&bytes[40..44], 8_u32.to_le_bytes().as_slice());
     }
 
     #[test]

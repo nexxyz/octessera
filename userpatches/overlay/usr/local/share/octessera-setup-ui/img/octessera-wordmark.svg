@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 7" role="img" aria-label="OCTESSERA wordmark">
+  <g fill="#fff">
+    <path d="M0 0 L5 0 L5 1 L0 1 Z"/>
+    <path d="M0 6 L5 6 L5 7 L0 7 Z"/>
+    <path d="M0 0 L1 0 L1 7 L0 7 Z"/>
+    <path d="M4 0 L5 0 L5 7 L4 7 Z"/>
+    <path d="M6 0 L11 0 L11 1 L6 1 Z"/>
+    <path d="M6 6 L11 6 L11 7 L6 7 Z"/>
+    <path d="M6 0 L7 0 L7 7 L6 7 Z"/>
+    <path d="M12 0 L17 0 L17 1 L12 1 Z"/>
+    <path d="M14 0 L15 0 L15 7 L14 7 Z"/>
+    <path d="M18 0 L22 0 L22 1 L18 1 Z"/>
+    <path d="M18 3 L22 3 L22 4 L18 4 Z"/>
+    <path d="M18 6 L22 6 L22 7 L18 7 Z"/>
+    <path d="M18 0 L19 0 L19 7 L18 7 Z"/>
+    <path d="M23 0 L28 0 L28 1 L23 1 Z"/>
+    <path d="M23 3 L28 3 L28 4 L23 4 Z"/>
+    <path d="M23 6 L28 6 L28 7 L23 7 Z"/>
+    <path d="M23 0 L24 0 L24 4 L23 4 Z"/>
+    <path d="M27 3 L28 3 L28 7 L27 7 Z"/>
+    <path d="M29 0 L34 0 L34 1 L29 1 Z"/>
+    <path d="M29 3 L34 3 L34 4 L29 4 Z"/>
+    <path d="M29 6 L34 6 L34 7 L29 7 Z"/>
+    <path d="M29 0 L30 0 L30 4 L29 4 Z"/>
+    <path d="M33 3 L34 3 L34 7 L33 7 Z"/>
+    <path d="M35 0 L40 0 L40 1 L35 1 Z"/>
+    <path d="M35 3 L40 3 L40 4 L35 4 Z"/>
+    <path d="M35 6 L40 6 L40 7 L35 7 Z"/>
+    <path d="M35 0 L36 0 L36 7 L35 7 Z"/>
+    <path d="M41 0 L46 0 L46 1 L41 1 Z"/>
+    <path d="M41 3 L46 3 L46 4 L41 4 Z"/>
+    <path d="M41 0 L42 0 L42 7 L41 7 Z"/>
+    <path d="M45 0 L46 0 L46 4 L45 4 Z"/>
+    <path d="M46 4 L46 7 L45 7 L44 4 Z"/>
+    <path d="M47 0 L52 0 L52 1 L47 1 Z"/>
+    <path d="M47 3 L52 3 L52 4 L47 4 Z"/>
+    <path d="M47 0 L48 0 L48 7 L47 7 Z"/>
+    <path d="M51 0 L52 0 L52 7 L51 7 Z"/>
+  </g>
+</svg>

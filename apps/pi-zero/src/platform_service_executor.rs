@@ -5,9 +5,15 @@ use super::platform_service_store::{
 use crate::device_update;
 use crate::sample_browser::sample_entries;
 use playback_runtime::{RuntimeStoreResult, RuntimeSystemInfoError};
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+use std::io::{Read, Write};
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+use std::os::unix::net::UnixStream;
 use std::path::Path;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::process::Command;
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+use std::time::Duration;
 
 use super::{system_info, PlatformJob, PlatformJobKind};
 
@@ -80,9 +86,7 @@ pub(super) fn handle_job(
                 message,
             },
         },
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         PlatformJobKind::UsbSdTransferStart => run_usb_storage_command("storage-start"),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         PlatformJobKind::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
         PlatformJobKind::UpdateCheck => device_update::run("check", update_executor),
         PlatformJobKind::UpdateApply => device_update::run("apply", update_executor),
@@ -109,23 +113,105 @@ pub(super) fn handle_job(
     result.with_identity(request.request_id, request.revision)
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
-    match Command::new("sudo")
-        .args(["-n", "/usr/local/sbin/octessera-usb-gadget", action])
-        .output()
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     {
-        Ok(output) if output.status.success() => RuntimeStoreResult::UsbSdTransferStatus {
-            active: action == "storage-start",
-            message: usb_storage_message(action, &String::from_utf8_lossy(&output.stdout)),
-        },
-        Ok(output) => store_error(format!(
-            "USB SD2 transfer {action} failed: {}{}",
-            String::from_utf8_lossy(&output.stderr),
-            String::from_utf8_lossy(&output.stdout)
-        )),
-        Err(error) => store_error(format!("USB SD2 transfer {action} failed: {error}")),
+        run_orange_storage_command(action)
     }
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    {
+        match Command::new("sudo")
+            .args(["-n", "/usr/local/sbin/octessera-usb-gadget", action])
+            .output()
+        {
+            Ok(output) if output.status.success() => RuntimeStoreResult::UsbSdTransferStatus {
+                active: action == "storage-start",
+                message: usb_storage_message(action, &String::from_utf8_lossy(&output.stdout)),
+            },
+            Ok(output) => store_error(format!(
+                "USB SD2 transfer {action} failed: {}{}",
+                String::from_utf8_lossy(&output.stderr),
+                String::from_utf8_lossy(&output.stdout)
+            )),
+            Err(error) => store_error(format!("USB SD2 transfer {action} failed: {error}")),
+        }
+    }
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+fn run_orange_storage_command(action: &str) -> RuntimeStoreResult {
+    if !matches!(action, "storage-start" | "storage-stop") {
+        return store_error("USB SD2 transfer requested an invalid fixed action".into());
+    }
+    #[cfg(unix)]
+    {
+        let mut stream =
+            match UnixStream::connect("/run/octessera-orange-storage-control/storage.sock") {
+                Ok(stream) => stream,
+                Err(error) => {
+                    return store_error(format!("USB SD2 transfer socket failed: {error}"))
+                }
+            };
+        let timeout = Duration::from_secs(5);
+        if let Err(error) = stream
+            .set_read_timeout(Some(timeout))
+            .and_then(|_| stream.set_write_timeout(Some(timeout)))
+        {
+            return store_error(format!(
+                "USB SD2 transfer socket timeout setup failed: {error}"
+            ));
+        }
+        if let Err(error) = stream.write_all(format!("{action}\n").as_bytes()) {
+            return store_error(format!("USB SD2 transfer request failed: {error}"));
+        }
+        let _ = stream.shutdown(std::net::Shutdown::Write);
+        let mut response = Vec::new();
+        if let Err(error) = stream.take(513).read_to_end(&mut response) {
+            return store_error(format!("USB SD2 transfer response failed: {error}"));
+        }
+        if response.len() > 512 {
+            return store_error("USB SD2 transfer response exceeded the fixed limit".into());
+        }
+        return parse_orange_storage_response(action, &response);
+    }
+    #[cfg(not(unix))]
+    store_error("Orange SD2 transfer requires the fixed Unix storage socket".into())
+}
+
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+fn parse_orange_storage_response(action: &str, response: &[u8]) -> RuntimeStoreResult {
+    let Ok(response) = std::str::from_utf8(response) else {
+        return store_error("USB SD2 transfer response was not UTF-8".into());
+    };
+    let mut lines = response.lines();
+    let status = lines.next().unwrap_or_default();
+    let host_state = lines
+        .find_map(|line| line.strip_prefix("HOST_STATE="))
+        .unwrap_or_default();
+    if !matches!(host_state, "configured" | "not attached" | "unknown") {
+        return store_error("USB SD2 transfer response had an invalid host state".into());
+    }
+    if status == "accepted" {
+        let message = if action == "storage-start" && host_state == "configured" {
+            "USB SD2 transfer active"
+        } else if action == "storage-start" {
+            "USB SD2 transfer waiting for host"
+        } else {
+            "USB SD2 transfer stopped"
+        };
+        return RuntimeStoreResult::UsbSdTransferStatus {
+            active: action == "storage-start",
+            message: message.into(),
+        };
+    }
+    if status != "rejected" {
+        return store_error("USB SD2 transfer response had an invalid status".into());
+    }
+    let error = lines
+        .find_map(|line| line.strip_prefix("ERROR="))
+        .filter(|message| !message.is_empty())
+        .unwrap_or("storage action rejected");
+    store_error(format!("USB SD2 transfer {action} rejected: {error}"))
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

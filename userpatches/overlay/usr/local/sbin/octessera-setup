@@ -1,0 +1,461 @@
+#!/usr/bin/env python3
+import http.client
+import ipaddress
+import json
+import os
+import re
+import signal
+import stat
+import subprocess
+import sys
+import threading
+import time
+
+
+LIBRARY = "/usr/local/lib/octessera"
+if LIBRARY not in sys.path:
+    sys.path.insert(0, LIBRARY)
+import setup_config
+import setup_http
+
+
+REQUEST_DIR = "/run/octessera-setup-request"
+INBOX_DIR = f"{REQUEST_DIR}/inbox"
+REQUEST_PATH = f"{INBOX_DIR}/start"
+STATUS_DIR = "/run/octessera-setup-status"
+STATUS_PATH = f"{STATUS_DIR}/current.json"
+INTERFACE = "wlan0"
+PORTAL_WINDOW_SECONDS = 600
+INTERNAL_APPLY_SECONDS = 60
+
+
+class SetupFailure(Exception):
+    def __init__(self, error_code):
+        super().__init__(error_code)
+        self.error_code = error_code
+
+
+class SetupTimeout(Exception):
+    pass
+
+
+def _expected_owner(profile):
+    import pwd
+
+    account = pwd.getpwnam(profile["request_owner"])
+    return account.pw_uid, account.pw_gid
+
+
+def _directory_is(path, uid, gid, mode):
+    metadata = os.lstat(path)
+    return stat.S_ISDIR(metadata.st_mode) and metadata.st_uid == uid and metadata.st_gid == gid and stat.S_IMODE(metadata.st_mode) == mode
+
+
+def valid_request_metadata(metadata, owner_uid, owner_gid, content):
+    return stat.S_ISREG(metadata.st_mode) and metadata.st_uid == owner_uid and metadata.st_gid == owner_gid and stat.S_IMODE(metadata.st_mode) == 0o600 and metadata.st_nlink == 1 and metadata.st_size == 6 and content == b"start\n"
+
+
+def consume_request(profile):
+    owner_uid, owner_gid = _expected_owner(profile)
+    if not _directory_is(REQUEST_DIR, 0, 0, 0o711) or not _directory_is(INBOX_DIR, owner_uid, owner_gid, 0o700):
+        raise OSError("unsafe setup request directory")
+    descriptor = os.open(REQUEST_PATH, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        metadata = os.fstat(descriptor)
+        content = os.read(descriptor, 7)
+        if not valid_request_metadata(metadata, owner_uid, owner_gid, content):
+            raise ValueError("invalid setup request")
+        current = os.lstat(REQUEST_PATH)
+        if (current.st_dev, current.st_ino) != (metadata.st_dev, metadata.st_ino):
+            raise ValueError("setup request changed")
+    finally:
+        os.close(descriptor)
+
+
+def _status(phase, disposition=None, portal_suffix=None, error_code=None):
+    if phase == "starting":
+        if disposition != "accepted" or portal_suffix is not None or error_code is not None:
+            raise ValueError("invalid starting status")
+    elif phase == "portal_ready":
+        if disposition is not None or error_code is not None or not isinstance(portal_suffix, str) or len(portal_suffix) != 4 or any(character not in "0123456789abcdef" for character in portal_suffix):
+            raise ValueError("invalid portal status")
+    elif phase in ("finalizing", "succeeded"):
+        if disposition is not None or portal_suffix is not None or error_code is not None:
+            raise ValueError("invalid terminal status")
+    elif phase == "failed":
+        if disposition is not None or portal_suffix is not None or error_code != "operation_failed":
+            raise ValueError("invalid failure status")
+    elif phase == "timed_out":
+        if disposition is not None or portal_suffix is not None or error_code != "unavailable":
+            raise ValueError("invalid timeout status")
+    else:
+        raise ValueError("invalid setup phase")
+    value = {"type": "setup_portal_status", "phase": phase}
+    if disposition is not None:
+        value["disposition"] = disposition
+    if portal_suffix is not None:
+        value["portalSuffix"] = portal_suffix
+    value["rebootRequired"] = False
+    if error_code is not None:
+        value["errorCode"] = error_code
+    return value
+
+
+def _status_directory(gid):
+    if os.path.lexists(STATUS_DIR):
+        if not _directory_is(STATUS_DIR, 0, gid, 0o750):
+            raise OSError("unsafe setup status directory")
+    else:
+        os.mkdir(STATUS_DIR, 0o750)
+        os.chown(STATUS_DIR, 0, gid)
+        os.chmod(STATUS_DIR, 0o750)
+
+
+def write_status(status, profile):
+    import grp
+
+    gid = grp.getgrnam(profile["status_group"]).gr_gid
+    _status_directory(gid)
+    if os.path.lexists(STATUS_PATH):
+        existing = os.lstat(STATUS_PATH)
+        if not stat.S_ISREG(existing.st_mode) or existing.st_uid != 0 or existing.st_nlink != 1:
+            raise OSError("unsafe setup status file")
+    temporary = f"{STATUS_PATH}.{os.getpid()}.tmp"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        payload = {"schema": 1, "status": status}
+        os.fchown(descriptor, 0, gid)
+        os.fchmod(descriptor, 0o640)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = -1
+            json.dump(payload, handle, separators=(",", ":"), sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, STATUS_PATH)
+        os.chown(STATUS_PATH, 0, gid)
+        os.chmod(STATUS_PATH, 0o640)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def _command(args, timeout=None):
+    return subprocess.run(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False, timeout=timeout)
+
+
+def _addresses(output, required):
+    try:
+        links = json.loads(output or "")
+        for link in links:
+            for address in link.get("addr_info", []):
+                if required(address):
+                    return True
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pass
+    return False
+
+
+def _global_ipv4(output):
+    return _addresses(output, lambda address: address.get("family") == "inet" and address.get("scope") == "global" and not {str(flag).lower() for flag in address.get("flags", [])}.intersection(("tentative", "dadfailed")) and not ipaddress.ip_address(address.get("local", "0.0.0.0")).is_unspecified and not ipaddress.ip_address(address.get("local", "0.0.0.0")).is_link_local and not ipaddress.ip_address(address.get("local", "0.0.0.0")).is_loopback and not ipaddress.ip_address(address.get("local", "0.0.0.0")).is_multicast and not ipaddress.ip_address(address.get("local", "0.0.0.0")).is_reserved)
+
+
+def _portal_ipv4(output):
+    return _addresses(output, lambda address: address.get("family") == "inet" and address.get("local") == setup_http.AP_ADDRESS and address.get("prefixlen") == 24 and address.get("scope") == "global" and not {str(flag).lower() for flag in address.get("flags", [])}.intersection(("tentative", "dadfailed")))
+
+
+class Coordinator:
+    def __init__(self, profile, command=_command, process_factory=subprocess.Popen, clock=time.monotonic, sleeper=time.sleep):
+        self.profile = profile
+        self.command = command
+        self.process_factory = process_factory
+        self.clock = clock
+        self.sleeper = sleeper
+        self.process = None
+        self.server = None
+        self.server_thread = None
+        self.staged = None
+        self.staged_at = None
+        self.portal_suffix = None
+        self.stop_requested = False
+        self.terminal_published = False
+
+    def stage(self, value):
+        if self.staged is not None:
+            raise ValueError("stage already received")
+        self.staged_at = self.clock()
+        self.staged = dict(value)
+
+    def publish(self, phase, disposition=None, portal_suffix=None, error_code=None, terminal=False):
+        if terminal and self.terminal_published:
+            return
+        write_status(_status(phase, disposition, portal_suffix, error_code), self.profile)
+        if terminal:
+            self.terminal_published = True
+
+    def request_stop(self, _signum, _frame):
+        self.stop_requested = True
+
+    def interface_suffix(self):
+        with open(f"/sys/class/net/{INTERFACE}/address", "r", encoding="ascii") as handle:
+            address = handle.read().strip().lower()
+        if not re.fullmatch(r"(?:[0-9a-f]{2}:){5}[0-9a-f]{2}", address):
+            raise SetupFailure("operation_failed")
+        return address.replace(":", "")[-4:]
+
+    def portal_ipv4_ready(self):
+        result = self.command(["ip", "-j", "-4", "addr", "show", "dev", INTERFACE])
+        return result.returncode == 0 and _portal_ipv4(result.stdout)
+
+    def global_ipv4_ready(self):
+        result = self.command(["ip", "-j", "-4", "addr", "show", "dev", INTERFACE])
+        return result.returncode == 0 and _global_ipv4(result.stdout)
+
+    def listener_ready(self, protocol, port):
+        result = self.command(["ss", "-H", f"-l{protocol}np", "sport", "=", f":{port}"])
+        return result.returncode == 0 and bool(result.stdout.strip())
+
+    def http_ready(self):
+        connection = http.client.HTTPConnection(setup_http.AP_ADDRESS, 80, timeout=2)
+        try:
+            connection.request("GET", "/")
+            response = connection.getresponse()
+            response.read()
+            return 200 <= response.status < 400
+        except (OSError, http.client.HTTPException):
+            return False
+        finally:
+            connection.close()
+
+    def portal_ready(self):
+        return self.portal_ipv4_ready() and self.http_ready() and self.listener_ready("u", 67)
+
+    def launch(self):
+        self.portal_suffix = self.interface_suffix()
+        self.process = self.process_factory(
+            ["/usr/local/bin/wifi-connect", "--portal-ssid", f"Octessera Setup {self.portal_suffix}", "--portal-interface", INTERFACE, "--portal-gateway", setup_http.AP_ADDRESS, "--portal-listening-port", "80", "--ui-directory", "/usr/local/share/octessera-setup-ui"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+
+    def _signal_process_group(self, value):
+        try:
+            os.killpg(os.getpgid(self.process.pid), value)
+        except (AttributeError, OSError):
+            try:
+                if value == getattr(signal, "SIGKILL", None):
+                    self.process.kill()
+                else:
+                    self.process.terminate()
+            except OSError:
+                pass
+
+    def stop_process_group(self, deadline=None):
+        process = self.process
+        if process is None or process.poll() is not None:
+            return
+        self._signal_process_group(signal.SIGTERM)
+        while process.poll() is None:
+            if deadline is not None and self.clock() >= deadline:
+                self._signal_process_group(signal.SIGKILL)
+                break
+            self.sleeper(0.05)
+        try:
+            remaining = None if deadline is None else max(0.0, deadline - self.clock())
+            process.wait(timeout=remaining)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    def wait_for_portal_readiness(self, outer_deadline):
+        while not self.portal_ready():
+            if self.stop_requested:
+                raise SetupFailure("operation_failed")
+            if self.clock() >= outer_deadline:
+                raise SetupFailure("operation_failed")
+            if self.process.poll() is not None:
+                raise SetupFailure("operation_failed")
+            self.sleeper(0.1)
+
+    def bounded_command(self, args, deadline=None):
+        if deadline is None:
+            return self.command(args)
+        remaining = deadline - self.clock()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(args, 0)
+        return self.command(args, timeout=remaining)
+
+    def wait_for_apply(self, outer_deadline):
+        apply_deadline = min(self.staged_at + INTERNAL_APPLY_SECONDS, outer_deadline)
+        while True:
+            if self.stop_requested:
+                raise SetupFailure("operation_failed")
+            now = self.clock()
+            if now >= apply_deadline:
+                self.stop_process_group(apply_deadline)
+                raise SetupFailure("operation_failed")
+            result = self.process.poll()
+            if result is not None:
+                if result != 0:
+                    raise SetupFailure("operation_failed")
+                if self.global_ipv4_ready():
+                    self.publish("finalizing")
+                    setup_config.finalize(self.staged, self.profile, deadline=apply_deadline, clock=self.clock)
+                    return
+            self.sleeper(0.1)
+
+    def portal_window_deadline(self, ready_at, outer_deadline):
+        deadline = ready_at + PORTAL_WINDOW_SECONDS
+        if deadline > outer_deadline:
+            raise SetupFailure("operation_failed")
+        return deadline
+
+    def wait_for_stage(self, portal_deadline):
+        while self.staged is None:
+            now = self.clock()
+            if now >= portal_deadline:
+                self.stop_process_group(portal_deadline)
+                raise SetupTimeout()
+            if self.stop_requested:
+                raise SetupFailure("operation_failed")
+            if self.process.poll() is not None:
+                raise SetupFailure("operation_failed")
+            self.sleeper(0.1)
+
+    def cleanup_profiles(self, deadline=None):
+        if not self.portal_suffix:
+            return
+        result = self.bounded_command(["nmcli", "-t", "-f", "UUID,TYPE", "connection", "show"], deadline)
+        if result.returncode != 0:
+            return
+        for line in result.stdout.splitlines():
+            fields = line.split(":", 1)
+            if len(fields) != 2 or fields[1] != "802-11-wireless":
+                continue
+            uuid = fields[0]
+            mode = self.bounded_command(["nmcli", "-g", "802-11-wireless.mode", "connection", "show", "uuid", uuid], deadline)
+            ssid = self.bounded_command(["nmcli", "-g", "802-11-wireless.ssid", "connection", "show", "uuid", uuid], deadline)
+            if mode.returncode == 0 and ssid.returncode == 0 and mode.stdout.strip() == "ap" and ssid.stdout.strip() == f"Octessera Setup {self.portal_suffix}":
+                self.bounded_command(["nmcli", "connection", "down", "uuid", uuid], deadline)
+                self.bounded_command(["nmcli", "connection", "delete", "uuid", uuid], deadline)
+
+    def cleanup_request_marker(self):
+        descriptor = -1
+        try:
+            owner_uid, owner_gid = _expected_owner(self.profile)
+            descriptor = os.open(REQUEST_PATH, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            metadata = os.fstat(descriptor)
+            content = os.read(descriptor, 7)
+            if not valid_request_metadata(metadata, owner_uid, owner_gid, content):
+                return
+            current = os.lstat(REQUEST_PATH)
+            if (current.st_dev, current.st_ino) == (metadata.st_dev, metadata.st_ino):
+                os.unlink(REQUEST_PATH)
+        except (OSError, ValueError):
+            return
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+
+    def cleanup(self, deadline=None):
+        self.stop_process_group(deadline)
+        if self.server is not None:
+            try:
+                self.server.shutdown()
+                self.server.server_close()
+            except OSError:
+                pass
+        try:
+            self.cleanup_profiles(deadline)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        self.cleanup_request_marker()
+        if self.staged is not None:
+            self.staged.clear()
+        self.staged = None
+        self.staged_at = None
+
+    def run(self, service_started_at):
+        outer_deadline = service_started_at + 660.0
+        self.service_started_at = service_started_at
+        self.outer_deadline = outer_deadline
+        previous = (signal.getsignal(signal.SIGINT), signal.getsignal(signal.SIGTERM))
+        signal.signal(signal.SIGINT, self.request_stop)
+        signal.signal(signal.SIGTERM, self.request_stop)
+        outcome = ("failed", "operation_failed")
+        try:
+            self.publish("starting", disposition="accepted")
+            self.server = setup_http.SetupHTTPServer(("0.0.0.0", 8080), self)
+            self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+            self.server_thread.start()
+            self.launch()
+            self.wait_for_portal_readiness(outer_deadline)
+            portal_ready_at = self.clock()
+            portal_deadline = self.portal_window_deadline(portal_ready_at, outer_deadline)
+            self.publish("portal_ready", portal_suffix=self.portal_suffix)
+            self.wait_for_stage(portal_deadline)
+            self.wait_for_apply(outer_deadline)
+            outcome = ("succeeded", None)
+        except SetupTimeout:
+            outcome = ("timed_out", "unavailable")
+        except SetupFailure as failure:
+            outcome = ("failed", failure.error_code)
+        except (OSError, subprocess.SubprocessError, ValueError, json.JSONDecodeError):
+            outcome = ("failed", "operation_failed")
+        finally:
+            try:
+                if not self.terminal_published:
+                    self.publish(outcome[0], error_code=outcome[1], terminal=True)
+            finally:
+                self.cleanup(outer_deadline)
+            signal.signal(signal.SIGINT, previous[0])
+            signal.signal(signal.SIGTERM, previous[1])
+        return 0
+
+
+def status_is_terminal(profile):
+    try:
+        import grp
+
+        metadata = os.lstat(STATUS_PATH)
+        gid = grp.getgrnam(profile["status_group"]).gr_gid
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_gid != gid or metadata.st_nlink != 1 or stat.S_IMODE(metadata.st_mode) != 0o640:
+            return False
+        with open(STATUS_PATH, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        status = payload["status"]
+        return payload.get("schema") == 1 and status.get("type") == "setup_portal_status" and status.get("phase") in {"succeeded", "failed", "timed_out"}
+    except (AttributeError, KeyError, OSError, TypeError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def cleanup_mode(profile, clock=time.monotonic):
+    if not status_is_terminal(profile):
+        write_status(_status("failed", error_code="operation_failed"), profile)
+    coordinator = Coordinator(profile)
+    try:
+        coordinator.portal_suffix = coordinator.interface_suffix()
+    except (OSError, SetupFailure):
+        pass
+    coordinator.cleanup(clock() + 10.0)
+    return 0
+
+
+def main():
+    service_started_at = time.monotonic()
+    profile = setup_config.load_profile()
+    if len(sys.argv) == 2 and sys.argv[1] == "--cleanup":
+        return cleanup_mode(profile)
+    if len(sys.argv) != 1:
+        raise SystemExit(2)
+    consume_request(profile)
+    return Coordinator(profile).run(service_started_at)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

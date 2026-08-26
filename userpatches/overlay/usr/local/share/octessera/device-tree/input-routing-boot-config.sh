@@ -58,6 +58,46 @@ octessera_remove_uart0_console_args() {
   ' "$source_file" > "$destination_file"
 }
 
+octessera_set_armbian_display_console() {
+  local source_file="$1"
+  local destination_file="$2"
+
+  awk '
+    function fail(message) {
+      print "Invalid Armbian boot configuration: " message > "/dev/stderr"
+      failed = 1
+    }
+    {
+      line = $0
+      if (line ~ /^[[:space:]]*#/) {
+        if (line ~ /(^|[^_[:alnum:]])console[[:space:]]*=/) {
+          fail("commented console assignment")
+        }
+        print line
+        next
+      }
+      if (line ~ /^console=/) {
+        if (seen++) {
+          fail("duplicate console assignment")
+        }
+        print "console=display"
+        next
+      }
+      if (line ~ /(^|[^_[:alnum:]])console[[:space:]]*=/) {
+        fail("malformed console assignment")
+        next
+      }
+      print line
+    }
+    END {
+      if (!seen) {
+        print "console=display"
+      }
+      exit(failed ? 2 : 0)
+    }
+  ' "$source_file" > "$destination_file"
+}
+
 octessera_assert_no_uart0_console_args() {
   local config_file="$1"
   awk '

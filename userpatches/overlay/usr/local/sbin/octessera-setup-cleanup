@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-python3 /usr/local/lib/octessera/setup-status.py stop >/dev/null 2>&1 || true
-rm -f -- /run/octessera-setup/nonce /run/octessera-setup/readiness

@@ -5,7 +5,7 @@ use octessera_hal::OledSsd1351;
 pub(crate) fn run(
     runtime_config: runtime_thread::RuntimeThreadConfig,
     seesaw_tx: mpsc::Sender<SeesawCommand>,
-    hdmi: Option<render::hdmi::HdmiFramebuffer>,
+    hdmi: render::hdmi::HdmiFramebuffer,
 ) {
     let mut prepared = match runtime_thread::prepare(runtime_config) {
         Ok(prepared) => prepared,

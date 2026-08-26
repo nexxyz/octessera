@@ -62,7 +62,8 @@ then verify the board revision, schematic, Armbian device tree, and live pinmux.
   multimeter before connecting the PCB.
 - Physical pins 3/5 appear to provide I2C1 SDA/SCL; confirm the live bus.
 - Physical pins 19/21/23/24 appear to provide the reviewed SPI1 data/CS0 path;
-  pin 26 is SPI1 CS1 and remains unused. Confirm `/dev/spidev1.0` and pinmux.
+  pin 26 is the reviewed SPI1 CS1 SD2 path. Confirm `/dev/spidev1.0`, the SD2
+  node, and live pinmux.
 - Physical pins 16/36 appear GPIO-capable for OLED D/C and reset; confirm lines
   and polarity.
 - Physical pins 12/35/40 are not proven Pi-style I2S/PCM pins. I2S is blocked
@@ -119,9 +120,12 @@ grep -E "$USB_CONFIG_RE" /boot/config-$(uname -r) 2>/dev/null || true
 
 Install `gpiod` if `gpioinfo` is missing. Armbian uses `/boot/armbianEnv.txt`
 and U-Boot overlays, not Raspberry `/boot/config.txt`, `dtoverlay=` names, or
-BCM numbering. The reviewed SPI1 source is
-`userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts`;
-do not substitute the stock `spidev1_0` overlay.
+BCM numbering. The reviewed SPI1 OLED+SD2 source is
+`userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-oled-sd2.dts`;
+do not substitute the stock `spidev1_0` overlay. SD2 chip select is header
+pin 26; H618 PH9 is SPI1 CS1 with mux `0x4`, while the OLED is SPI1 CS0.
+Physical OLED/microSD coexistence remains explicitly unqualified at this
+stage and requires live-kernel and electrical proof.
 
 ### 2. Verify setup and SSH
 
@@ -130,13 +134,19 @@ created an AP, joined a network, served a captive page, applied credentials, or
 preserved secrets. Run the complete flow on both fixed board paths when doing a
 shared setup qualification:
 
-- create and join the setup AP, then load the captive page;
+- at the instrument, choose `System > Configure WiFi > Open Portal`;
+- join the setup AP and load the captive page;
 - apply Wi-Fi, hostname, SSH mode, and login settings;
-- reconnect over the configured network;
-- attach while setup is already running;
-- observe the 30-minute timeout and portal closure;
-- inspect failure/partial-state messages, AP traffic, HTTP responses,
-  status/receipt files, logs, and artifacts for secret leakage.
+- wait for the OLED terminal result before reconnecting;
+- observe the 10-minute user window after portal readiness and its timeout;
+- inspect AP traffic, HTTP responses, the single current status file at
+  `/run/octessera-setup-status/current.json`, logs, and artifacts for secret
+  leakage.
+
+The browser submission is provisional. An AP disconnect while settings apply is
+expected, and is not a success or failure result. Success requires only a usable
+global `wlan0` IPv4 address; it does not require Internet access, a default
+route, DNS, or ICMP.
 
 Once SSH is reachable, run the read-only Windows probe:
 
@@ -187,9 +197,15 @@ bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 
 Only during an authorized live qualification, capture `lsusb -v`, confirm
 DAW-visible MIDI naming and send/receive, confirm exact UAC2 output/rate and
-reconnect behavior, test host suspend/resume, and confirm no mass-storage
-function. The Linux Foundation VID/PID values are local-validation-only, not a
-public product identity; defaults remain disabled.
+reconnect behavior, test host suspend/resume, and qualify the separate SD2 mass-
+storage start/eject/stop path. The Linux Foundation VID/PID values are
+local-validation-only, not a public product identity; defaults remain disabled.
+
+The Orange SD2 source/image contract now includes the fixed
+`/run/octessera-orange-storage-control/storage.sock` seam and label-safe
+`OCTESSERA_SD` lifecycle. Physical UDC, host-eject, USB transfer, and recovery
+qualification are still pending; do not treat the fake-configfs tests as a
+hardware result.
 
 USB Audio and USB MIDI are experimental local bench-validation paths, not public
 first-release support claims. Before connecting a host to an instrument powered

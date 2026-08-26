@@ -72,7 +72,7 @@ Before pushing workflow or `userpatches/` changes, also run:
 ```bash
 bash tools/armbian-image/validate.sh
 python3 tools/pi-image/test-board-profile.py
-node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
+node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 git diff --check
 ```
 
@@ -124,6 +124,9 @@ bash tools/pi-image/test-rpi-boot-services.sh
 python3 tools/armbian-image/test_orange_oled_logo.py
 python3 tools/armbian-image/test_orange_oled_handoff.py
 python3 tools/armbian-image/test-orange-construction.py
+bash tools/armbian-image/test-octessera-sd-card.sh
+bash tools/armbian-image/test-orange-storage-lifecycle.sh
+python3 tools/armbian-image/test-orange-storage-control.py
 ```
 
 The handoff checks prove the exclusive `/run/octessera-boot` lock, strict
@@ -140,6 +143,13 @@ responsive 2,000,000,000 ns rest. The selected initramfs writers leave the
 final systemd sweep and handoff unchanged. The conservative 16 MHz wire budget
 is 491.625 ms for 30 frames (40.96875%), below the 80% limit; 58 frames pass
 that limit and 59 fail it.
+
+HDMI source checks cover Linux `/dev/tty1` Terminal ownership, the native grid VT
+lease, no connector force or display server, and nonfatal retry when `/dev/fb0` is
+missing. The splash observes the OLED handoff until `first_menu_rendered` and
+reclaims a fatal startup frame when native startup fails. Orange/Raspberry HDMI and
+OLED connector, framebuffer, VT, and ownership behavior still require physical
+qualification; these checks do not provide hardware proof.
 
 The native instrument-menu lifecycle is separate: PlaybackRuntime emits the
 exact sleep/shutdown/reboot toasts, and the board runtime force-acknowledges the
@@ -189,11 +199,14 @@ lists. Do not enable an overlay on another board or kernel without a new review.
 
 The Raspberry setup source is
 `tools/pi-image/stage4-octessera/files/root`; the Orange source is
-`userpatches/overlay`. Exact source paths, digests, modes, preimages, stale
-markers, and enabled-unit differences are recorded in
-`resources/image-mutations/raspberry-pi-zero-2w-setup.json` and
-`orange-pi-zero-2w-setup.json`. The setup layer is opt-in and permits only its
-declared files, symlinks, and stale-marker removal; it does not mutate packages,
+`userpatches/overlay`. The deletion-first layer installs one coordinator, one
+config module, one request-path unit, one root setup service, and one static UI.
+The fixed marker is `/run/octessera-setup-request/inbox/start`; runtime status is
+the one current file `/run/octessera-setup-status/current.json`. It also installs
+pinned patched wifi-connect 4.11.84 and its metadata/notice material. Exact source
+paths, digests, modes, preimages, stale markers, and enabled-unit differences
+remain recorded in the two image-mutation contracts. The layer removes the old setup
+plumbing, leaves only the request path enabled, and does not mutate packages,
 accounts, network, boot, or firmware. Missing parent packages, accounts,
 executables, services, ownership, modes, xattrs, or preimages fail closed.
 
@@ -201,7 +214,8 @@ Run the targeted setup and security checks:
 
 ```bash
 bash tools/armbian-image/test-setup-layer.sh
-PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test_setup_sidecar.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-readiness.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-ui.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-request.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-http.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-flow.py
@@ -213,7 +227,7 @@ python3 tools/image-respin/verify-parent-release.py --manifest resources/image-p
 python3 tools/image-respin/test_runtime_contract.py
 python3 tools/image-respin/test_workflow_records.py
 python3 tools/image-respin/test_workflow_static.py
-node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
+node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 ```
 
 Root-required mutation and disk fixtures run in CI as

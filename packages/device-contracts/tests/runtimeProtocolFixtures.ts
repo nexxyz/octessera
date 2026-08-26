@@ -3,6 +3,7 @@ import type {
   RuntimePlatformEffect,
   RuntimeSetupPortalStatus,
   RuntimeStoreResult,
+  RuntimeUserDataTransferStatus,
 } from "../src/index";
 
 export const RUNTIME_AUDIO_COMMAND_FIXTURES = [
@@ -89,6 +90,8 @@ export const RUNTIME_PLATFORM_EFFECT_FIXTURES = [
   { type: "rollback" },
   { type: "system_info_request" },
   { type: "setup_portal_open" },
+  { type: "user_data_transfer_open" },
+  { type: "user_data_transfer_close" },
   {
     type: "sample_list_request",
     instrumentSlot: 0,
@@ -150,6 +153,18 @@ export const RUNTIME_SETUP_PORTAL_STATUS_FIXTURES = [
     errorCode: "unsupported",
   },
 ] as const satisfies readonly RuntimeSetupPortalStatus[];
+
+export const RUNTIME_USER_DATA_TRANSFER_STATUS_FIXTURES = [
+  {
+    type: "user_data_transfer_status",
+    phase: "ready",
+    url: "http://192.168.42.1:8081",
+    code: "Ab2Cd3Ef4G",
+    expiresInSeconds: 900,
+  },
+  { type: "user_data_transfer_status", phase: "closed" },
+  { type: "user_data_transfer_status", phase: "unsupported" },
+] as const satisfies readonly RuntimeUserDataTransferStatus[];
 
 export const RUNTIME_STORE_RESULT_FIXTURES = [
   { type: "list_presets_result", names: ["Factory", "Live Set"] },
@@ -230,6 +245,7 @@ export const RUNTIME_STORE_RESULT_FIXTURES = [
     error: { code: "unavailable", message: "not connected" },
   },
   RUNTIME_SETUP_PORTAL_STATUS_FIXTURES[0],
+  RUNTIME_USER_DATA_TRANSFER_STATUS_FIXTURES[0],
   {
     type: "identified",
     result: {

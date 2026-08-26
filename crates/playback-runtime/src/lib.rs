@@ -22,10 +22,11 @@ pub use protocol::{
     RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeErrorMetadata,
     RuntimeMomentaryFxTarget, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
     RuntimeRecovery, RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode,
-    RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeSetupPortalTransfer, RuntimeStatus,
-    RuntimeStatusState, RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError,
-    RuntimeTransportState, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus, SampleEntry,
-    SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
+    RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeStatus, RuntimeStatusState,
+    RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError, RuntimeTransportState,
+    RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus, RuntimeUserDataTransferPhase,
+    RuntimeUserDataTransferStatus, SampleEntry, SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
+    USER_DATA_TRANSFER_CODE_ALPHABET, USER_DATA_TRANSFER_CODE_LENGTH,
 };
 pub use runtime::{
     CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,

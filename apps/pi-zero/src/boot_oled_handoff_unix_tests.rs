@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
+#[path = "boot_oled_handoff_unix_file_security_tests.rs"]
+mod file_security_tests;
+
 #[test]
 fn request_ids_and_boot_ids_are_strict() {
     assert!(valid_request_id("0123456789abcdef0123456789abcdef"));
@@ -33,6 +36,44 @@ fn status_contract_rejects_unknown_keys_and_missing_request_id() {
         "schema": 1, "phase": "animating", "bootId": boot_id, "pid": 0, "cycleCount": 2,
     });
     assert!(files::parse_status_for_test(&zero_pid).is_err());
+}
+
+#[test]
+fn startup_fatal_contract_is_exact_and_allowlisted() {
+    let path = test_directory("fatal-contract");
+    let directory = HandoffDirectory::open_existing_at(&path).unwrap();
+    let boot_id = directory.identity.boot_id.clone();
+    for code in [
+        StartupFatalCode::TrellisUnavailable,
+        StartupFatalCode::NeokeyUnavailable,
+        StartupFatalCode::ControlsUnavailable,
+        StartupFatalCode::AudioUnavailable,
+        StartupFatalCode::OledUnavailable,
+        StartupFatalCode::StartupFailed,
+    ] {
+        publish_fatal_at(&path, code).unwrap();
+        let bytes = fs::read(path.join(FATAL_NAME)).unwrap();
+        assert!(bytes.len() <= MAX_FATAL_BYTES);
+        let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "schema": 1,
+                "bootId": boot_id.clone(),
+                "code": code.as_str(),
+            })
+        );
+        assert_eq!(read_fatal(&directory).unwrap().unwrap().code, code);
+    }
+    assert_eq!(
+        fs::metadata(path.join(FATAL_NAME))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o7777,
+        FATAL_MODE
+    );
+    let _ = fs::remove_dir_all(path);
 }
 
 #[test]
@@ -87,34 +128,38 @@ fn detached_native_guard_cannot_mark_failed_before_reacquire() {
     let mut native = native_attach_at(&path).unwrap();
     let expected = read_status(&native.directory).unwrap().unwrap();
     native.detach_preserving().unwrap();
-    native.mark_failed();
+    assert!(native.mark_failed_result().is_err());
     assert_eq!(read_status(&native.directory).unwrap().unwrap(), expected);
     native.reacquire_existing().unwrap();
     let _ = fs::remove_dir_all(path);
 }
 
 #[test]
-fn symlink_and_hardlink_entries_are_not_accepted() {
-    let path = test_directory("unsafe");
-    let request = serde_json::json!({
-        "schema": 1,
-        "bootId": current_boot_id().unwrap(),
-        "pid": 1,
-        "requestId": "0123456789abcdef0123456789abcdef",
-    });
-    fs::write(
-        path.join(STATUS_NAME),
-        serde_json::to_vec(&request).unwrap(),
-    )
-    .unwrap();
-    let mut permissions = fs::metadata(path.join(STATUS_NAME)).unwrap().permissions();
-    permissions.set_mode(STOP_MODE);
-    fs::set_permissions(path.join(STATUS_NAME), permissions).unwrap();
-    let _ = std::os::unix::fs::symlink(path.join(STATUS_NAME), path.join(STOP_NAME));
-    assert!(read_stop(&HandoffDirectory::open_runtime_at(&path).unwrap()).is_err());
-    let _ = fs::remove_file(path.join(STOP_NAME));
-    fs::hard_link(path.join(STATUS_NAME), path.join(STOP_NAME)).unwrap();
-    assert!(read_stop(&HandoffDirectory::open_runtime_at(&path).unwrap()).is_err());
+fn failed_status_recovers_through_release_and_native_ownership_with_matching_ids() {
+    let path = test_directory("failed-recovery-sequence");
+    let mut animator = animator_start_at(&path).unwrap();
+    animator.mark_failed();
+    let failed = read_status(&animator.directory).unwrap().unwrap();
+    let request_id = failed.request_id.clone();
+    assert_eq!(failed.phase, HandoffPhase::Failed);
+
+    assert!(animator.stop_requested().unwrap());
+    assert_eq!(
+        read_status(&animator.directory).unwrap().unwrap().phase,
+        HandoffPhase::ReleaseRequested
+    );
+    animator.release().unwrap();
+    let released = read_status(&HandoffDirectory::open_existing_at(&path).unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(released.phase, HandoffPhase::Released);
+
+    let native = native_attach_at(&path).unwrap();
+    let native_owned = read_status(&native.directory).unwrap().unwrap();
+    assert_eq!(native_owned.phase, HandoffPhase::NativeOwned);
+    assert_eq!(native_owned.boot_id, failed.boot_id);
+    assert_eq!(native_owned.request_id, request_id);
+    drop(native);
     let _ = fs::remove_dir_all(path);
 }
 
@@ -161,28 +206,6 @@ fn animator_restart_does_not_clobber_same_boot_terminal_state() {
             .is_some()
     );
     let _ = fs::remove_dir_all(path);
-}
-
-#[test]
-fn atomic_write_failures_remove_scoped_temporary_files() {
-    for failure in [
-        AtomicFailure::Write,
-        AtomicFailure::Sync,
-        AtomicFailure::Rename,
-    ] {
-        let path = test_directory("atomic-failure");
-        let directory = HandoffDirectory::open_existing_at(&path).unwrap();
-        inject_atomic_failure(failure);
-        let status = HandoffStatus::new(
-            HandoffPhase::Animating,
-            directory.identity.boot_id.clone(),
-            0,
-            None,
-        );
-        assert!(write_status(&directory, &status).is_err());
-        assert_no_temporary_files(&path);
-        let _ = fs::remove_dir_all(path);
-    }
 }
 
 #[test]
@@ -281,24 +304,10 @@ fn animator_and_native_failures_remain_recoverable_with_matching_stop() {
     assert!(animator.stop_requested().unwrap());
     animator.release().unwrap();
     let native = native_attach_at(&path).unwrap();
-    native.mark_failed();
+    native.mark_failed_result().unwrap();
     drop(native);
     drop(native_attach_at(&path).unwrap());
     let _ = fs::remove_dir_all(path);
-}
-
-fn assert_no_temporary_files(path: &std::path::Path) {
-    assert!(fs::read_dir(path)
-        .unwrap()
-        .filter_map(Result::ok)
-        .all(|entry| !entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with(".status.json.tmp-")
-            && !entry
-                .file_name()
-                .to_string_lossy()
-                .starts_with(".stop.request.tmp-")));
 }
 
 fn test_directory(label: &str) -> PathBuf {

@@ -1,8 +1,9 @@
 [Unit]
 Description=octessera Pi Zero 2W Headless Music System
 Wants=octessera-usb-gadget.service
+Wants=octessera-sd-card.service
 Wants=octessera-boot-splash.service
-After=octessera-usb-gadget.service sound.target
+After=octessera-usb-gadget.service octessera-sd-card.service sound.target
 After=octessera-boot-splash.service
 Requires=octessera-update-recovery.service
 After=octessera-update-recovery.service
@@ -10,6 +11,12 @@ After=octessera-update-recovery.service
 [Service]
 Type=simple
 User=pi
+NoNewPrivileges=yes
+TTYPath=/dev/tty1
+TTYReset=yes
+SupplementaryGroups=tty
+AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG
+CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG
 EnvironmentFile=-/etc/octessera/board-profile.env
 Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w
 WorkingDirectory=/home/pi
@@ -19,6 +26,7 @@ Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1
 Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json
 RuntimeDirectory=octessera
 RuntimeDirectoryMode=0755
+ReadWritePaths=/run/octessera-setup-request/inbox
 ExecStart=/usr/local/bin/octessera-pi
 Restart=always
 RestartSec=5

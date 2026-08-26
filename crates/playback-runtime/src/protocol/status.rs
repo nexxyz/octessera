@@ -56,6 +56,7 @@ pub enum RuntimeOperation {
     DeviceUpdate,
     SystemInfo,
     SetupPortal,
+    UserDataTransfer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -139,6 +140,19 @@ impl RuntimeErrorMetadata {
         }
         self
     }
+}
+
+pub(crate) const MIDI_INPUTS_ERROR_TITLE: &str = "MIDI INPUTS";
+pub(crate) const MIDI_INPUTS_ERROR_LINE: &str = "MIDI unavailable";
+
+pub(crate) fn is_midi_input_list_failure(
+    domain: &RuntimeErrorDomain,
+    code: &RuntimeErrorCode,
+    operation: &RuntimeOperation,
+) -> bool {
+    *domain == RuntimeErrorDomain::Midi
+        && *code == RuntimeErrorCode::OperationFailed
+        && *operation == RuntimeOperation::MidiListInputs
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

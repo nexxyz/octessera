@@ -309,7 +309,7 @@ impl NativeRunner {
 
 fn normalize_hdmi_mode(value: &str) -> &'static str {
     match value {
-        "none" => "none",
+        "Terminal" | "none" => "none",
         "live-grid" => "live-grid",
         "plain-grid" => "plain-grid",
         "active-behavior" => "active-behavior",

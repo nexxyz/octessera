@@ -73,7 +73,6 @@ mod tests {
                         phase: RuntimeSetupPortalPhase::Starting,
                         disposition: None,
                         portal_suffix: None,
-                        transfer: None,
                         reboot_required: false,
                         error_code: None,
                     },

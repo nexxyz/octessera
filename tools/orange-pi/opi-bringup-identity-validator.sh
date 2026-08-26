@@ -131,7 +131,7 @@ validate_boot_config() {
         if (user_assignments > 1) {
           invalid("duplicate user_overlays assignment")
         }
-        target["user_overlays"] = "octessera-h618-spi1-cs0"
+        target["user_overlays"] = "octessera-h618-spi1-oled-sd2"
         parse_tokens("user_overlays", substr(line, length("user_overlays=") + 1))
         next
       }
@@ -160,7 +160,7 @@ validate_boot_config() {
         invalid("overlays assignment must occur exactly once")
       }
       if (target_count["user_overlays"] != 1) {
-        invalid("missing required token: user_overlays=octessera-h618-spi1-cs0")
+        invalid("missing required token: user_overlays=octessera-h618-spi1-oled-sd2")
       }
       if (target_count["overlays"] != 1) {
         invalid("missing required token: overlays=i2c1-pi")

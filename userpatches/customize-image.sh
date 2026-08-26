@@ -26,47 +26,66 @@ source "$image_mode_helper"
 source "$diagnostic_payload_helper"
 # shellcheck disable=SC1090
 source "$sample_assets_helper"
-spi_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts"
-[[ -f "$spi_dts" ]] || { echo "Missing Orange Pi SPI overlay source." >&2; exit 1; }
+orange_runtime_assets_helper="$overlay_dir/usr/local/lib/octessera/orange-runtime-assets-install.sh"
+[[ -f "$orange_runtime_assets_helper" && ! -L "$orange_runtime_assets_helper" ]] || { echo "Missing Orange runtime asset installer." >&2; exit 1; }
+# shellcheck disable=SC1090
+source "$orange_runtime_assets_helper"
+spi_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-spi1-oled-sd2.dts"
 input_routing_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts"
-[[ -f "$input_routing_dts" ]] || { echo "Missing Orange Pi input-routing overlay source." >&2; exit 1; }
 audio_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts"
-[[ -f "$audio_dts" ]] || { echo "Missing Orange Pi AHUB0 audio overlay source." >&2; exit 1; }
-midi_modules_file="$overlay_dir/etc/modules-load.d/octessera-orange-midi.conf"
-[[ -f "$midi_modules_file" ]] || { echo "Missing Orange ALSA sequencer module-load file." >&2; exit 1; }
+octessera_validate_orange_runtime_assets "$overlay_dir" || exit 1
 install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples /var/lib/octessera/presets
 rm -f /var/lib/octessera/setup-complete /var/lib/octessera/setup-force /var/lib/octessera/setup-finalize-failed
-rm -f /run/octessera/setup-portal.request /run/octessera-setup-control/status.json
-rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-status
+rm -f /run/octessera/setup-portal.request /run/octessera-setup-request/inbox/start /run/octessera-setup-status/current.json
+rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-status /run/octessera-setup-queue /run/octessera-setup-request
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc
+apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc
 octessera_load_image_contract "$overlay_dir"
 if [[ "$OCTESSERA_IMAGE_MODE" == production && ( -n "${OCTESSERA_PAYLOAD_URL:-}" || -n "${OCTESSERA_PAYLOAD_SHA256:-}" ) ]]; then
   echo "Production Orange images do not accept payload URLs or payload hashes." >&2
   exit 1
 fi
 
-wifi_connect_version=4.11.84
-wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936
-wifi_connect_url="https://github.com/balena-os/wifi-connect/releases/download/v${wifi_connect_version}/wifi-connect-aarch64-unknown-linux-gnu.tar.gz"
-wifi_work="$(mktemp -d)"
-curl --fail --location --proto '=https' --tlsv1.2 --output "$wifi_work/wifi-connect.tar.gz" "$wifi_connect_url"
-echo "$wifi_connect_sha256  $wifi_work/wifi-connect.tar.gz" | sha256sum -c -
-tar -xf "$wifi_work/wifi-connect.tar.gz" -C "$wifi_work"
-install -D -m 0755 "$wifi_work/wifi-connect" /usr/local/bin/wifi-connect
-install -d -m 0755 /usr/local/share/doc/octessera
-cat >/usr/local/share/doc/octessera/wifi-connect.metadata <<EOF
-wifi-connect ${wifi_connect_version}
-Source: ${wifi_connect_url}
-SHA256: ${wifi_connect_sha256}
-License: Apache-2.0
-EOF
-cat >/usr/local/share/doc/octessera/wifi-connect.NOTICE <<'EOF'
-wifi-connect is distributed by balena under the Apache License 2.0.
-See https://github.com/balena-os/wifi-connect for upstream license text.
-EOF
-rm -rf "$wifi_work"
+mapfile -t kernel_configs < <(find -P /boot -maxdepth 1 -type f -name 'config-*' -print | LC_ALL=C sort)
+[[ "${#kernel_configs[@]}" == 1 ]] || { echo "Expected exactly one Orange kernel config in /boot." >&2; exit 1; }
+kernel_config="${kernel_configs[0]}"
+kernel_config_value() {
+  local symbol="$1"
+  local matches
+  matches="$(grep -E "^${symbol}=(y|m)$" "$kernel_config" || true)"
+  [[ "$(printf '%s\n' "$matches" | awk 'NF { count++ } END { print count + 0 }')" == 1 ]] || {
+    echo "Orange kernel config must contain exactly one enabled ${symbol}." >&2
+    return 1
+  }
+  printf '%s\n' "${matches#*=}"
+}
+mmc_core_value="$(kernel_config_value CONFIG_MMC)"
+mmc_block_value="$(kernel_config_value CONFIG_MMC_BLOCK)"
+mmc_spi_value="$(kernel_config_value CONFIG_MMC_SPI)"
+[[ "$mmc_core_value" == y && "$mmc_block_value" == y ]] || { echo "Orange kernel must build MMC core and block support in." >&2; exit 1; }
+sd_modules_load_file=/etc/modules-load.d/octessera-orange-sd-card.conf
+rm -f "$sd_modules_load_file"
+if [[ "$mmc_spi_value" == m ]]; then
+  printf '%s\n' mmc_spi > "$sd_modules_load_file"
+  chown root:root "$sd_modules_load_file"
+  chmod 0644 "$sd_modules_load_file"
+fi
+
+wifi_connect_artifact_dir="$overlay_dir/usr/local/share/octessera/wifi-connect"
+wifi_connect_expected_sha256=929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc
+wifi_connect_patch_sha256=3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939
+for wifi_connect_file in wifi-connect wifi-connect.metadata.json cargo-metadata.json LICENSE THIRD-PARTY-NOTICES.md; do
+  [[ -f "$wifi_connect_artifact_dir/$wifi_connect_file" && ! -L "$wifi_connect_artifact_dir/$wifi_connect_file" ]] || { echo "Missing locally supplied patched wifi-connect artifact: $wifi_connect_file" >&2; exit 1; }
+done
+echo "$wifi_connect_expected_sha256  $wifi_connect_artifact_dir/wifi-connect" | sha256sum -c -
+[[ "$(jq -er '.binary_sha256' "$wifi_connect_artifact_dir/wifi-connect.metadata.json")" == "$wifi_connect_expected_sha256" ]] || { echo "Patched wifi-connect metadata has the wrong binary SHA-256." >&2; exit 1; }
+[[ "$(jq -er '.patch_sha256' "$wifi_connect_artifact_dir/wifi-connect.metadata.json")" == "$wifi_connect_patch_sha256" ]] || { echo "Patched wifi-connect metadata has the wrong patch SHA-256." >&2; exit 1; }
+[[ "$(jq -er '.target' "$wifi_connect_artifact_dir/wifi-connect.metadata.json")" == aarch64-unknown-linux-gnu ]] || { echo "Patched wifi-connect metadata has the wrong target." >&2; exit 1; }
+install -D -m 0755 "$wifi_connect_artifact_dir/wifi-connect" /usr/local/bin/wifi-connect
+for wifi_connect_doc in LICENSE THIRD-PARTY-NOTICES.md wifi-connect.metadata.json cargo-metadata.json; do
+  install -D -m 0644 "$wifi_connect_artifact_dir/$wifi_connect_doc" "/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
+done
 
 install_overlay_file() {
   local src="$1"
@@ -83,7 +102,7 @@ while IFS= read -r -d '' legal_file; do
   install -D -m 0644 -o root -g root "$legal_file" "/usr/share/doc/octessera/$legal_relative"
 done < <(find -P "$overlay_dir/usr/share/doc/octessera" -type f -print0)
 
-if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage)' "$overlay_dir"; then
+if grep -RInE --exclude=wifi-connect '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage)' "$overlay_dir"; then
   echo "Refusing Raspberry Pi-specific overlay content." >&2
   exit 1
 fi
@@ -114,8 +133,8 @@ boot_dtb_helper="$overlay_dir/usr/local/share/octessera/device-tree/boot-dtb-sel
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
 source "$boot_dtb_helper"
 
-spi_overlay_name=octessera-h618-spi1-cs0
-spi_user_overlay_assignment='user_overlays=octessera-h618-spi1-cs0'
+spi_overlay_name=octessera-h618-spi1-oled-sd2
+spi_user_overlay_assignment='user_overlays=octessera-h618-spi1-oled-sd2'
 spi_user_overlay_token="${spi_user_overlay_assignment#*=}"
 input_routing_overlay_name=octessera-h618-input-routing
 input_routing_user_overlay_token="$input_routing_overlay_name"
@@ -179,10 +198,11 @@ octessera_run_dtc_inspection "$spi_work" inspect_merged_spi_overlay dtc -q -I dt
 spi1_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi1)"
 spi1_pins_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi1_pins)"
 spi1_cs0_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi1_cs0_pin)"
+spi1_cs1_path="$(fdtget -t s "$spi_merged_dtb" /__symbols__ spi1_cs1_pin || true)"
 spi0_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi0)"
 i2c1_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ i2c1)"
-[[ -n "$spi1_path" && -n "$spi1_pins_path" && -n "$spi1_cs0_path" && -n "$spi0_path" && -n "$i2c1_path" ]] || { echo "H618 base DTB is missing required bus symbols." >&2; exit 1; }
-if ! octessera_assert_spi1_merge "$stock_i2c1_merged_dtb" "$spi_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi0_path" "$i2c1_path" "Orange Pi"; then
+[[ -n "$spi1_path" && -n "$spi1_pins_path" && -n "$spi1_cs0_path" && -n "$spi1_cs1_path" && -n "$spi0_path" && -n "$i2c1_path" ]] || { echo "H618 base DTB is missing required bus symbols or the local SPI1 CS1 group." >&2; exit 1; }
+if ! octessera_assert_spi1_merge "$stock_i2c1_merged_dtb" "$spi_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi1_cs1_path" "$spi0_path" "$i2c1_path" "Orange Pi"; then
   echo "Orange Pi SPI1 merge assertions failed." >&2
   exit 1
 fi
@@ -209,7 +229,7 @@ production_merged_dtb="$audio_work/$audio_overlay_name-production-merged.dtb"
 cp -f -- "$input_routing_merged_dtb" "$production_spi_input_dtb"
 octessera_run_strict_diagnostic "$audio_work" merge_production_user_overlays fdtoverlay -i "$production_spi_input_dtb" -o "$production_merged_dtb" "$audio_dtbo_tmp" || exit 1
 octessera_run_dtc_inspection "$audio_work" inspect_production_user_overlays dtc -q -I dtb -O dts -o "$audio_work/$audio_overlay_name-production-merged.dts" "$production_merged_dtb" || exit 1
-if ! octessera_assert_spi1_merge "$stock_i2c1_merged_dtb" "$production_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi0_path" "$i2c1_path" "Orange Pi production composition"; then
+if ! octessera_assert_spi1_merge "$stock_i2c1_merged_dtb" "$production_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi1_cs1_path" "$spi0_path" "$i2c1_path" "Orange Pi production composition"; then
   echo "Orange Pi SPI1 production composition assertions failed." >&2
   exit 1
 fi
@@ -269,6 +289,20 @@ else
   mv -f -- "$armbian_env_tmp" "$armbian_env"
 fi
 armbian_env_tmp=
+
+display_console_tmp="$(mktemp "${armbian_env}.display-console.XXXXXX")"
+if ! octessera_set_armbian_display_console "$armbian_env" "$display_console_tmp"; then
+  echo "Refusing malformed or ambiguous Armbian console configuration." >&2
+  exit 1
+fi
+chmod --reference="$armbian_env" "$display_console_tmp"
+chown --reference="$armbian_env" "$display_console_tmp"
+if cmp -s "$armbian_env" "$display_console_tmp"; then
+  rm -f "$display_console_tmp"
+else
+  mv -f -- "$display_console_tmp" "$armbian_env"
+fi
+display_console_tmp=
 
 boot_args_tmp="$(mktemp "${armbian_env}.boot-args.XXXXXX")"
 if ! octessera_remove_uart0_console_args "$armbian_env" "$boot_args_tmp"; then
@@ -335,33 +369,8 @@ install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/oct
 install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
 install_overlay_file usr/local/lib/octessera/updater_profiles.py /usr/local/lib/octessera/updater_profiles.py 0644
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
-install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
-device_config_overlay="$overlay_dir/usr/local/lib/octessera/device_config.py"
-[[ -f "$device_config_overlay" && ! -L "$device_config_overlay" ]] || { echo "Missing staged canonical device config. Run tools/armbian-image/stage-device-config.py." >&2; exit 1; }
-install_overlay_file usr/local/lib/octessera/device_config.py /usr/local/lib/octessera/device_config.py 0644
-install_overlay_file usr/local/sbin/octessera-device-apply-reboot /usr/local/sbin/octessera-device-apply-reboot 0755
-install_overlay_file usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo 0755
-install_overlay_file usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py 0644
-install_overlay_file usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py 0644
-install_overlay_file usr/local/sbin/octessera-orange-oled-suspend /usr/local/sbin/octessera-orange-oled-suspend 0755
-install_overlay_file usr/local/sbin/octessera-provision-musical-default /usr/local/sbin/octessera-provision-musical-default 0755
-install_overlay_file usr/local/lib/octessera/orange-sample-assets.sh /usr/local/lib/octessera/orange-sample-assets.sh 0644
-install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644
-install_overlay_file etc/modules-load.d/octessera-orange-usb-gadget.conf /etc/modules-load.d/octessera-orange-usb-gadget.conf 0644
-install_overlay_file etc/systemd/system/octessera-orange-usb-gadget.service /etc/systemd/system/octessera-orange-usb-gadget.service 0644
-install_overlay_file etc/systemd/system/octessera-device-apply-reboot.socket /etc/systemd/system/octessera-device-apply-reboot.socket 0644
-install_overlay_file etc/systemd/system/octessera-device-apply-reboot@.service /etc/systemd/system/octessera-device-apply-reboot@.service 0644
-install_overlay_file etc/systemd/system/octessera-provision-musical-default.service /etc/systemd/system/octessera-provision-musical-default.service 0644
-install_overlay_file etc/initramfs-tools/hooks/octessera-orange-boot-splash /etc/initramfs-tools/hooks/octessera-orange-boot-splash 0755
-install_overlay_file etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash /etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 0755
-install_overlay_file etc/systemd/system/octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service 0644
-install_overlay_file etc/systemd/system/octessera-orange-oled-shutdown.service /etc/systemd/system/octessera-orange-oled-shutdown.service 0644
-install_overlay_file etc/systemd/system/octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service 0644
+octessera_install_orange_runtime_assets "$overlay_dir"
 install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
-install_overlay_file usr/local/share/octessera-setup-ui/octessera-mark.svg /usr/share/octessera/oled/octessera-mark.svg 0644
-install_overlay_file usr/local/share/octessera-setup-ui/octessera-wordmark.svg /usr/share/octessera/oled/octessera-wordmark.svg 0644
-install_overlay_file usr/local/share/octessera/oled/octessera-pi-booting.rgb565 /usr/share/octessera/oled/octessera-pi-booting.rgb565 0644
-install_overlay_file usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565 /usr/share/octessera/oled/octessera-pi-shutdown.rgb565 0644
 for musical_asset in \
   usr/share/octessera/defaults/pi-default.json \
   usr/share/octessera/samples/sample-manifest.tsv \
@@ -383,10 +392,7 @@ install_overlay_file etc/systemd/system/octessera-update.socket /etc/systemd/sys
 install_overlay_file etc/systemd/system/octessera-update@.service /etc/systemd/system/octessera-update@.service 0644
 install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
 if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
-  [[ -f "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" && ! -L "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" ]] || { echo "Missing exact Orange runtime udev rule." >&2; exit 1; }
-  install_overlay_file etc/udev/rules.d/70-octessera-orange-runtime.rules /etc/udev/rules.d/70-octessera-orange-runtime.rules 0644
-  install_overlay_file etc/systemd/system/octessera.service /etc/systemd/system/octessera.service 0644
-  octessera_install_production_runtime "$overlay_dir"
+  octessera_install_orange_production_assets "$overlay_dir"
 fi
 bash "$setup_layer_installer" "$overlay_dir"
 
@@ -446,17 +452,10 @@ setup_request_target="$(readlink "$setup_request_link")"
 rm -f "$setup_request_link"
 ln -s ../octessera-setup-request.path "$setup_request_link"
 [[ "$(readlink "$setup_request_link")" == "../octessera-setup-request.path" ]] || { echo "Setup request path symlink target is not canonical." >&2; exit 1; }
-systemctl enable octessera-orange-usb-gadget.service >/dev/null
-systemctl enable octessera-device-apply-reboot.socket >/dev/null
-systemctl enable octessera-provision-musical-default.service >/dev/null
-systemctl enable octessera-orange-boot-splash.service >/dev/null
-systemctl enable octessera-orange-oled-shutdown.service >/dev/null
-systemctl enable octessera-orange-oled-suspend.service >/dev/null
+octessera_enable_orange_runtime_services
 systemctl enable octessera-update-recovery.service >/dev/null
 systemctl enable octessera-update.socket >/dev/null
-if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
-  systemctl enable octessera.service >/dev/null
-fi
+[[ "$OCTESSERA_IMAGE_MODE" != production ]] || systemctl enable octessera.service >/dev/null
 update-initramfs -u
 
 cat >/etc/octessera/build-metadata.env <<EOF
@@ -470,8 +469,8 @@ OCTESSERA_RUNTIME_VERSION=${OCTESSERA_RUNTIME_VERSION}
 OCTESSERA_RUNTIME_BINARY_SHA256=${OCTESSERA_RUNTIME_BINARY_SHA256}
 OCTESSERA_RUNTIME_MANIFEST_SHA256=${OCTESSERA_RUNTIME_MANIFEST_SHA256}
 OCTESSERA_RUNTIME_METADATA_SHA256=${OCTESSERA_RUNTIME_METADATA_SHA256}
-OCTESSERA_SPI1_CS0_DTS_SHA256=${spi_dts_sha256}
-OCTESSERA_SPI1_CS0_DTBO_SHA256=${spi_dtbo_sha256}
+OCTESSERA_SPI1_OLED_SD2_DTS_SHA256=${spi_dts_sha256}
+OCTESSERA_SPI1_OLED_SD2_DTBO_SHA256=${spi_dtbo_sha256}
 OCTESSERA_INPUT_ROUTING_DTS_SHA256=$(sha256sum "$input_routing_dts_image" | awk '{ print $1 }')
 OCTESSERA_INPUT_ROUTING_DTBO_SHA256=$(sha256sum "$input_routing_dtbo" | awk '{ print $1 }')
 OCTESSERA_AHUB0_PCM5102_DTS_SHA256=${audio_dts_sha256}

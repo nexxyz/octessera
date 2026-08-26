@@ -2,33 +2,57 @@ use super::*;
 use std::ffi::CString;
 use std::io::Write;
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(test)]
 use std::cell::Cell;
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(test)]
 thread_local! {
     static ATOMIC_FAILURE: Cell<u8> = const { Cell::new(0) };
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(test)]
 #[derive(Clone, Copy)]
 pub(crate) enum AtomicFailure {
     Write = 1,
     Sync = 2,
     Rename = 3,
+    StatusWrite = 4,
+    FatalWrite = 5,
+    FatalAndStatusWrite = 6,
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(test)]
 pub(crate) fn inject_atomic_failure(failure: AtomicFailure) {
     ATOMIC_FAILURE.with(|value| value.set(failure as u8));
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-fn maybe_fail(failure: AtomicFailure) -> Result<(), String> {
+#[cfg(test)]
+fn maybe_fail(failure: AtomicFailure, name: &str) -> Result<(), String> {
     ATOMIC_FAILURE.with(|value| {
-        if value.get() == failure as u8 {
+        let targeted_failure = match name {
+            STATUS_NAME => AtomicFailure::StatusWrite,
+            FATAL_NAME => AtomicFailure::FatalWrite,
+            _ => failure,
+        };
+        if value.get() == AtomicFailure::FatalAndStatusWrite as u8
+            && (name == STATUS_NAME || name == FATAL_NAME)
+        {
+            value.set(if name == FATAL_NAME {
+                AtomicFailure::StatusWrite as u8
+            } else {
+                AtomicFailure::FatalWrite as u8
+            });
+            return Err(format!(
+                "injected atomic {} failure",
+                targeted_failure as u8
+            ));
+        }
+        if value.get() == failure as u8 || value.get() == targeted_failure as u8 {
             value.set(0);
-            Err(format!("injected atomic {} failure", failure as u8))
+            Err(format!(
+                "injected atomic {} failure",
+                targeted_failure as u8
+            ))
         } else {
             Ok(())
         }
@@ -68,15 +92,15 @@ pub(super) fn atomic_write(
         name: from.clone(),
         committed: false,
     };
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-    maybe_fail(AtomicFailure::Write)?;
+    #[cfg(test)]
+    maybe_fail(AtomicFailure::Write, name)?;
     file.write_all(bytes).map_err(|error| error.to_string())?;
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-    maybe_fail(AtomicFailure::Sync)?;
+    #[cfg(test)]
+    maybe_fail(AtomicFailure::Sync, name)?;
     file.sync_all().map_err(|error| error.to_string())?;
     let to = CString::new(name).expect("handoff name");
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-    maybe_fail(AtomicFailure::Rename)?;
+    #[cfg(test)]
+    maybe_fail(AtomicFailure::Rename, name)?;
     let rename_result = if no_replace {
         unsafe {
             libc::syscall(

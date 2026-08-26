@@ -21,6 +21,22 @@ class ImageProofError(ValueError):
     pass
 
 
+_RESIZE_SERVICE_PATH = Path("usr/lib/systemd/system/armbian-resize-filesystem.service")
+_RESIZE_ENABLE_PATH = Path("etc/systemd/system/basic.target.wants/armbian-resize-filesystem.service")
+_RESIZE_DIRECTIVES = {
+    "Unit": {
+        "After": "sysinit.target local-fs.target",
+        "Before": "basic.target",
+        "DefaultDependencies": "no",
+    },
+    "Service": {
+        "Type": "oneshot",
+        "TimeoutStartSec": "6min",
+    },
+    "Install": {"WantedBy": "basic.target"},
+}
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise ImageProofError(message)
@@ -44,6 +60,40 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _verify_resize_service(root: Path) -> None:
+    service = root / _RESIZE_SERVICE_PATH
+    require(service.is_file() and not service.is_symlink(), "Orange resize service is missing or symlinked")
+    try:
+        lines = service.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as error:
+        raise ImageProofError("Orange resize service is unreadable") from error
+    section: str | None = None
+    seen: set[tuple[str, str]] = set()
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            continue
+        key, separator, value = line.partition("=")
+        if separator and section in _RESIZE_DIRECTIVES and key.strip() in _RESIZE_DIRECTIVES[section]:
+            directive = (section, key.strip())
+            require(directive not in seen, f"Orange resize service directive is duplicated: {section}.{key.strip()}")
+            seen.add(directive)
+            require(value.strip() == _RESIZE_DIRECTIVES[section][key.strip()], f"Orange resize service directive is wrong: {section}.{key.strip()}")
+    for section_name, directives in _RESIZE_DIRECTIVES.items():
+        for key in directives:
+            require((section_name, key) in seen, f"Orange resize service directive is missing: {section_name}.{key}")
+    enabled = root / _RESIZE_ENABLE_PATH
+    require(
+        enabled.is_symlink()
+        and enabled.readlink().as_posix()
+        in {"../../../usr/lib/systemd/system/armbian-resize-filesystem.service", "/usr/lib/systemd/system/armbian-resize-filesystem.service"},
+        "Orange resize service is not enabled for basic.target",
+    )
+
+
 def _phase5(args: argparse.Namespace, root: Path, image_hash: str, image_name: str, compression: str, repository_root: Path) -> dict[str, Any]:
     required = {
         "--linux-image": args.linux_image,
@@ -57,6 +107,8 @@ def _phase5(args: argparse.Namespace, root: Path, image_hash: str, image_name: s
     require(args.manifest is not None, "--manifest is required for phase5-constructor")
     require(args.trust_manifest is None, "--trust-manifest is forbidden for phase5-constructor")
     require(args.boot_neutral_contract is None and args.parent_image is None and args.respin_provenance is None and args.setup_proof is None and args.derivation_kind is None, "trusted-parent arguments are invalid for phase5-constructor")
+    if args.mode == "production":
+        _verify_resize_service(root)
     return constructor_proof(root, args, image_hash, image_name, compression, repository_root)
 
 

@@ -210,6 +210,7 @@ fn midi_input_failure_uses_concise_native_oled_presentation() {
     let snapshot = runtime.last_snapshot().unwrap();
     let display = snapshot["display"].as_object().unwrap();
     assert_eq!(display["title"], "MIDI INPUTS");
+    assert_eq!(display["bodyLayout"], "rows");
     assert_eq!(display["lines"], json!(["MIDI unavailable"]));
     assert_eq!(display["toast"], "MIDI unavailable");
     for line in std::iter::once(display["title"].as_str().unwrap())

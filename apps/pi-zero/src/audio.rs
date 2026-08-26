@@ -9,7 +9,6 @@ use crate::audio_sink_registry::test_sink_sender;
 use crate::audio_sink_registry::{broadcast_event_atomic, AudioAttachGate, SinkSender};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::audio_stream_health::AudioStreamHealth;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::recording::{RecorderService, RecordingTap};
 #[path = "audio_defaults.rs"]
 mod audio_defaults;
@@ -29,7 +28,6 @@ use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 
@@ -48,9 +46,7 @@ pub struct AudioService {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     required_jack_health: Option<AudioStreamHealth>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     recorder: Arc<Mutex<RecorderService>>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     recording_tap: Arc<RwLock<Option<RecordingTap>>>,
 }
 
@@ -158,6 +154,11 @@ impl AudioService {
         result
     }
 
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(crate) fn usb_output_enabled(&self) -> bool {
+        self.audio_outputs.usb()
+    }
+
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn required_jack_failed(&self) -> bool {
         self.required_jack_health
@@ -165,7 +166,6 @@ impl AudioService {
             .is_some_and(AudioStreamHealth::is_faulted)
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), String> {
         let mut recorder = self
             .recorder
@@ -179,7 +179,6 @@ impl AudioService {
         Ok(())
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn stop_recording(&self) -> Result<(), String> {
         let mut recorder = self
             .recorder
@@ -193,7 +192,6 @@ impl AudioService {
         Ok(())
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn prepare_restore(&self) -> Result<(), String> {
         let mut recorder = self
             .recorder
@@ -214,13 +212,34 @@ impl AudioService {
         Ok(())
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[allow(dead_code)]
     pub fn is_recording(&self) -> Result<bool, String> {
         Ok(self
             .recording_tap
             .read()
             .map_err(|_| "recording tap lock poisoned".to_string())?
             .is_some())
+    }
+
+    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+    pub(crate) fn test_push_recording_samples(&self, samples: &[i16]) -> Result<(), String> {
+        let tap = self
+            .recording_tap
+            .read()
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .clone()
+            .ok_or_else(|| "recording tap is inactive".to_string())?;
+        let mut chunk = crate::recording::RecordingChunk::new();
+        for sample in samples {
+            if !chunk.push(*sample) {
+                tap.push_chunk(chunk.take());
+                assert!(chunk.push(*sample));
+            }
+        }
+        if !chunk.is_empty() {
+            tap.push_chunk(chunk);
+        }
+        Ok(())
     }
 }
 
@@ -267,11 +286,9 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         recorder: Arc::new(Mutex::new(crate::recording::RecorderService::new(
             std::env::temp_dir().join("octessera-sample-prep-recordings"),
         ))),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         recording_tap: Arc::new(RwLock::new(None)),
     };
     (service, prep_result_tx)
@@ -302,22 +319,31 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
     service
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn restore_preflight_finalizes_active_recording() {
-        let service = test_service_for_sample_prep();
-        service.start_recording(1).unwrap();
-        assert!(service.is_recording().unwrap());
-        service.prepare_restore().unwrap();
-        assert!(!service.is_recording().unwrap());
-    }
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn test_service_with_prep_sender() -> (
+    AudioService,
+    Receiver<AudioControlRequest>,
+    EngineEventReceiver,
+    Sender<HostMessage>,
+) {
+    test_service_with_recording_dir(
+        std::env::temp_dir().join("octessera-orange-sample-prep-recordings"),
+    )
 }
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn test_service_with_prep_sender() -> (
+pub(crate) fn test_service_with_outputs(outputs: AudioOutputSet) -> AudioService {
+    let (mut service, _, _, _) = test_service_with_recording_dir(
+        std::env::temp_dir().join("octessera-orange-gate-recordings"),
+    );
+    service.audio_outputs = outputs;
+    service
+}
+
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn test_service_with_recording_dir(
+    recording_dir: std::path::PathBuf,
+) -> (
     AudioService,
     Receiver<AudioControlRequest>,
     EngineEventReceiver,
@@ -336,9 +362,25 @@ pub(crate) fn test_service_with_prep_sender() -> (
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
         audio_outputs: AudioOutputSet::jack(),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
+        recorder: Arc::new(Mutex::new(crate::recording::RecorderService::new(
+            recording_dir,
+        ))),
+        recording_tap: Arc::new(RwLock::new(None)),
     };
     (service, control_rx, event_rx, prep_result_tx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restore_preflight_finalizes_active_recording() {
+        let service = test_service_for_sample_prep();
+        service.start_recording(1).unwrap();
+        assert!(service.is_recording().unwrap());
+        service.prepare_restore().unwrap();
+        assert!(!service.is_recording().unwrap());
+    }
 }

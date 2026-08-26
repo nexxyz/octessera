@@ -85,6 +85,7 @@ pub(super) fn build_orange_cpal_stream(
     engine_rx: EngineEventReceiver,
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
+    recording_tap: Option<RecordingTapState>,
     stream_health: AudioStreamHealth,
 ) -> Result<BuiltAudioStream, RouteOpenError> {
     ensure_connector(sink)?;
@@ -101,9 +102,15 @@ pub(super) fn build_orange_cpal_stream(
     let source =
         EngineSource::with_block_frames(engine_rx, config.sample_rate.0, engine_block_frames);
     match sample_format {
-        SampleFormat::F32 => build_stream::<f32>(&device, &config, source, None, stream_health),
-        SampleFormat::I16 => build_stream::<i16>(&device, &config, source, None, stream_health),
-        SampleFormat::U16 => build_stream::<u16>(&device, &config, source, None, stream_health),
+        SampleFormat::F32 => {
+            build_stream::<f32>(&device, &config, source, recording_tap, stream_health)
+        }
+        SampleFormat::I16 => {
+            build_stream::<i16>(&device, &config, source, recording_tap, stream_health)
+        }
+        SampleFormat::U16 => {
+            build_stream::<u16>(&device, &config, source, recording_tap, stream_health)
+        }
         format => Err(RouteOpenError::Unsupported(format!(
             "unsupported Orange audio sample format: {format:?}"
         ))),
@@ -211,7 +218,6 @@ pub(super) fn map_play_stream_error(error: cpal::PlayStreamError) -> RouteOpenEr
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn fill_output<T>(
     data: &mut [T],
     source: &mut EngineSource,
@@ -219,9 +225,10 @@ fn fill_output<T>(
 ) where
     T: cpal::Sample + cpal::FromSample<f32>,
 {
-    let recorded = recording_tap
-        .and_then(|tap| tap.try_read().ok())
-        .and_then(|tap| tap.as_ref().cloned());
+    let recording_tap_guard = recording_tap.and_then(|tap| tap.try_read().ok());
+    let recorded = recording_tap_guard
+        .as_ref()
+        .and_then(|tap| (**tap).as_ref());
     let mut recording_chunk = recorded
         .as_ref()
         .map(|_| crate::recording::RecordingChunk::new());
@@ -242,22 +249,8 @@ fn fill_output<T>(
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn float_to_i16(value: f32) -> i16 {
     (value.clamp(-1.0, 1.0) * f32::from(i16::MAX)).round() as i16
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-fn fill_output<T>(
-    data: &mut [T],
-    source: &mut EngineSource,
-    _recording_tap: Option<&RecordingTapState>,
-) where
-    T: cpal::Sample + cpal::FromSample<f32>,
-{
-    for sample in data {
-        *sample = T::from_sample(source.next().unwrap_or(0.0));
-    }
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

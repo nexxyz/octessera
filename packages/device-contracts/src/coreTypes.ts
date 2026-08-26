@@ -36,8 +36,11 @@ export type DeviceInput =
 
 export type PageId = string;
 
+export type OledDisplayLayout = "rows" | "card";
+
 export type DisplayFrame = {
   page: PageId;
+  bodyLayout: OledDisplayLayout;
   title: string;
   lines: string[];
   editing: boolean;

@@ -11,6 +11,7 @@ import type {
   RuntimeOperation,
 } from "./runtimeErrors";
 import type { RuntimeSetupPortalStatus } from "./runtimeSetupPortal";
+import type { RuntimeUserDataTransferStatus } from "./runtimeUserDataTransfer";
 
 export {
   RUNTIME_SETUP_PORTAL_DISPOSITIONS,
@@ -28,6 +29,16 @@ export type {
   RuntimeSetupPortalStatus,
   RuntimeSetupPortalSuffix,
 } from "./runtimeSetupPortal";
+export {
+  RUNTIME_USER_DATA_TRANSFER_PHASES,
+  USER_DATA_TRANSFER_CODE_LENGTH,
+  USER_DATA_TRANSFER_CODE_PATTERN,
+  isRuntimeUserDataTransferStatus,
+} from "./runtimeUserDataTransfer";
+export type {
+  RuntimeUserDataTransferPhase,
+  RuntimeUserDataTransferStatus,
+} from "./runtimeUserDataTransfer";
 
 export const RUNTIME_STATUS_STATES = [
   "idle",
@@ -161,6 +172,8 @@ export type RuntimePlatformEffect =
   | { type: "rollback" }
   | { type: "system_info_request" }
   | { type: "setup_portal_open" }
+  | { type: "user_data_transfer_open" }
+  | { type: "user_data_transfer_close" }
   | {
       type: "sample_list_request";
       instrumentSlot: number;
@@ -237,7 +250,8 @@ export type RuntimeStoreResult =
   | { type: "device_update_status"; ok: boolean; message: string }
   | { type: "system_info_result"; info: RuntimeSystemInfo }
   | { type: "system_info_error"; error: RuntimeSystemInfoError }
-  | RuntimeSetupPortalStatus;
+  | RuntimeSetupPortalStatus
+  | RuntimeUserDataTransferStatus;
 
 export type RuntimeSystemInfo = {
   os: string;

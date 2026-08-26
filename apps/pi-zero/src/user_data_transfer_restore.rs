@@ -23,11 +23,14 @@ impl UserDataTransferService {
                 state.restore = RestoreState::Restoring {
                     session: pending.session.clone(),
                 };
-                state
-                    .runtime_statuses
-                    .push_back(RuntimeUserDataRestoreStatus {
-                        phase: RuntimeUserDataRestorePhase::Restoring,
-                    });
+                super::queue_runtime_status(
+                    &mut state,
+                    RuntimeStoreResult::UserDataRestoreStatus {
+                        status: RuntimeUserDataRestoreStatus {
+                            phase: RuntimeUserDataRestorePhase::Restoring,
+                        },
+                    },
+                );
             }
             pending
         };
@@ -76,15 +79,18 @@ impl UserDataTransferService {
                         session: worker_session,
                         status: restore_finished_status(&result),
                     };
-                    state
-                        .runtime_statuses
-                        .push_back(RuntimeUserDataRestoreStatus {
-                            phase: if result.is_ok() {
-                                RuntimeUserDataRestorePhase::Succeeded
-                            } else {
-                                RuntimeUserDataRestorePhase::Failed
+                    super::queue_runtime_status(
+                        &mut state,
+                        RuntimeStoreResult::UserDataRestoreStatus {
+                            status: RuntimeUserDataRestoreStatus {
+                                phase: if result.is_ok() {
+                                    RuntimeUserDataRestorePhase::Succeeded
+                                } else {
+                                    RuntimeUserDataRestorePhase::Failed
+                                },
                             },
-                        });
+                        },
+                    );
                 }
             })
             .map_err(|_| "restore worker failed to start".to_string());
@@ -104,11 +110,14 @@ fn fail_restore_start(inner: &Arc<TransferInner>, stage_root: &Path, session: St
             session,
             status: "failed",
         };
-        state
-            .runtime_statuses
-            .push_back(RuntimeUserDataRestoreStatus {
-                phase: RuntimeUserDataRestorePhase::Failed,
-            });
+        super::queue_runtime_status(
+            &mut state,
+            RuntimeStoreResult::UserDataRestoreStatus {
+                status: RuntimeUserDataRestoreStatus {
+                    phase: RuntimeUserDataRestorePhase::Failed,
+                },
+            },
+        );
     }
 }
 

@@ -164,14 +164,11 @@ fn recover_startup_at(store_dir: &Path, boot_id: &str) -> Result<(), String> {
 
 #[path = "orange_shutdown.rs"]
 mod shutdown;
+#[cfg(test)]
+pub(crate) use shutdown::resolve_shutdown_request_with_reboot_request;
 pub(crate) use shutdown::{
     abort_shutdown_request, finish_shutdown_resolution, resolve_shutdown_request,
     OrangeShutdownResolution,
-};
-#[cfg(test)]
-pub(crate) use shutdown::{
-    finish_shutdown_resolution_with_power_request, resolve_shutdown_request_with_reboot_request,
-    OrangePowerAction,
 };
 
 impl OrangeDeviceApplyTransaction {

@@ -10,13 +10,13 @@ try:
     from .runtime_contract import MutationError, check_spec
     from .runtime_contract import rooted
     from .setup_contract import load_contract, target_spec
-    from .setup_mutation import _validate_owned_directory, _validate_prerequisites
+    from .setup_mutation import _implicit_directory_paths, _validate_owned_directory, _validate_prerequisites
 except ImportError:
     from inventory import Inventory, build_inventory, inventory_digest
     from runtime_contract import MutationError, check_spec
     from runtime_contract import rooted
     from setup_contract import load_contract, target_spec
-    from setup_mutation import _validate_owned_directory, _validate_prerequisites
+    from setup_mutation import _implicit_directory_paths, _validate_owned_directory, _validate_prerequisites
 
 
 def _check_postimage(root: Path, inventory: Inventory, contract: dict[str, Any]) -> list[str]:
@@ -25,7 +25,12 @@ def _check_postimage(root: Path, inventory: Inventory, contract: dict[str, Any])
         if entry is None or entry.get("type") != "directory":
             raise MutationError(f"setup proof directory is not exact: {item['target']}")
         check_spec(entry, target_spec(item), item["target"])
-        _validate_owned_directory(inventory, contract, item["target"], item["target"])
+        _validate_owned_directory(inventory, contract, item["target"], item["target"], output=True)
+    for relative in _implicit_directory_paths(contract):
+        entry = inventory.get(relative)
+        if entry is None or entry.get("type") != "directory":
+            raise MutationError(f"setup proof implicit directory is not exact: {relative}")
+        check_spec(entry, {"type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None}, relative)
     for item in contract["entries"]:
         entry = inventory.get(item["target"])
         if entry is None or entry.get("type") != "file" or entry.get("sha256") != item["sha256"]:

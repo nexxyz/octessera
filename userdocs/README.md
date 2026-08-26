@@ -135,8 +135,10 @@ host/sample browser or the board sample paths. First boot only seeds a missing
 default and does not replace user samples.
 
 For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2;
-the selected board's boot card is SD1. Octessera mounts SD2 at `SD card` and
-creates `octessera/samples` plus `octessera/saves`; put WAV samples under
+the selected board's boot card is SD1. On Orange, SD2 is header pin 26 / H618
+PH9 (SPI1 CS1, mux `0x4`) beside the OLED's CS0. Physical coexistence is still
+unqualified. Octessera mounts SD2 at `SD card` and creates `octessera/samples`
+plus `octessera/saves`; put WAV samples under
 `octessera/samples`. If you use `System > Audio & USB > Start SD2 Xfer`, eject
 the drive on the host before pressing Back or Main to stop transfer. If no host
 is connected yet, Octessera waits until one appears and you can still cancel

@@ -2,7 +2,10 @@
 Description=Octessera Orange Pi runtime
 StartLimitIntervalSec=30s
 StartLimitBurst=3
-After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target
+After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service octessera-orange-sd-card.service sound.target
+Wants=octessera-orange-sd-card.service
+Wants=octessera-orange-storage-control.socket
+After=octessera-orange-storage-control.socket
 Requires=octessera-device-apply-reboot.socket
 Requires=octessera-provision-musical-default.service
 Requires=octessera-update-recovery.service
@@ -22,9 +25,14 @@ Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json
 Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1
 RuntimeDirectory=octessera
 RuntimeDirectoryMode=0755
+TTYPath=/dev/tty1
+TTYReset=yes
+SupplementaryGroups=audio i2c spi gpio tty video
 NoNewPrivileges=yes
+AmbientCapabilities=CAP_SYS_TTY_CONFIG
+CapabilityBoundingSet=CAP_SYS_TTY_CONFIG
 ProtectSystem=strict
-ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot
+ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox
 PrivateTmp=yes
 ProtectHome=yes
 ProtectKernelTunables=yes

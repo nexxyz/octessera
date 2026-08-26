@@ -5,6 +5,7 @@ import sys
 import types
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from orange_oled_lifecycle_test_support import FakeClock, FakeSignal, LifecycleHandoff, LifecycleOled, NativeRetryActor, assert_cleanup as assert_cleanup_events, run_lifecycle as run_lifecycle_with_logo
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,155 +35,16 @@ spec.loader.exec_module(logo)
 
 assert logo.NATIVE_HANDOFF_TIMEOUT_SECONDS == 30
 assert logo.BOOT_SWEEP_FRAME_COUNT == 30
+assert logo._lifecycle_module.FATAL_DIM_DELAY_NS == 60 * 1_000_000_000
 assert [logo.sweep_deadline_offset_ns(frame) for frame in range(30)] == [frame * 40_000_000 for frame in range(30)]
 
 
-class FakeClock:
-    def __init__(self, signal_module=None, signal_number=signal.SIGTERM):
-        self.now = 0
-        self.sleeps = []
-        self.signal_module = signal_module
-        self.signal_number = signal_number
-
-    def monotonic_ns(self):
-        return self.now
-
-    def sleep(self, seconds):
-        self.sleeps.append(seconds)
-        self.now += int(seconds * 1_000_000_000)
-        if self.signal_module is not None and self.signal_module.trigger_on_sleep:
-            self.signal_module.trigger_on_sleep = False
-            self.signal_module.trigger(self.signal_number)
-
-
-class FakeSignal:
-    SIGTERM = signal.SIGTERM
-    SIGINT = signal.SIGINT
-
-    def __init__(self):
-        self.handlers = {}
-        self.trigger_on_sleep = False
-        self.trigger_before_start = False
-
-    def getsignal(self, signum):
-        return self.handlers.get(signum, "default")
-
-    def signal(self, signum, handler):
-        self.handlers[signum] = handler
-        if signum == self.SIGTERM and self.trigger_before_start:
-            self.trigger_before_start = False
-            handler(signum, None)
-
-    def trigger(self, signum):
-        self.handlers[signum](signum, None)
-
-
-class LifecycleHandoff:
-    def __init__(self, stop_at=None, start_error=None, initial_status=None, events=None, release_error=None):
-        self.boot_id = "01234567-89ab-cdef-0123-456789abcdef"
-        self.stop_at = stop_at
-        self.clock = None
-        self.status = initial_status
-        self.start_error = start_error
-        self.events = events if events is not None else []
-        self.release_error = release_error
-        self.mark_failed_calls = 0
-        self.release_calls = 0
-        self.close_calls = 0
-
-    def _read_status(self):
-        return self.status
-
-    def start(self):
-        self.events.append(("start",))
-        if self.start_error is not None:
-            raise self.start_error
-        self.status = {"phase": "animating", "bootId": self.boot_id}
-
-    def stop_requested(self):
-        if self.stop_at is None or self.clock.now < self.stop_at:
-            return False
-        self.status = {"phase": "release_requested", "bootId": self.boot_id, "requestId": "0123456789abcdef0123456789abcdef"}
-        return True
-
-    def publish_cycle(self):
-        self.events.append(("publish-cycle",))
-
-    def release(self):
-        self.events.append(("release",))
-        self.release_calls += 1
-        if self.release_error is not None:
-            raise self.release_error
-
-    def mark_failed(self):
-        self.mark_failed_calls += 1
-        self.status = {"phase": "failed", "bootId": self.boot_id, "requestId": "0123456789abcdef0123456789abcdef"}
-
-    def close(self):
-        self.events.append(("handoff-close",))
-        self.close_calls += 1
-
-
-class LifecycleOled:
-    def __init__(self, events, fail_render=False, fail_black=False, fail_off=False, fail_close=False):
-        self.events = events
-        self.fail_render = fail_render
-        self.fail_black = fail_black
-        self.fail_off = fail_off
-        self.fail_close = fail_close
-
-    def initialize(self):
-        self.events.append(("initialize",))
-
-    def frame(self, payload):
-        self.stream_frame(payload)
-
-    def begin_frame_stream(self):
-        self.events.append(("begin-frame-stream",))
-
-    def stream_frame(self, payload):
-        self.events.append(("frame", payload))
-        if payload == bytes(logo.WIDTH * logo.HEIGHT * 2) and self.fail_black:
-            raise RuntimeError("black failed")
-        if payload == b"render" and self.fail_render:
-            raise RuntimeError("render failed")
-
-    def command(self, value):
-        self.events.append(("command", value))
-        if value == 0xAE and self.fail_off:
-            raise RuntimeError("off failed")
-
-    def close(self, display_off=True):
-        self.events.append(("close", display_off))
-        if not display_off and self.fail_close:
-            raise RuntimeError("close failed")
-
-
-def run_lifecycle(handoff, oled, clock, signal_module, cleanup_oled=None, oled_error=None, render_frame=None):
-    names = ("Handoff", "Oled", "open_cleanup_oled", "logo_canvas", "render_canvas", "render_housekeeping", "time", "signal")
-    saved = {name: getattr(logo, name) for name in names}
-    try:
-        handoff.clock = clock
-        logo.Handoff = types.SimpleNamespace(open=lambda create_lock: handoff)
-        logo.Oled = lambda: (_ for _ in ()).throw(oled_error) if oled_error is not None else oled
-        logo.open_cleanup_oled = lambda: cleanup_oled if cleanup_oled is not None else (_ for _ in ()).throw(RuntimeError("cleanup factory failed"))
-        logo.logo_canvas = lambda kind: kind
-        logo.render_canvas = lambda canvas, frame=None: render_frame(frame) if render_frame is not None else b"render"
-        logo.render_housekeeping = lambda: render_frame("housekeeping") if render_frame is not None else b"render"
-        logo.time = clock
-        logo.signal = signal_module
-        return logo._run_loop()
-    finally:
-        for name, value in saved.items():
-            setattr(logo, name, value)
+def run_lifecycle(*args, **kwargs):
+    return run_lifecycle_with_logo(logo, *args, **kwargs)
 
 
 def assert_cleanup(events):
-    cleanup_events = [event for event in events if event[0] in {"frame", "command", "close"}]
-    assert cleanup_events[-3] == ("frame", bytes(32768))
-    assert cleanup_events[-2] == ("command", 0xAE)
-    assert cleanup_events[-1] == ("close", False)
-    assert cleanup_events.count(("close", False)) == 1
+    assert_cleanup_events(events)
 
 
 stop_at_deadline = 30 * 1_000_000_000
@@ -215,41 +77,246 @@ else:
 assert_cleanup(start_failure_events)
 assert start_failure_handoff.mark_failed_calls == 1
 
-continuous_handoff = LifecycleHandoff(stop_at=logo.BOOT_SWEEP_DURATION_NS + 1_500_000_000)
 continuous_events = []
+continuous_handoff = LifecycleHandoff(stop_at=logo.BOOT_SWEEP_DURATION_NS + 1_500_000_000, events=continuous_events)
 continuous_clock = FakeClock()
 run_lifecycle(
     continuous_handoff,
     LifecycleOled(continuous_events),
     continuous_clock,
     FakeSignal(),
-    render_frame=lambda frame: b"clean" if frame is None else b"housekeeping" if frame == "housekeeping" else bytes((frame,)),
+    render_frame=lambda frame: b"clean" if frame is None else b"delayed" if frame == "delayed" else bytes((frame,)),
 )
 continuous_frames = [event[1] for event in continuous_events if event[0] == "frame"]
 assert logo.BOOT_SWEEP_FRAME_COUNT == 30
 assert continuous_frames == [bytes((frame,)) for frame in range(logo.BOOT_SWEEP_FRAME_COUNT)] + [b"clean"]
 assert continuous_events.count(("begin-frame-stream",)) == 1
+first_frame_index = next(index for index, event in enumerate(continuous_events) if event[0] == "frame")
+ready_index = next(index for index, event in enumerate(continuous_events) if event[0] == "ready")
+assert continuous_events.index(("start",)) < first_frame_index < ready_index
+assert continuous_events.count(("ready",)) == 1
 assert continuous_handoff.events.count(("publish-cycle",)) == 0
 assert continuous_clock.now == continuous_handoff.stop_at
 assert max(continuous_clock.sleeps[16:]) <= logo.BOOT_SWEEP_REST_CHECK_NS / 1_000_000_000
 assert continuous_clock.now < logo.BOOT_SWEEP_DURATION_NS + logo.BOOT_SWEEP_REST_NS
 assert not any(event[0] == "command" for event in continuous_events)
 
-housekeeping_handoff = LifecycleHandoff(stop_at=31 * 1_000_000_000)
-housekeeping_events = []
-housekeeping_clock = FakeClock()
-run_lifecycle(
-    housekeeping_handoff,
-    LifecycleOled(housekeeping_events),
-    housekeeping_clock,
-    FakeSignal(),
-    render_frame=lambda frame: b"housekeeping" if frame == "housekeeping" else b"clean" if frame is None else bytes((frame,)),
+
+def fatal_render(frame):
+    if isinstance(frame, tuple) and frame[0] == "fatal":
+        return f"dimmed:{frame[1]}".encode() if frame[2] else f"fatal:{frame[1]}".encode()
+    return b"delayed" if frame == "delayed" else b"clean" if frame is None else bytes((frame,))
+
+
+def run_fatal_schedule(fatal_code, stop_at):
+    handoff = LifecycleHandoff(stop_at=stop_at, fatal_code=fatal_code)
+    events = []
+    clock = FakeClock()
+    run_lifecycle(handoff, LifecycleOled(events), clock, FakeSignal(), render_frame=fatal_render)
+    frames = [event[1] for event in events if event[0] == "frame"]
+    return handoff, frames, clock, events
+
+
+priority_events = []
+priority_handoff = LifecycleHandoff(stop_at=0, events=priority_events, fatal_code="trellis_unavailable")
+run_lifecycle(priority_handoff, LifecycleOled(priority_events), FakeClock(), FakeSignal(), render_frame=fatal_render)
+assert priority_handoff.release_calls == 1 and not any(event[0] == "frame" and event[1].startswith(b"fatal:") for event in priority_events)
+
+
+immediate_fatal_handoff, immediate_fatal_frames, immediate_fatal_clock, immediate_fatal_events = run_fatal_schedule(
+    lambda now: "trellis_unavailable" if 1_000_000_000 <= now < 1_500_000_000 else None,
+    2_000_000_000,
 )
-housekeeping_frames = [event[1] for event in housekeeping_events if event[0] == "frame"]
-assert housekeeping_handoff.release_calls == 1 and housekeeping_handoff.mark_failed_calls == 0
-assert housekeeping_frames.count(b"housekeeping") == 1
-assert housekeeping_frames[-1] == b"housekeeping"
-assert housekeeping_clock.now == housekeeping_handoff.stop_at
+assert b"fatal:trellis_unavailable" in immediate_fatal_frames
+assert immediate_fatal_handoff.release_calls == 1
+assert immediate_fatal_clock.now < 30 * 1_000_000_000
+assert not any(event[0] == "command" for event in immediate_fatal_events)
+
+before_dim_handoff, before_dim_frames, before_dim_clock, _ = run_fatal_schedule(
+    lambda now: "audio_unavailable" if now < 59_999_000_000 else None,
+    60_000_000_000,
+)
+assert before_dim_frames.count(b"dimmed:audio_unavailable") == 0 and before_dim_handoff.release_calls == 1 and before_dim_clock.now == 60_000_000_000
+
+same_code_handoff, same_code_frames, same_code_clock, same_code_events = run_fatal_schedule(
+    lambda now: "audio_unavailable" if now < 120_050_000_000 else None,
+    120_100_000_000,
+)
+assert same_code_frames.count(b"fatal:audio_unavailable") == 1 and same_code_frames.count(b"dimmed:audio_unavailable") == 1
+assert same_code_handoff.release_calls == 1 and same_code_clock.now == 120_100_000_000
+assert not any(event[0] == "command" for event in same_code_events)
+
+replacement_handoff, replacement_frames, _, _ = run_fatal_schedule(
+    lambda now: "trellis_unavailable" if now < 30_000_000_000 else "audio_unavailable" if now < 90_050_000_000 else None,
+    90_100_000_000,
+)
+assert replacement_frames.count(b"fatal:trellis_unavailable") == 1
+assert replacement_frames.count(b"fatal:audio_unavailable") == 1
+assert replacement_frames.count(b"dimmed:trellis_unavailable") == 0
+assert replacement_frames.count(b"dimmed:audio_unavailable") == 1
+assert replacement_handoff.release_calls == 1
+
+malformed_fatal_handoff, malformed_fatal_frames, _, _ = run_fatal_schedule(
+    lambda now: "startup_failed" if now < 1_000_000_000 else None,
+    2_000_000_000,
+)
+assert malformed_fatal_frames.count(b"fatal:startup_failed") == 1
+assert malformed_fatal_handoff.release_calls == 1
+
+clear_recovery_handoff, clear_recovery_frames, _, _ = run_fatal_schedule(
+    lambda now: "neokey_unavailable" if now < 10_000_000_000 or 20_000_000_000 <= now < 20_050_000_000 else None,
+    21_000_000_000,
+)
+assert clear_recovery_frames.count(b"fatal:neokey_unavailable") == 2
+assert clear_recovery_frames.count(b"dimmed:neokey_unavailable") == 0
+assert clear_recovery_handoff.release_calls == 1
+
+
+request_id = "0123456789abcdef0123456789abcdef"
+wrong_terminal = {"phase": "first_menu_rendered", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": "fedcba9876543210fedcba9876543210"}
+matching_terminal = {"phase": "first_menu_rendered", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id}
+exact_events = []
+exact_handoff = LifecycleHandoff(stop_at=1, events=exact_events, observer_statuses=[wrong_terminal, matching_terminal])
+exact_oled = LifecycleOled(exact_events)
+run_lifecycle(exact_handoff, exact_oled, FakeClock(), FakeSignal())
+assert exact_handoff.reacquire_calls == 0
+assert exact_events.count(("unlock",)) == 1 and [event[0] for event in exact_events if event[0] in {"release", "close", "unlock"}] == ["release", "close", "unlock"]
+assert not any(event[0] == "command" for event in exact_events)
+
+
+busy_events = []
+busy_status = {"phase": "native_owned", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id, "pid": 4242}
+busy_handoff = LifecycleHandoff(stop_at=1, events=busy_events, observer_status=busy_status, reacquire_status=[None, matching_terminal])
+busy_oled = LifecycleOled(busy_events)
+run_lifecycle(busy_handoff, busy_oled, FakeClock(), FakeSignal())
+busy_unlock_index = busy_events.index(("unlock",))
+assert busy_handoff.reacquire_calls == 2 and not any(event[0] in {"initialize", "begin-frame-stream", "frame", "command"} for event in busy_events[busy_unlock_index + 1:])
+
+
+retry_events = []
+retry_handoff = LifecycleHandoff(
+    stop_at=1_000_000_000,
+    events=retry_events,
+    observer_status={"phase": "failed", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id},
+    reacquire_status={"phase": "failed", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id},
+)
+retry_oled_events = []
+retry_initial_oled = LifecycleOled(retry_events)
+retry_reclaimed_oled = LifecycleOled(retry_oled_events)
+retry_clock = FakeClock()
+retry_signal = FakeSignal()
+retry_handoff.fatal_code = "oled_unavailable"
+retry_handoff.native_retry = NativeRetryActor(outcome="first_menu", fatal_code=None)
+run_lifecycle(
+    retry_handoff,
+    retry_initial_oled,
+    retry_clock,
+    retry_signal,
+    render_frame=fatal_render,
+    oled_factory=lambda: retry_reclaimed_oled,
+)
+assert retry_handoff.release_existing_calls == 1 and retry_handoff.request_id == request_id and retry_handoff.status == matching_terminal
+assert b"fatal:oled_unavailable" in [event[1] for event in retry_oled_events if event[0] == "frame"]
+assert not any(event[0] == "command" for event in retry_oled_events) and bytes(32768) not in [event[1] for event in retry_oled_events if event[0] == "frame"] and retry_events.count(("unlock",)) == 2
+assert retry_events.index(("release-existing",)) < retry_events.index(("unlock",), retry_events.index(("release-existing",))) < retry_events.index(("native-acquire",))
+
+
+death_events = []
+death_handoff = LifecycleHandoff(
+    stop_at=1_000_000_000,
+    events=death_events,
+    observer_status=busy_status,
+    reacquire_status=busy_status,
+)
+death_signal = FakeSignal()
+death_clock = FakeClock(death_signal)
+death_reclaimed_oled = LifecycleOled(death_events)
+death_stream = death_reclaimed_oled.stream_frame
+
+
+def stop_after_generic_fatal(payload):
+    death_stream(payload)
+    if payload == b"fatal:startup_failed":
+        death_signal.trigger_on_sleep = True
+
+
+death_reclaimed_oled.stream_frame = stop_after_generic_fatal
+run_lifecycle(
+    death_handoff,
+    LifecycleOled(death_events),
+    death_clock,
+    death_signal,
+    render_frame=fatal_render,
+    oled_factory=lambda: death_reclaimed_oled,
+)
+assert b"fatal:startup_failed" in [event[1] for event in death_events if event[0] == "frame"]
+assert death_handoff.mark_failed_calls == 0 and not any(event[0] == "command" for event in death_events)
+
+
+dim_events = []
+dim_handoff = LifecycleHandoff(
+    stop_at=1_000_000_000,
+    events=dim_events,
+    observer_status={"phase": "failed", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id},
+    reacquire_status=[{"phase": "failed", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id}, {"phase": "released", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id}],
+)
+dim_signal = FakeSignal()
+dim_clock = FakeClock(dim_signal)
+dim_reclaimed_oled = LifecycleOled(dim_events)
+dim_stream = dim_reclaimed_oled.stream_frame
+
+
+def stop_after_dim(payload):
+    dim_stream(payload)
+    if payload == b"dimmed:startup_failed":
+        dim_signal.trigger_on_sleep = True
+
+
+dim_reclaimed_oled.stream_frame = stop_after_dim
+run_lifecycle(
+    dim_handoff,
+    LifecycleOled(dim_events),
+    dim_clock,
+    dim_signal,
+    render_frame=fatal_render,
+    oled_factory=lambda: dim_reclaimed_oled,
+)
+dim_frames = [event[1] for event in dim_events if event[0] == "frame"]
+assert dim_frames.count(b"fatal:startup_failed") == 1 and dim_frames.count(b"dimmed:startup_failed") == 1 and dim_handoff.mark_failed_calls == 0
+
+
+for signum in (signal.SIGTERM, signal.SIGINT):
+    observer_signal = FakeSignal()
+    observer_signal.trigger_on_sleep = True
+    observer_events = []
+    observer_handoff = LifecycleHandoff(
+        stop_at=1,
+        events=observer_events,
+        observer_status={"phase": "native_owned", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id},
+    )
+    observer_clock = FakeClock(observer_signal, signum)
+    run_lifecycle(observer_handoff, LifecycleOled(observer_events), observer_clock, observer_signal)
+    assert observer_handoff.mark_failed_calls == 0 and not any(event[0] == "command" for event in observer_events) and observer_events.count(("close", False)) == 1
+
+
+startup_delay_handoff = LifecycleHandoff(stop_at=31 * 1_000_000_000)
+startup_delay_events = []
+startup_delay_clock = FakeClock()
+run_lifecycle(
+    startup_delay_handoff,
+    LifecycleOled(startup_delay_events),
+    startup_delay_clock,
+    FakeSignal(),
+    render_frame=lambda frame: b"delayed" if frame == "delayed" else b"clean" if frame is None else bytes((frame,)),
+)
+startup_delay_frames = [event[1] for event in startup_delay_events if event[0] == "frame"]
+assert startup_delay_handoff.release_calls == 1 and startup_delay_handoff.mark_failed_calls == 0
+assert startup_delay_frames.count(b"delayed") == 1
+assert startup_delay_frames[-1] == b"delayed"
+assert startup_delay_handoff.stop_requested_calls > 1
+assert not any(event[0] == "command" for event in startup_delay_events)
+assert startup_delay_events.count(("close", False)) == 1
+assert startup_delay_clock.now == startup_delay_handoff.stop_at
 
 stale_status = {"phase": "animating", "bootId": "01234567-89ab-cdef-0123-456789abcdef"}
 stale_events = []
@@ -299,17 +366,17 @@ termination_oled = LifecycleOled(termination_events)
 termination_stream_frame = termination_oled.stream_frame
 
 
-def terminate_after_housekeeping(frame):
-    return b"housekeeping" if frame == "housekeeping" else b"render"
+def terminate_after_startup_delayed(frame):
+    return b"delayed" if frame == "delayed" else b"render"
 
 
-def terminate_after_housekeeping_status(payload):
+def terminate_after_startup_delayed_status(payload):
     termination_stream_frame(payload)
-    if payload == b"housekeeping":
+    if payload == b"delayed":
         termination_signal.trigger_on_sleep = True
 
 
-termination_oled.stream_frame = terminate_after_housekeeping_status
+termination_oled.stream_frame = terminate_after_startup_delayed_status
 
 
 run_lifecycle(
@@ -317,11 +384,11 @@ run_lifecycle(
     termination_oled,
     termination_clock,
     termination_signal,
-    render_frame=terminate_after_housekeeping,
+    render_frame=terminate_after_startup_delayed,
 )
 assert termination_handoff.release_calls == 0
 assert termination_handoff.mark_failed_calls == 1
-assert termination_events.count(("frame", b"housekeeping")) == 1
+assert termination_events.count(("frame", b"delayed")) == 1
 assert_cleanup(termination_events)
 
 for signum in (signal.SIGTERM, signal.SIGINT):
@@ -416,9 +483,8 @@ assert close_failure_events.count(("close", False)) == 1
 assert close_failure_handoff.mark_failed_calls == 1
 
 terminal_events = []
-terminal_handoff = LifecycleHandoff(initial_status={"phase": "native_owned", "bootId": "01234567-89ab-cdef-0123-456789abcdef"}, events=terminal_events)
-cleanup_calls = []
+terminal_handoff = LifecycleHandoff(initial_status={"phase": "first_menu_rendered", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id}, events=terminal_events)
 run_lifecycle(terminal_handoff, None, FakeClock(), FakeSignal(), cleanup_oled=None)
-assert terminal_events == [("handoff-close",)]
+assert terminal_events == [("ready",)] and terminal_handoff.close_calls == 0 and terminal_handoff.status["phase"] == "first_menu_rendered"
 
 print("Orange OLED lifecycle deadline, stop, signal, cleanup, and failure tests passed")

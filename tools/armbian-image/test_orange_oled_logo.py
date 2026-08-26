@@ -126,10 +126,122 @@ for first in range(logo.BOOT_SWEEP_FRAME_COUNT):
 assert logo.logo_canvas("boot") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565").read_bytes())
 assert logo.logo_canvas("shutdown") == bytearray((REPOSITORY / "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565").read_bytes())
 assert logo.logo_canvas("shutdown") == logo.logo_canvas("boot")
-housekeeping_frame = logo.render_housekeeping()
-assert len(housekeeping_frame) == logo.FRAME_BYTES
-assert housekeeping_frame.count(logo.HOUSEKEEPING_STATUS_COLOR_RGB565.to_bytes(2, "big")) > 0
-assert b"\xff\xff" not in housekeeping_frame
+assert logo.STARTUP_DELAY_TEXT_COLOR_RGB565 == 0xFFFF
+assert logo.STARTUP_DELAY_PANEL_COLOR_RGB565 == 0x0000
+assert all(len(glyph) == 7 and all(len(row) == 5 for row in glyph) for glyph in logo.STARTUP_STATUS_GLYPHS.values())
+
+
+def rendered_source_pixel(frame, x, y):
+    offset = (x * logo.WIDTH + logo.WIDTH - 1 - y) * 2
+    return bytes(frame[offset:offset + 2])
+
+
+startup_delayed_frame = logo.render_startup_delayed()
+assert len(startup_delayed_frame) == logo.FRAME_BYTES
+shutdown_frame = logo.render_canvas(logo.logo_canvas("shutdown"))
+expected_delayed_canvas = bytearray(logo.logo_canvas("shutdown"))
+logo.clear_startup_status(expected_delayed_canvas)
+logo.draw_startup_status_text(expected_delayed_canvas, "STARTUP DELAYED", 96)
+logo.draw_startup_status_text(expected_delayed_canvas, "PLEASE WAIT", 106)
+assert startup_delayed_frame == logo.render_canvas(expected_delayed_canvas)
+assert any(
+    rendered_source_pixel(shutdown_frame, source_x, source_y) != b"\x00\x00"
+    for source_y in range(83, 99)
+    for source_x in range(logo.WIDTH)
+)
+for source_y in range(logo.HEIGHT):
+    if logo.STARTUP_STATUS_TOP <= source_y < logo.STARTUP_STATUS_BOTTOM:
+        continue
+    for source_x in range(logo.WIDTH):
+        assert rendered_source_pixel(startup_delayed_frame, source_x, source_y) == rendered_source_pixel(shutdown_frame, source_x, source_y)
+panel_pixels = [
+    rendered_source_pixel(startup_delayed_frame, source_x, source_y)
+    for source_y in range(logo.STARTUP_STATUS_TOP, logo.STARTUP_STATUS_BOTTOM)
+    for source_x in range(logo.WIDTH)
+]
+assert set(panel_pixels) <= {b"\x00\x00", b"\xff\xff"}
+assert b"\x00\x00" in panel_pixels and b"\xff\xff" in panel_pixels
+
+expected_fatal_text = {
+    "trellis_unavailable": ("GRID NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "neokey_unavailable": ("NEOKEY NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "controls_unavailable": ("CONTROLS NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "audio_unavailable": ("AUDIO NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
+    "startup_failed": ("STARTUP FAILED", "POWER OFF", "TRY AGAIN", "CHECK SERVICE LOG"),
+    "oled_unavailable": ("OLED NOT READY", "POWER OFF", "TRY AGAIN", "CHECK SERVICE LOG"),
+}
+assert logo.STARTUP_FATAL_TEXT == expected_fatal_text
+assert all(
+    all(forbidden not in line for forbidden in ("CABLE", "CABLES", "WIRING"))
+    for lines in expected_fatal_text.values()
+    for line in lines
+)
+for code, lines in expected_fatal_text.items():
+    frame = logo.render_startup_fatal(code)
+    dimmed_frame = logo.render_startup_fatal(code, dimmed=True)
+    assert len(frame) == logo.FRAME_BYTES
+    assert len(dimmed_frame) == logo.FRAME_BYTES
+    assert len(frame) == len(dimmed_frame)
+    assert all(
+        (bright != b"\x00\x00") == (dimmed != b"\x00\x00")
+        for bright, dimmed in zip((frame[index:index + 2] for index in range(0, len(frame), 2)), (dimmed_frame[index:index + 2] for index in range(0, len(dimmed_frame), 2)))
+    )
+    assert b"\x00\x00" in (dimmed_frame[index:index + 2] for index in range(0, len(dimmed_frame), 2))
+    assert any(pixel != b"\x00\x00" for pixel in (dimmed_frame[index:index + 2] for index in range(0, len(dimmed_frame), 2)))
+    assert all(len(line) * 6 - 1 <= logo.WIDTH for line in lines)
+    expected_canvas = bytearray(logo.logo_canvas("shutdown"))
+    logo.clear_startup_status(expected_canvas)
+    for index, line in enumerate(lines):
+        logo.draw_startup_status_text(expected_canvas, line, logo.STARTUP_STATUS_TOP + index * 8)
+    assert frame == logo.render_canvas(expected_canvas)
+    status_pixels = [
+        rendered_source_pixel(frame, source_x, source_y)
+        for source_y in range(logo.STARTUP_STATUS_TOP, logo.STARTUP_STATUS_BOTTOM)
+        for source_x in range(logo.WIDTH)
+    ]
+    assert set(status_pixels) <= {b"\x00\x00", b"\xff\xff"}
+    assert b"\xff\xff" in status_pixels
+    bright_pixels = [frame[index:index + 2] for index in range(0, len(frame), 2)]
+    dimmed_pixels = [dimmed_frame[index:index + 2] for index in range(0, len(dimmed_frame), 2)]
+    for bright_pixel, dimmed_pixel in zip(bright_pixels, dimmed_pixels):
+        bright_value = int.from_bytes(bright_pixel, "big")
+        dimmed_value = int.from_bytes(dimmed_pixel, "big")
+        expected_dimmed = (
+            (((bright_value >> 11) & 0x1F) // 4) << 11
+            | ((((bright_value >> 5) & 0x3F) // 4) << 5)
+            | ((bright_value & 0x1F) // 4)
+        )
+        assert dimmed_value == expected_dimmed
+        assert dimmed_value == 0 or dimmed_value < bright_value
+    for source_y in range(logo.HEIGHT):
+        if logo.STARTUP_STATUS_TOP <= source_y < logo.STARTUP_STATUS_BOTTOM:
+            continue
+        for source_x in range(logo.WIDTH):
+            assert rendered_source_pixel(frame, source_x, source_y) == rendered_source_pixel(shutdown_frame, source_x, source_y)
+try:
+    logo.render_startup_fatal("not_allowlisted")
+except ValueError:
+    pass
+else:
+    raise AssertionError("unknown startup fatal code was accepted")
+
+boundary_canvas = bytearray(logo.logo_canvas("shutdown"))
+boundary_text = "OLED NOT READY"
+boundary_width = len(boundary_text) * 6 - 1
+logo.draw_startup_status_text(boundary_canvas, boundary_text, logo.STARTUP_STATUS_TOP, logo.WIDTH - boundary_width)
+for invalid_x in (logo.WIDTH - boundary_width + 1, logo.WIDTH):
+    try:
+        logo.draw_startup_status_text(boundary_canvas, boundary_text, logo.STARTUP_STATUS_TOP, invalid_x)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(f"overflowing startup status x was accepted: {invalid_x}")
+try:
+    logo.draw_startup_status_text(boundary_canvas, boundary_text, logo.STARTUP_STATUS_TOP, logo.WIDTH)
+except ValueError:
+    pass
+else:
+    raise AssertionError("status text starting at the right edge was accepted")
 assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off")] == ["boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off"]
 for invalid in ([], ["boot"], ["boot-once", "sleep"], ["unknown"]):
     try:
@@ -280,88 +392,6 @@ for values in initialization_commands:
     if len(values) > 1:
         expected_initialization_events.extend((("dc", 1), ("write", bytes(values[1:]))))
 assert initialization_events == expected_initialization_events
-
-
-class FakeOled:
-    instances = []
-
-    def __init__(self):
-        self.frames = []
-        self.begin_frame_stream_calls = 0
-        self.close_args = []
-        self.initialized = False
-        self.__class__.instances.append(self)
-
-    def initialize(self):
-        self.initialized = True
-
-    def frame(self, payload):
-        self.begin_frame_stream()
-        self.stream_frame(payload)
-
-    def begin_frame_stream(self):
-        self.begin_frame_stream_calls += 1
-
-    def stream_frame(self, payload):
-        self.frames.append(payload)
-
-    def close(self, display_off=True):
-        self.close_args.append(display_off)
-
-
-class FakeLoopHandoff:
-    def __init__(self, phase):
-        self.boot_id = "01234567-89ab-cdef-0123-456789abcdef"
-        self.status = {"phase": phase, "bootId": self.boot_id}
-        self.start_calls = 0
-        self.mark_failed_calls = 0
-        self.close_calls = 0
-
-    def _read_status(self):
-        return self.status
-
-    def start(self):
-        self.start_calls += 1
-        raise RuntimeError("OLED handoff already exists for this boot")
-
-    def mark_failed(self):
-        self.mark_failed_calls += 1
-
-    def close(self):
-        self.close_calls += 1
-
-
-def unexpected_oled():
-    raise AssertionError("native-owned OLED handoff created an OLED")
-
-
-real_loop_handoff = logo.Handoff
-real_loop_oled = logo.Oled
-try:
-    for phase in ("released", "native_owned", "first_menu_rendered"):
-        loop_handoff = FakeLoopHandoff(phase)
-        logo.Handoff = types.SimpleNamespace(open=lambda create_lock, handoff=loop_handoff: handoff)
-        logo.Oled = unexpected_oled
-        logo._run_loop()
-        assert loop_handoff.start_calls == 0
-        assert loop_handoff.mark_failed_calls == 0
-        assert loop_handoff.close_calls == 1
-
-    loop_handoff = FakeLoopHandoff("animating")
-    logo.Handoff = types.SimpleNamespace(open=lambda create_lock, handoff=loop_handoff: handoff)
-    logo.Oled = unexpected_oled
-    try:
-        logo._run_loop()
-    except RuntimeError as error:
-        assert str(error) == "OLED handoff already exists for this boot"
-    else:
-        raise AssertionError("non-native same-boot OLED handoff was accepted")
-    assert loop_handoff.start_calls == 1
-    assert loop_handoff.mark_failed_calls == 1
-    assert loop_handoff.close_calls == 1
-finally:
-    logo.Handoff = real_loop_handoff
-    logo.Oled = real_loop_oled
 
 
 class FakeGpioProcess:

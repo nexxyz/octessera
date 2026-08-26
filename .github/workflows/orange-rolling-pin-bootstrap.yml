@@ -1,0 +1,82 @@
+name: Orange rolling-pin bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Build unqualified Orange rolling-pin candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: custom
+      - name: Verify rolling-pin tag resolves to candidate commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_records="$(git ls-remote --exit-code --refs --tags https://github.com/armbian/build.git refs/tags/v26.11.0-trunk.22)"
+          python3 - "$tag_records" <<'PY'
+          import re
+          import sys
+
+          records = sys.argv[1].splitlines()
+          if len(records) != 1 or not re.fullmatch(r"[0-9a-fA-F]{40}\trefs/tags/v26\.11\.0-trunk\.22", records[0]):
+              raise SystemExit("Expected exactly one rolling-pin tag ref")
+          if records[0].split("\t", 1)[0].lower() != "3da49cffcb8ac58a919d86816fec4659c410ff1e":
+              raise SystemExit("Rolling-pin tag does not resolve to the candidate commit")
+          PY
+      - name: Build diagnostic candidate
+        uses: ./custom/.github/actions/build-armbian-image
+        with:
+          board: orangepizero2w
+          release: trixie
+          kernel_branch: current
+          ui: minimal
+          compression: sha,img,xz
+          extensions: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize
+          armbian_build_ref: 3da49cffcb8ac58a919d86816fec4659c410ff1e
+          share_log: yes
+          image_kind: diagnostic
+          boot_proof_mode: phase5-constructor
+          construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
+          rolling_pin_bootstrap: true
+      - name: Require candidate review artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d build/output/bootstrap-evidence
+          test -f build/output/bootstrap-evidence/SHA256SUMS
+          for tree in build/output/bootstrap-evidence build/output/debs build/output/images build/output/info build/output/logs; do
+            test -d "$tree" || { echo "Missing uploaded artifact tree: $tree" >&2; exit 1; }
+            hidden_path="$(find -P "$tree" -mindepth 1 -name '.*' -print -quit)"
+            [[ -z "$hidden_path" ]] || { echo "Hidden file found under uploaded artifact tree: $tree" >&2; exit 1; }
+          done
+          for tree in build/output/info build/output/logs; do
+            find -P "$tree" -mindepth 1 -type f -print -quit | grep -q . || { echo "Uploaded Armbian output tree is empty: $tree" >&2; exit 1; }
+          done
+          mapfile -t image_packages < <(find build/output/debs -maxdepth 1 -type f -name 'linux-image-*__*.deb' -print | LC_ALL=C sort)
+          mapfile -t dtb_packages < <(find build/output/debs -maxdepth 1 -type f -name 'linux-dtb-*__*.deb' -print | LC_ALL=C sort)
+          mapfile -t images < <(find build/output/images -maxdepth 1 -type f \( -name '*.img' -o -name '*.img.xz' \) -print | LC_ALL=C sort)
+          mapfile -t checksums < <(find build/output/images -maxdepth 1 -type f -name '*.img.xz.sha' -print | LC_ALL=C sort)
+          [[ "${#image_packages[@]}" == 1 && "${#dtb_packages[@]}" == 1 && "${#images[@]}" == 1 && "${#checksums[@]}" == 1 ]] || {
+            echo 'Bootstrap evidence must contain exactly one candidate kernel pair, image, and checksum.' >&2
+            exit 1
+          }
+      - name: Upload unqualified bootstrap evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: UNQUALIFIED-orange-rolling-pin-bootstrap
+          path: |
+            build/output/bootstrap-evidence/**
+            build/output/debs/linux-image-*__*.deb
+            build/output/debs/linux-dtb-*__*.deb
+            build/output/images/*.img.xz
+            build/output/images/*.img.xz.sha
+            build/output/info/**
+            build/output/logs/**
+          if-no-files-found: error
+          retention-days: 3

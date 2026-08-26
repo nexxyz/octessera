@@ -30,6 +30,21 @@ fn adapter(label: &str) -> (OrangeHostAdapter, PathBuf) {
     (adapter, root)
 }
 
+fn arm_recovery_save(adapter: &mut OrangeHostAdapter, id: &str) {
+    assert_eq!(
+        adapter
+            .handle_platform_effect(&request(
+                RuntimePlatformEffect::StoreSaveRecovery {
+                    payload: json!({"runtimeConfig": {}}),
+                },
+                id,
+            ))
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
 #[test]
 fn apply_waits_behind_queued_default_and_cancels_deferred_save() {
     let (mut adapter, root) = adapter("fifo");
@@ -163,6 +178,7 @@ fn pending_reboot_suppresses_later_musical_output() {
     let mut adapter =
         OrangeHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false)
             .unwrap();
+    arm_recovery_save(&mut adapter, "recovery");
     assert!(adapter
         .handle_platform_effect(&request(RuntimePlatformEffect::Reboot, "reboot"))
         .unwrap()
@@ -185,6 +201,7 @@ fn pending_reboot_suppresses_later_musical_output() {
 #[test]
 fn shutdown_effect_maps_to_typed_orange_shutdown_request() {
     let (mut adapter, root) = adapter("shutdown-request");
+    arm_recovery_save(&mut adapter, "recovery");
     assert!(adapter
         .handle_platform_effect(&request(RuntimePlatformEffect::Shutdown, "shutdown"))
         .unwrap()
@@ -199,6 +216,7 @@ fn shutdown_effect_maps_to_typed_orange_shutdown_request() {
 #[test]
 fn pending_shutdown_suppresses_a_second_shutdown_request() {
     let (mut adapter, root) = adapter("shutdown-pending");
+    arm_recovery_save(&mut adapter, "recovery");
     assert!(adapter
         .handle_platform_effect(&request(RuntimePlatformEffect::Shutdown, "first"))
         .unwrap()

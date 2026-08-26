@@ -28,12 +28,17 @@ impl NativeRunner {
             "recording.maxMinutes" => Some(self.fast_recording_max_minutes_menu_key()),
             "hdmi.mode" => Some(self.fast_string_menu_key(key, |runner, value| {
                 let value = match value.as_str() {
+                    "Terminal" => "none".into(),
                     "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => {
                         value
                     }
                     _ => "none".into(),
                 };
-                value_changed(&mut runner.display.hdmi.mode, value)
+                let changed = value_changed(&mut runner.display.hdmi.mode, value);
+                if changed {
+                    runner.rematerialize_menu_around_key(key);
+                }
+                changed
             })),
             "hdmi.showGridlines" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.display.hdmi.show_gridlines, value)

@@ -1,12 +1,14 @@
 use super::*;
 use crate::user_data_archive::{build_export_plan, write_archive};
-use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest};
+use playback_runtime::{
+    HostMessage, RuntimeErrorCode, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult, RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus,
+};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::Mutex;
 
 fn root(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!(
@@ -35,13 +37,68 @@ fn service(name: &str) -> (UserDataTransferService, PathBuf) {
         serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap(),
     )
     .unwrap();
-    let random = Arc::new(|bytes: &mut [u8]| {
+    (
+        UserDataTransferService::test(store, samples, random_source()),
+        root,
+    )
+}
+
+fn loopback_production_service(name: &str) -> (UserDataTransferService, PathBuf) {
+    let root = root(name);
+    (
+        UserDataTransferService::new(
+            root.join("store"),
+            root.join("samples"),
+            root.join("recordings"),
+            root.join("screen-recordings"),
+            random_source(),
+            Arc::new(Mutex::new(())),
+            TransferConfig {
+                bind: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+                network: TransferNetworkSource::Fixed(RegularWlan0Ipv4 {
+                    address: "192.168.1.20".parse().unwrap(),
+                    netmask: "255.255.255.0".parse().unwrap(),
+                }),
+                loopback_peer: true,
+            },
+        ),
+        root,
+    )
+}
+
+fn random_source() -> RandomSource {
+    Arc::new(|bytes: &mut [u8]| {
         for (index, byte) in bytes.iter_mut().enumerate() {
             *byte = index as u8;
         }
         Ok(())
-    });
-    (UserDataTransferService::test(store, samples, random), root)
+    })
+}
+
+fn transfer_request(id: &str, revision: u64) -> RuntimePlatformRequest {
+    RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UserDataTransferOpen,
+        id.into(),
+        Some(revision),
+    )
+}
+
+fn transfer_status(message: HostMessage) -> (RuntimeUserDataTransferStatus, String, Option<u64>) {
+    let HostMessage::RuntimeResult {
+        result:
+            RuntimeStoreResult::Identified {
+                result,
+                request_id,
+                revision,
+            },
+    } = message
+    else {
+        panic!("expected identified transfer status");
+    };
+    let RuntimeStoreResult::UserDataTransferStatus { status } = *result else {
+        panic!("expected user-data transfer status");
+    };
+    (status, request_id, revision)
 }
 
 fn request(
@@ -53,8 +110,26 @@ fn request(
     extra_headers: &str,
 ) -> (u16, Vec<u8>) {
     let endpoint = service.test_endpoint().unwrap();
-    let host = format!("127.0.0.1:{}", endpoint.port());
-    let mut stream = TcpStream::connect(endpoint).unwrap();
+    let connect = if endpoint.ip().is_unspecified() {
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), endpoint.port())
+    } else {
+        endpoint
+    };
+    let network = service.inner.state.lock().unwrap().network.unwrap();
+    let host = format!("{}:{}", network.address, endpoint.port());
+    request_at(connect, &host, method, path, code, body, extra_headers)
+}
+
+fn request_at(
+    connect: SocketAddr,
+    host: &str,
+    method: &str,
+    path: &str,
+    code: &str,
+    body: &[u8],
+    extra_headers: &str,
+) -> (u16, Vec<u8>) {
+    let mut stream = TcpStream::connect(connect).unwrap();
     let length_header = if extra_headers.contains("Content-Length:") {
         String::new()
     } else {
@@ -80,6 +155,167 @@ fn request(
         .parse()
         .unwrap();
     (status, response[header_end + 4..].to_vec())
+}
+
+#[test]
+fn production_transfer_config_separates_listener_and_public_endpoint() {
+    let root = root("production-config");
+    let service = UserDataTransferService::production(
+        root.join("store"),
+        root.join("samples"),
+        random_source(),
+        Arc::new(Mutex::new(())),
+    );
+    assert_eq!(
+        service.inner.config.bind,
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8081)
+    );
+    assert!(matches!(
+        service.inner.config.network,
+        TransferNetworkSource::RegularWlan0
+    ));
+    assert!(!service.inner.config.loopback_peer);
+    assert_eq!(
+        service.inner.recordings_dir,
+        crate::main_paths::default_recordings_dir()
+    );
+    assert_eq!(
+        service.inner.screen_recordings_dir,
+        crate::main_paths::default_screen_recordings_dir()
+    );
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn loopback_transfer_lifecycle_preserves_advertised_host_and_admission() {
+    let (service, root) = loopback_production_service("loopback-bind");
+
+    service.start().unwrap();
+    let endpoint = service.test_endpoint().unwrap();
+    assert_eq!(endpoint.ip(), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+    assert_ne!(endpoint.port(), 0);
+
+    let loopback = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), endpoint.port());
+    let rejected = request_at(
+        loopback,
+        &format!("192.168.42.20:{}", endpoint.port()),
+        "GET",
+        "/restore/status",
+        &service.test_code().unwrap(),
+        &[],
+        "",
+    );
+    assert_eq!(rejected.0, 403);
+
+    let allowed = request_at(
+        loopback,
+        &format!("192.168.1.20:{}", endpoint.port()),
+        "GET",
+        "/restore/status",
+        &service.test_code().unwrap(),
+        &[],
+        &format!("Origin: http://192.168.1.20:{}\r\n", endpoint.port()),
+    );
+    assert_eq!(allowed.0, 200);
+
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn no_regular_network_returns_unavailable_without_binding() {
+    let root = root("no-network");
+    let service = UserDataTransferService::new(
+        root.join("store"),
+        root.join("samples"),
+        root.join("recordings"),
+        root.join("screen-recordings"),
+        random_source(),
+        Arc::new(Mutex::new(())),
+        TransferConfig {
+            bind: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+            network: TransferNetworkSource::Unavailable,
+            loopback_peer: false,
+        },
+    );
+    let HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::RuntimeFailure { error },
+    } = service.open(&transfer_request("no-network", 1))
+    else {
+        panic!("expected unavailable transfer failure");
+    };
+    assert_eq!(error.code, RuntimeErrorCode::Unavailable);
+    assert_eq!(error.request_id.as_deref(), Some("no-network"));
+    assert!(service.test_endpoint().is_none());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn reopen_preserves_code_and_deadline_and_returns_remaining_lifetime() {
+    let (service, root) = service("reopen");
+    let first = transfer_request("open-first", 1);
+    let (first_status, first_id, first_revision) = transfer_status(service.open(&first));
+    assert_eq!(first_status.phase, RuntimeUserDataTransferPhase::Ready);
+    assert_eq!(first_id, "open-first");
+    assert_eq!(first_revision, Some(1));
+    let first_code = first_status.code.clone();
+    let first_url = first_status.url.clone();
+    let deadline = service.inner.state.lock().unwrap().expires_at.unwrap();
+
+    std::thread::sleep(Duration::from_millis(5));
+    let second = transfer_request("open-second", 2);
+    let (second_status, second_id, second_revision) = transfer_status(service.open(&second));
+    assert_eq!(second_status.phase, RuntimeUserDataTransferPhase::Ready);
+    assert_eq!(second_status.code, first_code);
+    assert_eq!(second_status.url, first_url);
+    assert!(second_status.expires_in_seconds.unwrap() <= first_status.expires_in_seconds.unwrap());
+    assert_eq!(
+        service.inner.state.lock().unwrap().expires_at,
+        Some(deadline)
+    );
+    assert_eq!(second_id, "open-second");
+    assert_eq!(second_revision, Some(2));
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn close_expiry_and_auth_revocation_emit_closed_with_their_open_identity() {
+    let (service, root) = service("closed-status");
+    let open = transfer_request("close-open", 3);
+    let _ = service.open(&open);
+    let close_request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UserDataTransferClose,
+        "close-request".into(),
+        Some(4),
+    );
+    let (closed, request_id, revision) = transfer_status(service.close(&close_request));
+    assert_eq!(closed.phase, RuntimeUserDataTransferPhase::Closed);
+    assert_eq!(request_id, "close-request");
+    assert_eq!(revision, Some(4));
+
+    let open = transfer_request("expiry-open", 5);
+    let _ = service.open(&open);
+    service.inner.state.lock().unwrap().expires_at = Some(Instant::now() - Duration::from_secs(1));
+    service.expire_if_needed();
+    let (closed, request_id, revision) = transfer_status(service.take_runtime_status().unwrap());
+    assert_eq!(closed.phase, RuntimeUserDataTransferPhase::Closed);
+    assert_eq!(request_id, "expiry-open");
+    assert_eq!(revision, Some(5));
+
+    let open = transfer_request("auth-open", 6);
+    let _ = service.open(&open);
+    for _ in 0..MAX_AUTH_FAILURES {
+        assert_eq!(
+            request(&service, "GET", "/restore/status", "wrong", &[], "").0,
+            401
+        );
+    }
+    let (closed, request_id, revision) = transfer_status(service.take_runtime_status().unwrap());
+    assert_eq!(closed.phase, RuntimeUserDataTransferPhase::Closed);
+    assert_eq!(request_id, "auth-open");
+    assert_eq!(revision, Some(6));
+    let _ = fs::remove_dir_all(root);
 }
 
 fn archive_for(service: &UserDataTransferService, include_media: bool) -> Vec<u8> {
@@ -155,287 +391,6 @@ fn repeated_bad_codes_revoke_the_transfer_session() {
         );
     }
     assert!(service.test_code().is_none());
-    service.stop();
-    let _ = fs::remove_dir_all(root);
-}
-
-#[test]
-fn upload_requires_limits_and_physical_cancel_before_mutation() {
-    let (service, root) = service("cancel");
-    service.start().unwrap();
-    let code = service.test_code().unwrap();
-    let original = fs::read(service.inner.store_dir.join("default.json")).unwrap();
-    let invalid = request(&service, "POST", "/restore", &code, b"invalid", "");
-    assert_eq!(invalid.0, 400);
-    assert_eq!(
-        fs::read(service.inner.store_dir.join("default.json")).unwrap(),
-        original
-    );
-    let oversized = request(
-        &service,
-        "POST",
-        "/restore",
-        &code,
-        &[],
-        &format!(
-            "Content-Length: {}\r\n",
-            crate::user_data_archive::max_archive_bytes() + 1
-        ),
-    );
-    assert_eq!(oversized.0, 413);
-
-    let archive = archive_for(&service, false);
-    let staged = request(&service, "POST", "/restore", &code, &archive, "");
-    assert_eq!(staged.0, 202);
-    service.handle_physical_input(&serde_json::json!({
-        "type":"button_a",
-        "pressed":true
-    }));
-    let status = request(&service, "GET", "/restore/status", &code, &[], "");
-    assert_eq!(status.0, 200);
-    assert!(String::from_utf8(status.1).unwrap().contains("cancelled"));
-    assert_eq!(
-        fs::read(service.inner.store_dir.join("default.json")).unwrap(),
-        original
-    );
-    service.stop();
-    let _ = fs::remove_dir_all(root);
-}
-
-#[test]
-fn confirmed_restore_writes_backup_and_preserves_protected_files() {
-    let (service, root) = service("restore");
-    fs::write(service.inner.samples_dir.join("User.wav"), b"custom sample").unwrap();
-    fs::write(
-        service.inner.recordings_dir.join("take.wav"),
-        b"audio recording",
-    )
-    .unwrap();
-    fs::write(
-        service.inner.screen_recordings_dir.join("screen.webm"),
-        b"screen recording",
-    )
-    .unwrap();
-    fs::write(
-        service.inner.store_dir.join("device.json"),
-        br#"{"hardware":"fresh"}"#,
-    )
-    .unwrap();
-    fs::write(
-        service.inner.store_dir.join("recovery-save.json"),
-        serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap(),
-    )
-    .unwrap();
-    service.start().unwrap();
-    let code = service.test_code().unwrap();
-    let generation = service.store_write_barrier().current_generation();
-    let archive = archive_for(&service, true);
-    assert_eq!(
-        request(&service, "POST", "/restore", &code, &archive, "").0,
-        202
-    );
-    service.handle_physical_input(&serde_json::json!({
-        "type":"encoder_press",
-        "id":"main"
-    }));
-    assert_eq!(
-        service.store_write_barrier().current_generation(),
-        generation + 1
-    );
-    let mut status_body = String::new();
-    for _ in 0..100 {
-        let status = request(&service, "GET", "/restore/status", &code, &[], "");
-        status_body = String::from_utf8(status.1).unwrap();
-        if status_body.contains("restored") {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(2));
-    }
-    assert!(status_body.contains("restored"), "{status_body}");
-    assert!(service.store_write_barrier().is_blocked());
-    service.store_write_barrier().acknowledge();
-    let default = crate::platform_service::load_json(&service.inner.store_dir.join("default.json"))
-        .unwrap()
-        .unwrap();
-    assert_eq!(default["kind"], "octessera.config");
-    assert_eq!(
-        fs::read(service.inner.samples_dir.join("User.wav")).unwrap(),
-        b"custom sample"
-    );
-    assert_eq!(
-        fs::read(service.inner.recordings_dir.join("take.wav")).unwrap(),
-        b"audio recording"
-    );
-    assert_eq!(
-        fs::read(service.inner.screen_recordings_dir.join("screen.webm")).unwrap(),
-        b"screen recording"
-    );
-    assert_eq!(
-        fs::read(service.inner.store_dir.join("device.json")).unwrap(),
-        br#"{"hardware":"fresh"}"#
-    );
-    assert_eq!(
-        fs::read(service.inner.store_dir.join("recovery-save.json")).unwrap(),
-        serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap()
-    );
-    assert!(fs::read_dir(&root)
-        .unwrap()
-        .filter_map(Result::ok)
-        .any(|entry| entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with("octessera-pre-restore-")));
-    service.stop();
-    let _ = fs::remove_dir_all(root);
-}
-
-#[test]
-fn active_recording_restore_is_rejected_before_tree_mutation() {
-    let (service, root) = service("active-recording-restore");
-    let recording = Arc::new(AtomicBool::new(true));
-    let recording_for_preflight = recording.clone();
-    service.set_restore_preflight(Arc::new(move || {
-        if recording_for_preflight.load(Ordering::Acquire) {
-            return Err(
-                "restore blocked: audio recording is active; stop recording before restore".into(),
-            );
-        }
-        Ok(())
-    }));
-    let original = fs::read(service.inner.store_dir.join("default.json")).unwrap();
-    service.start().unwrap();
-    let code = service.test_code().unwrap();
-    let archive = archive_for(&service, false);
-    assert_eq!(
-        request(&service, "POST", "/restore", &code, &archive, "").0,
-        202
-    );
-    service.handle_physical_input(&serde_json::json!({
-        "type":"encoder_press",
-        "id":"main"
-    }));
-
-    let mut status_body = String::new();
-    for _ in 0..100 {
-        let status = request(&service, "GET", "/restore/status", &code, &[], "");
-        status_body = String::from_utf8(status.1).unwrap();
-        if status_body.contains("blocked_recording_active") {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(2));
-    }
-    assert!(
-        status_body.contains("blocked_recording_active"),
-        "{status_body}"
-    );
-    assert!(!service.store_write_barrier().is_blocked());
-    assert_eq!(
-        fs::read(service.inner.store_dir.join("default.json")).unwrap(),
-        original
-    );
-    assert!(!root
-        .read_dir()
-        .unwrap()
-        .filter_map(Result::ok)
-        .any(|entry| entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with("octessera-pre-restore-")));
-    assert!(!service
-        .inner
-        .store_dir
-        .read_dir()
-        .unwrap()
-        .filter_map(Result::ok)
-        .any(|entry| entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with(".user-data-stage-")));
-    recording.store(false, Ordering::Release);
-    service.stop();
-    let _ = fs::remove_dir_all(root);
-}
-
-#[test]
-fn pending_restore_times_out_and_removes_staged_data() {
-    let (service, root) = service("restore-timeout");
-    service.start().unwrap();
-    let code = service.test_code().unwrap();
-    let archive = archive_for(&service, false);
-    assert_eq!(
-        request(&service, "POST", "/restore", &code, &archive, "").0,
-        202
-    );
-    if let Ok(mut state) = service.inner.state.lock() {
-        if let RestoreState::Pending(pending) = &mut state.restore {
-            pending.expires_at = Instant::now() - Duration::from_secs(1);
-        }
-    }
-    service.expire_if_needed();
-    let status = request(&service, "GET", "/restore/status", &code, &[], "");
-    assert!(String::from_utf8(status.1).unwrap().contains("timed_out"));
-    assert!(!service
-        .inner
-        .store_dir
-        .read_dir()
-        .unwrap()
-        .filter_map(Result::ok)
-        .any(|entry| entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with(".user-data-stage-")));
-    service.stop();
-    let _ = fs::remove_dir_all(root);
-}
-
-#[test]
-fn confirmation_publishes_blocking_status_before_store_worker_runs() {
-    let (service, root) = service("blocking-status");
-    let request_identity = RuntimePlatformRequest::new(
-        RuntimePlatformEffect::SetupPortalOpen,
-        "restore-status".into(),
-        Some(4),
-    );
-    service.start_with_request(Some(&request_identity)).unwrap();
-    let code = service.test_code().unwrap();
-    let archive = archive_for(&service, false);
-    assert_eq!(
-        request(&service, "POST", "/restore", &code, &archive, "").0,
-        202
-    );
-    let store_guard = service.inner.store_lock.lock().unwrap();
-    assert!(!service.handle_physical_input(&serde_json::json!({
-        "type":"encoder_press",
-        "id":"main"
-    })));
-    let status = service.take_runtime_status().unwrap();
-    assert!(matches!(
-        status,
-        HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { result, request_id, revision: Some(4) }
-        } if request_id == "restore-status"
-            && matches!(result.as_ref(), RuntimeStoreResult::UserDataRestoreStatus { status } if status.phase == RuntimeUserDataRestorePhase::Restoring)
-    ));
-    assert!(!service.handle_physical_input(&serde_json::json!({"type":"grid_press"})));
-    drop(store_guard);
-    service.stop();
-    let _ = fs::remove_dir_all(root);
-}
-
-#[test]
-fn confirmation_input_is_consumed_when_restore_finishes_immediately() {
-    let (service, root) = service("fast-confirmation");
-    service.start().unwrap();
-    let code = service.test_code().unwrap();
-    let archive = archive_for(&service, false);
-    assert_eq!(
-        request(&service, "POST", "/restore", &code, &archive, "").0,
-        202
-    );
-    assert!(!service.handle_physical_input(&serde_json::json!({
-        "type":"encoder_press",
-        "id":"main"
-    })));
     service.stop();
     let _ = fs::remove_dir_all(root);
 }

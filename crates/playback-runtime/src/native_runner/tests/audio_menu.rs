@@ -214,7 +214,7 @@ pub(crate) fn output_buffer_frames_edits_into_config_payload_with_restart_toast(
     );
     assert_eq!(
         runner.snapshot().unwrap()["display"]["toast"],
-        "Restart device to apply"
+        "Restart device to"
     );
 }
 

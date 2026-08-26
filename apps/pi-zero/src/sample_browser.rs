@@ -1,8 +1,60 @@
 use playback_runtime::SampleEntry;
+#[cfg(test)]
+use playback_runtime::{
+    CoreRunner, HostMessage, NativeRunner, NativeRunnerConfig, RuntimeStoreResult,
+};
+#[cfg(test)]
+use serde_json::json;
 use std::path::Path;
 
 const SD_CARD_SAMPLE_DIR: &str = "sd-card";
 pub(crate) const SD_CARD_SAMPLE_BROWSER_DIR: &str = "sd-card/octessera/samples";
+
+pub(crate) fn builtin_favourite_dirs() -> Vec<String> {
+    vec![String::new(), SD_CARD_SAMPLE_BROWSER_DIR.into()]
+}
+
+#[cfg(test)]
+pub(crate) fn assert_builtin_favourite_menu(runner: &mut NativeRunner) {
+    runner.skip_startup_splash();
+    runner.test_advance_display_time(std::time::Duration::from_secs(3));
+    let mut payload = runner.test_config_payload();
+    payload["runtimeConfig"]["instruments"][0]["type"] = json!("sampler");
+    runner
+        .apply_config_payload(payload)
+        .expect("test sampler configuration should apply");
+    runner
+        .test_focus_menu_item("sample.choose:0:0")
+        .expect("sampler browse menu should exist");
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .expect("sample browser should open");
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SampleListResult {
+                instrument_slot: 0,
+                sample_slot: 0,
+                dir: String::new(),
+                entries: vec![],
+            },
+        })
+        .expect("sample browser result should apply");
+    assert_eq!(
+        runner
+            .test_focus_menu_item("sample.favorite.open.0.0.")
+            .expect("root built-in favourite should exist"),
+        "[★ Samples]"
+    );
+    assert_eq!(
+        runner
+            .test_focus_menu_item("sample.favorite.open.0.0.sd-card/octessera/samples")
+            .expect("SD-card built-in favourite should exist"),
+        "[★ samples]"
+    );
+}
 
 pub fn sample_entries(samples_dir: &Path, dir: &str) -> Result<Vec<SampleEntry>, String> {
     let dir = normalize_sample_dir(dir)?;
@@ -210,6 +262,24 @@ mod tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.root);
         }
+    }
+
+    #[test]
+    fn builtin_favourite_dirs_preserve_canonical_order_and_paths() {
+        assert_eq!(
+            builtin_favourite_dirs(),
+            vec![String::new(), "sd-card/octessera/samples".into()]
+        );
+    }
+
+    #[test]
+    fn builtin_favourites_are_exposed_to_the_native_menu() {
+        let mut runner = NativeRunner::new(NativeRunnerConfig {
+            sample_builtin_favourite_dirs: builtin_favourite_dirs(),
+            ..NativeRunnerConfig::default()
+        })
+        .expect("native runner should initialize");
+        assert_builtin_favourite_menu(&mut runner);
     }
 
     #[test]

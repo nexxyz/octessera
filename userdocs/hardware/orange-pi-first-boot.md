@@ -88,37 +88,67 @@ selected build passed its power, USB-role, or live-pinmux gates.
 ## First boot and setup
 
 The freshly flashed image boots offline without waiting for a network. NetworkManager
-remains available, but the standalone DNS and wait-online units stay disabled and no
-hotspot or SSH service starts by itself. Networking and SSH are deliberate opt-in
-actions from `System > Configure WiFi > Open Portal`.
+is independent of `octessera.service`: a runtime startup failure does not stop or
+mask it. An SSH service that was already enabled remains available while the
+runtime recovers. Fresh images keep SSH off until setup selects an SSH key or
+password; no hotspot starts by itself. To configure networking and SSH, choose
+`System > Configure WiFi > Open Portal`; do not expect a fresh production image to
+start an automatic hotspot. A warm reboot is not a guarantee that Wi-Fi association
+returns.
 
-If native ownership has not arrived by the 30-second handoff window, the
-existing splash owner writes a persistent dimmed `FIRST-RUN` / `HOUSEKEEPING` /
-`PLEASE WAIT` status and continues polling the handoff state as the sole OLED
-writer. This is a delayed-start legibility/recovery mitigation, not proof that
-filesystem expansion is active or complete. A timeout alone does not invoke
-black/off failure cleanup; only a genuine writer error or termination signal
-does.
+Normal first boot does not wait six minutes. Upstream filesystem resize is ordered
+before runtime; live Orange evidence saw resize complete from about 19.4 s to
+22.7 s, with runtime starting at 24.3 s. Six minutes is only the upstream maximum
+timeout, not a planned user-visible duration. The normal animated splash covers
+this boot work.
+
+If native ownership has not arrived by the 30-second handoff window, the board
+source path shows one static polished `STARTUP DELAYED` /
+`PLEASE WAIT` frame and continues polling the handoff state as the sole OLED writer.
+This is delayed-start legibility/recovery mitigation, not a claim about resize
+state. A timeout alone does not invoke black/off failure cleanup; only a genuine
+writer error or termination signal does.
+
+If Orange startup cannot initialize a fixed part, the OLED shows a short fixed
+failure instead of leaving you guessing: `GRID NOT FOUND`, `NEOKEY NOT FOUND`,
+`CONTROLS NOT FOUND`, `AUDIO NOT FOUND`, or `OLED NOT READY`. These screens tell
+you to power off before checking or reseating the connection. The first fatal
+screen is bright. If the same failure persists, it redraws once after 60 seconds
+at a dimmed but readable level; a changed failure is bright again and starts a new
+60-second interval. Generic `STARTUP FAILED` and `OLED NOT READY` cases point to
+the service journal; the detailed reason remains there:
+`sudo journalctl -u octessera.service --no-pager`.
 
 1. Flash the Octessera Orange Pi Armbian production image to a microSD card.
 2. Put the card in the Orange Pi and power it on.
 3. Wait for the normal Octessera runtime startup.
 4. On the instrument, choose `System > Configure WiFi` and confirm `Open Portal`.
-   This deliberate action emits the setup request; the installed request-path
-   watcher then starts the setup service.
+   This deliberate action writes the one setup marker; the enabled path unit
+   starts the root setup service.
 5. Wait for `Octessera Setup` or `Octessera Setup xxxx`.
 6. Join that network from a phone or laptop.
 7. Open `http://192.168.42.1/`.
-8. Choose your Wi-Fi network.
+8. Choose the country and a scanned or manual Wi-Fi SSID. Select an open network
+   or enter its password.
 9. Pick SSH access:
    - an SSH key is best; it becomes the admin credential and can use `sudo`
      without a password;
    - an SSH password also works, and the same password is used for `sudo`; or
    - leave SSH off.
 10. Set a hostname if you want one.
-11. Press the final connect button.
+11. Press `Apply setup`.
 
-The setup hotspot disappears when the Orange Pi joins your Wi-Fi.
+The AP remains available for 10 minutes after it is ready. The browser's Applying
+screen is provisional: an AP disconnect is expected and is not a success or
+failure result. Wait for the OLED terminal result; it is authoritative. Success
+requires a usable global `wlan0` IPv4 address. It does not require Internet
+access, a default route, DNS, or ICMP. After success, choose `System > Info` to
+see the IP. No reboot is required. Success and timeout cards auto-hide; failure
+remains dismissible, and another attempt needs a new `Open Portal` action.
+
+When Internet is available, `System > Updates` only checks, applies, or rolls back
+the Octessera runtime. It does not update the Armbian OS/image, kernel, device
+tree, or other full-image assets; those remain manual image operations.
 
 ### Security note
 
@@ -140,10 +170,10 @@ remains closed until setup enables it.
 
 - Confirm the normal runtime has started, then choose `System > Configure WiFi`
   and confirm `Open Portal` again.
-- If the hotspot disappeared before setup finished, reboot the board. After the
-  normal runtime starts, deliberately choose `System > Configure WiFi` and
-  confirm `Open Portal` again. A deliberately opened hotspot intentionally
-  times out.
+- If the hotspot disappeared while the browser was applying settings, wait for
+  the OLED result. An AP disconnect is expected during the network switch. If
+  setup failed or timed out, choose `System > Configure WiFi` and confirm
+  `Open Portal` again for one new attempt.
 - Check that the phone or laptop is not clinging to another Wi-Fi network.
 - Try `http://192.168.42.1/` directly.
 - If the setup network never appears, use serial/console access and check:
@@ -225,12 +255,16 @@ provide sample alignment.
 
 ## OLED, USB, and final bench checks
 
-The reviewed, board-specific Armbian procedure describes SPI1/CS0 and I2C,
+The reviewed, board-specific Armbian procedure describes SPI1 OLED+SD2 and I2C,
 H618 GPIO mapping, the input-routing overlay, `/dev/spidev1.0`, and GPIO lines
 on `300b000.pinctrl`; it does not use Raspberry `rppal`, BCM, or `dwc2` paths.
 Confirm those expectations on the exact image/build. Do not copy the overlay to
 another board; the electrical checks belong in the [Armbian bring-up
 procedure](../../hardware/docs/orange-pi-armbian-bringup.md).
+
+Orange SD2 is header pin 26 with H618 PH9 mux `0x4` for SPI1 CS1, alongside
+the OLED on CS0. Physical OLED/microSD coexistence is explicitly unqualified
+in this phase and still needs live-kernel and electrical proof.
 
 The boot handoff, UI sleep, and Linux suspend paths have separate OLED owners.
 A blank or unstable OLED, a second writer, an unresolved pinmux, or an unclear

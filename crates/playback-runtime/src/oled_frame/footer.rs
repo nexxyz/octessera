@@ -3,6 +3,7 @@ use platform_core::palette;
 use super::model::{OledSaveFlash, OledTransportFlash, OledTransportIcon};
 use super::pixels::{fill_rect, rgb565, scale};
 use super::text::draw_text_clipped;
+use super::text_layout::fit_line_ellipsis;
 use super::OledPresentationInput;
 
 pub(super) fn draw_status_indicators(
@@ -23,7 +24,15 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
     if !input.display.toast.is_empty() {
         let background = rgb565(scale(palette::BLACK, brightness));
         fill_rect(frame, 0, 114, 128, 14, background);
-        draw_text_clipped(frame, &input.display.toast, 5, 118, 17, text);
+        let toast = fit_line_ellipsis(&input.display.toast, super::TOAST_RECT.columns());
+        draw_text_clipped(
+            frame,
+            &toast,
+            super::TOAST_RECT.x as i32,
+            super::TOAST_RECT.y as i32,
+            super::TOAST_RECT.columns(),
+            text,
+        );
         return;
     }
     draw_transport_icon(frame, input, brightness);

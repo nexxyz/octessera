@@ -6,11 +6,15 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$root/tools/armbian-image/validation-assertions.sh"
 customize="$root/userpatches/customize-image.sh"
 overlay="$root/userpatches/overlay"
+runtime_assets="$overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh"
+raspberry="$root/tools/pi-image/stage4-octessera/files/root"
 workflow="$root/.github/workflows/armbian-image.yml"
 image_mode="${OCTESSERA_IMAGE_MODE:?OCTESSERA_IMAGE_MODE must be set for Armbian validation}"
 
-grep -q 'wifi_connect_version=4.11.84' "$customize"
-grep -q 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936' "$customize"
+grep -q 'wifi_connect_artifact_dir=.*usr/local/share/octessera/wifi-connect' "$customize"
+grep -q 'wifi_connect_expected_sha256=929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc' "$customize"
+grep -q 'wifi_connect_patch_sha256=3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939' "$customize"
+octessera_reject_file_match 'Orange image must not download upstream wifi-connect.' -qE 'wifi-connect-aarch64-unknown-linux-gnu\.tar\.gz|github\.com/balena-os/wifi-connect/releases|curl[[:space:]].*wifi-connect|(^|[[:space:]])tar[[:space:]].*wifi-connect' "$customize"
 grep -q 'network-manager.*dnsmasq.*wireless-tools.*iw' "$customize"
 grep -q 'install_overlay_file usr/local/sbin/octessera-wifi-foundation' "$customize"
 grep -q 'install_overlay_file etc/systemd/system/octessera-wifi-foundation.service' "$customize"
@@ -26,13 +30,27 @@ grep -q 'psmisc' "$customize"
 grep -q 'dtc -@ -I dts -O dtb' "$customize"
 grep -q 'fdtoverlay' "$customize"
 grep -q '/boot/overlay-user' "$customize"
-grep -q 'user_overlays=octessera-h618-spi1-cs0' "$customize"
+grep -q 'user_overlays=octessera-h618-spi1-oled-sd2' "$customize"
+for symbol in CONFIG_MMC CONFIG_MMC_BLOCK CONFIG_MMC_SPI; do
+  grep -q "kernel_config_value $symbol" "$customize"
+done
+grep -q 'printf.*mmc_spi.*sd_modules_load_file' "$customize"
 grep -q 'octessera-ahub0-pcm5102' "$customize"
 grep -qF "mv -f -- \"\$spi_dtbo_tmp\" \"\$spi_dtbo\"" "$customize"
 grep -qF "mv -f -- \"\$armbian_env_tmp\" \"\$armbian_env\"" "$customize"
-for metadata_key in OCTESSERA_SPI1_CS0_DTS_SHA256 OCTESSERA_SPI1_CS0_DTBO_SHA256 OCTESSERA_INPUT_ROUTING_DTS_SHA256 OCTESSERA_INPUT_ROUTING_DTBO_SHA256 OCTESSERA_AHUB0_PCM5102_DTS_SHA256 OCTESSERA_AHUB0_PCM5102_DTBO_SHA256; do
+for metadata_key in OCTESSERA_SPI1_OLED_SD2_DTS_SHA256 OCTESSERA_SPI1_OLED_SD2_DTBO_SHA256 OCTESSERA_INPUT_ROUTING_DTS_SHA256 OCTESSERA_INPUT_ROUTING_DTBO_SHA256 OCTESSERA_AHUB0_PCM5102_DTS_SHA256 OCTESSERA_AHUB0_PCM5102_DTBO_SHA256; do
   grep -q "$metadata_key" "$customize"
 done
+
+hdmi_rsyslog="$overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf"
+expected_hdmi_rsyslog="if (\$msg == \"sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin\") then stop"
+[[ -f "$hdmi_rsyslog" && ! -L "$hdmi_rsyslog" ]] || { echo 'Orange HDMI rsyslog drop-in must be a regular source file.' >&2; exit 1; }
+[[ "$(cat -- "$hdmi_rsyslog")" == "$expected_hdmi_rsyslog" ]] || { echo 'Orange HDMI rsyslog drop-in content is not exact.' >&2; exit 1; }
+grep -qF 'install_overlay_file etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf /etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf 0644' "$runtime_assets"
+grep -qF 'rsyslogd -N1 -f /etc/rsyslog.conf' "$runtime_assets"
+octessera_reject_file_match 'Orange HDMI logging mitigation must not change global or journald limits.' -RInE --exclude='00-octessera-orange-hdmi-plugin.conf' --exclude='orange-runtime-assets-install.sh' '(^|/)(rsyslog\.conf|journald[^/]*)$|SystemMaxUse|RuntimeMaxUse|RateLimit|rateLimit|Storage=' "$overlay"
+octessera_reject_file_match 'Orange HDMI logging mitigation must not change global or journald limits.' -nE '(install|cat|sed|printf|mv|rm).*(/etc/rsyslog\.conf|journald)|SystemMaxUse|RuntimeMaxUse|RateLimit|rateLimit|Storage=' "$customize"
+octessera_reject_file_match 'Orange HDMI logging mitigation must not change global or journald limits.' -nE 'SystemMaxUse|RuntimeMaxUse|RateLimit|rateLimit|Storage=' "$runtime_assets"
 
 input_provision="$root/tools/orange-pi/input-routing-provision.sh"
 grep -q 'serial-getty@ttyS0.service' "$input_provision"
@@ -57,8 +75,8 @@ octessera_reject_file_match 'Orange initramfs must not execute the renderer thro
 octessera_reject_file_match 'Orange initramfs must not depend on /usr/bin/env.' -q '/usr/bin/env' "$boot_script"
 octessera_reject_file_match 'Orange initramfs must not use marker or animated one-shot coupling.' -qE 'MARKER|write_ready_marker|boot-once' "$boot_script"
 grep -q 'octessera-orange-oled-suspend.service' "$customize"
-grep -q 'install_overlay_file etc/systemd/system/octessera-orange-oled-shutdown.service' "$customize"
-grep -q 'systemctl enable octessera-orange-oled-shutdown.service' "$customize"
+grep -q 'install_overlay_file etc/systemd/system/octessera-orange-oled-shutdown.service' "$runtime_assets"
+grep -q 'systemctl enable octessera-orange-oled-shutdown.service' "$runtime_assets"
 octessera_reject_file_match 'Orange OLED lifecycle must use the installed /usr/local/sbin executable.' -RInF '/usr/local/bin/octessera-orange-oled-logo' "$customize" "$overlay/etc/systemd/system/octessera-orange-boot-splash.service"
 shutdown_service="$overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
 grep -qFx 'ExecStart=/bin/true' "$shutdown_service"
@@ -74,6 +92,14 @@ grep -q '^After=systemd-udev-trigger.service systemd-modules-load.service system
 grep -q '^Before=sysinit.target octessera.service$' "$boot_service"
 octessera_reject_file_match 'Orange boot splash must not conflict with runtime.' -q 'Conflicts=octessera.service' "$boot_service"
 runtime_service="$overlay/etc/systemd/system/octessera.service"
+setup_service="$overlay/etc/systemd/system/octessera-setup.service"
+for tree in "$overlay" "$raspberry"; do
+  grep -qFx 'NoNewPrivileges=yes' "$tree/etc/systemd/system/octessera.service"
+  grep -qFx 'NoNewPrivileges=no' "$tree/etc/systemd/system/octessera-setup.service"
+  grep -qFx 'RuntimeMaxSec=670s' "$tree/etc/systemd/system/octessera-setup.service"
+  grep -qFx 'TimeoutStopSec=10s' "$tree/etc/systemd/system/octessera-setup.service"
+done
+grep -qFx '# dnsmasq needs privilege-transition capabilities to drop from root while serving the setup AP.' "$setup_service"
 grep -q 'Wants=octessera-orange-boot-splash.service' "$runtime_service"
 grep -q 'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' "$runtime_service"
 for line in StartLimitIntervalSec=30s StartLimitBurst=3 Restart=on-failure RestartPreventExitStatus=78 RestartSec=5s; do
@@ -85,15 +111,13 @@ grep -qFx 'Requires=octessera-provision-musical-default.service' "$runtime_servi
 grep -qFx 'After=octessera-device-apply-reboot.socket' "$runtime_service"
 octessera_reject_file_match 'Orange runtime service has an unapproved failure dependency.' -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$runtime_service"
 [[ "$(grep -c '^Requires=' "$runtime_service")" == 3 ]]
-grep -qF 'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot' "$runtime_service"
+grep -qF 'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox' "$runtime_service"
 
 grep -q 'octessera_install_diagnostic_payload' "$customize"
 grep -q 'artifact_kind == "diagnostic-only"' "$overlay/usr/local/lib/octessera/diagnostic-payload.sh"
 grep -q 'runtime_ready == false' "$overlay/usr/local/lib/octessera/diagnostic-payload.sh"
 grep -q 'enable_runtime' "$overlay/usr/local/lib/octessera/diagnostic-payload.sh"
 grep -q '"image_kind"' "$overlay/etc/octessera/image-contract.json"
-grep -q '^USER = "octessera"$' "$overlay/usr/local/sbin/octessera-setup-sidecar"
-octessera_reject_file_match 'Orange setup sidecar must not grant runtime-account access.' -q 'octessera-runtime' "$overlay/usr/local/sbin/octessera-setup-sidecar"
 for line in \
   'ExecStart=/usr/local/bin/octessera-pi' 'User=octessera-runtime' 'Group=octessera-runtime' \
   'Requires=octessera-device-apply-reboot.socket' 'Requires=octessera-provision-musical-default.service' \
@@ -102,15 +126,18 @@ for line in \
   'Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples' \
   'Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json' \
   'RuntimeDirectory=octessera' 'NoNewPrivileges=yes' 'ProtectSystem=strict' \
-  'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot' 'PrivateTmp=yes' 'ProtectHome=yes' \
-  'LimitRTPRIO=70' 'LimitMEMLOCK=infinity'; do
+  'TTYPath=/dev/tty1' 'TTYReset=yes' 'SupplementaryGroups=audio i2c spi gpio tty video' \
+  'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox' 'PrivateTmp=yes' 'ProtectHome=yes' \
+  'LimitRTPRIO=70' 'LimitMEMLOCK=infinity' 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG'; do
   grep -qFx "$line" "$runtime_service"
 done
-octessera_reject_file_match 'Orange runtime service must not grant ambient SYS_NICE or priority 80.' -qE '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$runtime_service"
+octessera_reject_file_match 'Orange runtime service must not grant priority 80.' -qE 'LimitRTPRIO=80' "$runtime_service"
+[[ "$(grep -E '^(AmbientCapabilities|CapabilityBoundingSet)=' "$runtime_service")" == $'AmbientCapabilities=CAP_SYS_TTY_CONFIG\nCapabilityBoundingSet=CAP_SYS_TTY_CONFIG' ]]
+octessera_reject_file_match 'Orange runtime service contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$runtime_service"
 expected_udev=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
 [[ "$(cat -- "$overlay/etc/udev/rules.d/70-octessera-orange-runtime.rules")" == "$expected_udev" ]]
 octessera_reject_file_match 'Orange runtime service must not block fixed hardware devices.' -qE '^(PrivateDevices|DevicePolicy)=' "$runtime_service"
-grep -qF 'default: preset-firstrun octessera_midi octessera_audio octessera_image_sanitize' "$workflow"
+grep -qF 'default: preset-firstrun octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' "$workflow"
 [[ "$(grep -cF "extensions: \${{ inputs.extensions }}" "$workflow")" == 2 ]]
 
 octessera_reject_file_match 'Forbidden Raspberry Pi assumption or secret-like pattern found in Orange image sources.' -RInE --exclude-dir=doc '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage|wpa_passphrase|BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|BEGIN PRIVATE KEY|default_password|changeme|raspberry)' "$overlay" "$workflow"

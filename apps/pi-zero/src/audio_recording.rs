@@ -1,14 +1,11 @@
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::audio::AudioSink;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn recording_owner(outputs: playback_runtime::AudioOutputSet) -> Option<AudioSink> {
     AudioSink::selected(outputs).into_iter().next()
 }
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[test]
     fn recording_owner_covers_every_non_empty_output_set() {
         use super::recording_owner;
@@ -28,7 +25,6 @@ mod tests {
         }
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[test]
     fn usb_recording_tap_policy_keeps_single_callback_owner() {
         use super::recording_owner;

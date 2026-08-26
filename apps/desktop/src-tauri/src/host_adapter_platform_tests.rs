@@ -3,7 +3,7 @@ use crate::types::QueuedAudioEvent;
 use playback_runtime::{
     HostAdapter, HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeOperation,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeSetupPortalErrorCode,
-    RuntimeSetupPortalPhase, RuntimeStoreResult,
+    RuntimeSetupPortalPhase, RuntimeStoreResult, RuntimeUserDataTransferPhase,
 };
 use std::time::Duration;
 
@@ -26,6 +26,29 @@ fn sample_list_request_reports_service_unavailable_when_enqueue_fails() {
 }
 
 #[test]
+fn user_data_transfer_close_reports_identified_closed_status() {
+    let (mut adapter, _) = test_adapter();
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UserDataTransferClose,
+        "transfer-close-test".into(),
+        Some(38),
+    );
+    let follow_ups = adapter.handle_platform_effect(&request).unwrap();
+    assert!(matches!(
+        &follow_ups[..],
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { result, request_id, revision }
+        }] if request_id == "transfer-close-test"
+            && *revision == Some(38)
+            && matches!(result.as_ref(), RuntimeStoreResult::UserDataTransferStatus { status }
+                if status.phase == RuntimeUserDataTransferPhase::Closed
+                    && status.url.is_none()
+                    && status.code.is_none()
+                    && status.expires_in_seconds.is_none())
+    ));
+}
+
+#[test]
 fn system_info_request_reports_typed_service_unavailable() {
     let (mut adapter, _) = test_adapter();
     let follow_ups = adapter
@@ -40,10 +63,33 @@ fn system_info_request_reports_typed_service_unavailable() {
 }
 
 #[test]
-fn setup_portal_open_reports_identified_unsupported_status() {
+fn setup_portal_open_remains_a_separate_identified_unsupported_status() {
     let (mut adapter, _) = test_adapter();
     let request = RuntimePlatformRequest::new(
         RuntimePlatformEffect::SetupPortalOpen,
+        "setup-portal-test".into(),
+        Some(36),
+    );
+    let follow_ups = adapter.handle_platform_effect(&request).unwrap();
+    assert!(matches!(
+        &follow_ups[..],
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { result, request_id, revision }
+        }] if request_id == "setup-portal-test"
+            && *revision == Some(36)
+            && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status }
+                if status.phase == RuntimeSetupPortalPhase::Unsupported
+                    && status.error_code == Some(RuntimeSetupPortalErrorCode::Unsupported)
+                    && status.disposition.is_none()
+                    && status.portal_suffix.is_none())
+    ));
+}
+
+#[test]
+fn user_data_transfer_open_reports_identified_unsupported_status() {
+    let (mut adapter, _) = test_adapter();
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UserDataTransferOpen,
         "setup-portal-test".into(),
         Some(37),
     );
@@ -62,22 +108,21 @@ fn setup_portal_open_reports_identified_unsupported_status() {
     };
     assert_eq!(request_id, "setup-portal-test");
     assert_eq!(*revision, Some(37));
-    assert_eq!(result.operation(), RuntimeOperation::SetupPortal);
+    assert_eq!(result.operation(), RuntimeOperation::UserDataTransfer);
 
     let error = result
         .error_facts()
         .expect("unsupported status has error facts");
     assert_eq!(error.domain, RuntimeErrorDomain::Runtime);
     assert_eq!(error.code, RuntimeErrorCode::Unsupported);
-    assert_eq!(error.operation, RuntimeOperation::SetupPortal);
+    assert_eq!(error.operation, RuntimeOperation::UserDataTransfer);
     assert!(matches!(
         result,
-        RuntimeStoreResult::SetupPortalStatus { status }
-            if status.phase == RuntimeSetupPortalPhase::Unsupported
-                && status.error_code == Some(RuntimeSetupPortalErrorCode::Unsupported)
-                && !status.reboot_required
-                && status.disposition.is_none()
-                && status.portal_suffix.is_none()
+        RuntimeStoreResult::UserDataTransferStatus { status }
+            if status.phase == RuntimeUserDataTransferPhase::Unsupported
+                && status.url.is_none()
+                && status.code.is_none()
+                && status.expires_in_seconds.is_none()
     ));
 }
 

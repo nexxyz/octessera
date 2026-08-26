@@ -3,9 +3,10 @@ use super::{
     PPQN,
 };
 use crate::protocol::{
-    HostMessage, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorDomain,
-    RuntimeErrorMetadata, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeRecovery, RuntimeStatus, RuntimeStoreResult, RuntimeTransportState, SyncSource,
+    HostMessage, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorCode,
+    RuntimeErrorDomain, RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeOperation,
+    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeRecovery, RuntimeStatus,
+    RuntimeStoreResult, RuntimeTransportState, SyncSource,
 };
 use serde_json::Value;
 use std::time::Duration;
@@ -90,17 +91,36 @@ impl PlaybackRuntime {
         request: &RuntimePlatformRequest,
     ) -> HostMessage {
         match message {
-            HostMessage::RuntimeResult { result } => HostMessage::RuntimeResult {
-                result: match result {
+            HostMessage::RuntimeResult { result } => {
+                let result = match result {
                     RuntimeStoreResult::StoreError { message } => {
                         RuntimeStoreResult::RuntimeFailure {
-                            error: request.failure_facts(message),
+                            error: request.effect.failure_facts(message),
                         }
                     }
+                    RuntimeStoreResult::Identified {
+                        result,
+                        request_id,
+                        revision,
+                    } if request_id == request.request_id
+                        && revision == request.revision
+                        && !matches!(result.as_ref(), RuntimeStoreResult::Identified { .. }) =>
+                    {
+                        return HostMessage::RuntimeResult {
+                            result: RuntimeStoreResult::Identified {
+                                result,
+                                request_id,
+                                revision,
+                            },
+                        };
+                    }
+                    RuntimeStoreResult::Identified { .. } => invalid_identified_result(request),
                     result => result,
+                };
+                HostMessage::RuntimeResult {
+                    result: result.with_identity(request.request_id.clone(), request.revision),
                 }
-                .with_identity(request.request_id.clone(), request.revision),
-            },
+            }
             other => other,
         }
     }
@@ -420,47 +440,17 @@ fn same_error_identity(left: &RuntimeErrorMetadata, right: &RuntimeErrorMetadata
         && left.revision == right.revision
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn identity_layers(result: &RuntimeStoreResult) -> usize {
-        match result {
-            RuntimeStoreResult::Identified { result, .. } => 1 + identity_layers(result),
-            _ => 0,
-        }
-    }
-
-    #[test]
-    fn save_results_have_exactly_one_identity_layer() {
-        let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-        let request = runtime.next_platform_request(RuntimePlatformEffect::StoreSaveDefault {
-            payload: serde_json::json!({"revision": 7}),
-            mode: None,
-        });
-        let immediate = runtime.identify_result(
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::SaveDefaultResult {
-                    ok: true,
-                    is_auto: None,
-                },
-            },
-            &request,
-        );
-        let deferred = HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveDefaultResult {
-                ok: true,
-                is_auto: Some(true),
-            }
-            .with_identity(request.request_id.clone(), request.revision),
-        };
-
-        let results = [immediate, deferred];
-        for message in results {
-            let HostMessage::RuntimeResult { result } = message else {
-                panic!("expected runtime result");
-            };
-            assert_eq!(identity_layers(&result), 1);
-        }
+fn invalid_identified_result(request: &RuntimePlatformRequest) -> RuntimeStoreResult {
+    RuntimeStoreResult::RuntimeFailure {
+        error: RuntimeErrorFacts::new(
+            RuntimeErrorDomain::Serialization,
+            RuntimeErrorCode::InvalidPayload,
+            request.operation(),
+            Some("runtime result identity is invalid".into()),
+        ),
     }
 }
+
+#[cfg(test)]
+#[path = "runtime_api_tests.rs"]
+mod tests;

@@ -4,6 +4,7 @@ mod readiness;
 mod support;
 use super::model::{CheckId, CheckOutcome, CheckStatus};
 use crate::board_profile::FatDiagnosticBoard;
+use playback_runtime::{RuntimeSetupPortalPhase, RuntimeStoreResult};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -176,106 +177,27 @@ fn storage_check(context: &CheckContext) -> CheckOutcome {
 }
 
 fn setup_status_check(context: &CheckContext) -> CheckOutcome {
-    setup_status_check_paths(
-        Path::new(context.board.setup_status_dir),
-        Path::new(context.board.setup_control_dir),
-    )
+    setup_status_check_paths(Path::new(context.board.setup_status_dir))
 }
 
-fn setup_status_check_paths(public: &Path, control: &Path) -> CheckOutcome {
+fn setup_status_check_paths(public: &Path) -> CheckOutcome {
     let current = public.join("current.json");
-    let receipts = public.join("receipts");
-    let active = control.join("active.json");
-    let mut observed_status = false;
-    for directory in [public, control] {
-        if directory.exists() && !directory.is_dir() {
-            return outcome(
-                CheckStatus::Fail,
-                "setup status path is not a directory",
-                "05-setup-status.txt",
-            );
-        }
-    }
-    let current_fields = ["schema", "bootId", "attemptId", "sequence", "status"];
-    let active_fields = [
-        "schema",
-        "bootId",
-        "attemptId",
-        "requestToken",
-        "sequence",
-        "reentry",
-        "priorSetupComplete",
-        "startedMonotonic",
-        "deadlineMonotonic",
-        "servicePid",
-        "serviceStartTicks",
-        "claimPath",
-    ];
-    for (path, required) in [
-        (&current, &current_fields[..]),
-        (&active, &active_fields[..]),
-    ] {
-        if path.exists() {
-            observed_status = true;
-            if let Err(error) = validate_json_object(path, required) {
-                return outcome(CheckStatus::Fail, &error, "05-setup-status.txt");
-            }
-        }
-    }
-    if receipts.exists() {
-        if !receipts.is_dir() {
-            return outcome(
-                CheckStatus::Fail,
-                "setup receipts path is not a directory",
-                "05-setup-status.txt",
-            );
-        }
-        let entries = match fs::read_dir(receipts) {
-            Ok(entries) => entries,
-            Err(error) => {
-                return outcome(
-                    CheckStatus::Fail,
-                    &format!("cannot inspect receipts: {error}"),
-                    "05-setup-status.txt",
-                )
-            }
-        };
-        let receipt_fields = ["schema", "bootId", "attemptId", "sequence", "status"];
-        let mut count = 0usize;
-        for entry in entries {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(error) => {
-                    return outcome(
-                        CheckStatus::Fail,
-                        &format!("cannot read receipt entry: {error}"),
-                        "05-setup-status.txt",
-                    )
-                }
-            };
-            if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
-                continue;
-            }
-            observed_status = true;
-            count += 1;
-            if count > 64 {
-                return outcome(
-                    CheckStatus::Fail,
-                    "setup receipt directory has too many entries",
-                    "05-setup-status.txt",
-                );
-            }
-            if let Err(error) = validate_json_object(&entry.path(), &receipt_fields) {
-                return outcome(CheckStatus::Fail, &error, "05-setup-status.txt");
-            }
-        }
-    }
-    if observed_status {
-        outcome(
-            CheckStatus::Pass,
-            "observed setup status and receipts are contract-shaped",
+    if public.exists() && !public.is_dir() {
+        return outcome(
+            CheckStatus::Fail,
+            "setup status path is not a directory",
             "05-setup-status.txt",
-        )
+        );
+    }
+    if current.exists() {
+        match validate_setup_status_file(&current) {
+            Ok(()) => outcome(
+                CheckStatus::Pass,
+                "current setup status is contract-shaped",
+                "05-setup-status.txt",
+            ),
+            Err(error) => outcome(CheckStatus::Fail, &error, "05-setup-status.txt"),
+        }
     } else {
         outcome(
             CheckStatus::NotRun,
@@ -283,6 +205,43 @@ fn setup_status_check_paths(public: &Path, control: &Path) -> CheckOutcome {
             "05-setup-status.txt",
         )
     }
+}
+
+fn validate_setup_status_file(path: &Path) -> Result<(), String> {
+    validate_json_object(path, &["schema", "status"])?;
+    let payload = read_small(path)?;
+    let value = serde_json::from_str::<Value>(&payload)
+        .map_err(|error| format!("invalid JSON at {}: {error}", path.display()))?;
+    let Some(object) = value.as_object() else {
+        return Err(format!("JSON at {} is not an object", path.display()));
+    };
+    if object.len() != 2 || !object.contains_key("schema") || !object.contains_key("status") {
+        return Err(format!(
+            "JSON at {} must contain exactly schema and status",
+            path.display()
+        ));
+    }
+    if object.get("schema").and_then(Value::as_u64) != Some(1) {
+        return Err(format!("JSON at {} has an invalid schema", path.display()));
+    }
+    let result = serde_json::from_value::<RuntimeStoreResult>(object["status"].clone())
+        .map_err(|error| format!("invalid setup status at {}: {error}", path.display()))?;
+    let RuntimeStoreResult::SetupPortalStatus { status } = result else {
+        return Err(format!(
+            "JSON at {} does not contain setup portal status",
+            path.display()
+        ));
+    };
+    status
+        .validate()
+        .map_err(|error| format!("invalid setup portal status at {}: {error}", path.display()))?;
+    if status.phase == RuntimeSetupPortalPhase::Unsupported {
+        return Err(format!(
+            "invalid setup portal status at {}: image status phase is unsupported",
+            path.display()
+        ));
+    }
+    Ok(())
 }
 
 fn oled_handoff_check(context: &CheckContext) -> CheckOutcome {
@@ -435,6 +394,8 @@ mod tests {
     use super::{input_check, setup_status_check_paths, CheckContext};
     use crate::board_profile::FAT_RASPBERRY_PI_ZERO_2W;
     use crate::fat_diagnostic::model::CheckStatus;
+    use serde_json::json;
+    use std::fs;
     use std::time::Duration;
 
     #[test]
@@ -457,9 +418,51 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let outcome = setup_status_check_paths(&root.join("public"), &root.join("control"));
+        let outcome = setup_status_check_paths(&root.join("public"));
         assert_eq!(outcome.status, CheckStatus::NotRun);
         assert!(!root.exists());
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn setup_status_accepts_backend_envelope_phases_and_rejects_missing_type() {
+        let root = std::env::temp_dir().join(format!(
+            "octessera-fat-setup-status-valid-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let public = root.join("public");
+        fs::create_dir_all(&public).unwrap();
+        let current = public.join("current.json");
+        for status in [
+            json!({"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}),
+            json!({"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}),
+            json!({"type":"setup_portal_status","phase":"finalizing","rebootRequired":false}),
+            json!({"type":"setup_portal_status","phase":"succeeded","rebootRequired":false}),
+            json!({"type":"setup_portal_status","phase":"failed","errorCode":"operation_failed","rebootRequired":false}),
+            json!({"type":"setup_portal_status","phase":"timed_out","errorCode":"unavailable","rebootRequired":false}),
+        ] {
+            fs::write(
+                &current,
+                serde_json::to_vec(&json!({"schema":1,"status":status})).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(setup_status_check_paths(&public).status, CheckStatus::Pass);
+        }
+
+        fs::write(
+            &current,
+            serde_json::to_vec(&json!({
+                "schema": 1,
+                "status": {"phase":"starting","disposition":"accepted","rebootRequired":false}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(setup_status_check_paths(&public).status, CheckStatus::Fail);
+        let _ = fs::remove_dir_all(root);
     }
 }

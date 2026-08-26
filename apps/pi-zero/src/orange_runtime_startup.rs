@@ -1,5 +1,6 @@
 use super::*;
 use crate::initial_audio_prep::{interpret_initial_audio_prep, InitialAudioPrepBoard};
+use crate::sample_browser::builtin_favourite_dirs;
 
 pub(crate) struct PreparedRuntime {
     pub(super) playback: PlaybackRuntime,
@@ -72,6 +73,7 @@ pub(crate) fn prepare_runtime(
     });
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
+        sample_builtin_favourite_dirs: builtin_favourite_dirs(),
         ..NativeRunnerConfig::default()
     })?;
     if skip_startup_splash {
@@ -203,5 +205,19 @@ pub(crate) fn wait_for_initial_audio_prep(
             return Err("initial Orange audio preparation timed out".into());
         }
         thread::sleep(POLL);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn orange_startup_uses_canonical_builtin_sample_favourites() {
+        let (audio, _, _) = crate::audio::test_service();
+        let mut prepared = prepare_runtime(audio, Arc::new(|_| {}), false, true).unwrap();
+
+        crate::sample_browser::assert_builtin_favourite_menu(&mut prepared.runner);
     }
 }

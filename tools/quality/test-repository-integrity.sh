@@ -38,6 +38,7 @@ make_fixture() {
     "$fixture/resources/legal" \
     "$fixture/docs" \
     "$fixture/src" \
+    "$fixture/tools/storage" \
     "$fixture/tools/pi-image/stage4-octessera/files/root/usr/local/sbin" \
     "$fixture/tools/pi-image/stage4-octessera/files/root/etc/systemd/system" \
     "$fixture/tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d"
@@ -83,7 +84,8 @@ make_fixture() {
   printf '# Fixture docs\n\n## Section\n\nSee [other](other.md) and [section](#section).\n' >"$fixture/docs/index.md"
   printf '# Other doc\n' >"$fixture/docs/other.md"
 
-  : >"$fixture/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-sd-card"
+  : >"$fixture/tools/storage/octessera-sd-card"
+  : >"$fixture/tools/storage/octessera-sd-card-lib.sh"
   : >"$fixture/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-sd-card.service"
   : >"$fixture/tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d/99-octessera-sd-card.rules"
   printf 'fn main() {}\n' >"$fixture/src/main.rs"

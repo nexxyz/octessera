@@ -76,12 +76,26 @@ require_octessera_boot_service_layout() {
     for required_line in \
         'Wants=octessera-boot-splash.service' \
         'After=octessera-boot-splash.service' \
-        'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1'; do
+        'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
+        'NoNewPrivileges=yes' \
+        'TTYPath=/dev/tty1' \
+        'TTYReset=yes' \
+        'SupplementaryGroups=tty' \
+        'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
+        'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
         if ! grep -qxF "$required_line" "$runtime"; then
             echo "constructor-required: runtime service is missing $required_line" >&2
             return 1
         fi
     done
+    if [ "$(grep -Ec '^(AmbientCapabilities|CapabilityBoundingSet)=' "$runtime")" -ne 2 ]; then
+        echo "constructor-required: runtime service has duplicate or missing capability directives" >&2
+        return 1
+    fi
+    if grep -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$runtime"; then
+        echo "constructor-required: runtime service contains a prohibited tty, device, graphics, or forced-mode directive" >&2
+        return 1
+    fi
     count="$(grep -cFx 'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' "$runtime" || true)"
     if [ "$count" -ne 1 ]; then
         echo "constructor-required: runtime service has an extra or missing OLED handoff environment" >&2
@@ -284,12 +298,20 @@ require_octessera_raspberry_identity() {
         return 1
     fi
     read -r -a tokens < "$boot_cmdline"
+    tty1_console_count=0
     for token in "${tokens[@]}"; do
         if [[ "$token" =~ ^console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?$ ]]; then
             echo "constructor-required: forbidden serial console remains: $token" >&2
             return 1
         fi
+        if [ "$token" = console=tty1 ]; then
+            tty1_console_count=$((tty1_console_count + 1))
+        fi
     done
+    if [ "$tty1_console_count" -ne 1 ]; then
+        echo "constructor-required: Raspberry cmdline must contain exactly one console=tty1 token" >&2
+        return 1
+    fi
     for unit in serial0 ttyAMA0 ttyS0; do
         mask="$image_root/etc/systemd/system/serial-getty@$unit.service"
         if [ ! -L "$mask" ] || [ "$(readlink "$mask")" != /dev/null ]; then
@@ -302,6 +324,16 @@ require_octessera_raspberry_identity() {
             return 1
         fi
     done
+    local tty1_mask="$image_root/etc/systemd/system/getty@tty1.service"
+    local tty1_enablement="$image_root/etc/systemd/system/getty.target.wants/getty@tty1.service"
+    if [ -L "$tty1_mask" ] && [ "$(readlink "$tty1_mask")" = /dev/null ]; then
+        echo "constructor-required: tty1 getty is masked" >&2
+        return 1
+    fi
+    if [ -L "$tty1_enablement" ] && [ "$(readlink "$tty1_enablement")" = /dev/null ]; then
+        echo "constructor-required: tty1 getty enablement is masked" >&2
+        return 1
+    fi
     for unit in hciuart bluetooth; do
         enablement="$image_root/etc/systemd/system/multi-user.target.wants/$unit.service"
         if [ -e "$enablement" ] || [ -L "$enablement" ]; then

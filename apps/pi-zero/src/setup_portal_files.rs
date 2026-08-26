@@ -63,34 +63,29 @@ pub(crate) enum SetupFileError {
     Published,
 }
 
-pub(crate) fn create_request_marker(path: &Path, token: &str) -> Result<(), SetupFileError> {
-    create_request_marker_with_publisher(path, token, &publish_marker_noreplace)
+pub(crate) fn create_request_marker(path: &Path) -> Result<(), SetupFileError> {
+    create_request_marker_with_publisher(path, &publish_marker_noreplace)
 }
 
 #[cfg(test)]
 pub(crate) fn create_request_marker_with_publisher_for_test<F>(
     path: &Path,
-    token: &str,
     publisher: F,
 ) -> Result<(), SetupFileError>
 where
     F: Fn(&Path, &Path) -> Result<(), SetupFileError>,
 {
-    create_request_marker_with_publisher(path, token, &publisher)
+    create_request_marker_with_publisher(path, &publisher)
 }
 
 fn create_request_marker_with_publisher(
     path: &Path,
-    token: &str,
     publisher: &dyn Fn(&Path, &Path) -> Result<(), SetupFileError>,
 ) -> Result<(), SetupFileError> {
-    if !valid_hex_32(token) {
-        return Err(SetupFileError::Unsafe);
-    }
     let Some(parent) = path.parent() else {
         return Err(SetupFileError::Unsafe);
     };
-    validate_directory_path(parent, None, None)?;
+    validate_request_parent(parent)?;
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => return Err(SetupFileError::Unsafe),
         Ok(_) => return Err(SetupFileError::Exists),
@@ -99,22 +94,16 @@ fn create_request_marker_with_publisher(
         }
         Err(_) => {}
     }
-    let temp_path = path.with_file_name(format!(
-        ".{}.{}.tmp",
-        path.file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("request"),
-        token
-    ));
-    let content = format!("{token}\n").into_bytes();
+    let temp_path = path.with_file_name(".start.tmp");
+    let content = b"start\n";
     let mut owns_temp = false;
     let result = (|| {
         let mut file = open_new_file(&temp_path, 0o600)?;
         owns_temp = true;
         set_file_mode(&file, 0o600)?;
-        file.write_all(&content).map_err(classify_io)?;
+        file.write_all(content).map_err(classify_io)?;
         file.sync_all().map_err(classify_io)?;
-        validate_marker_content(&mut file, &content)?;
+        validate_marker_content(&mut file, content)?;
         let metadata = file_metadata(&file).map_err(classify_io)?;
         if !valid_marker_metadata(metadata) {
             return Err(SetupFileError::Unsafe);
@@ -132,7 +121,6 @@ fn create_request_marker_with_publisher(
 
 pub(crate) fn read_status_file(
     paths: &SetupPortalPaths,
-    receipt_token: Option<&str>,
     expected_uid: u32,
     expected_gid: u32,
 ) -> Result<Option<Vec<u8>>, SetupFileError> {
@@ -141,20 +129,7 @@ pub(crate) fn read_status_file(
         Some(expected_uid),
         Some((expected_gid, 0o750)),
     )?;
-    let path = if let Some(token) = receipt_token {
-        if !valid_hex_32(token) {
-            return Err(SetupFileError::Unsafe);
-        }
-        validate_directory_path(
-            &paths.receipts,
-            Some(expected_uid),
-            Some((expected_gid, 0o750)),
-        )?;
-        paths.receipts.join(format!("{token}.json"))
-    } else {
-        paths.current.clone()
-    };
-    match read_bounded_file(&path, expected_uid, expected_gid, 0o640) {
+    match read_bounded_file(&paths.current, expected_uid, expected_gid, 0o640) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(SetupFileError::Missing) => Ok(None),
         Err(error) => Err(error),
@@ -185,6 +160,21 @@ pub(crate) fn validate_directory_path(
         }
     }
     Ok(())
+}
+
+fn validate_request_parent(path: &Path) -> Result<(), SetupFileError> {
+    #[cfg(unix)]
+    {
+        return validate_directory_path(
+            path,
+            Some(unsafe { libc::geteuid() }),
+            Some((unsafe { libc::getegid() }, 0o700)),
+        );
+    }
+    #[cfg(not(unix))]
+    {
+        validate_directory_path(path, None, None)
+    }
 }
 
 pub(crate) fn validate_public_metadata(
@@ -325,9 +315,22 @@ fn set_file_mode(file: &File, mode: u32) -> Result<(), SetupFileError> {
 
 fn valid_marker_metadata(metadata: SetupMetadata) -> bool {
     metadata.kind == SetupFileKind::Regular
+        && marker_owner_matches(metadata)
         && metadata.mode == 0o600
         && metadata.nlink == 1
-        && metadata.size == 33
+        && metadata.size == 6
+}
+
+fn marker_owner_matches(metadata: SetupMetadata) -> bool {
+    #[cfg(unix)]
+    {
+        metadata.uid == Some(unsafe { libc::geteuid() })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = metadata;
+        true
+    }
 }
 
 fn validate_marker_content(file: &mut File, expected: &[u8]) -> Result<(), SetupFileError> {
@@ -436,7 +439,7 @@ fn metadata_from_std(metadata: &fs::Metadata) -> SetupMetadata {
                 gid: Some(0),
                 mode: if kind == SetupFileKind::Directory {
                     0o750
-                } else if metadata.len() == 33 {
+                } else if metadata.len() == 6 {
                     0o600
                 } else {
                     0o640
@@ -482,11 +485,4 @@ fn classify_errno() -> SetupFileError {
     } else {
         classify_io(error)
     }
-}
-
-pub(crate) fn valid_hex_32(value: &str) -> bool {
-    value.len() == 32
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }

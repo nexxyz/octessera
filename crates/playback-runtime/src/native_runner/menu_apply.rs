@@ -317,6 +317,9 @@ fn current_key_requires_menu_materialization(current_key: &Option<String>) -> bo
     let Some(key) = current_key.as_deref() else {
         return false;
     };
+    if key == "hdmi.mode" {
+        return true;
+    }
     if let Some(rest) = key.strip_prefix("instruments.") {
         let Some((_, suffix)) = rest.split_once('.') else {
             return true;

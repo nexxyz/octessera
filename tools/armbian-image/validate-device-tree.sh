@@ -5,11 +5,11 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=tools/armbian-image/validation-assertions.sh
 source "$root/tools/armbian-image/validation-assertions.sh"
 device_tree_root="$root/userpatches/overlay/usr/local/share/octessera/device-tree"
-spi_dts="$device_tree_root/octessera-h618-spi1-cs0.dts"
+spi_dts="$device_tree_root/octessera-h618-spi1-oled-sd2.dts"
 input_dts="$device_tree_root/octessera-h618-input-routing.dts"
 audio_dts="$device_tree_root/octessera-ahub0-pcm5102.dts"
 spi_fixture="$root/tools/armbian-image/fixtures/h618-spi-base.dts"
-spi_name=octessera-h618-spi1-cs0
+spi_name=octessera-h618-spi1-oled-sd2
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -40,26 +40,26 @@ run_env_case() {
   local name="$1" expected="$2" input="$3" output="$4" extra="${5:-octessera-h618-input-routing}"
   local actual input_file="$env_work/$name.in" output_file="$env_work/$name.out"
   printf '%s' "$input" > "$input_file"
-  if octessera_armbian_env_update "$input_file" "$output_file" octessera-h618-spi1-cs0 i2c1-pi "$extra" octessera-ahub0-pcm5102 1 2>"$input_file.stderr"; then actual=0; else actual=$?; fi
+  if octessera_armbian_env_update "$input_file" "$output_file" octessera-h618-spi1-oled-sd2 i2c1-pi "$extra" octessera-ahub0-pcm5102 1 2>"$input_file.stderr"; then actual=0; else actual=$?; fi
   [[ "$actual" == "$expected" ]] || { echo "Unexpected status for Armbian environment case $name." >&2; exit 1; }
   if [[ "$expected" == 0 ]]; then printf '%s' "$output" > "$input_file.expected"; cmp "$input_file.expected" "$output_file"; fi
 }
-run_env_case no_assign 0 $'keep=one\n' $'keep=one\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi\n'
-run_env_case existing_tokens 0 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\n' $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\n'
-run_env_case extra_user_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102 extra\n' ''
-run_env_case extra_overlay_token 2 $'overlays=i2c1-pi spidev1_0\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102\n' ''
-run_env_case missing_audio_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing\n' ''
-run_env_case duplicate_audio_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing octessera-ahub0-pcm5102 octessera-ahub0-pcm5102\n' ''
-run_env_case wrong_user_order 2 $'overlays=i2c1-pi\nuser_overlays=octessera-ahub0-pcm5102 octessera-h618-spi1-cs0 octessera-h618-input-routing\n' ''
+run_env_case no_assign 0 $'keep=one\n' $'keep=one\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102\noverlays=i2c1-pi\n'
+run_env_case existing_tokens 0 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102\n' $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102\n'
+run_env_case extra_user_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102 extra\n' ''
+run_env_case extra_overlay_token 2 $'overlays=i2c1-pi spidev1_0\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102\n' ''
+run_env_case missing_audio_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing\n' ''
+run_env_case duplicate_audio_token 2 $'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102 octessera-ahub0-pcm5102\n' ''
+run_env_case wrong_user_order 2 $'overlays=i2c1-pi\nuser_overlays=octessera-ahub0-pcm5102 octessera-h618-spi1-oled-sd2 octessera-h618-input-routing\n' ''
 run_env_case duplicate_user 2 $'user_overlays=foo\nuser_overlays=bar\n' ''
-run_env_case duplicate_token 2 $'user_overlays=octessera-h618-spi1-cs0 octessera-h618-spi1-cs0\n' ''
+run_env_case duplicate_token 2 $'user_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-spi1-oled-sd2\n' ''
 run_env_case commented_assignment 2 $'# user_overlays=user-overlay\n' ''
 run_env_case inline_comment 2 $'user_overlays=foo # comment\n' ''
 run_env_case malformed_assignment 2 $'user_overlays = foo\n' ''
 run_env_case duplicate_i2c 2 $'overlays=i2c1-pi\noverlays=foo\n' ''
 run_env_case commented_i2c 2 $'# overlays=i2c1-pi\n' ''
 run_env_case malformed_i2c 2 $'overlays = foo\n' ''
-run_env_case add_input_routing 2 $'user_overlays=octessera-h618-spi1-cs0\noverlays=i2c1-pi\n' '' octessera-h618-input-routing
+run_env_case add_input_routing 2 $'user_overlays=octessera-h618-spi1-oled-sd2\noverlays=i2c1-pi\n' '' octessera-h618-input-routing
 run_env_case duplicate_input_routing 2 $'user_overlays=octessera-h618-input-routing octessera-h618-input-routing\n' '' octessera-h618-input-routing
 
 printf '%s\n' 'extraargs=root=UUID=abc console=ttyS0,115200n8 quiet' 'keep=one' > "$env_work/boot.in"
@@ -67,6 +67,18 @@ octessera_remove_uart0_console_args "$env_work/boot.in" "$env_work/boot.out"
 printf '%s\n' 'extraargs=root=UUID=abc quiet' 'keep=one' > "$env_work/boot.expected"
 cmp "$env_work/boot.expected" "$env_work/boot.out"
 octessera_assert_no_uart0_console_args "$env_work/boot.out"
+printf '%s\n' 'verbosity=1' 'console=both' > "$env_work/console.in"
+octessera_set_armbian_display_console "$env_work/console.in" "$env_work/console.out"
+printf '%s\n' 'verbosity=1' 'console=display' > "$env_work/console.expected"
+cmp "$env_work/console.expected" "$env_work/console.out"
+printf '%s\n' 'verbosity=1' > "$env_work/console-missing.in"
+octessera_set_armbian_display_console "$env_work/console-missing.in" "$env_work/console-missing.out"
+grep -qxF 'console=display' "$env_work/console-missing.out"
+printf '%s\n' 'console=display' 'console=display' > "$env_work/console-duplicate.in"
+if octessera_set_armbian_display_console "$env_work/console-duplicate.in" "$env_work/console-duplicate.out"; then
+  echo 'Armbian console helper accepted duplicate console assignments.' >&2
+  exit 1
+fi
 printf '%s\n' '  APPEND console=ttyS0,115200n8 root=UUID=abc' > "$env_work/append.in"
 octessera_remove_uart0_console_args "$env_work/append.in" "$env_work/append.out"
 grep -qxF '  APPEND root=UUID=abc' "$env_work/append.out"
@@ -87,19 +99,24 @@ grep -q 'fdtfile' "$boot_dtb_helper"
 grep -q 'sun50i-h618-orangepi-zero2w.dtb' "$boot_dtb_helper"
 octessera_reject_file_match 'Image customization must not infer the base DTB from uname.' -q 'uname -r' "$root/userpatches/customize-image.sh"
 grep -q '/boot/overlay-user' "$root/userpatches/customize-image.sh"
-grep -q 'user_overlays=octessera-h618-spi1-cs0' "$root/userpatches/customize-image.sh"
+grep -q 'user_overlays=octessera-h618-spi1-oled-sd2' "$root/userpatches/customize-image.sh"
 
 spi_references="$(grep -oE '&[A-Za-z0-9_]+' "$spi_dts" | sort -u)"
-expected_spi_references="$(printf '%s\n' '&spi1' '&spi1_pins' '&spi1_cs0_pin' | sort -u)"
+expected_spi_references="$(printf '%s\n' '&pio' '&spi1' '&spi1_pins' '&spi1_cs0_pin' '&spi1_cs1_pin' | sort -u)"
 [[ "$spi_references" == "$expected_spi_references" ]] || { echo 'SPI1 overlay references unexpected device-tree labels.' >&2; exit 1; }
 [[ "$(grep -Ec '^[[:space:]]*spidev@0[[:space:]]*\{' "$spi_dts")" == 1 ]]
 grep -Eq '^[[:space:]]*compatible = "rohm,dh2228fv";$' "$spi_dts"
 grep -Eq '^[[:space:]]*reg = <0>;$' "$spi_dts"
 grep -Eq '^[[:space:]]*spi-max-frequency = <16000000>;$' "$spi_dts"
+grep -Eq '^[[:space:]]*mmc@1[[:space:]]*\{$' "$spi_dts"
+grep -Eq '^[[:space:]]*compatible = "mmc-spi-slot";$' "$spi_dts"
+grep -Eq '^[[:space:]]*reg = <1>;$' "$spi_dts"
+grep -Eq '^[[:space:]]*spi-max-frequency = <10000000>;$' "$spi_dts"
+grep -Eq '^[[:space:]]*voltage-ranges = <3300 3300>;$' "$spi_dts"
 grep -Eq '^[[:space:]]*#address-cells = <1>;$' "$spi_dts"
 grep -Eq '^[[:space:]]*#size-cells = <0>;$' "$spi_dts"
-octessera_reject_file_match 'SPI1 overlay contains an unrelated bus, pin, runtime, service, or authorization change.' -nEi 'spi0|spi2|cs1|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$spi_dts"
-octessera_reject_file_match 'SPI1 image integration contains an unexpected CS, GPIO, or fallback path.' -nE 'spidev@[1-9]|reg = <[1-9]|target-path|cs-gpios|gpio-' "$spi_dts" "$root/userpatches/customize-image.sh"
+octessera_reject_file_match 'SPI1 overlay contains an unrelated bus, runtime, service, or authorization change.' -nEi 'spi0|spi2|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$spi_dts"
+octessera_reject_file_match 'SPI1 image integration contains an unexpected CS, GPIO, or fallback path.' -nE 'spidev@[1-9]|reg = <[2-9]|target-path|cs-gpios|gpio-' "$spi_dts" "$root/userpatches/customize-image.sh"
 input_references="$(grep -oE '&[A-Za-z0-9_]+' "$input_dts" | sort -u)"
 expected_input_references="$(printf '%s\n' '&uart0' '&pio' '&octessera_uart0_released' | sort -u)"
 [[ "$input_references" == "$expected_input_references" ]]
@@ -166,17 +183,19 @@ octessera_run_dtc_inspection "$work" inspect_merged_spi_fixture dtc -q -I dtb -O
 fixture_spi1_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ spi1)"
 fixture_spi1_pins_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ spi1_pins)"
 fixture_spi1_cs0_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ spi1_cs0_pin)"
+fixture_spi1_cs1_path="$(fdtget -t s "$work/h618-spi-merged.dtb" /__symbols__ spi1_cs1_pin)"
 fixture_spi0_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ spi0)"
 fixture_i2c1_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ i2c1)"
-[[ -n "$fixture_spi1_path" && -n "$fixture_spi1_pins_path" && -n "$fixture_spi1_cs0_path" && -n "$fixture_spi0_path" && -n "$fixture_i2c1_path" ]]
-octessera_assert_spi1_merge "$work/h618-spi-base.dtb" "$work/h618-spi-merged.dtb" "$fixture_spi1_path" "$fixture_spi1_pins_path" "$fixture_spi1_cs0_path" "$fixture_spi0_path" "$fixture_i2c1_path" fixture
-octessera_reject_file_match 'Compiled SPI1 overlay contains an unrelated bus, pin, runtime, service, or authorization change.' -nEi 'spi0|spi2|cs1|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$work/$spi_name.dts"
+[[ -n "$fixture_spi1_path" && -n "$fixture_spi1_pins_path" && -n "$fixture_spi1_cs0_path" && -n "$fixture_spi1_cs1_path" && -n "$fixture_spi0_path" && -n "$fixture_i2c1_path" ]]
+octessera_assert_spi1_merge "$work/h618-spi-base.dtb" "$work/h618-spi-merged.dtb" "$fixture_spi1_path" "$fixture_spi1_pins_path" "$fixture_spi1_cs0_path" "$fixture_spi1_cs1_path" "$fixture_spi0_path" "$fixture_i2c1_path" fixture
+octessera_reject_file_match 'Compiled SPI1 overlay contains an unrelated bus, runtime, service, or authorization change.' -nEi 'spi0|spi2|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$work/$spi_name.dts"
 fixup_keys="$(awk '/^[[:space:]]*__fixups__[[:space:]]*\{/ { inside=1; next } inside && /^[[:space:]]*};/ { exit } inside && /^[[:space:]]*[A-Za-z0-9_]+[[:space:]]*=/{ line=$0; sub(/^[[:space:]]*/,"",line); sub(/[[:space:]]*=.*/,"",line); print line }' "$work/$spi_name.dts" | sort)"
-[[ "$fixup_keys" == "$(printf '%s\n' spi1 spi1_cs0_pin spi1_pins | sort)" ]]
-grep -Eq '^[[:space:]]*spi1 = "/fragment@0:target:0";$' "$work/$spi_name.dts"
-grep -Eq '^[[:space:]]*spi1_pins = "/fragment@0/__overlay__:pinctrl-0:0";$' "$work/$spi_name.dts"
-grep -Eq '^[[:space:]]*spi1_cs0_pin = "/fragment@0/__overlay__:pinctrl-0:4";$' "$work/$spi_name.dts"
-octessera_reject_file_match 'SPI1 overlay has unexpected local fixups.' -q '__local_fixups__' "$work/$spi_name.dts"
+[[ "$fixup_keys" == "$(printf '%s\n' pio spi1 spi1_cs0_pin spi1_pins | sort)" ]]
+grep -Eq '^[[:space:]]*spi1 = "/fragment@1:target:0";$' "$work/$spi_name.dts"
+grep -Eq '^[[:space:]]*spi1_pins = "/fragment@1/__overlay__:pinctrl-0:0";$' "$work/$spi_name.dts"
+grep -Eq '^[[:space:]]*spi1_cs0_pin = "/fragment@1/__overlay__:pinctrl-0:4";$' "$work/$spi_name.dts"
+grep -Eq '^[[:space:]]*__local_fixups__[[:space:]]*\{$' "$work/$spi_name.dts"
+grep -Eq '^[[:space:]]*pinctrl-0 = <0x08>;$' "$work/$spi_name.dts"
 [[ "$(grep -Ec '^[[:space:]]*spidev@0[[:space:]]*\{' "$work/$spi_name.dts")" == 1 ]]
 grep -Eq 'compatible = "rohm,dh2228fv";' "$work/$spi_name.dts"
 grep -Eq 'reg = <(0x)?0+>;' "$work/$spi_name.dts"

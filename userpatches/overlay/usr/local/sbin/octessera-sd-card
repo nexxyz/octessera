@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+
+SD_MOUNT=${OCTESSERA_SD_MOUNT:?OCTESSERA_SD_MOUNT must be set}
+SD_OWNER=${OCTESSERA_SD_OWNER:?OCTESSERA_SD_OWNER must be set}
+STORAGE_STATE=/run/octessera-usb-storage.state
+SD_LOCK=/run/octessera-sd-card.lock
+: "$SD_MOUNT" "$SD_OWNER" "$STORAGE_STATE"
+# shellcheck source=tools/storage/octessera-sd-card-lib.sh
+. /usr/local/lib/octessera/octessera-sd-card-lib.sh
+
+with_sd_lock() {
+  (
+    flock 9
+    "$@"
+  ) 9>"$SD_LOCK"
+}
+
+case "${1:-mount}" in
+  mount) with_sd_lock mount_card ;;
+  *) echo "usage: $0 [mount]" >&2; exit 2 ;;
+esac

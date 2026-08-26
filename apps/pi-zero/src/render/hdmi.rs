@@ -69,6 +69,9 @@ impl std::error::Error for HdmiError {
     }
 }
 
+#[path = "hdmi_linux_device.rs"]
+pub(crate) mod device;
+
 #[cfg(target_os = "linux")]
 #[path = "hdmi_linux.rs"]
 mod imp;
@@ -76,17 +79,58 @@ mod imp;
 #[cfg(not(target_os = "linux"))]
 mod imp {
     use super::*;
+    use std::io;
 
-    pub struct HdmiFramebuffer;
+    struct UnsupportedIo;
 
-    impl HdmiFramebuffer {
-        pub fn open_from_env() -> Result<Option<Self>, HdmiError> {
-            Ok(None)
+    impl device::HdmiIo for UnsupportedIo {
+        fn open_framebuffer(
+            &mut self,
+            path: &str,
+        ) -> Result<Box<dyn device::FramebufferHandle>, HdmiError> {
+            Err(HdmiError::Io {
+                operation: "open",
+                path: path.to_owned(),
+                source: io::Error::from_raw_os_error(libc::ENOSYS),
+            })
         }
 
-        pub fn render(&mut self, snapshot: &Value) -> Result<(), HdmiError> {
-            let _ = compose_frame(snapshot, 1, 1, 4);
-            Ok(())
+        fn open_tty(&mut self, path: &str) -> Result<Box<dyn device::TtyHandle>, HdmiError> {
+            Err(HdmiError::Io {
+                operation: "open",
+                path: path.to_owned(),
+                source: io::Error::from_raw_os_error(libc::ENOSYS),
+            })
+        }
+    }
+
+    pub struct HdmiFramebuffer {
+        device: device::HdmiDevice,
+    }
+
+    impl HdmiFramebuffer {
+        pub fn new() -> Self {
+            Self {
+                device: device::HdmiDevice::new(Box::new(UnsupportedIo), "/dev/fb0", "/dev/tty1"),
+            }
+        }
+
+        #[cfg(test)]
+        pub(crate) fn from_device(device: device::HdmiDevice) -> Self {
+            Self { device }
+        }
+
+        pub(crate) fn has_pending_retry(&self) -> bool {
+            self.device.has_pending_retry()
+        }
+
+        pub(crate) fn render(
+            &mut self,
+            snapshot: &Value,
+            now: std::time::Instant,
+        ) -> device::HdmiRenderOutcome {
+            self.device
+                .render(snapshot, hdmi_mode(snapshot) == Some("none"), now)
         }
     }
 }
@@ -94,6 +138,7 @@ mod imp {
 pub use imp::HdmiFramebuffer;
 
 #[cfg(any(test, not(target_os = "linux")))]
+#[allow(dead_code)]
 pub fn compose_frame(
     snapshot: &Value,
     width: usize,
@@ -159,6 +204,11 @@ pub fn compose_frame_with_stride(
         }
     }
     Some(frame)
+}
+
+#[cfg(any(test, target_os = "linux"))]
+pub(crate) fn supported_offsets(xoffset: u32, yoffset: u32) -> bool {
+    xoffset == 0 && yoffset == 0
 }
 
 fn hdmi_mode(snapshot: &Value) -> Option<&str> {
@@ -249,5 +299,17 @@ mod tests {
 
         assert!(compose_frame_with_stride(&snapshot, 16, 8, 63, 4).is_none());
         assert!(compose_frame_with_stride(&snapshot, 16, 8, 64, 3).is_none());
+    }
+
+    #[test]
+    fn framebuffer_offsets_are_supported_only_at_origin() {
+        for (xoffset, yoffset, supported) in [
+            (0, 0, true),
+            (1, 0, false),
+            (0, 1, false),
+            (u32::MAX, u32::MAX, false),
+        ] {
+            assert_eq!(supported_offsets(xoffset, yoffset), supported);
+        }
     }
 }

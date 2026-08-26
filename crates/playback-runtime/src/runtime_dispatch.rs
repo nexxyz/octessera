@@ -23,6 +23,20 @@ impl PlaybackRuntime {
             }
         };
         while let Some(next) = queue.pop_front() {
+            let gated_error = match &next {
+                HostMessage::DeviceInput { input, .. } => self
+                    .latched_errors
+                    .last()
+                    .cloned()
+                    .map(|error| (input.clone(), error)),
+                _ => None,
+            };
+            let next = match gated_error.as_ref() {
+                Some((input, _)) => HostMessage::PresentedRuntimeErrorInput {
+                    input: input.clone(),
+                },
+                None => next,
+            };
             self.observe_host_message(&next, None);
             let acknowledge_restored_state = successful_default_load(&next);
             let responses = match runner.send(next) {
@@ -42,6 +56,27 @@ impl PlaybackRuntime {
             if acknowledge_restored_state {
                 host.acknowledge_restored_state()?;
             }
+            let responses = if let Some((_, captured_error)) = gated_error {
+                let dismissed = responses.iter().any(|message| {
+                    matches!(message, RunnerMessage::PresentedRuntimeErrorDismissed)
+                });
+                let mut responses = responses;
+                responses.retain(|message| {
+                    !matches!(message, RunnerMessage::PresentedRuntimeErrorDismissed)
+                });
+                if dismissed
+                    && self
+                        .latched_errors
+                        .last()
+                        .is_some_and(|error| error == &captured_error)
+                {
+                    self.latched_errors.pop();
+                    self.refresh_presentations();
+                }
+                responses
+            } else {
+                responses
+            };
             let ingest = self.ingest_core_messages(responses, runner, host)?;
             output.messages.extend(ingest.messages);
             queue.extend(ingest.follow_ups);
@@ -118,6 +153,7 @@ impl PlaybackRuntime {
                     }
                 }
                 RunnerMessage::OledFrame { .. } => {}
+                RunnerMessage::PresentedRuntimeErrorDismissed => {}
                 RunnerMessage::PlatformEffects { effects } => {
                     for effect in effects {
                         let request = self.next_platform_request(effect);

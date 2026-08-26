@@ -2,7 +2,7 @@
 set -euo pipefail
 
 extensions="${1-}"
-for mandatory_extension in octessera_midi octessera_audio octessera_image_sanitize; do
+for mandatory_extension in octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize; do
     if [[ ! "$extensions" =~ (^|[[:space:],])${mandatory_extension}([[:space:],]|$) ]]; then
         extensions="${extensions:+$extensions }$mandatory_extension"
     fi

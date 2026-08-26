@@ -84,14 +84,14 @@ pub(super) fn open_audio_sink(
 pub(super) fn open_orange_audio_sink(
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
-    _recording_tap: Option<RecordingTapState>,
+    recording_tap: Option<RecordingTapState>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
     let health = match sink {
         AudioSink::Jack => AudioStreamHealth::new("Jack".into()),
         AudioSink::Usb => AudioStreamHealth::optional("UAC2Gadget".into()),
         AudioSink::Hdmi => AudioStreamHealth::optional("HDMI".into()),
     };
-    open_orange_audio_sink_with_health(output_buffer_frames, sink, health)
+    open_orange_audio_sink_with_health(output_buffer_frames, sink, health, recording_tap)
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -99,9 +99,16 @@ pub(super) fn open_orange_audio_sink_with_health(
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
     health: AudioStreamHealth,
+    recording_tap: Option<RecordingTapState>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
     let (engine_tx, engine_rx) = event_queue();
-    let built = build_orange_cpal_stream(engine_rx, output_buffer_frames, sink, health.clone())?;
+    let built = build_orange_cpal_stream(
+        engine_rx,
+        output_buffer_frames,
+        sink,
+        recording_tap,
+        health.clone(),
+    )?;
     let BuiltAudioStream { stream, scheduler } = built;
     stream
         .play()
@@ -124,7 +131,6 @@ pub(super) fn open_orange_audio_sink_with_health(
     })
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn recordings_dir() -> std::path::PathBuf {
-    crate::user_data_media_paths::recordings_dir()
+    crate::main_paths::default_recordings_dir()
 }

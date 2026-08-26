@@ -18,7 +18,8 @@ from setup_contract import contract_for_board, load_contract, setup_source_paths
 ROOT = Path(__file__).resolve().parents[2]
 BOARDS = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 ORANGE_UI_ROOT = "userpatches/overlay/usr/local/share/octessera-setup-ui/"
-ORANGE_UI_FILES = ("app.js", "index.html", "styles.css", "README.md", "octessera-mark.svg", "octessera-wordmark.svg")
+ORANGE_UI_FILES = ("js/app.js", "index.html", "css/styles.css", "README.md", "img/octessera-mark.svg", "img/octessera-wordmark.svg")
+STALE_UI_ROOT_FILES = {"usr/local/share/octessera-setup-ui/app.js", "usr/local/share/octessera-setup-ui/styles.css", "usr/local/share/octessera-setup-ui/octessera-mark.svg", "usr/local/share/octessera-setup-ui/octessera-wordmark.svg"}
 ORANGE_SETUP_SERVICE_TARGET = "/etc/systemd/system/octessera-setup.service"
 TRUSTED_FIXTURE_IDENTITIES = {
     "tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/config.txt": (1847, "1018cf257f0b22c1dde87770d0433d0e3e2f442461db33f847307d427642fd9e"),
@@ -43,9 +44,14 @@ class SetupContractTests(unittest.TestCase):
                     disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
                     self.assertEqual((disabled["type"], disabled["preimage"]["link_target"], disabled["postimage"]), ("absent", ORANGE_SETUP_SERVICE_TARGET, "absent"))
                 self.assertFalse(any(contract["recipe"][key] for key in ("account_mutation", "package_mutation", "network_mutation", "boot_mutation", "firmware_mutation")))
+                self.assertEqual(contract["prerequisites"]["packages"], ["openssh-server", "network-manager", "dnsmasq", "python3-minimal", "iw", "iproute2", "coreutils", "util-linux"])
+                self.assertEqual(contract["prerequisites"]["executables"], ["usr/local/bin/wifi-connect", "usr/bin/python3", "usr/sbin/iw", "usr/bin/nmcli", "usr/sbin/ip", "usr/bin/ss"])
                 classifications = {item["classification"] for item in contract["entries"]}
-                self.assertTrue({"setup-profile", "wifi-wrapper", "sidecar", "static-ui", "setup-unit", "request-path-unit", "request-unit"} <= classifications)
+                self.assertTrue({"setup-profile", "static-ui", "setup-coordinator", "setup-config", "setup-http", "setup-unit", "request-path-unit"} <= classifications)
+                self.assertFalse({"wifi-wrapper", "sidecar", "request-unit"} & classifications)
                 expected_symlink_classifications = {"enabled-request-path", "setup-service-disabled"}
+                if board == "orange-pi-zero-2w":
+                    expected_symlink_classifications.add("stale-ui-root-asset")
                 if board == "raspberry-pi-zero-2w":
                     expected_symlink_classifications.add("parent-sudoers-removed")
                     removed = next(item for item in contract["symlinks"] if item["classification"] == "parent-sudoers-removed")
@@ -59,6 +65,13 @@ class SetupContractTests(unittest.TestCase):
                 else:
                     self.assertNotIn("etc/sudoers.d/010_pi-nopasswd", {item["target"] for item in contract["symlinks"]})
                 self.assertEqual({item["classification"] for item in contract["symlinks"]}, expected_symlink_classifications)
+                if board == "orange-pi-zero-2w":
+                    stale = [item for item in contract["symlinks"] if item["classification"] == "stale-ui-root-asset"]
+                    self.assertEqual({item["target"] for item in stale}, STALE_UI_ROOT_FILES)
+                    self.assertTrue(all(item["type"] == "absent" and item["postimage"] == "absent" for item in stale))
+                    self.assertFalse(STALE_UI_ROOT_FILES & set(contract["stale_runtime_markers"]))
+                else:
+                    self.assertTrue(STALE_UI_ROOT_FILES <= set(contract["stale_runtime_markers"]))
                 self.assertEqual(contract["recipe"]["enabled_units"], ["octessera-setup-request.path"])
                 self.assertEqual(contract["recipe"]["disabled_units"], ["octessera-setup.service"])
                 expected_proof = "tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-setup-layer" if board == "raspberry-pi-zero-2w" else "tools/armbian-image/inspect-built-image.sh --verification-profile legacy-setup-layer --mode production"

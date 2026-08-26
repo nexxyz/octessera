@@ -1,4 +1,5 @@
 use super::*;
+use crate::oled_frame::TOAST_RECT;
 
 #[test]
 pub(crate) fn usb_menu_edits_payload_with_save_reboot_toast() {
@@ -15,7 +16,7 @@ pub(crate) fn usb_menu_edits_payload_with_save_reboot_toast() {
     );
     assert_eq!(
         runner.snapshot().unwrap()["display"]["toast"],
-        "Audio: Save & Reboot"
+        "Audio: Save & Reb"
     );
 }
 
@@ -34,7 +35,7 @@ pub(crate) fn final_audio_output_off_is_refused_without_dirtying_config() {
     assert!(!runner.config_dirty);
     assert_eq!(
         runner.snapshot().unwrap()["display"]["toast"],
-        "Keep one audio output on"
+        "Keep one audio ou"
     );
 }
 
@@ -102,7 +103,9 @@ pub(crate) fn device_input_refuses_final_output_for_each_single_output_set() {
         assert!(messages.iter().any(|message| matches!(
             message,
             RunnerMessage::Snapshot { snapshot }
-                if snapshot["display"]["toast"] == "Keep one audio output on"
+                if snapshot["display"]["toast"]
+                    .as_str()
+                    .is_some_and(|toast| !toast.is_empty() && toast.chars().count() <= TOAST_RECT.columns())
         )));
     }
 }

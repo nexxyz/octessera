@@ -1,7 +1,7 @@
 use super::{
-    OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput, OledPresentationMetrics,
-    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
-    OledTransportIcon, OledTransportInput,
+    OledBarInput, OledBarStyle, OledDisplayInput, OledDisplayLayout, OledPresentationInput,
+    OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash,
+    OledTransportFlash, OledTransportIcon, OledTransportInput,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -16,6 +16,8 @@ pub(crate) struct OledPresentationInputError {
 struct DisplayInputDto {
     off: bool,
     splash: String,
+    #[serde(rename = "bodyLayout")]
+    body_layout: OledDisplayLayout,
     title: String,
     lines: Vec<String>,
     colors: Vec<u16>,
@@ -115,6 +117,7 @@ pub(crate) fn presentation_input_from_snapshot(
         display: OledDisplayInput {
             off: display.off,
             splash: splash_from_name(&display.splash),
+            body_layout: display.body_layout,
             title: display.title,
             lines: display.lines,
             colors: display.colors,

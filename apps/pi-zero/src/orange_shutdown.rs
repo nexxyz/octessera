@@ -1,19 +1,9 @@
 use super::{OrangeApplyHost, OrangeDeviceApplyTransaction, OrangeRunError, OrangeShutdownRequest};
 use crate::orange_reboot::{self, OrangePowerRequestOutcome};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum OrangePowerAction {
-    Reboot,
-    Shutdown,
-}
-
 #[derive(Debug)]
 pub(crate) enum OrangeShutdownResolution {
     Complete,
-    Power {
-        action: OrangePowerAction,
-        safety_failure: Option<String>,
-    },
 }
 
 pub(crate) fn resolve_shutdown_request<H: OrangeApplyHost>(
@@ -32,20 +22,11 @@ where
     H: OrangeApplyHost,
     F: FnOnce() -> OrangePowerRequestOutcome,
 {
-    let power_action = match &request {
-        OrangeShutdownRequest::Reboot => Some(OrangePowerAction::Reboot),
-        OrangeShutdownRequest::Shutdown => Some(OrangePowerAction::Shutdown),
-        OrangeShutdownRequest::ApplyDeviceConfig(_) => None,
-    };
     match request {
         OrangeShutdownRequest::Reboot | OrangeShutdownRequest::Shutdown => {
-            let action = power_action.expect("power action is present for ordinary shutdown");
-            let panic_error = host.panic_external_midi().err();
-            let silence_error = host.silence_internal_audio().err();
-            Ok(OrangeShutdownResolution::Power {
-                action,
-                safety_failure: combine_safety_failures(panic_error, silence_error),
-            })
+            Err(OrangeRunError::Ordinary(
+                "ordinary power requests use the shared power lifecycle".into(),
+            ))
         }
         OrangeShutdownRequest::ApplyDeviceConfig(transaction) => {
             let panic_error = host.panic_external_midi().err();
@@ -84,15 +65,7 @@ pub(crate) fn abort_shutdown_request<H: OrangeApplyHost>(
 ) -> OrangeRunError {
     match request {
         OrangeShutdownRequest::Reboot | OrangeShutdownRequest::Shutdown => {
-            let resolution = resolve_shutdown_request(request, host);
-            match resolution {
-                Ok(OrangeShutdownResolution::Power {
-                    safety_failure: Some(safety_failure),
-                    ..
-                }) => OrangeRunError::Ordinary(format!("{runtime_error}; {safety_failure}")),
-                Ok(_) => OrangeRunError::Ordinary(runtime_error),
-                Err(error) => error,
-            }
+            OrangeRunError::Ordinary(runtime_error)
         }
         OrangeShutdownRequest::ApplyDeviceConfig(transaction) => {
             let panic_error = host.panic_external_midi().err();
@@ -112,47 +85,8 @@ pub(crate) fn abort_shutdown_request<H: OrangeApplyHost>(
 pub(crate) fn finish_shutdown_resolution(
     resolution: OrangeShutdownResolution,
 ) -> Result<(), OrangeRunError> {
-    let action = match &resolution {
-        OrangeShutdownResolution::Complete => None,
-        OrangeShutdownResolution::Power { action, .. } => Some(*action),
-    };
-    finish_shutdown_resolution_with_power_request(resolution, || match action {
-        Some(OrangePowerAction::Reboot) => orange_reboot::request_reboot(),
-        Some(OrangePowerAction::Shutdown) => orange_reboot::request_shutdown(),
-        None => unreachable!("complete shutdown resolution does not invoke a power request"),
-    })
-}
-
-pub(crate) fn finish_shutdown_resolution_with_power_request<F>(
-    resolution: OrangeShutdownResolution,
-    power_request: F,
-) -> Result<(), OrangeRunError>
-where
-    F: FnOnce() -> OrangePowerRequestOutcome,
-{
     match resolution {
         OrangeShutdownResolution::Complete => Ok(()),
-        OrangeShutdownResolution::Power {
-            action: _,
-            safety_failure: Some(error),
-        } => Err(OrangeRunError::Ordinary(error)),
-        OrangeShutdownResolution::Power {
-            action,
-            safety_failure: None,
-        } => match power_request() {
-            OrangePowerRequestOutcome::Accepted => Ok(()),
-            outcome => Err(OrangeRunError::Ordinary(format!(
-                "Orange {} power request did not accept ordinary power action: {outcome:?}",
-                power_action_name(action)
-            ))),
-        },
-    }
-}
-
-fn power_action_name(action: OrangePowerAction) -> &'static str {
-    match action {
-        OrangePowerAction::Reboot => "reboot",
-        OrangePowerAction::Shutdown => "shutdown",
     }
 }
 

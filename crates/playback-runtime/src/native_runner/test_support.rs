@@ -1,4 +1,4 @@
-use super::{NativeRunner, Value};
+use super::{NativeOledMode, NativeRunner, Value};
 use crate::native_menu::NativeMenuItem;
 use std::time::{Duration, Instant};
 
@@ -29,6 +29,18 @@ impl NativeRunner {
         Ok(label)
     }
 
+    pub fn test_current_menu_label(&self) -> Option<String> {
+        self.menu.current_label().map(str::to_owned)
+    }
+
+    pub fn test_current_menu_path(&self) -> String {
+        self.menu.current_focus_path()
+    }
+
+    pub fn test_menu_cursor(&self) -> usize {
+        self.menu.state.cursor
+    }
+
     pub fn test_set_display_time(&mut self, now: Instant) {
         self.display.transients.set_test_now(now);
     }
@@ -36,6 +48,12 @@ impl NativeRunner {
     pub fn test_advance_display_time(&mut self, elapsed: Duration) {
         let now = self.display.transients.now() + elapsed;
         self.display.transients.set_test_now(now);
+    }
+
+    pub fn test_set_oled_off(&mut self) {
+        self.display.oled_mode = NativeOledMode::Off;
+        self.display.oled_splash_text.clear();
+        self.display.oled_splash_until = None;
     }
 
     pub fn test_fail_next_snapshot(&self) {

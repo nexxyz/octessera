@@ -61,8 +61,8 @@ make_fixture() {
   printf 'BOARD=orangepizero2w\n' > "$FIXTURE/etc/armbian-release"
   printf 'OCTESSERA_IMAGE_KIND=armbian\nOCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_IMAGE_BUILT_AT=2026-07-25T00:00:00Z\n' > "$FIXTURE/etc/octessera/build-metadata.env"
   printf 'OrangePi Zero 2W\0' > "$FIXTURE/proc/device-tree/model"
-  printf 'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
-  : > "$FIXTURE/boot/overlay-user/octessera-h618-spi1-cs0.dtbo"
+  printf 'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
+  : > "$FIXTURE/boot/overlay-user/octessera-h618-spi1-oled-sd2.dtbo"
   : > "$FIXTURE/dev/i2c-2"
   : > "$FIXTURE/dev/spidev1.0"
   : > "$FIXTURE/dev/gpiochip7"
@@ -178,7 +178,7 @@ run_fixture_validation() {
     "$FIXTURE/proc/device-tree/model" \
     aarch64 \
     "$FIXTURE/boot/armbianEnv.txt" \
-    "$FIXTURE/boot/overlay-user/octessera-h618-spi1-cs0.dtbo" \
+    "$FIXTURE/boot/overlay-user/octessera-h618-spi1-oled-sd2.dtbo" \
     "$FIXTURE/dev/i2c-2" \
     "$FIXTURE/sys/bus/i2c/devices/i2c-2/of_node" \
     "$FIXTURE/dev/spidev1.0" \
@@ -259,19 +259,19 @@ printf 'wrong model\0' > "$FIXTURE/proc/device-tree/model"
 assert_validation_failed_for identity "device-tree model"
 printf 'OrangePi Zero 2W\0' > "$FIXTURE/proc/device-tree/model"
 
-printf 'overlays=\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
+printf 'overlays=\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
 assert_validation_failed_for missing-i2c-overlay "overlays=i2c1-pi"
-printf 'overlays=i2c1-pi\noverlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
+printf 'overlays=i2c1-pi\noverlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
 assert_validation_failed_for duplicate-i2c-assignment "duplicate overlays assignment"
-printf 'overlays =i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
+printf 'overlays =i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
 assert_validation_failed_for malformed-i2c-assignment "malformed overlays assignment"
-printf '# overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
+printf '# overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
 assert_validation_failed_for commented-i2c-assignment "commented overlays assignment"
-printf 'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
+printf 'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
 assert_validation_failed_for duplicate-user-assignment "duplicate user_overlays assignment"
-printf 'overlays=i2c1-pi spidev1_0\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
+printf 'overlays=i2c1-pi spidev1_0\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
 assert_validation_failed_for stock-spidev-overlay "stock spidev1_0 overlay"
-printf 'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-cs0\n' > "$FIXTURE/boot/armbianEnv.txt"
+printf 'overlays=i2c1-pi\nuser_overlays=octessera-h618-spi1-oled-sd2\n' > "$FIXTURE/boot/armbianEnv.txt"
 
 rm "$FIXTURE/dev/i2c-2"
 assert_validation_failed_for missing-i2c-node "expected I2C device node"

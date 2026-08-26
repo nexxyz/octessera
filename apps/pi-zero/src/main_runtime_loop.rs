@@ -1,24 +1,22 @@
 use crate::encoder_queue::PendingEncoderTurns;
+use crate::hardware_runtime_scheduler::{
+    prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
+};
 use crate::host_adapter::{PiPlaybackHostAdapter, PiPowerRequest};
-use crate::input::encoder_press_message;
+use crate::power_lifecycle::{
+    PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
+};
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{
     dispatch_runtime_message, handle_deferred_host_work, process_runtime_output,
 };
-use crate::snapshot_cadence::SnapshotCadence;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
-use playback_runtime::{
-    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
-};
+use playback_runtime::{HostAdapter, HostMessage, NativeRunner, PlaybackRuntime};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-#[path = "power_lifecycle.rs"]
-mod power_lifecycle;
-
 const HARDWARE_EVENT_BUDGET: usize = 16;
-const IDLE_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(50);
 
 pub(crate) fn drain_host_messages(
     input_rx: &mpsc::Receiver<HostMessage>,
@@ -26,6 +24,9 @@ pub(crate) fn drain_host_messages(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) {
+    if adapter.shutdown_pending() {
+        return;
+    }
     for _ in 0..HARDWARE_EVENT_BUDGET {
         let Ok(message) = input_rx.try_recv() else {
             break;
@@ -41,100 +42,90 @@ pub(crate) fn drain_encoder_events(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) {
-    for _ in 0..HARDWARE_EVENT_BUDGET {
-        let Ok(event) = event_rx.try_recv() else {
-            break;
-        };
-        let message = match event {
-            HardwareEvent::EncoderTurn { id, delta } => {
-                crate::wake_trace::log_encoder_event(event);
-                pending_encoder_turns.enqueue(id, delta);
-                continue;
-            }
-            HardwareEvent::EncoderPress { id } => {
-                crate::wake_trace::log_encoder_event(event);
-                flush_pending_encoder_turns(pending_encoder_turns, playback, runner, adapter);
-                encoder_press_message(id)
-            }
-            HardwareEvent::EncoderRelease { .. } => {
-                crate::wake_trace::log_encoder_event(event);
-                continue;
-            }
-        };
-        dispatch_or_log(playback, runner, adapter, message);
+    if adapter.shutdown_pending() {
+        return;
     }
+    let _ = crate::encoder_queue::drain_encoder_events(
+        event_rx,
+        pending_encoder_turns,
+        |message| {
+            if adapter.shutdown_pending() {
+                return Err(());
+            }
+            dispatch_or_log(playback, runner, adapter, message);
+            Ok::<(), ()>(())
+        },
+        crate::wake_trace::log_encoder_event,
+    );
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn maybe_advance_runtime(
-    last_tick: &mut Instant,
-    tick_duration: Duration,
-    snapshot_interval: Duration,
-    last_render: &mut Instant,
-    render_interval: Duration,
-    snapshot_cadence: &mut SnapshotCadence,
-    last_published_snapshot_revision: &mut u64,
-    _pending_encoder_turns: &mut PendingEncoderTurns,
+    scheduler: &mut HardwareRuntimeScheduler,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
     ui_profiler: &mut UiProfiler,
 ) -> bool {
-    let now = Instant::now();
-    snapshot_cadence.observe_accepted_snapshot(now, playback.last_snapshot_revision());
-    let effective_tick_duration = if runtime_tick_needed(playback) {
-        tick_duration
-    } else {
-        IDLE_MAINTENANCE_INTERVAL
-    };
-    if now.duration_since(*last_tick) >= effective_tick_duration {
-        advance_playback_if_due(
-            now,
-            last_tick,
-            effective_tick_duration,
-            snapshot_cadence,
-            snapshot_interval,
-            playback,
-            runner,
-            adapter,
-            ui_profiler,
-        );
-        snapshot_cadence
-            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
+    if adapter.shutdown_pending() {
+        return shutdown_if_requested(playback, adapter, render_worker);
     }
-    request_periodic_snapshot_if_due(now, snapshot_cadence, playback, runner, adapter);
-    snapshot_cadence.observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
-    service_render_if_due(
-        now,
-        last_render,
-        render_interval,
-        last_published_snapshot_revision,
-        playback,
-        adapter,
-        render_worker,
-    );
+    let now = Instant::now();
+    let runtime_snapshot_requested =
+        if let Some(advance) = scheduler.next_runtime_advance(now, playback) {
+            let request_snapshot = advance.request_snapshot;
+            let revision_before = playback.last_snapshot_revision();
+            advance_playback_if_due(
+                advance.elapsed,
+                advance.lateness,
+                request_snapshot,
+                playback,
+                runner,
+                adapter,
+                ui_profiler,
+            );
+            let revision_after = playback.last_snapshot_revision();
+            let completed_at = Instant::now();
+            if request_snapshot {
+                scheduler.record_snapshot_attempt(
+                    completed_at,
+                    DisplaySnapshotDue::default(),
+                    revision_before,
+                    revision_after,
+                );
+            } else {
+                scheduler.observe_snapshot_revision(completed_at, revision_before, revision_after);
+            }
+            scheduler.record_runtime_advance_complete(completed_at, playback);
+            if adapter.shutdown_pending() {
+                return shutdown_if_requested(playback, adapter, render_worker);
+            }
+            request_snapshot
+        } else {
+            scheduler.observe_snapshot(Instant::now(), playback);
+            false
+        };
+    if !runtime_snapshot_requested {
+        request_periodic_snapshot_if_due(now, scheduler, playback, runner, adapter);
+    }
+    service_render_if_due(now, scheduler, playback, adapter, render_worker);
     shutdown_if_requested(playback, adapter, render_worker)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn advance_playback_if_due(
-    now: Instant,
-    last_tick: &mut Instant,
-    tick_duration: Duration,
-    snapshot_cadence: &SnapshotCadence,
-    snapshot_interval: Duration,
+    elapsed: Duration,
+    lateness: Duration,
+    request_snapshot: bool,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
     ui_profiler: &mut UiProfiler,
 ) {
+    if adapter.shutdown_pending() {
+        return;
+    }
     let profile_enabled = ui_profiler.enabled();
-    let lateness =
-        profile_enabled.then(|| now.duration_since(*last_tick).saturating_sub(tick_duration));
-    let elapsed = now.duration_since(*last_tick);
-    *last_tick = now;
-    if transport_snapshot_due(now, snapshot_cadence, snapshot_interval, playback) {
+    if request_snapshot {
         playback.request_next_snapshot();
     }
     let advance_started = profile_enabled.then(Instant::now);
@@ -149,54 +140,34 @@ fn advance_playback_if_due(
     if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
         eprintln!("pi deferred host work failed: {error}");
     }
-    if let (Some(lateness), Some(started)) = (lateness, advance_started) {
+    if let Some(started) = advance_started {
         ui_profiler.record_runtime(lateness, started.elapsed());
     }
 }
 
-fn transport_snapshot_due(
-    now: Instant,
-    snapshot_cadence: &SnapshotCadence,
-    snapshot_interval: Duration,
-    playback: &PlaybackRuntime,
-) -> bool {
-    is_internal_playing(playback) && snapshot_cadence.periodic_due(now, snapshot_interval)
-}
-
 fn request_periodic_snapshot_if_due(
     now: Instant,
-    snapshot_cadence: &SnapshotCadence,
+    scheduler: &mut HardwareRuntimeScheduler,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) {
-    if !snapshot_cadence.timed_display_due(now, runner) {
+    if adapter.shutdown_pending() {
         return;
     }
-    let message = periodic_snapshot_message(playback);
-    dispatch_or_log(playback, runner, adapter, message);
-}
-
-fn periodic_snapshot_message(playback: &PlaybackRuntime) -> HostMessage {
-    HostMessage::TransportPulseStep {
-        pulses: 0,
-        source: playback.config().sync_source.clone(),
-        at_ppqn_pulse: playback
-            .last_status()
-            .map(|status| status.current_ppqn_pulse),
-        request_snapshot: Some(true),
+    let due = scheduler.display_snapshot_due(now, runner);
+    if !due.any() {
+        return;
     }
-}
-
-pub(crate) fn flush_pending_encoder_turns(
-    pending: &mut PendingEncoderTurns,
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
-) {
-    for message in pending.take_messages() {
-        dispatch_or_log(playback, runner, adapter, message);
-    }
+    let revision_before = playback.last_snapshot_revision();
+    dispatch_or_log(
+        playback,
+        runner,
+        adapter,
+        scheduler.display_snapshot_message(playback),
+    );
+    let revision_after = playback.last_snapshot_revision();
+    scheduler.record_snapshot_attempt(now, due, revision_before, revision_after);
 }
 
 fn dispatch_or_log(
@@ -205,6 +176,9 @@ fn dispatch_or_log(
     adapter: &mut PiPlaybackHostAdapter,
     message: HostMessage,
 ) {
+    if adapter.shutdown_pending() {
+        return;
+    }
     let dispatch = adapter.handle_transfer_input(&message);
     dispatch_transfer_statuses(playback, runner, adapter);
     if !dispatch {
@@ -216,52 +190,21 @@ fn dispatch_or_log(
     }
 }
 
-fn prepare_dispatch_message(playback: &PlaybackRuntime, message: HostMessage) -> HostMessage {
-    match message {
-        HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        } if is_internal_playing(playback) => HostMessage::DeviceInput {
-            input,
-            request_snapshot: Some(false),
-        },
-        other => other,
-    }
-}
-
-fn is_internal_playing(playback: &PlaybackRuntime) -> bool {
-    playback.config().sync_source == SyncSource::Internal
-        && playback
-            .last_status()
-            .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
-}
-
-fn runtime_tick_needed(playback: &PlaybackRuntime) -> bool {
-    playback.has_scheduled_midi() || is_internal_playing(playback)
-}
-
-#[allow(clippy::too_many_arguments)]
 fn service_render_if_due(
     now: Instant,
-    last_render: &mut Instant,
-    render_interval: Duration,
-    last_published_snapshot_revision: &mut u64,
+    scheduler: &mut HardwareRuntimeScheduler,
     playback: &mut PlaybackRuntime,
     adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
 ) {
-    if now.duration_since(*last_render) < render_interval {
+    if adapter.shutdown_pending() {
         return;
     }
-    *last_render = now;
+    if !scheduler.snapshot_publication_due(now, playback) {
+        return;
+    }
+    scheduler.record_snapshot_publication_attempt(now);
     let snapshot_revision = playback.last_snapshot_revision();
-    if snapshot_revision == 0 {
-        return;
-    }
-    let snapshot_changed = *last_published_snapshot_revision != snapshot_revision;
-    if !snapshot_changed {
-        return;
-    }
     let Some(snapshot) = crate::runtime_loop::latest_snapshot(playback).cloned() else {
         return;
     };
@@ -272,11 +215,12 @@ fn service_render_if_due(
             return;
         }
     };
-    if !render_worker.publish_snapshot(snapshot, oled) {
+    let accepted = render_worker.publish_snapshot(snapshot, oled);
+    if !accepted {
         eprintln!("pi render worker rejected snapshot publication");
-        return;
+    } else {
+        scheduler.record_snapshot_publication_accepted(snapshot_revision);
     }
-    *last_published_snapshot_revision = snapshot_revision;
 }
 
 fn shutdown_if_requested(
@@ -287,17 +231,102 @@ fn shutdown_if_requested(
     let Some(request) = adapter.take_power_request() else {
         return false;
     };
-    power_lifecycle::finalize_power_request(
-        || {
-            let snapshot = playback
-                .last_snapshot()
-                .cloned()
-                .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
-            let oled = adapter.oled_publication_for_snapshot(&snapshot, false)?;
-            render_worker.publish_terminal_preserving(snapshot, oled)
-        },
-        || power_pi_system(request),
-    )
+    match request {
+        PiPowerRequest::Reboot | PiPowerRequest::Shutdown => {
+            let action = match request {
+                PiPowerRequest::Reboot => PowerAction::Reboot,
+                PiPowerRequest::Shutdown => PowerAction::Shutdown,
+                PiPowerRequest::ApplyDeviceConfigReboot => unreachable!(),
+            };
+            let mut callbacks = RaspberryPowerCallbacks {
+                playback,
+                adapter,
+                render_worker,
+                request,
+            };
+            let mut lifecycle = PowerLifecycle::default();
+            report_power_lifecycle_result(lifecycle.execute(action, &mut callbacks))
+        }
+        PiPowerRequest::ApplyDeviceConfigReboot => {
+            finalize_device_apply_power_request(playback, adapter, render_worker, request)
+        }
+    }
+}
+
+struct RaspberryPowerCallbacks<'a> {
+    playback: &'a PlaybackRuntime,
+    adapter: &'a mut PiPlaybackHostAdapter,
+    render_worker: &'a RenderWorker,
+    request: PiPowerRequest,
+}
+
+impl PowerLifecycleCallbacks for RaspberryPowerCallbacks<'_> {
+    fn save_recovery(&mut self) -> Result<(), String> {
+        self.adapter.save_recovery_for_power()
+    }
+
+    fn panic_external_midi(&mut self) -> Result<(), String> {
+        HostAdapter::panic_external_midi(self.adapter).map_err(|error| error.to_string())
+    }
+
+    fn silence_internal_audio(&mut self) -> Result<(), String> {
+        HostAdapter::silence_internal_audio(self.adapter).map_err(|error| error.to_string())
+    }
+
+    fn acknowledge_terminal(&mut self, _action: PowerAction) -> Result<(), String> {
+        let snapshot = self
+            .playback
+            .last_snapshot()
+            .cloned()
+            .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
+        let oled = self
+            .adapter
+            .oled_publication_for_snapshot(&snapshot, false)?;
+        self.render_worker
+            .publish_terminal_preserving(snapshot, oled)
+    }
+
+    fn submit_power(&mut self, _action: PowerAction) -> Result<(), String> {
+        power_pi_system(self.request)
+    }
+}
+
+fn report_power_lifecycle_result(result: PowerLifecycleResult) -> bool {
+    match result {
+        PowerLifecycleResult::Submitted => true,
+        PowerLifecycleResult::Failed(failure) => {
+            eprintln!("pi power lifecycle failed: {failure}");
+            failure.accepted
+        }
+        PowerLifecycleResult::Duplicate => {
+            eprintln!("pi power lifecycle rejected a duplicate request");
+            true
+        }
+    }
+}
+
+fn finalize_device_apply_power_request(
+    playback: &PlaybackRuntime,
+    adapter: &mut PiPlaybackHostAdapter,
+    render_worker: &RenderWorker,
+    request: PiPowerRequest,
+) -> bool {
+    let terminal = (|| {
+        let snapshot = playback
+            .last_snapshot()
+            .cloned()
+            .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
+        let oled = adapter.oled_publication_for_snapshot(&snapshot, false)?;
+        render_worker.publish_terminal_preserving(snapshot, oled)
+    })();
+    if let Err(error) = terminal {
+        eprintln!("pi device-apply terminal render failed: {error}");
+        return true;
+    }
+    if let Err(error) = power_pi_system(request) {
+        eprintln!("pi device-apply power request failed: {error}");
+    }
+    true
 }
 
 fn dispatch_transfer_statuses(
@@ -392,49 +421,16 @@ fn power_command_attempts(
             ("/usr/sbin/poweroff", &[]),
             ("/sbin/poweroff", &[]),
         ],
-    }
-}
-
-#[cfg(test)]
-mod periodic_snapshot_tests {
-    use super::*;
-    use playback_runtime::RuntimeConfig;
-
-    #[test]
-    fn periodic_snapshot_message_requests_snapshot_without_advancing_pulses() {
-        let playback = PlaybackRuntime::new(RuntimeConfig {
-            sync_source: SyncSource::External,
-            ..RuntimeConfig::default()
-        });
-
-        let HostMessage::TransportPulseStep {
-            pulses,
-            source,
-            request_snapshot,
-            ..
-        } = periodic_snapshot_message(&playback)
-        else {
-            panic!("expected transport snapshot request");
-        };
-
-        assert_eq!(pulses, 0);
-        assert_eq!(source, SyncSource::External);
-        assert_eq!(request_snapshot, Some(true));
-    }
-
-    #[test]
-    fn stopped_idle_maintenance_does_not_claim_snapshot_deadlines() {
-        let playback = PlaybackRuntime::new(RuntimeConfig::default());
-        let now = Instant::now();
-        let stale_snapshot = now - Duration::from_secs(5);
-        let snapshot_cadence = SnapshotCadence::new(stale_snapshot, 0);
-
-        assert!(!transport_snapshot_due(
-            now,
-            &snapshot_cadence,
-            Duration::from_millis(16),
-            &playback
-        ));
+        PiPowerRequest::ApplyDeviceConfigReboot => &[
+            ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
+            ("sudo", &["-n", "/bin/systemctl", "reboot"]),
+            ("sudo", &["-n", "/usr/sbin/reboot"]),
+            ("sudo", &["-n", "/sbin/reboot"]),
+            ("/usr/bin/systemctl", &["reboot"]),
+            ("/bin/systemctl", &["reboot"]),
+            ("/usr/sbin/reboot", &[]),
+            ("/sbin/reboot", &[]),
+        ],
     }
 }
 

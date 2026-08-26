@@ -4,13 +4,23 @@
 octessera_require_wifi_foundation() {
   local helper_path=usr/local/sbin/octessera-wifi-foundation
   local unit_path=etc/systemd/system/octessera-wifi-foundation.service
-  local binary_path=usr/local/bin/wifi-connect helper_content unit_content path
+  local binary_path=usr/local/bin/wifi-connect artifact_doc_root=usr/local/share/doc/octessera/wifi-connect helper_content unit_content metadata_content path
   for path in "$helper_path" "$unit_path" "$binary_path"; do
     stat_path "$path" || { echo "Missing inactive Wi-Fi foundation path: $path." >&2; exit 1; }
   done
   require_root_mode "$helper_path" 755
   require_root_mode "$unit_path" 644
   require_root_mode "$binary_path" 755
+  if [[ "${constructor_policy_required:-false}" == true ]]; then
+    for path in "$artifact_doc_root/LICENSE" "$artifact_doc_root/THIRD-PARTY-NOTICES.md" "$artifact_doc_root/wifi-connect.metadata.json" "$artifact_doc_root/cargo-metadata.json"; do
+      stat_path "$path" || { echo "Missing patched wifi-connect documentation path: $path." >&2; exit 1; }
+    done
+    for path in "$artifact_doc_root/LICENSE" "$artifact_doc_root/THIRD-PARTY-NOTICES.md" "$artifact_doc_root/wifi-connect.metadata.json" "$artifact_doc_root/cargo-metadata.json"; do require_root_mode "$path" 644; done
+    [[ "$(hash_path "$binary_path")" == 929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc ]] || { echo "Installed wifi-connect binary has the wrong SHA-256." >&2; exit 1; }
+    metadata_content="$(read_file "$artifact_doc_root/wifi-connect.metadata.json")"
+    printf '%s\n' "$metadata_content" | grep -qF '"binary_sha256": "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc"' || { echo "Installed wifi-connect metadata has the wrong binary SHA-256." >&2; exit 1; }
+    printf '%s\n' "$metadata_content" | grep -qF '"patch_sha256": "3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939"' || { echo "Installed wifi-connect metadata has the wrong patch SHA-256." >&2; exit 1; }
+  fi
   helper_content="$(read_file "$helper_path")"
   unit_content="$(read_file "$unit_path")"
   printf '%s\n' "$helper_content" | grep -qF -- '--portal-interface wlan0'

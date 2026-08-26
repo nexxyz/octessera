@@ -1,7 +1,7 @@
 use playback_runtime::oled_frame::{
-    OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput, OledPresentationMetrics,
-    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
-    OledTransportIcon, OledTransportInput,
+    OledBarInput, OledBarStyle, OledDisplayInput, OledDisplayLayout, OledPresentationInput,
+    OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash,
+    OledTransportFlash, OledTransportIcon, OledTransportInput,
 };
 use serde_json::Value;
 
@@ -44,6 +44,11 @@ pub(super) fn input_from_snapshot(snapshot: &Value) -> OledPresentationInput {
         display: OledDisplayInput {
             off: bool_field(display, "off"),
             splash,
+            body_layout: match display.get("bodyLayout").and_then(Value::as_str) {
+                Some("rows") => OledDisplayLayout::Rows,
+                Some("card") => OledDisplayLayout::Card,
+                _ => panic!("required display.bodyLayout"),
+            },
             title: string_field(display, "title").unwrap_or_default(),
             lines: display
                 .get("lines")
