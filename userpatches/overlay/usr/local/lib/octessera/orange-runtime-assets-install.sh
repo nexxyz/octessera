@@ -25,6 +25,28 @@ octessera_validate_orange_runtime_assets() {
   done
 }
 
+octessera_validate_orange_rsyslog_configuration() {
+  local validation_config
+  local validation_status
+  validation_config="$(mktemp /tmp/octessera-rsyslog-validation.XXXXXX)" || return 1
+  if printf '%s\n' 'global(net.enableDNS="off")' 'include(file="/etc/rsyslog.conf")' > "$validation_config"; then
+    if rsyslogd -N1 -f "$validation_config"; then
+      validation_status=0
+    else
+      validation_status=$?
+    fi
+  else
+    validation_status=$?
+  fi
+  if rm -f -- "$validation_config"; then
+    :
+  else
+    echo "Unable to remove temporary rsyslog validation config: $validation_config." >&2
+    return 1
+  fi
+  return "$validation_status"
+}
+
 octessera_install_orange_runtime_assets() {
   local overlay_dir="$1"
   install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
@@ -38,7 +60,7 @@ octessera_install_orange_runtime_assets() {
   install_overlay_file etc/systemd/system/octessera-orange-storage-control@.service /etc/systemd/system/octessera-orange-storage-control@.service 0644
   install_overlay_file etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf /etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf 0644
   if command -v rsyslogd >/dev/null 2>&1; then
-    rsyslogd -N1 -f /etc/rsyslog.conf
+    octessera_validate_orange_rsyslog_configuration
   fi
   install_overlay_file usr/local/lib/octessera/device_config.py /usr/local/lib/octessera/device_config.py 0644
   install_overlay_file usr/local/sbin/octessera-device-apply-reboot /usr/local/sbin/octessera-device-apply-reboot 0755

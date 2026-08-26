@@ -24,7 +24,7 @@
     {"path": "userpatches/customize-image.sh", "sha256": "fca6b52734adc59d30e45bcaeacec87ef8d6931b4f17210155fc4a097bfd8431", "size": 31268, "mode": 493},
     {"path": "userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf", "sha256": "8e28cd9b704d7be60e9b467ecc62bffb58578d8add8c9c88e5015771a8a7b2d4", "size": 66, "mode": 420},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh", "sha256": "df0629b19e20294075f66f9fd2c988b753da1f0d227fa7a4b0c82bfdbefa57c0", "size": 3213, "mode": 420},
-    {"path": "userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh", "sha256": "b9d31e720b763d69664ddc6b58c3b665d6b2059ef19163d88fa1abcacf7f61d4", "size": 6808, "mode": 420},
+    {"path": "userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh", "sha256": "a8c863c539620091848a1ffdf7bda4411ff6d7ad707c7f025f2300c7a96a27c7", "size": 7475, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-setup", "sha256": "78cd568203b17c9bb2525d7eaa2e0e541bb6970530771c91fe742e564be9ac8b", "size": 18961, "mode": 493},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup_config.py", "sha256": "7f9263300024f408da957516c1fbd6600cc4f487b19c248a727d503cacf05bf9", "size": 8649, "mode": 420},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup_http.py", "sha256": "702f7e47c559ec438baf858036c2ecc043cc2252fa8f80c5522761bb1d62f52a", "size": 4217, "mode": 420},
