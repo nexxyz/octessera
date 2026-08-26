@@ -1,5 +1,4 @@
 use super::*;
-use crate::user_data_archive::{build_export_plan, write_archive};
 use playback_runtime::{
     HostMessage, RuntimeErrorCode, RuntimePlatformEffect, RuntimePlatformRequest,
     RuntimeStoreResult, RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus,
@@ -316,29 +315,6 @@ fn close_expiry_and_auth_revocation_emit_closed_with_their_open_identity() {
     assert_eq!(request_id, "auth-open");
     assert_eq!(revision, Some(6));
     let _ = fs::remove_dir_all(root);
-}
-
-fn archive_for(service: &UserDataTransferService, include_media: bool) -> Vec<u8> {
-    let (store, samples, recordings, screen_recordings) = {
-        let inner = service.inner.clone();
-        (
-            inner.store_dir.clone(),
-            inner.samples_dir.clone(),
-            inner.recordings_dir.clone(),
-            inner.screen_recordings_dir.clone(),
-        )
-    };
-    let plan = build_export_plan(
-        &store,
-        &samples,
-        &recordings,
-        &screen_recordings,
-        include_media,
-    )
-    .unwrap();
-    let mut bytes = Vec::new();
-    write_archive(&plan, &mut bytes).unwrap();
-    bytes
 }
 
 #[test]
