@@ -38,7 +38,7 @@ actual_framework_head="$(git -C "$build_dir" rev-parse HEAD 2>/dev/null)" || { e
 
 (
   cd -- "$build_dir" || exit 1
-  ./compile.sh artifact-config-dump-json WHAT=kernel BOARD=orangepizero2w RELEASE=trixie BRANCH=current REVISION=26.11.0-trunk.22 BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=no ENABLE_EXTENSIONS='octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' EXPERT=yes
+  ./compile.sh artifact-config-dump-json WHAT=kernel BOARD=orangepizero2w RELEASE=trixie BRANCH=current REVISION=26.11.0-trunk.22 HOSTRELEASE=trixie BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=no ENABLE_EXTENSIONS='octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' EXPERT=yes
 )
 [[ -f "$generated_source_lock" && ! -L "$generated_source_lock" ]] || { echo 'Candidate artifact config dump did not produce a regular source lock.' >&2; exit 1; }
 
