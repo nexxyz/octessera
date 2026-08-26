@@ -69,15 +69,13 @@ diff --git a/drivers/usb/gadget/function/f_midi.c b/drivers/usb/gadget/function/
  
  	/* maybe allocate device-global string ID */
  	us = usb_gstrings_attach(c->cdev, midi_strings,
-@@ -1311,6 +1306,7 @@
- 	mutex_lock(&opts->lock);
- 	if (!--midi->free_ref) {
+@@ -1314,4 +1309,5 @@
  		kfree(midi->id);
 +		kfree(midi->interface_string);
  		kfifo_free(&midi->in_req_fifo);
  		kfree(midi);
  		free = true;
-@@ -1378,6 +1374,13 @@
+@@ -1378,6 +1375,13 @@
  		status = -ENOMEM;
  		goto midi_free;
  	}
@@ -91,7 +89,7 @@ diff --git a/drivers/usb/gadget/function/f_midi.c b/drivers/usb/gadget/function/
  	midi->out_ports = opts->out_ports;
  	midi->index = opts->index;
  	midi->buflen = opts->buflen;
-@@ -1404,8 +1407,10 @@
+@@ -1404,8 +1408,10 @@
  	return &midi->func;
  
  midi_free:

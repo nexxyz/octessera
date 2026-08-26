@@ -66,7 +66,9 @@ assert_contains "$release" 'workflow_dispatch:'
 assert_absent "$boards" 'rolling_pin_bootstrap: true'
 assert_absent "$release" 'orange-rolling-pin-bootstrap'
 assert_absent "$boards" 'orange-rolling-pin-bootstrap'
-assert_contains "$boards" 'armbian_build_ref: fa7a7b2294d9e760a77630950afd460b7a0b2a26'
+assert_contains "$boards" 'armbian_build_ref: 3da49cffcb8ac58a919d86816fec4659c410ff1e'
+assert_contains "$boards" 'ARMBIAN_BUILD_REF: 3da49cffcb8ac58a919d86816fec4659c410ff1e'
+assert_absent "$boards" 'fa7a7b2294d9e760a77630950afd460b7a0b2a26'
 mapfile -t bootstrap_workflows < <(grep -RIlF --include='*.yml' --include='*.yaml' -- 'rolling_pin_bootstrap: true' "$root/.github/workflows" || true)
 [[ "${#bootstrap_workflows[@]}" == 1 && "${bootstrap_workflows[0]}" == "$bootstrap" ]] || {
     echo 'Exactly one workflow may enable rolling-pin bootstrap, and it must be the bootstrap workflow.' >&2
@@ -357,7 +359,9 @@ assert_contains "$boards" 'for required in "$image" "$image.sha256" "${canonical
 assert_contains "$boards" 'sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}"'
 assert_contains "$release" 'git/ref/tags/$EXPECTED_RELEASE_TAG'
 assert_contains "$release" 'git/tags/$tag_object'
-assert_contains "$assembler" 'native_name.startswith(filename.removesuffix(".deb") + "__")'
+assert_contains "$assembler" 'expected_native_packages = tuple'
+assert_contains "$assembler" 'source_lock_effective_path'
+assert_contains "$assembler" 'native_name == expected_native'
 assert_block_contains "$publisher_dependencies_step" 'sudo apt-get install -y --no-install-recommends cpio device-tree-compiler zstd'
 assert_contains "$assembler" 'kernel_source_repository'
 assert_absent "$release" 'expected_count=28'

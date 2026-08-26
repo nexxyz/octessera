@@ -115,7 +115,7 @@ runs:
           [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -z "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Rolling-pin bootstrap requires a diagnostic image without a runtime bundle.' >&2; exit 1; }
           [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Rolling-pin bootstrap requires the exact candidate Armbian source pin.' >&2; exit 1; }
         else
-          [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
+          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
         fi
     - name: Free runner disk space
       shell: bash
@@ -208,6 +208,25 @@ runs:
         cd build
         sudo ./compile.sh requirements
         sudo chown -R "$USER:$USER" .
+    - name: Stage reviewed Orange source lock
+      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        source_lock="$custom_root/userpatches/config/sources/git_sources.json"
+        effective_source_lock="$GITHUB_WORKSPACE/build/config/sources/git_sources.json"
+        expected_source_lock_sha256=e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30
+        [[ -f "$source_lock" && ! -L "$source_lock" ]] || { echo 'Reviewed Orange source lock is missing or symlinked.' >&2; exit 1; }
+        printf '%s  %s\n' "$expected_source_lock_sha256" "$source_lock" | sha256sum -c -
+        [[ -d "$GITHUB_WORKSPACE/build/config/sources" && ! -L "$GITHUB_WORKSPACE/build/config/sources" ]] || { echo 'Armbian config/sources directory is missing or symlinked.' >&2; exit 1; }
+        if [[ -e "$effective_source_lock" || -L "$effective_source_lock" ]]; then
+          [[ -f "$effective_source_lock" && ! -L "$effective_source_lock" ]] || { echo 'Refusing to overwrite a symlinked or non-regular effective source lock.' >&2; exit 1; }
+        fi
+        install -m 0644 "$source_lock" "$effective_source_lock"
+        [[ -f "$effective_source_lock" && ! -L "$effective_source_lock" ]] || { echo 'Effective Orange source lock is missing or symlinked after staging.' >&2; exit 1; }
+        cmp -- "$source_lock" "$effective_source_lock"
+        printf '%s  %s\n' "$expected_source_lock_sha256" "$effective_source_lock" | sha256sum -c -
     - name: Prepare rolling-pin candidate source lock
       if: ${{ inputs.rolling_pin_bootstrap == 'true' }}
       shell: bash
@@ -256,7 +275,7 @@ runs:
           [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -z "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Rolling-pin bootstrap requires a diagnostic image without a runtime bundle.' >&2; exit 1; }
           [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Rolling-pin bootstrap requires the exact candidate Armbian source pin.' >&2; exit 1; }
         else
-          [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
+          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
         fi
         cd build
         build_desktop=no
@@ -275,11 +294,7 @@ runs:
           "BOARD=$OCTESSERA_ARMBIAN_BOARD"
           "BRANCH=$OCTESSERA_ARMBIAN_KERNEL_BRANCH"
         )
-        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
-          build_args+=(REVISION=26.11.0-trunk.22)
-        else
-          build_args+=(REVISION=26.8.0-trunk.417 KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394)
-        fi
+        build_args+=(REVISION=26.11.0-trunk.22)
         build_args+=(
           "RELEASE=$OCTESSERA_ARMBIAN_RELEASE"
           KERNEL_CONFIGURE=no

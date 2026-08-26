@@ -1,0 +1,7 @@
+[
+  {
+    "source": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
+    "branch": "linux-6.18.y",
+    "sha1": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5"
+  }
+]

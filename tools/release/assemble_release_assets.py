@@ -259,24 +259,26 @@ def _verify_raspberry_kernel(root: Path, kernel_dir: Path, package_name: str) ->
     _require(isinstance(package, dict) and package.get("path") == package_name, "Raspberry kernel inventory package path changed")
 
 
-def _verify_orange_provenance(root: Path, image_dir: Path, source_sha: str, image_package: str, dtb_package: str) -> None:
+def _verify_orange_provenance(root: Path, image_dir: Path, source_sha: str, image_package: str, dtb_package: str, manifest: Mapping[str, object]) -> None:
     evidence_path = image_dir / "octessera-orange-kernel-evidence.env"
     provenance_path = image_dir / "octessera-orange-kernel-provenance.txt"
     values = dict(line.split("=", 1) for line in evidence_path.read_text(encoding="utf-8").splitlines())
     facts = dict(line.split("=", 1) for line in provenance_path.read_text(encoding="utf-8").splitlines() if "=" in line)
+    frameworks = _manifest_mapping(manifest.get("build_frameworks"), "kernel manifest build frameworks declaration")
+    armbian = _manifest_mapping(frameworks.get("armbian"), "Armbian framework declaration")
+    orange = _manifest_mapping(_manifest_mapping(manifest.get("kernels"), "kernel manifest kernels declaration").get("orange"), "Orange kernel declaration")
+    source_lock = _manifest_mapping(manifest.get("source_lock"), "kernel manifest source lock declaration")
+    expected_suffix = _manifest_string(armbian.get("native_artifact_suffix"), "Armbian native artifact suffix")
+    expected_native_packages = tuple(f"{package.removesuffix('.deb')}__{expected_suffix}.deb" for package in (image_package, dtb_package))
     for key, filename in (("image_package_sha256", image_package), ("dtb_package_sha256", dtb_package)):
         _require(values.get(key) == _sha256(image_dir / filename), f"Orange provenance hash mismatch: {filename}")
     _require(facts.get("image_package") == image_package and facts.get("dtb_package") == dtb_package, "Orange provenance package chain is incomplete")
-    _require(
-        facts.get("evidence_sha256") == _sha256(evidence_path)
-        and facts.get("armbian_build_ref") == "fa7a7b2294d9e760a77630950afd460b7a0b2a26"
-        and facts.get("github_source_sha") == source_sha
-        and facts.get("kernel_source_repository") == "https://github.com/torvalds/linux.git",
-        "Orange provenance evidence or build pin is not bound",
-    )
-    for key, filename in (("image_package_native_basename", image_package), ("dtb_package_native_basename", dtb_package)):
+    expected_facts = {"evidence_sha256": _sha256(evidence_path), "armbian_build_ref": armbian.get("commit"), "armbian_build_tag": armbian.get("tag"), "armbian_build_repository": armbian.get("repository"), "github_source_sha": source_sha, "kernel_source_repository": orange.get("repository"), "kernel_source_branch": orange.get("branch"), "kernel_source_commit": orange.get("commit"), "kernel_release": armbian.get("kernel_release"), "package_revision": armbian.get("package_revision"), "revision_argument": armbian.get("revision_argument"), "source_lock_path": source_lock.get("path"), "source_lock_sha256": source_lock.get("sha256"), "source_lock_source": orange.get("repository"), "source_lock_branch": orange.get("branch"), "source_lock_commit": orange.get("commit"), "source_lock_effective_path": "config/sources/git_sources.json", "source_lock_effective_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30", "image_package_native": expected_native_packages[0], "dtb_package_native": expected_native_packages[1]}
+    _require(all(facts.get(key) == expected for key, expected in expected_facts.items()), "Orange provenance evidence or build pin is not bound")
+    for key, expected_native in (("image_package_native_basename", expected_native_packages[0]), ("dtb_package_native_basename", expected_native_packages[1])):
         native_name = values.get(key, "")
-        _require(native_name.startswith(filename.removesuffix(".deb") + "__") and native_name.endswith(".deb"), "Orange native package name is not canonical")
+        _require(native_name == expected_native, "Orange native package name is not manifest-approved")
+    _require(values.get("artifact_suffix") == expected_suffix and facts.get("artifact_suffix") == expected_suffix, "Orange artifact suffix is not the manifest-approved suffix")
 
 
 def _verify_orange_image(root: Path, image_dir: Path, version: str, image_package: str, dtb_package: str) -> None:
@@ -406,7 +408,7 @@ def assemble_release_assets(
     _verify_checksum_file(orange_image_dir, "SHA256SUMS-orange-pi-zero-2w.txt")
     _verify_checksum_file(orange_device_dir, "SHA256SUMS-orange-pi-zero-2w-device.txt")
     _verify_checksum_file(orange_device_dir, orange_updater_sums)
-    _verify_orange_provenance(root, orange_image_dir, source_sha, orange_kernel_image, orange_kernel_dtb)
+    _verify_orange_provenance(root, orange_image_dir, source_sha, orange_kernel_image, orange_kernel_dtb, _load_json(root / KERNEL_MANIFEST, "kernel package manifest"))
     _verify_orange_image(root, orange_image_dir, version, orange_kernel_image, orange_kernel_dtb)
     _verify_runtime_and_devices(root, raspberry_runtime, rpi_device_dir / rpi_device_zip, version, "raspberry-pi-zero-2w")
     _verify_runtime_and_devices(root, orange_runtime, orange_device_dir / orange_device_zip, version, "orange-pi-zero-2w")

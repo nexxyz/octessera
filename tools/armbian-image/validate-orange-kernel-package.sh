@@ -94,9 +94,10 @@ print(armbian["kernel_release"])
 print(armbian["required_dtb"])
 print(armbian["required_module"])
 print(armbian["packaged_config_sha256"])
+print(armbian["native_artifact_suffix"])
 PY
 )
-[[ "${#contract_values[@]}" == 9 ]] || { echo "Orange kernel package manifest contract is incomplete." >&2; exit 1; }
+[[ "${#contract_values[@]}" == 10 ]] || { echo "Orange kernel package manifest contract is incomplete." >&2; exit 1; }
 expected_image_filename="${contract_values[0]}"
 expected_dtb_filename="${contract_values[1]}"
 native_image_pattern="${contract_values[2]}"
@@ -107,7 +108,9 @@ expected_kernel_version="${expected_kernel_release%%-*}"
 expected_dtb="${contract_values[6]}"
 expected_module="${contract_values[7]}"
 manifest_packaged_config_sha256="${contract_values[8]}"
+expected_artifact_suffix="${contract_values[9]}"
 [[ "$manifest_packaged_config_sha256" =~ ^[[:xdigit:]]{64}$ ]] || { echo "Manifest packaged config SHA-256 is invalid." >&2; exit 1; }
+[[ "$expected_artifact_suffix" =~ ^[A-Za-z0-9][A-Za-z0-9+._-]*$ ]] || { echo "Manifest native package artifact suffix is invalid." >&2; exit 1; }
 if [[ -n "$expected_config_sha256" ]]; then
   [[ "$expected_config_sha256" =~ ^[[:xdigit:]]{64}$ ]] || { echo "Expected config SHA-256 is invalid." >&2; exit 2; }
   if [[ "${expected_config_sha256,,}" != "${manifest_packaged_config_sha256,,}" && "${OCTESSERA_ORANGE_TEST_MODE:-}" != 1 ]]; then
@@ -152,6 +155,10 @@ dtb_suffix="${dtb_suffix%.deb}"
 }
 [[ "$image_suffix" == "$dtb_suffix" ]] || {
   echo "Orange native package artifact suffixes differ: $image_suffix / $dtb_suffix" >&2
+  exit 1
+}
+[[ "$image_suffix" == "$expected_artifact_suffix" ]] || {
+  echo "Orange native package artifact suffix is not the manifest-approved suffix: $image_suffix" >&2
   exit 1
 }
 

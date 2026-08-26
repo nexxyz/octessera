@@ -31,8 +31,8 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
                 },
                 "orange": {
                     "packages": [
-                        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
-                        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+                        "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
+                        "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb",
                     ]
                 },
             }
@@ -42,8 +42,8 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
             _package_filenames(manifest),
             (
                 "linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb",
-                "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
-                "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+                "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
+                "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb",
             ),
         )
 

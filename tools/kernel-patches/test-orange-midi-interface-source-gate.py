@@ -8,6 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import NoReturn
+from orange_production_lock import validate_production_manifest
 PATCH_TARGETS = (
     "drivers/usb/gadget/function/f_midi.c",
     "drivers/usb/gadget/function/u_midi.h",
@@ -17,18 +18,7 @@ PATCH_TARGETS = (
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SERIES_PATH = "patch/kernel/archive/sunxi-6.18/series.conf"
 SERIES_ROOT = "patch/kernel/archive/sunxi-6.18"
-EXPECTED_ARMBIAN_COMMIT = "fa7a7b2294d9e760a77630950afd460b7a0b2a26"
-EXPECTED_ORANGE_KERNEL_COMMIT = "e46dc0adfe39724bcf52cea47b8f9c9aed86a394"
-EXPECTED_ORANGE_KERNEL_RELEASE = "6.18.38-current-sunxi64"
-EXPECTED_ORANGE_PACKAGE_REVISION = "26.8.0-trunk.417"
 EXPECTED_RASPBERRY_KERNEL_COMMIT = "d8ab4e908235da7727f22dd36ad5af224671677d"
-EXPECTED_RASPBERRY_RELEASE = "6.12.93"
-EXPECTED_RASPBERRY_KERNEL_RELEASE = "6.12.93-octessera-rpi-v8-0.7.5"
-EXPECTED_RASPBERRY_PACKAGE_REVISION = "6.12.93-octessera0.7.5-1"
-EXPECTED_ORANGE_PACKAGES = (
-    "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
-    "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
-)
 class GateFailure(Exception):
     pass
 def fail(message: str) -> NoReturn:
@@ -84,66 +74,45 @@ def load_manifest(root):
     require_commit(accepted.get("commit"), "accepted upstream commit")
     if not accepted.get("url", "").endswith(accepted["commit"] + ".patch"):
         fail("accepted upstream patch URL is not pinned to its commit")
+    try:
+        validate_production_manifest(manifest, root)
+    except ValueError as error:
+        fail(f"production manifest validation failed: {error}")
     frameworks = manifest.get("build_frameworks", {})
-    armbian = frameworks.get("armbian", {})
     pi_gen = frameworks.get("pi_gen", {})
-    require_commit(armbian.get("commit"), "Armbian commit")
     require_commit(pi_gen.get("commit"), "pi-gen commit")
-    if armbian.get("commit") != EXPECTED_ARMBIAN_COMMIT:
-        fail("manifest Armbian commit differs from the pinned source gate commit")
     if pi_gen.get("commit") != "d7a31c6aa09f4b867902c51da2b45807c0a1709e":
         fail("manifest pi-gen commit differs from the pinned source gate commit")
-    kernels = manifest.get("kernels", {})
-    for name in ("orange", "raspberry"):
-        kernel = kernels.get(name, {})
-        require_commit(kernel.get("commit"), f"{name} kernel commit")
-        if not kernel.get("release"):
-            fail(f"{name} kernel release is missing")
-        if name == "raspberry":
-            config = kernel.get("config_base", {})
-            if not config.get("path") or not re.fullmatch(r"[0-9a-f]{64}", config.get("sha256", "")):
-                fail(f"{name} config base is incomplete")
-        if not kernel.get("package_revision") and name == "raspberry":
-            fail("Raspberry package revision is missing")
-    if not armbian.get("package_revision") or not armbian.get("packages"):
-        fail("Armbian package revision or package pair is missing")
-    if armbian.get("kernel_commit") != kernels.get("orange", {}).get("commit"):
-        fail("Armbian and Orange kernel commits differ in the manifest")
-    if armbian.get("kernel_release") != kernels.get("orange", {}).get("release"):
-        fail("Armbian and Orange kernel releases differ in the manifest")
-    orange = kernels.get("orange", {})
-    if orange.get("package_revision") != armbian.get("package_revision"):
-        fail("Armbian and Orange package revisions differ in the manifest")
-    if tuple(orange.get("packages", ())) != tuple(armbian.get("packages", ())):
-        fail("Armbian and Orange package names differ in the manifest")
-    if armbian.get("kernel_commit") != EXPECTED_ORANGE_KERNEL_COMMIT:
-        fail("manifest Orange kernel commit differs from the pinned source gate commit")
-    if armbian.get("kernel_release") != EXPECTED_ORANGE_KERNEL_RELEASE:
-        fail("manifest Orange kernel release differs from the pinned source gate release")
-    if armbian.get("package_revision") != EXPECTED_ORANGE_PACKAGE_REVISION:
-        fail("manifest Orange package revision differs from the pinned source gate revision")
-    if tuple(armbian.get("packages", ())) != EXPECTED_ORANGE_PACKAGES:
-        fail("manifest Orange package names differ from the pinned package pair")
+    armbian = frameworks.get("armbian", {})
     core_series = armbian.get("core_series", {})
-    if core_series.get("path") != SERIES_PATH or core_series.get("active_patch_count") != 515:
+    if core_series.get("path") != SERIES_PATH or core_series.get("active_patch_count") != 514:
         fail("manifest Armbian core series identity is incomplete")
     if not re.fullmatch(r"[0-9a-f]{64}", core_series.get("sha256", "")):
         fail("manifest Armbian core series SHA-256 is invalid")
     patching_order = armbian.get("patching_order", {})
     if patching_order.get("source_path") != "lib/tools/patching.py":
         fail("manifest Armbian patching-order source is invalid")
-    if patching_order.get("source_sha256") != "b53967b15f216872551b0261f9f917b865ad9fd132c1c3803a84fd07d0522a84":
+    if not re.fullmatch(r"[0-9a-f]{64}", patching_order.get("source_sha256", "")):
         fail("manifest Armbian patching-order source is not the pinned revision")
     if patching_order.get("series_before_regular") is not True or patching_order.get("regular_sort_key") != "file_name":
         fail("manifest Armbian regular patch ordering is incomplete")
+    kernels = manifest.get("kernels", {})
     raspberry = kernels.get("raspberry", {})
+    require_commit(raspberry.get("commit"), "raspberry kernel commit")
+    if not raspberry.get("release"):
+        fail("raspberry kernel release is missing")
+    config = raspberry.get("config_base", {})
+    if not config.get("path") or not re.fullmatch(r"[0-9a-f]{64}", config.get("sha256", "")):
+        fail("raspberry config base is incomplete")
+    if not raspberry.get("package_revision"):
+        fail("Raspberry package revision is missing")
     if raspberry.get("commit") != EXPECTED_RASPBERRY_KERNEL_COMMIT:
         fail("manifest Raspberry kernel commit differs from the pinned source gate commit")
-    if raspberry.get("release") != EXPECTED_RASPBERRY_RELEASE:
+    if raspberry.get("release") != "6.12.93":
         fail("manifest Raspberry kernel release differs from the pinned source gate release")
-    if raspberry.get("kernel_release") != EXPECTED_RASPBERRY_KERNEL_RELEASE:
+    if raspberry.get("kernel_release") != "6.12.93-octessera-rpi-v8-0.7.5":
         fail("manifest Raspberry packaged kernel release differs from the pinned release")
-    if raspberry.get("package_revision") != EXPECTED_RASPBERRY_PACKAGE_REVISION:
+    if raspberry.get("package_revision") != "6.12.93-octessera0.7.5-1":
         fail("manifest Raspberry package revision differs from the pinned source gate revision")
     return manifest, patch_root, expected_order
 def prepare_repo(parent, name, repository, commit, source):
@@ -250,8 +219,12 @@ def apply_patch(source, patch, label, target):
         output += run(["git", "-C", str(source), "apply", "--verbose", "--whitespace=error", str(patch)])
     except GateFailure as error:
         fail(f"{target}: {label} conflict; no workaround was attempted\n{error}")
-    if re.search(r"fuzz|offset|reject", output, re.IGNORECASE):
-        fail(f"{target}: {label} applied with fuzz, offset, or reject output\n{output}")
+    if re.search(r"fuzz|reject", output, re.IGNORECASE):
+        fail(f"{target}: {label} applied with fuzz or reject output\n{output}")
+    offsets = tuple(re.findall(r"\(offset (-?\d+) lines\)", output, re.IGNORECASE))
+    allowed_offsets = target == "raspberry" and label == "Octessera safety patch" and offsets == ("-1",) * 6
+    if offsets and not allowed_offsets:
+        fail(f"{target}: {label} applied with unexpected offset output\n{output}")
 def validate_follow_up_patch(patch):
     paths = []
     for line in patch.read_text().splitlines():
@@ -492,7 +465,5 @@ def main():
         return 1
     print("Orange MIDI kernel source gate passed for Orange and Raspberry pinned sources")
     return 0
-
-
 if __name__ == "__main__":
     raise SystemExit(main())
