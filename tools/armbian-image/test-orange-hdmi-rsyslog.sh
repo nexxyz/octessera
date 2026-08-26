@@ -58,7 +58,6 @@ neighbors = [
 ]
 with tempfile.TemporaryDirectory(prefix="octessera-orange-hdmi-rsyslog-") as temporary:
     work = Path(temporary)
-    work.chmod(0o755)
     fixture = work / "input.log"
     output = work / "output.log"
     with fixture.open("w", encoding="utf-8") as stream:
@@ -74,8 +73,11 @@ with tempfile.TemporaryDirectory(prefix="octessera-orange-hdmi-rsyslog-") as tem
     assert all(line != spam for line in output.read_text(encoding="utf-8").splitlines())
     assert output.stat().st_size < 50 * 1024 * 1024
 
-    rsyslogd = shutil.which("rsyslogd")
-    if rsyslogd:
+    installed_rsyslogd = shutil.which("rsyslogd")
+    if installed_rsyslogd:
+        rsyslogd = work / "rsyslogd"
+        shutil.copyfile(installed_rsyslogd, rsyslogd)
+        rsyslogd.chmod(0o700)
         actual_output = work / "rsyslog-output.log"
         state = work / "state"
         state.mkdir()
