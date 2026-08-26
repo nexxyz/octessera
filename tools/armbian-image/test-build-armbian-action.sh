@@ -7,9 +7,12 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$root/tools/armbian-image/validation-assertions.sh"
 action="$root/.github/actions/build-armbian-image/action.yml"
 provenance_writer="$root/tools/armbian-image/write-orange-kernel-provenance.sh"
+source_lock="$root/userpatches/config/sources/git_sources.json"
 
 [[ -f "$action" ]] || { echo "Missing Armbian build action." >&2; exit 1; }
 [[ -f "$provenance_writer" ]] || { echo "Missing Orange provenance writer." >&2; exit 1; }
+[[ -f "$source_lock" && ! -L "$source_lock" ]] || { echo 'Missing or symlinked reviewed Orange source lock.' >&2; exit 1; }
+printf '%s  %s\n' e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30 "$source_lock" | sha256sum -c -
 
 assert_action_contains() {
     local expected="$1"
@@ -27,10 +30,12 @@ assert_provenance_contains() {
     }
 }
 
-assert_action_contains 'KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394'
-assert_action_contains 'REVISION=26.8.0-trunk.417'
-[[ "$(grep -cF 'KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394' "$action")" == 1 ]] || {
-    echo 'Ordinary Armbian builds must retain exactly one old KERNELBRANCH pin.' >&2
+assert_action_contains 'REVISION=26.11.0-trunk.22'
+octessera_reject_file_match 'Ordinary Armbian builds must not retain the old Armbian revision.' -qF 'REVISION=26.8.0-trunk.417' "$action"
+octessera_reject_file_match 'Ordinary Armbian builds must not retain the old KERNELBRANCH pin.' -qF 'KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394' "$action"
+octessera_reject_file_match 'Armbian build action must not pass KERNELBRANCH.' -qF 'KERNELBRANCH=' "$action"
+[[ "$(grep -cF 'ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e' "$action")" == 4 ]] || {
+    echo 'All action validation branches must require the reviewed Armbian ref.' >&2
     exit 1
 }
 assert_action_contains 'OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current'
@@ -39,7 +44,23 @@ assert_action_contains 'default: false'
 assert_action_contains 'prepare-orange-rolling-pin-bootstrap.sh'
 assert_action_contains 'capture-orange-rolling-pin-bootstrap.sh'
 assert_action_contains 'Rolling-pin bootstrap is allowed only from workflow_dispatch.'
-assert_action_contains '3da49cffcb8ac58a919d86816fec4659c410ff1e'
+assert_action_contains 'Stage reviewed Orange source lock'
+assert_action_contains 'userpatches/config/sources/git_sources.json'
+assert_action_contains 'build/config/sources/git_sources.json'
+assert_action_contains 'e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30'
+assert_action_contains 'cmp -- "$source_lock" "$effective_source_lock"'
+assert_action_contains 'install -m 0644 "$source_lock" "$effective_source_lock"'
+stage_lock_block="$(sed -n '/^    - name: Stage reviewed Orange source lock$/,/^    - name:/p' "$action")"
+grep -qF "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}" <<< "$stage_lock_block" || {
+    echo 'Reviewed source lock staging must skip bootstrap discovery.' >&2
+    exit 1
+}
+octessera_require_text_match 'Reviewed source lock staging must reject symlink replacement.' "$stage_lock_block" -qF '! -L "$effective_source_lock"'
+bootstrap_prepare_block="$(sed -n '/^    - name: Prepare rolling-pin candidate source lock$/,/^    - name:/p' "$action")"
+grep -qF "if: \${{ inputs.rolling_pin_bootstrap == 'true' }}" <<< "$bootstrap_prepare_block" || {
+    echo 'Rolling-pin source discovery must remain bootstrap-only.' >&2
+    exit 1
+}
 assert_action_contains "effective_extensions\" == 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'"
 assert_action_contains "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}"
 inspect_condition="$(sed -n '/^    - name: Inspect built image$/,/^      shell: bash$/p' "$action")"
@@ -50,12 +71,11 @@ grep -qF "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}" <<< "$inspect_cond
 octessera_reject_file_match 'Armbian build action must not contain the rolling-pin source-lock implementation.' -qF 'artifact-config-dump-json' "$action"
 octessera_reject_file_match 'Armbian build action must not contain the rolling-pin evidence implementation.' -qF 'dpkg-deb -f' "$action"
 bootstrap_build_step="$(sed -n '/^    - name: Build image$/,/^    - name: Capture rolling-pin bootstrap evidence$/p' "$action")"
-bootstrap_candidate_branch="$(sed -n '/^        if \[\[ "\$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true \]\]; then$/,/^        else$/p' <<< "$bootstrap_build_step")"
-grep -qF 'build_args+=(REVISION=26.11.0-trunk.22)' <<< "$bootstrap_candidate_branch" || {
-    echo 'Bootstrap build must force the candidate revision.' >&2
+grep -qF 'build_args+=(REVISION=26.11.0-trunk.22)' <<< "$bootstrap_build_step" || {
+    echo 'Armbian build must use the reviewed candidate revision.' >&2
     exit 1
 }
-octessera_reject_text_match 'Bootstrap build must omit KERNELBRANCH.' "$bootstrap_candidate_branch" -qF 'KERNELBRANCH='
+octessera_reject_text_match 'Bootstrap build must omit KERNELBRANCH.' "$bootstrap_build_step" -qF 'KERNELBRANCH='
 assert_action_contains 'image_kind:'
 assert_action_contains 'default: diagnostic'
 assert_action_contains 'runtime_bundle_path:'

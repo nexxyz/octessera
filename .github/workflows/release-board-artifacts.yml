@@ -371,7 +371,7 @@ jobs:
           ui: minimal
           compression: sha,img,xz
           extensions: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize
-          armbian_build_ref: fa7a7b2294d9e760a77630950afd460b7a0b2a26
+          armbian_build_ref: 3da49cffcb8ac58a919d86816fec4659c410ff1e
           share_log: yes
           image_kind: production
           runtime_bundle_path: ${{ github.workspace }}/orange-runtime
@@ -380,7 +380,7 @@ jobs:
           construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
       - name: Normalize and verify Orange release handoff
         env:
-          ARMBIAN_BUILD_REF: fa7a7b2294d9e760a77630950afd460b7a0b2a26
+          ARMBIAN_BUILD_REF: 3da49cffcb8ac58a919d86816fec4659c410ff1e
           GITHUB_SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail

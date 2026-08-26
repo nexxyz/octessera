@@ -21,14 +21,15 @@ assert VERIFY_SPEC is not None and VERIFY_SPEC.loader is not None
 VERIFY = importlib.util.module_from_spec(VERIFY_SPEC)
 VERIFY_SPEC.loader.exec_module(VERIFY)
 
-RELEASE = "6.18.38-current-sunxi64"
-REVISION = "26.8.0-trunk.417"
+RELEASE = "6.18.46-current-sunxi64"
+REVISION = "26.11.0-trunk.22"
 IMAGE_NAME = "linux-image-current-sunxi64"
 DTB_NAME = "linux-dtb-current-sunxi64"
 CANONICAL_IMAGE = f"{IMAGE_NAME}_{REVISION}_arm64.deb"
 CANONICAL_DTB = f"{DTB_NAME}_{REVISION}_arm64.deb"
-NATIVE_IMAGE = f"{IMAGE_NAME}_{REVISION}_arm64__fixture.deb"
-NATIVE_DTB = f"{DTB_NAME}_{REVISION}_arm64__fixture.deb"
+ARTIFACT_SUFFIX = "6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a"
+NATIVE_IMAGE = f"{IMAGE_NAME}_{REVISION}_arm64__{ARTIFACT_SUFFIX}.deb"
+NATIVE_DTB = f"{DTB_NAME}_{REVISION}_arm64__{ARTIFACT_SUFFIX}.deb"
 DTB_RELATIVE = f"usr/lib/linux-image-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb"
 MODULE_RELATIVE = f"lib/modules/{RELEASE}/kernel/drivers/usb/gadget/function/usb_f_midi.ko"
 BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y")
@@ -111,8 +112,8 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     dtb_root.mkdir()
     write(
         image_root / "DEBIAN/control",
-        f"Package: {IMAGE_NAME}\nVersion: {REVISION}\nSource: linux-6.18.38\nArchitecture: arm64\n"
-        f"Armbian-Kernel-Version: 6.18.38\nArmbian-Kernel-Version-Family: {RELEASE}\n",
+        f"Package: {IMAGE_NAME}\nVersion: {REVISION}\nSource: linux-6.18.46\nArchitecture: arm64\n"
+        f"Armbian-Kernel-Version: 6.18.46\nArmbian-Kernel-Version-Family: {RELEASE}\n",
     )
     write(dtb_root / "DEBIAN/control", f"Package: {DTB_NAME}\nVersion: {REVISION}\nArchitecture: arm64\n")
     kernel = b"synthetic-orange-kernel-" + RELEASE.encode()
@@ -278,7 +279,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     evidence_values = {
         "image_package_native_basename": NATIVE_IMAGE,
         "dtb_package_native_basename": NATIVE_DTB,
-        "artifact_suffix": "fixture",
+        "artifact_suffix": ARTIFACT_SUFFIX,
         "image_package_sha256": sha256(packages / NATIVE_IMAGE),
         "dtb_package_sha256": sha256(packages / NATIVE_DTB),
         "image_dtb_sha256": hashlib.sha256(dtb).hexdigest(),
@@ -289,7 +290,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "audio_dts_path": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
         "audio_dts_sha256": sha256(overlay_sources["audio"]),
         "audio_dtbo_forbidden": "octessera-ahub0-pcm5102.dtbo",
-        "packaged_config_expected_sha256": "fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352",
+        "packaged_config_expected_sha256": "922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc",
         "final_config_sha256": hashlib.sha256(config).hexdigest(),
         "module_relative_path": MODULE_RELATIVE,
         "module_compressed_sha256": hashlib.sha256(module).hexdigest(),
@@ -309,10 +310,21 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "dtb_package": CANONICAL_DTB,
         "dtb_package_native": NATIVE_DTB,
         "dtb_package_sha256": evidence_values["dtb_package_sha256"],
+        "artifact_suffix": ARTIFACT_SUFFIX,
         "evidence_sha256": sha256(evidence_path),
-        "kernel_source_repository": "https://github.com/torvalds/linux.git",
-        "kernel_source_commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394",
+        "armbian_build_ref": "3da49cffcb8ac58a919d86816fec4659c410ff1e",
+        "armbian_build_tag": "v26.11.0-trunk.22",
+        "kernel_source_repository": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
+        "kernel_source_branch": "linux-6.18.y",
+        "kernel_source_commit": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5",
         "kernel_release": RELEASE,
+        "source_lock_path": "userpatches/config/sources/git_sources.json",
+        "source_lock_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30",
+        "source_lock_source": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
+        "source_lock_branch": "linux-6.18.y",
+        "source_lock_commit": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5",
+        "source_lock_effective_path": "config/sources/git_sources.json",
+        "source_lock_effective_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30",
     }
     provenance_path.write_text("\n".join(f"{key}={value}" for key, value in provenance_values.items()) + "\n")
     return final_root, packages / NATIVE_IMAGE, packages / NATIVE_DTB, evidence_path, provenance_path

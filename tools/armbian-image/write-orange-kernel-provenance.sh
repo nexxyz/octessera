@@ -76,24 +76,19 @@ armbian = manifest["build_frameworks"]["armbian"]
 orange = manifest["kernels"]["orange"]
 accepted_patch = manifest["patches"]["accepted_upstream"]
 follow_up_patch = manifest["patches"]["octessera_follow_up"]
-expected_revision = "26.8.0-trunk.417"
-expected_release = "6.18.38-current-sunxi64"
-expected_source_commit = "e46dc0adfe39724bcf52cea47b8f9c9aed86a394"
-expected_build_commit = "fa7a7b2294d9e760a77630950afd460b7a0b2a26"
+expected_revision = "26.11.0-trunk.22"
+expected_release = "6.18.46-current-sunxi64"
+expected_source_repository = "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git"
+expected_source_branch = "linux-6.18.y"
+expected_source_commit = "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5"
+expected_build_commit = "3da49cffcb8ac58a919d86816fec4659c410ff1e"
+expected_build_tag = "v26.11.0-trunk.22"
+expected_artifact_suffix = "6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a"
 expected_packages = [
-    "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
-    "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+    "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
+    "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb",
 ]
 expected_architecture = expected_packages[0].rsplit("_", 1)[1].removesuffix(".deb")
-
-if armbian["commit"] != expected_build_commit or armbian["package_revision"] != expected_revision:
-    raise SystemExit("Orange provenance manifest build pin is not the approved revision")
-if orange["commit"] != expected_source_commit or orange["release"] != expected_release:
-    raise SystemExit("Orange provenance manifest source pin is not the approved release")
-if armbian["packages"] != expected_packages or orange["packages"] != expected_packages:
-    raise SystemExit("Orange provenance manifest package pair changed")
-if os.environ["ARMBIAN_BUILD_REF"].lower() != expected_build_commit:
-    raise SystemExit("Armbian build ref is not the approved source pin")
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -102,6 +97,29 @@ def sha256(path: pathlib.Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+source_lock = manifest.get("source_lock", {})
+source_lock_path = source_lock.get("path")
+source_lock_sha256 = source_lock.get("sha256")
+if source_lock_path != "userpatches/config/sources/git_sources.json" or source_lock_sha256 != "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30":
+    raise SystemExit("Orange provenance manifest source-lock pin is not approved")
+source_lock_file = root / source_lock_path
+if not source_lock_file.is_file() or source_lock_file.is_symlink() or sha256(source_lock_file) != source_lock_sha256:
+    raise SystemExit("Orange source-lock content does not match the manifest")
+source_lock_document = json.loads(source_lock_file.read_text(encoding="utf-8"))
+if source_lock_document != [{"source": expected_source_repository, "branch": expected_source_branch, "sha1": expected_source_commit}]:
+    raise SystemExit("Orange source-lock entry is not the approved stable Linux source")
+if armbian["commit"] != expected_build_commit or armbian.get("tag") != expected_build_tag or armbian["package_revision"] != expected_revision:
+    raise SystemExit("Orange provenance manifest build pin is not the approved revision")
+if orange["repository"] != expected_source_repository or orange.get("branch") != expected_source_branch or orange["commit"] != expected_source_commit or orange["release"] != expected_release:
+    raise SystemExit("Orange provenance manifest source pin is not the approved release")
+if armbian["packages"] != expected_packages or orange["packages"] != expected_packages:
+    raise SystemExit("Orange provenance manifest package pair changed")
+if armbian.get("native_artifact_suffix") != expected_artifact_suffix:
+    raise SystemExit("Orange provenance manifest native artifact suffix changed")
+if os.environ["ARMBIAN_BUILD_REF"].lower() != expected_build_commit:
+    raise SystemExit("Armbian build ref is not the approved source pin")
 
 
 def evidence_values(path: pathlib.Path) -> dict[str, str]:
@@ -158,6 +176,8 @@ if evidence["dtb_package_native_basename"] != dtb_package.name:
     raise SystemExit("Orange native DTB package name does not match evidence")
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9+._-]*", evidence["artifact_suffix"]):
     raise SystemExit("Orange artifact suffix is invalid")
+if evidence["artifact_suffix"] != expected_artifact_suffix:
+    raise SystemExit("Orange artifact suffix is not the manifest-approved suffix")
 native_image_prefix = expected_packages[0][:-4] + "__"
 native_dtb_prefix = expected_packages[1][:-4] + "__"
 if not image_package.name.startswith(native_image_prefix) or not image_package.name.endswith(".deb"):
@@ -220,7 +240,14 @@ if actual_octessera_head.lower() != os.environ["GITHUB_SOURCE_SHA"].lower():
 
 armbian_checkout_head = None
 armbian_checkout_path = None
+source_lock_effective_path = None
+source_lock_effective_sha256 = None
 if armbian_build_directory:
+    source_lock_build = armbian_build_directory / "config/sources/git_sources.json"
+    if not source_lock_build.is_file() or source_lock_build.is_symlink() or source_lock_build.read_bytes() != source_lock_file.read_bytes():
+        raise SystemExit("Armbian checkout source lock does not match the reviewed source lock")
+    source_lock_effective_path = str(source_lock_build.relative_to(armbian_build_directory))
+    source_lock_effective_sha256 = sha256(source_lock_build)
     armbian_checkout_head = subprocess.check_output(
         ["git", "-C", str(armbian_build_directory), "rev-parse", "HEAD"], text=True
     ).strip()
@@ -246,8 +273,10 @@ lines = [
     f"github_source_sha={os.environ['GITHUB_SOURCE_SHA']}",
     f"octessera_checkout_head={actual_octessera_head}",
     f"armbian_build_ref={os.environ['ARMBIAN_BUILD_REF']}",
+    f"armbian_build_tag={armbian['tag']}",
     f"armbian_build_repository={armbian['repository']}",
     f"kernel_source_repository={orange['repository']}",
+    f"kernel_source_branch={orange['branch']}",
     f"kernel_source_commit={orange['commit']}",
     f"kernel_version={orange['release'].split('-')[0]}",
     f"kernel_release={orange['release']}",
@@ -260,6 +289,11 @@ lines = [
     f"dtb_package_native={evidence['dtb_package_native_basename']}",
     f"dtb_package_sha256={evidence['dtb_package_sha256']}",
     f"artifact_suffix={evidence['artifact_suffix']}",
+    f"source_lock_path={source_lock_path}",
+    f"source_lock_sha256={source_lock_sha256}",
+    f"source_lock_source={expected_source_repository}",
+    f"source_lock_branch={expected_source_branch}",
+    f"source_lock_commit={expected_source_commit}",
     f"package_architecture={expected_architecture}",
     f"required_dtb={armbian['required_dtb']}",
     f"audio_dts_path={evidence['audio_dts_path']}",
@@ -297,6 +331,8 @@ if armbian_build_directory:
     lines[4:4] = [
         f"armbian_checkout_path={armbian_checkout_path}",
         f"armbian_checkout_head={armbian_checkout_head}",
+        f"source_lock_effective_path={source_lock_effective_path}",
+        f"source_lock_effective_sha256={source_lock_effective_sha256}",
     ]
 lines.extend(f"{key}={value}" for key, value in handoff_values.items())
 provenance_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

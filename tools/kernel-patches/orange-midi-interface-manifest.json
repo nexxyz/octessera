@@ -15,46 +15,52 @@
     },
     "octessera_follow_up": {
       "subject": "usb: gadget: f_midi: keep interface strings instance-owned",
-      "sha256": "cf5c2efc60d5e5f8a019f26632b43d96f4cf2681101c50152a78a95b1cc8ee0b"
+      "sha256": "ccb8865274cfe2daa74c89ce258095bfd624ac38ea4418bfe65b3f492fc5e7f7"
     }
+  },
+  "source_lock": {
+    "path": "userpatches/config/sources/git_sources.json",
+    "sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30"
   },
   "build_frameworks": {
     "armbian": {
       "repository": "https://github.com/armbian/build.git",
-      "commit": "fa7a7b2294d9e760a77630950afd460b7a0b2a26",
+      "commit": "3da49cffcb8ac58a919d86816fec4659c410ff1e",
+      "tag": "v26.11.0-trunk.22",
       "board": "orangepizero2w",
       "release": "trixie",
       "kernel_branch": "current",
-      "kernel_commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394",
-      "kernel_release": "6.18.38-current-sunxi64",
-      "package_revision": "26.8.0-trunk.417",
-      "revision_argument": "REVISION=26.8.0-trunk.417",
+      "kernel_commit": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5",
+      "kernel_release": "6.18.46-current-sunxi64",
+      "package_revision": "26.11.0-trunk.22",
+      "revision_argument": "REVISION=26.11.0-trunk.22",
       "packages": [
-        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
-        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
+        "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
+        "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb"
       ],
       "native_package_patterns": [
-        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64__*.deb",
-        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64__*.deb"
+        "linux-image-current-sunxi64_26.11.0-trunk.22_arm64__*.deb",
+        "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__*.deb"
       ],
+      "native_artifact_suffix": "6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a",
       "required_dtb": "sun50i-h618-orangepi-zero2w.dtb",
       "required_module": "usb_f_midi.ko",
       "core_series": {
         "path": "patch/kernel/archive/sunxi-6.18/series.conf",
-        "sha256": "db0985a3842d9a41228b916872646a7c76d84c21da2195d0b06043f994981301",
-        "active_patch_count": 515
+        "sha256": "5f3d249d025af0c0d6801df3f27b9f45ed5405af430ac968e255fbf312e38c5b",
+        "active_patch_count": 514
       },
       "patching_order": {
         "source_path": "lib/tools/patching.py",
-        "source_sha256": "b53967b15f216872551b0261f9f917b865ad9fd132c1c3803a84fd07d0522a84",
+        "source_sha256": "5d5b648a7e958ddc213c4ba361292a04a15988e4c430248b320278572d655c80",
         "series_before_regular": true,
         "regular_sort_key": "file_name"
       },
       "config_base": {
         "path": "config/kernel/linux-sunxi64-current.config",
-        "sha256": "299e1aa0b2355fa9da03507e76a263833da7c69e73fdd8bbccbda3d7fdcc4363"
+        "sha256": "03a427fed857cc598ef95c5c8a2dccb43bb515d513df1eff9c010e6aa56ab155"
       },
-      "packaged_config_sha256": "fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352",
+      "packaged_config_sha256": "922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc",
       "audio_overlay": {
         "canonical_dts": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
         "canonical_dts_sha256": "727b9a817de68446c3a536da5641af3292834820fa42755fc3a675788bd13e79",
@@ -81,13 +87,14 @@
   },
   "kernels": {
     "orange": {
-      "repository": "https://github.com/torvalds/linux.git",
-      "commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394",
-      "release": "6.18.38-current-sunxi64",
-      "package_revision": "26.8.0-trunk.417",
+      "repository": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
+      "branch": "linux-6.18.y",
+      "commit": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5",
+      "release": "6.18.46-current-sunxi64",
+      "package_revision": "26.11.0-trunk.22",
       "packages": [
-        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
-        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
+        "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
+        "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb"
       ]
     },
     "raspberry": {

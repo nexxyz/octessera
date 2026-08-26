@@ -80,20 +80,20 @@ if [[ "${1-}" == -f ]]; then
   package="$(basename -- "$2")"
   if [[ "$package" == linux-image-* ]]; then
     package_name=linux-image-current-sunxi64
-    kernel_source=linux-6.18.42
+    kernel_source=linux-6.18.46
   else
     package_name=linux-dtb-current-sunxi64
     kernel_source=
   fi
   if [[ $# == 2 ]]; then
-    printf '%s\n' "Package: $package_name" "Version: $mode_version" "Architecture: $mode_architecture" "Source: $kernel_source" 'Armbian-Kernel-Version: 6.18.42' "Armbian-Kernel-Version-Family: $mode_abi" 'Description: rolling-pin test package'
+    printf '%s\n' "Package: $package_name" "Version: $mode_version" "Architecture: $mode_architecture" "Source: $kernel_source" 'Armbian-Kernel-Version: 6.18.46' "Armbian-Kernel-Version-Family: $mode_abi" 'Description: rolling-pin test package'
     exit 0
   fi
   case "$3" in
     Package) printf '%s\n' "$package_name" ;;
     Version) printf '%s\n' "$mode_version" ;;
     Architecture) printf '%s\n' "$mode_architecture" ;;
-    Armbian-Kernel-Version) printf '%s\n' '6.18.42' ;;
+    Armbian-Kernel-Version) printf '%s\n' '6.18.46' ;;
     Armbian-Kernel-Version-Family) printf '%s\n' "$mode_abi" ;;
     *) printf '\n' ;;
   esac
@@ -186,11 +186,11 @@ bad_head_capture="$work/bad-head-capture"
 make_build "$bad_head_build"
 expect_failure bad-head env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" FAKE_HEAD=0123456789012345678901234567890123456789 "$prepare" "$bad_head_build" "$bad_head_capture"
 
-printf '%s %s %s\n' 26.11.0-trunk.22 arm64 6.18.42-current-sunxi64 > "$work/dpkg.mode"
+printf '%s %s %s\n' 26.11.0-trunk.22 arm64 6.18.46-current-sunxi64 > "$work/dpkg.mode"
 make_post_output() {
   local output_root="$build_dir/output"
-  local image_basename=linux-image-current-sunxi64_26.11.0-trunk.22_arm64__fixture.deb
-  local dtb_basename=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__fixture.deb
+  local image_basename=linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb
+  local dtb_basename=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb
   local image_name=octessera-orangepizero2w.img.xz
   rm -rf -- "$output_root/debs" "$output_root/images" "$output_root/bootstrap-evidence"
   mkdir -p "$output_root/debs" "$output_root/images"
@@ -212,24 +212,24 @@ for evidence_file in framework.txt build-tuple.env source-lock.env native-packag
 done
 grep -q '^source_lock_equal=true$' "$evidence_dir/source-lock.env"
 grep -q '^kernelbranch_argument=omitted$' "$evidence_dir/build-tuple.env"
-grep -q '^packaged_config_path=boot/config-6.18.42-current-sunxi64$' "$evidence_dir/packaged-kernel.env"
+grep -q '^packaged_config_path=boot/config-6.18.46-current-sunxi64$' "$evidence_dir/packaged-kernel.env"
 (cd "$build_dir/output" && sha256sum -c bootstrap-evidence/SHA256SUMS >/dev/null)
 
 make_post_output
-cp -- "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__fixture.deb" "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
+cp -- "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
 expect_failure ambiguous-package run_capture
 
 make_post_output
-printf '%s %s %s\n' 26.10.0-trunk.1 arm64 6.18.42-current-sunxi64 > "$work/dpkg.mode"
+printf '%s %s %s\n' 26.10.0-trunk.1 arm64 6.18.46-current-sunxi64 > "$work/dpkg.mode"
 expect_failure wrong-version run_capture
 
 make_post_output
-printf '%s %s %s\n' 26.11.0-trunk.22 amd64 6.18.42-current-sunxi64 > "$work/dpkg.mode"
+printf '%s %s %s\n' 26.11.0-trunk.22 amd64 6.18.46-current-sunxi64 > "$work/dpkg.mode"
 expect_failure wrong-architecture run_capture
 
 make_post_output
 printf '%s\n' tampered > "$build_dir/output/images/octessera-orangepizero2w.img.xz"
-printf '%s %s %s\n' 26.11.0-trunk.22 arm64 6.18.42-current-sunxi64 > "$work/dpkg.mode"
+printf '%s %s %s\n' 26.11.0-trunk.22 arm64 6.18.46-current-sunxi64 > "$work/dpkg.mode"
 expect_failure bad-checksum run_capture
 
 make_post_output

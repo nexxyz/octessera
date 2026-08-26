@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -11,6 +12,7 @@ from test_orange_image_proof_support import (
     make_missing_builtin_fixture,
     replace_option,
     run_proof,
+    run_proof_failure,
     verifier_args,
 )
 
@@ -50,3 +52,22 @@ def run_image_proof(work: Path, fixture: tuple[Path, Path, Path, Path, Path]) ->
     shutil.copy2(image, canonical_image)
     shutil.copy2(dtb, canonical_dtb)
     run_proof(verifier_args(root, canonical_image, canonical_dtb, evidence, provenance), True)
+
+    wrong_suffix = "self-consistent-wrong-suffix"
+    wrong_image = work / f"{CANONICAL_IMAGE.removesuffix('.deb')}__{wrong_suffix}.deb"
+    wrong_dtb = work / f"{CANONICAL_DTB.removesuffix('.deb')}__{wrong_suffix}.deb"
+    shutil.copy2(image, wrong_image)
+    shutil.copy2(dtb, wrong_dtb)
+    wrong_evidence = work / "wrong-suffix-evidence.env"
+    evidence_values = {}
+    for line in evidence.read_text().splitlines():
+        key, _, value = line.partition("=")
+        evidence_values[key] = {"image_package_native_basename": wrong_image.name, "dtb_package_native_basename": wrong_dtb.name, "artifact_suffix": wrong_suffix}.get(key, value)
+    wrong_evidence.write_text("\n".join(f"{key}={value}" for key, value in evidence_values.items()) + "\n")
+    wrong_provenance = work / "wrong-suffix-provenance.txt"
+    provenance_values = {}
+    for line in provenance.read_text().splitlines():
+        key, _, value = line.partition("=")
+        provenance_values[key] = {"image_package_native": wrong_image.name, "dtb_package_native": wrong_dtb.name, "artifact_suffix": wrong_suffix, "evidence_sha256": hashlib.sha256(wrong_evidence.read_bytes()).hexdigest()}.get(key, value)
+    wrong_provenance.write_text("\n".join(f"{key}={value}" for key, value in provenance_values.items()) + "\n")
+    run_proof_failure(verifier_args(root, wrong_image, wrong_dtb, wrong_evidence, wrong_provenance), "native package suffix evidence is not manifest-approved")
