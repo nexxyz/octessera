@@ -228,6 +228,8 @@ def _main() -> int:
             image / "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash",
             image / "etc/systemd/system/octessera-boot-splash.service",
             image / "etc/systemd/system/octessera.service",
+            image / "etc/systemd/system/octessera-sd-card.service",
+            image / "etc/udev/rules.d/99-octessera-sd-card.rules",
             image / "etc/profile.d/octessera-welcome.sh",
             image / "usr/local/sbin/octessera-usb-gadget",
         ):
@@ -235,6 +237,13 @@ def _main() -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, path)
             os.chmod(path, 0o755 if "initramfs" in str(path) or path.name == "octessera-usb-gadget" else 0o644)
+        for source, path, mode in (
+            (HERE.parents[1] / "tools/storage/octessera-sd-card", image / "usr/local/sbin/octessera-sd-card", 0o755),
+            (HERE.parents[1] / "tools/storage/octessera-sd-card-lib.sh", image / "usr/local/lib/octessera/octessera-sd-card-lib.sh", 0o644),
+        ):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, path)
+            os.chmod(path, mode)
         default_config = image / "home/pi/presets/default.json"
         default_config.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(HERE.parents[1] / "config/generated/pi/default.json", default_config)
@@ -254,6 +263,7 @@ def _main() -> int:
         (image / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True, exist_ok=True)
         (image / "etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service").symlink_to("../octessera-boot-splash.service")
         (image / "etc/systemd/system/multi-user.target.wants/octessera.service").symlink_to("../octessera.service")
+        (image / "etc/systemd/system/multi-user.target.wants/octessera-sd-card.service").symlink_to("../octessera-sd-card.service")
         original_root_command = STAGE_INSTALLER._run_in_root
         def fake_root_command(rootfs: Path, command: list[str]) -> None:
             if command[0] == "update-initramfs":
