@@ -17,7 +17,7 @@ pub(crate) struct HardwareDevices {
     pub(crate) _dac: I2sDac,
 }
 
-pub(crate) fn init_hardware(open_oled: bool) -> Result<HardwareDevices, HardwareFault> {
+pub(crate) fn init_hardware(open_oled: bool) -> Result<HardwareDevices, Box<HardwareFault>> {
     let mut fault = HardwareFault::new();
     let i2c_bus = init_device(
         "I2C",
@@ -62,13 +62,13 @@ pub(crate) fn init_hardware(open_oled: bool) -> Result<HardwareDevices, Hardware
         }
         (_, oled, trellis, neokey, _, _) => {
             fault.attach_outputs(oled, trellis, neokey);
-            Err(fault)
+            Err(Box::new(fault))
         }
     }
 }
 
 pub(crate) fn init_encoders(
-) -> Result<(mpsc::Receiver<HardwareEvent>, Vec<EncoderGpio>), HardwareFault> {
+) -> Result<(mpsc::Receiver<HardwareEvent>, Vec<EncoderGpio>), Box<HardwareFault>> {
     let (event_tx, event_rx) = mpsc::channel::<HardwareEvent>();
     let mut encoders = Vec::new();
     let mut fault = HardwareFault::new();
@@ -88,7 +88,7 @@ pub(crate) fn init_encoders(
     if fault.is_empty() {
         Ok((event_rx, encoders))
     } else {
-        Err(fault)
+        Err(Box::new(fault))
     }
 }
 

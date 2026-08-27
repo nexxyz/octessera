@@ -1,6 +1,7 @@
 #[path = "audio_prep_config.rs"]
 mod audio_prep_config;
 
+use crate::sample_decode_cache::SampleDecodeCache;
 use crate::types::QueuedAudioEvent;
 use audio_prep_config::{
     apply_prepared_audio_config, prepare_full_audio_config, prepare_sample_preview, AudioPrepError,
@@ -11,7 +12,6 @@ use playback_runtime::{
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -25,7 +25,7 @@ pub(crate) struct DesktopAudioControl {
 pub(crate) struct DesktopAudioPrepState {
     pub(crate) config_revision: Arc<AtomicU64>,
     pub(crate) synth_slots: Arc<Mutex<[bool; INSTRUMENT_SLOT_COUNT]>>,
-    pub(crate) sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
+    pub(crate) sample_decode_cache: SampleDecodeCache,
     pub(crate) sample_bank_signature: Arc<Mutex<String>>,
 }
 

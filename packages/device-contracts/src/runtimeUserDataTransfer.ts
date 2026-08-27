@@ -40,6 +40,26 @@ function hasOwn(value: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 
+function isValidBracketedHttpAuthority(authority: string): boolean {
+  const end = authority.indexOf("]");
+  if (end <= 1) return false;
+  const port = authority.slice(end + 1);
+  return port === "" || (port.startsWith(":") && isValidPort(port.slice(1)));
+}
+
+function isValidUnbracketedHttpAuthority(authority: string): boolean {
+  const separator = authority.lastIndexOf(":");
+  if (separator < 0) return true;
+  if (separator === 0 || authority.slice(0, separator).includes(":")) return false;
+  return isValidPort(authority.slice(separator + 1));
+}
+
+function isValidHttpAuthority(authority: string): boolean {
+  if (authority.length === 0 || authority.includes("@")) return false;
+  if (authority.startsWith("[")) return isValidBracketedHttpAuthority(authority);
+  return isValidUnbracketedHttpAuthority(authority);
+}
+
 function isHttpUrl(value: unknown): value is string {
   if (
     typeof value !== "string" ||
@@ -50,17 +70,7 @@ function isHttpUrl(value: unknown): value is string {
   )
     return false;
   const authority = value.slice(7).split(/[/?#]/, 1)[0] ?? "";
-  if (authority.length === 0 || authority.includes("@")) return false;
-  if (authority.startsWith("[")) {
-    const end = authority.indexOf("]");
-    if (end <= 1) return false;
-    const port = authority.slice(end + 1);
-    return port === "" || (port.startsWith(":") && isValidPort(port.slice(1)));
-  }
-  const separator = authority.lastIndexOf(":");
-  if (separator < 0) return true;
-  if (separator === 0 || authority.slice(0, separator).includes(":")) return false;
-  return isValidPort(authority.slice(separator + 1));
+  return isValidHttpAuthority(authority);
 }
 
 function isValidPort(value: string): boolean {

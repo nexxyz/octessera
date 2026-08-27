@@ -15,8 +15,8 @@ use crate::runtime::{CoreRunner, RuntimeConfig};
 use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
 use defaults::{
     default_fx_buses, default_global_fx_params, default_global_fx_slots, default_instruments,
-    default_pulses_layers, derive_bus_name, derive_instrument_name, fx_default_params,
-    fx_slot_payload_with_params, legacy_derive_bus_name, legacy_derive_instrument_name,
+    default_pulses_layers, derive_bus_name, derive_bus_name_from_slots, derive_instrument_name,
+    fx_default_params, fx_slot_payload_with_params,
 };
 use modulation_keys::{parse_instrument_binding_key, parse_layer_behavior_config_binding_key};
 #[cfg(test)]
@@ -192,8 +192,8 @@ mod user_data_transfer_state;
 mod velocity_curve;
 
 use crate::{clean_preset_name, fresh_preset_name};
+pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
-pub(crate) use audio_outputs::{normalize_audio_outputs, strip_device_audio_fields};
 pub use runner_config::NativeRunnerConfig;
 
 use binding_payload::*;

@@ -29,6 +29,10 @@ for script in "$CANONICAL_SCRIPT" "$DEPLOYED_SCRIPT"; do
     new_fake_configfs "$root"
     cp "$TEST_ROOT/config-conflict.json" "$TEST_ROOT/config-invalid.json"
     assert_failed run_setup_command "$root" invalid
+    root=$SUITE_ROOT/legacy-only-config
+    new_fake_configfs "$root"
+    cp "$TEST_ROOT/config-legacy-only.json" "$TEST_ROOT/config-invalid.json"
+    assert_failed run_setup_command "$root" invalid
     root=$SUITE_ROOT/existing
     new_fake_configfs "$root"
     mkdir "$root/config/usb_gadget/octessera-orange-pi"

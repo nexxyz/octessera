@@ -32,23 +32,30 @@ function isNode(value) {
   );
 }
 
+function isAstMetadataKey(key) {
+  return (
+    key === "loc" ||
+    key === "start" ||
+    key === "end" ||
+    key === "tokens" ||
+    key === "comments"
+  );
+}
+
+function visitChildValue(value, visit) {
+  if (Array.isArray(value)) {
+    for (const child of value) {
+      if (isNode(child)) visit(child);
+    }
+  } else if (isNode(value)) {
+    visit(value);
+  }
+}
+
 function forEachChild(node, visit) {
   for (const [key, value] of Object.entries(node)) {
-    if (
-      key === "loc" ||
-      key === "start" ||
-      key === "end" ||
-      key === "tokens" ||
-      key === "comments"
-    )
-      continue;
-    if (Array.isArray(value)) {
-      for (const child of value) {
-        if (isNode(child)) visit(child);
-      }
-    } else if (isNode(value)) {
-      visit(value);
-    }
+    if (isAstMetadataKey(key)) continue;
+    visitChildValue(value, visit);
   }
 }
 
@@ -57,8 +64,8 @@ function walk(node, visit, parent = null) {
   forEachChild(node, (child) => walk(child, visit, node));
 }
 
-function propertyName(node) {
-  if (!node) return null;
+function propertyName(node, fallback = null) {
+  if (!node) return fallback;
   if (node.type === "Identifier") return node.name;
   if (node.type === "PrivateName") return `#${propertyName(node.id)}`;
   if (node.type === "StringLiteral" || node.type === "NumericLiteral")
@@ -70,30 +77,37 @@ function bindingName(node) {
   return node?.type === "Identifier" ? node.name : null;
 }
 
-function functionName(node, parent) {
-  if (node.id?.type === "Identifier") return node.id.name;
+function methodFunctionName(node) {
   if (
-    node.type === "ObjectMethod" ||
-    node.type === "ClassMethod" ||
-    node.type === "ClassPrivateMethod"
-  ) {
-    const name = propertyName(node.key) ?? "anonymous";
-    return node.kind === "get" || node.kind === "set"
-      ? `${node.kind} ${name}`
-      : name;
-  }
+    node.type !== "ObjectMethod" &&
+    node.type !== "ClassMethod" &&
+    node.type !== "ClassPrivateMethod"
+  )
+    return null;
+  const name = propertyName(node.key, "anonymous");
+  if (node.kind === "get") return `get ${name}`;
+  if (node.kind === "set") return `set ${name}`;
+  return name;
+}
+
+function contextualFunctionName(node, parent) {
   if (parent?.type === "VariableDeclarator" && parent.init === node)
     return bindingName(parent.id) ?? "anonymous";
   if (parent?.type === "AssignmentExpression" && parent.right === node) {
-    return (
-      bindingName(parent.left) ??
-      propertyName(parent.left?.property) ??
-      "anonymous"
-    );
+    const name = bindingName(parent.left);
+    if (name !== null) return name;
+    return propertyName(parent.left?.property, "anonymous");
   }
   if (parent?.type === "ObjectProperty" && parent.value === node)
-    return propertyName(parent.key) ?? "anonymous";
+    return propertyName(parent.key, "anonymous");
   return "anonymous";
+}
+
+function functionName(node, parent) {
+  if (node.id?.type === "Identifier") return node.id.name;
+  const methodName = methodFunctionName(node);
+  if (methodName !== null) return methodName;
+  return contextualFunctionName(node, parent);
 }
 
 function countComplexity(node) {
@@ -152,70 +166,44 @@ export function scanJavaScriptFunctions(text, extension) {
   return functions;
 }
 
-function scanRegexFunctions(text, extension) {
-  const lines = text.split(/\r?\n/);
-  const fns = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    const match =
-      extension === ".rs"
-        ? line.match(
-            /^\s*(pub(\([^)]*\))?\s+)?fn\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)/,
-          )
-        : line.match(
-            /^\s*(export\s+)?function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/,
-          );
-    if (!match) continue;
-    const name = extension === ".rs" ? match[3] : match[2];
-    const params = (extension === ".rs" ? match[4] : match[3]).trim();
-    const paramCount = params.length === 0 ? 0 : params.split(",").length;
-    let depth = 0;
-    let end = i;
-    let body = "";
-    for (let j = i; j < lines.length; j += 1) {
-      const currentLine = lines[j];
-      for (const ch of currentLine) {
-        if (ch === "{") depth += 1;
-        if (ch === "}") depth -= 1;
-      }
-      body += `${currentLine}\n`;
-      if (depth === 0 && j > i) {
-        end = j;
-        break;
-      }
-    }
-    const loc = end - i + 1;
-    const complexity =
-      1 +
-      (
-        body.match(/\bif\b|\bfor\b|\bwhile\b|\bcase\b|\bcatch\b|\?\s*[^:]/g) ||
-        []
-      ).length;
-    fns.push({ name, start: i + 1, end: end + 1, loc, complexity, paramCount });
-  }
-  return fns;
+function countRustParameters(params) {
+  const trimmed = params.trim();
+  return trimmed.length === 0 ? 0 : trimmed.split(",").length;
 }
 
-export function scanApproximateJavaScriptFunctions(text) {
-  return scanRegexFunctions(text, ".mjs");
+function scanRustFunctionEnd(lines, start) {
+  let depth = 0;
+  let end = start;
+  for (let lineIndex = start; lineIndex < lines.length; lineIndex += 1) {
+    const currentLine = lines[lineIndex];
+    for (const ch of currentLine) {
+      if (ch === "{") depth += 1;
+      if (ch === "}") depth -= 1;
+    }
+    if (depth === 0 && lineIndex > start) {
+      end = lineIndex;
+      break;
+    }
+  }
+  return end;
 }
 
 export function scanApproximateRustFunctions(text) {
-  return scanRegexFunctions(text, ".rs");
-}
-
-export function scanJavaScriptFunctionsWithFallback(
-  text,
-  extension,
-  onParseError = console.warn,
-) {
-  try {
-    return scanJavaScriptFunctions(text, extension);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    onParseError(
-      `Quality audit warning: Babel parse failed; using approximate JavaScript regex scanner. ${message}`,
+  const lines = text.split(/\r?\n/);
+  const fns = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const match = lines[i].match(
+      /^\s*(pub(\([^)]*\))?\s+)?fn\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)/,
     );
-    return scanApproximateJavaScriptFunctions(text);
+    if (!match) continue;
+    const end = scanRustFunctionEnd(lines, i);
+    fns.push({
+      name: match[3],
+      start: i + 1,
+      end: end + 1,
+      loc: end - i + 1,
+      paramCount: countRustParameters(match[4]),
+    });
   }
+  return fns;
 }

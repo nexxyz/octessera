@@ -10,6 +10,53 @@ type RuntimeMessagesBatch = {
   messages: RuntimeRunnerMessage[];
 };
 
+type RuntimePayloadRecord = {
+  seq?: unknown;
+  messages?: unknown;
+};
+
+type RuntimePayloadKind = 'messages' | 'batch' | 'batches';
+
+function normalizeRuntimeBatch(payload: unknown): RuntimeMessagesBatch {
+  const record = (
+    typeof payload === 'object' && payload !== null ? payload : {}
+  ) as RuntimePayloadRecord;
+  const seq = Number(record.seq ?? 0);
+  return {
+    seq: Number.isSafeInteger(seq) && seq >= 0 ? seq : 0,
+    messages: Array.isArray(record.messages)
+      ? (record.messages as RuntimeRunnerMessage[])
+      : [],
+  };
+}
+
+export function normalizeRuntimePayload(
+  payload: unknown,
+  kind: 'messages',
+): RuntimeRunnerMessage[];
+export function normalizeRuntimePayload(
+  payload: unknown,
+  kind: 'batch',
+): RuntimeMessagesBatch;
+export function normalizeRuntimePayload(
+  payload: unknown,
+  kind: 'batches',
+): RuntimeMessagesBatch[];
+export function normalizeRuntimePayload(
+  payload: unknown,
+  kind: RuntimePayloadKind,
+): RuntimeRunnerMessage[] | RuntimeMessagesBatch | RuntimeMessagesBatch[] {
+  if (kind === 'messages') {
+    return Array.isArray(payload) ? (payload as RuntimeRunnerMessage[]) : [];
+  }
+  if (kind === 'batches') {
+    return Array.isArray(payload)
+      ? payload.map((batch) => normalizeRuntimeBatch(batch))
+      : [];
+  }
+  return normalizeRuntimeBatch(payload);
+}
+
 const IPC_TIMEOUT = 4_000;
 
 function withTimeout<R>(promise: Promise<R>, ms: number): Promise<R> {
@@ -28,17 +75,19 @@ class TauriCoreRunnerClient {
   async dispatchRuntime(
     message: RuntimeHostMessage,
   ): Promise<RuntimeRunnerMessage[]> {
-    return (await withTimeout(
-      invoke('runtime_dispatch', { message }),
+    const payload = await withTimeout(
+      invoke<unknown>('runtime_dispatch', { message }),
       IPC_TIMEOUT,
-    )) as RuntimeRunnerMessage[];
+    );
+    return normalizeRuntimePayload(payload, 'messages');
   }
 
   async drainRuntimeMessages(): Promise<RuntimeMessagesBatch[]> {
-    return (await withTimeout(
-      invoke('runtime_drain_messages'),
+    const payload = await withTimeout(
+      invoke<unknown>('runtime_drain_messages'),
       IPC_TIMEOUT,
-    )) as RuntimeMessagesBatch[];
+    );
+    return normalizeRuntimePayload(payload, 'batches');
   }
 
   async listenRuntimeMessages(
@@ -46,17 +95,9 @@ class TauriCoreRunnerClient {
   ): Promise<() => void> {
     if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window))
       return () => {};
-    const unlisten = await listen<RuntimeMessagesBatch>(
-      'runtime_messages',
-      (evt) => {
-        handler({
-          seq: Number(evt.payload?.seq ?? 0),
-          messages: Array.isArray(evt.payload?.messages)
-            ? evt.payload.messages
-            : [],
-        });
-      },
-    );
+    const unlisten = await listen<unknown>('runtime_messages', (evt) => {
+      handler(normalizeRuntimePayload(evt.payload, 'batch'));
+    });
     return unlisten;
   }
 }

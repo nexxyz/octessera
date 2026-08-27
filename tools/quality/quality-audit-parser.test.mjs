@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   scanApproximateRustFunctions,
   scanJavaScriptFunctions,
-  scanJavaScriptFunctionsWithFallback,
 } from "./quality-audit-parser.mjs";
 
 const findFunction = (functions, name) => {
@@ -154,21 +153,7 @@ test("parses ordinary JS functions and measures executable complexity", () => {
   ]);
 });
 
-test("warns and uses the approximate JavaScript scanner after a Babel parse failure", () => {
-  const warnings = [];
-  const functions = scanJavaScriptFunctionsWithFallback(
-    "function broken() { return ???; }",
-    ".mjs",
-    (warning) => warnings.push(warning),
-  );
-
-  assert.equal(functions.length, 1);
-  assert.equal(functions[0].name, "broken");
-  assert.match(warnings[0], /Babel parse failed/);
-  assert.match(warnings[0], /approximate JavaScript regex scanner/);
-});
-
-test("keeps Rust measurements on the explicit approximate scanner", () => {
+test("keeps Rust LOC and parameter measurements without complexity", () => {
   const functions = scanApproximateRustFunctions(`
     pub fn render(value: usize, other: usize) {
       if value > other { return; }
@@ -181,7 +166,6 @@ test("keeps Rust measurements on the explicit approximate scanner", () => {
       start: 2,
       end: 4,
       loc: 3,
-      complexity: 2,
       paramCount: 2,
     },
   ]);

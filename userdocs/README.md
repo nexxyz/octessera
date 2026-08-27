@@ -12,6 +12,10 @@ desktop and board assets available for the release you selected; names and
 formats may change. macOS distribution is paused until a signed and notarized
 path is available; do not treat an old macOS asset as current.
 
+The [v0.8.1 release record](release-records/v0.8.1.md) records the exact draft
+artifact hashes and automated evidence. It does not claim physical qualification
+or publication.
+
 Read the [release support matrix](release-support.md) before treating a download
 as supported. Only an exact artifact and platform with a recorded manual FAT
 result qualify; source/build checks alone do not.

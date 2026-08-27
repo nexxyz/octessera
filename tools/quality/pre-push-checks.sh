@@ -77,6 +77,7 @@ run_pre_push_checks() {
   run_check "pnpm format:check" corepack pnpm run format:check
   run_check "pnpm test" corepack pnpm run test
   run_check "pnpm test:coverage" corepack pnpm run test:coverage
+  run_check "pnpm quality:audit" corepack pnpm run quality:audit
   run_check "cargo fmt" cargo fmt --all --check
   run_check "file length" check_file_length
   run_check "cargo test" \
@@ -91,6 +92,8 @@ run_pre_push_checks() {
   run_check "cargo test desktop" cargo test -p octessera-desktop
   run_check "cargo check pi" cargo check -p octessera-pi
   run_check "tauri build smoke" corepack pnpm run tauri:build:ci
+  run_check "cargo clippy production cognitive" \
+    cargo clippy --workspace --lib --bins -- -W clippy::cognitive_complexity -D warnings
   run_check "cargo clippy" \
     cargo clippy --workspace --exclude octessera-desktop --exclude rodio-engine-source \
     --all-targets -- -D warnings

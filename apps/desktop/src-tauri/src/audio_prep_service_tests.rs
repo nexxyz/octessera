@@ -1,6 +1,5 @@
 use super::*;
 use crate::types::QueuedNote;
-use std::collections::HashMap;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
@@ -13,7 +12,7 @@ fn prep_failure_returns_identified_fault_without_mutating_state() {
     let state = DesktopAudioPrepState {
         config_revision: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         synth_slots: Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT])),
-        sample_cache: Arc::new(Mutex::new(HashMap::new())),
+        sample_decode_cache: SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new("retained".into())),
     };
 
@@ -50,7 +49,7 @@ fn prep_success_returns_identified_audio_result() {
     let state = DesktopAudioPrepState {
         config_revision: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         synth_slots: Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT])),
-        sample_cache: Arc::new(Mutex::new(HashMap::new())),
+        sample_decode_cache: SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
     };
 
@@ -94,7 +93,7 @@ fn unresolved_sample_retains_prior_bank_state_and_returns_typed_failure() {
     let state = DesktopAudioPrepState {
         config_revision: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         synth_slots: Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT])),
-        sample_cache: Arc::new(Mutex::new(HashMap::new())),
+        sample_decode_cache: SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new("last-good".into())),
     };
 
@@ -276,7 +275,7 @@ fn newer_full_config_drops_stale_dynamic_config_delta() {
 fn test_state() -> DesktopAudioPrepState {
     DesktopAudioPrepState {
         synth_slots: Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT])),
-        sample_cache: Arc::new(Mutex::new(HashMap::new())),
+        sample_decode_cache: SampleDecodeCache::new(),
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
     }

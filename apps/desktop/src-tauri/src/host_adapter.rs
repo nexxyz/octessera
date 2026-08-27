@@ -7,6 +7,7 @@ use crate::desktop_platform_service::{
     admit_platform_service_request, DesktopPlatformServiceKind, DesktopPlatformServiceRequest,
 };
 use crate::midi;
+use crate::sample_decode_cache::SampleDecodeCache;
 use crate::types::{QueuedAudioEvent, QueuedNote};
 use midir::MidiInputConnection;
 use playback_runtime::{
@@ -17,7 +18,6 @@ use playback_runtime::{
     RuntimeUserDataTransferStatus,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc::{Sender, SyncSender};
@@ -43,7 +43,7 @@ pub(crate) struct DesktopPlaybackHostAdapter {
 pub(crate) struct DesktopHostAudioState {
     pub(crate) trigger_tx: Sender<QueuedAudioEvent>,
     pub(crate) audio_control: DesktopAudioControl,
-    pub(crate) sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
+    pub(crate) sample_decode_cache: SampleDecodeCache,
 }
 
 impl DesktopPlaybackHostAdapter {

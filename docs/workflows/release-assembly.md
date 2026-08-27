@@ -52,10 +52,11 @@ and root names/checksums.
    desktop launch, per-board FAT, source duties, and limitations. Do not
    announce or publish until a human explicitly makes that decision.
 
-For the v0.8.1 draft, retain Raspberry mounted-image and kernel proof with the
-exact draft and image SHA. Constructor evidence exists for both boards, but
-physical FAT remains the retirement gate. Trusted-parent machinery is frozen
-legacy recovery and is not a v0.8.1 qualification path.
+For every board-image draft, retain the source/build proof and any required
+mounted-image or kernel proof with the exact artifact. Physical acceptance
+follows the [two-board FAT quick run](../../userdocs/hardware/fat-quick-run.md).
+Trusted-parent machinery is frozen legacy recovery, not a qualification path;
+retire or narrow it only after FAT closes.
 
 ## Image staging and update boundaries
 

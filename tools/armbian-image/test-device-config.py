@@ -35,12 +35,12 @@ def test_helper(path, index):
             config.write_text(json.dumps({"runtimeConfig": {"audioOutputs": audio, "usb": {"midiOutEnabled": midi}}}), encoding="utf-8")
             assert tuple(helper.load_config(config).values()) == expected
 
-        config.write_text('{"runtimeConfig":{"usb":{"audioOut":"both"}}}', encoding="utf-8")
-        assert helper.load_config(config)["usb"] is True
         invalid = (
+            {"runtimeConfig": {"usb": {"audioOut": "both"}}},
+            {"runtimeConfig": {"usb": {"midiOutEnabled": False}}},
             {"runtimeConfig": {"audioOutputs": {"dac": False, "usb": False, "hdmi": False}}},
             {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False, "extra": False}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"audioOut": "usb"}}},
+            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"audioOut": "both"}}},
             {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": 1}}},
         )
         for payload in invalid:

@@ -255,7 +255,7 @@ sudo systemctl reboot
 sudo systemctl poweroff
 
 Data restore is also destructive and requires physical confirmation. Existing documented shape:
-curl -f -X POST --data-binary @octessera-user-data.oct -H "X-Octessera-Transfer-Code: TRANSFER_CODE" "http://192.168.42.1:8081/restore"
+curl -f -X POST --data-binary @octessera-user-data.oct -H "X-Octessera-Transfer-Code: TRANSFER_CODE" "http://<regular-wlan0-ip>:8081/restore"
 "@
 
 Write-Utf8NoBom (Join-Path $EvidenceRoot "00-session.json") ($session | ConvertTo-Json -Depth 8)

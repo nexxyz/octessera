@@ -12,6 +12,9 @@ The public release boundary is summarized in the [release support matrix](../rel
 An exact image or a clean source/build result is not a supported release until
 the matching manual FAT record exists.
 
+The [v0.8.1 release record](../release-records/v0.8.1.md) contains the exact
+artifact hashes and automated result for the current draft.
+
 ## What the labels mean
 
 - **Source/build proof** means the profile, native adapters, image inputs, and
@@ -25,20 +28,23 @@ the matching manual FAT record exists.
 
 ## Published images and current constructor
 
-The current source-defined constructor boot, OLED handoff, and lifecycle
-expectations apply only to an image built from those contracts and identified by
-release and qualification evidence. The live trusted v0.7.5 images are
-runtime/setup parents. They remain usable published images for their documented
-runtime and setup paths, but they do not prove the current constructor layer. A
-new full constructor image still needs build validation and physical
-qualification.
+The v0.8.1 source-defined constructor and release validation are recorded in the
+[release record](../release-records/v0.8.1.md). Run `33037951901` is only the
+[Orange strict diagnostic-image build](https://github.com/nexxyz/octessera/actions/runs/33037951901);
+run `33045139129` is the [full release run for both production images and the 14
+uploaded assets](https://github.com/nexxyz/octessera/actions/runs/33045139129).
+This is source/build evidence, not proof that exact image bytes were flashed to
+an assembled board or that physical FAT passed. The live trusted v0.7.5 images
+are runtime/setup
+parents. They remain usable published images for their documented runtime and
+setup paths, but they do not prove the current constructor layer.
 
 ## Current status
 
 | Board path | Source/build proof | Physical-board qualification |
 |---|---|---|
-| Raspberry Pi Zero 2 W | The canonical profile and source-defined Raspberry image/boot contracts are present and covered by repository checks. See the [board profiles](../../docs/board-profiles.md) and [Raspberry first-boot page](raspberry-pi-first-boot.md). | **Open — no exact image and assembled-board FAT result is closed here.** Confirm the OLED, controls, DAC, power/no-backfeed, USB role, and enclosure fit at the bench. |
-| Orange Pi Zero 2W | The canonical profile and separate Armbian production/diagnostic paths are present. The reviewed [Armbian bring-up procedure](../../hardware/docs/orange-pi-armbian-bringup.md) records the Orange-specific checks and remaining gates. | **Open — no exact image and assembled-board FAT result is closed here.** I2S pin proof, USB role/UDC/no-backfeed behavior, the complete control surface, and enclosure fit remain explicit physical gates. |
+| Raspberry Pi Zero 2 W | The v0.8.1 source-bound constructor validation and canonical profile checks are recorded in the [release record](../release-records/v0.8.1.md). See the [board profiles](../../docs/board-profiles.md) and [Raspberry first-boot page](raspberry-pi-first-boot.md). | **UNQUALIFIED / OPEN — no exact image and assembled-board FAT result is closed here.** Confirm the OLED, controls, DAC, power/no-backfeed, USB role, and enclosure fit at the bench. |
+| Orange Pi Zero 2W | The v0.8.1 source-bound constructor validation and canonical profile checks are recorded in the [release record](../release-records/v0.8.1.md). The reviewed [Armbian bring-up procedure](../../hardware/docs/orange-pi-armbian-bringup.md) records the Orange-specific checks and remaining gates. | **UNQUALIFIED / OPEN — no exact image and assembled-board FAT result is closed here.** I2S pin proof, USB role/UDC/no-backfeed behavior, the complete control surface, and enclosure fit remain explicit physical gates. |
 
 USB Audio and USB MIDI remain experimental/local bench validation on both board
 paths. The Linux Foundation VID/PID values used by the local composers are not a

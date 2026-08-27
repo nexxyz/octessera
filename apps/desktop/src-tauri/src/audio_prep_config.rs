@@ -2,10 +2,10 @@ use crate::audio_config::{
     normalize_config, sample_bank_signature, sample_banks, synth_payload, synth_slots,
     SampleBankError,
 };
+use crate::sample_decode_cache::SampleDecodeCacheError;
 use crate::samples::resolve_sample_file;
 use crate::types::QueuedAudioEvent;
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
-use rodio_engine_source::decode_sample_file;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Sender;
@@ -45,18 +45,11 @@ pub(super) fn prepare_full_audio_config(
     let next_sample_banks = if should_update_sample_banks {
         Some(
             sample_banks(&config, resolve_sample_file, |path| {
-                if let Ok(cache) = state.sample_cache.lock() {
-                    if let Some(buffer) = cache.get(path) {
-                        return Some(buffer.clone());
-                    }
-                } else {
-                    return None;
+                match state.sample_decode_cache.load(path) {
+                    Ok(buffer) => buffer,
+                    Err(SampleDecodeCacheError::LookupLock) => None,
+                    Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
                 }
-                let buffer = decode_sample_file(path)?;
-                if let Ok(mut cache) = state.sample_cache.lock() {
-                    cache.insert(path.to_string(), buffer.clone());
-                }
-                Some(buffer)
             })
             .map_err(AudioPrepError::Sample)?,
         )
@@ -85,23 +78,14 @@ pub(super) fn prepare_sample_preview(
 ) -> Result<QueuedAudioEvent, AudioPrepError> {
     let full_path = resolve_sample_file(path)
         .ok_or_else(|| AudioPrepError::Sample(SampleBankError::Unresolved(path.into())))?;
-    let buffer = if let Ok(cache) = state.sample_cache.lock() {
-        cache.get(&full_path).cloned()
-    } else {
-        return Err(AudioPrepError::Failed("sample cache lock failed".into()));
-    };
-    let buffer = match buffer {
-        Some(buffer) => buffer,
-        None => {
-            let buffer = decode_sample_file(&full_path)
-                .ok_or_else(|| AudioPrepError::Sample(SampleBankError::Undecodable(path.into())))?;
-            let mut cache = state
-                .sample_cache
-                .lock()
-                .map_err(|_| AudioPrepError::Failed("sample cache lock failed".into()))?;
-            cache.insert(full_path, buffer.clone());
-            buffer
+    let buffer = match state.sample_decode_cache.load(&full_path) {
+        Ok(Some(buffer)) => buffer,
+        Ok(None) => {
+            return Err(AudioPrepError::Sample(SampleBankError::Undecodable(
+                path.into(),
+            )))
         }
+        Err(_) => return Err(AudioPrepError::Failed("sample cache lock failed".into())),
     };
     Ok(QueuedAudioEvent::PreviewSample {
         instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,

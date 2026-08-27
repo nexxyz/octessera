@@ -373,7 +373,7 @@ impl NativeOledGuard {
             } else {
                 StartupFatalCode::OledUnavailable
             };
-            return self.publish_fatal_then_failed(code);
+            self.publish_fatal_then_failed(code)
         }
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         {

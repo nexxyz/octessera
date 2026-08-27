@@ -130,10 +130,12 @@ the service journal; the detailed reason remains there:
 7. Open `http://192.168.42.1/`.
 8. Choose the country and a scanned or manual Wi-Fi SSID. Select an open network
    or enter its password.
-9. Pick SSH access:
-   - an SSH key is best; it becomes the admin credential and can use `sudo`
-     without a password;
-   - an SSH password also works, and the same password is used for `sudo`; or
+9. Pick SSH access. Key login and sudo authentication are separate:
+   - an SSH key provides key-based login; it does not by itself make `sudo`
+     passwordless. Key-only setup is insufficient for attended FAT diagnostics
+     unless an approved sudo credential or policy already exists;
+   - an SSH password is the normal attended FAT-diagnostic setup path because
+     its sudo-capable credential can authenticate `sudo`; or
    - leave SSH off.
 10. Set a hostname if you want one.
 11. Press `Apply setup`.

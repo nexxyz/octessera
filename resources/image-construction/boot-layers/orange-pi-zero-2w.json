@@ -28,7 +28,7 @@
     {"path": "userpatches/overlay/usr/local/sbin/octessera-setup", "sha256": "78cd568203b17c9bb2525d7eaa2e0e541bb6970530771c91fe742e564be9ac8b", "size": 18961, "mode": 493},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup_config.py", "sha256": "7f9263300024f408da957516c1fbd6600cc4f487b19c248a727d503cacf05bf9", "size": 8649, "mode": 420},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup_http.py", "sha256": "702f7e47c559ec438baf858036c2ecc043cc2252fa8f80c5522761bb1d62f52a", "size": 4217, "mode": 420},
-    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "b342ea39da8dcfd6f725fa377084d439a1b624d79c216ffc345cc7e69286a6bc", "size": 3821, "mode": 420},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "6256f8b88cc32489aa798ee1ae83f73160686e7b1b5b7c982597043e8049cf8f", "size": 3087, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot", "sha256": "143952471c60d6329960041ebc5a105c89a4015a44fa9908d3657c2aa5311b29", "size": 3103, "mode": 420},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket", "sha256": "fe4f5927614d81759ca84501a908823e320068b9d9104837e31b7e3a7ea7b5cf", "size": 331, "mode": 420},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot@.service", "sha256": "99015f15b0e826f0981d00bc06db6c8ebe8250bf213e662163caa9b0f2722c08", "size": 408, "mode": 420},

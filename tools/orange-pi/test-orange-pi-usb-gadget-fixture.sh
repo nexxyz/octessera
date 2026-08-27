@@ -240,4 +240,5 @@ printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":fa
 printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false}}}' > "$TEST_ROOT/config-none.json"
 printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":true}}}' > "$TEST_ROOT/config-invalid.json"
 printf '%s\n' '{' > "$TEST_ROOT/config-malformed.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"audioOut":"usb"}}}' > "$TEST_ROOT/config-conflict.json"
+printf '%s\n' '{"runtimeConfig":{"usb":{"audioOut":"usb"}}}' > "$TEST_ROOT/config-legacy-only.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"audioOut":"both"}}}' > "$TEST_ROOT/config-conflict.json"

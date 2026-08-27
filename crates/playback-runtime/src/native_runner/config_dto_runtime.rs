@@ -233,11 +233,10 @@ pub struct MidiDto {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct UsbDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi_out_enabled: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) audio_out: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

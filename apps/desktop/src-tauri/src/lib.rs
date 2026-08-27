@@ -7,6 +7,7 @@ mod host_adapter;
 mod midi;
 mod persistence;
 mod runtime_worker;
+mod sample_decode_cache;
 mod samples;
 mod startup_failure;
 mod store_startup;
@@ -18,7 +19,7 @@ use desktop_platform_service::spawn_desktop_platform_service;
 use host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use runtime_worker::{RuntimeWorker, WorkerCommand};
-use std::collections::HashMap;
+use sample_decode_cache::SampleDecodeCache;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
@@ -37,7 +38,7 @@ pub fn run() {
     let (audio_failure_tx, audio_failure_rx) =
         mpsc::channel::<playback_runtime::RuntimeAdapterError>();
     let synth_slots = Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT]));
-    let sample_cache = Arc::new(Mutex::new(HashMap::new()));
+    let sample_decode_cache = SampleDecodeCache::new();
     let sample_bank_signature = Arc::new(Mutex::new(String::new()));
     let config_revision = Arc::new(std::sync::atomic::AtomicU64::new(0));
     let midi_out = Arc::new(Mutex::new(None));
@@ -65,7 +66,7 @@ pub fn run() {
                 DesktopAudioPrepState {
                     config_revision: config_revision.clone(),
                     synth_slots: synth_slots.clone(),
-                    sample_cache: sample_cache.clone(),
+                    sample_decode_cache: sample_decode_cache.clone(),
                     sample_bank_signature: sample_bank_signature.clone(),
                 },
             );
@@ -79,7 +80,7 @@ pub fn run() {
                     DesktopHostAudioState {
                         trigger_tx: trigger_tx.clone(),
                         audio_control,
-                        sample_cache: sample_cache.clone(),
+                        sample_decode_cache,
                     },
                     midi_out.clone(),
                     midi_in.clone(),

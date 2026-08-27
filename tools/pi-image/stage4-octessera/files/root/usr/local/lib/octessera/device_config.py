@@ -33,21 +33,6 @@ def parse_config(payload):
     if not isinstance(runtime, dict):
         raise ConfigError("runtimeConfig must be an object")
 
-    canonical_present = "audioOutputs" in runtime
-    outputs = runtime.get("audioOutputs")
-    if canonical_present:
-        if not isinstance(outputs, dict) or set(outputs) != {"dac", "usb", "hdmi"}:
-            raise ConfigError("audioOutputs must contain exactly dac, usb, and hdmi")
-        if any(type(outputs[key]) is not bool for key in outputs):
-            raise ConfigError("audioOutputs values must be boolean")
-        if not any(outputs.values()):
-            raise ConfigError("at least one audio output must be enabled")
-        dac = outputs["dac"]
-        usb_audio = outputs["usb"]
-        hdmi = outputs["hdmi"]
-    else:
-        dac = usb_audio = hdmi = None
-
     usb = runtime.get("usb")
     if "usb" not in runtime:
         usb = {}
@@ -57,24 +42,21 @@ def parse_config(payload):
         raise ConfigError("usb.midiOutEnabled must be boolean")
     midi = usb.get("midiOutEnabled", False)
 
-    legacy_present = "audioOut" in usb
-    if legacy_present:
-        legacy = usb["audioOut"]
-        if not isinstance(legacy, str) or legacy not in {"jack", "usb", "both"}:
-            raise ConfigError("usb.audioOut must be jack, usb, or both")
-        legacy_projection = {
-            "jack": (True, False),
-            "usb": (False, True),
-            "both": (True, True),
-        }[legacy]
-        if canonical_present and (dac, usb_audio) != legacy_projection:
-            raise ConfigError("canonical and legacy USB audio settings disagree")
-        if not canonical_present:
-            dac, usb_audio = legacy_projection
-            hdmi = False
+    if "audioOut" in usb:
+        raise ConfigError("runtimeConfig.usb.audioOut is unsupported; use runtimeConfig.audioOutputs")
 
-    if not canonical_present and not legacy_present:
-        raise ConfigError("audioOutputs or legacy usb.audioOut is required")
+    if "audioOutputs" not in runtime:
+        raise ConfigError("audioOutputs is required")
+    outputs = runtime["audioOutputs"]
+    if not isinstance(outputs, dict) or set(outputs) != {"dac", "usb", "hdmi"}:
+        raise ConfigError("audioOutputs must contain exactly dac, usb, and hdmi")
+    if any(type(outputs[key]) is not bool for key in outputs):
+        raise ConfigError("audioOutputs values must be boolean")
+    if not any(outputs.values()):
+        raise ConfigError("at least one audio output must be enabled")
+    dac = outputs["dac"]
+    usb_audio = outputs["usb"]
+    hdmi = outputs["hdmi"]
 
     return {
         "dac": dac,

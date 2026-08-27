@@ -4,23 +4,9 @@ import type { InputAction } from '../types';
 export function mapKeyboardEventToInputAction(
   event: KeyboardEvent,
 ): InputAction | null {
-  const key = event.key;
-  if (key === 'Shift') return { type: 'shift', active: true };
-  if (key === 'Control') return { type: 'fn', active: true };
-  if (key === ' ' && event.shiftKey) return { type: 'emergency_brake' };
-  if (key === 'ArrowLeft')
-    return wrap({ type: 'encoder_turn', delta: -1, id: 'main' });
-  if (key === 'ArrowRight')
-    return wrap({ type: 'encoder_turn', delta: 1, id: 'main' });
-  if (key === 'ArrowUp')
-    return wrap({ type: 'encoder_turn', delta: -1, id: 'main' });
-  if (key === 'ArrowDown')
-    return wrap({ type: 'encoder_turn', delta: 1, id: 'main' });
-  if (key === 'Enter') return wrap({ type: 'encoder_press', id: 'main' });
-  if (key === 'Backspace') return wrap({ type: 'button_a', pressed: true });
-  if (key === 'Escape') return wrap({ type: 'button_a', pressed: true });
-  if (key === ' ') return wrap({ type: 'button_s', pressed: true });
-  return null;
+  const modifierAction = mapKeyboardModifierAction(event);
+  if (modifierAction !== null) return modifierAction;
+  return mapKeyboardDeviceAction(event.key);
 }
 
 export function mapKeyboardKeyupToInputAction(
@@ -41,4 +27,23 @@ export function shouldPreventKeyboardDefault(event: KeyboardEvent): boolean {
 
 function wrap(input: DeviceInput): InputAction {
   return { type: 'device_input', input };
+}
+
+function mapKeyboardModifierAction(event: KeyboardEvent): InputAction | null {
+  if (event.key === 'Shift') return { type: 'shift', active: true };
+  if (event.key === 'Control') return { type: 'fn', active: true };
+  if (event.key === ' ' && event.shiftKey) return { type: 'emergency_brake' };
+  return null;
+}
+
+function mapKeyboardDeviceAction(key: string): InputAction | null {
+  if (key === 'ArrowLeft' || key === 'ArrowUp')
+    return wrap({ type: 'encoder_turn', delta: -1, id: 'main' });
+  if (key === 'ArrowRight' || key === 'ArrowDown')
+    return wrap({ type: 'encoder_turn', delta: 1, id: 'main' });
+  if (key === 'Enter') return wrap({ type: 'encoder_press', id: 'main' });
+  if (key === 'Backspace') return wrap({ type: 'button_a', pressed: true });
+  if (key === 'Escape') return wrap({ type: 'button_a', pressed: true });
+  if (key === ' ') return wrap({ type: 'button_s', pressed: true });
+  return null;
 }

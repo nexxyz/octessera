@@ -15,13 +15,16 @@ Octessera names are organized into five layers:
 - Raspberry Pi Zero 2 W — `raspberry-pi-zero-2w`, `tools/pi`.
 - Orange Pi Zero 2W — `orange-pi-zero-2w`, `tools/orange-pi`.
 
-Canonical feature ownership is internal: `raspberry-pi-zero-2w` owns the
-Raspberry HAL implementation and dependencies, and
-`hardware-raspberry-pi-zero-2w` owns the Raspberry app's canonical HAL feature
-and runtime selection. The deprecated compatibility aliases `rpi-zero-2w`,
-`pi-zero`, `hardware-rpi-zero-2w`, and `hardware-pi` expand to those canonical
-owners. They remain accepted for existing Cargo commands and are covered by CI;
-use canonical names for new commands. No alias removal date is promised.
+## Feature inventory
+
+- Canonical HAL features: `raspberry-pi-zero-2w` and `orange-pi-zero-2w`.
+- Canonical app features: `hardware-raspberry-pi-zero-2w` and
+  `hardware-orange-pi-zero-2w`.
+- Compatibility aliases: `rpi-zero-2w`, `pi-zero`, `hardware-rpi-zero-2w`, and
+  `hardware-pi`. They remain accepted for existing Cargo commands; use the
+  canonical names for new commands. No alias removal date is promised.
+- Names matching `legacy-hardware-*` are internal rejection markers, not
+  user-facing aliases.
 
 Both board profiles expose the same native `System > Configure WiFi` menu
 contract and typed setup-portal status flow. The confirmed `Open Portal` action
@@ -32,8 +35,8 @@ patched wifi-connect owns AP, DHCP, HTTP, and network switching. Fresh images do
 not start an automatic hotspot. Their fixed accounts, image provisioning paths,
 and parent-image preconditions differ: Raspberry uses the Pi image path and `pi`
 account, while Orange uses the Armbian path with separate `octessera` setup and
-`octessera-runtime` service accounts. Physical setup-portal qualification on both
-boards remains pending.
+`octessera-runtime` service accounts. Physical setup-portal qualification on
+both boards is a FAT activity.
 The same System menu exposes standalone `Backup & Restore`; Pi uses the regular
 `wlan0` IPv4 service on port 8081, while desktop is unsupported.
 
@@ -55,76 +58,41 @@ Python OLED utility starts the H618 SPI/GPIO sweep.
 Orange readiness additionally applies the selected-route rules: every
 non-empty Jack/USB/HDMI set is valid, Jack is required only when selected,
 recognized disconnected USB or HDMI may wait, selected faults block readiness,
-and no route is a fallback for another. These
-source paths are implemented, but their boot services and selected initramfs
-outputs still require a new constructor image and physical qualification. Both
-boards may remain blank before their initramfs writer runs; systemd then owns
-the only OLED animator. Reboot retains the clean shutdown logo+wordmark.
+and no route is a fallback for another. The source/build contract and physical
+qualification are separate: constructor outputs and repository checks do not
+establish a physical result. The [current artifact record](../userdocs/release-records/v0.8.1.md)
+records artifact and automated evidence; physical FAT remains separate. Both
+boards may remain blank before their initramfs writer runs; systemd then owns the
+only OLED animator. Reboot retains the clean shutdown logo+wordmark.
 
 ### HDMI and physical display qualification
 
 `Terminal` leaves `/dev/tty1` with Linux; native grid mode owns a native VT lease
 around `/dev/fb0`, without connector forcing or a display server. Missing `fb0` is
 nonfatal and retried. The splash observes handoff until `first_menu_rendered`, then
-reclaims OLED presentation for a native fatal status when startup fails. Physical
-Orange/Raspberry HDMI connector, framebuffer, VT, and OLED qualification remains
-deferred; this source contract is not hardware proof.
+reclaims OLED presentation for a native fatal status when startup fails. Orange/
+Raspberry HDMI connector, framebuffer, VT, and OLED behavior are physical FAT
+checks; this source contract is not hardware proof.
 
-### Bounded boot result (historical)
-
-Bounded attended result: both boards cold-booted with the static logo+wordmark,
-reached the final animation, and completed menu/handoff; Orange runtime/socket
-checks passed, and both runtime services recorded zero restarts. Constructor-image,
-broader OLED/UI, suspend, connected-audio, and controls qualification remain open.
-
-Confirmed instrument-menu sleep uses the exact native `Going to sleep` toast over
-the shared static sleep/shutdown logo+wordmark frame. Confirmed Reboot and
-Shutdown use `Rebooting` and `Shutting down`; native acknowledges the final
-snapshot, preserves the OLED pixels/on state while detaching, and only then
-submits the fixed board power request. This does not describe arbitrary
-administrative `systemctl` commands.
-
-Orange runtime startup allows three attempts in a 30-second systemd start-limit
-window: the initial start and two five-second failure retries. After
-`start-limit-hit`, run `sudo systemctl reset-failed octessera.service` and then
-`sudo systemctl start octessera.service`. The OLED boot-loop handoff uses a
-monotonic 30-second deadline starting immediately after handoff start. Timeout
-writes the static `STARTUP DELAYED` / `PLEASE WAIT` frame once and continues
-polling; only signal and unexpected writer failures attempt a 32768-byte black
-RGB565 frame and display-off. Either cleanup operation may fail, but both are
-attempted and the handoff is marked failed for native recovery.
-
-Both constructors also stage the same interactive terminal welcome without
-changing PAM or update-motd. Raspberry declares its UART inactive in the
-selected boot layout (`enable_uart=0`, no serial-console kernel token, and
-masked serial-getty units). This is an image safety state, not a post-boot
-UART release utility or ownership handoff. Orange keeps its UART0 release in
-the reviewed input-routing path.
-
-The board-specific HALs own their physical pin and device descriptors. The
-canonical Raspberry Cargo feature owners are `raspberry-pi-zero-2w` and
-`hardware-raspberry-pi-zero-2w`; the deprecated `rpi-zero-2w`, `pi-zero`,
-`hardware-rpi-zero-2w`, and `hardware-pi` feature names remain compatibility
-aliases and are covered by CI compile checks. The HAL also exposes the
-`orange-pi-zero-2w` profile descriptor and its diagnostic OLED/I2C bring-up
-backend. The Orange production `octessera-pi` runtime uses the shared 44.1 kHz
+The board-specific HALs own their physical pin and device descriptors. The HAL
+also exposes the `orange-pi-zero-2w` profile descriptor and its diagnostic
+OLED/I2C bring-up backend. The Orange production `octessera-pi` runtime uses
+the shared 44.1 kHz
 rate and supports the OLED, NeoTrellis, NeoKey, all four encoders, persistent
 store, samples, MIDI, and the selected audio routes. A selected Jack route
 uses exactly `hw:CARD=octesseradac,DEV=0` with verified stereo support. The
-production image constructs the already-qualified AHUB0 vendor dummy-codec
-route and exact `octessera-dac` playback card; it does not depend on a manual
-or experimental audio overlay.
+production image constructs the AHUB0 vendor dummy-codec route and exact
+`octessera-dac` playback card during image construction; it does not depend on a
+manual or experimental audio overlay.
 The native menu persists Jack Audio, USB Audio, and HDMI Audio independently;
 every non-empty output set is valid. Jack is fatal/required only when selected;
 recognized disconnected USB or HDMI routes may wait, selected route faults block
 readiness, and no route is used as a fallback. Simultaneous physical outputs
 use independent unsynchronized clocks and can drift or echo; this phase does
-not provide sample alignment. The observed Orange HDMI connector path is
-`/sys/class/drm/card0-HDMI-A-1`. A live Raspberry Pi Zero 2 W observation on
-kernel `6.12.93+rpt-rpi-v8` found the exact connector paths
-`/sys/class/drm/card0-HDMI-A-1/{status,edid}`; Raspberry code pins that card0
-identity and does not scan or fall back to card1. This establishes connector
-identity only, not connected HDMI audio or audible qualification.
+not provide sample alignment. The board adapters use
+`/sys/class/drm/card0-HDMI-A-1`; Raspberry code pins that card0 identity and
+does not scan or fall back to card1. This establishes connector identity only,
+not connected HDMI audio or audible qualification.
 MIDI uses the native host adapter, including USB MIDI when the configured gadget
 port is present.
 
@@ -132,12 +100,10 @@ The Orange image-side USB gadget reads the persisted default at
 `/var/lib/octessera/presets/default.json`. `audioOutputs.usb` enables the fixed
 44.1 kHz stereo UAC2 function and `usb.midiOutEnabled` enables the fixed MIDI
 function. The valid compositions are no gadget, MIDI only, UAC2 only, and
-combined; HDMI and Jack do not change gadget composition. These source/runtime
-capabilities are not a public first-release support claim: USB Audio and USB
-MIDI remain experimental/local bench validation until an authorized identity and
-electrical/manual FAT are recorded for the exact image and assembled board. The
-current Linux Foundation VID/PID values are for local validation only, not a
-public product identity.
+combined; HDMI and Jack do not change gadget composition. USB Audio and USB
+MIDI require an authorized identity and electrical/manual FAT before support.
+Linux Foundation VID/PID values are for local validation only, not a public
+product identity.
 The confirmed device apply lane uses one narrow root-owned socket rather than a
 general sudo command path. It accepts only exact `reboot\n` and `poweroff\n`
 requests. `reboot\n` validates the saved config before invoking
@@ -186,13 +152,11 @@ Pi binaries expose `--print-build-metadata`, and cross-build output includes
 and device update manifests carry the same canonical ID so a mismatched
 binary or artifact fails closed where the host can check it.
 
-The current production image uses the version-qualified name
+Production image artifacts use the version-qualified name
 `octessera-<version>-orange-pi-zero-2w.img.xz`, with matching SHA-256 and image
-provenance files. The immutable v0.7.5 release artifact is
-`octessera-0.7.5-orange-pi-zero-2w.img.xz`; its explicit image metadata is
-`OCTESSERA_IMAGE_MODE=production`. The image contains the hash-bound runtime
-bundle `octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`; the metadata
-declares `artifact_kind=production-runtime` and `runtime_ready=true` for
+provenance files. The production image contains the hash-bound runtime bundle
+`octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`; its metadata declares
+`artifact_kind=production-runtime` and `runtime_ready=true` for
 `orange-pi-zero-2w`.
 
 Diagnostic image mode remains separate and explicit:
