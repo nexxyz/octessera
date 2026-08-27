@@ -96,9 +96,25 @@ octessera_install_orange_production_assets() {
 }
 
 octessera_enable_orange_runtime_services() {
+  local sd_card_link=/etc/systemd/system/multi-user.target.wants/octessera-orange-sd-card.service
+  local sd_card_target
+  local storage_control_link=/etc/systemd/system/sockets.target.wants/octessera-orange-storage-control.socket
+  local storage_control_target
   systemctl enable octessera-orange-usb-gadget.service >/dev/null
   systemctl enable octessera-orange-sd-card.service >/dev/null
+  [[ -L "$sd_card_link" ]] || { echo "Orange SD service was not enabled as a symlink." >&2; return 1; }
+  sd_card_target="$(readlink "$sd_card_link")"
+  [[ "$sd_card_target" == "/etc/systemd/system/octessera-orange-sd-card.service" || "$sd_card_target" == "../octessera-orange-sd-card.service" ]] || { echo "Orange SD service has an unexpected preimage target." >&2; return 1; }
+  rm -f "$sd_card_link"
+  ln -s ../octessera-orange-sd-card.service "$sd_card_link"
+  [[ -L "$sd_card_link" && "$(readlink "$sd_card_link")" == "../octessera-orange-sd-card.service" ]] || { echo "Orange SD service symlink target is not canonical." >&2; return 1; }
   systemctl enable octessera-orange-storage-control.socket >/dev/null
+  [[ -L "$storage_control_link" ]] || { echo "Orange storage socket was not enabled as a symlink." >&2; return 1; }
+  storage_control_target="$(readlink "$storage_control_link")"
+  [[ "$storage_control_target" == "/etc/systemd/system/octessera-orange-storage-control.socket" || "$storage_control_target" == "../octessera-orange-storage-control.socket" ]] || { echo "Orange storage socket has an unexpected preimage target." >&2; return 1; }
+  rm -f "$storage_control_link"
+  ln -s ../octessera-orange-storage-control.socket "$storage_control_link"
+  [[ -L "$storage_control_link" && "$(readlink "$storage_control_link")" == "../octessera-orange-storage-control.socket" ]] || { echo "Orange storage socket symlink target is not canonical." >&2; return 1; }
   systemctl enable octessera-device-apply-reboot.socket >/dev/null
   systemctl enable octessera-provision-musical-default.service >/dev/null
   systemctl enable octessera-orange-boot-splash.service >/dev/null
