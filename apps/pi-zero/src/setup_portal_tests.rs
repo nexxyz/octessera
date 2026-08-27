@@ -75,7 +75,11 @@ fn permissions(mode: u32) -> fs::Permissions {
 }
 
 fn environment(directory: &TestDirectory) -> SetupPortalEnvironment {
-    SetupPortalEnvironment::test(directory.paths.clone(), 0)
+    #[cfg(unix)]
+    let status_group = unsafe { libc::getegid() };
+    #[cfg(windows)]
+    let status_group = 0;
+    SetupPortalEnvironment::test(directory.paths.clone(), status_group)
 }
 
 fn request(id: &str, revision: u64) -> RuntimePlatformRequest {

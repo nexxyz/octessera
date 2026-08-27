@@ -225,7 +225,14 @@ mod unix_impl;
 
 #[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) use unix_impl::native_attach_after_startup_clear;
-#[cfg(all(test, unix))]
+#[cfg(all(
+    test,
+    unix,
+    not(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    ))
+))]
 pub(crate) use unix_impl::native_guard_for_test;
 #[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) use unix_impl::publish_startup_fatal;

@@ -20,12 +20,12 @@ fn oled_failure_publishes_fatal_before_failed_and_keeps_the_lock() {
         read_fatal_at(&path).unwrap().unwrap().code,
         StartupFatalCode::OledUnavailable
     );
-    let status = read_status_at(&path).unwrap();
+    let status = read_status_at(&path);
     assert_eq!(status.phase, HandoffPhase::NativeOwned);
     assert_eq!(status.request_id.as_deref(), Some(REQUEST_ID));
     assert_lock_is_held(&path);
     guard.write_failed_status().unwrap();
-    assert_eq!(read_status_at(&path).unwrap().phase, HandoffPhase::Failed);
+    assert_eq!(read_status_at(&path).phase, HandoffPhase::Failed);
     drop(guard);
     remove_test_directory(path);
 }
@@ -41,7 +41,7 @@ fn fatal_failure_does_not_prevent_failed_status_attempt() {
 
     assert!(error.contains("fatal publication failed"));
     assert!(read_fatal_at(&path).unwrap().is_none());
-    let status = read_status_at(&path).unwrap();
+    let status = read_status_at(&path);
     assert_eq!(status.phase, HandoffPhase::Failed);
     assert_eq!(status.boot_id, current_boot_id().unwrap());
     assert_eq!(status.request_id.as_deref(), Some(REQUEST_ID));
@@ -61,10 +61,7 @@ fn fatal_and_failed_status_errors_are_both_reported() {
 
     assert!(error.contains("fatal publication failed"));
     assert!(error.contains("failed status publication failed"));
-    assert_eq!(
-        read_status_at(&path).unwrap().phase,
-        HandoffPhase::NativeOwned
-    );
+    assert_eq!(read_status_at(&path).phase, HandoffPhase::NativeOwned);
     assert_lock_is_held(&path);
     drop(guard);
     remove_test_directory(path);
@@ -80,7 +77,7 @@ fn physical_failure_path_uses_oled_unavailable() {
         read_fatal_at(&path).unwrap().unwrap().code,
         StartupFatalCode::OledUnavailable
     );
-    assert_eq!(read_status_at(&path).unwrap().phase, HandoffPhase::Failed);
+    assert_eq!(read_status_at(&path).phase, HandoffPhase::Failed);
     drop(guard);
     remove_test_directory(path);
 }
@@ -97,7 +94,7 @@ fn handoff_status_failure_uses_generic_startup_failed() {
         read_fatal_at(&path).unwrap().unwrap().code,
         StartupFatalCode::StartupFailed
     );
-    assert_eq!(read_status_at(&path).unwrap().phase, HandoffPhase::Failed);
+    assert_eq!(read_status_at(&path).phase, HandoffPhase::Failed);
     drop(guard);
     remove_test_directory(path);
 }
@@ -108,14 +105,14 @@ fn failed_native_status_is_attachable_with_the_same_ids_and_clears_fatal_after_a
     guard
         .mark_unavailable_and_failed(StartupFatalCode::OledUnavailable)
         .unwrap();
-    let failed = read_status_at(&path).unwrap();
+    let failed = read_status_at(&path);
     let stop = read_stop(&HandoffDirectory::open_existing_at(&path).unwrap())
         .unwrap()
         .unwrap();
     drop(guard);
 
     let recovered = native_attach_after_startup_clear_at(&path).unwrap();
-    let native_owned = read_status_at(&path).unwrap();
+    let native_owned = read_status_at(&path);
     let recovered_stop = read_stop(&HandoffDirectory::open_existing_at(&path).unwrap())
         .unwrap()
         .unwrap();
@@ -171,7 +168,7 @@ fn read_fatal_at(path: &Path) -> Result<Option<StartupFatal>, String> {
 }
 
 fn read_status_at(path: &Path) -> HandoffStatus {
-    read_status(&HandoffDirectory::open_existing_at(path))
+    read_status(&HandoffDirectory::open_existing_at(path).unwrap())
         .unwrap()
         .unwrap()
 }

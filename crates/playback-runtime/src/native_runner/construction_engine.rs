@@ -48,9 +48,7 @@ impl NativeRunner {
         self.transport.tick = 0;
         self.transport.current_ppqn_pulse = 0;
         self.transport.swung_ppqn_pulse = 0;
-        for tick in &mut self.transport.layer_ticks {
-            *tick = 0;
-        }
+        self.transport.layer_ticks.fill(0);
         self.transport.algorithm_pulse_accumulator = 0;
         let now = self.display.transients.now();
         self.display.transients.reset(now);
@@ -59,9 +57,7 @@ impl NativeRunner {
         for engine in self.layer_engines.iter_mut().flatten() {
             engine.reset_transport_phase();
         }
-        for accumulator in &mut self.transport.layer_pulse_accumulators {
-            *accumulator = 0;
-        }
+        self.transport.layer_pulse_accumulators.fill(0);
         for queue in &mut self.delayed_link_events {
             queue.clear();
         }

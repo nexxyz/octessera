@@ -287,7 +287,13 @@ fn native_attach_at(path: &Path) -> Result<NativeOledGuard, String> {
     })
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    not(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    ))
+))]
 pub(crate) fn native_guard_for_test(path: &Path) -> Result<NativeOledGuard, String> {
     let directory = HandoffDirectory::open_runtime_at(path)?;
     let status = HandoffStatus::new(
@@ -298,6 +304,7 @@ pub(crate) fn native_guard_for_test(path: &Path) -> Result<NativeOledGuard, Stri
     );
     write_status(&directory, &status)?;
     create_or_attach_stop(&directory, &status)?;
+    open_lock(&directory, true)?;
     native_attach_at(path)
 }
 

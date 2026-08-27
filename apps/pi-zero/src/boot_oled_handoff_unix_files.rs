@@ -15,10 +15,12 @@ pub(crate) use atomic::{inject_atomic_failure, AtomicFailure};
 mod directory;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) use directory::cleanup_temporary_files;
-pub(super) use directory::HandoffDirectory;
-use directory::{create_named, io_error, open_named, unlink_named, validate_metadata};
 #[cfg(test)]
-pub(super) use directory::{current_boot_id, RuntimeIdentity};
+pub(super) use directory::current_boot_id;
+pub(super) use directory::HandoffDirectory;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+pub(super) use directory::RuntimeIdentity;
+use directory::{create_named, io_error, open_named, unlink_named, validate_metadata};
 
 pub(super) fn open_lock(directory: &HandoffDirectory, create: bool) -> Result<File, String> {
     match open_named(directory, LOCK_NAME, libc::O_RDWR) {
