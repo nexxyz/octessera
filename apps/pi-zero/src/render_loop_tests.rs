@@ -370,7 +370,7 @@ fn mark_failed_ack_reports_failed_status_persistence() {
     assert!(worker
         .mark_oled_failed()
         .unwrap_err()
-        .contains("failed status publication"));
+        .contains("cannot publish OLED handoff status.json"));
     worker.abort().unwrap();
     fs::remove_dir_all(path).unwrap();
 }

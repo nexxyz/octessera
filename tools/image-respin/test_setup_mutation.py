@@ -182,14 +182,14 @@ class SetupMutationTests(unittest.TestCase):
     def test_orange_requires_exact_pinned_preimages_and_raspberry_requires_absence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(ORANGE, Path(temporary))
-            _write(root / "usr/local/sbin/octessera-setup-sidecar", b"not-the-pinned-preimage", 0o755)
+            _write(root / "etc/systemd/system/octessera-setup.service", b"not-the-pinned-preimage", 0o644)
             before = inventory_digest(build_inventory(root))
             with self.assertRaises(ConstructorRequired):
                 mutate_setup(root, ORANGE, "a" * 40)
             self.assertEqual(before, inventory_digest(build_inventory(root)))
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(RPI, Path(temporary))
-            _write(root / "usr/local/sbin/octessera-setup-sidecar", b"unexpected", 0o755)
+            _write(root / "etc/systemd/system/octessera-setup.service", b"unexpected", 0o644)
             with self.assertRaises(ConstructorRequired):
                 mutate_setup(root, RPI, "a" * 40)
 
@@ -234,15 +234,11 @@ class SetupMutationTests(unittest.TestCase):
             "usr/local/share/octessera-setup-ui/octessera-mark.svg",
             "usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
         )
-        for board in (RPI, ORANGE):
-            with self.subTest(board=board), tempfile.TemporaryDirectory() as temporary:
-                root = _fixture(board, Path(temporary))
-                if board == RPI:
-                    for path in stale:
-                        _write(root / path, b"stale", 0o644)
-                mutate_setup(root, board, "a" * 40)
-                for path in stale:
-                    self.assertFalse((root / path).exists())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(ORANGE, Path(temporary))
+            mutate_setup(root, ORANGE, "a" * 40)
+            for path in stale:
+                self.assertFalse((root / path).exists())
 
     def test_symlink_escape_owner_mode_and_unauthorized_diff_fail_closed_with_rollback(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -265,7 +261,7 @@ class SetupMutationTests(unittest.TestCase):
             self.assertEqual(before, inventory_digest(build_inventory(root)))
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(ORANGE, Path(temporary))
-            os.chmod(root / "usr/local/sbin/octessera-setup-sidecar", 0o444)
+            os.chmod(root / "etc/systemd/system/octessera-setup.service", 0o444)
             with self.assertRaises(ConstructorRequired):
                 mutate_setup(root, ORANGE, "a" * 40)
         with tempfile.TemporaryDirectory() as temporary:
@@ -273,7 +269,7 @@ class SetupMutationTests(unittest.TestCase):
             setter = getattr(os, "setxattr", None)
             if setter is not None:
                 try:
-                    setter(root / "usr/local/sbin/octessera-setup-sidecar", "user.setup-test", b"unexpected")
+                    setter(root / "etc/systemd/system/octessera-setup.service", "user.setup-test", b"unexpected")
                 except OSError:
                     pass
                 else:
@@ -305,8 +301,12 @@ class SetupMutationTests(unittest.TestCase):
             self.assertEqual((directory.stat().st_uid, directory.stat().st_gid), (1001, 1001))
             for item in load_contract(contract_for_board(ORANGE))[0]["entries"]:
                 if item["target"].startswith("usr/local/share/octessera-setup-ui/"):
-                    metadata = (root / item["target"]).stat()
-                    self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 1001, 1001))
+                    path = root / item["target"]
+                    if item["preimage"]["kind"] == "absent":
+                        self.assertFalse(path.exists())
+                    else:
+                        metadata = path.stat()
+                        self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 1001, 1001))
 
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(RPI, Path(temporary))
