@@ -42,7 +42,7 @@
         "linux-image-current-sunxi64_26.11.0-trunk.22_arm64__*.deb",
         "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__*.deb"
       ],
-      "native_artifact_suffix": "6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a",
+      "native_artifact_suffix": "6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a",
       "required_dtb": "sun50i-h618-orangepi-zero2w.dtb",
       "required_module": "usb_f_midi.ko",
       "core_series": {

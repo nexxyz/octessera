@@ -189,8 +189,8 @@ expect_failure bad-head env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" FAKE_HEA
 printf '%s %s %s\n' 26.11.0-trunk.22 arm64 6.18.46-current-sunxi64 > "$work/dpkg.mode"
 make_post_output() {
   local output_root="$build_dir/output"
-  local image_basename=linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb
-  local dtb_basename=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb
+  local image_basename=linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb
+  local dtb_basename=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb
   local image_name=octessera-orangepizero2w.img.xz
   rm -rf -- "$output_root/debs" "$output_root/images" "$output_root/bootstrap-evidence"
   mkdir -p "$output_root/debs" "$output_root/images"
@@ -216,7 +216,7 @@ grep -q '^packaged_config_path=boot/config-6.18.46-current-sunxi64$' "$evidence_
 (cd "$build_dir/output" && sha256sum -c bootstrap-evidence/SHA256SUMS >/dev/null)
 
 make_post_output
-cp -- "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
+cp -- "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" "$build_dir/output/debs/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
 expect_failure ambiguous-package run_capture
 
 make_post_output

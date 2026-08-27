@@ -83,7 +83,7 @@ expected_source_branch = "linux-6.18.y"
 expected_source_commit = "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5"
 expected_build_commit = "3da49cffcb8ac58a919d86816fec4659c410ff1e"
 expected_build_tag = "v26.11.0-trunk.22"
-expected_artifact_suffix = "6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a"
+expected_artifact_suffix = "6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a"
 expected_packages = [
     "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
     "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb",

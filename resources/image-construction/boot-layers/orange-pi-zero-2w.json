@@ -99,7 +99,7 @@
     {"path": "tools/armbian-image/orange_audio_proof.py", "sha256": "65fc09840515fe7d03e81ddc56e66409ae206fdd30c051e06af4f94dd547539d", "size": 6876, "mode": 420},
     {"path": "tools/armbian-image/orange_trusted_parent_proof.py", "sha256": "f2d347c684e82f02defcae94b9c55c06a7150bd9d1cefab34b386f94773de8e2", "size": 31524, "mode": 420},
     {"path": "tools/armbian-image/verify_runtime_account.py", "sha256": "3786f10ca1e640d9b968ec12118a098ca387172bec9a1075ee2e15dc7a87d712", "size": 19730, "mode": 420},
-    {"path": "tools/kernel-patches/orange-midi-interface-manifest.json", "sha256": "8b77bc888fb628c67b9b23b74645c84fc763e05fb3dc7591c75c82e18f272d89", "size": 6432, "mode": 420},
+    {"path": "tools/kernel-patches/orange-midi-interface-manifest.json", "sha256": "2c3946becf4c55cb7f6a3ff160b987ac589a5b609f88cd5770cc4b38687a8131", "size": 6432, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-mark.svg", "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "size": 638, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg", "sha256": "0f398bbe3fe322511e78ca2ec8e779e2deb539c3674e96dae43f152b782b0446", "size": 1623, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565", "sha256": "e7d38b7da3b6c3e7a3205d6254fce1bd9989d2094b04b5df1c99ae41127218bd", "size": 32768, "mode": 420},

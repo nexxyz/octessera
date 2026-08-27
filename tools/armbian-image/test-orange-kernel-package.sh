@@ -109,7 +109,7 @@ make_pair() {
   local module_marker="${12:-interface_string}"
   local image_name="${13:-linux-image-current-sunxi64}"
   local dtb_name="${14:-linux-dtb-current-sunxi64}"
-  local artifact_suffix="${15:-6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a}"
+  local artifact_suffix="${15:-6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a}"
   local module_elf_mode="${16:-valid}"
   local image_root="$work/$name-image"
   local dtb_root="$work/$name-dtb"
@@ -165,8 +165,8 @@ make_pair() {
   dpkg-deb --build "$dtb_root" "$package_dir/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__${artifact_suffix}.deb" >/dev/null
 }
 
-image_package() { printf '%s\n' "$work/$1-packages/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"; }
-dtb_package() { printf '%s\n' "$work/$1-packages/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"; }
+image_package() { printf '%s\n' "$work/$1-packages/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"; }
+dtb_package() { printf '%s\n' "$work/$1-packages/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"; }
 
 run_validator() {
   local name="$1"
@@ -251,23 +251,23 @@ make_pair compressed-xz "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 l
 run_validator compressed-xz "$good_config_sha256"
 
 mkdir -p "$work/discovery"
-cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
-cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
+cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
+cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
 cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb"
-printf '%s\n' "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" > "$work/discovery.expected"
+printf '%s\n' "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" > "$work/discovery.expected"
 bash "$finder" "$work/discovery" > "$work/discovery.actual"
 cmp -- "$work/discovery.expected" "$work/discovery.actual"
-rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
+rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
 if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted a missing DTB package.' >&2; exit 1; fi
-cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
+cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
 cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
 if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted multiple image packages.' >&2; exit 1; fi
 rm -- "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
-rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
+rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
 cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__wrong.deb"
 if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted a mismatched package pair.' >&2; exit 1; fi
 rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__wrong.deb"
-cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
+cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
 cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__.deb"
 if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted an empty artifact suffix.' >&2; exit 1; fi
 rm -- "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__.deb"
@@ -307,9 +307,9 @@ make_pair missing-pinctrl-sunxi "$(printf '%s\n' "$good_config" | grep -vFx 'CON
 reject_validator missing-pinctrl-sunxi
 make_pair bad-module "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good missing
 reject_validator bad-module
-make_pair bad-module-elf "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64 6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a invalid
+make_pair bad-module-elf "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64 6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a invalid
 reject_validator bad-module-elf
-make_pair bad-module-machine "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64 6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a x86_64
+make_pair bad-module-machine "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64 6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a x86_64
 reject_validator bad-module-machine
 make_pair bad-vermagic "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain wrong-release interface_string
 reject_validator bad-vermagic
@@ -352,9 +352,9 @@ grep -q '^audio_dts_path=userpatches/overlay/usr/local/share/octessera/device-tr
 grep -q '^audio_dtbo_forbidden=octessera-ahub0-pcm5102.dtbo$' "$provenance"
 grep -q '^stock_i2c1_dtbo_path=boot/dtb-6.18.46-current-sunxi64/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo$' "$provenance"
 grep -q '^stock_i2c1_dtbo_sha256=' "$provenance"
-grep -q '^image_package_native=linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb$' "$provenance"
-grep -q '^dtb_package_native=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb$' "$provenance"
-grep -q '^artifact_suffix=6.18.46-S1f99-D7115-P25bc-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a$' "$provenance"
+grep -q '^image_package_native=linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb$' "$provenance"
+grep -q '^dtb_package_native=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb$' "$provenance"
+grep -q '^artifact_suffix=6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a$' "$provenance"
 grep -q '^octessera_checkout_head=' "$provenance"
 grep -q '^kernel_config_final_sha256=' "$provenance"
 grep -q '^kernel_config_expected_packaged_sha256=922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc$' "$provenance"
