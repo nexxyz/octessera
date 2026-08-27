@@ -7,6 +7,7 @@ LEGAL_REPOSITORY_ROOT="${OCTESSERA_REPOSITORY_ROOT:?OCTESSERA_REPOSITORY_ROOT mu
 LEGAL_STAGER="$LEGAL_REPOSITORY_ROOT/tools/legal/stage_notices.py"
 test -f "$LEGAL_STAGER"
 # shellcheck source=tools/pi-image/validate-rpi-parent-sudoers.sh
+# shellcheck disable=SC1091
 source "$LEGAL_REPOSITORY_ROOT/tools/pi-image/validate-rpi-parent-sudoers.sh"
 
 python3 "$LEGAL_STAGER" \

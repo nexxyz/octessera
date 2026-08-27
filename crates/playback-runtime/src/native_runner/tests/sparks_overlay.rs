@@ -135,9 +135,7 @@ pub(crate) fn sparks_transpose_overlay_distinguishes_selected_center_and_potenti
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_sparks_mode = "transpose".into();
     runner.sparks_transpose_offsets[0] = 7;
-    for selected in &mut runner.sparks_transpose_selected {
-        *selected = false;
-    }
+    runner.sparks_transpose_selected.fill(false);
     runner.sparks_transpose_selected[0] = true;
 
     let snapshot = runner.snapshot().unwrap();

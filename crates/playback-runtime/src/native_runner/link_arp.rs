@@ -9,9 +9,7 @@ impl NativeRunner {
         for held in &mut self.link_arp_held_notes {
             held.clear();
         }
-        for phase in &mut self.link_arp_rotating_phase {
-            *phase = 0;
-        }
+        self.link_arp_rotating_phase.fill(0);
         self.link_arp_random_state = LINK_ARP_RANDOM_SEED;
     }
 

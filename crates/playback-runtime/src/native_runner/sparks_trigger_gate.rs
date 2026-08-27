@@ -38,9 +38,7 @@ impl NativeRunner {
         for layer in &mut self.pulses_layers {
             layer.trigger_probability_mode = mode.into();
         }
-        for restore in &mut self.trigger_gate_restore_modes {
-            *restore = None;
-        }
+        self.trigger_gate_restore_modes.fill(None);
     }
 
     pub(super) fn apply_trigger_gate_mode_to_layer(&mut self, layer_index: usize, mode: &str) {

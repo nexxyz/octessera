@@ -21,7 +21,9 @@ fn copy_rgb565_scaled(frame: &mut [u8], source: &[u8], brightness: f32) {
         frame.copy_from_slice(source);
         return;
     }
-    for (index, chunk) in source.chunks_exact(2).enumerate() {
+    let (chunks, remainder) = source.as_chunks::<2>();
+    debug_assert!(remainder.is_empty());
+    for (index, chunk) in chunks.iter().enumerate() {
         let color = u16::from_be_bytes([chunk[0], chunk[1]]);
         let scaled = rgb565(scale(rgb565_to_rgb(color), brightness));
         let offset = index * 2;
