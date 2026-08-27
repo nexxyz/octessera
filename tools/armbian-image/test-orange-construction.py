@@ -187,6 +187,17 @@ assert "install_orange_musical_assets \"$overlay_dir\" \"\"" in customize
 assert "install_overlay_file usr/local/sbin/octessera-sd-card /usr/local/sbin/octessera-sd-card 0755" in runtime_assets
 assert "install_overlay_file usr/local/lib/octessera/octessera-sd-card-lib.sh /usr/local/lib/octessera/octessera-sd-card-lib.sh 0644" in runtime_assets
 assert "systemctl enable octessera-orange-sd-card.service" in runtime_assets
+for source_shape in (
+    '[[ -L "$sd_card_link" ]] || { echo "Orange SD service was not enabled as a symlink." >&2; return 1; }',
+    '[[ "$sd_card_target" == "/etc/systemd/system/octessera-orange-sd-card.service" || "$sd_card_target" == "../octessera-orange-sd-card.service" ]]',
+    'ln -s ../octessera-orange-sd-card.service "$sd_card_link"',
+    '[[ -L "$sd_card_link" && "$(readlink "$sd_card_link")" == "../octessera-orange-sd-card.service" ]]',
+    '[[ -L "$storage_control_link" ]] || { echo "Orange storage socket was not enabled as a symlink." >&2; return 1; }',
+    '[[ "$storage_control_target" == "/etc/systemd/system/octessera-orange-storage-control.socket" || "$storage_control_target" == "../octessera-orange-storage-control.socket" ]]',
+    'ln -s ../octessera-orange-storage-control.socket "$storage_control_link"',
+    '[[ -L "$storage_control_link" && "$(readlink "$storage_control_link")" == "../octessera-orange-storage-control.socket" ]]',
+):
+    assert source_shape in runtime_assets
 for symbol in ("CONFIG_MMC", "CONFIG_MMC_BLOCK", "CONFIG_MMC_SPI"):
     assert f"kernel_config_value {symbol}" in customize
 assert "printf '%s\\n' mmc_spi > \"$sd_modules_load_file\"" in customize
