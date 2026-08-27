@@ -92,7 +92,7 @@ if [[ "${OCTESSERA_IMAGE_MODE:-diagnostic}" == diagnostic ]]; then
 fi
 
 grep -qF 'resolve-armbian-extensions.sh' "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF '"ENABLE_EXTENSIONS=$effective_extensions"' "$root/.github/actions/build-armbian-image/action.yml"
+grep -qF "\"ENABLE_EXTENSIONS=\$effective_extensions\"" "$root/.github/actions/build-armbian-image/action.yml"
 grep -qF 'default: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml"
 grep -qF 'octessera_audio' "$root/.github/actions/build-armbian-image/action.yml"
 grep -qF 'octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml"
