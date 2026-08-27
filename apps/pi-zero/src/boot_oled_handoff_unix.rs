@@ -287,13 +287,7 @@ fn native_attach_at(path: &Path) -> Result<NativeOledGuard, String> {
     })
 }
 
-#[cfg(all(
-    test,
-    not(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    ))
-))]
+#[cfg(all(test, not(feature = "hardware-raspberry-pi-zero-2w")))]
 pub(crate) fn native_guard_for_test(path: &Path) -> Result<NativeOledGuard, String> {
     let directory = HandoffDirectory::open_runtime_at(path)?;
     let status = HandoffStatus::new(
@@ -365,7 +359,7 @@ impl NativeOledGuard {
         result
     }
 
-    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn mark_failed(&self) {
         if let Err(error) = self.mark_failed_result() {
             eprintln!("OLED handoff failure-state publication failed: {error}");
@@ -398,7 +392,7 @@ impl NativeOledGuard {
         clear_fatal(&self.directory)
     }
 
-    #[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     pub(crate) fn mark_unavailable_and_failed(&self, code: StartupFatalCode) -> Result<(), String> {
         self.publish_fatal_then_failed(code)
     }
@@ -420,7 +414,7 @@ impl NativeOledGuard {
         )
     }
 
-    #[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     fn publish_fatal_then_failed(&self, code: StartupFatalCode) -> Result<(), String> {
         let _ = self
             .lease

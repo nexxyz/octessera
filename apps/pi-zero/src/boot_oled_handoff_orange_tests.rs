@@ -1,4 +1,3 @@
-use super::files::*;
 use super::*;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -151,16 +150,8 @@ fn fatal_is_not_cleared_when_native_attach_fails() {
 
 fn native_guard(label: &str) -> (PathBuf, NativeOledGuard) {
     let path = test_directory(label);
-    let directory = HandoffDirectory::open_existing_at(&path).unwrap();
-    let status = HandoffStatus::new(
-        HandoffPhase::Released,
-        directory.identity.boot_id.clone(),
-        7,
-        Some(REQUEST_ID.to_owned()),
-    );
-    write_status(&directory, &status).unwrap();
-    create_or_attach_stop(&directory, &status).unwrap();
-    (path.clone(), native_attach_at(&path).unwrap())
+    let guard = super::native_guard_for_test(&path).unwrap();
+    (path, guard)
 }
 
 fn read_fatal_at(path: &Path) -> Result<Option<StartupFatal>, String> {

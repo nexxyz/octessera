@@ -1,4 +1,3 @@
-use super::super::files::*;
 use super::super::*;
 use super::test_directory;
 use std::fs;
