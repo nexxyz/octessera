@@ -62,6 +62,16 @@ assert_order() {
 }
 
 assert_contains "$release" 'workflow_dispatch:'
+assert_contains "$boards" 'workflow_call:'
+assert_contains "$boards" 'workflow_dispatch:'
+board_dispatch_block="$(sed -n '/^  workflow_dispatch:/,/^permissions:/p' "$boards")"
+for input in tag version source_sha; do
+    assert_block_contains "$board_dispatch_block" "      $input:"
+done
+[[ "$(grep -cE '^        required: true$' <<< "$board_dispatch_block")" == 3 && "$(grep -cE '^        type: string$' <<< "$board_dispatch_block")" == 3 ]] || {
+    echo 'Board workflow_dispatch inputs must all be required strings.' >&2
+    exit 1
+}
 [[ -f "$bootstrap" ]] || { echo 'Missing Orange rolling-pin bootstrap workflow.' >&2; exit 1; }
 assert_absent "$boards" 'rolling_pin_bootstrap: true'
 assert_absent "$release" 'orange-rolling-pin-bootstrap'
