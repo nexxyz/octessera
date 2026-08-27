@@ -1,12 +1,11 @@
 use super::apply_payload_mixer_values::nested_u64;
 use super::{
-    derive_instrument_name, legacy_derive_instrument_name, sample_assignment_from_payload,
-    sanitize_pan_position_payload, NativeInstrumentSlot, Value, SAMPLE_SLOT_COUNT,
+    sample_assignment_from_payload, sanitize_pan_position_payload, NativeInstrumentSlot, Value,
+    SAMPLE_SLOT_COUNT,
 };
 
 pub(super) fn apply_instrument_identity_payload(
     slot: &Value,
-    index: usize,
     instrument: &mut NativeInstrumentSlot,
 ) {
     if let Some(kind) = slot.get("type").and_then(Value::as_str) {
@@ -23,13 +22,7 @@ pub(super) fn apply_instrument_identity_payload(
         instrument.auto_name = auto_name;
     }
     if let Some(name) = slot.get("name").and_then(Value::as_str) {
-        if instrument.auto_name && name == legacy_derive_instrument_name(&instrument.kind) {
-            instrument.name = derive_instrument_name(index, &instrument.kind);
-        } else {
-            instrument.name = name.into();
-        }
-    } else if instrument.auto_name {
-        instrument.name = derive_instrument_name(index, &instrument.kind);
+        instrument.name = name.into();
     }
 }
 

@@ -4,7 +4,6 @@ export type {
   DisplayFrame,
   OledDisplayLayout,
   GridInteraction,
-  LedCell,
   LedMatrixFrame,
   MusicalEvent,
   NativeRuntimeSnapshot,

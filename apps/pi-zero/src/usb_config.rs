@@ -115,13 +115,16 @@ pub(crate) fn parse_usb_runtime_config(
             UsbConfigError::Invalid("runtimeConfig.usb must be an object".into())
         })?),
     };
-    let audio_outputs = if root.contains_key("audioOutputs")
-        || usb.is_some_and(|usb| usb.contains_key("audioOut"))
-    {
-        AudioOutputSet::decode_runtime_config(payload).map_err(UsbConfigError::Invalid)?
-    } else {
-        AudioOutputSet::jack()
-    };
+    if usb.is_some_and(|usb| usb.contains_key("audioOut")) {
+        return Err(UsbConfigError::Invalid(
+            "runtimeConfig.usb.audioOut is unsupported; use runtimeConfig.audioOutputs".into(),
+        ));
+    }
+    let audio_outputs = root
+        .get("audioOutputs")
+        .map(|value| AudioOutputSet::decode(value).map_err(UsbConfigError::Invalid))
+        .transpose()?
+        .unwrap_or_default();
     let midi_out_enabled = match usb.and_then(|usb| usb.get("midiOutEnabled")) {
         None => false,
         Some(serde_json::Value::Bool(value)) => *value,
@@ -153,7 +156,10 @@ mod tests {
     fn parses_nested_usb_runtime_config() {
         assert_eq!(
             parse_usb_runtime_config(&serde_json::json!({
-                "runtimeConfig": { "usb": { "audioOut": "both", "midiOutEnabled": true } }
+                "runtimeConfig": {
+                    "audioOutputs": { "dac": true, "usb": true, "hdmi": false },
+                    "usb": { "midiOutEnabled": true }
+                }
             }))
             .unwrap(),
             UsbRuntimeConfig {
@@ -167,7 +173,10 @@ mod tests {
     fn preserves_explicit_usb_policy_for_product_level_validation() {
         assert_eq!(
             parse_usb_runtime_config(&serde_json::json!({
-                "runtimeConfig": { "usb": { "audioOut": "usb" } }
+                "runtimeConfig": {
+                    "audioOutputs": { "dac": false, "usb": true, "hdmi": false },
+                    "usb": { "midiOutEnabled": false }
+                }
             }))
             .unwrap()
             .audio_outputs,
@@ -203,29 +212,23 @@ mod tests {
     }
 
     #[test]
-    fn canonical_and_legacy_audio_outputs_must_agree() {
-        assert_eq!(
-            parse_usb_runtime_config(&serde_json::json!({
+    fn legacy_audio_outputs_are_rejected() {
+        for payload in [
+            serde_json::json!({
+                "runtimeConfig": { "usb": { "audioOut": "both" } }
+            }),
+            serde_json::json!({
                 "runtimeConfig": {
                     "audioOutputs": { "dac": true, "usb": true, "hdmi": false },
                     "usb": { "audioOut": "both", "midiOutEnabled": true }
                 }
-            }))
-            .unwrap(),
-            UsbRuntimeConfig {
-                audio_outputs: UsbAudioOut::Both.outputs(),
-                midi_out_enabled: true,
-            }
-        );
-        assert!(matches!(
-            parse_usb_runtime_config(&serde_json::json!({
-                "runtimeConfig": {
-                    "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
-                    "usb": { "audioOut": "usb" }
-                }
-            })),
-            Err(UsbConfigError::Invalid(_))
-        ));
+            }),
+        ] {
+            assert!(matches!(
+                parse_usb_runtime_config(&payload),
+                Err(UsbConfigError::Invalid(_))
+            ));
+        }
     }
 
     #[test]
@@ -247,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn canonical_audio_outputs_do_not_change_legacy_midi_parsing() {
+    fn canonical_audio_outputs_preserve_usb_midi_parsing() {
         let config = parse_usb_runtime_config(&serde_json::json!({
             "runtimeConfig": {
                 "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
@@ -273,7 +276,7 @@ mod tests {
         std::fs::create_dir_all(&store_dir).unwrap();
         std::fs::write(
             store_dir.join("default.json"),
-            r#"{"runtimeConfig":{"usb":{"audioOut":"both"}}}"#,
+            r#"{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false}}}"#,
         )
         .unwrap();
 
@@ -311,7 +314,7 @@ mod tests {
     #[test]
     fn rejects_malformed_and_wrong_shaped_usb_config() {
         assert!(parse_usb_runtime_config(&serde_json::json!({
-            "runtimeConfig": { "usb": { "audioOut": "mystery" } }
+            "runtimeConfig": { "audioOutputs": "mystery" }
         }))
         .is_err());
         assert!(parse_usb_runtime_config(&serde_json::json!({

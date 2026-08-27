@@ -47,6 +47,78 @@ fn wav_reader(bytes: Vec<u8>) -> Option<hound::WavReader<Cursor<Vec<u8>>>> {
     hound::WavReader::new(Cursor::new(bytes)).ok()
 }
 
+struct RiffChunk<'a> {
+    offset: usize,
+    id: &'a [u8],
+    data: &'a [u8],
+    raw: &'a [u8],
+}
+
+struct RiffChunkIter<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+    finished: bool,
+}
+
+impl<'a> RiffChunkIter<'a> {
+    fn malformed(&mut self) -> Option<Result<RiffChunk<'a>, RiffChunkError>> {
+        self.finished = true;
+        Some(Err(RiffChunkError))
+    }
+}
+
+impl<'a> Iterator for RiffChunkIter<'a> {
+    type Item = Result<RiffChunk<'a>, RiffChunkError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished || self.offset == self.bytes.len() {
+            return None;
+        }
+
+        let offset = self.offset;
+        let Some(header_end) = offset.checked_add(8) else {
+            return self.malformed();
+        };
+        if header_end > self.bytes.len() {
+            self.finished = true;
+            return None;
+        }
+        let size = u32::from_le_bytes([
+            self.bytes[header_end - 4],
+            self.bytes[header_end - 3],
+            self.bytes[header_end - 2],
+            self.bytes[header_end - 1],
+        ]) as usize;
+        let Some(data_end) = header_end.checked_add(size) else {
+            return self.malformed();
+        };
+        let Some(next) = data_end.checked_add(size & 1) else {
+            return self.malformed();
+        };
+        if next > self.bytes.len() {
+            return self.malformed();
+        }
+
+        self.offset = next;
+        Some(Ok(RiffChunk {
+            offset,
+            id: &self.bytes[offset..header_end - 4],
+            data: &self.bytes[header_end..data_end],
+            raw: &self.bytes[offset..next],
+        }))
+    }
+}
+
+struct RiffChunkError;
+
+fn riff_chunks(bytes: &[u8]) -> RiffChunkIter<'_> {
+    RiffChunkIter {
+        bytes,
+        offset: 12,
+        finished: false,
+    }
+}
+
 fn normalize_wav_chunks(bytes: &[u8]) -> Option<Vec<u8>> {
     if bytes.len() < 12 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
         return None;
@@ -54,41 +126,25 @@ fn normalize_wav_chunks(bytes: &[u8]) -> Option<Vec<u8>> {
     let mut fmt_offset = None;
     let mut fmt_size = None;
     let mut block_align = None;
-    let mut offset: usize = 12;
-    while offset.checked_add(8)? <= bytes.len() {
-        let size = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().ok()?) as usize;
-        let data_start = offset + 8;
-        let data_end = data_start.checked_add(size)?;
-        let next = data_end.checked_add(size & 1)?;
-        if next > bytes.len() {
-            return None;
-        }
-        if &bytes[offset..offset + 4] == b"fmt " && size >= 16 {
-            fmt_offset = Some(offset);
+    for chunk in riff_chunks(bytes) {
+        let chunk = chunk.ok()?;
+        let size = chunk.data.len();
+        if chunk.id == b"fmt " && size >= 16 {
+            fmt_offset = Some(chunk.offset);
             fmt_size = Some(size);
-            block_align = Some(u16::from_le_bytes(
-                bytes[data_start + 12..data_start + 14].try_into().ok()?,
-            ) as usize);
+            block_align = Some(u16::from_le_bytes(chunk.data[12..14].try_into().ok()?) as usize);
         }
-        offset = next;
     }
     let fmt_offset = fmt_offset?;
     let fmt_size = fmt_size?;
     let block_align = block_align?;
-    let mut offset: usize = 12;
     let mut changed = fmt_size > 16;
-    while offset.checked_add(8)? <= bytes.len() {
-        let size = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().ok()?) as usize;
-        let data_start = offset + 8;
-        let data_end = data_start.checked_add(size)?;
-        let next = data_end.checked_add(size & 1)?;
-        if &bytes[offset..offset + 4] == b"data"
-            && block_align > 0
-            && !size.is_multiple_of(block_align)
-        {
+    for chunk in riff_chunks(bytes) {
+        let chunk = chunk.ok()?;
+        let size = chunk.data.len();
+        if chunk.id == b"data" && block_align > 0 && !size.is_multiple_of(block_align) {
             changed = true;
         }
-        offset = next;
     }
     if !changed {
         return None;
@@ -96,31 +152,24 @@ fn normalize_wav_chunks(bytes: &[u8]) -> Option<Vec<u8>> {
 
     let mut normalized = Vec::with_capacity(bytes.len());
     normalized.extend_from_slice(&bytes[..12]);
-    let mut offset: usize = 12;
-    while offset.checked_add(8)? <= bytes.len() {
-        let size = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().ok()?) as usize;
-        let data_start = offset + 8;
-        let data_end = data_start.checked_add(size)?;
-        let next = data_end.checked_add(size & 1)?;
-        if offset == fmt_offset {
+    for chunk in riff_chunks(bytes) {
+        let chunk = chunk.ok()?;
+        let size = chunk.data.len();
+        if chunk.offset == fmt_offset {
             normalized.extend_from_slice(b"fmt ");
             normalized.extend_from_slice(&16_u32.to_le_bytes());
-            normalized.extend_from_slice(&bytes[data_start..data_start + 16]);
-        } else if &bytes[offset..offset + 4] == b"data"
-            && block_align > 0
-            && !size.is_multiple_of(block_align)
-        {
+            normalized.extend_from_slice(&chunk.data[..16]);
+        } else if chunk.id == b"data" && block_align > 0 && !size.is_multiple_of(block_align) {
             let normalized_size = size - (size % block_align);
             normalized.extend_from_slice(b"data");
             normalized.extend_from_slice(&(normalized_size as u32).to_le_bytes());
-            normalized.extend_from_slice(&bytes[data_start..data_start + normalized_size]);
+            normalized.extend_from_slice(&chunk.data[..normalized_size]);
             if normalized_size & 1 != 0 {
                 normalized.push(0);
             }
         } else {
-            normalized.extend_from_slice(&bytes[offset..next]);
+            normalized.extend_from_slice(chunk.raw);
         }
-        offset = next;
     }
     let riff_size = (normalized.len() - 8) as u32;
     normalized[4..8].copy_from_slice(&riff_size.to_le_bytes());
@@ -190,6 +239,107 @@ mod tests {
             bytes.extend_from_slice(&sample.to_le_bytes());
         }
         bytes
+    }
+
+    fn riff_with_chunks(chunks: &[(&[u8; 4], &[u8], u8)]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&0_u32.to_le_bytes());
+        bytes.extend_from_slice(b"WAVE");
+        for (id, data, pad) in chunks {
+            bytes.extend_from_slice(*id);
+            bytes.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            bytes.extend_from_slice(data);
+            if data.len() & 1 != 0 {
+                bytes.push(*pad);
+            }
+        }
+        let riff_length = (bytes.len() - 8) as u32;
+        bytes[4..8].copy_from_slice(&riff_length.to_le_bytes());
+        bytes
+    }
+
+    #[test]
+    fn trailing_short_chunk_header_is_ignored_by_normalization() {
+        let mut bytes = wav_bytes(2, 44_100, &[0, 16_384, -16_384]);
+        bytes.extend_from_slice(b"JUNK");
+
+        assert!(normalize_wav_chunks(&bytes).is_some());
+    }
+
+    #[test]
+    fn malformed_truncated_chunk_payload_fails_normalization() {
+        let mut bytes = wav_bytes(2, 44_100, &[0]);
+        bytes.extend_from_slice(b"JUNK");
+        bytes.extend_from_slice(&2_u32.to_le_bytes());
+        bytes.push(0);
+
+        assert!(normalize_wav_chunks(&bytes).is_none());
+    }
+
+    #[test]
+    fn malformed_truncated_chunk_pad_fails_normalization() {
+        let mut bytes = wav_bytes(2, 44_100, &[0]);
+        bytes.extend_from_slice(b"JUNK");
+        bytes.extend_from_slice(&1_u32.to_le_bytes());
+        bytes.push(0);
+
+        assert!(normalize_wav_chunks(&bytes).is_none());
+    }
+
+    #[test]
+    fn normalization_preserves_odd_intervening_and_trailing_chunks() {
+        let base = wav_bytes(2, 44_100, &[0]);
+        let mut extended_fmt = base[20..36].to_vec();
+        extended_fmt.extend_from_slice(&[0x34, 0x12]);
+        let bytes = riff_with_chunks(&[
+            (b"fmt ", &extended_fmt, 0),
+            (b"JUNK", b"abc", 0xa5),
+            (b"data", &[1, 2, 3, 4, 5], 0xa6),
+            (b"LIST", b"z", 0xa7),
+        ]);
+
+        let normalized = normalize_wav_chunks(&bytes).expect("normalization should be needed");
+        let chunks = riff_chunks(&normalized)
+            .map(|chunk| chunk.ok().expect("normalized chunks should be valid"))
+            .collect::<Vec<_>>();
+
+        assert_eq!(chunks.len(), 4);
+        assert_eq!(chunks[0].id, b"fmt ");
+        assert_eq!(chunks[0].data, &extended_fmt[..16]);
+        assert_eq!(chunks[1].id, b"JUNK");
+        assert_eq!(chunks[1].data, b"abc");
+        assert_eq!(chunks[1].raw.last(), Some(&0xa5));
+        assert_eq!(chunks[2].id, b"data");
+        assert_eq!(chunks[2].data, &[1, 2, 3, 4]);
+        assert_eq!(chunks[3].id, b"LIST");
+        assert_eq!(chunks[3].data, b"z");
+        assert_eq!(chunks[3].raw.last(), Some(&0xa7));
+    }
+
+    #[test]
+    fn aligned_chunks_need_no_normalization() {
+        let bytes = wav_bytes(1, 44_100, &[0, 1]);
+
+        assert!(normalize_wav_chunks(&bytes).is_none());
+    }
+
+    #[test]
+    fn public_decoder_repairs_wav_with_short_trailing_suffixes() {
+        let fixture = TempFixture::new();
+
+        for suffix_len in 1..=7 {
+            let mut bytes = wav_bytes(2, 44_100, &[0, 16_384, -16_384]);
+            let suffix = [0xa5; 7];
+            bytes.extend_from_slice(&suffix[..suffix_len]);
+            let path = fixture.write(&format!("repairable-{suffix_len}.wav"), &bytes);
+
+            let buffer = decode_sample_file(path).expect("repairable WAV should decode");
+
+            assert_eq!(buffer.channels, 2);
+            assert_eq!(buffer.sample_rate, 44_100);
+            assert_eq!(buffer.samples.len(), 2);
+        }
     }
 
     #[test]

@@ -104,10 +104,6 @@ pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
         "usb": true,
         "hdmi": false
     });
-    default_payload["runtimeConfig"]["usb"]
-        .as_object_mut()
-        .unwrap()
-        .remove("audioOut");
 
     source
         .apply_store_result(RuntimeStoreResult::LoadDefaultResult {
@@ -126,11 +122,6 @@ pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
         payload["runtimeConfig"]["audioOutputs"],
         json!({ "dac": false, "usb": true, "hdmi": false })
     );
-    assert!(payload["runtimeConfig"]["usb"]
-        .as_object()
-        .unwrap()
-        .get("audioOut")
-        .is_none());
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
@@ -138,11 +129,6 @@ pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
         restored.config_payload()["runtimeConfig"]["audioOutputs"],
         json!({ "dac": false, "usb": true, "hdmi": false })
     );
-    assert!(restored.config_payload()["runtimeConfig"]["usb"]
-        .as_object()
-        .unwrap()
-        .get("audioOut")
-        .is_none());
 }
 
 #[test]

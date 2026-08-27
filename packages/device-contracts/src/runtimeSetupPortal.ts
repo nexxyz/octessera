@@ -157,6 +157,13 @@ export function isRuntimeSetupPortalStatus(
   )
     return false;
   if (!isRuntimeSetupPortalPhase(value.phase)) return false;
+  if (!hasValidRuntimeSetupPortalOptionalFields(value)) return false;
+  return hasValidRuntimeSetupPortalPhaseFields(value, value.phase);
+}
+
+function hasValidRuntimeSetupPortalOptionalFields(
+  value: Record<string, unknown>,
+): boolean {
   if (
     value.disposition !== undefined &&
     !isRuntimeSetupPortalDisposition(value.disposition)
@@ -172,29 +179,69 @@ export function isRuntimeSetupPortalStatus(
     !isRuntimeSetupPortalErrorCode(value.errorCode)
   )
     return false;
+  return true;
+}
 
-  const hasDisposition = value.disposition !== undefined;
-  const hasSuffix = value.portalSuffix !== undefined;
-  const hasError = value.errorCode !== undefined;
-  switch (value.phase) {
+function hasStartingSetupPortalFields(
+  value: Record<string, unknown>,
+): boolean {
+  return (
+    value.disposition !== undefined &&
+    value.portalSuffix === undefined &&
+    value.errorCode === undefined
+  );
+}
+
+function hasPortalReadySetupPortalFields(
+  value: Record<string, unknown>,
+): boolean {
+  return (
+    value.disposition === undefined &&
+    value.portalSuffix !== undefined &&
+    value.errorCode === undefined
+  );
+}
+
+function hasEmptySetupPortalFields(value: Record<string, unknown>): boolean {
+  return (
+    value.disposition === undefined &&
+    value.portalSuffix === undefined &&
+    value.errorCode === undefined
+  );
+}
+
+function hasOnlyErrorCode(
+  value: Record<string, unknown>,
+  errorCode: RuntimeSetupPortalErrorCode,
+): boolean {
+  return (
+    value.disposition === undefined &&
+    value.portalSuffix === undefined &&
+    value.errorCode === errorCode
+  );
+}
+
+function hasValidRuntimeSetupPortalPhaseFields(
+  value: Record<string, unknown>,
+  phase: RuntimeSetupPortalPhase,
+): boolean {
+  switch (phase) {
     case "starting":
-      return hasDisposition && !hasSuffix && !hasError;
+      return hasStartingSetupPortalFields(value);
     case "portal_ready":
-      return !hasDisposition && hasSuffix && !hasError;
+      return hasPortalReadySetupPortalFields(value);
     case "finalizing":
     case "succeeded":
-      return !hasDisposition && !hasSuffix && !hasError;
+      return hasEmptySetupPortalFields(value);
     case "failed":
       return (
-        !hasDisposition &&
-        !hasSuffix &&
-        (value.errorCode === "operation_failed" ||
-          value.errorCode === "unavailable" ||
-          value.errorCode === "invalid_payload")
+        hasOnlyErrorCode(value, "operation_failed") ||
+        hasOnlyErrorCode(value, "unavailable") ||
+        hasOnlyErrorCode(value, "invalid_payload")
       );
     case "timed_out":
-      return !hasDisposition && !hasSuffix && value.errorCode === "unavailable";
+      return hasOnlyErrorCode(value, "unavailable");
     case "unsupported":
-      return !hasDisposition && !hasSuffix && value.errorCode === "unsupported";
+      return hasOnlyErrorCode(value, "unsupported");
   }
 }

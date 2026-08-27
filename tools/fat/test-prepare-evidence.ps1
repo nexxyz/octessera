@@ -65,6 +65,9 @@ try {
   if ((Get-Content -LiteralPath (Join-Path $createdRoot "00-operator.txt") -Raw) -cne "test operator`n") {
     throw "Evidence file content was not written exactly once"
   }
+  if ($first.Output -notmatch "http://<regular-wlan0-ip>:8081/restore" -or $first.Output -match "192\.168\.42\.1:8081") {
+    throw "Print-only restore reminder has the wrong network placeholder"
+  }
 
   $reused = Invoke-Preparation $createdRoot
   if ($reused.ExitCode -eq 0 -or $reused.Output -notmatch "newly created and unused") {

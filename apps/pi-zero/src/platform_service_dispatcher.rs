@@ -14,6 +14,19 @@ pub(crate) enum QueueFailureStyle {
     Orange,
 }
 
+pub(crate) fn usb_sd_transfer_output_block_reason(
+    usb_audio_enabled: bool,
+    usb_midi_enabled: bool,
+) -> Option<&'static str> {
+    if usb_audio_enabled {
+        Some("USB SD2 transfer blocked while USB audio out is active")
+    } else if usb_midi_enabled {
+        Some("USB SD2 transfer blocked while USB MIDI out is enabled")
+    } else {
+        None
+    }
+}
+
 pub(crate) fn dispatch(
     service: &PiPlatformService,
     request: &RuntimePlatformRequest,

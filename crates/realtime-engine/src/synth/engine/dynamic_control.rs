@@ -13,11 +13,10 @@ impl SynthEngine {
         pan_pos: Option<usize>,
     ) {
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
-        if let Some(volume_pct) = volume_pct {
-            self.slot_volume[slot] = (volume_pct / 100.0).clamp(0.0, 1.0);
-        }
-        if let Some(pan_pos) = pan_pos {
-            self.slot_pan_pos[slot] = pan_pos.min(self.pan_positions - 1);
+        let normalized_volume = volume_pct.map(|volume| (volume / 100.0).clamp(0.0, 1.0));
+        let normalized_pan = pan_pos.map(|pan| pan.min(self.pan_positions - 1));
+        self.apply_normalized_instrument_mixer(slot, None, normalized_pan, normalized_volume);
+        if normalized_pan.is_some() {
             self.slot_pan_gains[slot] = pan_gains(self.slot_pan_pos[slot], self.pan_positions);
         }
     }

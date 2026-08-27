@@ -8,7 +8,15 @@ pub(super) fn derive_instrument_name(_index: usize, kind: &str) -> String {
 }
 
 pub(super) fn derive_bus_name(bus: &NativeFxBus) -> String {
-    let slots = non_none_bus_slots(bus);
+    derive_bus_name_from_slots([
+        bus.slot1_type.as_str(),
+        bus.slot2_type.as_str(),
+        bus.slot3_type.as_str(),
+    ])
+}
+
+pub(super) fn derive_bus_name_from_slots(slots: [&str; 3]) -> String {
+    let slots = non_none_bus_slots(slots);
     match slots.as_slice() {
         [] => "None".into(),
         [slot] => fx_type_label(slot).into(),
@@ -20,28 +28,8 @@ pub(super) fn derive_bus_name(bus: &NativeFxBus) -> String {
     }
 }
 
-pub(super) fn legacy_derive_instrument_name(kind: &str) -> String {
-    kind.to_string()
-}
-
-pub(super) fn legacy_derive_bus_name(bus: &NativeFxBus) -> String {
-    let slots = non_none_bus_slots(bus);
-    match slots.as_slice() {
-        [] => "(none)".into(),
-        [slot] => (*slot).into(),
-        slots => slots.join("+"),
-    }
-}
-
-fn non_none_bus_slots(bus: &NativeFxBus) -> Vec<&str> {
-    [
-        bus.slot1_type.as_str(),
-        bus.slot2_type.as_str(),
-        bus.slot3_type.as_str(),
-    ]
-    .into_iter()
-    .filter(|slot| *slot != "none")
-    .collect()
+fn non_none_bus_slots(slots: [&str; 3]) -> Vec<&str> {
+    slots.into_iter().filter(|slot| *slot != "none").collect()
 }
 
 fn instrument_kind_label(kind: &str) -> &'static str {

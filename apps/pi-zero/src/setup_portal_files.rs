@@ -165,11 +165,11 @@ pub(crate) fn validate_directory_path(
 fn validate_request_parent(path: &Path) -> Result<(), SetupFileError> {
     #[cfg(unix)]
     {
-        return validate_directory_path(
+        validate_directory_path(
             path,
             Some(unsafe { libc::geteuid() }),
             Some((unsafe { libc::getegid() }, 0o700)),
-        );
+        )
     }
     #[cfg(not(unix))]
     {

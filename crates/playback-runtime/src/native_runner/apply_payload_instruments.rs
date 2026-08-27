@@ -15,7 +15,7 @@ impl NativeRunner {
             let Some(instrument) = self.instruments.get_mut(index) else {
                 continue;
             };
-            apply_instrument_identity_payload(slot, index, instrument);
+            apply_instrument_identity_payload(slot, instrument);
             apply_instrument_mixer_payload(slot, incoming_pan_positions, instrument);
             apply_instrument_sample_payload(slot, instrument);
             apply_instrument_synth_payload(slot, instrument);

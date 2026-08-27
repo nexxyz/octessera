@@ -10,10 +10,15 @@ No open FAT result is closed by this documentation pass. Until a release record
 marks an exact row **FAT-passed**, keep that row **UNQUALIFIED** or leave it out
 of public support claims.
 
-For v0.8.1, the Raspberry and Orange constructor/source-bound evidence now
-exists. It does not replace physical FAT for the exact draft artifacts. Retain
-the Raspberry mounted-image and kernel proof with that exact draft; trusted
-parent machinery remains frozen legacy recovery until FAT closes.
+The [v0.8.1 release record](release-records/v0.8.1.md) names the exact draft,
+checksums, and automated evidence. The Raspberry and Orange
+constructor/source-bound evidence exists, but it does not replace physical FAT
+for the exact draft artifacts. Retain the Raspberry mounted-image and kernel
+proof with that exact draft; trusted-parent machinery remains frozen legacy
+recovery until FAT closes. Run `33037951901` is only the [Orange strict
+diagnostic-image build](https://github.com/nexxyz/octessera/actions/runs/33037951901);
+run `33045139129` is the [full release run for both production images and the 14
+uploaded assets](https://github.com/nexxyz/octessera/actions/runs/33045139129).
 
 ## Support matrix
 

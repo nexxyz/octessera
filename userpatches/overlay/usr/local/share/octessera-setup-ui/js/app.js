@@ -56,15 +56,17 @@ const escapeHtml = (value) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
+const networkSecurity = (network) => String(network.security ?? network.sec ?? network.auth ?? network.encryption ?? '').toLowerCase();
+
+const normalizeNetwork = (network) => ({
+  ssid: network.ssid ?? network.SSID ?? network.name ?? '',
+  security: networkSecurity(network),
+  signal: Number(network.signal ?? network.rssi ?? network.strength ?? Number.NEGATIVE_INFINITY),
+});
+
 const normalizeNetworks = (payload) => {
   const list = Array.isArray(payload) ? payload : Array.isArray(payload?.networks) ? payload.networks : [];
-  return list
-    .map((network) => ({
-      ssid: network.ssid ?? network.SSID ?? network.name ?? '',
-      security: String(network.security ?? network.sec ?? network.auth ?? network.encryption ?? '').toLowerCase(),
-      signal: Number(network.signal ?? network.rssi ?? network.strength ?? Number.NEGATIVE_INFINITY),
-    }))
-    .filter((network) => network.ssid);
+  return list.map(normalizeNetwork).filter((network) => network.ssid);
 };
 
 const selectedNetwork = () => (state.manualSsid ? undefined : state.networks.find((network) => network.ssid === state.selectedSsid));
@@ -143,6 +145,14 @@ const render = () => {
   els.sshPasswordFields.hidden = state.sshMode !== 'password';
 };
 
+const validateSsh = () => {
+  if (state.sshMode === 'key' && !state.sshPublicKey) return { field: els.sshPublicKey, message: 'Paste an SSH public key or choose another SSH mode.' };
+  if (state.sshMode !== 'password') return undefined;
+  if (state.sshPassword.length < 8) return { field: els.sshPassword, message: 'SSH passwords need at least 8 characters.' };
+  if (state.sshPassword !== state.sshPasswordConfirm) return { field: els.sshPasswordConfirm, message: 'SSH password confirmation does not match.' };
+  return undefined;
+};
+
 const validationError = () => {
   syncStateFromInputs();
   if (!/^[A-Z]{2}$/.test(state.wifiCountry)) {
@@ -154,18 +164,7 @@ const validationError = () => {
   if (requiresWifiPassword() && !state.wifiPassphrase) {
     return { field: els.wifiPassphrase, message: 'This network needs a Wi-Fi password.' };
   }
-  if (state.sshMode === 'key' && !state.sshPublicKey) {
-    return { field: els.sshPublicKey, message: 'Paste an SSH public key or choose another SSH mode.' };
-  }
-  if (state.sshMode === 'password') {
-    if (state.sshPassword.length < 8) {
-      return { field: els.sshPassword, message: 'SSH passwords need at least 8 characters.' };
-    }
-    if (state.sshPassword !== state.sshPasswordConfirm) {
-      return { field: els.sshPasswordConfirm, message: 'SSH password confirmation does not match.' };
-    }
-  }
-  return undefined;
+  return validateSsh();
 };
 
 const stagePayload = () => ({

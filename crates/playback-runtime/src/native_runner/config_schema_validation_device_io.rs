@@ -24,7 +24,14 @@ pub(super) fn validate_midi(runtime: &Map<String, Value>) -> Result<(), String> 
 }
 
 pub(super) fn validate_audio_outputs(runtime: &Map<String, Value>) -> Result<(), String> {
-    AudioOutputSet::decode_runtime_fields(runtime)?;
+    if let Some(usb) = object_field(runtime, "usb", "runtimeConfig")? {
+        if usb.contains_key("audioOut") {
+            return Err("runtimeConfig.usb.audioOut is unsupported".into());
+        }
+    }
+    if let Some(audio_outputs) = runtime.get("audioOutputs") {
+        AudioOutputSet::decode(audio_outputs)?;
+    }
     Ok(())
 }
 

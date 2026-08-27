@@ -54,38 +54,25 @@ pub(crate) fn run_prepared_runtime(
             return Err("Orange runtime did not produce a valid initial snapshot".into());
         }
         readiness_gate.try_mark_ready(audio_manager.required_jack_status(), candidate_readiness)?;
-        let mut loop_profile = OrangeLoopProfile::from_env();
-        let mut previous_loop = Instant::now();
         while !signal::interrupted() {
             if host.shutdown_pending() {
                 break;
             }
-            let now = Instant::now();
-            let loop_elapsed = now.saturating_duration_since(previous_loop);
-            previous_loop = now;
-            let loop_started = loop_profile.start_loop(loop_elapsed);
-            let audio_started = loop_profile.start_phase();
             audio_manager.recover_audio_if_due();
             ensure_required_audio_health(audio_manager.required_jack_status())?;
             audio.ensure_route_readiness()?;
             audio_manager.ensure_selected_routes()?;
             readiness_gate
                 .try_mark_ready(audio_manager.required_jack_status(), candidate_readiness)?;
-            loop_profile.record_audio(audio_started);
-            let midi_started = loop_profile.start_phase();
             drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut host);
-            loop_profile.record_midi(midi_started);
             if host.shutdown_pending() {
                 break;
             }
-            let first_host_started = loop_profile.start_phase();
             drain_host_work(&mut playback, &mut runner, &mut host)?;
-            loop_profile.record_first_host_work(first_host_started);
             if host.shutdown_pending() {
                 break;
             }
-            let input_started = loop_profile.start_phase();
-            let (input_messages, input_events) = drain_inputs(
+            drain_inputs(
                 seesaw,
                 encoder_rx,
                 &mut pending_encoder_turns,
@@ -93,58 +80,47 @@ pub(crate) fn run_prepared_runtime(
                 &mut runner,
                 &mut host,
             )?;
-            loop_profile.record_inputs(input_started, input_messages, input_events);
             if host.shutdown_pending() {
                 break;
             }
-            let runtime_started = loop_profile.start_phase();
-            let (
-                runtime_snapshot_requested,
-                runtime_messages,
-                runtime_follow_ups,
-                runtime_advanced,
-            ) = if let Some(advance) = scheduler.next_runtime_advance(Instant::now(), &playback) {
-                let revision_before = playback.last_snapshot_revision();
-                if advance.request_snapshot {
-                    loop_profile.record_snapshot_request();
-                    playback.request_next_snapshot();
-                }
-                let output = playback.advance_duration_with_output(
-                    advance.elapsed,
-                    &mut runner,
-                    &mut host,
-                )?;
-                let counts = (output.messages.len(), output.follow_ups.len());
-                process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                let revision_after = playback.last_snapshot_revision();
-                let completed_at = Instant::now();
-                if advance.request_snapshot {
-                    scheduler.record_snapshot_attempt(
-                        completed_at,
-                        DisplaySnapshotDue::default(),
-                        revision_before,
-                        revision_after,
-                    );
+            let (runtime_snapshot_requested, runtime_advanced) =
+                if let Some(advance) = scheduler.next_runtime_advance(Instant::now(), &playback) {
+                    let revision_before = playback.last_snapshot_revision();
+                    if advance.request_snapshot {
+                        playback.request_next_snapshot();
+                    }
+                    let output = playback.advance_duration_with_output(
+                        advance.elapsed,
+                        &mut runner,
+                        &mut host,
+                    )?;
+                    process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
+                    let revision_after = playback.last_snapshot_revision();
+                    let completed_at = Instant::now();
+                    if advance.request_snapshot {
+                        scheduler.record_snapshot_attempt(
+                            completed_at,
+                            DisplaySnapshotDue::default(),
+                            revision_before,
+                            revision_after,
+                        );
+                    } else {
+                        scheduler.observe_snapshot_revision(
+                            completed_at,
+                            revision_before,
+                            revision_after,
+                        );
+                    }
+                    (advance.request_snapshot, true)
                 } else {
-                    scheduler.observe_snapshot_revision(
-                        completed_at,
-                        revision_before,
-                        revision_after,
-                    );
-                }
-                (advance.request_snapshot, counts.0, counts.1, true)
-            } else {
-                scheduler.observe_snapshot(Instant::now(), &playback);
-                (false, 0, 0, false)
-            };
-            loop_profile.record_runtime(runtime_started, runtime_messages, runtime_follow_ups);
+                    scheduler.observe_snapshot(Instant::now(), &playback);
+                    (false, false)
+                };
             if host.shutdown_pending() {
                 break;
             }
             ensure_required_audio_health(audio_manager.required_jack_status())?;
-            let second_host_started = loop_profile.start_phase();
             drain_host_work(&mut playback, &mut runner, &mut host)?;
-            loop_profile.record_second_host_work(second_host_started);
             if runtime_advanced {
                 scheduler.record_runtime_advance_complete(Instant::now(), &playback);
             }
@@ -154,8 +130,6 @@ pub(crate) fn run_prepared_runtime(
             let display_now = Instant::now();
             let display_due = scheduler.display_snapshot_due(display_now, &runner);
             if !runtime_snapshot_requested && display_due.any() {
-                let snapshot_dispatch_started = loop_profile.start_phase();
-                loop_profile.record_snapshot_request();
                 let message = scheduler.display_snapshot_message(&playback);
                 let revision_before = playback.last_snapshot_revision();
                 let dispatch_result = dispatch(&mut playback, &mut runner, &mut host, message);
@@ -166,13 +140,11 @@ pub(crate) fn run_prepared_runtime(
                     revision_before,
                     revision_after,
                 );
-                loop_profile.record_snapshot_dispatch(snapshot_dispatch_started);
                 dispatch_result?;
             }
             let publish_now = Instant::now();
             if scheduler.snapshot_publication_due(publish_now, &playback) {
-                let snapshot_publish_started = loop_profile.start_phase();
-                let snapshot_published = publish_snapshot(
+                publish_snapshot(
                     &mut playback,
                     &runner,
                     &mut host,
@@ -180,13 +152,8 @@ pub(crate) fn run_prepared_runtime(
                     &mut scheduler,
                     false,
                 )?;
-                loop_profile.record_snapshot_publish(snapshot_publish_started, snapshot_published);
             }
-            loop_profile.finish_loop(loop_started);
-            let sleep_started = loop_profile.start_phase();
             std::thread::sleep(scheduler.sleep_duration(Instant::now(), &playback, &runner));
-            loop_profile.record_sleep(sleep_started);
-            loop_profile.maybe_report();
         }
         Ok::<(), String>(())
     })();
@@ -278,23 +245,21 @@ fn drain_inputs(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     host: &mut OrangeHostAdapter,
-) -> Result<(usize, usize), String> {
-    let mut message_count = 0;
+) -> Result<(), String> {
     for _ in 0..32 {
         let message = match seesaw.input_rx.try_recv() {
             Ok(message) => message,
             Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
         };
-        message_count += 1;
         dispatch(playback, runner, host, message)?;
     }
-    let event_count = crate::encoder_queue::drain_encoder_events(
+    crate::encoder_queue::drain_encoder_events(
         encoder_rx,
         pending_encoder_turns,
         |message| dispatch(playback, runner, host, message),
         |_| {},
     )?;
-    Ok((message_count, event_count))
+    Ok(())
 }
 
 pub(crate) fn dispatch(

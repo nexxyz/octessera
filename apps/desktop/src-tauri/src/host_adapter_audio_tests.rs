@@ -4,6 +4,7 @@ use playback_runtime::{
     HostAdapter, RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain, RuntimePlatformEffect,
 };
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[test]
@@ -190,6 +191,61 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
         }
     ));
     assert!(rx.try_recv().is_err());
+}
+
+#[test]
+fn full_audio_config_and_slot_command_share_sample_decode_cache() {
+    let (mut adapter, rx) = test_adapter();
+    let slot_config = serde_json::json!({
+        "type": "sampler",
+        "sample": { "slots": [{ "path": "samples/Drum/kick/Kick2.wav" }] }
+    });
+    let config = serde_json::json!({ "instruments": [slot_config.clone()] });
+
+    adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
+            command: RuntimeAudioCommand::SetAudioConfig {
+                revision: 1,
+                request_id: None,
+                config: config.clone(),
+            },
+        }))
+        .unwrap();
+    let config_samples = match rx.recv_timeout(Duration::from_secs(1)).unwrap() {
+        QueuedAudioEvent::SetAudioConfig {
+            sample_banks: Some(banks),
+            ..
+        } => banks[0].slots[0]
+            .buffer
+            .as_ref()
+            .expect("configured sample")
+            .samples
+            .clone(),
+        _ => panic!("unexpected audio config event"),
+    };
+
+    adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
+            command: RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot: 0,
+                config: slot_config,
+            },
+        }))
+        .unwrap();
+    let slot_samples = match rx.recv_timeout(Duration::from_secs(1)).unwrap() {
+        QueuedAudioEvent::SetInstrumentSlot {
+            sample_bank: Some(bank),
+            ..
+        } => bank.slots[0]
+            .buffer
+            .as_ref()
+            .expect("configured sample")
+            .samples
+            .clone(),
+        _ => panic!("unexpected instrument slot event"),
+    };
+
+    assert!(Arc::ptr_eq(&config_samples, &slot_samples));
 }
 
 #[test]

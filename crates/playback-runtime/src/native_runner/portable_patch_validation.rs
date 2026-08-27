@@ -116,9 +116,6 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
         }
         return Ok(());
     }
-    if path == "$.runtimeConfig.usb.audioOut" {
-        return Ok(());
-    }
     if is_sample_assignments_path(path) {
         return validate_sample_assignments(value, path);
     }
@@ -130,9 +127,6 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
             for (key, value) in object {
                 let next_path = format!("{path}.{key}");
                 let Some(template_value) = template.get(key) else {
-                    if next_path == "$.runtimeConfig.usb.audioOut" {
-                        continue;
-                    }
                     return Err(format!("{next_path} is unknown in a v2 portable patch"));
                 };
                 validate_value(value, template_value, &next_path)?;

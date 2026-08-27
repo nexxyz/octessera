@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import {
   scanApproximateRustFunctions,
-  scanJavaScriptFunctionsWithFallback,
+  scanJavaScriptFunctions,
 } from "./quality-audit-parser.mjs";
 
 const ROOT = resolve(process.cwd());
@@ -71,7 +71,6 @@ const thresholds = {
   fnLocWarn: 60,
   fnLocHard: 90,
   complexityWarn: 10,
-  complexityHard: 15,
   paramsWarn: 4,
   paramsHard: 6
 };
@@ -130,6 +129,7 @@ const files = listFiles(ROOT);
 const britishSpellingToken = "behavio" + "ur";
 const fileStats = [];
 const fnStats = [];
+const jsComplexityStats = [];
 const namingHits = [];
 
 for (const file of files) {
@@ -138,13 +138,26 @@ for (const file of files) {
   const ext = extname(file);
   const loc = lineCount(text);
   fileStats.push({ file: rel, loc });
-  const fns = ext === ".rs"
-    ? scanApproximateRustFunctions(text)
-    : JAVASCRIPT_EXT.has(ext)
-      ? scanJavaScriptFunctionsWithFallback(text, ext, (warning) => console.warn(`${warning} File: ${rel}`))
-      : [];
-  const functions = fns.map((f) => ({ ...f, file: rel }));
+  let fns = [];
+  if (ext === ".rs") {
+    fns = scanApproximateRustFunctions(text);
+  } else if (JAVASCRIPT_EXT.has(ext)) {
+    try {
+      fns = scanJavaScriptFunctions(text, ext);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Quality audit failed: Babel AST parse failed for JavaScript/TypeScript file ${rel}: ${message}`,
+      );
+    }
+  }
+  const functions = fns.map((f) => ({
+    ...f,
+    file: rel,
+    complexityEligible: JAVASCRIPT_EXT.has(ext),
+  }));
   fnStats.push(...functions);
+  if (JAVASCRIPT_EXT.has(ext)) jsComplexityStats.push(...functions);
 
   const spellingHits = (text.match(new RegExp(`\\b${britishSpellingToken}\\b`, "gi")) || []).length;
   if (spellingHits > 0) namingHits.push({ file: rel, token: britishSpellingToken, count: spellingHits });
@@ -152,7 +165,7 @@ for (const file of files) {
 
 const largeFiles = fileStats.filter((f) => f.loc > thresholds.fileLocWarn).sort((a, b) => b.loc - a.loc);
 const fileLimitViolations = fileStats.filter((f) => f.loc > thresholds.fileLocFail).sort((a, b) => b.loc - a.loc);
-const complexFns = fnStats.filter((f) => f.complexity > thresholds.complexityWarn).sort((a, b) => b.complexity - a.complexity);
+const complexFns = jsComplexityStats.filter((f) => f.complexity > thresholds.complexityWarn).sort((a, b) => b.complexity - a.complexity);
 const longFns = fnStats.filter((f) => f.loc > thresholds.fnLocWarn).sort((a, b) => b.loc - a.loc);
 const wideFns = fnStats.filter((f) => f.paramCount > thresholds.paramsWarn).sort((a, b) => b.paramCount - a.paramCount);
 
@@ -167,7 +180,7 @@ report.push("");
 report.push("## Standards");
 report.push(`- File LOC: warning at > ${thresholds.fileLocWarn}; failure at > ${thresholds.fileLocFail} (enforced)`);
 report.push(`- Function LOC: warning at > ${thresholds.fnLocWarn} (informational; staged hard threshold > ${thresholds.fnLocHard} is not enforced)`);
-report.push(`- Cyclomatic complexity: warning at > ${thresholds.complexityWarn} (informational; staged hard threshold > ${thresholds.complexityHard} is not enforced)`);
+report.push(`- JavaScript/TypeScript cyclomatic complexity: failure at > ${thresholds.complexityWarn} (enforced)`);
 report.push(`- Function params: warning at > ${thresholds.paramsWarn} (informational; staged hard threshold > ${thresholds.paramsHard} is not enforced)`);
 report.push("");
 report.push("## Summary");
@@ -175,7 +188,7 @@ report.push(`- Files scanned: ${fileStats.length}`);
 report.push(`- Functions scanned (executable function nodes): ${fnStats.length}`);
 report.push(`- Files above warning threshold (> ${thresholds.fileLocWarn} LOC): ${largeFiles.length}`);
 report.push(`- Files over enforced limit (> ${thresholds.fileLocFail} LOC): ${fileLimitViolations.length}`);
-report.push(`- Complex functions (> ${thresholds.complexityWarn}): ${complexFns.length}`);
+report.push(`- JavaScript/TypeScript functions over enforced complexity limit (> ${thresholds.complexityWarn}): ${complexFns.length}`);
 report.push(`- Long functions (> ${thresholds.fnLocWarn} LOC): ${longFns.length}`);
 report.push(`- Wide signatures (> ${thresholds.paramsWarn} params): ${wideFns.length}`);
 report.push("");
@@ -184,12 +197,15 @@ report.push("## Top File LOC Warnings");
 for (const f of largeFiles.slice(0, 20)) report.push(`- ${f.file}: ${f.loc} LOC`);
 report.push("");
 
-report.push("## Top Complex Functions");
-for (const f of complexFns.slice(0, 20)) report.push(`- ${f.file}:${f.start} ${f.name}() complexity=${f.complexity}, loc=${f.loc}`);
+report.push("## JavaScript/TypeScript Complexity Failures");
+for (const f of complexFns) report.push(`- ${f.file}:${f.start} ${f.name}() complexity=${f.complexity}, loc=${f.loc}`);
 report.push("");
 
 report.push("## Top Long Functions");
-for (const f of longFns.slice(0, 20)) report.push(`- ${f.file}:${f.start} ${f.name}() loc=${f.loc}, complexity=${f.complexity}`);
+for (const f of longFns.slice(0, 20)) {
+  const complexity = f.complexityEligible ? `, complexity=${f.complexity}` : "";
+  report.push(`- ${f.file}:${f.start} ${f.name}() loc=${f.loc}${complexity}`);
+}
 report.push("");
 
 report.push(`## Naming Consistency (behavior vs ${britishSpellingToken})`);
@@ -202,8 +218,16 @@ report.push("");
 
 console.log(report.join("\n"));
 
+if (complexFns.length > 0) {
+  console.error(`Quality audit failed: ${complexFns.length} JavaScript/TypeScript function(s) exceed the enforced > ${thresholds.complexityWarn} complexity limit.`);
+  for (const f of complexFns) console.error(`- ${f.file}:${f.start} ${f.name}() complexity=${f.complexity}, loc=${f.loc}`);
+}
+
 if (fileLimitViolations.length > 0) {
   console.error(`Quality audit failed: ${fileLimitViolations.length} file(s) exceed the enforced > ${thresholds.fileLocFail} LOC limit.`);
   for (const f of fileLimitViolations) console.error(`- ${f.file}: ${f.loc} LOC`);
+}
+
+if (complexFns.length > 0 || fileLimitViolations.length > 0) {
   process.exitCode = 1;
 }

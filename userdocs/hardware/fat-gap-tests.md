@@ -12,8 +12,8 @@ the DAC/Jack sound in the end-to-end paths as USB evidence.
 
 ### Automated preparation and capture
 
-- Save the Orange passive USB state from the end-to-end probe as
-  `usb/orange-passive-state.txt`.
+- Copy the Orange passive USB state from the production-safe diagnostic evidence
+  in `orange/00-fat-diagnostic/` into `usb/orange-passive-state.txt` for review.
 - On Orange, if the exact production service is running, capture:
 
   ```bash
@@ -152,11 +152,11 @@ above:
   sustained LED/display behavior remain separate evidence, not implied by one
   clean boot.
 
-Copy final logs into `closeout/`. Retain the Orange probe directory and
-Raspberry diagnostic evidence. Create `final-pass-fail.tsv` from the [orchestrator's
-result matrix](fat-quick-run.md#result-matrix-and-closeout), and do not delete
-failed evidence. Record every item as `PASS`, `FAIL`, or `NOT RUN` with one
-sentence and an evidence filename.
+Copy final logs into `closeout/`. Retain `orange/00-fat-diagnostic/` and
+`raspberry/00-fat-diagnostic/` diagnostic evidence. Create `final-pass-fail.tsv`
+from the [orchestrator's result matrix](fat-quick-run.md#result-matrix-and-closeout),
+and do not delete failed evidence. Record every item as `PASS`, `FAIL`, or `NOT
+RUN` with one sentence and an evidence filename.
 
 Stop at unsafe power, uncertain wiring, a blank/flickering OLED, unexpected board
 identity, an actual diagnostic error, or an enclosure that needs force. Do not

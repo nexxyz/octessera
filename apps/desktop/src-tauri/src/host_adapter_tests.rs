@@ -1,8 +1,8 @@
 use super::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use crate::audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepState};
+use crate::sample_decode_cache::SampleDecodeCache;
 use crate::types::QueuedAudioEvent;
 use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex};
 
@@ -26,14 +26,14 @@ fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEven
     let synth_slots = Arc::new(Mutex::new(
         [true; realtime_engine::synth::INSTRUMENT_SLOT_COUNT],
     ));
-    let sample_cache = Arc::new(Mutex::new(HashMap::new()));
+    let sample_decode_cache = SampleDecodeCache::new();
     let sample_bank_signature = Arc::new(Mutex::new(String::new()));
     let (audio_control, _audio_prep_result_rx) = spawn_desktop_audio_control(
         tx.clone(),
         DesktopAudioPrepState {
             config_revision: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             synth_slots: synth_slots.clone(),
-            sample_cache: sample_cache.clone(),
+            sample_decode_cache: sample_decode_cache.clone(),
             sample_bank_signature: sample_bank_signature.clone(),
         },
     );
@@ -41,7 +41,7 @@ fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEven
         audio: DesktopHostAudioState {
             trigger_tx: tx,
             audio_control,
-            sample_cache,
+            sample_decode_cache,
         },
         midi_out: Arc::new(Mutex::new(None)),
         midi_in: Arc::new(Mutex::new(None)),

@@ -51,29 +51,18 @@ impl AudioOutputSet {
             .unwrap_or(value)
             .as_object()
             .ok_or_else(|| "runtimeConfig must be an object".to_string())?;
-        Self::decode_runtime_fields(runtime)?
-            .ok_or_else(|| "runtimeConfig must contain audioOutputs or usb.audioOut".to_string())
-    }
-
-    pub(crate) fn decode_runtime_fields(
-        runtime: &Map<String, Value>,
-    ) -> Result<Option<Self>, String> {
-        let canonical = runtime
-            .get("audioOutputs")
-            .map(|value| decode_canonical(value, "runtimeConfig.audioOutputs"))
-            .transpose()?;
-        let legacy = match runtime.get("usb") {
-            None => None,
-            Some(value) => {
-                let usb = value
-                    .as_object()
-                    .ok_or_else(|| "runtimeConfig.usb must be an object".to_string())?;
-                usb.get("audioOut")
-                    .map(|value| decode_legacy(value, "runtimeConfig.usb.audioOut"))
-                    .transpose()?
+        if let Some(usb) = runtime.get("usb") {
+            let usb = usb
+                .as_object()
+                .ok_or_else(|| "runtimeConfig.usb must be an object".to_string())?;
+            if usb.contains_key("audioOut") {
+                return Err("runtimeConfig.usb.audioOut is unsupported".into());
             }
-        };
-        merge_canonical_and_legacy(canonical, legacy)
+        }
+        runtime
+            .get("audioOutputs")
+            .ok_or_else(|| "runtimeConfig must contain audioOutputs".to_string())
+            .and_then(|value| decode_canonical(value, "runtimeConfig.audioOutputs"))
     }
 
     pub(crate) fn as_value(self) -> Value {
@@ -104,53 +93,6 @@ fn decode_canonical(value: &Value, path: &str) -> Result<AudioOutputSet, String>
     AudioOutputSet::from_flags(dac, usb, hdmi).map_err(|error| format!("{path} {error}"))
 }
 
-fn decode_legacy(value: &Value, path: &str) -> Result<AudioOutputSet, String> {
-    let value = value
-        .as_str()
-        .ok_or_else(|| format!("{path} must be a string"))?;
-    match value {
-        "jack" => Ok(AudioOutputSet::jack()),
-        "usb" => AudioOutputSet::from_flags(false, true, false).map_err(str::to_string),
-        "both" => AudioOutputSet::from_flags(true, true, false).map_err(str::to_string),
-        _ => Err(format!("{path} has unsupported value `{value}`")),
-    }
-}
-
-fn merge_canonical_and_legacy(
-    canonical: Option<AudioOutputSet>,
-    legacy: Option<AudioOutputSet>,
-) -> Result<Option<AudioOutputSet>, String> {
-    match (canonical, legacy) {
-        (Some(canonical), Some(legacy))
-            if canonical.dac() != legacy.dac() || canonical.usb() != legacy.usb() =>
-        {
-            Err("runtimeConfig.audioOutputs and runtimeConfig.usb.audioOut disagree".into())
-        }
-        (Some(canonical), _) => Ok(Some(canonical)),
-        (None, Some(legacy)) => Ok(Some(legacy)),
-        (None, None) => Ok(None),
-    }
-}
-
-pub(crate) fn normalize_audio_outputs(payload: &mut Value) -> Result<(), String> {
-    let runtime_value = if payload.get("runtimeConfig").is_some() {
-        payload.get_mut("runtimeConfig").expect("runtimeConfig")
-    } else {
-        payload
-    };
-    let runtime = runtime_value
-        .as_object_mut()
-        .ok_or_else(|| "runtimeConfig must be an object".to_string())?;
-    let Some(outputs) = AudioOutputSet::decode_runtime_fields(runtime)? else {
-        return Ok(());
-    };
-    runtime.insert("audioOutputs".into(), outputs.as_value());
-    if let Some(usb) = runtime.get_mut("usb").and_then(Value::as_object_mut) {
-        usb.remove("audioOut");
-    }
-    Ok(())
-}
-
 pub(crate) fn strip_device_audio_fields(payload: &mut Value) {
     let runtime_value = if payload.get("runtimeConfig").is_some() {
         payload.get_mut("runtimeConfig").expect("runtimeConfig")
@@ -161,9 +103,6 @@ pub(crate) fn strip_device_audio_fields(payload: &mut Value) {
         return;
     };
     runtime.remove("audioOutputs");
-    if let Some(usb) = runtime.get_mut("usb").and_then(Value::as_object_mut) {
-        usb.remove("audioOut");
-    }
 }
 
 fn bool_field(object: &Map<String, Value>, key: &str, path: &str) -> Result<bool, String> {

@@ -83,10 +83,9 @@ artifact directly:
 tools/armbian-image/inspect-built-image.sh --verification-profile full-constructor <rootfs-dir-or-ext4-image>
 ```
 
-Use `full-constructor` for source-built images. Trusted v0.7.5 runtime-only
-respins use `legacy-runtime-only`; setup-layer respins use
-`legacy-setup-layer`. Their boot integrity comes from the separate trusted
-v0.7.5 boot-neutral proof.
+Use `full-constructor` for source-built images. Trusted-parent runtime-only
+respins use `legacy-runtime-only`; setup-layer respins use `legacy-setup-layer`.
+Their boot integrity comes from the separate trusted boot-neutral proof.
 
 ## Source-bound constructor procedure
 
@@ -108,9 +107,6 @@ contract, not from a trusted-parent respin:
    `/run/octessera-boot` owner with no second writer.
 4. Preserve image, source hashes, selected boot outputs, and proof logs. Only
    then perform the physical loop in [`../open-work.md`](../open-work.md).
-
-The v0.8.1 Raspberry and Orange constructor/source-bound evidence exists, but
-physical FAT remains the gate for exact release artifacts.
 
 ## Phase 5 OLED boot layer
 
@@ -233,8 +229,9 @@ node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 Root-required mutation and disk fixtures run in CI as
 `sudo python3 tools/image-respin/test_setup_mutation.py` and
 `sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
-The trusted v0.7.5 parent exercise is frozen legacy recovery, not v0.8.1
-qualification. If explicitly required, run both board lanes:
+The trusted-parent exercise is frozen legacy recovery, not a physical
+qualification path. Retirement is a post-FAT action. If explicitly required,
+run both board lanes:
 
 ```bash
 gh workflow run respin-board-image.yml -f board=raspberry-pi-zero-2w -f setup_layer=setup-portal

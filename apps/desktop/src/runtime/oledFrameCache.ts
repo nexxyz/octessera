@@ -55,39 +55,17 @@ export function ingestOledFrame(
   cache: OledFrameCache,
   message: RuntimeOledFrameMessage,
 ): void {
-  const pixels =
-    typeof message.pixelsBase64 === 'string'
-      ? decodeFramePixels(message.pixelsBase64)
-      : null;
-  if (
-    message.width !== OLED_WIDTH ||
-    message.height !== OLED_HEIGHT ||
-    message.format !== 'rgb565be' ||
-    !Number.isSafeInteger(message.revision) ||
-    message.revision < 1 ||
-    pixels === null
-  ) {
+  const pixels = validateOledFrameMessage(message);
+  if (pixels === null) {
     markOledFrameFault(cache, 'malformed');
     return;
   }
   if (message.revision <= cache.acceptedRevision) {
-    if (
-      message.revision === cache.acceptedRevision &&
-      cache.acceptedPixels &&
-      !sameBytes(cache.acceptedPixels, pixels)
-    ) {
-      markOledFrameFault(cache, 'conflict');
-    } else if (message.revision < cache.acceptedRevision) {
-      markOledFrameFault(cache, 'stale');
-    }
+    handleAcceptedOledRevision(cache, message.revision, pixels);
     return;
   }
   if (message.revision === cache.candidateRevision) {
-    if (!cache.candidatePixels) return;
-    if (cache.candidatePixels && !sameBytes(cache.candidatePixels, pixels)) {
-      markOledFrameFault(cache, 'conflict');
-      cache.candidatePixels = null;
-    }
+    handleCandidateOledRevision(cache, pixels);
     return;
   }
   if (message.revision < cache.candidateRevision) {
@@ -139,6 +117,51 @@ function decodeFramePixels(value: string): Uint8Array | null {
     return Uint8Array.from(decoded, (char) => char.charCodeAt(0));
   } catch {
     return null;
+  }
+}
+
+function validateOledFrameMessage(
+  message: RuntimeOledFrameMessage,
+): Uint8Array | null {
+  if (typeof message.pixelsBase64 !== 'string') return null;
+  const pixels = decodeFramePixels(message.pixelsBase64);
+  if (
+    message.width !== OLED_WIDTH ||
+    message.height !== OLED_HEIGHT ||
+    message.format !== 'rgb565be' ||
+    !Number.isSafeInteger(message.revision) ||
+    message.revision < 1 ||
+    pixels === null
+  ) {
+    return null;
+  }
+  return pixels;
+}
+
+function handleAcceptedOledRevision(
+  cache: OledFrameCache,
+  revision: number,
+  pixels: Uint8Array,
+): void {
+  if (
+    revision === cache.acceptedRevision &&
+    cache.acceptedPixels !== null &&
+    !sameBytes(cache.acceptedPixels, pixels)
+  ) {
+    markOledFrameFault(cache, 'conflict');
+  } else if (revision < cache.acceptedRevision) {
+    markOledFrameFault(cache, 'stale');
+  }
+}
+
+function handleCandidateOledRevision(
+  cache: OledFrameCache,
+  pixels: Uint8Array,
+): void {
+  if (!cache.candidatePixels) return;
+  if (!sameBytes(cache.candidatePixels, pixels)) {
+    markOledFrameFault(cache, 'conflict');
+    cache.candidatePixels = null;
   }
 }
 

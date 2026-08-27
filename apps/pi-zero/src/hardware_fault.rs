@@ -58,7 +58,7 @@ impl HardwareFault {
     }
 }
 
-pub(crate) fn run_hardware_fault_mode(mut fault: HardwareFault) -> ! {
+pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>) -> ! {
     eprintln!("entering hardware fault mode; service will stay alive until reboot");
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
     let lines = fault_lines(&fault);

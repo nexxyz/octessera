@@ -341,5 +341,6 @@ write_config "$TEST_ROOT/audio-011.json" '{"runtimeConfig":{"audioOutputs":{"dac
 write_config "$TEST_ROOT/audio-111.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":true}}}'
 write_config "$TEST_ROOT/audio-zero.json" '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false}}}'
 write_config "$TEST_ROOT/audio-extra.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false,"extra":false}}}'
-write_config "$TEST_ROOT/audio-conflict.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"audioOut":"usb"}}}'
+write_config "$TEST_ROOT/audio-legacy-only.json" '{"runtimeConfig":{"usb":{"audioOut":"usb"}}}'
+write_config "$TEST_ROOT/audio-mixed.json" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"audioOut":"both"}}}'
 write_config "$TEST_ROOT/audio-malformed.json" '{'

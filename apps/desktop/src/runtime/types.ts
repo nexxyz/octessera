@@ -34,7 +34,6 @@ export type SimulatorSnapshot = {
   instruments: unknown[];
   mixer: unknown;
   panPositions: number;
-  audioConfigRevision?: number;
   autoSaveFlash: 'none' | 'flash';
   autoSaveFlashSerial?: number;
   displayBrightness: number;

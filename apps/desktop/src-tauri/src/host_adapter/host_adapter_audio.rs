@@ -2,6 +2,7 @@ use crate::audio_config::{
     normalize_config, parse_instrument_slot_config, sample_bank_for_slot_config, SampleBankError,
 };
 use crate::host_adapter::DesktopPlaybackHostAdapter;
+use crate::sample_decode_cache::SampleDecodeCacheError;
 use crate::samples::resolve_sample_file;
 use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent};
 use playback_runtime::{RuntimeAdapterError, RuntimeAudioCommand, RuntimeMomentaryFxTarget};
@@ -9,7 +10,6 @@ use realtime_engine::synth::{
     validate_fx_type, validate_momentary_fx_type, validate_sample_bank_param_path,
     validate_synth_param_path,
 };
-use rodio_engine_source::decode_sample_file;
 
 impl DesktopPlaybackHostAdapter {
     pub(super) fn handle_runtime_audio_command(
@@ -168,18 +168,11 @@ impl DesktopPlaybackHostAdapter {
     }
 
     fn load_sample(&self, path: &str) -> Option<realtime_engine::synth::SampleBuffer> {
-        if let Ok(cache) = self.audio.sample_cache.lock() {
-            if let Some(buffer) = cache.get(path) {
-                return Some(buffer.clone());
-            }
-        } else {
-            return None;
+        match self.audio.sample_decode_cache.load(path) {
+            Ok(buffer) => buffer,
+            Err(SampleDecodeCacheError::LookupLock) => None,
+            Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
         }
-        let buffer = decode_sample_file(path)?;
-        if let Ok(mut cache) = self.audio.sample_cache.lock() {
-            cache.insert(path.to_string(), buffer.clone());
-        }
-        Some(buffer)
     }
 }
 

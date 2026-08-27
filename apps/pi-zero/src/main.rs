@@ -33,7 +33,6 @@ mod boot_oled_handoff;
 mod boot_startup_delayed;
 mod candidate_readiness;
 mod device_update;
-mod diagnostics;
 mod dsp_profile;
 mod dsp_scenarios;
 mod encoder_queue;
@@ -324,7 +323,10 @@ fn fat_diagnostic_exit_code() -> i32 {
 }
 
 fn compatibility_diagnostic_exit_code() -> i32 {
-    diagnostic_result_exit_code(diagnostics::run_pre_hardware_diagnostics())
+    println!(
+        "WARN legacy diagnostic mode is deprecated; use --fat-diagnostic --board-profile <profile>"
+    );
+    diagnostic_result_exit_code(fat_diagnostic::run_legacy_raspberry())
 }
 
 fn diagnostic_result_exit_code(result: Result<bool, String>) -> i32 {

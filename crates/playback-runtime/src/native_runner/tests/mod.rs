@@ -13,6 +13,7 @@ mod browser_and_help;
 mod canonical_defaults;
 mod config_dto;
 mod config_field_partition;
+mod config_name_migration;
 mod config_persistence;
 mod config_schema_validation_matrix;
 mod config_transactions;

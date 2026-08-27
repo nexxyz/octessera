@@ -11,8 +11,8 @@ use crate::host_audio_command::send_audio_command;
 use crate::midi_host::{MidiHost, RuntimeOutputSink};
 use crate::oled_frame_cache::OledFrameCache;
 use crate::platform_service::{
-    dispatch_midi_effect, dispatch_shared_effect, PiPlatformService, PlatformJob, PlatformJobKind,
-    QueueFailureStyle,
+    dispatch_midi_effect, dispatch_shared_effect, usb_sd_transfer_output_block_reason,
+    PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
 };
 use playback_runtime::{
     AudioOutputSet, DeferredDefaultSave, HostAdapter, HostMessage,
@@ -177,6 +177,51 @@ impl PiPlaybackHostAdapter {
         }
         results
     }
+
+    fn request_power(
+        &mut self,
+        request: &RuntimePlatformRequest,
+        power_request: PiPowerRequest,
+    ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if let Err(error) = self.recovery_save_ready() {
+            return Ok(vec![identified_failure(request, error)]);
+        }
+        self.power_request = Some(power_request);
+        Ok(Vec::new())
+    }
+
+    fn start_usb_sd_transfer(
+        &mut self,
+        request: &RuntimePlatformRequest,
+    ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if let Some(reason) =
+            usb_sd_transfer_output_block_reason(self.audio_outputs.usb(), self.usb_midi_out_enabled)
+        {
+            return Ok(vec![store_error(reason.into())]);
+        }
+        if self
+            .audio
+            .as_ref()
+            .map(AudioService::is_recording)
+            .transpose()?
+            .unwrap_or(false)
+        {
+            return Ok(vec![store_error(
+                "USB SD2 transfer blocked while recording is active".into(),
+            )]);
+        }
+        self.silence_internal_audio()?;
+        self.panic_external_midi()?;
+        if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
+            request.clone(),
+            PlatformJobKind::UsbSdTransferStart,
+        )) {
+            return Ok(vec![store_error(format!(
+                "USB SD2 transfer start queued failed: {message}"
+            ))]);
+        }
+        Ok(Vec::new())
+    }
 }
 
 impl HostAdapter for PiPlaybackHostAdapter {
@@ -249,38 +294,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::UsbSdTransferStart => {
-                if self.audio_outputs.usb() {
-                    return Ok(vec![store_error(
-                        "USB SD2 transfer blocked while USB audio out is active".into(),
-                    )]);
-                }
-                if self.usb_midi_out_enabled {
-                    return Ok(vec![store_error(
-                        "USB SD2 transfer blocked while USB MIDI out is enabled".into(),
-                    )]);
-                }
-                if self
-                    .audio
-                    .as_ref()
-                    .map(AudioService::is_recording)
-                    .transpose()?
-                    .unwrap_or(false)
-                {
-                    return Ok(vec![store_error(
-                        "USB SD2 transfer blocked while recording is active".into(),
-                    )]);
-                }
-                self.silence_internal_audio()?;
-                self.panic_external_midi()?;
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::UsbSdTransferStart,
-                )) {
-                    return Ok(vec![store_error(format!(
-                        "USB SD2 transfer start queued failed: {message}"
-                    ))]);
-                }
-                return Ok(Vec::new());
+                return self.start_usb_sd_transfer(request);
             }
             RuntimePlatformEffect::UsbSdTransferStop => {
                 if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
@@ -323,18 +337,10 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 }
             }
             RuntimePlatformEffect::Reboot => {
-                if let Err(error) = self.recovery_save_ready() {
-                    return Ok(vec![identified_failure(request, error)]);
-                }
-                self.power_request = Some(PiPowerRequest::Reboot);
-                return Ok(Vec::new());
+                return self.request_power(request, PiPowerRequest::Reboot);
             }
             RuntimePlatformEffect::Shutdown => {
-                if let Err(error) = self.recovery_save_ready() {
-                    return Ok(vec![identified_failure(request, error)]);
-                }
-                self.power_request = Some(PiPowerRequest::Shutdown);
-                return Ok(Vec::new());
+                return self.request_power(request, PiPowerRequest::Shutdown);
             }
             RuntimePlatformEffect::HardwareTest => {
                 println!("system.hardwareTest requested (planned guided hardware diagnostic)");

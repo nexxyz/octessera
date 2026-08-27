@@ -98,19 +98,7 @@ export function snapshotFromCore(
   oled: OledFrame,
 ): SimulatorSnapshot {
   const settings = frame.settings;
-  const audioRevision = settings?.audioConfigRevision;
-  if (
-    settings &&
-    (cache.audioRevision === undefined ||
-      audioRevision === undefined ||
-      audioRevision !== cache.audioRevision)
-  ) {
-    cache.audioRevision = audioRevision;
-    cache.instruments = settings.instruments ?? [];
-    cache.mixer = settings.mixer ?? { buses: [] };
-    cache.panPositions = settings.panPositions ?? PAN_POSITION_COUNT;
-    cache.masterVolume = settings.masterVolume ?? 100;
-  }
+  refreshRuntimeSnapshotCache(cache, settings);
   const frameWithoutRevision = { ...frame };
   if ('oledFrameRevision' in frameWithoutRevision) {
     delete (frameWithoutRevision as { oledFrameRevision?: unknown })
@@ -134,10 +122,29 @@ export function snapshotFromCore(
     instruments: cache.instruments,
     mixer: cache.mixer,
     panPositions: cache.panPositions,
-    audioConfigRevision: cache.audioRevision,
     autoSaveFlash: settings?.autoSaveFlash ?? 'none',
     autoSaveFlashSerial: settings?.autoSaveFlashSerial,
   };
+}
+
+function refreshRuntimeSnapshotCache(
+  cache: RuntimeSnapshotCache,
+  settings: RuntimeSnapshot['settings'],
+): void {
+  if (!settings) return;
+  const revision = settings.audioConfigRevision;
+  if (
+    cache.audioRevision !== undefined &&
+    revision !== undefined &&
+    revision === cache.audioRevision
+  ) {
+    return;
+  }
+  cache.audioRevision = revision;
+  cache.instruments = settings.instruments ?? [];
+  cache.mixer = settings.mixer ?? { buses: [] };
+  cache.panPositions = settings.panPositions ?? PAN_POSITION_COUNT;
+  cache.masterVolume = settings.masterVolume ?? 100;
 }
 
 export function scaleNeoKeyLeds(

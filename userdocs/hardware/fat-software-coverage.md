@@ -42,4 +42,5 @@ Use remaining manual time only for a distinct representative path, such as:
 
 Mark software `FAIL` only when an automated command fails or the integrated spot
 check contradicts it. Mark subjective musical quality or unsupported physical
-evidence `OPERATOR_REQUIRED`, never automated pass.
+evidence `NOT RUN — operator observation required`, never automated pass. Reserve
+`operator_required` for the harness JSON report.

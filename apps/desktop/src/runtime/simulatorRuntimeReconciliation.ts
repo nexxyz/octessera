@@ -14,9 +14,13 @@ import {
   createOledFrameCache,
   ingestOledFrame,
   markOledFrameFault,
+  type OledFrameCache,
   type OledFrameCacheFault,
 } from './oledFrameCache';
-import { createOledAsyncReferenceGrace } from './oledAsyncReferenceGrace';
+import {
+  createOledAsyncReferenceGrace,
+  type OledAsyncReferenceGrace,
+} from './oledAsyncReferenceGrace';
 import {
   createInitialRuntimeSnapshot,
   createRuntimeSnapshotCache,
@@ -69,27 +73,19 @@ export function createRuntimeReconciliation(
     message: RuntimeOledFrameMessage,
     allowAsyncOledSplit: boolean,
   ): void {
-    const completesPendingReference =
-      allowAsyncOledSplit &&
-      oledAsyncReferenceGrace.canComplete(message.revision) &&
-      message.revision > oledFrameCache.acceptedRevision &&
-      oledFrameCache.candidateRevision <= message.revision;
+    const completesPendingReference = canCompleteOledReference(
+      oledAsyncReferenceGrace,
+      oledFrameCache,
+      message.revision,
+      allowAsyncOledSplit,
+    );
     ingestOledFrame(oledFrameCache, message);
     if (completesPendingReference) {
-      if (
-        oledFrameCache.candidateRevision === message.revision &&
-        oledFrameCache.candidatePixels !== null
-      ) {
-        acceptOledFrameReference(oledFrameCache, message.revision);
-      }
-      if (
-        oledFrameCache.acceptedRevision === message.revision &&
-        oledFrameCache.fault === null
-      ) {
-        oledAsyncReferenceGrace.complete(message.revision);
-      } else {
-        oledAsyncReferenceGrace.cancel();
-      }
+      completeOledAsyncReference(
+        oledAsyncReferenceGrace,
+        oledFrameCache,
+        message.revision,
+      );
     } else if (!allowAsyncOledSplit && oledAsyncReferenceGrace.hasPending()) {
       oledAsyncReferenceGrace.cancel();
     } else if (
@@ -176,4 +172,32 @@ export function createRuntimeReconciliation(
       visibleOledFrameFault = oledFrameCache.fault;
     },
   };
+}
+
+function canCompleteOledReference(
+  grace: OledAsyncReferenceGrace,
+  cache: OledFrameCache,
+  revision: number,
+  allowAsyncOledSplit: boolean,
+): boolean {
+  return (
+    allowAsyncOledSplit &&
+    grace.canComplete(revision) &&
+    revision > cache.acceptedRevision &&
+    cache.candidateRevision <= revision
+  );
+}
+
+function completeOledAsyncReference(
+  grace: OledAsyncReferenceGrace,
+  cache: OledFrameCache,
+  revision: number,
+): void {
+  if (cache.candidateRevision === revision && cache.candidatePixels !== null)
+    acceptOledFrameReference(cache, revision);
+  if (cache.acceptedRevision === revision && cache.fault === null) {
+    grace.complete(revision);
+  } else {
+    grace.cancel();
+  }
 }

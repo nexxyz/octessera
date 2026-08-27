@@ -7,8 +7,8 @@ use crate::oled_frame_cache::{OledFrameCache, OledFramePublication};
 use crate::orange_audio::OrangeAudioHost;
 use crate::orange_device_apply::OrangeShutdownRequest;
 use crate::platform_service::{
-    dispatch_midi_effect, dispatch_shared_effect, enqueue_job, PiPlatformService, PlatformJob,
-    PlatformJobKind, QueueFailureStyle,
+    dispatch_midi_effect, dispatch_shared_effect, enqueue_job, usb_sd_transfer_output_block_reason,
+    PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
 };
 use playback_runtime::{
     DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError,
@@ -197,6 +197,45 @@ impl OrangeHostAdapter {
             },
         }]
     }
+
+    fn request_power(
+        &mut self,
+        request: &RuntimePlatformRequest,
+        shutdown_request: OrangeShutdownRequest,
+    ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if let Err(error) = self.recovery_save_ready() {
+            return Ok(vec![failure_message(request, error)]);
+        }
+        self.shutdown_request = Some(shutdown_request);
+        Ok(Vec::new())
+    }
+
+    fn start_usb_sd_transfer(
+        &mut self,
+        request: &RuntimePlatformRequest,
+    ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if let Some(reason) = usb_sd_transfer_output_block_reason(
+            self.audio.usb_output_enabled(),
+            self.midi.usb_midi_out_enabled(),
+        ) {
+            return Ok(vec![failure_message(request, reason.into())]);
+        }
+        if self.audio.is_recording()? {
+            return Ok(vec![failure_message(
+                request,
+                "USB SD2 transfer blocked while recording is active".into(),
+            )]);
+        }
+        self.silence_internal_audio()?;
+        self.panic_external_midi()?;
+        Ok(enqueue_job(
+            &self.platform_service,
+            request,
+            PlatformJobKind::UsbSdTransferStart,
+            QueueFailureStyle::Orange,
+            "USB SD2 transfer start".into(),
+        ))
+    }
 }
 
 impl HostAdapter for OrangeHostAdapter {
@@ -242,12 +281,6 @@ impl HostAdapter for OrangeHostAdapter {
                 RuntimeStoreResult::LoadDefaultResult { payload }
             }
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
-                if self.shutdown_pending() {
-                    return Ok(vec![failure_message(
-                        request,
-                        "Orange shutdown request is already pending".into(),
-                    )]);
-                }
                 if self.platform_service.store_writes_blocked() {
                     return Ok(vec![failure_message(
                         request,
@@ -293,12 +326,6 @@ impl HostAdapter for OrangeHostAdapter {
                 }
             }
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
-                if self.shutdown_pending() {
-                    return Ok(vec![failure_message(
-                        request,
-                        "Orange shutdown request is already pending".into(),
-                    )]);
-                }
                 self.pending_default_save.cancel();
                 self.pending_default_save_generation = None;
                 let transaction = self
@@ -309,30 +336,10 @@ impl HostAdapter for OrangeHostAdapter {
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::Reboot => {
-                if self.shutdown_pending() {
-                    return Ok(vec![failure_message(
-                        request,
-                        "Orange shutdown request is already pending".into(),
-                    )]);
-                }
-                if let Err(error) = self.recovery_save_ready() {
-                    return Ok(vec![failure_message(request, error)]);
-                }
-                self.shutdown_request = Some(OrangeShutdownRequest::Reboot);
-                return Ok(Vec::new());
+                return self.request_power(request, OrangeShutdownRequest::Reboot);
             }
             RuntimePlatformEffect::Shutdown => {
-                if self.shutdown_pending() {
-                    return Ok(vec![failure_message(
-                        request,
-                        "Orange shutdown request is already pending".into(),
-                    )]);
-                }
-                if let Err(error) = self.recovery_save_ready() {
-                    return Ok(vec![failure_message(request, error)]);
-                }
-                self.shutdown_request = Some(OrangeShutdownRequest::Shutdown);
-                return Ok(Vec::new());
+                return self.request_power(request, OrangeShutdownRequest::Shutdown);
             }
             RuntimePlatformEffect::MidiPanic => {
                 self.silence_internal_audio()?;
@@ -352,33 +359,7 @@ impl HostAdapter for OrangeHostAdapter {
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::UsbSdTransferStart => {
-                if self.audio.usb_output_enabled() {
-                    return Ok(vec![failure_message(
-                        request,
-                        "USB SD2 transfer blocked while USB audio out is active".into(),
-                    )]);
-                }
-                if self.midi.usb_midi_out_enabled() {
-                    return Ok(vec![failure_message(
-                        request,
-                        "USB SD2 transfer blocked while USB MIDI out is enabled".into(),
-                    )]);
-                }
-                if self.audio.is_recording()? {
-                    return Ok(vec![failure_message(
-                        request,
-                        "USB SD2 transfer blocked while recording is active".into(),
-                    )]);
-                }
-                self.silence_internal_audio()?;
-                self.panic_external_midi()?;
-                return Ok(enqueue_job(
-                    &self.platform_service,
-                    request,
-                    PlatformJobKind::UsbSdTransferStart,
-                    QueueFailureStyle::Orange,
-                    "USB SD2 transfer start".into(),
-                ));
+                return self.start_usb_sd_transfer(request);
             }
             RuntimePlatformEffect::UsbSdTransferStop => {
                 return Ok(enqueue_job(

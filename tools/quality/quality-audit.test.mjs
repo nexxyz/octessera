@@ -59,10 +59,14 @@ const runAudit = (root) =>
     encoding: "utf8",
   });
 
+const withRequiredAssets = (root) => {
+  for (const asset of REQUIRED_ASSETS) writeFile(root, asset, "");
+};
+
 test("quality audit includes owned script extensions and excludes generated artifacts", () => {
   const root = mkdtempSync(join(tmpdir(), "octessera-quality-audit-"));
   try {
-    for (const asset of REQUIRED_ASSETS) writeFile(root, asset, "");
+    withRequiredAssets(root);
     for (const extension of INCLUDED_EXTENSIONS)
       writeFile(root, `src/included${extension}`, "source\n");
     writeFile(root, "src/shebang-script", "#!/bin/sh\nsource\n");
@@ -109,6 +113,111 @@ test("quality audit includes owned script extensions and excludes generated arti
     assert.match(failing.stderr, /src\/exact-500\.py/);
     assert.match(failing.stderr, /src\/exact-500-no-newline\.sh/);
     assert.doesNotMatch(failing.stderr, /excluded/);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("Rust question marks do not enter the JavaScript/TypeScript complexity inventory", () => {
+  const root = mkdtempSync(join(tmpdir(), "octessera-quality-audit-"));
+  try {
+    withRequiredAssets(root);
+    writeFile(
+      root,
+      "src/rust-question-marks.rs",
+      [
+        "fn rust_question_marks(value: usize) {",
+        ...Array.from({ length: 11 }, () => "  let _value = value?;"),
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runAudit(root);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /JavaScript\/TypeScript functions over enforced complexity limit \(> 10\): 0/,
+    );
+    assert.doesNotMatch(result.stdout, /rust-question-marks\.rs:.*complexity=/);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("quality audit prints every JavaScript/TypeScript complexity finding", () => {
+  const root = mkdtempSync(join(tmpdir(), "octessera-quality-audit-"));
+  try {
+    withRequiredAssets(root);
+    const source = Array.from(
+      { length: 21 },
+      (_, index) =>
+        `function complex${index}(value) { ${Array.from(
+          { length: 10 },
+          () => "if (value) {}",
+        ).join(" ")} }`,
+    ).join("\n");
+    writeFile(root, "src/many-complex-functions.js", source);
+
+    const result = runAudit(root);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(
+      result.stdout,
+      /JavaScript\/TypeScript functions over enforced complexity limit \(> 10\): 21/,
+    );
+    assert.equal(
+      (result.stdout.match(/many-complex-functions\.js:.*complexity=11/g) || [])
+        .length,
+      21,
+    );
+    assert.match(result.stdout, /many-complex-functions\.js:1 complex0\(\)/);
+    assert.match(result.stdout, /many-complex-functions\.js:21 complex20\(\)/);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("quality audit reports complexity and file-length failures together", () => {
+  const root = mkdtempSync(join(tmpdir(), "octessera-quality-audit-"));
+  try {
+    withRequiredAssets(root);
+    writeFile(
+      root,
+      "src/complex.js",
+      `function complex(value) { ${Array.from(
+        { length: 10 },
+        () => "if (value) {}",
+      ).join(" ")} }\n`,
+    );
+    writeFile(root, "src/too-long.py", sourceWithLines(".py"));
+
+    const result = runAudit(root);
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /Quality audit failed: 1 JavaScript\/TypeScript function\(s\) exceed the enforced > 10 complexity limit\./,
+    );
+    assert.match(
+      result.stderr,
+      /Quality audit failed: 1 file\(s\) exceed the enforced > 500 LOC limit\./,
+    );
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("JavaScript/TypeScript AST parse failure is fatal and file-specific", () => {
+  const root = mkdtempSync(join(tmpdir(), "octessera-quality-audit-"));
+  try {
+    withRequiredAssets(root);
+    writeFile(root, "src/broken.ts", "function broken() { return ???; }\n");
+
+    const result = runAudit(root);
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /Quality audit failed: Babel AST parse failed for JavaScript\/TypeScript file src\/broken\.ts:/,
+    );
+    assert.doesNotMatch(result.stderr, /approximate JavaScript regex scanner/);
   } finally {
     rmSync(root, { force: true, recursive: true });
   }

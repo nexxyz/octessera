@@ -150,8 +150,10 @@ test("runtime contract fixtures cover each host and runner message class", () =>
       (message) => message.type === "runtime_status",
     );
     if (oledIndex >= 0) {
-      assert.ok(snapshotIndex >= 0 && statusIndex >= 0);
-      assert.ok(oledIndex < snapshotIndex && snapshotIndex < statusIndex);
+      assert.ok(snapshotIndex >= 0);
+      assert.ok(statusIndex >= 0);
+      assert.ok(oledIndex < snapshotIndex);
+      assert.ok(snapshotIndex < statusIndex);
     }
   }
 });

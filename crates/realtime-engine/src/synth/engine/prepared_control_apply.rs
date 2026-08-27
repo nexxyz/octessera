@@ -40,18 +40,18 @@ impl SynthEngine {
         self.pan_positions = prepared.pan_positions;
         self.master_volume = prepared.master_volume;
         for (index, slot) in prepared.slots.iter().enumerate() {
-            self.slot_kind[index] = slot.kind;
-            if slot.kind == InstrumentKind::Synth {
-                self.instruments[index] = slot.synth;
-                self.synth_render_configs[index] = slot.render_config;
-                self.synth_render_revisions[index] =
-                    self.synth_render_revisions[index].wrapping_add(1);
-            }
-            if let Some(route) = slot.route {
-                self.slot_route[index] = route;
-                self.slot_pan_pos[index] = slot.pan_pos.min(self.pan_positions - 1);
-                self.slot_volume[index] = slot.volume;
-            }
+            self.apply_normalized_instrument_slot(
+                index,
+                slot.kind,
+                slot.synth,
+                slot.render_config,
+                slot.route
+                    .map(|route| super::control::NormalizedInstrumentMixer {
+                        route,
+                        pan_pos: slot.pan_pos.min(self.pan_positions - 1),
+                        volume: slot.volume,
+                    }),
+            );
         }
         for index in 0..INSTRUMENT_SLOT_COUNT {
             self.slot_pan_gains[index] =
@@ -133,16 +133,21 @@ impl SynthEngine {
         if index >= INSTRUMENT_SLOT_COUNT {
             return retired;
         }
-        self.slot_kind[index] = prepared.kind;
-        if prepared.kind == InstrumentKind::Synth {
-            self.instruments[index] = prepared.synth;
-            self.synth_render_configs[index] = prepared.render_config;
-            self.synth_render_revisions[index] = self.synth_render_revisions[index].wrapping_add(1);
-        }
-        if let Some(route) = prepared.route {
-            self.slot_route[index] = route;
-            self.slot_pan_pos[index] = prepared.pan_pos.min(self.pan_positions - 1);
-            self.slot_volume[index] = prepared.volume;
+        let has_mixer = prepared.route.is_some();
+        self.apply_normalized_instrument_slot(
+            index,
+            prepared.kind,
+            prepared.synth,
+            prepared.render_config,
+            prepared
+                .route
+                .map(|route| super::control::NormalizedInstrumentMixer {
+                    route,
+                    pan_pos: prepared.pan_pos.min(self.pan_positions - 1),
+                    volume: prepared.volume,
+                }),
+        );
+        if has_mixer {
             self.slot_pan_gains[index] =
                 super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
         }

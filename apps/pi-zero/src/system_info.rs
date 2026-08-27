@@ -81,8 +81,8 @@ fn primary_ip() -> Option<String> {
 pub(crate) fn regular_wlan0_ipv4() -> Result<RegularWlan0Ipv4, String> {
     #[cfg(target_os = "linux")]
     {
-        return select_wlan0_ipv4(&interface_ipv4_candidates())
-            .ok_or_else(|| "regular wlan0 IPv4 address is unavailable".into());
+        select_wlan0_ipv4(&interface_ipv4_candidates())
+            .ok_or_else(|| "regular wlan0 IPv4 address is unavailable".into())
     }
     #[cfg(not(target_os = "linux"))]
     {

@@ -33,18 +33,15 @@ use std::time::{Duration, Instant};
 mod handoff;
 #[path = "orange_lifecycle.rs"]
 mod lifecycle;
-#[path = "orange_loop_profile.rs"]
-mod loop_profile;
 #[path = "orange_runtime_loop.rs"]
 mod runtime_loop;
 #[path = "orange_signal.rs"]
 mod signal;
 #[path = "orange_runtime_startup.rs"]
 mod startup;
-use loop_profile::OrangeLoopProfile;
-pub(crate) use runtime_loop::{
-    dispatch, drain_host_results, process_runtime_output, run_prepared_runtime,
-};
+#[cfg(test)]
+pub(crate) use runtime_loop::drain_host_results;
+pub(crate) use runtime_loop::{dispatch, process_runtime_output, run_prepared_runtime};
 pub(crate) use startup::{
     prepare_runtime, publish_prepared_acknowledged_snapshot, wait_for_initial_audio_prep,
     OrangeStartupReadinessGate, PreparedRuntime,

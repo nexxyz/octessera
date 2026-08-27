@@ -8,7 +8,7 @@
   "mutation_authority": "none",
   "selected_initramfs_regeneration": "required",
   "source_inputs": [
-    {"path": "apps/pi-zero/src/main.rs", "sha256": "5b662eef9b3b4fae4899d2ac8914972157fc29896b4107ae6380ab1f38abd800", "size": 11828},
+    {"path": "apps/pi-zero/src/main.rs", "sha256": "ef1b91fbb934475a69e83ce57d47c66a6abf4037f3fc4d641e4dc0eee863f79a", "size": 11927},
     {"path": "apps/pi-zero/src/boot_startup_delayed.rs", "sha256": "47dc7373b732aa241760c96288dfe9bf608baa367f8c4765a1f0303e071bcca0", "size": 8034},
     {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/install-rpi-kernel.py", "sha256": "d11d0bb4cccab96c10124ca65868cc509ef81979c1f95218808bef7301df038f", "size": 20317},
     {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/sbin/octessera-finalize-rpi-kernel", "sha256": "363cee7553a75c5a72654b55922afb21a09d591a15c336bc63017548a0208607", "size": 204},
@@ -31,7 +31,7 @@
     {"path": "tools/samples/sample_library.py", "sha256": "b23ee501d0c200ac8bdd68fede900ff55442be0e7a891ff0c190c2cb75fcef33", "size": 13680},
     {"path": "samples/ATTRIBUTIONS.tsv", "sha256": "8f5e9f22443d88c46809dd8eb29127d7a72b515f18699b8d1a2a06331c842fda", "size": 182030},
     {"path": "config/generated/pi/default.json", "sha256": "c076628ca5240ff82c63cdaa0886e9bb0828b9e1cd02188498251cc474f018ce", "size": 83596},
-    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "b342ea39da8dcfd6f725fa377084d439a1b624d79c216ffc345cc7e69286a6bc", "size": 3821},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "6256f8b88cc32489aa798ee1ae83f73160686e7b1b5b7c982597043e8049cf8f", "size": 3087},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget", "sha256": "9eee1706f8c8bb76186fc4d0068161cffe2fcc27916acfd2e31ca6f67a8f3c05", "size": 15429},
     {"path": "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh", "sha256": "66ffb10711281497ea0114c1d41741070d395ea33e890aa18da4c1246c0d0ab4", "size": 2440},
     {"path": "tools/pi-image/stage4-octessera/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},

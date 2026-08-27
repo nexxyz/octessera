@@ -87,7 +87,6 @@ export type RuntimeSnapshotFields = {
   runtimeError?: RuntimeErrorMetadata;
 };
 
-export type LedCell = { r: number; g: number; b: number };
 export const GRID_DOMAIN = createGridDomain(GRID_WIDTH, GRID_HEIGHT);
 
 export type LedMatrixFrame = {
@@ -104,10 +103,10 @@ export type NeoKeyLeds = {
   fn: [number, number, number];
 };
 
-export type HdmiMode =
+type HdmiMode =
   "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors";
 
-export type HdmiSnapshot = {
+type HdmiSnapshot = {
   mode: HdmiMode;
   showGridlines: boolean;
   cycleMeasures: number;

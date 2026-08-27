@@ -1,4 +1,4 @@
-use super::{derive_bus_name, legacy_derive_bus_name, NativeFxBus, Value};
+use super::{NativeFxBus, Value};
 
 pub(super) fn apply_mixer_payload(
     runtime: &Value,
@@ -75,13 +75,7 @@ pub(super) fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus, bpm: 
         bus.auto_name = auto_name;
     }
     if let Some(name) = payload.get("name").and_then(Value::as_str) {
-        if bus.auto_name && name == legacy_derive_bus_name(bus) {
-            bus.name = derive_bus_name(bus);
-        } else {
-            bus.name = name.into();
-        }
-    } else if bus.auto_name {
-        bus.name = derive_bus_name(bus);
+        bus.name = name.into();
     }
 }
 

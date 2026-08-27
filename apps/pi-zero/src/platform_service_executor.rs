@@ -172,7 +172,7 @@ fn run_orange_storage_command(action: &str) -> RuntimeStoreResult {
         if response.len() > 512 {
             return store_error("USB SD2 transfer response exceeded the fixed limit".into());
         }
-        return parse_orange_storage_response(action, &response);
+        parse_orange_storage_response(action, &response)
     }
     #[cfg(not(unix))]
     store_error("Orange SD2 transfer requires the fixed Unix storage socket".into())
