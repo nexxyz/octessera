@@ -108,6 +108,14 @@ contract, not from a trusted-parent respin:
 4. Preserve image, source hashes, selected boot outputs, and proof logs. Only
    then perform the physical loop in [`../open-work.md`](../open-work.md).
 
+## Fresh full board image dispatch
+
+`release-board-artifacts.yml` can be called by the release workflow or dispatched
+directly with the required `tag`, `version`, and exact `source_sha` inputs. A
+direct dispatch builds both complete production images, for Raspberry and Orange,
+from that commit and uploads Actions artifacts only. It does not create, update,
+or publish a release or modify release assets.
+
 ## Phase 5 OLED boot layer
 
 Run these source and contract checks before an image build:
