@@ -141,7 +141,7 @@ expect_failure() {
 build_dir="$work/build"
 capture_dir="$work/capture"
 make_build "$build_dir"
-PATH="$fake_bin:$PATH" REAL_GIT="$real_git" "$prepare" "$build_dir" "$capture_dir"
+PATH="$fake_bin:$PATH" REAL_GIT="$real_git" bash "$prepare" "$build_dir" "$capture_dir"
 expected_argv="$work/expected-compile.argv"
 cat > "$expected_argv" <<'EOF'
 artifact-config-dump-json
@@ -168,23 +168,23 @@ if grep -qF -- 'KERNELBRANCH' "$build_dir/compile.argv"; then
   exit 1
 fi
 
-expect_failure reused-capture env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" "$prepare" "$build_dir" "$capture_dir"
-expect_failure unsafe-capture env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" "$prepare" "$build_dir" "$build_dir/capture"
+expect_failure reused-capture env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" bash "$prepare" "$build_dir" "$capture_dir"
+expect_failure unsafe-capture env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" bash "$prepare" "$build_dir" "$build_dir/capture"
 
 bad_source_build="$work/bad-source-build"
 bad_source_capture="$work/bad-source-capture"
 make_build "$bad_source_build"
-expect_failure bad-source env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" SOURCE_MODE=bad "$prepare" "$bad_source_build" "$bad_source_capture"
+expect_failure bad-source env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" SOURCE_MODE=bad bash "$prepare" "$bad_source_build" "$bad_source_capture"
 
 wrong_source_build="$work/wrong-source-build"
 wrong_source_capture="$work/wrong-source-capture"
 make_build "$wrong_source_build"
-expect_failure wrong-source env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" SOURCE_MODE=wrong "$prepare" "$wrong_source_build" "$wrong_source_capture"
+expect_failure wrong-source env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" SOURCE_MODE=wrong bash "$prepare" "$wrong_source_build" "$wrong_source_capture"
 
 bad_head_build="$work/bad-head-build"
 bad_head_capture="$work/bad-head-capture"
 make_build "$bad_head_build"
-expect_failure bad-head env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" FAKE_HEAD=0123456789012345678901234567890123456789 "$prepare" "$bad_head_build" "$bad_head_capture"
+expect_failure bad-head env PATH="$fake_bin:$PATH" REAL_GIT="$real_git" FAKE_HEAD=0123456789012345678901234567890123456789 bash "$prepare" "$bad_head_build" "$bad_head_capture"
 
 printf '%s %s %s\n' 26.11.0-trunk.22 arm64 6.18.46-current-sunxi64 > "$work/dpkg.mode"
 make_post_output() {
@@ -201,7 +201,7 @@ make_post_output() {
 }
 
 run_capture() {
-  PATH="$fake_bin:$PATH" REAL_GIT="$real_git" FAKE_DPKG_MODE_FILE="$work/dpkg.mode" "$capture" "$build_dir" "$captured_lock" "$build_dir/output/bootstrap-evidence"
+  PATH="$fake_bin:$PATH" REAL_GIT="$real_git" FAKE_DPKG_MODE_FILE="$work/dpkg.mode" bash "$capture" "$build_dir" "$captured_lock" "$build_dir/output/bootstrap-evidence"
 }
 
 make_post_output
