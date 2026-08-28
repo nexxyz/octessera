@@ -262,6 +262,10 @@ repo="$TMP/sc12"
 make_repo "$repo"
 mkdir -p "$repo/tools/quality"
 cp "$RUNNER" "$repo/tools/quality/pre-push.sh"
+mkdir -p "$repo/node_modules"
+printf 'checkout fixture\n' > "$repo/node_modules/placeholder"
+git -C "$repo" add node_modules/placeholder
+git -C "$repo" commit -q -m "add checkout dependency fixture"
 printf 'dirty\n' >> "$repo/README.md"
 PRE_BEFORE="$(snapshot "$repo")"
 set +e
