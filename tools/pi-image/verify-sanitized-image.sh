@@ -221,15 +221,15 @@ require_wifi_foundation() {
             require_path "$path" "patched wifi-connect documentation path"
             require_root_mode "$path" 644
         done
-        echo "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc  $WORK_DIR/root/usr/local/bin/wifi-connect" | sha256sum -c - >/dev/null 2>&1 || {
+        echo "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627  $WORK_DIR/root/usr/local/bin/wifi-connect" | sha256sum -c - >/dev/null 2>&1 || {
             echo "Sanitation check failed: patched wifi-connect binary has the wrong SHA-256" >&2
             exit 1
         }
-        grep -qF '"binary_sha256": "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
+        grep -qF '"binary_sha256": "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
             echo "Sanitation check failed: patched wifi-connect metadata has the wrong binary SHA-256" >&2
             exit 1
         }
-        grep -qF '"patch_sha256": "3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
+        grep -qF '"patch_sha256": "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
             echo "Sanitation check failed: patched wifi-connect metadata has the wrong patch SHA-256" >&2
             exit 1
         }

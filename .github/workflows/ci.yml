@@ -465,6 +465,7 @@ jobs:
           python3 tools/image-respin/test_workflow_records.py
           python3 tools/image-respin/test_setup_workflow_records.py
           python3 tools/image-respin/test_workflow_static.py
+          python3 tools/image-respin/test_qualified_release_routing.py
 
   updater_protocol:
     name: Device updater protocol checks

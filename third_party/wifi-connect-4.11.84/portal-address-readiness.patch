@@ -293,3 +293,32 @@ diff --git a/src/network.rs b/src/network.rs
 +        assert!(error.to_string().contains("192.168.42.1:80"));
 +    }
 +}
+diff --git a/src/server.rs b/src/server.rs
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -131,6 +131,19 @@ impl AfterMiddleware for RedirectMiddleware {
+ 
+         Err(err)
+     }
+ }
++
++struct NoStoreMiddleware;
++
++impl AfterMiddleware for NoStoreMiddleware {
++    fn after(&self, _req: &mut Request, mut response: Response) -> IronResult<Response> {
++        if response.status == Some(status::Ok) {
++            response
++                .headers
++                .set(headers::CacheControl(vec![headers::CacheDirective::NoStore]));
++        }
++        Ok(response)
++    }
++}
+ 
+ pub fn start_server(
+@@ -165,4 +165,5 @@ pub fn start_server(
+     let mut chain = Chain::new(assets);
+     chain.link(Write::<RequestSharedState>::both(request_state));
+     chain.link_after(RedirectMiddleware);
++    chain.link_after(NoStoreMiddleware);
+     chain.link_around(cors_middleware);

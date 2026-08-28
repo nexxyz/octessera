@@ -11,7 +11,7 @@ UI_ROOTS = (
 )
 EXPECTED_FILES = {"README.md", "index.html", "js/app.js", "css/styles.css", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
 UI_FILES = [{path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()} for root in UI_ROOTS]
-assert all(files == EXPECTED_FILES for files in UI_FILES)
+assert UI_FILES[0] == UI_FILES[1] == EXPECTED_FILES
 SHARED_UI_BYTES = {relative: [(root / relative).read_bytes() for root in UI_ROOTS] for relative in sorted(EXPECTED_FILES)}
 for relative, contents in SHARED_UI_BYTES.items():
     assert contents[0] == contents[1], relative
@@ -50,8 +50,15 @@ for root in UI_ROOTS:
     assert "html, body { width: 100%; margin: 0; min-height: 100%; }" in styles
     assert ".shell {\n  width: calc(100% - 1rem);\n  max-width: 900px;" in styles
     assert "width: min(100vw - 0.75rem, 900px)" not in styles
-    assert ".network-item {\n  display: grid;\n  grid-template-columns: auto minmax(0, 1fr);\n  gap: 0.75rem;\n  align-items: start;\n}" in styles
-    assert ".network-item input, .choice input {\n  min-width: 1.25rem;\n  min-height: 1.25rem;\n  width: 1.25rem;\n  height: 1.25rem;\n}" in styles and ".network-copy { display: block; min-width: 0; overflow: hidden; }" in styles
+    assert ".network-item {\n  position: relative;\n  display: grid;\n  grid-template-columns: 1.25rem minmax(0, 1fr);\n  gap: 0.75rem;\n  align-items: start;\n}" in styles
+    assert ".network-radio {\n  position: absolute;" in styles
+    assert "clip-path: inset(50%);" in styles
+    assert ".network-radio-mark {\n  display: grid;" in styles
+    assert ".network-radio:checked + .network-radio-mark::after { transform: scale(1); }" in styles
+    assert ".network-radio:focus-visible + .network-radio-mark {" in styles
+    assert ".network-item.is-selected {" in styles
+    assert ".choice > span { min-width: 0; overflow-wrap: anywhere; }" in styles
+    assert ".network-copy { display: block; min-width: 0; overflow: hidden; }" in styles
     assert ".network-meta { display: block; max-width: 100%;" in styles
     assert ".field-header > * { min-width: 0; }" in styles
     assert ".field-header .link { width: 100%; }" in styles
@@ -71,6 +78,26 @@ for root in UI_ROOTS:
     assert "manualSsid" in html and "manually" in app
     assert "title=\"${escapeHtml(network.ssid)}\"" in app
     assert "aria-label=\"Select ${escapeHtml(network.ssid)}\"" in app
+    assert "class=\"network-radio\" type=\"radio\" name=\"ssidChoice\"" in app
+    assert "class=\"network-radio\"" in app and "class=\"network-radio-mark\" aria-hidden=\"true\"" in app
+    assert "!state.manualSsid && state.selectedSsid === network.ssid ? ' is-selected' : ''" in app
+    assert "const effectiveSsid = () => state.manualSsid || state.selectedSsid;" in app
+    assert "if (!effectiveSsid())" in app and "ssid: effectiveSsid()," in app
+    selection_start = app.index("if (target.name === 'ssidChoice') {")
+    selection_end = app.index("render();", selection_start)
+    selection = app[selection_start:selection_end]
+    assert selection.index("els.manualSsid.value = '';") < selection.index("state.manualSsid = '';") < selection.index("state.selectedSsid = target.value;")
+    assert app.index("els.manualSsid.value = '';", selection_start) < selection_end
+    assert "const clearScannedSelection = () =>" in app
+    assert "input.checked = false;" in app
+    assert "if (event.target.id === 'manualSsid' && state.manualSsid) {\n      clearScannedSelection();" in app
+    assert "if (event.target.matches('input[name=\"ssidChoice\"]')) {\n      return;\n    }\n    syncStateFromInputs();" in app
+    assert "const focusSelectedNetwork = () =>" in app
+    assert "Array.from(els.networkList.querySelectorAll('input[name=\"ssidChoice\"]')).find((input) => input.value === state.selectedSsid)" in app
+    assert "radio.focus({ preventScroll: true });" in app and "radio.focus();" in app
+    scanned_change = app.index("if (target.name === 'ssidChoice') {")
+    assert app.index("render();\n      focusSelectedNetwork();", scanned_change) < app.index("return;", scanned_change)
+    assert app.count("focusSelectedNetwork();") == 1
     for text in ("Locked", "Open", "Strong", "Fair", "Weak", " signal"):
         assert text in app
     assert "minlength=\"8\"" in html
@@ -95,6 +122,12 @@ for root in UI_ROOTS:
     applying = app.index("els.form.hidden = true")
     assert stage < applying < connect
     assert app.count("fetch(API.connect") == 1
+    assert "const stageFailureMessage = async (response) =>" in app
+    assert "if (response.status !== 400)" in app
+    assert "const payload = await response.json();" in app
+    assert "payload?.error === 'invalid_input'" in app
+    assert "els.errors.textContent = await stageFailureMessage(stageResponse);" in app
+    assert "Setup stage failed (HTTP ${response.status})." in app
     for text in (
         "Applying Wi-Fi country…",
         "Scanning for nearby Wi-Fi networks…",

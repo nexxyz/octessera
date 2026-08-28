@@ -186,6 +186,8 @@ class Coordinator:
 
     def stage(self, value):
         if self.staged is not None:
+            if value == self.staged:
+                return
             raise ValueError("stage already received")
         self.staged_at = self.clock()
         self.staged = dict(value)

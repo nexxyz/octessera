@@ -20,10 +20,11 @@ git -C "$source_root" apply --check "$patch_path"
 git -C "$source_root" apply "$patch_path"
 changed_files="$(git -C "$source_root" diff --name-only HEAD)"
 test "$changed_files" = "src/errors.rs
-src/network.rs"
+src/network.rs
+src/server.rs"
 
 patch_sha256="$(sha256sum "$patch_path" | cut -d ' ' -f 1)"
-test "$patch_sha256" = 3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939
+test "$patch_sha256" = c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6
 
 dpkg --add-architecture arm64
 apt-get update
@@ -64,7 +65,7 @@ rm -rf "$output_root/source/.git"
 cp "$output_root/cargo-metadata.json" "$output_root/source/cargo-metadata.json"
 
 binary_sha256="$(sha256sum "$output_root/wifi-connect" | cut -d ' ' -f 1)"
-test "$binary_sha256" = 929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc
+test "$binary_sha256" = 4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627
 rustc_version="$(rustc --version)"
 cargo_version="$(cargo --version)"
 python3 - "$output_root/wifi-connect.metadata.json" "$patch_sha256" "$binary_sha256" "$rustc_version" "$cargo_version" "$target" "$container_image" <<'PY'

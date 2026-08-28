@@ -9,6 +9,7 @@ pub(super) const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x1472_784E_157A_10A5;
 pub(super) const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0x67F4_248A_C2B9_8D85;
 pub(super) const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0x1662_9A94_8669_A771;
 pub(super) const GLYPH_SYMBOLS_FNV1A64: u64 = 0x9416_2B3D_DEEE_A9EF;
+pub(super) const GLYPH_AMPERSAND_FNV1A64: u64 = 0xF63F_9719_EF1D_73C1;
 
 pub(super) const GLYPH_FIXTURES: &[GlyphFixture] = &[
     GlyphFixture {
@@ -43,6 +44,10 @@ pub(super) const GLYPH_FIXTURES: &[GlyphFixture] = &[
         name: "glyph-symbols",
         text: "▶■●|",
     },
+    GlyphFixture {
+        name: "glyph-ampersand",
+        text: "&",
+    },
 ];
 
 pub(super) struct GlyphFixture {
@@ -73,7 +78,7 @@ pub(super) fn assert_glyph_fixture_coverage() {
 }
 
 const DEFINED_GLYPHS: &str =
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz:.-*+/()_#@><[]%!?,\'\"=▶■●|";
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz:.-*+/()_#@><[]%!?,\'\"=&▶■●|";
 
 fn glyph_fixture_position(ch: char) -> Option<(&'static str, usize)> {
     GLYPH_FIXTURES.iter().find_map(|fixture| {
@@ -109,4 +114,9 @@ pub(super) fn glyph_snapshot(fixture: &GlyphFixture) -> Value {
     snapshot["display"]["barValues"] = json!([null, null, null, null, null, null, null]);
     snapshot["selectedRow"] = Value::Null;
     snapshot
+}
+
+#[test]
+fn ampersand_glyph_is_non_empty() {
+    assert_ne!(super::oled::glyph_rows('&'), [0; 7]);
 }

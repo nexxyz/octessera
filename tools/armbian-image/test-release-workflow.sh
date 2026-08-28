@@ -10,6 +10,7 @@ boards="$root/.github/workflows/release-board-artifacts.yml"
 action="$root/.github/actions/build-armbian-image/action.yml"
 bootstrap="$root/.github/workflows/orange-rolling-pin-bootstrap.yml"
 assembler="$root/tools/release/assemble_release_assets.py"
+board_release="$root/tools/release/board_image_release.py"
 desktop_verifier="$root/tools/release/verify_desktop_artifact.py"
 device_packager="$root/tools/device-update/package_device_bundle.py"
 updater_profiles="$root/tools/device-update/updater_profiles.py"
@@ -63,15 +64,6 @@ assert_order() {
 
 assert_contains "$release" 'workflow_dispatch:'
 assert_contains "$boards" 'workflow_call:'
-assert_contains "$boards" 'workflow_dispatch:'
-board_dispatch_block="$(sed -n '/^  workflow_dispatch:/,/^permissions:/p' "$boards")"
-for input in tag version source_sha; do
-    assert_block_contains "$board_dispatch_block" "      $input:"
-done
-[[ "$(grep -cE '^        required: true$' <<< "$board_dispatch_block")" == 3 && "$(grep -cE '^        type: string$' <<< "$board_dispatch_block")" == 3 ]] || {
-    echo 'Board workflow_dispatch inputs must all be required strings.' >&2
-    exit 1
-}
 [[ -f "$bootstrap" ]] || { echo 'Missing Orange rolling-pin bootstrap workflow.' >&2; exit 1; }
 assert_absent "$boards" 'rolling_pin_bootstrap: true'
 assert_absent "$release" 'orange-rolling-pin-bootstrap'
@@ -114,6 +106,8 @@ assert_contains "$release" 'Release version must be an exact semver.'
 assert_contains "$release" 'version=${RELEASE_TAG#v}'
 assert_contains "$release" 'tools/release/check_version_consistency.py --tag "$RELEASE_TAG"'
 assert_contains "$release" 'python3 -m unittest tools.release.test_release_asset_assembly'
+assert_contains "$release" 'python3 -m unittest tools.release.test_board_image_release'
+assert_contains "$release" 'python3 tools/image-respin/test_qualified_release_routing.py'
 assert_absent "$release" 'python3 tools/release/test_release_asset_assembly.py'
 assert_contains "$release" 'git rev-parse "$RELEASE_TAG^{commit}"'
 assert_contains "$release" 'needs: [release_info, updater_protocol, windows, ubuntu, board_artifacts, workflow_static]'
@@ -142,9 +136,9 @@ assert_contains "$release" 'draft_ready: ${{ steps.draft_handoff.outputs.draft_r
 assert_contains "$release" 'manual exact-artifact FAT and human publication'
 assert_absent "$release" 'Publish the verified draft release last'
 assert_contains "$release" 'EXPECTED_RELEASE_ID'
-assert_contains "$assembler" 'KERNEL_MANIFEST = Path("tools/kernel-patches/orange-midi-interface-manifest.json")'
-assert_contains "$assembler" 'def _package_filenames(manifest'
-assert_contains "$assembler" 'Raspberry package declaration'
+assert_contains "$board_release" 'KERNEL_MANIFEST = Path("tools/kernel-patches/orange-midi-interface-manifest.json")'
+assert_contains "$board_release" 'def _package_filenames(manifest'
+assert_contains "$board_release" 'Raspberry package declaration'
 assert_contains "$assembler" 'package_notice_zip(root, notices)'
 assert_contains "$assembler" 'verify_notice_archive(root, portable, "octessera.exe")'
 assert_contains "$assembler" 'device ZIP inventory is not exact'
@@ -369,11 +363,11 @@ assert_contains "$boards" 'for required in "$image" "$image.sha256" "${canonical
 assert_contains "$boards" 'sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}"'
 assert_contains "$release" 'git/ref/tags/$EXPECTED_RELEASE_TAG'
 assert_contains "$release" 'git/tags/$tag_object'
-assert_contains "$assembler" 'expected_native_packages = tuple'
-assert_contains "$assembler" 'source_lock_effective_path'
-assert_contains "$assembler" 'native_name == expected_native'
+assert_contains "$board_release" 'expected_native = tuple'
+assert_contains "$board_release" 'source_lock_effective_path'
+assert_contains "$board_release" 'expected_native_name'
 assert_block_contains "$publisher_dependencies_step" 'sudo apt-get install -y --no-install-recommends cpio device-tree-compiler zstd'
-assert_contains "$assembler" 'kernel_source_repository'
+assert_contains "$board_release" 'kernel_source_repository'
 assert_absent "$release" 'expected_count=28'
 assert_absent "$release" 'release-assets/$prefix-notices.zip'
 assert_absent "$release" 'release-assets/$rpi_kernel_package'

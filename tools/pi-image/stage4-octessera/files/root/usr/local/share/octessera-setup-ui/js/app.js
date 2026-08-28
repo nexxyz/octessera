@@ -69,7 +69,9 @@ const normalizeNetworks = (payload) => {
   return list.map(normalizeNetwork).filter((network) => network.ssid);
 };
 
-const selectedNetwork = () => (state.manualSsid ? undefined : state.networks.find((network) => network.ssid === state.selectedSsid));
+const effectiveSsid = () => state.manualSsid || state.selectedSsid;
+
+const selectedNetwork = () => (state.manualSsid ? undefined : state.networks.find((network) => network.ssid === effectiveSsid()));
 
 const requiresWifiPassword = () => {
   if (state.openNetwork) {
@@ -113,8 +115,9 @@ const renderNetworks = () => {
   const items = state.networks
     .map(
       (network) => `
-        <label class="network-item" title="${escapeHtml(network.ssid)}">
-          <input type="radio" name="ssidChoice" value="${escapeHtml(network.ssid)}" aria-label="Select ${escapeHtml(network.ssid)}" ${!state.manualSsid && state.selectedSsid === network.ssid ? 'checked' : ''} />
+        <label class="network-item${!state.manualSsid && state.selectedSsid === network.ssid ? ' is-selected' : ''}" title="${escapeHtml(network.ssid)}">
+          <input class="network-radio" type="radio" name="ssidChoice" value="${escapeHtml(network.ssid)}" aria-label="Select ${escapeHtml(network.ssid)}" ${!state.manualSsid && state.selectedSsid === network.ssid ? 'checked' : ''} />
+          <span class="network-radio-mark" aria-hidden="true"></span>
           <span class="network-copy">
             <strong class="network-ssid" title="${escapeHtml(network.ssid)}">${escapeHtml(network.ssid)}</strong>
             <span class="network-meta">${escapeHtml(networkMeta(network))}</span>
@@ -139,6 +142,25 @@ const syncStateFromInputs = () => {
   state.sshMode = document.querySelector('input[name="sshMode"]:checked')?.value ?? 'none';
 };
 
+const clearScannedSelection = () => {
+  state.selectedSsid = '';
+  els.networkList.querySelectorAll('input[name="ssidChoice"]').forEach((input) => {
+    input.checked = false;
+  });
+};
+
+const focusSelectedNetwork = () => {
+  const radio = Array.from(els.networkList.querySelectorAll('input[name="ssidChoice"]')).find((input) => input.value === state.selectedSsid);
+  if (!radio) {
+    return;
+  }
+  try {
+    radio.focus({ preventScroll: true });
+  } catch {
+    radio.focus();
+  }
+};
+
 const render = () => {
   renderNetworks();
   els.sshKeyFields.hidden = state.sshMode !== 'key';
@@ -158,7 +180,7 @@ const validationError = () => {
   if (!/^[A-Z]{2}$/.test(state.wifiCountry)) {
     return { field: els.wifiCountry, message: 'Enter a two-letter Wi-Fi country code.' };
   }
-  if (!state.manualSsid && !state.selectedSsid) {
+  if (!effectiveSsid()) {
     return { field: els.manualSsid, message: 'Choose a Wi-Fi network or enter the SSID manually.' };
   }
   if (requiresWifiPassword() && !state.wifiPassphrase) {
@@ -178,10 +200,24 @@ const stagePayload = () => ({
 
 const connectPayload = () =>
   new URLSearchParams({
-    ssid: state.manualSsid || state.selectedSsid,
+    ssid: effectiveSsid(),
     identity: '',
     passphrase: state.openNetwork ? '' : state.wifiPassphrase,
   });
+
+const stageFailureMessage = async (response) => {
+  const statusMessage = `Setup stage failed (HTTP ${response.status}).`;
+  if (response.status !== 400) {
+    return statusMessage;
+  }
+  try {
+    const payload = await response.json();
+    if (payload?.error === 'invalid_input') {
+      return `${statusMessage} Could not apply setup settings. Check the form and try again.`;
+    }
+  } catch {}
+  return statusMessage;
+};
 
 const loadNetworks = async () => {
   state.networkError = '';
@@ -241,7 +277,7 @@ const submit = async (event) => {
       return;
     }
     if (!stageResponse.ok) {
-      els.errors.textContent = `Setup stage failed (HTTP ${stageResponse.status}).`;
+      els.errors.textContent = await stageFailureMessage(stageResponse);
       return;
     }
 
@@ -270,19 +306,28 @@ const bindEvents = () => {
   els.refreshNetworks.addEventListener('click', () => loadNetworks());
   els.form.addEventListener('change', (event) => {
     const target = event.target;
-    syncStateFromInputs();
     els.errors.textContent = '';
     if (target.name === 'ssidChoice') {
-      state.selectedSsid = target.value;
+      els.manualSsid.value = '';
       state.manualSsid = '';
+      state.selectedSsid = target.value;
       state.openNetwork = OPEN_SECURITY.includes(selectedNetwork()?.security ?? '');
+      render();
+      focusSelectedNetwork();
+      return;
+    } else {
+      syncStateFromInputs();
     }
     render();
   });
   els.form.addEventListener('input', (event) => {
+    if (event.target.matches('input[name="ssidChoice"]')) {
+      return;
+    }
     syncStateFromInputs();
     els.errors.textContent = '';
     if (event.target.id === 'manualSsid' && state.manualSsid) {
+      clearScannedSelection();
       state.openNetwork = false;
     }
     render();

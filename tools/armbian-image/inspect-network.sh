@@ -16,10 +16,10 @@ octessera_require_wifi_foundation() {
       stat_path "$path" || { echo "Missing patched wifi-connect documentation path: $path." >&2; exit 1; }
     done
     for path in "$artifact_doc_root/LICENSE" "$artifact_doc_root/THIRD-PARTY-NOTICES.md" "$artifact_doc_root/wifi-connect.metadata.json" "$artifact_doc_root/cargo-metadata.json"; do require_root_mode "$path" 644; done
-    [[ "$(hash_path "$binary_path")" == 929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc ]] || { echo "Installed wifi-connect binary has the wrong SHA-256." >&2; exit 1; }
+    [[ "$(hash_path "$binary_path")" == 4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627 ]] || { echo "Installed wifi-connect binary has the wrong SHA-256." >&2; exit 1; }
     metadata_content="$(read_file "$artifact_doc_root/wifi-connect.metadata.json")"
-    printf '%s\n' "$metadata_content" | grep -qF '"binary_sha256": "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc"' || { echo "Installed wifi-connect metadata has the wrong binary SHA-256." >&2; exit 1; }
-    printf '%s\n' "$metadata_content" | grep -qF '"patch_sha256": "3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939"' || { echo "Installed wifi-connect metadata has the wrong patch SHA-256." >&2; exit 1; }
+    printf '%s\n' "$metadata_content" | grep -qF '"binary_sha256": "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627"' || { echo "Installed wifi-connect metadata has the wrong binary SHA-256." >&2; exit 1; }
+    printf '%s\n' "$metadata_content" | grep -qF '"patch_sha256": "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"' || { echo "Installed wifi-connect metadata has the wrong patch SHA-256." >&2; exit 1; }
   fi
   helper_content="$(read_file "$helper_path")"
   unit_content="$(read_file "$unit_path")"

@@ -108,13 +108,14 @@ contract, not from a trusted-parent respin:
 4. Preserve image, source hashes, selected boot outputs, and proof logs. Only
    then perform the physical loop in [`../open-work.md`](../open-work.md).
 
-## Fresh full board image dispatch
+## Board image artifact dispatch
 
 `release-board-artifacts.yml` can be called by the release workflow or dispatched
-directly with the required `tag`, `version`, and exact `source_sha` inputs. A
-direct dispatch builds both complete production images, for Raspberry and Orange,
-from that commit and uploads Actions artifacts only. It does not create, update,
-or publish a release or modify release assets.
+directly with the required `tag`, `version`, exact `source_sha`, and
+`board_image_mode` inputs. `base-refresh` builds both complete production images.
+`qualified-respin` runs the trusted-parent runtime and setup respin for both
+boards without invoking the kernel, pi-gen, or Armbian constructors. Both modes
+upload Actions artifacts only; they do not create, update, or publish a release.
 
 ## Phase 5 OLED boot layer
 
@@ -231,6 +232,7 @@ python3 tools/image-respin/verify-parent-release.py --manifest resources/image-p
 python3 tools/image-respin/test_runtime_contract.py
 python3 tools/image-respin/test_workflow_records.py
 python3 tools/image-respin/test_workflow_static.py
+python3 tools/image-respin/test_qualified_release_routing.py
 node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 ```
 
@@ -245,6 +247,16 @@ run both board lanes:
 gh workflow run respin-board-image.yml -f board=raspberry-pi-zero-2w -f setup_layer=setup-portal
 gh workflow run respin-board-image.yml -f board=orange-pi-zero-2w -f setup_layer=setup-portal
 ```
+
+The nonpublishing board-artifact workflow has two explicit paths. `base-refresh`
+builds the Raspberry kernel and pi-gen image and the full Orange Armbian image.
+`qualified-respin` reuses the checked, hash-bound parent images and rebuilds only
+the two board runtimes and setup layers. It has no fallback to a constructor.
+
+The publishing release workflow remains locked to `base-refresh`. Enable the
+qualified path there only after both candidate parent images pass fresh-flash
+hardware qualification and a reviewed trust-manifest promotion records their
+exact release assets.
 
 For full production image, kernel, setup-portal, sample, sanitization, and
 runtime-bundle contracts, see the [Orange production reference](../../hardware/docs/orange-pi-production-reference.md).

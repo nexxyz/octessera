@@ -24,12 +24,22 @@ Only after activation succeeds does the patch wait on the configured
 `AddrNotAvailable`, polls every 100 ms for at most 10 seconds, and fails
 immediately for address-in-use, permission, or other errors.
 
-The patch changes only `src/network.rs` and `src/errors.rs`. It adds focused
-source tests for activation-call cardinality, non-activated final states,
+The network and error portions add focused source tests for activation-call
+cardinality, non-activated final states,
 activation API error propagation, transient address recovery, truthful
 timeout reporting, and immediate non-transient failure. It does not inspect
 the Internet, call a shell, change NetworkManager, or alter the captive-portal
-UI.
+UI. The server addition is limited to an Iron `AfterMiddleware` registration
+that marks successful portal, static, and API responses
+`Cache-Control: no-store`; it does not read or log request bodies.
+
+The patch therefore changes only `src/network.rs`, `src/errors.rs`, and
+`src/server.rs`. The refreshed patch SHA256 lock is
+`c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6`, and the
+stripped AArch64 binary produced by the pinned builder has SHA256
+`4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627`. Those
+exact source-scope, patch, and binary locks are required by the builder, image
+stagers, inspectors, and tests.
 
 ## Reproduce and verify
 
@@ -58,7 +68,7 @@ python tools/wifi-connect/test-patched-source.py
 
 The build metadata records the upstream ref and commit, patch SHA256, target,
 container/toolchain, and final binary SHA256. The builder refuses to publish a
-binary unless it matches the pinned binary and patch hashes. Image constructors
+binary unless it matches the refreshed binary and patch hashes. Image constructors
 consume the locally staged output and retain the binary, metadata, Cargo
 metadata, license, and third-party notice under the image's local documentation
 tree.
