@@ -5,13 +5,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SAMPLE_RATE: u32 = 44_100;
 const CHANNELS: u16 = 2;
 const BITS_PER_SAMPLE: u16 = 16;
 const QUEUE_CAPACITY: usize = 32;
 const CHUNK_SAMPLES: usize = 4096;
+const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 
 pub(crate) struct RecordingChunk {
     len: usize,
@@ -179,10 +180,11 @@ fn write_wav_stream(
                 Err(mpsc::TryRecvError::Empty | mpsc::TryRecvError::Disconnected) => break,
             }
         } else {
-            let Ok(chunk) = rx.recv() else {
-                break;
-            };
-            chunk
+            match rx.recv_timeout(RECEIVE_TIMEOUT) {
+                Ok(chunk) => chunk,
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
         };
         let remaining = ((max_samples - samples_written) * u64::from(CHANNELS)) as usize;
         let samples = chunk.samples();
@@ -305,6 +307,23 @@ mod tests {
             .unwrap();
         let bytes = fs::read(path).unwrap();
         assert_eq!(&bytes[40..44], 8_u32.to_le_bytes().as_slice());
+    }
+
+    #[test]
+    fn recorder_stop_completes_with_retained_tap() {
+        let dir = tempfile_dir("retained-tap-stop");
+        let mut recorder = RecorderService::new(dir);
+        let tap = recorder.start_audio(1).unwrap();
+        let (done_tx, done_rx) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            recorder.stop_audio();
+            done_tx.send(()).unwrap();
+        });
+
+        let completed_while_tap_alive = done_rx.recv_timeout(Duration::from_secs(1)).is_ok();
+        drop(tap);
+        worker.join().unwrap();
+        assert!(completed_while_tap_alive);
     }
 
     #[test]
