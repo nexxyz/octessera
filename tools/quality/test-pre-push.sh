@@ -5,6 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUNNER="$ROOT/tools/quality/pre-push.sh"
+HOOK="$ROOT/.githooks/pre-push"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -253,5 +254,27 @@ expect_err_match "sc11" "src/exact-500.py (501 lines, max 500)"
 expect_err_match "sc11" "src/exact-500-no-newline.sh (501 lines, max 500)"
 expect_no_mutation "sc11"
 pass "exact-500 scripts pass and both 501-line forms are rejected"
+
+# 12. The hook's opt-in environment forwards committed-tree mode.
+FAKE_FAIL=0
+PRE_PUSH_CHECKS_FILE_OVERRIDE="$TMP/checks.sh"
+repo="$TMP/sc12"
+make_repo "$repo"
+mkdir -p "$repo/tools/quality"
+cp "$RUNNER" "$repo/tools/quality/pre-push.sh"
+printf 'dirty\n' >> "$repo/README.md"
+PRE_BEFORE="$(snapshot "$repo")"
+set +e
+(
+  cd "$repo"
+  OCTESSERA_PRE_PUSH_COMMITTED_TREE=1 PRE_PUSH_CHECKS_FILE="$TMP/checks.sh" bash "$HOOK"
+) >"$TMP/last.out" 2>"$TMP/last.err"
+PRE_RC=$?
+set -e
+PRE_AFTER="$(snapshot "$repo")"
+expect_rc "sc12" 0
+expect_no_mutation "sc12"
+expect_no_leftover_worktrees "sc12" "$repo"
+pass "hook environment validates committed HEAD without touching dirty files"
 
 printf '\nPASS: %d pre-push fixture scenarios\n' "$PASS_COUNT"

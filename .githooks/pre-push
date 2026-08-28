@@ -9,4 +9,9 @@ if [ -f "$LOCAL_HOOK" ]; then
   "$LOCAL_HOOK"
 fi
 
-exec "$ROOT/tools/quality/pre-push.sh"
+ARGS=()
+if [ "${OCTESSERA_PRE_PUSH_COMMITTED_TREE:-0}" = 1 ]; then
+  ARGS+=(--committed-tree)
+fi
+
+exec "$ROOT/tools/quality/pre-push.sh" "${ARGS[@]}"
