@@ -72,29 +72,32 @@ run_profile() {
 if [ "$MODE" = committed-tree ]; then
   TMP_DIR="$(mktemp -d)"
   WT_DIR="$TMP_DIR/wt"
-  NODE_MODULES_JUNCTION=0
+  WINDOWS_JUNCTIONS=()
   cleanup() {
-    if [ "$NODE_MODULES_JUNCTION" = 1 ]; then
-      MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c rmdir "$(cygpath -w "$WT_DIR/node_modules")" >/dev/null 2>&1 || true
-    fi
+    for junction in "${WINDOWS_JUNCTIONS[@]}"; do
+      MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c rmdir "$(cygpath -w "$junction")" >/dev/null 2>&1 || true
+    done
     git worktree remove --force "$WT_DIR" 2>/dev/null || true
     rm -rf "$TMP_DIR"
   }
-  trap cleanup EXIT
-  git worktree add --detach "$WT_DIR" HEAD >/dev/null
-  if [ -d "$ROOT/node_modules" ]; then
-    rm -rf -- "$WT_DIR/node_modules"
+  link_shared_directory() {
+    local relative="$1" source="$ROOT/$1" target="$WT_DIR/$1"
+    [ -d "$source" ] || return 0
+    rm -rf -- "$target"
+    mkdir -p "$(dirname "$target")"
     case "$(uname -s)" in
       MINGW*|MSYS*|CYGWIN*)
-        MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c mklink /J "$(cygpath -w "$WT_DIR/node_modules")" "$(cygpath -w "$ROOT/node_modules")" >/dev/null
-        NODE_MODULES_JUNCTION=1
+        MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c mklink /J "$(cygpath -w "$target")" "$(cygpath -w "$source")" >/dev/null
+        WINDOWS_JUNCTIONS+=("$target")
         ;;
-      *) ln -s "$ROOT/node_modules" "$WT_DIR/node_modules" ;;
+      *) ln -s "$source" "$target" ;;
     esac
-  fi
-  if [ -d "$ROOT/target" ]; then
-    export CARGO_TARGET_DIR="$ROOT/target"
-  fi
+  }
+  trap cleanup EXIT
+  git worktree add --detach "$WT_DIR" HEAD >/dev/null
+  for relative in node_modules apps/desktop/node_modules packages/device-contracts/node_modules release-samples; do
+    link_shared_directory "$relative"
+  done
   (
     unset GIT_DIR GIT_WORK_TREE
     cd "$WT_DIR" || exit 2
