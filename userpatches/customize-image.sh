@@ -422,18 +422,12 @@ PermitRootLogin no
 PasswordAuthentication no
 AllowUsers octessera
 EOF
-systemctl disable ssh.service >/dev/null 2>&1 || true
-systemctl mask ssh.service >/dev/null 2>&1 || true
-systemctl disable ssh.socket >/dev/null 2>&1 || true
-systemctl mask ssh.socket >/dev/null 2>&1 || true
-if systemctl list-unit-files sshd.service >/dev/null 2>&1; then
-  systemctl disable sshd.service >/dev/null 2>&1 || true
-  systemctl mask sshd.service >/dev/null 2>&1 || true
-fi
-if systemctl list-unit-files sshd.socket >/dev/null 2>&1; then
-  systemctl disable sshd.socket >/dev/null 2>&1 || true
-  systemctl mask sshd.socket >/dev/null 2>&1 || true
-fi
+systemctl disable ssh.service
+systemctl disable ssh.socket
+systemctl mask ssh.service
+systemctl mask ssh.socket
+systemctl mask sshd.service
+systemctl mask sshd.socket
 for unit in dnsmasq.service systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
   systemctl disable "$unit" >/dev/null 2>&1 || true
 done
@@ -492,6 +486,11 @@ fi
 
 if [[ -n "${PUBLIC_PRESET_CONFIGURATION_URL:-}" ]]; then
   export PRESET_CONFIGURATION="$PUBLIC_PRESET_CONFIGURATION_URL"
+fi
+
+if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
+  rm -f /root/.not_logged_in_yet
+  [[ ! -e /root/.not_logged_in_yet && ! -L /root/.not_logged_in_yet ]] || { echo "Orange Armbian onboarding marker remains." >&2; exit 1; }
 fi
 
 apt-get clean

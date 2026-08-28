@@ -8,9 +8,16 @@ import subprocess
 from pathlib import Path
 
 from test_orange_image_proof_support import (
+    FIRSTRUN_DEFAULTS_RELATIVE,
+    FIRSTRUN_EXECUTABLE,
+    FIRSTRUN_EXECUTABLE_RELATIVE,
+    FIRSTRUN_ENABLE_RELATIVE,
+    FIRSTRUN_SERVICE_RELATIVE,
     RESIZE_ENABLE_RELATIVE,
     RESIZE_SERVICE,
     RESIZE_SERVICE_RELATIVE,
+    SSH_MASKED_UNITS,
+    copy_fixture_root,
     run_proof,
     run_proof_failure,
     sha256,
@@ -76,6 +83,23 @@ def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, proven
             subprocess.run(["sudo", "-n", "chmod", "0644", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
             run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), True)
             for name, mutate, reason in (
+                ("onboarding-marker", lambda root: write(root / "root/.not_logged_in_yet", b"first login\n"), "Orange Armbian onboarding marker remains"),
+                ("missing-firstrun-service", lambda root: (root / FIRSTRUN_SERVICE_RELATIVE).unlink(), "Orange Armbian firstrun service is missing or symlinked"),
+                ("missing-firstrun-executable", lambda root: (root / FIRSTRUN_EXECUTABLE_RELATIVE).unlink(), "Orange Armbian firstrun executable is missing, unsafe, or not executable"),
+                ("symlinked-firstrun-executable", lambda root: ((root / FIRSTRUN_EXECUTABLE_RELATIVE).unlink(), (root / FIRSTRUN_EXECUTABLE_RELATIVE).symlink_to("/bin/sh")), "Orange Armbian firstrun executable is missing, unsafe, or not executable"),
+                ("non-executable-firstrun", lambda root: os.chmod(root / FIRSTRUN_EXECUTABLE_RELATIVE, 0o644), "Orange Armbian firstrun executable is missing, unsafe, or not executable"),
+                ("missing-host-key-regeneration", lambda root: write(root / FIRSTRUN_EXECUTABLE_RELATIVE, FIRSTRUN_EXECUTABLE.replace("dpkg-reconfigure openssh-server >/dev/null 2>&1", "echo no regeneration")), "Orange Armbian firstrun host-key regeneration behavior is missing"),
+                ("missing-firstrun-enable", lambda root: (root / FIRSTRUN_ENABLE_RELATIVE).unlink(), "Orange Armbian firstrun service is not enabled"),
+                ("disabled-host-key-regeneration", lambda root: write(root / FIRSTRUN_DEFAULTS_RELATIVE, "OPENSSHD_REGENERATE_HOST_KEYS=false\n"), "Orange Armbian host-key regeneration is not enabled"),
+                ("duplicate-host-key-regeneration", lambda root: write(root / FIRSTRUN_DEFAULTS_RELATIVE, (root / FIRSTRUN_DEFAULTS_RELATIVE).read_text() + "OPENSSHD_REGENERATE_HOST_KEYS=true\n"), "Orange Armbian host-key regeneration assignment is missing or duplicated"),
+                ("baked-host-key", lambda root: write(root / "etc/ssh/ssh_host_ed25519_key", b"baked host key\n"), "Orange image contains baked SSH host keys"),
+                ("missing-ssh-mask", lambda root: (root / "etc/systemd/system" / SSH_MASKED_UNITS[0]).unlink(), "Orange SSH unit is not masked: ssh.service"),
+            ):
+                negative = work / name
+                copy_fixture_root(production, negative)
+                mutate(negative)
+                run_proof_failure(verifier_args(negative, image, dtb, evidence, provenance, "production", True), reason)
+            for name, mutate, reason in (
                 ("missing-resize-service", lambda root: (root / RESIZE_SERVICE_RELATIVE).unlink(), "Orange resize service is missing or symlinked"),
                 ("wrong-resize-order", lambda root: write(root / RESIZE_SERVICE_RELATIVE, (root / RESIZE_SERVICE_RELATIVE).read_text().replace("Before=basic.target", "Before=multi-user.target")), "Orange resize service directive is wrong: Unit.Before"),
                 ("missing-resize-enable", lambda root: (root / RESIZE_ENABLE_RELATIVE).unlink(), "Orange resize service is not enabled for basic.target"),
@@ -83,7 +107,7 @@ def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, proven
                 ("symlinked-resize-service", lambda root: ((root / RESIZE_SERVICE_RELATIVE).unlink(), (root / RESIZE_SERVICE_RELATIVE).symlink_to("/etc/systemd/system/octessera.service")), "Orange resize service is missing or symlinked"),
             ):
                 negative = work / name
-                shutil.copytree(production, negative, symlinks=True)
+                copy_fixture_root(production, negative)
                 mutate(negative)
                 run_proof_failure(verifier_args(negative, image, dtb, evidence, provenance, "production", True), reason)
             enabled = production / "etc/systemd/system/multi-user.target.wants/octessera.service"

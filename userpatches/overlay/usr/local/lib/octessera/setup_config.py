@@ -18,8 +18,8 @@ KEY_LINE = re.compile(r"^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) (
 HOSTNAME_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 RASPBERRY_PROFILE = "r" "aspberry-pi-zero-2w"
 PROFILES = {
-    "orange-pi-zero-2w": {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "octessera-runtime"},
-    RASPBERRY_PROFILE: {"user": "pi", "request_owner": "pi", "status_group": "pi"},
+    "orange-pi-zero-2w": {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "octessera-runtime", "ssh_units": ("ssh.service", "ssh.socket", "sshd.service", "sshd.socket")},
+    RASPBERRY_PROFILE: {"user": "pi", "request_owner": "pi", "status_group": "pi", "ssh_units": ("ssh.service", "ssh.socket")},
 }
 
 
@@ -218,9 +218,13 @@ def finalize(data, profile, deadline=None, clock=time.monotonic):
         invoke(["passwd", "-l", profile["user"]])
         set_password_auth(False, profile)
         invoke(["systemctl", "disable", "--now", "ssh.service"])
-        invoke(["systemctl", "mask", "ssh.service"])
+        invoke(["systemctl", "disable", "--now", "ssh.socket"])
+        for unit in profile["ssh_units"]:
+            invoke(["systemctl", "mask", unit])
     if mode in ("key", "password"):
         invoke(["ssh-keygen", "-A"])
-        invoke(["systemctl", "unmask", "ssh.service"])
+        for unit in profile["ssh_units"]:
+            invoke(["systemctl", "unmask", unit])
         invoke(["systemctl", "enable", "--now", "ssh.service"])
+        invoke(["systemctl", "reload", "ssh.service"])
     _write_atomic(MARKER_PATH, "complete\n", 0o644)

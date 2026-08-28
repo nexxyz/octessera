@@ -17,7 +17,7 @@
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320},
     {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "2276806cd084a2fcb469415283803e83d90e0f7e1ce9439c58b3c27e15072ffe", "size": 18511},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup", "sha256": "78cd568203b17c9bb2525d7eaa2e0e541bb6970530771c91fe742e564be9ac8b", "size": 18961},
-    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py", "sha256": "7f9263300024f408da957516c1fbd6600cc4f487b19c248a727d503cacf05bf9", "size": 8649},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py", "sha256": "ca40ee1bf38bb333ee5eca6fe2a2956e331e132195b85247fab7119c528e2511", "size": 8961},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_http.py", "sha256": "702f7e47c559ec438baf858036c2ecc043cc2252fa8f80c5522761bb1d62f52a", "size": 4217},
     {"path": "tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh", "sha256": "32c990467e6a4b62205f1527615620f0441b18173e453998a8eb3cb520f8daa1", "size": 1288},
     {"path": "tools/storage/octessera-sd-card", "sha256": "8f08ca0639407af3405ca9b99513879a1ab0b8f3d236a2af4e020be59db0b65c", "size": 553},
