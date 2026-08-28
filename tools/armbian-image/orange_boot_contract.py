@@ -7,7 +7,6 @@ import hashlib
 import json
 import lzma
 import re
-import stat
 import struct
 import subprocess
 import sys
@@ -17,6 +16,7 @@ from typing import Any
 
 from orange_boot_selection import parse_boot_selectors, safe_resolve
 from orange_audio_proof import verify_audio_overlay
+from orange_first_boot_contract import verify_initial_access, verify_production_first_boot
 from orange_phase5_proof import verify_selected_initramfs
 from orange_sd_card_proof import verify_orange_sd_card
 from verify_runtime_account import (
@@ -41,6 +41,7 @@ class BootContractError(ValueError):
 SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/verify-orange-image.py",
     "tools/armbian-image/orange_boot_contract.py",
+    "tools/armbian-image/orange_first_boot_contract.py",
     "tools/armbian-image/orange_boot_inventory.py",
     "tools/armbian-image/orange_boot_selection.py",
     "tools/armbian-image/orange_image_mount.py",
@@ -243,92 +244,6 @@ def _verify_symlink(path: Path, root: Path, release: str, label: str) -> None:
     require(release in str(target), f"selected {label} symlink is not ABI-specific: {path}")
 
 
-def _verify_terminal_identity(root: Path, construction: dict[str, Any]) -> None:
-    records = [line.split(":") for line in (root / "etc/passwd").read_text(encoding="utf-8").splitlines() if line]
-    interactive = [record for record in records if record and record[0] == "octessera"]
-    require(len(interactive) == 1 and len(interactive[0]) == 7, "Orange interactive account is missing, duplicated, or malformed")
-    account = interactive[0]
-    require(account[2].isdigit() and account[3].isdigit() and account[5] == "/home/octessera" and account[6] == "/bin/bash", "Orange interactive account home or shell is not exact")
-    groups = [line.split(":") for line in (root / "etc/group").read_text(encoding="utf-8").splitlines() if line]
-    primary_groups = [group for group in groups if group and group[0] == "octessera"]
-    require(len(primary_groups) == 1 and len(primary_groups[0]) == 4 and primary_groups[0][2].isdigit() and int(primary_groups[0][2]) == int(account[3]), "Orange interactive group is missing, duplicated, or has the wrong GID")
-    home = root / account[5].lstrip("/")
-    require(home.is_dir() and not home.is_symlink(), "Orange interactive account home is missing or symlinked")
-    hush = root / construction["terminal_invariants"]["hushlogin_path"]
-    require(hush.is_file() and not hush.is_symlink(), "Orange hushlogin is missing or symlinked")
-    metadata = hush.lstat()
-    require(metadata.st_uid == int(account[2]) and metadata.st_gid == int(primary_groups[0][2]) and metadata.st_mode & 0o777 == construction["terminal_invariants"]["hushlogin_mode"] and metadata.st_size == 0, "Orange hushlogin ownership, mode, or content is not exact")
-    for directory in (root / "etc/pam.d", root / "etc/update-motd.d"):
-        if directory.is_dir() and not directory.is_symlink():
-            for path in directory.rglob("*"):
-                if any("octessera" in part.lower() for part in path.relative_to(directory).parts):
-                    require(False, f"Orange repository PAM or update-motd override remains: {path}")
-
-
-def _verify_ssh_masks(root: Path, construction: dict[str, Any]) -> None:
-    for unit in construction["terminal_invariants"]["ssh_masked_units"]:
-        mask = root / "etc/systemd/system" / unit
-        require(mask.is_symlink() and mask.readlink().as_posix() == "/dev/null", f"Orange SSH unit is not masked: {unit}")
-        target_directory = "sockets.target.wants" if unit.endswith(".socket") else "multi-user.target.wants"
-        enabled = root / "etc/systemd/system" / target_directory / unit
-        require(not enabled.exists() and not enabled.is_symlink(), f"Orange SSH unit remains enabled: {unit}")
-
-
-def _verify_first_boot(root: Path, construction: dict[str, Any]) -> None:
-    invariants = construction["terminal_invariants"]
-    onboarding_marker = root / invariants["armbian_onboarding_marker"]
-    require(not onboarding_marker.exists() and not onboarding_marker.is_symlink(), "Orange Armbian onboarding marker remains")
-    firstrun = root / invariants["armbian_firstrun_service"]
-    require(firstrun.is_file() and not firstrun.is_symlink(), "Orange Armbian firstrun service is missing or symlinked")
-    require("ExecStart=/usr/lib/armbian/armbian-firstrun start" in firstrun.read_text(encoding="utf-8"), "Orange Armbian firstrun service is not canonical")
-    firstrun_executable = root / invariants["armbian_firstrun_executable"]
-    try:
-        executable_metadata = firstrun_executable.lstat()
-    except FileNotFoundError:
-        executable_metadata = None
-    require(executable_metadata is not None and stat.S_ISREG(executable_metadata.st_mode) and executable_metadata.st_uid == 0 and executable_metadata.st_gid == 0 and stat.S_IMODE(executable_metadata.st_mode) == 0o755, "Orange Armbian firstrun executable is missing, unsafe, or not executable")
-    firstrun_script = firstrun_executable.read_text(encoding="utf-8").splitlines()
-    require(firstrun_script and firstrun_script[0] == "#!/bin/bash", "Orange Armbian firstrun executable is missing, unsafe, or not executable")
-    regeneration_condition = 'if [[ "${OPENSSHD_REGENERATE_HOST_KEYS}" = true ]]; then'
-    condition_index = next((index for index, line in enumerate(firstrun_script) if line.strip() == regeneration_condition), None)
-    if condition_index is None:
-        raise BootContractError("Orange Armbian firstrun host-key regeneration behavior is missing")
-    regeneration_branch = []
-    for line in firstrun_script[condition_index + 1 :]:
-        stripped = line.strip()
-        if stripped == "else":
-            break
-        regeneration_branch.append(stripped)
-    required_regeneration_steps = ("rm -f /etc/ssh/ssh_host*", "dpkg-reconfigure openssh-server >/dev/null 2>&1", "service ssh restart")
-    step_index = 0
-    for line in regeneration_branch:
-        if line == required_regeneration_steps[step_index]:
-            step_index += 1
-            if step_index == len(required_regeneration_steps):
-                break
-    require(step_index == len(required_regeneration_steps), "Orange Armbian firstrun host-key regeneration behavior is missing")
-    firstrun_enabled = root / invariants["armbian_firstrun_enablement"]
-    require(firstrun_enabled.is_symlink() and firstrun_enabled.readlink().as_posix() in {"../../../lib/systemd/system/armbian-firstrun.service", "/lib/systemd/system/armbian-firstrun.service"}, "Orange Armbian firstrun service is not enabled")
-    firstrun_defaults = root / invariants["armbian_firstrun_defaults"]
-    require(firstrun_defaults.is_file() and not firstrun_defaults.is_symlink(), "Orange Armbian host-key regeneration defaults are missing or symlinked")
-    assignments = []
-    for line in firstrun_defaults.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if "OPENSSHD_REGENERATE_HOST_KEYS" not in stripped:
-            continue
-        match = re.fullmatch(r"(?:export[ \t]+)?OPENSSHD_REGENERATE_HOST_KEYS[ \t]*=[ \t]*(true|false)(?:[ \t]+#.*)?[ \t]*", stripped)
-        if match is None:
-            raise BootContractError("Orange Armbian host-key regeneration assignment is malformed")
-        assignments.append(match.group(1))
-    require(len(assignments) == 1, "Orange Armbian host-key regeneration assignment is missing or duplicated")
-    require(assignments == ["true"], "Orange Armbian host-key regeneration is not enabled")
-    ssh_directory = root / "etc/ssh"
-    require(ssh_directory.is_dir() and not ssh_directory.is_symlink(), "Orange SSH directory is missing or symlinked")
-    require(not list(ssh_directory.glob("ssh_host_*")), "Orange image contains baked SSH host keys")
-
-
 def _verify_notice_bundle(root: Path, repository_root: Path, construction: dict[str, Any]) -> None:
     try:
         stage_notices(repository_root, root, check=True)
@@ -425,8 +340,7 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
     require(validator_input[0]["sha256"] == validator_source_hash and validator_input[0]["size"] == validator_source_size, "canonical Orange device config validator input changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == "usr/local/lib/octessera/device_config.py"), None) == {"path": "usr/local/lib/octessera/device_config.py", "mode": 420, "uid": 0, "gid": 0}, "Orange validator managed output changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == construction["terminal_invariants"]["hushlogin_path"]), None) == {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"}, "Orange hushlogin managed output changed")
-    _verify_terminal_identity(root, construction)
-    _verify_ssh_masks(root, construction)
+    verify_initial_access(root, construction["terminal_invariants"], require)
     uart = construction["uart_invariants"]
     armbian_env = root / "boot/armbianEnv.txt"
     require(armbian_env.is_file() and not armbian_env.is_symlink(), "Orange Armbian boot environment is missing or symlinked")
@@ -479,7 +393,7 @@ def verify_runtime(root: Path, mode: str, construction: dict[str, Any], reposito
         for path in (root / "usr/local/bin/octessera-pi", root / "etc/systemd/system/octessera.service", root / "opt/octessera/current", root / "opt/octessera/releases"):
             require(not path.exists() and not path.is_symlink(), f"diagnostic image contains production runtime path: {path.relative_to(root)}")
         return {"runtime_service_mode": "disabled"}
-    _verify_first_boot(root, construction)
+    verify_production_first_boot(root, construction["terminal_invariants"], require)
     version, binary_hash, metadata_hash, sums_hash = (metadata.get(key, "") for key in ("OCTESSERA_RUNTIME_VERSION", "OCTESSERA_RUNTIME_BINARY_SHA256", "OCTESSERA_RUNTIME_METADATA_SHA256", "OCTESSERA_RUNTIME_MANIFEST_SHA256"))
     require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,63}", version) is not None, "production runtime version is invalid")
     require(all(re.fullmatch(r"[0-9a-f]{64}", value or "") for value in (binary_hash, metadata_hash, sums_hash)), "production runtime hashes are invalid")
