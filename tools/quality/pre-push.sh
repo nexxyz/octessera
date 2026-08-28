@@ -79,6 +79,7 @@ if [ "$MODE" = committed-tree ]; then
   trap cleanup EXIT
   git worktree add --detach "$WT_DIR" HEAD >/dev/null
   if [ -d "$ROOT/node_modules" ]; then
+    rm -rf -- "$WT_DIR/node_modules"
     ln -s "$ROOT/node_modules" "$WT_DIR/node_modules"
   fi
   if [ -d "$ROOT/target" ]; then
