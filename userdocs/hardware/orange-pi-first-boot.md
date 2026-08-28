@@ -89,12 +89,15 @@ selected build passed its power, USB-role, or live-pinmux gates.
 
 The freshly flashed image boots offline without waiting for a network. NetworkManager
 is independent of `octessera.service`: a runtime startup failure does not stop or
-mask it. An SSH service that was already enabled remains available while the
-runtime recovers. Fresh images keep SSH off until setup selects an SSH key or
-password; no hotspot starts by itself. To configure networking and SSH, choose
-`System > Configure WiFi > Open Portal`; do not expect a fresh production image to
-start an automatic hotspot. A warm reboot is not a guarantee that Wi-Fi association
-returns.
+mask it. Fresh images keep the profile's SSH units masked until setup selects an
+SSH key or password; no hotspot starts by itself. The production constructor
+removes `/root/.not_logged_in_yet`, so Armbian's interactive first-login wizard
+is suppressed. Its `armbian-firstrun.service` remains enabled with
+`OPENSSHD_REGENERATE_HOST_KEYS=true`, and `armbian-resize-filesystem.service`
+remains enabled for first-boot filesystem growth. To configure networking and
+SSH, choose `System > Configure WiFi > Open Portal`; do not expect a fresh
+production image to start an automatic hotspot. A warm reboot is not a guarantee
+that Wi-Fi association returns.
 
 Normal first boot does not wait six minutes. Upstream filesystem resize is ordered
 before runtime; live Orange evidence saw resize complete from about 19.4 s to
@@ -159,14 +162,11 @@ start automatically on first boot. Until setup finishes, anyone close enough to
 join it can configure the device. Set it up near the device and do not leave it
 powered on in setup mode in a public place. SSH keys are safer than passwords.
 
-Octessera does not add a shared SSH password or baked SSH key. The underlying
-Armbian image may still expose its normal first-run console/bootstrap
-credentials. If you use that path instead of the setup portal, change the
-default password immediately.
-
-The portal creates or updates Octessera's SSH access. It does not scrub
-Armbian's own root/bootstrap credentials from the image, though network SSH
-remains closed until setup enables it.
+Octessera does not add a shared SSH password or baked SSH key. Host keys are
+generated on the board by Armbian first-run work. When the portal enables SSH,
+the setup finalizer ensures the required host keys exist before it starts the
+service. The vendor interactive first-login wizard is intentionally suppressed;
+the setup portal owns password, key, and no-SSH choices.
 
 ### If setup does not appear
 
@@ -296,5 +296,6 @@ qualification](board-qualification.md).
 
 ## Advanced setup
 
-Armbian first-run presets still work for fleet or scripted setup. Use them only
-if you already know how you will handle Wi-Fi credentials and SSH keys safely.
+The production image intentionally skips Armbian first-login and does not
+support its first-run presets. Use the Octessera setup portal for Wi-Fi,
+hostname, and SSH configuration.

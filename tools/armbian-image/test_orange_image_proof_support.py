@@ -35,6 +35,36 @@ MODULE_RELATIVE = f"lib/modules/{RELEASE}/kernel/drivers/usb/gadget/function/usb
 BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y")
 RESIZE_SERVICE_RELATIVE = "usr/lib/systemd/system/armbian-resize-filesystem.service"
 RESIZE_ENABLE_RELATIVE = "etc/systemd/system/basic.target.wants/armbian-resize-filesystem.service"
+FIRSTRUN_SERVICE_RELATIVE = "lib/systemd/system/armbian-firstrun.service"
+FIRSTRUN_EXECUTABLE_RELATIVE = "usr/lib/armbian/armbian-firstrun"
+FIRSTRUN_ENABLE_RELATIVE = "etc/systemd/system/multi-user.target.wants/armbian-firstrun.service"
+FIRSTRUN_DEFAULTS_RELATIVE = "etc/default/armbian-firstrun"
+SSH_MASKED_UNITS = ("ssh.service", "ssh.socket", "sshd.service", "sshd.socket")
+FIRSTRUN_SERVICE = """# Armbian firstrun service
+[Unit]
+Description=Armbian first run tasks
+Before=getty.target system-getty.slice
+After=ssh.service
+
+[Service]
+Type=simple
+RemainAfterExit=yes
+EnvironmentFile=/etc/default/armbian-firstrun
+ExecStart=/usr/lib/armbian/armbian-firstrun start
+TimeoutStartSec=2min
+
+[Install]
+WantedBy=multi-user.target
+"""
+FIRSTRUN_EXECUTABLE = """#!/bin/bash
+if [[ "${OPENSSHD_REGENERATE_HOST_KEYS}" = true ]]; then
+    rm -f /etc/ssh/ssh_host*
+    dpkg-reconfigure openssh-server >/dev/null 2>&1
+    service ssh restart
+else
+    echo "SSH host keys unchanged"
+fi
+"""
 RESIZE_SERVICE = """# Armbian resize filesystem service
 # Resizes partition and filesystem on first/second boot
 # This service may block the boot process for up to 3 minutes
@@ -243,6 +273,11 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-shutdown.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-suspend.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_bytes())
+    write(final_root / FIRSTRUN_SERVICE_RELATIVE, FIRSTRUN_SERVICE)
+    write(final_root / FIRSTRUN_EXECUTABLE_RELATIVE, FIRSTRUN_EXECUTABLE)
+    os.chmod(final_root / FIRSTRUN_EXECUTABLE_RELATIVE, 0o755)
+    write(final_root / FIRSTRUN_DEFAULTS_RELATIVE, "# configuration values for the armbian-firstrun service\nOPENSSHD_REGENERATE_HOST_KEYS=true\n")
+    (final_root / "etc/ssh").mkdir(parents=True, exist_ok=True)
     (final_root / "etc/systemd/system/sysinit.target.wants").mkdir(parents=True, exist_ok=True)
     (final_root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").symlink_to("../octessera-orange-boot-splash.service")
     (final_root / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True, exist_ok=True)
@@ -253,6 +288,12 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     (final_root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket").symlink_to("../octessera-device-apply-reboot.socket")
     (final_root / "etc/systemd/system/sockets.target.wants/octessera-update.socket").symlink_to("../octessera-update.socket")
     (final_root / "etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service").symlink_to("../octessera-update-recovery.service")
+    (final_root / FIRSTRUN_ENABLE_RELATIVE).parent.mkdir(parents=True, exist_ok=True)
+    (final_root / FIRSTRUN_ENABLE_RELATIVE).symlink_to("/lib/systemd/system/armbian-firstrun.service")
+    for unit in SSH_MASKED_UNITS:
+        mask = final_root / "etc/systemd/system" / unit
+        mask.parent.mkdir(parents=True, exist_ok=True)
+        mask.symlink_to("/dev/null")
     initramfs = make_cpio_initramfs(work, final_root)
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
     write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))

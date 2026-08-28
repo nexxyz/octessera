@@ -118,12 +118,19 @@ ownership, mode, or xattr data. Orange requires
 `octessera:octessera` at `/home/octessera` with `/bin/bash` and
 `octessera-runtime:octessera-runtime` at `/nonexistent` with `/usr/sbin/nologin`.
 
-The portal's first-boot trust is local: anyone who joins the setup hotspot
-before completion can configure it. Octessera adds no shared SSH password or
-baked SSH key. Armbian's own bootstrap path may still exist; change its default
-password immediately if used. Octessera masks `ssh.service` and `ssh.socket`
-until setup finalizes SSH, and SSH host keys are generated on-device only when
-SSH is enabled.
+The portal owns first-boot setup: anyone who joins the setup hotspot before
+completion can configure it, while the production constructor removes
+`/root/.not_logged_in_yet` so Armbian's interactive vendor wizard does not
+compete with it. `armbian-firstrun.service` remains enabled with
+`OPENSSHD_REGENERATE_HOST_KEYS=true`, and `armbian-resize-filesystem.service`
+remains enabled for first-boot filesystem growth. Octessera adds no shared SSH
+password or baked SSH key. Fresh images mask the profile's SSH units until the
+portal finalizes SSH; host keys are generated on-device only.
+
+The portal's SSH choices are explicit. Key mode installs the selected key and
+keeps password authentication off. Password mode sets the selected
+`octessera` password and enables password authentication. None removes the key,
+locks the account, and leaves SSH masked.
 
 The production image boots offline without waiting for a network. `NetworkManager`
 remains installed and available, while `dnsmasq.service`,

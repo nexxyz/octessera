@@ -166,15 +166,32 @@ assert 'octessera_install_orange_runtime_assets "$overlay_dir"' in customize
 assert re.search(r"systemctl\s+(?:stop|mask|disable)(?:\s+--now)?\s+(?:NetworkManager|network-manager)(?:\.service)?(?:\s|$)", customize) is None
 assert "NetworkManager.service" not in customize and "network-manager.service" not in customize
 assert "PasswordAuthentication no" in customize
-assert "systemctl mask ssh.service" in customize
+assert [
+    line.strip()
+    for line in customize.splitlines()
+    if re.search(r"\bsystemctl\s+(?:disable|mask)\s+(?:ssh|sshd)\.(?:service|socket)\b", line)
+] == [
+    "systemctl disable ssh.service",
+    "systemctl disable ssh.socket",
+    "systemctl mask ssh.service",
+    "systemctl mask ssh.socket",
+    "systemctl mask sshd.service",
+    "systemctl mask sshd.socket",
+]
+assert "systemctl disable sshd.service" not in customize and "systemctl disable sshd.socket" not in customize
+assert "|| true" not in "\n".join(
+    line for line in customize.splitlines() if re.search(r"\bsystemctl\s+(?:disable|mask)\s+(?:ssh|sshd)\.(?:service|socket)\b", line)
+)
+assert 'if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then\n  rm -f /root/.not_logged_in_yet' in customize
 assert setup_config.count('invoke(["systemctl", "enable", "--now", "ssh.service"])') == 1
 assert (
     '    if mode in ("key", "password"):\n'
     '        invoke(["ssh-keygen", "-A"])\n'
-    '        invoke(["systemctl", "unmask", "ssh.service"])\n'
+    '        for unit in profile["ssh_units"]:\n'
+    '            invoke(["systemctl", "unmask", unit])\n'
     '        invoke(["systemctl", "enable", "--now", "ssh.service"])'
 ) in setup_config
-assert '        invoke(["systemctl", "disable", "--now", "ssh.service"])\n        invoke(["systemctl", "mask", "ssh.service"])' in setup_config
+assert '        invoke(["systemctl", "disable", "--now", "ssh.service"])\n        invoke(["systemctl", "disable", "--now", "ssh.socket"])\n        for unit in profile["ssh_units"]:\n            invoke(["systemctl", "mask", unit])' in setup_config
 assert "wifi_connect_artifact_dir=\"$overlay_dir/usr/local/share/octessera/wifi-connect\"" in customize
 assert "wifi_connect_expected_sha256=929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc" in customize
 assert "wifi_connect_patch_sha256=3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939" in customize
@@ -248,7 +265,7 @@ for path in (
 ):
     assert any(item["path"] == path for item in contract["managed_outputs"]), path
 assert contract["notice_bundle"] == {"manifest": "resources/legal/notice-bundle.json", "stager": "tools/legal/stage_notices.py", "installed_root": "usr/share/doc/octessera", "installed_outputs": "manifest-files", "proof": "tools/armbian-image/orange_boot_contract.py", "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"]}
-assert contract["terminal_invariants"] == {"welcome_path": "etc/profile.d/octessera-welcome.sh", "hushlogin_path": "home/octessera/.hushlogin", "hushlogin_mode": 420, "hushlogin_empty": True, "forbidden_pam_update_motd_overrides": True}
+assert contract["terminal_invariants"] == {"welcome_path": "etc/profile.d/octessera-welcome.sh", "hushlogin_path": "home/octessera/.hushlogin", "hushlogin_mode": 420, "hushlogin_empty": True, "forbidden_pam_update_motd_overrides": True, "ssh_masked_units": ["ssh.service", "ssh.socket", "sshd.service", "sshd.socket"], "armbian_onboarding_marker": "root/.not_logged_in_yet", "armbian_firstrun_service": "lib/systemd/system/armbian-firstrun.service", "armbian_firstrun_executable": "usr/lib/armbian/armbian-firstrun", "armbian_firstrun_enablement": "etc/systemd/system/multi-user.target.wants/armbian-firstrun.service", "armbian_firstrun_defaults": "etc/default/armbian-firstrun"}
 assert contract["uart_invariants"] == {"overlay_name": "octessera-h618-input-routing", "console_assignment": "console=display", "forbidden_console_token": "console=ttyS0", "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service", "uart0_status": "disabled", "stdout_path": ""}
 customize = (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8")
 assert "octessera_set_armbian_display_console" in customize

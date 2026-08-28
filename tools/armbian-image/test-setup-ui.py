@@ -47,6 +47,19 @@ for root in UI_ROOTS:
         assert obsolete not in html and obsolete not in app
     assert html.count("<form") == 1 and "Apply setup" in html
     assert "id=\"applyingPanel\"" in html and "id=\"applyingStatus\"" in html
+    assert "html, body { width: 100%; margin: 0; min-height: 100%; }" in styles
+    assert ".shell {\n  width: calc(100% - 1rem);\n  max-width: 900px;" in styles
+    assert "width: min(100vw - 0.75rem, 900px)" not in styles
+    assert ".network-item {\n  display: grid;\n  grid-template-columns: auto minmax(0, 1fr);\n  gap: 0.75rem;\n  align-items: start;\n}" in styles
+    assert ".network-item input, .choice input {\n  min-width: 1.25rem;\n  min-height: 1.25rem;\n  width: 1.25rem;\n  height: 1.25rem;\n}" in styles and ".network-copy { display: block; min-width: 0; overflow: hidden; }" in styles
+    assert ".network-meta { display: block; max-width: 100%;" in styles
+    assert ".field-header > * { min-width: 0; }" in styles
+    assert ".field-header .link { width: 100%; }" in styles
+    assert "grid-template-columns: minmax(0, 1fr);" in styles and "gap: 0.55rem;" in styles
+    assert ".choice { width: 100%; min-width: 0; min-height: 44px; }" in styles
+    assert ".field input, .field textarea {\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;" in styles
+    assert ".shell { width: calc(100% - 0.5rem); }" in styles
+    assert ".network-item { gap: 0.6rem; padding: 0.7rem; }" in styles
     assert "min-height: 52px" in styles and "min-height: 44px" in styles
     assert "-webkit-line-clamp: 2" in styles and "min-width: 0" in styles
     assert "@media (max-width: 520px)" in styles
