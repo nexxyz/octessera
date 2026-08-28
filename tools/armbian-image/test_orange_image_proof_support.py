@@ -289,7 +289,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     (final_root / "etc/systemd/system/sockets.target.wants/octessera-update.socket").symlink_to("../octessera-update.socket")
     (final_root / "etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service").symlink_to("../octessera-update-recovery.service")
     (final_root / FIRSTRUN_ENABLE_RELATIVE).parent.mkdir(parents=True, exist_ok=True)
-    (final_root / FIRSTRUN_ENABLE_RELATIVE).symlink_to("/lib/systemd/system/armbian-firstrun.service")
+    (final_root / FIRSTRUN_ENABLE_RELATIVE).symlink_to("/usr/lib/systemd/system/armbian-firstrun.service")
     for unit in SSH_MASKED_UNITS:
         mask = final_root / "etc/systemd/system" / unit
         mask.parent.mkdir(parents=True, exist_ok=True)

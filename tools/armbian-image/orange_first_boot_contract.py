@@ -75,7 +75,7 @@ def _verify_first_boot(root: Path, invariants: dict[str, Any], require: Require)
                 break
     require(step_index == len(required_regeneration_steps), "Orange Armbian firstrun host-key regeneration behavior is missing")
     firstrun_enabled = root / invariants["armbian_firstrun_enablement"]
-    require(firstrun_enabled.is_symlink() and firstrun_enabled.readlink().as_posix() in {"../../../lib/systemd/system/armbian-firstrun.service", "/lib/systemd/system/armbian-firstrun.service"}, "Orange Armbian firstrun service is not enabled")
+    require(firstrun_enabled.is_symlink() and firstrun_enabled.readlink().as_posix() in {"/lib/systemd/system/armbian-firstrun.service", "/usr/lib/systemd/system/armbian-firstrun.service"}, "Orange Armbian firstrun service is not enabled")
     firstrun_defaults = root / invariants["armbian_firstrun_defaults"]
     require(firstrun_defaults.is_file() and not firstrun_defaults.is_symlink(), "Orange Armbian host-key regeneration defaults are missing or symlinked")
     assignments = []
