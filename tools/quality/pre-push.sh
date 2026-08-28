@@ -72,7 +72,11 @@ run_profile() {
 if [ "$MODE" = committed-tree ]; then
   TMP_DIR="$(mktemp -d)"
   WT_DIR="$TMP_DIR/wt"
+  NODE_MODULES_JUNCTION=0
   cleanup() {
+    if [ "$NODE_MODULES_JUNCTION" = 1 ]; then
+      MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c rmdir "$(cygpath -w "$WT_DIR/node_modules")" >/dev/null 2>&1 || true
+    fi
     git worktree remove --force "$WT_DIR" 2>/dev/null || true
     rm -rf "$TMP_DIR"
   }
@@ -80,7 +84,13 @@ if [ "$MODE" = committed-tree ]; then
   git worktree add --detach "$WT_DIR" HEAD >/dev/null
   if [ -d "$ROOT/node_modules" ]; then
     rm -rf -- "$WT_DIR/node_modules"
-    ln -s "$ROOT/node_modules" "$WT_DIR/node_modules"
+    case "$(uname -s)" in
+      MINGW*|MSYS*|CYGWIN*)
+        MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c mklink /J "$(cygpath -w "$WT_DIR/node_modules")" "$(cygpath -w "$ROOT/node_modules")" >/dev/null
+        NODE_MODULES_JUNCTION=1
+        ;;
+      *) ln -s "$ROOT/node_modules" "$WT_DIR/node_modules" ;;
+    esac
   fi
   if [ -d "$ROOT/target" ]; then
     export CARGO_TARGET_DIR="$ROOT/target"
