@@ -91,7 +91,7 @@
     {"path": "userpatches/overlay/etc/sudoers.d/octessera-update", "sha256": "56fa9da17afa65fb836e494dcfe4caa3724fd276830a48f8b6bad73fa7ab86b8", "size": 239, "mode": 420},
     {"path": "tools/armbian-image/verify-orange-image.py", "sha256": "9ea4c215dad1452550e29fa2e36649711f4a36e8300726420d19a4fa31579f0e", "size": 11681, "mode": 420},
     {"path": "tools/armbian-image/orange_boot_contract.py", "sha256": "5c052edb6e1cf12298a0c8699b19f0e604b7d1701cf7b2532899793543cf10e8", "size": 44135, "mode": 420},
-    {"path": "tools/armbian-image/orange_first_boot_contract.py", "sha256": "0fab56ec8c9a1e4763e21aa15e46520b55c94880ac1a8e97b81f36d5a8bf7f81", "size": 7182, "mode": 420},
+    {"path": "tools/armbian-image/orange_first_boot_contract.py", "sha256": "78ef549f25f7f9bd2156a3787592d9e063c3ff59978be082a4768077b7d96899", "size": 7178, "mode": 420},
     {"path": "tools/armbian-image/orange_boot_inventory.py", "sha256": "3ff06d63793b44e6c08fb4462a954ca29034431b8bcff902853a817b73ecdae4", "size": 2801, "mode": 420},
     {"path": "tools/armbian-image/orange_boot_selection.py", "sha256": "d5456d1bbe31adf89cd042b4d39f932387a739eec1f6156ca55114fbca9b2321", "size": 5242, "mode": 420},
     {"path": "tools/armbian-image/orange_image_mount.py", "sha256": "714733de682336fe947ccaec54525e8d2fa5b6074e4e11459aad6b74925702c2", "size": 8344, "mode": 420},
