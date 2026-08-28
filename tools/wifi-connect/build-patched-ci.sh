@@ -8,8 +8,8 @@ clone_root="$repository_root/.slim/clonedeps/repos/balena-os__wifi-connect"
 artifact_root="$repository_root/target/wifi-connect-patched"
 patch_path="$repository_root/third_party/wifi-connect-4.11.84/portal-address-readiness.patch"
 container_image=rust:1.76.0-bookworm@sha256:d36f9d8a9a4c76da74c8d983d0d4cb146dd2d19bb9bd60b704cdcf70ef868d3a
-expected_binary_sha256=929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc
-expected_patch_sha256=3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939
+expected_binary_sha256=4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627
+expected_patch_sha256=c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6
 
 if [[ -e "$clone_root" ]]; then
   [[ -d "$clone_root" && ! -L "$clone_root" ]] || { echo "wifi-connect clone path is not a real directory: $clone_root" >&2; exit 1; }

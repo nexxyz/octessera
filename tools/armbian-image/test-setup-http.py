@@ -56,7 +56,11 @@ for index, path in enumerate(COORDINATORS):
     http_module.ALLOWED_HOSTS = frozenset(("127.0.0.1",))
     country_calls = []
     coordinator_module.setup_config.apply_country = lambda country: country_calls.append(country)
-    instance = coordinator_module.Coordinator({"status_group": "root", "request_owner": "root", "user": "pi"})
+    clock_value = [10.0]
+    instance = coordinator_module.Coordinator(
+        {"status_group": "root", "request_owner": "root", "user": "pi"},
+        clock=lambda: clock_value[0],
+    )
     server = http_module.SetupHTTPServer(("127.0.0.1", 0), instance)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -65,6 +69,15 @@ for index, path in enumerate(COORDINATORS):
         status, body = request(port, PAYLOAD)
         assert status == 200 and body == b'{"ok":true}'
         assert instance.staged["sshMode"] == "none" and country_calls == ["US"]
+        staged = dict(instance.staged)
+        staged_at = instance.staged_at
+        clock_value[0] = 20.0
+        status, body = request(port, PAYLOAD)
+        assert status == 200 and body == b'{"ok":true}'
+        assert instance.staged == staged and instance.staged_at == staged_at
+        status, body = request(port, {**PAYLOAD, "hostname": "different"})
+        assert status == 400 and body == b'{"error":"invalid_input"}'
+        assert instance.staged == staged and instance.staged_at == staged_at
         status, body = request(port, {"wifiCountry": "us"}, path="/country")
         assert status == 200 and body == b'{"ok":true}' and country_calls[-1] == "US"
         status, _ = request(port, {"wifiCountry": "USA"}, path="/country")
@@ -77,7 +90,7 @@ for index, path in enumerate(COORDINATORS):
         assert status == 403
         status, _ = request(port, PAYLOAD, {"Host": "127.0.0.2"})
         assert status == 403
-        status, _ = request(port, {**PAYLOAD, "sshMode": "password", "sshPassword": "eight888", "sshPasswordConfirm": "eight888"})
+        status, body = request(port, {**PAYLOAD, "sshMode": "password", "sshPassword": "eight888", "sshPasswordConfirm": "eight888"})
         assert status == 400
         assert "eight888" not in body.decode("utf-8")
 
@@ -90,4 +103,4 @@ for index, path in enumerate(COORDINATORS):
         server.server_close()
         thread.join(timeout=3)
 
-print("Setup HTTP subnet, host, origin, body, country, stage, and secret tests passed")
+print("Setup HTTP subnet, host, origin, body, country, duplicate-stage, and secret tests passed")

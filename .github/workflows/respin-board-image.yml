@@ -1,6 +1,23 @@
 name: Respin board image
 
 on:
+  workflow_call:
+    inputs:
+      board:
+        required: true
+        type: string
+      setup_layer:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       board:
@@ -30,7 +47,10 @@ jobs:
     env:
       BOARD: ${{ inputs.board }}
       SETUP_LAYER: ${{ inputs.setup_layer }}
-      SOURCE_SHA: ${{ github.sha }}
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      REQUESTED_SOURCE_SHA: ${{ inputs.source_sha }}
+      REQUESTED_VERSION: ${{ inputs.version }}
+      REQUESTED_TAG: ${{ inputs.tag }}
       TRUST_MANIFEST: resources/image-parents/v0.7.5-trust-manifest.json
       BOOT_NEUTRAL_CONTRACT: resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json
       ORANGE_PARENT_IMAGE: parent-assets/octessera-0.7.5-orange-pi-zero-2w.img.xz
@@ -41,14 +61,37 @@ jobs:
       - name: Checkout immutable workflow source
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.sha }}
-          fetch-depth: 1
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Verify immutable source and current application version
+      - name: Verify immutable source and application version
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          case "$BOARD" in
+            raspberry-pi-zero-2w|orange-pi-zero-2w) ;;
+            *) echo "Unsupported board: $BOARD" >&2; exit 1 ;;
+          esac
+          case "$SETUP_LAYER" in
+            runtime-only|setup-portal) ;;
+            *) echo "Unsupported setup layer: $SETUP_LAYER" >&2; exit 1 ;;
+          esac
           version="$(python3 tools/release/check_version_consistency.py)"
+          if [[ -n "$REQUESTED_SOURCE_SHA" ]]; then
+            [[ "$REQUESTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Reusable calls require a lowercase 40-hex source SHA." >&2; exit 1; }
+            [[ "$SETUP_LAYER" == setup-portal ]] || { echo "Release handoffs require setup-portal." >&2; exit 1; }
+            [[ "$SOURCE_SHA" == "$REQUESTED_SOURCE_SHA" ]] || { echo "Release handoff source SHA is required and must be exact." >&2; exit 1; }
+            [[ -n "$REQUESTED_VERSION" && -n "$REQUESTED_TAG" ]] || { echo "Release handoff version and tag are required." >&2; exit 1; }
+            [[ "$version" == "$REQUESTED_VERSION" ]] || { echo "Repository version does not match the release version." >&2; exit 1; }
+            [[ "$REQUESTED_TAG" == "v$REQUESTED_VERSION" ]] || { echo "Release tag does not match the release version." >&2; exit 1; }
+            tag_commit="$(git rev-parse "$REQUESTED_TAG^{commit}")"
+            [[ "$tag_commit" == "$SOURCE_SHA" ]] || { echo "Release tag does not resolve to the requested source SHA." >&2; exit 1; }
+            version="$REQUESTED_VERSION"
+          else
+            [[ -z "$REQUESTED_VERSION" && -z "$REQUESTED_TAG" ]] || { echo "Manual dispatch cannot provide reusable release inputs." >&2; exit 1; }
+            test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          fi
           echo "OCTESSERA_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Validate checked trust manifest
@@ -423,7 +466,7 @@ jobs:
           [[ "${actual[*]}" == "${expected_sorted[*]}" ]] || { echo "Respin output entries are not exact" >&2; exit 1; }
 
       - name: Upload derived respin artifact only
-        if: inputs.setup_layer == 'runtime-only'
+        if: inputs.source_sha == '' && inputs.setup_layer == 'runtime-only'
         uses: actions/upload-artifact@v7
         with:
           name: octessera-${{ inputs.board }}-derived-runtime-respin
@@ -431,10 +474,38 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Upload derived setup artifact only
-        if: inputs.setup_layer == 'setup-portal'
+        if: inputs.source_sha == '' && inputs.setup_layer == 'setup-portal'
         uses: actions/upload-artifact@v7
         with:
           name: octessera-${{ inputs.board }}-derived-setup-respin
           path: ./respin-output/*
           if-no-files-found: error
           retention-days: 7
+      - name: Upload canonical Raspberry runtime handoff
+        if: inputs.source_sha != '' && inputs.board == 'raspberry-pi-zero-2w'
+        uses: actions/upload-artifact@v7
+        with:
+          name: octessera-raspberry-runtime
+          path: ./runtime-bundle/*
+          if-no-files-found: error
+      - name: Upload canonical Orange runtime handoff
+        if: inputs.source_sha != '' && inputs.board == 'orange-pi-zero-2w'
+        uses: actions/upload-artifact@v7
+        with:
+          name: octessera-orange-runtime
+          path: ./runtime-bundle/*
+          if-no-files-found: error
+      - name: Upload canonical Raspberry image release handoff
+        if: inputs.source_sha != '' && inputs.board == 'raspberry-pi-zero-2w'
+        uses: actions/upload-artifact@v7
+        with:
+          name: octessera-raspberry-image-release-assets
+          path: ./respin-output/*
+          if-no-files-found: error
+      - name: Upload canonical Orange image release handoff
+        if: inputs.source_sha != '' && inputs.board == 'orange-pi-zero-2w'
+        uses: actions/upload-artifact@v7
+        with:
+          name: octessera-orange-image-release-assets
+          path: ./respin-output/*
+          if-no-files-found: error

@@ -29,7 +29,7 @@ class RespinWorkflowStaticTests(unittest.TestCase):
             self.assertIn(f"{function}() {{", policy)
 
     def test_manual_only_board_choice_and_read_permission(self) -> None:
-        self.assertIn("on:\n  workflow_dispatch:", self.text)
+        self.assertIn("  workflow_dispatch:\n    inputs:", self.text)
         self.assertNotRegex(self.text, r"^\s+(push|pull_request|schedule):", re.MULTILINE)
         self.assertRegex(
             self.text,
@@ -38,8 +38,66 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertIn("permissions:\n  contents: read", self.text)
         self.assertNotIn("contents: write", self.text)
 
+    def test_reusable_call_has_exact_release_contract(self) -> None:
+        call_block = self.text[self.text.index("  workflow_call:") : self.text.index("  workflow_dispatch:")]
+        self.assertEqual(
+            re.findall(r"^      ([a-z_]+):$", call_block, re.MULTILINE),
+            ["board", "setup_layer", "source_sha", "version", "tag"],
+        )
+        for name in ("board", "setup_layer", "source_sha", "version", "tag"):
+            with self.subTest(name=name):
+                self.assertRegex(call_block, rf"      {name}:\n        required: true\n        type: string")
+        self.assertNotRegex(call_block, r"^      (manifest|parent|url|latest|cache):$", re.MULTILINE)
+
+    def test_release_handoff_binds_source_version_tag_and_setup_layer(self) -> None:
+        self.assertIn("ref: ${{ inputs.source_sha || github.sha }}", self.text)
+        self.assertIn("fetch-depth: 0", self.text)
+        self.assertIn("fetch-tags: true", self.text)
+        self.assertIn("REQUESTED_SOURCE_SHA: ${{ inputs.source_sha }}", self.text)
+        self.assertIn('test "$(git rev-parse HEAD)" = "$SOURCE_SHA"', self.text)
+        self.assertIn('test "$(git rev-parse HEAD)" = "${{ github.sha }}"', self.text)
+        self.assertIn('if [[ -n "$REQUESTED_SOURCE_SHA" ]]; then', self.text)
+        self.assertIn('[[ "$REQUESTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] ||', self.text)
+        self.assertIn('[[ "$SETUP_LAYER" == setup-portal ]] ||', self.text)
+        self.assertIn('[[ "$SOURCE_SHA" == "$REQUESTED_SOURCE_SHA" ]] ||', self.text)
+        self.assertIn('[[ "$version" == "$REQUESTED_VERSION" ]] ||', self.text)
+        self.assertIn('[[ "$REQUESTED_TAG" == "v$REQUESTED_VERSION" ]] ||', self.text)
+        self.assertIn('tag_commit="$(git rev-parse "$REQUESTED_TAG^{commit}")"', self.text)
+        self.assertIn('[[ "$tag_commit" == "$SOURCE_SHA" ]] ||', self.text)
+        self.assertIn('echo "OCTESSERA_VERSION=$version" >> "$GITHUB_ENV"', self.text)
+
+    def test_release_handoff_uses_canonical_artifact_names(self) -> None:
+        for board, runtime, image in (
+            (
+                "raspberry-pi-zero-2w",
+                "octessera-raspberry-runtime",
+                "octessera-raspberry-image-release-assets",
+            ),
+            (
+                "orange-pi-zero-2w",
+                "octessera-orange-runtime",
+                "octessera-orange-image-release-assets",
+            ),
+        ):
+            with self.subTest(board=board):
+                condition = f"inputs.source_sha != '' && inputs.board == '{board}'"
+                self.assertIn(condition, self.text)
+                self.assertIn(f"name: {runtime}", self.text)
+                self.assertIn(f"name: {image}", self.text)
+        self.assertEqual(self.text.count("path: ./runtime-bundle/*"), 2)
+        self.assertEqual(self.text.count("path: ./respin-output/*"), 4)
+
+    def test_manual_dispatch_keeps_derived_artifact_behavior(self) -> None:
+        self.assertIn("SOURCE_SHA: ${{ inputs.source_sha || github.sha }}", self.text)
+        self.assertIn("REQUESTED_VERSION: ${{ inputs.version }}", self.text)
+        self.assertIn("if: inputs.source_sha == '' && inputs.setup_layer == 'runtime-only'", self.text)
+        self.assertIn("if: inputs.source_sha == '' && inputs.setup_layer == 'setup-portal'", self.text)
+        self.assertIn("octessera-${{ inputs.board }}-derived-runtime-respin", self.text)
+        self.assertIn("octessera-${{ inputs.board }}-derived-setup-respin", self.text)
+        self.assertNotIn("release_handoff", self.text)
+
     def test_source_trust_and_release_checks_are_exact(self) -> None:
-        self.assertGreaterEqual(self.text.count("${{ github.sha }}"), 2)
+        self.assertIn("${{ github.sha }}", self.text)
         self.assertIn('test "$(git rev-parse HEAD)" = "${{ github.sha }}"', self.text)
         self.assertIn("tools/release/check_version_consistency.py", self.text)
         self.assertNotIn("Canonical versions disagree", self.text)
@@ -95,6 +153,9 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         for value in forbidden:
             with self.subTest(value=value):
                 self.assertNotIn(value, self.text)
+        for value in ("fallback", "actions/cache", "cache:"):
+            with self.subTest(value=value):
+                self.assertNotIn(value, self.text.lower())
         self.assertNotRegex(self.text, r"gh api[^\n]*--output")
         self.assertIn('temporary="$(mktemp "$PARENT_ASSETS/.octessera-asset.XXXXXX")"', self.text)
         self.assertIn('mv -n -- "$temporary" "$destination"', self.text)

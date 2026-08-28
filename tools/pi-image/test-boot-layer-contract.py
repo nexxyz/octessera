@@ -96,8 +96,8 @@ def validate(document: dict[str, Any], root: Path) -> None:
     for required in (
         "target/wifi-connect-patched",
         "third_party/wifi-connect-4.11.84",
-        "929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc",
-        "3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939",
+        "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627",
+        "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6",
         "wifi-connect.metadata.json",
         "cargo-metadata.json",
         "THIRD-PARTY-NOTICES.md",

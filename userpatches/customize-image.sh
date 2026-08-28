@@ -73,8 +73,8 @@ if [[ "$mmc_spi_value" == m ]]; then
 fi
 
 wifi_connect_artifact_dir="$overlay_dir/usr/local/share/octessera/wifi-connect"
-wifi_connect_expected_sha256=929a5b937a771a0e4f96446242af217c61118aedaaaa053aff75af61151c6acc
-wifi_connect_patch_sha256=3481ef27637c5c4a176b59f74af4e2c232f6c67de8399eaf705fe6431ffc8939
+wifi_connect_expected_sha256=4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627
+wifi_connect_patch_sha256=c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6
 for wifi_connect_file in wifi-connect wifi-connect.metadata.json cargo-metadata.json LICENSE THIRD-PARTY-NOTICES.md; do
   [[ -f "$wifi_connect_artifact_dir/$wifi_connect_file" && ! -L "$wifi_connect_artifact_dir/$wifi_connect_file" ]] || { echo "Missing locally supplied patched wifi-connect artifact: $wifi_connect_file" >&2; exit 1; }
 done

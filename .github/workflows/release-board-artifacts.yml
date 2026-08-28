@@ -11,6 +11,9 @@ on:
       source_sha:
         required: true
         type: string
+      board_image_mode:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       tag:
@@ -22,12 +25,36 @@ on:
       source_sha:
         required: true
         type: string
+      board_image_mode:
+        description: Select the full constructor or qualified respin board image path
+        required: true
+        default: base-refresh
+        type: choice
+        options:
+          - base-refresh
+          - qualified-respin
 permissions:
   contents: read
 
 jobs:
+  validate_board_image_mode:
+    name: Validate board image mode
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject unsupported board image mode
+        env:
+          BOARD_IMAGE_MODE: ${{ inputs.board_image_mode }}
+        run: |
+          set -euo pipefail
+          case "$BOARD_IMAGE_MODE" in
+            base-refresh|qualified-respin) ;;
+            *) echo "Unsupported board image mode: $BOARD_IMAGE_MODE" >&2; exit 1 ;;
+          esac
+
   raspberry_runtime:
     name: Build Raspberry runtime once
+    if: inputs.board_image_mode == 'base-refresh'
+    needs: validate_board_image_mode
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,6 +128,8 @@ jobs:
           if-no-files-found: error
   orange_runtime:
     name: Build Orange runtime once
+    if: inputs.board_image_mode == 'base-refresh'
+    needs: validate_board_image_mode
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -183,6 +212,8 @@ jobs:
           if-no-files-found: error
   raspberry_kernel:
     name: Build Raspberry kernel package
+    if: inputs.board_image_mode == 'base-refresh'
+    needs: validate_board_image_mode
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -231,8 +262,9 @@ jobs:
           if-no-files-found: error
   raspberry_image:
     name: Build Raspberry image
+    if: inputs.board_image_mode == 'base-refresh'
     runs-on: ubuntu-latest
-    needs: [raspberry_runtime, raspberry_kernel]
+    needs: [validate_board_image_mode, raspberry_runtime, raspberry_kernel]
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
@@ -359,8 +391,9 @@ jobs:
           if-no-files-found: error
   orange_image:
     name: Build Orange production image
+    if: inputs.board_image_mode == 'base-refresh'
     runs-on: ubuntu-latest
-    needs: orange_runtime
+    needs: [validate_board_image_mode, orange_runtime]
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
@@ -446,10 +479,37 @@ jobs:
           path: ./release-assets/*
           if-no-files-found: error
 
+  raspberry_respin:
+    name: Qualified Raspberry image respin
+    if: inputs.board_image_mode == 'qualified-respin'
+    needs: validate_board_image_mode
+    uses: ./.github/workflows/respin-board-image.yml
+    with:
+      board: raspberry-pi-zero-2w
+      setup_layer: setup-portal
+      source_sha: ${{ inputs.source_sha }}
+      version: ${{ inputs.version }}
+      tag: ${{ inputs.tag }}
+    secrets: inherit
+
+  orange_respin:
+    name: Qualified Orange image respin
+    if: inputs.board_image_mode == 'qualified-respin'
+    needs: validate_board_image_mode
+    uses: ./.github/workflows/respin-board-image.yml
+    with:
+      board: orange-pi-zero-2w
+      setup_layer: setup-portal
+      source_sha: ${{ inputs.source_sha }}
+      version: ${{ inputs.version }}
+      tag: ${{ inputs.tag }}
+    secrets: inherit
+
   raspberry_device:
     name: Package Raspberry device ZIP from runtime bundle
     runs-on: ubuntu-latest
-    needs: raspberry_runtime
+    needs: [validate_board_image_mode, raspberry_runtime, raspberry_respin]
+    if: ${{ always() && ((inputs.board_image_mode == 'base-refresh' && needs.raspberry_runtime.result == 'success') || (inputs.board_image_mode == 'qualified-respin' && needs.raspberry_respin.result == 'success')) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -479,7 +539,8 @@ jobs:
   orange_device:
     name: Package Orange device ZIP from runtime bundle
     runs-on: ubuntu-latest
-    needs: orange_runtime
+    needs: [validate_board_image_mode, orange_runtime, orange_respin]
+    if: ${{ always() && ((inputs.board_image_mode == 'base-refresh' && needs.orange_runtime.result == 'success') || (inputs.board_image_mode == 'qualified-respin' && needs.orange_respin.result == 'success')) }}
     steps:
       - uses: actions/checkout@v4
         with:
