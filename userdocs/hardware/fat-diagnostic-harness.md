@@ -40,6 +40,11 @@ Default, stub, and deprecated alias builds are rejected. The binary and
 `--board-profile` must agree. Do not use a diagnostic image, a Raspberry asset
 on Orange, or an Orange asset on Raspberry.
 
+For Orange production, the identity check reads the bounded, regular adjacent
+`octessera-runtime.json` for the resolved release executable and verifies its
+profile, release version, and executable SHA-256. It does not rerun the
+candidate metadata command or fall back to a candidate sidecar.
+
 The harness is non-destructive with respect to persistent board state. It never
 flashes, reboots, restores, binds a USB gadget, plays a tone, or writes an
 OLED/LED qualification result. It does not open, reset, configure, or scan
