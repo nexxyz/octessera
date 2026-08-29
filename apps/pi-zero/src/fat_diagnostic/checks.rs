@@ -1,3 +1,6 @@
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[path = "installed_identity.rs"]
+mod installed_identity;
 #[path = "readiness.rs"]
 mod readiness;
 #[path = "checks_support.rs"]
@@ -83,7 +86,36 @@ fn identity_check(context: &CheckContext) -> CheckOutcome {
             "01-identity.txt",
         );
     }
-    if let Some(path) = context.executable.as_deref() {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    let use_installed_identity = context.board.profile_id == "orange-pi-zero-2w";
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let use_installed_identity = false;
+    if use_installed_identity {
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        {
+            let Some(path) = context.executable.as_deref() else {
+                return outcome(
+                    CheckStatus::Fail,
+                    "Orange runtime executable path is unavailable",
+                    "01-identity.txt",
+                );
+            };
+            match installed_identity::validate(path) {
+                Ok(metadata) => {
+                    artifact.push_str(&format!("\nproduction_metadata={}", metadata.trim_end()))
+                }
+                Err(error) => {
+                    let artifact_content = format!("{artifact}\nproduction_metadata_error={error}");
+                    return outcome_with_content(
+                        CheckStatus::Fail,
+                        &format!("Orange production identity validation failed: {error}"),
+                        "01-identity.txt",
+                        &artifact_content,
+                    );
+                }
+            }
+        }
+    } else if let Some(path) = context.executable.as_deref() {
         match run_metadata_command(
             path.to_string_lossy().as_ref(),
             &["--print-build-metadata"],
