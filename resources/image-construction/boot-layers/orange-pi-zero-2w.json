@@ -26,7 +26,7 @@
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh", "sha256": "df0629b19e20294075f66f9fd2c988b753da1f0d227fa7a4b0c82bfdbefa57c0", "size": 3213, "mode": 420},
     {"path": "userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh", "sha256": "af3348db1612461da8404f230b1a0cc93893ae1aad4bc7ae4cbb33b1d2f6ce87", "size": 9137, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-setup", "sha256": "8088dc46f699ef48cae82eb75990bfab4257d930466bdaeabd81e0cfc5dfde6f", "size": 19021, "mode": 493},
-    {"path": "userpatches/overlay/usr/local/lib/octessera/setup_config.py", "sha256": "ca40ee1bf38bb333ee5eca6fe2a2956e331e132195b85247fab7119c528e2511", "size": 8961, "mode": 420},
+    {"path": "userpatches/overlay/usr/local/lib/octessera/setup_config.py", "sha256": "0927464730ed48db1882ae06b00d8d834110581f596f96e32c2b846b10223394", "size": 9586, "mode": 420},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup_http.py", "sha256": "702f7e47c559ec438baf858036c2ecc043cc2252fa8f80c5522761bb1d62f52a", "size": 4217, "mode": 420},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "6256f8b88cc32489aa798ee1ae83f73160686e7b1b5b7c982597043e8049cf8f", "size": 3087, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot", "sha256": "143952471c60d6329960041ebc5a105c89a4015a44fa9908d3657c2aa5311b29", "size": 3103, "mode": 420},

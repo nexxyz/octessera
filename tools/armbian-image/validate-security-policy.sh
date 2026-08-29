@@ -106,6 +106,8 @@ setup_service="$overlay/etc/systemd/system/octessera-setup.service"
 for tree in "$overlay" "$raspberry"; do
   grep -qFx 'NoNewPrivileges=yes' "$tree/etc/systemd/system/octessera.service"
   grep -qFx 'NoNewPrivileges=no' "$tree/etc/systemd/system/octessera-setup.service"
+  grep -qFx 'ProtectSystem=yes' "$tree/etc/systemd/system/octessera-setup.service"
+  if grep -qF 'ReadWritePaths=' "$tree/etc/systemd/system/octessera-setup.service"; then exit 1; fi
   grep -qFx 'RuntimeMaxSec=670s' "$tree/etc/systemd/system/octessera-setup.service"
   grep -qFx 'TimeoutStopSec=10s' "$tree/etc/systemd/system/octessera-setup.service"
 done

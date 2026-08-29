@@ -38,6 +38,11 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 
 ## Audio and USB
 
+- Evaluate PC-over-USB keyboard control for Orange Pi through the existing native
+  device-input path. Preserve the simulator mappings for the main encoder and
+  four NeoKeys. Use `E`/`R`/`T`, `F`/`G`/`H`, and `V`/`B`/`N` as candidate
+  left/right/click mappings for auxiliary encoders 1, 2, and 3. Do not add a
+  separate runtime behavior path.
 - Validate audio startup status, sample preview and assignment feedback, Play FX
   assignment, MIDI panic/status, and user-visible audio errors.
 - Qualify each selected Jack, USB, and HDMI route beyond source and bench checks,

@@ -424,6 +424,8 @@ for setup_unit in \
   "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup.service"; do
   grep -qFx 'NoNewPrivileges=no' "$setup_unit"
   grep -qFx '# dnsmasq needs privilege-transition capabilities to drop from root while serving the setup AP.' "$setup_unit"
+  grep -qFx 'ProtectSystem=yes' "$setup_unit"
+  if grep -qF 'ReadWritePaths=' "$setup_unit"; then exit 1; fi
 done
 for protected_unit in \
   "$root/userpatches/overlay/etc/systemd/system/octessera.service" \
