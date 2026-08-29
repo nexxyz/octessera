@@ -5,6 +5,7 @@ import os
 import re
 import stat
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -108,8 +109,23 @@ def load_profile(path=PROFILE_PATH):
     return {"profile": profile, **PROFILES[profile]}
 
 
+def _command_failure(args, failure_class, exit_code):
+    executable = os.path.basename(os.fsdecode(args[0]))
+    sys.stderr.write(f"setup command failed: {executable} failure={failure_class} exit_code={exit_code}\n")
+
+
 def run(args, input_text=None, timeout=None):
-    subprocess.run(args, input=input_text, text=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
+    try:
+        subprocess.run(args, input=input_text, text=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
+    except subprocess.CalledProcessError as error:
+        _command_failure(args, type(error).__name__, error.returncode)
+        raise
+    except subprocess.TimeoutExpired:
+        _command_failure(args, "TimeoutExpired", "timeout")
+        raise
+    except OSError as error:
+        _command_failure(args, type(error).__name__, error.errno)
+        raise
 
 
 def _remaining(deadline, clock):
@@ -134,8 +150,6 @@ def _write_atomic(path, content, mode, owner=0, group=0):
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
-        os.chmod(path, mode)
-        os.chown(path, owner, group)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -193,7 +207,13 @@ def persist_country(country):
 
 
 def finalize(data, profile, deadline=None, clock=time.monotonic):
-    invoke = lambda args, input_text=None: run(args, input_text, timeout=_remaining(deadline, clock))
+    def invoke(args, input_text=None):
+        try:
+            timeout = _remaining(deadline, clock)
+        except subprocess.TimeoutExpired:
+            _command_failure(args, "TimeoutExpired", "timeout")
+            raise
+        run(args, input_text, timeout=timeout)
     data = validate_stage({
         "sshMode": data["sshMode"],
         "sshPublicKey": data.get("sshKey", ""),
@@ -206,9 +226,13 @@ def finalize(data, profile, deadline=None, clock=time.monotonic):
         invoke(["hostnamectl", "set-hostname", data["hostname"]])
     persist_country(data["country"])
     mode = data["sshMode"]
+    invoke(["systemctl", "disable", "--now", "ssh.socket"])
+    invoke(["systemctl", "disable", "--now", "ssh.service"])
+    for unit in profile["ssh_units"]:
+        invoke(["systemctl", "mask", unit])
+    set_password_auth(False, profile)
     if mode == "key":
         configure_key(data["sshKey"], profile)
-        set_password_auth(False, profile)
     elif mode == "password":
         remove_key(profile)
         invoke(["chpasswd"], f"{profile['user']}:{data['password']}\n")
@@ -216,15 +240,10 @@ def finalize(data, profile, deadline=None, clock=time.monotonic):
     else:
         remove_key(profile)
         invoke(["passwd", "-l", profile["user"]])
-        set_password_auth(False, profile)
-        invoke(["systemctl", "disable", "--now", "ssh.service"])
-        invoke(["systemctl", "disable", "--now", "ssh.socket"])
-        for unit in profile["ssh_units"]:
-            invoke(["systemctl", "mask", unit])
     if mode in ("key", "password"):
         invoke(["ssh-keygen", "-A"])
+    if mode in ("key", "password"):
         for unit in profile["ssh_units"]:
             invoke(["systemctl", "unmask", unit])
         invoke(["systemctl", "enable", "--now", "ssh.service"])
-        invoke(["systemctl", "reload", "ssh.service"])
     _write_atomic(MARKER_PATH, "complete\n", 0o644)

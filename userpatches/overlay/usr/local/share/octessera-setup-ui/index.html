@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <title>Octessera setup</title>
-    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/styles.css?v=2" />
   </head>
   <body>
     <main class="shell">
@@ -61,9 +61,21 @@
           <div class="field">
             <span>SSH access</span>
             <div class="choice-group" role="radiogroup" aria-label="SSH mode">
-              <label class="choice"><input type="radio" name="sshMode" value="key" checked /> <span>SSH key</span></label>
-              <label class="choice"><input type="radio" name="sshMode" value="password" /> <span>SSH password</span></label>
-              <label class="choice"><input type="radio" name="sshMode" value="none" /> <span>No SSH setup</span></label>
+              <label class="choice ssh-choice is-selected">
+                <input class="network-radio" type="radio" name="sshMode" value="key" checked />
+                <span class="network-radio-mark" aria-hidden="true"></span>
+                <span class="network-copy">SSH key</span>
+              </label>
+              <label class="choice ssh-choice">
+                <input class="network-radio" type="radio" name="sshMode" value="password" />
+                <span class="network-radio-mark" aria-hidden="true"></span>
+                <span class="network-copy">SSH password</span>
+              </label>
+              <label class="choice ssh-choice">
+                <input class="network-radio" type="radio" name="sshMode" value="none" />
+                <span class="network-radio-mark" aria-hidden="true"></span>
+                <span class="network-copy">No SSH setup</span>
+              </label>
             </div>
 
             <div id="sshKeyFields" class="field-subsection">
@@ -107,6 +119,6 @@
       </section>
     </main>
 
-    <script type="module" src="/js/app.js"></script>
+    <script type="module" src="/js/app.js?v=2"></script>
   </body>
 </html>

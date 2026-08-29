@@ -35,9 +35,10 @@ require_setup_layer() {
   grep -qFx 'PathExists=/run/octessera-setup-request/inbox/start' <(read_file "$request_path") || { echo "Setup marker path is not exact." >&2; exit 1; }
   grep -qFx 'Unit=octessera-setup.service' <(read_file "$request_path") || { echo "Setup path activation target is not exact." >&2; exit 1; }
   grep -qFx 'ExecStart=/usr/local/sbin/octessera-setup' <(read_file "$setup_unit") || { echo "Setup coordinator is not direct." >&2; exit 1; }
+  grep -qFx 'ProtectSystem=yes' <(read_file "$setup_unit") || { echo "Setup system protection is not exact." >&2; exit 1; }
+  if grep -qF 'ReadWritePaths=' <(read_file "$setup_unit"); then echo "Setup service must not declare writable paths." >&2; exit 1; fi
   grep -qFx 'RuntimeMaxSec=670s' <(read_file "$setup_unit") || { echo "Setup outer runtime limit is not exact." >&2; exit 1; }
   grep -qFx 'TimeoutStopSec=10s' <(read_file "$setup_unit") || { echo "Setup outer stop limit is not exact." >&2; exit 1; }
-  grep -qF '/run/octessera-setup-status' <(read_file "$setup_unit") || { echo "Setup status path is not writable." >&2; exit 1; }
   grep -qF 'PORTAL_WINDOW_SECONDS = 600' <(read_file "$coordinator") || { echo "Portal window is not exact." >&2; exit 1; }
   grep -qF 'INTERNAL_APPLY_SECONDS = 60' <(read_file "$coordinator") || { echo "Internal apply window is not exact." >&2; exit 1; }
   grep -qF 'def write_status' <(read_file "$coordinator") || { echo "Atomic status writer is missing." >&2; exit 1; }

@@ -11,14 +11,13 @@ UMask=0077
 # dnsmasq needs privilege-transition capabilities to drop from root while serving the setup AP.
 NoNewPrivileges=no
 PrivateTmp=yes
-ProtectSystem=full
+ProtectSystem=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
 ProtectKernelLogs=yes
 RestrictNamespaces=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
-ReadWritePaths=/etc/hostname /etc/hosts /etc/passwd /etc/shadow /etc/group /etc/gshadow /etc/ssh /etc/systemd/system /etc/modprobe.d /etc/default /etc/NetworkManager/system-connections /var/lib/octessera /home/pi /run/octessera-setup-request/inbox /run/octessera-setup-status
 ExecStart=/usr/local/sbin/octessera-setup
 ExecStopPost=/usr/local/sbin/octessera-setup --cleanup
 RuntimeMaxSec=670s

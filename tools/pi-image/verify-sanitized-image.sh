@@ -353,6 +353,8 @@ require_setup_layer() {
     grep -qFx 'ExecStart=/usr/local/sbin/octessera-setup' "$setup_unit" || { echo "Setup coordinator is not direct" >&2; exit 1; }
     grep -qFx 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK' "$setup_unit" || { echo "Setup address families are not exact" >&2; exit 1; }
     grep -qFx 'NoNewPrivileges=no' "$setup_unit" || { echo "Setup service must retain dnsmasq privilege-transition capability behavior" >&2; exit 1; }
+    grep -qFx 'ProtectSystem=yes' "$setup_unit" || { echo "Setup service system protection is not exact" >&2; exit 1; }
+    if grep -qF 'ReadWritePaths=' "$setup_unit"; then echo "Setup service must not declare writable paths" >&2; exit 1; fi
     grep -qFx '# dnsmasq needs privilege-transition capabilities to drop from root while serving the setup AP.' "$setup_unit" || { echo "Setup service NNP exception rationale is missing" >&2; exit 1; }
     grep -qFx 'NoNewPrivileges=yes' "$root/etc/systemd/system/octessera.service" || { echo "Raspberry runtime service lost its NNP boundary" >&2; exit 1; }
     grep -qFx 'ReadWritePaths=/run/octessera-setup-request/inbox' "$root/etc/systemd/system/octessera.service" || { echo "Raspberry request inbox access is not exact" >&2; exit 1; }

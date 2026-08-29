@@ -8,7 +8,7 @@ orange="$root/userpatches/overlay"
 raspberry="$root/tools/pi-image/stage4-octessera/files/root"
 
 check_common() {
-  local tree="$1" owner="$2" profile="$3" home="$4"
+  local tree="$1" owner="$2" profile="$3"
   local coordinator="$tree/usr/local/sbin/octessera-setup"
   local config="$tree/usr/local/lib/octessera/setup_config.py"
   local http="$tree/usr/local/lib/octessera/setup_http.py"
@@ -45,8 +45,11 @@ check_common() {
   grep -qFx 'RuntimeMaxSec=670s' "$setup_unit"
   grep -qFx 'TimeoutStopSec=10s' "$setup_unit"
   grep -qFx 'KillMode=control-group' "$setup_unit"
+  grep -qFx 'User=root' "$setup_unit"
+  grep -qFx 'Group=root' "$setup_unit"
   grep -qFx 'NoNewPrivileges=no' "$setup_unit"
-  grep -qF "ReadWritePaths=/etc/hostname /etc/hosts /etc/passwd /etc/shadow /etc/group /etc/gshadow /etc/ssh /etc/systemd/system /etc/modprobe.d /etc/default /etc/NetworkManager/system-connections /var/lib/octessera $home /run/octessera-setup-request/inbox /run/octessera-setup-status" "$setup_unit"
+  grep -qFx 'ProtectSystem=yes' "$setup_unit"
+  if grep -q '^ReadWritePaths=' "$setup_unit"; then exit 1; fi
   grep -qF '/run/octessera-setup-request/inbox' "$tree/etc/systemd/system/octessera.service"
   grep -qF 'PORTAL_WINDOW_SECONDS = 600' "$coordinator"
   grep -qF 'INTERNAL_APPLY_SECONDS = 60' "$coordinator"
@@ -75,8 +78,8 @@ check_common() {
   cmp "$orange/usr/local/lib/octessera/setup_http.py" "$raspberry/usr/local/lib/octessera/setup_http.py"
 }
 
-check_common "$orange" octessera-runtime orange-pi-zero-2w /home/octessera
-check_common "$raspberry" pi raspberry-pi-zero-2w /home/pi
+check_common "$orange" octessera-runtime orange-pi-zero-2w
+check_common "$raspberry" pi raspberry-pi-zero-2w
 
 python3 -m py_compile \
   "$orange/usr/local/sbin/octessera-setup" \

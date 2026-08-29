@@ -41,6 +41,22 @@ for root in UI_ROOTS:
     assert "First boot setup" not in html and "Armbian" not in html
     assert "Wi-Fi &amp; access setup" in html
     assert "aria-busy=\"false\"" in html
+    assert html.count('href="/css/styles.css?v=2"') == 1
+    assert html.count('src="/js/app.js?v=2"') == 1
+    ssh_choices = re.findall(
+        r'<label class="choice ssh-choice(?: is-selected)?">\s*'
+        r'<input class="network-radio" type="radio" name="sshMode" value="([^"]+)"( checked)? />\s*'
+        r'<span class="network-radio-mark" aria-hidden="true"></span>\s*'
+        r'<span class="network-copy">([^<]+)</span>\s*</label>',
+        html,
+    )
+    assert [value for value, _checked, _text in ssh_choices] == ["key", "password", "none"]
+    assert 'value="key" checked />' in html
+    assert 'value="password" />' in html and 'value="none" />' in html
+    assert [text for _value, _checked, text in ssh_choices] == ["SSH key", "SSH password", "No SSH setup"]
+    assert '<label class="choice ssh-choice is-selected">' in html
+    assert "data-ssh-mode" not in html
+    assert html.count('class="network-radio-mark" aria-hidden="true"') >= 3
     styles = (root / "css/styles.css").read_text(encoding="utf-8")
     assert "progress-track" not in html + app and "--progress" not in html + app + styles
     for obsolete in ("data-step", "data-next", "data-back", "progress", "stepDots", "review", "setStep", "goNext", "goBack", "renderReview", "Welcome"):
@@ -56,7 +72,7 @@ for root in UI_ROOTS:
     assert ".network-radio-mark {\n  display: grid;" in styles
     assert ".network-radio:checked + .network-radio-mark::after { transform: scale(1); }" in styles
     assert ".network-radio:focus-visible + .network-radio-mark {" in styles
-    assert ".network-item.is-selected {" in styles
+    assert ".network-item.is-selected, .choice.is-selected {" in styles
     assert ".choice > span { min-width: 0; overflow-wrap: anywhere; }" in styles
     assert ".network-copy { display: block; min-width: 0; overflow: hidden; }" in styles
     assert ".network-meta { display: block; max-width: 100%;" in styles
@@ -64,6 +80,7 @@ for root in UI_ROOTS:
     assert ".field-header .link { width: 100%; }" in styles
     assert "grid-template-columns: minmax(0, 1fr);" in styles and "gap: 0.55rem;" in styles
     assert ".choice { width: 100%; min-width: 0; min-height: 44px; }" in styles
+    assert ".choice {\n  position: relative;" in styles
     assert ".field input, .field textarea {\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;" in styles
     assert ".shell { width: calc(100% - 0.5rem); }" in styles
     assert ".network-item { gap: 0.6rem; padding: 0.7rem; }" in styles
@@ -72,9 +89,18 @@ for root in UI_ROOTS:
     assert "@media (max-width: 520px)" in styles
     assert "@media (max-width: 390px)" in styles
     assert "@media (max-width: 360px)" in styles
+    assert "overflow-x: hidden" in styles
+    assert ".checkbox, .choice-group { display: flex; flex-wrap: wrap;" in styles
     assert "focus-visible" in styles
     assert "els.refreshNetworks.disabled = loading" in app
     assert "state.networkPhase = 'scan'" in app
+    assert "const renderSshChoices = () =>" in app
+    assert "document.querySelectorAll('.ssh-choice')" in app
+    assert "const selected = input?.value === state.sshMode;" in app
+    assert "choice.classList.toggle('is-selected', selected);" in app
+    assert "input.checked = selected;" in app
+    assert "renderSshChoices();" in app
+    assert "if (target.name === 'sshMode') {\n      state.sshMode = target.value;\n      render();" in app
     assert "manualSsid" in html and "manually" in app
     assert "title=\"${escapeHtml(network.ssid)}\"" in app
     assert "aria-label=\"Select ${escapeHtml(network.ssid)}\"" in app
@@ -148,6 +174,10 @@ for root in UI_ROOTS:
     for text in ("Setup request sent", "Load failed", "authoritative", "success screen"):
         assert text not in app and text not in html
     assert "Apply setup" in html
+    assert "sshMode: state.sshMode," in app
+    assert "sshPublicKey: state.sshMode === 'key' ? state.sshPublicKey : ''" in app
+    assert "sshPassword: state.sshMode === 'password' ? state.sshPassword : ''" in app
+    assert "sshPasswordConfirm: state.sshMode === 'password' ? state.sshPasswordConfirm : ''" in app
     assert "octessera-mark.svg" in html and "octessera-wordmark.svg" in html
     assert '<meta name="color-scheme" content="dark" />' in html
     assert "POST http://192.168.42.1:8080/country" in readme

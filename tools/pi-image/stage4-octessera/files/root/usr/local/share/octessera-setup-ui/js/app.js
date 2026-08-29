@@ -131,6 +131,17 @@ const renderNetworks = () => {
   els.openNetwork.checked = state.openNetwork;
 };
 
+const renderSshChoices = () => {
+  document.querySelectorAll('.ssh-choice').forEach((choice) => {
+    const input = choice.querySelector('input[name="sshMode"]');
+    const selected = input?.value === state.sshMode;
+    choice.classList.toggle('is-selected', selected);
+    if (input) {
+      input.checked = selected;
+    }
+  });
+};
+
 const syncStateFromInputs = () => {
   state.manualSsid = els.manualSsid.value.trim();
   state.wifiPassphrase = els.wifiPassphrase.value;
@@ -163,6 +174,7 @@ const focusSelectedNetwork = () => {
 
 const render = () => {
   renderNetworks();
+  renderSshChoices();
   els.sshKeyFields.hidden = state.sshMode !== 'key';
   els.sshPasswordFields.hidden = state.sshMode !== 'password';
 };
@@ -307,6 +319,11 @@ const bindEvents = () => {
   els.form.addEventListener('change', (event) => {
     const target = event.target;
     els.errors.textContent = '';
+    if (target.name === 'sshMode') {
+      state.sshMode = target.value;
+      render();
+      return;
+    }
     if (target.name === 'ssidChoice') {
       els.manualSsid.value = '';
       state.manualSsid = '';

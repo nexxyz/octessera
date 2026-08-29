@@ -124,6 +124,7 @@ h2 { margin-bottom: 0.65rem; }
   align-items: start;
 }
 .choice {
+  position: relative;
   display: flex;
   gap: 0.8rem;
   align-items: center;
@@ -174,7 +175,7 @@ h2 { margin-bottom: 0.65rem; }
   outline: 3px solid rgba(245, 245, 242, 0.72);
   outline-offset: 3px;
 }
-.network-item.is-selected {
+.network-item.is-selected, .choice.is-selected {
   border-color: var(--accent);
   background: #202020;
   box-shadow: 0 0 0 1px rgba(245, 245, 242, 0.35);
