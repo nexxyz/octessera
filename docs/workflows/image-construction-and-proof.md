@@ -108,6 +108,22 @@ contract, not from a trusted-parent respin:
 4. Preserve image, source hashes, selected boot outputs, and proof logs. Only
    then perform the physical loop in [`../open-work.md`](../open-work.md).
 
+## Manual nonpublishing respin
+
+For the usual runtime-only refresh, dispatch the workflow from `main`; this is
+the default and does not mutate setup files:
+
+```bash
+gh workflow run respin-board-image.yml --ref main -f board=orange-pi-zero-2w -f setup_layer=runtime-only
+gh workflow run respin-board-image.yml --ref main -f board=raspberry-pi-zero-2w -f setup_layer=runtime-only
+```
+
+Use `setup_layer=setup-portal` only when the setup mutation contract itself
+needs a respin. These artifacts are nonpublishing, short-lived Actions
+artifacts. The GitHub event pins the dispatched `main` SHA used by checkout and
+the requested-build record. Kernel, device-tree, initramfs, or base-OS changes
+still require the full constructor workflow.
+
 ## Board image artifact dispatch
 
 `release-board-artifacts.yml` can be called by the release workflow or dispatched

@@ -19,20 +19,32 @@ except ImportError:
 SCHEMA = "octessera.image-respin-requested-build/v1"
 TOOL_NAME = "octessera-image-respin-requested-build"
 BOARDS = {"orange-pi-zero-2w", "raspberry-pi-zero-2w"}
-REQUIRED_FILES = {
+REQUIRED_FILES = (
     "Cargo.lock",
     "Cargo.toml",
     "package.json",
+    "pnpm-workspace.yaml",
+    "apps/desktop/package.json",
+    "packages/device-contracts/package.json",
+    "apps/desktop/src-tauri/Cargo.toml",
+    "apps/desktop/src-tauri/tauri.conf.json",
+    "crates/platform-capabilities-build/Cargo.toml",
+    "crates/platform-core/Cargo.toml",
+    "crates/playback-runtime/Cargo.toml",
+    "crates/realtime-engine/Cargo.toml",
+    "crates/rodio-engine-source/Cargo.toml",
+    "crates/hal/Cargo.toml",
     "apps/pi-zero/Cargo.toml",
     "Cross.toml",
     "Dockerfile.pi-zero",
     ".github/workflows/respin-board-image.yml",
     "tools/image-respin/runtime_bundle.py",
     "tools/image-respin/boot_neutral.py",
+    "tools/release/check_version_consistency.py",
     "resources/legal/notice-bundle.json",
     "tools/legal/stage_notices.py",
     "tools/image-respin/notice_mutation.py",
-}
+)
 SETUP_TOOL_FILES = tuple(f"tools/image-respin/{name}" for name in ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "disk_setup_respin.py", "boot_neutral.py", "setup_workflow_record.py", "workflow_records.py", "requested_build_record.py", "post_proof_record.py", "trust_manifest.py", "record_validation.py", "record_hashing.py", "record_paths.py", "record_documents.py", "record_tool_contract.py"))
 PROOF_PACKAGES = {
     "cpio",
@@ -89,7 +101,7 @@ def build_record(
     verify_source(source_sha, version, board, BOARDS)
     require(bool(feature_command.strip()), "feature command is empty")
     inputs = [identity(path, root) for path in input_files]
-    require({item["path"] for item in inputs} == REQUIRED_FILES and len(inputs) == len(REQUIRED_FILES), "requested input set is not exact")
+    require({item["path"] for item in inputs} == set(REQUIRED_FILES) and len(inputs) == len(REQUIRED_FILES), "requested input set is not exact")
     verify_docker_id(cross_image_id, "custom cross image")
     verify_docker_id(base_image_id, "base image")
     verify_docker_digests(cross_repo_digests, "custom cross image", required=False)
@@ -144,7 +156,7 @@ def validate_record(record: dict[str, Any], root: Path) -> None:
     require(len(feature_command.strip()) > 0, "requested feature command is empty")
     inputs = record["inputs"]
     require(isinstance(inputs, list) and all(isinstance(item, dict) for item in inputs), "requested inputs are invalid")
-    require({item["path"] for item in inputs} == REQUIRED_FILES and len(inputs) == len(REQUIRED_FILES), "requested input set changed")
+    require({item["path"] for item in inputs} == set(REQUIRED_FILES) and len(inputs) == len(REQUIRED_FILES), "requested input set changed")
     for item in inputs:
         verify_identity(item, root, "requested input")
     verify_identity(record["trust_manifest"], root, "requested trust manifest")
