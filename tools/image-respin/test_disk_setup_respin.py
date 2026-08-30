@@ -95,8 +95,7 @@ class DiskSetupRespinTests(unittest.TestCase):
             self.assertTrue(proof.is_file())
             self.assertEqual(result["setup_proof"]["proof"], "setup-layer-mounted")
             runtime_provenance = result["runtime_mutation"]["provenance"]
-            self.assertIn("notice", runtime_provenance)
-            self.assertEqual(set(runtime_provenance["notice"]["changed_paths"]), {path for path in runtime_provenance["changed_paths"] if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")})
+            self.assertNotIn("notice", runtime_provenance)
             self.assertNotIn("notice", result["setup_mutation"])
             self.assertEqual(file_digest(source), source_before)
             self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")

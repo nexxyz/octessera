@@ -67,6 +67,9 @@ def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
     _write(root / "etc/keep", b"untouched", 0o644)
     _write(root / "usr/share/doc/base-files/copyright", b"vendor copyright\n", 0o644)
     _write(root / "usr/share/common-licenses/GPL-3", b"vendor GPL\n", 0o644)
+    if board == ORANGE:
+        _write(root / "usr/share/doc/octessera/LICENSE", b"stale notice\n", 0o644)
+        _write(root / "usr/share/doc/octessera/obsolete.txt", b"obsolete notice\n", 0o644)
     release = root / "opt/octessera/releases" / prior
     _mkdir(release)
     old = b"old-runtime"
@@ -144,6 +147,8 @@ class RuntimeMutationTests(unittest.TestCase):
             root, bundle = _fixture(work, ORANGE)
             _write(work / "external-target", b"host pseudo target", 0o644)
             (root / "etc/external-absolute").symlink_to(work / "external-target")
+            notice_prefix = "usr/share/doc/octessera"
+            notice_before = {path: entry for path, entry in build_inventory(root).items() if path == notice_prefix or path.startswith(notice_prefix + "/")}
             prior_state_bytes = (root / "opt/octessera/update-state.json").read_bytes()
             result = mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
             self.assertEqual(result.prior_version, "1.0.0")
@@ -162,9 +167,8 @@ class RuntimeMutationTests(unittest.TestCase):
             self.assertFalse((root / "opt/octessera/releases/1.0.0").exists())
             self.assertEqual((root / "opt/octessera/current").readlink().as_posix(), "/opt/octessera/releases/2.0.0")
             self.assertEqual(result.post_inventory_digest, inventory_digest(build_inventory(root)))
-            self.assertEqual(result.notice["preimage"], {"path": "usr/share/doc/octessera", "status": "absent"})
-            self.assertEqual(set(result.notice["changed_paths"]), {path for path in result.changed_paths if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")})
-            self.assertEqual((root / "usr/share/doc/octessera/LICENSE").read_bytes(), (Path(__file__).resolve().parents[2] / "LICENSE").read_bytes())
+            notice_after = {path: entry for path, entry in build_inventory(root).items() if path == notice_prefix or path.startswith(notice_prefix + "/")}
+            self.assertEqual(notice_after, notice_before)
             self.assertEqual((root / "usr/share/doc/base-files/copyright").read_bytes(), b"vendor copyright\n")
             self.assertEqual((root / "usr/share/common-licenses/GPL-3").read_bytes(), b"vendor GPL\n")
             self.assertEqual(set(result.parent_identity["prior_release_entries"]), {"octessera-pi", "octessera-runtime.json", "SHA256SUMS", "update-manifest.json"})
@@ -307,17 +311,21 @@ class RuntimeMutationTests(unittest.TestCase):
                 mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(RPI))
 
     def test_unauthorized_mutation_is_rejected_and_interrupted_commit_rolls_back(self) -> None:
-        points = ("staged", "notice-staged", "notice-published", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "build-metadata-replaced", "state-replaced")
+        points = ("staged", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "build-metadata-replaced", "state-replaced")
         for point in points:
             with self.subTest(board=ORANGE, point=point), tempfile.TemporaryDirectory() as temporary:
                 root, bundle = _fixture(Path(temporary), ORANGE)
                 before = inventory_digest(build_inventory(root))
+                notice_prefix = "usr/share/doc/octessera"
+                notice_before = {path: entry for path, entry in build_inventory(root).items() if path == notice_prefix or path.startswith(notice_prefix + "/")}
                 def fail(name: str) -> None:
                     if name == point:
                         raise RuntimeError("interrupted")
                 with self.assertRaises(MutationError):
                     mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE), mutation_hook=fail)
                 self.assertEqual(inventory_digest(build_inventory(root)), before)
+                notice_after = {path: entry for path, entry in build_inventory(root).items() if path == notice_prefix or path.startswith(notice_prefix + "/")}
+                self.assertEqual(notice_after, notice_before)
                 if os.name != "nt":
                     self.assertEqual(build_inventory(root)["etc/octessera/build-metadata.env"]["mode"], 0o644)
         with tempfile.TemporaryDirectory() as temporary:

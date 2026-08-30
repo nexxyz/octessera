@@ -152,8 +152,7 @@ class DiskRespinTests(unittest.TestCase):
         self.assertEqual(provenance["parent"]["context"], context)
         self.assertEqual(provenance["packaged_artifact"]["sha256"], file_digest(output)[0])
         runtime_provenance = provenance["runtime_mutation"]["provenance"]
-        self.assertIn("notice", runtime_provenance)
-        self.assertEqual(set(runtime_provenance["notice"]["changed_paths"]), {path for path in runtime_provenance["changed_paths"] if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")})
+        self.assertNotIn("notice", runtime_provenance)
         self.assertNotIn("/dev/loop", json.dumps(provenance, sort_keys=True))
         self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), before_source)
         self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")

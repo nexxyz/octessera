@@ -167,19 +167,16 @@ def _verify_provenance(path: Path, record_digest: str, contract: dict[str, Any],
     runtime = document["runtime_mutation"]
     require(set(runtime) == {"digest", "provenance"} and isinstance(runtime["provenance"], dict), "Orange trusted runtime provenance changed")
     runtime_provenance = runtime["provenance"]
-    require(set(runtime_provenance) == {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "notice", "changed_paths"}, "Orange trusted runtime provenance fields changed")
+    require(set(runtime_provenance) == {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "changed_paths"}, "Orange trusted runtime provenance fields changed")
     require(runtime_provenance["proof_schema"] == "octessera.image-mutation-provenance.v2" and runtime_provenance["schema_version"] == 2, "Orange trusted runtime provenance schema changed")
     require(runtime_provenance["board_profile"] == document["board_profile"] and runtime_provenance["version"] == document["version"] and runtime_provenance["source_identity"] == document["source_identity"], "Orange trusted runtime source binding changed")
     require(runtime["digest"] == digest_object(runtime_provenance), "Orange trusted runtime provenance digest changed")
-    notice_module = _respin_module(repository_root, "notice_mutation")
+    runtime_module = _respin_module(repository_root, "runtime_contract")
     try:
-        notice_module.validate_notice_record(runtime_provenance["notice"], repository_root)
+        runtime_contract, _ = runtime_module.load_contract(runtime_module.contract_for_board(contract["board_profile"]))
+        runtime_module.validate_declared_changed_paths(runtime_provenance["changed_paths"], runtime_contract, parent_context["version"], document["version"])
     except (OSError, ValueError, KeyError, TypeError) as error:
-        raise TrustedParentProofError(f"Orange trusted notice provenance changed: {error}") from error
-    notice_target = notice_module.NOTICE_TARGET
-    notice_paths = set(runtime_provenance["notice"]["changed_paths"])
-    global_notice_paths = {path for path in runtime_provenance["changed_paths"] if path == notice_target or path.startswith(f"{notice_target}/")}
-    require(global_notice_paths == notice_paths, "Orange trusted notice changed paths are not the exact runtime subset")
+        raise TrustedParentProofError(f"Orange trusted runtime changed paths are not exact: {error}") from error
     runtime_parent = runtime_provenance["parent"]
     require(set(runtime_parent) == {"identity", "digest"} and runtime_parent["digest"] == digest_object(runtime_parent["identity"]), "Orange trusted runtime parent identity changed")
     parent_identity = runtime_parent["identity"]
@@ -260,14 +257,13 @@ def verify_trusted_roots(parent_root: Path, derived_root: Path, parent_record: d
     require(parent_state == derived_state, "Orange trusted protected inventory changed")
     require(parent_layout == derived_layout, "Orange trusted raw disk identity changed")
     provenance = _verify_provenance(provenance_path, record_digest, contract, parent_record, parent_context, derived_root, derived_identity, artifact_identity_value, artifact_name, derivation_kind, repository_root, parent_state, derived_state, parent_layout, derived_layout)
-    notice_module = _respin_module(repository_root, "notice_mutation")
-    try:
-        notice_module.verify_mounted_notice_tree(derived_root, provenance["runtime_mutation"]["provenance"]["notice"])
-    except (OSError, ValueError, KeyError, TypeError) as error:
-        raise TrustedParentProofError(f"Orange mounted notice tree changed: {error}") from error
     inventory_module = _respin_module(repository_root, "inventory")
     parent_inventory = inventory_module.build_inventory(parent_root)
     derived_inventory = inventory_module.build_inventory(derived_root)
+    notice_prefix = "usr/share/doc/octessera"
+    parent_notice = {path: entry for path, entry in parent_inventory.items() if path == notice_prefix or path.startswith(notice_prefix + "/")}
+    derived_notice = {path: entry for path, entry in derived_inventory.items() if path == notice_prefix or path.startswith(notice_prefix + "/")}
+    require(parent_notice == derived_notice, "Orange trusted notice tree changed")
     for sentinel in ("usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"):
         require(sentinel in parent_inventory and sentinel in derived_inventory and parent_inventory[sentinel] == derived_inventory[sentinel], f"Orange vendor legal sentinel changed: {sentinel}")
     if derivation_kind == "setup-portal":
