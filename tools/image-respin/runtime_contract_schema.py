@@ -142,7 +142,7 @@ def validate_contract_schema(contract: Any) -> None:
         metadata = _keys(contract["build_metadata_contract"], {"path", "type", "preimage_mode", "mode", "uid", "gid", "symlink", "required_keys", "transform_keys", "line_endings", "xattrs", "capability"}, "build_metadata_contract")
         _safe_path(metadata["path"], "build_metadata_contract.path")
         _spec({key: metadata[key] for key in SPEC_KEYS}, "build_metadata_contract")
-        if isinstance(metadata["preimage_mode"], bool) or not isinstance(metadata["preimage_mode"], int) or metadata["preimage_mode"] != 436 or metadata["mode"] != 420 or not isinstance(metadata["required_keys"], list) or not isinstance(metadata["transform_keys"], list) or tuple(metadata["required_keys"]) != BUILD_KEYS or tuple(metadata["transform_keys"]) != TRANSFORM_KEYS or metadata["line_endings"] != "LF":
+        if isinstance(metadata["preimage_mode"], bool) or not isinstance(metadata["preimage_mode"], int) or metadata["preimage_mode"] != 420 or metadata["mode"] != 420 or not isinstance(metadata["required_keys"], list) or not isinstance(metadata["transform_keys"], list) or tuple(metadata["required_keys"]) != BUILD_KEYS or tuple(metadata["transform_keys"]) != TRANSFORM_KEYS or metadata["line_endings"] != "LF":
             raise ContractSchemaError("Orange build metadata contract fields are not exact")
     bundle = _keys(contract["bundle_contract"], {"entries", "input_modes", "metadata"}, "bundle_contract")
     if bundle["entries"] != ["SHA256SUMS", "octessera-pi", "octessera-runtime.json"] or bundle["input_modes"] != {"octessera-pi": 493, "octessera-runtime.json": 420, "SHA256SUMS": 420} or bundle["metadata"] != "production-runtime":

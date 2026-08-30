@@ -20,7 +20,7 @@ class RuntimeMetadataTests(unittest.TestCase):
             metadata_path = root / "etc/octessera/build-metadata.env"
             self.assertEqual(metadata_path.stat().st_size, 1199)
             if os.name != "nt":
-                self.assertEqual(metadata_path.stat().st_mode & 0o777, 0o664)
+                self.assertEqual(metadata_path.stat().st_mode & 0o777, 0o644)
             preimage_fields = {line.split(b"=", 1)[0]: line.rstrip(b"\n").split(b"=", 1)[1] for line in metadata_path.read_bytes().splitlines(keepends=True)}
             mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
             output_lines = metadata_path.read_bytes().splitlines(keepends=True)
@@ -56,10 +56,10 @@ class RuntimeMetadataTests(unittest.TestCase):
                 with self.assertRaises(MutationError):
                     mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
 
-    def test_orange_requires_legacy_metadata_mode_and_no_xattrs(self) -> None:
+    def test_orange_requires_exact_metadata_mode_and_no_xattrs(self) -> None:
         if os.name == "nt":
-            self.skipTest("Windows cannot represent the legacy 0664 mode distinctly")
-        for mode in (0o644, 0o600, 0o666):
+            self.skipTest("Windows cannot represent the exact metadata preimage mode distinctly")
+        for mode in (0o664, 0o600, 0o666):
             with self.subTest(mode=oct(mode)), tempfile.TemporaryDirectory() as temporary:
                 root, bundle = _fixture(Path(temporary), ORANGE)
                 (root / "etc/octessera/build-metadata.env").chmod(mode)

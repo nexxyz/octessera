@@ -62,7 +62,7 @@ class RuntimeContractTests(unittest.TestCase):
         self._assert_invalid(document)
 
     def test_requires_exact_orange_metadata_preimage_and_output_modes(self) -> None:
-        for field, value in (("preimage_mode", 420), ("mode", 436)):
+        for field, value in (("preimage_mode", 436), ("mode", 436)):
             with self.subTest(field=field):
                 document = self._document("orange-pi-zero-2w")
                 document["build_metadata_contract"][field] = value
