@@ -18,7 +18,7 @@ class RuntimeMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root, bundle = _fixture(Path(temporary), ORANGE)
             metadata_path = root / "etc/octessera/build-metadata.env"
-            self.assertEqual(metadata_path.stat().st_size, 1199)
+            self.assertEqual(metadata_path.stat().st_size, 1410)
             if os.name != "nt":
                 self.assertEqual(metadata_path.stat().st_mode & 0o777, 0o644)
             preimage_fields = {line.split(b"=", 1)[0]: line.rstrip(b"\n").split(b"=", 1)[1] for line in metadata_path.read_bytes().splitlines(keepends=True)}
@@ -35,7 +35,7 @@ class RuntimeMetadataTests(unittest.TestCase):
             self.assertEqual((metadata_path.stat().st_uid, metadata_path.stat().st_gid), (0, 0))
             if os.name != "nt":
                 self.assertEqual(metadata_path.stat().st_mode & 0o777, 0o644)
-        for mutation in ("crlf", "duplicate", "missing", "extra-runtime", "inconsistent", "prior-version"):
+        for mutation in ("crlf", "duplicate", "missing-runtime", "missing-hardware", "extra-runtime", "extra-hardware", "obsolete-hardware", "inconsistent", "prior-version"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
                 root, bundle = _fixture(Path(temporary), ORANGE)
                 path = root / "etc/octessera/build-metadata.env"
@@ -44,10 +44,16 @@ class RuntimeMetadataTests(unittest.TestCase):
                     raw = raw.replace(b"\n", b"\r\n")
                 elif mutation == "duplicate":
                     raw += b"OCTESSERA_IMAGE_MODE=production\n"
-                elif mutation == "missing":
+                elif mutation == "missing-runtime":
                     raw = b"\n".join(line for line in raw.splitlines() if not line.startswith(b"OCTESSERA_RUNTIME_VERSION=")) + b"\n"
+                elif mutation == "missing-hardware":
+                    raw = b"\n".join(line for line in raw.splitlines() if not line.startswith(b"OCTESSERA_AHUB0_PCM5102_DTBO_SHA256=")) + b"\n"
                 elif mutation == "extra-runtime":
                     raw += b"OCTESSERA_RUNTIME_UNKNOWN=x\n"
+                elif mutation == "extra-hardware":
+                    raw += b"OCTESSERA_SPI1_CS0_DTS_SHA256=" + b"0" * 64 + b"\n"
+                elif mutation == "obsolete-hardware":
+                    raw = raw.replace(b"OCTESSERA_SPI1_OLED_SD2_DTS_SHA256=", b"OCTESSERA_SPI1_CS0_DTS_SHA256=")
                 elif mutation == "prior-version":
                     raw = raw.replace(b"OCTESSERA_RUNTIME_VERSION=1.0.0\n", b"OCTESSERA_RUNTIME_VERSION=1.0\n")
                 else:
