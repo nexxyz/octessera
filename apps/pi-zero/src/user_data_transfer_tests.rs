@@ -42,7 +42,7 @@ fn service(name: &str) -> (UserDataTransferService, PathBuf) {
     )
 }
 
-fn loopback_production_service(name: &str) -> (UserDataTransferService, PathBuf) {
+fn loopback_transfer_service(name: &str) -> (UserDataTransferService, PathBuf) {
     let root = root(name);
     (
         UserDataTransferService::new(
@@ -53,7 +53,7 @@ fn loopback_production_service(name: &str) -> (UserDataTransferService, PathBuf)
             random_source(),
             Arc::new(Mutex::new(())),
             TransferConfig {
-                bind: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+                bind: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
                 network: TransferNetworkSource::Fixed(RegularWlan0Ipv4 {
                     address: "192.168.1.20".parse().unwrap(),
                     netmask: "255.255.255.0".parse().unwrap(),
@@ -187,11 +187,11 @@ fn production_transfer_config_separates_listener_and_public_endpoint() {
 
 #[test]
 fn loopback_transfer_lifecycle_preserves_advertised_host_and_admission() {
-    let (service, root) = loopback_production_service("loopback-bind");
+    let (service, root) = loopback_transfer_service("loopback-bind");
 
     service.start().unwrap();
     let endpoint = service.test_endpoint().unwrap();
-    assert_eq!(endpoint.ip(), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+    assert_eq!(endpoint.ip(), IpAddr::V4(Ipv4Addr::LOCALHOST));
     assert_ne!(endpoint.port(), 0);
 
     let loopback = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), endpoint.port());
