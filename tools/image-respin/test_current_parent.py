@@ -198,7 +198,7 @@ class CurrentParentTests(unittest.TestCase):
             initial, redirected = opener.requests
             self.assertEqual(initial.get_header("Authorization"), "Bearer token")
             self.assertIsNone(redirected.get_header("Authorization"))
-            self.assertEqual(redirected.get_header("Accept"), "application/octet-stream")
+            self.assertEqual(redirected.get_header("Accept"), "application/vnd.github+json")
             self.assertEqual(redirected.get_header("X-github-api-version"), "2022-11-28")
 
     def test_download_http_error_hides_signed_query(self) -> None:
