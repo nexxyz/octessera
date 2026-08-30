@@ -451,7 +451,6 @@ jobs:
           sudo python3 tools/image-respin/test_setup_mutation.py
           sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'
           sudo python3 -m unittest discover -s tools/image-respin -p 'test_runtime_mutation.py'
-          sudo python3 tools/image-respin/test_notice_mutation.py
           sudo python3 -m unittest discover -s tools/image-respin -p 'test_runtime_metadata.py'
           sudo python3 tools/image-respin/test_inventory.py
           sudo python3 tools/image-respin/test_provenance.py

@@ -139,9 +139,6 @@ jobs:
             --input-file tools/image-respin/boot_neutral.py \
             --input-file tools/image-respin/current_parent.py \
             --input-file tools/release/check_version_consistency.py \
-            --input-file resources/legal/notice-bundle.json \
-            --input-file tools/legal/stage_notices.py \
-            --input-file tools/image-respin/notice_mutation.py \
             --parent-record "$PARENT_RECORD" \
             --rustc-version-file "$RUNNER_TEMP/rustc-vV.txt" \
             --cargo-version-file "$RUNNER_TEMP/cargo-version.txt" \

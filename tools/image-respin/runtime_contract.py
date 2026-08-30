@@ -382,16 +382,25 @@ def _classify(path: str, old_base: str, new_base: str, contract: dict[str, Any],
     return None
 
 
-def validate_changed_paths(before: Inventory, after: Inventory, contract: dict[str, Any], prior: str, version: str, extra_allowed_paths: set[str] | None = None) -> list[str]:
+def validate_declared_changed_paths(paths: object, contract: dict[str, Any], prior: str, version: str) -> list[str]:
+    if not isinstance(paths, list) or any(not isinstance(path, str) for path in paths):
+        fail("changed paths must be sorted, unique, relative paths")
+    declared = cast(list[str], paths)
+    if declared != sorted(set(declared)):
+        fail("changed paths must be sorted, unique, relative paths")
+    for path in declared:
+        if not path or path.startswith("/") or "\\" in path or (len(path) > 1 and path[1] == ":") or any(part in {"", ".", ".."} for part in path.split("/")):
+            fail("changed paths must be sorted, unique, relative paths")
     old_base = f"{contract['managed']['releases']}/{prior}"
     new_base = f"{contract['managed']['releases']}/{version}"
-    changed = sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
-    extra_allowed_paths = extra_allowed_paths or set()
-    for path in changed:
-        if path in extra_allowed_paths:
-            continue
+    for path in declared:
         if any(fnmatch.fnmatchcase(path, pattern) for pattern in contract["mutation_contract"]["forbidden"]):
             fail(f"forbidden path changed: {path}")
         if _classify(path, old_base, new_base, contract, prior == version) is None:
             fail(f"unauthorized root mutation: {path}")
-    return changed
+    return declared
+
+
+def validate_changed_paths(before: Inventory, after: Inventory, contract: dict[str, Any], prior: str, version: str) -> list[str]:
+    changed = sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
+    return validate_declared_changed_paths(changed, contract, prior, version)

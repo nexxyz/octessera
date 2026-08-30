@@ -10,8 +10,7 @@ try:
     from .disk_packaging import compression_identity
     from .current_parent import load_record as load_current_parent, parent_context as current_parent_context, validate_downloaded_directory as validate_current_parent_directory
     from .inventory import build_inventory, ensure_inventory_symlinks_contained, inventory_digest
-    from .notice_mutation import NOTICE_TARGET, validate_notice_record
-    from .runtime_contract import MutationError
+    from .runtime_contract import MutationError, contract_for_board, load_contract, validate_declared_changed_paths
     from .provenance import RUNTIME_TOOL_IDENTITY, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
     from .boot_neutral import load_policy
     from .setup_contract import load_contract as load_setup_contract
@@ -26,8 +25,7 @@ except ImportError:
     from disk_packaging import compression_identity
     from current_parent import load_record as load_current_parent, parent_context as current_parent_context, validate_downloaded_directory as validate_current_parent_directory
     from inventory import build_inventory, ensure_inventory_symlinks_contained, inventory_digest
-    from notice_mutation import NOTICE_TARGET, validate_notice_record
-    from runtime_contract import MutationError
+    from runtime_contract import MutationError, contract_for_board, load_contract, validate_declared_changed_paths
     from provenance import RUNTIME_TOOL_IDENTITY, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
     from boot_neutral import load_policy
     from setup_contract import load_contract as load_setup_contract
@@ -48,20 +46,13 @@ PARENT_KEYS = {"parent_record", "context"}
 BUNDLE_KEYS = {"path", "entries", "sha256", "inventory_sha256"}
 PROOF_KEYS = {"label", "schema", "command_template_id", "command_template", "result", "output"}
 PROOF_RESULT_KEYS = {"result"}
-RUNTIME_KEYS = {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "notice", "changed_paths"}
-
-
-def _validate_notice(record: Any, root: Path) -> None:
-    try:
-        validate_notice_record(record, root)
-    except MutationError as exc:
-        raise RecordError(str(exc)) from exc
+RUNTIME_KEYS = {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "changed_paths"}
 
 
 PROOF_TEMPLATE = {
     "orange-image": ("orange-production", "sudo bash tools/armbian-image/verify-orange-image.sh --image {artifact} --boot-proof-mode validated-parent --boot-neutral-contract resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json --parent-image parent-assets/$(jq -r '.image.name' resources/image-parents/orange-pi-zero-2w-current.json) --parent-record resources/image-parents/orange-pi-zero-2w-current.json --respin-provenance {artifact}.provenance.json --derivation-kind runtime-only --output {proof_output}", ORANGE + "/production-image-proof/v2"),
 }
-ORANGE_TOOLS = ("tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/image-respin/notice_mutation.py", "tools/image-respin/boot_neutral.py", "tools/image-respin/current_parent.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json", "tools/kernel-patches/orange-midi-interface-manifest.json")
+ORANGE_TOOLS = ("tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/image-respin/boot_neutral.py", "tools/image-respin/current_parent.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json", "tools/kernel-patches/orange-midi-interface-manifest.json")
 
 
 def _read_proof(path: Path, board: str) -> dict[str, Any] | None:
@@ -135,7 +126,6 @@ def _validate_orange_provenance(document: dict[str, Any], root: Path, source: di
     runtime = require_keys(document["runtime_mutation"], {"digest", "provenance"}, "Orange runtime mutation")
     runtime_value = require_keys(runtime["provenance"], RUNTIME_KEYS, "Orange runtime provenance")
     require(runtime["digest"] == provenance_digest(runtime_value) and runtime_value["proof_schema"] == "octessera.image-mutation-provenance.v2" and runtime_value["schema_version"] == 2 and runtime_value["board_profile"] == ORANGE and runtime_value["version"] == source["version"] and runtime_value["source_identity"] == source["sha"], "Orange runtime provenance changed")
-    _validate_notice(runtime_value["notice"], root)
     runtime_parent = require_keys(runtime_value["parent"], {"identity", "digest"}, "Orange runtime parent")
     parent_identity = require_keys(runtime_parent["identity"], {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}, "Orange runtime parent identity")
     require(runtime_parent["digest"] == provenance_digest(parent_identity) and parent_identity["board_profile"] == ORANGE and parent_identity["prior_version"] == parent["context"]["version"] and parent_identity["parent_context"] == parent["context"], "Orange runtime parent identity changed")
@@ -150,10 +140,11 @@ def _validate_orange_provenance(document: dict[str, Any], root: Path, source: di
     current_tool = tool_code_model(root / "tools/image-respin")
     runtime_finalizer = require_keys(runtime_value["finalizer"], {"source_identity", "tool_identity", "tool_code_schema", "tool_code_version", "tool_code_digest", "tool_code_files"}, "Orange runtime finalizer")
     require(runtime_finalizer["source_identity"] == source["sha"] and runtime_finalizer["tool_identity"] == RUNTIME_TOOL_IDENTITY and runtime_finalizer["tool_code_schema"] == current_tool["schema"] and runtime_finalizer["tool_code_version"] == current_tool["version"] and runtime_finalizer["tool_code_digest"] == current_tool["digest"] and runtime_finalizer["tool_code_files"] == current_tool["files"], "Orange runtime tool identity changed")
-    changed = runtime_value["changed_paths"]
-    require(isinstance(changed, list) and changed == sorted(set(changed)), "Orange runtime changed paths are not exact")
-    global_notice = {path for path in changed if path == NOTICE_TARGET or path.startswith(NOTICE_TARGET + "/")}
-    require(global_notice == set(runtime_value["notice"]["changed_paths"]), "Orange notice paths are not the exact runtime subset")
+    try:
+        runtime_contract, _ = load_contract(contract_for_board(ORANGE))
+        changed = validate_declared_changed_paths(runtime_value["changed_paths"], runtime_contract, parent["context"]["version"], source["version"])
+    except MutationError as error:
+        raise RecordError(str(error)) from error
     protected = policy.contract["protected_paths"]
     require(not any(path == item or path.startswith(f"{item}/") or item.startswith(f"{path}/") for path in changed for item in protected), "Orange runtime changed a protected boot path")
     boot = require_keys(document["boot_integrity"], set(policy.contract["respin_provenance"]["boot_integrity_keys"]), "Orange boot integrity")

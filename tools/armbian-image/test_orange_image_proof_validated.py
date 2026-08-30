@@ -16,8 +16,6 @@ sys.path.insert(0, str(ROOT / "tools/image-respin"))
 from boot_neutral import load_policy
 from current_parent import load_record, parent_context
 from disk_packaging import compression_identity
-from inventory import build_inventory
-from notice_mutation import install_notices
 from orange_trusted_parent_proof import TrustedParentProofError, _protected_state, artifact_identity, verify_trusted, verify_trusted_roots
 from provenance import TOOL_IDENTITY, build_provenance, digest_object
 from test_orange_image_proof_support import VERIFY
@@ -46,6 +44,8 @@ def _make_root(root: Path, contract: dict[str, Any]) -> None:
     _write(root / "boot/armbianEnv.txt", "verbosity=1\nfdtfile=sun50i-h618-orangepi-zero2w.dtb\n")
     _write(root / "boot/Image", b"kernel")
     _write(root / "boot/uInitrd", b"initramfs")
+    _write(root / "usr/share/doc/octessera/LICENSE", b"validated notice\n")
+    _write(root / "usr/share/doc/octessera/obsolete.txt", b"old notice\n")
     _write(root / "usr/share/doc/base-files/copyright", b"vendor copyright\n")
     _write(root / "usr/share/common-licenses/GPL-3", b"vendor GPL\n")
     (root / "lib").symlink_to("usr/lib", target_is_directory=True)
@@ -74,13 +74,12 @@ def _fixture(work: Path) -> dict[str, Any]:
     derived = work / "derived"
     _make_root(parent, policy.contract)
     _make_root(derived, policy.contract)
-    notice = install_notices(derived, build_inventory(derived), ROOT)
-    _write(derived / "opt/octessera/runtime.txt", "runtime-only\n")
+    _write(derived / "opt/octessera/update-state.json", "runtime-only\n")
     parent_state = _protected_state(parent, policy.contract)
     derived_state = _protected_state(derived, policy.contract)
     layout = _layout()
     parent_identity = {"board_profile": BOARD, "prior_version": context["version"], "prior_release_entries": {"octessera-pi": "a" * 64, "octessera-runtime.json": "b" * 64, "SHA256SUMS": "c" * 64, "update-manifest.json": "d" * 64}, "prior_release_digest": "d" * 64, "prior_state_preimage_sha256": "e" * 64, "prior_build_metadata_preimage_sha256": "f" * 64, "current_target": "/opt/octessera/releases/0.8.1", "parent_context": context, "parent_context_sha256": digest_object(context)}
-    runtime = build_provenance(board_profile=BOARD, version="2.0.0", source_identity="fixture", parent_identity=parent_identity, payload_digest="a" * 64, mutation_contract_digest=hashlib.sha256((ROOT / "resources/image-mutations/orange-pi-zero-2w.json").read_bytes()).hexdigest(), pre_inventory_digest="1" * 64, post_inventory_digest="2" * 64, changed_paths=sorted(["opt/octessera/runtime.txt", *notice.changed_paths]), notice=notice.record)
+    runtime = build_provenance(board_profile=BOARD, version="2.0.0", source_identity="fixture", parent_identity=parent_identity, payload_digest="a" * 64, mutation_contract_digest=hashlib.sha256((ROOT / "resources/image-mutations/orange-pi-zero-2w.json").read_bytes()).hexdigest(), pre_inventory_digest="1" * 64, post_inventory_digest="2" * 64, changed_paths=["opt/octessera/update-state.json"])
     binding = {"path": policy.contract["parent_record"], "sha256": record_digest, "size": RECORD_PATH.stat().st_size}
     parent_document = {"record": binding, "context": context, "image": record["image"], "digest": digest_object({"context": context, "record": binding, "image": record["image"]})}
     boot_inventory = {"digest": parent_state["digest"], "count": parent_state["count"]}
@@ -128,6 +127,25 @@ class ValidatedParentProofTests(unittest.TestCase):
             _write(tampered / "boot/Image", b"tampered")
             with self.assertRaises(TrustedParentProofError):
                 _verify(fixture, derived=tampered)
+
+    def test_notice_tree_drift_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = _fixture(Path(temporary))
+            (fixture["derived"] / "usr/share/doc/octessera/obsolete.txt").write_bytes(b"drifted notice\n")
+            with self.assertRaises(TrustedParentProofError):
+                _verify(fixture)
+
+    def test_runtime_paths_outside_contract_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = _fixture(Path(temporary))
+            tampered = copy.deepcopy(json.loads(fixture["provenance"].read_text(encoding="utf-8")))
+            runtime = tampered["runtime_mutation"]["provenance"]
+            runtime["changed_paths"] = ["usr/share/doc/octessera/LICENSE"]
+            tampered["runtime_mutation"]["digest"] = digest_object(runtime)
+            path = Path(temporary) / "outside-runtime-provenance.json"
+            path.write_text(json.dumps(tampered) + "\n", encoding="utf-8")
+            with self.assertRaises(TrustedParentProofError):
+                _verify(fixture, provenance=path)
 
     def test_oled_replacements_are_protected_and_obsolete_hooks_are_absent(self) -> None:
         current_paths = (
