@@ -37,7 +37,7 @@ and parent-image preconditions differ: Raspberry uses the Pi image path and `pi`
 account, while Orange uses the Armbian path with separate `octessera` setup and
 `octessera-runtime` service accounts. Physical setup-portal qualification on
 both boards is a FAT activity.
-The same System menu exposes standalone `Backup & Restore`; Pi uses the regular
+The same System menu exposes standalone `Backup / Restore`; Pi uses the regular
 `wlan0` IPv4 service on port 8081, while desktop is unsupported.
 
 ## Shared OLED boot handoff and qualification

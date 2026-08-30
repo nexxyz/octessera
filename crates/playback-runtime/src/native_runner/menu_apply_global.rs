@@ -150,7 +150,7 @@ impl NativeRunner {
             self.usb_midi_out_enabled = enabled;
         }
         if changed {
-            self.show_toast("Audio: Save & Reboot");
+            self.show_toast("Audio: Save / Reboot");
         }
         changed
     }

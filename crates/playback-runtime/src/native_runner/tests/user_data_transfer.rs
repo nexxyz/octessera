@@ -42,7 +42,7 @@ pub(crate) fn ready_transfer_card_has_semantic_lines_and_bounded_oled_frame() {
     runner.apply_store_result(ready_result()).unwrap();
     let messages = runner.messages_with_snapshot().unwrap();
     let snapshot = snapshot_from(&messages);
-    assert_eq!(snapshot["display"]["title"], "Backup & Restore");
+    assert_eq!(snapshot["display"]["title"], "Backup / Restore");
     assert_eq!(snapshot["display"]["bodyLayout"], "card");
     assert_eq!(
         snapshot["display"]["lines"],

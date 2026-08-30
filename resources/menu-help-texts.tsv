@@ -20,9 +20,9 @@ midi_out_disconnect	System > MIDI > MIDI Out > Disconnect	action:midi_select_out
 midi_in_disconnect	System > MIDI > MIDI In > Disconnect	action:midi_select_input:null	action	MIDI In Disconnect	Disconnects the current MIDI input source.	No MIDI input port will be selected.
 midi_out_dynamic	System > MIDI > MIDI Out > *	action:midi_select_output:*	action	Select MIDI Output	Selects this MIDI output device for note/event transmission.	Use Disconnect to clear selection.
 midi_in_dynamic	System > MIDI > MIDI In > *	action:midi_select_input:*	action	Select MIDI Input	Selects this MIDI input device for transport/sync control.	Use Disconnect to clear selection.
-midi_clock_out	System > MIDI > Sync & Clock > Clock Out	key:midi.clockOutEnabled	bool	Clock Out	Enables outgoing MIDI clock messages.	Useful when other gear should follow this transport.
-midi_clock_in	System > MIDI > Sync & Clock > Clock In	key:midi.clockInEnabled	bool	Clock In	Enables incoming MIDI clock processing.	Required to follow external timing.
-midi_respond_start_stop	System > MIDI > Sync & Clock > Follow S/S	key:midi.respondToStartStop	bool	Follow S/S	When enabled, external MIDI Start/Stop controls transport.	When disabled, transport reacts only to local controls.
+midi_clock_out	System > MIDI > Sync / Clock > Clock Out	key:midi.clockOutEnabled	bool	Clock Out	Enables outgoing MIDI clock messages.	Useful when other gear should follow this transport.
+midi_clock_in	System > MIDI > Sync / Clock > Clock In	key:midi.clockInEnabled	bool	Clock In	Enables incoming MIDI clock processing.	Required to follow external timing.
+midi_respond_start_stop	System > MIDI > Sync / Clock > Follow S/S	key:midi.respondToStartStop	bool	Follow S/S	When enabled, external MIDI Start/Stop controls transport.	When disabled, transport reacts only to local controls.
 worlds_section	Menu > Build		group	Build	Configures each layer's grid behavior and step timing.	Shape the cell process here before Link turns activity into notes.
 pulses_section	Menu > Link		group	Link	Controls how grid activity is interpreted into trigger intents.	This is where scan/event sources get routed toward instruments.
 worlds_layer_group	Menu > Build > L*: *		group	Layer	Configures the selected layer's behavior, timing, and runtime settings.	Each of the 8 layers runs its own behavior and Build/Link config independently.
@@ -302,14 +302,14 @@ default_save	System > Saves > Default > Save Default	action:default_save	action	
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.
 system_shutdown	System	action:system_shutdown	action	Shutdown	Shows the shutdown splash, then closes the simulator or powers off the Pi gracefully.	Requires confirmation before shutting down.
 system_reboot	System	action:system_reboot	action	Reboot	Shows the shutdown splash, then reboots the Pi gracefully.	Requires confirmation before rebooting.
-audio_usb_group	Menu > System > Audio & USB		group	Audio & USB	Controls the three restart-applied audio outputs and USB gadget MIDI preference.	At least one audio output stays enabled; use Save & Reboot to apply the desired next-boot set.
-audio_jack	*	key:audioOutputs.dac	bool	Jack Audio	Sets whether Jack Audio is part of the desired next-boot output set.	Save & Reboot stores this choice and applies it on the next boot; another output must remain enabled.
-audio_usb	*	key:audioOutputs.usb	bool	USB Audio	Sets whether USB Audio is part of the desired next-boot output set.	Save & Reboot stores this choice and applies USB gadget routing on the next boot.
-audio_hdmi	*	key:audioOutputs.hdmi	bool	HDMI Audio	Sets whether HDMI Audio is part of the desired next-boot output set.	Save & Reboot stores this choice; it is separate from the HDMI display mode.
-usb_midi_out	*	key:usb.midiOutEnabled	bool	MIDI Out	Sets whether USB MIDI gadget output is in the desired next-boot set.	Save & Reboot stores this preference; general MIDI, input, and clock settings stay under System > MIDI.
-usb_apply_reboot	System > Audio & USB	action:audio.applyReboot	action	Save & Reboot	Saves the canonical audio output set and asks the platform to apply device settings with a reboot.	Confirmation offers Cancel or Save & Reboot.
-usb_sd_transfer_start	System > Audio & USB	action:usb.sdTransferStart	action	Start SD2 Xfer	Temporarily exposes the OLED SD2 sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
-usb_sd_transfer_stop	System > Audio & USB	action:usb.sdTransferStop	action	Stop SD2 Xfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject OLED SD2 on the host before stopping transfer.
+audio_usb_group	Menu > System > Audio / USB		group	Audio / USB	Controls the three restart-applied audio outputs and USB gadget MIDI preference.	At least one audio output stays enabled; use Save / Reboot to apply the desired next-boot set.
+audio_jack	*	key:audioOutputs.dac	bool	Jack Audio	Sets whether Jack Audio is part of the desired next-boot output set.	Save / Reboot stores this choice and applies it on the next boot; another output must remain enabled.
+audio_usb	*	key:audioOutputs.usb	bool	USB Audio	Sets whether USB Audio is part of the desired next-boot output set.	Save / Reboot stores this choice and applies USB gadget routing on the next boot.
+audio_hdmi	*	key:audioOutputs.hdmi	bool	HDMI Audio	Sets whether HDMI Audio is part of the desired next-boot output set.	Save / Reboot stores this choice; it is separate from the HDMI display mode.
+usb_midi_out	*	key:usb.midiOutEnabled	bool	MIDI Out	Sets whether USB MIDI gadget output is in the desired next-boot set.	Save / Reboot stores this preference; general MIDI, input, and clock settings stay under System > MIDI.
+usb_apply_reboot	System > Audio / USB	action:audio.applyReboot	action	Save / Reboot	Saves the canonical audio output set and asks the platform to apply device settings with a reboot.	Confirmation offers Cancel or Save / Reboot.
+usb_sd_transfer_start	System > Audio / USB	action:usb.sdTransferStart	action	Start SD2 Xfer	Temporarily exposes the OLED SD2 sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
+usb_sd_transfer_stop	System > Audio / USB	action:usb.sdTransferStop	action	Stop SD2 Xfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject OLED SD2 on the host before stopping transfer.
 hdmi_group	Menu > System > HDMI		group	HDMI	Controls the optional Pi framebuffer grid output.	This display follows snapshots only and does not change playback.
 hdmi_mode	System > HDMI > Mode	key:hdmi.mode	enum	Mode	Terminal releases/disables Octessera framebuffer output so Linux terminal ownership can show; live-grid shows overlays; plain-grid shows no overlays.	active-behavior shows selected behavior; cycle-behaviors rotates behaviors using Bars per cycle. Stored/runtime Terminal value remains none.
 hdmi_cycle	System > HDMI > Bars per cycle	key:hdmi.cycleMeasures	number	Bars per cycle	Sets how many musical bars each behavior remains shown before Cycle Behaviors advances.	Applies only to Cycle Behaviors mode and clamps from 1 to 64.
@@ -370,7 +370,7 @@ system_diagnostics_group	Menu > System > Diagnostics		group	Diagnostics	Hardware
 system_hardware_test	Menu > System > Diagnostics > Hardware Test	action:system_hardware_test	action	Hardware Test	Runs the Pi pre-hardware diagnostic checks.	Requires confirmation before running the guided test.
 system_info	Menu > System > Info	action:system.info	action	System Info	Shows OS, Octessera, network, hostname, and board profile details.	Info is loaded by the native host and unavailable fields are labeled explicitly.
 system_configure_wifi	Menu > System > Configure WiFi	action:system_configure_wifi	action	Configure WiFi	Stops playback and opens the full setup portal for Wi-Fi, hostname, SSH, and login settings.	Use the portal to apply device setup changes.
-system_backup_restore	Menu > System > Backup & Restore	action:system_backup_restore	action	Backup & Restore	Provides the standalone LAN backup and restore API on a Pi device.	Use the authenticated local client with the displayed endpoint; stop the service when finished.
+system_backup_restore	Menu > System > Backup / Restore	action:system_backup_restore	action	Backup / Restore	Provides the standalone LAN backup and restore API on a Pi device.	Use the authenticated local client with the displayed endpoint; stop the service when finished.
 system_updates_group	Menu > System > Updates		group	Updates	Update status and OTA control actions.	Check is read-only; Apply and Rollback confirm first.
 system_update_check	Menu > System > Updates > Check	action:system_update_check	action	Check	Checks whether an update is available.	This is a non-destructive status request.
 system_update_apply	Menu > System > Updates > Apply	action:system_update_apply	action	Apply	Downloads and applies the selected device release.	Requires confirmation before changing the active release.
@@ -385,7 +385,7 @@ factory_group	Menu > System > Saves > Factory		group	Factory Preset	Loads built-
 midi_group	Menu > System > MIDI		group	MIDI	Global MIDI routing, ports, and clock behavior.	Per-instrument MIDI enable/channel are in Shape > Instruments.
 midi_out_group	Menu > System > MIDI > MIDI Out		group	MIDI Output	Selects target output device for outgoing MIDI events.	Disconnect clears the selected output.
 midi_in_group	Menu > System > MIDI > MIDI In		group	MIDI Input	Selects input device for incoming clock/start/stop.	Disconnect disables input source selection.
-midi_sync_group	Menu > System > MIDI > Sync & Clock		group	Sync & Clock	Configures transport clock source and clock I/O behavior.	Set external mode to follow incoming MIDI clock.
+midi_sync_group	Menu > System > MIDI > Sync / Clock		group	Sync / Clock	Configures transport clock source and clock I/O behavior.	Set external mode to follow incoming MIDI clock.
 life_spawn_count	*	key:behaviorConfig.life.randomCellsPerTick	number	Spawn Count	Sets how many random cells are injected per spawn event.	Higher values create denser, more chaotic growth bursts.
 life_spawn_interval	*	key:behaviorConfig.life.randomTickInterval	number	Spawn Interval	Sets tick interval between automatic random spawn bursts.	Lower values spawn more frequently.
 axis_pitch_enabled	*	key:x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence.

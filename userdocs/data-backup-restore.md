@@ -1,12 +1,12 @@
 # Data Backup and Restore
 
-Use the standalone `System > Backup & Restore` action to move Octessera user
+Use the standalone `System > Backup / Restore` action to move Octessera user
 data before a reflash. It is separate from `Configure WiFi`: it never opens the
 setup AP or uses the root setup coordinator. Desktop is unsupported.
 
 ## Start a transfer
 
-1. On a Pi board, choose `System > Backup & Restore`.
+1. On a Pi board, choose `System > Backup / Restore`.
 2. The OLED Ready card shows the regular network `IP`, `PORT 8081`, a generated
    10-character `CODE`, and the remaining lifetime. Build `URL` as
    `http://<regular-ip>:8081` and use the displayed code.
@@ -36,7 +36,7 @@ authentication revocation closes it automatically.
 2. Save `octessera-user-data.oct` off the board.
 3. Flash the matching Raspberry or Orange image and complete its normal first
    boot and regular network setup.
-4. On the fresh board, choose `System > Backup & Restore` again. Use the new
+4. On the fresh board, choose `System > Backup / Restore` again. Use the new
    dynamic `URL` and OLED code:
 
    ```sh

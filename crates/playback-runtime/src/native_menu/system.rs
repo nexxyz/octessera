@@ -33,7 +33,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ],
             ),
             group(
-                "Audio & USB",
+                "Audio / USB",
                 vec![
                     bool_item("Jack Audio", "audioOutputs.dac", config.audio_outputs.dac()),
                     bool_item("USB Audio", "audioOutputs.usb", config.audio_outputs.usb()),
@@ -48,7 +48,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         config.usb_midi_out_enabled,
                     ),
                     action_item(
-                        "Save & Reboot",
+                        "Save / Reboot",
                         "audio.applyReboot",
                         NativeMenuAction::PlatformEffect("audio.applyReboot".into()),
                     ),
@@ -143,7 +143,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
                     midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
                     group(
-                        "Sync & Clock",
+                        "Sync / Clock",
                         vec![
                             enum_item_from_strings(
                                 "Sync",
@@ -247,7 +247,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 NativeMenuAction::PlatformEffect("system.configureWifi".into()),
             ),
             action_item(
-                "Backup & Restore",
+                "Backup / Restore",
                 "system.backupRestore",
                 NativeMenuAction::PlatformEffect("system.backupRestore".into()),
             ),
