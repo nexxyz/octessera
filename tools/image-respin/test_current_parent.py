@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import json
 import tempfile
 import unittest
 import zipfile
 import sys
+from email.message import Message
 from pathlib import Path
+from typing import Any
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import current_parent
 from current_parent import (
     CurrentParentError,
     load_record,
@@ -163,6 +168,51 @@ class CurrentParentTests(unittest.TestCase):
             (directory / summary_name).write_text(summary + f"{image_digest}  {image_name}\n", encoding="utf-8")
             with self.assertRaises(CurrentParentError):
                 validate_downloaded_directory(directory, record)
+
+    def test_artifact_redirect_drops_bearer_authorization(self) -> None:
+        class Response(io.BytesIO):
+            def __enter__(self) -> "Response":
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                self.close()
+
+        class RedirectingOpener:
+            def __init__(self) -> None:
+                self.requests: list[Any] = []
+
+            def open(self, request: Any) -> Response:
+                self.requests.append(request)
+                if len(self.requests) == 1:
+                    redirected = current_parent._NoAuthorizationRedirectHandler().redirect_request(
+                        request, None, 302, "Found", {}, "https://objects.example/download.zip?sig=secret"
+                    )
+                    assert redirected is not None
+                    return self.open(redirected)
+                return Response(b"zip")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            opener = RedirectingOpener()
+            with patch.object(current_parent.urllib.request, "build_opener", return_value=opener):
+                current_parent._download("https://api.github.com/repos/nexxyz/octessera/actions/artifacts/1/zip", "token", Path(temporary) / "download.zip")
+            initial, redirected = opener.requests
+            self.assertEqual(initial.get_header("Authorization"), "Bearer token")
+            self.assertIsNone(redirected.get_header("Authorization"))
+            self.assertEqual(redirected.get_header("Accept"), "application/octet-stream")
+            self.assertEqual(redirected.get_header("X-github-api-version"), "2022-11-28")
+
+    def test_download_http_error_hides_signed_query(self) -> None:
+        class FailingOpener:
+            def open(self, _request: Any) -> None:
+                raise current_parent.urllib.error.HTTPError("https://objects.example/download.zip?sig=secret", 403, "Forbidden", Message(), None)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.object(current_parent.urllib.request, "build_opener", return_value=FailingOpener()):
+                with self.assertRaises(CurrentParentError) as raised:
+                    current_parent._download("https://api.github.com/repos/nexxyz/octessera/actions/artifacts/1/zip", "token", Path(temporary) / "download.zip")
+            self.assertIn("HTTP 403", str(raised.exception))
+            self.assertNotIn("secret", str(raised.exception))
+            self.assertNotIn("?", str(raised.exception))
 
 
 if __name__ == "__main__":
