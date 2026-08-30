@@ -117,7 +117,7 @@ def validate_contract_schema(contract: Any) -> None:
         raise ContractSchemaError("real parent paths are not exact")
     _spec(contract["current_link"], "current_link", link=True)
     _spec(contract["binary_link"], "binary_link", link=True)
-    expected_entries = ["octessera-pi", "update-manifest.json"] if board == "raspberry-pi-zero-2w" else ["octessera-pi", "octessera-runtime.json", "SHA256SUMS"]
+    expected_entries = ["octessera-pi", "update-manifest.json"] if board == "raspberry-pi-zero-2w" else ["octessera-pi", "octessera-runtime.json", "SHA256SUMS", "update-manifest.json"]
     for section in ("prior_release", "new_release"):
         release = _keys(contract[section], {"directory", "entries"}, section)
         _spec(release["directory"], f"{section}.directory")
@@ -134,9 +134,10 @@ def validate_contract_schema(contract: Any) -> None:
             raise ContractSchemaError("Raspberry state ownership is invalid")
         _spec({key: state[key] for key in SPEC_KEYS}, "state_contract")
     else:
-        _keys(state, {"owned", "path", "type", "preimage", "transform"}, "state_contract")
-        if state != {"owned": False, "path": managed["state"], "type": "absent", "preimage": "absent", "transform": "none"}:
-            raise ContractSchemaError("Orange state contract is invalid")
+        _keys(state, {"owned", "path", "type", "symlink", "mode", "uid", "gid", "preimage", "transform", "xattrs", "capability"}, "state_contract")
+        if state["owned"] is not True or state["type"] != "file" or state["preimage"] != "exact-committed-state" or state["transform"] != "committed-current-release":
+            raise ContractSchemaError("Orange state ownership is invalid")
+        _spec({key: state[key] for key in SPEC_KEYS}, "state_contract")
     if board == "orange-pi-zero-2w":
         metadata = _keys(contract["build_metadata_contract"], {"path", "type", "preimage_mode", "mode", "uid", "gid", "symlink", "required_keys", "transform_keys", "line_endings", "xattrs", "capability"}, "build_metadata_contract")
         _safe_path(metadata["path"], "build_metadata_contract.path")
@@ -155,8 +156,8 @@ def validate_contract_schema(contract: Any) -> None:
         raise ContractSchemaError("mutation preserve contract is invalid")
     expected_replace = ["opt/octessera/releases/{version}", "opt/octessera/current", "usr/local/bin/octessera-pi"]
     expected_remove = ["opt/octessera/releases/{prior_version}"]
-    expected_generated = ["opt/octessera/releases/{version}", "opt/octessera/releases/{version}/octessera-pi", "opt/octessera/releases/{version}/update-manifest.json"] if board == "raspberry-pi-zero-2w" else ["opt/octessera/releases/{version}", "opt/octessera/releases/{version}/octessera-pi", "opt/octessera/releases/{version}/octessera-runtime.json", "opt/octessera/releases/{version}/SHA256SUMS"]
-    expected_structured = [managed["state"]] if board == "raspberry-pi-zero-2w" else [managed["build_metadata"]]
+    expected_generated = ["opt/octessera/releases/{version}", "opt/octessera/releases/{version}/octessera-pi", "opt/octessera/releases/{version}/update-manifest.json"] if board == "raspberry-pi-zero-2w" else ["opt/octessera/releases/{version}", "opt/octessera/releases/{version}/octessera-pi", "opt/octessera/releases/{version}/octessera-runtime.json", "opt/octessera/releases/{version}/SHA256SUMS", "opt/octessera/releases/{version}/update-manifest.json"]
+    expected_structured = [managed["state"]] if board == "raspberry-pi-zero-2w" else [managed["state"], managed["build_metadata"]]
     if mutation["replace"] != expected_replace or mutation["remove"] != expected_remove or mutation["generated"] != expected_generated or mutation["structured_transform"] != expected_structured:
         raise ContractSchemaError("structured transform ownership is invalid")
     if mutation["forbidden"] != ["opt/octessera/releases/.image-respin-*", "opt/octessera/.image-respin-*", "usr/local/bin/.image-respin-*"]:

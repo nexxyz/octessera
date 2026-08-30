@@ -39,7 +39,10 @@ def _mkdir(path: Path, mode: int = 0o755) -> None:
 
 
 def _manifest(board: str, version: str) -> dict[str, Any]:
-    return {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "tag": f"v{version}", "version": version, "board_profile": board, "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": [board, "linux-aarch64-device"]}
+    manifest = {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "tag": f"v{version}", "version": version, "board_profile": board, "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": [board, "linux-aarch64-device"]}
+    if board == ORANGE:
+        manifest.update({"updater_supported": True, "distribution": "runtime-updater"})
+    return manifest
 
 
 def _bundle(work: Path, board: str, version: str, binary: bytes = b"new-runtime") -> Path:
@@ -73,12 +76,15 @@ def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
         state = {"schema_version": 2, "phase": "committed", "current": prior, "previous": None, "next": None, "updated_at": "1970-01-01T00:00:00Z", "release": _manifest(board, prior), "asset": None}
         _write(root / "opt/octessera/update-state.json", json.dumps(state, sort_keys=True, indent=2) + "\n", 0o644)
     else:
+        state = {"schema_version": 2, "phase": "committed", "current": prior, "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": _manifest(board, prior), "asset": None}
+        _write(root / "opt/octessera/update-state.json", json.dumps(state, sort_keys=True, indent=2) + "\n", 0o644)
         digest = hashlib.sha256(old).hexdigest()
         metadata = {"artifact_kind": "production-runtime", "binary_sha256": digest, "name": "octessera-pi", "profile": board, "runtime_ready": True, "version": prior}
         runtime_metadata = json.dumps(metadata, sort_keys=True, indent=2) + "\n"
         runtime_sums = f"{digest}  octessera-pi\n"
         _write(release / "octessera-runtime.json", runtime_metadata, 0o444)
         _write(release / "SHA256SUMS", runtime_sums, 0o444)
+        _write(release / "update-manifest.json", json.dumps(_manifest(board, prior), sort_keys=True, indent=2) + "\n", 0o444)
         metadata_hash = hashlib.sha256(runtime_metadata.encode()).hexdigest()
         sums_hash = hashlib.sha256(runtime_sums.encode()).hexdigest()
         build_metadata = f"OCTESSERA_IMAGE_KIND=armbian\nOCTESSERA_IMAGE_MODE=production\nOCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w\nOCTESSERA_IMAGE_BUILT_AT=2025-01-01T00:00:00Z\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_IMAGE_CONTRACT_SHA256={'a' * 64}\nOCTESSERA_RUNTIME_VERSION={prior}\nOCTESSERA_RUNTIME_BINARY_SHA256={digest}\nOCTESSERA_RUNTIME_MANIFEST_SHA256={sums_hash}\nOCTESSERA_RUNTIME_METADATA_SHA256={metadata_hash}\nOCTESSERA_SPI1_CS0_DTS_SHA256={'b' * 64}\nOCTESSERA_SPI1_CS0_DTBO_SHA256={'c' * 64}\nOCTESSERA_INPUT_ROUTING_DTS_SHA256={'d' * 64}\nOCTESSERA_INPUT_ROUTING_DTBO_SHA256={'e' * 64}\nOCTESSERA_PI_DEFAULT_SHA256={'f' * 64}\nOCTESSERA_SAMPLES_MANIFEST_SHA256={'0' * 64}\n"
@@ -138,10 +144,21 @@ class RuntimeMutationTests(unittest.TestCase):
             root, bundle = _fixture(work, ORANGE)
             _write(work / "external-target", b"host pseudo target", 0o644)
             (root / "etc/external-absolute").symlink_to(work / "external-target")
+            prior_state_bytes = (root / "opt/octessera/update-state.json").read_bytes()
             result = mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
             self.assertEqual(result.prior_version, "1.0.0")
             self.assertEqual(result.version, "2.0.0")
             self.assertEqual((root / "opt/octessera/releases/2.0.0/octessera-pi").read_bytes(), b"new-runtime")
+            installed = root / "opt/octessera/releases/2.0.0"
+            self.assertEqual(sorted(path.name for path in installed.iterdir()), ["SHA256SUMS", "octessera-pi", "octessera-runtime.json", "update-manifest.json"])
+            self.assertEqual(json.loads((installed / "update-manifest.json").read_text()), _manifest(ORANGE, "2.0.0"))
+            state_path = root / "opt/octessera/update-state.json"
+            state = json.loads(state_path.read_text())
+            self.assertEqual(state, {"schema_version": 2, "phase": "committed", "current": "2.0.0", "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": _manifest(ORANGE, "2.0.0"), "asset": None})
+            state_entry = build_inventory(root)["opt/octessera/update-state.json"]
+            self.assertEqual((state_entry["uid"], state_entry["gid"]), (0, 0))
+            if os.name != "nt":
+                self.assertEqual(state_entry["mode"], 0o644)
             self.assertFalse((root / "opt/octessera/releases/1.0.0").exists())
             self.assertEqual((root / "opt/octessera/current").readlink().as_posix(), "/opt/octessera/releases/2.0.0")
             self.assertEqual(result.post_inventory_digest, inventory_digest(build_inventory(root)))
@@ -150,11 +167,11 @@ class RuntimeMutationTests(unittest.TestCase):
             self.assertEqual((root / "usr/share/doc/octessera/LICENSE").read_bytes(), (Path(__file__).resolve().parents[2] / "LICENSE").read_bytes())
             self.assertEqual((root / "usr/share/doc/base-files/copyright").read_bytes(), b"vendor copyright\n")
             self.assertEqual((root / "usr/share/common-licenses/GPL-3").read_bytes(), b"vendor GPL\n")
-            self.assertEqual(set(result.parent_identity["prior_release_entries"]), {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"})
+            self.assertEqual(set(result.parent_identity["prior_release_entries"]), {"octessera-pi", "octessera-runtime.json", "SHA256SUMS", "update-manifest.json"})
             self.assertEqual(result.parent_identity["prior_release_entries"]["octessera-pi"], hashlib.sha256(b"old-runtime").hexdigest())
             self.assertEqual(result.parent_identity["parent_context"], _parent_context(ORANGE))
-            self.assertFalse((root / "opt/octessera/update-state.json").exists())
-            self.assertIsNone(result.parent_identity["prior_state_preimage_sha256"])
+            self.assertEqual(result.parent_identity["prior_state_preimage_sha256"], hashlib.sha256(prior_state_bytes).hexdigest())
+            self.assertIn("opt/octessera/update-state.json", result.changed_paths)
             metadata_lines = (root / "etc/octessera/build-metadata.env").read_text(encoding="utf-8").splitlines()
             self.assertIn("OCTESSERA_RUNTIME_VERSION=2.0.0", metadata_lines)
             self.assertIn("OCTESSERA_IMAGE_MODE=production", metadata_lines)
@@ -163,6 +180,22 @@ class RuntimeMutationTests(unittest.TestCase):
             if os.name != "nt":
                 self.assertEqual(metadata["mode"], 0o644)
 
+    def test_wrong_or_malformed_orange_parent_manifest_is_rejected_without_mutation(self) -> None:
+        for mutation in ("wrong", "malformed"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                work = Path(temporary)
+                root, bundle = _fixture(work, ORANGE)
+                manifest_path = root / "opt/octessera/releases/1.0.0/update-manifest.json"
+                os.chmod(manifest_path, 0o644)
+                if mutation == "wrong":
+                    _write(manifest_path, json.dumps(_manifest(ORANGE, "9.9.9"), sort_keys=True, indent=2) + "\n", 0o444)
+                else:
+                    _write(manifest_path, "{malformed", 0o444)
+                before = inventory_digest(build_inventory(root))
+                with self.assertRaises(MutationError):
+                    mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
+                self.assertEqual(inventory_digest(build_inventory(root)), before)
+
     def test_same_version_replacement_removes_stale_prior_content(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root, bundle = _fixture(Path(temporary), ORANGE, prior="2.0.0")
@@ -170,6 +203,25 @@ class RuntimeMutationTests(unittest.TestCase):
             self.assertEqual(result.prior_version, result.version)
             self.assertEqual((root / "opt/octessera/releases/2.0.0/octessera-pi").read_bytes(), b"new-runtime")
             self.assertNotIn(".image-respin", "\n".join(result.changed_paths))
+
+    def test_missing_malformed_or_extra_next_orange_parent_state_is_rejected_without_mutation(self) -> None:
+        for mutation in ("missing", "malformed", "extra-next"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                work = Path(temporary)
+                root, bundle = _fixture(work, ORANGE)
+                state_path = root / "opt/octessera/update-state.json"
+                if mutation == "missing":
+                    state_path.unlink()
+                elif mutation == "malformed":
+                    _write(state_path, "{malformed", 0o644)
+                else:
+                    state = json.loads(state_path.read_text())
+                    state["next"] = None
+                    _write(state_path, json.dumps(state, sort_keys=True, indent=2) + "\n", 0o644)
+                before = inventory_digest(build_inventory(root))
+                with self.assertRaises(MutationError):
+                    mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
+                self.assertEqual(inventory_digest(build_inventory(root)), before)
 
     def test_bad_checksums_metadata_board_and_semver_are_rejected(self) -> None:
         cases = ("checksum", "metadata", "board", "version")
@@ -255,7 +307,7 @@ class RuntimeMutationTests(unittest.TestCase):
                 mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(RPI))
 
     def test_unauthorized_mutation_is_rejected_and_interrupted_commit_rolls_back(self) -> None:
-        points = ("staged", "notice-staged", "notice-published", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "build-metadata-replaced")
+        points = ("staged", "notice-staged", "notice-published", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "build-metadata-replaced", "state-replaced")
         for point in points:
             with self.subTest(board=ORANGE, point=point), tempfile.TemporaryDirectory() as temporary:
                 root, bundle = _fixture(Path(temporary), ORANGE)

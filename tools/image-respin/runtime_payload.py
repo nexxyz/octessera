@@ -113,10 +113,9 @@ def validate_output(root: Path, inventory: Inventory, bundle_inventory: Inventor
         expected_hash = bundle_inventory[name]["sha256"] if spec.get("sha256") == "payload" else actual[name]["sha256"]
         if not expected_hash or actual[name]["sha256"] != expected_hash:
             fail(f"new release {name} is not hash-bound")
-    if contract["board_profile"] == "raspberry-pi-zero-2w":
-        manifest, _ = read_json_bytes(managed_lstat(root, f"{base}/update-manifest.json"))
-        if manifest != manifest_for(contract["board_profile"], version):
-            fail("new Raspberry release manifest is not exact")
+    manifest, _ = read_json_bytes(managed_lstat(root, f"{base}/update-manifest.json"))
+    if manifest != manifest_for(contract["board_profile"], version):
+        fail("new Orange release manifest is not exact" if contract["board_profile"] == "orange-pi-zero-2w" else "new Raspberry release manifest is not exact")
     current = contract["managed"]["current"]
     managed_lstat(root, current)
     managed_lstat(root, contract["managed"]["binary_link"])
@@ -126,8 +125,9 @@ def validate_output(root: Path, inventory: Inventory, bundle_inventory: Inventor
     if contract["state_contract"]["owned"]:
         managed_lstat(root, state_path)
         check_spec(metadata(inventory, state_path), contract["state_contract"], "new runtime state")
-        if state is None or state.get("current") != version or state.get("release") != manifest_for(contract["board_profile"], version):
-            fail("new Raspberry state does not describe the new release")
+        on_disk_state, _ = read_json_bytes(managed_lstat(root, state_path))
+        if state is None or on_disk_state != state or not isinstance(on_disk_state, dict) or on_disk_state.get("current") != version or on_disk_state.get("release") != manifest_for(contract["board_profile"], version):
+            fail("new Orange state does not describe the new release" if contract["board_profile"] == "orange-pi-zero-2w" else "new Raspberry state does not describe the new release")
     elif state_path in inventory:
         fail("Orange runtime state was created")
     if contract["board_profile"] == "orange-pi-zero-2w":

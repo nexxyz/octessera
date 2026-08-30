@@ -5,7 +5,7 @@ dependency inventory and does not claim legal compliance.
 
 - Original Octessera material: [`LICENSE`](LICENSE).
 - Reviewed known-material notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
-- Samples and upstream designations: [`samples/ATTRIBUTIONS.tsv`](samples/ATTRIBUTIONS.tsv) and [`samples/upstream/`](samples/upstream/).
+- Bundled samples: [`samples/SOURCE.md`](samples/SOURCE.md), [`samples/MANIFEST.tsv`](samples/MANIFEST.tsv), and [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
 - Hardware references and attribution: [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md).
 - Attribution and future release source/licensing review: [`docs/release-licensing.md`](docs/release-licensing.md).
 

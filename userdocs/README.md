@@ -129,14 +129,13 @@ audio, every control, and access to the ports. If anything is unclear, use the
 
 ## Samples and OLED SD storage
 
-The repository's complete attribution inventory has 320 rows. The
-sampler-loadable default library contains 318 WAV rows; two AIFF rows remain in
-the inventory and are outside the WAV-only browser/decoder. The portable desktop
-package and the constructors for both production images stage the complete
-320-file artifact inventory. That is a build/staging contract, not a
-physical-board FAT result. You can add your own samples through the desktop
-host/sample browser or the board sample paths. First boot only seeds a missing
-default and does not replace user samples.
+The bundled library has 320 media files. The sampler-loadable default library
+contains 318 WAV files; two AIFF files remain outside the WAV-only
+browser/decoder. The portable desktop package and both production images stage
+the complete 320-file library. Its technical [manifest](../samples/MANIFEST.tsv)
+records each file's path, size, and SHA-256 digest. You can add your own samples
+through the desktop host/sample browser or the board sample paths. First boot
+only seeds a missing default and does not replace user samples.
 
 For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2;
 the selected board's boot card is SD1. On Orange, SD2 is header pin 26 / H618
@@ -162,7 +161,8 @@ contracts live in the source references:
 - [Menu tree spec](../docs/menu-tree-spec.md)
 - [Behavior source](../crates/platform-core/src/behaviors/)
 - [Project license](../LICENSE)
-- [Samples attribution inventory](../samples/ATTRIBUTIONS.tsv)
+- [Bundled sample acknowledgement](../samples/SOURCE.md)
+- [Sample integrity manifest](../samples/MANIFEST.tsv)
 - [Hardware attributions](../hardware/ATTRIBUTIONS.md)
 
 If a friendly page and a canonical specification disagree, the specification

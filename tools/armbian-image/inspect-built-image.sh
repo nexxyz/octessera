@@ -201,12 +201,12 @@ for path in \
   etc/systemd/system/octessera-orange-oled-suspend.service etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service \
   etc/systemd/system/octessera-provision-musical-default.service usr/share/octessera/oled/octessera-pi-booting.rgb565 \
   usr/share/octessera/oled/octessera-pi-shutdown.rgb565 usr/share/octessera/defaults/pi-default.json \
-  usr/share/octessera/samples/sample-manifest.tsv usr/share/octessera/samples/ATTRIBUTIONS.tsv \
-  usr/share/octessera/samples/upstream/LICENSE usr/share/octessera/samples/upstream/README.txt; do
+  usr/share/octessera/samples/MANIFEST.tsv usr/share/octessera/samples/SOURCE.md \
+  usr/share/octessera/samples/upstream/LICENSE; do
   stat_path "$path" || { echo "Missing Orange OS parity path: $path." >&2; exit 1; }
 done
 for path in usr/local/sbin/octessera-orange-usb-gadget usr/local/sbin/octessera-device-apply-reboot usr/local/sbin/octessera-orange-oled-logo usr/local/sbin/octessera-orange-oled-suspend usr/local/sbin/octessera-provision-musical-default; do require_root_mode "$path" 755; done
-for path in usr/local/lib/octessera/device_config.py usr/local/sbin/octessera-orange-oled-handoff.py usr/local/sbin/octessera-orange-oled-lifecycle.py etc/modules-load.d/octessera-orange-midi.conf etc/modules-load.d/octessera-orange-usb-gadget.conf etc/systemd/system/octessera-orange-usb-gadget.service etc/systemd/system/octessera-device-apply-reboot.socket etc/systemd/system/octessera-device-apply-reboot@.service etc/systemd/system/octessera-orange-boot-splash.service etc/systemd/system/octessera-orange-oled-shutdown.service etc/systemd/system/octessera-orange-oled-suspend.service etc/systemd/system/octessera-provision-musical-default.service usr/share/octessera/defaults/pi-default.json usr/share/octessera/samples/sample-manifest.tsv usr/share/octessera/samples/ATTRIBUTIONS.tsv usr/share/octessera/samples/upstream/LICENSE usr/share/octessera/samples/upstream/README.txt; do require_root_mode "$path" 644; done
+for path in usr/local/lib/octessera/device_config.py usr/local/sbin/octessera-orange-oled-handoff.py usr/local/sbin/octessera-orange-oled-lifecycle.py etc/modules-load.d/octessera-orange-midi.conf etc/modules-load.d/octessera-orange-usb-gadget.conf etc/systemd/system/octessera-orange-usb-gadget.service etc/systemd/system/octessera-device-apply-reboot.socket etc/systemd/system/octessera-device-apply-reboot@.service etc/systemd/system/octessera-orange-boot-splash.service etc/systemd/system/octessera-orange-oled-shutdown.service etc/systemd/system/octessera-orange-oled-suspend.service etc/systemd/system/octessera-provision-musical-default.service usr/share/octessera/defaults/pi-default.json usr/share/octessera/samples/MANIFEST.tsv usr/share/octessera/samples/SOURCE.md usr/share/octessera/samples/upstream/LICENSE; do require_root_mode "$path" 644; done
 if [[ "$sd_card_required" == true ]]; then
   require_root_mode usr/local/sbin/octessera-sd-card 755
   for path in usr/local/lib/octessera/octessera-sd-card-lib.sh etc/systemd/system/octessera-orange-sd-card.service etc/udev/rules.d/99-octessera-orange-sd-card.rules; do require_root_mode "$path" 644; done
@@ -221,11 +221,11 @@ fi
 reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service
 reject_path lib/systemd/system-sleep/octessera-orange-oled
 reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
-for path in usr/share/octessera/defaults/pi-default.json usr/share/octessera/samples/sample-manifest.tsv usr/share/octessera/samples/ATTRIBUTIONS.tsv usr/share/octessera/samples/upstream/LICENSE usr/share/octessera/samples/upstream/README.txt; do require_root_mode "$path" 644; done
+for path in usr/share/octessera/defaults/pi-default.json usr/share/octessera/samples/MANIFEST.tsv usr/share/octessera/samples/SOURCE.md usr/share/octessera/samples/upstream/LICENSE; do require_root_mode "$path" 644; done
 reject_path usr/share/octessera/samples/files
 [[ "$(hash_path usr/share/octessera/defaults/pi-default.json)" == "$default_hash" ]] || { echo 'Pi default hash mismatch.' >&2; exit 1; }
-[[ "$(hash_path usr/share/octessera/samples/sample-manifest.tsv)" == "$samples_manifest_hash" ]] || { echo 'Sample manifest hash mismatch.' >&2; exit 1; }
-octessera_validate_sample_tree "$target" "$(read_file usr/share/octessera/samples/sample-manifest.tsv)" "$inspect_work"
+[[ "$(hash_path usr/share/octessera/samples/MANIFEST.tsv)" == "$samples_manifest_hash" ]] || { echo 'Sample manifest hash mismatch.' >&2; exit 1; }
+octessera_validate_sample_tree "$target" "$(read_file usr/share/octessera/samples/MANIFEST.tsv)" "$inspect_work"
 
 if [[ "$sd_card_required" == true ]]; then
   sd_helper="$(read_file usr/local/sbin/octessera-sd-card)"

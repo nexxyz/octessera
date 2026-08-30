@@ -17,14 +17,15 @@ tree before publishing.
 
 Release artifacts should link or ship the applicable [`NOTICE`](../NOTICE),
 [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md),
-[`samples/ATTRIBUTIONS.tsv`](../samples/ATTRIBUTIONS.tsv), and
+[`samples/SOURCE.md`](../samples/SOURCE.md),
+[`samples/MANIFEST.tsv`](../samples/MANIFEST.tsv), and
 [`hardware/ATTRIBUTIONS.md`](../hardware/ATTRIBUTIONS.md). The release policy
 is [`docs/release-licensing.md`](../docs/release-licensing.md).
 
-Attribution notices and pinned upstream source references are maintained with
-the project. Octessera source, configuration, and image patches are in the
-repository. Applicable source duties need review before any future public image
-release; these records make no legal-compliance claim. The release workflow
+The sample acknowledgement and CC0 text are maintained with the project.
+Octessera source, configuration, and image patches are in the repository.
+Applicable source duties need review before any future public image release;
+these records make no legal-compliance claim. The release workflow
 checks the Windows portable notice bundle and puts the generated legal bundle in
 the release evidence ZIP. Board device ZIPs carry exact root-level `LICENSE` and
 `NOTICE` files.

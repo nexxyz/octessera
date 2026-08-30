@@ -242,8 +242,6 @@ octessera_validate_sample_tree() {
   local sample_path
   local sample_size
   local sample_hash
-  local sample_source
-  local sample_license_source
   local component
   local current_directory
   local record
@@ -258,16 +256,16 @@ octessera_validate_sample_tree() {
   : > "$records_path"
   : > "$directories_path"
   : > "$seen_path"
-  while IFS=$'\t' read -r sample_path sample_size sample_hash sample_source sample_license_source; do
+  while IFS=$'\t' read -r sample_path sample_size sample_hash; do
     manifest_line=$((manifest_line + 1))
     if [[ "$manifest_line" == 1 ]]; then
-      [[ "$sample_path" == '# path' && "$sample_size" == size && "$sample_hash" == sha256 && "$sample_source" == source && "$sample_license_source" == license_source ]] || {
+      [[ "$sample_path" == '# path' && "$sample_size" == size && "$sample_hash" == sha256 ]] || {
         echo 'Invalid packaged sample manifest header.' >&2
         return 1
       }
       continue
     fi
-    [[ -n "$sample_path" && "$sample_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/* && "$sample_license_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE ]] || {
+    [[ -n "$sample_path" ]] || {
       echo 'Invalid packaged sample manifest row.' >&2
       return 1
     }

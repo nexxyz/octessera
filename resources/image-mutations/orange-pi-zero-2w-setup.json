@@ -12,7 +12,7 @@
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup_http.py", "sha256": "702f7e47c559ec438baf858036c2ecc043cc2252fa8f80c5522761bb1d62f52a", "size": 4217},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-setup.service", "sha256": "90fff12f3ba3d6cd482d7663236da8adf1d0edfdb15bed8990192f271772553c", "size": 718},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-setup-request.path", "sha256": "2ff3baae4316159f9a2ee1399930239dd395eab8dd04bf7d6aa444caba221ac1", "size": 227},
-    {"path": "userpatches/customize-image.sh", "sha256": "478820f7f1b9d62cf2b5f14ea7c3fac27722a3d466021db6fc22d2e167765309", "size": 31104},
+    {"path": "userpatches/customize-image.sh", "sha256": "879dbefa223e2e7eb090145beba07934823198e5abacd9422bece9d883980d18", "size": 30880},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js", "sha256": "784454468a932b8fb73134302919e5c311cddb62599b642da5e7fbb3d6e619a6", "size": 12776},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/index.html", "sha256": "3e8775159eb0a40c4fe04147dd0a741cac1829e5c08b99a3dae5f462fd4c5211", "size": 5983},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/css/styles.css", "sha256": "97006300500e49f36be053a1313fe9ba14de8a7d4759b5ea7c87ddf10b960bf2", "size": 7749},

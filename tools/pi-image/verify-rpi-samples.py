@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from tools.samples.sample_library import (  # noqa: E402
-    read_inventory,
+    read_manifest,
     verify_manifest,
     verify_media_tree,
     verify_metadata_tree,
@@ -49,13 +49,13 @@ def _verify_tree_ownership(root: Path, uid: int, gid: int, label: str) -> None:
 
 
 def verify(root: Path, repository_root: Path) -> None:
-    records = read_inventory(repository_root / "samples/ATTRIBUTIONS.tsv")
+    records = read_manifest(repository_root / "samples/MANIFEST.tsv")
     pi_uid, pi_gid = _account_identity(root)
     media_root = root / "home/pi/samples"
     metadata_root = root / "usr/share/octessera/samples"
     verify_media_tree(media_root, records, ("sd-card",))
     verify_metadata_tree(metadata_root, repository_root / "samples")
-    verify_manifest(metadata_root / "sample-manifest.tsv", records)
+    verify_manifest(metadata_root / "MANIFEST.tsv", records)
     if (metadata_root / "files").exists() or (metadata_root / "files").is_symlink():
         raise ValueError("Raspberry sample metadata tree contains packaged media")
     _verify_tree_ownership(media_root, pi_uid, pi_gid, "Raspberry sample media")

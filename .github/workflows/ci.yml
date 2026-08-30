@@ -336,7 +336,6 @@ jobs:
           shellcheck tools/storage/octessera-sd-card tools/storage/octessera-sd-card-lib.sh tools/storage/octessera-orange-storage tools/armbian-image/test-orange-storage-lifecycle.sh userpatches/overlay/usr/local/sbin/octessera-sd-card userpatches/overlay/usr/local/sbin/octessera-orange-storage
 
           python3 -m unittest tools.samples.test_sample_library
-          python3 tools/legal/sample_attributions.py
           sudo bash tools/pi-image/test-musical-assets.sh
           sudo bash tools/armbian-image/test-musical-assets.sh
           bash tools/armbian-image/test-inspector.sh

@@ -27,7 +27,10 @@ COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 METADATA_KEYS = {"artifact_kind", "binary_sha256", "name", "profile", "runtime_ready", "version"}
 MANIFEST_KEYS = {"schema_version", "updater_protocol", "candidate_health_protocol", "tag", "version", "board_profile", "arch", "binary", "platforms"}
+ORANGE_MANIFEST_KEYS = MANIFEST_KEYS | {"updater_supported", "distribution"}
 STATE_KEYS = {"schema_version", "phase", "current", "previous", "next", "updated_at", "release", "asset"}
+ORANGE_STATE_KEYS = STATE_KEYS - {"next"}
+STATE_TIMESTAMP_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z$")
 BUILD_METADATA_KEY_ORDER = ("OCTESSERA_IMAGE_KIND", "OCTESSERA_IMAGE_MODE", "OCTESSERA_BOARD_PROFILE_ID", "OCTESSERA_IMAGE_BUILT_AT", "OCTESSERA_RUNTIME_ENABLED_DEFAULT", "OCTESSERA_IMAGE_CONTRACT_SHA256", "OCTESSERA_RUNTIME_VERSION", "OCTESSERA_RUNTIME_BINARY_SHA256", "OCTESSERA_RUNTIME_MANIFEST_SHA256", "OCTESSERA_RUNTIME_METADATA_SHA256", "OCTESSERA_SPI1_CS0_DTS_SHA256", "OCTESSERA_SPI1_CS0_DTBO_SHA256", "OCTESSERA_INPUT_ROUTING_DTS_SHA256", "OCTESSERA_INPUT_ROUTING_DTBO_SHA256", "OCTESSERA_PI_DEFAULT_SHA256", "OCTESSERA_SAMPLES_MANIFEST_SHA256")
 BUILD_METADATA_KEYS = set(BUILD_METADATA_KEY_ORDER)
 BUILD_METADATA_TRANSFORMS = {"OCTESSERA_RUNTIME_VERSION", "OCTESSERA_RUNTIME_BINARY_SHA256", "OCTESSERA_RUNTIME_METADATA_SHA256", "OCTESSERA_RUNTIME_MANIFEST_SHA256"}
@@ -253,13 +256,17 @@ def validate_parent_context(context: object, board_profile: str) -> dict[str, An
 
 
 def manifest_for(board: str, version: str) -> dict[str, Any]:
-    return {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "tag": f"v{version}", "version": version, "board_profile": board, "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": [board, "linux-aarch64-device"]}
+    manifest = {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "tag": f"v{version}", "version": version, "board_profile": board, "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": [board, "linux-aarch64-device"]}
+    if board == "orange-pi-zero-2w":
+        manifest.update({"updater_supported": True, "distribution": "runtime-updater"})
+    return manifest
 
 
 def read_manifest(root: Path, relative: str, version: str, board: str) -> dict[str, Any]:
     manifest, _ = read_json_bytes(managed_lstat(root, relative))
-    if not isinstance(manifest, dict) or set(manifest) != MANIFEST_KEYS or manifest != manifest_for(board, version):
-        fail("Raspberry release manifest is not exact")
+    expected_keys = ORANGE_MANIFEST_KEYS if board == "orange-pi-zero-2w" else MANIFEST_KEYS
+    if not isinstance(manifest, dict) or set(manifest) != expected_keys or manifest != manifest_for(board, version):
+        fail("Orange release manifest is not exact" if board == "orange-pi-zero-2w" else "Raspberry release manifest is not exact")
     return manifest
 
 
@@ -294,7 +301,7 @@ def _check_release(root: Path, inventory: Inventory, contract: dict[str, Any], v
         if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
             fail(f"prior release {name} has no content digest")
         hashes[name] = str(digest)
-    manifest = read_manifest(root, f"{base}/update-manifest.json", version, contract["board_profile"]) if contract["board_profile"] == "raspberry-pi-zero-2w" else None
+    manifest = read_manifest(root, f"{base}/update-manifest.json", version, contract["board_profile"])
     return manifest, hashes
 
 
@@ -307,10 +314,13 @@ def _check_state(root: Path, inventory: Inventory, contract: dict[str, Any], pri
         return None, None, None
     check_spec(entry or {}, contract["state_contract"], "runtime state")
     state, raw = read_json_bytes(managed_lstat(root, relative))
-    if not isinstance(state, dict) or set(state) != STATE_KEYS or state["schema_version"] != 2 or state["phase"] != "committed" or state["current"] != prior_version:
-        fail("Raspberry runtime state shape is not exact")
-    if state["previous"] is not None or state["next"] is not None or state["asset"] is not None or state["release"] != manifest or not isinstance(state["updated_at"], str) or not state["updated_at"].strip():
-        fail("Raspberry runtime state does not describe the current release")
+    orange = contract["board_profile"] == "orange-pi-zero-2w"
+    expected_keys = ORANGE_STATE_KEYS if orange else STATE_KEYS
+    if not isinstance(state, dict) or set(state) != expected_keys or state["schema_version"] != 2 or state["phase"] != "committed" or state["current"] != prior_version:
+        fail("Orange runtime state shape is not exact" if orange else "Raspberry runtime state shape is not exact")
+    timestamp_valid = isinstance(state["updated_at"], str) and bool(state["updated_at"].strip())
+    if state["previous"] is not None or (not orange and state["next"] is not None) or state["asset"] is not None or state["release"] != manifest or not timestamp_valid or (orange and not STATE_TIMESTAMP_RE.fullmatch(state["updated_at"])):
+        fail("Orange runtime state does not describe the current release" if orange else "Raspberry runtime state does not describe the current release")
     return state, raw, hashlib.sha256(raw).hexdigest()
 
 

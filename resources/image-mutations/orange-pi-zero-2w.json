@@ -27,7 +27,8 @@
     "entries": [
       {"name": "octessera-pi", "type": "file", "mode": 365, "uid": 0, "gid": 0, "symlink": false, "sha256": "preimage", "xattrs": {}, "capability": null},
       {"name": "octessera-runtime.json", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "preimage", "xattrs": {}, "capability": null},
-      {"name": "SHA256SUMS", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "preimage", "xattrs": {}, "capability": null}
+      {"name": "SHA256SUMS", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "preimage", "xattrs": {}, "capability": null},
+      {"name": "update-manifest.json", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "preimage", "xattrs": {}, "capability": null}
     ]
   },
   "new_release": {
@@ -35,15 +36,22 @@
     "entries": [
       {"name": "octessera-pi", "type": "file", "mode": 365, "uid": 0, "gid": 0, "symlink": false, "sha256": "payload", "xattrs": {}, "capability": null},
       {"name": "octessera-runtime.json", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "payload", "xattrs": {}, "capability": null},
-      {"name": "SHA256SUMS", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "payload", "xattrs": {}, "capability": null}
+      {"name": "SHA256SUMS", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "payload", "xattrs": {}, "capability": null},
+      {"name": "update-manifest.json", "type": "file", "mode": 292, "uid": 0, "gid": 0, "symlink": false, "sha256": "derived", "xattrs": {}, "capability": null}
     ]
   },
   "state_contract": {
-    "owned": false,
+    "owned": true,
     "path": "opt/octessera/update-state.json",
-    "type": "absent",
-    "preimage": "absent",
-    "transform": "none"
+    "type": "file",
+    "symlink": false,
+    "mode": 420,
+    "uid": 0,
+    "gid": 0,
+    "xattrs": {},
+    "capability": null,
+    "preimage": "exact-committed-state",
+    "transform": "committed-current-release"
   },
   "build_metadata_contract": {
     "path": "etc/octessera/build-metadata.env",
@@ -75,9 +83,10 @@
       "opt/octessera/releases/{version}",
       "opt/octessera/releases/{version}/octessera-pi",
       "opt/octessera/releases/{version}/octessera-runtime.json",
-      "opt/octessera/releases/{version}/SHA256SUMS"
+      "opt/octessera/releases/{version}/SHA256SUMS",
+      "opt/octessera/releases/{version}/update-manifest.json"
     ],
-    "structured_transform": ["etc/octessera/build-metadata.env"],
+    "structured_transform": ["opt/octessera/update-state.json", "etc/octessera/build-metadata.env"],
     "preserve": ["**"],
     "forbidden": [
       "opt/octessera/releases/.image-respin-*",

@@ -28,13 +28,13 @@ release-artifacts/enclosure/**/*.step -text -diff
 release-artifacts/enclosure/**/*.stl binary
 third_party/cpal-0.15.3/** text eol=lf whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
-/samples/upstream/README.txt text eol=lf
+/samples/SOURCE.md text eol=lf
+/samples/MANIFEST.tsv text eol=lf
 /LICENSE text eol=lf
 /NOTICE text eol=lf
 /THIRD_PARTY_NOTICES.md text eol=lf
 /docs/release-licensing.md text eol=lf
 /hardware/ATTRIBUTIONS.md text eol=lf
-/samples/ATTRIBUTIONS.tsv text eol=lf
 /samples/upstream/LICENSE text eol=lf
 /licenses/** text eol=lf
 /licenses/cargo/THIRD_PARTY_LICENSES.txt text eol=lf

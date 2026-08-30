@@ -137,9 +137,9 @@ Contributor/reference docs:
 
 ## Samples
 
-The repository records 320 media rows from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack). The sampler-loadable default library contains 318 WAV rows; two AIFF rows remain in the attribution inventory and are outside the WAV-only browser/decoder. The portable desktop package and the constructors for both production images stage the complete 320-file artifact inventory. This is a build/staging contract, not a physical-board FAT result. The canonical default patch uses sampler-loadable WAV paths, and user-supplied samples remain supported. Every repository row is recorded in [`samples/ATTRIBUTIONS.tsv`](samples/ATTRIBUTIONS.tsv) with its size, SHA-256 digest, exact upstream path, and a source URL pinned to commit [`dbfd6ec52d4ed53b60bdbea5fc6adf295127c027`](https://github.com/stargatedaw/stargate-sample-pack/tree/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027).
+The bundled sample library contains 320 media files. The sampler-loadable default library contains 318 WAV files; two AIFF files remain outside the WAV-only browser/decoder. The portable desktop package and both production-image constructors stage the complete library. The technical [`samples/MANIFEST.tsv`](samples/MANIFEST.tsv) records each file's path, size, and SHA-256 digest. The canonical default patch uses sampler-loadable WAV paths, and user-supplied samples remain supported.
 
-The upstream project publishes the pack under CC0 1.0 and describes it as attribution-free. Octessera records that upstream designation; it does not independently warrant third-party rights. The exact upstream [license](samples/upstream/LICENSE) and [README designation](samples/upstream/README.txt) snapshots are retained beside the inventory.
+The concise sample acknowledgement is [`samples/SOURCE.md`](samples/SOURCE.md); the pack's CC0 text is retained in [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
 
 ## Hardware model attributions
 

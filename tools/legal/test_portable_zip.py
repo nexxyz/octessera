@@ -38,8 +38,10 @@ class PortableZipTests(unittest.TestCase):
                     {name for name in archive.namelist() if name.startswith("samples/")},
                     set(samples),
                 )
-                self.assertNotIn("samples/ATTRIBUTIONS.tsv", archive.namelist())
-                self.assertIn("legal/samples/ATTRIBUTIONS.tsv", archive.namelist())
+                self.assertNotIn("samples/MANIFEST.tsv", archive.namelist())
+                self.assertNotIn("samples/SOURCE.md", archive.namelist())
+                self.assertIn("legal/samples/MANIFEST.tsv", archive.namelist())
+                self.assertIn("legal/samples/SOURCE.md", archive.namelist())
                 for name, payload in samples.items():
                     self.assertEqual(archive.read(name), payload)
 

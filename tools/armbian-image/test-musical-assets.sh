@@ -10,7 +10,7 @@ bash "$root/tools/armbian-image/stage-musical-assets.sh" "$fixture_root/usr/shar
 staging="$fixture_root/usr/share/octessera"
 default_source="$root/config/generated/pi/default.json"
 default_staged="$staging/defaults/pi-default.json"
-manifest="$staging/samples/sample-manifest.tsv"
+manifest="$staging/samples/MANIFEST.tsv"
 
 cmp "$default_source" "$default_staged"
 validate_manifest() {
@@ -23,25 +23,25 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(sys.argv[1]) / "tools/samples"))
-from sample_library import read_inventory
+from sample_library import read_manifest
 
 manifest_path = pathlib.Path(sys.argv[2])
 sample_root = pathlib.Path(sys.argv[3])
 ownership_mode = sys.argv[4]
 ownership_required = ownership_mode in {"root", "orange-final"}
-inventory = read_inventory(pathlib.Path(sys.argv[1]) / "samples/ATTRIBUTIONS.tsv")
+inventory = read_manifest(pathlib.Path(sys.argv[1]) / "samples/MANIFEST.tsv")
 expected = {record.path: record for record in inventory}
 rows = {}
 lines = manifest_path.read_text(encoding="utf-8").splitlines()
-if lines[0] != "# path\tsize\tsha256\tsource\tlicense_source":
+if lines[0] != "# path\tsize\tsha256":
     raise SystemExit("invalid staged sample manifest header")
 if len(lines) != len(expected) + 1:
-    raise SystemExit("manifest does not contain the complete attribution inventory")
+    raise SystemExit("manifest does not contain the complete sample inventory")
 for line in lines[1:]:
-    path, size, digest, source, license_source = line.split("\t")
+    path, size, digest = line.split("\t")
     record = expected.get(path)
-    if record is None or (int(size), digest, source, license_source) != (record.size, record.sha256, record.source_url, record.license_url):
-        raise SystemExit(f"manifest row differs from attribution inventory: {path}")
+    if record is None or (int(size), digest) != (record.size, record.sha256):
+        raise SystemExit(f"manifest row differs from sample manifest: {path}")
     sample = sample_root / path
     if sample.is_symlink() or not sample.is_file():
         raise SystemExit(f"missing staged sample: {sample}")
@@ -75,9 +75,9 @@ for sample in sample_root.rglob("*"):
     if sample.suffix.lower() in {".aif", ".aiff", ".flac", ".mp3", ".ogg", ".wav"}:
         actual.append(sample.relative_to(sample_root).as_posix())
 if rows.keys() != expected.keys():
-    raise SystemExit("manifest does not match the complete attribution inventory")
+    raise SystemExit("manifest does not match the complete sample inventory")
 if set(actual) != set(expected):
-    raise SystemExit("sample tree does not match the complete attribution inventory")
+    raise SystemExit("sample tree does not match the complete sample inventory")
 PY
 }
 validate_manifest "$manifest" "$staging/samples/files"
@@ -131,7 +131,7 @@ EOF
 chmod 0755 "$install_work/run-install-musical-assets.sh"
 run_as_root "$install_work/run-install-musical-assets.sh" "$install_work/install-musical-assets.sh" "$fake_overlay" "$fake_root"
 run_as_root chown 990:990 "$fake_root/var/lib/octessera/samples"
-validate_manifest "$fake_root/usr/share/octessera/samples/sample-manifest.tsv" "$fake_root/var/lib/octessera/samples" orange-final
+validate_manifest "$fake_root/usr/share/octessera/samples/MANIFEST.tsv" "$fake_root/var/lib/octessera/samples" orange-final
 test -f "$fake_root/var/lib/octessera/samples/Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav"
 test ! -e "$fake_root/usr/share/octessera/samples/files"
 
@@ -329,5 +329,5 @@ printf 'stale\n' > "$stage_work/samples/files/stale sample.wav"
 bash "$root/tools/armbian-image/stage-musical-assets.sh" "$stage_work"
 test ! -e "$stage_work/samples/files/stale sample.wav"
 cmp "$default_source" "$stage_work/defaults/pi-default.json"
-validate_manifest "$stage_work/samples/sample-manifest.tsv" "$stage_work/samples/files"
+validate_manifest "$stage_work/samples/MANIFEST.tsv" "$stage_work/samples/files"
 printf 'Orange musical assets validation passed\n'

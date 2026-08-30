@@ -127,7 +127,7 @@ fn pi_sample_fixture_decodes_every_playable_default_sample() {
     let mut playable_wav_count = 0;
     let mut metadata_only_count = 0;
 
-    for line in include_str!("../../../samples/ATTRIBUTIONS.tsv")
+    for line in include_str!("../../../samples/MANIFEST.tsv")
         .lines()
         .skip(1)
     {

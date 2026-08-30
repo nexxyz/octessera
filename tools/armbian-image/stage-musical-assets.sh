@@ -8,7 +8,7 @@ default_config="$root/config/generated/pi/default.json"
 [[ -f "$default_config" && ! -L "$default_config" ]] || { echo "Missing generated Pi default: $default_config" >&2; exit 1; }
 
 default_output="$staging/defaults/pi-default.json"
-manifest_output="$staging/samples/sample-manifest.tsv"
+manifest_output="$staging/samples/MANIFEST.tsv"
 sample_output_root="$staging/samples/files"
 rm -f -- "$default_output"
 rm -rf -- "$staging/samples"

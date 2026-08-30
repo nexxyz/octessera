@@ -149,7 +149,7 @@ fn default_library_path(relative: &str, is_dir: bool) -> bool {
     if relative.is_empty() {
         return false;
     }
-    include_str!("../../../samples/ATTRIBUTIONS.tsv")
+    include_str!("../../../samples/MANIFEST.tsv")
         .lines()
         .skip(1)
         .filter_map(|line| line.split('\t').next())

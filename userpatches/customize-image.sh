@@ -373,17 +373,15 @@ octessera_install_orange_runtime_assets "$overlay_dir"
 install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
 for musical_asset in \
   usr/share/octessera/defaults/pi-default.json \
-  usr/share/octessera/samples/sample-manifest.tsv \
-  usr/share/octessera/samples/ATTRIBUTIONS.tsv \
-  usr/share/octessera/samples/upstream/LICENSE \
-  usr/share/octessera/samples/upstream/README.txt; do
+  usr/share/octessera/samples/MANIFEST.tsv \
+  usr/share/octessera/samples/SOURCE.md \
+  usr/share/octessera/samples/upstream/LICENSE; do
   [[ -f "$overlay_dir/$musical_asset" && ! -L "$overlay_dir/$musical_asset" ]] || { echo "Missing staged regular musical asset: $musical_asset. Run tools/armbian-image/stage-musical-assets.sh." >&2; exit 1; }
 done
 install_overlay_file usr/share/octessera/defaults/pi-default.json /usr/share/octessera/defaults/pi-default.json 0644
-install_overlay_file usr/share/octessera/samples/sample-manifest.tsv /usr/share/octessera/samples/sample-manifest.tsv 0644
-install_overlay_file usr/share/octessera/samples/ATTRIBUTIONS.tsv /usr/share/octessera/samples/ATTRIBUTIONS.tsv 0644
+install_overlay_file usr/share/octessera/samples/MANIFEST.tsv /usr/share/octessera/samples/MANIFEST.tsv 0644
+install_overlay_file usr/share/octessera/samples/SOURCE.md /usr/share/octessera/samples/SOURCE.md 0644
 install_overlay_file usr/share/octessera/samples/upstream/LICENSE /usr/share/octessera/samples/upstream/LICENSE 0644
-install_overlay_file usr/share/octessera/samples/upstream/README.txt /usr/share/octessera/samples/upstream/README.txt 0644
 install_orange_musical_assets "$overlay_dir" ""
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
 install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
@@ -470,7 +468,7 @@ OCTESSERA_INPUT_ROUTING_DTBO_SHA256=$(sha256sum "$input_routing_dtbo" | awk '{ p
 OCTESSERA_AHUB0_PCM5102_DTS_SHA256=${audio_dts_sha256}
 OCTESSERA_AHUB0_PCM5102_DTBO_SHA256=${audio_dtbo_sha256}
 OCTESSERA_PI_DEFAULT_SHA256=$(sha256sum /usr/share/octessera/defaults/pi-default.json | awk '{ print $1 }')
-OCTESSERA_SAMPLES_MANIFEST_SHA256=$(sha256sum /usr/share/octessera/samples/sample-manifest.tsv | awk '{ print $1 }')
+OCTESSERA_SAMPLES_MANIFEST_SHA256=$(sha256sum /usr/share/octessera/samples/MANIFEST.tsv | awk '{ print $1 }')
 EOF
 chown root:root /etc/octessera/build-metadata.env
 chmod 0644 /etc/octessera/build-metadata.env

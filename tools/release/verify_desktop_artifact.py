@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools" / "legal"))
 
 from stage_notices import NoticeStageError, load_manifest  # type: ignore[import-not-found]
-from tools.samples.sample_library import EXPECTED_MEDIA_COUNT, SampleLibraryError, read_inventory, verify_media_tree
+from tools.samples.sample_library import EXPECTED_MEDIA_COUNT, SampleLibraryError, read_manifest, verify_media_tree
 
 
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
@@ -105,15 +105,14 @@ def _verify_legal_tree(repository_root: Path, resource_root: Path, legal_relativ
 
 def _verify_samples(repository_root: Path, resource_root: Path, samples_relative: str) -> None:
     samples_root = resource_root / _safe_relative(samples_relative, "sample resource path")
-    records = read_inventory(repository_root / "samples/ATTRIBUTIONS.tsv")
+    records = read_manifest(repository_root / "samples/MANIFEST.tsv")
     _require(len(records) == EXPECTED_MEDIA_COUNT, f"expected {EXPECTED_MEDIA_COUNT} canonical sample records, found {len(records)}")
     _require(len({record.path for record in records}) == len(records), "canonical sample inventory contains duplicate paths")
-    _require(len({record.upstream_path for record in records}) == len(records), "canonical sample inventory contains duplicate upstream paths")
     try:
         verify_media_tree(samples_root, records)
     except SampleLibraryError as error:
         raise DesktopArtifactError(str(error)) from error
-    for metadata_name in ("ATTRIBUTIONS.tsv", "sample-manifest.tsv", "upstream"):
+    for metadata_name in ("MANIFEST.tsv", "SOURCE.md", "upstream"):
         _require(not (samples_root / metadata_name).exists(), f"sample resource tree contains duplicate metadata: {metadata_name}")
 
 
@@ -165,7 +164,7 @@ def verify_portable_zip(repository_root: Path, archive_path: Path, executable: P
             with zipfile.ZipFile(archive_path) as archive:
                 entries = _zip_entries(archive)
                 names = {entry.filename for entry in entries}
-                expected_prefixes = {f"samples/{record.path}" for record in read_inventory(repository_root / "samples/ATTRIBUTIONS.tsv")}
+                expected_prefixes = {f"samples/{record.path}" for record in read_manifest(repository_root / "samples/MANIFEST.tsv")}
                 expected_legal = set(_canonical_legal_files(repository_root))
                 expected = expected_prefixes | expected_legal | {executable_name, "SHA256SUMS"}
                 _require(names == expected, f"portable archive entries are not exact: {sorted(names)}")

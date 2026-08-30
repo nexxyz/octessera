@@ -29,10 +29,9 @@ and notarized.
    level. Use **Back** or the normal navigation controls to leave it.
 
 Synth is the guaranteed first sound path. A sampler is also available with the
-318 WAV rows in the release package's default library. The complete 320-file
-attribution inventory also records two AIFF rows, which are outside the WAV-only
-browser/decoder. You can add your own samples through the host/sample browser
-too.
+318 WAV files in the release package's default library. The complete 320-file
+library also includes two AIFF files outside the WAV-only browser/decoder. You
+can add your own samples through the host/sample browser too.
 
 The simulator's keyboard and UI controls mirror the hardware ideas. The
 [controls cheat sheet](controls-cheat-sheet.md) has the complete map, and
