@@ -13,6 +13,7 @@ import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 
 REPOSITORY = "nexxyz/octessera"
@@ -40,9 +41,36 @@ class CurrentParentError(ValueError):
     pass
 
 
+class _NoAuthorizationRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request: urllib.request.Request, *args: Any, **kwargs: Any) -> urllib.request.Request | None:
+        redirected = super().redirect_request(request, *args, **kwargs)
+        if redirected is None:
+            return None
+        for name in ("Accept", "X-GitHub-Api-Version"):
+            value = request.get_header(name)
+            if value is not None:
+                redirected.add_header(name, value)
+        for headers in (redirected.headers, redirected.unredirected_hdrs):
+            for name in list(headers):
+                if name.lower() == "authorization":
+                    del headers[name]
+        return redirected
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise CurrentParentError(message)
+
+
+def _safe_url(url: str) -> str:
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+
+def _network_error(error: BaseException, url: str) -> str:
+    if isinstance(error, urllib.error.HTTPError):
+        return f"HTTP {error.code} from {_safe_url(str(error.url or url))}"
+    return f"{type(error).__name__} from {_safe_url(url)}"
 
 
 def _sha256(path: Path) -> tuple[str, int]:
@@ -293,17 +321,19 @@ def _github_json(url: str, token: str) -> Any:
     try:
         with urllib.request.urlopen(request) as response:
             return json.load(response)
-    except (OSError, urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as error:
-        raise CurrentParentError(f"GitHub metadata request failed: {url}") from error
+    except (OSError, urllib.error.HTTPError, urllib.error.URLError) as error:
+        raise CurrentParentError(f"GitHub metadata request failed: {_network_error(error, url)}") from error
+    except json.JSONDecodeError as error:
+        raise CurrentParentError(f"GitHub metadata response is invalid: {_safe_url(url)}") from error
 
 
 def _download(url: str, token: str, destination: Path) -> None:
     request = urllib.request.Request(url, headers={"Accept": "application/octet-stream", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"})
     try:
-        with urllib.request.urlopen(request) as response, destination.open("wb") as target:
+        with urllib.request.build_opener(_NoAuthorizationRedirectHandler).open(request) as response, destination.open("wb") as target:
             shutil.copyfileobj(response, target, 1024 * 1024)
     except (OSError, urllib.error.HTTPError, urllib.error.URLError) as error:
-        raise CurrentParentError(f"current parent artifact download failed: {url}") from error
+        raise CurrentParentError(f"current parent artifact download failed: {_network_error(error, url)}") from error
 
 
 def acquire(repository_root: Path, repository: str, record_path: Path, output: Path, token: str) -> None:
