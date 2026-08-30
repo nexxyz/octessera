@@ -35,7 +35,6 @@ def make_root(root: Path) -> None:
     write(root / f"usr/lib/modules/{RELEASE}/modules.dep", b"modules")
     write(root / "etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash", b"initramfs-hook")
     write(root / "etc/udev/rules.d/70-octessera-orange-runtime.rules", b"udev-rule")
-    write(root / "usr/lib/systemd/system-sleep/octessera-orange-oled", b"sleep-hook")
     (root / "lib").symlink_to("usr/lib")
     for relative in POLICY.contract["protected_paths"]:
         if relative == "etc/systemd/system/multi-user.target.wants/octessera.service":
@@ -43,7 +42,10 @@ def make_root(root: Path) -> None:
         path = root / relative
         if path.exists() or path.is_symlink():
             continue
-        if relative.endswith(".service"):
+        if relative == "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service":
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.symlink_to("../octessera-orange-oled-suspend.service")
+        elif relative.endswith(".service"):
             write(path, "[Service]\n")
         elif relative.endswith(".svg"):
             write(path, "<svg/>\n")
@@ -74,7 +76,18 @@ class BootNeutralTests(unittest.TestCase):
             self.assertEqual(before["protected_inventory"]["lib"]["type"], "symlink")
             self.assertEqual(before["protected_inventory"]["lib"]["target"], "usr/lib")
             self.assertIn(f"usr/lib/modules/{RELEASE}/modules.dep", POLICY.contract["protected_paths"])
-            self.assertIn("usr/lib/systemd/system-sleep/octessera-orange-oled", POLICY.contract["protected_paths"])
+            self.assertEqual(
+                POLICY.contract["expected_absent_paths"],
+                ["lib/systemd/system-sleep/octessera-orange-oled", "usr/lib/systemd/system-sleep/octessera-orange-oled"],
+            )
+            for path in (
+                "etc/systemd/system/octessera-orange-oled-suspend.service",
+                "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service",
+                "usr/local/sbin/octessera-orange-oled-suspend",
+                "usr/local/sbin/octessera-orange-oled-handoff.py",
+            ):
+                self.assertIn(path, POLICY.contract["protected_paths"])
+            self.assertNotIn("usr/lib/systemd/system-sleep/octessera-orange-oled", POLICY.contract["protected_paths"])
             self.assertEqual(integrity["pre"], integrity["post"])
             self.assertEqual(integrity["protected_paths"], POLICY.contract["protected_paths"])
             self.assertEqual(integrity["changed_paths"], [])
@@ -89,10 +102,14 @@ class BootNeutralTests(unittest.TestCase):
             ("selector", lambda root: (root / "boot/armbianEnv.txt").write_text("verbosity=9\n", encoding="utf-8")),
             ("module", lambda root: (root / f"usr/lib/modules/{RELEASE}/modules.dep").write_bytes(b"tampered")),
             ("initramfs-hook", lambda root: (root / "etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash").write_bytes(b"tampered")),
-            ("system-sleep", lambda root: (root / "usr/lib/systemd/system-sleep/octessera-orange-oled").write_bytes(b"tampered")),
+            ("oled-suspend-service", lambda root: (root / "etc/systemd/system/octessera-orange-oled-suspend.service").write_bytes(b"tampered")),
+            ("sleep-target-requires", lambda root: ((root / "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service").unlink(), (root / "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service").symlink_to("../octessera.service"))),
+            ("oled-suspend", lambda root: (root / "usr/local/sbin/octessera-orange-oled-suspend").write_bytes(b"tampered")),
+            ("oled-handoff", lambda root: (root / "usr/local/sbin/octessera-orange-oled-handoff.py").write_bytes(b"tampered")),
+            ("obsolete-lib-system-sleep", lambda root: ((root / "lib").unlink(), write(root / "lib/systemd/system-sleep/octessera-orange-oled", b"obsolete"))),
+            ("obsolete-usr-system-sleep", lambda root: write(root / "usr/lib/systemd/system-sleep/octessera-orange-oled", b"obsolete")),
             ("lib-symlink", lambda root: ((root / "lib").unlink(), (root / "lib").symlink_to("usr"))),
             ("udev", lambda root: (root / "etc/udev/rules.d/70-octessera-orange-runtime.rules").write_bytes(b"tampered")),
-            ("expected-handoff", lambda root: write(root / "usr/local/sbin/octessera-orange-oled-handoff.py", b"unexpected")),
             ("symlink", lambda root: ((root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").unlink(), (root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").symlink_to("../octessera.service"))),
             ("mode", lambda root: None),
         )
@@ -102,7 +119,7 @@ class BootNeutralTests(unittest.TestCase):
                 make_root(root)
                 before = capture_state(POLICY, root, layout())
                 mutate(root)
-                if label == "expected-handoff":
+                if label.startswith("obsolete-"):
                     with self.assertRaises(BootNeutralError):
                         capture_state(POLICY, root, layout())
                     continue
@@ -119,7 +136,7 @@ class BootNeutralTests(unittest.TestCase):
             with self.assertRaises(BootNeutralError):
                 assert_unchanged(POLICY, before, after, replace(layout(), raw_prepartition_sha256="b" * 64))
 
-    def test_parent_binding_requires_exact_manifest_and_asset_identity(self) -> None:
+    def test_parent_binding_requires_exact_record_and_image_identity(self) -> None:
         record_path = ROOT / "resources/image-parents/orange-pi-zero-2w-current.json"
         _, digest = load_record(ROOT, record_path)
         context = parent_context(ROOT, record_path)

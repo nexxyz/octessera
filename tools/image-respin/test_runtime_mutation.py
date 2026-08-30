@@ -92,7 +92,6 @@ def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
         _write(root / f"usr/lib/linux-image-{policy.contract['selected_boot']['kernel_release']}/Image", b"kernel")
         _write(root / f"usr/lib/linux-image-{policy.contract['selected_boot']['kernel_release']}/allwinner/{policy.contract['selected_boot']['dtb_name']}", b"dtb")
         _write(root / f"usr/lib/modules/{policy.contract['selected_boot']['kernel_release']}/modules.dep", b"modules")
-        _write(root / "usr/lib/systemd/system-sleep/octessera-orange-oled", b"sleep-hook")
         (root / "lib").symlink_to("usr/lib")
         _write(root / "etc/initramfs-tools/scripts/init-bottom/octessera-orange-boot-splash", b"initramfs-hook")
         _write(root / "etc/udev/rules.d/70-octessera-orange-runtime.rules", b"udev-rule")
@@ -102,7 +101,11 @@ def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
             path = root / relative
             if path.exists() or path.is_symlink():
                 continue
-            _write(path, "[Service]\n" if relative.endswith(".service") else b"protected")
+            if relative == "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service":
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.symlink_to("../octessera-orange-oled-suspend.service")
+            else:
+                _write(path, "[Service]\n" if relative.endswith(".service") else b"protected")
         link = root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service"
         if link.exists() or link.is_symlink():
             link.unlink()

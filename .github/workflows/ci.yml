@@ -456,12 +456,13 @@ jobs:
           sudo python3 -m unittest discover -s tools/image-respin -p 'test_runtime_metadata.py'
           sudo python3 tools/image-respin/test_inventory.py
           sudo python3 tools/image-respin/test_provenance.py
+          sudo python3 tools/armbian-image/test_orange_image_proof_validated.py
       - name: Run parent, bundle, and workflow tests without root
         run: |
           python3 tools/image-respin/test_setup_contract.py
           python3 tools/image-respin/test_runtime_bundle.py
           python3 tools/image-respin/test_runtime_contract.py
-          python3 tools/armbian-image/test_orange_image_proof_validated.py
+          python3 tools/image-respin/test_boot_neutral.py
           python3 tools/image-respin/test_workflow_records.py
           python3 tools/image-respin/test_setup_workflow_records.py
           python3 tools/image-respin/test_workflow_static.py

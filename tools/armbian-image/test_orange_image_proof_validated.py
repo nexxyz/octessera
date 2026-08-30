@@ -37,7 +37,11 @@ def _make_root(root: Path, contract: dict[str, Any]) -> None:
     for scope in cast(list[dict[str, Any]], contract["protected_scopes"]):
         _write(root / scope["prefix"] / ".scope-marker", b"scope")
     for relative in cast(list[str], contract["protected_paths"]):
-        if relative != "lib":
+        if relative == "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service":
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.symlink_to("../octessera-orange-oled-suspend.service")
+        elif relative != "lib":
             _write(root / relative, relative.encode())
     _write(root / "boot/armbianEnv.txt", "verbosity=1\nfdtfile=sun50i-h618-orangepi-zero2w.dtb\n")
     _write(root / "boot/Image", b"kernel")
@@ -124,6 +128,36 @@ class ValidatedParentProofTests(unittest.TestCase):
             _write(tampered / "boot/Image", b"tampered")
             with self.assertRaises(TrustedParentProofError):
                 _verify(fixture, derived=tampered)
+
+    def test_oled_replacements_are_protected_and_obsolete_hooks_are_absent(self) -> None:
+        current_paths = (
+            "etc/systemd/system/octessera-orange-oled-suspend.service",
+            "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service",
+            "usr/local/sbin/octessera-orange-oled-suspend",
+            "usr/local/sbin/octessera-orange-oled-handoff.py",
+        )
+        for relative in current_paths:
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as temporary:
+                fixture = _fixture(Path(temporary))
+                path = fixture["derived"] / relative
+                if relative.endswith("sleep.target.requires/octessera-orange-oled-suspend.service"):
+                    path.unlink()
+                    path.symlink_to("../octessera.service")
+                else:
+                    _write(path, b"tampered")
+                with self.assertRaises(TrustedParentProofError):
+                    _verify(fixture)
+        for relative in (
+            "lib/systemd/system-sleep/octessera-orange-oled",
+            "usr/lib/systemd/system-sleep/octessera-orange-oled",
+        ):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as temporary:
+                fixture = _fixture(Path(temporary))
+                if relative.startswith("lib/"):
+                    (fixture["derived"] / "lib").unlink()
+                _write(fixture["derived"] / relative, b"obsolete")
+                with self.assertRaises(TrustedParentProofError):
+                    _verify(fixture)
 
     def test_provenance_tampering_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
