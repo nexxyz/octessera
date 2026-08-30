@@ -109,8 +109,10 @@ assert all(any(item["path"] == path for item in contract["managed_outputs"]) for
 assert (ROOT / "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash").is_file()
 assert (ROOT / "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash").is_file()
 assert "userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" not in construction_inputs
+assert "userpatches/overlay/usr/lib/systemd/system-sleep/octessera-orange-oled" not in construction_inputs
 assert "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service" in construction_inputs
 assert "userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" in construction_inputs
+assert "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" in construction_inputs
 assert construction_inputs["userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565"]["size"] == 32768
 assert construction_inputs["userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565"]["size"] == 32768
 setup_inputs = {item["path"]: item for item in setup_contract["source_inputs"]}
@@ -289,6 +291,7 @@ assert "octessera_set_armbian_display_console" in customize
 assert "console=display" in (ROOT / "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh").read_text(encoding="utf-8")
 assert contract["enabled_sysinit_wants"] == {"path": "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service", "target": "../octessera-orange-boot-splash.service"}
 assert {"path": "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service", "kind": "symlink", "target": "../octessera-orange-oled-suspend.service", "uid": 0, "gid": 0} in contract["managed_outputs"]
+assert all({"path": path, "mode": mode, "uid": 0, "gid": 0} in contract["managed_outputs"] for path, mode in (("etc/systemd/system/octessera-orange-oled-suspend.service", 420), ("usr/local/sbin/octessera-orange-oled-suspend", 493), ("usr/local/sbin/octessera-orange-oled-handoff.py", 420)))
 assert all("sleep.target.wants/octessera-orange-oled-suspend.service" not in item["path"] for item in contract["managed_outputs"])
 service = (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_text(encoding="utf-8")
 assert "RequiredBy=sleep.target" in service and "WantedBy=sleep.target" not in service

@@ -98,7 +98,7 @@
     {"path": "tools/armbian-image/orange_initramfs.py", "sha256": "219840f2c1486ff3b331e8e3f11e1090c056a97406b12f5da04f615001f70de5", "size": 3400, "mode": 420},
     {"path": "tools/armbian-image/orange_phase5_proof.py", "sha256": "2b9bb125b55545a2515b04660d69dfa8243374767cf3657fad5480461d869d9e", "size": 4602, "mode": 420},
     {"path": "tools/armbian-image/orange_audio_proof.py", "sha256": "65fc09840515fe7d03e81ddc56e66409ae206fdd30c051e06af4f94dd547539d", "size": 6876, "mode": 420},
-    {"path": "tools/armbian-image/orange_trusted_parent_proof.py", "sha256": "4305322b5aaf7c7599988cbda91477333545eb8bedca72a2db02c5560c24a82a", "size": 30531, "mode": 420},
+    {"path": "tools/armbian-image/orange_trusted_parent_proof.py", "sha256": "38c6533597bb0cd86d6215a0903b375a35f3f63c3f7fa8c0f1ec2cf716ace7bf", "size": 30859, "mode": 420},
     {"path": "tools/armbian-image/verify_runtime_account.py", "sha256": "3786f10ca1e640d9b968ec12118a098ca387172bec9a1075ee2e15dc7a87d712", "size": 19730, "mode": 420},
     {"path": "tools/kernel-patches/orange-midi-interface-manifest.json", "sha256": "2c3946becf4c55cb7f6a3ff160b987ac589a5b609f88cd5770cc4b38687a8131", "size": 6432, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-mark.svg", "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "size": 638, "mode": 420},
