@@ -14,14 +14,14 @@ try:
     from .inventory import Inventory, InventoryError, build_inventory, inventory_digest, remove_path
     from .notice_mutation import NOTICE_STAGE_PATTERNS, NOTICE_TARGET, NoticeMutationResult, install_notices
     from .provenance import RUNTIME_TOOL_IDENTITY, build_provenance, canonical_source_identity
-    from .runtime_contract import MutationError, contract_for_board, load_contract, read_json_bytes, rooted, transform_build_metadata, validate_changed_paths, validate_parent
+    from .runtime_contract import MutationError, contract_for_board, load_contract, manifest_for, read_json_bytes, rooted, transform_build_metadata, validate_changed_paths, validate_parent
     from .runtime_payload import PayloadValidation, stage_release, validate_bundle, validate_output
     from .runtime_transaction import MutableSnapshot, atomic_bytes, atomic_link
 except ImportError:
     from inventory import Inventory, InventoryError, build_inventory, inventory_digest, remove_path
     from notice_mutation import NOTICE_STAGE_PATTERNS, NOTICE_TARGET, NoticeMutationResult, install_notices
     from provenance import RUNTIME_TOOL_IDENTITY, build_provenance, canonical_source_identity
-    from runtime_contract import MutationError, contract_for_board, load_contract, read_json_bytes, rooted, transform_build_metadata, validate_changed_paths, validate_parent
+    from runtime_contract import MutationError, contract_for_board, load_contract, manifest_for, read_json_bytes, rooted, transform_build_metadata, validate_changed_paths, validate_parent
     from runtime_payload import PayloadValidation, stage_release, validate_bundle, validate_output
     from runtime_transaction import MutableSnapshot, atomic_bytes, atomic_link
 
@@ -60,10 +60,11 @@ def _state_payload(contract: dict[str, Any], state: dict[str, Any] | None, versi
     if not contract["state_contract"]["owned"]:
         return None, None
     if state is None:
-        raise MutationError("Raspberry runtime state is missing")
+        raise MutationError("Orange runtime state is missing" if contract["board_profile"] == "orange-pi-zero-2w" else "Raspberry runtime state is missing")
     result = dict(state)
-    manifest = {"schema_version": 2, "updater_protocol": 2, "candidate_health_protocol": 1, "tag": f"v{version}", "version": version, "board_profile": contract["board_profile"], "arch": "aarch64-unknown-linux-gnu", "binary": "octessera-pi", "platforms": [contract["board_profile"], "linux-aarch64-device"]}
-    result.update({"current": version, "previous": None, "next": None, "release": manifest})
+    result.update({"current": version, "previous": None, "release": manifest_for(contract["board_profile"], version)})
+    if contract["board_profile"] == "raspberry-pi-zero-2w":
+        result["next"] = None
     return result, (json.dumps(result, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 

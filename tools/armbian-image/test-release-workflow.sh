@@ -158,7 +158,7 @@ assert_contains "$desktop_verifier" 'EXPECTED_MEDIA_COUNT'
 assert_contains "$desktop_verifier" 'verify_media_tree'
 assert_contains "$desktop_verifier" 'portable archive entry mode is not 0644'
 assert_contains "$desktop_verifier" 'legal/notice-bundle.json'
-assert_contains "$desktop_verifier" 'sample-manifest.tsv'
+assert_contains "$desktop_verifier" 'MANIFEST.tsv'
 assert_contains "$release" 'mapfile -t uploaded_assets'
 assert_contains "$release" "stat -c '%s'"
 assert_contains "$release" '[.name, (.size | tostring)] | @tsv'

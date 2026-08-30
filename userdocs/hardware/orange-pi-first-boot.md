@@ -217,9 +217,8 @@ sudo systemctl start octessera.service
 
 The image stages the generated Raspberry/Pi-family default patch without
 replacing an existing user config. Image construction stages the complete
-320-file sample artifact inventory: 318 WAV rows are sampler-loadable, while two
-AIFF rows are retained as attribution-inventory metadata outside the WAV-only
-browser/decoder. On first boot,
+320-file sample library: 318 WAV files are sampler-loadable, while two AIFF files
+remain outside the WAV-only browser/decoder. On first boot,
 `octessera-provision-musical-default.service` only seeds the default to
 `/var/lib/octessera/presets/default.json` when that file is absent; it never
 copies or replaces sample media. Packaged sample bytes are verified by
@@ -236,9 +235,7 @@ The presets directory is a real `octessera-runtime`-owned `0755` directory.
 The service refuses symlinks, wrong ownership, wrong modes, and other unsafe
 paths instead of trying to repair a user-controlled destination.
 
-The staged samples come from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack),
-whose upstream README describes them as free to use and redistribute. The image
-keeps that source attribution in its sample manifest.
+The bundled sample acknowledgement and CC0 text are shipped with the image.
 
 The production image supports the OLED, NeoTrellis, NeoKey, four encoders,
 persistent store, samples, and selected exact audio routes. Every

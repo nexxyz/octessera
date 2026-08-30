@@ -72,7 +72,9 @@ class NoticeStagerTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(raw).hexdigest(), item["sha256"], item["source"])
             self.assertEqual(len(raw), item["size"], item["source"])
         canonical_lf_paths = (
-            "samples/upstream/README.txt",
+            "samples/SOURCE.md",
+            "samples/MANIFEST.tsv",
+            "samples/upstream/LICENSE",
             "licenses/cargo/THIRD_PARTY_LICENSES.txt",
             "licenses/cargo/SHA256SUMS",
             "resources/legal/notice-bundle.json",
@@ -94,9 +96,9 @@ class NoticeStagerTests(unittest.TestCase):
                 "THIRD_PARTY_NOTICES.md",
                 "docs/release-licensing.md",
                 "hardware/ATTRIBUTIONS.md",
-                "samples/ATTRIBUTIONS.tsv",
+                "samples/SOURCE.md",
+                "samples/MANIFEST.tsv",
                 "samples/upstream/LICENSE",
-                "samples/upstream/README.txt",
                 "licenses/README.md",
             }
             expected.update(path.relative_to(ROOT).as_posix() for base in (ROOT / "licenses/cargo", ROOT / "licenses/pnpm") for path in base.rglob("*") if path.is_file())

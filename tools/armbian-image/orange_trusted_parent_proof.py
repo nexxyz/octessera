@@ -186,8 +186,8 @@ def _verify_provenance(path: Path, record_digest: str, contract: dict[str, Any],
     require(set(parent_identity) == {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}, "Orange trusted runtime parent fields changed")
     require(parent_identity["board_profile"] == contract["board_profile"] and parent_identity["prior_version"] == parent_context["version"] and parent_identity["parent_context"] == document["parent"]["context"], "Orange validated runtime parent binding changed")
     require(parent_identity["parent_context_sha256"] == digest_object(document["parent"]["context"]), "Orange validated runtime parent context digest changed")
-    require(set(parent_identity["prior_release_entries"]) == {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"}, "Orange trusted runtime release inventory changed")
-    require(parent_identity["prior_state_preimage_sha256"] is None and isinstance(parent_identity["prior_build_metadata_preimage_sha256"], str), "Orange trusted runtime parent preimage changed")
+    require(set(parent_identity["prior_release_entries"]) == {"octessera-pi", "octessera-runtime.json", "SHA256SUMS", "update-manifest.json"}, "Orange trusted runtime release inventory changed")
+    require(isinstance(parent_identity["prior_state_preimage_sha256"], str) and len(parent_identity["prior_state_preimage_sha256"]) == 64 and isinstance(parent_identity["prior_build_metadata_preimage_sha256"], str), "Orange trusted runtime parent preimage changed")
     payload = runtime_provenance["payload"]
     require(set(payload) == {"digest"} and isinstance(payload["digest"], str) and len(payload["digest"]) == 64, "Orange trusted runtime payload changed")
     protected_paths = contract["protected_paths"]

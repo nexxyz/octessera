@@ -34,13 +34,10 @@ repository notice.
 
 ## Samples
 
-The 320 repository media files are byte-matched and recorded individually in
-[`samples/ATTRIBUTIONS.tsv`](samples/ATTRIBUTIONS.tsv). The exact upstream
-[LICENSE](samples/upstream/LICENSE) and [README designation](samples/upstream/README.txt)
-snapshots are retained beside the inventory. The upstream project designates the
-pack under CC0 1.0 and describes it as attribution-free;
-Octessera records that designation but does not independently warrant
-third-party rights.
+The bundled sample acknowledgement is [`samples/SOURCE.md`](samples/SOURCE.md).
+The technical [`samples/MANIFEST.tsv`](samples/MANIFEST.tsv) records the path,
+size, and SHA-256 digest of each bundled media file. The pack's CC0 text is
+retained in [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
 
 ## Hardware
 

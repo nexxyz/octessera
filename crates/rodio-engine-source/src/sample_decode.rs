@@ -398,7 +398,7 @@ mod tests {
         let mut metadata_only_count = 0;
         let mut metadata_only_paths = Vec::new();
 
-        for line in include_str!("../../../samples/ATTRIBUTIONS.tsv")
+        for line in include_str!("../../../samples/MANIFEST.tsv")
             .lines()
             .skip(1)
         {

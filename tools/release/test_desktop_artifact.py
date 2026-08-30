@@ -90,7 +90,7 @@ class DesktopArtifactTests(unittest.TestCase):
                     target = resource_root / info.filename
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(info.filename))
-            (resource_root / "samples" / "sample-manifest.tsv").write_text("duplicate metadata", encoding="utf-8")
+            (resource_root / "samples" / "MANIFEST.tsv").write_text("duplicate metadata", encoding="utf-8")
             with self.assertRaises(DesktopArtifactError):
                 verify_resource_layout(ROOT, resource_root)
 

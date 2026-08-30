@@ -4,16 +4,14 @@ install_orange_musical_assets() {
   local overlay_root="$1"
   local target_root="$2"
   local overlay_samples="$overlay_root/usr/share/octessera/samples"
-  local overlay_manifest="$overlay_samples/sample-manifest.tsv"
+  local overlay_manifest="$overlay_samples/MANIFEST.tsv"
   local target_samples="$target_root/usr/share/octessera/samples"
-  local target_manifest="$target_samples/sample-manifest.tsv"
+  local target_manifest="$target_samples/MANIFEST.tsv"
   local target_files="$target_root/var/lib/octessera/samples"
   local header
   local sample_path
   local sample_size
   local sample_sha256
-  local sample_source
-  local sample_license_source
   local sample_source_path
   local sample_destination
   local relative_path
@@ -27,27 +25,25 @@ install_orange_musical_assets() {
   [[ -d "$overlay_samples" && ! -L "$overlay_samples" ]] || { echo "Missing staged sample directory: $overlay_samples" >&2; return 1; }
   [[ -d "$overlay_samples/files" && ! -L "$overlay_samples/files" ]] || { echo "Missing staged sample files. Run tools/armbian-image/stage-musical-assets.sh." >&2; return 1; }
   [[ -f "$overlay_manifest" && ! -L "$overlay_manifest" ]] || { echo "Missing staged sample manifest: $overlay_manifest" >&2; return 1; }
-  for sample_notice in ATTRIBUTIONS.tsv upstream/LICENSE upstream/README.txt; do
+  for sample_notice in SOURCE.md upstream/LICENSE; do
     [[ -f "$overlay_samples/$sample_notice" && ! -L "$overlay_samples/$sample_notice" ]] || { echo "Missing staged sample notice: $sample_notice" >&2; return 1; }
   done
   [[ ! -L "$target_samples" && ! -L "$target_samples/files" && ! -L "$target_files" ]] || { echo "Sample destination is symlinked." >&2; return 1; }
   install -d -m 0755 -o root -g root "$target_samples"
   [[ -f "$target_manifest" && ! -L "$target_manifest" ]] || { echo "Installed sample manifest is missing: $target_manifest" >&2; return 1; }
   cmp -s "$overlay_manifest" "$target_manifest" || { echo "Installed sample manifest differs from staged manifest." >&2; return 1; }
-  awk -F $'\t' 'NF != 5 { exit 1 }' "$target_manifest" || { echo "Invalid packaged sample manifest rows." >&2; return 1; }
+  awk -F $'\t' 'NF != 3 { exit 1 }' "$target_manifest" || { echo "Invalid packaged sample manifest rows." >&2; return 1; }
 
   {
     IFS= read -r header
-    [[ "$header" == $'# path\tsize\tsha256\tsource\tlicense_source' ]] || { echo "Invalid packaged sample manifest header." >&2; return 1; }
-    while IFS=$'\t' read -r sample_path sample_size sample_sha256 sample_source sample_license_source extra; do
+    [[ "$header" == $'# path\tsize\tsha256' ]] || { echo "Invalid packaged sample manifest header." >&2; return 1; }
+    while IFS=$'\t' read -r sample_path sample_size sample_sha256 extra; do
       case "$sample_path" in
         ''|/*|*..*|*\\*|*$'\t'*|*$'\r'*) echo "Invalid packaged sample path: $sample_path" >&2; return 1 ;;
       esac
       [[ -z "$extra" ]] || { echo "Invalid packaged sample manifest row: $sample_path" >&2; return 1; }
       [[ "$sample_size" =~ ^[0-9]+$ ]] || { echo "Invalid packaged sample size: $sample_path" >&2; return 1; }
       [[ "$sample_sha256" =~ ^[a-f0-9]{64}$ ]] || { echo "Invalid packaged sample hash: $sample_path" >&2; return 1; }
-      [[ "$sample_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/* ]] || { echo "Unexpected packaged sample source: $sample_path" >&2; return 1; }
-      [[ "$sample_license_source" == "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE" ]] || { echo "Unexpected packaged sample license source: $sample_path" >&2; return 1; }
       if [[ -n "${manifest_paths["$sample_path"]+set}" ]]; then
         echo "Duplicate packaged sample path: $sample_path" >&2
         return 1
@@ -76,11 +72,10 @@ install_orange_musical_assets() {
     [[ -f "$sample_source_path" && ! -L "$sample_source_path" ]] || { echo "Missing packaged sample: $sample_path" >&2; return 1; }
   done
 
-  install -D -m 0644 -o root -g root -- "$overlay_samples/ATTRIBUTIONS.tsv" "$target_samples/ATTRIBUTIONS.tsv"
-  for sample_notice in upstream/LICENSE upstream/README.txt; do
+  for sample_notice in SOURCE.md upstream/LICENSE; do
     install -D -m 0644 -o root -g root -- "$overlay_samples/$sample_notice" "$target_samples/$sample_notice"
+    cmp -s "$overlay_samples/$sample_notice" "$target_samples/$sample_notice" || { echo "Installed sample notice differs from staged notice: $sample_notice" >&2; return 1; }
   done
-  cmp -s "$overlay_samples/ATTRIBUTIONS.tsv" "$target_samples/ATTRIBUTIONS.tsv" || { echo "Installed sample attribution inventory differs from staged inventory." >&2; return 1; }
 
   rm -rf -- "$target_samples/files" "$target_files"
   install -d -m 0755 -o root -g root "$target_files"

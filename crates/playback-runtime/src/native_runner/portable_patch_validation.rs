@@ -93,7 +93,7 @@ fn validate_default_sample_id(value: &str, path: &str) -> Result<(), String> {
 }
 
 fn canonical_manifest_contains(relative: &str) -> bool {
-    include_str!("../../../../samples/ATTRIBUTIONS.tsv")
+    include_str!("../../../../samples/MANIFEST.tsv")
         .lines()
         .skip(1)
         .filter_map(|line| line.split('\t').next())

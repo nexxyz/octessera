@@ -178,7 +178,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - MIDI instruments emit external MIDI/control data and are not an internal audio source unless an audio return path is explicitly added.
 - MIDI-only instrument notes and CCs use the `midi_events` path and must not call host internal-audio musical event handling.
 - Sample browser preview is musical audio and must route through the selected instrument slot, pan, volume, FX bus, and master output path.
-- The default sample artifact inventory has 320 attribution rows: 318 WAV rows are loadable through the sampler browser/decoder, and two AIFF rows remain inventory metadata outside that WAV-only load path. Artifact staging may carry the complete inventory without making all rows sampler-loadable.
+- The default sample artifact has 320 media files: 318 WAV files are loadable through the sampler browser/decoder, and two AIFF files remain outside that WAV-only load path. The technical integrity manifest is not a runtime attribution mechanism.
 - Runtime audio config commands carry `sound.voiceStealingMode`; host adapters forward it to the realtime audio policy.
 - `gridBrightness` is applied by core LED frame rendering; `displayBrightness` is owned by `PlaybackRuntime`'s OLED presentation conversion and carried into native frame bytes; `buttonBrightness` is applied by desktop and Pi only to the native unscaled `neoKeyLeds` values with the shared basis-point dim rule.
 

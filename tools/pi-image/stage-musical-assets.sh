@@ -8,6 +8,6 @@ python3 "$root/tools/samples/sample_library.py" \
   --repository-root "$root" \
   --media-destination "$stage_root/home/pi/samples" \
   --metadata-destination "$stage_root/usr/share/octessera/samples" \
-  --manifest-destination "$stage_root/usr/share/octessera/samples/sample-manifest.tsv"
+  --manifest-destination "$stage_root/usr/share/octessera/samples/MANIFEST.tsv"
 mkdir -p "$stage_root/home/pi/samples/sd-card"
 printf 'Staged complete Raspberry sample library under %s/home/pi/samples\n' "$stage_root"

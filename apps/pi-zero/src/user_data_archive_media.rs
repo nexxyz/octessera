@@ -142,7 +142,7 @@ fn media_reference_for_file(
 }
 
 pub(crate) fn is_packaged_sample(name: &str) -> bool {
-    include_str!("../../../samples/ATTRIBUTIONS.tsv")
+    include_str!("../../../samples/MANIFEST.tsv")
         .lines()
         .skip(1)
         .filter_map(|line| line.split('\t').next())

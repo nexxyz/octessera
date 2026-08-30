@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "octessera",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "identifier": "xyz.nex.octessera",
   "build": {
     "beforeDevCommand": "corepack pnpm dev",
-    "beforeBuildCommand": "corepack pnpm --dir ../.. run assets:generate && python ../../tools/samples/sample_library.py --repository-root ../.. --media-destination ../../release-samples/samples --manifest-destination ../../release-samples/sample-manifest.tsv && corepack pnpm --dir ../.. run legal:stage-desktop && vite build",
+    "beforeBuildCommand": "corepack pnpm --dir ../.. run assets:generate && python ../../tools/samples/sample_library.py --repository-root ../.. --media-destination ../../release-samples/samples --manifest-destination ../../release-samples/MANIFEST.tsv && corepack pnpm --dir ../.. run legal:stage-desktop && vite build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },

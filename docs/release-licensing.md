@@ -8,11 +8,11 @@ or replace that release.
 
 ## Maintained records
 
-Octessera maintains attribution notices, component notices, sample and hardware
-attributions, and pinned upstream source references. Octessera's source,
-configuration, and image patches remain in this repository. The generated Cargo
-and pnpm inventories are informational records of the dependencies and reviewed
-license decisions; they make no completeness or legal-compliance claim.
+Octessera maintains component notices, the bundled sample acknowledgement, and
+hardware attributions. Octessera's source, configuration, and image patches
+remain in this repository. The generated Cargo and pnpm inventories are
+informational records of the dependencies and reviewed license decisions; they
+make no completeness or legal-compliance claim.
 
 ## Future public image releases
 
@@ -23,5 +23,6 @@ claim that the current records or repository contents establish legal
 compliance.
 
 Keep the applicable [`NOTICE`](../NOTICE),
-[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md), sample inventory, hardware
-attributions, and pinned upstream references with the release records.
+[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md), sample acknowledgement and
+technical manifest, hardware attributions, and source-review records with the
+release records.

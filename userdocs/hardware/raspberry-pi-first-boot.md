@@ -113,10 +113,10 @@ When Internet is available, `System > Updates` only checks, applies, or rolls ba
 the Octessera runtime. It does not update the Armbian OS/image, kernel, device
 tree, or other full-image assets; those remain manual image operations.
 
-Image construction stages the complete 320-file sample artifact under
-`/home/pi/samples`: 318 WAV rows are sampler-loadable, while two AIFF rows are
-retained as attribution-inventory metadata outside the WAV-only browser/decoder.
-User samples remain supported. USB Audio and USB MIDI are experimental/local
+Image construction stages the complete 320-file sample library under
+`/home/pi/samples`: 318 WAV files are sampler-loadable, while two AIFF files
+remain outside the WAV-only browser/decoder. User samples remain supported.
+USB Audio and USB MIDI are experimental/local
 bench validation only, with defaults disabled. Do not call the path supported
 without an authorized USB identity and an exact-image electrical/manual FAT
 record. Keep the board on the enclosure power input and use a data-only or
