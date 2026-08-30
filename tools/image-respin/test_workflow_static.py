@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "respin-board-image.yml"
 sys.path.insert(0, str(ROOT / "tools" / "image-respin"))
 from post_proof_record import PROOF_TEMPLATE
+from requested_build_record import REQUIRED_FILES, SETUP_TOOL_FILES
 
 
 class RespinWorkflowStaticTests(unittest.TestCase):
@@ -123,10 +124,6 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertIn("--verification-profile legacy-runtime-only", PROOF_TEMPLATE["raspberry-sanitized"][1])
         self.assertIn("--container-rustc-version-file", self.text)
         self.assertIn("--container-cargo-version-file", self.text)
-        self.assertIn("--input-file resources/legal/notice-bundle.json", self.text)
-        self.assertIn("--input-file tools/release/check_version_consistency.py", self.text)
-        self.assertIn("--input-file tools/legal/stage_notices.py", self.text)
-        self.assertIn("--input-file tools/image-respin/notice_mutation.py", self.text)
         self.assertIn("resources/image-parents/v0.7.5-trust-manifest.json", self.text)
         self.assertIn("--validate-manifest", self.text)
         self.assertIn('gh api "repos/nexxyz/octessera/releases/tags/v0.7.5"', self.text)
@@ -136,6 +133,25 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertIn("--live-respin-release-json", self.text)
         self.assertNotIn('--release-json "$release_json"', self.text)
         self.assertIn("--print-board-assets --board", self.text)
+
+    def test_record_inputs_and_setup_tools_match_record_contract(self) -> None:
+        match = re.search(
+            r"(?ms)^(?P<indent>[ \t]+)- name: Record requested build identity[ \t]*\n(?P<body>.*?)(?=^(?P=indent)- name: |\Z)",
+            self.text,
+        )
+        self.assertIsNotNone(match)
+        assert match is not None
+        body = match.group("body")
+        input_files = re.findall(r"^[ \t]+--input-file\s+(?P<path>[^\s\\]+)\s*\\\s*$", body, re.MULTILINE)
+        self.assertEqual(len(input_files), len(set(input_files)))
+        self.assertEqual(set(input_files), set(REQUIRED_FILES))
+        self.assertEqual(input_files, list(REQUIRED_FILES))
+
+        loop = re.findall(r"^[ \t]+for path in (?P<paths>tools/image-respin/[^;\n]+); do[ \t]*$", body, re.MULTILINE)
+        self.assertEqual(len(loop), 1)
+        setup_tools = loop[0].split()
+        self.assertEqual(len(setup_tools), len(SETUP_TOOL_FILES))
+        self.assertEqual(setup_tools, list(SETUP_TOOL_FILES))
 
     def test_no_cache_or_release_mutation_and_exact_downloads(self) -> None:
         forbidden = (
