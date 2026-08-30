@@ -328,7 +328,7 @@ def _github_json(url: str, token: str) -> Any:
 
 
 def _download(url: str, token: str, destination: Path) -> None:
-    request = urllib.request.Request(url, headers={"Accept": "application/octet-stream", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"})
+    request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"})
     try:
         with urllib.request.build_opener(_NoAuthorizationRedirectHandler).open(request) as response, destination.open("wb") as target:
             shutil.copyfileobj(response, target, 1024 * 1024)
