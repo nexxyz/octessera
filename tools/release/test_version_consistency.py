@@ -89,8 +89,8 @@ class VersionConsistencyTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(expected, result.stderr)
 
-    def test_historical_v075_fixture_is_not_application_metadata(self) -> None:
-        self._write_json("resources/image-parents/v0.7.5-trust-manifest.json", {"version": "0.7.5"})
+    def test_current_parent_fixture_is_not_application_metadata(self) -> None:
+        self._write_json("resources/image-parents/orange-pi-zero-2w-current.json", {"version": "0.8.1"})
         result = self.run_checker("v1.2.3")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "1.2.3")

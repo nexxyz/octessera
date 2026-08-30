@@ -20,8 +20,6 @@ from package_notice_zip import package_notice_zip  # type: ignore[import-not-fou
 from verify_notice_archive import verify_notice_archive  # type: ignore[import-not-found]
 from updater_profiles import ORANGE_PROFILE, RASPBERRY_PROFILE, updater_asset_names  # type: ignore[import-not-found]
 from tools.release.board_image_release import (  # type: ignore[import-not-found]
-    BASE_REFRESH,
-    BOARD_IMAGE_MODES,
     ReleaseArtifactError,
     verify_and_stage_board_images,
 )
@@ -231,7 +229,6 @@ def assemble_release_assets(
     evidence_staging: Path,
     version: str,
     source_sha: str,
-    board_image_mode: str = BASE_REFRESH,
 ) -> None:
     root = root.resolve()
     gathered_root = gathered_root.resolve()
@@ -257,7 +254,7 @@ def assemble_release_assets(
     _require_exact_files(rpi_device_dir, (rpi_device_zip, rpi_device_sums))
     _require_exact_files(orange_device_dir, (orange_device_zip, "SHA256SUMS-orange-pi-zero-2w-device.txt", orange_updater_zip, orange_updater_sums))
 
-    verify_and_stage_board_images(root, gathered_root, release_assets, evidence_staging, raspberry_runtime, orange_runtime, version, source_sha, board_image_mode)
+    verify_and_stage_board_images(root, gathered_root, release_assets, evidence_staging, raspberry_runtime, orange_runtime, version, source_sha)
     for source, name in (
         (windows_dir / f"{prefix}-windows-installer.exe", f"{prefix}-windows-installer.exe"),
         (windows_dir / f"{prefix}-windows-portable.zip", f"{prefix}-windows-portable.zip"),
@@ -330,7 +327,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--evidence-staging", type=Path, required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--source-sha", required=True)
-    parser.add_argument("--board-image-mode", choices=BOARD_IMAGE_MODES, default=BASE_REFRESH)
     args = parser.parse_args(argv)
     try:
         assemble_release_assets(
@@ -342,7 +338,6 @@ def main(argv: list[str] | None = None) -> int:
             args.evidence_staging,
             args.version,
             args.source_sha,
-            args.board_image_mode,
         )
     except (ReleaseArtifactError, ValueError, KeyError, OSError, zipfile.BadZipFile) as error:
         print(f"release asset verification failed: {error}", file=sys.stderr)

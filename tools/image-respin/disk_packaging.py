@@ -14,11 +14,11 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from .current_parent import load_record as load_current_parent, parent_context as current_parent_context, validate_downloaded_directory as validate_current_parent_directory
     from .provenance import write_provenance
-    from .trust_manifest import ManifestError, load_manifest, parent_context_for_board, validate_downloaded_directory
 except ImportError:
+    from current_parent import load_record as load_current_parent, parent_context as current_parent_context, validate_downloaded_directory as validate_current_parent_directory
     from provenance import write_provenance
-    from trust_manifest import ManifestError, load_manifest, parent_context_for_board, validate_downloaded_directory
 
 
 class DiskPackagingError(ValueError):
@@ -31,10 +31,10 @@ class PreparedImage:
     image: Path
     source: Path
     parent_context: dict[str, Any]
-    manifest_digest: str
+    parent_record_digest: str
 
     def verify_source_unchanged(self) -> None:
-        expected = self.parent_context["asset"]
+        expected = self.parent_context["image"] if "image" in self.parent_context else self.parent_context["asset"]
         digest, size = file_digest(self.source)
         if digest != expected["sha256"] or size != expected["size"]:
             raise DiskPackagingError("trusted source asset changed during respin")
@@ -56,27 +56,20 @@ def file_digest(path: Path) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
-def verify_parent_asset(assets_directory: Path, manifest_path: Path, board_profile: str) -> tuple[Path, dict[str, Any], str, bytes | None]:
+def verify_current_parent_asset(assets_directory: Path, record_path: Path, board_profile: str) -> tuple[Path, dict[str, Any], str, None]:
+    if board_profile != "orange-pi-zero-2w":
+        raise DiskPackagingError(f"no current parent record exists for {board_profile}")
+    repository_root = Path(__file__).resolve().parents[2]
     try:
-        manifest_bytes = Path(manifest_path).read_bytes()
-        manifest = load_manifest(Path(manifest_path))
-        validate_downloaded_directory(Path(assets_directory), manifest, (board_profile,))
-        context = parent_context_for_board(manifest, board_profile)
-    except (OSError, ManifestError) as exc:
-        raise DiskPackagingError(f"trusted board asset set rejected: {exc}") from exc
-    source = Path(assets_directory) / context["asset"]["name"]
+        record, record_digest = load_current_parent(repository_root, record_path)
+        validate_current_parent_directory(assets_directory, record)
+        context = current_parent_context(repository_root, record_path)
+    except (OSError, ValueError) as exc:
+        raise DiskPackagingError(f"current parent asset set rejected: {exc}") from exc
+    source = Path(assets_directory) / record["image"]["name"]
     if source.is_symlink() or not source.is_file():
-        raise DiskPackagingError("trusted parent asset is not a regular file")
-    imager_manifest: bytes | None = None
-    if board_profile == "raspberry-pi-zero-2w":
-        parent = next(parent for parent in manifest["image_parents"] if parent["board"] == board_profile)
-        companion = Path(assets_directory) / parent["proof_companion_assets"][0]
-        if companion.is_symlink() or not companion.is_file():
-            raise DiskPackagingError("Raspberry standalone Imager manifest is not a regular file")
-        embedded_manifest = companion.read_bytes()
-        _validate_raspberry_archive(source, embedded_manifest)
-        imager_manifest = embedded_manifest
-    return source, context, hashlib.sha256(manifest_bytes).hexdigest(), imager_manifest
+        raise DiskPackagingError("current parent image is not a regular file")
+    return source, context, record_digest, None
 
 
 def _safe_zip_member(info: zipfile.ZipInfo) -> None:
@@ -107,7 +100,7 @@ def _validate_raspberry_archive(source: Path, imager_manifest: bytes) -> str:
         raise DiskPackagingError("Raspberry parent ZIP is unreadable") from exc
 
 
-def prepare_parent_image(source: Path, parent_context: dict[str, Any], manifest_digest: str, board_profile: str, imager_manifest: bytes | None = None) -> PreparedImage:
+def prepare_parent_image(source: Path, parent_context: dict[str, Any], parent_record_digest: str, board_profile: str, imager_manifest: bytes | None = None) -> PreparedImage:
     work = Path(tempfile.mkdtemp(prefix="octessera-image-respin-"))
     source = Path(source)
     try:
@@ -131,7 +124,7 @@ def prepare_parent_image(source: Path, parent_context: dict[str, Any], manifest_
             raise DiskPackagingError(f"unsupported board profile: {board_profile}")
         if image.is_symlink() or not image.is_file():
             raise DiskPackagingError("decompressed parent is not a regular image")
-        return PreparedImage(work, image, source, parent_context, manifest_digest)
+        return PreparedImage(work, image, source, parent_context, parent_record_digest)
     except Exception:
         shutil.rmtree(work, ignore_errors=True)
         raise

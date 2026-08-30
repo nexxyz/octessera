@@ -49,7 +49,7 @@ def _requested_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--board", required=True)
     parser.add_argument("--feature-command", required=True)
     parser.add_argument("--input-file", action="append", required=True, type=Path)
-    parser.add_argument("--trust-manifest", required=True, type=Path)
+    parser.add_argument("--parent-record", required=True, type=Path)
     parser.add_argument("--rustc-version-file", required=True, type=Path)
     parser.add_argument("--cargo-version-file", required=True, type=Path)
     parser.add_argument("--cross-version-file", required=True, type=Path)
@@ -70,7 +70,7 @@ def _requested_parser(parser: argparse.ArgumentParser) -> None:
 def _post_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--requested-build", required=True, type=Path)
-    parser.add_argument("--manifest", required=True, type=Path)
+    parser.add_argument("--parent-record", required=True, type=Path)
     parser.add_argument("--board", required=True)
     parser.add_argument("--runtime-bundle", required=True, type=Path)
     parser.add_argument("--artifact", required=True, type=Path)
@@ -85,7 +85,7 @@ def _post_parser(parser: argparse.ArgumentParser) -> None:
 def _setup_post_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--requested-build", required=True, type=Path)
-    parser.add_argument("--manifest", required=True, type=Path)
+    parser.add_argument("--parent-record", required=True, type=Path)
     parser.add_argument("--board", required=True)
     parser.add_argument("--runtime-bundle", required=True, type=Path)
     parser.add_argument("--artifact", required=True, type=Path)
@@ -123,7 +123,7 @@ def main() -> int:
                 board=arguments.board,
                 feature_command=arguments.feature_command,
                 input_files=arguments.input_file,
-                trust_manifest=arguments.trust_manifest,
+                parent_record=arguments.parent_record,
                 rustc_vv=_text(arguments.rustc_version_file, "rustc version"),
                 cargo_version=_text(arguments.cargo_version_file, "cargo version"),
                 cross_version=_text(arguments.cross_version_file, "cross version"),
@@ -144,7 +144,7 @@ def main() -> int:
             record = build_post_record(
                 root=arguments.root,
                 requested_build=arguments.requested_build,
-                manifest=arguments.manifest,
+                parent_record=arguments.parent_record,
                 board=arguments.board,
                 runtime_bundle=arguments.runtime_bundle,
                 artifact=arguments.artifact,
@@ -157,7 +157,7 @@ def main() -> int:
             write_new(arguments.output, record)
             validate_post_record(record, arguments.root)
         elif arguments.mode == "setup-post-proof":
-            record = build_setup_post_record(root=arguments.root, requested_build=arguments.requested_build, manifest=arguments.manifest, board=arguments.board, runtime_bundle=arguments.runtime_bundle, artifact=arguments.artifact, respin_provenance=arguments.respin_provenance, setup_proof=arguments.setup_proof, production_proofs={key: Path(value) for key, value in (_assignment(item, "production proof") for item in arguments.production_proof)}, companions=arguments.companion, workflow=arguments.workflow)
+            record = build_setup_post_record(root=arguments.root, requested_build=arguments.requested_build, parent_record=arguments.parent_record, board=arguments.board, runtime_bundle=arguments.runtime_bundle, artifact=arguments.artifact, respin_provenance=arguments.respin_provenance, setup_proof=arguments.setup_proof, production_proofs={key: Path(value) for key, value in (_assignment(item, "production proof") for item in arguments.production_proof)}, companions=arguments.companion, workflow=arguments.workflow)
             write_new(arguments.output, record)
             validate_setup_post_record(record, arguments.root)
         elif arguments.mode == "verify-post":

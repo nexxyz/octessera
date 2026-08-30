@@ -10,7 +10,7 @@ from orange_trusted_parent_proof import load_contract
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = ROOT / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"
-DERIVATION_CONTRACT_PATH = ROOT / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json"
+DERIVATION_CONTRACT_PATH = ROOT / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json"
 SETUP_CONTRACT_PATH = ROOT / "resources/image-mutations/orange-pi-zero-2w-setup.json"
 SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/verify-orange-image.py",

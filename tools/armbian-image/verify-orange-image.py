@@ -105,19 +105,19 @@ def _phase5(args: argparse.Namespace, root: Path, image_hash: str, image_name: s
         require(value is not None, f"{label} is required for phase5-constructor")
     require(args.construction_contract is not None, "--construction-contract is required for phase5-constructor")
     require(args.manifest is not None, "--manifest is required for phase5-constructor")
-    require(args.trust_manifest is None, "--trust-manifest is forbidden for phase5-constructor")
-    require(args.boot_neutral_contract is None and args.parent_image is None and args.respin_provenance is None and args.setup_proof is None and args.derivation_kind is None, "trusted-parent arguments are invalid for phase5-constructor")
+    require(args.parent_record is None, "--parent-record is forbidden for phase5-constructor")
+    require(args.boot_neutral_contract is None and args.parent_image is None and args.respin_provenance is None and args.setup_proof is None and args.derivation_kind is None, "validated-parent arguments are invalid for phase5-constructor")
     if args.mode == "production":
         _verify_resize_service(root)
     return constructor_proof(root, args, image_hash, image_name, compression, repository_root)
 
 
 def _trusted(args: argparse.Namespace, derived_root: Path, derived_image: tuple[str, int], artifact: tuple[str, int], artifact_name: str, repository_root: Path, derived_layout: dict[str, object]) -> dict[str, Any]:
-    require(args.manifest is None and args.construction_contract is None and args.linux_image is None and args.linux_dtb is None and args.evidence is None and args.provenance is None, "phase5 package arguments are invalid for trusted-parent mode")
+    require(args.manifest is None and args.construction_contract is None and args.linux_image is None and args.linux_dtb is None and args.evidence is None and args.provenance is None, "phase5 package arguments are invalid for validated-parent mode")
     parent_image = _path_arg(args.parent_image, "--parent-image")
     require(parent_image.is_file(), "trusted parent image is missing")
-    trust_manifest = _path_arg(args.trust_manifest, "--trust-manifest")
-    require(trust_manifest.is_file(), "trusted parent manifest is missing")
+    parent_record = _path_arg(args.parent_record, "--parent-record")
+    require(parent_record.is_file(), "current parent record is missing")
     provenance = _path_arg(args.respin_provenance, "--respin-provenance")
     require(provenance.is_file(), "trusted respin provenance is missing")
     contract = _path_arg(args.boot_neutral_contract, "--boot-neutral-contract")
@@ -128,7 +128,7 @@ def _trusted(args: argparse.Namespace, derived_root: Path, derived_image: tuple[
     require((derivation_kind == "setup-portal") == (setup_proof is not None), "setup proof must match trusted derivation kind")
     parent_layout = capture_image_layout(parent_image, "orange-pi-zero-2w", repository_root)
     with mounted_image(parent_image) as parent_root:
-        return verify_trusted(parent_root, derived_root, parent_image, contract, trust_manifest, provenance, derivation_kind, setup_proof, repository_root, derived_image, artifact, artifact_name, parent_layout, derived_layout)
+        return verify_trusted(parent_root, derived_root, parent_image, contract, parent_record, provenance, derivation_kind, setup_proof, repository_root, derived_image, artifact, artifact_name, parent_layout, derived_layout)
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -137,7 +137,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     source.add_argument("--image", type=Path)
     source.add_argument("--root", type=Path)
     parser.add_argument("--image-sha256")
-    parser.add_argument("--boot-proof-mode", choices=("phase5-constructor", "trusted-v0.7.5-boot-neutral"), required=True)
+    parser.add_argument("--boot-proof-mode", choices=("phase5-constructor", "validated-parent"), required=True)
     parser.add_argument("--linux-image", type=Path)
     parser.add_argument("--linux-dtb", type=Path)
     parser.add_argument("--evidence", type=Path)
@@ -145,7 +145,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--construction-contract", type=Path)
     parser.add_argument("--boot-neutral-contract", type=Path)
     parser.add_argument("--manifest", type=Path)
-    parser.add_argument("--trust-manifest", type=Path)
+    parser.add_argument("--parent-record", type=Path)
     parser.add_argument("--parent-image", type=Path)
     parser.add_argument("--respin-provenance", type=Path)
     parser.add_argument("--derivation-kind", choices=("runtime-only", "setup-portal"))
@@ -163,15 +163,15 @@ def main(argv: list[str]) -> int:
         if args.boot_proof_mode == "phase5-constructor":
             require(args.manifest is not None and args.manifest.is_file(), f"missing Orange kernel manifest: {args.manifest}")
         else:
-            require(args.construction_contract is None, "--construction-contract is forbidden for trusted-v0.7.5-boot-neutral")
+            require(args.construction_contract is None, "--construction-contract is forbidden for validated-parent")
         if args.root is not None:
-            require(args.boot_proof_mode == "phase5-constructor", "trusted-v0.7.5-boot-neutral requires --image")
+            require(args.boot_proof_mode == "phase5-constructor", "validated-parent requires --image")
             require(args.image_sha256 is not None and re.fullmatch(r"[0-9a-fA-F]{64}", args.image_sha256) is not None, "--root requires a 64-character --image-sha256")
             root_source = cast(Path, args.root)
             require(root_source.is_dir(), "Orange proof root is missing")
             root_identity = artifact_identity(root_source)
             image_hash, image_name, compression = cast(str, args.image_sha256).lower(), root_source.name, "root-fixture"
-            if args.boot_proof_mode == "trusted-v0.7.5-boot-neutral":
+            if args.boot_proof_mode == "validated-parent":
                 require(root_identity[0] == image_hash, "--image-sha256 does not match the synthetic derived root")
             with mounted_image(root_source) as root:
                 result = _phase5(args, root, image_hash, image_name, compression, repository_root)
@@ -193,7 +193,7 @@ def main(argv: list[str]) -> int:
             else:
                 derived_image = artifact
             compression = "xz" if image_source.suffix == ".xz" else "none"
-            if args.boot_proof_mode == "trusted-v0.7.5-boot-neutral":
+            if args.boot_proof_mode == "validated-parent":
                 derived_layout = capture_image_layout(image_source, "orange-pi-zero-2w", repository_root)
                 with mounted_image(image_source) as root:
                     result = _trusted(args, root, derived_image, artifact, image_source.name, repository_root, derived_layout)

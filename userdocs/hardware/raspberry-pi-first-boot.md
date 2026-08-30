@@ -9,10 +9,10 @@ that boundary.
 
 The boot, OLED handoff, and lifecycle expectations below apply only to an image
 built from these contracts and identified by release and qualification evidence.
-The live trusted v0.7.5 images are runtime/setup parents. They remain usable
-published images for their documented runtime and setup paths, but they do not
-prove the current constructor layer. A new full constructor image still needs
-build validation and physical qualification.
+Historical v0.7.5 images remain usable published images for their documented
+runtime and setup paths, but they do not prove the current constructor layer.
+Raspberry has no current-parent respin lane; a new full constructor image still
+needs build validation and physical qualification.
 
 ## Before boot
 

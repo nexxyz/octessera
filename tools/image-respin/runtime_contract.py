@@ -25,7 +25,6 @@ class MutationError(ValueError):
 VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-NODE_ID_RE = re.compile(r"^RA_[A-Za-z0-9_-]+$")
 METADATA_KEYS = {"artifact_kind", "binary_sha256", "name", "profile", "runtime_ready", "version"}
 MANIFEST_KEYS = {"schema_version", "updater_protocol", "candidate_health_protocol", "tag", "version", "board_profile", "arch", "binary", "platforms"}
 STATE_KEYS = {"schema_version", "phase", "current", "previous", "next", "updated_at", "release", "asset"}
@@ -34,8 +33,7 @@ BUILD_METADATA_KEYS = set(BUILD_METADATA_KEY_ORDER)
 BUILD_METADATA_TRANSFORMS = {"OCTESSERA_RUNTIME_VERSION", "OCTESSERA_RUNTIME_BINARY_SHA256", "OCTESSERA_RUNTIME_METADATA_SHA256", "OCTESSERA_RUNTIME_MANIFEST_SHA256"}
 BUILD_METADATA_HASH_KEYS = {key for key in BUILD_METADATA_KEYS if key.endswith("_SHA256")}
 CONTRACTS = Path(__file__).resolve().parents[2] / "resources" / "image-mutations"
-PARENT_CONTEXT_KEYS = {"schema", "repository", "tag", "source_commit", "asset"}
-PARENT_ASSET_KEYS = {"name", "node_id", "size", "sha256"}
+PARENT_CONTEXT_KEYS = {"schema", "repository", "board_profile", "version", "constructor", "artifact", "image", "record"}
 
 
 @dataclass(frozen=True)
@@ -232,29 +230,25 @@ def validate_parent_context(context: object, board_profile: str) -> dict[str, An
     document = cast(dict[str, Any], context)
     if set(document) != PARENT_CONTEXT_KEYS:
         fail("parent_context keys are not exact")
-    if document["schema"] != "octessera.image-parent-trust/v1" or document["repository"] != "nexxyz/octessera":
-        fail("parent_context trust identity is invalid")
-    tag = document["tag"]
-    if not isinstance(tag, str) or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
-        fail("parent_context tag is invalid")
-    if not isinstance(document["source_commit"], str) or not COMMIT_RE.fullmatch(document["source_commit"]):
-        fail("parent_context source commit is invalid")
-    asset = document["asset"]
-    if not isinstance(asset, dict):
-        fail("parent_context asset must be an object")
-    asset_value = cast(dict[str, Any], asset)
-    if set(asset_value) != PARENT_ASSET_KEYS:
-        fail("parent_context asset keys are not exact")
-    expected_suffix = ".img.zip" if board_profile == "raspberry-pi-zero-2w" else ".img.xz"
-    expected_name = f"octessera-{tag[1:]}-{board_profile}{expected_suffix}"
-    if asset_value["name"] != expected_name or not isinstance(asset_value["name"], str) or "/" in asset_value["name"] or "\\" in asset_value["name"]:
-        fail("parent_context asset name is not the exact board parent")
-    if not isinstance(asset_value["node_id"], str) or not NODE_ID_RE.fullmatch(asset_value["node_id"]):
-        fail("parent_context asset node ID is invalid")
-    if isinstance(asset_value["size"], bool) or not isinstance(asset_value["size"], int) or asset_value["size"] <= 0:
-        fail("parent_context asset size is invalid")
-    if not isinstance(asset_value["sha256"], str) or not SHA256_RE.fullmatch(asset_value["sha256"]):
-        fail("parent_context asset digest is invalid")
+    if document["schema"] != "octessera.image-current-parent/v1" or document["repository"] != "nexxyz/octessera" or document["board_profile"] != "orange-pi-zero-2w" or board_profile != "orange-pi-zero-2w":
+        fail("current parent context identity is invalid")
+    version = document["version"]
+    if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
+        fail("current parent context version is invalid")
+    constructor = document["constructor"]
+    if not isinstance(constructor, dict) or set(constructor) != {"run_id", "source_sha"} or type(constructor["run_id"]) is not int or not COMMIT_RE.fullmatch(constructor["source_sha"]):
+        fail("current parent constructor identity is invalid")
+    artifact = document["artifact"]
+    if not isinstance(artifact, dict) or set(artifact) != {"id", "name", "size", "digest", "expires_at", "entries"}:
+        fail("current parent artifact identity is invalid")
+    if type(artifact["id"]) is not int or not isinstance(artifact["name"], str) or type(artifact["size"]) is not int or artifact["size"] <= 0 or not isinstance(artifact["digest"], str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", artifact["digest"]):
+        fail("current parent artifact identity is invalid")
+    image = document["image"]
+    if not isinstance(image, dict) or set(image) != {"name", "size", "sha256"} or image["name"] != f"octessera-{version}-orange-pi-zero-2w.img.xz" or type(image["size"]) is not int or image["size"] <= 0 or not isinstance(image["sha256"], str) or not SHA256_RE.fullmatch(image["sha256"]):
+        fail("current parent image identity is invalid")
+    record = document["record"]
+    if not isinstance(record, dict) or set(record) != {"path", "sha256", "size"} or record["path"] != "resources/image-parents/orange-pi-zero-2w-current.json" or not isinstance(record["sha256"], str) or not SHA256_RE.fullmatch(record["sha256"]) or type(record["size"]) is not int or record["size"] <= 0:
+        fail("current parent record identity is invalid")
     return json.loads(json.dumps(document, sort_keys=True, separators=(",", ":")))
 
 

@@ -18,7 +18,7 @@ except ImportError:
 
 SCHEMA = "octessera.image-respin-requested-build/v1"
 TOOL_NAME = "octessera-image-respin-requested-build"
-BOARDS = {"orange-pi-zero-2w", "raspberry-pi-zero-2w"}
+BOARDS = {"orange-pi-zero-2w"}
 REQUIRED_FILES = (
     "Cargo.lock",
     "Cargo.toml",
@@ -40,12 +40,13 @@ REQUIRED_FILES = (
     ".github/workflows/respin-board-image.yml",
     "tools/image-respin/runtime_bundle.py",
     "tools/image-respin/boot_neutral.py",
+    "tools/image-respin/current_parent.py",
     "tools/release/check_version_consistency.py",
     "resources/legal/notice-bundle.json",
     "tools/legal/stage_notices.py",
     "tools/image-respin/notice_mutation.py",
 )
-SETUP_TOOL_FILES = tuple(f"tools/image-respin/{name}" for name in ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "disk_setup_respin.py", "boot_neutral.py", "setup_workflow_record.py", "workflow_records.py", "requested_build_record.py", "post_proof_record.py", "trust_manifest.py", "record_validation.py", "record_hashing.py", "record_paths.py", "record_documents.py", "record_tool_contract.py"))
+SETUP_TOOL_FILES = tuple(f"tools/image-respin/{name}" for name in ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "disk_setup_respin.py", "boot_neutral.py", "current_parent.py", "setup_workflow_record.py", "workflow_records.py", "requested_build_record.py", "post_proof_record.py", "record_validation.py", "record_hashing.py", "record_paths.py", "record_documents.py", "record_tool_contract.py"))
 PROOF_PACKAGES = {
     "cpio",
     "zstd",
@@ -57,7 +58,7 @@ PROOF_PACKAGES = {
     "util-linux",
     "xz-utils",
 }
-TOP_KEYS = {"schema", "schema_version", "record_kind", "source", "inputs", "trust_manifest", "toolchain", "proof_dependencies", "reproducibility", "tool"}
+TOP_KEYS = {"schema", "schema_version", "record_kind", "source", "inputs", "parent_record", "toolchain", "proof_dependencies", "reproducibility", "tool"}
 SOURCE_KEYS = {"sha", "version", "board", "feature_command"}
 TOOLCHAIN_KEYS = {"host_orchestration", "container", "cross_image", "base_image"}
 HOST_TOOLCHAIN_KEYS = {"rustc_vv", "cargo_version", "cross_version"}
@@ -82,7 +83,7 @@ def build_record(
     board: str,
     feature_command: str,
     input_files: list[Path],
-    trust_manifest: Path,
+    parent_record: Path,
     rustc_vv: str,
     cargo_version: str,
     cross_version: str,
@@ -115,7 +116,7 @@ def build_record(
         "record_kind": "requested-build",
         "source": {"sha": source_sha, "version": version, "board": board, "feature_command": feature_command},
         "inputs": sorted(inputs, key=lambda item: item["path"]),
-        "trust_manifest": identity(trust_manifest, root),
+        "parent_record": identity(parent_record, root),
         "toolchain": {
             "host_orchestration": {"rustc_vv": rustc_vv.rstrip("\n"), "cargo_version": cargo_version.rstrip("\n"), "cross_version": cross_version.rstrip("\n")},
             "container": {"rustc_vv": container_rustc_vv.rstrip("\n"), "cargo_version": container_cargo_version.rstrip("\n"), "image_id": cross_image_id},
@@ -159,7 +160,7 @@ def validate_record(record: dict[str, Any], root: Path) -> None:
     require({item["path"] for item in inputs} == set(REQUIRED_FILES) and len(inputs) == len(REQUIRED_FILES), "requested input set changed")
     for item in inputs:
         verify_identity(item, root, "requested input")
-    verify_identity(record["trust_manifest"], root, "requested trust manifest")
+    verify_identity(record["parent_record"], root, "requested parent record")
     toolchain = require_keys(record["toolchain"], TOOLCHAIN_KEYS, "requested toolchain")
     host = require_keys(toolchain["host_orchestration"], HOST_TOOLCHAIN_KEYS, "host orchestration toolchain")
     container = require_keys(toolchain["container"], CONTAINER_TOOLCHAIN_KEYS, "container toolchain")

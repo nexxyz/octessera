@@ -8,11 +8,11 @@ from typing import Any
 try:
     from .requested_build_record import BOARDS as BUILD_BOARDS, validate_record as validate_requested
     from .disk_packaging import compression_identity
-    from .trust_manifest import load_manifest, parent_context_for_board
+    from .current_parent import load_record as load_current_parent, parent_context as current_parent_context, validate_downloaded_directory as validate_current_parent_directory
     from .inventory import build_inventory, ensure_inventory_symlinks_contained, inventory_digest
     from .notice_mutation import NOTICE_TARGET, validate_notice_record
     from .runtime_contract import MutationError
-    from .provenance import RUNTIME_TOOL_IDENTITY, TOOL_CODE_SCHEMA, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
+    from .provenance import RUNTIME_TOOL_IDENTITY, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
     from .boot_neutral import load_policy
     from .setup_contract import load_contract as load_setup_contract
     from .setup_provenance import setup_tool_code_model
@@ -24,11 +24,11 @@ try:
 except ImportError:
     from requested_build_record import BOARDS as BUILD_BOARDS, validate_record as validate_requested
     from disk_packaging import compression_identity
-    from trust_manifest import load_manifest, parent_context_for_board
+    from current_parent import load_record as load_current_parent, parent_context as current_parent_context, validate_downloaded_directory as validate_current_parent_directory
     from inventory import build_inventory, ensure_inventory_symlinks_contained, inventory_digest
     from notice_mutation import NOTICE_TARGET, validate_notice_record
     from runtime_contract import MutationError
-    from provenance import RUNTIME_TOOL_IDENTITY, TOOL_CODE_SCHEMA, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
+    from provenance import RUNTIME_TOOL_IDENTITY, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
     from boot_neutral import load_policy
     from setup_contract import load_contract as load_setup_contract
     from setup_provenance import setup_tool_code_model
@@ -42,10 +42,9 @@ except ImportError:
 SCHEMA = "octessera.image-respin-post-proof/v1"
 TOOL_NAME = "octessera-image-respin-post-proof"
 ORANGE = "orange-pi-zero-2w"
-RPI = "raspberry-pi-zero-2w"
 TOP_KEYS = {"schema", "schema_version", "record_kind", "result", "source", "requested_build", "parent", "runtime_bundle", "derived_artifact", "respin_provenance", "companions", "proofs", "proof_tools", "workflow", "tool"}
 RESULT_KEYS = {"status", "proofs_succeeded"}
-PARENT_KEYS = {"trust_manifest", "context"}
+PARENT_KEYS = {"parent_record", "context"}
 BUNDLE_KEYS = {"path", "entries", "sha256", "inventory_sha256"}
 PROOF_KEYS = {"label", "schema", "command_template_id", "command_template", "result", "output"}
 PROOF_RESULT_KEYS = {"result"}
@@ -60,28 +59,20 @@ def _validate_notice(record: Any, root: Path) -> None:
 
 
 PROOF_TEMPLATE = {
-    "orange-image": ("orange-production", "sudo bash tools/armbian-image/verify-orange-image.sh --image {artifact} --boot-proof-mode trusted-v0.7.5-boot-neutral --boot-neutral-contract resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json --parent-image parent-assets/octessera-0.7.5-orange-pi-zero-2w.img.xz --trust-manifest resources/image-parents/v0.7.5-trust-manifest.json --respin-provenance {artifact}.provenance.json --derivation-kind runtime-only --output {proof_output}", ORANGE + "/production-image-proof/v2"),
-    "raspberry-sanitized": ("raspberry-sanitized", "sudo bash tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-runtime-only {artifact} 2>&1 | tee {proof_output}", RPI + "/sanitized-image-proof/v1"),
+    "orange-image": ("orange-production", "sudo bash tools/armbian-image/verify-orange-image.sh --image {artifact} --boot-proof-mode validated-parent --boot-neutral-contract resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json --parent-image parent-assets/$(jq -r '.image.name' resources/image-parents/orange-pi-zero-2w-current.json) --parent-record resources/image-parents/orange-pi-zero-2w-current.json --respin-provenance {artifact}.provenance.json --derivation-kind runtime-only --output {proof_output}", ORANGE + "/production-image-proof/v2"),
 }
-ORANGE_TOOLS = ("tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/image-respin/notice_mutation.py", "tools/image-respin/boot_neutral.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json", "tools/kernel-patches/orange-midi-interface-manifest.json")
-RPI_TOOLS = ("tools/pi-image/verify-sanitized-image.sh", "tools/pi-image/verify-managed-runtime.sh", "tools/pi-image/verify-boot-layout.sh", "tools/pi-image/verify-trusted-parent-v0.7.5.sh", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/image-respin/notice_mutation.py", "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json")
+ORANGE_TOOLS = ("tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/image-respin/notice_mutation.py", "tools/image-respin/boot_neutral.py", "tools/image-respin/current_parent.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json", "tools/kernel-patches/orange-midi-interface-manifest.json")
 
 
 def _read_proof(path: Path, board: str) -> dict[str, Any] | None:
-    if board == ORANGE:
-        try:
-            proof = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise RecordError(f"structured Orange proof is unreadable: {path}") from error
-        require_keys(proof, {"schema", "schema_version", "proof_mode", "phase5_claim", "boot_state", "artifact", "board_profile", "runtime", "parent", "selected_boot", "contract", "respin_provenance_sha256"}, "Orange proof")
-        require(proof["schema"] == "octessera.image-proof/v2" and proof["schema_version"] == 2 and proof["proof_mode"] == "trusted-v0.7.5-boot-neutral" and proof["phase5_claim"] is False and proof["boot_state"] == "v0.7.5-preserved" and proof["board_profile"] == ORANGE, "Orange structured proof identity changed")
-        return proof
+    require(board == ORANGE, "Raspberry has no current parent record")
     try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as error:
-        raise RecordError(f"proof output is unreadable: {path}") from error
-    require(text.strip() != "" and "failed" not in text.lower() and "failure" not in text.lower(), f"proof output is not successful: {path}")
-    return None
+        proof = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise RecordError(f"structured Orange proof is unreadable: {path}") from error
+    require_keys(proof, {"schema", "schema_version", "proof_mode", "phase5_claim", "boot_state", "artifact", "board_profile", "runtime", "parent", "selected_boot", "contract", "respin_provenance_sha256"}, "Orange proof")
+    require(proof["schema"] == "octessera.image-proof/v2" and proof["schema_version"] == 2 and proof["proof_mode"] == "validated-parent" and proof["phase5_claim"] is False and proof["boot_state"] == "current-parent-preserved" and proof["board_profile"] == ORANGE, "Orange structured proof identity changed")
+    return proof
 
 
 def _bundle_identity(path: Path, root: Path) -> dict[str, Any]:
@@ -95,20 +86,19 @@ def _bundle_identity(path: Path, root: Path) -> dict[str, Any]:
     return {"path": relative, "entries": files, "sha256": hashlib.sha256(canonical_bytes(files)).hexdigest(), "inventory_sha256": inventory_digest(bundle_inventory)}
 
 
-def _companion_records(companions: list[Path], root: Path, manifest: dict[str, Any], board: str) -> list[dict[str, Any]]:
-    parent = next(item for item in manifest["image_parents"] if item["board"] == board)
-    expected_names = {parent["asset"], *parent["proof_companion_assets"]}
-    assets = {item["name"]: item for item in manifest["assets"]}
+def _companion_records(companions: list[Path], root: Path, record: dict[str, Any], board: str) -> list[dict[str, Any]]:
+    require(board == ORANGE, "Raspberry has no current parent record")
+    expected_names = set(record["artifact"]["entries"])
+    require(bool(companions) and all(path.parent == companions[0].parent for path in companions), "current parent companions are not co-located")
+    validate_current_parent_directory(companions[0].parent, record)
     records = [identity(path, root) for path in companions]
     require(len(records) == len(expected_names) and {Path(item["path"]).name for item in records} == expected_names, "companion set is not exact")
-    for record in records:
-        anchor = assets.get(Path(record["path"]).name)
-        require(anchor is not None and record["sha256"] == anchor["sha256"] and record["size"] == anchor["size"], f"companion differs from checked manifest: {record['path']}")
     return sorted(records, key=lambda item: item["path"])
 
 
 def _expected_labels(board: str) -> set[str]:
-    return {"orange-image"} if board == ORANGE else {"raspberry-sanitized"}
+    require(board == ORANGE, "Raspberry has no current parent record")
+    return {"orange-image"}
 
 
 def _proof_records(root: Path, board: str, outputs: dict[str, Path], template_ids: dict[str, str]) -> list[dict[str, Any]]:
@@ -128,7 +118,7 @@ def _sha(value: Any, label: str) -> None:
     require(isinstance(value, str) and SHA_RE.fullmatch(value) is not None, f"{label} is not a SHA-256 digest")
 
 
-def _validate_orange_provenance(document: dict[str, Any], root: Path, source: dict[str, Any], parent: dict[str, Any], manifest_digest: str, bundle: dict[str, Any], artifact: dict[str, Any], provenance_identity: dict[str, Any], proof: dict[str, Any]) -> None:
+def _validate_orange_provenance(document: dict[str, Any], root: Path, source: dict[str, Any], parent: dict[str, Any], parent_record_digest: str, bundle: dict[str, Any], artifact: dict[str, Any], provenance_identity: dict[str, Any], proof: dict[str, Any]) -> None:
     policy = load_policy(root)
     expected = set(policy.contract["respin_provenance"]["top_level_keys"])
     is_setup = proof["runtime"]["derivation_kind"] == "setup-portal"
@@ -139,16 +129,16 @@ def _validate_orange_provenance(document: dict[str, Any], root: Path, source: di
     derivation_kind = document["derivation_kind"]
     require(derivation_kind in {"runtime-only", "setup-portal"} and (("setup_mutation" in document) == (derivation_kind == "setup-portal")), "Orange derivation kind is not exact")
     require(document["proof_mode"] == policy.proof_mode and document["board_profile"] == ORANGE and document["version"] == source["version"] and document["source_identity"] == source["sha"] and document["boot_mutation"] is False and document["phase5_claim"] is False and document["policy"] == policy.policy, "Orange boot-neutral provenance identity changed")
-    parent_document = require_keys(document["parent"], {"context", "asset", "trust_manifest_sha256", "digest"}, "Orange provenance parent")
-    require(parent_document["context"] == parent["context"] and parent_document["asset"] == parent["context"]["asset"] and parent_document["trust_manifest_sha256"] == manifest_digest and parent_document["digest"] == provenance_digest({"context": parent["context"], "trust_manifest_sha256": manifest_digest}), "Orange provenance parent changed")
-    require(parent["context"]["asset"]["name"] == policy.contract["parent_asset"]["name"] and parent["context"]["asset"]["sha256"] == policy.contract["parent_asset"]["sha256"] and parent["context"]["asset"]["size"] == policy.contract["parent_asset"]["size"], "Orange provenance parent policy agreement changed")
+    parent_document = require_keys(document["parent"], {"record", "context", "image", "digest"}, "Orange provenance parent")
+    expected_record = {"path": policy.contract["parent_record"], "sha256": parent_record_digest, "size": parent["parent_record"]["size"]}
+    require(parent_document["record"] == expected_record and parent_document["context"] == parent["context"] and parent_document["image"] == parent["context"]["image"] and parent_document["digest"] == provenance_digest({"context": parent["context"], "record": expected_record, "image": parent["context"]["image"]}), "Orange provenance parent changed")
     runtime = require_keys(document["runtime_mutation"], {"digest", "provenance"}, "Orange runtime mutation")
     runtime_value = require_keys(runtime["provenance"], RUNTIME_KEYS, "Orange runtime provenance")
     require(runtime["digest"] == provenance_digest(runtime_value) and runtime_value["proof_schema"] == "octessera.image-mutation-provenance.v2" and runtime_value["schema_version"] == 2 and runtime_value["board_profile"] == ORANGE and runtime_value["version"] == source["version"] and runtime_value["source_identity"] == source["sha"], "Orange runtime provenance changed")
     _validate_notice(runtime_value["notice"], root)
     runtime_parent = require_keys(runtime_value["parent"], {"identity", "digest"}, "Orange runtime parent")
     parent_identity = require_keys(runtime_parent["identity"], {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}, "Orange runtime parent identity")
-    require(runtime_parent["digest"] == provenance_digest(parent_identity) and parent_identity["board_profile"] == ORANGE and parent_identity["prior_version"] == "0.7.5" and parent_identity["parent_context"] == parent["context"], "Orange runtime parent identity changed")
+    require(runtime_parent["digest"] == provenance_digest(parent_identity) and parent_identity["board_profile"] == ORANGE and parent_identity["prior_version"] == parent["context"]["version"] and parent_identity["parent_context"] == parent["context"], "Orange runtime parent identity changed")
     require(parent_identity["parent_context_sha256"] == provenance_digest(parent["context"]) and set(parent_identity["prior_release_entries"]) == {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"} and parent_identity["prior_state_preimage_sha256"] is None and isinstance(parent_identity["prior_build_metadata_preimage_sha256"], str), "Orange runtime parent release identity changed")
     require(runtime_value["payload"] == {"digest": bundle["inventory_sha256"]}, "Orange runtime bundle identity changed")
     contract_identity = identity(root / "resources/image-mutations/orange-pi-zero-2w.json", root)
@@ -195,11 +185,11 @@ def _validate_orange_provenance(document: dict[str, Any], root: Path, source: di
         setup_contract, setup_digest = load_setup_contract(root / "resources/image-mutations/orange-pi-zero-2w-setup.json")
         require(setup_digest == setup_proof["contract_sha256"] and all(value is False for key, value in setup_contract["recipe"].items() if key.endswith("_mutation")), "Orange setup contract permits boot mutation")
     require(proof["artifact"] == {"name": Path(artifact["path"]).name, "sha256": artifact["sha256"], "size": artifact["size"]} and proof["runtime"] == {"derivation_kind": derivation_kind, "setup_proof": derivation_kind == "setup-portal", "boot_mutation": False}, "Orange structured proof is not bound")
-    require(proof["parent"] == {"trust_manifest": parent["trust_manifest"]["path"], "name": parent["context"]["asset"]["name"], "sha256": parent["context"]["asset"]["sha256"], "size": parent["context"]["asset"]["size"]}, "Orange structured parent proof changed")
-    require(proof["contract"] == {"path": "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json", "sha256": policy.sha256} and proof["respin_provenance_sha256"] == provenance_identity["sha256"], "Orange structured policy/provenance binding changed")
+    require(proof["parent"] == {"record": parent["parent_record"], "image": parent["context"]["image"]}, "Orange structured parent proof changed")
+    require(proof["contract"] == {"path": "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json", "sha256": policy.sha256} and proof["respin_provenance_sha256"] == provenance_identity["sha256"], "Orange structured policy/provenance binding changed")
 
 
-def _validate_respin_provenance(path: Path, root: Path, source: dict[str, Any], parent: dict[str, Any], manifest_digest: str, bundle: dict[str, Any], artifact: dict[str, Any], provenance_identity: dict[str, Any] | None = None, structured_proof: dict[str, Any] | None = None) -> None:
+def _validate_respin_provenance(path: Path, root: Path, source: dict[str, Any], parent: dict[str, Any], parent_record_digest: str, bundle: dict[str, Any], artifact: dict[str, Any], provenance_identity: dict[str, Any] | None = None, structured_proof: dict[str, Any] | None = None) -> None:
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -209,81 +199,27 @@ def _validate_respin_provenance(path: Path, root: Path, source: dict[str, Any], 
         if provenance_identity is None or structured_proof is None:
             raise RecordError("Orange structured proof binding is required")
         policy = load_policy(root)
-        require(parent["trust_manifest"]["path"] == policy.contract["parent_trust_manifest"], "Orange trusted manifest path is not canonical")
-        _validate_orange_provenance(document, root, source, parent, manifest_digest, bundle, artifact, provenance_identity, structured_proof)
+        require(parent["parent_record"]["path"] == policy.contract["parent_record"], "Orange current parent record path is not canonical")
+        _validate_orange_provenance(document, root, source, parent, parent_record_digest, bundle, artifact, provenance_identity, structured_proof)
         return
-    top = require_keys(document, {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "runtime_mutation", "disk_invariants", "derived_image", "packaged_artifact", "finalizer"}, "respin provenance")
-    require(top["proof_schema"] == "octessera.image-derived-respin-provenance.v1" and top["schema_version"] == 1, "respin provenance schema is not exact")
-    require(top["board_profile"] == source["board"] and top["version"] == source["version"] and top["source_identity"] == source["sha"], "respin provenance source identity changed")
-    provenance_parent = require_keys(top["parent"], {"context", "asset", "trust_manifest_sha256", "digest"}, "respin provenance parent")
-    require(provenance_parent["context"] == parent["context"] and provenance_parent["asset"] == parent["context"]["asset"] and provenance_parent["trust_manifest_sha256"] == manifest_digest, "respin provenance parent changed")
-    require(provenance_parent["digest"] == provenance_digest({"context": parent["context"], "trust_manifest_sha256": manifest_digest}), "respin provenance parent digest changed")
-    _sha(provenance_parent["trust_manifest_sha256"], "respin trust manifest")
-    runtime = require_keys(top["runtime_mutation"], {"digest", "provenance"}, "respin runtime mutation")
-    runtime_provenance = require_keys(runtime["provenance"], RUNTIME_KEYS, "runtime provenance")
-    require(runtime["digest"] == provenance_digest(runtime_provenance), "runtime provenance digest changed")
-    require(runtime_provenance["proof_schema"] == "octessera.image-mutation-provenance.v2" and runtime_provenance["schema_version"] == 2 and runtime_provenance["board_profile"] == source["board"] and runtime_provenance["version"] == source["version"] and runtime_provenance["source_identity"] == source["sha"], "runtime provenance source changed")
-    _validate_notice(runtime_provenance["notice"], root)
-    runtime_parent = require_keys(runtime_provenance["parent"], {"identity", "digest"}, "runtime provenance parent")
-    parent_identity = require_keys(runtime_parent["identity"], {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}, "runtime parent identity")
-    expected_entries = {"octessera-pi", "update-manifest.json"} if source["board"] == RPI else {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"}
-    require(parent_identity["board_profile"] == source["board"] and parent_identity["parent_context"] == parent["context"], "runtime parent context changed")
-    require(parent_identity["prior_version"] == "0.7.5" and isinstance(parent_identity["prior_release_entries"], dict) and set(parent_identity["prior_release_entries"]) == expected_entries, "runtime parent release identity changed")
-    for value in parent_identity["prior_release_entries"].values():
-        _sha(value, "runtime parent release entry")
-    _sha(parent_identity["prior_release_digest"], "runtime parent release")
-    require(parent_identity["prior_state_preimage_sha256"] is not None if source["board"] == RPI else parent_identity["prior_state_preimage_sha256"] is None, "runtime parent state identity changed")
-    if parent_identity["prior_state_preimage_sha256"] is not None:
-        _sha(parent_identity["prior_state_preimage_sha256"], "runtime parent state")
-    require(parent_identity["prior_build_metadata_preimage_sha256"] is not None if source["board"] == ORANGE else parent_identity["prior_build_metadata_preimage_sha256"] is None, "runtime parent metadata identity changed")
-    if parent_identity["prior_build_metadata_preimage_sha256"] is not None:
-        _sha(parent_identity["prior_build_metadata_preimage_sha256"], "runtime parent metadata")
-    require(isinstance(parent_identity["current_target"], str), "runtime parent current target is invalid")
-    require(len(parent_identity["current_target"].strip()) > 0, "runtime parent current target is invalid")
-    require(parent_identity["parent_context_sha256"] == provenance_digest(parent["context"]), "runtime parent context digest changed")
-    require(runtime_parent["digest"] == provenance_digest(parent_identity), "runtime parent digest changed")
-    payload = require_keys(runtime_provenance["payload"], {"digest"}, "runtime provenance payload")
-    require(payload["digest"] == bundle["inventory_sha256"], "runtime payload does not match bundle inventory")
-    _sha(payload["digest"], "runtime payload")
-    mutation_contract = require_keys(runtime_provenance["mutation_contract"], {"digest"}, "mutation contract")
-    contract_digest = identity(root / "resources/image-mutations" / f"{source['board']}.json", root)["sha256"]
-    require(mutation_contract["digest"] == contract_digest, "mutation contract changed")
-    inventories = require_keys(runtime_provenance["inventories"], {"pre", "post"}, "runtime inventories")
-    _sha(inventories["pre"], "runtime pre-inventory")
-    _sha(inventories["post"], "runtime post-inventory")
-    require(runtime_provenance["parent_inventory_digest"] == inventories["pre"] and runtime_provenance["post_inventory_digest"] == inventories["post"], "runtime inventory aliases changed")
-    finalizer = require_keys(runtime_provenance["finalizer"], {"source_identity", "tool_identity", "tool_code_schema", "tool_code_version", "tool_code_digest", "tool_code_files"}, "runtime finalizer")
-    require(finalizer["source_identity"] == source["sha"] and finalizer["tool_identity"] == RUNTIME_TOOL_IDENTITY and finalizer["tool_code_schema"] == TOOL_CODE_SCHEMA and finalizer["tool_code_version"] == 1, "runtime finalizer identity changed")
-    current_tool_code = tool_code_model(root / "tools/image-respin")
-    require(finalizer["tool_code_schema"] == current_tool_code["schema"] and finalizer["tool_code_version"] == current_tool_code["version"] and finalizer["tool_code_digest"] == current_tool_code["digest"] and finalizer["tool_code_files"] == current_tool_code["files"], "runtime tool code changed")
-    require(isinstance(runtime_provenance["changed_paths"], list) and runtime_provenance["changed_paths"] == sorted(set(runtime_provenance["changed_paths"])), "runtime changed paths are not exact")
-    global_notice = {path for path in runtime_provenance["changed_paths"] if path == NOTICE_TARGET or path.startswith(NOTICE_TARGET + "/")}
-    require(global_notice == set(runtime_provenance["notice"]["changed_paths"]), "notice paths are not the exact runtime subset")
-    disk = require_keys(top["disk_invariants"], {"pre", "post", "digest"}, "disk invariants")
-    require(disk["pre"] == disk["post"] and disk["digest"] == provenance_digest({"pre": disk["pre"], "post": disk["post"]}), "disk invariants changed")
-    derived = require_keys(top["derived_image"], {"sha256", "size"}, "derived image")
-    _sha(derived["sha256"], "derived image")
-    require(isinstance(derived["size"], int) and derived["size"] >= 0, "derived image size is invalid")
-    packaged = require_keys(top["packaged_artifact"], {"sha256", "size", "path"}, "packaged artifact")
-    require(packaged["sha256"] == artifact["sha256"] and packaged["size"] == artifact["size"] and packaged["path"] == Path(artifact["path"]).name, "packaged artifact identity changed")
-    finalizer = require_keys(top["finalizer"], {"tool_identity", "compression_identity", "runtime_tool_code_schema", "runtime_tool_code_version", "runtime_tool_code_digest", "runtime_tool_code_files"}, "respin finalizer")
-    require(finalizer["tool_identity"] == TOOL_IDENTITY and finalizer["runtime_tool_code_schema"] == runtime_provenance["finalizer"]["tool_code_schema"] and finalizer["runtime_tool_code_version"] == runtime_provenance["finalizer"]["tool_code_version"] and finalizer["runtime_tool_code_digest"] == runtime_provenance["finalizer"]["tool_code_digest"] and finalizer["runtime_tool_code_files"] == runtime_provenance["finalizer"]["tool_code_files"], "respin tool code identity changed")
+    raise RecordError("Raspberry has no current parent record")
 
 
-def build_record(*, root: Path, requested_build: Path, manifest: Path, board: str, runtime_bundle: Path, artifact: Path, respin_provenance: Path, proof_outputs: dict[str, Path], template_ids: dict[str, str], companions: list[Path], workflow: Path) -> dict[str, Any]:
+def build_record(*, root: Path, requested_build: Path, parent_record: Path, board: str, runtime_bundle: Path, artifact: Path, respin_provenance: Path, proof_outputs: dict[str, Path], template_ids: dict[str, str], companions: list[Path], workflow: Path) -> dict[str, Any]:
     requested = _load_requested(requested_build, root)
     require(requested["source"]["board"] == board, "post-proof board differs from requested build")
-    checked_manifest = load_manifest(manifest)
-    parent_context = parent_context_for_board(checked_manifest, board)
-    tools = ORANGE_TOOLS if board == ORANGE else RPI_TOOLS
-    manifest_identity = identity(manifest, root)
-    parent = {"trust_manifest": manifest_identity, "context": parent_context}
+    require(board == ORANGE, "Raspberry has no current parent record")
+    checked_parent, _ = load_current_parent(root, parent_record)
+    parent_context = current_parent_context(root, parent_record)
+    tools = ORANGE_TOOLS
+    parent_record_identity = identity(parent_record, root)
+    parent = {"parent_record": parent_record_identity, "context": parent_context}
     bundle_identity = _bundle_identity(runtime_bundle, root)
     artifact_identity = identity(artifact, root)
     provenance_identity = identity(respin_provenance, root)
     proof_records = _proof_records(root, board, proof_outputs, template_ids)
     structured_proof = proof_records[0]["result"].get("proof") if board == ORANGE else None
-    _validate_respin_provenance(respin_provenance, root, requested["source"], parent, manifest_identity["sha256"], bundle_identity, artifact_identity, provenance_identity, structured_proof)
+    _validate_respin_provenance(respin_provenance, root, requested["source"], parent, parent_record_identity["sha256"], bundle_identity, artifact_identity, provenance_identity, structured_proof)
     return {
         "schema": SCHEMA,
         "schema_version": 1,
@@ -295,7 +231,7 @@ def build_record(*, root: Path, requested_build: Path, manifest: Path, board: st
         "runtime_bundle": bundle_identity,
         "derived_artifact": artifact_identity,
         "respin_provenance": provenance_identity,
-        "companions": _companion_records(companions, root, checked_manifest, board),
+        "companions": _companion_records(companions, root, checked_parent, board),
         "proofs": proof_records,
         "proof_tools": [identity(resolve(root, path), root) for path in tools],
         "workflow": identity(workflow, root),
@@ -316,19 +252,20 @@ def validate_record(record: dict[str, Any], root: Path) -> None:
     require(result == {"status": "success", "proofs_succeeded": True}, "post-proof did not succeed")
     source = require_keys(record["source"], {"sha", "version", "board", "feature_command"}, "post-proof source")
     verify_source(source["sha"], source["version"], source["board"], BUILD_BOARDS)
+    require(source["board"] == ORANGE, "Raspberry has no current parent record")
     requested_identity = verify_identity(record["requested_build"], root, "requested build")
     requested = _load_requested(resolve(root, requested_identity["path"]), root)
     require(requested["source"] == source, "post-proof source differs from requested build")
     parent = require_keys(record["parent"], PARENT_KEYS, "post-proof parent")
-    manifest_identity = verify_identity(parent["trust_manifest"], root, "post-proof trust manifest")
-    manifest_path = resolve(root, manifest_identity["path"])
-    checked_manifest = load_manifest(manifest_path)
-    require(parent["context"] == parent_context_for_board(checked_manifest, source["board"]), "post-proof parent context changed")
+    parent_record_identity = verify_identity(parent["parent_record"], root, "post-proof parent record")
+    parent_record_path = resolve(root, parent_record_identity["path"])
+    checked_parent, _ = load_current_parent(root, parent_record_path)
+    require(parent["context"] == current_parent_context(root, parent_record_path), "post-proof parent context changed")
     companion_paths = record["companions"]
     require(isinstance(companion_paths, list) and all(isinstance(item, dict) for item in companion_paths), "post-proof companions are invalid")
     for item in companion_paths:
         require_keys(item, {"path", "sha256", "size"}, "post-proof companion")
-    actual_companions = _companion_records([resolve(root, item["path"]) for item in companion_paths], root, checked_manifest, source["board"])
+    actual_companions = _companion_records([resolve(root, item["path"]) for item in companion_paths], root, checked_parent, source["board"])
     require(sorted(companion_paths, key=lambda item: item["path"]) == actual_companions, "post-proof companion hash changed")
     bundle = require_keys(record["runtime_bundle"], BUNDLE_KEYS, "runtime bundle")
     require(_bundle_identity(resolve(root, bundle["path"]), root) == bundle, "runtime bundle changed")
@@ -336,7 +273,7 @@ def validate_record(record: dict[str, Any], root: Path) -> None:
     provenance = verify_identity(record["respin_provenance"], root, "respin provenance")
     proof_items = record["proofs"]
     require(isinstance(proof_items, list) and all(isinstance(item, dict) for item in proof_items) and len(proof_items) == len(_expected_labels(source["board"])), "proof set is invalid")
-    expected_tools = set(ORANGE_TOOLS if source["board"] == ORANGE else RPI_TOOLS)
+    expected_tools = set(ORANGE_TOOLS)
     require({item["label"] for item in proof_items} == _expected_labels(source["board"]), "proof labels changed")
     structured_proof = None
     for item in proof_items:
@@ -349,7 +286,7 @@ def validate_record(record: dict[str, Any], root: Path) -> None:
         require(proof["result"] == expected_result, "proof result is not successful")
         if actual_structured is not None:
             structured_proof = actual_structured
-    _validate_respin_provenance(resolve(root, provenance["path"]), root, source, parent, manifest_identity["sha256"], bundle, artifact, provenance, structured_proof)
+    _validate_respin_provenance(resolve(root, provenance["path"]), root, source, parent, parent_record_identity["sha256"], bundle, artifact, provenance, structured_proof)
     tool_items = record["proof_tools"]
     require(isinstance(tool_items, list) and all(isinstance(item, dict) for item in tool_items) and {item["path"] for item in tool_items} == expected_tools and len(tool_items) == len(expected_tools), "proof tool set changed")
     for item in tool_items:
@@ -357,4 +294,4 @@ def validate_record(record: dict[str, Any], root: Path) -> None:
     verify_identity(record["workflow"], root, "workflow")
 
 
-__all__ = ["ORANGE_TOOLS", "PROOF_TEMPLATE", "RPI_TOOLS", "RecordError", "build_record", "validate_record"]
+__all__ = ["ORANGE_TOOLS", "PROOF_TEMPLATE", "RecordError", "build_record", "validate_record"]

@@ -1,0 +1,31 @@
+{
+  "schema": "octessera.image-current-parent/v1",
+  "board_profile": "orange-pi-zero-2w",
+  "version": "0.8.1",
+  "constructor": {
+    "run_id": 33301343618,
+    "source_sha": "f7db4257171ebaa80ad59a68e8f8d8ce311f81cc"
+  },
+  "artifact": {
+    "id": 9730022123,
+    "name": "octessera-orange-image-release-assets",
+    "size": 512083160,
+    "digest": "sha256:2532da85dc315328061d9795b0fa3f104cd7feee3d5d04b67495b9309a2ab35a",
+    "expires_at": "2026-11-28T08:20:32Z",
+    "entries": [
+      "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb",
+      "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
+      "octessera-0.8.1-orange-pi-zero-2w.img.xz",
+      "octessera-0.8.1-orange-pi-zero-2w.img.xz.sha256",
+      "octessera-orange-image-proof.json",
+      "octessera-orange-kernel-evidence.env",
+      "octessera-orange-kernel-provenance.txt",
+      "SHA256SUMS-orange-pi-zero-2w.txt"
+    ]
+  },
+  "image": {
+    "name": "octessera-0.8.1-orange-pi-zero-2w.img.xz",
+    "size": 481241848,
+    "sha256": "14688b97e9fa0b2f331bc16deaa55b591d2b2d18117d2476207b420c15a979bc"
+  }
+}

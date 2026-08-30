@@ -56,5 +56,6 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 
 ## Post-FAT action
 
-- Retire or narrow the trusted-parent respin and recovery machinery only after
-  exact constructor-image qualification and FAT close. Keep it frozen until then.
+- Keep the Orange current-parent respin lane nonpublishing and boot-neutral until
+  exact constructor-image qualification and FAT close. Raspberry remains
+  constructor-only for image replacement.

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 import tempfile
@@ -12,12 +11,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from boot_neutral import BootNeutralError, assert_unchanged, build_integrity, capture_state, load_policy, parent_binding
 from disk_layout import DiskLayout, PartitionIdentity
-from trust_manifest import load_manifest, parent_context_for_board
+from current_parent import load_record, parent_context
 
 
 ROOT = Path(__file__).resolve().parents[2]
 BOARD = "orange-pi-zero-2w"
-RELEASE = "6.18.38-current-sunxi64"
+RELEASE = "6.18.46-current-sunxi64"
 POLICY = load_policy(ROOT)
 
 
@@ -121,18 +120,17 @@ class BootNeutralTests(unittest.TestCase):
                 assert_unchanged(POLICY, before, after, replace(layout(), raw_prepartition_sha256="b" * 64))
 
     def test_parent_binding_requires_exact_manifest_and_asset_identity(self) -> None:
-        manifest_path = ROOT / "resources/image-parents/v0.7.5-trust-manifest.json"
-        manifest = load_manifest(manifest_path)
-        context = parent_context_for_board(manifest, BOARD)
-        digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-        binding = parent_binding(POLICY, manifest_path, digest, context)
-        self.assertEqual(binding["asset"], context["asset"])
+        record_path = ROOT / "resources/image-parents/orange-pi-zero-2w-current.json"
+        _, digest = load_record(ROOT, record_path)
+        context = parent_context(ROOT, record_path)
+        binding = parent_binding(POLICY, record_path, digest, context)
+        self.assertEqual(binding["image"], context["image"])
         with self.assertRaises(BootNeutralError):
-            parent_binding(POLICY, manifest_path, "0" * 64, context)
+            parent_binding(POLICY, record_path, "0" * 64, context)
         altered = json.loads(json.dumps(context))
-        altered["asset"]["name"] = "wrong.img.xz"
+        altered["image"]["name"] = "wrong.img.xz"
         with self.assertRaises(BootNeutralError):
-            parent_binding(POLICY, manifest_path, digest, altered)
+            parent_binding(POLICY, record_path, digest, altered)
 
 
 if __name__ == "__main__":

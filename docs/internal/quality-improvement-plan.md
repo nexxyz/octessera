@@ -35,5 +35,5 @@ fixed Pi boards. Physical FAT work is maintained in [open-work.md](../open-work.
 
 ## Post-FAT
 
-- Retire or narrow the trusted-parent respin and recovery machinery after exact
-  constructor-image qualification and FAT close.
+- Keep the Orange current-parent respin lane nonpublishing and boot-neutral until
+  exact constructor-image qualification and FAT close.

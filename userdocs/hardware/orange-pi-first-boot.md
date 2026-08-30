@@ -1,21 +1,25 @@
 # Orange Pi first boot setup
 
 Newly constructed Orange Pi Zero 2W images include a small setup website, but
-keep it closed until you deliberately open it. Retained legacy images built from
-the v0.7.5 setup parent are explicitly outside this opt-in flow and retain their
-legacy first-boot setup behavior. Read [board qualification and status](board-qualification.md)
-before treating a successful login or image boot as a ready instrument.
+keep it closed until you deliberately open it. Historical images built from the
+v0.7.5 setup parent retain their documented first-boot behavior. The reviewed
+0.8.1 current parent passed its recorded Orange constructor-parent validation
+scope, but remains an exact nonpublishing source; a runtime-only respin has not
+yet been evidenced. That parent does qualify the recorded flashed-board scope,
+but not official publication or the remaining hardware matrix. Read [board
+qualification and status](board-qualification.md) before treating a successful
+login or image boot as a ready instrument.
 
 ## Published image and current constructor boundary
 
 The boot, OLED handoff, lifecycle, and opt-in setup expectations in this page are
-current source-defined constructor contracts. They apply only to a newly
-constructed image built from those contracts and identified by release and
-qualification evidence. The retained trusted v0.7.5 images are runtime/setup
-parents with legacy first-boot behavior. They remain usable published images for
-their documented runtime and setup paths, but they do not prove the current
-constructor layer or the new opt-in setup behavior. A new full constructor image
-still needs build validation and physical qualification.
+current source-defined constructor contracts. They apply only to an image built
+from those contracts and identified by release and qualification evidence. The
+reviewed current parent is physically qualified for its recorded promotion scope
+but is not yet published, and a runtime-only respin still needs direct proof.
+Historical v0.7.5 images remain
+usable published images for their documented runtime and setup paths, but they
+do not prove the current constructor layer or the new opt-in setup behavior.
 
 ## Select the correct image
 

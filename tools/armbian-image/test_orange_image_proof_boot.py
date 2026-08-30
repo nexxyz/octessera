@@ -37,8 +37,8 @@ def run_boot_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Pat
 
     run_proof(without_option(args, "--manifest"), False)
     for opposite_option, opposite_value in (
-        ("--trust-manifest", str(REPOSITORY / "resources/image-parents/v0.7.5-trust-manifest.json")),
-        ("--boot-neutral-contract", str(REPOSITORY / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json")),
+        ("--parent-record", str(REPOSITORY / "resources/image-parents/orange-pi-zero-2w-current.json")),
+        ("--boot-neutral-contract", str(REPOSITORY / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json")),
         ("--parent-image", str(work / "parent.img.xz")),
         ("--respin-provenance", str(work / "respin.json")),
         ("--derivation-kind", "runtime-only"),
