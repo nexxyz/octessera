@@ -58,13 +58,13 @@ required_files=(
   "$root/tools/armbian-image/verify-orange-image.py"
   "$root/tools/armbian-image/test-orange-image-proof.py"
   "$root/tools/armbian-image/test_orange_image_proof_boot.py"
+  "$root/tools/armbian-image/test_orange_image_proof_validated.py"
   "$root/tools/armbian-image/test_orange_image_proof_image.py"
   "$root/tools/armbian-image/test_orange_image_proof_runtime.py"
   "$root/tools/armbian-image/test_orange_image_proof_security.py"
   "$root/tools/armbian-image/test_orange_image_proof_source.py"
   "$root/tools/armbian-image/test_orange_image_proof_support.py"
   "$root/tools/armbian-image/orange_trusted_parent_proof.py"
-  "$root/tools/armbian-image/test-orange-trusted-proof.py"
   "$root/tools/armbian-image/orange_initramfs.py"
   "$root/tools/armbian-image/orange_phase5_proof.py"
   "$root/tools/armbian-image/orange_audio_proof.py"
@@ -218,7 +218,7 @@ required_files=(
   "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg"
   "$root/resources/image-construction/boot-layers/orange-pi-zero-2w.json"
   "$root/resources/image-construction/boot-layers/raspberry-pi-zero-2w.json"
-  "$root/resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json"
+  "$root/resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json"
   "$root/tools/armbian-image/fixtures/h618-spi-base.dts"
 )
 
@@ -376,13 +376,13 @@ python3 -m py_compile \
   "$root/tools/armbian-image/verify-orange-image.py" \
   "$root/tools/armbian-image/test-orange-image-proof.py" \
   "$root/tools/armbian-image/test_orange_image_proof_boot.py" \
+  "$root/tools/armbian-image/test_orange_image_proof_validated.py" \
   "$root/tools/armbian-image/test_orange_image_proof_image.py" \
   "$root/tools/armbian-image/test_orange_image_proof_runtime.py" \
   "$root/tools/armbian-image/test_orange_image_proof_security.py" \
   "$root/tools/armbian-image/test_orange_image_proof_source.py" \
   "$root/tools/armbian-image/test_orange_image_proof_support.py" \
   "$root/tools/armbian-image/orange_trusted_parent_proof.py" \
-  "$root/tools/armbian-image/test-orange-trusted-proof.py" \
   "$root/tools/armbian-image/orange_initramfs.py" \
   "$root/tools/armbian-image/orange_phase5_proof.py" \
   "$root/tools/armbian-image/orange_audio_proof.py" \

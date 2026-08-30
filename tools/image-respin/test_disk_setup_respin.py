@@ -8,7 +8,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,9 +16,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 import disk_mount
 import disk_setup_respin
 from disk_packaging import file_digest
-from test_disk_respin import ORANGE, RPI, _context, _orange_policy, _run, _resource_sets
+from test_disk_respin import ORANGE, _context, _orange_policy, _parent_binding, _run, _resource_sets
 from test_runtime_mutation import _bundle, _fixture
-from test_setup_mutation import _parents, _prerequisites, _rpi_parent_sudoers_preimage, _setup_preimages
+from test_setup_mutation import _parents, _prerequisites, _setup_preimages
 from setup_contract import contract_for_board, load_contract
 
 
@@ -68,49 +67,39 @@ class DiskSetupRespinTests(unittest.TestCase):
         missing = [tool for tool in TOOLS if shutil.which(tool) is None]
         if missing:
             self.skipTest(f"missing disk tools: {', '.join(missing)}")
-        for board in (ORANGE, RPI):
-            with self.subTest(board=board), tempfile.TemporaryDirectory() as temporary:
-                work = Path(temporary)
-                root, bundle = _fixture(work / "runtime", board)
-                contract, _ = load_contract(contract_for_board(board))
-                _parents(root, contract)
-                _prerequisites(root, board)
-                if board == ORANGE:
-                    _setup_preimages(root, contract)
-                    disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
-                    (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
-                    path = root / "etc/ssh/sshd_config.d/10-octessera-setup.conf"
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_bytes(b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")
-                    os.chmod(path, 0o664)
-                else:
-                    _rpi_parent_sudoers_preimage(root, contract)
-                image = _image(work, board, root)
-                source = work / (f"octessera-0.7.5-{board}.img.xz" if board == ORANGE else f"octessera-0.7.5-{board}.img.zip")
-                if board == ORANGE:
-                    with lzma.open(source, "wb") as stream:
-                        stream.write(image.read_bytes())
-                else:
-                    with zipfile.ZipFile(source, "w") as archive:
-                        archive.writestr("parent.img", image.read_bytes())
-                        archive.writestr("os_list.rpi-imager-manifest", b"synthetic-imager-manifest\n")
-                context = _context(board, source)
-                suffix = ".img.xz" if board == ORANGE else ".zip"
-                output = work / "out" / f"octessera-2.0.0-{board}-derived-setup-respin{suffix}"
-                proof = work / "out/setup-layer-proof.json"
-                source_before = file_digest(source)
-                policy_patch = patch.object(disk_setup_respin, "load_policy", return_value=_orange_policy(context)) if board == ORANGE else patch.object(disk_setup_respin, "load_policy", side_effect=AssertionError("Raspberry must not load Orange policy"))
-                with policy_patch, patch.object(disk_setup_respin, "verify_parent_asset", return_value=(source, context, __import__("hashlib").sha256((Path(__file__).resolve().parents[2] / "resources/image-parents/v0.7.5-trust-manifest.json").read_bytes()).hexdigest(), b"synthetic-imager-manifest\n" if board == RPI else None)):
-                    result = disk_setup_respin.respin_setup_image(board_profile=board, assets_directory=work, manifest_path=Path(__file__).resolve().parents[2] / "resources/image-parents/v0.7.5-trust-manifest.json", runtime_bundle=bundle, version="2.0.0", source_identity="synthetic-source", output=output, proof_output=proof, boot_neutral_contract=Path(__file__).resolve().parents[2] / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json" if board == ORANGE else None)
-                self.assertTrue(output.is_file())
-                self.assertTrue(proof.is_file())
-                self.assertEqual(result["setup_proof"]["proof"], "setup-layer-mounted")
-                runtime_provenance = result["runtime_mutation"]["provenance"]
-                self.assertIn("notice", runtime_provenance)
-                self.assertEqual(set(runtime_provenance["notice"]["changed_paths"]), {path for path in runtime_provenance["changed_paths"] if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")})
-                self.assertNotIn("notice", result["setup_mutation"])
-                self.assertEqual(file_digest(source), source_before)
-                self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")
+        board = ORANGE
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary)
+            root, bundle = _fixture(work / "runtime", board)
+            contract, _ = load_contract(contract_for_board(board))
+            _parents(root, contract)
+            _prerequisites(root, board)
+            _setup_preimages(root, contract)
+            disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
+            (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
+            path = root / "etc/ssh/sshd_config.d/10-octessera-setup.conf"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")
+            os.chmod(path, 0o664)
+            image = _image(work, board, root)
+            source = work / f"octessera-0.8.1-{board}.img.xz"
+            with lzma.open(source, "wb") as stream:
+                stream.write(image.read_bytes())
+            context = _context(board, source)
+            output = work / "out" / f"octessera-2.0.0-{board}-derived-setup-respin.img.xz"
+            proof = work / "out/setup-layer-proof.json"
+            source_before = file_digest(source)
+            with patch.object(disk_setup_respin, "load_policy", return_value=_orange_policy(context)), patch.object(disk_setup_respin, "verify_current_parent_asset", return_value=(source, context, context["record"]["sha256"], None)), patch.object(disk_setup_respin, "parent_binding", return_value=_parent_binding(context)):
+                result = disk_setup_respin.respin_setup_image(board_profile=board, assets_directory=work, parent_record_path=Path(__file__).resolve().parents[2] / "resources/image-parents/orange-pi-zero-2w-current.json", runtime_bundle=bundle, version="2.0.0", source_identity="synthetic-source", output=output, proof_output=proof, boot_neutral_contract=Path(__file__).resolve().parents[2] / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json")
+            self.assertTrue(output.is_file())
+            self.assertTrue(proof.is_file())
+            self.assertEqual(result["setup_proof"]["proof"], "setup-layer-mounted")
+            runtime_provenance = result["runtime_mutation"]["provenance"]
+            self.assertIn("notice", runtime_provenance)
+            self.assertEqual(set(runtime_provenance["notice"]["changed_paths"]), {path for path in runtime_provenance["changed_paths"] if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")})
+            self.assertNotIn("notice", result["setup_mutation"])
+            self.assertEqual(file_digest(source), source_before)
+            self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")
 
 
 if __name__ == "__main__":

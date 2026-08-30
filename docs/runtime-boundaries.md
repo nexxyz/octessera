@@ -76,9 +76,9 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Physical FAT uses the exact artifacts, with mounted-image and kernel proof
   retained when those artifacts require it. Source evidence and trusted-parent
   respins cannot replace physical FAT.
-- `tools/image-respin`, its trusted proof scripts and workflows, and recovery
-  machinery remain frozen legacy recovery until FAT closes. They are not a
-  qualification path; retire or narrow them only as a post-FAT action.
+- `tools/image-respin` has one current-parent lane for Orange runtime/setup
+  respins. It is nonpublishing and boot-neutral, and is not a qualification path;
+  Raspberry respins fail closed because no current parent record exists.
 - Raspberry runtime updates do not replace the full image, kernel, or device
   tree. Raspberry full-image update remains manual.
 
@@ -127,7 +127,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Normal Raspberry and Orange output apply their board-specific clockwise RGB565 framebuffer transform (`source (x, y) -> transmitted (127 - y, x)`) in the HAL before writing accepted native RGB565BE bytes. Orange uses a reusable 32 KiB transform buffer, preserves RGB565 byte pairs, and keeps SSD1351 remap `0x74`. The Python splash is a separate renderer with the same physical orientation; its SSD1351 command byte is sent with D/C low and command data with D/C high, matching the Rust transport framing.
 - HDMI `Terminal` leaves Linux in control of `/dev/tty1`; native grid output takes a native VT lease around `/dev/fb0` and restores text on release. It does not force a connector or start/use a display server. A missing framebuffer or transient open, geometry, or write failure is nonfatal and retried. During boot handoff the splash is an observer until `first_menu_rendered`; a native startup fatal condition lets it reclaim OLED presentation for the typed fatal frame. These are source contracts, not physical Orange/Raspberry HDMI or OLED qualification.
 - Raspberry's selected initramfs writes one clean logo+wordmark frame and does not sweep, loop, publish a marker, or adopt the OLED. Its root-installed systemd service remains the sole animator and runs concurrently with service loading; Orange's selected initramfs likewise writes one static RGB565 frame with its fixed Python closure, while its root-installed renderer, lifecycle modules, assets, and `octessera-orange-boot-splash.service` remain the only loop. These are adapter differences around one shared handoff contract.
-- Boot source, service, and selected-initramfs changes are constructor-required for both boards. Source/build proof cannot replace exact-artifact physical FAT. Trusted-parent runtime/setup respins are boot-neutral legacy recovery until FAT; they cannot claim this layer.
+- Boot source, service, and selected-initramfs changes are constructor-required for both boards. Source/build proof cannot replace exact-artifact physical FAT. The Orange current-parent runtime/setup lane is boot-neutral and cannot claim this layer; Raspberry has no current-parent respin lane.
 
 ## Dependency Rules
 

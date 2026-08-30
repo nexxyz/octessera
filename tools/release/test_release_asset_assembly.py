@@ -15,54 +15,10 @@ from tools.release.assemble_release_assets import (
     _verify_device_zip,
     _write_checksums,
 )
-from tools.release.board_image_release import (
-    BASE_REFRESH,
-    BOARD_IMAGE_MODES,
-    QUALIFIED_RESPIN,
-    _package_filenames,
-    _qualified_names,
-    _require_exact_files as _qualified_require_exact_files,
-    _verify_qualified_checksum,
-    verify_and_stage_board_images,
-)
+from tools.release.board_image_release import _package_filenames
 
 
 class ReleaseAssetAssemblyTests(unittest.TestCase):
-    def test_unknown_board_image_mode_is_rejected_before_asset_access(self) -> None:
-        with self.assertRaises(ReleaseArtifactError):
-            verify_and_stage_board_images(
-                Path("."),
-                Path("."),
-                Path("."),
-                Path("."),
-                Path("."),
-                Path("."),
-                "1.2.3",
-                "a" * 40,
-                "unknown",
-            )
-
-    def test_board_image_modes_are_explicit_and_qualified_inventory_is_exact(self) -> None:
-        self.assertEqual(BOARD_IMAGE_MODES, (BASE_REFRESH, QUALIFIED_RESPIN))
-        with tempfile.TemporaryDirectory(prefix="octessera-qualified-handoff-") as temporary:
-            directory = Path(temporary)
-            artifact, provenance, requested, post_proof, setup_proof, production, checksum = _qualified_names("raspberry-pi-zero-2w", "1.2.3")
-            names = (artifact, provenance, requested, post_proof, setup_proof, production)
-            for name in names:
-                (directory / name).write_bytes(name.encode("utf-8"))
-            (directory / checksum).write_text(
-                "".join(
-                    f"{hashlib.sha256((directory / name).read_bytes()).hexdigest()}  {name}\n"
-                    for name in names
-                ),
-                encoding="utf-8",
-            )
-            _qualified_require_exact_files(directory, (*names, checksum))
-            _verify_qualified_checksum(directory, checksum, names)
-            (directory / "unexpected").write_bytes(b"unexpected")
-            with self.assertRaises(ReleaseArtifactError):
-                _qualified_require_exact_files(directory, (*names, checksum))
-
     def test_kernel_package_filenames_derive_from_manifest_declarations(self) -> None:
         manifest = {
             "kernels": {

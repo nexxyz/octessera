@@ -1,59 +1,22 @@
 name: Respin board image
 
 on:
-  workflow_call:
-    inputs:
-      board:
-        required: true
-        type: string
-      setup_layer:
-        required: true
-        type: string
-      source_sha:
-        required: true
-        type: string
-      version:
-        required: true
-        type: string
-      tag:
-        required: true
-        type: string
   workflow_dispatch:
-    inputs:
-      board:
-        description: Board image to respin
-        required: true
-        type: choice
-        options:
-          - raspberry-pi-zero-2w
-          - orange-pi-zero-2w
-      setup_layer:
-        description: Optional non-publishing setup portal layer (runtime-only is the default)
-        required: true
-        default: runtime-only
-        type: choice
-        options:
-          - runtime-only
-          - setup-portal
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
   respin:
-    name: Respin ${{ inputs.board }} image
-    runs-on: ubuntu-latest
+    name: Respin Orange runtime image
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
-      BOARD: ${{ inputs.board }}
-      SETUP_LAYER: ${{ inputs.setup_layer }}
-      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
-      REQUESTED_SOURCE_SHA: ${{ inputs.source_sha }}
-      REQUESTED_VERSION: ${{ inputs.version }}
-      REQUESTED_TAG: ${{ inputs.tag }}
-      TRUST_MANIFEST: resources/image-parents/v0.7.5-trust-manifest.json
-      BOOT_NEUTRAL_CONTRACT: resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json
-      ORANGE_PARENT_IMAGE: parent-assets/octessera-0.7.5-orange-pi-zero-2w.img.xz
+      BOARD: orange-pi-zero-2w
+      SOURCE_SHA: ${{ github.sha }}
+      PARENT_RECORD: resources/image-parents/orange-pi-zero-2w-current.json
+      BOOT_NEUTRAL_CONTRACT: resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json
       PARENT_ASSETS: parent-assets
       RUNTIME_BUNDLE: runtime-bundle
       RESPIN_OUTPUT: respin-output
@@ -61,41 +24,30 @@ jobs:
       - name: Checkout immutable workflow source
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.source_sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
-          fetch-tags: true
 
       - name: Verify immutable source and application version
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           case "$BOARD" in
-            raspberry-pi-zero-2w|orange-pi-zero-2w) ;;
+            orange-pi-zero-2w) ;;
             *) echo "Unsupported board: $BOARD" >&2; exit 1 ;;
           esac
-          case "$SETUP_LAYER" in
-            runtime-only|setup-portal) ;;
-            *) echo "Unsupported setup layer: $SETUP_LAYER" >&2; exit 1 ;;
-          esac
           version="$(python3 tools/release/check_version_consistency.py)"
-          if [[ -n "$REQUESTED_SOURCE_SHA" ]]; then
-            [[ "$REQUESTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Reusable calls require a lowercase 40-hex source SHA." >&2; exit 1; }
-            [[ "$SETUP_LAYER" == setup-portal ]] || { echo "Release handoffs require setup-portal." >&2; exit 1; }
-            [[ "$SOURCE_SHA" == "$REQUESTED_SOURCE_SHA" ]] || { echo "Release handoff source SHA is required and must be exact." >&2; exit 1; }
-            [[ -n "$REQUESTED_VERSION" && -n "$REQUESTED_TAG" ]] || { echo "Release handoff version and tag are required." >&2; exit 1; }
-            [[ "$version" == "$REQUESTED_VERSION" ]] || { echo "Repository version does not match the release version." >&2; exit 1; }
-            [[ "$REQUESTED_TAG" == "v$REQUESTED_VERSION" ]] || { echo "Release tag does not match the release version." >&2; exit 1; }
-            tag_commit="$(git rev-parse "$REQUESTED_TAG^{commit}")"
-            [[ "$tag_commit" == "$SOURCE_SHA" ]] || { echo "Release tag does not resolve to the requested source SHA." >&2; exit 1; }
-            version="$REQUESTED_VERSION"
-          else
-            [[ -z "$REQUESTED_VERSION" && -z "$REQUESTED_TAG" ]] || { echo "Manual dispatch cannot provide reusable release inputs." >&2; exit 1; }
-            test "$(git rev-parse HEAD)" = "${{ github.sha }}"
-          fi
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           echo "OCTESSERA_VERSION=$version" >> "$GITHUB_ENV"
 
-      - name: Validate checked trust manifest
-        run: python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --validate-manifest
+      - name: Acquire the exact reviewed current parent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 tools/image-respin/current_parent.py \
+            --repository nexxyz/octessera \
+            --record "$PARENT_RECORD" \
+            --output "$PARENT_ASSETS"
 
       - name: Install image respin dependencies
         run: |
@@ -123,20 +75,8 @@ jobs:
         run: |
           set -euo pipefail
           docker pull rust:1-bookworm
-          case "$BOARD" in
-            raspberry-pi-zero-2w)
-              feature_command='cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w'
-              cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
-              ;;
-            orange-pi-zero-2w)
-              feature_command='cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w'
-              cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w
-              ;;
-            *)
-              echo "Unsupported board: $BOARD" >&2
-              exit 1
-              ;;
-          esac
+          feature_command='cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w'
+          cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w
           git diff --exit-code
           test -z "$(git status --porcelain --untracked-files=no)"
           echo "FEATURE_COMMAND=$feature_command" >> "$GITHUB_ENV"
@@ -172,23 +112,6 @@ jobs:
             [[ -n "$package_version" ]] || { echo "Required proof package version is missing: $package" >&2; exit 1; }
             package_args+=(--proof-package "$package=$package_version")
           done
-          setup_record_args=()
-          if [[ "$SETUP_LAYER" == setup-portal ]]; then
-            setup_contract="resources/image-mutations/$BOARD-setup.json"
-            setup_record_args+=(--setup-layer setup-portal --setup-contract "$setup_contract" --setup-input-file "$setup_contract" --strict-setup-source-tracking)
-            mapfile -t setup_sources < <(python3 - "$setup_contract" <<'PY'
-          import json
-          import sys
-          with open(sys.argv[1], encoding="utf-8") as handle:
-              for item in json.load(handle)["source_inputs"]:
-                  print(item["path"])
-          PY
-            )
-            for path in "${setup_sources[@]}"; do setup_record_args+=(--setup-input-file "$path"); done
-            for path in tools/image-respin/inventory.py tools/image-respin/provenance.py tools/image-respin/runtime_contract_schema.py tools/image-respin/runtime_contract.py tools/image-respin/runtime_payload.py tools/image-respin/runtime_transaction.py tools/image-respin/runtime_mutation.py tools/image-respin/disk_layout.py tools/image-respin/disk_mount.py tools/image-respin/disk_packaging.py tools/image-respin/disk_provenance.py tools/image-respin/setup_contract_schema.py tools/image-respin/setup_contract.py tools/image-respin/setup_provenance.py tools/image-respin/setup_mutation.py tools/image-respin/setup_proof.py tools/image-respin/disk_setup_respin.py tools/image-respin/boot_neutral.py tools/image-respin/setup_workflow_record.py tools/image-respin/workflow_records.py tools/image-respin/requested_build_record.py tools/image-respin/post_proof_record.py tools/image-respin/trust_manifest.py tools/image-respin/record_validation.py tools/image-respin/record_hashing.py tools/image-respin/record_paths.py tools/image-respin/record_documents.py tools/image-respin/record_tool_contract.py; do
-              setup_record_args+=(--setup-input-file "$path")
-            done
-          fi
           python3 tools/image-respin/workflow_records.py requested \
             --source-sha "$SOURCE_SHA" \
             --version "$OCTESSERA_VERSION" \
@@ -214,11 +137,12 @@ jobs:
             --input-file .github/workflows/respin-board-image.yml \
             --input-file tools/image-respin/runtime_bundle.py \
             --input-file tools/image-respin/boot_neutral.py \
+            --input-file tools/image-respin/current_parent.py \
             --input-file tools/release/check_version_consistency.py \
             --input-file resources/legal/notice-bundle.json \
             --input-file tools/legal/stage_notices.py \
             --input-file tools/image-respin/notice_mutation.py \
-            --trust-manifest "$TRUST_MANIFEST" \
+            --parent-record "$PARENT_RECORD" \
             --rustc-version-file "$RUNNER_TEMP/rustc-vV.txt" \
             --cargo-version-file "$RUNNER_TEMP/cargo-version.txt" \
             --cross-version-file "$RUNNER_TEMP/cross-version.txt" \
@@ -229,200 +153,55 @@ jobs:
             --base-image-id "$base_image_id" \
             --base-image-repo-digests "$base_image_repo_digests" \
             "${package_args[@]}" \
-            "${setup_record_args[@]}" \
             --root "$GITHUB_WORKSPACE" \
             --output "$RESPIN_OUTPUT/requested-build.json"
-
-      - name: Fetch and validate the exact v0.7.5 parent release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          release_json="$RUNNER_TEMP/octessera-v0.7.5-release.json"
-          gh api "repos/nexxyz/octessera/releases/tags/v0.7.5" > "$release_json"
-          jq -e '.draft == false and .prerelease == false' "$release_json" >/dev/null
-          python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --live-respin-release-json "$release_json"
-          trusted_source="$(python3 - "$TRUST_MANIFEST" <<'PY'
-          import json
-          import sys
-          with open(sys.argv[1], encoding="utf-8") as handle:
-              print(json.load(handle)["release"]["source_commit"])
-          PY
-          )"
-          tag_ref="$(gh api "repos/nexxyz/octessera/git/ref/tags/v0.7.5")"
-          tag_type="$(jq -r '.object.type' <<< "$tag_ref")"
-          tag_object="$(jq -r '.object.sha' <<< "$tag_ref")"
-          if [[ "$tag_type" == tag ]]; then
-            tag_object="$(gh api "repos/nexxyz/octessera/git/tags/$tag_object" --jq '.object.sha')"
-          elif [[ "$tag_type" != commit ]]; then
-            echo "v0.7.5 does not resolve to a commit or annotated tag" >&2
-            exit 1
-          fi
-          [[ "$tag_object" == "$trusted_source" ]] || { echo "v0.7.5 tag commit is not the trusted source commit" >&2; exit 1; }
-
-      - name: Download exact selected board assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          rm -rf "$PARENT_ASSETS"
-          mkdir -p "$PARENT_ASSETS"
-          release_json="$RUNNER_TEMP/octessera-v0.7.5-release.json"
-          mapfile -t asset_names < <(python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --print-board-assets --board "$BOARD")
-          [[ "${#asset_names[@]}" -gt 0 ]] || { echo "No trusted assets selected" >&2; exit 1; }
-          printf '%s\n' "${asset_names[@]}"
-          for asset_name in "${asset_names[@]}"; do
-            [[ "$asset_name" != */* && "$asset_name" != *\\* ]] || { echo "Unsafe trusted asset name: $asset_name" >&2; exit 1; }
-            asset_id="$(jq -r --arg name "$asset_name" '[.assets[] | select(.name == $name) | .id] | if length == 1 then .[0] else empty end' "$release_json")"
-            [[ "$asset_id" =~ ^[0-9]+$ ]] || { echo "No exact release asset ID for $asset_name" >&2; exit 1; }
-            destination="$PARENT_ASSETS/$asset_name"
-            [[ ! -e "$destination" && ! -L "$destination" ]] || { echo "Refusing to clobber $destination" >&2; exit 1; }
-            temporary="$(mktemp "$PARENT_ASSETS/.octessera-asset.XXXXXX")"
-            if ! gh api --header 'Accept: application/octet-stream' "repos/nexxyz/octessera/releases/assets/$asset_id" > "$temporary"; then
-              rm -f "$temporary"
-              exit 1
-            fi
-            mv -n -- "$temporary" "$destination"
-            test ! -e "$temporary" && test -f "$destination"
-          done
-          python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --directory "$PARENT_ASSETS" --board "$BOARD"
 
       - name: Respin the trusted parent image
         run: |
           set -euo pipefail
-          case "$SETUP_LAYER" in
-            runtime-only|setup-portal) ;;
-            *) echo "Unsupported respin setup layer: $SETUP_LAYER" >&2; exit 1 ;;
-          esac
           mkdir -p "$RESPIN_OUTPUT"
-          case "$BOARD" in
-            raspberry-pi-zero-2w) suffix=.zip ;;
-            orange-pi-zero-2w) suffix=.img.xz ;;
-            *) exit 1 ;;
-          esac
-          boot_neutral_args=()
-          if [[ "$BOARD" == orange-pi-zero-2w ]]; then
-            boot_neutral_args+=(--boot-neutral-contract "$BOOT_NEUTRAL_CONTRACT")
-          fi
-          if [[ "$SETUP_LAYER" == runtime-only ]]; then
-            output="$RESPIN_OUTPUT/octessera-$OCTESSERA_VERSION-$BOARD-derived-runtime-respin$suffix"
-            sudo python3 tools/image-respin/disk_respin.py \
-              --board "$BOARD" \
-              --assets-directory "$PARENT_ASSETS" \
-              --manifest "$TRUST_MANIFEST" \
-              --runtime-bundle "$RUNTIME_BUNDLE" \
-              --version "$OCTESSERA_VERSION" \
-              --source-identity "$SOURCE_SHA" \
-              "${boot_neutral_args[@]}" \
-              --output "$output"
-          elif [[ "$SETUP_LAYER" == setup-portal ]]; then
-            output="$RESPIN_OUTPUT/octessera-$OCTESSERA_VERSION-$BOARD-derived-setup-respin$suffix"
-            setup_proof="$RESPIN_OUTPUT/setup-layer-proof.json"
-            sudo python3 tools/image-respin/disk_setup_respin.py \
-              --board "$BOARD" \
-              --assets-directory "$PARENT_ASSETS" \
-              --manifest "$TRUST_MANIFEST" \
-              --runtime-bundle "$RUNTIME_BUNDLE" \
-              --version "$OCTESSERA_VERSION" \
-              --source-identity "$SOURCE_SHA" \
-              --output "$output" \
-              --proof-output "$setup_proof" \
-              "${boot_neutral_args[@]}"
-            sudo chown "$(id -u):$(id -g)" "$setup_proof"
-            echo "SETUP_PROOF=$setup_proof" >> "$GITHUB_ENV"
-          else
-            echo "Runtime-only respins cannot invoke the setup mutator." >&2
-            exit 1
-          fi
+          output="$RESPIN_OUTPUT/octessera-$OCTESSERA_VERSION-$BOARD-derived-runtime-respin.img.xz"
+          sudo python3 tools/image-respin/disk_respin.py \
+            --board "$BOARD" \
+            --assets-directory "$PARENT_ASSETS" \
+            --parent-record "$PARENT_RECORD" \
+            --runtime-bundle "$RUNTIME_BUNDLE" \
+            --version "$OCTESSERA_VERSION" \
+            --source-identity "$SOURCE_SHA" \
+            --boot-neutral-contract "$BOOT_NEUTRAL_CONTRACT" \
+            --output "$output"
           sudo chown "$(id -u):$(id -g)" "$output" "$output.provenance.json"
           echo "RESPIN_ARTIFACT=$output" >> "$GITHUB_ENV"
 
       - name: Re-run exact Orange production proof
-        if: inputs.board == 'orange-pi-zero-2w'
         run: |
           set -euo pipefail
           proof="$RESPIN_OUTPUT/orange-image-proof.json"
-          proof_args=(
-            --boot-proof-mode trusted-v0.7.5-boot-neutral
-            --boot-neutral-contract "$BOOT_NEUTRAL_CONTRACT"
-            --parent-image "$GITHUB_WORKSPACE/$ORANGE_PARENT_IMAGE"
-            --trust-manifest "$GITHUB_WORKSPACE/$TRUST_MANIFEST"
-            --respin-provenance "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT.provenance.json"
-            --derivation-kind "$SETUP_LAYER"
-          )
-          if [[ "$SETUP_LAYER" == setup-portal ]]; then
-            proof_args+=(--setup-proof "$GITHUB_WORKSPACE/$SETUP_PROOF")
-          fi
+          parent_image="$(jq -r '.image.name' "$PARENT_RECORD")"
           sudo bash tools/armbian-image/verify-orange-image.sh \
             --image "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" \
-            "${proof_args[@]}" \
+            --boot-proof-mode validated-parent \
+            --boot-neutral-contract "$BOOT_NEUTRAL_CONTRACT" \
+            --parent-image "$GITHUB_WORKSPACE/$PARENT_ASSETS/$parent_image" \
+            --parent-record "$GITHUB_WORKSPACE/$PARENT_RECORD" \
+            --respin-provenance "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT.provenance.json" \
+            --derivation-kind runtime-only \
             --output "$GITHUB_WORKSPACE/$proof"
           sudo chown "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/$proof"
-
-      - name: Re-run exact Raspberry production proofs
-        if: inputs.board == 'raspberry-pi-zero-2w'
-        run: |
-          set -euo pipefail
-          sanitation_proof="$RESPIN_OUTPUT/raspberry-sanitized-image-proof.txt"
-          if [[ "$SETUP_LAYER" == setup-portal ]]; then
-            sudo bash tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-setup-layer "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" 2>&1 | tee "$sanitation_proof"
-          else
-            sudo bash tools/pi-image/verify-sanitized-image.sh --verification-profile legacy-runtime-only "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" 2>&1 | tee "$sanitation_proof"
-          fi
-          sudo chown "$(id -u):$(id -g)" "$sanitation_proof"
 
       - name: Generate and validate post-proof record
         run: |
           set -euo pipefail
-          if [[ "$SETUP_LAYER" == setup-portal ]]; then
-            mapfile -t companion_names < <(python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --print-board-assets --board "$BOARD")
-            companion_args=()
-            for asset_name in "${companion_names[@]}"; do companion_args+=(--companion "$PARENT_ASSETS/$asset_name"); done
-            production_proof_args=()
-            if [[ "$BOARD" == orange-pi-zero-2w ]]; then
-              orange_proof="$RESPIN_OUTPUT/orange-image-proof.json"
-              production_proof_args+=(--production-proof "orange-image=$GITHUB_WORKSPACE/$orange_proof")
-            else
-              production_proof_args+=(
-                --production-proof "raspberry-sanitized=$GITHUB_WORKSPACE/$RESPIN_OUTPUT/raspberry-sanitized-image-proof.txt"
-              )
-            fi
-            python3 tools/image-respin/workflow_records.py setup-post-proof \
-              --root "$GITHUB_WORKSPACE" \
-              --requested-build "$RESPIN_OUTPUT/requested-build.json" \
-              --manifest "$TRUST_MANIFEST" \
-              --board "$BOARD" \
-              --runtime-bundle "$RUNTIME_BUNDLE" \
-              --artifact "$RESPIN_ARTIFACT" \
-              --respin-provenance "$RESPIN_ARTIFACT.provenance.json" \
-              --setup-proof "$GITHUB_WORKSPACE/$SETUP_PROOF" \
-              "${production_proof_args[@]}" \
-              "${companion_args[@]}" \
-              --workflow .github/workflows/respin-board-image.yml \
-              --output "$RESPIN_OUTPUT/setup-post-proof.json"
-            python3 tools/image-respin/workflow_records.py verify-post-setup \
-              --root "$GITHUB_WORKSPACE" \
-              --record "$RESPIN_OUTPUT/setup-post-proof.json"
-            exit 0
-          fi
-          mapfile -t companion_names < <(python3 tools/image-respin/verify-parent-release.py --manifest "$TRUST_MANIFEST" --print-board-assets --board "$BOARD")
+          mapfile -t companion_names < <(jq -r '.artifact.entries[]' "$PARENT_RECORD")
           companion_args=()
           for asset_name in "${companion_names[@]}"; do companion_args+=(--companion "$PARENT_ASSETS/$asset_name"); done
-          proof_output_args=()
-          proof_template_args=()
-          if [[ "$BOARD" == orange-pi-zero-2w ]]; then
-            orange_proof="$RESPIN_OUTPUT/orange-image-proof.json"
-            proof_output_args+=(--proof-output "orange-image=$orange_proof")
-            proof_template_args+=(--proof-template "orange-image=orange-production")
-          else
-            sanitation_proof="$RESPIN_OUTPUT/raspberry-sanitized-image-proof.txt"
-            proof_output_args+=(--proof-output "raspberry-sanitized=$sanitation_proof")
-            proof_template_args+=(--proof-template "raspberry-sanitized=raspberry-sanitized")
-          fi
+          orange_proof="$RESPIN_OUTPUT/orange-image-proof.json"
+          proof_output_args=(--proof-output "orange-image=$orange_proof")
+          proof_template_args=(--proof-template "orange-image=orange-production")
           python3 tools/image-respin/workflow_records.py post-proof \
             --root "$GITHUB_WORKSPACE" \
             --requested-build "$RESPIN_OUTPUT/requested-build.json" \
-            --manifest "$TRUST_MANIFEST" \
+            --parent-record "$PARENT_RECORD" \
             --board "$BOARD" \
             --runtime-bundle "$RUNTIME_BUNDLE" \
             --artifact "$RESPIN_ARTIFACT" \
@@ -442,21 +221,8 @@ jobs:
           output_dir="$GITHUB_WORKSPACE/$RESPIN_OUTPUT"
           artifact_name="$(basename "$RESPIN_ARTIFACT")"
           sums_name="SHA256SUMS-$BOARD.txt"
-          if [[ "$SETUP_LAYER" == setup-portal ]]; then
-            record_name=setup-post-proof.json
-            case "$BOARD" in
-              orange-pi-zero-2w) proof_names=(setup-layer-proof.json orange-image-proof.json) ;;
-              raspberry-pi-zero-2w) proof_names=(setup-layer-proof.json raspberry-sanitized-image-proof.txt) ;;
-              *) exit 1 ;;
-            esac
-          else
-            record_name=post-proof.json
-            case "$BOARD" in
-              orange-pi-zero-2w) proof_names=(orange-image-proof.json) ;;
-              raspberry-pi-zero-2w) proof_names=(raspberry-sanitized-image-proof.txt) ;;
-              *) exit 1 ;;
-            esac
-          fi
+          record_name=post-proof.json
+          proof_names=(orange-image-proof.json)
           (cd "$output_dir" && sha256sum requested-build.json "$record_name" "$artifact_name" "$artifact_name.provenance.json" "${proof_names[@]}" > "$sums_name" && sha256sum -c "$sums_name")
           mapfile -t non_files < <(find "$output_dir" -mindepth 1 -maxdepth 1 ! -type f -printf '%f\n')
           [[ "${#non_files[@]}" == 0 ]] || { echo "Respin output contains a non-file entry" >&2; exit 1; }
@@ -466,46 +232,9 @@ jobs:
           [[ "${actual[*]}" == "${expected_sorted[*]}" ]] || { echo "Respin output entries are not exact" >&2; exit 1; }
 
       - name: Upload derived respin artifact only
-        if: inputs.source_sha == '' && inputs.setup_layer == 'runtime-only'
         uses: actions/upload-artifact@v7
         with:
-          name: octessera-${{ inputs.board }}-derived-runtime-respin
+          name: octessera-orange-pi-zero-2w-derived-runtime-respin
           path: ./respin-output/*
           if-no-files-found: error
           retention-days: 7
-      - name: Upload derived setup artifact only
-        if: inputs.source_sha == '' && inputs.setup_layer == 'setup-portal'
-        uses: actions/upload-artifact@v7
-        with:
-          name: octessera-${{ inputs.board }}-derived-setup-respin
-          path: ./respin-output/*
-          if-no-files-found: error
-          retention-days: 7
-      - name: Upload canonical Raspberry runtime handoff
-        if: inputs.source_sha != '' && inputs.board == 'raspberry-pi-zero-2w'
-        uses: actions/upload-artifact@v7
-        with:
-          name: octessera-raspberry-runtime
-          path: ./runtime-bundle/*
-          if-no-files-found: error
-      - name: Upload canonical Orange runtime handoff
-        if: inputs.source_sha != '' && inputs.board == 'orange-pi-zero-2w'
-        uses: actions/upload-artifact@v7
-        with:
-          name: octessera-orange-runtime
-          path: ./runtime-bundle/*
-          if-no-files-found: error
-      - name: Upload canonical Raspberry image release handoff
-        if: inputs.source_sha != '' && inputs.board == 'raspberry-pi-zero-2w'
-        uses: actions/upload-artifact@v7
-        with:
-          name: octessera-raspberry-image-release-assets
-          path: ./respin-output/*
-          if-no-files-found: error
-      - name: Upload canonical Orange image release handoff
-        if: inputs.source_sha != '' && inputs.board == 'orange-pi-zero-2w'
-        uses: actions/upload-artifact@v7
-        with:
-          name: octessera-orange-image-release-assets
-          path: ./respin-output/*
-          if-no-files-found: error

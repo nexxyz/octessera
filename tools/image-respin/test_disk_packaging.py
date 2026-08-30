@@ -8,24 +8,23 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from current_parent import parent_context
 from disk_packaging import DiskPackagingError, file_digest, package_derived, prepare_parent_image, provenance_sidecar
-from trust_manifest import load_manifest, parent_context_for_board
 
 
 def _context(board: str, source: Path) -> dict:
     digest, size = file_digest(source)
-    suffix = "img.zip" if board == "raspberry-pi-zero-2w" else "img.xz"
-    return {"schema": "octessera.image-parent-trust/v1", "repository": "nexxyz/octessera", "tag": "v0.7.5", "source_commit": "a" * 40, "asset": {"name": f"octessera-0.7.5-{board}.{suffix}", "node_id": "RA_test", "size": size, "sha256": digest}}
+    return {"schema": "octessera.image-current-parent/v1", "repository": "nexxyz/octessera", "board_profile": board, "version": "0.8.1", "constructor": {"run_id": 33301343618, "source_sha": "a" * 40}, "artifact": {"id": 9730022123, "name": "octessera-orange-image-release-assets", "size": 1, "digest": "sha256:" + "a" * 64, "expires_at": "2099-01-01T00:00:00Z", "entries": []}, "image": {"name": source.name, "size": size, "sha256": digest}, "record": {"path": "resources/image-parents/orange-pi-zero-2w-current.json", "sha256": "c" * 64, "size": 1}}
 
 
 class DiskPackagingTests(unittest.TestCase):
-    def test_parent_context_is_derived_from_the_checked_trust_manifest(self) -> None:
-        manifest_path = Path(__file__).resolve().parents[2] / "resources/image-parents/v0.7.5-trust-manifest.json"
-        manifest = load_manifest(manifest_path)
-        context = parent_context_for_board(manifest, "orange-pi-zero-2w")
-        self.assertEqual(context["schema"], "octessera.image-parent-trust/v1")
-        self.assertEqual(context["asset"]["name"], "octessera-0.7.5-orange-pi-zero-2w.img.xz")
-        self.assertEqual(set(context["asset"]), {"name", "node_id", "size", "sha256"})
+    def test_parent_context_is_derived_from_the_checked_current_parent_record(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        record_path = root / "resources/image-parents/orange-pi-zero-2w-current.json"
+        context = parent_context(root, record_path)
+        self.assertEqual(context["schema"], "octessera.image-current-parent/v1")
+        self.assertEqual(context["image"]["name"], "octessera-0.8.1-orange-pi-zero-2w.img.xz")
+        self.assertEqual(set(context["record"]), {"path", "sha256", "size"})
 
     def test_raspberry_zip_is_exact_and_repacked_deterministically(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

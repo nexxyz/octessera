@@ -22,10 +22,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.workflow_sha }}
-      - name: Verify qualified board-image release record chains
+      - name: Verify board-image release records
         run: python3 -m unittest tools.release.test_board_image_release
-      - name: Verify qualified board-image release routing
-        run: python3 tools/image-respin/test_qualified_release_routing.py
       - run: |
           sudo apt-get update && sudo apt-get install -y shellcheck && test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && python3 tools/release/test_version_consistency.py && python3 -m unittest tools.release.test_release_asset_assembly && python3 tools/release/test_desktop_artifact.py && python3 tools/release/check_version_consistency.py && grep -q -- '--manifest tools/kernel-patches/orange-midi-interface-manifest.json' .github/workflows/release-artifacts.yml && bash tools/armbian-image/test-release-workflow.sh && bash -n tools/armbian-image/test-release-workflow.sh && shellcheck -x tools/armbian-image/test-release-workflow.sh
 
@@ -293,7 +291,6 @@ jobs:
       tag: ${{ needs.release_info.outputs.tag }}
       version: ${{ needs.release_info.outputs.version }}
       source_sha: ${{ needs.release_info.outputs.source_sha }}
-      board_image_mode: base-refresh
     secrets: inherit
 
   publish_release_assets:
@@ -340,7 +337,6 @@ jobs:
             --evidence-staging "$GITHUB_WORKSPACE/release-evidence" \
             --version "$RELEASE_VERSION" \
             --source-sha "$RELEASE_SOURCE_SHA" \
-            --board-image-mode base-refresh
       - name: Revalidate exact draft immediately before upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

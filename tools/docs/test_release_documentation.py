@@ -58,6 +58,26 @@ class ReleaseDocumentationTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 
+    def test_support_page_records_current_parent_and_open_release_boundaries(self) -> None:
+        text = " ".join(read("userdocs/release-support.md").split())
+        for phrase in (
+            "v0.7.5 release remains immutable historical material",
+            "exact Orange 0.8.1 constructor parent passed its bounded physical promotion scope",
+            "manual current-parent runtime respin path exists",
+            "no real runtime respin run is evidenced yet",
+            "Official v0.8.1 publication",
+            "remaining Orange hardware gates",
+            "Raspberry physical qualification remains open, and a Raspberry current-parent respin is unavailable",
+            "CONSTRUCTOR PARENT PROMOTION PASSED / OFFICIAL PUBLICATION AND FULL ORANGE HARDWARE OPEN",
+            "do not claim full platform qualification",
+            "record the bounded Orange physical result",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+        for stale in ("trusted-v0.7.5", "trusted-parent machinery", "frozen legacy recovery"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, text)
+
     def test_usb_policy_is_explicit_and_public_docs_do_not_overclaim(self) -> None:
         support = read("userdocs/release-support.md")
         safety = read("userdocs/hardware/safety-and-power.md")

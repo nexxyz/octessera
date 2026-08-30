@@ -55,8 +55,9 @@ and root names/checksums.
 For every board-image draft, retain the source/build proof and any required
 mounted-image or kernel proof with the exact artifact. Physical acceptance
 follows the [two-board FAT quick run](../../userdocs/hardware/fat-quick-run.md).
-Trusted-parent machinery is frozen legacy recovery, not a qualification path;
-retire or narrow it only after FAT closes.
+The Orange current-parent respin lane is nonpublishing and boot-neutral, not a
+qualification path; keep it separate from the full-constructor release path until
+FAT closes. Raspberry image replacement remains constructor-only.
 
 ## Image staging and update boundaries
 

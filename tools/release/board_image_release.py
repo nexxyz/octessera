@@ -7,49 +7,17 @@ import shutil
 import stat
 import subprocess
 import sys
-import tempfile
-import zipfile
-from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable, Iterator, Mapping, cast
+from typing import Iterable, Mapping, cast
 
 ROOT = Path(__file__).resolve().parents[2]
 RESPIN_TOOLS = ROOT / "tools" / "image-respin"
 sys.path.insert(0, str(RESPIN_TOOLS))
 
-from post_proof_record import _bundle_identity  # type: ignore[import-not-found]
-from record_documents import load_json as load_record_json  # type: ignore[import-not-found]
-from record_hashing import canonical_bytes  # type: ignore[import-not-found]
-from record_paths import identity, verify_identity  # type: ignore[import-not-found]
-from record_validation import SOURCE_RE, require, require_keys, verify_source  # type: ignore[import-not-found]
-from requested_build_record import validate_record as validate_requested_record  # type: ignore[import-not-found]
-from setup_contract import load_contract  # type: ignore[import-not-found]
-from setup_workflow_record import (  # type: ignore[import-not-found]
-    PRODUCTION_PROOF_LABELS,
-    SETUP_PROOF_TOOLS,
-    _document,
-    _read_proof,
-    _validate_proof,
-    _validate_provenance,
-    _validate_setup_proof_tools,
-)
-from record_tool_contract import verify_tool  # type: ignore[import-not-found]
-from trust_manifest import load_manifest, parent_context_for_board  # type: ignore[import-not-found]
-
-
-BASE_REFRESH = "base-refresh"
-QUALIFIED_RESPIN = "qualified-respin"
-BOARD_IMAGE_MODES = (BASE_REFRESH, QUALIFIED_RESPIN)
 RPI = "raspberry-pi-zero-2w"
 ORANGE = "orange-pi-zero-2w"
-RESPIN_FEATURE_COMMANDS = {
-    RPI: "cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w",
-    ORANGE: "cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w",
-}
-MANIFEST = Path("resources/image-parents/v0.7.5-trust-manifest.json")
 KERNEL_MANIFEST = Path("tools/kernel-patches/orange-midi-interface-manifest.json")
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
-RUNTIME_FILES = ("SHA256SUMS", "octessera-pi", "octessera-runtime.json")
 
 
 class ReleaseArtifactError(ValueError):
@@ -264,232 +232,14 @@ def _base_refresh_images(root: Path, gathered_root: Path, release_assets: Path, 
         _copy_file(source, destination, "release evidence")
 
 
-def _qualified_names(board: str, version: str) -> tuple[str, str, str, str, str, str, str]:
-    _require(board in {RPI, ORANGE}, f"unsupported board profile: {board}")
-    prefix = f"octessera-{version}-{board}"
-    artifact = f"{prefix}-derived-setup-respin{'.zip' if board == RPI else '.img.xz'}"
-    production = "raspberry-sanitized-image-proof.txt" if board == RPI else "orange-image-proof.json"
-    return artifact, f"{artifact}.provenance.json", "requested-build.json", "setup-post-proof.json", "setup-layer-proof.json", production, f"SHA256SUMS-{board}.txt"
-
-
-def _verify_raspberry_artifact(path: Path) -> tuple[str, int]:
+def verify_and_stage_board_images(root: Path, gathered_root: Path, release_assets: Path, evidence_staging: Path, raspberry_runtime: Path, orange_runtime: Path, version: str, source_sha: str) -> None:
     try:
-        with zipfile.ZipFile(path) as archive:
-            entries = archive.infolist()
-            images = [entry for entry in entries if entry.filename.endswith(".img")]
-            _require(len(entries) == 1 and len(images) == 1, "qualified Raspberry artifact members are not exact")
-            entry = images[0]
-            _require(not entry.is_dir() and not entry.filename.startswith("/") and "\\" not in entry.filename and all(part not in {"", ".", ".."} for part in PurePosixPath(entry.filename).parts), "qualified Raspberry image member is unsafe")
-            _require(((entry.external_attr >> 16) & 0o170000) not in {stat.S_IFDIR, stat.S_IFLNK}, "qualified Raspberry image member is not regular")
-            image_bytes = archive.read(entry)
-            return hashlib.sha256(image_bytes).hexdigest(), len(image_bytes)
-    except (OSError, RuntimeError, zipfile.BadZipFile) as error:
-        raise ReleaseArtifactError(f"qualified Raspberry artifact is unreadable: {path}") from error
-
-
-def _verify_generated_raspberry_manifest(image: Path, manifest: Path, version: str, expected_image: tuple[str, int]) -> None:
-    _regular_file(manifest, "generated Raspberry Imager manifest")
-    try:
-        with zipfile.ZipFile(image) as archive:
-            entries = archive.infolist()
-            image_entries = [entry for entry in entries if entry.filename.endswith(".img")]
-            manifest_entries = [entry for entry in entries if entry.filename == "os_list.rpi-imager-manifest"]
-            _require(len(entries) == 2 and len(image_entries) == 1 and len(manifest_entries) == 1, "generated Raspberry Imager ZIP inventory is not exact")
-            manifest_bytes = archive.read(manifest_entries[0])
-            _require(manifest_bytes == manifest.read_bytes(), "generated Raspberry Imager manifest differs from its embedded copy")
-            image_bytes = archive.read(image_entries[0])
-    except (OSError, RuntimeError, zipfile.BadZipFile) as error:
-        raise ReleaseArtifactError(f"generated Raspberry Imager ZIP is unreadable: {image}") from error
-    document = _load_json(manifest, "generated Raspberry Imager manifest")
-    _require(document.get("board_profile") == RPI, "generated Raspberry Imager manifest board is not exact")
-    os_list = document.get("os_list")
-    _require(isinstance(os_list, list) and len(cast(list[object], os_list)) == 1 and isinstance(cast(list[object], os_list)[0], dict), "generated Raspberry Imager manifest OS list is not exact")
-    item = cast(dict[str, object], cast(list[object], os_list)[0])
-    image_identity = (hashlib.sha256(image_bytes).hexdigest(), len(image_bytes))
-    _require(image_identity == expected_image and item.get("board_profile") == RPI and item.get("extract_size") == image_identity[1] and item.get("extract_sha256") == image_identity[0] and item.get("image_download_size") == image.stat().st_size and item.get("url") == f"https://github.com/nexxyz/octessera/releases/download/v{version}/{image.name}", "generated Raspberry Imager manifest image identity is not exact")
-
-
-def _verify_qualified_checksum(directory: Path, checksum_name: str, expected: Iterable[str]) -> None:
-    expected_names = tuple(expected)
-    actual = _checksum_entries(directory, checksum_name)
-    _require(set(actual) == set(expected_names) and len(actual) == len(expected_names), f"qualified board checksum inventory is not exact: {checksum_name}")
-
-
-def _record_identity(value: Any, label: str, expected_path: str, actual: Path) -> dict[str, Any]:
-    checked = require_keys(value, {"path", "sha256", "size"}, label)
-    digest, size = _file_identity(actual)
-    _require(checked == {"path": expected_path, "sha256": digest, "size": size}, f"{label} is not bound to the qualified handoff")
-    return checked
-
-
-def _compare_bundle_record(record: Any, actual: dict[str, Any]) -> None:
-    bundle = require_keys(record, {"path", "entries", "sha256", "inventory_sha256"}, "runtime bundle")
-    _require(bundle["path"] == "runtime-bundle" and bundle["inventory_sha256"] == actual["inventory_sha256"], "runtime bundle identity changed")
-    entries = bundle["entries"]
-    _require(isinstance(entries, list) and len(entries) == len(RUNTIME_FILES), "runtime bundle entries are invalid")
-    actual_entries = {Path(item["path"]).name: item for item in actual["entries"]}
-    _require(set(actual_entries) == set(RUNTIME_FILES), "runtime bundle entry set changed")
-    expected = {f"runtime-bundle/{name}": actual_entries[name] for name in RUNTIME_FILES}
-    _require({item.get("path") for item in entries if isinstance(item, dict)} == set(expected), "runtime bundle entry set changed")
-    _require([item.get("path") for item in entries if isinstance(item, dict)] == sorted(expected), "runtime bundle entry order changed")
-    normalized_entries = [{"path": path, "sha256": expected[path]["sha256"], "size": expected[path]["size"]} for path in sorted(expected)]
-    normalized_sha = hashlib.sha256(canonical_bytes(normalized_entries)).hexdigest()
-    _require(bundle["sha256"] == normalized_sha, "runtime bundle identity changed")
-    for item in entries:
-        checked = require_keys(item, {"path", "sha256", "size"}, "runtime bundle entry")
-        _require(isinstance(checked["path"], str) and checked["path"] in expected, "runtime bundle entry path changed")
-        expected_item = expected[checked["path"]]
-        _require(checked["sha256"] == expected_item["sha256"] and checked["size"] == expected_item["size"], "runtime bundle entry changed")
-
-
-def _verify_companions(value: Any, manifest: dict[str, Any], board: str) -> None:
-    parent = next(item for item in manifest["image_parents"] if item["board"] == board)
-    expected_names = (parent["asset"], *parent["proof_companion_assets"])
-    assets = {item["name"]: item for item in manifest["assets"]}
-    _require(isinstance(value, list) and len(value) == len(expected_names), "qualified companion set is not exact")
-    seen: set[str] = set()
-    for item in value:
-        checked = require_keys(item, {"path", "sha256", "size"}, "qualified companion")
-        _require(isinstance(checked["path"], str), "qualified companion path is malformed")
-        name = Path(checked["path"]).name
-        _require(checked["path"] == f"parent-assets/{name}" and name in expected_names and name not in seen, "qualified companion path set is not exact")
-        anchor = assets[name]
-        _require(checked["sha256"] == anchor["sha256"] and checked["size"] == anchor["size"], f"qualified companion differs from trust manifest: {name}")
-        seen.add(name)
-    _require(seen == set(expected_names), "qualified companion set is not exact")
-    _require([item["path"] for item in value] == sorted(item["path"] for item in value), "qualified companion order is not exact")
-
-
-def _verify_respin_proof_shape(path: Path, board: str) -> dict[str, Any] | None:
-    proof = _read_proof(path, board)
-    if board == RPI:
-        try:
-            text = path.read_text(encoding="utf-8").lower()
-        except (OSError, UnicodeDecodeError) as error:
-            raise ReleaseArtifactError(f"qualified Raspberry proof is unreadable: {path}") from error
-        _require(not any(marker in text for marker in ("full-constructor", "phase5-constructor", "constructor-required")), "qualified Raspberry proof makes a constructor claim")
-    return proof
-
-
-@contextmanager
-def _validation_files(root: Path, runtime_bundle: Path, handoff: Path, names: tuple[str, str, str, str, str, str, str]) -> Iterator[dict[str, Path]]:
-    temporary = Path(tempfile.mkdtemp(prefix=".octessera-qualified-respin-", dir=root))
-    try:
-        staged_bundle = temporary / "runtime-bundle"
-        staged_bundle.mkdir()
-        for name in RUNTIME_FILES:
-            _copy_file(runtime_bundle / name, staged_bundle / name, "runtime bundle")
-        staged: dict[str, Path] = {"runtime_bundle": staged_bundle}
-        for name in names:
-            source = handoff / name
-            destination = temporary / name
-            _copy_file(source, destination, "qualified handoff")
-            staged[name] = destination
-        yield staged
-    finally:
-        shutil.rmtree(temporary, ignore_errors=False)
-
-
-def _verify_requested_and_setup_records(root: Path, handoff: Path, runtime_bundle: Path, version: str, source_sha: str, board: str, names: tuple[str, str, str, str, str, str, str]) -> None:
-    artifact, provenance, requested_name, setup_record, setup_proof, production, _ = names
-    requested_path = handoff / requested_name
-    requested = load_record_json(requested_path)
-    try:
-        validate_requested_record(requested, root)
-    except TypeError as error:
-        raise ReleaseArtifactError("qualified requested build is malformed") from error
-    source = require_keys(requested["source"], {"sha", "version", "board", "feature_command"}, "qualified requested source")
-    _require(isinstance(source["sha"], str) and isinstance(source["version"], str) and isinstance(source["board"], str), "qualified requested source is malformed")
-    verify_source(source["sha"], source["version"], source["board"], {RPI, ORANGE})
-    _require(source["sha"] == source_sha and source["version"] == version and source["board"] == board, "qualified requested source differs from release")
-    feature_command = source["feature_command"]
-    _require(isinstance(feature_command, str), "qualified feature command is malformed")
-    _require(feature_command == RESPIN_FEATURE_COMMANDS[board], "qualified requested feature command is not exact")
-    setup = require_keys(requested.get("setup"), {"mode", "contract", "inputs", "tool_files"}, "qualified requested setup")
-    _require(setup["mode"] == "setup-portal", "qualified handoff is not a setup respin")
-    _record_identity(requested["trust_manifest"], "qualified requested trust manifest", MANIFEST.as_posix(), root / MANIFEST)
-    setup_record_value = load_record_json(handoff / setup_record)
-    expected_top = {"schema", "schema_version", "record_kind", "result", "source", "requested_build", "parent", "runtime_bundle", "derived_artifact", "setup_provenance", "setup_proof", "production_proofs", "proof_tools", "companions", "workflow", "tool"}
-    top = require_keys(setup_record_value, expected_top, "qualified setup post-proof")
-    _require(top["schema"] == "octessera.image-respin-setup-post-proof/v1" and top["schema_version"] == 1 and top["record_kind"] == "setup-post-proof" and top["result"] == {"status": "success", "setup_proof_succeeded": True}, "qualified setup post-proof identity is not exact")
-    verify_tool(top["tool"], RESPIN_TOOLS / "setup_workflow_record.py", root, "tools/image-respin/setup_workflow_record.py", "octessera-image-respin-setup-post-proof")
-    _require(top["source"] == source, "qualified setup post-proof source differs from requested build")
-    _record_identity(top["requested_build"], "qualified requested build", f"respin-output/{requested_name}", requested_path)
-    parent = require_keys(top["parent"], {"context", "trust_manifest"}, "qualified setup parent")
-    manifest_identity = _record_identity(parent["trust_manifest"], "qualified setup trust manifest", MANIFEST.as_posix(), root / MANIFEST)
-    checked_manifest = load_manifest(root / MANIFEST)
-    expected_parent = parent_context_for_board(checked_manifest, board)
-    _require(parent["context"] == expected_parent, "qualified setup parent context changed")
-    contract_identity = verify_identity(setup["contract"], root, "qualified setup contract")
-    contract, _ = load_contract(root / contract_identity["path"])
-    _verify_companions(top["companions"], checked_manifest, board)
-    _record_identity(top["workflow"], "qualified workflow", ".github/workflows/respin-board-image.yml", root / ".github/workflows/respin-board-image.yml")
-    _require(isinstance(top["proof_tools"], list), "qualified proof tools are invalid")
-    _validate_setup_proof_tools(top["proof_tools"], root, board)
-    with _validation_files(root, runtime_bundle, handoff, names) as staged:
-        bundle = _bundle_identity(staged["runtime_bundle"], root)
-        _compare_bundle_record(top["runtime_bundle"], bundle)
-        artifact_identity = _record_identity(top["derived_artifact"], f"qualified {board} derived artifact", f"respin-output/{artifact}", handoff / artifact)
-        _record_identity(top["setup_provenance"], "qualified setup provenance", f"respin-output/{provenance}", handoff / provenance)
-        proof_identity = _record_identity(top["setup_proof"], "qualified setup proof", f"respin-output/{setup_proof}", handoff / setup_proof)
-        proof = _document(staged[setup_proof], "qualified setup proof")
-        _validate_proof(proof, board, contract_identity, contract)
-        proofs = require_keys(top["production_proofs"], set(PRODUCTION_PROOF_LABELS[board]), "qualified production proofs")
-        production_identity = _record_identity(proofs[PRODUCTION_PROOF_LABELS[board][0]], f"qualified {board} production proof", f"respin-output/{production}", handoff / production)
-        structured = _verify_respin_proof_shape(staged[production], board)
-        _validate_provenance(staged[provenance], root, requested, contract, contract_identity, proof, expected_parent, manifest_identity["sha256"], bundle, identity(staged[artifact], root), structured)
-        _require(artifact_identity["sha256"] == identity(staged[artifact], root)["sha256"] and production_identity["sha256"] == identity(staged[production], root)["sha256"], "qualified proof identity changed")
-
-
-def _qualified_respin_images(root: Path, gathered_root: Path, release_assets: Path, evidence_staging: Path, runtime_bundle: Path, version: str, source_sha: str, board: str) -> None:
-    names = _qualified_names(board, version)
-    artifact, provenance, requested, setup_record, setup_proof, production, checksum = names
-    handoff = gathered_root / f"octessera-{board}-image-release-assets"
-    _require_exact_files(handoff, names)
-    _verify_qualified_checksum(handoff, checksum, (artifact, provenance, requested, setup_record, setup_proof, production))
-    raspberry_image_identity: tuple[str, int] | None = None
-    if board == RPI:
-        raspberry_image_identity = _verify_raspberry_artifact(handoff / artifact)
-    _verify_requested_and_setup_records(root, handoff, runtime_bundle, version, source_sha, board, names)
-    prefix = f"octessera-{version}"
-    image_checksum: Path | None = None
-    if board == RPI:
-        image = release_assets / f"{prefix}-raspberry-pi-zero-2w.img.zip"
-        _copy_file(handoff / artifact, image, "qualified Raspberry image")
-        manifest = release_assets / f"{prefix}-raspberry-pi-zero-2w.rpi-imager-manifest"
-        _run(root, [sys.executable, "tools/pi-image/package-rpi-imager-zip.py", "--zip", str(image), "--version", version, "--tag", f"v{version}", "--repository", "nexxyz/octessera", "--manifest-out", str(manifest), "--board-profile", RPI], "Raspberry Imager manifest generation")
-        assert raspberry_image_identity is not None
-        _verify_generated_raspberry_manifest(image, manifest, version, raspberry_image_identity)
-        evidence = "raspberry/image"
-        evidence_files = ((handoff / checksum, evidence + f"/{checksum}"), (manifest, evidence + f"/{manifest.name}"), (root / MANIFEST, evidence + "/v0.7.5-trust-manifest.json"), (handoff / provenance, evidence + f"/{provenance}"), (handoff / requested, evidence + f"/{requested}"), (handoff / setup_record, evidence + f"/{setup_record}"), (handoff / setup_proof, evidence + f"/{setup_proof}"), (handoff / production, evidence + f"/{production}"))
-    else:
-        image = release_assets / f"{prefix}-orange-pi-zero-2w.img.xz"
-        _copy_file(handoff / artifact, image, "qualified Orange image")
-        image_checksum = release_assets / f"{image.name}.sha256"
-        _write_checksum(image_checksum, image.name, _sha256(image))
-        _verify_checksum_file(release_assets, image_checksum.name)
-        evidence = "orange/image"
-        evidence_files = ((image_checksum, evidence + f"/{image_checksum.name}"), (root / MANIFEST, evidence + "/v0.7.5-trust-manifest.json"), (handoff / provenance, evidence + f"/{provenance}"), (handoff / requested, evidence + f"/{requested}"), (handoff / setup_record, evidence + f"/{setup_record}"), (handoff / setup_proof, evidence + f"/{setup_proof}"), (handoff / production, evidence + f"/{production}"), (handoff / checksum, evidence + f"/{checksum}"))
-    for source, relative in evidence_files:
-        _copy_file(source, evidence_staging / relative, "qualified release evidence")
-    if board == ORANGE:
-        assert image_checksum is not None
-        image_checksum.unlink()
-
-
-def verify_and_stage_board_images(root: Path, gathered_root: Path, release_assets: Path, evidence_staging: Path, raspberry_runtime: Path, orange_runtime: Path, version: str, source_sha: str, board_image_mode: str = BASE_REFRESH) -> None:
-    try:
-        _require(board_image_mode in BOARD_IMAGE_MODES, f"unknown board image mode: {board_image_mode}")
-        _require(SOURCE_RE.fullmatch(source_sha) is not None, "source SHA is invalid")
-        if board_image_mode == BASE_REFRESH:
-            _base_refresh_images(root, gathered_root, release_assets, evidence_staging, version, source_sha)
-        else:
-            _qualified_respin_images(root, gathered_root, release_assets, evidence_staging, raspberry_runtime, version, source_sha, RPI)
-            _qualified_respin_images(root, gathered_root, release_assets, evidence_staging, orange_runtime, version, source_sha, ORANGE)
+        _require(re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None, "source SHA is invalid")
+        _base_refresh_images(root, gathered_root, release_assets, evidence_staging, version, source_sha)
     except ReleaseArtifactError:
         raise
     except (KeyError, OSError, TypeError, ValueError) as error:
         raise ReleaseArtifactError(str(error)) from error
 
 
-__all__ = ["BASE_REFRESH", "BOARD_IMAGE_MODES", "QUALIFIED_RESPIN", "RESPIN_FEATURE_COMMANDS", "ReleaseArtifactError", "verify_and_stage_board_images"]
+__all__ = ["ReleaseArtifactError", "verify_and_stage_board_images"]

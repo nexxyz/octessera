@@ -83,14 +83,14 @@ artifact directly:
 tools/armbian-image/inspect-built-image.sh --verification-profile full-constructor <rootfs-dir-or-ext4-image>
 ```
 
-Use `full-constructor` for source-built images. Trusted-parent runtime-only
-respins use `legacy-runtime-only`; setup-layer respins use `legacy-setup-layer`.
-Their boot integrity comes from the separate trusted boot-neutral proof.
+Use `full-constructor` for source-built images. Orange runtime-only respins use
+the `validated-parent` proof mode and the exact current parent record; their boot
+integrity comes from the separate boot-neutral proof.
 
 ## Source-bound constructor procedure
 
 For a constructor refresh, construct each board from its source-bound boot-layer
-contract, not from a trusted-parent respin:
+contract, not from the Orange current-parent respin lane:
 
 1. Freeze current source inputs and hashes in
    `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and
@@ -110,28 +110,26 @@ contract, not from a trusted-parent respin:
 
 ## Manual nonpublishing respin
 
-For the usual runtime-only refresh, dispatch the workflow from `main`; this is
-the default and does not mutate setup files:
+For a manual runtime-only refresh, dispatch the nonpublishing workflow from the
+reviewed `main` branch:
 
 ```bash
-gh workflow run respin-board-image.yml --ref main -f board=orange-pi-zero-2w -f setup_layer=runtime-only
-gh workflow run respin-board-image.yml --ref main -f board=raspberry-pi-zero-2w -f setup_layer=runtime-only
+gh workflow run respin-board-image.yml --ref main
 ```
 
-Use `setup_layer=setup-portal` only when the setup mutation contract itself
-needs a respin. These artifacts are nonpublishing, short-lived Actions
-artifacts. The GitHub event pins the dispatched `main` SHA used by checkout and
-the requested-build record. Kernel, device-tree, initramfs, or base-OS changes
-still require the full constructor workflow.
+This artifact is nonpublishing and short-lived. GitHub resolves the branch when
+the event is created and pins that `github.sha` for checkout and the
+requested-build record. Kernel,
+device-tree, initramfs, or base-OS changes still require the full constructor
+workflow.
 
 ## Board image artifact dispatch
 
 `release-board-artifacts.yml` can be called by the release workflow or dispatched
-directly with the required `tag`, `version`, exact `source_sha`, and
-`board_image_mode` inputs. `base-refresh` builds both complete production images.
-`qualified-respin` runs the trusted-parent runtime and setup respin for both
-boards without invoking the kernel, pi-gen, or Armbian constructors. Both modes
-upload Actions artifacts only; they do not create, update, or publish a release.
+directly with the required `tag`, `version`, and exact `source_sha` inputs. It
+builds both complete production images. The nonpublishing respin workflow is
+Orange-only; Raspberry has no current parent record and fails closed before
+acquisition.
 
 ## Phase 5 OLED boot layer
 
@@ -243,36 +241,20 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-flow.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-state.py
 bash tools/armbian-image/validate.sh
 python3 tools/image-respin/test_setup_contract.py
-python3 tools/image-respin/test_trust_manifest.py
-python3 tools/image-respin/verify-parent-release.py --manifest resources/image-parents/v0.7.5-trust-manifest.json --validate-manifest
+python3 tools/armbian-image/test_orange_image_proof_validated.py
 python3 tools/image-respin/test_runtime_contract.py
 python3 tools/image-respin/test_workflow_records.py
 python3 tools/image-respin/test_workflow_static.py
-python3 tools/image-respin/test_qualified_release_routing.py
 node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 ```
 
 Root-required mutation and disk fixtures run in CI as
 `sudo python3 tools/image-respin/test_setup_mutation.py` and
 `sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
-The trusted-parent exercise is frozen legacy recovery, not a physical
-qualification path. Retirement is a post-FAT action. If explicitly required,
-run both board lanes:
-
-```bash
-gh workflow run respin-board-image.yml -f board=raspberry-pi-zero-2w -f setup_layer=setup-portal
-gh workflow run respin-board-image.yml -f board=orange-pi-zero-2w -f setup_layer=setup-portal
-```
-
-The nonpublishing board-artifact workflow has two explicit paths. `base-refresh`
-builds the Raspberry kernel and pi-gen image and the full Orange Armbian image.
-`qualified-respin` reuses the checked, hash-bound parent images and rebuilds only
-the two board runtimes and setup layers. It has no fallback to a constructor.
-
-The publishing release workflow remains locked to `base-refresh`. Enable the
-qualified path there only after both candidate parent images pass fresh-flash
-hardware qualification and a reviewed trust-manifest promotion records their
-exact release assets.
+The current-parent exercise is a nonpublishing Orange runtime-only path, not a
+physical qualification path. The reviewed Orange current parent is an exact
+respin input, not a replacement for constructor-image qualification or physical
+FAT.
 
 For full production image, kernel, setup-portal, sample, sanitization, and
 runtime-bundle contracts, see the [Orange production reference](../../hardware/docs/orange-pi-production-reference.md).

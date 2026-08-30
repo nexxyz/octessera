@@ -69,50 +69,46 @@ def artifact_identity(path: Path) -> tuple[str, int]:
 
 
 def load_contract(path: Path, repository_root: Path) -> tuple[Path, dict[str, Any]]:
-    expected = repository_root / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json"
+    expected = repository_root / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json"
     require(path.name == expected.name and path.resolve(strict=True) == expected.resolve(strict=True), "Orange boot-neutral contract path is not canonical")
     require(path.is_file() and not path.is_symlink(), "Orange boot-neutral contract is missing or symlinked")
     try:
         contract = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise TrustedParentProofError("Orange trusted boot-neutral contract is unreadable") from error
-    require(set(contract) == {"schema", "schema_version", "proof_mode", "board_profile", "parent_trust_manifest", "parent_release", "parent_asset", "allowed_derivations", "mutation_authority", "boot_mutation", "protected_scopes", "protected_paths", "expected_absent_paths", "selected_boot", "respin_provenance", "setup_proof", "proofs"}, "Orange trusted boot-neutral contract changed")
+    require(set(contract) == {"schema", "schema_version", "proof_mode", "board_profile", "parent_record", "allowed_derivations", "mutation_authority", "boot_mutation", "protected_scopes", "protected_paths", "expected_absent_paths", "selected_boot", "respin_provenance", "setup_proof", "proofs"}, "Orange validated-parent contract changed")
     require(contract["schema"] == "octessera.image-derivation/boot-neutral/v1" and contract["schema_version"] == 1, "Orange trusted boot-neutral schema is invalid")
-    require(contract["proof_mode"] == "trusted-v0.7.5-boot-neutral" and contract["board_profile"] == "orange-pi-zero-2w", "Orange trusted boot-neutral identity is invalid")
+    require(contract["proof_mode"] == "validated-parent" and contract["board_profile"] == "orange-pi-zero-2w", "Orange validated-parent identity is invalid")
     require(contract["mutation_authority"] == "none" and contract["boot_mutation"] is False, "Orange trusted boot-neutral policy is executable")
     require(contract["allowed_derivations"] == ["runtime-only", "setup-portal"], "Orange trusted derivations changed")
     require(bool(isinstance(contract["protected_scopes"], list) and contract["protected_scopes"] and all(isinstance(item, dict) and set(item) == {"name", "prefix", "kind"} and item["kind"] == "recursive" for item in contract["protected_scopes"])), "Orange trusted protected scopes are not exact")
     require(isinstance(contract["protected_paths"], list) and contract["protected_paths"], "Orange trusted protected inventory is empty")
     require(isinstance(contract["expected_absent_paths"], list) and len(contract["expected_absent_paths"]) == len(set(contract["expected_absent_paths"])) and all(isinstance(item, str) and item and not item.startswith("/") and ".." not in Path(item).parts for item in contract["expected_absent_paths"]), "Orange trusted expected-absent inventory is not exact")
-    require(contract["parent_trust_manifest"] == "resources/image-parents/v0.7.5-trust-manifest.json" and contract["parent_asset"]["content_type"] == "application/x-xz" and contract["parent_asset"]["sha256"] == "ecf1cb7e4174ef6a149be306854ebcb1667ed55f6ab5de583af62a1c147d9517" and contract["parent_asset"]["size"] == 353061152, "Orange trusted parent source contract changed")
-    require(set(contract["parent_asset"]) == {"artifact_class", "name", "content_type", "size", "sha256"}, "Orange trusted parent asset fields changed")
+    require(contract["parent_record"] == "resources/image-parents/orange-pi-zero-2w-current.json", "Orange current parent record path changed")
     provenance_contract = contract["respin_provenance"]
     require(set(provenance_contract) == {"runtime_schema", "setup_schema", "schema_version", "required_disk_invariants", "required_parent_binding", "required_runtime_mutation", "policy", "top_level_keys", "setup_top_level_additions", "policy_keys", "boot_integrity_keys", "inventory_keys", "selector_keys"} and provenance_contract["schema_version"] == 2, "Orange trusted provenance contract changed")
     require(provenance_contract["top_level_keys"] == ["proof_schema", "schema_version", "proof_mode", "derivation_kind", "board_profile", "version", "source_identity", "boot_mutation", "phase5_claim", "policy", "parent", "runtime_mutation", "boot_integrity", "disk_invariants", "derived_image", "packaged_artifact", "finalizer"], "Orange trusted provenance top-level contract changed")
     require(provenance_contract["setup_top_level_additions"] == ["setup_mutation", "setup_proof"], "Orange trusted setup provenance contract changed")
-    require(provenance_contract["policy_keys"] == ["name", "version", "mutation_authority", "trusted_parent_finalization"], "Orange trusted policy contract changed")
+    require(provenance_contract["policy_keys"] == ["name", "version", "mutation_authority", "parent_finalization"], "Orange validated-parent policy contract changed")
     require(provenance_contract["boot_integrity_keys"] == ["pre", "post", "selected_kernel", "selected_initramfs", "selected_dtb", "selectors", "protected_scopes", "protected_paths", "expected_absent_paths", "changed_paths"], "Orange trusted boot integrity contract changed")
     require(provenance_contract["inventory_keys"] == ["digest", "count"] and provenance_contract["selector_keys"] == ["format", "kernel", "initramfs", "dtb"], "Orange trusted boot subcontracts changed")
     require(set(contract["setup_proof"]) == {"proof", "schema_version", "required_for", "boot_mutation", "mutation_authority", "source_contract"} and contract["setup_proof"]["proof"] == "setup-layer-mounted", "Orange trusted setup proof contract changed")
     require(len(contract["protected_paths"]) == len(set(contract["protected_paths"])) and contract["expected_absent_paths"] == ["usr/local/sbin/octessera-orange-oled-handoff.py"] and not set(contract["expected_absent_paths"]) & set(contract["protected_paths"]), "Orange trusted protected inventory contains duplicates")
-    require(contract["proofs"] == ["tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/image-respin/boot_neutral.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json", "tools/kernel-patches/orange-midi-interface-manifest.json"], "Orange trusted production proof tool set changed")
+    require(contract["proofs"] == ["tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/image-respin/current_parent.py", "tools/image-respin/boot_neutral.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json", "tools/kernel-patches/orange-midi-interface-manifest.json"], "Orange validated-parent production proof tool set changed")
     return path, contract
 
 
-def _load_manifest(path: Path, contract: dict[str, Any], repository_root: Path) -> tuple[dict[str, Any], str]:
-    expected = repository_root / contract["parent_trust_manifest"]
-    require(path.resolve(strict=True) == expected.resolve(strict=True), "Orange trusted parent manifest path is not canonical")
-    require(path.is_file() and not path.is_symlink() and not expected.is_symlink(), "Orange trusted parent manifest is not a canonical regular file")
+def _load_parent_record(path: Path, contract: dict[str, Any], repository_root: Path) -> tuple[dict[str, Any], dict[str, Any], str]:
+    expected = repository_root / contract["parent_record"]
+    require(path.resolve(strict=True) == expected.resolve(strict=True), "Orange current parent record path is not canonical")
+    require(path.is_file() and not path.is_symlink() and not expected.is_symlink(), "Orange current parent record is not a canonical regular file")
     try:
-        module = _respin_module(repository_root, "trust_manifest")
-        manifest = module.load_manifest(path)
-        context = module.parent_context_for_board(manifest, contract["board_profile"])
+        module = _respin_module(repository_root, "current_parent")
+        record, record_digest = module.load_record(repository_root, path)
+        context = module.parent_context(repository_root, path)
     except (OSError, ValueError) as error:
-        raise TrustedParentProofError("Orange trusted parent manifest is invalid") from error
-    asset = context["asset"]
-    full_asset = next(item for item in manifest["assets"] if item["name"] == asset["name"])
-    require(manifest["release"] == contract["parent_release"] and asset["name"] == contract["parent_asset"]["name"] and asset["sha256"] == contract["parent_asset"]["sha256"] and asset["size"] == contract["parent_asset"]["size"] and full_asset["artifact_class"] == contract["parent_asset"]["artifact_class"] and full_asset["content_type"] == contract["parent_asset"]["content_type"], "Orange trusted parent manifest/policy identity changed")
-    return asset, sha256_file(path)
+        raise TrustedParentProofError("Orange current parent record is invalid") from error
+    return record, context, record_digest
 
 
 def _protected_state(root: Path, contract: dict[str, Any]) -> dict[str, Any]:
@@ -151,7 +147,7 @@ def _require_unprotected_paths(paths: object, protected_paths: list[str], messag
     require(not any(protected == changed or protected.startswith(f"{changed}/") or changed.startswith(f"{protected}/") for changed in paths for protected in normalized), message)
 
 
-def _verify_provenance(path: Path, manifest_hash: str, contract: dict[str, Any], parent_asset: dict[str, Any], derived_root: Path, derived_identity: tuple[str, int], artifact_identity_value: tuple[str, int], artifact_name: str, derivation_kind: str, repository_root: Path, parent_state: dict[str, Any], derived_state: dict[str, Any], parent_layout: dict[str, Any], derived_layout: dict[str, Any]) -> dict[str, Any]:
+def _verify_provenance(path: Path, record_digest: str, contract: dict[str, Any], parent_record: dict[str, Any], parent_context: dict[str, Any], derived_root: Path, derived_identity: tuple[str, int], artifact_identity_value: tuple[str, int], artifact_name: str, derivation_kind: str, repository_root: Path, parent_state: dict[str, Any], derived_state: dict[str, Any], parent_layout: dict[str, Any], derived_layout: dict[str, Any]) -> dict[str, Any]:
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -164,11 +160,10 @@ def _verify_provenance(path: Path, manifest_hash: str, contract: dict[str, Any],
     require(document["proof_mode"] == contract["proof_mode"] and document["derivation_kind"] == derivation_kind and document["board_profile"] == contract["board_profile"], "Orange trusted respin provenance identity changed")
     require(document["boot_mutation"] is False and document["phase5_claim"] is False and document["policy"] == contract["respin_provenance"]["policy"], "Orange trusted boot-neutral policy changed")
     parent = document["parent"]
-    require(set(parent) == {"context", "asset", "trust_manifest_sha256", "digest"}, "Orange trusted provenance parent changed")
-    expected_asset = {key: parent_asset[key] for key in ("name", "node_id", "size", "sha256")}
-    expected_context = {"schema": "octessera.image-parent-trust/v1", "repository": contract["parent_release"]["repository"], "tag": contract["parent_release"]["tag"], "source_commit": contract["parent_release"]["source_commit"], "asset": expected_asset}
-    require(parent["asset"] == expected_asset and parent["context"] == expected_context and parent["trust_manifest_sha256"] == manifest_hash, "Orange trusted provenance parent binding changed")
-    require(parent["digest"] == digest_object({"context": parent["context"], "trust_manifest_sha256": manifest_hash}), "Orange trusted provenance parent digest changed")
+    expected_record = {"path": contract["parent_record"], "sha256": record_digest, "size": (repository_root / contract["parent_record"]).stat().st_size}
+    require(set(parent) == {"record", "context", "image", "digest"}, "Orange validated provenance parent changed")
+    require(parent["record"] == expected_record and parent["context"] == parent_context and parent["image"] == parent_record["image"], "Orange validated provenance parent binding changed")
+    require(parent["digest"] == digest_object({"context": parent["context"], "record": parent["record"], "image": parent["image"]}), "Orange validated provenance parent digest changed")
     runtime = document["runtime_mutation"]
     require(set(runtime) == {"digest", "provenance"} and isinstance(runtime["provenance"], dict), "Orange trusted runtime provenance changed")
     runtime_provenance = runtime["provenance"]
@@ -189,8 +184,8 @@ def _verify_provenance(path: Path, manifest_hash: str, contract: dict[str, Any],
     require(set(runtime_parent) == {"identity", "digest"} and runtime_parent["digest"] == digest_object(runtime_parent["identity"]), "Orange trusted runtime parent identity changed")
     parent_identity = runtime_parent["identity"]
     require(set(parent_identity) == {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}, "Orange trusted runtime parent fields changed")
-    require(parent_identity["board_profile"] == contract["board_profile"] and parent_identity["prior_version"] == "0.7.5" and parent_identity["parent_context"] == document["parent"]["context"], "Orange trusted runtime parent binding changed")
-    require(parent_identity["parent_context_sha256"] == digest_object(document["parent"]["context"]), "Orange trusted runtime parent context digest changed")
+    require(parent_identity["board_profile"] == contract["board_profile"] and parent_identity["prior_version"] == parent_context["version"] and parent_identity["parent_context"] == document["parent"]["context"], "Orange validated runtime parent binding changed")
+    require(parent_identity["parent_context_sha256"] == digest_object(document["parent"]["context"]), "Orange validated runtime parent context digest changed")
     require(set(parent_identity["prior_release_entries"]) == {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"}, "Orange trusted runtime release inventory changed")
     require(parent_identity["prior_state_preimage_sha256"] is None and isinstance(parent_identity["prior_build_metadata_preimage_sha256"], str), "Orange trusted runtime parent preimage changed")
     payload = runtime_provenance["payload"]
@@ -257,13 +252,14 @@ def _verify_setup_proof(path: Path, contract: dict[str, Any], repository_root: P
     require(isinstance(proof["prerequisites"], dict) and proof["verified_paths"] == sorted(set(proof["verified_paths"])), "Orange setup proof paths are not exact")
 
 
-def verify_trusted_roots(parent_root: Path, derived_root: Path, parent_asset: dict[str, Any], manifest_hash: str, contract: dict[str, Any], provenance_path: Path, derivation_kind: str, setup_proof: Path | None, repository_root: Path, derived_identity: tuple[str, int], artifact_identity_value: tuple[str, int], artifact_name: str, parent_layout: dict[str, Any], derived_layout: dict[str, Any], manifest_path: Path | None = None, contract_path: Path | None = None) -> dict[str, Any]:
-    require(parent_asset["name"] == contract["parent_asset"]["name"] and parent_asset["sha256"] == contract["parent_asset"]["sha256"] and parent_asset["size"] == contract["parent_asset"]["size"], "Orange trusted parent policy identity changed")
+def verify_trusted_roots(parent_root: Path, derived_root: Path, parent_record: dict[str, Any], parent_context: dict[str, Any], record_digest: str, contract: dict[str, Any], provenance_path: Path, derivation_kind: str, setup_proof: Path | None, repository_root: Path, derived_identity: tuple[str, int], artifact_identity_value: tuple[str, int], artifact_name: str, parent_layout: dict[str, Any], derived_layout: dict[str, Any], record_path: Path | None = None, contract_path: Path | None = None) -> dict[str, Any]:
+    parent_asset = parent_record["image"]
+    require(parent_record["board_profile"] == contract["board_profile"] and parent_context["image"] == parent_asset, "Orange validated parent record binding changed")
     parent_state = _protected_state(parent_root, contract)
     derived_state = _protected_state(derived_root, contract)
     require(parent_state == derived_state, "Orange trusted protected inventory changed")
     require(parent_layout == derived_layout, "Orange trusted raw disk identity changed")
-    provenance = _verify_provenance(provenance_path, manifest_hash, contract, parent_asset, derived_root, derived_identity, artifact_identity_value, artifact_name, derivation_kind, repository_root, parent_state, derived_state, parent_layout, derived_layout)
+    provenance = _verify_provenance(provenance_path, record_digest, contract, parent_record, parent_context, derived_root, derived_identity, artifact_identity_value, artifact_name, derivation_kind, repository_root, parent_state, derived_state, parent_layout, derived_layout)
     notice_module = _respin_module(repository_root, "notice_mutation")
     try:
         notice_module.verify_mounted_notice_tree(derived_root, provenance["runtime_mutation"]["provenance"]["notice"])
@@ -284,14 +280,14 @@ def verify_trusted_roots(parent_root: Path, derived_root: Path, parent_asset: di
     parent_selected = _selected_boot(parent_root, contract["selected_boot"]["kernel_release"])
     derived_selected = _selected_boot(derived_root, contract["selected_boot"]["kernel_release"])
     require(parent_selected == derived_selected and Path(parent_selected["selected_dtb"]).name == contract["selected_boot"]["dtb_name"], "Orange trusted selected boot changed")
-    manifest_relative = str(manifest_path.relative_to(repository_root)) if manifest_path is not None and manifest_path.is_relative_to(repository_root) else contract["parent_trust_manifest"]
-    contract_relative = str(contract_path.relative_to(repository_root)) if contract_path is not None and contract_path.is_relative_to(repository_root) else "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json"
-    return {"schema": "octessera.image-proof/v2", "schema_version": 2, "proof_mode": contract["proof_mode"], "phase5_claim": False, "boot_state": "v0.7.5-preserved", "artifact": {"name": artifact_name, "sha256": artifact_identity_value[0], "size": artifact_identity_value[1]}, "board_profile": contract["board_profile"], "runtime": {"derivation_kind": derivation_kind, "setup_proof": derivation_kind == "setup-portal", "boot_mutation": False}, "parent": {"trust_manifest": manifest_relative, "name": parent_asset["name"], "sha256": parent_asset["sha256"], "size": parent_asset["size"]}, "selected_boot": derived_selected, "contract": {"path": contract_relative, "sha256": sha256_file(contract_path) if contract_path is not None else digest_object(contract)}, "respin_provenance_sha256": sha256_file(provenance_path)}
+    record_relative = str(record_path.relative_to(repository_root)) if record_path is not None and record_path.is_relative_to(repository_root) else contract["parent_record"]
+    contract_relative = str(contract_path.relative_to(repository_root)) if contract_path is not None and contract_path.is_relative_to(repository_root) else "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json"
+    return {"schema": "octessera.image-proof/v2", "schema_version": 2, "proof_mode": contract["proof_mode"], "phase5_claim": False, "boot_state": "current-parent-preserved", "artifact": {"name": artifact_name, "sha256": artifact_identity_value[0], "size": artifact_identity_value[1]}, "board_profile": contract["board_profile"], "runtime": {"derivation_kind": derivation_kind, "setup_proof": derivation_kind == "setup-portal", "boot_mutation": False}, "parent": {"record": {"path": record_relative, "sha256": record_digest, "size": (repository_root / contract["parent_record"]).stat().st_size}, "image": parent_asset}, "selected_boot": derived_selected, "contract": {"path": contract_relative, "sha256": sha256_file(contract_path) if contract_path is not None else digest_object(contract)}, "respin_provenance_sha256": sha256_file(provenance_path)}
 
 
-def verify_trusted(parent_root: Path, derived_root: Path, parent_image: Path, contract_path: Path, manifest_path: Path, provenance_path: Path, derivation_kind: str, setup_proof: Path | None, repository_root: Path, derived_identity: tuple[str, int], artifact_identity_value: tuple[str, int], artifact_name: str, parent_layout: dict[str, Any], derived_layout: dict[str, Any]) -> dict[str, Any]:
+def verify_trusted(parent_root: Path, derived_root: Path, parent_image: Path, contract_path: Path, record_path: Path, provenance_path: Path, derivation_kind: str, setup_proof: Path | None, repository_root: Path, derived_identity: tuple[str, int], artifact_identity_value: tuple[str, int], artifact_name: str, parent_layout: dict[str, Any], derived_layout: dict[str, Any]) -> dict[str, Any]:
     contract_path, contract = load_contract(contract_path, repository_root)
-    parent_asset, manifest_hash = _load_manifest(manifest_path, contract, repository_root)
+    parent_record, parent_context, record_digest = _load_parent_record(record_path, contract, repository_root)
     parent_identity = artifact_identity(parent_image)
-    require(parent_image.name == parent_asset["name"] and parent_identity == (parent_asset["sha256"], parent_asset["size"]), "Orange trusted parent path, hash, or size changed")
-    return verify_trusted_roots(parent_root, derived_root, parent_asset, manifest_hash, contract, provenance_path, derivation_kind, setup_proof, repository_root, derived_identity, artifact_identity_value, artifact_name, parent_layout, derived_layout, manifest_path, contract_path)
+    require(parent_image.name == parent_record["image"]["name"] and parent_identity == (parent_record["image"]["sha256"], parent_record["image"]["size"]), "Orange validated parent path, hash, or size changed")
+    return verify_trusted_roots(parent_root, derived_root, parent_record, parent_context, record_digest, contract, provenance_path, derivation_kind, setup_proof, repository_root, derived_identity, artifact_identity_value, artifact_name, parent_layout, derived_layout, record_path, contract_path)

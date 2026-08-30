@@ -10,7 +10,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from runtime_contract import MutationError, load_contract
+from runtime_contract import MutationError, load_contract, validate_parent_context
+from current_parent import parent_context
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -66,6 +67,24 @@ class RuntimeContractTests(unittest.TestCase):
                 document = self._document("orange-pi-zero-2w")
                 document["build_metadata_contract"][field] = value
                 self._assert_invalid(document)
+
+    def test_only_current_parent_context_is_accepted(self) -> None:
+        current = parent_context(ROOT)
+        self.assertEqual(validate_parent_context(current, "orange-pi-zero-2w"), current)
+        legacy = {
+            "schema": "octessera.image-parent-trust/v1",
+            "repository": "nexxyz/octessera",
+            "tag": "v9.9.9",
+            "source_commit": "a" * 40,
+            "asset": {
+                "name": "octessera-9.9.9-raspberry-pi-zero-2w.img.zip",
+                "node_id": "RA_test-parent",
+                "size": 123,
+                "sha256": "b" * 64,
+            },
+        }
+        with self.assertRaises(MutationError):
+            validate_parent_context(legacy, "raspberry-pi-zero-2w")
 
 
 if __name__ == "__main__":
