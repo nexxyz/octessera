@@ -111,7 +111,7 @@ impl NativeRunner {
             ("Confirm Synth", format!("Load synth preset {preset}?"))
         };
         let options = if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
-            vec!["Cancel".into(), "Save & Reboot".into()]
+            vec!["Cancel".into(), "Save / Reboot".into()]
         } else {
             vec!["Cancel".into(), "Confirm".into()]
         };

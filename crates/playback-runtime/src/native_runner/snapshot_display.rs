@@ -257,7 +257,7 @@ fn user_data_transfer_display(state: &super::NativeUserDataTransferState) -> Dis
                 .map(|seconds| u32::from(seconds).div_ceil(60))
                 .unwrap_or_default();
             (
-                "Backup & Restore".into(),
+                "Backup / Restore".into(),
                 vec![
                     "Use local client".into(),
                     format!("IP {host}"),
@@ -269,7 +269,7 @@ fn user_data_transfer_display(state: &super::NativeUserDataTransferState) -> Dis
             )
         }
         super::RuntimeUserDataTransferPhase::Unsupported => (
-            "Backup & Restore".into(),
+            "Backup / Restore".into(),
             vec![
                 "Not supported here".into(),
                 "Use a Pi device".into(),

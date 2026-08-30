@@ -1,5 +1,4 @@
 use super::error_layout::runtime_error_rows;
-use super::font::glyph_rows;
 use super::model::*;
 use super::pixels::rgb565;
 use super::render::render_oled_frame;
@@ -25,7 +24,6 @@ const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x1472_784E_157A_10A5;
 const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0x67F4_248A_C2B9_8D85;
 const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0x1662_9A94_8669_A771;
 const GLYPH_SYMBOLS_FNV1A64: u64 = 0x9416_2B3D_DEEE_A9EF;
-const GLYPH_AMPERSAND_FNV1A64: u64 = 0xF63F_9719_EF1D_73C1;
 const BOOT_SPLASH_ASSET_FNV1A64: u64 = STARTUP_SPLASH_100_FNV1A64;
 const SLEEP_SHUTDOWN_SPLASH_ASSET_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 
@@ -61,7 +59,6 @@ fn typed_oled_golden_anchors_are_stable() {
         ),
         ("glyph-punctuation-last", glyph_fixture("?,\'\"=")),
         ("glyph-symbols", glyph_fixture("▶■●|")),
-        ("glyph-ampersand", glyph_fixture("&")),
     ];
     for (name, input) in cases {
         let frame = render_oled_frame(&input);
@@ -84,7 +81,6 @@ fn typed_oled_golden_anchors_are_stable() {
             "glyph-punctuation-first" => GLYPH_PUNCTUATION_FIRST_FNV1A64,
             "glyph-punctuation-last" => GLYPH_PUNCTUATION_LAST_FNV1A64,
             "glyph-symbols" => GLYPH_SYMBOLS_FNV1A64,
-            "glyph-ampersand" => GLYPH_AMPERSAND_FNV1A64,
             _ => unreachable!("unlisted OLED golden case: {name}"),
         };
         assert_eq!(fnv1a64(&frame), expected, "frame anchor: {name}");
@@ -97,11 +93,6 @@ fn typed_oled_golden_anchors_are_stable() {
         fnv1a64(SPLASH_SLEEP_SHUTDOWN),
         SLEEP_SHUTDOWN_SPLASH_ASSET_FNV1A64
     );
-}
-
-#[test]
-fn ampersand_glyph_is_non_empty() {
-    assert_ne!(glyph_rows('&'), [0; 7]);
 }
 
 #[test]

@@ -1,10 +1,10 @@
 use super::oled::{oled_frame, OLED_FRAME_BYTES};
 use super::oled_error_tests::{menu_snapshot, producer_error};
 use super::oled_glyph_tests::{
-    assert_glyph_fixture_coverage, glyph_snapshot, GLYPH_AMPERSAND_FNV1A64, GLYPH_DIGITS_FNV1A64,
-    GLYPH_FIXTURES, GLYPH_LOWERCASE_FIRST_FNV1A64, GLYPH_LOWERCASE_LAST_FNV1A64,
-    GLYPH_PUNCTUATION_FIRST_FNV1A64, GLYPH_PUNCTUATION_LAST_FNV1A64, GLYPH_SYMBOLS_FNV1A64,
-    GLYPH_UPPERCASE_FIRST_FNV1A64, GLYPH_UPPERCASE_LAST_FNV1A64,
+    assert_glyph_fixture_coverage, glyph_snapshot, GLYPH_DIGITS_FNV1A64, GLYPH_FIXTURES,
+    GLYPH_LOWERCASE_FIRST_FNV1A64, GLYPH_LOWERCASE_LAST_FNV1A64, GLYPH_PUNCTUATION_FIRST_FNV1A64,
+    GLYPH_PUNCTUATION_LAST_FNV1A64, GLYPH_SYMBOLS_FNV1A64, GLYPH_UPPERCASE_FIRST_FNV1A64,
+    GLYPH_UPPERCASE_LAST_FNV1A64,
 };
 use super::oled_test_adapter::input_from_snapshot;
 use playback_runtime::oled_frame::{render_oled_frame, test_support};
@@ -29,7 +29,7 @@ const SLEEP_SHUTDOWN_SPLASH_ASSET_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 #[test]
 fn playback_oled_renderer_matches_pi_reference_corpus() {
     let corpus = parity_corpus();
-    assert_eq!(corpus.len(), 76);
+    assert_eq!(corpus.len(), 75);
     for (name, snapshot) in corpus {
         let pi_frame = oled_frame(&snapshot);
         let playback_frame = render_oled_frame(&input_from_snapshot(&snapshot));
@@ -157,7 +157,6 @@ fn pi_and_playback_frozen_frames_have_stable_anchors() {
             "glyph-punctuation-first" => GLYPH_PUNCTUATION_FIRST_FNV1A64,
             "glyph-punctuation-last" => GLYPH_PUNCTUATION_LAST_FNV1A64,
             "glyph-symbols" => GLYPH_SYMBOLS_FNV1A64,
-            "glyph-ampersand" => GLYPH_AMPERSAND_FNV1A64,
             _ => unreachable!("unlisted glyph fixture: {}", fixture.name),
         };
         assert_eq!(

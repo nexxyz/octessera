@@ -26,7 +26,7 @@ is runtime-only Check/Apply/Rollback when Internet is available, not a full
 OS/image, kernel, or device-tree update path.
 
 These end-to-end setup steps keep the setup AP qualification separate. Use the
-standalone `System > Backup & Restore` action in the gap stage for data transfer.
+standalone `System > Backup / Restore` action in the gap stage for data transfer.
 
 ## Raspberry end-to-end
 

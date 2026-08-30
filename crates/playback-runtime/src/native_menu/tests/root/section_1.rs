@@ -129,7 +129,7 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
         vec![
             "> Saves >",
             "  Recording >",
-            "  Audio & USB >",
+            "  Audio / USB >",
             "  Sound >",
             "  MIDI >",
             "  UI >",

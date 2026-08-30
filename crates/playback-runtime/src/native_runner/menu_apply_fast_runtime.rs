@@ -167,7 +167,7 @@ impl NativeRunner {
         }
         if value_changed(&mut self.audio_outputs, next) {
             self.mark_fast_autosave_dirty();
-            self.show_toast("Audio: Save & Reboot");
+            self.show_toast("Audio: Save / Reboot");
         }
         true
     }
@@ -182,7 +182,7 @@ impl NativeRunner {
         };
         if value_changed(&mut self.usb_midi_out_enabled, value) {
             self.mark_fast_autosave_dirty();
-            self.show_toast("Audio: Save & Reboot");
+            self.show_toast("Audio: Save / Reboot");
         }
         true
     }

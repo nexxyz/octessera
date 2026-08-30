@@ -16,7 +16,7 @@ pub(crate) fn usb_menu_edits_payload_with_save_reboot_toast() {
     );
     assert_eq!(
         runner.snapshot().unwrap()["display"]["toast"],
-        "Audio: Save & Reb"
+        "Audio: Save / Reb"
     );
 }
 
@@ -173,7 +173,7 @@ pub(crate) fn usb_apply_reboot_is_confirmed_and_emits_payload() {
     assert_eq!(snapshot["display"]["title"], "Confirm Audio");
     let lines = snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines.iter().any(|line| line == "> Cancel"));
-    assert!(lines.iter().any(|line| line == "  Save & Reboot"));
+    assert!(lines.iter().any(|line| line == "  Save / Reboot"));
 
     runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
     let messages = runner

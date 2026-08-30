@@ -23,7 +23,7 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 - Qualify `System > Configure WiFi > Open Portal` on both boards, including AP
   join, captive-page submission, credential and hostname application, reconnect,
   timeout/failure reporting, status hygiene, and the user-window behavior.
-- Qualify standalone `System > Backup & Restore` on both boards, including URL
+- Qualify standalone `System > Backup / Restore` on both boards, including URL
   and code lifetime, reopen, Back/Stop, expiry, authentication revocation,
   restore confirmation, and input blocking.
 
