@@ -95,7 +95,7 @@ The concise owner for these rules is [safety and power](safety-and-power.md).
 - Power the device through the enclosure USB-C power opening.
 - Do not power the Raspberry Pi through its own micro-USB power connector.
 - The Pi micro-USB power connector is intentionally covered by the enclosure and is not meant to be used.
-- The exposed Pi USB data port can still receive 5V from a normal host cable. There is no software setting that blocks that power while keeping USB data alive; use a data-only cable, a powered hub/splitter that isolates power, or a hardware power-path fix if you need pins-only power.
+- For host data, follow [safety and power](safety-and-power.md#usb-host-connections) for the fixed USB-A path. Host VBUS is expected; no connector choice provides isolation.
 
 ## Mechanical Strategy
 

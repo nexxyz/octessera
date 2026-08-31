@@ -30,8 +30,11 @@ the DAC/Jack sound in the end-to-end paths as USB evidence.
 ### Operator action
 
 1. Before either host cable, confirm the authorized USB identity, exact board
-   port role, VBUS/CC behavior, and no-backfeed path. Use a data-only or
-   power-isolating cable when the instrument has separate power.
+   port role, VBUS/CC behavior, and no-backfeed path. For the fixed bench path,
+   use a USB-A host or hub port with USB-A-to-USB-C for Orange USB0 or
+   USB-A-to-Micro-USB for the Raspberry gadget port; avoid USB-C-to-USB-C/PD.
+   These ordinary USB-A cables carry VBUS and are not themselves the no-backfeed
+   control.
 2. If any gate or identity is missing, write `NOT RUN — unsafe or unauthorized`
    in the result matrix and do not connect the host.
 3. If authorized, enable USB Audio and/or USB MIDI in `System > Audio / USB`,

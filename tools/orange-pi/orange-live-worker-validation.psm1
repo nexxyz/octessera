@@ -44,7 +44,7 @@ function Get-OrangeLiveWorkerValidation {
 
   $expectedWorkers = $Selection.InternalFrames -ge 256 -and $Selection.Workers -gt 0
   if ([bool]$Result.workers_effective -ne $expectedWorkers) { throw "Live benchmark result worker effectiveness mismatch." }
-  $requiredDispatch = $expectedWorkers -and $Selection.InternalFrames -eq 256 -and @("synth_cross_slot_96_steal", "mixed_cross_slot_48_48_steal") -contains $Selection.Scenario
+  $requiredDispatch = $expectedWorkers -and $Selection.InternalFrames -eq 256 -and @("synth_cross_slot_96_steal", "mixed_cross_slot_48_48_steal", "synth_cross_slot_32_no_steal", "mixed_16_synth_32_sample") -contains $Selection.Scenario
   $reasons = @()
   if (-not $expectedWorkers -and ($delta.synth_parallel_dispatches -gt 0 -or $delta.synth_parallel_light_skips -gt 0 -or $delta.synth_parallel_backoff_skips -gt 0 -or $delta.synth_parallel_timing_backoffs -gt 0 -or $delta.synth_parallel_failures -gt 0 -or $delta.synth_parallel_unhealthy)) { $reasons += "ineffective worker telemetry" }
   if ($delta.synth_parallel_light_skips -gt 0) { $reasons += "light skips" }

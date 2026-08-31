@@ -103,6 +103,7 @@ pub struct SynthEngine {
     render_profile: RenderProfileState,
     block_slot_scratch: BlockSlotScratch,
     synth_workers: Option<render_synth_parallel::SynthSlotWorkerPool>,
+    synth_parallel_worker_count: usize,
     synth_parallel_backoff_blocks: u32,
     synth_parallel_failure_count: u32,
     synth_parallel_unhealthy: bool,
@@ -217,6 +218,7 @@ impl SynthEngine {
             render_profile: RenderProfileState::default(),
             block_slot_scratch: BlockSlotScratch::new(),
             synth_workers: None,
+            synth_parallel_worker_count: 0,
             synth_parallel_backoff_blocks: 0,
             synth_parallel_failure_count: 0,
             synth_parallel_unhealthy: false,
@@ -238,6 +240,10 @@ impl SynthEngine {
         } else {
             None
         };
+        self.synth_parallel_worker_count = self
+            .synth_workers
+            .as_ref()
+            .map_or(0, |_| worker_count.min(3));
         self.synth_parallel_backoff_blocks = 0;
         self.synth_parallel_failure_count = 0;
         self.synth_parallel_unhealthy = false;
@@ -279,7 +285,10 @@ impl SynthEngine {
             active_sample_voices,
             active_preview_sample_voices: self.preview_sample_voices.len(),
             active_momentary_fx: self.momentary_fx.len(),
+            active_bus_fx_slots: self.bus_active_slot_counts.iter().sum(),
+            active_global_fx_slots: self.master_active_slot_indices.len(),
             cumulative_voice_steals: self.cumulative_voice_steals,
+            synth_parallel_worker_count: self.synth_parallel_worker_count,
             synth_parallel_dispatches: self.synth_parallel_dispatches,
             synth_parallel_light_skips: self.synth_parallel_light_skips,
             synth_parallel_backoff_skips: self.synth_parallel_backoff_skips,

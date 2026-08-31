@@ -1,5 +1,14 @@
-use super::telemetry::TelemetrySummary;
-use super::timing::profile_system_output;
+use super::system::profile_system_output;
+use super::telemetry::{CounterDelta, TelemetrySummary};
+
+pub const PROFILE_CSV_SCHEMA_VERSION: u32 = 2;
+pub const PROFILE_CSV_FIELD_COUNT: usize = 34;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AudioBudgetSemantics {
+    EngineSourceRawRatio,
+    NotApplicable,
+}
 
 pub fn print_csv_header() {
     println!("{}", format_csv_header());
@@ -20,6 +29,10 @@ pub struct TimedRow<'a> {
     pub internal_block_frames: usize,
     pub sample_rate: u32,
     pub blocks: usize,
+    pub requested_measure_frames: usize,
+    pub requested_internal_block_frames: usize,
+    pub telemetry: Option<&'a TelemetrySummary>,
+    pub audio_budget: AudioBudgetSemantics,
     pub notes: &'a str,
 }
 
@@ -30,11 +43,47 @@ pub fn emit_timed_row(row: TimedRow<'_>) {
 }
 
 pub fn format_csv_header() -> String {
-    "kind,scenario,metric,value,block_frames,sample_rate,blocks,avg,p95,p99,max,notes,internal_block_frames".into()
+    [
+        "kind",
+        "scenario",
+        "metric",
+        "value",
+        "block_frames",
+        "sample_rate",
+        "blocks",
+        "avg",
+        "p95",
+        "p99",
+        "max",
+        "notes",
+        "internal_block_frames",
+        "schema_version",
+        "p99_9",
+        "over_audio_duration_budget_count",
+        "requested_measure_frames",
+        "requested_internal_block_frames",
+        "workers_requested_count",
+        "workers_effective_count",
+        "peak_synth_voices",
+        "peak_sample_voices",
+        "peak_preview_sample_voices",
+        "peak_momentary_fx",
+        "peak_bus_fx_slots",
+        "peak_global_fx_slots",
+        "peak_voice_steals",
+        "voice_steal_delta",
+        "synth_parallel_dispatch_delta",
+        "synth_parallel_light_skip_delta",
+        "synth_parallel_backoff_skip_delta",
+        "synth_parallel_timing_backoff_delta",
+        "synth_parallel_failure_delta",
+        "synth_parallel_unhealthy",
+    ]
+    .join(",")
 }
 
 pub fn format_system_row(phase: &str, metric: &str, value: &str) -> String {
-    [
+    let mut fields = vec![
         "system".to_string(),
         csv(phase),
         csv(metric),
@@ -48,8 +97,10 @@ pub fn format_system_row(phase: &str, metric: &str, value: &str) -> String {
         String::new(),
         String::new(),
         String::new(),
-    ]
-    .join(",")
+        PROFILE_CSV_SCHEMA_VERSION.to_string(),
+    ];
+    fields.resize(PROFILE_CSV_FIELD_COUNT, String::new());
+    fields.join(",")
 }
 
 pub fn format_timed_row(row: TimedRow<'_>) -> Option<String> {
@@ -61,50 +112,98 @@ pub fn format_timed_row(row: TimedRow<'_>) -> Option<String> {
     let avg = values.iter().sum::<f64>() / values.len() as f64;
     let p95 = percentile(&values, 0.95);
     let p99 = percentile(&values, 0.99);
+    let p99_9 = percentile(&values, 0.999);
     let max = *values.last().unwrap_or(&0.0);
-    Some(format!(
-        "{},{},{},{},{},{},{},{:.6},{:.6},{:.6},{:.6},{},{}",
+    let mut fields = vec![
         csv(row.kind),
         csv(row.scenario),
         csv(row.metric),
         csv(""),
-        row.block_frames,
-        row.sample_rate,
-        row.blocks,
-        avg,
-        p95,
-        p99,
-        max,
+        row.block_frames.to_string(),
+        row.sample_rate.to_string(),
+        row.blocks.to_string(),
+        format!("{avg:.6}"),
+        format!("{p95:.6}"),
+        format!("{p99:.6}"),
+        format!("{max:.6}"),
         csv(row.notes),
-        row.internal_block_frames,
-    ))
+        row.internal_block_frames.to_string(),
+        PROFILE_CSV_SCHEMA_VERSION.to_string(),
+        format!("{p99_9:.6}"),
+        audio_budget_count(&values, row.audio_budget),
+        row.requested_measure_frames.to_string(),
+        row.requested_internal_block_frames.to_string(),
+    ];
+    fields.extend(telemetry_fields(row.telemetry));
+    Some(fields.join(","))
 }
 
 pub fn notes_for(summary: &TelemetrySummary) -> String {
     format!(
         "synth={}/{};sample={}/{};preview={}/{};momentary={}/{};steals={}/{};parallel_dispatch={}/{};parallel_light_skip={}/{};parallel_backoff_skip={}/{};parallel_timing_backoff={}/{};parallel_fail={}/{};parallel_unhealthy={}",
-        summary.final_snapshot.active_synth_voices,
+        summary.end_snapshot.active_synth_voices,
         summary.peak_snapshot.active_synth_voices,
-        summary.final_snapshot.active_sample_voices,
+        summary.end_snapshot.active_sample_voices,
         summary.peak_snapshot.active_sample_voices,
-        summary.final_snapshot.active_preview_sample_voices,
+        summary.end_snapshot.active_preview_sample_voices,
         summary.peak_snapshot.active_preview_sample_voices,
-        summary.final_snapshot.active_momentary_fx,
+        summary.end_snapshot.active_momentary_fx,
         summary.peak_snapshot.active_momentary_fx,
-        summary.final_snapshot.cumulative_voice_steals,
+        summary.end_snapshot.cumulative_voice_steals,
         summary.peak_snapshot.cumulative_voice_steals,
-        summary.final_snapshot.synth_parallel_dispatches,
+        summary.end_snapshot.synth_parallel_dispatches,
         summary.peak_snapshot.synth_parallel_dispatches,
-        summary.final_snapshot.synth_parallel_light_skips,
+        summary.end_snapshot.synth_parallel_light_skips,
         summary.peak_snapshot.synth_parallel_light_skips,
-        summary.final_snapshot.synth_parallel_backoff_skips,
+        summary.end_snapshot.synth_parallel_backoff_skips,
         summary.peak_snapshot.synth_parallel_backoff_skips,
-        summary.final_snapshot.synth_parallel_timing_backoffs,
+        summary.end_snapshot.synth_parallel_timing_backoffs,
         summary.peak_snapshot.synth_parallel_timing_backoffs,
-        summary.final_snapshot.synth_parallel_failures,
+        summary.end_snapshot.synth_parallel_failures,
         summary.peak_snapshot.synth_parallel_failures,
-        summary.final_snapshot.synth_parallel_unhealthy,
+        summary.end_snapshot.synth_parallel_unhealthy,
     )
+}
+
+fn audio_budget_count(values: &[f64], semantics: AudioBudgetSemantics) -> String {
+    match semantics {
+        AudioBudgetSemantics::EngineSourceRawRatio => values
+            .iter()
+            .filter(|value| **value > 1.0)
+            .count()
+            .to_string(),
+        AudioBudgetSemantics::NotApplicable => String::new(),
+    }
+}
+
+fn telemetry_fields(summary: Option<&TelemetrySummary>) -> Vec<String> {
+    let Some(summary) = summary else {
+        return vec![String::new(); PROFILE_CSV_FIELD_COUNT - 18];
+    };
+    let delta: CounterDelta = summary.counter_delta();
+    [
+        summary.worker_requested.to_string(),
+        summary.worker_effective().to_string(),
+        summary.peak_snapshot.active_synth_voices.to_string(),
+        summary.peak_snapshot.active_sample_voices.to_string(),
+        summary
+            .peak_snapshot
+            .active_preview_sample_voices
+            .to_string(),
+        summary.peak_snapshot.active_momentary_fx.to_string(),
+        summary.peak_snapshot.active_bus_fx_slots.to_string(),
+        summary.peak_snapshot.active_global_fx_slots.to_string(),
+        summary.peak_snapshot.cumulative_voice_steals.to_string(),
+        delta.cumulative_voice_steals.to_string(),
+        delta.synth_parallel_dispatches.to_string(),
+        delta.synth_parallel_light_skips.to_string(),
+        delta.synth_parallel_backoff_skips.to_string(),
+        delta.synth_parallel_timing_backoffs.to_string(),
+        delta.synth_parallel_failures.to_string(),
+        delta.synth_parallel_unhealthy.to_string(),
+    ]
+    .into_iter()
+    .collect()
 }
 
 fn percentile(values: &[f64], percentile: f64) -> f64 {
@@ -121,46 +220,5 @@ fn csv(value: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{format_csv_header, format_system_row, format_timed_row, TimedRow};
-
-    fn field_count(line: &str) -> usize {
-        let mut quoted = false;
-        let mut fields = 1;
-        let mut chars = line.chars().peekable();
-        while let Some(character) = chars.next() {
-            match character {
-                '"' if quoted && chars.peek() == Some(&'"') => {
-                    chars.next();
-                }
-                '"' => quoted = !quoted,
-                ',' if !quoted => fields += 1,
-                _ => {}
-            }
-        }
-        fields
-    }
-
-    #[test]
-    fn formatted_profile_rows_have_thirteen_csv_fields() {
-        assert_eq!(field_count(&format_csv_header()), 13);
-        assert_eq!(
-            field_count(&format_system_row("before", "metric", "value, \"quoted\"")),
-            13
-        );
-        let samples = [0.25, 0.5];
-        let line = format_timed_row(TimedRow {
-            kind: "engine_source",
-            scenario: "scenario",
-            metric: "raw_ratio",
-            samples: &samples,
-            block_frames: 64,
-            internal_block_frames: 256,
-            sample_rate: 44_100,
-            blocks: 2,
-            notes: "notes, \"quoted\"",
-        })
-        .expect("non-empty timing row");
-        assert_eq!(field_count(&line), 13);
-    }
-}
+#[path = "report_tests.rs"]
+mod tests;

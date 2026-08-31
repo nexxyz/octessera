@@ -8,7 +8,10 @@ pub struct ProfileProbe {
     active_sample_voices: AtomicU64,
     active_preview_sample_voices: AtomicU64,
     active_momentary_fx: AtomicU64,
+    active_bus_fx_slots: AtomicU64,
+    active_global_fx_slots: AtomicU64,
     cumulative_voice_steals: AtomicU64,
+    synth_parallel_worker_count: AtomicU64,
     synth_parallel_dispatches: AtomicU64,
     synth_parallel_light_skips: AtomicU64,
     synth_parallel_backoff_skips: AtomicU64,
@@ -26,7 +29,10 @@ impl ProfileProbe {
             active_sample_voices: AtomicU64::new(0),
             active_preview_sample_voices: AtomicU64::new(0),
             active_momentary_fx: AtomicU64::new(0),
+            active_bus_fx_slots: AtomicU64::new(0),
+            active_global_fx_slots: AtomicU64::new(0),
             cumulative_voice_steals: AtomicU64::new(0),
+            synth_parallel_worker_count: AtomicU64::new(0),
             synth_parallel_dispatches: AtomicU64::new(0),
             synth_parallel_light_skips: AtomicU64::new(0),
             synth_parallel_backoff_skips: AtomicU64::new(0),
@@ -60,8 +66,16 @@ impl ProfileProbe {
         );
         self.active_momentary_fx
             .store(snapshot.active_momentary_fx as u64, Ordering::Relaxed);
+        self.active_bus_fx_slots
+            .store(snapshot.active_bus_fx_slots as u64, Ordering::Relaxed);
+        self.active_global_fx_slots
+            .store(snapshot.active_global_fx_slots as u64, Ordering::Relaxed);
         self.cumulative_voice_steals
             .store(snapshot.cumulative_voice_steals, Ordering::Relaxed);
+        self.synth_parallel_worker_count.store(
+            snapshot.synth_parallel_worker_count as u64,
+            Ordering::Relaxed,
+        );
         self.synth_parallel_dispatches
             .store(snapshot.synth_parallel_dispatches, Ordering::Relaxed);
         self.synth_parallel_light_skips
@@ -88,7 +102,11 @@ impl ProfileProbe {
             active_preview_sample_voices: self.active_preview_sample_voices.load(Ordering::Relaxed)
                 as usize,
             active_momentary_fx: self.active_momentary_fx.load(Ordering::Relaxed) as usize,
+            active_bus_fx_slots: self.active_bus_fx_slots.load(Ordering::Relaxed) as usize,
+            active_global_fx_slots: self.active_global_fx_slots.load(Ordering::Relaxed) as usize,
             cumulative_voice_steals: self.cumulative_voice_steals.load(Ordering::Relaxed),
+            synth_parallel_worker_count: self.synth_parallel_worker_count.load(Ordering::Relaxed)
+                as usize,
             synth_parallel_dispatches: self.synth_parallel_dispatches.load(Ordering::Relaxed),
             synth_parallel_light_skips: self.synth_parallel_light_skips.load(Ordering::Relaxed),
             synth_parallel_backoff_skips: self.synth_parallel_backoff_skips.load(Ordering::Relaxed),

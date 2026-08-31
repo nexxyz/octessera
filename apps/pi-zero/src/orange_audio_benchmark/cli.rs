@@ -20,6 +20,11 @@ pub enum ScenarioId {
     SynthSteal,
     SampleSteal,
     MixedSteal,
+    SynthCrossSlot16,
+    SampleCrossSlot64,
+    Mixed16Synth32Sample,
+    Fixed8Synth8Sample12Bus2Global2Momentary,
+    SynthCrossSlot32NoSteal,
 }
 
 impl ScenarioId {
@@ -37,6 +42,14 @@ impl ScenarioId {
         Self::MixedSteal,
     ];
 
+    pub const BASELINE_LIVE: [Self; 5] = [
+        Self::SynthCrossSlot16,
+        Self::SampleCrossSlot64,
+        Self::Mixed16Synth32Sample,
+        Self::Fixed8Synth8Sample12Bus2Global2Momentary,
+        Self::SynthCrossSlot32NoSteal,
+    ];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Synth16 => "synth_ramp_16",
@@ -50,11 +63,21 @@ impl ScenarioId {
             Self::SynthSteal => "synth_cross_slot_96_steal",
             Self::SampleSteal => "sample_cross_slot_96_steal",
             Self::MixedSteal => "mixed_cross_slot_48_48_steal",
+            Self::SynthCrossSlot16 => "synth_cross_slot_16",
+            Self::SampleCrossSlot64 => "sample_cross_slot_64",
+            Self::Mixed16Synth32Sample => "mixed_16_synth_32_sample",
+            Self::Fixed8Synth8Sample12Bus2Global2Momentary => {
+                "fixed_8_synth_8_sample_12_bus_2_global_2_momentary"
+            }
+            Self::SynthCrossSlot32NoSteal => "synth_cross_slot_32_no_steal",
         }
     }
 
     fn parse(value: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|id| id.as_str() == value)
+        Self::ALL
+            .into_iter()
+            .chain(Self::BASELINE_LIVE)
+            .find(|id| id.as_str() == value)
     }
 }
 
@@ -135,10 +158,11 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     let scenario = ScenarioId::parse(scenario.as_deref().unwrap_or_default())
         .ok_or_else(|| "an exact --scenario is required".to_string())?;
     let output_frames = output_frames.ok_or_else(|| "--output-frames is required".to_string())?;
-    if !matches!(output_frames, 256 | 512 | 1024) {
-        return Err("output frames must be 256, 512, or 1024".into());
+    if !matches!(output_frames, 128 | 256 | 512 | 1024) {
+        return Err("output frames must be 128, 256, 512, or 1024".into());
     }
     let expected_alsa_period_frames = match output_frames {
+        128 => 32,
         256 => 64,
         512 => 128,
         1024 => 256,
@@ -146,8 +170,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     };
     let internal_frames =
         engine_block_frames.ok_or_else(|| "--engine-block-frames is required".to_string())?;
-    if !matches!(internal_frames, 64 | 128 | 256) {
-        return Err("engine block frames must be 64, 128, or 256".into());
+    if !matches!(internal_frames, 32 | 64 | 128 | 256) {
+        return Err("engine block frames must be 32, 64, 128, or 256".into());
     }
     let workers = workers.ok_or_else(|| "--workers is required".to_string())?;
     if !matches!(workers, 0 | 2 | 3) {
@@ -214,7 +238,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
 fn approved_tuple(output_frames: u32, internal_frames: usize, workers: usize) -> bool {
     matches!(
         (output_frames, internal_frames, workers),
-        (256, 64, 2) | (256, 256, 0) | (256, 256, 2) | (512, 128, 2) | (1024, 256, 0 | 2 | 3)
+        (128, 32, 2)
+            | (256, 64, 2)
+            | (256, 256, 0)
+            | (256, 256, 2)
+            | (512, 128, 2)
+            | (1024, 256, 0 | 2 | 3)
     )
 }
 
@@ -278,6 +307,7 @@ mod tests {
     #[test]
     fn approved_cli_tuples_store_independent_geometry() {
         for (output, internal, workers, period) in [
+            (128, 32, 2, 32),
             (256, 64, 2, 64),
             (256, 256, 0, 64),
             (256, 256, 2, 64),
@@ -299,6 +329,34 @@ mod tests {
     }
 
     #[test]
+    fn historical_order_is_unchanged_and_baseline_live_ids_are_separate() {
+        let historical: Vec<_> = ScenarioId::ALL
+            .into_iter()
+            .map(ScenarioId::as_str)
+            .collect();
+        assert_eq!(
+            historical,
+            vec![
+                "synth_ramp_16",
+                "synth_ramp_32",
+                "synth_ramp_64",
+                "sample_ramp_64",
+                "mixed_ramp_16_16",
+                "mixed_ramp_32_32",
+                "bus_heavy_6_bus_fx_2_global",
+                "momentary_combined",
+                "synth_cross_slot_96_steal",
+                "sample_cross_slot_96_steal",
+                "mixed_cross_slot_48_48_steal",
+            ]
+        );
+        for id in ScenarioId::BASELINE_LIVE {
+            assert_eq!(ScenarioId::parse(id.as_str()), Some(id));
+        }
+        assert!(ScenarioId::parse("baseline_idle").is_none());
+    }
+
+    #[test]
     fn engine_block_frames_are_mandatory_and_unsupported_tuples_are_rejected() {
         let mut missing = valid_args();
         remove_arg(&mut missing, "--engine-block-frames");
@@ -310,6 +368,10 @@ mod tests {
         set_arg(&mut invalid_block, "--engine-block-frames", "512".into());
         assert!(parse(invalid_block).is_err());
         for (output, internal, workers) in [
+            (128, 32, 0),
+            (128, 32, 3),
+            (128, 64, 2),
+            (64, 32, 2),
             (256, 64, 0),
             (256, 64, 3),
             (256, 128, 2),

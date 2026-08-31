@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1") -Force
 $script:OrangeLiveScenarioIds = @("synth_ramp_16", "synth_ramp_32", "synth_ramp_64", "sample_ramp_64", "mixed_ramp_16_16", "mixed_ramp_32_32", "bus_heavy_6_bus_fx_2_global", "momentary_combined", "synth_cross_slot_96_steal", "sample_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
 $script:OrangeLiveWorkerScenarios = @("synth_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
 function Get-OrangeLiveScenarioIds {
@@ -9,28 +10,28 @@ function Assert-OrangeLiveBenchmarkSelection {
   param(
     [Parameter(Mandatory)][string]$Scenario,
     [Parameter(Mandatory)][int]$OutputFrames,
-    [Parameter(Mandatory)][ValidateSet(64, 128, 256)][int]$EngineBlockFrames,
+    [Parameter(Mandatory)][ValidateSet(32, 64, 128, 256)][int]$EngineBlockFrames,
     [Parameter(Mandatory)][int]$Workers,
     [Parameter(Mandatory)][int]$MeasureSeconds,
     [bool]$AllowLongRepeat = $false
   )
-  if ($script:OrangeLiveScenarioIds -notcontains $Scenario) {
-    throw "LiveAudioBenchmark scenario is not in the approved historical order: $Scenario"
+  if ($script:OrangeLiveScenarioIds -notcontains $Scenario -and (Get-OrangeBaselineLiveScenarioIds) -notcontains $Scenario) {
+    throw "LiveAudioBenchmark scenario is not an approved live baseline ID: $Scenario"
   }
-  $alsaPeriodFrames = @{ 256 = 64; 512 = 128; 1024 = 256 }[$OutputFrames]
-  if ($null -eq $alsaPeriodFrames) { throw "LiveAudioBenchmark output frames must be 256, 512, or 1024." }
+  $alsaPeriodFrames = @{ 128 = 32; 256 = 64; 512 = 128; 1024 = 256 }[$OutputFrames]
+  if ($null -eq $alsaPeriodFrames) { throw "LiveAudioBenchmark output frames must be 128, 256, 512, or 1024." }
   if (@(0, 2, 3) -notcontains $Workers) {
     throw "LiveAudioBenchmark workers must be 0, 2, or 3."
   }
   if (@(30, 120) -notcontains $MeasureSeconds) {
     throw "LiveAudioBenchmark measure seconds must be 30 or 120."
   }
-  $approvedTuples = @("256/64/2", "256/256/0", "256/256/2", "512/128/2", "1024/256/0", "1024/256/2", "1024/256/3")
+  $approvedTuples = @("128/32/2", "256/64/2", "256/256/0", "256/256/2", "512/128/2", "1024/256/0", "1024/256/2", "1024/256/3")
   $approvedTuple = $approvedTuples -contains "$OutputFrames/$EngineBlockFrames/$Workers"
   if (-not $approvedTuple) {
     throw "LiveAudioBenchmark geometry tuple is not approved: output=$OutputFrames engine=$EngineBlockFrames workers=$Workers."
   }
-  if ($OutputFrames -eq 1024 -and $script:OrangeLiveWorkerScenarios -notcontains $Scenario) {
+  if ($OutputFrames -eq 1024 -and $script:OrangeLiveWorkerScenarios -notcontains $Scenario -and @("synth_cross_slot_32_no_steal", "mixed_16_synth_32_sample") -notcontains $Scenario) {
     throw "LiveAudioBenchmark output 1024 is limited to the synth and mixed steal scenarios."
   }
   if ($MeasureSeconds -eq 120) {

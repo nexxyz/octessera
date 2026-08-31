@@ -9,9 +9,14 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn valid_json_for(binary: &str, hash: &str) -> String {
+    let source_commit = valid_source_commit();
     format!(
-        "{{\"schema_version\":2,\"board_profile\":\"orange-pi-zero-2w\",\"artifact_kind\":\"diagnostic-only\",\"runtime_ready\":false,\"binary\":\"{binary}\",\"package\":\"octessera-hal\",\"arch\":\"aarch64-unknown-linux-gnu\",\"cargo_feature\":\"orange-pi-zero-2w\",\"profile\":\"pi-dev\",\"binary_sha256\":\"{hash}\"}}"
+        "{{\"schema_version\":2,\"board_profile\":\"orange-pi-zero-2w\",\"artifact_kind\":\"diagnostic-only\",\"runtime_ready\":false,\"binary\":\"{binary}\",\"package\":\"octessera-hal\",\"arch\":\"aarch64-unknown-linux-gnu\",\"cargo_feature\":\"orange-pi-zero-2w\",\"profile\":\"pi-dev\",\"binary_sha256\":\"{hash}\",\"source_commit\":\"{source_commit}\"}}"
     )
+}
+
+fn valid_source_commit() -> String {
+    "a".repeat(40)
 }
 
 fn valid_json(hash: &str) -> String {
@@ -30,6 +35,7 @@ fn valid_metadata_for(binary: &str, hash: &str) -> BuildMetadata {
         cargo_feature: "orange-pi-zero-2w".into(),
         profile: "release".into(),
         binary_sha256: hash.into(),
+        source_commit: valid_source_commit(),
     }
 }
 
@@ -52,6 +58,8 @@ fn metadata_parser_rejects_malformed_content_table() {
     let hash = "a".repeat(64);
     let metadata = parse_metadata(&valid_json(&hash)).expect("valid metadata");
     assert_eq!(metadata.binary, CANONICAL_BINARY_NAME);
+    assert_eq!(metadata.source_commit, valid_source_commit());
+    assert!(validate_metadata(&metadata, &hash).is_ok());
     let cases = [
         (
             "missing field",
@@ -68,6 +76,13 @@ fn metadata_parser_rejects_malformed_content_table() {
                 "\"profile\":\"pi-dev\",\"profile\":\"release\"",
             ),
         ),
+        (
+            "missing source commit",
+            valid_json(&hash).replace(
+                &format!(",\"source_commit\":\"{}\"", valid_source_commit()),
+                "",
+            ),
+        ),
         ("malformed JSON", "{\"schema_version\":2".to_string()),
         (
             "malformed field type",
@@ -79,6 +94,23 @@ fn metadata_parser_rejects_malformed_content_table() {
             parse_metadata(&input).is_err(),
             "{label} unexpectedly parsed"
         );
+    }
+}
+
+#[test]
+fn source_commit_is_required_and_canonical() {
+    let hash = "b".repeat(64);
+    let malformed = [
+        String::new(),
+        "a".repeat(39),
+        "a".repeat(41),
+        "A".repeat(40),
+        "g".repeat(40),
+    ];
+    for source_commit in malformed {
+        let mut metadata = valid_metadata(&hash);
+        metadata.source_commit = source_commit;
+        assert!(validate_metadata(&metadata, &hash).is_err());
     }
 }
 

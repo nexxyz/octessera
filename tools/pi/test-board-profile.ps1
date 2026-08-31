@@ -90,6 +90,14 @@ if ($wslCrossBuildScript -notmatch '(?m)docker build\s+-f\s+"\$DOCKERFILE"\s+-t\
 if ($wslCrossBuildScript -match '(?m)docker build .* \.\s*$') {
   throw "Pi WSL cross-build must not use the repository root as Docker build context."
 }
+if ($crossBuildScript -notmatch "Write-RaspberryBoardMetadata.*SourceCommit.*BinaryPath") {
+  throw "Pi cross-build must bind Raspberry metadata to the source commit and output binary."
+}
+$statusCheckIndex = $crossBuildScript.IndexOf("status --porcelain --untracked-files=all", [StringComparison]::Ordinal)
+$backendSwitchIndex = $crossBuildScript.IndexOf('switch ($selectedBackend)', [StringComparison]::Ordinal)
+if ($statusCheckIndex -lt 0 -or $backendSwitchIndex -lt 0 -or $statusCheckIndex -gt $backendSwitchIndex -or $crossBuildScript.IndexOf("Authoritative Pi builds require a clean repository", [StringComparison]::Ordinal) -lt 0) {
+  throw "Pi cross-builder must reject dirty source before starting an authoritative build."
+}
 $candidateCheckIndex = $remoteDeployScript.IndexOf('"$STAGING_RELEASE/octessera-pi" --print-build-metadata', [StringComparison]::Ordinal)
 $activationIndex = $remoteDeployScript.LastIndexOf('ACTIVATED=1', [StringComparison]::Ordinal)
 $serviceIndex = $remoteDeployScript.LastIndexOf('systemctl restart "$SERVICE"', [StringComparison]::Ordinal)
@@ -104,6 +112,8 @@ if ($deployScript.IndexOf("ConvertTo-PosixShellSingleQuoted", [StringComparison]
 }
 
 $metadataPath = Join-Path ([IO.Path]::GetTempPath()) "octessera-board-profile-test.json"
+$binaryPath = Join-Path ([IO.Path]::GetTempPath()) "octessera-board-profile-test.bin"
+$swappedBinaryPath = Join-Path ([IO.Path]::GetTempPath()) "octessera-board-profile-test-swapped.bin"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false, $true)
 
 function Write-TestJson {
@@ -158,6 +168,47 @@ try {
     throw "Raspberry metadata JSON is not the strict canonical byte representation"
   }
   Read-RaspberryBoardMetadata $metadataPath | Out-Null
+  $sourceCommit = "a" * 40
+  [IO.File]::WriteAllBytes($binaryPath, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x00))
+  Write-RaspberryBoardMetadata $metadataPath -SourceCommit $sourceCommit -BinaryPath $binaryPath
+  $buildMetadata = Read-RaspberryBoardMetadata $metadataPath
+  Assert-RaspberryBuildMetadata -Metadata $buildMetadata -SourceCommit $sourceCommit -BinaryPath $binaryPath | Out-Null
+  $authoritativeMetadataText = [IO.File]::ReadAllText($metadataPath)
+  if ($authoritativeMetadataText -notmatch '"binary_sha256":"[0-9a-f]{64}"') { throw "Raspberry authoritative metadata omitted binary_sha256." }
+  $missingBinaryHash = $authoritativeMetadataText -replace ',"binary_sha256":"[0-9a-f]{64}"', ''
+  [IO.File]::WriteAllText($metadataPath, $missingBinaryHash, $utf8NoBom)
+  Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "missing Raspberry artifact hash"
+  $malformedBinaryHash = $authoritativeMetadataText -replace '"binary_sha256":"[0-9a-f]{64}"', ('"binary_sha256":"' + ("g" * 64) + '"')
+  [IO.File]::WriteAllText($metadataPath, $malformedBinaryHash, $utf8NoBom)
+  Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "malformed Raspberry artifact hash"
+  Write-RaspberryBoardMetadata $metadataPath -SourceCommit $sourceCommit -BinaryPath $binaryPath
+  [IO.File]::WriteAllBytes($binaryPath, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x01))
+  Assert-Rejected { Assert-RaspberryBuildMetadata -Metadata (Read-RaspberryBoardMetadata $metadataPath) -SourceCommit $sourceCommit -BinaryPath $binaryPath | Out-Null } "changed Raspberry artifact bytes"
+  [IO.File]::WriteAllBytes($binaryPath, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x00))
+  [IO.File]::WriteAllBytes($swappedBinaryPath, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x01))
+  Assert-Rejected { Assert-RaspberryBuildMetadata -Metadata (Read-RaspberryBoardMetadata $metadataPath) -SourceCommit $sourceCommit -BinaryPath $swappedBinaryPath | Out-Null } "swapped Raspberry artifact"
+  $mismatchedBuildMetadata = [regex]::Replace([IO.File]::ReadAllText($metadataPath), '"source_commit":"[0-9a-f]{40}"', ('"source_commit":"' + ("b" * 40) + '"'))
+  [IO.File]::WriteAllText($metadataPath, $mismatchedBuildMetadata, $utf8NoBom)
+  Assert-Rejected { Assert-RaspberryBuildMetadata -Metadata (Read-RaspberryBoardMetadata $metadataPath) -SourceCommit $sourceCommit -BinaryPath $binaryPath | Out-Null } "mismatched Raspberry build commit"
+  $staleBuildMetadata = [regex]::Replace($mismatchedBuildMetadata, '"source_commit":"[0-9a-f]{40}"', ('"source_commit":"' + ("c" * 40) + '"'))
+  [IO.File]::WriteAllText($metadataPath, $staleBuildMetadata, $utf8NoBom)
+  Assert-Rejected { Assert-RaspberryBuildMetadata -Metadata (Read-RaspberryBoardMetadata $metadataPath) -SourceCommit $sourceCommit -BinaryPath $binaryPath | Out-Null } "stale Raspberry artifact metadata"
+  Write-RaspberryBoardMetadata $metadataPath
+
+  $validSystemEvidence = @(
+    "raspberry_system_sample phase=startup thermal_max_millicelsius=50000 mem_available_kb=600000 throttled=0x0 current_throttled_mask=0 undervoltage=0",
+    "raspberry_system_sample phase=runtime thermal_max_millicelsius=60000 mem_available_kb=580000 throttled=0x0 current_throttled_mask=0 undervoltage=0"
+  ) -join "`n"
+  $systemSummary = Assert-RaspberrySystemEvidence $validSystemEvidence
+  if ($systemSummary.StartupSampleCount -ne 1 -or $systemSummary.RuntimeSampleCount -ne 1) { throw "Valid Raspberry system evidence was not summarized." }
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Split("`n")[0]) } "missing runtime thermal evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=60000", "thermal_max_millicelsius=bad")) } "malformed thermal evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x0 current_throttled_mask=0", "throttled=0x4 current_throttled_mask=4")) } "active throttling evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x0 current_throttled_mask=0 undervoltage=0", "throttled=0x1 current_throttled_mask=1 undervoltage=1")) } "undervoltage evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=50000", "thermal_max_millicelsius=70000")) } "startup temperature limit"
+  Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=60000", "thermal_max_millicelsius=70000")) | Out-Null
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=60000", "thermal_max_millicelsius=75000")) } "runtime temperature limit"
+  Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x0 current_throttled_mask=0", "throttled=0x10000 current_throttled_mask=0")) | Out-Null
 
   $validFields = [ordered]@{
     schema_version = 1
@@ -273,7 +324,7 @@ try {
   Assert-Rejected { Write-RaspberryBoardMetadata $metadataPath -Binary "wrong" } "writer binary"
   Assert-Rejected { Write-RaspberryBoardMetadata $metadataPath -CargoFeature "hardware-pi" } "writer cargo feature"
 } finally {
-  Remove-Item -LiteralPath $metadataPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $metadataPath, $binaryPath, $swappedBinaryPath -Force -ErrorAction SilentlyContinue
 }
 
 Write-Output "PowerShell Raspberry board profile validation passed"

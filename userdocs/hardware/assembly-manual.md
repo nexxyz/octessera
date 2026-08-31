@@ -46,15 +46,15 @@ keep source proof and physical proof separate.
 | 1 | USB-C power breakout | [Adafruit `4090`](https://www.adafruit.com/product/4090), Mouser `485-4090` | Power the device here, not through the compute board. |
 | 4 | Horizontal rotary encoder with switch | [RS `781-6811`](https://at.rs-online.com/web/p/mechanische-drehgeber/7816811), Bourns `PEC12R-4225F-S0024` | The PCB uses four encoders. |
 | 1 | Polarized capacitor | [`470uF`, 16V, radial, about 8x12mm](https://de.aliexpress.com/item/1005010415990713.html) | PCB footprint: `CP_Radial_D8.0mm_P3.50mm`. Any equivalent 470uF polarized radial capacitor with 3.5mm lead pitch and >5V rating is fine. |
-| 1 | 5V TVS diode | `SA5.0A`, axial DO-15, `Diode_THT:D_DO-15_P10.16mm_Horizontal` | PCB reference `D1`. The banded cathode goes to the PCB `K/+5V` pad; the unbanded anode goes to `A/GND`. This protects the shared 5V rail from transients. |
+| 1 | 5V TVS diode | `SA5.0A`, axial DO-15, `Diode_THT:D_DO-15_P10.16mm_Horizontal` | Required canonical PCB/BOM part `D1`; protects the shared 5V rail from transients. The banded cathode goes to the PCB `K/+5V` pad; the unbanded anode goes to `A/GND`. |
 | 1 | 1x5 right-angle male header, 2.54mm pitch | Any standard breakaway right-angle male pin header | Cut to 5 pins for the NeoTrellis connector on the PCB. The PCB connector indicator still applies; no PCB/Gerber change is needed. |
 | 1 | 5-wire female-to-female Dupont cable, about 10cm | Any 2.54mm female-to-female jumper cable set | Use five adjacent leads to connect the NeoTrellis array to the PCB. |
 | 25 pins | Straight male pin header, 2.54mm pitch | Any standard breakaway male pin header strip | Use 20 pins to link the four NeoTrellis boards together, plus 5 pins for the external connection point on the upper-left NeoTrellis board. |
 | several | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length for the selected compute board, OLED, DAC, power breakout, and other plug-in modules. Confirm the socket height before ordering. |
 | 4 | Cherry MX-compatible key switches | [Cherry MX Black switches](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1), or any MX-compatible switch | Install into the NeoKey after bring-up. |
 | 1 | MicroSD card for the selected board | 16GB or larger recommended | Flash the matching board image. Raspberry and Orange image workflows are separate. |
-| 1 | USB-C power supply | Regulated 5V supply, 3A minimum; 4A recommended for extra LED headroom | Connect only to the USB-C breakout. A 2A supply is likely marginal once the compute board and LEDs are running together. See [safety and power](safety-and-power.md). |
-| 1 | Data-only USB cable or power-isolating USB adapter | Optional, for experimental/local bench USB data validation | Needed when the selected board's host-data port is connected to a host after the exact build passes its port-role, VBUS/CC, and no-backfeed gates. Software cannot block USB 5V for you. |
+| 1 | USB-C power supply | Dedicated regulated 5V/4A supply intended for Raspberry Pi 4-class systems | Canonical device power setup. The documented GeeekPi 20W 5V/4A example is acceptable. Connect only to the USB-C breakout; see [safety and power](safety-and-power.md). |
+| 1 | USB-A data cable | USB-A-to-USB-C for Orange USB0, or USB-A-to-Micro-USB for the Raspberry gadget port | For experimental/local bench USB data validation from a USB-A host or hub port. Avoid USB-C-to-USB-C/PD. See [safety and power](safety-and-power.md). |
 | 1 | Audio cable/headphones/speaker | 3.5mm audio | Used for test and operation. |
 
 ### 3D printed and mechanical parts
@@ -240,14 +240,13 @@ board power port unless the selected-board wiring or bring-up instructions
 explicitly authorize it. Follow the selected board's power and USB-role checks
 before connecting a host.
 
-For the Raspberry path, if you connect the Pi USB data/gadget port to a
-computer for authorized experimental/local bench validation, remember that a
-normal USB cable carries 5V too. Octessera can configure the gadget, but software
-cannot block that power.
-Use a data-only cable or a power-isolating adapter if the instrument is already
-powered through the enclosure USB-C port. For Orange, connect the host-data port
-only after the exact build passes the port-role, VBUS/CC, and no-backfeed gates
-in the [Orange Armbian bring-up procedure](../../hardware/docs/orange-pi-armbian-bringup.md).
+For authorized experimental/local USB validation, use the fixed USB-A host or
+hub path and board-specific cable in [safety and power](safety-and-power.md).
+For either board, neither the ordinary cable choice nor D1 provides VBUS or
+reverse-current isolation.
+For Orange, connect the host-data port only after the exact build passes the
+port-role, VBUS/CC, and no-backfeed gates in the [Orange Armbian bring-up
+procedure](../../hardware/docs/orange-pi-armbian-bringup.md).
 
 Before applying power, check the NeoKey and NeoTrellis connector orientation again. `INT` should be on the south side.
 

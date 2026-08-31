@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "study_id": "cross-board-baseline",
+  "sample_rate": 44100,
+  "warmup_seconds": 2,
+  "offline_observations": 4096,
+  "repetitions": 3,
+  "cohorts": {
+    "common_reference": {
+      "kind": "native_profile",
+      "cells": [
+        { "id": "common_baseline_idle", "scenario": "baseline_idle", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_synth_shipped_policy_8", "scenario": "synth_shipped_policy_8", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_synth_cross_slot_16", "scenario": "synth_cross_slot_16", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_sample_8", "scenario": "sample_8", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_sample_cross_slot_64", "scenario": "sample_cross_slot_64", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_mixed_16_synth_32_sample", "scenario": "mixed_16_synth_32_sample", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_fixed_8_0_bus_2_global_0_momentary", "scenario": "fixed_8_synth_8_sample_0_bus_2_global_0_momentary", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_fixed_8_6_bus_2_global_2_momentary", "scenario": "fixed_8_synth_8_sample_6_bus_2_global_2_momentary", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_fixed_8_12_bus_2_global_0_momentary", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_0_momentary", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_fixed_8_12_bus_2_global_2_momentary", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_synth_cross_slot_32_no_steal", "scenario": "synth_cross_slot_32_no_steal", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "common_synth_cross_slot_64_no_steal", "scenario": "synth_cross_slot_64_no_steal", "internal_frames": 256, "measure_frames": 256, "workers": 2 }
+      ]
+    },
+    "orange_effective_default": {
+      "kind": "native_profile",
+      "cells": [
+        { "id": "orange_default_baseline_idle", "scenario": "baseline_idle", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_synth_shipped_policy_8", "scenario": "synth_shipped_policy_8", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_synth_cross_slot_16", "scenario": "synth_cross_slot_16", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_sample_8", "scenario": "sample_8", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_sample_cross_slot_64", "scenario": "sample_cross_slot_64", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_mixed_16_synth_32_sample", "scenario": "mixed_16_synth_32_sample", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_fixed_8_0_bus_2_global_0_momentary", "scenario": "fixed_8_synth_8_sample_0_bus_2_global_0_momentary", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_fixed_8_6_bus_2_global_2_momentary", "scenario": "fixed_8_synth_8_sample_6_bus_2_global_2_momentary", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_fixed_8_12_bus_2_global_0_momentary", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_0_momentary", "internal_frames": 64, "measure_frames": 64, "workers": 2 },
+        { "id": "orange_default_fixed_8_12_bus_2_global_2_momentary", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "internal_frames": 64, "measure_frames": 64, "workers": 2 }
+      ]
+    },
+    "block_sweep": {
+      "kind": "native_profile",
+      "scenarios": ["synth_cross_slot_16", "mixed_16_synth_32_sample", "fixed_8_synth_8_sample_12_bus_2_global_2_momentary"],
+      "cells": [
+        { "id": "block_synth_cross_slot_16_64", "scenario": "synth_cross_slot_16", "internal_frames": 64, "measure_frames": 64, "workers": 0 },
+        { "id": "block_synth_cross_slot_16_128", "scenario": "synth_cross_slot_16", "internal_frames": 128, "measure_frames": 128, "workers": 0 },
+        { "id": "block_synth_cross_slot_16_256", "scenario": "synth_cross_slot_16", "internal_frames": 256, "measure_frames": 256, "workers": 0 },
+        { "id": "block_mixed_16_synth_32_sample_64", "scenario": "mixed_16_synth_32_sample", "internal_frames": 64, "measure_frames": 64, "workers": 0 },
+        { "id": "block_mixed_16_synth_32_sample_128", "scenario": "mixed_16_synth_32_sample", "internal_frames": 128, "measure_frames": 128, "workers": 0 },
+        { "id": "block_mixed_16_synth_32_sample_256", "scenario": "mixed_16_synth_32_sample", "internal_frames": 256, "measure_frames": 256, "workers": 0 },
+        { "id": "block_max_fx_64", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "internal_frames": 64, "measure_frames": 64, "workers": 0 },
+        { "id": "block_max_fx_128", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "internal_frames": 128, "measure_frames": 128, "workers": 0 },
+        { "id": "block_max_fx_256", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "internal_frames": 256, "measure_frames": 256, "workers": 0 }
+      ]
+    },
+    "worker_sweep": {
+      "kind": "native_profile",
+      "scenarios": ["synth_cross_slot_16", "mixed_16_synth_32_sample", "synth_cross_slot_32_no_steal"],
+      "cells": [
+        { "id": "workers_synth_cross_slot_16_0", "scenario": "synth_cross_slot_16", "internal_frames": 256, "measure_frames": 256, "workers": 0 },
+        { "id": "workers_synth_cross_slot_16_2", "scenario": "synth_cross_slot_16", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "workers_synth_cross_slot_16_3", "scenario": "synth_cross_slot_16", "internal_frames": 256, "measure_frames": 256, "workers": 3 },
+        { "id": "workers_mixed_16_synth_32_sample_0", "scenario": "mixed_16_synth_32_sample", "internal_frames": 256, "measure_frames": 256, "workers": 0 },
+        { "id": "workers_mixed_16_synth_32_sample_2", "scenario": "mixed_16_synth_32_sample", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "workers_mixed_16_synth_32_sample_3", "scenario": "mixed_16_synth_32_sample", "internal_frames": 256, "measure_frames": 256, "workers": 3 },
+        { "id": "workers_synth_cross_slot_32_no_steal_0", "scenario": "synth_cross_slot_32_no_steal", "internal_frames": 256, "measure_frames": 256, "workers": 0 },
+        { "id": "workers_synth_cross_slot_32_no_steal_2", "scenario": "synth_cross_slot_32_no_steal", "internal_frames": 256, "measure_frames": 256, "workers": 2 },
+        { "id": "workers_synth_cross_slot_32_no_steal_3", "scenario": "synth_cross_slot_32_no_steal", "internal_frames": 256, "measure_frames": 256, "workers": 3 }
+      ]
+    }
+  },
+  "orange": {
+    "board_profile": "orange-pi-zero-2w",
+    "live_defaults": [
+      { "id": "orange_live_default_synth_cross_slot_16", "scenario": "synth_cross_slot_16", "output_frames": 256, "internal_frames": 64, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_default_sample_cross_slot_64", "scenario": "sample_cross_slot_64", "output_frames": 256, "internal_frames": 64, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_default_mixed_16_synth_32_sample", "scenario": "mixed_16_synth_32_sample", "output_frames": 256, "internal_frames": 64, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_default_max_fx", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "output_frames": 256, "internal_frames": 64, "workers": 2, "measure_seconds": 30 }
+    ],
+    "live_neighbors": [
+      { "id": "orange_live_neighbor_mixed_128", "scenario": "mixed_16_synth_32_sample", "output_frames": 128, "internal_frames": 32, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_neighbor_mixed_512", "scenario": "mixed_16_synth_32_sample", "output_frames": 512, "internal_frames": 128, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_neighbor_max_fx_128", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "output_frames": 128, "internal_frames": 32, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_neighbor_max_fx_512", "scenario": "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "output_frames": 512, "internal_frames": 128, "workers": 2, "measure_seconds": 30 }
+    ],
+    "live_workers": [
+      { "id": "orange_live_worker_synth32_0", "scenario": "synth_cross_slot_32_no_steal", "output_frames": 1024, "internal_frames": 256, "workers": 0, "measure_seconds": 30 },
+      { "id": "orange_live_worker_synth32_2", "scenario": "synth_cross_slot_32_no_steal", "output_frames": 1024, "internal_frames": 256, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_worker_synth32_3", "scenario": "synth_cross_slot_32_no_steal", "output_frames": 1024, "internal_frames": 256, "workers": 3, "measure_seconds": 30 },
+      { "id": "orange_live_worker_mixed_0", "scenario": "mixed_16_synth_32_sample", "output_frames": 1024, "internal_frames": 256, "workers": 0, "measure_seconds": 30 },
+      { "id": "orange_live_worker_mixed_2", "scenario": "mixed_16_synth_32_sample", "output_frames": 1024, "internal_frames": 256, "workers": 2, "measure_seconds": 30 },
+      { "id": "orange_live_worker_mixed_3", "scenario": "mixed_16_synth_32_sample", "output_frames": 1024, "internal_frames": 256, "workers": 3, "measure_seconds": 30 }
+    ],
+    "long_repeat": {
+      "id": "orange_live_worst_passing_default_120",
+      "selection": "p99.9_then_max",
+      "measure_seconds": 120,
+      "warmup_seconds": 5
+    }
+  },
+  "raspberry": {
+    "board_profile": "raspberry-pi-zero-2w",
+    "live_cells": [
+      { "id": "raspberry_live_output_128", "scenario": "pulses-stress", "output_frames": 128, "internal_frames": 256, "workers": 2, "duration_seconds": 30, "probe_modes": ["Live", "AudioDrain"], "callback_fields": null },
+      { "id": "raspberry_live_output_256", "scenario": "pulses-stress", "output_frames": 256, "internal_frames": 256, "workers": 2, "duration_seconds": 30, "probe_modes": ["Live", "AudioDrain"], "callback_fields": null },
+      { "id": "raspberry_live_output_512", "scenario": "pulses-stress", "output_frames": 512, "internal_frames": 256, "workers": 2, "duration_seconds": 30, "probe_modes": ["Live", "AudioDrain"], "callback_fields": null }
+    ]
+  }
+}

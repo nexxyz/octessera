@@ -1,4 +1,5 @@
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot "orange-profile-baseline-payloads.psm1") -Force
 
 function Quote-ShValue {
   param([Parameter(Mandatory)][string]$Value)
@@ -232,7 +233,7 @@ exit "$candidate_status"
 
 function New-RemoteStudyPayload {
   param(
-    [Parameter(Mandatory)][ValidateSet("PassiveBaseline", "Dsp64", "Dsp256", "LiveCandidate")][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet("PassiveBaseline", "ProfileBaseline", "Dsp64", "Dsp256", "LiveCandidate")][string]$Mode,
     [Parameter(Mandatory)][string]$ProfileMode,
     [Parameter(Mandatory)][int]$TimeoutSeconds,
     [Parameter(Mandatory)][int]$LiveSeconds,
@@ -243,7 +244,11 @@ function New-RemoteStudyPayload {
     [Parameter(Mandatory)][string]$Unit,
     [Parameter(Mandatory)][string]$Service,
     [Parameter(Mandatory)][bool]$ActiveMode,
-    [Parameter(Mandatory)][bool]$ArtifactRequired
+    [Parameter(Mandatory)][bool]$ArtifactRequired,
+    [string]$Scenario = "",
+    [int]$InternalFrames = 0,
+    [int]$MeasureFrames = 0,
+    [int]$Workers = 2
   )
   $body = switch ($Mode) {
     "PassiveBaseline" {
@@ -252,6 +257,7 @@ sample_system > "$root/system-evidence.txt"
 printf 'mode=PassiveBaseline\n' > "$root/study-result.txt"
 '@
     }
+    "ProfileBaseline" { New-OrangeProfileBaselineBody $Scenario $InternalFrames $MeasureFrames $Workers $TimeoutSeconds }
     "Dsp64" { New-DspBody 64 $TimeoutSeconds $ProfileMode }
     "Dsp256" { New-DspBody 256 $TimeoutSeconds $ProfileMode }
     "LiveCandidate" { New-LiveCandidateBody $LiveSeconds $StartupTimeoutSeconds }
@@ -376,6 +382,7 @@ if [ "__VERIFY_ARTIFACT__" = yes ]; then
   test -x "$binary"
   test -r "$metadata"
   remote_sha="$(sha256sum -- "$binary" | awk 'NR == 1 { print $1 }')"
+  printf '%s\n' "$remote_sha" > "$root/runtime-candidate-sha256.txt"
   test "$remote_sha" = "$expected_sha"
   "$binary" --print-build-metadata > "$root/runtime-candidate-metadata.json"
   grep -q '"artifact_kind":"runtime-candidate"' "$root/runtime-candidate-metadata.json"
@@ -442,7 +449,7 @@ function New-PreparePayload {
 
 function New-OrangeCapabilityStudyPayloadBundle {
   param(
-    [Parameter(Mandatory)][ValidateSet("PassiveBaseline", "Dsp64", "Dsp256", "LiveCandidate")][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet("PassiveBaseline", "ProfileBaseline", "Dsp64", "Dsp256", "LiveCandidate")][string]$Mode,
     [Parameter(Mandatory)][string]$ProfileMode,
     [Parameter(Mandatory)][int]$TimeoutSeconds,
     [Parameter(Mandatory)][int]$LiveSeconds,
@@ -453,10 +460,14 @@ function New-OrangeCapabilityStudyPayloadBundle {
     [Parameter(Mandatory)][string]$Unit,
     [Parameter(Mandatory)][string]$Service,
     [Parameter(Mandatory)][bool]$ActiveMode,
-    [Parameter(Mandatory)][bool]$ArtifactRequired
+    [Parameter(Mandatory)][bool]$ArtifactRequired,
+    [string]$Scenario = "",
+    [int]$InternalFrames = 0,
+    [int]$MeasureFrames = 0,
+    [int]$Workers = 2
   )
   [pscustomobject]@{
-    Study = New-RemoteStudyPayload $Mode $ProfileMode $TimeoutSeconds $LiveSeconds $StartupTimeoutSeconds $RemoteRoot $HealthPath $ArtifactHash $Unit $Service $ActiveMode $ArtifactRequired
+    Study = New-RemoteStudyPayload $Mode $ProfileMode $TimeoutSeconds $LiveSeconds $StartupTimeoutSeconds $RemoteRoot $HealthPath $ArtifactHash $Unit $Service $ActiveMode $ArtifactRequired $Scenario $InternalFrames $MeasureFrames $Workers
     Prepare = New-PreparePayload $RemoteRoot
     Cleanup = New-CleanupPayload $ActiveMode $RemoteRoot $HealthPath $Unit
   }

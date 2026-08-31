@@ -119,8 +119,8 @@ remain outside the WAV-only browser/decoder. User samples remain supported.
 USB Audio and USB MIDI are experimental/local
 bench validation only, with defaults disabled. Do not call the path supported
 without an authorized USB identity and an exact-image electrical/manual FAT
-record. Keep the board on the enclosure power input and use a data-only or
-power-isolating host cable; see [safety and power](safety-and-power.md).
+record. Keep the board on the enclosure power input and follow [safety and
+power](safety-and-power.md#usb-host-connections) for the fixed USB-A host path.
 
 For wiring and the open-assembly checks, use [pinout and connections](pinout-and-connections.md),
 [the assembly manual](assembly-manual.md), and [troubleshooting](../troubleshooting.md).

@@ -1,11 +1,17 @@
 mod report;
+mod runtime_timing;
 pub(crate) mod samples;
+mod system;
 pub(crate) mod telemetry;
 mod timing;
 
 use crate::dsp_scenarios::{profile_scenarios, runtime_step_scenarios, ProfileMode};
-use report::{emit_system_row, emit_timed_row, print_csv_header, TimedRow};
-use timing::{profile_block_frames, profile_measure_frames, profile_sample_rate};
+use report::{emit_system_row, emit_timed_row, print_csv_header, AudioBudgetSemantics, TimedRow};
+use timing::{
+    profile_block_frames, profile_measure_frames, profile_requested_block_frames,
+    profile_requested_measure_frames, profile_sample_rate, profile_worker_count,
+    EngineSourceMeasurement, WarmupPolicy, PROFILE_MEASUREMENT_OBSERVATIONS,
+};
 
 const PROFILE_BLOCKS: usize = 48;
 const SOAK_BLOCKS: usize = 3_750;
@@ -50,44 +56,65 @@ pub fn run_dsp_profile() -> Result<(), String> {
     let block_frames = profile_block_frames();
     let measure_frames = profile_measure_frames(block_frames);
     let sample_rate = profile_sample_rate();
-    let mode = profile_mode();
+    let mode = profile_mode()?;
+    let worker_requested = profile_worker_count(mode == ProfileMode::Baseline)?;
+    let warmup_policy = if mode == ProfileMode::Baseline {
+        WarmupPolicy::FixedTwoSeconds
+    } else {
+        WarmupPolicy::None
+    };
     let blocks = match mode {
+        ProfileMode::Baseline => PROFILE_MEASUREMENT_OBSERVATIONS,
         ProfileMode::Soak => SOAK_BLOCKS,
         ProfileMode::FxLimits => FX_LIMIT_BLOCKS,
         ProfileMode::Full | ProfileMode::Overload => PROFILE_BLOCKS,
     };
 
-    for scenario in profile_scenarios(sample_rate, mode) {
-        let timing = timing::measure_engine_source(
+    let requested_scenario = std::env::var("OCTESSERA_PI_PROFILE_SCENARIO").ok();
+    let scenarios = select_scenarios(profile_scenarios(sample_rate, mode), requested_scenario)?;
+    for scenario in scenarios {
+        let measurement: EngineSourceMeasurement = timing::measure_engine_source(
             &scenario,
             sample_rate,
             block_frames,
             measure_frames,
+            warmup_policy,
+            worker_requested,
             blocks,
         )?;
-        let telemetry =
-            telemetry::collect_synth_telemetry(&scenario, sample_rate, block_frames, blocks);
         let notes = format!(
             "{};internal_block_frames={}",
-            report::notes_for(&telemetry),
+            report::notes_for(&measurement.telemetry),
             block_frames
         );
         emit_timed_row(TimedRow {
             kind: "engine_source",
             scenario: &scenario.name,
             metric: "raw_ratio",
-            samples: &timing,
+            samples: &measurement.samples,
             block_frames: measure_frames,
             internal_block_frames: block_frames,
             sample_rate,
             blocks,
+            requested_measure_frames: profile_requested_measure_frames(block_frames),
+            requested_internal_block_frames: profile_requested_block_frames(),
+            telemetry: Some(&measurement.telemetry),
+            audio_budget: AudioBudgetSemantics::EngineSourceRawRatio,
             notes: &notes,
         });
     }
 
+    if mode == ProfileMode::Baseline {
+        emit_system_row("after");
+        return Ok(());
+    }
     for runtime in runtime_step_scenarios() {
-        let runtime_timing =
-            timing::measure_runtime_step(&runtime, sample_rate, block_frames, PROFILE_BLOCKS)?;
+        let runtime_timing = runtime_timing::measure_runtime_step(
+            &runtime,
+            sample_rate,
+            block_frames,
+            PROFILE_BLOCKS,
+        )?;
         emit_timed_row(TimedRow {
             kind: "runtime_step",
             scenario: &runtime.name,
@@ -97,6 +124,10 @@ pub fn run_dsp_profile() -> Result<(), String> {
             internal_block_frames: block_frames,
             sample_rate,
             blocks: PROFILE_BLOCKS,
+            requested_measure_frames: block_frames,
+            requested_internal_block_frames: profile_requested_block_frames(),
+            telemetry: None,
+            audio_budget: AudioBudgetSemantics::NotApplicable,
             notes: "synth=na;sample=na;preview=na;momentary=na;steals=na;runner=native_runner",
         });
     }
@@ -105,12 +136,30 @@ pub fn run_dsp_profile() -> Result<(), String> {
     Ok(())
 }
 
-fn profile_mode() -> ProfileMode {
-    std::env::var("OCTESSERA_PI_PROFILE_MODE")
-        .ok()
-        .as_deref()
-        .and_then(ProfileMode::from_str)
-        .unwrap_or(ProfileMode::Full)
+fn profile_mode() -> Result<ProfileMode, String> {
+    let Some(value) = std::env::var("OCTESSERA_PI_PROFILE_MODE").ok() else {
+        return Ok(ProfileMode::Full);
+    };
+    ProfileMode::from_str(&value)
+        .ok_or_else(|| format!("unknown DSP profile mode: {}", value.trim()))
+}
+
+fn select_scenarios(
+    scenarios: Vec<crate::dsp_scenarios::ScenarioSpec>,
+    requested: Option<String>,
+) -> Result<Vec<crate::dsp_scenarios::ScenarioSpec>, String> {
+    let Some(requested) = requested else {
+        return Ok(scenarios);
+    };
+    let requested = requested.trim();
+    if requested.is_empty() {
+        return Err("OCTESSERA_PI_PROFILE_SCENARIO must not be empty".into());
+    }
+    scenarios
+        .into_iter()
+        .find(|scenario| scenario.name == requested)
+        .map(|scenario| vec![scenario])
+        .ok_or_else(|| format!("unknown DSP profile scenario: {requested}"))
 }
 
 #[cfg(test)]
@@ -125,6 +174,17 @@ mod tests {
     #[test]
     fn profile_request_accepts_explicit_argument() {
         assert!(super::profile_requested_value(true, None, false));
+    }
+
+    #[test]
+    fn profile_scenario_selection_fails_closed() {
+        let scenarios = crate::dsp_scenarios::profile_scenarios(
+            44_100,
+            crate::dsp_scenarios::ProfileMode::Baseline,
+        );
+
+        assert!(super::select_scenarios(scenarios, Some("unknown".into())).is_err());
+        assert!(super::select_scenarios(Vec::new(), Some(String::new())).is_err());
     }
 
     #[cfg(feature = "hardware-orange-pi-zero-2w")]

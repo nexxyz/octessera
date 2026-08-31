@@ -26,6 +26,7 @@ pub struct BuildMetadata {
     pub cargo_feature: String,
     pub profile: String,
     pub binary_sha256: String,
+    pub source_commit: String,
 }
 
 impl<'de> Deserialize<'de> for BuildMetadata {
@@ -57,6 +58,7 @@ impl<'de> Deserialize<'de> for BuildMetadata {
                     "cargo_feature",
                     "profile",
                     "binary_sha256",
+                    "source_commit",
                 ];
                 let mut schema_version = None;
                 let mut board_profile = None;
@@ -68,6 +70,7 @@ impl<'de> Deserialize<'de> for BuildMetadata {
                 let mut cargo_feature = None;
                 let mut profile = None;
                 let mut binary_sha256 = None;
+                let mut source_commit = None;
 
                 macro_rules! next_field {
                     ($slot:ident, $name:literal) => {{
@@ -90,6 +93,7 @@ impl<'de> Deserialize<'de> for BuildMetadata {
                         "cargo_feature" => next_field!(cargo_feature, "cargo_feature"),
                         "profile" => next_field!(profile, "profile"),
                         "binary_sha256" => next_field!(binary_sha256, "binary_sha256"),
+                        "source_commit" => next_field!(source_commit, "source_commit"),
                         _ => return Err(de::Error::unknown_field(&key, FIELDS)),
                     }
                 }
@@ -111,6 +115,8 @@ impl<'de> Deserialize<'de> for BuildMetadata {
                     profile: profile.ok_or_else(|| de::Error::missing_field("profile"))?,
                     binary_sha256: binary_sha256
                         .ok_or_else(|| de::Error::missing_field("binary_sha256"))?,
+                    source_commit: source_commit
+                        .ok_or_else(|| de::Error::missing_field("source_commit"))?,
                 })
             }
         }
@@ -291,6 +297,9 @@ fn validate_metadata_contract(
     if !is_lower_hex_sha256(&metadata.binary_sha256) {
         return Err("metadata binary_sha256 must be 64 lowercase hexadecimal characters".into());
     }
+    if !is_lower_hex_commit(&metadata.source_commit) {
+        return Err("metadata source_commit must be 40 lowercase hexadecimal characters".into());
+    }
     if !is_lower_hex_sha256(executable_hash) {
         return Err("executable SHA-256 is not canonical lowercase hexadecimal".into());
     }
@@ -334,6 +343,13 @@ fn hex_digest(digest: sha2::digest::Output<Sha256>) -> String {
 
 fn is_lower_hex_sha256(value: &str) -> bool {
     value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn is_lower_hex_commit(value: &str) -> bool {
+    value.len() == 40
         && value
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))

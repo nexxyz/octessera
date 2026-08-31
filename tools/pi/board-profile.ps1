@@ -1,4 +1,5 @@
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot "..\performance\performance-baseline-json.psm1") -Force
 
 $RaspberryPiZero2WProfileId = "raspberry-pi-zero-2w"
 $OrangePiZero2WProfileId = "orange-pi-zero-2w"
@@ -7,6 +8,8 @@ $RaspberryPiZero2WBinary = "octessera-pi"
 $RaspberryPiZero2WArchitecture = "aarch64-unknown-linux-gnu"
 $RaspberryPiZero2WRuntimeArchitecture = "aarch64"
 $RaspberryPiZero2WCargoFeature = "hardware-raspberry-pi-zero-2w"
+$RaspberryPiZero2WStartupTemperatureLimitMillicelsius = 70000
+$RaspberryPiZero2WRuntimeTemperatureLimitMillicelsius = 75000
 $OrangePiZero2WCargoFeature = "hardware-orange-pi-zero-2w"
 $PiBinary = $RaspberryPiZero2WBinary
 $PiArchitecture = $RaspberryPiZero2WArchitecture
@@ -24,6 +27,25 @@ $RaspberryRuntimeMetadataFields = @(
   "arch",
   "package_version"
 )
+
+function Assert-PiSourceCommit {
+  param([Parameter(Mandatory)][string]$SourceCommit)
+  if ($SourceCommit -notmatch '^[0-9a-f]{40}$') {
+    throw "Raspberry build metadata source_commit must be a full lowercase commit identity."
+  }
+}
+
+function Get-RaspberryBinarySha256 {
+  param([Parameter(Mandatory)][string]$BinaryPath)
+  if (-not (Test-Path -LiteralPath $BinaryPath -PathType Leaf)) {
+    throw "Raspberry build metadata binary was not found: $BinaryPath"
+  }
+  $hash = (Get-FileHash -LiteralPath $BinaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($hash -notmatch '^[0-9a-f]{64}$') {
+    throw "Raspberry build metadata binary SHA-256 is not canonical lowercase hex: $BinaryPath"
+  }
+  $hash
+}
 
 function Get-PiBoardProfileSpec {
   param([string]$BoardProfile)
@@ -114,13 +136,29 @@ function Assert-OctesseraServiceName {
 }
 
 function New-RaspberryBoardMetadata {
-  [pscustomobject][ordered]@{
+  param(
+    [string]$SourceCommit = "",
+    [string]$BinaryPath = ""
+  )
+  if (-not [string]::IsNullOrWhiteSpace($SourceCommit)) { Assert-PiSourceCommit $SourceCommit }
+  if ([string]::IsNullOrWhiteSpace($SourceCommit) -and -not [string]::IsNullOrWhiteSpace($BinaryPath)) {
+    throw "Raspberry build metadata BinaryPath requires SourceCommit."
+  }
+  if (-not [string]::IsNullOrWhiteSpace($SourceCommit) -and [string]::IsNullOrWhiteSpace($BinaryPath)) {
+    throw "Authoritative Raspberry build metadata requires BinaryPath."
+  }
+  $metadata = [ordered]@{
     schema_version = $RaspberryPiZero2WSchemaVersion
     board_profile = $RaspberryPiZero2WProfileId
     binary = $RaspberryPiZero2WBinary
     arch = $RaspberryPiZero2WArchitecture
     cargo_feature = $RaspberryPiZero2WCargoFeature
   }
+  if (-not [string]::IsNullOrWhiteSpace($SourceCommit)) {
+    $metadata.source_commit = $SourceCommit
+    $metadata.binary_sha256 = Get-RaspberryBinarySha256 $BinaryPath
+  }
+  return [pscustomobject]$metadata
 }
 
 function Assert-JsonObjectFields {
@@ -157,7 +195,13 @@ function Assert-RaspberryBoardMetadata {
     [string]$Context = "Raspberry board metadata"
   )
 
-  Assert-JsonObjectFields $Metadata $RaspberryBoardMetadataFields $Context
+  $hasSourceCommit = $null -ne $Metadata.PSObject.Properties["source_commit"]
+  $hasBinarySha256 = $null -ne $Metadata.PSObject.Properties["binary_sha256"]
+  if ($hasSourceCommit -ne $hasBinarySha256) {
+    throw "$Context authoritative fields source_commit and binary_sha256 must appear together."
+  }
+  $fields = if ($hasSourceCommit) { $RaspberryBoardMetadataFields + @("source_commit", "binary_sha256") } else { $RaspberryBoardMetadataFields }
+  Assert-JsonObjectFields $Metadata $fields $Context
   if ($Metadata.schema_version -isnot [int] -and $Metadata.schema_version -isnot [long]) {
     throw "$Context schema_version must be integer $RaspberryPiZero2WSchemaVersion."
   }
@@ -174,247 +218,99 @@ function Assert-RaspberryBoardMetadata {
   if ($Metadata.cargo_feature -isnot [string] -or $Metadata.cargo_feature -cne $RaspberryPiZero2WCargoFeature) {
     throw "$Context cargo_feature must be $RaspberryPiZero2WCargoFeature."
   }
-  $Metadata
-}
-
-function Get-JsonStringEnd {
-  param(
-    [string]$Text,
-    [int]$Start
-  )
-
-  for ($index = $Start + 1; $index -lt $Text.Length; $index++) {
-    if ($Text[$index] -eq "\") {
-      $index++
-      continue
-    }
-    if ($Text[$index] -eq '"') {
-      return $index
-    }
-  }
-  throw "JSON contains an unterminated string."
-}
-
-function ConvertFrom-JsonStringToken {
-  param(
-    [string]$Text,
-    [int]$Start,
-    [int]$End
-  )
-
-  $builder = New-Object System.Text.StringBuilder
-  for ($index = $Start + 1; $index -lt $End; $index++) {
-    if ($Text[$index] -ne "\") {
-      [void]$builder.Append($Text[$index])
-      continue
-    }
-    $index++
-    if ($index -ge $End) {
-      throw "JSON contains an incomplete string escape."
-    }
-    switch ($Text[$index]) {
-      '"' { [void]$builder.Append('"') }
-      '\' { [void]$builder.Append("\") }
-      '/' { [void]$builder.Append('/') }
-      'b' { [void]$builder.Append([char]8) }
-      'f' { [void]$builder.Append([char]12) }
-      'n' { [void]$builder.Append("`n") }
-      'r' { [void]$builder.Append("`r") }
-      't' { [void]$builder.Append("`t") }
-      'u' {
-        if ($index + 4 -ge $End) {
-          throw "JSON contains an incomplete unicode escape."
-        }
-        $hex = $Text.Substring($index + 1, 4)
-        if ($hex -notmatch '^[0-9A-Fa-f]{4}$') {
-          throw "JSON contains an invalid unicode escape."
-        }
-        [void]$builder.Append([char][Convert]::ToInt32($hex, 16))
-        $index += 4
-      }
-      default { throw "JSON contains an invalid string escape." }
-    }
-  }
-  $builder.ToString()
-}
-
-function Skip-JsonWhitespace {
-  param(
-    [string]$Text,
-    [int]$Start
-  )
-
-  $index = $Start
-  while ($index -lt $Text.Length -and [char]::IsWhiteSpace($Text[$index])) {
-    $index++
-  }
-  $index
-}
-
-function Skip-JsonValue {
-  param(
-    [string]$Text,
-    [int]$Start
-  )
-
-  if ($Start -ge $Text.Length) {
-    throw "JSON is missing a value."
-  }
-  if ($Text[$Start] -eq '"') {
-    return (Get-JsonStringEnd $Text $Start) + 1
-  }
-  if ($Text[$Start] -eq '{' -or $Text[$Start] -eq '[') {
-    $depth = 0
-    $inString = $false
-    for ($index = $Start; $index -lt $Text.Length; $index++) {
-      if ($inString) {
-        if ($Text[$index] -eq "\") {
-          $index++
-        } elseif ($Text[$index] -eq '"') {
-          $inString = $false
-        }
-        continue
-      }
-      if ($Text[$index] -eq '"') {
-        $inString = $true
-      } elseif ($Text[$index] -eq '{' -or $Text[$index] -eq '[') {
-        $depth++
-      } elseif ($Text[$index] -eq '}' -or $Text[$index] -eq ']') {
-        $depth--
-        if ($depth -eq 0) {
-          return $index + 1
-        }
-      }
-    }
-    throw "JSON contains an unterminated object or array."
-  }
-  $index = $Start
-  while ($index -lt $Text.Length -and $Text[$index] -notmatch '[\s,}\]]') {
-    $index++
-  }
-  if ($index -eq $Start) {
-    throw "JSON is missing a value."
-  }
-  $index
-}
-
-function Assert-UniqueJsonObjectFields {
-  param(
-    [string]$Text,
-    [string]$Context
-  )
-
-  $index = Skip-JsonWhitespace $Text 0
-  if ($index -ge $Text.Length -or $Text[$index] -ne '{') {
-    return
-  }
-  $index++
-  $first = $true
-  $names = New-Object 'System.Collections.Generic.Dictionary[string,bool]' ([StringComparer]::Ordinal)
-  while ($true) {
-    $index = Skip-JsonWhitespace $Text $index
-    if ($index -ge $Text.Length) {
-      throw "$Context is missing its closing object brace."
-    }
-    if ($Text[$index] -eq '}' -and $first) {
-      return
-    }
-    if (-not $first) {
-      if ($Text[$index] -ne ',') {
-        throw "$Context is missing a comma between fields."
-      }
-      $index = Skip-JsonWhitespace $Text ($index + 1)
-    }
-    if ($index -ge $Text.Length -or $Text[$index] -ne '"') {
-      throw "$Context has an invalid field name."
-    }
-    $end = Get-JsonStringEnd $Text $index
-    $name = ConvertFrom-JsonStringToken $Text $index $end
-    if ($names.ContainsKey($name)) {
-      throw "$Context contains duplicate field '$name'."
-    }
-    $names[$name] = $true
-    $index = Skip-JsonWhitespace $Text ($end + 1)
-    if ($index -ge $Text.Length -or $Text[$index] -ne ':') {
-      throw "$Context field '$name' is missing a colon."
-    }
-    $index = Skip-JsonValue $Text (Skip-JsonWhitespace $Text ($index + 1))
-    $first = $false
-    $index = Skip-JsonWhitespace $Text $index
-    if ($index -lt $Text.Length -and $Text[$index] -eq '}') {
-      return
-    }
-    if ($index -ge $Text.Length -or $Text[$index] -ne ',') {
-      throw "$Context is missing its closing object brace."
-    }
-  }
-}
-
-function ConvertFrom-StrictJsonText {
-  param(
-    [string]$Text,
-    [string]$Context = "JSON"
-  )
-
-  if ([string]::IsNullOrWhiteSpace($Text)) {
-    throw "$Context is empty."
-  }
-  if ($Text.Length -gt 0 -and [int][char]$Text[0] -eq 0xFEFF) {
-    throw "$Context must not contain a UTF-8 BOM."
-  }
-  Assert-UniqueJsonObjectFields $Text $Context
-  try {
-    $Metadata = $Text | ConvertFrom-Json -ErrorAction Stop
-  } catch {
-    throw "$Context is malformed JSON: $($_.Exception.Message)"
-  }
-  if ($null -eq $Metadata) {
-    throw "$Context must be a JSON object."
+  if ($hasSourceCommit) {
+    if ($Metadata.source_commit -isnot [string]) { throw "$Context source_commit must be a string." }
+    Assert-PiSourceCommit $Metadata.source_commit
+    if ($Metadata.binary_sha256 -isnot [string] -or $Metadata.binary_sha256 -notmatch '^[0-9a-f]{64}$') { throw "$Context binary_sha256 must be 64 lowercase hexadecimal characters." }
   }
   $Metadata
 }
 
-function Read-StrictUtf8Text {
+function Assert-RaspberryBuildMetadata {
   param(
-    [string]$Path,
-    [string]$Context = "JSON"
+    [Parameter(Mandatory)][object]$Metadata,
+    [Parameter(Mandatory)][string]$SourceCommit,
+    [Parameter(Mandatory)][string]$BinaryPath,
+    [string]$Context = "Raspberry build metadata"
   )
+  Assert-RaspberryBoardMetadata $Metadata $Context | Out-Null
+  Assert-PiSourceCommit $SourceCommit
+  if ($null -eq $Metadata.PSObject.Properties["source_commit"] -or $Metadata.source_commit -cne $SourceCommit) {
+    throw "$Context source_commit does not match the requested repository HEAD."
+  }
+  $binarySha256 = Get-RaspberryBinarySha256 $BinaryPath
+  if ($Metadata.binary_sha256 -cne $binarySha256) {
+    throw "$Context binary_sha256 does not match the selected local artifact."
+  }
+  $Metadata
+}
 
-  try {
-    $bytes = [IO.File]::ReadAllBytes($Path)
-  } catch {
-    throw "Unable to read $Context '$Path': $($_.Exception.Message)"
+function Assert-RaspberrySystemEvidence {
+  param(
+    [Parameter(Mandatory)][string]$Text,
+    [string]$Context = "Raspberry system evidence"
+  )
+  $startupCount = 0
+  $runtimeCount = 0
+  $maximumTemperature = 0
+  $maximumThrottlingMask = 0
+  foreach ($line in @($Text -split "`r?`n")) {
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    if ($line.StartsWith("raspberry_system_error", [StringComparison]::Ordinal) -or $line.StartsWith("raspberry_system_abort", [StringComparison]::Ordinal)) {
+      throw "$Context reported invalid or unsafe native system state."
+    }
+    if (-not $line.StartsWith("raspberry_system_sample", [StringComparison]::Ordinal)) { continue }
+    if ($line -notmatch '^raspberry_system_sample phase=(startup|runtime) thermal_max_millicelsius=([0-9]+) mem_available_kb=([0-9]+) throttled=(0x[0-9A-Fa-f]+) current_throttled_mask=([0-9]+) undervoltage=(0|1)$') {
+      throw "$Context contains a malformed thermal sample."
+    }
+    $phase = $Matches[1]
+    $temperature = [uint64]$Matches[2]
+    $throttled = $Matches[4]
+    $currentMask = [uint64]$Matches[5]
+    $undervoltage = [uint64]$Matches[6]
+    $temperatureLimit = if ($phase -ceq "startup") { $RaspberryPiZero2WStartupTemperatureLimitMillicelsius } else { $RaspberryPiZero2WRuntimeTemperatureLimitMillicelsius }
+    try { $reportedMask = [Convert]::ToUInt64($throttled.Substring(2), 16) -band 15 } catch { throw "$Context contains a malformed throttling mask." }
+    if ($reportedMask -ne $currentMask -or (($currentMask -band 1) -ne $undervoltage)) { throw "$Context contains inconsistent throttling evidence." }
+    if ($temperature -ge $temperatureLimit) { throw "$Context exceeded the $phase Raspberry benchmark temperature limit." }
+    if ($currentMask -ne 0 -or $undervoltage -ne 0) { throw "$Context reported active throttling or undervoltage." }
+    if ($phase -ceq "startup") { $startupCount++ } else { $runtimeCount++ }
+    if ($temperature -gt $maximumTemperature) { $maximumTemperature = $temperature }
+    if ($currentMask -gt $maximumThrottlingMask) { $maximumThrottlingMask = $currentMask }
   }
-  if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
-    throw "$Context must be BOM-less UTF-8: $Path"
-  }
-  $encoding = New-Object System.Text.UTF8Encoding($false, $true)
-  try {
-    $encoding.GetString($bytes)
-  } catch {
-    throw "$Context must be valid UTF-8: $Path"
-  }
+  if ($startupCount -lt 1 -or $runtimeCount -lt 1) { throw "$Context is missing startup or continuous runtime thermal evidence." }
+  return [pscustomobject]@{ StartupSampleCount = $startupCount; RuntimeSampleCount = $runtimeCount; MaximumTemperatureMillicelsius = $maximumTemperature; MaximumCurrentThrottlingMask = $maximumThrottlingMask }
 }
 
 function Write-RaspberryBoardMetadata {
   param(
     [string]$Path,
     [string]$Binary = "octessera-pi",
-    [string]$CargoFeature = "hardware-raspberry-pi-zero-2w"
+    [string]$CargoFeature = "hardware-raspberry-pi-zero-2w",
+    [string]$SourceCommit = "",
+    [string]$BinaryPath = ""
   )
 
-  $metadata = New-RaspberryBoardMetadata
+  $metadata = New-RaspberryBoardMetadata -SourceCommit $SourceCommit -BinaryPath $BinaryPath
   $metadata.binary = $Binary
   $metadata.cargo_feature = $CargoFeature
   Assert-RaspberryBoardMetadata ([pscustomobject]$metadata) | Out-Null
-  $json = Get-RaspberryBoardMetadataJson
+  $json = Get-RaspberryBoardMetadataJson -SourceCommit $SourceCommit -BinaryPath $BinaryPath
   $encoding = New-Object System.Text.UTF8Encoding($false)
   [IO.File]::WriteAllText($Path, $json, $encoding)
 }
 
 function Get-RaspberryBoardMetadataJson {
-  Assert-RaspberryBoardMetadata (New-RaspberryBoardMetadata) | Out-Null
-  '{"schema_version":1,"board_profile":"raspberry-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-raspberry-pi-zero-2w"}'
+  param(
+    [string]$SourceCommit = "",
+    [string]$BinaryPath = ""
+  )
+  $metadata = New-RaspberryBoardMetadata -SourceCommit $SourceCommit -BinaryPath $BinaryPath
+  Assert-RaspberryBoardMetadata $metadata | Out-Null
+  $json = '{"schema_version":1,"board_profile":"raspberry-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-raspberry-pi-zero-2w"'
+  if (-not [string]::IsNullOrWhiteSpace($SourceCommit)) {
+    $json += ',"source_commit":"' + $SourceCommit + '","binary_sha256":"' + $metadata.binary_sha256 + '"'
+  }
+  $json + '}'
 }
 
 function Read-RaspberryBoardMetadata {

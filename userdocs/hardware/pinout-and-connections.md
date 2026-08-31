@@ -38,7 +38,7 @@ Raspberry build only.
 - Power the device through the enclosure USB-C power port only.
 - Do not power the device from the Raspberry Pi micro-USB power port.
 - The enclosure intentionally covers the Pi micro-USB power port so it cannot be used by mistake.
-- If you use the Pi USB data/gadget port with a host computer, use a data-only cable or another hardware method that blocks the cable's 5V line. Software cannot make a Pi Zero accept USB data while electrically refusing USB power.
+- If you use the Pi USB data/gadget port with a host computer, follow [safety and power](safety-and-power.md#usb-host-connections) for the fixed USB-A host path. Avoid USB-C-to-USB-C/PD.
 - The USB-C breakout feeds the shared `+5V` rail for the Pi, OLED, NeoKey, NeoTrellis connector, and DAC.
 - `C1` is a `470uf` polarized capacitor across `+5V` and `GND` to add bulk supply smoothing on the main power rail.
 
@@ -58,7 +58,7 @@ The shared menu's USB settings describe desired next-boot state. A capability
 check, a source test, or a ConfigFS fake test does not qualify host enumeration,
 audio/MIDI behavior, port role, VBUS/CC behavior, or no-backfeed safety.
 
-Use a data-only cable or a power-isolating adapter when connecting the Pi data port to a host while the instrument is powered through the enclosure USB-C input.
+Follow [safety and power](safety-and-power.md#usb-host-connections) for the host-cable choice and no-backfeed checks.
 
 ## Bus Allocation
 

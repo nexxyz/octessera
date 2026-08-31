@@ -309,7 +309,7 @@ trap 'exit 143' INT TERM
 trap 'exit 129' HUP
 sudo -n install -d -o octessera-runtime -g octessera-runtime -m 0750 "$benchmark_root"
 chmod 0755 "$binary"; sudo -n chgrp octessera-runtime "$root"; chmod 0710 "$root"; sudo -n chgrp octessera-runtime "$binary" "$metadata"; chmod 0750 "$binary"; chmod 0640 "$metadata"
-test -x "$binary"; test -r "$metadata"; remote_sha="$(sha256sum -- "$binary" | awk 'NR == 1 {print $1}')"; test "$remote_sha" = "$expected_sha"; "$binary" --print-build-metadata > "$root/runtime-candidate-metadata.json"; grep -q '"artifact_kind":"runtime-candidate"' "$root/runtime-candidate-metadata.json"; grep -q '"profile":"release"' "$root/runtime-candidate-metadata.json"
+test -x "$binary"; test -r "$metadata"; remote_sha="$(sha256sum -- "$binary" | awk 'NR == 1 {print $1}')"; printf '%s\n' "$remote_sha" > "$root/runtime-candidate-sha256.txt"; test "$remote_sha" = "$expected_sha"; "$binary" --print-build-metadata > "$root/runtime-candidate-metadata.json"; grep -q '"artifact_kind":"runtime-candidate"' "$root/runtime-candidate-metadata.json"; grep -q '"profile":"release"' "$root/runtime-candidate-metadata.json"
 sudo -n systemctl stop "$service"
 interruption_started=true
 launch_status=0

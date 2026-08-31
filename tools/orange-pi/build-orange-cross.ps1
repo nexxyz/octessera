@@ -35,6 +35,13 @@ function Resolve-RepositoryRoot {
   return (Resolve-Path -LiteralPath $root).Path.TrimEnd("\")
 }
 
+function Get-RepositorySourceCommit {
+  param([Parameter(Mandatory)][string]$RepositoryRoot)
+  $commit = (& git -C $RepositoryRoot rev-parse HEAD 2>$null | Out-String).Trim().ToLowerInvariant()
+  if ($commit -notmatch '^[0-9a-f]{40}$') { throw "Could not resolve a full repository source commit for build metadata." }
+  return $commit
+}
+
 function Convert-ToWslPath {
   param(
     [Parameter(Mandatory)][string]$Path
@@ -169,6 +176,7 @@ aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[
 }
 
 $repositoryRoot = Resolve-RepositoryRoot
+$sourceCommit = Get-RepositorySourceCommit $repositoryRoot
 $buildSpec = Get-BuildSpec $Binary
 $outputDirectory = Join-Path $repositoryRoot $OutputRelativePath.Replace("/", "\")
 $outputBinary = Join-Path $outputDirectory $Binary
@@ -183,6 +191,10 @@ if ($DryRun) {
   Write-Output "Metadata: $outputMetadata"
   return
 }
+
+$repositoryStatus = (& git -C $repositoryRoot status --porcelain --untracked-files=all 2>$null | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw "Could not inspect repository status before the authoritative Orange build." }
+if (-not [string]::IsNullOrWhiteSpace($repositoryStatus)) { throw "Authoritative Orange builds require a clean repository; tracked or untracked source changes are present." }
 
 $wslArguments = Get-WslDockerArguments
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
@@ -207,7 +219,8 @@ try {
     -SelectedBinary $Binary `
     -SelectedTarget $Target `
     -SelectedProfile $Profile `
-    -BuildSpec $buildSpec
+    -BuildSpec $buildSpec `
+    -SourceCommit $sourceCommit
   $artifactReady = $true
 } finally {
   if (-not $artifactReady) {

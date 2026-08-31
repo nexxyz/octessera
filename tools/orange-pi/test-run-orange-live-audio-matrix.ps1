@@ -43,7 +43,7 @@ Assert-Throws {
   & $runner -Mode LiveAudioBenchmark -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 -Workers 2 -MeasureSeconds 30 -Artifact $missingActive -Metadata "$missingActive.metadata.json" -AllowServiceInterruption
 }
 Assert-Throws { & $runner -Mode LiveAudioBenchmark -Scenario synth_ramp_16 -OutputFrames 256 -Workers 2 -MeasureSeconds 30 -PrintOnly }
-$distinctPrint = Invoke-PrintOnly $runner @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; AllowServiceInterruption = $true; PrintOnly = $true }
+$distinctPrint = Invoke-PrintOnly $runner @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; Artifact = $missingActive; Metadata = "$missingActive.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
 Assert-Contains $distinctPrint "Live selection: individual output=256 period=64 engine=256 internal=256 workers=2"
 $fakeWorst = Get-OrangeLiveWorstPassingScenario @(
   [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_64"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; RatioP999 = 9.0; RatioMax = 9.0 },
@@ -379,7 +379,8 @@ throw "fake runner failed before terminal evidence"
   if ($null -eq $oldPartialEvidence) { Remove-Item Env:\OCTESSERA_FAKE_LIVE_EVIDENCE -ErrorAction SilentlyContinue } else { $env:OCTESSERA_FAKE_LIVE_EVIDENCE = $oldPartialEvidence }
   Remove-Item -LiteralPath $partialFakeRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
-$runnerParameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_cross_slot_96_steal"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; AllowServiceInterruption = $true; PrintOnly = $true }
+$runnerArtifact = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-live-benchmark-missing"
+$runnerParameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_cross_slot_96_steal"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; Artifact = $runnerArtifact; Metadata = "$runnerArtifact.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
 $recoveryEvidenceRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-recovery-" + [guid]::NewGuid().ToString("N"))
 try {
   New-Item -ItemType Directory -Force -Path $recoveryEvidenceRoot | Out-Null
