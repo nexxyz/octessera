@@ -166,10 +166,18 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult};
     use std::fs;
     use std::sync::Arc;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
-    let root =
-        std::env::temp_dir().join(format!("octessera-pi-setup-adapter-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-setup-adapter-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
     let public = root.join("public");
     let paths = SetupPortalPaths {
         request: root.join("request").join("inbox").join("start"),
@@ -222,24 +230,33 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     let ready = serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}});
     fs::write(&paths.current, serde_json::to_vec(&ready).unwrap()).unwrap();
     fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
+    let timeout = Duration::from_secs(5);
+    let deadline = Instant::now() + timeout;
     let mut responses = Vec::new();
-    for _ in 0..100 {
-        responses = adapter.drain_platform_results(4);
-        if !responses.is_empty() {
+    let mut found = false;
+    while Instant::now() < deadline {
+        responses.extend(adapter.drain_platform_results(4));
+        found = responses.iter().any(|message| {
+            matches!(
+                message,
+                HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::Identified {
+                        request_id,
+                        revision: Some(2),
+                        ..
+                    }
+                } if request_id == "pi-setup"
+            )
+        });
+        if found {
             break;
         }
         std::thread::sleep(Duration::from_millis(2));
     }
-    assert!(responses.iter().any(|message| matches!(
-        message,
-        HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified {
-                request_id,
-                revision: Some(2),
-                ..
-            }
-        } if request_id == "pi-setup"
-    )));
+    assert!(
+        found,
+        "timed out after {timeout:?} waiting for pi-setup revision 2 result; drained responses: {responses:?}"
+    );
     let _ = fs::remove_dir_all(root);
 }
 
