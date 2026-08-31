@@ -63,10 +63,22 @@ def runtime_account(root: Path, require: Require) -> tuple[int, int]:
     return uid, gid
 
 
+def require_orange_production_ttyperm(root: Path, require: Require) -> None:
+    login_defs = root / "etc/login.defs"
+    require(login_defs.is_file() and not login_defs.is_symlink(), "production login.defs is missing, not regular, or symlinked")
+    require_owner_mode(login_defs, 0, 0, 0o644, require)
+    records = [line.split() for line in login_defs.read_text(encoding="utf-8").splitlines() if line.strip() and not line.lstrip().startswith("#")]
+    require([record for record in records if record[0] == "TTYPERM"] == [["TTYPERM", "0620"]], "production login.defs TTYPERM is not exactly 0620")
+    groups = read_kv_records(root / "etc/group", 4, require)
+    require(sum(record[0] == "tty" for record in groups) == 1, "production tty group is missing or duplicated")
+
+
 def require_runtime_service(root: Path, require: Require) -> None:
     service = root / "etc/systemd/system/octessera.service"
     enabled = root / "etc/systemd/system/multi-user.target.wants/octessera.service"
     service_content = service.read_text(encoding="utf-8")
+    service_lines = service_content.splitlines()
+    capability_lines = [line for line in service_lines if line.startswith(("AmbientCapabilities=", "CapabilityBoundingSet="))]
     for line in (
         "StartLimitIntervalSec=30s",
         "StartLimitBurst=3",
@@ -78,11 +90,8 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json",
         "Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1",
         "TTYPath=/dev/tty1",
-        "TTYReset=yes",
         "SupplementaryGroups=audio i2c spi gpio tty video",
         "NoNewPrivileges=yes",
-        "AmbientCapabilities=CAP_SYS_TTY_CONFIG",
-        "CapabilityBoundingSet=CAP_SYS_TTY_CONFIG",
         "ProtectSystem=strict",
         "ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox",
         "PrivateTmp=yes",
@@ -95,8 +104,9 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "RestartPreventExitStatus=78",
         "RestartSec=5s",
     ):
-        require(line in service_content, f"production service is missing: {line}")
-    require(service_content.count("AmbientCapabilities=") == 1 and service_content.count("CapabilityBoundingSet=") == 1, "production service has duplicate capability directives")
+        require(line in service_lines, f"production service is missing: {line}")
+    require("TTYReset=" not in service_content, "production service contains a prohibited tty reset directive")
+    require(capability_lines == ["AmbientCapabilities=CAP_SYS_TTY_CONFIG", "CapabilityBoundingSet=CAP_SYS_TTY_CONFIG"], "production service has an unexpected capability line")
     require("StandardInput=tty" not in service_content and "ExecStopPost=" not in service_content, "production service contains a prohibited tty lifecycle directive")
     require(not re.search(r"^(TTY(?:VHangup|VTDisallocate|Force|Fail)|DevicePolicy|DeviceAllow)=", service_content, re.MULTILINE), "production service contains a prohibited tty or device directive")
     require(not re.search(r"(?i)(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)", service_content), "production service contains a graphics stack or forced display mode")
@@ -128,6 +138,7 @@ def require_runtime_service(root: Path, require: Require) -> None:
         ),
         "production service claims unsupported updater behavior",
     )
+    require_orange_production_ttyperm(root, require)
     require(
         enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera.service", "/etc/systemd/system/octessera.service"},
         "production service is not enabled",

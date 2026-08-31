@@ -138,11 +138,12 @@ for line in \
   'Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples' \
   'Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json' \
   'RuntimeDirectory=octessera' 'NoNewPrivileges=yes' 'ProtectSystem=strict' \
-  'TTYPath=/dev/tty1' 'TTYReset=yes' 'SupplementaryGroups=audio i2c spi gpio tty video' \
+  'TTYPath=/dev/tty1' 'SupplementaryGroups=audio i2c spi gpio tty video' \
   'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox' 'PrivateTmp=yes' 'ProtectHome=yes' \
   'LimitRTPRIO=70' 'LimitMEMLOCK=infinity' 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG'; do
   grep -qFx "$line" "$runtime_service"
 done
+octessera_reject_file_match 'Orange runtime service contains a prohibited TTYReset directive.' -Eq '^[[:space:]]*TTYReset[[:space:]]*=' "$runtime_service"
 octessera_reject_file_match 'Orange runtime service must not grant priority 80.' -qE 'LimitRTPRIO=80' "$runtime_service"
 [[ "$(grep -E '^(AmbientCapabilities|CapabilityBoundingSet)=' "$runtime_service")" == $'AmbientCapabilities=CAP_SYS_TTY_CONFIG\nCapabilityBoundingSet=CAP_SYS_TTY_CONFIG' ]]
 octessera_reject_file_match 'Orange runtime service contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$runtime_service"

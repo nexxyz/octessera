@@ -31,6 +31,7 @@ assert_provenance_contains() {
 }
 
 assert_action_contains 'REVISION=26.11.0-trunk.22'
+assert_action_contains '"HOST=octessera-opi"'
 octessera_reject_file_match 'Ordinary Armbian builds must not retain the old Armbian revision.' -qF 'REVISION=26.8.0-trunk.417' "$action"
 octessera_reject_file_match 'Ordinary Armbian builds must not retain the old KERNELBRANCH pin.' -qF 'KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394' "$action"
 octessera_reject_file_match 'Armbian build action must not pass KERNELBRANCH.' -qF 'KERNELBRANCH=' "$action"

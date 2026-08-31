@@ -12,6 +12,8 @@ import time
 
 PROFILE_PATH = "/etc/octessera/setup-profile"
 MARKER_PATH = "/var/lib/octessera/setup-complete"
+HOSTNAME_PATH = "/etc/hostname"
+HOSTS_PATH = "/etc/hosts"
 SSH_POLICY_PATH = "/etc/ssh/sshd_config.d/10-octessera-setup.conf"
 ALLOWED_FIELDS = frozenset(("sshMode", "sshPublicKey", "sshPassword", "sshPasswordConfirm", "hostname", "wifiCountry"))
 KEY_TYPES = frozenset(("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521"))
@@ -193,6 +195,41 @@ def set_password_auth(enabled, profile):
     _write_atomic(SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication {value}\nAllowUsers {profile['user']}\n", 0o644)
 
 
+def apply_hostname(hostname, invoke):
+    if not hostname:
+        return
+    if not valid_hostname(hostname):
+        raise ValueError("invalid hostname")
+    try:
+        with open(HOSTNAME_PATH, encoding="utf-8") as handle:
+            current_content = handle.read()
+        with open(HOSTS_PATH, encoding="utf-8") as handle:
+            hosts_content = handle.read()
+    except (OSError, UnicodeError) as error:
+        raise OSError(f"unable to read hostname coherence files: {error}") from error
+    current_lines = current_content.splitlines()
+    if len(current_lines) != 1 or not current_lines[0] or not valid_hostname(current_lines[0]):
+        raise ValueError("invalid current hostname")
+    current_hostname = current_lines[0]
+    old_token = re.compile(rf"(?<!\S){re.escape(current_hostname)}(?!\S)")
+    requested_token = re.compile(rf"(?<!\S){re.escape(hostname)}(?!\S)")
+    updated_lines = []
+    replacements = 0
+    requested_aliases = 0
+    for line in hosts_content.splitlines(keepends=True):
+        body, marker, comment = line.partition("#")
+        requested_aliases += len(requested_token.findall(body))
+        body, count = old_token.subn(hostname, body)
+        replacements += count
+        updated_lines.append(body + marker + comment)
+    updated_hosts = "".join(updated_lines)
+    if replacements == 0 and requested_aliases == 0:
+        raise ValueError("current or requested hostname is missing from /etc/hosts")
+    if updated_hosts != hosts_content:
+        _write_atomic(HOSTS_PATH, updated_hosts, 0o644)
+    invoke(["hostnamectl", "set-hostname", hostname])
+
+
 def apply_country(country):
     if country:
         run(["iw", "reg", "set", country])
@@ -222,8 +259,7 @@ def finalize(data, profile, deadline=None, clock=time.monotonic):
         "hostname": data["hostname"],
         "wifiCountry": data["country"],
     })
-    if data["hostname"]:
-        invoke(["hostnamectl", "set-hostname", data["hostname"]])
+    apply_hostname(data["hostname"], invoke)
     persist_country(data["country"])
     mode = data["sshMode"]
     invoke(["systemctl", "disable", "--now", "ssh.socket"])

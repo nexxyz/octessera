@@ -47,6 +47,17 @@ octessera_validate_orange_rsyslog_configuration() {
   return "$validation_status"
 }
 
+octessera_configure_orange_production_ttyperm() {
+  local login_defs="${1:-/etc/login.defs}"
+  local ttyperm_count post_ttyperm_count
+  [[ -f "$login_defs" && ! -L "$login_defs" ]] || { echo "Orange login.defs is missing, not regular, or symlinked: $login_defs." >&2; return 1; }
+  ttyperm_count="$(grep -Ec '^TTYPERM[[:space:]]' "$login_defs" || true)"
+  [[ "$ttyperm_count" == 1 && "$(grep -Ec '^TTYPERM[[:space:]]+0600$' "$login_defs" || true)" == 1 ]] || { echo "Orange login.defs must contain exactly one active TTYPERM 0600: $login_defs." >&2; return 1; }
+  sed -i -E 's/^TTYPERM([[:space:]]+)0600$/TTYPERM\10620/' "$login_defs" || { echo "Unable to transform Orange login.defs: $login_defs." >&2; return 1; }
+  post_ttyperm_count="$(grep -Ec '^TTYPERM[[:space:]]' "$login_defs" || true)"
+  [[ "$post_ttyperm_count" == 1 && "$(grep -Ec '^TTYPERM[[:space:]]+0620$' "$login_defs" || true)" == 1 ]] || { echo "Orange login.defs must contain exactly one active TTYPERM 0620 after transformation: $login_defs." >&2; return 1; }
+}
+
 octessera_install_orange_runtime_assets() {
   local overlay_dir="$1"
   install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
@@ -90,6 +101,7 @@ octessera_install_orange_runtime_assets() {
 octessera_install_orange_production_assets() {
   local overlay_dir="$1"
   [[ -f "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" && ! -L "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" ]] || { echo "Missing exact Orange runtime udev rule." >&2; return 1; }
+  octessera_configure_orange_production_ttyperm /etc/login.defs
   install_overlay_file etc/udev/rules.d/70-octessera-orange-runtime.rules /etc/udev/rules.d/70-octessera-orange-runtime.rules 0644
   install_overlay_file etc/systemd/system/octessera.service /etc/systemd/system/octessera.service 0644
   octessera_install_production_runtime "$overlay_dir"
