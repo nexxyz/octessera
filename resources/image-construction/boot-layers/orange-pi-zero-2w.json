@@ -52,7 +52,7 @@
     {"path": "tools/armbian-image/stage-musical-assets.sh", "sha256": "9de3fde1fc8f3af0c96d372db9ee1a8c143d5329353b5ed668322b82a1bf8713", "size": 938, "mode": 493},
     {"path": "tools/samples/sample_library.py", "sha256": "ab7ed89c5fd3819af94ee98f3e097cb103bf210e0a1af08d98aeb70badcb6c4a", "size": 11668, "mode": 420},
     {"path": "samples/MANIFEST.tsv", "sha256": "1f058d1cf61984bc396ebf05716dd8d866780332f9727d80a21fbfd230eb0b9b", "size": 35245, "mode": 420},
-    {"path": "userpatches/extensions/octessera_image_sanitize.sh", "sha256": "7fc8b55ff364317eb14ef920d9c537bd83769932bc03e3901be6060cf4fc4568", "size": 10844, "mode": 420},
+    {"path": "userpatches/extensions/octessera_image_sanitize.sh", "sha256": "154f43e40b08b43e4eb36cc4d648ae87539f738d24329e6433b2293c3cc55186", "size": 12427, "mode": 420},
     {"path": "userpatches/extensions/octessera_audio.sh", "sha256": "af8fa5327053e10753504abc67fc6d9bb29abc049532355c74f8ac979d3e92e7", "size": 282, "mode": 420},
     {"path": "userpatches/extensions/octessera_sd2.sh", "sha256": "046d1e504bdc52ce17ce3594a63893cd36fc14da195aa81c146c0a70800a1ad5", "size": 249, "mode": 493},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts", "sha256": "727b9a817de68446c3a536da5641af3292834820fa42755fc3a675788bd13e79", "size": 1510, "mode": 420},

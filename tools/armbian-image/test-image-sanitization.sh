@@ -205,7 +205,9 @@ run_as_root chmod 0755 -- "$fixture_work/home"
 armbian_env_path="$fixture_work/boot/armbianEnv.txt"
 printf '%s\n' 'verbosity=1' > "$armbian_env_path"
 chmod 0600 "$armbian_env_path"
-
+printf '%s\n' 'incorrect-orange-host' > "$fixture_work/etc/hostname"
+printf '%s\n' 'incorrect hosts content' > "$fixture_work/etc/hosts"
+chmod 0600 "$fixture_work/etc/hostname" "$fixture_work/etc/hosts"
 : > "$fixture_work/root/.ssh/authorized_keys"
 printf '%s\n' 'late fixture placeholder' > "$fixture_work/home/octessera/.ssh/authorized_keys"
 : > "$fixture_work/home/other-account/.ssh/authorized_keys"
@@ -254,6 +256,12 @@ final_armbian_env_path="$final_fixture/boot/armbianEnv.txt"
     echo "Image sanitization did not normalize armbianEnv.txt ownership and mode." >&2
     exit 1
 }
+printf '%s\n' 'octessera-opi' | cmp - "$final_fixture/etc/hostname"
+printf '%s' $'127.0.0.1   localhost\n127.0.1.1   octessera-opi\n::1         localhost octessera-opi ip6-localhost ip6-loopback\nfe00::0     ip6-localnet\nff00::0     ip6-mcastprefix\nff02::1     ip6-allnodes\nff02::2     ip6-allrouters\n' | cmp - "$final_fixture/etc/hosts"
+[[ "$(stat -c '%u:%g %a' "$final_fixture/etc/hostname" "$final_fixture/etc/hosts")" == $'0:0 644\n0:0 644' ]] || {
+    echo "Image sanitization did not normalize hostname file metadata." >&2
+    exit 1
+}
 [[ "$(stat -c '%u:%g %a' "$final_fixture/home")" == '0:0 755' ]] || {
     echo "Image sanitization did not preserve exact /home metadata." >&2
     exit 1
@@ -270,7 +278,6 @@ final_armbian_env_path="$final_fixture/boot/armbianEnv.txt"
     echo "Image sanitization did not create exact .hushlogin metadata and content." >&2
     exit 1
 }
-
 absent_home_case_root="$symlink_fixture_work/absent-home/rootfs"
 mkdir -p "$absent_home_case_root" && run_as_root cp -a "$fixture_work/." "$absent_home_case_root/" && run_as_root rm -rf "${absent_home_case_root:?}/home"
 run_as_root "$hook_runner" "$extension" "$absent_home_case_root" "$absent_home_case_root/absent-home.trace"
@@ -278,7 +285,6 @@ run_as_root "$hook_runner" "$extension" "$absent_home_case_root" "$absent_home_c
     echo "Image sanitization did not create an absent /home directory." >&2
     exit 1
 }
-
 metadata_before_rerun="$(stat -c '%u:%g %a' "$final_fixture/home" "$final_fixture/home/octessera" "$final_fixture/home/octessera/.hushlogin")"
 run_as_root "$hook_runner" "$extension" "$final_fixture" "$hook_trace"
 metadata_after_rerun="$(stat -c '%u:%g %a' "$final_fixture/home" "$final_fixture/home/octessera" "$final_fixture/home/octessera/.hushlogin")"
@@ -286,7 +292,6 @@ metadata_after_rerun="$(stat -c '%u:%g %a' "$final_fixture/home" "$final_fixture
     echo "Image sanitization was not idempotent for account-home metadata." >&2
     exit 1
 }
-
 run_as_root mkdir -p \
     "$final_fixture/home/octessera/.ssh" \
     "$final_fixture/home/other-account/.ssh" \
@@ -298,7 +303,6 @@ run_as_root cp -- "$fixture_work/home/other-account/nested/.ssh/authorized_keys"
 run_as_root cp -- "$fixture_work/etc/ssh/authorized_keys" "$final_fixture/etc/ssh/authorized_keys"
 run_as_root cp -- "$fixture_work/etc/dropbear/authorized_keys" "$final_fixture/etc/dropbear/authorized_keys"
 run_as_root "$hook_runner" "$extension" "$final_fixture" "$hook_trace"
-
 for removed_path in \
     "$final_fixture/root/.ssh/authorized_keys" \
     "$final_fixture/home/octessera/.ssh/authorized_keys" \
