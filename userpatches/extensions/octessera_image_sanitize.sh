@@ -165,6 +165,9 @@ function pre_umount_final_image__9999_octessera_image_sanitize() {
     local mount_root="${MOUNT:-}"
     local removal_failed=0
     local armbian_env_path
+    local hostname_path
+    local hosts_path
+    local identity_path
     local home_path
     local home_ssh_path
 
@@ -182,6 +185,40 @@ function pre_umount_final_image__9999_octessera_image_sanitize() {
     if ! octessera_ensure_account_home "$mount_root"; then
         return 1
     fi
+
+    hostname_path="$mount_root/etc/hostname"
+    hosts_path="$mount_root/etc/hosts"
+    for identity_path in "$hostname_path" "$hosts_path"; do
+        if ! octessera_validate_no_follow_path "$mount_root" "$identity_path"; then
+            printf '%s\n' "Octessera image sanitization found an unsafe or missing parent for: $identity_path" >&2
+            return 1
+        fi
+        [[ -f "$identity_path" && ! -L "$identity_path" ]] || {
+            printf '%s\n' "Octessera image sanitization requires a regular non-symlink file: $identity_path" >&2
+            return 1
+        }
+    done
+    if ! printf '%s\n' 'octessera-opi' > "$hostname_path"; then
+        printf '%s\n' "Octessera image sanitization could not write: $hostname_path" >&2
+        return 1
+    fi
+    if ! printf '%s\n' \
+        '127.0.0.1   localhost' \
+        '127.0.1.1   octessera-opi' \
+        '::1         localhost octessera-opi ip6-localhost ip6-loopback' \
+        'fe00::0     ip6-localnet' \
+        'ff00::0     ip6-mcastprefix' \
+        'ff02::1     ip6-allnodes' \
+        'ff02::2     ip6-allrouters' > "$hosts_path"; then
+        printf '%s\n' "Octessera image sanitization could not write: $hosts_path" >&2
+        return 1
+    fi
+    for identity_path in "$hostname_path" "$hosts_path"; do
+        if ! chown root:root -- "$identity_path" || ! chmod 0644 -- "$identity_path"; then
+            printf '%s\n' "Octessera image sanitization could not normalize: $identity_path" >&2
+            return 1
+        fi
+    done
 
     armbian_env_path="$mount_root/boot/armbianEnv.txt"
     if ! octessera_validate_no_follow_path "$mount_root" "$armbian_env_path"; then
