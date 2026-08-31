@@ -33,11 +33,22 @@ pub const LIVE_SCENARIO_IDS: [&str; 11] = [
 ];
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
+pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 5] = [
+    "synth_cross_slot_16",
+    "sample_cross_slot_64",
+    "mixed_16_synth_32_sample",
+    "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
+    "synth_cross_slot_32_no_steal",
+];
+
+#[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExpectedLiveState {
     pub active_synth_voices: usize,
     pub active_sample_voices: usize,
     pub active_momentary_fx: usize,
+    pub active_bus_fx_slots: usize,
+    pub active_global_fx_slots: usize,
     pub expected_voice_steals: u64,
 }
 
@@ -54,9 +65,16 @@ pub fn live_scenario(
     note_duration_ms: u32,
 ) -> Option<LiveScenarioSpec> {
     let expected = expected_live_state(name)?;
-    let scenario = profile_scenarios(sample_rate, ProfileMode::Full)
+    let scenarios = if BASELINE_LIVE_SCENARIO_IDS.contains(&name) {
+        profile_scenarios(sample_rate, ProfileMode::Baseline)
+    } else {
+        profile_scenarios(sample_rate, ProfileMode::Full)
+            .into_iter()
+            .chain(profile_scenarios(sample_rate, ProfileMode::Overload))
+            .collect()
+    };
+    let scenario = scenarios
         .into_iter()
-        .chain(profile_scenarios(sample_rate, ProfileMode::Overload))
         .find(|scenario| scenario.name == name)?;
     let events = scenario
         .events
@@ -91,25 +109,32 @@ pub fn live_scenario(
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
 pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
-    let state: (usize, usize, usize, u64) = match name {
-        "synth_ramp_16" => (16, 0, 0, 0),
-        "synth_ramp_32" => (32, 0, 0, 0),
-        "synth_ramp_64" => (64, 0, 0, 0),
-        "sample_ramp_64" => (0, 64, 0, 0),
-        "mixed_ramp_16_16" => (16, 16, 0, 0),
-        "mixed_ramp_32_32" => (32, 32, 0, 0),
-        "bus_heavy_6_bus_fx_2_global" => (16, 0, 0, 0),
-        "momentary_combined" => (16, 0, 2, 0),
-        "synth_cross_slot_96_steal" => (64, 0, 0, 32),
-        "sample_cross_slot_96_steal" => (0, 64, 0, 32),
-        "mixed_cross_slot_48_48_steal" => (32, 32, 0, 32),
+    let state: (usize, usize, usize, usize, usize, u64) = match name {
+        "synth_ramp_16" => (16, 0, 0, 0, 0, 0),
+        "synth_ramp_32" => (32, 0, 0, 0, 0, 0),
+        "synth_ramp_64" => (64, 0, 0, 0, 0, 0),
+        "sample_ramp_64" => (0, 64, 0, 0, 0, 0),
+        "mixed_ramp_16_16" => (16, 16, 0, 0, 0, 0),
+        "mixed_ramp_32_32" => (32, 32, 0, 0, 0, 0),
+        "bus_heavy_6_bus_fx_2_global" => (16, 0, 0, 6, 2, 0),
+        "momentary_combined" => (16, 0, 2, 0, 0, 0),
+        "synth_cross_slot_96_steal" => (64, 0, 0, 0, 0, 32),
+        "sample_cross_slot_96_steal" => (0, 64, 0, 0, 0, 32),
+        "mixed_cross_slot_48_48_steal" => (32, 32, 0, 0, 0, 32),
+        "synth_cross_slot_16" => (16, 0, 0, 0, 0, 0),
+        "sample_cross_slot_64" => (0, 64, 0, 0, 0, 0),
+        "mixed_16_synth_32_sample" => (16, 32, 0, 0, 0, 0),
+        "fixed_8_synth_8_sample_12_bus_2_global_2_momentary" => (8, 8, 2, 12, 2, 0),
+        "synth_cross_slot_32_no_steal" => (32, 0, 0, 0, 0, 0),
         _ => return None,
     };
     Some(ExpectedLiveState {
         active_synth_voices: state.0,
         active_sample_voices: state.1,
         active_momentary_fx: state.2,
-        expected_voice_steals: state.3,
+        active_bus_fx_slots: state.3,
+        active_global_fx_slots: state.4,
+        expected_voice_steals: state.5,
     })
 }
 
@@ -119,6 +144,22 @@ mod tests {
 
     #[test]
     fn live_scenario_order_is_the_approved_historical_matrix() {
+        assert_eq!(
+            LIVE_SCENARIO_IDS,
+            [
+                "synth_ramp_16",
+                "synth_ramp_32",
+                "synth_ramp_64",
+                "sample_ramp_64",
+                "mixed_ramp_16_16",
+                "mixed_ramp_32_32",
+                "bus_heavy_6_bus_fx_2_global",
+                "momentary_combined",
+                "synth_cross_slot_96_steal",
+                "sample_cross_slot_96_steal",
+                "mixed_cross_slot_48_48_steal",
+            ]
+        );
         let scenarios: Vec<_> = LIVE_SCENARIO_IDS
             .iter()
             .map(|name| {
@@ -127,6 +168,15 @@ mod tests {
             })
             .collect();
         assert_eq!(scenarios, LIVE_SCENARIO_IDS);
+    }
+
+    #[test]
+    fn baseline_live_vocabulary_is_separate_and_idle_stays_offline_only() {
+        assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 5);
+        for name in BASELINE_LIVE_SCENARIO_IDS {
+            assert!(live_scenario(name, 44_100, 600_000).is_some(), "{name}");
+        }
+        assert!(live_scenario("baseline_idle", 44_100, 600_000).is_none());
     }
 
     #[test]
@@ -158,6 +208,14 @@ mod tests {
                 "{name}"
             );
             assert_eq!(
+                snapshot.active_bus_fx_slots, scenario.expected.active_bus_fx_slots,
+                "{name}"
+            );
+            assert_eq!(
+                snapshot.active_global_fx_slots, scenario.expected.active_global_fx_slots,
+                "{name}"
+            );
+            assert_eq!(
                 snapshot.cumulative_voice_steals, scenario.expected.expected_voice_steals,
                 "{name}"
             );
@@ -172,6 +230,24 @@ mod tests {
                 .active_momentary_fx,
             2
         );
+    }
+
+    #[test]
+    fn baseline_max_fx_expected_state_reaches_native_limits() {
+        let scenario = live_scenario(
+            "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
+            44_100,
+            600_000,
+        )
+        .unwrap();
+        let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
+        crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
+        let snapshot = engine.profile_snapshot();
+        assert_eq!(snapshot.active_bus_fx_slots, 12);
+        assert_eq!(snapshot.active_global_fx_slots, 2);
+        assert_eq!(snapshot.active_momentary_fx, 2);
+        assert_eq!(scenario.expected.active_bus_fx_slots, 12);
+        assert_eq!(scenario.expected.active_global_fx_slots, 2);
     }
 
     #[test]

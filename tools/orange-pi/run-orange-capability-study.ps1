@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [ValidateSet("PassiveBaseline", "Dsp64", "Dsp256", "LiveCandidate", "LiveAudioBenchmark")]
+  [ValidateSet("PassiveBaseline", "ProfileBaseline", "Dsp64", "Dsp256", "LiveCandidate", "LiveAudioBenchmark")]
   [string]$Mode = "PassiveBaseline",
   [ValidateSet("full", "overload", "soak", "fx-limits")]
   [string]$ProfileMode = "soak",
@@ -11,10 +11,12 @@ param(
   [ValidateRange(5, 300)]
   [int]$LiveSeconds = 30,
   [string]$Scenario = "",
-  [ValidateSet(256, 512, 1024)]
+  [ValidateSet(128, 256, 512, 1024)]
   [int]$OutputFrames = 256,
-  [ValidateSet(64, 128, 256)]
+  [ValidateSet(32, 64, 128, 256)]
   [int]$EngineBlockFrames = 0,
+  [ValidateSet(64, 128, 256)]
+  [int]$ProfileMeasureFrames = 0,
   [ValidateSet(0, 2, 3)]
   [int]$Workers = 2,
   [ValidateSet(30, 120)]
@@ -39,6 +41,7 @@ $metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
 $payloadModule = Join-Path $PSScriptRoot "orange-capability-study-payloads.psm1"
 $livePayloadModule = Join-Path $PSScriptRoot "orange-live-benchmark-payloads.psm1"
 $liveValidationModule = Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1"
+$baselineValidationModule = Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1"
 $defaultArtifact = Join-Path $PSScriptRoot "..\..\target\orange-pi-cross\octessera-pi"
 $defaultOutput = Join-Path $PSScriptRoot "..\..\target\orange-pi-study"
 $artifactRequired = $Mode -ne "PassiveBaseline"
@@ -47,14 +50,23 @@ $activeMode = $artifactRequired
 if ([string]::IsNullOrWhiteSpace($Artifact)) { $Artifact = $defaultArtifact }
 if ([string]::IsNullOrWhiteSpace($Metadata)) { $Metadata = "$Artifact.metadata.json" }
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = $defaultOutput }
-if ($activeMode -and -not $AllowServiceInterruption) {
+if ($activeMode -and -not $AllowServiceInterruption -and -not ($PrintOnly -and $Mode -eq "ProfileBaseline")) {
   throw "$Mode requires -AllowServiceInterruption; no service will be interrupted without it."
 }
 
 Import-Module $metadataModule -Force
 Import-Module $payloadModule -Force
 Import-Module $liveValidationModule -Force
+Import-Module $baselineValidationModule -Force
 $liveSelection = $null
+$baselineSelection = $null
+if ($Mode -eq "ProfileBaseline") {
+  $baselineSelection = Assert-OrangeProfileBaselineSelection `
+    -Scenario $Scenario `
+    -InternalFrames $EngineBlockFrames `
+    -MeasureFrames $ProfileMeasureFrames `
+    -Workers $Workers
+}
 if ($Mode -eq "LiveAudioBenchmark") {
   Import-Module $livePayloadModule -Force
   if ($EngineBlockFrames -eq 0) { throw "LiveAudioBenchmark requires -EngineBlockFrames (64, 128, or 256)." }
@@ -204,7 +216,11 @@ $payloadBundle = if ($Mode -eq "LiveAudioBenchmark") {
     -Unit $remoteUnit `
     -Service $service `
     -ActiveMode $activeMode `
-    -ArtifactRequired $artifactRequired
+    -ArtifactRequired $artifactRequired `
+    -Scenario $(if ($null -ne $baselineSelection) { $baselineSelection.Scenario } else { "" }) `
+    -InternalFrames $(if ($null -ne $baselineSelection) { $baselineSelection.InternalFrames } else { 0 }) `
+    -MeasureFrames $(if ($null -ne $baselineSelection) { $baselineSelection.MeasureFrames } else { 0 }) `
+    -Workers $(if ($null -ne $baselineSelection) { $baselineSelection.Workers } else { 2 })
 }
 $payloadPaths = @()
 $studyFailure = $null
@@ -236,6 +252,9 @@ try {
       Write-Output "Live readiness path: $benchmarkRoot/readiness.json"
       Write-Output "Live progress path: $benchmarkRoot/progress.json"
       Write-Output "Live result path: $benchmarkRoot/result.json"
+    }
+    if ($Mode -eq "ProfileBaseline") {
+      Write-Output "Profile baseline selection: scenario=$($baselineSelection.Scenario) internal=$($baselineSelection.InternalFrames) measure=$($baselineSelection.MeasureFrames) workers=$($baselineSelection.Workers) warmup=2 observations=4096"
     }
     Write-Output "Prepare payload:"
     Write-Output $payloadBundle.Prepare

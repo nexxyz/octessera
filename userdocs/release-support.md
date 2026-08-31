@@ -55,9 +55,8 @@ experimental, local bench-validation paths until both conditions below are met:
 USB Audio and USB MIDI defaults remain disabled. A desktop toggle or a native
 capability check is not permission to advertise the feature or to skip the
 power checks. Before connecting a host to an instrument already powered from
-the enclosure USB-C input, use a data-only cable or power-isolating adapter.
-Software cannot prevent a host cable from back-feeding 5V while retaining data.
-Read [safety and power](hardware/safety-and-power.md) first.
+the enclosure USB-C input, follow [safety and power](hardware/safety-and-power.md#usb-host-connections)
+for the fixed USB-A host path and no-backfeed gate; avoid USB-C-to-USB-C/PD.
 
 ## Release-owner checklist
 

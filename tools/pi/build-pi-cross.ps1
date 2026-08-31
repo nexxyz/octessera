@@ -179,6 +179,11 @@ function Invoke-NativeCrossBuild {
 }
 
 $RepoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path
+$sourceCommit = (& git -C $RepoRoot rev-parse HEAD 2>$null | Out-String).Trim().ToLowerInvariant()
+if ($sourceCommit -notmatch '^[0-9a-f]{40}$') { throw "Could not resolve a full repository source commit for build metadata." }
+$repositoryStatus = (& git -C $RepoRoot status --porcelain --untracked-files=all 2>$null | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw "Could not inspect repository status before the authoritative Pi build." }
+if (-not [string]::IsNullOrWhiteSpace($repositoryStatus)) { throw "Authoritative Pi builds require a clean repository; tracked or untracked source changes are present." }
 $outputDir = if ([System.IO.Path]::IsPathRooted($OutDir)) { $OutDir } else { Join-Path $RepoRoot $OutDir }
 
 Push-Location $RepoRoot
@@ -215,7 +220,11 @@ try {
   if (-not (Test-Path -LiteralPath $outputBinary)) {
     throw "Build finished but binary was not found at $outputBinary"
   }
-  Write-PiBoardMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -BoardProfile $BoardProfile
+  if ($BoardProfile -ceq $RaspberryPiZero2WProfileId) {
+    Write-RaspberryBoardMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -SourceCommit $sourceCommit -BinaryPath $outputBinary
+  } else {
+    Write-PiBoardMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -BoardProfile $BoardProfile
+  }
   Write-Output $outputBinary
 }
 finally {

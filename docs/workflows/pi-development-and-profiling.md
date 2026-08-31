@@ -119,7 +119,7 @@ runs stop the production service:
 The Orange offline DSP profile finds computational knees; it is not live-xrun
 proof. The current CPAL/ALSA path cannot count internally recovered `EPIPE`
 events, so a clean offline report is not zero-xrun evidence and cannot change
-capabilities. Inspect p99/p99.9/p99.99 and outlier counts, not only p95.
+capabilities. Inspect p99/p99.9 and outlier counts, not only p95.
 
 After live probes, inspect recent logs:
 
@@ -129,3 +129,72 @@ After live probes, inspect recent logs:
 
 Offer a live probe when the report is subjective or audio-path-specific; do not
 run long live probes for unrelated changes.
+
+## Cross-board performance baseline
+
+The baseline is deliberately two-layer evidence, not a normalized score. The
+native profile layer compares the same 44.1 kHz scenarios with a two-second
+warmup, 4096 measured observations, and three fresh processes per cell. It
+contains the common reference, Orange-effective-default, block, and worker
+cohorts in [`tools/performance/cross-board-baseline.json`](../../tools/performance/cross-board-baseline.json).
+
+The board-live layer retains each board's own proof. Orange reports strict ALSA
+callback geometry and one-second thermal/load/memory sampling. Raspberry runs
+fresh `Live` and `AudioDrain` probes at output 128, 256, and 512 for 30 seconds
+each, with internal block 256 and two requested workers; its Orange-only callback
+fields are unavailable and remain `null`. Raspberry also retains one-second
+native thermal and throttling samples; every measurement requires valid startup
+and runtime samples, below-70 C startup and below-75 C runtime benchmark
+temperatures matching Orange, and no active throttling or undervoltage. These are
+benchmark admissibility limits, not a Raspberry operating-temperature claim.
+Missing or malformed system evidence is fatal. The p99.9
+population is the measured observations for one native profile repetition or
+the measured callbacks for one Orange live repetition. Do not combine board
+populations or turn them into a single score.
+
+Orange's effective shipped geometry is output 256 → internal 64 with no
+effective synth workers. Raspberry's is output 256 → internal 256 with
+effective workers. These are evidence labels, not default-change requests.
+
+Print the exact deterministic plan without transport:
+
+```powershell
+./tools/orange-pi/run-orange-performance-baseline.ps1 -PrintOnly
+./tools/pi/run-pi-performance-baseline.ps1 -PrintOnly
+```
+
+Run the bounded Orange canary (passive identity, one offline cell, and one
+live default cell) before the full Orange study:
+
+```powershell
+./tools/orange-pi/run-orange-performance-baseline.ps1 -CanaryOnly -AllowServiceInterruption -Artifact target/orange-pi-cross/octessera-pi -Metadata target/orange-pi-cross/octessera-pi.metadata.json
+```
+
+Run the full Orange plan only with the exact release artifact and sidecar:
+
+```powershell
+./tools/orange-pi/run-orange-performance-baseline.ps1 -Phase Full -AllowServiceInterruption -Artifact target/orange-pi-cross/octessera-pi -Metadata target/orange-pi-cross/octessera-pi.metadata.json
+```
+
+The Raspberry adapter has the same print/canary/full shape and uses the fixed
+Pi SSH transport, a local artifact candidate, and board metadata. Each live cell
+runs three fresh processes in round-robin order for both `Live` and `AudioDrain`;
+stdout, stderr, JSON summaries, and service-restoration evidence are retained:
+
+```powershell
+./tools/pi/run-pi-performance-baseline.ps1 -PrintOnly
+./tools/pi/run-pi-performance-baseline.ps1 -CanaryOnly -AllowServiceInterruption -Artifact target/pi-cross/octessera-pi -Binary /usr/local/bin/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json
+./tools/pi/run-pi-performance-baseline.ps1 -Phase Full -AllowServiceInterruption -Artifact target/pi-cross/octessera-pi -Binary /usr/local/bin/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json
+```
+
+Every full native cohort cell runs in repetition order, with a fresh runner
+process for each cell; it does not run all repeats of one cell back-to-back.
+Measured over-budget cells are retained and the next cell continues. Identity,
+geometry, infrastructure, safety/thermal, or service-restoration failures stop
+the study. Active runs also require a clean worktree, full repository `HEAD`,
+and a cross-build metadata `source_commit` equal to that `HEAD`; the local and
+remote artifact SHA-256 values must match. Neither adapter changes governors or
+shipped defaults. Orange keeps
+the 70 C startup and 75 C abort limits and the one-second sensor cadence. The
+current ALSA/CPAL path cannot observe recovered `EPIPE` events, so these tools
+must not claim zero ALSA xruns.

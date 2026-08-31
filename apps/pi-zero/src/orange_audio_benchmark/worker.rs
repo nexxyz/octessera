@@ -13,7 +13,10 @@ pub fn policy(internal_frames: usize, workers: usize, scenario: &str) -> WorkerP
             && workers > 0
             && matches!(
                 scenario,
-                "synth_cross_slot_96_steal" | "mixed_cross_slot_48_48_steal"
+                "synth_cross_slot_96_steal"
+                    | "mixed_cross_slot_48_48_steal"
+                    | "synth_cross_slot_32_no_steal"
+                    | "mixed_16_synth_32_sample"
             ),
     }
 }
@@ -133,10 +136,38 @@ mod tests {
 
     #[test]
     fn effective_synth_and_mixed_profiles_require_clean_dispatching() {
-        for scenario in ["synth_cross_slot_96_steal", "mixed_cross_slot_48_48_steal"] {
+        for scenario in [
+            "synth_cross_slot_96_steal",
+            "mixed_cross_slot_48_48_steal",
+            "synth_cross_slot_32_no_steal",
+            "mixed_16_synth_32_sample",
+        ] {
             let policy = policy(256, 2, scenario);
             assert!(validates(policy, true, &snapshot(0), &snapshot(1), scenario).is_ok());
             assert!(validates(policy, true, &snapshot(0), &snapshot(0), scenario).is_err());
+        }
+    }
+
+    #[test]
+    fn baseline_worker_comparison_policy_covers_only_the_approved_scenarios() {
+        for scenario in ["synth_cross_slot_32_no_steal", "mixed_16_synth_32_sample"] {
+            for workers in [0, 2, 3] {
+                let policy = policy(256, workers, scenario);
+                assert_eq!(
+                    policy.expected_effective,
+                    workers > 0,
+                    "{scenario}/{workers}"
+                );
+                assert_eq!(policy.require_dispatch, workers > 0, "{scenario}/{workers}");
+            }
+        }
+        for scenario in [
+            "synth_cross_slot_16",
+            "sample_cross_slot_64",
+            "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
+            "synth_cross_slot_64_no_steal",
+        ] {
+            assert!(!policy(256, 2, scenario).require_dispatch, "{scenario}");
         }
     }
 

@@ -224,9 +224,11 @@ The remaining authorized gates are:
 
 USB Audio and USB MIDI are experimental local bench-validation paths, not public
 USB support claims. Before connecting a host to an instrument powered
-from the enclosure USB-C input, use a data-only cable or power-isolating adapter.
-Software cannot prevent a host cable from back-feeding 5V while retaining data.
-This is the no-backfeed safety gate.
+from the enclosure USB-C input, follow the [safety and power
+guidance](../../userdocs/hardware/safety-and-power.md#usb-host-connections) for
+the fixed USB-A host path. Ordinary host cables carry VBUS; avoid
+USB-C-to-USB-C/PD and do not treat the connector choice as isolation. This is
+the no-backfeed safety gate.
 
 ### 5. Run the safe runtime evidence command
 

@@ -24,7 +24,19 @@ fn profile_snapshot_reports_active_counts_and_steals() {
                 }),
             },
         ],
-        mixer: None,
+        mixer: Some(MixerConfig {
+            buses: vec![FxBusConfig {
+                slots: vec![FxBusSlotConfig::Kind("delay".into())],
+                pan_pos: 0,
+                volume_pct: 100.0,
+            }],
+            master: Some(MasterFxConfig {
+                slots: vec![
+                    FxBusSlotConfig::Kind("compressor".into()),
+                    FxBusSlotConfig::Kind("reverb".into()),
+                ],
+            }),
+        }),
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     });
@@ -56,5 +68,8 @@ fn profile_snapshot_reports_active_counts_and_steals() {
     assert_eq!(snapshot.active_sample_voices, 1);
     assert_eq!(snapshot.active_preview_sample_voices, 1);
     assert_eq!(snapshot.active_momentary_fx, 1);
+    assert_eq!(snapshot.active_bus_fx_slots, 1);
+    assert_eq!(snapshot.active_global_fx_slots, 2);
     assert_eq!(snapshot.cumulative_voice_steals, 1);
+    assert_eq!(snapshot.synth_parallel_worker_count, 0);
 }

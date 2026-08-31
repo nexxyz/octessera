@@ -14,10 +14,11 @@ warnings.
   instructions explicitly authorize it.
 - On Raspberry, do not power the Pi through its micro-USB power connector. The
   enclosure covers that connector and it is not an intended input.
-- Use a dedicated, regulated 5V supply rated for at least 4A. A Raspberry Pi
-  power supply is a good fit; for example, the “GeeekPi for Raspberry Pi 4
-  20W 5V 4A” supply includes a handy inline power switch. A 2A supply is likely
-  marginal once the board and LEDs are running.
+- The normal canonical device power setup is a dedicated regulated 5V/4A supply
+  intended for Raspberry Pi 4-class systems. The documented GeeekPi 20W 5V/4A
+  example is acceptable.
+- `D1` `SA5.0A` is the required canonical PCB/BOM 5V TVS diode. It protects the
+  shared `+5V` rail from transients; it is not VBUS or reverse-current isolation.
 
 The two boards do not share port assumptions. Raspberry uses the fixed Pi
 profile and wiring table. Orange uses a reviewed, board-specific Armbian
@@ -34,9 +35,10 @@ Linux Foundation VID/PID values are local-validation-only and are not a public
 product identity; do not invent or publish replacement IDs. Defaults remain
 disabled.
 
-A normal host USB cable can send 5V back into a board that is already powered
-through the enclosure input. Software cannot block that power while keeping USB
-data. Use a data-only cable or a power-isolating adapter, and use the selected
+For this fixed-device bench path, use a USB-A host port or USB-A hub port with
+USB-A-to-USB-C for Orange USB0, or USB-A-to-Micro-USB for the Raspberry gadget
+port. Avoid USB-C-to-USB-C/PD. Ordinary A-to-C and A-to-Micro-USB cables carry
+host VBUS; the connector choice does not provide isolation. Use the selected
 build's host-data port only after that exact build passes its port-role, VBUS/CC,
 and no-backfeed gates.
 
@@ -60,7 +62,8 @@ Stop the build or test and record what happened if:
 
 - the OLED is blank, flickering, unstable, or has more than one writer;
 - a diagnostic reports an actual hardware error;
-- power is unstable, a board browns out, or a host connection back-feeds power;
+- power is unstable, a board browns out, a host connection back-feeds power, or
+  the board or breakout heats unexpectedly;
 - a board pin, port role, or connector orientation is uncertain; or
 - the enclosure does not sit flat without force.
 

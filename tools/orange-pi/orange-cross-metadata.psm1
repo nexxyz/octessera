@@ -3,6 +3,13 @@ Set-StrictMode -Version Latest
 $script:OrangeBoardProfile = "orange-pi-zero-2w"
 $script:OrangeSchemaVersion = 2
 
+function Assert-OrangeSourceCommit {
+  param([Parameter(Mandatory)][string]$SourceCommit)
+  if ($SourceCommit -notmatch '^[0-9a-f]{40}$') {
+    throw "Orange build metadata source_commit must be a full lowercase commit identity."
+  }
+}
+
 function Get-OrangeBinarySha256 {
   param(
     [Parameter(Mandatory)][string]$BinaryPath
@@ -25,9 +32,11 @@ function New-OrangeBuildMetadata {
     [Parameter(Mandatory)][string]$SelectedBinary,
     [Parameter(Mandatory)][string]$SelectedTarget,
     [Parameter(Mandatory)][string]$SelectedProfile,
-    [Parameter(Mandatory)][pscustomobject]$BuildSpec
+    [Parameter(Mandatory)][pscustomobject]$BuildSpec,
+    [Parameter(Mandatory)][string]$SourceCommit
   )
 
+  Assert-OrangeSourceCommit $SourceCommit
   return [ordered]@{
     schema_version = $script:OrangeSchemaVersion
     board_profile = $script:OrangeBoardProfile
@@ -39,6 +48,7 @@ function New-OrangeBuildMetadata {
     cargo_feature = $BuildSpec.Feature
     profile = $SelectedProfile
     binary_sha256 = Get-OrangeBinarySha256 $BinaryPath
+    source_commit = $SourceCommit
   }
 }
 
@@ -48,7 +58,8 @@ function ConvertTo-OrangeBuildMetadataJson {
     [Parameter(Mandatory)][string]$SelectedBinary,
     [Parameter(Mandatory)][string]$SelectedTarget,
     [Parameter(Mandatory)][string]$SelectedProfile,
-    [Parameter(Mandatory)][pscustomobject]$BuildSpec
+    [Parameter(Mandatory)][pscustomobject]$BuildSpec,
+    [Parameter(Mandatory)][string]$SourceCommit
   )
 
   return (New-OrangeBuildMetadata `
@@ -56,7 +67,8 @@ function ConvertTo-OrangeBuildMetadataJson {
     -SelectedBinary $SelectedBinary `
     -SelectedTarget $SelectedTarget `
     -SelectedProfile $SelectedProfile `
-    -BuildSpec $BuildSpec) | ConvertTo-Json -Compress
+    -BuildSpec $BuildSpec `
+    -SourceCommit $SourceCommit) | ConvertTo-Json -Compress
 }
 
 function Publish-OrangeBuildMetadata {
@@ -66,7 +78,8 @@ function Publish-OrangeBuildMetadata {
     [Parameter(Mandatory)][string]$SelectedBinary,
     [Parameter(Mandatory)][string]$SelectedTarget,
     [Parameter(Mandatory)][string]$SelectedProfile,
-    [Parameter(Mandatory)][pscustomobject]$BuildSpec
+    [Parameter(Mandatory)][pscustomobject]$BuildSpec,
+    [Parameter(Mandatory)][string]$SourceCommit
   )
 
   $json = ConvertTo-OrangeBuildMetadataJson `
@@ -74,7 +87,8 @@ function Publish-OrangeBuildMetadata {
     -SelectedBinary $SelectedBinary `
     -SelectedTarget $SelectedTarget `
     -SelectedProfile $SelectedProfile `
-    -BuildSpec $BuildSpec
+    -BuildSpec $BuildSpec `
+    -SourceCommit $SourceCommit
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
   $temporaryMetadataPath = "$MetadataPath.tmp-$PID"
   try {
@@ -113,16 +127,25 @@ function Assert-OrangeBuildMetadata {
     [Parameter(Mandatory)][string]$SelectedBinary,
     [Parameter(Mandatory)][string]$SelectedTarget,
     [Parameter(Mandatory)][string]$SelectedProfile,
-    [Parameter(Mandatory)][pscustomobject]$BuildSpec
+    [Parameter(Mandatory)][pscustomobject]$BuildSpec,
+    [string]$SourceCommit = ""
   )
 
   $metadata = Read-OrangeBuildMetadata $MetadataPath
+  $metadataSourceCommit = $metadata.PSObject.Properties["source_commit"]
+  if ($null -eq $metadataSourceCommit -or $metadataSourceCommit.Value -isnot [string]) { throw "Build metadata is missing source_commit: $MetadataPath" }
+  Assert-OrangeSourceCommit $metadataSourceCommit.Value
+  if (-not [string]::IsNullOrWhiteSpace($SourceCommit)) {
+    Assert-OrangeSourceCommit $SourceCommit
+    if ($metadataSourceCommit.Value -cne $SourceCommit) { throw "Build metadata source_commit does not match the requested repository HEAD: $MetadataPath" }
+  }
   $expected = New-OrangeBuildMetadata `
     -BinaryPath $BinaryPath `
     -SelectedBinary $SelectedBinary `
     -SelectedTarget $SelectedTarget `
     -SelectedProfile $SelectedProfile `
-    -BuildSpec $BuildSpec
+    -BuildSpec $BuildSpec `
+    -SourceCommit $metadataSourceCommit.Value
   $expectedProperties = @($expected.Keys)
   $properties = @($metadata.PSObject.Properties.Name)
   if ($properties.Count -ne $expectedProperties.Count) {
@@ -152,6 +175,7 @@ function Invoke-VerifiedOrangeBuildMetadata {
     [Parameter(Mandatory)][string]$SelectedTarget,
     [Parameter(Mandatory)][string]$SelectedProfile,
     [Parameter(Mandatory)][pscustomobject]$BuildSpec,
+    [Parameter(Mandatory)][string]$SourceCommit,
     [scriptblock]$MetadataWriter
   )
 
@@ -164,7 +188,8 @@ function Invoke-VerifiedOrangeBuildMetadata {
         -SelectedBinary $SelectedBinary `
         -SelectedTarget $SelectedTarget `
         -SelectedProfile $SelectedProfile `
-        -BuildSpec $BuildSpec
+        -BuildSpec $BuildSpec `
+        -SourceCommit $SourceCommit
     } else {
       & $MetadataWriter
     }
@@ -174,7 +199,8 @@ function Invoke-VerifiedOrangeBuildMetadata {
       -SelectedBinary $SelectedBinary `
       -SelectedTarget $SelectedTarget `
       -SelectedProfile $SelectedProfile `
-      -BuildSpec $BuildSpec
+      -BuildSpec $BuildSpec `
+      -SourceCommit $SourceCommit
     $verified = $true
   } finally {
     if (-not $verified) {

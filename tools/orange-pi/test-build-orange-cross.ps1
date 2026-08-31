@@ -47,7 +47,8 @@ foreach ($required in @(
     "Remove-OrangeBuildArtifacts",
     "Invoke-VerifiedOrangeBuildMetadata",
     "WriteAllText",
-    "ReadAllBytes"
+    "ReadAllBytes",
+    "source_commit"
   )) {
   if ($metadataSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
     throw "Orange metadata module is missing required operation: $required"
@@ -72,6 +73,11 @@ if ($source -match "(?i)\b(ssh|scp|rsync)\b") {
 }
 if ($source -match 'service_ready|runtime_ready\s*=\s*\$true') {
   throw "Orange cross-builder must not define deployment or service-ready output"
+}
+$statusCheckIndex = $source.IndexOf("status --porcelain --untracked-files=all", [StringComparison]::Ordinal)
+$dryRunIndex = $source.IndexOf("if (`$DryRun)", [StringComparison]::Ordinal)
+if ($statusCheckIndex -lt 0 -or $dryRunIndex -lt 0 -or $statusCheckIndex -lt $dryRunIndex -or $source.IndexOf("Authoritative Orange builds require a clean repository", [StringComparison]::Ordinal) -lt 0) {
+  throw "Orange cross-builder must reject dirty source before authoritative builds while retaining dry-run support."
 }
 
 function Invoke-DryRun {
@@ -158,6 +164,7 @@ $metadataCases = @(
   "orange-seesaw-smoke"
 )
 $testSpec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w"; ArtifactKind = "diagnostic-only" }
+$sourceCommit = "a" * 40
 foreach ($binaryName in $metadataCases) {
   $testDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
   $testBinary = Join-Path $testDirectory $binaryName
@@ -168,6 +175,7 @@ foreach ($binaryName in $metadataCases) {
     SelectedTarget = "aarch64-unknown-linux-gnu"
     SelectedProfile = "pi-dev"
     BuildSpec = $testSpec
+    SourceCommit = $sourceCommit
   }
   $publicationParameters = @{ MetadataPath = $testMetadata } + $metadataParameters
 
@@ -176,7 +184,7 @@ foreach ($binaryName in $metadataCases) {
     [IO.File]::WriteAllBytes($testBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7))
     $json = ConvertTo-OrangeBuildMetadataJson @metadataParameters
     $expectedHash = (Get-FileHash -LiteralPath $testBinary -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($json -notmatch ('"binary_sha256":"' + $expectedHash + '"')) {
+    if ($json -notmatch ('"binary_sha256":"' + $expectedHash + '"') -or $json -notmatch ('"source_commit":"' + $sourceCommit + '"')) {
       throw "Orange metadata serialization did not bind the binary hash: $binaryName"
     }
     Publish-OrangeBuildMetadata @publicationParameters
@@ -189,6 +197,12 @@ foreach ($binaryName in $metadataCases) {
     if ($utf8NoBom.GetString($publishedBytes) -cne "$json`n") {
       throw "Orange metadata publication changed the canonical serialized JSON: $binaryName"
     }
+    $mismatched = [regex]::Replace([IO.File]::ReadAllText($testMetadata), '"source_commit":"[0-9a-f]{40}"', ('"source_commit":"' + ("b" * 40) + '"'))
+    [IO.File]::WriteAllText($testMetadata, $mismatched, (New-Object System.Text.UTF8Encoding($false)))
+    $mismatchRejected = $false
+    try { Assert-OrangeBuildMetadata @publicationParameters } catch { $mismatchRejected = $true }
+    if (-not $mismatchRejected) { throw "Orange metadata accepted a mismatched source commit: $binaryName" }
+    Publish-OrangeBuildMetadata @publicationParameters
 
     $tamperedWriter = {
       Publish-OrangeBuildMetadata @publicationParameters
@@ -230,6 +244,7 @@ $candidateParameters = @{
   SelectedTarget = "aarch64-unknown-linux-gnu"
   SelectedProfile = "release"
   BuildSpec = $candidateSpec
+  SourceCommit = $sourceCommit
 }
 New-Item -ItemType Directory -Path $candidateDirectory | Out-Null
 try {
@@ -242,6 +257,12 @@ try {
   }
   Publish-OrangeBuildMetadata @candidateParameters
   Assert-OrangeBuildMetadata @candidateParameters
+  $staleCandidate = [regex]::Replace([IO.File]::ReadAllText($candidateMetadata), '"source_commit":"[0-9a-f]{40}"', ('"source_commit":"' + ("c" * 40) + '"'))
+  [IO.File]::WriteAllText($candidateMetadata, $staleCandidate, (New-Object System.Text.UTF8Encoding($false)))
+  $staleRejected = $false
+  try { Assert-OrangeBuildMetadata @candidateParameters } catch { $staleRejected = $true }
+  if (-not $staleRejected) { throw "Orange metadata accepted a stale runtime candidate with valid hash and board fields" }
+  Publish-OrangeBuildMetadata @candidateParameters
   $candidateTamperedWriter = {
     Publish-OrangeBuildMetadata @candidateParameters
     $candidateTampered = [regex]::Replace(

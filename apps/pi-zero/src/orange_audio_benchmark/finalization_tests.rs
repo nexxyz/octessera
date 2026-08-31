@@ -31,6 +31,8 @@ fn state_with_profiles(
             active_synth_voices: 0,
             active_sample_voices: 0,
             active_momentary_fx: 0,
+            active_bus_fx_slots: 0,
+            active_global_fx_slots: 0,
             expected_voice_steals: 0,
         },
         44_100,
@@ -100,6 +102,26 @@ fn clean_dispatch_is_complete_evidence() {
 }
 
 #[test]
+fn profile_validation_proves_max_fx_state() {
+    let expected = crate::dsp_scenarios::expected_live_state(
+        "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
+    )
+    .unwrap();
+    let snapshot = SynthProfileSnapshot {
+        active_synth_voices: 8,
+        active_sample_voices: 8,
+        active_momentary_fx: 2,
+        active_bus_fx_slots: 12,
+        active_global_fx_slots: 2,
+        ..SynthProfileSnapshot::default()
+    };
+    validate_profile_state(&snapshot, expected).unwrap();
+    let mut invalid = snapshot;
+    invalid.active_bus_fx_slots = 11;
+    assert!(validate_profile_state(&invalid, expected).is_err());
+}
+
+#[test]
 fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
     let config = crate::orange_audio_benchmark::cli::parse(vec![
         "--benchmark-orange-audio".into(),
@@ -122,6 +144,8 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
             active_synth_voices: 0,
             active_sample_voices: 0,
             active_momentary_fx: 0,
+            active_bus_fx_slots: 0,
+            active_global_fx_slots: 0,
             expected_voice_steals: 0,
         },
         44_100,
