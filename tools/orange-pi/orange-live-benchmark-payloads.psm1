@@ -135,6 +135,17 @@ stop_benchmark_unit() {
       ;;
   esac
 }
+reset_failed_unit() {
+  local load_state active_state
+  load_state="$(sudo -n systemctl show "$unit" --no-pager --property=LoadState --value 2>/dev/null || true)"
+  active_state="$(sudo -n systemctl show "$unit" --no-pager --property=ActiveState --value 2>/dev/null || true)"
+  if [ "$load_state" = loaded ] && [ "$active_state" = failed ]; then
+    if ! timeout --signal=TERM --kill-after=2 10s sudo -n systemctl reset-failed "$unit" >/dev/null 2>&1; then
+      cleanup_status=1
+      restore_status=1
+    fi
+  fi
+}
 validate_benchmark_readiness() {
   local marker="$1" expected_pid="$2" expected_invocation="$3"
   [ -r "$marker" ] || return 1
@@ -271,6 +282,7 @@ restore_service() {
   local active enabled
   set +e
   stop_benchmark_unit
+  reset_failed_unit
   sudo -n rm -f -- "$health" "$readiness" "$progress" "$result" "$release"
   sudo -n rm -rf -- "$benchmark_root"
   timeout --signal=TERM --kill-after=2 15s sudo -n systemctl start "$service" >/dev/null 2>&1 || restore_status=1
@@ -328,12 +340,24 @@ benchmark_root=__BENCHMARK_ROOT__
 service='octessera.service'
 production_health=/run/octessera/candidate-ready.json
 __READINESS_HELPERS__
+reset_status=0
+reset_failed_unit() {
+  local load_state active_state
+  load_state="$(sudo -n systemctl show "$unit" --no-pager --property=LoadState --value 2>/dev/null || true)"
+  active_state="$(sudo -n systemctl show "$unit" --no-pager --property=ActiveState --value 2>/dev/null || true)"
+  if [ "$load_state" = loaded ] && [ "$active_state" = failed ]; then
+    if ! timeout --signal=TERM --kill-after=2 10s sudo -n systemctl reset-failed "$unit" >/dev/null 2>&1; then
+      reset_status=1
+    fi
+  fi
+}
 state="$(sudo -n systemctl is-active "$unit" 2>/dev/null || true)"
 case "$state" in
   active|activating|deactivating|failed) timeout --signal=TERM --kill-after=2 10s sudo -n systemctl stop "$unit" || exit 72;;
   inactive|unknown|'') ;;
   *) exit 72;;
 esac
+reset_failed_unit
 sudo -n rm -f -- "$health"
 sudo -n rm -rf -- "$benchmark_root"
 initial_state_valid=0
@@ -344,6 +368,7 @@ if [ "$initial_state_valid" -eq 1 ]; then
   test "$(systemctl is-active "$service" 2>/dev/null || true)" = active
   test "$(systemctl is-enabled "$service" 2>/dev/null || true)" = enabled
 fi
+if [ "$reset_status" -ne 0 ]; then exit 72; fi
 sudo -n rm -rf -- "$root"
 '@
   $cleanup = $cleanup.Replace("__READINESS_HELPERS__", [string]$readinessHelpers).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot))
