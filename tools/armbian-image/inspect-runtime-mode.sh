@@ -5,7 +5,7 @@ module_dir="$(dirname "${BASH_SOURCE[0]}")"
 source "$module_dir/validation-assertions.sh"
 
 octessera_inspect_runtime_mode() {
-  local metadata_content="$1" requested_mode="${2:-diagnostic}" image_mode runtime_default version binary_hash manifest_hash metadata_hash release_path runtime_metadata runtime_sums actual_binary_hash actual_manifest_hash runtime_owner passwd_content group_content
+  local metadata_content="$1" requested_mode="${2:-diagnostic}" image_mode runtime_default version binary_hash manifest_hash metadata_hash release_path runtime_metadata runtime_sums actual_binary_hash actual_manifest_hash runtime_owner passwd_content group_content login_defs_content hosts_content
   image_mode="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_IMAGE_MODE)" || { echo 'Build metadata is missing the explicit Orange image mode.' >&2; exit 1; }
   runtime_default="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_ENABLED_DEFAULT)" || { echo 'Build metadata is missing the runtime default.' >&2; exit 1; }
   [[ "$image_mode" == "$requested_mode" ]] || { echo "Inspector mode $requested_mode does not match image metadata mode $image_mode." >&2; exit 1; }
@@ -81,6 +81,35 @@ octessera_inspect_runtime_mode() {
       require_root_mode etc/systemd/system/octessera.service 644
       require_root_mode etc/systemd/system/multi-user.target.wants/octessera.service 777
       octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera.service ../octessera.service /etc/systemd/system/octessera.service
+      stat_path etc/login.defs || { echo 'Production image is missing /etc/login.defs.' >&2; exit 1; }
+      require_root_mode etc/login.defs 644
+      login_defs_content="$(read_file etc/login.defs)"
+      [[ "$(printf '%s\n' "$login_defs_content" | awk '$1 == "TTYPERM" { count++; if (NF == 2) record = $1 " " $2 } END { if (count != 1 || record != "TTYPERM 0620") exit 1; print record }')" == 'TTYPERM 0620' ]] || { echo 'Production /etc/login.defs must contain exactly one active TTYPERM 0620.' >&2; exit 1; }
+      [[ "$(printf '%s\n' "$group_content" | awk -F: '$1 == "tty" { count++ } END { print count + 0 }')" == 1 ]] || { echo 'Production group database must contain exactly one tty group.' >&2; exit 1; }
+      stat_path etc/hostname || { echo 'Production image is missing /etc/hostname.' >&2; exit 1; }
+      stat_path etc/hosts || { echo 'Production image is missing /etc/hosts.' >&2; exit 1; }
+      read_file etc/hostname | cmp -s - <(printf '%s\n' 'octessera-opi') || { echo 'Production /etc/hostname is not exactly octessera-opi.' >&2; exit 1; }
+      hosts_content="$(read_file etc/hosts)"
+      if ! printf '%s\n' "$hosts_content" | awk '
+        {
+          line = $0
+          sub(/#.*/, "", line)
+          $0 = line
+          if ($1 == "127.0.1.1") {
+            ipv4_rows++
+            for (i = 2; i <= NF; i++) if ($i == "octessera-opi") ipv4_target = 1
+          }
+          if ($1 == "::1") {
+            ipv6_rows++
+            for (i = 2; i <= NF; i++) if ($i == "octessera-opi") ipv6_target = 1
+          }
+          for (i = 1; i <= NF; i++) if ($i == "orangepizero2w") old_alias = 1
+        }
+        END { exit !(ipv4_rows == 1 && ipv4_target && ipv6_rows >= 1 && ipv6_target && !old_alias) }
+      '; then
+        echo 'Production /etc/hosts hostname coherence is invalid.' >&2
+        exit 1
+      fi
       octessera_require_runtime_service "$(read_file etc/systemd/system/octessera.service)"
       ;;
     *) echo "Image mode/runtime default combination is invalid: $image_mode/$runtime_default." >&2; exit 1 ;;

@@ -14,6 +14,30 @@ storage_socket="$root/userpatches/overlay/etc/systemd/system/octessera-orange-st
 storage_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-storage-control@.service"
 storage_control="$root/userpatches/overlay/usr/local/sbin/octessera-orange-storage-control"
 storage_helper="$root/userpatches/overlay/usr/local/sbin/octessera-orange-storage"
+runtime_assets="$root/userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh"
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+# shellcheck disable=SC1090
+source "$runtime_assets"
+ttyperm_fixture="$work/login.defs"
+printf '%s\n' 'UID_MIN 1000' $'TTYPERM\t\t0600' > "$ttyperm_fixture"
+if ! octessera_configure_orange_production_ttyperm "$ttyperm_fixture"; then
+  echo 'Orange production TTYPERM success fixture failed.' >&2
+  exit 1
+fi
+[[ "$(cat "$ttyperm_fixture")" == $'UID_MIN 1000\nTTYPERM\t\t0620' ]] || { echo 'Orange production TTYPERM transformation changed unrelated text.' >&2; exit 1; }
+printf '%s\n' 'UID_MIN 1000' $'TTYPERM\t\t0620' > "$ttyperm_fixture"
+if octessera_configure_orange_production_ttyperm "$ttyperm_fixture"; then
+  echo 'Orange production TTYPERM already-0620 fixture was accepted.' >&2
+  exit 1
+fi
+printf '%s\n' $'TTYPERM\t\t0600' $'TTYPERM\t\t0600' > "$ttyperm_fixture"
+if octessera_configure_orange_production_ttyperm "$ttyperm_fixture"; then
+  echo 'Orange production TTYPERM duplicate fixture was accepted.' >&2
+  exit 1
+fi
+printf '%s\n' 'Orange production TTYPERM transformation and fail-closed fixtures passed'
 
 [[ -f "$service" ]] || { echo "Missing Orange runtime service." >&2; exit 1; }
 [[ -f "$update_socket" && -f "$update_service" ]] || { echo "Missing Orange update broker units." >&2; exit 1; }
@@ -79,7 +103,6 @@ for required_line in \
   'After=octessera-orange-boot-splash.service' \
   'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
   'TTYPath=/dev/tty1' \
-  'TTYReset=yes' \
   'SupplementaryGroups=audio i2c spi gpio tty video' \
   'LimitRTPRIO=70' \
   'NoNewPrivileges=yes' \
@@ -90,10 +113,12 @@ for required_line in \
   grep -qFx "$required_line" "$service" || { echo "Runtime service is missing: $required_line" >&2; exit 1; }
 done
 grep -qFx 'After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service octessera-orange-sd-card.service sound.target' "$service"
+grep -qFx '  octessera_configure_orange_production_ttyperm /etc/login.defs' "$runtime_assets" || { echo 'Orange production TTYPERM call is not exact.' >&2; exit 1; }
+octessera_reject_file_match 'Orange runtime service contains a prohibited TTYReset directive.' -Eq '^[[:space:]]*TTYReset[[:space:]]*=' "$service"
 grep -qFx 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' "$service"
 grep -qFx 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG' "$service"
 [[ "$(grep -E '^(AmbientCapabilities|CapabilityBoundingSet)=' "$service")" == $'AmbientCapabilities=CAP_SYS_TTY_CONFIG\nCapabilityBoundingSet=CAP_SYS_TTY_CONFIG' ]]
-for directive in TTYPath TTYReset SupplementaryGroups; do
+for directive in TTYPath SupplementaryGroups; do
   [[ "$(grep -c "^${directive}=" "$service")" == 1 ]]
 done
 octessera_reject_file_match 'Orange runtime service contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$service"
@@ -137,8 +162,6 @@ if ! command -v systemd-analyze >/dev/null 2>&1; then
   exit 0
 fi
 
-work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/etc/systemd/system/basic.target.wants" "$work/etc/systemd/system/multi-user.target.wants" "$work/etc/systemd/system/sockets.target.wants" "$work/usr/local/bin" "$work/etc"
 cp "$service" "$work/etc/systemd/system/octessera.service"
 cp "$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket" "$work/etc/systemd/system/octessera-device-apply-reboot.socket"

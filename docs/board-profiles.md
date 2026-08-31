@@ -125,8 +125,9 @@ TX; its A/B lines remain available. This is a bring-up condition, not the
 production control-surface contract. Runtime readiness follows healthy required
 audio, initialized control-surface devices, and the first rendered snapshot.
 The service uses `LimitRTPRIO=70`; only CPAL callback threads may be promoted to
-verified `SCHED_FIFO` priority 70. It does not use `CAP_SYS_NICE`, ambient
-capabilities, or other realtime capability elevation. Startup reports the
+verified `SCHED_FIFO` priority 70. Its sole ambient and bounding capability is
+`CAP_SYS_TTY_CONFIG` for native VT leasing; it does not use `CAP_SYS_NICE` or
+other realtime capability elevation. Startup reports the
 named `DAC` or `UAC2` sink and rejects an Orange stream when callback promotion
 is not verified.
 Its typed bus descriptors record `/dev/i2c-2` at `5002400.i2c` and

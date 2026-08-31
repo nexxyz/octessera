@@ -3,6 +3,7 @@ import contextlib
 import importlib.util
 import io
 import subprocess
+import tempfile
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from unittest.mock import patch
@@ -222,6 +223,55 @@ def assert_secret_safe_command_failure(config):
         assert command.call_args.kwargs["stderr"] is config.subprocess.DEVNULL
 
 
+def assert_hostname_coherence(config):
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        hostname_path = root / "hostname"
+        hosts_path = root / "hosts"
+        initial_hosts = "127.0.0.1 localhost\n127.0.1.1 orangepizero2w local-alias # orangepizero2w comment\n::1 localhost ip6-localhost ip6-loopback orangepizero2w # orangepizero2w comment\n10.0.0.2 unrelated # keep this comment\n"
+        updated_hosts = initial_hosts.replace("127.0.1.1 orangepizero2w", "127.0.1.1 octessera-opi").replace("loopback orangepizero2w", "loopback octessera-opi")
+        writes = []
+        commands = []
+
+        def write(path, content, *_args, **_kwargs):
+            writes.append((path, content))
+            Path(path).write_text(content, encoding="utf-8")
+
+        def invoke(args):
+            commands.append(tuple(args))
+            if len(commands) == 1:
+                raise RuntimeError("hostnamectl failed")
+
+        def expect_rejection():
+            try:
+                config.apply_hostname("octessera-opi", invoke)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("invalid hostname state was accepted")
+
+        with patch.object(config, "HOSTNAME_PATH", str(hostname_path)), patch.object(config, "HOSTS_PATH", str(hosts_path)), patch.object(config, "_write_atomic", write):
+            hostname_path.write_text("orangepizero2w\n", encoding="utf-8")
+            hosts_path.write_text(initial_hosts, encoding="utf-8")
+            try:
+                config.apply_hostname("octessera-opi", invoke)
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError("hostnamectl failure was swallowed")
+            assert hosts_path.read_text(encoding="utf-8") == updated_hosts
+            config.apply_hostname("octessera-opi", invoke)
+            assert commands == [("hostnamectl", "set-hostname", "octessera-opi")] * 2
+            assert writes == [(str(hosts_path), updated_hosts)]
+            config.apply_hostname("", invoke)
+            assert hosts_path.read_text(encoding="utf-8") == updated_hosts
+            assert writes == [(str(hosts_path), updated_hosts)] and commands == [("hostnamectl", "set-hostname", "octessera-opi")] * 2
+            hosts_path.write_text("127.0.1.1 localhost # orangepizero2w\n", encoding="utf-8")
+            expect_rejection()
+            hostname_path.write_text("\n", encoding="utf-8")
+            expect_rejection()
+
+
 def assert_failed_finalize(events, fake):
     failure_indices = [index for index, event in enumerate(events) if event[0] == "failure"]
     assert len(failure_indices) == 1
@@ -256,6 +306,7 @@ for index, path in enumerate(CONFIGS):
     config = load(path, f"setup_config_{index}")
     assert_atomic_writer_metadata(config)
     assert_secret_safe_command_failure(config)
+    assert_hostname_coherence(config)
     assert config.validate_stage(payload())["sshMode"] == "none"
     assert config.validate_stage(payload("key"))["sshKey"] == PUBLIC_KEY
     assert config.validate_stage(payload("password", "eight888"))["password"] == "eight888"

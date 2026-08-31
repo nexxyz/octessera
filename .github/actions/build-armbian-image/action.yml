@@ -292,6 +292,7 @@ runs:
         build_args=(
           build
           "BOARD=$OCTESSERA_ARMBIAN_BOARD"
+          "HOST=octessera-opi"
           "BRANCH=$OCTESSERA_ARMBIAN_KERNEL_BRANCH"
         )
         build_args+=(REVISION=26.11.0-trunk.22)

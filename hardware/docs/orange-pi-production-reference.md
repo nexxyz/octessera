@@ -49,8 +49,9 @@ contract does not provide sample alignment.
 
 Readiness follows selected-route status, initialized control-surface devices, and
 the first rendered runtime frame. FIFO priority 70 comes from
-`LimitRTPRIO=70`; the service does not use `CAP_SYS_NICE`, ambient capabilities,
-or other realtime capability elevation. The observed Orange HDMI connector path
+`LimitRTPRIO=70`; `CAP_SYS_TTY_CONFIG` is the sole ambient and bounding capability
+for native VT leasing. The service does not use `CAP_SYS_NICE` or other realtime
+capability elevation. The observed Orange HDMI connector path
 is `/sys/class/drm/card0-HDMI-A-1`. A separate live Raspberry observation found
 the same card0 status/EDID paths on kernel `6.12.93+rpt-rpi-v8`; Raspberry pins
 card0 and does not fall back to card1. These are connector identity observations,
