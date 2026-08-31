@@ -86,8 +86,11 @@ ln -s /dev/null "$runtime_root/etc/udev/rules.d/09-disabled.rules"
 target="$runtime_root"
 login_defs_fixture=$'TTYPERM 0620\nUID_MIN 1000'
 hosts_fixture=$'127.0.0.1 localhost\n127.0.1.1 octessera-opi local-alias # orangepizero2w stays in comments\n::1 localhost ip6-localhost ip6-loopback octessera-opi # orangepizero2w stays in comments\n'
+hostname_hash="$(printf '%s\n' 'octessera-opi' | sha256sum | awk '{ print $1 }')"
+hostname_no_newline_hash="$(printf '%s' 'octessera-opi' | sha256sum | awk '{ print $1 }')"
 hash_path() {
   case "$1" in
+    etc/hostname) printf '%s\n' "$hostname_hash" ;;
     opt/octessera/releases/1.2.3/octessera-pi) printf '%s\n' "$runtime_binary_hash" ;;
     opt/octessera/releases/1.2.3/SHA256SUMS) printf '%s\n' "$runtime_manifest_hash" ;;
     opt/octessera/releases/1.2.3/octessera-runtime.json) printf '%s\n' "$runtime_metadata_hash" ;;
@@ -136,6 +139,12 @@ octessera_require_image_symlink() { runtime_links+=("$1=$2"); }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION=1.2.3\nOCTESSERA_RUNTIME_BINARY_SHA256='"$runtime_binary_hash"$'\nOCTESSERA_RUNTIME_MANIFEST_SHA256='"$runtime_manifest_hash"$'\nOCTESSERA_RUNTIME_METADATA_SHA256='"$runtime_metadata_hash"
 octessera_inspect_runtime_mode "$profile_metadata" production
 [[ "${runtime_links[*]}" == 'etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket=../octessera-device-apply-reboot.socket etc/systemd/system/sockets.target.wants/octessera-update.socket=../octessera-update.socket opt/octessera/current=/opt/octessera/releases/1.2.3 usr/local/bin/octessera-pi=/opt/octessera/current/octessera-pi etc/systemd/system/multi-user.target.wants/octessera.service=../octessera.service' ]] || { echo 'Production inspector did not require the exact symlink chain.' >&2; exit 1; }
+hostname_hash="$hostname_no_newline_hash"
+if ( octessera_inspect_runtime_mode "$profile_metadata" production ); then
+  echo 'Production inspector accepted /etc/hostname without a trailing newline.' >&2
+  exit 1
+fi
+hostname_hash="$(printf '%s\n' 'octessera-opi' | sha256sum | awk '{ print $1 }')"
 hosts_fixture=$'127.0.0.1 localhost\n127.0.1.1 local-alias\n::1 localhost ip6-localhost ip6-loopback\n'
 if ( octessera_inspect_runtime_mode "$profile_metadata" production ); then
   echo 'Production inspector accepted hosts without the target hostname alias.' >&2

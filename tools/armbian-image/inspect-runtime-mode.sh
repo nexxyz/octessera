@@ -5,7 +5,7 @@ module_dir="$(dirname "${BASH_SOURCE[0]}")"
 source "$module_dir/validation-assertions.sh"
 
 octessera_inspect_runtime_mode() {
-  local metadata_content="$1" requested_mode="${2:-diagnostic}" image_mode runtime_default version binary_hash manifest_hash metadata_hash release_path runtime_metadata runtime_sums actual_binary_hash actual_manifest_hash runtime_owner passwd_content group_content login_defs_content hosts_content
+  local metadata_content="$1" requested_mode="${2:-diagnostic}" image_mode runtime_default version binary_hash manifest_hash metadata_hash release_path runtime_metadata runtime_sums actual_binary_hash actual_manifest_hash runtime_owner passwd_content group_content login_defs_content hosts_content expected_hostname_hash
   image_mode="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_IMAGE_MODE)" || { echo 'Build metadata is missing the explicit Orange image mode.' >&2; exit 1; }
   runtime_default="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_ENABLED_DEFAULT)" || { echo 'Build metadata is missing the runtime default.' >&2; exit 1; }
   [[ "$image_mode" == "$requested_mode" ]] || { echo "Inspector mode $requested_mode does not match image metadata mode $image_mode." >&2; exit 1; }
@@ -88,7 +88,8 @@ octessera_inspect_runtime_mode() {
       [[ "$(printf '%s\n' "$group_content" | awk -F: '$1 == "tty" { count++ } END { print count + 0 }')" == 1 ]] || { echo 'Production group database must contain exactly one tty group.' >&2; exit 1; }
       stat_path etc/hostname || { echo 'Production image is missing /etc/hostname.' >&2; exit 1; }
       stat_path etc/hosts || { echo 'Production image is missing /etc/hosts.' >&2; exit 1; }
-      read_file etc/hostname | cmp -s - <(printf '%s\n' 'octessera-opi') || { echo 'Production /etc/hostname is not exactly octessera-opi.' >&2; exit 1; }
+      expected_hostname_hash="$(printf '%s\n' 'octessera-opi' | sha256sum | awk '{ print $1 }')"
+      [[ "$(hash_path etc/hostname)" == "$expected_hostname_hash" ]] || { echo 'Production /etc/hostname is not exactly octessera-opi.' >&2; exit 1; }
       hosts_content="$(read_file etc/hosts)"
       if ! printf '%s\n' "$hosts_content" | awk '
         {

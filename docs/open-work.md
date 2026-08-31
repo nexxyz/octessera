@@ -45,14 +45,22 @@ quick run](../userdocs/hardware/fat-quick-run.md).
   separate runtime behavior path.
 - Validate audio startup status, sample preview and assignment feedback, Play FX
   assignment, MIDI panic/status, and user-visible audio errors.
-- Qualify each selected Jack, USB, and HDMI route beyond source and bench checks,
+- Qualify each selected Jack and HDMI route beyond source and bench checks,
   including independent-clock drift or echo and endpoint-loss recovery. Do not
-  use one route as a fallback for another.
+  use one route as a fallback for another. Ordinary DAC or Jack audio is not USB
+  evidence.
 - Qualify sample preview, loaded sample banks, and runtime audio-configuration
   synchronization through the Pi host adapter.
-- Qualify USB Audio/MIDI identity, port role, VBUS/CC and no-backfeed safety,
-  enumeration, intended UAC2 audio, intended MIDI, reconnect, and absence of
-  mass storage. Ordinary DAC or Jack audio is not USB evidence.
+- Repeat the named USB identity and traffic checks on the exact final v0.8.2
+  constructor image, including USB0/UDC, ConfigFS `interface_string`, the
+  actual MIDI interface descriptor and exact Windows
+  `DEVPKEY_Device_BusReportedDeviceDesc` value `Octessera MIDI`, the
+  `Octessera Audio` UAC2 endpoint, the `Octessera Audio + MIDI` composite
+  product, 44.1 kHz stereo tone capture, and bidirectional MIDI.
+- Complete physical connector mapping (bench clue: the user called it `port 2`),
+  VBUS/CC/no-backfeed electrical qualification, physical replug and host
+  suspend/resume, SD2 mass-storage start/eject/stop recovery, and authorized
+  public VID/PID qualification before claiming public USB support.
 
 ## Post-FAT action
 
