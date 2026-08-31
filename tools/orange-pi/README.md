@@ -361,12 +361,15 @@ The USB product string is `Octessera MIDI` for `midi`, `Octessera Line In` for
 `uac2`, and `Octessera Audio + MIDI` for `combined`. The manufacturer,
 configuration, serial, VID, and PID remain the Orange Pi values used by the
 composer. MIDI and combined modes require the patched, qualified image kernel
-to expose a writable `interface_string`. The composer writes exactly 14 bytes
+to expose a writable ConfigFS `interface_string` as the board setup gate. The
+actual MIDI interface descriptor and Windows
+`DEVPKEY_Device_BusReportedDeviceDesc` must equal `Octessera MIDI`. The
+composer writes exactly 14 bytes
 of `Octessera MIDI` without a trailing LF, verifies the byte-for-byte readback,
 and only then creates the MIDI configuration link and binds the UDC. `id` is
-still set for ALSA identity, but never substitutes for `interface_string`. A
-generic Windows `MIDI function` label indicates an unpatched or unqualified
-image and is not accepted for release validation.
+still set for ALSA identity, but never substitutes for `interface_string`. The
+legacy Windows MEDIA `FriendlyName` may remain `MIDI function` and is
+diagnostic-only, not an acceptance field.
 
 Run the offline tests from a Linux shell with:
 

@@ -189,26 +189,41 @@ CC and role handling, and host sleep/replug behavior. An empty
 or failed teardown is a failed Orange validation. Do not use Raspberry `dwc2`
 assumptions or bind a pre-existing gadget.
 
+The official hardware name for the gadget-capable MUSB/peripheral controller is
+USB0. Record the physical connector naming unambiguously; do not infer it from
+user numbering.
+
 Run the fake-configfs contract check first:
 
 ```sh
 bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
 
-Only during an authorized live qualification, capture `lsusb -v`, confirm
-DAW-visible MIDI naming and send/receive, confirm exact UAC2 output/rate and
-reconnect behavior, test host suspend/resume, and qualify the separate SD2 mass-
-storage start/eject/stop path. The Linux Foundation VID/PID values are
-local-validation-only, not a public product identity; defaults remain disabled.
+For host acceptance, record `lsusb -v`, the UAC2 endpoint `Octessera Audio`, the
+combined composite product `Octessera Audio + MIDI`, and Windows
+`DEVPKEY_Device_BusReportedDeviceDesc`. The setup gate is writable ConfigFS
+`interface_string`; the actual MIDI interface descriptor, bus-reported value,
+and MIDI Services endpoints must equal `Octessera MIDI`. Verify high-speed
+combined UAC2+MIDI, 44.1 kHz stereo capture of a board-generated 1 kHz tone on
+both channels, and exact MIDI traffic in both directions. See the [Orange
+production reference](orange-pi-production-reference.md#usb-identity-boundary)
+for current qualification status.
 
 The Orange SD2 source/image contract now includes the fixed
 `/run/octessera-orange-storage-control/storage.sock` seam and label-safe
-`OCTESSERA_SD` lifecycle. Physical UDC, host-eject, USB transfer, and recovery
-qualification are still pending; do not treat the fake-configfs tests as a
-hardware result.
+`OCTESSERA_SD` lifecycle. Do not treat the fake-configfs tests as a hardware
+result.
+
+The remaining authorized gates are:
+
+- Repeat the named identity and functional checks on the exact final v0.8.2
+  constructor image.
+- Complete physical connector mapping, VBUS/CC/no-backfeed electrical
+  qualification, physical reconnect and host suspend/resume, SD2 mass-storage
+  start/eject/stop recovery, and authorized public VID/PID qualification.
 
 USB Audio and USB MIDI are experimental local bench-validation paths, not public
-first-release support claims. Before connecting a host to an instrument powered
+USB support claims. Before connecting a host to an instrument powered
 from the enclosure USB-C input, use a data-only cable or power-isolating adapter.
 Software cannot prevent a host cable from back-feeding 5V while retaining data.
 This is the no-backfeed safety gate.

@@ -263,8 +263,7 @@ SD2 transfer is a separate fixed root-owned storage-control action using the
 same UDC and lifecycle lock. It unmounts the label-safe `OCTESSERA_SD` card
 before binding a writable/removable mass-storage LUN and restores the normal
 UAC2/MIDI gadget after host eject and stop. Source and fake-configfs contracts
-are present; physical Orange UDC, host-eject, and recovery qualification remain
-pending. Teardown unbinds first, removes configuration links and functions,
+are present. Teardown unbinds first, removes configuration links and functions,
 then removes the gadget tree.
 
 The installed service can be inspected without binding a new gadget:
@@ -291,6 +290,20 @@ MIDI and combined modes require the patched qualified kernel's writable
 without a trailing LF, verifies byte-for-byte readback, and only then creates
 the MIDI link and binds the UDC. Missing, write, readback, and bind failures
 roll back the partial gadget. The Linux Foundation VID/PID values are for local
-validation only, not a public USB identity; defaults remain disabled. Host tone,
-capture, and assembled-board electrical qualification require a separate
-authorized live test.
+validation only, not a public USB identity; defaults remain disabled. The legacy
+Windows MEDIA `FriendlyName` may remain `MIDI function` and is diagnostic-only,
+not an acceptance field.
+
+Qualification status: The non-final installed board's live DT reports
+`usb@5100000/dr_mode=peripheral` and its USB0/controller 0 path uses the fixed
+UDC `musb-hdrc.4.auto`. It passed high-speed combined UAC2+MIDI, 44.1 kHz
+stereo board-to-Windows capture with a board-generated 1 kHz tone on both
+channels, exact bidirectional MIDI traffic, and exact ConfigFS
+`interface_string`, actual MIDI interface descriptor, and Windows
+`DEVPKEY_Device_BusReportedDeviceDesc` identity `Octessera MIDI`. Windows names
+the UAC2 endpoint `Octessera Audio`, not the combined composite product
+`Octessera Audio + MIDI`. Repeat on the exact final v0.8.2 constructor image and
+complete physical connector naming, VBUS/CC/no-backfeed electrical, physical
+reconnect and host suspend/resume, SD2 mass-storage start/eject/stop recovery,
+and authorized public VID/PID gates before claiming public USB support or
+closing qualification.
