@@ -266,22 +266,13 @@ $matrixOutput = Invoke-PrintOnly $matrix @{ PrintOnly = $true }
 $canaryPrint = Invoke-PrintOnly $matrix @{ PrintOnly = $true; CanaryOnly = $true }
 $matrixSource = Get-Content -LiteralPath $matrix -Raw
 if ($matrixSource -match '&\s+\$runner') { throw "Matrix still invokes the runner in-process." }
-Assert-Contains $matrixSource '& (Join-Path $PSHOME "powershell.exe") @processArguments 2>&1'
-Assert-Contains $matrixSource '"-NonInteractive"'
-Assert-Contains $matrixSource '"-File"'
-Assert-Contains $matrixSource '$LASTEXITCODE'
+if ($matrixSource -notmatch '(?s)(?=.*& \(Join-Path \$PSHOME "powershell.exe"\) @processArguments 2>&1)(?=.*"-NonInteractive")(?=.*"-File")(?=.*\$LASTEXITCODE)') { throw "Matrix did not preserve isolated PowerShell runner invocation." }
 Assert-Contains $matrixOutput "Orange live audio matrix PrintOnly: no transport is invoked."
 Assert-Contains $canaryPrint "Orange live audio matrix PrintOnly CanaryOnly: no transport is invoked."
 Assert-Contains $canaryPrint "01: synth_ramp_16 output=256 internal=64 workers=2 measure=30"
 Assert-Contains $canaryPrint "Matrix cells: 1 total (CanaryOnly)."
 if ($canaryPrint -match "02:|A120|Matrix cells: 29") { throw "CanaryOnly PrintOnly emitted more than one cell." }
-Assert-Contains $matrixOutput "01: synth_ramp_16 output=256 internal=64 workers=2 measure=30"
-Assert-Contains $matrixOutput "11: mixed_cross_slot_48_48_steal output=256 internal=64 workers=2 measure=30"
-Assert-Contains $matrixOutput "12: A120 scenario=<highest passing A p99.9, then max> output=256 internal=64 workers=2 measure=120 warmup=5"
-Assert-Contains $matrixOutput "13: synth_ramp_16 output=512 internal=128 workers=2 measure=30"
-Assert-Contains $matrixOutput "24: synth_cross_slot_96_steal output=1024 internal=256 workers=0 measure=30"
-Assert-Contains $matrixOutput "29: mixed_cross_slot_48_48_steal output=1024 internal=256 workers=3 measure=30"
-Assert-Contains $matrixOutput "Matrix cells: 29 total"
+if ($matrixOutput -notmatch '(?s)(?=.*01: synth_ramp_16 output=256 internal=64 workers=2 measure=30)(?=.*11: mixed_cross_slot_48_48_steal output=256 internal=64 workers=2 measure=30)(?=.*12: A120 scenario=<highest passing A p99.9, then max> output=256 internal=64 workers=2 measure=120 warmup=5)(?=.*13: synth_ramp_16 output=512 internal=128 workers=2 measure=30)(?=.*24: synth_cross_slot_96_steal output=1024 internal=256 workers=0 measure=30)(?=.*29: mixed_cross_slot_48_48_steal output=1024 internal=256 workers=3 measure=30)(?=.*Matrix cells: 29 total)') { throw "Live matrix PrintOnly output omitted an approved cell or count." }
 $capabilitySource = Get-Content -LiteralPath $runner -Raw
 $localDirectoryMarker = $capabilitySource.IndexOf('New-Item -ItemType Directory -Force -Path $localRunDirectory | Out-Null', [StringComparison]::Ordinal)
 $stagingDirectoryMarker = $capabilitySource.IndexOf('Write-Output "Evidence staging directory: $localRunDirectory"', [StringComparison]::Ordinal)
@@ -417,6 +408,16 @@ $captureStart = $studyPayload.IndexOf("capture_alsa_release() {", [StringCompari
 $captureEnd = $studyPayload.IndexOf("validate_benchmark_progress() {", $captureStart, [StringComparison]::Ordinal)
 if ($captureStart -lt 0 -or $captureEnd -lt 0) { throw "Generated capture_alsa_release fixture could not be extracted." }
 $captureFunction = $studyPayload.Substring($captureStart, $captureEnd - $captureStart)
+$restoreStart = $studyPayload.IndexOf("restore_service() {", [StringComparison]::Ordinal)
+$onExitStart = $studyPayload.IndexOf("on_exit() {", [StringComparison]::Ordinal)
+$onExit = $studyPayload.Substring($onExitStart, $studyPayload.IndexOf('test -d "$root"', $onExitStart, [StringComparison]::Ordinal) - $onExitStart)
+$restore = $studyPayload.Substring($restoreStart, $onExitStart - $restoreStart)
+$cleanupStart = $first.IndexOf("Cleanup payload:", [StringComparison]::Ordinal) + "Cleanup payload:`n".Length
+$cleanupPayload = $first.Substring($cleanupStart)
+if ($onExit -notmatch '(?s)capture_transient_evidence.*restore_service' -or $restore -notmatch '(?s)stop_benchmark_unit.*reset_failed_unit') { throw "Transient-unit reset was not ordered after evidence capture and stop." }
+if ($studyPayload -notmatch '(?s)systemctl reset-failed "\$unit".*cleanup_status=1.*restore_status=1' -or $cleanupPayload -notmatch 'reset_status=1' -or $cleanupPayload -notmatch 'exit 72') { throw "Transient-unit reset failure was not retained as cleanup/restoration failure." }
+if ($first -match 'reset-failed[^\r\n]*\*') { throw "Transient-unit reset used a broad wildcard." }
+if ($cleanupPayload -notmatch '(?s)systemctl stop "\$unit".*?esac\s+reset_failed_unit\s+sudo -n rm -f') { throw "Standalone cleanup reset was not ordered after its exact-unit stop." }
 $captureFixture = @'
 set -u
 root="$(mktemp -d)"
