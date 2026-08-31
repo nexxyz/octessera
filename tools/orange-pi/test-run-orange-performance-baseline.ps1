@@ -137,8 +137,16 @@ Assert-Contains $baselinePrint "--profile-dsp"
 Assert-Contains $baselinePrint "safety-abort.txt"
 Assert-Contains $baselinePrint "sleep 1"
 Assert-Contains $baselinePrint "governor-before.txt"
+Assert-Contains $baselinePrint "thermal_zone"
+Assert-Contains $baselinePrint "scaling_cur_freq"
+Assert-Contains $baselinePrint "thermal-unreadable"
+Assert-Contains $baselinePrint "memory-unreadable"
+Assert-Contains $baselinePrint "thermal-missing"
+Assert-Contains $baselinePrint "runtime-memory-abort"
+if ($baselinePrint -match "70000|75000|runtime-thermal-abort") { throw "Orange ProfileBaseline payload still aborts on temperature." }
 if ($payloadSource -match "function New-ProfileBaselineBody") { throw "Orange ProfileBaseline payload remains in the general payload module." }
 Assert-Contains $baselinePrint "runtime-candidate-sha256.txt"
+Assert-Contains $driverSource "Get-OrangeSafetyFailureReason"
 Assert-Throws { & $runner -Mode ProfileBaseline -Scenario unknown_scenario -EngineBlockFrames 256 -ProfileMeasureFrames 256 -Workers 2 -PrintOnly } "unknown profile ID"
 Assert-Throws { & $runner -Mode ProfileBaseline -Scenario synth_cross_slot_16 -EngineBlockFrames 128 -ProfileMeasureFrames 256 -Workers 2 -PrintOnly } "profile geometry"
 if ((& $runner -Mode LiveAudioBenchmark -Scenario mixed_16_synth_32_sample -OutputFrames 128 -EngineBlockFrames 32 -Workers 2 -MeasureSeconds 30 -Artifact $baselineArtifact -Metadata "$baselineArtifact.metadata.json" -AllowServiceInterruption -PrintOnly | Out-String) -notmatch "output=128 period=32 engine=32") { throw "Orange 128/32/2 baseline-live geometry was not retained." }

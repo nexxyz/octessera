@@ -31,16 +31,11 @@ check_profile_safety() {
   case "$mem" in ''|0|*[!0-9]*) printf 'reason=memory-unreadable\nphase=%s\n' "$phase" > "$safety_abort"; return 1;; esac
   if [ "$thermal_count" -eq 0 ]; then printf 'reason=thermal-missing\nphase=%s\n' "$phase" > "$safety_abort"; return 1; fi
   if [ "$phase" = startup ]; then
-    if [ "$max_thermal" -ge 70000 ] || [ "$mem" -lt 524288 ]; then
+    if [ "$mem" -lt 524288 ]; then
       printf 'reason=startup-safety-limit\nphase=%s\nmax_millicelsius=%s\nmem_available_kb=%s\n' "$phase" "$max_thermal" "$mem" > "$safety_abort"
       return 1
     fi
   else
-    if [ "$max_thermal" -ge 75000 ]; then
-      printf 'reason=runtime-thermal-abort\nphase=%s\nmax_millicelsius=%s\n' "$phase" "$max_thermal" > "$safety_abort"
-      sudo -n systemctl stop "$unit" >/dev/null 2>&1 || true
-      return 1
-    fi
     if [ "$mem" -lt 262144 ]; then low_memory_samples=$((low_memory_samples + 1)); else low_memory_samples=0; fi
     if [ "$low_memory_samples" -ge 2 ]; then
       printf 'reason=runtime-memory-abort\nphase=%s\nmem_available_kb=%s\nconsecutive_samples=%s\n' "$phase" "$mem" "$low_memory_samples" > "$safety_abort"

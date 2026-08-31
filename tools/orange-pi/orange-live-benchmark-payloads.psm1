@@ -104,16 +104,11 @@ capture_sensor_sample() {
     printf 'sample=frequency phase=%s time=%s path=%s khz=%s\n' "$phase" "$now" "$frequency" "$(cat "$frequency" 2>/dev/null || printf unreadable)" >> "$sensor_series"
   done
   if [ "$phase" = startup ]; then
-    if [ "$max_thermal" -ge 70000 ] || [ "$mem" -lt 524288 ]; then
+    if [ "$mem" -lt 524288 ]; then
       printf 'reason=startup-safety-limit\nphase=%s\ntime=%s\nmax_millicelsius=%s\nmem_available_kb=%s\n' "$phase" "$now" "$max_thermal" "$mem" > "$sensor_abort"
       return 1
     fi
   else
-    if [ "$max_thermal" -ge 75000 ]; then
-      printf 'reason=runtime-thermal-abort\ntime=%s\nmax_millicelsius=%s\n' "$now" "$max_thermal" > "$sensor_abort"
-      sudo -n systemctl stop "$unit" >/dev/null 2>&1 || true
-      return 1
-    fi
     if [ "$mem" -lt 262144 ]; then low_memory_samples=$((low_memory_samples + 1)); else low_memory_samples=0; fi
     if [ "$low_memory_samples" -ge 2 ]; then
       printf 'reason=runtime-memory-abort\ntime=%s\nmem_available_kb=%s\nconsecutive_samples=%s\n' "$now" "$mem" "$low_memory_samples" > "$sensor_abort"

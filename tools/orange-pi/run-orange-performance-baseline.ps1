@@ -138,6 +138,21 @@ function Read-StudyValues {
   return $values
 }
 
+function Get-OrangeSafetyFailureReason {
+  param([Parameter(Mandatory)][string]$EvidenceDirectory)
+  $abortPath = Join-Path $EvidenceDirectory "safety-abort.txt"
+  if (Test-Path -LiteralPath $abortPath -PathType Leaf) {
+    foreach ($line in Get-Content -LiteralPath $abortPath) {
+      if ($line -match '^reason=(?<reason>.*)$') { return $Matches.reason }
+    }
+  }
+  $study = Read-StudyValues $EvidenceDirectory
+  if ($study.ContainsKey("reason") -and -not [string]::IsNullOrWhiteSpace([string]$study.reason)) {
+    return [string]$study.reason
+  }
+  return "unspecified safety failure"
+}
+
 function Invoke-OrangeCell {
   param(
     [Parameter(Mandatory)][pscustomobject]$Cell,
@@ -168,7 +183,9 @@ function Invoke-OrangeCell {
   if ($Kind -eq "offline") {
     try {
       $study = Read-StudyValues $evidence
-      if ($study.status_class -eq "safety_failure") { throw "Orange offline safety gate failed: $($study.reason)" }
+      if ($study.status_class -eq "safety_failure") {
+        throw "Orange offline safety gate failed: $(Get-OrangeSafetyFailureReason $evidence)"
+      }
       if ($study.status_class -cne "measured" -or $study.status -cne "0") { throw "Orange offline study did not complete its safety contract: status=$($study.status) class=$($study.status_class)" }
       foreach ($evidenceName in @("system-evidence.txt", "governor-before.txt", "governor-after.txt")) {
         if (-not (Test-Path -LiteralPath (Join-Path $evidence $evidenceName) -PathType Leaf)) { throw "Orange offline safety evidence is missing: $evidenceName" }

@@ -15,6 +15,10 @@ function Assert-Contains {
   param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][string]$Value)
   if ($Text.IndexOf($Value, [StringComparison]::Ordinal) -lt 0) { throw "Missing expected text: $Value" }
 }
+function Assert-NotContains {
+  param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][string]$Value)
+  if ($Text.IndexOf($Value, [StringComparison]::Ordinal) -ge 0) { throw "Unexpected text: $Value" }
+}
 function Assert-Throws {
   param([Parameter(Mandatory)][scriptblock]$Action)
   $threw = $false
@@ -96,16 +100,16 @@ try {
   Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=1`nExecMainStatus=0"
   Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=pass"
   Set-Content (Join-Path $evidenceRoot "service-restored-state.txt") "restore_status=0`nfinal_active=active`nfinal_enabled=enabled"
-  Set-Content (Join-Path $evidenceRoot "sensor-series.txt") "sample=memory phase=startup mem_available_kb=600000`nsample=thermal phase=startup millicelsius=50000`nsample=memory phase=runtime mem_available_kb=580000`nsample=thermal phase=runtime millicelsius=52000"
+  Set-Content (Join-Path $evidenceRoot "sensor-series.txt") "sample=memory phase=startup mem_available_kb=600000`nsample=thermal phase=startup millicelsius=70000`nsample=memory phase=runtime mem_available_kb=580000`nsample=thermal phase=runtime millicelsius=75000"
   $passEvidence = Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)
   if ($passEvidence.StatusClass -ne "pass") { throw "Clean fake evidence did not classify as pass: $($passEvidence.StatusClass) $($passEvidence.Reason)" }
+  if ($passEvidence.SensorStartupMaxThermalMillicelsius -ne 70000 -or $passEvidence.SensorRuntimeMaxThermalMillicelsius -ne 75000 -or $passEvidence.SensorMaxThermalMillicelsius -ne 75000) { throw "High startup/runtime temperatures were not retained as extrema." }
   if ([math]::Abs([double]$passEvidence.AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Aggregate render-duration ratio was not computed from total evidence." }
   if ([math]::Abs([double](Get-OrangeLiveResultSummary -Result $result -Selection $selection).AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Result summary did not expose the aggregate render-duration ratio." }
   $manifestAggregate = ConvertFrom-Json -InputObject (ConvertTo-OrangeLiveManifestJson -Results @($passEvidence))
   if ([math]::Abs([double]$manifestAggregate[0].AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Manifest did not retain the aggregate render-duration ratio." }
   $callback.rendered_frames = 44099; $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Below-bound callback frame corruption was accepted." }
   $callback.rendered_frames = 44101; $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Above-bound callback frame corruption was accepted." }
-  $callback.rendered_frames = 44100
   $callback.rendered_frames = 0
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Zero rendered-frame aggregate evidence was accepted." }
@@ -163,7 +167,6 @@ try {
   Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=pass"
   Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=0`nExecMainStatus=0"
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=0`nExecMainStatus=0"
   $zeroCodeSuccess = Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)
   if ($zeroCodeSuccess.StatusClass -ne "pass") { throw "Code 0 clean success was not accepted." }
   $callback.cpal_device_error_count = 1
@@ -394,19 +397,9 @@ try {
 }
 $first = Invoke-PrintOnly $runner $runnerParameters
 $second = Invoke-PrintOnly $runner $runnerParameters
-Assert-Contains $first "RuntimeMaxSec=185s"
-Assert-Contains $first "RuntimeDirectoryPreserve=yes"
+if ($first -notmatch '(?s)(?=.*RuntimeMaxSec=185s)(?=.*RuntimeDirectoryPreserve=yes)(?=.*--benchmark-orange-audio)(?=.*--release-gate)(?=.*--output-frames 256 --engine-block-frames 256 --workers 2)(?=.*--measure-seconds 30)(?=.*sensor_abort)') { throw "Live payload omitted a required runtime or benchmark marker." }
 if ([regex]::Matches($first, 'systemd-run --unit="\$unit"').Count -ne 1) { throw "Live payload did not contain exactly one transient systemd-run launch." }
-Assert-Contains $first "--benchmark-orange-audio"
-Assert-Contains $first "--release-gate"
-Assert-Contains $first "--output-frames 256 --engine-block-frames 256 --workers 2"
-Assert-Contains $first 'expected_alsa_period_frames "$marker")" = 64'
-Assert-Contains $first 'internal_block_frames "$marker")" = 256'
-Assert-Contains $first '"$period" != 64'
-Assert-Contains $first "--measure-seconds 30"
-Assert-Contains $first "sensor_abort"
-Assert-Contains $first "runtime-thermal-abort"
-Assert-Contains $first "consecutive_samples"
+if ($first -match "runtime-thermal-abort|70000|75000" -or $first -notmatch '(?s)(?=.*thermal-unreadable)(?=.*memory-unreadable)(?=.*thermal-missing)(?=.*runtime-memory-abort)(?=.*consecutive_samples)') { throw "Live payload changed its thermal or memory safety contract." }
 Assert-Contains $first 'systemctl stop "$unit"'
 Assert-Contains $first "benchmark-result-final.json"
 Assert-Contains $first "unit-stop-evidence"

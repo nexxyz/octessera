@@ -64,9 +64,12 @@ Assert-Contains $baselinePrint "OCTESSERA_SYNTH_SLOT_WORKERS='2'"
 Assert-Contains $baselinePrint "sudo systemctl stop 'octessera.service'"
 Assert-Contains $baselinePrint "sudo systemctl start 'octessera.service'"
 Assert-Contains $baselinePrint "restore_status"
-Assert-Contains $baselinePrint "startup) temperature_limit=70000"
-Assert-Contains $baselinePrint "runtime) temperature_limit=75000"
-Assert-Contains $baselinePrint '[ "$thermal_max" -ge "$temperature_limit" ]'
+Assert-Contains $baselinePrint "for thermal in /sys/class/thermal/thermal_zone*/temp"
+Assert-Contains $baselinePrint "vcgencmd get_throttled"
+Assert-Contains $baselinePrint "thermal_max_millicelsius"
+Assert-Contains $baselinePrint 'current_mask & 1'
+Assert-Contains $baselinePrint 'throttled_hex" in'
+if ($baselinePrint -match "temperature_limit|temperature_or_throttling") { throw "Raspberry benchmark payload retained a temperature admission limit." }
 $livePrint = Invoke-PrintOnly $runner @{ Mode = "Live"; Durations = "30s"; Scenarios = "pulses-stress"; AudioOutputBufferFrames = 128; AudioBlockFrames = 256; SynthSlotWorkers = 2; AllowServiceInterruption = $true; PrintOnly = $true }
 Assert-Contains $livePrint "OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES='128'"
 Assert-Contains $livePrint "--timing-probe-scenarios 'pulses-stress'"
