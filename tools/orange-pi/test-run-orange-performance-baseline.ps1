@@ -37,6 +37,9 @@ function Assert-Contains {
   if ($Text.IndexOf($Value, [StringComparison]::Ordinal) -lt 0) { throw "Missing expected text: $Value" }
 }
 
+Assert-Contains $driverSource "/etc/octessera/build-metadata.env"
+if ($driverSource -match "/etc/octessera/board-profile\.env") { throw "Orange baseline passive identity regressed to the Raspberry board-profile path." }
+
 function Write-ManifestCopy {
   param([Parameter(Mandatory)][object]$Value, [Parameter(Mandatory)][string]$Path)
   [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))

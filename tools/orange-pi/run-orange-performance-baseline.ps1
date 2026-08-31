@@ -73,7 +73,7 @@ function Invoke-FreshPowerShell {
 function Get-IdentityCommand {
   return @'
 set -eu
-printf 'board_profile='; sed -n 's/^OCTESSERA_BOARD_PROFILE_ID=//p' /etc/octessera/board-profile.env 2>/dev/null || true
+printf 'board_profile='; sed -n 's/^OCTESSERA_BOARD_PROFILE_ID=//p' /etc/octessera/build-metadata.env 2>/dev/null || true
 printf 'hostname='; hostname
 printf 'kernel='; uname -a
 printf 'governor='; for path in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -r "$path" ] && printf '%s:%s ' "$path" "$(cat "$path")"; done; printf '\n'
