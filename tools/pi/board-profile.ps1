@@ -8,8 +8,6 @@ $RaspberryPiZero2WBinary = "octessera-pi"
 $RaspberryPiZero2WArchitecture = "aarch64-unknown-linux-gnu"
 $RaspberryPiZero2WRuntimeArchitecture = "aarch64"
 $RaspberryPiZero2WCargoFeature = "hardware-raspberry-pi-zero-2w"
-$RaspberryPiZero2WStartupTemperatureLimitMillicelsius = 70000
-$RaspberryPiZero2WRuntimeTemperatureLimitMillicelsius = 75000
 $OrangePiZero2WCargoFeature = "hardware-orange-pi-zero-2w"
 $PiBinary = $RaspberryPiZero2WBinary
 $PiArchitecture = $RaspberryPiZero2WArchitecture
@@ -268,11 +266,9 @@ function Assert-RaspberrySystemEvidence {
     $throttled = $Matches[4]
     $currentMask = [uint64]$Matches[5]
     $undervoltage = [uint64]$Matches[6]
-    $temperatureLimit = if ($phase -ceq "startup") { $RaspberryPiZero2WStartupTemperatureLimitMillicelsius } else { $RaspberryPiZero2WRuntimeTemperatureLimitMillicelsius }
     try { $reportedMask = [Convert]::ToUInt64($throttled.Substring(2), 16) -band 15 } catch { throw "$Context contains a malformed throttling mask." }
     if ($reportedMask -ne $currentMask -or (($currentMask -band 1) -ne $undervoltage)) { throw "$Context contains inconsistent throttling evidence." }
-    if ($temperature -ge $temperatureLimit) { throw "$Context exceeded the $phase Raspberry benchmark temperature limit." }
-    if ($currentMask -ne 0 -or $undervoltage -ne 0) { throw "$Context reported active throttling or undervoltage." }
+    if (($currentMask -band 1) -ne 0 -or $undervoltage -ne 0) { throw "$Context reported active undervoltage." }
     if ($phase -ceq "startup") { $startupCount++ } else { $runtimeCount++ }
     if ($temperature -gt $maximumTemperature) { $maximumTemperature = $temperature }
     if ($currentMask -gt $maximumThrottlingMask) { $maximumThrottlingMask = $currentMask }

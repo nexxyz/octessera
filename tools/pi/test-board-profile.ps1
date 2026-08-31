@@ -196,19 +196,19 @@ try {
   Write-RaspberryBoardMetadata $metadataPath
 
   $validSystemEvidence = @(
-    "raspberry_system_sample phase=startup thermal_max_millicelsius=50000 mem_available_kb=600000 throttled=0x0 current_throttled_mask=0 undervoltage=0",
-    "raspberry_system_sample phase=runtime thermal_max_millicelsius=60000 mem_available_kb=580000 throttled=0x0 current_throttled_mask=0 undervoltage=0"
+    "raspberry_system_sample phase=startup thermal_max_millicelsius=80000 mem_available_kb=600000 throttled=0x2 current_throttled_mask=2 undervoltage=0",
+    "raspberry_system_sample phase=runtime thermal_max_millicelsius=90000 mem_available_kb=580000 throttled=0x4 current_throttled_mask=4 undervoltage=0",
+    "raspberry_system_sample phase=runtime thermal_max_millicelsius=100000 mem_available_kb=570000 throttled=0x8 current_throttled_mask=8 undervoltage=0",
+    "raspberry_system_sample phase=runtime thermal_max_millicelsius=110000 mem_available_kb=560000 throttled=0x1000e current_throttled_mask=14 undervoltage=0"
   ) -join "`n"
   $systemSummary = Assert-RaspberrySystemEvidence $validSystemEvidence
-  if ($systemSummary.StartupSampleCount -ne 1 -or $systemSummary.RuntimeSampleCount -ne 1) { throw "Valid Raspberry system evidence was not summarized." }
+  if ($systemSummary.StartupSampleCount -ne 1 -or $systemSummary.RuntimeSampleCount -ne 3 -or $systemSummary.MaximumTemperatureMillicelsius -ne 110000 -or $systemSummary.MaximumCurrentThrottlingMask -ne 14) { throw "Valid Raspberry system evidence was not summarized." }
   Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Split("`n")[0]) } "missing runtime thermal evidence"
-  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=60000", "thermal_max_millicelsius=bad")) } "malformed thermal evidence"
-  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x0 current_throttled_mask=0", "throttled=0x4 current_throttled_mask=4")) } "active throttling evidence"
-  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x0 current_throttled_mask=0 undervoltage=0", "throttled=0x1 current_throttled_mask=1 undervoltage=1")) } "undervoltage evidence"
-  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=50000", "thermal_max_millicelsius=70000")) } "startup temperature limit"
-  Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=60000", "thermal_max_millicelsius=70000")) | Out-Null
-  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=60000", "thermal_max_millicelsius=75000")) } "runtime temperature limit"
-  Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x0 current_throttled_mask=0", "throttled=0x10000 current_throttled_mask=0")) | Out-Null
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=110000", "thermal_max_millicelsius=bad")) } "malformed thermal evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x1000e", "throttled=malformed")) } "malformed throttling evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("current_throttled_mask=14", "current_throttled_mask=8")) } "inconsistent throttling evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x2 current_throttled_mask=2 undervoltage=0", "throttled=0x1 current_throttled_mask=1 undervoltage=1")) } "active undervoltage evidence"
+  Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x2 current_throttled_mask=2 undervoltage=0", "throttled=0x2 current_throttled_mask=2 undervoltage=1")) } "inconsistent undervoltage evidence"
 
   $validFields = [ordered]@{
     schema_version = 1

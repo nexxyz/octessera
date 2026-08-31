@@ -144,9 +144,10 @@ fresh `Live` and `AudioDrain` probes at output 128, 256, and 512 for 30 seconds
 each, with internal block 256 and two requested workers; its Orange-only callback
 fields are unavailable and remain `null`. Raspberry also retains one-second
 native thermal and throttling samples; every measurement requires valid startup
-and runtime samples, below-70 C startup and below-75 C runtime benchmark
-temperatures matching Orange, and no active throttling or undervoltage. These are
-benchmark admissibility limits, not a Raspberry operating-temperature claim.
+and runtime samples and no active undervoltage. Temperature and current
+frequency-cap, throttled, and soft-limit bits are measured variables, not
+admission limits; thermal and throttling effects belong in baseline
+interpretation, while Raspberry firmware owns safe thermal management.
 Missing or malformed system evidence is fatal. The p99.9
 population is the measured observations for one native profile repetition or
 the measured callbacks for one Orange live repetition. Do not combine board
@@ -190,11 +191,12 @@ stdout, stderr, JSON summaries, and service-restoration evidence are retained:
 Every full native cohort cell runs in repetition order, with a fresh runner
 process for each cell; it does not run all repeats of one cell back-to-back.
 Measured over-budget cells are retained and the next cell continues. Identity,
-geometry, infrastructure, safety/thermal, or service-restoration failures stop
-the study. Active runs also require a clean worktree, full repository `HEAD`,
-and a cross-build metadata `source_commit` equal to that `HEAD`; the local and
-remote artifact SHA-256 values must match. Neither adapter changes governors or
-shipped defaults. Orange keeps
-the 70 C startup and 75 C abort limits and the one-second sensor cadence. The
-current ALSA/CPAL path cannot observe recovered `EPIPE` events, so these tools
-must not claim zero ALSA xruns.
+geometry, infrastructure, process, invalid evidence, service-restoration, and
+electrical failures remain fatal. Both board adapters retain one-second thermal
+and throttling telemetry without a project temperature ceiling. Safe thermal
+management is part of measured behavior; platform firmware and the kernel own
+thermal protection. Active runs also require a clean worktree, full repository
+`HEAD`, and a cross-build metadata `source_commit` equal to that `HEAD`; the
+local and remote artifact SHA-256 values must match. Neither adapter changes
+governors or shipped defaults. The current ALSA/CPAL path cannot observe
+recovered `EPIPE` events, so these tools must not claim zero ALSA xruns.

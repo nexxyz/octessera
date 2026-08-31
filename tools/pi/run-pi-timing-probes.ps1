@@ -146,7 +146,7 @@ probe_output="$(mktemp)"
 probe_pid=
 sampler_pid=
 capture_system_sample() {
-  local phase="$1" mem thermal thermal_value thermal_count=0 thermal_max=0 throttled throttled_hex throttled_value current_mask temperature_limit
+  local phase="$1" mem thermal thermal_value thermal_count=0 thermal_max=0 throttled throttled_hex throttled_value current_mask
   mem="$(awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo || true)"
   for thermal in /sys/class/thermal/thermal_zone*/temp; do
     [ -e "$thermal" ] || continue
@@ -164,19 +164,19 @@ capture_system_sample() {
   fi
   case "$mem" in ''|*[!0-9]*) printf 'raspberry_system_error phase=%s reason=memory_malformed\n' "$phase"; return 1;; esac
   throttled="$(vcgencmd get_throttled 2>/dev/null || true)"
-  case "$throttled" in throttled=0x[0-9a-fA-F]*) ;; *) printf 'raspberry_system_error phase=%s reason=throttling_malformed\n' "$phase"; return 1;; esac
+  case "$throttled" in throttled=0x*) ;; *) printf 'raspberry_system_error phase=%s reason=throttling_malformed\n' "$phase"; return 1;; esac
   throttled_hex="${throttled#throttled=0x}"
-  throttled_value="$(printf '%d' "0x$throttled_hex" 2>/dev/null || true)"
+  case "$throttled_hex" in ''|*[!0-9a-fA-F]*) printf 'raspberry_system_error phase=%s reason=throttling_malformed\n' "$phase"; return 1;; esac
+  if ! throttled_value="$(printf '%d' "0x$throttled_hex" 2>/dev/null)"; then
+    printf 'raspberry_system_error phase=%s reason=throttling_malformed\n' "$phase"
+    return 1
+  fi
   case "$throttled_value" in ''|*[!0-9]*) printf 'raspberry_system_error phase=%s reason=throttling_malformed\n' "$phase"; return 1;; esac
   current_mask=$((throttled_value & 15))
-  case "$phase" in
-    startup) temperature_limit=__STARTUP_TEMPERATURE_LIMIT__;;
-    runtime) temperature_limit=__RUNTIME_TEMPERATURE_LIMIT__;;
-    *) printf 'raspberry_system_error phase=%s reason=phase_malformed\n' "$phase"; return 1;;
-  esac
+  case "$phase" in startup|runtime) ;; *) printf 'raspberry_system_error phase=%s reason=phase_malformed\n' "$phase"; return 1;; esac
   printf 'raspberry_system_sample phase=%s thermal_max_millicelsius=%s mem_available_kb=%s throttled=%s current_throttled_mask=%s undervoltage=%s\n' "$phase" "$thermal_max" "$mem" "$throttled" "$current_mask" "$((current_mask & 1))"
-  if [ "$thermal_max" -ge "$temperature_limit" ] || [ "$current_mask" -ne 0 ]; then
-    printf 'raspberry_system_abort phase=%s reason=temperature_or_throttling\n' "$phase"
+  if [ "$((current_mask & 1))" -ne 0 ]; then
+    printf 'raspberry_system_abort phase=%s reason=undervoltage\n' "$phase"
     return 1
   fi
 }
@@ -211,7 +211,7 @@ run_measurement() {
 }
 run_measurement
 '@
-$measurementSupport = $measurementSupport.Replace("__COMMAND_LINE__", $commandLine).Replace("__STARTUP_TEMPERATURE_LIMIT__", [string]$RaspberryPiZero2WStartupTemperatureLimitMillicelsius).Replace("__RUNTIME_TEMPERATURE_LIMIT__", [string]$RaspberryPiZero2WRuntimeTemperatureLimitMillicelsius)
+$measurementSupport = $measurementSupport.Replace("__COMMAND_LINE__", $commandLine)
 
 if ($shouldStopService) {
   $restoreEvidence = if ($Mode -eq "ProfileBaseline") {
