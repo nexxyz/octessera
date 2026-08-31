@@ -3,7 +3,6 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::sync::mpsc;
-use std::time::Duration;
 
 #[path = "boot_oled_handoff_unix_file_security_tests.rs"]
 mod file_security_tests;
@@ -84,11 +83,13 @@ fn animator_and_native_restart_share_one_stable_lock() {
     let (ready_tx, ready_rx) = mpsc::channel();
     let native_path = path.clone();
     let native = std::thread::spawn(move || {
+        let directory = HandoffDirectory::open_existing_at(&native_path).unwrap();
+        let status = read_status(&directory).unwrap().unwrap();
+        create_or_attach_stop(&directory, &status).unwrap();
         ready_tx.send(()).unwrap();
         native_attach_at(&native_path).unwrap()
     });
     ready_rx.recv().unwrap();
-    std::thread::sleep(Duration::from_millis(20));
     assert!(animator.stop_requested().unwrap());
     animator.release().unwrap();
     let mut guard = native.join().unwrap();
