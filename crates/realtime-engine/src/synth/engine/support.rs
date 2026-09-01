@@ -15,11 +15,14 @@ pub(super) enum InstrumentKind {
     None,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct SampleVoice {
     pub(super) active: bool,
     pub(super) instrument_slot: u8,
     pub(super) sample_slot: usize,
+    pub(super) buffer: Option<SampleBuffer>,
+    pub(super) filter_cutoff_hz: f32,
+    pub(super) filter_resonance: f32,
     pub(super) pos: f32,
     pub(super) step: f32,
     pub(super) gain: f32,
@@ -32,6 +35,9 @@ impl SampleVoice {
             active: false,
             instrument_slot: 0,
             sample_slot: 0,
+            buffer: None,
+            filter_cutoff_hz: 8000.0,
+            filter_resonance: 20.0,
             pos: 0.0,
             step: 1.0,
             gain: 0.0,

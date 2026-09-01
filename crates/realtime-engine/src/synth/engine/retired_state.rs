@@ -1,10 +1,51 @@
+use super::super::types::SAMPLE_VOICE_RETIREMENT_CAPACITY;
 use super::*;
 
 pub(super) const PREVIEW_AUDITION_SLOTS: usize = 2;
 
+pub(super) struct RetiredSampleVoices {
+    voices: [Option<SampleVoice>; SAMPLE_VOICE_RETIREMENT_CAPACITY],
+    count: usize,
+}
+
+impl Default for RetiredSampleVoices {
+    fn default() -> Self {
+        Self {
+            voices: std::array::from_fn(|_| None),
+            count: 0,
+        }
+    }
+}
+
+impl RetiredSampleVoices {
+    pub(super) fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    pub(super) fn is_full(&self) -> bool {
+        self.count >= SAMPLE_VOICE_RETIREMENT_CAPACITY
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.count
+    }
+
+    #[cfg(test)]
+    pub(super) fn get(&self, index: usize) -> Option<&SampleVoice> {
+        (index < self.count).then(|| self.voices[index].as_ref().expect("retired sample voice"))
+    }
+
+    pub(super) fn push(&mut self, voice: SampleVoice) {
+        debug_assert!(!self.is_full());
+        self.voices[self.count] = Some(voice);
+        self.count += 1;
+    }
+}
+
 pub struct RetiredAudioState {
     pub(super) sample_banks: Option<Vec<SampleBankConfig>>,
     pub(super) sample_bank: Option<SampleBankConfig>,
+    pub(super) sample_voices: RetiredSampleVoices,
     pub(super) render_plan: Option<RenderPlan>,
     pub(super) prepared_slots: Vec<PreparedInstrumentSlot>,
     pub(super) bus_pan_pos: Vec<usize>,
@@ -33,6 +74,7 @@ impl Default for RetiredAudioState {
         Self {
             sample_banks: None,
             sample_bank: None,
+            sample_voices: RetiredSampleVoices::default(),
             render_plan: None,
             prepared_slots: Vec::new(),
             bus_pan_pos: Vec::new(),
@@ -62,6 +104,7 @@ impl RetiredAudioState {
     pub fn is_empty(&self) -> bool {
         self.sample_banks.is_none()
             && self.sample_bank.is_none()
+            && self.sample_voices.is_empty()
             && self.render_plan.is_none()
             && self.prepared_slots.is_empty()
             && self.bus_pan_pos.is_empty()
@@ -83,6 +126,10 @@ impl RetiredAudioState {
             && self.preview_sample_buffers.iter().all(Option::is_none)
             && self.preview_sample_voices.iter().all(Option::is_none)
             && self.displaced_momentary_fx.iter().all(Option::is_none)
+    }
+
+    pub fn sample_voice_count(&self) -> usize {
+        self.sample_voices.len()
     }
 }
 

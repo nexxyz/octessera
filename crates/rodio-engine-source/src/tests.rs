@@ -58,6 +58,7 @@ unsafe impl GlobalAlloc for CountingAllocator {
     unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let pointer = System.realloc(pointer, layout, new_size);
         count_allocation();
+        count_deallocation();
         pointer
     }
 }
@@ -73,6 +74,14 @@ fn count_allocation() {
     });
 }
 
+fn count_deallocation() {
+    COUNT_ALLOCATIONS.with(|enabled| {
+        if enabled.get() {
+            DEALLOCATIONS.with(|deallocations| deallocations.set(deallocations.get() + 1));
+        }
+    });
+}
+
 fn allocations_and_deallocations<F: FnOnce()>(operation: F) -> (usize, usize) {
     ALLOCATIONS.with(|allocations| allocations.set(0));
     DEALLOCATIONS.with(|deallocations| deallocations.set(0));
@@ -80,6 +89,18 @@ fn allocations_and_deallocations<F: FnOnce()>(operation: F) -> (usize, usize) {
     operation();
     COUNT_ALLOCATIONS.with(|enabled| enabled.set(false));
     (ALLOCATIONS.with(Cell::get), DEALLOCATIONS.with(Cell::get))
+}
+
+#[test]
+fn realloc_activity_counts_allocation_and_deallocation_effects() {
+    let (allocations, deallocations) = allocations_and_deallocations(|| {
+        let mut values = Vec::<u8>::with_capacity(1);
+        values.reserve_exact(64);
+        std::mem::forget(values);
+    });
+
+    assert!(allocations >= 2);
+    assert!(deallocations >= 1);
 }
 
 #[test]
@@ -146,7 +167,7 @@ fn all_notes_off_event_clears_engine_voices() {
 #[test]
 fn control_drain_has_a_fixed_per_block_budget() {
     let (tx, rx) = event_queue();
-    for note in 0..(MAX_CONTROL_EVENTS_PER_BLOCK + 11) {
+    for note in 0..(MAX_CONTROL_EVENTS_PER_CALLBACK + 11) {
         tx.send(EngineEvent::NoteOn {
             instrument_slot: 0,
             note: (note % 128) as u8,
@@ -157,7 +178,10 @@ fn control_drain_has_a_fixed_per_block_budget() {
     }
     let mut source = EngineSource::new(rx, 44_100);
     let drained = source.drain_control_events();
-    assert_eq!(drained.control_events, MAX_CONTROL_EVENTS_PER_BLOCK as u64);
+    assert_eq!(
+        drained.control_events,
+        MAX_CONTROL_EVENTS_PER_CALLBACK as u64
+    );
     assert!(source.control_rx.try_recv_ordered().is_ok());
 }
 

@@ -27,10 +27,15 @@ impl SynthEngine {
         if !self.active_synth_slots[slot_idx] {
             return SlotFrameOutput::default();
         }
-        self.synth_voice_pool.compact_slot_lanes(slot_idx);
+        if !self.synth_voice_pool.compact_slot_lanes(slot_idx) {
+            return SlotFrameOutput::default();
+        }
         let mut lane_indices = [0; SYNTH_VOICE_LANE_CAPACITY];
-        let lane_count = self.synth_voice_pool.slot_lanes(slot_idx).len();
-        lane_indices[..lane_count].copy_from_slice(self.synth_voice_pool.slot_lanes(slot_idx));
+        let Some(lanes) = self.synth_voice_pool.slot_lanes(slot_idx) else {
+            return SlotFrameOutput::default();
+        };
+        let lane_count = lanes.len();
+        lane_indices[..lane_count].copy_from_slice(lanes);
         let context = SynthVoiceFrameContext {
             sample_rate: self.sample_rate,
             config: self.instruments[slot_idx],
@@ -41,7 +46,9 @@ impl SynthEngine {
         let mut sample = 0.0;
         let mut active = false;
         for lane in lane_indices.into_iter().take(lane_count) {
-            let voice = self.synth_voice_pool.lane_mut(lane);
+            let Some(voice) = self.synth_voice_pool.lane_mut(lane) else {
+                return SlotFrameOutput::default();
+            };
             if let Some(rendered) =
                 render_synth_voice_frame(voice, slot_idx, frame_sample_clock, context)
             {

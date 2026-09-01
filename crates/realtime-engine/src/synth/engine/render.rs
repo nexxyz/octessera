@@ -18,6 +18,9 @@ impl SynthEngine {
     }
 
     fn serial_frame_graph(&mut self) -> (f32, f32) {
+        if !self.voice_pools_home() {
+            return (0.0, 0.0);
+        }
         let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
         let sample_active = self.render_sample_voices(&mut slot_out);
         let preview_active = self.render_preview_sample_voices(&mut slot_out);
@@ -71,6 +74,11 @@ impl SynthEngine {
         left_out: &mut [f32],
         right_out: &mut [f32],
     ) {
+        if !self.voice_pools_home() {
+            left_out[..frames].fill(0.0);
+            right_out[..frames].fill(0.0);
+            return;
+        }
         {
             let scratch = &mut self.block_slot_scratch;
             scratch.inline_source_executor.render_sample_sources(
@@ -78,7 +86,6 @@ impl SynthEngine {
                 &mut self.sample_voice_pool,
                 SampleSourceContext {
                     sample_rate: self.sample_rate,
-                    banks: &self.sample_banks,
                 },
                 SourceRenderOutput {
                     slot_out: &mut scratch.sample_slot_out,
@@ -126,6 +133,9 @@ impl SynthEngine {
     }
 
     fn profiled_serial_frame_graph(&mut self) -> (f32, f32) {
+        if !self.voice_pools_home() {
+            return (0.0, 0.0);
+        }
         let frame_start = Instant::now();
         let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
 

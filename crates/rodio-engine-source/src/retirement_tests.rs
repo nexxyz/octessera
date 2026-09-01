@@ -1,7 +1,10 @@
 use super::*;
 use realtime_engine::synth::{
-    prepare_fx_bus_slot, prepare_global_fx_slot, FxBusConfig, FxBusSlotConfig, MasterFxConfig,
-    MixerConfig, SampleBuffer,
+    default_synth_config, prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
+    FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig,
+    MixerConfig, PreparedAudioConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
+    INSTRUMENT_SLOT_COUNT, MAX_CONTROL_EVENTS_PER_CALLBACK, MAX_SAMPLE_VOICES_PER_SLOT,
+    SAMPLE_VOICE_LANE_CAPACITY, SAMPLE_VOICE_RETIREMENT_CAPACITY,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -93,6 +96,127 @@ fn master_fx_instruments() -> InstrumentsConfig {
     }
 }
 
+fn full_sample_config(value: f32) -> PreparedAudioConfig {
+    prepare_audio_config(
+        InstrumentsConfig {
+            instruments: (0..INSTRUMENT_SLOT_COUNT)
+                .map(|_| InstrumentSlotConfig {
+                    kind: "sampler".into(),
+                    synth: default_synth_config(),
+                    mixer: None,
+                })
+                .collect(),
+            mixer: None,
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        },
+        Some(
+            (0..INSTRUMENT_SLOT_COUNT)
+                .map(|_| sample_bank(value))
+                .collect(),
+        ),
+        None,
+        44_100,
+    )
+}
+
+fn sample_bank(value: f32) -> SampleBankConfig {
+    let mut bank = SampleBankConfig::default();
+    bank.slots[0] = SampleSlotConfig {
+        buffer: Some(SampleBuffer {
+            samples: vec![value; 16_384].into(),
+            channels: 1,
+            sample_rate: 44_100,
+        }),
+    };
+    bank
+}
+
+fn full_sample_source() -> (
+    EngineEventSender,
+    EngineSource,
+    crossbeam_channel::Receiver<RetiredAudioItem>,
+) {
+    let (tx, rx) = event_queue();
+    let (mut source, retired_rx) = EngineSource::with_test_retirement_receiver(rx, 44_100);
+    warm_source(&mut source);
+    tx.send(EngineEvent::SetPreparedAudioConfig(full_sample_config(1.0)))
+        .unwrap();
+    source.refill();
+    while let Ok(item) = retired_rx.try_recv() {
+        drop(item);
+    }
+    source.idx = source.buf.len();
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for _ in 0..MAX_SAMPLE_VOICES_PER_SLOT {
+            tx.send(EngineEvent::NoteOn {
+                instrument_slot: slot as u8,
+                note: 36,
+                velocity: 100,
+                duration_ms: 10_000,
+            })
+            .unwrap();
+        }
+    }
+    assert_no_callback_memory_activity(&mut source);
+    assert_eq!(
+        source.engine.profile_snapshot().active_sample_voices,
+        SAMPLE_VOICE_LANE_CAPACITY
+    );
+    (tx, source, retired_rx)
+}
+
+fn drop_retired_state_off_callback(state: RetiredAudioState) -> (usize, usize) {
+    allocations_and_deallocations(|| drop(state))
+}
+
+#[test]
+fn full_sample_lane_reuse_has_no_callback_memory_activity() {
+    let (tx, mut source, retired_rx) = full_sample_source();
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 36,
+        velocity: 100,
+        duration_ms: 10_000,
+    })
+    .unwrap();
+
+    assert_no_callback_memory_activity(&mut source);
+    let retired = receive_retired_state(&retired_rx);
+    assert_eq!(drop_retired_state_off_callback(retired), (0, 0));
+    assert_eq!(
+        source.engine.profile_snapshot().active_sample_voices,
+        SAMPLE_VOICE_LANE_CAPACITY
+    );
+}
+
+#[test]
+fn full_sample_bank_replacement_has_no_callback_memory_activity() {
+    let (tx, mut source, retired_rx) = full_sample_source();
+    tx.send(EngineEvent::SetPreparedAudioConfig(full_sample_config(2.0)))
+        .unwrap();
+
+    assert_no_callback_memory_activity(&mut source);
+    let retired = receive_retired_state(&retired_rx);
+    let (allocations, deallocations) = drop_retired_state_off_callback(retired);
+    assert_eq!(allocations, 0);
+    assert!(deallocations > 0);
+    assert_eq!(source.engine.profile_snapshot().active_sample_voices, 0);
+}
+
+#[test]
+fn full_sample_all_notes_off_has_no_callback_memory_activity() {
+    let (tx, mut source, retired_rx) = full_sample_source();
+    tx.send(EngineEvent::AllNotesOff).unwrap();
+
+    assert_no_callback_memory_activity(&mut source);
+    let retired = receive_retired_state(&retired_rx);
+    assert_eq!(drop_retired_state_off_callback(retired), (0, 0));
+    assert_eq!(source.engine.profile_snapshot().active_sample_voices, 0);
+    let (_, teardown_deallocations) = allocations_and_deallocations(|| drop(source));
+    assert!(teardown_deallocations > 0);
+}
+
 fn retired_event_id(item: &RetiredAudioItem) -> &str {
     match item.event.as_ref() {
         Some(EngineEvent::MomentaryFxStop { id }) => id,
@@ -122,11 +246,11 @@ fn fill_retirement_storage(
     }
     assert_eq!(
         source.drain_control_events().control_events,
-        MAX_CONTROL_EVENTS_PER_BLOCK as u64
+        MAX_CONTROL_EVENTS_PER_CALLBACK as u64
     );
     assert_eq!(
         source.drain_control_events().control_events,
-        (RETIREMENT_FILL_COUNT - MAX_CONTROL_EVENTS_PER_BLOCK) as u64
+        (RETIREMENT_FILL_COUNT - MAX_CONTROL_EVENTS_PER_CALLBACK) as u64
     );
     assert!(!source.retirement_disconnected);
     assert_eq!(retired_rx.len(), RETIREMENT_QUEUE_CAPACITY);
@@ -234,11 +358,11 @@ fn retirement_backpressure_preserves_fifo_and_resumes_after_receiver_drain() {
     let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
         assert_eq!(
             source.drain_control_events().control_events,
-            MAX_CONTROL_EVENTS_PER_BLOCK as u64
+            MAX_CONTROL_EVENTS_PER_CALLBACK as u64
         );
         assert_eq!(
             source.drain_control_events().control_events,
-            (RETIREMENT_FILL_COUNT - MAX_CONTROL_EVENTS_PER_BLOCK) as u64
+            (RETIREMENT_FILL_COUNT - MAX_CONTROL_EVENTS_PER_CALLBACK) as u64
         );
         assert_eq!(source.drain_control_events().control_events, 0);
     });
@@ -343,3 +467,6 @@ fn pending_render_retirement_stays_owned_until_capacity_returns() {
         .flatten()
         .any(|item| { item.state.as_ref().is_some_and(|state| !state.is_empty()) }));
 }
+
+#[path = "retirement_burst_tests.rs"]
+mod burst_tests;

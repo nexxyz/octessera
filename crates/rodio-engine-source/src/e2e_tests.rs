@@ -388,7 +388,7 @@ fn emergency_all_notes_off_clears_voices_after_a_populated_queue() {
 fn control_budget_spills_into_the_next_source_block() {
     let (tx, mut source) = source();
     let (report_tx, report_rx) = std::sync::mpsc::sync_channel(1);
-    for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
+    for _ in 0..MAX_CONTROL_EVENTS_PER_CALLBACK {
         tx.send(EngineEvent::ProbeMark {
             sent_at: std::time::Instant::now(),
             report_tx: report_tx.clone(),

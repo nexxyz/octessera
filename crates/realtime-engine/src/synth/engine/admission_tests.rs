@@ -4,6 +4,7 @@ fn synth_slot_state(engine: &SynthEngine, slot: usize) -> Vec<(usize, String)> {
     engine
         .synth_voice_pool
         .slot_lanes(slot)
+        .unwrap()
         .iter()
         .copied()
         .map(|lane| (lane, format!("{:?}", engine.synth_voice_pool.lane(lane))))
@@ -14,6 +15,7 @@ fn sample_slot_state(engine: &SynthEngine, slot: usize) -> Vec<(usize, String)> 
     engine
         .sample_voice_pool
         .slot_lanes(slot)
+        .unwrap()
         .iter()
         .copied()
         .map(|lane| (lane, format!("{:?}", engine.sample_voice_pool.lane(lane))))
