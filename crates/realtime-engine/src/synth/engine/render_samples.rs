@@ -1,4 +1,4 @@
-use super::inline_source_executor::{render_sample_voice_frame, sample_lowpass};
+use super::source_lane_renderer::{render_sample_voice_frame, sample_lowpass};
 use super::*;
 
 impl SynthEngine {

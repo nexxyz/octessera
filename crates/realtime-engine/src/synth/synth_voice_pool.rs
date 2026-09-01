@@ -1,25 +1,29 @@
 use super::runtime_state::Voice;
-use super::types::{INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY};
-
-const PARTITION_COUNT: usize = 2;
-const PARTITION_LANE_CAPACITY: usize = SYNTH_VOICE_LANE_CAPACITY / PARTITION_COUNT;
+use super::types::{
+    INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY, SYNTH_VOICE_PARTITION_LANE_CAPACITY,
+    VOICE_PARTITION_COUNT,
+};
 
 pub(super) struct SynthVoicePartition {
     parity: usize,
-    lanes: [Voice; PARTITION_LANE_CAPACITY],
+    lanes: [Voice; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
 }
 
 impl SynthVoicePartition {
     fn new(parity: usize) -> Self {
         Self {
             parity,
-            lanes: [Voice::off(); PARTITION_LANE_CAPACITY],
+            lanes: [Voice::off(); SYNTH_VOICE_PARTITION_LANE_CAPACITY],
         }
+    }
+
+    pub(super) fn lanes_mut(&mut self) -> &mut [Voice; SYNTH_VOICE_PARTITION_LANE_CAPACITY] {
+        &mut self.lanes
     }
 }
 
 pub(super) struct SynthVoicePool {
-    partitions: [Option<Box<SynthVoicePartition>>; PARTITION_COUNT],
+    partitions: [Option<Box<SynthVoicePartition>>; VOICE_PARTITION_COUNT],
     slot_lanes: [[usize; SYNTH_VOICE_LANE_CAPACITY]; INSTRUMENT_SLOT_COUNT],
     slot_lane_counts: [usize; INSTRUMENT_SLOT_COUNT],
     lane_slots: [Option<usize>; SYNTH_VOICE_LANE_CAPACITY],
@@ -37,12 +41,10 @@ impl SynthVoicePool {
         }
     }
 
-    #[allow(dead_code)]
     pub(super) fn take_partition(&mut self, parity: usize) -> Option<Box<SynthVoicePartition>> {
         self.partitions.get_mut(parity)?.take()
     }
 
-    #[allow(dead_code)]
     pub(super) fn install_partition(
         &mut self,
         parity: usize,
@@ -238,7 +240,8 @@ impl SynthVoicePool {
 }
 
 fn partition_lane(lane: usize) -> Option<(usize, usize)> {
-    (lane < SYNTH_VOICE_LANE_CAPACITY).then_some((lane % PARTITION_COUNT, lane / PARTITION_COUNT))
+    (lane < SYNTH_VOICE_LANE_CAPACITY)
+        .then_some((lane % VOICE_PARTITION_COUNT, lane / VOICE_PARTITION_COUNT))
 }
 
 #[cfg(test)]

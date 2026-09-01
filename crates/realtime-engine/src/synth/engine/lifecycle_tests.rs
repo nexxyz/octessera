@@ -111,11 +111,7 @@ fn sample_bank_replacement_retires_lane_handle_without_callback_deallocation() {
     let retired_samples = retired
         .sample_voices
         .get(0)
-        .expect("retired sample voice")
-        .buffer
-        .as_ref()
-        .expect("retired sample voice owns its buffer")
-        .samples
+        .expect("retired sample buffer")
         .clone();
     assert!(std::sync::Arc::ptr_eq(&old_samples, &retired_samples));
     assert_eq!(engine.profile_snapshot().active_sample_voices, 0);

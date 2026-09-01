@@ -108,3 +108,37 @@ fn fixed_retirement_holds_every_physical_sample_lane() {
     assert_eq!(retired.len(), SAMPLE_VOICE_LANE_CAPACITY);
     assert_eq!(pool.active_total(), Some(0));
 }
+
+#[test]
+fn retirement_overflow_rejects_without_taking_sample_handle() {
+    let mut retired = RetiredSampleVoices::default();
+    for lane in 0..SAMPLE_VOICE_RETIREMENT_CAPACITY {
+        let mut voice = SampleVoice::off();
+        voice.buffer = Some(SampleBuffer {
+            samples: vec![lane as f32].into(),
+            channels: 1,
+            sample_rate: 48_000,
+        });
+        assert!(retired.push(&mut voice));
+        assert!(voice.buffer.is_none());
+    }
+
+    let mut rejected = SampleVoice::off();
+    rejected.buffer = Some(SampleBuffer {
+        samples: vec![f32::MAX].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
+    let samples = rejected
+        .buffer
+        .as_ref()
+        .expect("rejected sample handle")
+        .samples
+        .clone();
+
+    assert!(!retired.push(&mut rejected));
+    assert!(rejected
+        .buffer
+        .as_ref()
+        .is_some_and(|buffer| std::sync::Arc::ptr_eq(&buffer.samples, &samples)));
+}
