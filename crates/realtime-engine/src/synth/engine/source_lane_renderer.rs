@@ -63,12 +63,12 @@ pub(super) struct SampleSourceContext {
 }
 
 pub(super) fn render_synth_partition(
-    mut partition: Box<SynthVoicePartition>,
+    partition: &mut SynthVoicePartition,
     frames: usize,
     base_sample_clock: u64,
     context: &SynthSourceContext,
     scratch: &mut SourceLaneBlockScratch,
-) -> Box<SynthVoicePartition> {
+) {
     for (lane, voice) in partition.lanes_mut().iter_mut().enumerate() {
         if !voice.active {
             continue;
@@ -97,15 +97,14 @@ pub(super) fn render_synth_partition(
             }
         }
     }
-    partition
 }
 
 pub(super) fn render_sample_partition(
-    mut partition: Box<SampleVoicePartition>,
+    partition: &mut SampleVoicePartition,
     frames: usize,
     context: SampleSourceContext,
     scratch: &mut SourceLaneBlockScratch,
-) -> Box<SampleVoicePartition> {
+) {
     for (lane, voice) in partition.lanes_mut().iter_mut().enumerate() {
         if !voice.active {
             continue;
@@ -122,7 +121,6 @@ pub(super) fn render_sample_partition(
             }
         }
     }
-    partition
 }
 
 #[derive(Clone, Copy)]

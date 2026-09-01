@@ -82,7 +82,12 @@ impl SynthEngine {
         }
         {
             let scratch = &mut self.block_slot_scratch;
-            scratch.inline_source_executor.render_sample_sources(
+            let executor = scratch
+                .inline_source_executor
+                .as_mut()
+                .expect("inline source executor");
+            assert!(executor.prepare(frames));
+            executor.render_sample_sources(
                 frames,
                 &mut self.sample_voice_pool,
                 SampleSourceContext {
@@ -96,7 +101,11 @@ impl SynthEngine {
             );
         }
         let scratch = &mut self.block_slot_scratch;
-        scratch.inline_source_executor.render_synth_sources(
+        let executor = scratch
+            .inline_source_executor
+            .as_mut()
+            .expect("inline source executor");
+        executor.render_synth_sources(
             frames,
             self.sample_clock,
             &mut self.synth_voice_pool,
@@ -113,6 +122,15 @@ impl SynthEngine {
                 active_slots: &mut self.active_synth_slots,
             },
         );
+        self.finish_block_slot_frame_graph(frames, left_out, right_out);
+    }
+
+    pub(super) fn finish_block_slot_frame_graph(
+        &mut self,
+        frames: usize,
+        left_out: &mut [f32],
+        right_out: &mut [f32],
+    ) {
         for frame in 0..frames {
             let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
             let mut sample_active = false;
@@ -220,7 +238,7 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
-        if !self.render_profile.enabled && self.block_slot_scratch.prepare(frames) {
+        if !self.render_profile.enabled && self.block_slot_scratch.prepare_output(frames) {
             self.block_slot_frame_graph(frames, left, right);
             interleave_stereo(left, right, out);
             return;

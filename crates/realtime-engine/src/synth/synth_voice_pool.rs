@@ -20,6 +20,10 @@ impl SynthVoicePartition {
     pub(super) fn lanes_mut(&mut self) -> &mut [Voice; SYNTH_VOICE_PARTITION_LANE_CAPACITY] {
         &mut self.lanes
     }
+
+    pub(super) fn parity(&self) -> usize {
+        self.parity
+    }
 }
 
 pub(super) struct SynthVoicePool {
@@ -60,8 +64,24 @@ impl SynthVoicePool {
         Ok(())
     }
 
+    pub(super) fn install_partition_after_vacancy_check(
+        &mut self,
+        parity: usize,
+        partition: Box<SynthVoicePartition>,
+    ) {
+        self.partitions[parity] = Some(partition);
+    }
+
     pub(super) fn has_home(&self) -> bool {
         self.partitions_home()
+    }
+
+    pub(super) fn partition_is_vacant(&self, parity: usize) -> bool {
+        matches!(self.partitions.get(parity), Some(None))
+    }
+
+    pub(super) fn partition_is_present(&self, parity: usize) -> bool {
+        matches!(self.partitions.get(parity), Some(Some(_)))
     }
 
     pub(super) fn lane(&self, lane: usize) -> Option<&Voice> {

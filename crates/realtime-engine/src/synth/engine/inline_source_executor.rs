@@ -39,6 +39,15 @@ impl InlineSourceExecutor {
         true
     }
 
+    pub(super) fn into_partition_scratch(
+        self,
+    ) -> (
+        [SourceLaneBlockScratch; VOICE_PARTITION_COUNT],
+        [SourceLaneBlockScratch; VOICE_PARTITION_COUNT],
+    ) {
+        (self.synth_scratch, self.sample_scratch)
+    }
+
     pub(super) fn render_synth_sources(
         &mut self,
         frames: usize,
@@ -48,11 +57,11 @@ impl InlineSourceExecutor {
         output: SourceRenderOutput<'_>,
     ) {
         for parity in 0..VOICE_PARTITION_COUNT {
-            let Some(partition) = pool.take_partition(parity) else {
+            let Some(mut partition) = pool.take_partition(parity) else {
                 continue;
             };
-            let partition = render_synth_partition(
-                partition,
+            render_synth_partition(
+                &mut partition,
                 frames,
                 base_sample_clock,
                 &context,
@@ -83,11 +92,11 @@ impl InlineSourceExecutor {
         output: SourceRenderOutput<'_>,
     ) {
         for parity in 0..VOICE_PARTITION_COUNT {
-            let Some(partition) = pool.take_partition(parity) else {
+            let Some(mut partition) = pool.take_partition(parity) else {
                 continue;
             };
-            let partition = render_sample_partition(
-                partition,
+            render_sample_partition(
+                &mut partition,
                 frames,
                 context,
                 &mut self.sample_scratch[parity],

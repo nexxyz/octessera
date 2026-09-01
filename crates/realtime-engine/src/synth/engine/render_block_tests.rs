@@ -272,7 +272,7 @@ fn assert_prepared_block_matches_reference(
     mut reference: SynthEngine,
     frames: usize,
 ) {
-    assert!(block.block_slot_scratch.prepare(frames));
+    assert!(block.block_slot_scratch.prepare_output(frames));
     assert_block_matches_reference(&mut block, &mut reference, frames);
 }
 

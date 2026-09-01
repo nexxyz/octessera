@@ -11,6 +11,8 @@ use crate::audio_stream_health::AudioStreamHealth;
 use cpal::traits::StreamTrait;
 use cpal::Stream;
 use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
+#[cfg(test)]
+use rodio_engine_source::EngineEventReceiver;
 use rodio_engine_source::{event_queue, EngineEvent, EngineEventSender};
 use std::time::Duration;
 
@@ -22,6 +24,8 @@ pub(crate) struct OpenedAudioSink {
     pub(crate) engine_tx: EngineEventSender,
     pub(crate) _stream: Option<Stream>,
     pub(crate) health: AudioStreamHealth,
+    #[cfg(test)]
+    pub(crate) _test_engine_rx: Option<std::sync::Arc<std::sync::Mutex<EngineEventReceiver>>>,
 }
 
 pub(super) type AudioSinkOpener = fn(
@@ -77,6 +81,8 @@ pub(super) fn open_audio_sink(
         engine_tx,
         _stream: Some(stream),
         health,
+        #[cfg(test)]
+        _test_engine_rx: None,
     })
 }
 
@@ -128,6 +134,8 @@ pub(super) fn open_orange_audio_sink_with_health(
         engine_tx,
         _stream: Some(stream),
         health,
+        #[cfg(test)]
+        _test_engine_rx: None,
     })
 }
 

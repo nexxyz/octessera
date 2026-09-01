@@ -209,7 +209,7 @@ fn orange_scheduler_labels_identify_dac_and_uac2() {
 fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
     let attempts = Arc::new(Mutex::new(Vec::new()));
     let tap_seen = Arc::new(Mutex::new(Vec::new()));
-    let replay_receiver = Arc::new(Mutex::new(None::<EngineEventReceiver>));
+    let replay_receiver = Arc::new(Mutex::new(None::<Arc<Mutex<EngineEventReceiver>>>));
     let opener: super::orange_audio_recovery::OrangeRecoveryOpener = {
         let attempts = attempts.clone();
         let tap_seen = tap_seen.clone();
@@ -221,12 +221,14 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
                 return Err(crate::audio_route::RouteOpenError::Absent);
             }
             let (tx, rx) = event_queue();
-            *replay_receiver.lock().unwrap() = Some(rx);
+            let rx = Arc::new(Mutex::new(rx));
+            *replay_receiver.lock().unwrap() = Some(rx.clone());
             Ok(
                 crate::audio::audio_output::audio_output_open::OpenedAudioSink {
                     engine_tx: tx,
                     _stream: None,
                     health,
+                    _test_engine_rx: Some(rx),
                 },
             )
         })
@@ -275,7 +277,8 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
         .iter()
         .any(|entry| entry.sink == super::AudioSink::Usb));
     drop(registered);
-    let mut receiver = replay_receiver.lock().unwrap().take().unwrap();
+    let receiver = replay_receiver.lock().unwrap().take().unwrap();
+    let mut receiver = receiver.lock().unwrap();
     assert!(matches!(
         receiver.try_recv(),
         Ok(EngineEvent::SetPreparedInstruments(_))
@@ -331,6 +334,7 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
         engine_tx: tx,
         _stream: None,
         health: health.clone(),
+        _test_engine_rx: None,
     };
     let replay_events = Arc::new(Mutex::new(ReplayCache::default()));
     let attach_gate = crate::audio_sink_registry::new_attach_gate();
@@ -423,10 +427,10 @@ fn orange_test_opener(
         ORANGE_TAP_ABSENT_COUNT.fetch_add(1, Ordering::SeqCst);
     }
     let (engine_tx, engine_rx) = event_queue();
-    std::mem::forget(engine_rx);
     Ok(super::audio_output_open::OpenedAudioSink {
         engine_tx,
         _stream: None,
         health: crate::audio_stream_health::AudioStreamHealth::optional(format!("{sink:?}")),
+        _test_engine_rx: Some(Arc::new(Mutex::new(engine_rx))),
     })
 }

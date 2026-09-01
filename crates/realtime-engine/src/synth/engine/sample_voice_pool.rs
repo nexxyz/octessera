@@ -23,6 +23,20 @@ impl SampleVoicePartition {
     pub(super) fn lanes_mut(&mut self) -> &mut [SampleVoice; SAMPLE_VOICE_PARTITION_LANE_CAPACITY] {
         &mut self.lanes
     }
+
+    pub(super) fn parity(&self) -> usize {
+        self.parity
+    }
+
+    #[cfg(test)]
+    pub(super) fn active_sample_buffer_address_for_test(&self) -> Option<usize> {
+        self.lanes.iter().find_map(|voice| {
+            voice
+                .buffer
+                .as_ref()
+                .map(|buffer| std::sync::Arc::as_ptr(&buffer.samples) as *const f32 as usize)
+        })
+    }
 }
 
 pub(super) struct SampleVoicePool {
@@ -63,8 +77,24 @@ impl SampleVoicePool {
         Ok(())
     }
 
+    pub(super) fn install_partition_after_vacancy_check(
+        &mut self,
+        parity: usize,
+        partition: Box<SampleVoicePartition>,
+    ) {
+        self.partitions[parity] = Some(partition);
+    }
+
     pub(super) fn has_home(&self) -> bool {
         self.partitions_home()
+    }
+
+    pub(super) fn partition_is_vacant(&self, parity: usize) -> bool {
+        matches!(self.partitions.get(parity), Some(None))
+    }
+
+    pub(super) fn partition_is_present(&self, parity: usize) -> bool {
+        matches!(self.partitions.get(parity), Some(Some(_)))
     }
 
     pub(super) fn lane(&self, lane: usize) -> Option<&SampleVoice> {

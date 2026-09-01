@@ -96,7 +96,7 @@ fn realloc_activity_counts_allocation_and_deallocation_effects() {
     let (allocations, deallocations) = allocations_and_deallocations(|| {
         let mut values = Vec::<u8>::with_capacity(1);
         values.reserve_exact(64);
-        std::mem::forget(values);
+        drop(values);
     });
 
     assert!(allocations >= 2);
