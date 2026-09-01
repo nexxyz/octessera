@@ -5,6 +5,8 @@ pub(super) use super::source_worker_owner::{
     CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerScratch, WorkEnvelope,
     WorkerExit,
 };
+use super::source_worker_protocol::SourceWorkerRetirementError;
+use super::source_worker_retirement::SourceWorkerRetirement;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -21,33 +23,12 @@ pub(super) const SOURCE_WORKER_MAILBOX_CAPACITY: usize = 1;
 
 static NEXT_SOURCE_WORKER_GENERATION: AtomicU64 = AtomicU64::new(1);
 
-#[cfg(test)]
-pub(super) type SourceWorkerOwnerIdentity = (usize, usize, usize, usize, usize, Option<usize>);
+#[cfg(any(test, feature = "test-support"))]
+pub use super::source_worker_observer::SourceWorkerOwnerIdentity;
 
 pub(super) struct SourceWorkerCloseState {
     pub(super) closed: AtomicBool,
     pub(super) generation: u64,
-}
-
-pub struct SourceWorkerRetirement {
-    pub(super) close: Option<Arc<SourceWorkerCloseState>>,
-    pub(super) generation: Option<u64>,
-}
-
-impl SourceWorkerRetirement {
-    pub(super) fn new(close: Arc<SourceWorkerCloseState>) -> Self {
-        Self {
-            generation: Some(close.generation),
-            close: Some(close),
-        }
-    }
-
-    pub(super) fn inline() -> Self {
-        Self {
-            close: None,
-            generation: None,
-        }
-    }
 }
 
 pub struct SourceWorkerLifecycle {
@@ -60,14 +41,16 @@ pub struct SourceWorkerLifecycle {
     pub(super) completion_rxs: [Receiver<CompletedEnvelope>; SOURCE_WORKER_COUNT],
     pub(super) runtime_close: Arc<SourceWorkerCloseState>,
     pub(super) health: Arc<SourceWorkerHealthState>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) destroyed_owner_identities: [Option<SourceWorkerOwnerIdentity>; SOURCE_WORKER_COUNT],
     #[cfg(test)]
     reverse_completion: Arc<ReverseCompletionState>,
 }
 
 impl SourceWorkerLifecycle {
-    pub(super) fn start_with_hold(hold_before_receive: bool) -> Self {
+    pub(super) fn start_with_hold(
+        hold_before_receive: bool,
+    ) -> Result<Self, super::source_worker_protocol::SourceWorkerSetupError> {
         let reverse_completion = Arc::new(ReverseCompletionState {
             enabled: AtomicBool::new(false),
             parity_one_done: AtomicBool::new(false),
@@ -82,12 +65,26 @@ impl SourceWorkerLifecycle {
         let (home_tx_1, home_rx_1) = bounded(SOURCE_WORKER_MAILBOX_CAPACITY);
         let (fault_tx_0, fault_rx_0) = bounded(SOURCE_WORKER_MAILBOX_CAPACITY);
         let (fault_tx_1, fault_rx_1) = bounded(SOURCE_WORKER_MAILBOX_CAPACITY);
-        let workers = [
-            spawn_worker(0, Arc::clone(&reverse_completion), hold_before_receive),
-            spawn_worker(1, Arc::clone(&reverse_completion), hold_before_receive),
-        ];
+        let first_worker =
+            match spawn_worker(0, Arc::clone(&reverse_completion), hold_before_receive) {
+                Ok(worker) => worker,
+                Err(error) => {
+                    runtime_close.closed.store(true, Ordering::Release);
+                    return Err(error);
+                }
+            };
+        let second_worker =
+            match spawn_worker(1, Arc::clone(&reverse_completion), hold_before_receive) {
+                Ok(worker) => worker,
+                Err(error) => {
+                    runtime_close.closed.store(true, Ordering::Release);
+                    first_worker.shutdown_after_spawn_failure();
+                    return Err(error);
+                }
+            };
+        let workers = [first_worker, second_worker];
         let completion_rxs = [workers[0].done_rx.clone(), workers[1].done_rx.clone()];
-        Self {
+        Ok(Self {
             workers,
             prewarmed: false,
             home_txs: [home_tx_0, home_tx_1],
@@ -97,11 +94,11 @@ impl SourceWorkerLifecycle {
             completion_rxs,
             runtime_close,
             health,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             destroyed_owner_identities: std::array::from_fn(|_| None),
             #[cfg(test)]
             reverse_completion,
-        }
+        })
     }
 
     pub(super) fn prewarm(&mut self) -> bool {
@@ -138,32 +135,77 @@ impl SourceWorkerLifecycle {
     }
 
     pub fn shutdown(
-        mut self,
+        self,
         retirement: SourceWorkerRetirement,
     ) -> super::source_worker_protocol::SourceWorkerShutdown {
-        let valid = retirement
-            .close
-            .as_ref()
-            .is_some_and(|close| Arc::ptr_eq(&self.runtime_close, close))
-            && retirement.generation == Some(self.runtime_close.generation)
-            && retirement
-                .close
-                .as_ref()
-                .is_some_and(|close| close.closed.load(Ordering::Acquire));
-        if !valid {
+        let retirement_error = self.validate_retirement(&retirement).err();
+        if retirement_error.is_some() {
             self.runtime_close.closed.store(true, Ordering::Release);
         }
-        let joined_workers = self.shutdown_inner();
-        super::source_worker_protocol::SourceWorkerShutdown {
-            joined_workers,
-            #[cfg(test)]
-            destroyed_owner_count: self.destroyed_owner_identities.iter().flatten().count(),
-            #[cfg(test)]
-            destroyed_owner_identities: self.destroyed_owner_identities,
-        }
+        self.shutdown_report(retirement_error)
     }
 
-    pub(super) fn mark_runtime_closed(&self) {
+    pub fn validate_retirement(
+        &self,
+        retirement: &SourceWorkerRetirement,
+    ) -> Result<(), SourceWorkerRetirementError> {
+        let Some(close) = retirement.close.upgrade() else {
+            return Err(SourceWorkerRetirementError::CloseStateUnavailable);
+        };
+        if !Arc::ptr_eq(&self.runtime_close, &close) {
+            return Err(SourceWorkerRetirementError::CloseStateMismatch);
+        }
+        if retirement.generation != self.runtime_close.generation {
+            return Err(SourceWorkerRetirementError::GenerationMismatch {
+                expected: self.runtime_close.generation,
+                actual: retirement.generation,
+            });
+        }
+        if !close.closed.load(Ordering::Acquire) {
+            return Err(SourceWorkerRetirementError::RuntimeStillOpen);
+        }
+        Ok(())
+    }
+
+    pub fn shutdown_after_runtime_drop(
+        self,
+    ) -> super::source_worker_protocol::SourceWorkerShutdown {
+        let retirement_error = if self.runtime_close.closed.load(Ordering::Acquire) {
+            None
+        } else {
+            Some(SourceWorkerRetirementError::RuntimeStillOpen)
+        };
+        self.runtime_close.closed.store(true, Ordering::Release);
+        self.shutdown_report(retirement_error)
+    }
+
+    pub fn shutdown_after_retirement_error(
+        self,
+        error: SourceWorkerRetirementError,
+    ) -> super::source_worker_protocol::SourceWorkerShutdown {
+        self.runtime_close.closed.store(true, Ordering::Release);
+        self.shutdown_report(Some(error))
+    }
+
+    fn shutdown_report(
+        mut self,
+        retirement_error: Option<SourceWorkerRetirementError>,
+    ) -> super::source_worker_protocol::SourceWorkerShutdown {
+        let joined_workers = self.shutdown_inner();
+        let shutdown = super::source_worker_protocol::SourceWorkerShutdown {
+            joined_workers,
+            retirement_error,
+            #[cfg(any(test, feature = "test-support"))]
+            destroyed_owner_count: self.destroyed_owner_identities.iter().flatten().count(),
+            #[cfg(any(test, feature = "test-support"))]
+            destroyed_owner_identities: self.destroyed_owner_identities,
+        };
+        #[cfg(any(test, feature = "test-support"))]
+        super::source_worker_observer::notify_shutdown_probe(&shutdown);
+        shutdown
+    }
+
+    pub fn mark_runtime_closed(&self) {
         self.runtime_close.closed.store(true, Ordering::Release);
     }
 
@@ -238,9 +280,9 @@ impl SourceWorkerLifecycle {
     }
 
     fn finish_owner(&mut self, owner: OwnerEnvelope) {
-        #[cfg(test)]
-        let identity = owner_identity(&owner);
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
+        let identity = super::source_worker_observer::owner_identity(&owner);
+        #[cfg(any(test, feature = "test-support"))]
         if let Some(slot) = self
             .destroyed_owner_identities
             .iter_mut()
@@ -262,7 +304,7 @@ impl SourceWorkerLifecycle {
     pub(crate) fn fault_owner_identities_for_test(&self) -> [Option<SourceWorkerOwnerIdentity>; 2] {
         std::array::from_fn(|parity| {
             let owner = self.fault_rxs[parity].try_recv().ok()?;
-            let identity = owner_identity(&owner);
+            let identity = super::source_worker_observer::owner_identity(&owner);
             self.fault_txs[parity]
                 .try_send(owner)
                 .expect("fault escrow");
@@ -270,22 +312,33 @@ impl SourceWorkerLifecycle {
         })
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_exit_on_job_for_test(&self, parity: usize) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_exit_on_job_for_test(&self, parity: usize) {
         self.workers[parity]
             .exit_on_job
             .store(true, Ordering::Release);
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_hold_before_receive_for_test(&self, held: bool) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_hold_before_receive_for_test(&self, held: bool) {
         for worker in &self.workers {
             worker.hold_before_receive.store(held, Ordering::Release);
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_panic_on_job_for_test(&self, parity: usize) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn hold_control_for_test(
+        &self,
+    ) -> super::source_worker_retirement::SourceWorkerHoldControl {
+        super::source_worker_retirement::SourceWorkerHoldControl::new(
+            self.workers
+                .each_ref()
+                .map(|worker| Arc::clone(&worker.hold_before_receive)),
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_panic_on_job_for_test(&self, parity: usize) {
         self.workers[parity]
             .panic_on_job
             .store(true, Ordering::Release);
@@ -376,7 +429,7 @@ impl SourceWorkerLifecycle {
 
     #[cfg(test)]
     pub(crate) fn retirement_after_runtime_drop_for_test(&self) -> SourceWorkerRetirement {
-        SourceWorkerRetirement::new(Arc::clone(&self.runtime_close))
+        super::source_worker_retirement::SourceWorkerRetirement::new(&self.runtime_close)
     }
 }
 
@@ -441,19 +494,4 @@ fn worker_mask(parity: usize) -> u8 {
     } else {
         0b11
     }
-}
-
-#[cfg(test)]
-fn owner_identity(owner: &OwnerEnvelope) -> SourceWorkerOwnerIdentity {
-    (
-        owner.parity,
-        (&*owner.partitions.synth) as *const _ as usize,
-        (&*owner.partitions.sample) as *const _ as usize,
-        owner.scratch.synth.samples[0].as_ptr() as usize,
-        owner.scratch.sample.samples[0].as_ptr() as usize,
-        owner
-            .partitions
-            .sample
-            .active_sample_buffer_address_for_test(),
-    )
 }

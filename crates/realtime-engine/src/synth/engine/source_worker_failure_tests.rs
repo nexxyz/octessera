@@ -51,6 +51,18 @@ fn lifecycle_drop_after_runtime_retirement_destroys_home_owners() {
 }
 
 #[test]
+fn partial_worker_spawn_failure_joins_started_worker_before_return() {
+    let spawn_failure = super::source_worker_lifecycle::worker::fail_worker_spawn_at_for_test(1);
+    let mut engine = dynamic_engine();
+    let error = match SourceWorkerLifecycle::start_prewarmed(&mut engine) {
+        Ok(_) => panic!("injected worker spawn failure should return an error"),
+        Err(error) => error,
+    };
+    assert_eq!(error, SourceWorkerSetupError::WorkerThreadUnavailable);
+    assert_eq!(spawn_failure.active_workers_for_test(), 0);
+}
+
+#[test]
 fn lifecycle_drop_waits_for_runtime_close_before_joining() {
     let mut engine = dynamic_engine();
     let (lifecycle, runtime) =

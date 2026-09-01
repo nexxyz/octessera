@@ -5,13 +5,16 @@ use super::source_worker_health::{
 use super::source_worker_lease::OwnerLease;
 use super::source_worker_lifecycle::{
     CompletedEnvelope, OwnerEnvelope, SourceWorkerCloseState, SourceWorkerLifecycle,
-    SourceWorkerRetirement, SourceWorkerScratch, WorkEnvelope,
+    SourceWorkerScratch, WorkEnvelope,
 };
 use super::source_worker_protocol::SourceWorkerMode;
+use super::source_worker_retirement::SourceWorkerRetirement;
 use super::source_worker_transfer;
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use crossbeam_channel::{Receiver, Sender, TryRecvError, TrySendError};
+#[cfg(any(test, feature = "test-support"))]
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -30,6 +33,10 @@ pub struct SourceWorkerRuntime {
     home_rxs: Option<[Receiver<OwnerEnvelope>; SOURCE_WORKER_COUNT]>,
     fault_txs: Option<[Sender<OwnerEnvelope>; SOURCE_WORKER_COUNT]>,
     worker_exited: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
+    #[cfg(any(test, feature = "test-support"))]
+    jobs_started: Option<[Arc<AtomicU64>; SOURCE_WORKER_COUNT]>,
+    #[cfg(any(test, feature = "test-support"))]
+    render_attempts: AtomicU64,
     runtime_close: Option<Arc<SourceWorkerCloseState>>,
     health: Arc<SourceWorkerHealthState>,
     next_sequence: u64,
@@ -40,7 +47,7 @@ pub struct SourceWorkerRuntime {
     completed_mask: u8,
     poll_limit: usize,
     sample_rate: u32,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     timing_override: Option<(usize, Duration)>,
 }
 
@@ -56,6 +63,10 @@ impl SourceWorkerRuntime {
             home_rxs: None,
             fault_txs: None,
             worker_exited: None,
+            #[cfg(any(test, feature = "test-support"))]
+            jobs_started: None,
+            #[cfg(any(test, feature = "test-support"))]
+            render_attempts: AtomicU64::new(0),
             runtime_close: None,
             health: Arc::new(SourceWorkerHealthState::new(SourceWorkerHealth::Disabled)),
             next_sequence: 0,
@@ -66,7 +77,7 @@ impl SourceWorkerRuntime {
             completed_mask: 0,
             poll_limit: 0,
             sample_rate: 0,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             timing_override: None,
         }
     }
@@ -95,6 +106,13 @@ impl SourceWorkerRuntime {
                 Arc::clone(&workers[0].exited),
                 Arc::clone(&workers[1].exited),
             ]),
+            #[cfg(any(test, feature = "test-support"))]
+            jobs_started: Some([
+                Arc::clone(&workers[0].jobs_started),
+                Arc::clone(&workers[1].jobs_started),
+            ]),
+            #[cfg(any(test, feature = "test-support"))]
+            render_attempts: AtomicU64::new(0),
             runtime_close: Some(Arc::clone(&lifecycle.runtime_close)),
             health: Arc::clone(&lifecycle.health),
             next_sequence: 0,
@@ -105,7 +123,7 @@ impl SourceWorkerRuntime {
             completed_mask: 0,
             poll_limit: SOURCE_WORKER_POLL_CEILING,
             sample_rate,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             timing_override: None,
         })
     }
@@ -119,7 +137,7 @@ impl SourceWorkerRuntime {
             return SourceWorkerRetirement::inline();
         };
         close.closed.store(true, Ordering::Release);
-        SourceWorkerRetirement::new(close)
+        SourceWorkerRetirement::new(&close)
     }
 
     pub fn health_snapshot(&self) -> SourceWorkerHealthSnapshot {
@@ -127,7 +145,7 @@ impl SourceWorkerRuntime {
     }
 
     fn rendezvous_timing(&self, frames: usize) -> (usize, Duration) {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         if let Some(override_timing) = self.timing_override {
             return override_timing;
         }
@@ -199,7 +217,41 @@ impl SourceWorkerRuntime {
         }
     }
 
+    pub fn with_recovered_owners<R>(
+        &mut self,
+        engine: &mut SynthEngine,
+        inspect: impl FnOnce(&SynthEngine) -> R,
+    ) -> Option<R> {
+        if self.mode == SourceWorkerMode::Inline {
+            return Some(inspect(engine));
+        }
+        self.reclaim_available(engine);
+        if !self.home_is_ready() {
+            return None;
+        }
+        let mut first = self.lease_home(0)?;
+        let Some(mut second) = self.lease_home(1) else {
+            first.return_fault();
+            return None;
+        };
+        match source_worker_transfer::with_both_source_partitions_read_only(
+            engine,
+            &mut first,
+            &mut second,
+            inspect,
+        ) {
+            Ok(result) => {
+                first.return_home();
+                second.return_home();
+                Some(result)
+            }
+            Err(()) => None,
+        }
+    }
+
     pub(super) fn render_source_block(&mut self, engine: &mut SynthEngine, frames: usize) -> bool {
+        #[cfg(any(test, feature = "test-support"))]
+        self.render_attempts.fetch_add(1, Ordering::Relaxed);
         if self.mode == SourceWorkerMode::Inline {
             return false;
         }
@@ -440,3 +492,7 @@ mod reduction;
 #[cfg(test)]
 #[path = "source_worker_test_support.rs"]
 pub(super) mod test_support;
+
+#[cfg(any(test, feature = "test-support"))]
+#[path = "source_worker_feature_support.rs"]
+mod feature_support;

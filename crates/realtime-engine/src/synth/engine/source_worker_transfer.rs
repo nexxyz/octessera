@@ -114,6 +114,15 @@ pub(super) fn with_both_source_partitions<R>(
     }
 }
 
+pub(super) fn with_both_source_partitions_read_only<R>(
+    engine: &mut SynthEngine,
+    first: &mut OwnerLease,
+    second: &mut OwnerLease,
+    inspect: impl FnOnce(&SynthEngine) -> R,
+) -> Result<R, ()> {
+    with_both_source_partitions(engine, first, second, |engine, _| inspect(engine))
+}
+
 fn valid_owner_pair(engine: &SynthEngine, first: &OwnerEnvelope, second: &OwnerEnvelope) -> bool {
     first.parity == 0
         && second.parity == 1
@@ -181,7 +190,7 @@ impl SourceWorkerLifecycle {
         Self::start_prewarmed_with_options(engine, false, None)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn start_prewarmed_with_hold(
         engine: &mut SynthEngine,
         hold_before_receive: bool,
@@ -195,7 +204,7 @@ impl SourceWorkerLifecycle {
         #[cfg(test)] disconnected_completion: Option<usize>,
         #[cfg(not(test))] _disconnected_completion: Option<usize>,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        let mut lifecycle = SourceWorkerLifecycle::start_with_hold(hold_before_receive);
+        let mut lifecycle = SourceWorkerLifecycle::start_with_hold(hold_before_receive)?;
         if !lifecycle.prewarm() {
             lifecycle.mark_runtime_closed();
             return Err(SourceWorkerSetupError::PrewarmFailed);
@@ -262,8 +271,8 @@ impl SourceWorkerLifecycle {
         Ok((lifecycle, runtime))
     }
 
-    #[cfg(test)]
-    pub(crate) fn start_prewarmed_held_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn start_prewarmed_held_for_test(
         engine: &mut SynthEngine,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
         Self::start_prewarmed_with_hold(engine, true)

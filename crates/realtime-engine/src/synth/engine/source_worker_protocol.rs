@@ -11,11 +11,20 @@ pub enum SourceWorkerMode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SourceWorkerShutdown {
     pub joined_workers: usize,
-    #[cfg(test)]
-    pub(crate) destroyed_owner_count: usize,
-    #[cfg(test)]
-    pub(crate) destroyed_owner_identities:
+    pub retirement_error: Option<SourceWorkerRetirementError>,
+    #[cfg(any(test, feature = "test-support"))]
+    pub destroyed_owner_count: usize,
+    #[cfg(any(test, feature = "test-support"))]
+    pub destroyed_owner_identities:
         [Option<super::source_worker_lifecycle::SourceWorkerOwnerIdentity>; 2],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceWorkerRetirementError {
+    CloseStateUnavailable,
+    CloseStateMismatch,
+    GenerationMismatch { expected: u64, actual: u64 },
+    RuntimeStillOpen,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,4 +33,6 @@ pub enum SourceWorkerSetupError {
     InlineSourceExecutorUnavailable,
     PartitionsUnavailable,
     WorkerChannelsUnavailable,
+    WorkerThreadUnavailable,
+    RetirementReaperUnavailable,
 }

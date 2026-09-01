@@ -13,3 +13,6 @@ hound = "3.5"
 realtime-engine = { path = "../realtime-engine" }
 rodio = "0.20"
 serde_json = "1"
+
+[dev-dependencies]
+realtime-engine = { path = "../realtime-engine", features = ["test-support"] }

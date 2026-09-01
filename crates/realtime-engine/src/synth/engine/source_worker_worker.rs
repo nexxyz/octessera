@@ -1,9 +1,47 @@
 use super::{CompletedEnvelope, WorkEnvelope, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
+#[cfg(test)]
+use std::cell::RefCell;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+#[cfg(test)]
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
+
+#[cfg(test)]
+thread_local! {
+    static FAIL_WORKER_SPAWN: RefCell<Option<(usize, Arc<AtomicUsize>)>> =
+        const { RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) struct WorkerSpawnFailureGuard {
+    active_workers: Arc<AtomicUsize>,
+}
+
+#[cfg(test)]
+pub(crate) fn fail_worker_spawn_at_for_test(parity: usize) -> WorkerSpawnFailureGuard {
+    let active_workers = Arc::new(AtomicUsize::new(0));
+    FAIL_WORKER_SPAWN.with(|failure| {
+        failure.replace(Some((parity, Arc::clone(&active_workers))));
+    });
+    WorkerSpawnFailureGuard { active_workers }
+}
+
+#[cfg(test)]
+impl Drop for WorkerSpawnFailureGuard {
+    fn drop(&mut self) {
+        FAIL_WORKER_SPAWN.with(|failure| failure.replace(None));
+    }
+}
+
+#[cfg(test)]
+impl WorkerSpawnFailureGuard {
+    pub(crate) fn active_workers_for_test(&self) -> usize {
+        self.active_workers.load(Ordering::Acquire)
+    }
+}
 
 pub(crate) struct SourceWorkerSlot {
     pub(crate) work_tx: Option<Sender<WorkEnvelope>>,
@@ -11,15 +49,15 @@ pub(crate) struct SourceWorkerSlot {
     pub(crate) done_tx: Option<Sender<CompletedEnvelope>>,
     pub(crate) ready_rx: Receiver<()>,
     pub(crate) exited: Arc<AtomicBool>,
-    #[cfg(test)]
-    pub(super) jobs_started: Arc<AtomicU64>,
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) jobs_started: Arc<AtomicU64>,
     #[cfg(test)]
     pub(super) pause: Arc<AtomicBool>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) exit_on_job: Arc<AtomicBool>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) hold_before_receive: Arc<AtomicBool>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) panic_on_job: Arc<AtomicBool>,
     pub(super) join: Option<JoinHandle<WorkerExit>>,
 }
@@ -34,11 +72,11 @@ struct SourceWorkerThreadState {
     jobs_started: Arc<AtomicU64>,
     #[cfg(test)]
     pause: Arc<AtomicBool>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     exit_on_job: Arc<AtomicBool>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     hold_before_receive: Arc<AtomicBool>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     panic_on_job: Arc<AtomicBool>,
     reverse_completion: Arc<ReverseCompletionState>,
 }
@@ -47,7 +85,7 @@ pub(super) fn spawn_worker(
     parity: usize,
     reverse_completion: Arc<ReverseCompletionState>,
     hold_before_receive: bool,
-) -> SourceWorkerSlot {
+) -> Result<SourceWorkerSlot, super::super::source_worker_protocol::SourceWorkerSetupError> {
     let (work_tx, work_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
     let (done_tx, done_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
     let (ready_tx, ready_rx) = bounded(1);
@@ -55,29 +93,40 @@ pub(super) fn spawn_worker(
     let jobs_started = Arc::new(AtomicU64::new(0));
     #[cfg(test)]
     let pause = Arc::new(AtomicBool::new(false));
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let exit_on_job = Arc::new(AtomicBool::new(false));
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let hold_before_receive = Arc::new(AtomicBool::new(hold_before_receive));
-    #[cfg(not(test))]
+    #[cfg(not(any(test, feature = "test-support")))]
     let _ = hold_before_receive;
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let panic_on_job = Arc::new(AtomicBool::new(false));
+    #[cfg(test)]
+    let active_probe = FAIL_WORKER_SPAWN.with(|failure| {
+        failure
+            .borrow()
+            .as_ref()
+            .map(|(_, active_workers)| Arc::clone(active_workers))
+    });
     let worker_exited = Arc::clone(&exited);
     let worker_jobs = Arc::clone(&jobs_started);
     #[cfg(test)]
     let worker_pause = Arc::clone(&pause);
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_exit_on_job = Arc::clone(&exit_on_job);
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_hold_before_receive = Arc::clone(&hold_before_receive);
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_panic_on_job = Arc::clone(&panic_on_job);
     let worker_done_tx = done_tx.clone();
     let lifecycle_done_tx = done_tx.clone();
-    let join = thread::spawn(move || {
+    let join = spawn_worker_thread(parity, move || {
+        #[cfg(test)]
+        if let Some(active_probe) = active_probe.as_ref() {
+            active_probe.fetch_add(1, Ordering::AcqRel);
+        }
         let _ = ready_tx.send(());
-        worker_loop(
+        let exit = worker_loop(
             parity,
             work_rx,
             worker_done_tx,
@@ -86,33 +135,78 @@ pub(super) fn spawn_worker(
                 jobs_started: worker_jobs,
                 #[cfg(test)]
                 pause: worker_pause,
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-support"))]
                 exit_on_job: worker_exit_on_job,
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-support"))]
                 hold_before_receive: worker_hold_before_receive,
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-support"))]
                 panic_on_job: worker_panic_on_job,
                 reverse_completion,
             },
-        )
-    });
-    SourceWorkerSlot {
+        );
+        #[cfg(test)]
+        if let Some(active_probe) = active_probe.as_ref() {
+            active_probe.fetch_sub(1, Ordering::AcqRel);
+        }
+        exit
+    })
+    .map_err(|_| {
+        super::super::source_worker_protocol::SourceWorkerSetupError::WorkerThreadUnavailable
+    })?;
+    Ok(SourceWorkerSlot {
         work_tx: Some(work_tx),
         done_rx,
         done_tx: Some(lifecycle_done_tx),
         ready_rx,
         exited,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         jobs_started,
         #[cfg(test)]
         pause,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         exit_on_job,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         hold_before_receive,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         panic_on_job,
         join: Some(join),
+    })
+}
+
+fn spawn_worker_thread<F>(_parity: usize, run: F) -> std::io::Result<JoinHandle<WorkerExit>>
+where
+    F: FnOnce() -> WorkerExit + Send + 'static,
+{
+    #[cfg(test)]
+    let should_fail = FAIL_WORKER_SPAWN.with(|failure| {
+        let mut failure = failure.borrow_mut();
+        match failure.take() {
+            Some((parity, active_workers)) if parity == _parity => {
+                drop(active_workers);
+                true
+            }
+            other => {
+                *failure = other;
+                false
+            }
+        }
+    });
+    #[cfg(test)]
+    if should_fail {
+        return Err(std::io::Error::other(
+            "injected source worker spawn failure",
+        ));
+    }
+    thread::Builder::new().spawn(run)
+}
+
+impl SourceWorkerSlot {
+    pub(super) fn shutdown_after_spawn_failure(mut self) {
+        self.work_tx.take();
+        self.done_tx.take();
+        if let Some(join) = self.join.take() {
+            let _ = join.join();
+        }
     }
 }
 
@@ -122,13 +216,13 @@ fn worker_loop(
     done_tx: Sender<CompletedEnvelope>,
     state: SourceWorkerThreadState,
 ) -> WorkerExit {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     while state.hold_before_receive.load(Ordering::Acquire) {
         std::hint::spin_loop();
     }
     while let Ok(mut work) = work_rx.recv() {
         state.jobs_started.fetch_add(1, Ordering::Relaxed);
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         if state.exit_on_job.swap(false, Ordering::AcqRel) {
             return finish_worker(
                 &state,
@@ -139,9 +233,9 @@ fn worker_loop(
         while state.pause.load(Ordering::Acquire) {
             std::hint::spin_loop();
         }
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
-        #[cfg(not(test))]
+        #[cfg(not(any(test, feature = "test-support")))]
         let should_panic = false;
         let render_ok = catch_unwind(AssertUnwindSafe(|| {
             if should_panic {
