@@ -20,8 +20,14 @@ impl SynthEngine {
         } = prepared;
         let mut retired = self.apply_prepared_instruments_config(instruments);
         if let Some(banks) = sample_banks {
-            retired.sample_banks = Some(std::mem::replace(&mut self.sample_banks, banks));
-            self.sample_voice_pool.clear_all();
+            if !self.sample_voice_pool.has_home() {
+                retired.sample_banks = Some(banks);
+            } else {
+                retired.sample_banks = Some(std::mem::replace(&mut self.sample_banks, banks));
+                if let Some(voices) = self.sample_voice_pool.clear_all() {
+                    retired.sample_voices = voices;
+                }
+            }
         }
         if let Some(mode) = voice_stealing_mode {
             self.voice_stealing_mode = mode;
@@ -180,8 +186,14 @@ impl SynthEngine {
             retired.sample_bank = Some(bank);
             return retired;
         };
+        if !self.sample_voice_pool.has_home() {
+            retired.sample_bank = Some(bank);
+            return retired;
+        }
         retired.sample_bank = Some(std::mem::replace(current, bank));
-        self.sample_voice_pool.clear_slot(index);
+        if let Some(voices) = self.sample_voice_pool.clear_slot(index) {
+            retired.sample_voices = voices;
+        }
         retired
     }
 

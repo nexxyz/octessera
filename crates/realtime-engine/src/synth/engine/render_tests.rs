@@ -61,8 +61,15 @@ fn note_on_keeps_synth_voice_instrument_slot_aligned_with_pool() {
     }
 
     for slot in 0..INSTRUMENT_SLOT_COUNT {
-        for &lane in engine.synth_voice_pool.slot_lanes(slot) {
-            let voice = engine.synth_voice_pool.lane(lane);
+        for &lane in engine
+            .synth_voice_pool
+            .slot_lanes(slot)
+            .expect("home partition lanes")
+        {
+            let voice = engine
+                .synth_voice_pool
+                .lane(lane)
+                .expect("home partition lane");
             assert_eq!(voice.instrument_slot as usize, slot);
         }
     }

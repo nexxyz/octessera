@@ -1,7 +1,7 @@
 use super::super::runtime_state::{BiquadState, InstrumentMod, Voice};
 use super::super::synth_voice_pool::SynthVoicePool;
 use super::super::types::{
-    FilterType, SampleBankConfig, SynthConfig, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
+    FilterType, SynthConfig, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
     SYNTH_VOICE_LANE_CAPACITY,
 };
 use super::render_voice::{
@@ -61,7 +61,9 @@ impl InlineSourceExecutor {
     ) {
         for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
             let slot = {
-                let voice = pool.lane(lane);
+                let Some(voice) = pool.lane(lane) else {
+                    continue;
+                };
                 if !voice.active {
                     continue;
                 }
@@ -78,7 +80,9 @@ impl InlineSourceExecutor {
                 revision: context.revisions[slot],
                 mods: context.mods[slot],
             };
-            let voice = pool.lane_mut(lane);
+            let Some(voice) = pool.lane_mut(lane) else {
+                continue;
+            };
             for frame in 0..frames {
                 if let Some(sample) = render_synth_voice_frame(
                     voice,
@@ -102,7 +106,7 @@ impl InlineSourceExecutor {
             &mut *output.active_slots,
         );
         for (slot, active) in output.active_slots.iter_mut().enumerate() {
-            *active = pool.active_count_for_slot(slot) > 0;
+            *active = pool.active_count_for_slot(slot).unwrap_or(0) > 0;
         }
     }
 
@@ -110,12 +114,14 @@ impl InlineSourceExecutor {
         &mut self,
         frames: usize,
         pool: &mut SampleVoicePool,
-        context: SampleSourceContext<'_>,
+        context: SampleSourceContext,
         output: SourceRenderOutput<'_>,
     ) {
         for lane in 0..SAMPLE_VOICE_LANE_CAPACITY {
             let slot = {
-                let voice = pool.lane(lane);
+                let Some(voice) = pool.lane(lane) else {
+                    continue;
+                };
                 if !voice.active {
                     continue;
                 }
@@ -125,12 +131,11 @@ impl InlineSourceExecutor {
                 continue;
             }
             self.sample_slots[lane] = slot as u8;
-            let Some(bank) = context.banks.get(slot) else {
+            let Some(voice) = pool.lane_mut(lane) else {
                 continue;
             };
-            let voice = pool.lane_mut(lane);
             for frame in 0..frames {
-                if let Some(sample) = render_sample_voice_frame(voice, bank, context.sample_rate) {
+                if let Some(sample) = render_sample_voice_frame(voice, context.sample_rate) {
                     self.sample_samples[lane][frame] = sample;
                     self.sample_active[lane][frame] = true;
                 }
@@ -147,7 +152,7 @@ impl InlineSourceExecutor {
             &mut *output.active_slots,
         );
         for (slot, active) in output.active_slots.iter_mut().enumerate() {
-            *active = pool.active_count_for_slot(slot) > 0 && context.banks.get(slot).is_some();
+            *active = pool.active_count_for_slot(slot).unwrap_or(0) > 0;
         }
     }
 
@@ -202,9 +207,8 @@ pub(super) struct SynthSourceContext<'a> {
     pub mods: &'a [InstrumentMod; INSTRUMENT_SLOT_COUNT],
 }
 
-pub(super) struct SampleSourceContext<'a> {
+pub(super) struct SampleSourceContext {
     pub sample_rate: u32,
-    pub banks: &'a [SampleBankConfig],
 }
 
 pub(super) struct SourceRenderOutput<'a> {
@@ -264,19 +268,11 @@ pub(super) fn render_synth_voice_frame(
     ))
 }
 
-pub(super) fn render_sample_voice_frame(
-    voice: &mut SampleVoice,
-    bank: &SampleBankConfig,
-    sample_rate: u32,
-) -> Option<f32> {
+pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u32) -> Option<f32> {
     if !voice.active {
         return None;
     }
-    let Some(Some(buffer)) = bank
-        .slots
-        .get(voice.sample_slot)
-        .map(|slot| slot.buffer.as_ref())
-    else {
+    let Some(buffer) = voice.buffer.as_ref() else {
         voice.active = false;
         return None;
     };
@@ -292,8 +288,8 @@ pub(super) fn render_sample_voice_frame(
     let filtered = sample_lowpass(
         sample,
         &mut voice.filt,
-        bank.filter_cutoff_hz,
-        bank.filter_resonance,
+        voice.filter_cutoff_hz,
+        voice.filter_resonance,
         sample_rate,
     );
     voice.pos += voice.step;

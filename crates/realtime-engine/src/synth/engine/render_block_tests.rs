@@ -96,6 +96,36 @@ fn default_block_render_uses_inline_source_path_with_parity() {
 }
 
 #[test]
+fn mixed_full_voice_pool_inline_render_matches_serial_at_supported_quanta() {
+    for frames in [64, 128, 256, 2048] {
+        let mut block = mixed_full_voice_engine();
+        let mut reference = mixed_full_voice_engine();
+        for slot in 0..8 {
+            for note in 0..8 {
+                block.note_on(slot, 48 + note, 96, 5_000);
+                reference.note_on(slot, 48 + note, 96, 5_000);
+            }
+        }
+        for slot in 0..8 {
+            let sampler = InstrumentSlotConfig {
+                kind: "sampler".to_string(),
+                synth: default_synth_config(),
+                mixer: None,
+            };
+            block.set_instrument_slot(slot, sampler.clone());
+            reference.set_instrument_slot(slot, sampler);
+            for _ in 0..8 {
+                block.note_on(slot as u8, 36, 96, 5_000);
+                reference.note_on(slot as u8, 36, 96, 5_000);
+            }
+        }
+        assert_eq!(block.profile_snapshot().active_synth_voices, 64);
+        assert_eq!(block.profile_snapshot().active_sample_voices, 64);
+        assert_prepared_block_matches_reference(block, reference, frames);
+    }
+}
+
+#[test]
 fn inline_quantum_matches_serial_when_synth_voice_ends_mid_quantum() {
     let mut block = SynthEngine::new(44_100);
     let mut reference = SynthEngine::new(44_100);
@@ -336,6 +366,25 @@ fn sampler_preview_and_synth_engine() -> SynthEngine {
         master_volume: 100.0,
     });
     engine.set_sample_banks(vec![sample_bank(vec![1.0, 0.5, 0.25, 0.0])]);
+    engine
+}
+
+fn mixed_full_voice_engine() -> SynthEngine {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(InstrumentsConfig {
+        instruments: (0..8)
+            .map(|_| InstrumentSlotConfig {
+                kind: "synth".to_string(),
+                synth: default_synth_config(),
+                mixer: None,
+            })
+            .collect(),
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    });
+    let _ = engine.set_sample_banks((0..8).map(|_| sample_bank(vec![0.25; 16_384])).collect());
+    engine.set_voice_stealing_mode(VoiceStealingMode::None);
     engine
 }
 

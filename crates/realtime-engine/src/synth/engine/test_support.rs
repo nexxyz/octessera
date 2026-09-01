@@ -3,12 +3,16 @@ use super::*;
 impl SynthEngine {
     #[cfg(test)]
     pub(in crate::synth) fn active_voice_count_for_slot(&self, slot: usize) -> usize {
-        self.synth_voice_pool.active_count_for_slot(slot)
+        self.synth_voice_pool
+            .active_count_for_slot(slot)
+            .unwrap_or(0)
     }
 
     #[cfg(test)]
     pub(in crate::synth) fn active_sample_voice_count_for_slot(&self, slot: usize) -> usize {
-        self.sample_voice_pool.active_count_for_slot(slot)
+        self.sample_voice_pool
+            .active_count_for_slot(slot)
+            .unwrap_or(0)
     }
 
     #[cfg(test)]
@@ -21,9 +25,14 @@ impl SynthEngine {
     pub(in crate::synth) fn active_synth_lane_indices_for_slot(&self, slot: usize) -> Vec<usize> {
         self.synth_voice_pool
             .slot_lanes(slot)
+            .unwrap_or(&[])
             .iter()
             .copied()
-            .filter(|lane| self.synth_voice_pool.lane(*lane).active)
+            .filter(|lane| {
+                self.synth_voice_pool
+                    .lane(*lane)
+                    .is_some_and(|voice| voice.active)
+            })
             .collect()
     }
 
@@ -31,9 +40,14 @@ impl SynthEngine {
     pub(in crate::synth) fn active_sample_lane_indices_for_slot(&self, slot: usize) -> Vec<usize> {
         self.sample_voice_pool
             .slot_lanes(slot)
+            .unwrap_or(&[])
             .iter()
             .copied()
-            .filter(|lane| self.sample_voice_pool.lane(*lane).active)
+            .filter(|lane| {
+                self.sample_voice_pool
+                    .lane(*lane)
+                    .is_some_and(|voice| voice.active)
+            })
             .collect()
     }
 

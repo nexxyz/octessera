@@ -6,7 +6,10 @@ mod telemetry;
 use crossbeam_channel::{bounded, Sender, TrySendError};
 pub use event::EngineEvent;
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
-use realtime_engine::synth::{RetiredAudioState, SynthEngine, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES};
+use realtime_engine::synth::{
+    RetiredAudioState, SynthEngine, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+    MAX_CONTROL_EVENTS_PER_CALLBACK,
+};
 pub use sample_decode::decode_sample_file;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
@@ -14,7 +17,6 @@ use telemetry::{DrainedControlEvents, EngineTelemetry};
 
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
-const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
 const RETIREMENT_QUEUE_CAPACITY: usize = 64;
 const RETIREMENT_BACKLOG_CAPACITY: usize = 256;
@@ -272,7 +274,7 @@ impl EngineSource {
 
     fn drain_control_events(&mut self) -> DrainedControlEvents {
         let mut drained = DrainedControlEvents::default();
-        for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
+        for _ in 0..MAX_CONTROL_EVENTS_PER_CALLBACK {
             self.flush_retired_backlog();
             if self.retirement_disconnected
                 || self.retired_backlog_len >= RETIREMENT_CONTROL_BACKLOG_CAPACITY

@@ -26,6 +26,10 @@ include!(concat!(
     "/synth_platform_capabilities.generated.rs"
 ));
 
+pub const MAX_CONTROL_EVENTS_PER_CALLBACK: usize = 256;
+pub const SAMPLE_VOICE_RETIREMENT_CAPACITY: usize =
+    SAMPLE_VOICE_LANE_CAPACITY + MAX_CONTROL_EVENTS_PER_CALLBACK;
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MomentaryFxTarget {

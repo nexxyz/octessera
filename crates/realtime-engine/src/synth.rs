@@ -27,9 +27,10 @@ pub use types::{
     SampleBankConfig, SampleBuffer, SampleSlotConfig, SynthConfig, SynthProfileSnapshot,
     VoiceStealingMode, BUS_FX_WARNING_SLOT_COUNT, BUS_SLOTS_PER_BUS,
     DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS,
-    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT, MAX_SAMPLE_VOICES, MAX_SAMPLE_VOICES_PER_SLOT,
-    MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT, RENDER_PROFILE_STAGE_COUNT,
-    SAMPLE_SLOTS_PER_INSTRUMENT, SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
+    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT, MAX_CONTROL_EVENTS_PER_CALLBACK,
+    MAX_SAMPLE_VOICES, MAX_SAMPLE_VOICES_PER_SLOT, MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT,
+    RENDER_PROFILE_STAGE_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT, SAMPLE_VOICE_LANE_CAPACITY,
+    SAMPLE_VOICE_RETIREMENT_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
 };
 
 #[cfg(test)]
@@ -64,6 +65,7 @@ mod test_allocator {
         unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
             let pointer = System.realloc(pointer, layout, new_size);
             count_allocation();
+            count_deallocation();
             pointer
         }
     }
@@ -75,6 +77,14 @@ mod test_allocator {
         ENABLED.with(|enabled| {
             if enabled.get() {
                 ALLOCATIONS.with(|allocations| allocations.set(allocations.get() + 1));
+            }
+        });
+    }
+
+    fn count_deallocation() {
+        ENABLED.with(|enabled| {
+            if enabled.get() {
+                DEALLOCATIONS.with(|deallocations| deallocations.set(deallocations.get() + 1));
             }
         });
     }
@@ -96,11 +106,23 @@ mod test_allocator {
 
 #[cfg(test)]
 mod capability_tests {
-    use super::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};
+    use super::{
+        MAX_CONTROL_EVENTS_PER_CALLBACK, SAMPLE_VOICE_LANE_CAPACITY,
+        SAMPLE_VOICE_RETIREMENT_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
+    };
+
+    const _: () = assert!(
+        SAMPLE_VOICE_RETIREMENT_CAPACITY
+            == SAMPLE_VOICE_LANE_CAPACITY + MAX_CONTROL_EVENTS_PER_CALLBACK
+    );
 
     #[test]
     fn physical_voice_lane_capacities_match_the_capability_contract() {
         assert_eq!(SYNTH_VOICE_LANE_CAPACITY, 64);
         assert_eq!(SAMPLE_VOICE_LANE_CAPACITY, 64);
+        assert_eq!(
+            SAMPLE_VOICE_RETIREMENT_CAPACITY,
+            SAMPLE_VOICE_LANE_CAPACITY + MAX_CONTROL_EVENTS_PER_CALLBACK
+        );
     }
 }

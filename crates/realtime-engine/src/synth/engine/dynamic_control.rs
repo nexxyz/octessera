@@ -74,18 +74,41 @@ impl SynthEngine {
 
     pub fn set_sample_bank_param(&mut self, instrument_slot: usize, path: &str, value: f32) {
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
-        let Some(bank) = self.sample_banks.get_mut(slot) else {
+        if !self.sample_voice_pool.has_home() {
+            return;
+        }
+        let Some((changed, cutoff_hz, resonance)) = self.sample_banks.get_mut(slot).map(|bank| {
+            let changed = match path {
+                "sample.tuneSemis" => {
+                    bank.tune_semis = value.clamp(-24.0, 24.0);
+                    false
+                }
+                "sample.amp.gainPct" => {
+                    bank.gain_pct = value.clamp(0.0, 100.0);
+                    false
+                }
+                "sample.amp.velocitySensitivityPct" => {
+                    bank.velocity_sensitivity_pct = value.clamp(0.0, 100.0);
+                    false
+                }
+                "sample.filter.cutoffHz" => {
+                    bank.filter_cutoff_hz = value.clamp(20.0, 20_000.0);
+                    true
+                }
+                "sample.filter.resonance" => {
+                    bank.filter_resonance = value.clamp(0.0, 255.0);
+                    true
+                }
+                _ => false,
+            };
+            (changed, bank.filter_cutoff_hz, bank.filter_resonance)
+        }) else {
             return;
         };
-        match path {
-            "sample.tuneSemis" => bank.tune_semis = value.clamp(-24.0, 24.0),
-            "sample.amp.gainPct" => bank.gain_pct = value.clamp(0.0, 100.0),
-            "sample.amp.velocitySensitivityPct" => {
-                bank.velocity_sensitivity_pct = value.clamp(0.0, 100.0)
-            }
-            "sample.filter.cutoffHz" => bank.filter_cutoff_hz = value.clamp(20.0, 20_000.0),
-            "sample.filter.resonance" => bank.filter_resonance = value.clamp(0.0, 255.0),
-            _ => (),
+        if changed {
+            let _ = self
+                .sample_voice_pool
+                .update_filter_for_slot(slot, cutoff_hz, resonance);
         }
     }
 

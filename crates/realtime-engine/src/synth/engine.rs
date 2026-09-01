@@ -174,6 +174,10 @@ impl BlockSlotScratch {
 }
 
 impl SynthEngine {
+    fn voice_pools_home(&self) -> bool {
+        self.synth_voice_pool.has_home() && self.sample_voice_pool.has_home()
+    }
+
     pub fn new(sample_rate: u32) -> Self {
         let default = default_synth_config();
         let default_render = SynthVoiceRenderConfig::from_config(default);
@@ -244,8 +248,11 @@ impl SynthEngine {
     }
 
     pub fn profile_snapshot(&self) -> SynthProfileSnapshot {
-        let active_synth_voices = self.synth_voice_pool.active_total();
-        let active_sample_voices = self.sample_voice_pool.active_total();
+        if !self.voice_pools_home() {
+            return SynthProfileSnapshot::default();
+        }
+        let active_synth_voices = self.synth_voice_pool.active_total().unwrap_or(0);
+        let active_sample_voices = self.sample_voice_pool.active_total().unwrap_or(0);
         SynthProfileSnapshot {
             active_synth_voices,
             active_sample_voices,
@@ -272,11 +279,15 @@ impl SynthEngine {
     }
 
     fn has_active_synth_voices(&self) -> bool {
-        self.synth_voice_pool.active_total() > 0
+        self.synth_voice_pool
+            .active_total()
+            .is_some_and(|count| count > 0)
     }
 
     fn has_active_sample_voices(&self) -> bool {
-        self.sample_voice_pool.active_total() > 0
+        self.sample_voice_pool
+            .active_total()
+            .is_some_and(|count| count > 0)
     }
 
     pub fn take_pending_render_retired(&mut self) -> RetiredAudioState {
@@ -293,6 +304,7 @@ impl SynthEngine {
                 .displaced_momentary_fx
                 .iter()
                 .all(Option::is_none)
+            && self.pending_render_retired.sample_voices.is_empty()
     }
 
     pub(in crate::synth::engine) fn retire_render_preview(&mut self, voice: PreviewSampleVoice) {
