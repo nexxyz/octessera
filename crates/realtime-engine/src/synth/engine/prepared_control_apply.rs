@@ -3,8 +3,9 @@ use super::prepared_control_prepare::{
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
     PreparedInstrumentsConfig, PreparedMomentaryFxStart,
 };
-use super::retired_state::RetiredAudioState;
-use super::support::{MomentaryFxKind, MomentaryFxState};
+use super::render_plan::RenderPlanInstrumentSlot;
+use super::retired_state::{store_retired_momentary, RetiredAudioState};
+use super::support::MomentaryFxKind;
 use super::*;
 
 impl SynthEngine {
@@ -20,11 +21,7 @@ impl SynthEngine {
         let mut retired = self.apply_prepared_instruments_config(instruments);
         if let Some(banks) = sample_banks {
             retired.sample_banks = Some(std::mem::replace(&mut self.sample_banks, banks));
-            for pool in self.sample_voices.iter_mut() {
-                for voice in pool.iter_mut() {
-                    voice.active = false;
-                }
-            }
+            self.sample_voice_pool.clear_all();
         }
         if let Some(mode) = voice_stealing_mode {
             self.voice_stealing_mode = mode;
@@ -37,6 +34,7 @@ impl SynthEngine {
         mut prepared: PreparedInstrumentsConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        let mut next_render_plan = prepared.render_plan;
         self.pan_positions = prepared.pan_positions;
         self.master_volume = prepared.master_volume;
         for (index, slot) in prepared.slots.iter().enumerate() {
@@ -52,6 +50,20 @@ impl SynthEngine {
                         volume: slot.volume,
                     }),
             );
+            let current_route = self.render_plan.instrument_slots[index].route;
+            next_render_plan.instrument_slots[index] = RenderPlanInstrumentSlot {
+                kind: slot.render_plan.kind,
+                occupied: slot.render_plan.occupied,
+                route: slot.render_plan.route.unwrap_or(current_route),
+            };
+        }
+        for index in prepared.slots.len()..INSTRUMENT_SLOT_COUNT {
+            let current = self.render_plan.instrument_slots[index];
+            next_render_plan.instrument_slots[index] = RenderPlanInstrumentSlot {
+                kind: current.kind,
+                occupied: false,
+                route: current.route,
+            };
         }
         for index in 0..INSTRUMENT_SLOT_COUNT {
             self.slot_pan_gains[index] =
@@ -121,6 +133,7 @@ impl SynthEngine {
         retired.prepared_slots = prepared.slots;
         retired.displaced_bus_fx_states = prepared.displaced_bus_fx_states;
         retired.displaced_master_fx_states = prepared.displaced_master_fx_states;
+        retired.render_plan = Some(self.render_plan.install_complete(next_render_plan));
         retired
     }
 
@@ -151,6 +164,8 @@ impl SynthEngine {
             self.slot_pan_gains[index] =
                 super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
         }
+        self.render_plan
+            .install_instrument_slot(index, prepared.render_plan);
         self.refresh_routed_bus_slot_count();
         retired
     }
@@ -166,9 +181,7 @@ impl SynthEngine {
             return retired;
         };
         retired.sample_bank = Some(std::mem::replace(current, bank));
-        for voice in self.sample_voices[index].iter_mut() {
-            voice.active = false;
-        }
+        self.sample_voice_pool.clear_slot(index);
         retired
     }
 
@@ -207,6 +220,8 @@ impl SynthEngine {
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         if bus_index >= self.bus_slot_params.len() || slot_index >= BUS_SLOTS_PER_BUS {
+            let state = std::mem::replace(&mut prepared.state, FxBusState::None);
+            prepared.displaced_states.push(state);
             retired.displaced_bus_fx_states = prepared.displaced_states;
             return retired;
         }
@@ -215,12 +230,16 @@ impl SynthEngine {
             FxBusState::None,
         );
         if fx_bus_state_matches_params(&old_state, &prepared.params) {
+            let fresh_state = std::mem::replace(&mut prepared.state, FxBusState::None);
+            prepared.displaced_states.push(fresh_state);
             prepared.state = old_state;
         } else {
             prepared.displaced_states.push(old_state);
         }
         self.bus_slot_params[bus_index][slot_index] = prepared.params;
         self.bus_slot_state[bus_index][slot_index] = prepared.state;
+        self.render_plan
+            .install_bus_fx_slot(bus_index, slot_index, prepared.render_plan);
         let (active_indices, active_count) = active_fx_bus_slots(&self.bus_slot_params[bus_index]);
         self.bus_active_slot_indices[bus_index] = active_indices;
         self.bus_active_slot_counts[bus_index] = active_count;
@@ -235,18 +254,24 @@ impl SynthEngine {
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         if slot_index >= self.master_slot_params.len() {
+            let state = std::mem::replace(&mut prepared.state, MasterFxState::None);
+            prepared.displaced_states.push(state);
             retired.displaced_master_fx_states = prepared.displaced_states;
             return retired;
         }
         let old_state =
             std::mem::replace(&mut self.master_slot_state[slot_index], MasterFxState::None);
         if master_fx_state_matches_params(&old_state, &prepared.params) {
+            let fresh_state = std::mem::replace(&mut prepared.state, MasterFxState::None);
+            prepared.displaced_states.push(fresh_state);
             prepared.state = old_state;
         } else {
             prepared.displaced_states.push(old_state);
         }
         self.master_slot_params[slot_index] = prepared.params;
         self.master_slot_state[slot_index] = prepared.state;
+        self.render_plan
+            .install_master_fx_slot(slot_index, prepared.render_plan);
         self.refresh_master_active_slot_indices();
         retired.displaced_master_fx_states = prepared.displaced_states;
         retired
@@ -308,14 +333,6 @@ fn preserve_spread_state(
         std::mem::swap(next, previous);
     }
     previous
-}
-
-fn store_retired_momentary(slots: &mut [Option<MomentaryFxState>; 2], state: MomentaryFxState) {
-    let slot = slots
-        .iter_mut()
-        .find(|slot| slot.is_none())
-        .expect("retired momentary FX capacity exceeded");
-    *slot = Some(state);
 }
 
 #[cfg(test)]

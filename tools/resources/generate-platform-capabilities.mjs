@@ -29,15 +29,17 @@ function capabilitiesFrom(source) {
     }
     return value;
   });
-  return {
+  const capabilities = {
     gridWidth: positiveInteger(source, "gridWidth"),
     gridHeight: positiveInteger(source, "gridHeight"),
     layerCount: positiveInteger(source, "layerCount"),
     instrumentCount: positiveInteger(source, "instrumentCount"),
     sampleSlotCount: positiveInteger(source, "sampleSlotCount"),
     audioSampleRate: positiveInteger(source, "audioSampleRate"),
-    audioBlockFrames: positiveInteger(source, "audioBlockFrames"),
-    synthSlotWorkers: positiveInteger(source, "synthSlotWorkers"),
+    audioOutputBufferFrames: positiveInteger(source, "audioOutputBufferFrames"),
+    audioRenderQuantumFrames: positiveInteger(source, "audioRenderQuantumFrames"),
+    synthVoiceLaneCapacity: positiveInteger(source, "synthVoiceLaneCapacity"),
+    sampleVoiceLaneCapacity: positiveInteger(source, "sampleVoiceLaneCapacity"),
     maxSynthVoices: positiveInteger(source, "maxSynthVoices"),
     maxSampleVoices: positiveInteger(source, "maxSampleVoices"),
     maxSynthVoicesPerSlot: positiveInteger(source, "maxSynthVoicesPerSlot"),
@@ -52,6 +54,23 @@ function capabilitiesFrom(source) {
     oledWidth: positiveInteger(source, "oledWidth"),
     oledHeight: positiveInteger(source, "oledHeight")
   };
+  validateVoiceLaneCapacities(capabilities);
+  return capabilities;
+}
+
+function validateVoiceLaneCapacities(capabilities) {
+  for (const [laneKey, policyKeys] of [
+    ["synthVoiceLaneCapacity", ["maxSynthVoices", "maxSynthVoicesPerSlot"]],
+    ["sampleVoiceLaneCapacity", ["maxSampleVoices", "maxSampleVoicesPerSlot"]]
+  ]) {
+    for (const policyKey of policyKeys) {
+      if (capabilities[policyKey] > capabilities[laneKey]) {
+        throw new Error(
+          `Invalid platform capability '${policyKey}': ${capabilities[policyKey]} exceeds physical lane capacity '${laneKey}' (${capabilities[laneKey]})`,
+        );
+      }
+    }
+  }
 }
 
 const caps = capabilitiesFrom(JSON.parse(readFileSync(sourcePath, "utf8")));

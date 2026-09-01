@@ -20,7 +20,6 @@ pub enum FilterType {
     Notch,
 }
 
-pub const VOICES_PER_SLOT: usize = 8;
 pub const BUS_SLOTS_PER_BUS: usize = 3;
 include!(concat!(
     env!("OUT_DIR"),
@@ -71,13 +70,7 @@ pub struct SynthProfileSnapshot {
     pub active_bus_fx_slots: usize,
     pub active_global_fx_slots: usize,
     pub cumulative_voice_steals: u64,
-    pub synth_parallel_worker_count: usize,
-    pub synth_parallel_dispatches: u64,
-    pub synth_parallel_light_skips: u64,
-    pub synth_parallel_backoff_skips: u64,
-    pub synth_parallel_timing_backoffs: u64,
-    pub synth_parallel_failures: u64,
-    pub synth_parallel_unhealthy: bool,
+    pub cumulative_voice_admission_drops: u64,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

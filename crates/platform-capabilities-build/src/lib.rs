@@ -42,6 +42,27 @@ pub fn positive_u8(value: &Value, key: &str) -> u8 {
         })
 }
 
+pub fn validate_voice_lane_capacities(value: &Value) {
+    let synth_lane_capacity = positive_usize(value, "synthVoiceLaneCapacity");
+    let sample_lane_capacity = positive_usize(value, "sampleVoiceLaneCapacity");
+    for key in ["maxSynthVoices", "maxSynthVoicesPerSlot"] {
+        validate_voice_policy(value, key, "synthVoiceLaneCapacity", synth_lane_capacity);
+    }
+    for key in ["maxSampleVoices", "maxSampleVoicesPerSlot"] {
+        validate_voice_policy(value, key, "sampleVoiceLaneCapacity", sample_lane_capacity);
+    }
+}
+
+fn validate_voice_policy(value: &Value, policy_key: &str, lane_key: &str, lane_capacity: usize) {
+    let policy_value = positive_usize(value, policy_key);
+    if policy_value > lane_capacity {
+        panic!(
+            "invalid platform capability '{}': {} exceeds physical lane capacity '{}' ({})",
+            policy_key, policy_value, lane_key, lane_capacity
+        );
+    }
+}
+
 pub fn scan_section_counts(value: &Value) -> Vec<usize> {
     let entries = value
         .get("scanSectionCounts")
@@ -177,6 +198,62 @@ mod tests {
             || positive_u8(&json!({"value": 256}), "value"),
             "invalid platform capability 'value': expected positive u8",
         );
+    }
+
+    #[test]
+    fn accepts_voice_policies_within_physical_lane_capacities() {
+        let value = json!({
+            "synthVoiceLaneCapacity": 64,
+            "sampleVoiceLaneCapacity": 64,
+            "maxSynthVoices": 16,
+            "maxSynthVoicesPerSlot": 8,
+            "maxSampleVoices": 64,
+            "maxSampleVoicesPerSlot": 8
+        });
+        validate_voice_lane_capacities(&value);
+    }
+
+    #[test]
+    fn rejects_nonpositive_voice_lane_capacity() {
+        let value = json!({
+            "synthVoiceLaneCapacity": 0,
+            "sampleVoiceLaneCapacity": 64,
+            "maxSynthVoices": 16,
+            "maxSynthVoicesPerSlot": 8,
+            "maxSampleVoices": 64,
+            "maxSampleVoicesPerSlot": 8
+        });
+        assert_panics_with(
+            || validate_voice_lane_capacities(&value),
+            "invalid platform capability 'synthVoiceLaneCapacity': expected positive integer",
+        );
+    }
+
+    #[test]
+    fn rejects_voice_policy_above_its_physical_lane_capacity() {
+        for (policy_key, lane_key) in [
+            ("maxSynthVoices", "synthVoiceLaneCapacity"),
+            ("maxSynthVoicesPerSlot", "synthVoiceLaneCapacity"),
+            ("maxSampleVoices", "sampleVoiceLaneCapacity"),
+            ("maxSampleVoicesPerSlot", "sampleVoiceLaneCapacity"),
+        ] {
+            let mut value = json!({
+                "synthVoiceLaneCapacity": 64,
+                "sampleVoiceLaneCapacity": 64,
+                "maxSynthVoices": 16,
+                "maxSynthVoicesPerSlot": 8,
+                "maxSampleVoices": 16,
+                "maxSampleVoicesPerSlot": 8
+            });
+            value[policy_key] = json!(65);
+            assert_panics_with(
+                || validate_voice_lane_capacities(&value),
+                &format!(
+                    "invalid platform capability '{}': 65 exceeds physical lane capacity '{}' (64)",
+                    policy_key, lane_key
+                ),
+            );
+        }
     }
 
     #[test]

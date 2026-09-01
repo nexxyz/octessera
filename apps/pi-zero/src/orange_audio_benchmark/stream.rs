@@ -15,7 +15,6 @@ pub struct BenchmarkStream {
     pub sample_format: String,
     pub channels: u16,
     pub sample_rate: u32,
-    pub workers_effective: bool,
     pub engine_block_frames: usize,
 }
 
@@ -36,7 +35,6 @@ pub fn build(
     engine_rx: EngineEventReceiver,
     output_frames: u32,
     internal_frames: usize,
-    workers: usize,
     metrics: Arc<CallbackMetrics>,
     profile_probe: Arc<ProfileProbe>,
     phase_control: Arc<MeasurementControl>,
@@ -49,14 +47,9 @@ pub fn build(
     let sample_format_name = format!("{sample_format:?}");
     debug_assert_eq!(geometry.output_frames, output_frames);
     config.buffer_size = BufferSize::Fixed(output_frames);
-    let source = EngineSource::with_block_frames_and_workers(
-        engine_rx,
-        config.sample_rate.0,
-        geometry.internal_frames,
-        workers,
-    );
+    let source =
+        EngineSource::with_block_frames(engine_rx, config.sample_rate.0, geometry.internal_frames);
     let engine_block_frames = source.block_frames();
-    let workers_effective = source.synth_slot_parallelism_enabled();
     let scheduler = CallbackSchedulingHandle::new(crate::audio_priority::configured_priority());
     let callback_scheduler = scheduler.clone();
     let stream = match sample_format {
@@ -99,7 +92,6 @@ pub fn build(
         sample_format: sample_format_name,
         channels: config.channels,
         sample_rate: config.sample_rate.0,
-        workers_effective,
         engine_block_frames,
     })
 }
@@ -107,7 +99,7 @@ pub fn build(
 fn stream_geometry(output_frames: u32, internal_frames: usize) -> Result<StreamGeometry, String> {
     if !matches!(
         (output_frames, internal_frames),
-        (128, 32) | (256, 64) | (256, 256) | (512, 128) | (1024, 256)
+        (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
     ) {
         return Err(format!(
             "benchmark output/internal frame mapping is invalid: output={output_frames} internal={internal_frames}"
@@ -215,14 +207,18 @@ mod tests {
 
     #[test]
     fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
-        for (output_frames, internal_frames) in
-            [(128, 32), (256, 64), (256, 256), (512, 128), (1024, 256)]
-        {
+        for (output_frames, internal_frames) in [
+            (128, 32),
+            (256, 64),
+            (256, 128),
+            (256, 256),
+            (512, 128),
+            (1024, 256),
+        ] {
             let geometry = stream_geometry(output_frames, internal_frames).unwrap();
             assert_eq!(geometry.output_frames, output_frames);
             assert_eq!(geometry.internal_frames, internal_frames);
         }
-        assert!(stream_geometry(256, 128).is_err());
         assert!(stream_geometry(512, 256).is_err());
         assert!(stream_geometry(128, 64).is_err());
         assert!(stream_geometry(64, 32).is_err());

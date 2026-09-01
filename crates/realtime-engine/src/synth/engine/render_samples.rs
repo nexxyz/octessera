@@ -1,3 +1,4 @@
+use super::inline_source_executor::{render_sample_voice_frame, sample_lowpass};
 use super::*;
 
 impl SynthEngine {
@@ -17,24 +18,42 @@ impl SynthEngine {
         let gain = (bank.gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
         let pitch = 2.0_f32.powf(bank.tune_semis / 12.0);
         let step = pitch * buffer.sample_rate as f32 / self.sample_rate as f32;
-        let (voice_index, stole_voice) = {
-            let pool = &mut self.sample_voices[slot];
-            let active = pool.iter().filter(|voice| voice.active).count();
-            if active >= MAX_SAMPLE_VOICES_PER_SLOT {
-                (Self::steal_active_sample_voice_index(pool), true)
-            } else {
-                match pool.iter().position(|voice| !voice.active) {
-                    Some(i) => (i, false),
-                    None => (Self::steal_active_sample_voice_index(pool), true),
-                }
-            }
+        self.sample_voice_pool.compact_slot_lanes(slot);
+        let active = self.sample_voice_pool.active_count_for_slot(slot);
+        let lane = if self.voice_stealing_mode == VoiceStealingMode::None {
+            let Some(lane) = self.sample_voice_pool.first_inactive_lane() else {
+                self.record_voice_admission_drop();
+                return;
+            };
+            lane
+        } else if active >= MAX_SAMPLE_VOICES_PER_SLOT {
+            self.sample_voice_pool
+                .first_active_lane_for_slot(slot)
+                .or_else(|| self.sample_voice_pool.first_inactive_lane())
+                .or_else(|| {
+                    self.sample_voice_pool
+                        .first_active_lane_global()
+                        .map(|(_, lane)| lane)
+                })
+                .unwrap_or(0)
+        } else {
+            self.sample_voice_pool
+                .first_inactive_lane()
+                .or_else(|| {
+                    self.sample_voice_pool
+                        .first_active_lane_global()
+                        .map(|(_, lane)| lane)
+                })
+                .unwrap_or(0)
         };
+        let stole_voice = self.sample_voice_pool.lane(lane).active;
         if stole_voice {
             self.record_voice_steal();
         }
-        let pool = &mut self.sample_voices[slot];
-        pool[voice_index] = SampleVoice {
+        self.sample_voice_pool.assign_lane(lane, slot);
+        *self.sample_voice_pool.lane_mut(lane) = SampleVoice {
             active: true,
+            instrument_slot: slot as u8,
             sample_slot,
             pos: 0.0,
             step,
@@ -69,36 +88,19 @@ impl SynthEngine {
         };
         let mut out = 0.0;
         let mut slot_active = false;
-        for voice in self.sample_voices[slot].iter_mut() {
-            if !voice.active {
-                continue;
+        self.sample_voice_pool.compact_slot_lanes(slot);
+        let mut lane_indices = [0; SAMPLE_VOICE_LANE_CAPACITY];
+        let lane_count = self.sample_voice_pool.slot_lanes(slot).len();
+        lane_indices[..lane_count].copy_from_slice(self.sample_voice_pool.slot_lanes(slot));
+        for lane in lane_indices.into_iter().take(lane_count) {
+            let voice = self.sample_voice_pool.lane_mut(lane);
+            debug_assert_eq!(voice.instrument_slot as usize, slot);
+            if let Some(sample) = render_sample_voice_frame(voice, bank, self.sample_rate) {
+                out += sample;
+                slot_active = true;
             }
-            let Some(Some(buffer)) = bank.slots.get(voice.sample_slot).map(|s| s.buffer.as_ref())
-            else {
-                voice.active = false;
-                continue;
-            };
-            let frames = buffer.samples.len() / buffer.channels as usize;
-            if frames == 0 || voice.pos >= frames as f32 {
-                voice.active = false;
-                continue;
-            }
-            let frame = voice.pos.floor() as usize;
-            let frac = voice.pos - frame as f32;
-            let next_frame = (frame + 1).min(frames - 1);
-            let sample =
-                mono_frame(buffer, frame) * (1.0 - frac) + mono_frame(buffer, next_frame) * frac;
-            let filtered = sample_lowpass(
-                sample,
-                &mut voice.filt,
-                bank.filter_cutoff_hz,
-                bank.filter_resonance,
-                self.sample_rate,
-            );
-            out += filtered * voice.gain;
-            voice.pos += voice.step;
-            slot_active = true;
         }
+        self.sample_voice_pool.compact_slot_lanes(slot);
         self.active_sample_slots[slot] = slot_active;
         SlotFrameOutput {
             sample: out,
@@ -111,7 +113,7 @@ impl SynthEngine {
         slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
     ) -> bool {
         let mut active = false;
-        for voice in self.preview_sample_voices.iter_mut() {
+        for voice in self.preview_sample_voices.iter_mut().flatten() {
             let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
             if frames == 0 || voice.pos >= frames as f32 {
                 voice.pos = frames as f32;
@@ -136,22 +138,21 @@ impl SynthEngine {
             voice.pos += voice.step;
             active = true;
         }
-        self.preview_sample_voices.retain(|voice| {
-            let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
-            frames > 0 && voice.pos < frames as f32
-        });
-        active || !self.preview_sample_voices.is_empty()
+        for index in 0..self.preview_sample_voices.len() {
+            let complete = self.preview_sample_voices[index]
+                .as_ref()
+                .map(|voice| {
+                    let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
+                    frames == 0 || voice.pos >= frames as f32
+                })
+                .unwrap_or(false);
+            if complete {
+                let voice = self.preview_sample_voices[index]
+                    .take()
+                    .expect("completed preview slot must contain a voice");
+                self.retire_render_preview(voice);
+            }
+        }
+        active || self.preview_sample_voices.iter().any(Option::is_some)
     }
-}
-
-fn sample_lowpass(
-    sample: f32,
-    filt: &mut BiquadState,
-    cutoff_hz: f32,
-    resonance: f32,
-    sample_rate: u32,
-) -> f32 {
-    let q = 0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5;
-    filt.process(sample, FilterType::Lowpass, cutoff_hz, q, sample_rate)
-        .clamp(-8.0, 8.0)
 }

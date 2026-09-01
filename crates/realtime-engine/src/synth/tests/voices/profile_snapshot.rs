@@ -71,5 +71,5 @@ fn profile_snapshot_reports_active_counts_and_steals() {
     assert_eq!(snapshot.active_bus_fx_slots, 1);
     assert_eq!(snapshot.active_global_fx_slots, 2);
     assert_eq!(snapshot.cumulative_voice_steals, 1);
-    assert_eq!(snapshot.synth_parallel_worker_count, 0);
+    assert_eq!(snapshot.cumulative_voice_admission_drops, 0);
 }

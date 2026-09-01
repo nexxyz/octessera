@@ -3,6 +3,7 @@ mod engine;
 mod fx;
 mod fx_params;
 mod runtime_state;
+mod synth_voice_pool;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -24,14 +25,12 @@ pub use types::{
     FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
     MasterFxConfig, MixerConfig, MomentaryFxTarget, OscConfig, RenderProfileSnapshot,
     SampleBankConfig, SampleBuffer, SampleSlotConfig, SynthConfig, SynthProfileSnapshot,
-    VoiceStealingMode, BUS_FX_WARNING_SLOT_COUNT, BUS_SLOTS_PER_BUS, DEFAULT_AUDIO_BLOCK_FRAMES,
-    DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS, DEFAULT_SYNTH_SLOT_WORKERS,
+    VoiceStealingMode, BUS_FX_WARNING_SLOT_COUNT, BUS_SLOTS_PER_BUS,
+    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT, MAX_SAMPLE_VOICES, MAX_SAMPLE_VOICES_PER_SLOT,
     MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT, RENDER_PROFILE_STAGE_COUNT,
-    SAMPLE_SLOTS_PER_INSTRUMENT, VOICES_PER_SLOT,
+    SAMPLE_SLOTS_PER_INSTRUMENT, SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
 };
-
-pub const MIN_SYNTH_PARALLEL_BLOCK_FRAMES: usize = 256;
 
 #[cfg(test)]
 mod test_allocator {
@@ -92,5 +91,16 @@ mod test_allocator {
         let allocations = ALLOCATIONS.with(Cell::get);
         let deallocations = DEALLOCATIONS.with(Cell::get);
         (result, allocations, deallocations)
+    }
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};
+
+    #[test]
+    fn physical_voice_lane_capacities_match_the_capability_contract() {
+        assert_eq!(SYNTH_VOICE_LANE_CAPACITY, 64);
+        assert_eq!(SAMPLE_VOICE_LANE_CAPACITY, 64);
     }
 }

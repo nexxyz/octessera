@@ -117,10 +117,12 @@ fn run_audio_drain_one(duration: Duration) -> Result<AudioDrainProbeReport, Stri
     let audio = AudioManager::new(None, playback_runtime::AudioOutputSet::jack())?;
     let service = audio.service();
     let interval = audio_drain_interval();
-    let (report_tx, report_rx) = std::sync::mpsc::channel::<u128>();
+    let (report_tx, report_rx) = std::sync::mpsc::sync_channel::<u128>(1);
     let started_at = Instant::now();
     let mut sent = 0usize;
+    let mut latencies = Vec::new();
     while started_at.elapsed() < duration {
+        latencies.extend(report_rx.try_iter().map(|latency| latency as f64));
         let target = started_at + interval * (sent as u32);
         let now = Instant::now();
         if now < target {
@@ -134,10 +136,7 @@ fn run_audio_drain_one(duration: Duration) -> Result<AudioDrainProbeReport, Stri
     }
     drop(report_tx);
     std::thread::sleep(Duration::from_millis(100));
-    let latencies = report_rx
-        .try_iter()
-        .map(|latency| latency as f64)
-        .collect::<Vec<_>>();
+    latencies.extend(report_rx.try_iter().map(|latency| latency as f64));
     Ok(AudioDrainProbeReport {
         duration_ms: duration.as_millis() as u64,
         interval_ms: interval.as_millis() as u64,

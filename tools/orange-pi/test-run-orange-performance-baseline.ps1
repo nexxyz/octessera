@@ -46,16 +46,15 @@ function Write-ManifestCopy {
 }
 
 function New-OfflineRow {
-  param([Parameter(Mandatory)][pscustomobject]$Cell, [int]$Dispatch = 0, [int]$LightSkips = 0)
-  $effectiveWorkers = if ($Cell.workers -gt 0) { $Cell.workers } else { 0 }
+  param([Parameter(Mandatory)][pscustomobject]$Cell)
   return [pscustomobject][ordered]@{
-    kind = "engine_source"; scenario = $Cell.scenario; metric = "raw_ratio"; value = "1"; block_frames = [string]$Cell.measure_frames; sample_rate = "44100"; blocks = "4096"; avg = "1"; p95 = "1"; p99 = "1"; max = "1"; notes = ""; internal_block_frames = [string]$Cell.internal_frames; schema_version = "2"; p99_9 = "1"; over_audio_duration_budget_count = "0"; requested_measure_frames = [string]$Cell.measure_frames; requested_internal_block_frames = [string]$Cell.internal_frames; workers_requested_count = [string]$Cell.workers; workers_effective_count = [string]$effectiveWorkers; peak_synth_voices = "0"; peak_sample_voices = "0"; peak_preview_sample_voices = "0"; peak_momentary_fx = "0"; peak_bus_fx_slots = "0"; peak_global_fx_slots = "0"; peak_voice_steals = "0"; voice_steal_delta = "0"; synth_parallel_dispatch_delta = [string]$Dispatch; synth_parallel_light_skip_delta = [string]$LightSkips; synth_parallel_backoff_skip_delta = "0"; synth_parallel_timing_backoff_delta = "0"; synth_parallel_failure_delta = "0"; synth_parallel_unhealthy = "false"
+    kind = "engine_source"; scenario = $Cell.scenario; metric = "raw_ratio"; value = "1"; block_frames = [string]$Cell.measure_frames; sample_rate = "44100"; blocks = "4096"; avg = "1"; p95 = "1"; p99 = "1"; max = "1"; notes = ""; internal_block_frames = [string]$Cell.internal_frames; schema_version = "4"; p99_9 = "1"; over_audio_duration_budget_count = "0"; requested_measure_frames = [string]$Cell.measure_frames; requested_internal_block_frames = [string]$Cell.internal_frames; peak_synth_voices = "0"; peak_sample_voices = "0"; peak_preview_sample_voices = "0"; peak_momentary_fx = "0"; peak_bus_fx_slots = "0"; peak_global_fx_slots = "0"; peak_voice_steals = "0"; voice_steal_delta = "0"; peak_voice_admission_drops = "0"; voice_admission_drop_delta = "0"
   }
 }
 
-if ((Get-PerformanceBaselineOfflineCells $manifest "orange-pi-zero-2w").Count -ne 40 -or (Get-PerformanceBaselineOrangeLiveCells $manifest).Count -ne 14) { throw "Manifest plan counts changed." }
+if ((Get-PerformanceBaselineOfflineCells $manifest "orange-pi-zero-2w").Count -ne 31 -or (Get-PerformanceBaselineOrangeLiveCells $manifest).Count -ne 8) { throw "Manifest plan counts changed." }
 $offlinePlan = @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOfflineCells $manifest "orange-pi-zero-2w") $manifest.repetitions)
-if ($offlinePlan.Count -ne 120 -or $offlinePlan[0].Repetition -ne 1 -or $offlinePlan[39].Repetition -ne 1 -or $offlinePlan[40].Repetition -ne 2 -or $offlinePlan[40].Cell.id -ne "common_baseline_idle" -or $offlinePlan[119].Repetition -ne 3) { throw "Offline plan is not round-robin by repetition." }
+if ($offlinePlan.Count -ne 93 -or $offlinePlan[0].Repetition -ne 1 -or $offlinePlan[30].Repetition -ne 1 -or $offlinePlan[31].Repetition -ne 2 -or $offlinePlan[31].Cell.id -ne "common_baseline_idle" -or $offlinePlan[92].Repetition -ne 3) { throw "Offline plan is not round-robin by repetition." }
 if (-not (Test-PerformanceBaselineMeasuredOutcome "over_budget") -or (Test-PerformanceBaselineMeasuredOutcome "safety_failure") -or (Test-PerformanceBaselineMeasuredOutcome "thermal_failure") -or (Test-PerformanceBaselineMeasuredOutcome "restoration_failure") -or (Test-PerformanceBaselineMeasuredOutcome "infrastructure_failure")) { throw "Measured/fatal outcome policy is incorrect." }
 Assert-PerformanceBaselinePath (Join-Path ([IO.Path]::GetTempPath()) "octessera baseline spaced\runner.ps1") "spaced test path"
 Assert-Throws { Assert-PerformanceBaselinePath "bad`"path" "quoted test path" } "quoted path"
@@ -64,17 +63,25 @@ $fullHead = ((& git rev-parse HEAD 2>$null | Out-String).Trim())
 if ($fullHead.Length -ne 40) { throw "Repository identity is not a full commit." }
 $sampleResult = ConvertTo-PerformanceBaselineOfflineResult -Row (New-OfflineRow $manifest.cohorts.common_reference.cells[3]) -Cell $manifest.cohorts.common_reference.cells[3] -SampleRate 44100 -Observations 4096
 if ($sampleResult.StatusClass -cne "pass") { throw "Simple sample-only offline evidence without dispatch was rejected." }
+$missingAdmission = New-OfflineRow $manifest.cohorts.common_reference.cells[3]
+$missingAdmission.PSObject.Properties.Remove("peak_voice_admission_drops")
+Assert-Throws { ConvertTo-PerformanceBaselineOfflineResult -Row $missingAdmission -Cell $manifest.cohorts.common_reference.cells[3] -SampleRate 44100 -Observations 4096 } "missing admission-drop evidence"
+$malformedAdmission = New-OfflineRow $manifest.cohorts.common_reference.cells[3]
+$malformedAdmission.peak_voice_admission_drops = "not-a-number"
+Assert-Throws { ConvertTo-PerformanceBaselineOfflineResult -Row $malformedAdmission -Cell $manifest.cohorts.common_reference.cells[3] -SampleRate 44100 -Observations 4096 } "malformed admission-drop evidence"
+$mismatchedAdmission = New-OfflineRow $manifest.cohorts.common_reference.cells[3]
+$mismatchedAdmission.peak_voice_admission_drops = "1"
+Assert-Throws { ConvertTo-PerformanceBaselineOfflineResult -Row $mismatchedAdmission -Cell $manifest.cohorts.common_reference.cells[3] -SampleRate 44100 -Observations 4096 } "nonzero admission-drop mismatch"
+$declaredAdmissionCell = [pscustomobject]@{ scenario = $manifest.cohorts.common_reference.cells[3].scenario; measure_frames = 256; internal_frames = 256; expected_admission_drops_start = 1; expected_admission_drops_end = 3 }
+$declaredAdmission = New-OfflineRow $declaredAdmissionCell
+$declaredAdmission.peak_voice_admission_drops = "3"
+$declaredAdmission.voice_admission_drop_delta = "2"
+if ((ConvertTo-PerformanceBaselineOfflineResult -Row $declaredAdmission -Cell $declaredAdmissionCell -SampleRate 44100 -Observations 4096).StatusClass -cne "pass") { throw "Explicitly declared admission-drop evidence was rejected." }
 $synthResult = ConvertTo-PerformanceBaselineOfflineResult -Row (New-OfflineRow $manifest.cohorts.common_reference.cells[2]) -Cell $manifest.cohorts.common_reference.cells[2] -SampleRate 44100 -Observations 4096
-if ($synthResult.StatusClass -cne "measured_failure") { throw "Missing required synth dispatch was not classified as a measured failure." }
+if ($synthResult.StatusClass -cne "pass") { throw "Serial synth offline evidence was rejected." }
 $maxFxCell = $manifest.cohorts.common_reference.cells[9]
 $maxFxNoDispatch = ConvertTo-PerformanceBaselineOfflineResult -Row (New-OfflineRow $maxFxCell) -Cell $maxFxCell -SampleRate 44100 -Observations 4096
-if ($maxFxNoDispatch.StatusClass -cne "measured_failure") { throw "Max-FX fixed-slot evidence without dispatch was not classified as a measured failure." }
-$maxFxWithDispatch = ConvertTo-PerformanceBaselineOfflineResult -Row (New-OfflineRow $maxFxCell 2) -Cell $maxFxCell -SampleRate 44100 -Observations 4096
-if ($maxFxWithDispatch.StatusClass -cne "pass") { throw "Max-FX fixed-slot evidence with required dispatch was not classified as pass." }
-$backoffRow = New-OfflineRow $manifest.cohorts.common_reference.cells[2] 2
-$backoffRow.synth_parallel_backoff_skip_delta = "1"
-$backoffResult = ConvertTo-PerformanceBaselineOfflineResult -Row $backoffRow -Cell $manifest.cohorts.common_reference.cells[2] -SampleRate 44100 -Observations 4096
-if ($backoffResult.StatusClass -cne "measured_failure") { throw "Worker backoff was not classified as a measured failure." }
+if ($maxFxNoDispatch.StatusClass -cne "pass") { throw "Max-FX serial evidence was rejected." }
 $rankResults = @()
 foreach ($repetition in 1..3) { $rankResults += [pscustomobject]@{ CellId = "orange_live_default_synth_cross_slot_16"; Scenario = "synth_cross_slot_16"; Repetition = $repetition; StatusClass = "pass"; P99_9 = 2 + $repetition / 10; Max = 3 }; $rankResults += [pscustomobject]@{ CellId = "orange_live_default_sample_cross_slot_64"; Scenario = "sample_cross_slot_64"; Repetition = $repetition; StatusClass = "pass"; P99_9 = 1; Max = 1 } }
 $selected = Select-PerformanceBaselineWorstPassingDefault -Results $rankResults -DefaultCellIds @($manifest.orange.live_defaults.id) -Repetitions 3
@@ -127,11 +134,10 @@ Assert-Throws { & $driver -Phase Offline -Artifact "missing" -Metadata "missing.
 Assert-Throws { & $driver -PrintOnly -RunnerPath "bad`"runner.ps1" } "quoted runner path"
 
 $baselineArtifact = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-profile-baseline-missing"
-$baselinePrint = Invoke-PrintOnly $runner @{ Mode = "ProfileBaseline"; Scenario = "synth_cross_slot_16"; EngineBlockFrames = 256; ProfileMeasureFrames = 256; Workers = 2; Artifact = $baselineArtifact; Metadata = "$baselineArtifact.metadata.json"; PrintOnly = $true }
-Assert-Contains $baselinePrint "Profile baseline selection: scenario=synth_cross_slot_16 internal=256 measure=256 workers=2 warmup=2 observations=4096"
+$baselinePrint = Invoke-PrintOnly $runner @{ Mode = "ProfileBaseline"; Scenario = "synth_cross_slot_16"; EngineBlockFrames = 256; ProfileMeasureFrames = 256; Artifact = $baselineArtifact; Metadata = "$baselineArtifact.metadata.json"; PrintOnly = $true }
+Assert-Contains $baselinePrint "Profile baseline selection: scenario=synth_cross_slot_16 internal=256 measure=256 warmup=2 observations=4096"
 Assert-Contains $baselinePrint "OCTESSERA_PI_PROFILE_MEASURE_FRAMES=256"
 Assert-Contains $baselinePrint "OCTESSERA_PI_PROFILE_SAMPLE_RATE=44100"
-Assert-Contains $baselinePrint "OCTESSERA_SYNTH_SLOT_WORKERS=2"
 Assert-Contains $baselinePrint "OCTESSERA_PI_PROFILE_SCENARIO='synth_cross_slot_16'"
 Assert-Contains $baselinePrint "--profile-dsp"
 Assert-Contains $baselinePrint "safety-abort.txt"
@@ -147,9 +153,9 @@ if ($baselinePrint -match "70000|75000|runtime-thermal-abort") { throw "Orange P
 if ($payloadSource -match "function New-ProfileBaselineBody") { throw "Orange ProfileBaseline payload remains in the general payload module." }
 Assert-Contains $baselinePrint "runtime-candidate-sha256.txt"
 Assert-Contains $driverSource "Get-OrangeSafetyFailureReason"
-Assert-Throws { & $runner -Mode ProfileBaseline -Scenario unknown_scenario -EngineBlockFrames 256 -ProfileMeasureFrames 256 -Workers 2 -PrintOnly } "unknown profile ID"
-Assert-Throws { & $runner -Mode ProfileBaseline -Scenario synth_cross_slot_16 -EngineBlockFrames 128 -ProfileMeasureFrames 256 -Workers 2 -PrintOnly } "profile geometry"
-if ((& $runner -Mode LiveAudioBenchmark -Scenario mixed_16_synth_32_sample -OutputFrames 128 -EngineBlockFrames 32 -Workers 2 -MeasureSeconds 30 -Artifact $baselineArtifact -Metadata "$baselineArtifact.metadata.json" -AllowServiceInterruption -PrintOnly | Out-String) -notmatch "output=128 period=32 engine=32") { throw "Orange 128/32/2 baseline-live geometry was not retained." }
+Assert-Throws { & $runner -Mode ProfileBaseline -Scenario unknown_scenario -EngineBlockFrames 256 -ProfileMeasureFrames 256 -PrintOnly } "unknown profile ID"
+Assert-Throws { & $runner -Mode ProfileBaseline -Scenario synth_cross_slot_16 -EngineBlockFrames 128 -ProfileMeasureFrames 256 -PrintOnly } "profile geometry"
+if ((& $runner -Mode LiveAudioBenchmark -Scenario mixed_16_synth_32_sample -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 30 -Artifact $baselineArtifact -Metadata "$baselineArtifact.metadata.json" -AllowServiceInterruption -PrintOnly | Out-String) -notmatch "output=128 period=32 engine=32") { throw "Orange 128/32 baseline-live geometry was not retained." }
 if ($runnerSource -match "with-pi-ssh|run-pi-performance-baseline") { throw "Orange runner references Raspberry tooling." }
 if ($driverSource -match "with-pi-ssh|run-pi-timing-probes") { throw "Orange driver references Raspberry tooling." }
 

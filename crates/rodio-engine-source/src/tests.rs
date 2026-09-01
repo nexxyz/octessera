@@ -1,9 +1,35 @@
 use super::*;
+use crossbeam_channel::bounded;
 use realtime_engine::synth::{
-    prepare_audio_config, InstrumentsConfig, SampleBankConfig, DEFAULT_PAN_POSITIONS,
+    default_synth_config, prepare_audio_config, prepare_momentary_fx_start, InstrumentSlotConfig,
+    InstrumentsConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
+    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_PAN_POSITIONS,
 };
+use serde_json::json;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
+use std::collections::BTreeMap;
+use std::sync::mpsc;
+use std::time::Instant;
+
+impl EngineSource {
+    fn with_test_retirement_receiver(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+    ) -> (Self, crossbeam_channel::Receiver<RetiredAudioItem>) {
+        let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
+        (
+            Self::with_retirement_sender(
+                control_rx,
+                sample_rate,
+                audio_render_quantum_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES),
+                None,
+                retired_tx,
+            ),
+            retired_rx,
+        )
+    }
+}
 
 thread_local! {
     static COUNT_ALLOCATIONS: Cell<bool> = const { Cell::new(false) };
@@ -165,13 +191,107 @@ fn prepared_control_path_does_not_allocate_while_refilling() {
 }
 
 #[test]
-fn capability_audio_defaults_enable_high_headroom_mode() {
-    assert_eq!(
-        audio_block_frames(DEFAULT_AUDIO_BLOCK_FRAMES),
-        DEFAULT_AUDIO_BLOCK_FRAMES
+fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
+    let (tx, rx) = event_queue();
+    let mut source = EngineSource::new(rx, 44_100);
+    for _ in 0..512 {
+        let _ = source.next();
+    }
+    let config = prepare_audio_config(
+        InstrumentsConfig {
+            instruments: vec![InstrumentSlotConfig {
+                kind: "synth".into(),
+                synth: default_synth_config(),
+                mixer: None,
+            }],
+            mixer: None,
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        },
+        Some(vec![SampleBankConfig::default()]),
+        None,
+        44_100,
     );
-    assert_eq!(synth_slot_worker_count(), Some(DEFAULT_SYNTH_SLOT_WORKERS));
+    let replacement = config.clone();
+    let preview = SampleBuffer {
+        samples: vec![0.25; 256].into_boxed_slice().into(),
+        channels: 1,
+        sample_rate: 44_100,
+    };
+    let momentary_start = prepare_momentary_fx_start(
+        "filter".into(),
+        "filter_sweep".into(),
+        BTreeMap::from([
+            ("sweepInMs".into(), json!(1.0)),
+            ("sweepOutMs".into(), json!(1.0)),
+        ]),
+        MomentaryFxTarget::Global,
+        44_100,
+    )
+    .unwrap();
+    let momentary_update = BTreeMap::from([("sweepOutMs".into(), json!(1.0))]);
+    let (report_tx, report_rx) = mpsc::sync_channel(1);
+    let report_waiter = std::thread::spawn(move || report_rx.recv().unwrap());
+    let probe_event = EngineEvent::ProbeMark {
+        sent_at: Instant::now(),
+        report_tx,
+    };
+    tx.send(EngineEvent::SetPreparedAudioConfig(config))
+        .unwrap();
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 60,
+        velocity: 100,
+        duration_ms: 10_000,
+    })
+    .unwrap();
+    tx.send(EngineEvent::PreviewSample {
+        instrument_slot: 0,
+        buffer: preview,
+        velocity: 100,
+    })
+    .unwrap();
+    tx.send(EngineEvent::PreparedMomentaryFxStart(momentary_start))
+        .unwrap();
+    tx.send(EngineEvent::MomentaryFxUpdate {
+        id: "filter".into(),
+        params: momentary_update,
+    })
+    .unwrap();
+    tx.send(EngineEvent::SetSynthParam {
+        instrument_slot: 0,
+        path: "synth.amp.gainPct".into(),
+        value: 90.0,
+    })
+    .unwrap();
+    tx.send(EngineEvent::SetSampleBankParam {
+        instrument_slot: 0,
+        path: "sample.amp.gainPct".into(),
+        value: 90.0,
+    })
+    .unwrap();
+    tx.send(probe_event).unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig(replacement))
+        .unwrap();
+    tx.send(EngineEvent::MomentaryFxStop {
+        id: "filter".into(),
+    })
+    .unwrap();
+    tx.send(EngineEvent::AllNotesOff).unwrap();
+
+    let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
+        for _ in 0..1024 {
+            let _ = source.next();
+        }
+    });
+
+    assert_eq!(allocation_count, 0);
+    assert_eq!(deallocation_count, 0);
+    let _ = report_waiter.join().unwrap();
 }
+
+#[path = "retirement_tests.rs"]
+mod retirement_tests;
 
 #[test]
 fn explicit_profile_block_sizes_reach_source_configuration() {
@@ -180,11 +300,6 @@ fn explicit_profile_block_sizes_reach_source_configuration() {
         let source = EngineSource::with_block_frames(rx, 44_100, block_frames);
 
         assert_eq!(source.block_frames(), block_frames);
-        if block_frames < 256 {
-            assert!(!source.engine.synth_slot_parallelism_enabled());
-        } else {
-            assert!(source.engine.synth_slot_parallelism_enabled());
-        }
     }
     let (_tx, rx) = event_queue();
     let source = EngineSource::with_block_frames(rx, 44_100, 1);
@@ -192,25 +307,40 @@ fn explicit_profile_block_sizes_reach_source_configuration() {
 }
 
 #[test]
-fn benchmark_worker_requests_follow_internal_block_gate() {
-    for block_frames in [64, 128] {
-        for workers in [2, 3] {
-            let (_tx, rx) = event_queue();
-            let source =
-                EngineSource::with_block_frames_and_workers(rx, 44_100, block_frames, workers);
-            assert!(!source.engine.synth_slot_parallelism_enabled());
-        }
-    }
-    for workers in [2, 3] {
-        let (_tx, rx) = event_queue();
-        let source = EngineSource::with_block_frames_and_workers(rx, 44_100, 256, workers);
-        assert!(source.engine.synth_slot_parallelism_enabled());
+fn default_and_explicit_block_apis_use_inline_source_path() {
+    let (default_tx, default_rx) = event_queue();
+    let (explicit_tx, explicit_rx) = event_queue();
+    let note_on = EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 60,
+        velocity: 100,
+        duration_ms: 1_000,
+    };
+    default_tx.send(note_on.clone()).unwrap();
+    explicit_tx.send(note_on).unwrap();
+    let mut default_source = EngineSource::new(default_rx, 44_100);
+    let mut explicit_source =
+        EngineSource::with_block_frames(explicit_rx, 44_100, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES);
+    assert_eq!(
+        default_source.block_frames(),
+        DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES
+    );
+    assert_eq!(
+        explicit_source.block_frames(),
+        DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES
+    );
+
+    for _ in 0..256 {
+        assert_eq!(
+            default_source.next().unwrap().to_bits(),
+            explicit_source.next().unwrap().to_bits()
+        );
     }
 }
 
 #[test]
-fn explicit_block_size_respects_audio_block_override_parser() {
-    assert_eq!(resolve_audio_block_frames(Some("128"), 64), 128);
-    assert_eq!(resolve_audio_block_frames(Some("invalid"), 64), 64);
-    assert_eq!(resolve_audio_block_frames(Some("1"), 64), 32);
+fn explicit_block_size_respects_render_quantum_override_parser() {
+    assert_eq!(resolve_audio_render_quantum_frames(Some("128"), 64), 128);
+    assert_eq!(resolve_audio_render_quantum_frames(Some("invalid"), 64), 64);
+    assert_eq!(resolve_audio_render_quantum_frames(Some("1"), 64), 32);
 }

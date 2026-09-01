@@ -11,94 +11,12 @@ fn config() -> BenchmarkConfig {
         "1024".into(),
         "--engine-block-frames".into(),
         "256".into(),
-        "--workers".into(),
-        "2".into(),
         "--release-gate".into(),
         "release.json".into(),
         "--artifact-sha256".into(),
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
     ])
     .unwrap()
-}
-
-fn state_with_profiles(
-    start: SynthProfileSnapshot,
-    end: SynthProfileSnapshot,
-    workers_effective: bool,
-) -> RunState {
-    let mut state = RunState::new(
-        ExpectedLiveState {
-            active_synth_voices: 0,
-            active_sample_voices: 0,
-            active_momentary_fx: 0,
-            active_bus_fx_slots: 0,
-            active_global_fx_slots: 0,
-            expected_voice_steals: 0,
-        },
-        44_100,
-        256,
-        1024,
-    );
-    state.stream_evidence = Some(StreamEvidence {
-        sample_format: "F32".into(),
-        channels: 2,
-        sample_rate: 44_100,
-        workers_effective,
-        engine_block_frames: 256,
-    });
-    state.profile_start = Some(start);
-    state.profile_end = Some(end);
-    state
-}
-
-#[test]
-fn c2_policy_failure_keeps_the_measured_delta_without_terminal_error() {
-    let state = state_with_profiles(
-        SynthProfileSnapshot::default(),
-        SynthProfileSnapshot {
-            synth_parallel_dispatches: 4_639,
-            synth_parallel_backoff_skips: 1_395,
-            synth_parallel_timing_backoffs: 22,
-            ..SynthProfileSnapshot::default()
-        },
-        true,
-    );
-    let evidence = resolve_worker_evidence(&config(), &state);
-    assert_eq!(
-        evidence.worker_delta,
-        Some(BenchmarkWorkerDelta {
-            synth_parallel_dispatches: 4_639,
-            synth_parallel_light_skips: 0,
-            synth_parallel_backoff_skips: 1_395,
-            synth_parallel_timing_backoffs: 22,
-            synth_parallel_failures: 0,
-            synth_parallel_unhealthy: false,
-        })
-    );
-    assert!(evidence.policy_error.is_some());
-    assert!(evidence.terminal_error.is_none());
-}
-
-#[test]
-fn clean_dispatch_is_complete_evidence() {
-    let state = state_with_profiles(
-        SynthProfileSnapshot::default(),
-        SynthProfileSnapshot {
-            synth_parallel_dispatches: 1,
-            ..SynthProfileSnapshot::default()
-        },
-        true,
-    );
-    let evidence = resolve_worker_evidence(&config(), &state);
-    assert_eq!(
-        evidence.worker_delta,
-        Some(BenchmarkWorkerDelta {
-            synth_parallel_dispatches: 1,
-            ..BenchmarkWorkerDelta::default()
-        })
-    );
-    assert!(evidence.policy_error.is_none());
-    assert!(evidence.terminal_error.is_none());
 }
 
 #[test]
@@ -115,10 +33,42 @@ fn profile_validation_proves_max_fx_state() {
         active_global_fx_slots: 2,
         ..SynthProfileSnapshot::default()
     };
-    validate_profile_state(&snapshot, expected).unwrap();
+    validate_profile_state(
+        &snapshot,
+        expected,
+        expected.expected_voice_admission_drops_start,
+    )
+    .unwrap();
     let mut invalid = snapshot;
     invalid.active_bus_fx_slots = 11;
-    assert!(validate_profile_state(&invalid, expected).is_err());
+    assert!(validate_profile_state(
+        &invalid,
+        expected,
+        expected.expected_voice_admission_drops_start
+    )
+    .is_err());
+
+    let mut admission_mismatch = snapshot;
+    admission_mismatch.cumulative_voice_admission_drops = 1;
+    let error = validate_profile_state(
+        &admission_mismatch,
+        expected,
+        expected.expected_voice_admission_drops_start,
+    )
+    .unwrap_err();
+    assert!(error.contains("voice admission drops"));
+    assert!(!error.contains("voice steals"));
+
+    let mut declared = expected;
+    declared.expected_voice_admission_drops_start = 1;
+    let mut admitted = snapshot;
+    admitted.cumulative_voice_admission_drops = 1;
+    validate_profile_state(
+        &admitted,
+        declared,
+        declared.expected_voice_admission_drops_start,
+    )
+    .unwrap();
 }
 
 #[test]
@@ -131,8 +81,6 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
         "256".into(),
         "--engine-block-frames".into(),
         "256".into(),
-        "--workers".into(),
-        "2".into(),
         "--release-gate".into(),
         "release.json".into(),
         "--artifact-sha256".into(),
@@ -147,6 +95,8 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
             active_bus_fx_slots: 0,
             active_global_fx_slots: 0,
             expected_voice_steals: 0,
+            expected_voice_admission_drops_start: 0,
+            expected_voice_admission_drops_end: 0,
         },
         44_100,
         config.expected_alsa_period_frames,
@@ -163,125 +113,7 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
 }
 
 #[test]
-fn missing_required_dispatch_keeps_delta_as_policy_failure() {
-    let state = state_with_profiles(
-        SynthProfileSnapshot::default(),
-        SynthProfileSnapshot::default(),
-        true,
-    );
-    let evidence = resolve_worker_evidence(&config(), &state);
-    assert_eq!(evidence.worker_delta, Some(BenchmarkWorkerDelta::default()));
-    assert!(evidence.policy_error.is_some());
-    assert!(evidence.terminal_error.is_none());
-}
-
-#[test]
-fn light_skip_failure_and_unhealthy_state_keep_complete_deltas() {
-    let light = SynthProfileSnapshot {
-        synth_parallel_dispatches: 1,
-        synth_parallel_light_skips: 1,
-        ..SynthProfileSnapshot::default()
-    };
-    let failure = SynthProfileSnapshot {
-        synth_parallel_dispatches: 1,
-        synth_parallel_failures: 1,
-        ..SynthProfileSnapshot::default()
-    };
-    let unhealthy = SynthProfileSnapshot {
-        synth_parallel_dispatches: 1,
-        synth_parallel_unhealthy: true,
-        ..SynthProfileSnapshot::default()
-    };
-
-    let cases = [
-        (
-            light,
-            BenchmarkWorkerDelta {
-                synth_parallel_dispatches: 1,
-                synth_parallel_light_skips: 1,
-                ..BenchmarkWorkerDelta::default()
-            },
-        ),
-        (
-            failure,
-            BenchmarkWorkerDelta {
-                synth_parallel_dispatches: 1,
-                synth_parallel_failures: 1,
-                ..BenchmarkWorkerDelta::default()
-            },
-        ),
-        (
-            unhealthy,
-            BenchmarkWorkerDelta {
-                synth_parallel_dispatches: 1,
-                synth_parallel_unhealthy: true,
-                ..BenchmarkWorkerDelta::default()
-            },
-        ),
-    ];
-
-    for (end, expected_delta) in cases {
-        let evidence = resolve_worker_evidence(
-            &config(),
-            &state_with_profiles(SynthProfileSnapshot::default(), end, true),
-        );
-        assert_eq!(evidence.worker_delta, Some(expected_delta));
-        assert!(evidence.policy_error.is_some());
-        assert!(evidence.terminal_error.is_none());
-    }
-}
-
-#[test]
-fn missing_profiles_and_counter_regressions_are_terminal_with_null_delta() {
-    let config = config();
-    let mut missing = state_with_profiles(
-        SynthProfileSnapshot::default(),
-        SynthProfileSnapshot::default(),
-        true,
-    );
-    missing.profile_start = None;
-    let evidence = resolve_worker_evidence(&config, &missing);
-    assert_eq!(evidence.worker_delta, None);
-    assert!(evidence.policy_error.is_none());
-    assert!(evidence.terminal_error.is_some());
-
-    for counter in 0..5 {
-        let mut start = SynthProfileSnapshot::default();
-        let end = SynthProfileSnapshot::default();
-        match counter {
-            0 => start.synth_parallel_dispatches = 1,
-            1 => start.synth_parallel_light_skips = 1,
-            2 => start.synth_parallel_backoff_skips = 1,
-            3 => start.synth_parallel_timing_backoffs = 1,
-            4 => start.synth_parallel_failures = 1,
-            _ => unreachable!(),
-        }
-        let state = state_with_profiles(start, end, true);
-        let evidence = resolve_worker_evidence(&config, &state);
-        assert_eq!(evidence.worker_delta, None);
-        assert!(evidence.policy_error.is_none());
-        assert!(evidence.terminal_error.is_some());
-    }
-}
-
-#[test]
-fn worker_effectiveness_mismatch_is_terminal_with_null_delta() {
-    let state = state_with_profiles(
-        SynthProfileSnapshot::default(),
-        SynthProfileSnapshot {
-            synth_parallel_dispatches: 1,
-            ..SynthProfileSnapshot::default()
-        },
-        false,
-    );
-    let evidence = resolve_worker_evidence(&config(), &state);
-    assert_eq!(evidence.worker_delta, None);
-    assert!(evidence.policy_error.is_none());
-    assert!(evidence.terminal_error.is_some());
-}
-
-#[test]
-fn policy_error_cannot_produce_pass_status() {
+fn result_status_requires_clean_runtime_evidence() {
     let config = config();
     let metrics = CallbackMetricsSnapshot {
         callback_count: 1,
@@ -291,10 +123,6 @@ fn policy_error_cannot_produce_pass_status() {
         pre_mute_nonzero_samples: 1,
         ..CallbackMetricsSnapshot::default()
     };
-    let delta = BenchmarkWorkerDelta {
-        synth_parallel_dispatches: 1,
-        ..BenchmarkWorkerDelta::default()
-    };
     let gates = FinalizationGates {
         no_terminal_errors: true,
         scheduler_qualified: true,
@@ -302,18 +130,11 @@ fn policy_error_cannot_produce_pass_status() {
         stream_stopped: true,
         final_progress_write_succeeded: true,
     };
-    assert_eq!(
-        result_status(&config, &metrics, gates, Some(&delta), None,),
-        "pass"
-    );
-    assert_eq!(
-        result_status(
-            &config,
-            &metrics,
-            gates,
-            Some(&delta),
-            Some("worker telemetry reported a skip, failure, or unhealthy state"),
-        ),
-        "fail"
-    );
+    assert_eq!(result_status(&config, &metrics, gates), "pass");
+
+    let invalid = CallbackMetricsSnapshot {
+        over_audio_duration_budget_count: 1,
+        ..metrics
+    };
+    assert_eq!(result_status(&config, &invalid, gates), "fail");
 }

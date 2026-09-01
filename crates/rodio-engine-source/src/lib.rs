@@ -6,13 +6,8 @@ mod telemetry;
 use crossbeam_channel::{bounded, Sender, TrySendError};
 pub use event::EngineEvent;
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
-use realtime_engine::synth::{
-    RetiredAudioState, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_SYNTH_SLOT_WORKERS,
-    MIN_SYNTH_PARALLEL_BLOCK_FRAMES,
-};
+use realtime_engine::synth::{RetiredAudioState, SynthEngine, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES};
 pub use sample_decode::decode_sample_file;
-use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
@@ -23,7 +18,12 @@ const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
 const RETIREMENT_QUEUE_CAPACITY: usize = 64;
 const RETIREMENT_BACKLOG_CAPACITY: usize = 256;
-static SYNTH_WORKER_START_LOGGED: AtomicBool = AtomicBool::new(false);
+const RETIREMENT_CONTROL_BACKLOG_CAPACITY: usize = RETIREMENT_BACKLOG_CAPACITY - 1;
+
+struct RetiredAudioItem {
+    state: Option<RetiredAudioState>,
+    event: Option<EngineEvent>,
+}
 
 pub struct EngineSource {
     engine: SynthEngine,
@@ -37,11 +37,12 @@ pub struct EngineSource {
     load_tx: Option<AudioLoadStatusSender>,
     last_load_report: Instant,
     telemetry: EngineTelemetry,
-    retired_tx: Sender<RetiredAudioState>,
-    retired_backlog: Box<[Option<RetiredAudioState>]>,
+    retired_tx: Sender<RetiredAudioItem>,
+    retired_backlog: Box<[Option<RetiredAudioItem>]>,
     retired_backlog_read: usize,
     retired_backlog_write: usize,
     retired_backlog_len: usize,
+    retirement_disconnected: bool,
 }
 
 impl EngineSource {
@@ -59,37 +60,15 @@ impl EngineSource {
             sample_rate,
             block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
             None,
-            false,
-            synth_slot_worker_count(),
-        )
-    }
-
-    pub fn with_block_frames_and_workers(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        worker_count: usize,
-    ) -> Self {
-        Self::with_config(
-            control_rx,
-            sample_rate,
-            block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
-            None,
-            false,
-            (worker_count > 0).then_some(worker_count.min(3)),
         )
     }
 
     pub fn resolve_block_frames(default_frames: usize) -> usize {
-        audio_block_frames(default_frames)
+        audio_render_quantum_frames(default_frames)
     }
 
     pub fn block_frames(&self) -> usize {
         self.block_frames
-    }
-
-    pub fn synth_slot_parallelism_enabled(&self) -> bool {
-        self.engine.synth_slot_parallelism_enabled()
     }
 
     pub fn profile_snapshot(&self) -> realtime_engine::synth::SynthProfileSnapshot {
@@ -104,10 +83,8 @@ impl EngineSource {
         Self::with_config(
             control_rx,
             sample_rate,
-            audio_block_frames(DEFAULT_AUDIO_BLOCK_FRAMES),
+            audio_render_quantum_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES),
             load_tx,
-            true,
-            synth_slot_worker_count(),
         )
     }
 
@@ -116,22 +93,24 @@ impl EngineSource {
         sample_rate: u32,
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
-        enable_subthreshold_parallel_workers: bool,
-        worker_count: Option<usize>,
     ) -> Self {
-        let mut engine = SynthEngine::new(sample_rate);
-        if enable_subthreshold_parallel_workers || block_frames >= MIN_SYNTH_PARALLEL_BLOCK_FRAMES {
-            if let Some(worker_count) = worker_count {
-                let enabled = engine.set_synth_slot_parallelism_enabled(true, worker_count);
-                if !SYNTH_WORKER_START_LOGGED.swap(true, Ordering::Relaxed) {
-                    eprintln!(
-                        "synth slot parallel workers requested={worker_count} enabled={enabled}"
-                    );
-                }
-            }
-        }
         let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
-        std::thread::spawn(move || while retired_rx.recv().is_ok() {});
+        std::thread::spawn(move || {
+            while let Ok(item) = retired_rx.recv() {
+                drop_retired_item(item);
+            }
+        });
+        Self::with_retirement_sender(control_rx, sample_rate, block_frames, load_tx, retired_tx)
+    }
+
+    fn with_retirement_sender(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+        retired_tx: Sender<RetiredAudioItem>,
+    ) -> Self {
+        let engine = SynthEngine::new(sample_rate);
         Self {
             engine,
             control_rx,
@@ -151,6 +130,7 @@ impl EngineSource {
             retired_backlog_read: 0,
             retired_backlog_write: 0,
             retired_backlog_len: 0,
+            retirement_disconnected: false,
         }
     }
 
@@ -169,6 +149,12 @@ impl EngineSource {
                 &mut self.right_buf,
                 &mut self.buf,
             );
+        }
+        if !self.engine.pending_render_retired_is_empty()
+            && self.retirement_storage_can_accept_item()
+        {
+            let retired = self.engine.take_pending_render_retired();
+            self.retire_state(retired);
         }
         self.idx = 0;
         let elapsed = t0.elapsed().as_secs_f32();
@@ -200,140 +186,110 @@ impl EngineSource {
     }
 
     fn retire_state(&mut self, state: RetiredAudioState) {
+        if state.is_empty() {
+            return;
+        }
+        self.retire_item(RetiredAudioItem {
+            state: Some(state),
+            event: None,
+        });
+    }
+
+    fn retire_event(&mut self, event: EngineEvent) {
+        self.retire_item(RetiredAudioItem {
+            state: None,
+            event: Some(event),
+        });
+    }
+
+    fn retire_state_and_event(&mut self, state: RetiredAudioState, event: EngineEvent) {
+        self.retire_item(RetiredAudioItem {
+            state: (!state.is_empty()).then_some(state),
+            event: Some(event),
+        });
+    }
+
+    fn retire_item(&mut self, item: RetiredAudioItem) {
+        if self.retirement_disconnected {
+            let _ = self.enqueue_retired_item(item);
+            return;
+        }
         self.flush_retired_backlog();
-        match self.retired_tx.try_send(state) {
+        match self.retired_tx.try_send(item) {
             Ok(()) => {}
-            Err(TrySendError::Full(state)) => {
-                self.enqueue_retired_state(state);
+            Err(TrySendError::Full(item)) => {
+                let _ = self.enqueue_retired_item(item);
             }
-            Err(TrySendError::Disconnected(_)) => {
-                panic!("retirement queue disconnected");
+            Err(TrySendError::Disconnected(item)) => {
+                self.retirement_disconnected = true;
+                let _ = self.enqueue_retired_item(item);
             }
         }
     }
 
     fn flush_retired_backlog(&mut self) {
+        if self.retirement_disconnected {
+            return;
+        }
         while self.retired_backlog_len > 0 {
-            let state = self.retired_backlog[self.retired_backlog_read]
-                .take()
-                .expect("retirement backlog slot must contain state");
-            match self.retired_tx.try_send(state) {
+            let Some(item) = self.retired_backlog[self.retired_backlog_read].take() else {
+                self.retired_backlog_len = 0;
+                break;
+            };
+            match self.retired_tx.try_send(item) {
                 Ok(()) => {
                     self.retired_backlog_read =
                         (self.retired_backlog_read + 1) % RETIREMENT_BACKLOG_CAPACITY;
                     self.retired_backlog_len -= 1;
                 }
-                Err(TrySendError::Full(state)) => {
-                    self.retired_backlog[self.retired_backlog_read] = Some(state);
+                Err(TrySendError::Full(item)) => {
+                    self.retired_backlog[self.retired_backlog_read] = Some(item);
                     break;
                 }
-                Err(TrySendError::Disconnected(_)) => {
-                    panic!("retirement queue disconnected");
+                Err(TrySendError::Disconnected(item)) => {
+                    self.retired_backlog[self.retired_backlog_read] = Some(item);
+                    self.retirement_disconnected = true;
+                    break;
                 }
             }
         }
     }
 
-    fn enqueue_retired_state(&mut self, state: RetiredAudioState) {
-        assert!(
-            self.retired_backlog_len < RETIREMENT_BACKLOG_CAPACITY,
-            "retirement backlog capacity exceeded"
-        );
-        self.retired_backlog[self.retired_backlog_write] = Some(state);
+    fn enqueue_retired_item(&mut self, item: RetiredAudioItem) -> bool {
+        if self.retired_backlog_len >= RETIREMENT_BACKLOG_CAPACITY {
+            return false;
+        }
+        self.retired_backlog[self.retired_backlog_write] = Some(item);
         self.retired_backlog_write = (self.retired_backlog_write + 1) % RETIREMENT_BACKLOG_CAPACITY;
         self.retired_backlog_len += 1;
+        true
+    }
+
+    fn retirement_storage_can_accept_item(&mut self) -> bool {
+        self.flush_retired_backlog();
+        self.retired_backlog_len < RETIREMENT_BACKLOG_CAPACITY
     }
 
     fn drain_control_events(&mut self) -> DrainedControlEvents {
         let mut drained = DrainedControlEvents::default();
         for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
+            self.flush_retired_backlog();
+            if self.retirement_disconnected
+                || self.retired_backlog_len >= RETIREMENT_CONTROL_BACKLOG_CAPACITY
+            {
+                break;
+            }
             let event = self.control_rx.try_recv();
             let Ok(event) = event else { break };
             drained.control_events += 1;
-            match event {
-                EngineEvent::AllNotesOff => self.engine.all_notes_off(),
-                EngineEvent::NoteOn {
-                    instrument_slot,
-                    note,
-                    velocity,
-                    duration_ms,
-                } => self
-                    .engine
-                    .note_on(instrument_slot, note, velocity, duration_ms),
-                EngineEvent::NoteOff {
-                    instrument_slot,
-                    note,
-                } => self.engine.note_off(instrument_slot, note),
-                EngineEvent::Cc {
-                    instrument_slot,
-                    controller,
-                    value,
-                } => self.engine.cc(instrument_slot, controller, value),
-                EngineEvent::SetPreparedInstruments(config) => {
-                    drained.config_events += 1;
-                    let retired = self.engine.apply_prepared_instruments_config(config);
-                    self.retire_state(retired);
-                }
-                EngineEvent::SetPreparedAudioConfig(config) => {
-                    drained.config_events += 1;
-                    let retired = self.engine.apply_prepared_audio_config(config);
-                    self.retire_state(retired);
-                }
-                EngineEvent::SetPreparedSampleBank {
-                    instrument_slot,
-                    bank,
-                } => {
-                    drained.config_events += 1;
-                    let retired = self
-                        .engine
-                        .apply_prepared_sample_bank(instrument_slot, bank);
-                    self.retire_state(retired);
-                }
-                EngineEvent::PreviewSample {
-                    instrument_slot,
-                    buffer,
-                    velocity,
-                } => self
-                    .engine
-                    .preview_sample(instrument_slot, buffer, velocity),
-                EngineEvent::SetVoiceStealingMode(mode) => {
-                    drained.config_events += 1;
-                    self.engine.set_voice_stealing_mode(mode)
-                }
-                EngineEvent::SetMasterVolume { volume_pct } => {
-                    self.engine.set_master_volume(volume_pct);
-                }
-                EngineEvent::SetInstrumentMixer {
-                    instrument_slot,
-                    volume_pct,
-                    pan_pos,
-                } => {
-                    self.engine
-                        .set_instrument_mixer(instrument_slot, volume_pct, pan_pos);
-                }
-                EngineEvent::SetPreparedInstrumentSlot {
-                    instrument_slot,
-                    config,
-                } => {
-                    drained.config_events += 1;
-                    let retired = self
-                        .engine
-                        .apply_prepared_instrument_slot(instrument_slot, config);
-                    self.retire_state(retired);
-                }
-                EngineEvent::SetFxBusMixer {
-                    bus_index,
-                    pan_pos,
-                    volume_pct,
-                } => {
-                    self.engine.set_fx_bus_mixer(bus_index, pan_pos, volume_pct);
-                }
+            match &event {
                 EngineEvent::SetSynthParam {
                     instrument_slot,
                     path,
                     value,
                 } => {
-                    self.engine.set_synth_param(instrument_slot, &path, value);
+                    self.engine.set_synth_param(*instrument_slot, path, *value);
+                    self.retire_event(event);
                 }
                 EngineEvent::SetSampleBankParam {
                     instrument_slot,
@@ -341,46 +297,141 @@ impl EngineSource {
                     value,
                 } => {
                     self.engine
-                        .set_sample_bank_param(instrument_slot, &path, value);
-                }
-                EngineEvent::SetPreparedFxBusSlot {
-                    bus_index,
-                    slot_index,
-                    config,
-                } => {
-                    drained.config_events += 1;
-                    let retired = self
-                        .engine
-                        .apply_prepared_fx_bus_slot(bus_index, slot_index, config);
-                    self.retire_state(retired);
-                }
-                EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
-                    drained.config_events += 1;
-                    let retired = self
-                        .engine
-                        .apply_prepared_global_fx_slot(slot_index, config);
-                    self.retire_state(retired);
-                }
-                EngineEvent::PreparedMomentaryFxStart(config) => {
-                    drained.config_events += 1;
-                    let retired = self.engine.apply_prepared_momentary_fx_start(config);
-                    self.retire_state(retired);
+                        .set_sample_bank_param(*instrument_slot, path, *value);
+                    self.retire_event(event);
                 }
                 EngineEvent::MomentaryFxUpdate { id, params } => {
                     drained.config_events += 1;
-                    self.engine.momentary_fx_update(&id, params)
+                    self.engine.momentary_fx_update(id, params);
+                    self.retire_event(event);
                 }
                 EngineEvent::MomentaryFxStop { id } => {
                     drained.config_events += 1;
-                    self.engine.momentary_fx_stop(&id);
+                    let retired = self.engine.momentary_fx_stop(id);
+                    self.retire_state_and_event(retired, event);
                 }
                 EngineEvent::ProbeMark { sent_at, report_tx } => {
-                    let _ = report_tx.send(sent_at.elapsed().as_micros());
+                    let _ = report_tx.try_send(sent_at.elapsed().as_micros());
+                    self.retire_event(event);
                 }
+                _ => match event {
+                    EngineEvent::AllNotesOff => {
+                        let retired = self.engine.all_notes_off();
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::NoteOn {
+                        instrument_slot,
+                        note,
+                        velocity,
+                        duration_ms,
+                    } => self
+                        .engine
+                        .note_on(instrument_slot, note, velocity, duration_ms),
+                    EngineEvent::NoteOff {
+                        instrument_slot,
+                        note,
+                    } => self.engine.note_off(instrument_slot, note),
+                    EngineEvent::Cc {
+                        instrument_slot,
+                        controller,
+                        value,
+                    } => self.engine.cc(instrument_slot, controller, value),
+                    EngineEvent::SetPreparedInstruments(config) => {
+                        drained.config_events += 1;
+                        let retired = self.engine.apply_prepared_instruments_config(config);
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::SetPreparedAudioConfig(config) => {
+                        drained.config_events += 1;
+                        let retired = self.engine.apply_prepared_audio_config(config);
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::SetPreparedSampleBank {
+                        instrument_slot,
+                        bank,
+                    } => {
+                        drained.config_events += 1;
+                        let retired = self
+                            .engine
+                            .apply_prepared_sample_bank(instrument_slot, bank);
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::PreviewSample {
+                        instrument_slot,
+                        buffer,
+                        velocity,
+                    } => {
+                        let retired = self
+                            .engine
+                            .preview_sample(instrument_slot, buffer, velocity);
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::SetVoiceStealingMode(mode) => {
+                        drained.config_events += 1;
+                        self.engine.set_voice_stealing_mode(mode)
+                    }
+                    EngineEvent::SetMasterVolume { volume_pct } => {
+                        self.engine.set_master_volume(volume_pct);
+                    }
+                    EngineEvent::SetInstrumentMixer {
+                        instrument_slot,
+                        volume_pct,
+                        pan_pos,
+                    } => {
+                        self.engine
+                            .set_instrument_mixer(instrument_slot, volume_pct, pan_pos);
+                    }
+                    EngineEvent::SetPreparedInstrumentSlot {
+                        instrument_slot,
+                        config,
+                    } => {
+                        drained.config_events += 1;
+                        let retired = self
+                            .engine
+                            .apply_prepared_instrument_slot(instrument_slot, config);
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::SetFxBusMixer {
+                        bus_index,
+                        pan_pos,
+                        volume_pct,
+                    } => {
+                        self.engine.set_fx_bus_mixer(bus_index, pan_pos, volume_pct);
+                    }
+                    EngineEvent::SetPreparedFxBusSlot {
+                        bus_index,
+                        slot_index,
+                        config,
+                    } => {
+                        drained.config_events += 1;
+                        let retired = self
+                            .engine
+                            .apply_prepared_fx_bus_slot(bus_index, slot_index, config);
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
+                        drained.config_events += 1;
+                        let retired = self
+                            .engine
+                            .apply_prepared_global_fx_slot(slot_index, config);
+                        self.retire_state(retired);
+                    }
+                    EngineEvent::PreparedMomentaryFxStart(config) => {
+                        drained.config_events += 1;
+                        let retired = self.engine.apply_prepared_momentary_fx_start(config);
+                        self.retire_state(retired);
+                    }
+                    _ => unreachable!("heap-owning event was handled by reference"),
+                },
             }
         }
         drained
     }
+}
+
+fn drop_retired_item(item: RetiredAudioItem) {
+    drop(item.state);
+    drop(item.event);
 }
 
 impl Iterator for EngineSource {
@@ -414,28 +465,20 @@ impl rodio::Source for EngineSource {
     }
 }
 
-fn audio_block_frames(default_frames: usize) -> usize {
-    resolve_audio_block_frames(
-        std::env::var("OCTESSERA_AUDIO_BLOCK_FRAMES")
+fn audio_render_quantum_frames(default_frames: usize) -> usize {
+    resolve_audio_render_quantum_frames(
+        std::env::var("OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES")
             .ok()
             .as_deref(),
         default_frames,
     )
 }
 
-fn resolve_audio_block_frames(env_value: Option<&str>, default_frames: usize) -> usize {
+fn resolve_audio_render_quantum_frames(env_value: Option<&str>, default_frames: usize) -> usize {
     env_value
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(default_frames)
         .clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES)
-}
-
-fn synth_slot_worker_count() -> Option<usize> {
-    let count = env::var("OCTESSERA_SYNTH_SLOT_WORKERS")
-        .ok()
-        .and_then(|raw| raw.trim().parse::<usize>().ok())
-        .unwrap_or(DEFAULT_SYNTH_SLOT_WORKERS);
-    (count > 0).then_some(count.min(3))
 }
 
 #[cfg(test)]

@@ -1,5 +1,6 @@
 use super::*;
 use crate::synth::engine::control::active_fx_bus_slots;
+use crate::synth::engine::render_plan::render_plan_fx_slot;
 
 impl SynthEngine {
     pub fn set_master_volume(&mut self, volume_pct: f32) {
@@ -102,12 +103,15 @@ impl SynthEngine {
             kind: fx_type,
             params,
         };
+        let render_plan = render_plan_fx_slot(&config);
         let next_params = compile_fx_bus_params(&config);
         if !fx_bus_state_matches_params(&self.bus_slot_state[bus_index][slot_index], &next_params) {
             self.bus_slot_state[bus_index][slot_index] =
                 fx_bus_state_from_params(&next_params, self.sample_rate);
         }
         self.bus_slot_params[bus_index][slot_index] = next_params;
+        self.render_plan
+            .install_bus_fx_slot(bus_index, slot_index, render_plan);
         let (active_indices, active_count) = active_fx_bus_slots(&self.bus_slot_params[bus_index]);
         self.bus_active_slot_indices[bus_index] = active_indices;
         self.bus_active_slot_counts[bus_index] = active_count;
@@ -126,11 +130,14 @@ impl SynthEngine {
             kind: fx_type,
             params,
         };
+        let render_plan = render_plan_fx_slot(&config);
         let next_params = compile_fx_bus_params(&config);
         if !master_fx_state_matches_params(&self.master_slot_state[slot_index], &next_params) {
             self.master_slot_state[slot_index] = master_fx_state_from_params(&next_params);
         }
         self.master_slot_params[slot_index] = next_params;
+        self.render_plan
+            .install_master_fx_slot(slot_index, render_plan);
         self.refresh_master_active_slot_indices();
     }
 }
@@ -184,5 +191,77 @@ mod tests {
 
         assert_eq!(engine.master_slot_params.len(), GLOBAL_FX_SLOT_COUNT);
         assert!(engine.master_active_slot_indices.is_empty());
+    }
+
+    #[test]
+    fn dynamic_render_plan_tracks_fx_structure_not_parameters() {
+        let mut engine = SynthEngine::new(48_000);
+        engine.set_instruments(InstrumentsConfig {
+            instruments: Vec::new(),
+            mixer: Some(MixerConfig {
+                buses: vec![FxBusConfig {
+                    slots: vec![FxBusSlotConfig::Config {
+                        kind: "delay".into(),
+                        params: BTreeMap::new(),
+                    }],
+                    ..FxBusConfig::default()
+                }],
+                master: Some(MasterFxConfig {
+                    slots: vec![FxBusSlotConfig::Kind("compressor".into())],
+                }),
+            }),
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        });
+        let initial_generation = engine.render_plan.generation;
+
+        engine.set_fx_bus_slot(
+            0,
+            0,
+            "delay".into(),
+            [("timeMs".into(), serde_json::json!(400.0))]
+                .into_iter()
+                .collect(),
+        );
+        engine.set_global_fx_slot(
+            0,
+            "compressor".into(),
+            [("thresholdDb".into(), serde_json::json!(-8.0))]
+                .into_iter()
+                .collect(),
+        );
+        assert_eq!(engine.render_plan.generation, initial_generation);
+
+        engine.set_fx_bus_slot(0, 0, "reverb".into(), BTreeMap::new());
+        let changed_generation = engine.render_plan.generation;
+        assert!(changed_generation > initial_generation);
+
+        engine.set_global_fx_slot(
+            0,
+            "duck".into(),
+            [("source".into(), serde_json::json!("I1"))]
+                .into_iter()
+                .collect(),
+        );
+        let duck_generation = engine.render_plan.generation;
+        engine.set_global_fx_slot(
+            0,
+            "duck".into(),
+            [
+                ("source".into(), serde_json::json!("I1")),
+                ("amountPct".into(), serde_json::json!(25.0)),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        assert_eq!(engine.render_plan.generation, duck_generation);
+        engine.set_global_fx_slot(
+            0,
+            "duck".into(),
+            [("source".into(), serde_json::json!("B1"))]
+                .into_iter()
+                .collect(),
+        );
+        assert!(engine.render_plan.generation > duck_generation);
     }
 }

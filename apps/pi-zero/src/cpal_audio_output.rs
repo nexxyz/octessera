@@ -5,15 +5,18 @@ use crate::audio_route::RouteOpenError;
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::traits::DeviceTrait;
 use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
+use platform_core::AUDIO_OUTPUT_BUFFER_FRAMES;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use realtime_engine::synth::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio_engine_source::{EngineEventReceiver, EngineSource};
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const DEFAULT_OUTPUT_BUFFER_FRAMES: u32 = 256;
+const DEFAULT_OUTPUT_BUFFER_FRAMES: u32 = AUDIO_OUTPUT_BUFFER_FRAMES as u32;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 /// The shipped direct-CPAL ALSA profile default for Orange audio.
-pub(super) const ORANGE_DEFAULT_OUTPUT_BUFFER_FRAMES: u32 = 256;
+pub(super) const ORANGE_DEFAULT_OUTPUT_BUFFER_FRAMES: u32 = AUDIO_OUTPUT_BUFFER_FRAMES as u32;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(super) const ORANGE_BUFFER_QUALIFICATION_STAGES: &[u32] = &[1024, 512, 256];
 const MIN_OUTPUT_BUFFER_FRAMES: u32 = 32;
@@ -98,7 +101,7 @@ pub(super) fn build_orange_cpal_stream(
     let output_buffer_frames = orange_output_buffer_frames(output_buffer_frames);
     config.buffer_size = BufferSize::Fixed(output_buffer_frames);
     let engine_block_frames =
-        EngineSource::resolve_block_frames(orange_engine_block_frames(output_buffer_frames));
+        EngineSource::resolve_block_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES);
     let source =
         EngineSource::with_block_frames(engine_rx, config.sample_rate.0, engine_block_frames);
     match sample_format {
@@ -274,11 +277,6 @@ fn orange_output_buffer_frames(configured_frames: Option<u32>) -> u32 {
         configured_frames,
         ORANGE_DEFAULT_OUTPUT_BUFFER_FRAMES,
     )
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-pub(super) fn orange_engine_block_frames(output_buffer_frames: u32) -> usize {
-    (output_buffer_frames / 4) as usize
 }
 
 pub(super) fn resolve_output_buffer_frames(

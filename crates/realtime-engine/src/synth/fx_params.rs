@@ -9,13 +9,61 @@ const DUCK_ATTACK_MS_MAX: f32 = 500.0;
 const DUCK_RELEASE_MS_MIN: f32 = 1.0;
 const DUCK_RELEASE_MS_MAX: f32 = 5000.0;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum FxKind {
+    None,
+    Tremolo,
+    Delay,
+    Vibrato,
+    Chorus,
+    Flanger,
+    FilterLfo,
+    Wah,
+    Reverb,
+    Glitch,
+    AutoPan,
+    Duck,
+    Saturator,
+    Distortion,
+    Bitcrusher,
+    Compressor,
+    Eq,
+    Vinyl,
+}
+
+impl FxKind {
+    pub(super) fn parse(kind: &str) -> Option<Self> {
+        match kind {
+            "none" => Some(Self::None),
+            "tremolo" => Some(Self::Tremolo),
+            "delay" => Some(Self::Delay),
+            "vibrato" => Some(Self::Vibrato),
+            "chorus" => Some(Self::Chorus),
+            "flanger" => Some(Self::Flanger),
+            "filter_lfo" => Some(Self::FilterLfo),
+            "wah" => Some(Self::Wah),
+            "reverb" => Some(Self::Reverb),
+            "glitch" => Some(Self::Glitch),
+            "auto_pan" => Some(Self::AutoPan),
+            "duck" => Some(Self::Duck),
+            "saturator" => Some(Self::Saturator),
+            "distortion" => Some(Self::Distortion),
+            "bitcrusher" => Some(Self::Bitcrusher),
+            "compressor" => Some(Self::Compressor),
+            "eq" => Some(Self::Eq),
+            "vinyl" => Some(Self::Vinyl),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(super) enum FilterLfoKind {
     FilterLfo,
     Wah,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum DuckSource {
     Instrument(usize),
     Bus(usize),
@@ -108,38 +156,39 @@ pub(super) enum FxBusParams {
 }
 
 pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
-    match cfg.kind_str() {
-        "tremolo" => FxBusParams::Tremolo {
+    match FxKind::parse(cfg.kind_str()).unwrap_or(FxKind::None) {
+        FxKind::None => FxBusParams::None,
+        FxKind::Tremolo => FxBusParams::Tremolo {
             rate_hz: param_f32(cfg, "rateHz", 4.0).clamp(0.05, 40.0),
             depth: pct(cfg, "depthPct", 60.0),
         },
-        "delay" => FxBusParams::Delay {
+        FxKind::Delay => FxBusParams::Delay {
             time_ms: param_f32(cfg, "timeMs", 250.0).clamp(1.0, 2000.0),
             feedback: param_f32(cfg, "feedback", 0.35).clamp(0.0, 0.98),
             mix: pct(cfg, "mixPct", 35.0),
             spread: pct(cfg, "spreadPct", 0.0),
         },
-        "vibrato" => mod_delay(cfg, 6.0, 8.0, 0.0, 100.0),
-        "chorus" => mod_delay(cfg, 14.0, 22.0, 0.0, 45.0),
-        "flanger" => mod_delay(cfg, 2.0, 3.0, 0.35, 45.0),
-        "filter_lfo" => filter_lfo(cfg, FilterLfoKind::FilterLfo, 0.5, 1600.0, 1.0),
-        "wah" => filter_lfo(cfg, FilterLfoKind::Wah, 1.2, 900.0, 6.0),
-        "reverb" => FxBusParams::Reverb {
+        FxKind::Vibrato => mod_delay(cfg, 6.0, 8.0, 0.0, 100.0),
+        FxKind::Chorus => mod_delay(cfg, 14.0, 22.0, 0.0, 45.0),
+        FxKind::Flanger => mod_delay(cfg, 2.0, 3.0, 0.35, 45.0),
+        FxKind::FilterLfo => filter_lfo(cfg, FilterLfoKind::FilterLfo, 0.5, 1600.0, 1.0),
+        FxKind::Wah => filter_lfo(cfg, FilterLfoKind::Wah, 1.2, 900.0, 6.0),
+        FxKind::Reverb => FxBusParams::Reverb {
             mix: pct(cfg, "mixPct", 30.0),
             decay: param_f32(cfg, "decay", 0.72).clamp(0.0, 0.995),
             damp: param_f32(cfg, "damp", 0.35).clamp(0.0, 0.98),
         },
-        "glitch" => FxBusParams::Glitch {
+        FxKind::Glitch => FxBusParams::Glitch {
             chance: pct(cfg, "chancePct", 8.0),
             slice_ms: param_f32(cfg, "sliceMs", 80.0).clamp(5.0, 500.0),
             mix: pct(cfg, "mixPct", 100.0),
         },
-        "auto_pan" => FxBusParams::AutoPan {
+        FxKind::AutoPan => FxBusParams::AutoPan {
             rate_hz: param_f32(cfg, "rateHz", 0.5).clamp(0.02, 20.0),
             depth: pct(cfg, "depthPct", 100.0),
         },
-        "duck" => FxBusParams::Duck {
-            source: duck_source(param_str(cfg, "source", "I1").as_str()),
+        FxKind::Duck => FxBusParams::Duck {
+            source: duck_source_from_config(cfg),
             threshold: param_f32(cfg, "threshold", 0.08)
                 .clamp(DUCK_THRESHOLD_MIN, DUCK_THRESHOLD_MAX),
             amount: param_f32(cfg, "amountPct", 60.0).clamp(DUCK_AMOUNT_MIN, DUCK_AMOUNT_MAX)
@@ -149,21 +198,21 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             release_ms: param_f32(cfg, "releaseMs", 160.0)
                 .clamp(DUCK_RELEASE_MS_MIN, DUCK_RELEASE_MS_MAX),
         },
-        "saturator" => FxBusParams::Saturator {
+        FxKind::Saturator => FxBusParams::Saturator {
             drive: param_f32(cfg, "drive", 1.8).clamp(0.0, 20.0),
             mix: pct(cfg, "mixPct", 100.0),
         },
-        "distortion" => FxBusParams::Distortion {
+        FxKind::Distortion => FxBusParams::Distortion {
             drive: param_f32(cfg, "drive", 2.5).clamp(0.0, 50.0),
             clip: param_f32(cfg, "clip", 0.6).clamp(0.05, 2.0),
             mix: pct(cfg, "mixPct", 100.0),
         },
-        "bitcrusher" => FxBusParams::Bitcrusher {
+        FxKind::Bitcrusher => FxBusParams::Bitcrusher {
             rate_div: param_f32(cfg, "rateDiv", 4.0).round().clamp(1.0, 128.0) as u32,
             bits: param_f32(cfg, "bits", 6.0).round().clamp(1.0, 16.0) as u32,
             mix: pct(cfg, "mixPct", 100.0),
         },
-        "compressor" => FxBusParams::Compressor {
+        FxKind::Compressor => FxBusParams::Compressor {
             threshold_db: param_f32(cfg, "thresholdDb", -24.0).clamp(-60.0, 0.0),
             ratio: param_f32(cfg, "ratio", 4.0).clamp(1.0, 20.0),
             attack_ms: param_f32(cfg, "attackMs", 10.0).clamp(0.1, 200.0),
@@ -171,7 +220,7 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             makeup_db: param_f32(cfg, "makeupDb", 0.0).clamp(0.0, 24.0),
             mix: pct(cfg, "mixPct", 100.0),
         },
-        "eq" => FxBusParams::Eq {
+        FxKind::Eq => FxBusParams::Eq {
             low_gain_db: param_f32(cfg, "lowGainDb", 0.0).clamp(-12.0, 12.0),
             mid_gain_db: param_f32(cfg, "midGainDb", 0.0).clamp(-12.0, 12.0),
             mid_freq_hz: param_f32(cfg, "midFreqHz", 1000.0).clamp(40.0, 8000.0),
@@ -179,13 +228,12 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             high_gain_db: param_f32(cfg, "highGainDb", 0.0).clamp(-12.0, 12.0),
             mix: pct(cfg, "mixPct", 100.0),
         },
-        "vinyl" => FxBusParams::Vinyl {
+        FxKind::Vinyl => FxBusParams::Vinyl {
             saturation: pct(cfg, "saturationPct", 15.0),
             crackle: pct(cfg, "cracklePct", 8.0),
             warp_depth: pct(cfg, "warpDepthPct", 5.0),
             mix: pct(cfg, "mixPct", 100.0),
         },
-        _ => FxBusParams::None,
     }
 }
 
@@ -221,7 +269,7 @@ fn filter_lfo(
     }
 }
 
-fn duck_source(source: &str) -> DuckSource {
+pub(super) fn parse_duck_source(source: &str) -> DuckSource {
     if let Some(rest) = source.strip_prefix('B') {
         return rest
             .parse::<usize>()
@@ -238,6 +286,15 @@ fn duck_source(source: &str) -> DuckSource {
         .unwrap_or(DuckSource::Instrument(0))
 }
 
+pub(super) fn duck_source_from_config(cfg: &FxBusSlotConfig) -> DuckSource {
+    let source = cfg
+        .params()
+        .and_then(|params| params.get("source"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("I1");
+    parse_duck_source(source)
+}
+
 fn pct(cfg: &FxBusSlotConfig, key: &str, fallback: f32) -> f32 {
     (param_f32(cfg, key, fallback) / 100.0).clamp(0.0, 1.0)
 }
@@ -248,12 +305,4 @@ fn param_f32(cfg: &FxBusSlotConfig, key: &str, fallback: f32) -> f32 {
         .and_then(|value| value.as_f64())
         .map(|value| value as f32)
         .unwrap_or(fallback)
-}
-
-fn param_str(cfg: &FxBusSlotConfig, key: &str, fallback: &str) -> String {
-    cfg.params()
-        .and_then(|params| params.get(key))
-        .and_then(|value| value.as_str())
-        .unwrap_or(fallback)
-        .to_string()
 }

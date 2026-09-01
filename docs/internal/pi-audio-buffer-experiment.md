@@ -1,6 +1,8 @@
 # Pi audio buffer experiment: 128-frame rendering and output
 
-Product defaults remain 256-frame internal render blocks, a 256-frame output buffer, and 2 synth-slot workers.
+This is a historical experiment note. Worker settings, comparisons, and telemetry
+below are retained as historical evidence only; they are not part of the current
+configuration, benchmark schema, or control contract.
 
 ## What we tested
 
@@ -29,10 +31,10 @@ Experimental commit not brought back:
 Configuration:
 
 ```text
-OCTESSERA_AUDIO_BLOCK_FRAMES=128
+OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES=128
 OCTESSERA_PI_PROFILE_MEASURE_FRAMES=256
 OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES=256
-OCTESSERA_SYNTH_SLOT_WORKERS=2
+legacy synth worker-pool setting: 2
 ```
 
 Result: stable enough for later consideration, but not a real output-latency win.
@@ -53,9 +55,9 @@ Soak profiles had isolated raw max spikes in the bus-heavy scenario. The same ki
 Configuration:
 
 ```text
-OCTESSERA_AUDIO_BLOCK_FRAMES=128
+OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES=128
 OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES=128
-OCTESSERA_SYNTH_SLOT_WORKERS=2
+legacy synth worker-pool setting: 2
 ```
 
 Result: not reasonably feasible on the current Pi ALSA/cpal output path.
@@ -74,7 +76,7 @@ That isolates the failure to the real 128-frame output buffer path, not the synt
 - Internal 128-frame rendering can be made stable behind a 256-frame output buffer.
 - That does not halve real output latency. The hardware/backend callback budget is still 256 frames.
 - True 128-frame output underruns before synth-worker load matters.
-- The practical product floor remains 256/256 for now.
+- The practical product output floor remains 256 frames for now; the default internal render quantum is 128.
 - If we chase lower real latency later, start with Pi ALSA/cpal output characterization, not synth optimization.
 
 Potential future probes:

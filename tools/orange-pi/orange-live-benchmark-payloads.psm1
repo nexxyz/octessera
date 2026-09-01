@@ -149,7 +149,7 @@ reset_failed_unit() {
 validate_benchmark_readiness() {
   local marker="$1" expected_pid="$2" expected_invocation="$3"
   [ -r "$marker" ] || return 1
-  [ "$(json_field schema_version "$marker")" = 2 ]
+  [ "$(json_field schema_version "$marker")" = 3 ]
   [ "$(json_field kind "$marker")" = orange_audio_benchmark_readiness ]
   [ "$(json_field status "$marker")" = ready ]
   [ "$(json_field board_profile "$marker")" = orange-pi-zero-2w ]
@@ -163,7 +163,6 @@ validate_benchmark_readiness() {
   [ "$(json_field sample_rate "$marker")" = 44100 ]
   [ "$(json_field channels "$marker")" = 2 ]
   [ "$(json_field internal_block_frames "$marker")" = __INTERNAL_FRAMES__ ]
-  [ "$(json_field workers_requested "$marker")" = __WORKERS__ ]
   callback_min="$(json_field callback_frames_min "$marker")"
   callback_max="$(json_field callback_frames_max "$marker")"
   callback_samples="$(json_field callback_frame_sample_count "$marker")"
@@ -175,9 +174,6 @@ validate_benchmark_readiness() {
   [ "$callback_max" -le __OUTPUT_FRAMES__ ]
   [ "$callback_samples" -ge 3 ]
   [ "$callback_invalid" = 0 ]
-  expected_workers_effective=false
-  [ __INTERNAL_FRAMES__ -ge 256 ] && [ __WORKERS__ -ne 0 ] && expected_workers_effective=true
-  [ "$(json_field workers_effective "$marker")" = "$expected_workers_effective" ]
   case "$(json_field sample_format "$marker")" in F32|I16|U16) ;; *) return 1;; esac
   [ "$(json_field scheduler_qualified "$marker")" = true ]
   [ "$(json_field post_dsp_zero "$marker")" = true ]
@@ -230,7 +226,7 @@ capture_alsa_release() {
   if ! sudo -n mv -f -- "$release_tmp" "$release"; then sudo -n rm -f -- "$release" "$release_tmp" "$release_source"; return 1; fi
 }
 validate_benchmark_progress() {
-  [ -r "$progress" ] && [ "$(json_field schema_version "$progress")" = 2 ] && [ "$(json_field kind "$progress")" = orange_audio_benchmark_progress ]
+  [ -r "$progress" ] && [ "$(json_field schema_version "$progress")" = 3 ] && [ "$(json_field kind "$progress")" = orange_audio_benchmark_progress ]
   [ "$(json_field board_profile "$progress")" = orange-pi-zero-2w ] && [ "$(json_field pid "$progress")" = "$benchmark_pid" ]
   [ "$(json_field systemd_invocation_id "$progress")" = "$benchmark_invocation" ] && [ "$(json_field artifact_sha256 "$progress")" = "$expected_sha" ]
   [ "$(json_field scenario "$progress")" = __SCENARIO__ ] && [ "$(json_field requested_output_buffer_frames "$progress")" = __OUTPUT_FRAMES__ ]
@@ -320,7 +316,7 @@ test -x "$binary"; test -r "$metadata"; remote_sha="$(sha256sum -- "$binary" | a
 sudo -n systemctl stop "$service"
 interruption_started=true
 launch_status=0
-sudo -n systemd-run --unit="$unit" --service-type=exec --no-block --property=RuntimeMaxSec=__RUNTIME_MAX_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property=RuntimeDirectoryPreserve=yes --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w --setenv=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets --setenv=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples --setenv=OCTESSERA_OLED_BOOT_HANDOFF=v1 --setenv=OCTESSERA_CANDIDATE_HEALTH_PATH=__HEALTH__ "$binary" --benchmark-orange-audio --scenario __SCENARIO__ --output-frames __OUTPUT_FRAMES__ --engine-block-frames __INTERNAL_FRAMES__ --workers __WORKERS__ --warmup-seconds 5 --measure-seconds __MEASURE_SECONDS__ --readiness "$readiness" --progress "$progress" --result "$result" --release-gate "$release" --release-timeout-seconds __RELEASE_TIMEOUT_SECONDS__ --artifact-sha256 "$expected_sha" || launch_status=$?
+sudo -n systemd-run --unit="$unit" --service-type=exec --no-block --property=RuntimeMaxSec=__RUNTIME_MAX_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property=RuntimeDirectoryPreserve=yes --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w --setenv=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets --setenv=OCTESSERA_OLED_BOOT_HANDOFF=v1 --setenv=OCTESSERA_CANDIDATE_HEALTH_PATH=__HEALTH__ "$binary" --benchmark-orange-audio --scenario __SCENARIO__ --output-frames __OUTPUT_FRAMES__ --engine-block-frames __INTERNAL_FRAMES__ --warmup-seconds 5 --measure-seconds __MEASURE_SECONDS__ --readiness "$readiness" --progress "$progress" --result "$result" --release-gate "$release" --release-timeout-seconds __RELEASE_TIMEOUT_SECONDS__ --artifact-sha256 "$expected_sha" || launch_status=$?
 [ "$launch_status" -eq 0 ] || { study_status=66; exit "$study_status"; }
 sensor_loop > "$root/sensor-sampler.stderr" 2>&1 & sampler_pid=$!
 wait_for_benchmark_readiness || { study_status=66; stop_benchmark_unit; exit "$study_status"; }
@@ -328,7 +324,7 @@ capture_alsa_release || { study_status=66; stop_benchmark_unit; exit "$study_sta
 wait_for_benchmark_terminal || true
 exit "$study_status"
 '@
-  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__WORKERS__", [string]$Selection.Workers).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds)
+  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds)
   $study = "set -eu`numask 077`nroot=$(Quote-LiveShValue $RemoteRoot)`nhealth=$(Quote-LiveShValue $HealthPath)`nunit=$(Quote-LiveShValue $Unit)`n$readinessHelpers`n$body"
   $prepare = "set -eu`numask 077`ntest ! -e $(Quote-LiveShValue $RemoteRoot)`nmkdir -m 0700 -- $(Quote-LiveShValue $RemoteRoot)`nsudo -n chgrp octessera-runtime $(Quote-LiveShValue $RemoteRoot)`nchmod 0710 $(Quote-LiveShValue $RemoteRoot)"
   $cleanup = @'

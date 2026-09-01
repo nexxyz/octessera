@@ -1,3 +1,4 @@
+use super::inline_source_executor::{SampleSourceContext, SourceRenderOutput, SynthSourceContext};
 use super::render_profile;
 use super::*;
 use crate::simd::interleave_stereo;
@@ -70,33 +71,40 @@ impl SynthEngine {
         left_out: &mut [f32],
         right_out: &mut [f32],
     ) {
-        let base_sample_clock = self.sample_clock;
-        let synth_prerendered = self.try_parallel_synth_slot_prerender(frames, base_sample_clock);
-        for slot in 0..INSTRUMENT_SLOT_COUNT {
-            for frame in 0..frames {
-                let rendered = self.render_sample_slot(slot);
-                self.block_slot_scratch.sample_slot_out[slot][frame] = rendered.sample;
-                self.block_slot_scratch.sample_active[slot][frame] = rendered.active;
-            }
+        {
+            let scratch = &mut self.block_slot_scratch;
+            scratch.inline_source_executor.render_sample_sources(
+                frames,
+                &mut self.sample_voice_pool,
+                SampleSourceContext {
+                    sample_rate: self.sample_rate,
+                    banks: &self.sample_banks,
+                },
+                SourceRenderOutput {
+                    slot_out: &mut scratch.sample_slot_out,
+                    slot_active: &mut scratch.sample_active,
+                    active_slots: &mut self.active_sample_slots,
+                },
+            );
         }
-        if synth_prerendered {
-            for slot in 0..INSTRUMENT_SLOT_COUNT {
-                if let Some(voices) = self.block_slot_scratch.synth_voices[slot] {
-                    self.voices[slot] = voices;
-                    self.active_synth_slots[slot] =
-                        self.block_slot_scratch.synth_final_active[slot];
-                }
-            }
-        } else {
-            for slot in 0..INSTRUMENT_SLOT_COUNT {
-                for frame in 0..frames {
-                    let frame_sample_clock = base_sample_clock.saturating_add(frame as u64);
-                    let rendered = self.render_synth_slot_at(slot, frame_sample_clock);
-                    self.block_slot_scratch.synth_slot_out[slot][frame] = rendered.sample;
-                    self.block_slot_scratch.synth_active[slot][frame] = rendered.active;
-                }
-            }
-        }
+        let scratch = &mut self.block_slot_scratch;
+        scratch.inline_source_executor.render_synth_sources(
+            frames,
+            self.sample_clock,
+            &mut self.synth_voice_pool,
+            SynthSourceContext {
+                sample_rate: self.sample_rate,
+                configs: &self.instruments,
+                render_configs: &self.synth_render_configs,
+                revisions: &self.synth_render_revisions,
+                mods: &self.mods,
+            },
+            SourceRenderOutput {
+                slot_out: &mut scratch.synth_slot_out,
+                slot_active: &mut scratch.synth_active,
+                active_slots: &mut self.active_synth_slots,
+            },
+        );
         for frame in 0..frames {
             let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
             let mut sample_active = false;
@@ -115,47 +123,6 @@ impl SynthEngine {
             left_out[frame] = left;
             right_out[frame] = right;
         }
-    }
-
-    fn try_parallel_synth_slot_prerender(&mut self, frames: usize, base_sample_clock: u64) -> bool {
-        if self.synth_parallel_unhealthy {
-            return false;
-        }
-        if self.synth_parallel_backoff_blocks > 0 {
-            self.synth_parallel_backoff_blocks -= 1;
-            self.record_synth_parallel_backoff_skip();
-            return false;
-        }
-        let Some(workers) = self.synth_workers.as_mut() else {
-            return false;
-        };
-        let inputs = std::array::from_fn(|slot| render_synth_parallel::SynthSlotRenderInput {
-            active: self.active_synth_slots[slot],
-            voices: self.voices[slot],
-            config: self.instruments[slot],
-            render_config: self.synth_render_configs[slot],
-            revision: self.synth_render_revisions[slot],
-            mods: self.mods[slot],
-        });
-        if !workers.should_render_parallel(frames, &inputs) {
-            self.record_synth_parallel_light_skip();
-            return false;
-        }
-        let start = Instant::now();
-        let rendered = workers.render_synth_slots(
-            frames,
-            base_sample_clock,
-            self.sample_rate,
-            &inputs,
-            &mut self.block_slot_scratch,
-        );
-        if !rendered {
-            self.record_synth_parallel_failure();
-            return false;
-        }
-        self.record_synth_parallel_dispatch();
-        self.apply_synth_parallel_timing_backoff(frames, start.elapsed().as_nanos() as u64);
-        true
     }
 
     fn profiled_serial_frame_graph(&mut self) -> (f32, f32) {
@@ -264,219 +231,5 @@ impl SynthEngine {
                 .map(|block_start| block_start.elapsed().as_nanos() as u64)
                 .unwrap_or(self.render_profile.interleave_ns);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::synth::{
-        FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig,
-        InstrumentsConfig, MixerConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
-    };
-    use serde_json::json;
-    use std::collections::BTreeMap;
-
-    #[test]
-    fn block_render_matches_repeated_stereo_samples_for_synth() {
-        let mut block = SynthEngine::new(44_100);
-        let mut reference = SynthEngine::new(44_100);
-        block.note_on(0, 60, 96, 1_000);
-        reference.note_on(0, 60, 96, 1_000);
-        assert_block_matches_reference(block, reference, 128);
-    }
-
-    #[test]
-    fn block_render_matches_repeated_stereo_samples_for_fx() {
-        let config = delay_bus_config();
-        let mut block = SynthEngine::new(44_100);
-        let mut reference = SynthEngine::new(44_100);
-        block.set_instruments(config.clone());
-        reference.set_instruments(config);
-        block.note_on(0, 60, 96, 1_000);
-        reference.note_on(0, 60, 96, 1_000);
-        assert_block_matches_reference(block, reference, 256);
-    }
-
-    #[test]
-    fn block_render_matches_repeated_stereo_samples_for_multi_slot_synth() {
-        let mut block = SynthEngine::new(44_100);
-        let mut reference = SynthEngine::new(44_100);
-        for (slot, note, velocity) in [(0, 60, 96), (1, 64, 88), (2, 67, 104), (3, 72, 72)] {
-            block.note_on(slot, note, velocity, 1_000);
-            reference.note_on(slot, note, velocity, 1_000);
-        }
-
-        assert_block_matches_reference(block, reference, 256);
-    }
-
-    #[test]
-    fn block_render_matches_repeated_stereo_samples_for_multi_slot_samples() {
-        let mut block = multi_slot_sample_engine();
-        let mut reference = multi_slot_sample_engine();
-        for (slot, velocity) in [(0, 127), (1, 96), (2, 80), (3, 112)] {
-            block.note_on(slot, 36, velocity, 1_000);
-            reference.note_on(slot, 36, velocity, 1_000);
-        }
-        assert_eq!(block.profile_snapshot().active_sample_voices, 4);
-        assert_eq!(reference.profile_snapshot().active_sample_voices, 4);
-
-        assert_block_matches_reference(block, reference, 8);
-    }
-
-    #[test]
-    fn note_on_keeps_synth_voice_instrument_slot_aligned_with_pool() {
-        let mut engine = SynthEngine::new(44_100);
-        for slot in 0..INSTRUMENT_SLOT_COUNT {
-            engine.note_on(slot as u8, 60 + slot as u8, 96, 1_000);
-        }
-
-        for slot in 0..INSTRUMENT_SLOT_COUNT {
-            assert!(engine.voices[slot]
-                .iter()
-                .filter(|voice| voice.active)
-                .all(|voice| voice.instrument_slot as usize == slot));
-        }
-    }
-
-    #[test]
-    fn render_profile_disabled_remains_inert_after_rendering() {
-        let mut engine = SynthEngine::new(44_100);
-        let mut left = Vec::new();
-        let mut right = Vec::new();
-        let mut out = Vec::new();
-        engine.note_on(0, 60, 96, 1_000);
-
-        let _ = engine.next_stereo_sample();
-        engine.render_interleaved_block(16, &mut left, &mut right, &mut out);
-
-        assert_eq!(
-            engine.render_profile_snapshot(),
-            RenderProfileSnapshot::default()
-        );
-    }
-
-    #[test]
-    fn render_profile_enabled_records_block_observations() {
-        let mut engine = SynthEngine::new(44_100);
-        let mut left = Vec::new();
-        let mut right = Vec::new();
-        let mut out = Vec::new();
-        engine.set_render_profile_enabled(true);
-        engine.note_on(0, 60, 96, 1_000);
-
-        engine.render_interleaved_block(32, &mut left, &mut right, &mut out);
-
-        let snapshot = engine.render_profile_snapshot();
-        assert!(snapshot.enabled);
-        assert_eq!(snapshot.frames_observed, 32);
-        assert_eq!(snapshot.blocks_observed, 1);
-        assert_eq!(snapshot.last_block_frames, 32);
-        assert!(snapshot.last_frame_total_ns > 0);
-        assert!(snapshot.last_block_total_ns > 0);
-        assert_eq!(snapshot.stage_ns.len(), RENDER_PROFILE_STAGE_COUNT);
-    }
-
-    #[test]
-    fn profiled_block_render_matches_unprofiled_fx_reference() {
-        let config = delay_bus_config();
-        let mut profiled = SynthEngine::new(44_100);
-        let mut reference = SynthEngine::new(44_100);
-        profiled.set_instruments(config.clone());
-        reference.set_instruments(config);
-        profiled.set_render_profile_enabled(true);
-        profiled.note_on(0, 60, 96, 1_000);
-        reference.note_on(0, 60, 96, 1_000);
-
-        assert_block_matches_reference(profiled, reference, 256);
-    }
-
-    fn assert_block_matches_reference(
-        mut block: SynthEngine,
-        mut reference: SynthEngine,
-        frames: usize,
-    ) {
-        let mut left = Vec::new();
-        let mut right = Vec::new();
-        let mut out = Vec::new();
-        block.render_interleaved_block(frames, &mut left, &mut right, &mut out);
-        let mut expected = Vec::with_capacity(frames * 2);
-        for _ in 0..frames {
-            let (l, r) = reference.next_stereo_sample();
-            expected.push(l);
-            expected.push(r);
-        }
-        assert_eq!(out.len(), expected.len());
-        for (idx, (actual, expected)) in out.iter().zip(expected).enumerate() {
-            assert_eq!(actual.to_bits(), expected.to_bits(), "sample {idx}");
-        }
-    }
-
-    fn delay_bus_config() -> InstrumentsConfig {
-        let synth = default_synth_config();
-        InstrumentsConfig {
-            instruments: vec![InstrumentSlotConfig {
-                kind: "synth".to_string(),
-                synth,
-                mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".to_string(),
-                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
-                    volume: 100.0,
-                }),
-            }],
-            mixer: Some(MixerConfig {
-                buses: vec![FxBusConfig {
-                    slots: vec![FxBusSlotConfig::Config {
-                        kind: "delay".to_string(),
-                        params: [
-                            ("timeMs".to_string(), json!(35.0)),
-                            ("feedback".to_string(), json!(0.25)),
-                            ("mixPct".to_string(), json!(35.0)),
-                        ]
-                        .into_iter()
-                        .collect::<BTreeMap<_, _>>(),
-                    }],
-                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
-                    volume_pct: 100.0,
-                }],
-                master: None,
-            }),
-            pan_positions: DEFAULT_PAN_POSITIONS,
-            master_volume: 100.0,
-        }
-    }
-
-    fn multi_slot_sample_engine() -> SynthEngine {
-        let mut engine = SynthEngine::new(48_000);
-        engine.set_instruments(InstrumentsConfig {
-            instruments: (0..INSTRUMENT_SLOT_COUNT)
-                .map(|_| InstrumentSlotConfig {
-                    kind: "sampler".to_string(),
-                    synth: default_synth_config(),
-                    mixer: None,
-                })
-                .collect(),
-            mixer: None,
-            pan_positions: DEFAULT_PAN_POSITIONS,
-            master_volume: 100.0,
-        });
-        engine.set_sample_banks(
-            (0..INSTRUMENT_SLOT_COUNT)
-                .map(|slot| sample_bank(vec![1.0 - slot as f32 * 0.1, 0.5, 0.25, 0.0]))
-                .collect(),
-        );
-        engine
-    }
-
-    fn sample_bank(samples: Vec<f32>) -> SampleBankConfig {
-        let mut bank = SampleBankConfig::default();
-        bank.slots[0] = SampleSlotConfig {
-            buffer: Some(SampleBuffer {
-                samples: samples.into(),
-                channels: 1,
-                sample_rate: 48_000,
-            }),
-        };
-        bank
     }
 }

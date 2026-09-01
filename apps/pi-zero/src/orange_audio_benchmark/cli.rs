@@ -87,7 +87,6 @@ pub struct BenchmarkConfig {
     pub output_frames: u32,
     pub expected_alsa_period_frames: u32,
     pub internal_frames: usize,
-    pub workers: usize,
     pub warmup_seconds: u64,
     pub measure_seconds: u64,
     pub result_path: PathBuf,
@@ -111,7 +110,6 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     let mut scenario = None;
     let mut output_frames = None;
     let mut engine_block_frames = None;
-    let mut workers = None;
     let mut warmup_seconds = DEFAULT_WARMUP_SECONDS;
     let mut measure_seconds = DEFAULT_MEASURE_SECONDS;
     let mut result_path = PathBuf::from(DEFAULT_RESULT_PATH);
@@ -132,7 +130,6 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
             "--engine-block-frames" => {
                 engine_block_frames = Some(parse_value(&mut iter, "engine block frames")?)
             }
-            "--workers" => workers = Some(parse_value(&mut iter, "workers")?),
             "--warmup-seconds" => warmup_seconds = parse_value(&mut iter, "warmup seconds")?,
             "--measure-seconds" => measure_seconds = parse_value(&mut iter, "measure seconds")?,
             "--result" => result_path = PathBuf::from(next_value(&mut iter, "result path")?),
@@ -173,13 +170,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     if !matches!(internal_frames, 32 | 64 | 128 | 256) {
         return Err("engine block frames must be 32, 64, 128, or 256".into());
     }
-    let workers = workers.ok_or_else(|| "--workers is required".to_string())?;
-    if !matches!(workers, 0 | 2 | 3) {
-        return Err("workers must be 0, 2, or 3".into());
-    }
-    if !approved_tuple(output_frames, internal_frames, workers) {
+    if !approved_tuple(output_frames, internal_frames) {
         return Err(format!(
-            "unsupported Orange benchmark geometry tuple: output={output_frames} internal={internal_frames} workers={workers}"
+            "unsupported Orange benchmark geometry tuple: output={output_frames} internal={internal_frames}"
         ));
     }
     if warmup_seconds != DEFAULT_WARMUP_SECONDS {
@@ -223,7 +216,6 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
         output_frames,
         expected_alsa_period_frames,
         internal_frames,
-        workers,
         warmup_seconds,
         measure_seconds,
         result_path,
@@ -235,15 +227,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     })
 }
 
-fn approved_tuple(output_frames: u32, internal_frames: usize, workers: usize) -> bool {
+fn approved_tuple(output_frames: u32, internal_frames: usize) -> bool {
     matches!(
-        (output_frames, internal_frames, workers),
-        (128, 32, 2)
-            | (256, 64, 2)
-            | (256, 256, 0)
-            | (256, 256, 2)
-            | (512, 128, 2)
-            | (1024, 256, 0 | 2 | 3)
+        (output_frames, internal_frames),
+        (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
     )
 }
 
@@ -273,8 +260,6 @@ mod tests {
             "256".into(),
             "--engine-block-frames".into(),
             "64".into(),
-            "--workers".into(),
-            "2".into(),
             "--release-gate".into(),
             "release.json".into(),
             "--artifact-sha256".into(),
@@ -282,7 +267,7 @@ mod tests {
         ]
     }
 
-    fn args_for(output_frames: u32, internal_frames: usize, workers: usize) -> Vec<String> {
+    fn args_for(output_frames: u32, internal_frames: usize) -> Vec<String> {
         let mut args = valid_args();
         set_arg(&mut args, "--output-frames", output_frames.to_string());
         set_arg(
@@ -290,7 +275,6 @@ mod tests {
             "--engine-block-frames",
             internal_frames.to_string(),
         );
-        set_arg(&mut args, "--workers", workers.to_string());
         args
     }
 
@@ -306,21 +290,18 @@ mod tests {
 
     #[test]
     fn approved_cli_tuples_store_independent_geometry() {
-        for (output, internal, workers, period) in [
-            (128, 32, 2, 32),
-            (256, 64, 2, 64),
-            (256, 256, 0, 64),
-            (256, 256, 2, 64),
-            (512, 128, 2, 128),
-            (1024, 256, 0, 256),
-            (1024, 256, 2, 256),
-            (1024, 256, 3, 256),
+        for (output, internal, period) in [
+            (128, 32, 32),
+            (256, 64, 64),
+            (256, 128, 64),
+            (256, 256, 64),
+            (512, 128, 128),
+            (1024, 256, 256),
         ] {
-            let config = parse(args_for(output, internal, workers)).unwrap();
+            let config = parse(args_for(output, internal)).unwrap();
             assert_eq!(config.output_frames, output);
             assert_eq!(config.expected_alsa_period_frames, period);
             assert_eq!(config.internal_frames, internal);
-            assert_eq!(config.workers, workers);
         }
         let config = parse(valid_args()).unwrap();
         assert_ne!(config.result_path, config.progress_path);
@@ -367,25 +348,13 @@ mod tests {
         let mut invalid_block = valid_args();
         set_arg(&mut invalid_block, "--engine-block-frames", "512".into());
         assert!(parse(invalid_block).is_err());
-        for (output, internal, workers) in [
-            (128, 32, 0),
-            (128, 32, 3),
-            (128, 64, 2),
-            (64, 32, 2),
-            (256, 64, 0),
-            (256, 64, 3),
-            (256, 128, 2),
-            (256, 256, 3),
-            (512, 128, 0),
-            (512, 256, 2),
-            (1024, 128, 2),
-        ] {
-            assert!(parse(args_for(output, internal, workers)).is_err());
+        for (output, internal) in [(128, 64), (64, 32), (256, 32), (512, 256), (1024, 128)] {
+            assert!(parse(args_for(output, internal)).is_err());
         }
     }
 
     #[test]
-    fn invalid_scenario_duration_worker_and_unmuted_are_rejected() {
+    fn invalid_scenario_duration_and_unmuted_are_rejected() {
         assert!(parse(vec!["--benchmark-orange-audio".into()]).is_err());
         let mut args = valid_args();
         args[1] = "--unmuted".into();
@@ -396,9 +365,6 @@ mod tests {
         let mut args = valid_args();
         args.push("--measure-seconds".into());
         args.push("31".into());
-        assert!(parse(args).is_err());
-        let mut args = valid_args();
-        set_arg(&mut args, "--workers", "1".into());
         assert!(parse(args).is_err());
         let mut args = valid_args();
         set_arg(

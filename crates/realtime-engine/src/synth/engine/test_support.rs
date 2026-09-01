@@ -3,7 +3,38 @@ use super::*;
 impl SynthEngine {
     #[cfg(test)]
     pub(in crate::synth) fn active_voice_count_for_slot(&self, slot: usize) -> usize {
-        self.voices[slot].iter().filter(|v| v.active).count()
+        self.synth_voice_pool.active_count_for_slot(slot)
+    }
+
+    #[cfg(test)]
+    pub(in crate::synth) fn active_sample_voice_count_for_slot(&self, slot: usize) -> usize {
+        self.sample_voice_pool.active_count_for_slot(slot)
+    }
+
+    #[cfg(test)]
+    pub(in crate::synth) fn assert_voice_pool_invariants(&self) {
+        self.synth_voice_pool.assert_invariants();
+        self.sample_voice_pool.assert_invariants();
+    }
+
+    #[cfg(test)]
+    pub(in crate::synth) fn active_synth_lane_indices_for_slot(&self, slot: usize) -> Vec<usize> {
+        self.synth_voice_pool
+            .slot_lanes(slot)
+            .iter()
+            .copied()
+            .filter(|lane| self.synth_voice_pool.lane(*lane).active)
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(in crate::synth) fn active_sample_lane_indices_for_slot(&self, slot: usize) -> Vec<usize> {
+        self.sample_voice_pool
+            .slot_lanes(slot)
+            .iter()
+            .copied()
+            .filter(|lane| self.sample_voice_pool.lane(*lane).active)
+            .collect()
     }
 
     #[cfg(test)]

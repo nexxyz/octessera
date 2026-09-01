@@ -128,14 +128,14 @@ function Invoke-PiProfileCell {
   New-Item -ItemType Directory -Force -Path $cellDirectory | Out-Null
   $stdout = Join-Path $cellDirectory "runner.stdout.txt"
   $stderr = Join-Path $cellDirectory "runner.stderr.txt"
-  $arguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $RunnerPath, "-Target", $Target, "-Key", $Key, "-Binary", $Binary, "-Metadata", $Metadata, "-Mode", "ProfileBaseline", "-Scenario", $Cell.scenario, "-AudioBlockFrames", [string]$Cell.internal_frames, "-ProfileMeasureFrames", [string]$Cell.measure_frames, "-SynthSlotWorkers", [string]$Cell.workers, "-AllowServiceInterruption")
+  $arguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $RunnerPath, "-Target", $Target, "-Key", $Key, "-Binary", $Binary, "-Metadata", $Metadata, "-Mode", "ProfileBaseline", "-Scenario", $Cell.scenario, "-AudioRenderQuantumFrames", [string]$Cell.internal_frames, "-ProfileMeasureFrames", [string]$Cell.measure_frames, "-AllowServiceInterruption")
   $process = Invoke-FreshPowerShell $arguments $stdout $stderr
   $systemEvidence = Assert-RaspberrySystemEvidence (Get-Content -LiteralPath $stdout -Raw) "Raspberry profile $($Cell.id) repetition $Repetition"
   Get-RestoreStatus $stdout
   if ($process.ExitCode -ne 0) { throw "Raspberry profile runner exited with code $($process.ExitCode)." }
   $row = Get-ProfileRow $stdout $Cell
   $classified = ConvertTo-PerformanceBaselineOfflineResult -Row $row -Cell $Cell -SampleRate $manifest.sample_rate -Observations $manifest.offline_observations
-  return [pscustomobject]@{ CellId = $Cell.id; Scenario = $Cell.scenario; Kind = "offline"; Repetition = $Repetition; StatusClass = $classified.StatusClass; ExitCode = $process.ExitCode; EvidenceDirectory = $cellDirectory; StdoutPath = $stdout; StderrPath = $stderr; OverBudget = $classified.OverBudget; P99_9 = $classified.P99_9; Max = $classified.Max; WorkersEffective = $classified.WorkersEffective; WorkerFailure = $classified.WorkerFailure; WorkerFailureReason = $classified.WorkerFailureReason; CallbackFields = $null; SystemEvidence = $systemEvidence; Row = $classified.Row }
+  return [pscustomobject]@{ CellId = $Cell.id; Scenario = $Cell.scenario; Kind = "offline"; Repetition = $Repetition; StatusClass = $classified.StatusClass; ExitCode = $process.ExitCode; EvidenceDirectory = $cellDirectory; StdoutPath = $stdout; StderrPath = $stderr; OverBudget = $classified.OverBudget; P99_9 = $classified.P99_9; Max = $classified.Max; CallbackFields = $null; SystemEvidence = $systemEvidence; Row = $classified.Row }
 }
 
 function Get-JsonPayload {
@@ -155,7 +155,7 @@ function Invoke-PiLiveProbe {
   New-Item -ItemType Directory -Force -Path $probeDirectory | Out-Null
   $stdout = Join-Path $probeDirectory "stdout.txt"
   $stderr = Join-Path $probeDirectory "stderr.txt"
-  $arguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $RunnerPath, "-Target", $Target, "-Key", $Key, "-Binary", $Binary, "-Metadata", $Metadata, "-Mode", $Mode, "-Durations", "$($Cell.duration_seconds)s", "-AudioOutputBufferFrames", [string]$Cell.output_frames, "-AudioBlockFrames", [string]$Cell.internal_frames, "-SynthSlotWorkers", [string]$Cell.workers, "-AllowServiceInterruption")
+  $arguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $RunnerPath, "-Target", $Target, "-Key", $Key, "-Binary", $Binary, "-Metadata", $Metadata, "-Mode", $Mode, "-Durations", "$($Cell.duration_seconds)s", "-AudioOutputBufferFrames", [string]$Cell.output_frames, "-AudioRenderQuantumFrames", [string]$Cell.internal_frames, "-AllowServiceInterruption")
   if ($Mode -eq "Live") { $arguments += @("-Scenarios", $Cell.scenario) }
   $process = Invoke-FreshPowerShell $arguments $stdout $stderr
   $systemEvidence = Assert-RaspberrySystemEvidence (Get-Content -LiteralPath $stdout -Raw) "Raspberry $Mode $($Cell.id) repetition $Repetition"
@@ -167,7 +167,7 @@ function Invoke-PiLiveProbe {
   } elseif ([int]$summary.duration_ms -ne $Cell.duration_seconds * 1000 -or [int]$summary.marks -le 0) {
     throw "Raspberry AudioDrain summary did not match the requested cell."
   }
-  $result = [ordered]@{ CellId = $Cell.id; Scenario = $Cell.scenario; Kind = $Mode; Repetition = $Repetition; StatusClass = "pass"; ExitCode = $process.ExitCode; EvidenceDirectory = $probeDirectory; StdoutPath = $stdout; StderrPath = $stderr; OutputFrames = $Cell.output_frames; InternalFrames = $Cell.internal_frames; Workers = $Cell.workers; CallbackFields = $null; SystemEvidence = $systemEvidence; Summary = $summary }
+  $result = [ordered]@{ CellId = $Cell.id; Scenario = $Cell.scenario; Kind = $Mode; Repetition = $Repetition; StatusClass = "pass"; ExitCode = $process.ExitCode; EvidenceDirectory = $probeDirectory; StdoutPath = $stdout; StderrPath = $stderr; OutputFrames = $Cell.output_frames; InternalFrames = $Cell.internal_frames; CallbackFields = $null; SystemEvidence = $systemEvidence; Summary = $summary }
   return [pscustomobject]$result
 }
 
@@ -208,11 +208,11 @@ if ($PrintOnly) {
   $index = 2
   if ($CanaryOnly) {
     $canary = Get-PerformanceBaselineCanaryCells $manifest
-    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($canary.Offline) $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6} workers={7}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames, $item.Cell.workers); $index++ }
-    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($manifest.raspberry.live_cells | Where-Object { $_.output_frames -eq 256 }) $manifest.repetitions)) { foreach ($mode in @("Live", "AudioDrain")) { Write-Output ("{0:D2}: live mode={1} repetition={2}/{3} cell={4} scenario={5} output={6} internal={7} workers={8} callback=null" -f $index, $mode, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames, $item.Cell.workers); $index++ } }
+    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($canary.Offline) $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames); $index++ }
+    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($manifest.raspberry.live_cells | Where-Object { $_.output_frames -eq 256 }) $manifest.repetitions)) { foreach ($mode in @("Live", "AudioDrain")) { Write-Output ("{0:D2}: live mode={1} repetition={2}/{3} cell={4} scenario={5} output={6} internal={7} callback=null" -f $index, $mode, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames); $index++ } }
   } else {
-    if ($Phase -in @("Offline", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOfflineCells $manifest "raspberry-pi-zero-2w") $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6} workers={7}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames, $item.Cell.workers); $index++ } }
-    if ($Phase -in @("Live", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan $manifest.raspberry.live_cells $manifest.repetitions)) { foreach ($mode in @("Live", "AudioDrain")) { Write-Output ("{0:D2}: live mode={1} repetition={2}/{3} cell={4} scenario={5} output={6} internal={7} workers={8} callback=null" -f $index, $mode, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames, $item.Cell.workers); $index++ } } }
+    if ($Phase -in @("Offline", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOfflineCells $manifest "raspberry-pi-zero-2w") $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames); $index++ } }
+    if ($Phase -in @("Live", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan $manifest.raspberry.live_cells $manifest.repetitions)) { foreach ($mode in @("Live", "AudioDrain")) { Write-Output ("{0:D2}: live mode={1} repetition={2}/{3} cell={4} scenario={5} output={6} internal={7} callback=null" -f $index, $mode, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames); $index++ } } }
   }
   exit 0
 }

@@ -22,7 +22,10 @@ fn field_count(line: &str) -> usize {
 
 #[test]
 fn formatted_profile_rows_have_the_schema_field_count() {
-    assert_eq!(field_count(&format_csv_header()), PROFILE_CSV_FIELD_COUNT);
+    let header = format_csv_header();
+    assert_eq!(field_count(&header), PROFILE_CSV_FIELD_COUNT);
+    assert!(header.contains("peak_voice_admission_drops"));
+    assert!(header.contains("voice_admission_drop_delta"));
     assert_eq!(
         field_count(&format_system_row("before", "metric", "value, \"quoted\"")),
         PROFILE_CSV_FIELD_COUNT
@@ -96,21 +99,22 @@ fn runtime_rows_leave_audio_budget_empty() {
 }
 
 #[test]
-fn legacy_notes_keep_absolute_endpoint_counters() {
+fn notes_keep_absolute_endpoint_counters() {
     let start = realtime_engine::synth::SynthProfileSnapshot {
         cumulative_voice_steals: 4,
-        synth_parallel_dispatches: 10,
+        cumulative_voice_admission_drops: 2,
         ..realtime_engine::synth::SynthProfileSnapshot::default()
     };
     let end = realtime_engine::synth::SynthProfileSnapshot {
         cumulative_voice_steals: 7,
-        synth_parallel_dispatches: 14,
+        cumulative_voice_admission_drops: 5,
         ..realtime_engine::synth::SynthProfileSnapshot::default()
     };
-    let summary = crate::dsp_profile::telemetry::TelemetrySummary::new(start, end, 2).unwrap();
+    let summary = crate::dsp_profile::telemetry::TelemetrySummary::new(start, end).unwrap();
 
     let notes = super::notes_for(&summary);
 
     assert!(notes.contains("steals=7/7"));
-    assert!(notes.contains("parallel_dispatch=14/14"));
+    assert!(notes.contains("admission_drops=5/5"));
+    assert!(!notes.contains("parallel_"));
 }

@@ -27,32 +27,31 @@ function Assert-Throws {
 }
 $scenarios = @(Get-OrangeLiveScenarioIds)
 $basePlan = @(Get-OrangeLiveMatrixPlan)
-if ($scenarios.Count -ne 11 -or $basePlan.Count -ne 28 -or $scenarios[0] -ne "synth_ramp_16" -or $scenarios[10] -ne "mixed_cross_slot_48_48_steal") {
+if ($scenarios.Count -ne 11 -or $basePlan.Count -ne 22 -or $scenarios[0] -ne "synth_ramp_16" -or $scenarios[10] -ne "mixed_cross_slot_48_48_steal") {
   throw "The approved live scenario or base matrix order changed."
 }
-foreach ($tuple in @(@{ Output = 256; Engine = 64; Period = 64; Internal = 64; Workers = 2 }, @{ Output = 256; Engine = 256; Period = 64; Internal = 256; Workers = 0 }, @{ Output = 256; Engine = 256; Period = 64; Internal = 256; Workers = 2 }, @{ Output = 512; Engine = 128; Period = 128; Internal = 128; Workers = 2 }, @{ Output = 1024; Engine = 256; Period = 256; Internal = 256; Workers = 0 }, @{ Output = 1024; Engine = 256; Period = 256; Internal = 256; Workers = 2 }, @{ Output = 1024; Engine = 256; Period = 256; Internal = 256; Workers = 3 })) {
-  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames $tuple.Output -EngineBlockFrames $tuple.Engine -Workers $tuple.Workers -MeasureSeconds 30
+foreach ($tuple in @(@{ Output = 128; Engine = 32; Period = 32; Internal = 32 }, @{ Output = 256; Engine = 64; Period = 64; Internal = 64 }, @{ Output = 256; Engine = 128; Period = 64; Internal = 128 }, @{ Output = 256; Engine = 256; Period = 64; Internal = 256 }, @{ Output = 512; Engine = 128; Period = 128; Internal = 128 }, @{ Output = 1024; Engine = 256; Period = 256; Internal = 256 })) {
+  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames $tuple.Output -EngineBlockFrames $tuple.Engine -MeasureSeconds 30
   if ($selection.AlsaPeriodFrames -ne $tuple.Period -or $selection.InternalFrames -ne $tuple.Internal -or $selection.EngineBlockFrames -ne $tuple.Engine) { throw "Approved geometry tuple was not retained independently." }
 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -Workers 3 -MeasureSeconds 30 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -Workers 2 -MeasureSeconds 30 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 512 -EngineBlockFrames 256 -Workers 2 -MeasureSeconds 30 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 1024 -EngineBlockFrames 256 -Workers 0 -MeasureSeconds 30 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 64 -Workers 2 -MeasureSeconds 120 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 64 -Workers 2 -MeasureSeconds 120 }
-$long = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 64 -Workers 2 -MeasureSeconds 120 -AllowLongRepeat:$true
-if (-not $long.LongRepeat -or $long.InternalFrames -ne 64 -or $long.AlsaPeriodFrames -ne 64) { throw "Long-repeat selection was not classified as A/64." }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 32 -MeasureSeconds 30 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 512 -EngineBlockFrames 256 -MeasureSeconds 30 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 1024 -EngineBlockFrames 256 -MeasureSeconds 30 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 }
+$long = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 120 -AllowLongRepeat:$true
+if (-not $long.LongRepeat -or $long.InternalFrames -ne 128 -or $long.AlsaPeriodFrames -ne 64) { throw "Long-repeat selection was not classified as A/128." }
 $missingActive = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-missing-" + [guid]::NewGuid().ToString("N"))
 Assert-Throws {
-  & $runner -Mode LiveAudioBenchmark -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 -Workers 2 -MeasureSeconds 30 -Artifact $missingActive -Metadata "$missingActive.metadata.json" -AllowServiceInterruption
+  & $runner -Mode LiveAudioBenchmark -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 -Artifact $missingActive -Metadata "$missingActive.metadata.json" -AllowServiceInterruption
 }
-Assert-Throws { & $runner -Mode LiveAudioBenchmark -Scenario synth_ramp_16 -OutputFrames 256 -Workers 2 -MeasureSeconds 30 -PrintOnly }
-$distinctPrint = Invoke-PrintOnly $runner @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; Artifact = $missingActive; Metadata = "$missingActive.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
-Assert-Contains $distinctPrint "Live selection: individual output=256 period=64 engine=256 internal=256 workers=2"
+Assert-Throws { & $runner -Mode LiveAudioBenchmark -Scenario synth_ramp_16 -OutputFrames 256 -MeasureSeconds 30 -PrintOnly }
+$distinctPrint = Invoke-PrintOnly $runner @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; Artifact = $missingActive; Metadata = "$missingActive.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
+Assert-Contains $distinctPrint "Live selection: individual output=256 period=64 engine=256 internal=256 scenario=synth_ramp_16 measure=30 warmup=5"
 $fakeWorst = Get-OrangeLiveWorstPassingScenario @(
-  [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_64"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; RatioP999 = 9.0; RatioMax = 9.0 },
-  [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 64; Workers = 2; MeasureSeconds = 30; RatioP999 = 1.2; RatioMax = 1.3 },
-  [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_32"; OutputFrames = 256; EngineBlockFrames = 64; Workers = 2; MeasureSeconds = 30; RatioP999 = 1.2; RatioMax = 1.4 }
+  [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_64"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; RatioP999 = 9.0; RatioMax = 9.0 },
+  [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 30; RatioP999 = 1.2; RatioMax = 1.3 },
+  [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_32"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 30; RatioP999 = 1.2; RatioMax = 1.4 }
 )
 if ($fakeWorst.Scenario -ne "synth_ramp_32") { throw "Worst-A fixture did not use max ratio as its tie breaker." }
 $retrievalRoot = Join-Path ([IO.Path]::GetTempPath()) "orange-study-abcdef123456"
@@ -78,20 +77,19 @@ try {
 $evidenceRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-evidence-" + [guid]::NewGuid().ToString("N"))
 try {
   New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
-  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -Workers 2 -MeasureSeconds 30
+  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -MeasureSeconds 30
   $readiness = [pscustomobject]@{
-    schema_version = 2; kind = "orange_audio_benchmark_readiness"; status = "ready"; board_profile = "orange-pi-zero-2w"; pid = 123
+    schema_version = 3; kind = "orange_audio_benchmark_readiness"; status = "ready"; board_profile = "orange-pi-zero-2w"; pid = 123
     systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $selection.Scenario; requested_output_buffer_frames = 256
     expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256
     callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 441; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0
     sample_rate = 44100; channels = 2; sample_format = "F32"
-    workers_requested = 2; workers_effective = $true; scheduler_qualified = $true; post_dsp_zero = $true
+    scheduler_qualified = $true; post_dsp_zero = $true
   }
   $callback = [pscustomobject]@{ callback_count = 441; first_measured_callback_ns = 1; last_measured_callback_ns = 442; measured_elapsed_ns = 441; callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 441; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0; callback_timestamp_observed = $true; terminal_error = $false; over_audio_duration_budget_count = 0; cpal_device_error_count = 0; cpal_stream_error_count = 0; pre_mute_nonzero_samples = 10; post_mute_nonzero_samples = 0; rendered_frames = 44100; render_audio_duration_ns = 1000000000; render_audio_duration_ratio_p50 = 0.5; render_audio_duration_ratio_p95 = 0.6; render_audio_duration_ratio_p99 = 0.7; render_audio_duration_ratio_p99_9 = 0.8; render_audio_duration_ratio_max = 0.9 }
-  $workerDelta = [pscustomobject]@{ synth_parallel_dispatches = 0; synth_parallel_light_skips = 0; synth_parallel_backoff_skips = 0; synth_parallel_timing_backoffs = 0; synth_parallel_failures = 0; synth_parallel_unhealthy = $false }
-  $profileStart = [pscustomobject]@{ active_synth_voices = 0; active_sample_voices = 0; active_preview_sample_voices = 0; active_momentary_fx = 0; cumulative_voice_steals = 0; synth_parallel_dispatches = 0; synth_parallel_light_skips = 0; synth_parallel_backoff_skips = 0; synth_parallel_timing_backoffs = 0; synth_parallel_failures = 0; synth_parallel_unhealthy = $false }
-  $profileEnd = [pscustomobject]@{ active_synth_voices = 0; active_sample_voices = 0; active_preview_sample_voices = 0; active_momentary_fx = 0; cumulative_voice_steals = 0; synth_parallel_dispatches = 0; synth_parallel_light_skips = 0; synth_parallel_backoff_skips = 0; synth_parallel_timing_backoffs = 0; synth_parallel_failures = 0; synth_parallel_unhealthy = $false }
-  $result = [pscustomobject]@{ schema_version = 3; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $selection.Scenario; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256; sample_format = "F32"; channels = 2; sample_rate = 44100; workers_requested = 2; workers_effective = $true; warmup_seconds = 5; measure_seconds = 30; scheduler_qualified = $true; post_dsp_zero = $true; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); callback = $callback; profile_start = $profileStart; profile_end = $profileEnd; worker_delta = $workerDelta; worker_policy_error = $null; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null }
+  $profileStart = [pscustomobject]@{ active_synth_voices = 0; active_sample_voices = 0; active_preview_sample_voices = 0; active_momentary_fx = 0; cumulative_voice_steals = 0; cumulative_voice_admission_drops = 0 }
+  $profileEnd = [pscustomobject]@{ active_synth_voices = 0; active_sample_voices = 0; active_preview_sample_voices = 0; active_momentary_fx = 0; cumulative_voice_steals = 0; cumulative_voice_admission_drops = 0 }
+  $result = [pscustomobject]@{ schema_version = 4; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $selection.Scenario; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256; sample_format = "F32"; channels = 2; sample_rate = 44100; warmup_seconds = 5; measure_seconds = 30; scheduler_qualified = $true; post_dsp_zero = $true; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); callback = $callback; profile_start = $profileStart; profile_end = $profileEnd; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null }
   $release = [pscustomobject]@{ schema_version = 2; kind = "orange_audio_benchmark_release"; status = "released"; board_profile = "orange-pi-zero-2w"; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $selection.Scenario; expected_alsa_buffer_frames = 256; observed_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; observed_alsa_period_frames = 64 }
   $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
@@ -108,6 +106,22 @@ try {
   if ([math]::Abs([double](Get-OrangeLiveResultSummary -Result $result -Selection $selection).AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Result summary did not expose the aggregate render-duration ratio." }
   $manifestAggregate = ConvertFrom-Json -InputObject (ConvertTo-OrangeLiveManifestJson -Results @($passEvidence))
   if ([math]::Abs([double]$manifestAggregate[0].AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Manifest did not retain the aggregate render-duration ratio." }
+  Assert-OrangeLiveResult -Result $result -Selection $selection
+  $profileEnd.PSObject.Properties.Remove("cumulative_voice_admission_drops")
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $profileEnd | Add-Member -NotePropertyName cumulative_voice_admission_drops -NotePropertyValue "not-a-number"
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $profileEnd.cumulative_voice_admission_drops = 1
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $profileEnd.cumulative_voice_admission_drops = 2
+  $profileStart.cumulative_voice_admission_drops = 1
+  $selection | Add-Member -NotePropertyName expected_admission_drops_start -NotePropertyValue 1
+  $selection | Add-Member -NotePropertyName expected_admission_drops_end -NotePropertyValue 2
+  Assert-OrangeLiveResult -Result $result -Selection $selection
+  $selection.PSObject.Properties.Remove("expected_admission_drops_start")
+  $selection.PSObject.Properties.Remove("expected_admission_drops_end")
+  $profileStart.cumulative_voice_admission_drops = 0
+  $profileEnd.cumulative_voice_admission_drops = 0
   $callback.rendered_frames = 44099; $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Below-bound callback frame corruption was accepted." }
   $callback.rendered_frames = 44101; $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Above-bound callback frame corruption was accepted." }
   $callback.rendered_frames = 0
@@ -121,51 +135,6 @@ try {
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Missing aggregate evidence was accepted." }
   $callback | Add-Member -NotePropertyName rendered_frames -NotePropertyValue 44100
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  $zeroWorkerSelection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -Workers 0 -MeasureSeconds 30
-  $result.workers_requested = 0; $result.workers_effective = $false; $result.internal_block_frames = 256; $result.status = "fail"; $result.worker_policy_error = "ineffective worker telemetry"
-  $profileEnd.synth_parallel_dispatches = 1; $workerDelta.synth_parallel_dispatches = 1
-  $zeroWorkerValidation = Assert-OrangeLiveResult -Result $result -Selection $zeroWorkerSelection
-  if (-not $zeroWorkerValidation.PolicyViolation -or $zeroWorkerValidation.PolicyViolationReason -notmatch "ineffective worker telemetry") { throw "Workers=0 nonzero telemetry was accepted." }
-  $profileEnd.synth_parallel_dispatches = 0; $workerDelta.synth_parallel_dispatches = 0; $result.workers_requested = 2; $result.workers_effective = $true; $result.status = "pass"; $result.worker_policy_error = $null
-  $requiredSelection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 256 -Workers 2 -MeasureSeconds 30
-  $result.scenario = $requiredSelection.Scenario
-  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $requiredSelection }
-  $result.scenario = $selection.Scenario
-  $result.schema_version = 2
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Schema 2 result was accepted." }
-  $result.schema_version = 3
-  $workerDelta.synth_parallel_dispatches = 1
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Tampered worker delta was accepted." }
-  $workerDelta.synth_parallel_dispatches = 0
-  $profileStart.synth_parallel_dispatches = 2
-  $profileEnd.synth_parallel_dispatches = 1
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Regressed worker profile counter was accepted." }
-  $profileStart.synth_parallel_dispatches = 0
-  $profileEnd.synth_parallel_dispatches = 0
-  $result.worker_delta = $null
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Null worker delta was accepted." }
-  $result.worker_delta = $workerDelta
-  $result.worker_policy_error = "unexpected policy error"
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Pass with worker policy error was accepted." }
-  $result.worker_policy_error = $null
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  $result.status = "fail"; $result.worker_policy_error = "fabricated clean-delta policy error"
-  Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=measured_failure"
-  Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=failed`nResult=exit-code`nExecMainCode=1`nExecMainStatus=1"
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Fabricated clean-delta worker policy error was accepted." }
-  $profileEnd.synth_parallel_light_skips = 1; $workerDelta.synth_parallel_light_skips = 1; $result.worker_policy_error = $null
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Silent worker policy violation was accepted." }
-  $profileEnd.synth_parallel_light_skips = 0; $workerDelta.synth_parallel_light_skips = 0; $result.status = "pass"; $result.worker_policy_error = $null
-  Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=pass"
-  Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=0`nExecMainStatus=0"
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   $zeroCodeSuccess = Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)
   if ($zeroCodeSuccess.StatusClass -ne "pass") { throw "Code 0 clean success was not accepted." }
@@ -233,32 +202,6 @@ try {
   Remove-Item -LiteralPath (Join-Path $evidenceRoot "benchmark-result.json") -Force
   $missing = Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)
   if ($missing.StatusClass -ne "restoration_failure") { throw "Missing result was not retained as a failed evidence class." }
-  $c2Selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 1024 -EngineBlockFrames 256 -Workers 2 -MeasureSeconds 30
-  $readiness.scenario = $c2Selection.Scenario; $readiness.requested_output_buffer_frames = 1024; $readiness.expected_alsa_buffer_frames = 1024; $readiness.expected_alsa_period_frames = 256; $readiness.internal_block_frames = 256; $readiness.workers_requested = 2; $readiness.workers_effective = $true
-  $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
-  $release.scenario = $c2Selection.Scenario; $release.expected_alsa_buffer_frames = 1024; $release.observed_alsa_buffer_frames = 1024; $release.expected_alsa_period_frames = 256; $release.observed_alsa_period_frames = 256
-  $release | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-release.json")
-  $profileEnd.synth_parallel_dispatches = 4639; $profileEnd.synth_parallel_backoff_skips = 1395; $profileEnd.synth_parallel_timing_backoffs = 22
-  $workerDelta.synth_parallel_dispatches = 4639; $workerDelta.synth_parallel_light_skips = 0; $workerDelta.synth_parallel_backoff_skips = 1395; $workerDelta.synth_parallel_timing_backoffs = 22; $workerDelta.synth_parallel_failures = 0; $workerDelta.synth_parallel_unhealthy = $false
-  $callback.over_audio_duration_budget_count = 0
-  $result.scenario = $c2Selection.Scenario; $result.requested_output_buffer_frames = 1024; $result.expected_alsa_buffer_frames = 1024; $result.expected_alsa_period_frames = 256; $result.internal_block_frames = 256; $result.workers_requested = 2; $result.workers_effective = $true; $result.status = "fail"; $result.profile_start = $profileStart; $result.profile_end = $profileEnd; $result.worker_delta = $workerDelta; $result.worker_policy_error = "C2 worker policy rejected a parallel condition"; $result.terminal_error = $null
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=measured_failure"
-  Set-Content (Join-Path $evidenceRoot "service-restored-state.txt") "restore_status=0`nfinal_active=active`nfinal_enabled=enabled"
-  Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=failed`nResult=exit-code`nExecMainCode=1`nExecMainStatus=1"
-  $c2Failure = Get-OrangeLiveHostEvidence $evidenceRoot $c2Selection ("a" * 64)
-  if ($c2Failure.StatusClass -ne "measured_failure" -or $c2Failure.WorkerDispatches -ne 4639 -or $c2Failure.WorkerLightSkips -ne 0 -or $c2Failure.WorkerBackoffSkips -ne 1395 -or $c2Failure.WorkerTimingBackoffs -ne 22 -or $c2Failure.WorkerFailures -ne 0 -or $c2Failure.WorkerUnhealthy -or $c2Failure.WorkerPolicyError -ne "C2 worker policy rejected a parallel condition") { throw "C2 worker-policy measured failure was not accepted or preserved." }
-  if ($c2Failure.CallbackErrors -ne 0 -or $c2Failure.OverBudget -ne 0) { throw "C2 measured-failure fixture did not retain clean callback gates." }
-  if ($c2Failure.WorkerPolicyViolationReason -notmatch "backoff skips|timing backoffs") { throw "C2 worker policy violation reason was not preserved." }
-  $manifestWorker = ConvertFrom-Json -InputObject (ConvertTo-OrangeLiveManifestJson -Results @($c2Failure))
-  if ($manifestWorker[0].WorkerDispatches -ne 4639 -or $manifestWorker[0].WorkerBackoffSkips -ne 1395 -or $manifestWorker[0].WorkerPolicyError -ne "C2 worker policy rejected a parallel condition" -or [string]::IsNullOrWhiteSpace([string]$manifestWorker[0].Reason)) { throw "Manifest did not retain worker counters and reason." }
-  $profileEnd.synth_parallel_dispatches = 0; $workerDelta.synth_parallel_dispatches = 0
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $c2Selection ("a" * 64)).StatusClass -ne "measured_failure") { throw "Missing required C2 dispatch was not classified as measured_failure." }
-  $profileEnd.synth_parallel_dispatches = 4639; $workerDelta.synth_parallel_dispatches = 4639
-  $result.worker_delta.synth_parallel_dispatches = 4640
-  $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $c2Selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Tampered C2 worker delta was accepted." }
 } finally {
   Remove-Item -LiteralPath $evidenceRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
@@ -269,10 +212,10 @@ if ($matrixSource -match '&\s+\$runner') { throw "Matrix still invokes the runne
 if ($matrixSource -notmatch '(?s)(?=.*& \(Join-Path \$PSHOME "powershell.exe"\) @processArguments 2>&1)(?=.*"-NonInteractive")(?=.*"-File")(?=.*\$LASTEXITCODE)') { throw "Matrix did not preserve isolated PowerShell runner invocation." }
 Assert-Contains $matrixOutput "Orange live audio matrix PrintOnly: no transport is invoked."
 Assert-Contains $canaryPrint "Orange live audio matrix PrintOnly CanaryOnly: no transport is invoked."
-Assert-Contains $canaryPrint "01: synth_ramp_16 output=256 internal=64 workers=2 measure=30"
+Assert-Contains $canaryPrint "01: synth_ramp_16 output=256 internal=128 measure=30"
 Assert-Contains $canaryPrint "Matrix cells: 1 total (CanaryOnly)."
 if ($canaryPrint -match "02:|A120|Matrix cells: 29") { throw "CanaryOnly PrintOnly emitted more than one cell." }
-if ($matrixOutput -notmatch '(?s)(?=.*01: synth_ramp_16 output=256 internal=64 workers=2 measure=30)(?=.*11: mixed_cross_slot_48_48_steal output=256 internal=64 workers=2 measure=30)(?=.*12: A120 scenario=<highest passing A p99.9, then max> output=256 internal=64 workers=2 measure=120 warmup=5)(?=.*13: synth_ramp_16 output=512 internal=128 workers=2 measure=30)(?=.*24: synth_cross_slot_96_steal output=1024 internal=256 workers=0 measure=30)(?=.*29: mixed_cross_slot_48_48_steal output=1024 internal=256 workers=3 measure=30)(?=.*Matrix cells: 29 total)') { throw "Live matrix PrintOnly output omitted an approved cell or count." }
+if ($matrixOutput -notmatch '(?s)(?=.*01: synth_ramp_16 output=256 internal=128 measure=30)(?=.*11: mixed_cross_slot_48_48_steal output=256 internal=128 measure=30)(?=.*12: A120 scenario=<highest passing A p99.9, then max> output=256 internal=128 measure=120 warmup=5)(?=.*13: synth_ramp_16 output=512 internal=128 measure=30)(?=.*23: mixed_cross_slot_48_48_steal output=512 internal=128 measure=30)(?=.*Matrix cells: 23 total)') { throw "Live matrix PrintOnly output omitted an approved cell or count." }
 $capabilitySource = Get-Content -LiteralPath $runner -Raw
 $localDirectoryMarker = $capabilitySource.IndexOf('New-Item -ItemType Directory -Force -Path $localRunDirectory | Out-Null', [StringComparison]::Ordinal)
 $stagingDirectoryMarker = $capabilitySource.IndexOf('Write-Output "Evidence staging directory: $localRunDirectory"', [StringComparison]::Ordinal)
@@ -291,7 +234,7 @@ $fakeMatrixOutput = Join-Path $fakeRoot "matrix-output"
 $oldFakeEvidence = $null
 try {
   New-Item -ItemType Directory -Force -Path $fakeEvidence | Out-Null
-  $fakeHostEvidence = [pscustomobject]@{ StatusClass = "over_budget"; Reason = "clean measured over-budget fixture"; Scenario = "synth_ramp_16"; OutputFrames = 256; InternalFrames = 64; Workers = 2; MeasureSeconds = 30; RatioP999 = 1.2; RatioMax = 1.3 }
+  $fakeHostEvidence = [pscustomobject]@{ StatusClass = "over_budget"; Reason = "clean measured over-budget fixture"; Scenario = "synth_ramp_16"; OutputFrames = 256; InternalFrames = 64; MeasureSeconds = 30; RatioP999 = 1.2; RatioMax = 1.3 }
   $fakeHostEvidence | ConvertTo-Json | Set-Content (Join-Path $fakeEvidence "host-evidence.json")
   $fakeScript = @'
 param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
@@ -319,7 +262,7 @@ $passFakeRunner = Join-Path $passFakeRoot "fake-pass-runner.ps1"
 $passFakeMatrixOutput = Join-Path $passFakeRoot "matrix-output"
 try {
   New-Item -ItemType Directory -Force -Path $passFakeEvidence | Out-Null
-  [pscustomobject]@{ StatusClass = "pass"; Reason = "native stderr was benign"; Scenario = "synth_ramp_16"; OutputFrames = 256; InternalFrames = 64; Workers = 2; MeasureSeconds = 30; RatioP999 = 0.8; RatioMax = 0.9 } | ConvertTo-Json | Set-Content (Join-Path $passFakeEvidence "host-evidence.json")
+  [pscustomobject]@{ StatusClass = "pass"; Reason = "native stderr was benign"; Scenario = "synth_ramp_16"; OutputFrames = 256; InternalFrames = 64; MeasureSeconds = 30; RatioP999 = 0.8; RatioMax = 0.9 } | ConvertTo-Json | Set-Content (Join-Path $passFakeEvidence "host-evidence.json")
   $passFakeScript = @'
 param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
 & cmd.exe /c "echo benign native stderr 1>&2"
@@ -374,7 +317,7 @@ throw "fake runner failed before terminal evidence"
   Remove-Item -LiteralPath $partialFakeRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 $runnerArtifact = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-live-benchmark-missing"
-$runnerParameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_cross_slot_96_steal"; OutputFrames = 256; EngineBlockFrames = 256; Workers = 2; MeasureSeconds = 30; Artifact = $runnerArtifact; Metadata = "$runnerArtifact.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
+$runnerParameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_cross_slot_96_steal"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; Artifact = $runnerArtifact; Metadata = "$runnerArtifact.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
 $recoveryEvidenceRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-recovery-" + [guid]::NewGuid().ToString("N"))
 try {
   New-Item -ItemType Directory -Force -Path $recoveryEvidenceRoot | Out-Null
@@ -388,7 +331,7 @@ try {
 }
 $first = Invoke-PrintOnly $runner $runnerParameters
 $second = Invoke-PrintOnly $runner $runnerParameters
-if ($first -notmatch '(?s)(?=.*RuntimeMaxSec=185s)(?=.*RuntimeDirectoryPreserve=yes)(?=.*--benchmark-orange-audio)(?=.*--release-gate)(?=.*--output-frames 256 --engine-block-frames 256 --workers 2)(?=.*--measure-seconds 30)(?=.*sensor_abort)') { throw "Live payload omitted a required runtime or benchmark marker." }
+if ($first -notmatch '(?s)(?=.*RuntimeMaxSec=185s)(?=.*RuntimeDirectoryPreserve=yes)(?=.*--benchmark-orange-audio)(?=.*--release-gate)(?=.*--output-frames 256 --engine-block-frames 256)(?=.*--measure-seconds 30)(?=.*sensor_abort)') { throw "Live payload omitted a required runtime or benchmark marker." }
 if ([regex]::Matches($first, 'systemd-run --unit="\$unit"').Count -ne 1) { throw "Live payload did not contain exactly one transient systemd-run launch." }
 if ($first -match "runtime-thermal-abort|70000|75000" -or $first -notmatch '(?s)(?=.*thermal-unreadable)(?=.*memory-unreadable)(?=.*thermal-missing)(?=.*runtime-memory-abort)(?=.*consecutive_samples)') { throw "Live payload changed its thermal or memory safety contract." }
 Assert-Contains $first 'systemctl stop "$unit"'

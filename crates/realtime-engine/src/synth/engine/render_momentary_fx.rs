@@ -1,3 +1,4 @@
+use super::retired_state::store_retired_momentary;
 use super::*;
 
 impl SynthEngine {
@@ -172,16 +173,23 @@ impl SynthEngine {
             }
         }
 
-        self.momentary_fx.retain(|fx| {
-            if !fx.releasing {
-                return true;
+        for index in (0..self.momentary_fx.len()).rev() {
+            let completed = {
+                let fx = &self.momentary_fx[index];
+                fx.releasing
+                    && match fx.kind {
+                        MomentaryFxKind::FilterSweep => fx.sweep_pos <= 0.0,
+                        MomentaryFxKind::Freeze => fx.release_pos >= fx.release_len,
+                        _ => true,
+                    }
+            };
+            if completed {
+                store_retired_momentary(
+                    &mut self.pending_render_retired.displaced_momentary_fx,
+                    self.momentary_fx.remove(index),
+                );
             }
-            match fx.kind {
-                MomentaryFxKind::FilterSweep => fx.sweep_pos > 0.0,
-                MomentaryFxKind::Freeze => fx.release_pos < fx.release_len,
-                _ => false,
-            }
-        });
+        }
 
         (l, r)
     }

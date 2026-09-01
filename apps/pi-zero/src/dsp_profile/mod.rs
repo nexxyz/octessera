@@ -9,8 +9,8 @@ use crate::dsp_scenarios::{profile_scenarios, runtime_step_scenarios, ProfileMod
 use report::{emit_system_row, emit_timed_row, print_csv_header, AudioBudgetSemantics, TimedRow};
 use timing::{
     profile_block_frames, profile_measure_frames, profile_requested_block_frames,
-    profile_requested_measure_frames, profile_sample_rate, profile_worker_count,
-    EngineSourceMeasurement, WarmupPolicy, PROFILE_MEASUREMENT_OBSERVATIONS,
+    profile_requested_measure_frames, profile_sample_rate, EngineSourceMeasurement, WarmupPolicy,
+    PROFILE_MEASUREMENT_OBSERVATIONS,
 };
 
 const PROFILE_BLOCKS: usize = 48;
@@ -57,7 +57,6 @@ pub fn run_dsp_profile() -> Result<(), String> {
     let measure_frames = profile_measure_frames(block_frames);
     let sample_rate = profile_sample_rate();
     let mode = profile_mode()?;
-    let worker_requested = profile_worker_count(mode == ProfileMode::Baseline)?;
     let warmup_policy = if mode == ProfileMode::Baseline {
         WarmupPolicy::FixedTwoSeconds
     } else {
@@ -79,7 +78,6 @@ pub fn run_dsp_profile() -> Result<(), String> {
             block_frames,
             measure_frames,
             warmup_policy,
-            worker_requested,
             blocks,
         )?;
         let notes = format!(
