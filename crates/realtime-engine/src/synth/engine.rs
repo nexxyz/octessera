@@ -40,6 +40,24 @@ mod render_voice;
 mod retired_state;
 mod sample_voice_pool;
 mod source_lane_renderer;
+mod source_worker;
+#[cfg(test)]
+mod source_worker_failure_tests;
+mod source_worker_health;
+mod source_worker_lease;
+mod source_worker_lifecycle;
+mod source_worker_owner;
+#[cfg(test)]
+mod source_worker_parity_tests;
+mod source_worker_protocol;
+#[cfg(test)]
+mod source_worker_retirement_tests;
+#[cfg(test)]
+#[path = "engine/source_worker_test_fixtures.rs"]
+mod source_worker_test_fixtures;
+#[cfg(test)]
+mod source_worker_tests;
+mod source_worker_transfer;
 mod support;
 #[cfg(test)]
 mod test_support;
@@ -53,6 +71,13 @@ pub use prepared_control_prepare::{
 };
 pub use retired_state::RetiredAudioState;
 use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
+pub use source_worker::SourceWorkerRuntime;
+pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
+pub use source_worker_lifecycle::{SourceWorkerLifecycle, SourceWorkerRetirement};
+pub use source_worker_protocol::{
+    SourceWorkerMode, SourceWorkerSetupError, SourceWorkerShutdown, SOURCE_WORKER_MODE_INLINE,
+    SOURCE_WORKER_MODE_PERSISTENT,
+};
 
 use control::MAX_MOMENTARY_FX;
 use inline_source_executor::InlineSourceExecutor;
@@ -133,7 +158,7 @@ pub(super) struct SlotFrameOutput {
 pub(super) const BLOCK_SLOT_SCRATCH_FRAMES: usize = 2048;
 
 pub(super) struct BlockSlotScratch {
-    inline_source_executor: InlineSourceExecutor,
+    inline_source_executor: Option<InlineSourceExecutor>,
     sample_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
     synth_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
     sample_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
@@ -143,7 +168,7 @@ pub(super) struct BlockSlotScratch {
 impl BlockSlotScratch {
     fn new() -> Self {
         Self {
-            inline_source_executor: InlineSourceExecutor::new(),
+            inline_source_executor: Some(InlineSourceExecutor::new()),
             sample_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
             synth_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
             sample_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
@@ -151,11 +176,8 @@ impl BlockSlotScratch {
         }
     }
 
-    fn prepare(&mut self, frames: usize) -> bool {
+    fn prepare_output(&mut self, frames: usize) -> bool {
         if frames > BLOCK_SLOT_SCRATCH_FRAMES {
-            return false;
-        }
-        if !self.inline_source_executor.prepare(frames) {
             return false;
         }
         for buffer in &mut self.sample_slot_out {
