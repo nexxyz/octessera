@@ -28,7 +28,7 @@ impl SampleVoicePartition {
         self.parity
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) fn active_sample_buffer_address_for_test(&self) -> Option<usize> {
         self.lanes.iter().find_map(|voice| {
             voice

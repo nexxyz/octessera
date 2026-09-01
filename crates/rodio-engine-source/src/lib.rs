@@ -1,16 +1,30 @@
+mod audio_quantum;
+mod control_drain;
 mod event;
+mod profile_cache;
 mod queue;
+mod retired_audio_backlog;
 mod sample_decode;
+mod source_shutdown;
+mod source_worker;
+mod source_worker_reaper;
 mod telemetry;
 
+use audio_quantum::audio_render_quantum_frames;
+#[cfg(test)]
+use audio_quantum::resolve_audio_render_quantum_frames;
 use crossbeam_channel::{bounded, Sender, TrySendError};
 pub use event::EngineEvent;
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 use realtime_engine::synth::{
-    RetiredAudioState, SynthEngine, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
-    MAX_CONTROL_EVENTS_PER_CALLBACK,
+    RetiredAudioState, SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerSetupError,
+    SynthEngine, SynthProfileSnapshot, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
 };
+use retired_audio_backlog::RetiredAudioBacklog;
 pub use sample_decode::decode_sample_file;
+pub use source_worker::EngineSourceWorkerShutdownOwner;
+use source_worker::{EngineSourceMode, EngineSourceWorkerState};
+use source_worker_reaper::SourceShutdownEnvelope;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
@@ -22,16 +36,37 @@ const RETIREMENT_QUEUE_CAPACITY: usize = 64;
 const RETIREMENT_BACKLOG_CAPACITY: usize = 256;
 const RETIREMENT_CONTROL_BACKLOG_CAPACITY: usize = RETIREMENT_BACKLOG_CAPACITY - 1;
 
-struct RetiredAudioItem {
+pub(crate) struct RetiredAudioItem {
     state: Option<RetiredAudioState>,
     event: Option<EngineEvent>,
+    #[cfg(test)]
+    pub(crate) drop_probe: Option<RetiredAudioDropProbe>,
+}
+
+struct SourceRetirementChannels {
+    retired_tx: Sender<RetiredAudioItem>,
+    shutdown_tx: Sender<SourceShutdownEnvelope>,
+}
+
+#[cfg(test)]
+pub(crate) struct RetiredAudioDropProbe {
+    drop_tx: std::sync::mpsc::Sender<std::thread::ThreadId>,
+}
+
+#[cfg(test)]
+impl Drop for RetiredAudioDropProbe {
+    fn drop(&mut self) {
+        let _ = self.drop_tx.send(std::thread::current().id());
+    }
 }
 
 pub struct EngineSource {
     engine: SynthEngine,
+    worker_state: EngineSourceWorkerState,
     control_rx: EngineEventReceiver,
     sample_rate: u32,
     block_frames: usize,
+    cached_profile_snapshot: SynthProfileSnapshot,
     buf: Vec<f32>,
     left_buf: Vec<f32>,
     right_buf: Vec<f32>,
@@ -40,11 +75,11 @@ pub struct EngineSource {
     last_load_report: Instant,
     telemetry: EngineTelemetry,
     retired_tx: Sender<RetiredAudioItem>,
-    retired_backlog: Box<[Option<RetiredAudioItem>]>,
-    retired_backlog_read: usize,
-    retired_backlog_write: usize,
-    retired_backlog_len: usize,
+    retired_backlog: Option<RetiredAudioBacklog>,
+    shutdown_tx: Option<Sender<SourceShutdownEnvelope>>,
     retirement_disconnected: bool,
+    #[cfg(test)]
+    retired_drop_probe: Option<std::sync::mpsc::Sender<std::thread::ThreadId>>,
 }
 
 impl EngineSource {
@@ -65,6 +100,56 @@ impl EngineSource {
         )
     }
 
+    pub fn with_persistent_workers(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
+        Self::with_persistent_workers_with_engine(
+            control_rx,
+            sample_rate,
+            block_frames,
+            load_tx,
+            SynthEngine::new(sample_rate),
+        )
+    }
+
+    fn with_persistent_workers_with_engine(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+        mut engine: SynthEngine,
+    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
+        let (lifecycle, runtime) = SourceWorkerLifecycle::start_prewarmed(&mut engine)?;
+        let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
+        let (shutdown_tx, shutdown_owner) =
+            match source_worker_reaper::spawn_persistent_reaper(lifecycle, retired_rx, false) {
+                Ok(result) => result,
+                Err(failure) => {
+                    let source_worker_reaper::PersistentReaperSpawnFailure { lifecycle, error } =
+                        *failure;
+                    let _ = runtime.retire();
+                    let _ = lifecycle.shutdown_after_runtime_drop();
+                    return Err(error);
+                }
+            };
+        let source = Self::with_engine(
+            control_rx,
+            sample_rate,
+            block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
+            load_tx,
+            engine,
+            EngineSourceWorkerState::persistent(runtime),
+            SourceRetirementChannels {
+                retired_tx,
+                shutdown_tx,
+            },
+        );
+        Ok((source, shutdown_owner))
+    }
+
     pub fn resolve_block_frames(default_frames: usize) -> usize {
         audio_render_quantum_frames(default_frames)
     }
@@ -73,8 +158,15 @@ impl EngineSource {
         self.block_frames
     }
 
+    pub fn source_worker_health(&self) -> SourceWorkerHealth {
+        self.worker_state.health()
+    }
+
     pub fn profile_snapshot(&self) -> realtime_engine::synth::SynthProfileSnapshot {
-        self.engine.profile_snapshot()
+        match self.worker_state.mode {
+            EngineSourceMode::Inline => self.engine.profile_snapshot(),
+            EngineSourceMode::Persistent => self.cached_profile_snapshot,
+        }
     }
 
     pub fn with_load_status_tx(
@@ -96,13 +188,15 @@ impl EngineSource {
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
     ) -> Self {
-        let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
-        std::thread::spawn(move || {
-            while let Ok(item) = retired_rx.recv() {
-                drop_retired_item(item);
-            }
-        });
-        Self::with_retirement_sender(control_rx, sample_rate, block_frames, load_tx, retired_tx)
+        let (retired_tx, shutdown_tx) = source_worker_reaper::spawn_inline_reaper();
+        Self::with_retirement_sender(
+            control_rx,
+            sample_rate,
+            block_frames,
+            load_tx,
+            retired_tx,
+            shutdown_tx,
+        )
     }
 
     fn with_retirement_sender(
@@ -111,13 +205,42 @@ impl EngineSource {
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
         retired_tx: Sender<RetiredAudioItem>,
+        shutdown_tx: Sender<SourceShutdownEnvelope>,
     ) -> Self {
-        let engine = SynthEngine::new(sample_rate);
-        Self {
-            engine,
+        Self::with_engine(
             control_rx,
             sample_rate,
             block_frames,
+            load_tx,
+            SynthEngine::new(sample_rate),
+            EngineSourceWorkerState::inline(),
+            SourceRetirementChannels {
+                retired_tx,
+                shutdown_tx,
+            },
+        )
+    }
+
+    fn with_engine(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+        engine: SynthEngine,
+        worker_state: EngineSourceWorkerState,
+        retirement: SourceRetirementChannels,
+    ) -> Self {
+        let SourceRetirementChannels {
+            retired_tx,
+            shutdown_tx,
+        } = retirement;
+        Self {
+            engine,
+            worker_state,
+            control_rx,
+            sample_rate,
+            block_frames,
+            cached_profile_snapshot: SynthProfileSnapshot::default(),
             buf: Vec::with_capacity(block_frames * 2),
             left_buf: Vec::with_capacity(block_frames),
             right_buf: Vec::with_capacity(block_frames),
@@ -126,37 +249,32 @@ impl EngineSource {
             last_load_report: Instant::now(),
             telemetry: EngineTelemetry::default(),
             retired_tx,
-            retired_backlog: std::iter::repeat_with(|| None)
-                .take(RETIREMENT_BACKLOG_CAPACITY)
-                .collect(),
-            retired_backlog_read: 0,
-            retired_backlog_write: 0,
-            retired_backlog_len: 0,
+            retired_backlog: Some(RetiredAudioBacklog::new()),
+            shutdown_tx: Some(shutdown_tx),
             retirement_disconnected: false,
+            #[cfg(test)]
+            retired_drop_probe: None,
         }
     }
 
     fn refill(&mut self) {
         let t0 = Instant::now();
-        let drained = self.drain_control_events();
-        if self.engine.is_idle() {
-            self.buf.resize(self.block_frames * 2, 0.0);
-            self.buf.fill(0.0);
-            self.left_buf.clear();
-            self.right_buf.clear();
-        } else {
-            self.engine.render_interleaved_block(
-                self.block_frames,
-                &mut self.left_buf,
-                &mut self.right_buf,
-                &mut self.buf,
-            );
-        }
+        let drained = match self.worker_state.mode {
+            EngineSourceMode::Inline => {
+                let drained = self.drain_control_events();
+                self.refill_inline();
+                drained
+            }
+            EngineSourceMode::Persistent => self.refill_persistent(),
+        };
         if !self.engine.pending_render_retired_is_empty()
             && self.retirement_storage_can_accept_item()
         {
             let retired = self.engine.take_pending_render_retired();
             self.retire_state(retired);
+        }
+        if matches!(self.worker_state.mode, EngineSourceMode::Persistent) {
+            self.refresh_persistent_profile_cache();
         }
         self.idx = 0;
         let elapsed = t0.elapsed().as_secs_f32();
@@ -170,6 +288,74 @@ impl EngineSource {
             .observe_block(ratio, drained.control_events, drained.config_events);
         self.engine.set_runtime_load_ratio(ratio);
         self.report_load_status();
+    }
+
+    fn refill_inline(&mut self) {
+        if self.engine.is_idle() {
+            self.buf.resize(self.block_frames * 2, 0.0);
+            self.buf.fill(0.0);
+            self.left_buf.clear();
+            self.right_buf.clear();
+        } else {
+            self.engine.render_interleaved_block(
+                self.block_frames,
+                &mut self.left_buf,
+                &mut self.right_buf,
+                &mut self.buf,
+            );
+        }
+    }
+
+    fn refill_persistent(&mut self) -> DrainedControlEvents {
+        let Self {
+            engine,
+            worker_state,
+            control_rx,
+            retired_tx,
+            retired_backlog,
+            retirement_disconnected,
+            #[cfg(test)]
+            retired_drop_probe,
+            block_frames,
+            cached_profile_snapshot,
+            buf,
+            left_buf,
+            right_buf,
+            ..
+        } = self;
+        let Some(worker) = worker_state.worker.as_mut() else {
+            return DrainedControlEvents::default();
+        };
+        let runtime = &mut worker.runtime;
+        let mut controls = control_drain::ControlDrain::new(
+            control_rx,
+            retired_tx,
+            retired_backlog.as_mut().expect("retired backlog"),
+            retirement_disconnected,
+            #[cfg(test)]
+            retired_drop_probe.clone(),
+        );
+        let cached = *cached_profile_snapshot;
+        let (drained, profile_snapshot) = match runtime.with_controls_ready(engine, |engine| {
+            let drained = controls.drain(engine);
+            (drained, engine.profile_snapshot())
+        }) {
+            Some(result) => result,
+            None => (DrainedControlEvents::default(), cached),
+        };
+        *cached_profile_snapshot = profile_snapshot;
+        debug_assert!((MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(block_frames));
+        buf.resize(*block_frames * 2, 0.0);
+        left_buf.resize(*block_frames, 0.0);
+        right_buf.resize(*block_frames, 0.0);
+        engine.render_interleaved_block_with_source_runtime(
+            runtime,
+            *block_frames,
+            left_buf,
+            right_buf,
+            buf,
+        );
+        drained
     }
 
     fn report_load_status(&mut self) {
@@ -194,246 +380,79 @@ impl EngineSource {
         self.retire_item(RetiredAudioItem {
             state: Some(state),
             event: None,
+            #[cfg(test)]
+            drop_probe: None,
         });
     }
 
+    #[cfg(test)]
     fn retire_event(&mut self, event: EngineEvent) {
         self.retire_item(RetiredAudioItem {
             state: None,
             event: Some(event),
-        });
-    }
-
-    fn retire_state_and_event(&mut self, state: RetiredAudioState, event: EngineEvent) {
-        self.retire_item(RetiredAudioItem {
-            state: (!state.is_empty()).then_some(state),
-            event: Some(event),
+            #[cfg(test)]
+            drop_probe: None,
         });
     }
 
     fn retire_item(&mut self, item: RetiredAudioItem) {
+        #[cfg(test)]
+        let mut item = item;
+        #[cfg(test)]
+        {
+            item.drop_probe =
+                self.retired_drop_probe
+                    .as_ref()
+                    .map(|drop_tx| RetiredAudioDropProbe {
+                        drop_tx: drop_tx.clone(),
+                    });
+        }
+        let Some(backlog) = self.retired_backlog.as_mut() else {
+            return;
+        };
         if self.retirement_disconnected {
-            let _ = self.enqueue_retired_item(item);
+            let _ = backlog.enqueue(item);
             return;
         }
-        self.flush_retired_backlog();
+        backlog.flush(&self.retired_tx, &mut self.retirement_disconnected);
         match self.retired_tx.try_send(item) {
             Ok(()) => {}
             Err(TrySendError::Full(item)) => {
-                let _ = self.enqueue_retired_item(item);
+                let _ = backlog.enqueue(item);
             }
             Err(TrySendError::Disconnected(item)) => {
                 self.retirement_disconnected = true;
-                let _ = self.enqueue_retired_item(item);
+                let _ = backlog.enqueue(item);
             }
         }
-    }
-
-    fn flush_retired_backlog(&mut self) {
-        if self.retirement_disconnected {
-            return;
-        }
-        while self.retired_backlog_len > 0 {
-            let Some(item) = self.retired_backlog[self.retired_backlog_read].take() else {
-                self.retired_backlog_len = 0;
-                break;
-            };
-            match self.retired_tx.try_send(item) {
-                Ok(()) => {
-                    self.retired_backlog_read =
-                        (self.retired_backlog_read + 1) % RETIREMENT_BACKLOG_CAPACITY;
-                    self.retired_backlog_len -= 1;
-                }
-                Err(TrySendError::Full(item)) => {
-                    self.retired_backlog[self.retired_backlog_read] = Some(item);
-                    break;
-                }
-                Err(TrySendError::Disconnected(item)) => {
-                    self.retired_backlog[self.retired_backlog_read] = Some(item);
-                    self.retirement_disconnected = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    fn enqueue_retired_item(&mut self, item: RetiredAudioItem) -> bool {
-        if self.retired_backlog_len >= RETIREMENT_BACKLOG_CAPACITY {
-            return false;
-        }
-        self.retired_backlog[self.retired_backlog_write] = Some(item);
-        self.retired_backlog_write = (self.retired_backlog_write + 1) % RETIREMENT_BACKLOG_CAPACITY;
-        self.retired_backlog_len += 1;
-        true
     }
 
     fn retirement_storage_can_accept_item(&mut self) -> bool {
-        self.flush_retired_backlog();
-        self.retired_backlog_len < RETIREMENT_BACKLOG_CAPACITY
+        let Some(backlog) = self.retired_backlog.as_mut() else {
+            return false;
+        };
+        backlog.flush(&self.retired_tx, &mut self.retirement_disconnected);
+        backlog.len < RETIREMENT_BACKLOG_CAPACITY
     }
 
     fn drain_control_events(&mut self) -> DrainedControlEvents {
-        let mut drained = DrainedControlEvents::default();
-        for _ in 0..MAX_CONTROL_EVENTS_PER_CALLBACK {
-            self.flush_retired_backlog();
-            if self.retirement_disconnected
-                || self.retired_backlog_len >= RETIREMENT_CONTROL_BACKLOG_CAPACITY
-            {
-                break;
-            }
-            let event = self.control_rx.try_recv();
-            let Ok(event) = event else { break };
-            drained.control_events += 1;
-            match &event {
-                EngineEvent::SetSynthParam {
-                    instrument_slot,
-                    path,
-                    value,
-                } => {
-                    self.engine.set_synth_param(*instrument_slot, path, *value);
-                    self.retire_event(event);
-                }
-                EngineEvent::SetSampleBankParam {
-                    instrument_slot,
-                    path,
-                    value,
-                } => {
-                    self.engine
-                        .set_sample_bank_param(*instrument_slot, path, *value);
-                    self.retire_event(event);
-                }
-                EngineEvent::MomentaryFxUpdate { id, params } => {
-                    drained.config_events += 1;
-                    self.engine.momentary_fx_update(id, params);
-                    self.retire_event(event);
-                }
-                EngineEvent::MomentaryFxStop { id } => {
-                    drained.config_events += 1;
-                    let retired = self.engine.momentary_fx_stop(id);
-                    self.retire_state_and_event(retired, event);
-                }
-                EngineEvent::ProbeMark { sent_at, report_tx } => {
-                    let _ = report_tx.try_send(sent_at.elapsed().as_micros());
-                    self.retire_event(event);
-                }
-                _ => match event {
-                    EngineEvent::AllNotesOff => {
-                        let retired = self.engine.all_notes_off();
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::NoteOn {
-                        instrument_slot,
-                        note,
-                        velocity,
-                        duration_ms,
-                    } => self
-                        .engine
-                        .note_on(instrument_slot, note, velocity, duration_ms),
-                    EngineEvent::NoteOff {
-                        instrument_slot,
-                        note,
-                    } => self.engine.note_off(instrument_slot, note),
-                    EngineEvent::Cc {
-                        instrument_slot,
-                        controller,
-                        value,
-                    } => self.engine.cc(instrument_slot, controller, value),
-                    EngineEvent::SetPreparedInstruments(config) => {
-                        drained.config_events += 1;
-                        let retired = self.engine.apply_prepared_instruments_config(config);
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::SetPreparedAudioConfig(config) => {
-                        drained.config_events += 1;
-                        let retired = self.engine.apply_prepared_audio_config(config);
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::SetPreparedSampleBank {
-                        instrument_slot,
-                        bank,
-                    } => {
-                        drained.config_events += 1;
-                        let retired = self
-                            .engine
-                            .apply_prepared_sample_bank(instrument_slot, bank);
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::PreviewSample {
-                        instrument_slot,
-                        buffer,
-                        velocity,
-                    } => {
-                        let retired = self
-                            .engine
-                            .preview_sample(instrument_slot, buffer, velocity);
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::SetVoiceStealingMode(mode) => {
-                        drained.config_events += 1;
-                        self.engine.set_voice_stealing_mode(mode)
-                    }
-                    EngineEvent::SetMasterVolume { volume_pct } => {
-                        self.engine.set_master_volume(volume_pct);
-                    }
-                    EngineEvent::SetInstrumentMixer {
-                        instrument_slot,
-                        volume_pct,
-                        pan_pos,
-                    } => {
-                        self.engine
-                            .set_instrument_mixer(instrument_slot, volume_pct, pan_pos);
-                    }
-                    EngineEvent::SetPreparedInstrumentSlot {
-                        instrument_slot,
-                        config,
-                    } => {
-                        drained.config_events += 1;
-                        let retired = self
-                            .engine
-                            .apply_prepared_instrument_slot(instrument_slot, config);
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::SetFxBusMixer {
-                        bus_index,
-                        pan_pos,
-                        volume_pct,
-                    } => {
-                        self.engine.set_fx_bus_mixer(bus_index, pan_pos, volume_pct);
-                    }
-                    EngineEvent::SetPreparedFxBusSlot {
-                        bus_index,
-                        slot_index,
-                        config,
-                    } => {
-                        drained.config_events += 1;
-                        let retired = self
-                            .engine
-                            .apply_prepared_fx_bus_slot(bus_index, slot_index, config);
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
-                        drained.config_events += 1;
-                        let retired = self
-                            .engine
-                            .apply_prepared_global_fx_slot(slot_index, config);
-                        self.retire_state(retired);
-                    }
-                    EngineEvent::PreparedMomentaryFxStart(config) => {
-                        drained.config_events += 1;
-                        let retired = self.engine.apply_prepared_momentary_fx_start(config);
-                        self.retire_state(retired);
-                    }
-                    _ => unreachable!("heap-owning event was handled by reference"),
-                },
-            }
-        }
-        drained
+        let mut controls = control_drain::ControlDrain::new(
+            &mut self.control_rx,
+            &self.retired_tx,
+            self.retired_backlog.as_mut().expect("retired backlog"),
+            &mut self.retirement_disconnected,
+            #[cfg(test)]
+            self.retired_drop_probe.clone(),
+        );
+        controls.drain(&mut self.engine)
     }
 }
 
-fn drop_retired_item(item: RetiredAudioItem) {
+pub(crate) fn drop_retired_item(item: RetiredAudioItem) {
     drop(item.state);
     drop(item.event);
+    #[cfg(test)]
+    drop(item.drop_probe);
 }
 
 impl Iterator for EngineSource {
@@ -465,22 +484,6 @@ impl rodio::Source for EngineSource {
     fn total_duration(&self) -> Option<std::time::Duration> {
         None
     }
-}
-
-fn audio_render_quantum_frames(default_frames: usize) -> usize {
-    resolve_audio_render_quantum_frames(
-        std::env::var("OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES")
-            .ok()
-            .as_deref(),
-        default_frames,
-    )
-}
-
-fn resolve_audio_render_quantum_frames(env_value: Option<&str>, default_frames: usize) -> usize {
-    env_value
-        .and_then(|value| value.parse::<usize>().ok())
-        .unwrap_or(default_frames)
-        .clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES)
 }
 
 #[cfg(test)]

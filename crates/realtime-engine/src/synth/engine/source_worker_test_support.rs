@@ -1,7 +1,6 @@
 use super::super::source_worker_lifecycle::{OwnerEnvelope, SourceWorkerOwnerIdentity};
 use super::*;
 use crossbeam_channel::bounded;
-use std::time::Duration;
 
 impl SourceWorkerRuntime {
     pub(crate) fn scratch_shape_for_test(&self) -> [(usize, usize); SOURCE_WORKER_COUNT] {
@@ -67,10 +66,6 @@ impl SourceWorkerRuntime {
             self.return_home_owner_for_test(owner);
             identity
         })
-    }
-
-    pub(crate) fn set_timing_for_test(&mut self, poll_limit: usize, deadline: Duration) {
-        self.timing_override = Some((poll_limit, deadline));
     }
 
     pub(crate) fn collect_wait_for_test(&mut self, engine: &mut SynthEngine) -> bool {

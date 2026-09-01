@@ -5,6 +5,7 @@ use realtime_engine::synth::{
     prepare_momentary_fx_start, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
     SampleBankConfig, SampleBuffer, SampleSlotConfig, DEFAULT_PAN_POSITIONS,
+    MAX_CONTROL_EVENTS_PER_CALLBACK,
 };
 use std::collections::BTreeMap;
 

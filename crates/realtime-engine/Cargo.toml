@@ -7,6 +7,9 @@ license-file.workspace = true
 [lib]
 path = "src/lib.rs"
 
+[features]
+test-support = []
+
 [dependencies]
 crossbeam-channel = "0.5"
 serde = { version = "1", features = ["derive"] }

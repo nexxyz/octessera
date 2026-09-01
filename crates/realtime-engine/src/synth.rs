@@ -14,14 +14,21 @@ pub use audio_config::{
     validate_sample_bank_param_path, validate_synth_param_path, NormalizedAudioConfig,
     NormalizedInstrumentSlot, NormalizedSampleConfig,
 };
+#[cfg(any(test, feature = "test-support"))]
+pub use engine::SourceWorkerHoldControl;
+#[cfg(any(test, feature = "test-support"))]
+pub use engine::{
+    install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
+    SourceWorkerShutdownProbeGuard,
+};
 pub use engine::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
     PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SourceWorkerHealth,
     SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerMode, SourceWorkerRetirement,
-    SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown, SynthEngine,
-    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+    SourceWorkerRetirementError, SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown,
+    SynthEngine, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
 };
 pub use types::{
     default_synth_config, AudioLoadStatus, EnvConfig, FilterConfig, FilterType, FxBusConfig,

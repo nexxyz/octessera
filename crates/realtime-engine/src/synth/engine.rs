@@ -46,10 +46,13 @@ mod source_worker_failure_tests;
 mod source_worker_health;
 mod source_worker_lease;
 mod source_worker_lifecycle;
+#[cfg(any(test, feature = "test-support"))]
+mod source_worker_observer;
 mod source_worker_owner;
 #[cfg(test)]
 mod source_worker_parity_tests;
 mod source_worker_protocol;
+mod source_worker_retirement;
 #[cfg(test)]
 mod source_worker_retirement_tests;
 #[cfg(test)]
@@ -73,11 +76,19 @@ pub use retired_state::RetiredAudioState;
 use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
 pub use source_worker::SourceWorkerRuntime;
 pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
-pub use source_worker_lifecycle::{SourceWorkerLifecycle, SourceWorkerRetirement};
-pub use source_worker_protocol::{
-    SourceWorkerMode, SourceWorkerSetupError, SourceWorkerShutdown, SOURCE_WORKER_MODE_INLINE,
-    SOURCE_WORKER_MODE_PERSISTENT,
+pub use source_worker_lifecycle::SourceWorkerLifecycle;
+#[cfg(any(test, feature = "test-support"))]
+pub use source_worker_observer::{
+    install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
+    SourceWorkerShutdownProbeGuard,
 };
+pub use source_worker_protocol::{
+    SourceWorkerMode, SourceWorkerRetirementError, SourceWorkerSetupError, SourceWorkerShutdown,
+    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+};
+#[cfg(any(test, feature = "test-support"))]
+pub use source_worker_retirement::SourceWorkerHoldControl;
+pub use source_worker_retirement::SourceWorkerRetirement;
 
 use control::MAX_MOMENTARY_FX;
 use inline_source_executor::InlineSourceExecutor;

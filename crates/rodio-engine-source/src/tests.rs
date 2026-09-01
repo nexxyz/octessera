@@ -3,7 +3,7 @@ use crossbeam_channel::bounded;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_momentary_fx_start, InstrumentSlotConfig,
     InstrumentsConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
-    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_PAN_POSITIONS,
+    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_PAN_POSITIONS, MAX_CONTROL_EVENTS_PER_CALLBACK,
 };
 use serde_json::json;
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -18,6 +18,12 @@ impl EngineSource {
         sample_rate: u32,
     ) -> (Self, crossbeam_channel::Receiver<RetiredAudioItem>) {
         let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
+        let (shutdown_tx, shutdown_rx) = bounded::<SourceShutdownEnvelope>(1);
+        std::thread::spawn(move || {
+            if let Ok(envelope) = shutdown_rx.recv() {
+                envelope.backlog.drain();
+            }
+        });
         (
             Self::with_retirement_sender(
                 control_rx,
@@ -25,6 +31,7 @@ impl EngineSource {
                 audio_render_quantum_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES),
                 None,
                 retired_tx,
+                shutdown_tx,
             ),
             retired_rx,
         )
@@ -316,6 +323,21 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
 
 #[path = "retirement_tests.rs"]
 mod retirement_tests;
+
+#[path = "shutdown_handoff_tests.rs"]
+mod shutdown_handoff_tests;
+
+#[path = "retirement_storage_tests.rs"]
+mod retirement_storage_tests;
+
+#[path = "persistent_tests.rs"]
+mod persistent_tests;
+
+#[path = "persistent_profile_tests.rs"]
+mod persistent_profile_tests;
+
+#[path = "persistent_terminal_tests.rs"]
+mod persistent_terminal_tests;
 
 #[test]
 fn explicit_profile_block_sizes_reach_source_configuration() {
