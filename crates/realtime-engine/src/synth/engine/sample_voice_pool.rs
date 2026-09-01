@@ -1,15 +1,15 @@
 #[cfg(test)]
 use super::super::types::SampleBuffer;
-use super::super::types::{INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY};
+use super::super::types::{
+    INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, SAMPLE_VOICE_PARTITION_LANE_CAPACITY,
+    SAMPLE_VOICE_RETIREMENT_CAPACITY, VOICE_PARTITION_COUNT,
+};
 use super::retired_state::RetiredSampleVoices;
 use super::support::SampleVoice;
 
-const PARTITION_COUNT: usize = 2;
-const PARTITION_LANE_CAPACITY: usize = SAMPLE_VOICE_LANE_CAPACITY / PARTITION_COUNT;
-
 pub(super) struct SampleVoicePartition {
     parity: usize,
-    lanes: [SampleVoice; PARTITION_LANE_CAPACITY],
+    lanes: [SampleVoice; SAMPLE_VOICE_PARTITION_LANE_CAPACITY],
 }
 
 impl SampleVoicePartition {
@@ -19,10 +19,14 @@ impl SampleVoicePartition {
             lanes: std::array::from_fn(|_| SampleVoice::off()),
         }
     }
+
+    pub(super) fn lanes_mut(&mut self) -> &mut [SampleVoice; SAMPLE_VOICE_PARTITION_LANE_CAPACITY] {
+        &mut self.lanes
+    }
 }
 
 pub(super) struct SampleVoicePool {
-    partitions: [Option<Box<SampleVoicePartition>>; PARTITION_COUNT],
+    partitions: [Option<Box<SampleVoicePartition>>; VOICE_PARTITION_COUNT],
     slot_lanes: [[usize; SAMPLE_VOICE_LANE_CAPACITY]; INSTRUMENT_SLOT_COUNT],
     slot_lane_counts: [usize; INSTRUMENT_SLOT_COUNT],
     lane_slots: [Option<usize>; SAMPLE_VOICE_LANE_CAPACITY],
@@ -40,12 +44,10 @@ impl SampleVoicePool {
         }
     }
 
-    #[allow(dead_code)]
     pub(super) fn take_partition(&mut self, parity: usize) -> Option<Box<SampleVoicePartition>> {
         self.partitions.get_mut(parity)?.take()
     }
 
-    #[allow(dead_code)]
     pub(super) fn install_partition(
         &mut self,
         parity: usize,
@@ -173,7 +175,8 @@ impl SampleVoicePool {
         let held_count = (0..SAMPLE_VOICE_LANE_CAPACITY)
             .filter(|lane| self.lane(*lane).is_some_and(|voice| voice.buffer.is_some()))
             .count();
-        if held_count > SAMPLE_VOICE_LANE_CAPACITY {
+        if held_count > SAMPLE_VOICE_RETIREMENT_CAPACITY {
+            debug_assert!(false, "sample voice retirement capacity exceeded");
             return None;
         }
         self.slot_lane_counts = [0; INSTRUMENT_SLOT_COUNT];
@@ -185,9 +188,10 @@ impl SampleVoicePool {
                 return None;
             }
             let voice = self.lane_mut(lane)?;
-            let previous = std::mem::replace(voice, SampleVoice::off());
-            if has_buffer {
-                retired.push(previous);
+            let mut previous = std::mem::replace(voice, SampleVoice::off());
+            if has_buffer && !retired.push(&mut previous) {
+                *voice = previous;
+                return Some(retired);
             }
         }
         Some(retired)
@@ -204,7 +208,8 @@ impl SampleVoicePool {
                 })
             })
             .count();
-        if held_count > SAMPLE_VOICE_LANE_CAPACITY {
+        if held_count > SAMPLE_VOICE_RETIREMENT_CAPACITY {
+            debug_assert!(false, "sample voice retirement capacity exceeded");
             return None;
         }
         let count = self.slot_lane_counts[slot];
@@ -225,9 +230,10 @@ impl SampleVoicePool {
                 return None;
             }
             let voice = self.lane_mut(lane)?;
-            let previous = std::mem::replace(voice, SampleVoice::off());
-            if previous.buffer.is_some() {
-                retired.push(previous);
+            let mut previous = std::mem::replace(voice, SampleVoice::off());
+            if previous.buffer.is_some() && !retired.push(&mut previous) {
+                *voice = previous;
+                return Some(retired);
             }
         }
         Some(retired)
@@ -286,10 +292,10 @@ impl SampleVoicePool {
         let Some(target) = self.lane_mut(lane) else {
             return Err(voice);
         };
-        let previous = std::mem::replace(target, voice);
+        let mut previous = std::mem::replace(target, voice);
         let was_active = previous.active;
-        if previous.buffer.is_some() {
-            retired.push(previous);
+        if previous.buffer.is_some() && !retired.push(&mut previous) {
+            return Err(std::mem::replace(target, previous));
         }
         Ok(was_active)
     }
@@ -368,7 +374,8 @@ impl SampleVoicePool {
 }
 
 fn partition_lane(lane: usize) -> Option<(usize, usize)> {
-    (lane < SAMPLE_VOICE_LANE_CAPACITY).then_some((lane % PARTITION_COUNT, lane / PARTITION_COUNT))
+    (lane < SAMPLE_VOICE_LANE_CAPACITY)
+        .then_some((lane % VOICE_PARTITION_COUNT, lane / VOICE_PARTITION_COUNT))
 }
 
 #[cfg(test)]

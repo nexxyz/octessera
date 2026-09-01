@@ -1,10 +1,30 @@
 use super::*;
+use std::mem::size_of;
+
+const MAX_PRACTICAL_RETIREMENT_ITEM_BYTES: usize = 8 * 1024;
+const MAX_PRACTICAL_RETIREMENT_STORAGE_BYTES: usize = 4 * 1024 * 1024;
+
+const _: () = assert!(size_of::<RetiredAudioItem>() <= MAX_PRACTICAL_RETIREMENT_ITEM_BYTES);
+const _: () = assert!(
+    size_of::<RetiredAudioItem>() * (RETIREMENT_QUEUE_CAPACITY + RETIREMENT_BACKLOG_CAPACITY)
+        <= MAX_PRACTICAL_RETIREMENT_STORAGE_BYTES
+);
 
 #[test]
 fn sample_voice_retirement_capacity_matches_callback_budget() {
     assert_eq!(
         SAMPLE_VOICE_RETIREMENT_CAPACITY,
         SAMPLE_VOICE_LANE_CAPACITY + MAX_CONTROL_EVENTS_PER_CALLBACK
+    );
+}
+
+#[test]
+fn retired_audio_item_storage_stays_practical() {
+    let item_bytes = size_of::<RetiredAudioItem>();
+    assert!(item_bytes <= MAX_PRACTICAL_RETIREMENT_ITEM_BYTES);
+    assert!(
+        item_bytes * (RETIREMENT_QUEUE_CAPACITY + RETIREMENT_BACKLOG_CAPACITY)
+            <= MAX_PRACTICAL_RETIREMENT_STORAGE_BYTES
     );
 }
 

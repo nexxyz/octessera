@@ -126,6 +126,38 @@ fn mixed_full_voice_pool_inline_render_matches_serial_at_supported_quanta() {
 }
 
 #[test]
+fn inline_source_kernels_match_serial_with_dynamic_voice_state_at_supported_quanta() {
+    for frames in [64, 128, 256, 2048] {
+        let mut block = dynamic_source_engine();
+        let mut reference = dynamic_source_engine();
+        block.note_on(0, 36, 111, 5_000);
+        reference.note_on(0, 36, 111, 5_000);
+        block.note_on(1, 60, 97, 5_000);
+        reference.note_on(1, 60, 97, 5_000);
+
+        for engine in [&mut block, &mut reference] {
+            engine.set_sample_bank_param(0, "sample.filter.cutoffHz", 1_700.0);
+            engine.set_sample_bank_param(0, "sample.filter.resonance", 61.0);
+            engine.set_synth_param(1, "synth.filter.cutoffHz", 2_300.0);
+            engine.cc(1, 74, 91);
+            engine.cc(1, 71, 83);
+        }
+        assert_eq!(
+            block.synth_render_revisions,
+            reference.synth_render_revisions
+        );
+        assert_eq!(block.synth_render_revisions[1], 2);
+        assert_block_matches_reference(&mut block, &mut reference, frames);
+
+        block.note_off(0, 36);
+        reference.note_off(0, 36);
+        block.note_off(1, 60);
+        reference.note_off(1, 60);
+        assert_block_matches_reference(&mut block, &mut reference, frames);
+    }
+}
+
+#[test]
 fn inline_quantum_matches_serial_when_synth_voice_ends_mid_quantum() {
     let mut block = SynthEngine::new(44_100);
     let mut reference = SynthEngine::new(44_100);
@@ -385,6 +417,42 @@ fn mixed_full_voice_engine() -> SynthEngine {
     });
     let _ = engine.set_sample_banks((0..8).map(|_| sample_bank(vec![0.25; 16_384])).collect());
     engine.set_voice_stealing_mode(VoiceStealingMode::None);
+    engine
+}
+
+fn dynamic_source_engine() -> SynthEngine {
+    let mut synth = default_synth_config();
+    synth.filter.cutoff_hz = 1_100.0;
+    synth.filter.resonance = 48.0;
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(InstrumentsConfig {
+        instruments: vec![
+            InstrumentSlotConfig {
+                kind: "sampler".to_string(),
+                synth,
+                mixer: None,
+            },
+            InstrumentSlotConfig {
+                kind: "synth".to_string(),
+                synth,
+                mixer: None,
+            },
+        ],
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    });
+    let mut bank = sample_bank(
+        (0..4_096)
+            .map(|index| (index as f32 * 0.013).sin())
+            .collect(),
+    );
+    bank.tune_semis = 7.0;
+    bank.gain_pct = 83.0;
+    bank.velocity_sensitivity_pct = 37.0;
+    bank.filter_cutoff_hz = 1_200.0;
+    bank.filter_resonance = 54.0;
+    let _ = engine.set_sample_banks(vec![bank, SampleBankConfig::default()]);
     engine
 }
 

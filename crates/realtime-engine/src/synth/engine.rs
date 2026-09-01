@@ -39,6 +39,7 @@ mod render_tests;
 mod render_voice;
 mod retired_state;
 mod sample_voice_pool;
+mod source_lane_renderer;
 mod support;
 #[cfg(test)]
 mod test_support;

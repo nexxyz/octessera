@@ -1,4 +1,4 @@
-use super::inline_source_executor::{render_synth_voice_frame, SynthVoiceFrameContext};
+use super::source_lane_renderer::{render_synth_voice_frame, SynthVoiceFrameContext};
 use super::*;
 
 impl SynthEngine {
@@ -39,7 +39,7 @@ impl SynthEngine {
         let context = SynthVoiceFrameContext {
             sample_rate: self.sample_rate,
             config: self.instruments[slot_idx],
-            render_config: &self.synth_render_configs[slot_idx],
+            render_config: self.synth_render_configs[slot_idx],
             revision: self.synth_render_revisions[slot_idx],
             mods: self.mods[slot_idx],
         };

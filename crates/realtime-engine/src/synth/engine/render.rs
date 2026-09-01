@@ -1,5 +1,6 @@
-use super::inline_source_executor::{SampleSourceContext, SourceRenderOutput, SynthSourceContext};
+use super::inline_source_executor::SourceRenderOutput;
 use super::render_profile;
+use super::source_lane_renderer::{SampleSourceContext, SynthSourceContext};
 use super::*;
 use crate::simd::interleave_stereo;
 use std::time::Instant;
@@ -101,10 +102,10 @@ impl SynthEngine {
             &mut self.synth_voice_pool,
             SynthSourceContext {
                 sample_rate: self.sample_rate,
-                configs: &self.instruments,
-                render_configs: &self.synth_render_configs,
-                revisions: &self.synth_render_revisions,
-                mods: &self.mods,
+                configs: self.instruments,
+                render_configs: self.synth_render_configs,
+                revisions: self.synth_render_revisions,
+                mods: self.mods,
             },
             SourceRenderOutput {
                 slot_out: &mut scratch.synth_slot_out,

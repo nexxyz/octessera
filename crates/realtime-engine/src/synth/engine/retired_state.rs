@@ -1,17 +1,18 @@
 use super::super::types::SAMPLE_VOICE_RETIREMENT_CAPACITY;
 use super::*;
+use std::sync::Arc;
 
 pub(super) const PREVIEW_AUDITION_SLOTS: usize = 2;
 
 pub(super) struct RetiredSampleVoices {
-    voices: [Option<SampleVoice>; SAMPLE_VOICE_RETIREMENT_CAPACITY],
+    buffers: [Option<Arc<[f32]>>; SAMPLE_VOICE_RETIREMENT_CAPACITY],
     count: usize,
 }
 
 impl Default for RetiredSampleVoices {
     fn default() -> Self {
         Self {
-            voices: std::array::from_fn(|_| None),
+            buffers: std::array::from_fn(|_| None),
             count: 0,
         }
     }
@@ -31,14 +32,20 @@ impl RetiredSampleVoices {
     }
 
     #[cfg(test)]
-    pub(super) fn get(&self, index: usize) -> Option<&SampleVoice> {
-        (index < self.count).then(|| self.voices[index].as_ref().expect("retired sample voice"))
+    pub(super) fn get(&self, index: usize) -> Option<&Arc<[f32]>> {
+        (index < self.count).then(|| self.buffers[index].as_ref().expect("retired sample buffer"))
     }
 
-    pub(super) fn push(&mut self, voice: SampleVoice) {
-        debug_assert!(!self.is_full());
-        self.voices[self.count] = Some(voice);
+    pub(super) fn push(&mut self, voice: &mut SampleVoice) -> bool {
+        if self.is_full() {
+            return false;
+        }
+        let Some(buffer) = voice.buffer.take() else {
+            return true;
+        };
+        self.buffers[self.count] = Some(buffer.samples);
         self.count += 1;
+        true
     }
 }
 
@@ -164,4 +171,39 @@ pub(super) fn store_retired_momentary(
         .find(|slot| slot.is_none())
         .expect("retired momentary FX capacity exceeded");
     *slot = Some(state);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::mem::size_of;
+
+    const MAX_PRACTICAL_RETIREMENT_STATE_BYTES: usize = 8 * 1024;
+    const MAX_PRACTICAL_RETIRED_SAMPLE_VOICES_BYTES: usize = 6 * 1024;
+
+    const _: () = assert!(size_of::<RetiredAudioState>() <= MAX_PRACTICAL_RETIREMENT_STATE_BYTES);
+    const _: () =
+        assert!(size_of::<RetiredSampleVoices>() <= MAX_PRACTICAL_RETIRED_SAMPLE_VOICES_BYTES);
+    const _: () = assert!(
+        size_of::<RetiredSampleVoices>()
+            < size_of::<[Option<SampleVoice>; SAMPLE_VOICE_RETIREMENT_CAPACITY]>()
+    );
+    const _: () = assert!(
+        size_of::<RetiredAudioState>()
+            < size_of::<[Option<SampleVoice>; SAMPLE_VOICE_RETIREMENT_CAPACITY]>()
+    );
+
+    #[test]
+    fn retired_audio_state_stays_compact() {
+        assert!(size_of::<RetiredAudioState>() <= MAX_PRACTICAL_RETIREMENT_STATE_BYTES);
+        assert!(size_of::<RetiredSampleVoices>() <= MAX_PRACTICAL_RETIRED_SAMPLE_VOICES_BYTES);
+        assert!(
+            size_of::<RetiredSampleVoices>()
+                < size_of::<[Option<SampleVoice>; SAMPLE_VOICE_RETIREMENT_CAPACITY]>()
+        );
+        assert!(
+            size_of::<RetiredAudioState>()
+                < size_of::<[Option<SampleVoice>; SAMPLE_VOICE_RETIREMENT_CAPACITY]>()
+        );
+    }
 }
