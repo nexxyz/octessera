@@ -34,18 +34,18 @@ function Assert-Contains {
   if ($Text.IndexOf($Value, [StringComparison]::Ordinal) -lt 0) { throw "Missing expected text: $Value" }
 }
 
-if ((Get-PerformanceBaselineOfflineCells $manifest "raspberry-pi-zero-2w").Count -ne 30 -or @($manifest.raspberry.live_cells).Count -ne 3) { throw "Manifest Raspberry plan counts changed." }
+if ((Get-PerformanceBaselineOfflineCells $manifest "raspberry-pi-zero-2w").Count -ne 21 -or @($manifest.raspberry.live_cells).Count -ne 3) { throw "Manifest Raspberry plan counts changed." }
 foreach ($cell in @($manifest.raspberry.live_cells)) { if ($null -ne $cell.callback_fields -or ($cell.probe_modes -join ",") -cne "Live,AudioDrain") { throw "Raspberry live callback or mode contract changed." } }
 $offlinePlan = @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOfflineCells $manifest "raspberry-pi-zero-2w") $manifest.repetitions)
-if ($offlinePlan.Count -ne 90 -or $offlinePlan[0].Repetition -ne 1 -or $offlinePlan[29].Repetition -ne 1 -or $offlinePlan[30].Repetition -ne 2 -or $offlinePlan[89].Repetition -ne 3) { throw "Raspberry offline plan is not round-robin by repetition." }
+if ($offlinePlan.Count -ne 63 -or $offlinePlan[0].Repetition -ne 1 -or $offlinePlan[20].Repetition -ne 1 -or $offlinePlan[21].Repetition -ne 2 -or $offlinePlan[62].Repetition -ne 3) { throw "Raspberry offline plan is not round-robin by repetition." }
 if (-not (Test-PerformanceBaselineMeasuredOutcome "over_budget") -or (Test-PerformanceBaselineMeasuredOutcome "safety_failure") -or (Test-PerformanceBaselineMeasuredOutcome "thermal_failure") -or (Test-PerformanceBaselineMeasuredOutcome "restoration_failure") -or (Test-PerformanceBaselineMeasuredOutcome "infrastructure_failure")) { throw "Measured/fatal outcome policy is incorrect." }
 
 $canary = Invoke-PrintOnly $driver @{ PrintOnly = $true; CanaryOnly = $true }
 Assert-Contains $canary "Raspberry performance baseline PrintOnly: no transport is invoked."
 Assert-Contains $canary "Target: pi@192.168.0.218"
 Assert-Contains $canary "02: offline repetition=1/3 cell=common_baseline_idle"
-Assert-Contains $canary "05: live mode=Live repetition=1/3 cell=raspberry_live_output_256 scenario=pulses-stress output=256 internal=256 workers=2 callback=null"
-Assert-Contains $canary "06: live mode=AudioDrain repetition=1/3 cell=raspberry_live_output_256 scenario=pulses-stress output=256 internal=256 workers=2 callback=null"
+Assert-Contains $canary "05: live mode=Live repetition=1/3 cell=raspberry_live_output_256 scenario=pulses-stress output=256 internal=128 callback=null"
+Assert-Contains $canary "06: live mode=AudioDrain repetition=1/3 cell=raspberry_live_output_256 scenario=pulses-stress output=256 internal=128 callback=null"
 if ($canary -match "11:|with-pi-ssh.ps1.*ssh-payload") { throw "Raspberry canary PrintOnly emitted an extra cell or transport." }
 $full = Invoke-PrintOnly $driver @{ PrintOnly = $true; Phase = "Full" }
 Assert-Contains $full "offline repetition=2/3"
@@ -54,13 +54,12 @@ Assert-Contains $full "raspberry_live_output_512"
 Assert-Throws { & $driver -Phase Offline -Metadata missing.json } "active consent"
 Assert-Throws { & $driver -Phase Offline -AllowServiceInterruption -Metadata missing.json } "exact metadata"
 
-$baselinePrint = Invoke-PrintOnly $runner @{ Mode = "ProfileBaseline"; Scenario = "synth_cross_slot_16"; AudioBlockFrames = 256; ProfileMeasureFrames = 256; SynthSlotWorkers = 2; PrintOnly = $true }
+$baselinePrint = Invoke-PrintOnly $runner @{ Mode = "ProfileBaseline"; Scenario = "synth_cross_slot_16"; AudioRenderQuantumFrames = 256; ProfileMeasureFrames = 256; PrintOnly = $true }
 Assert-Contains $baselinePrint "OCTESSERA_PI_PROFILE_MODE='baseline'"
 Assert-Contains $baselinePrint "OCTESSERA_PI_PROFILE_SAMPLE_RATE='44100'"
 Assert-Contains $baselinePrint "OCTESSERA_PI_PROFILE_SCENARIO='synth_cross_slot_16'"
-Assert-Contains $baselinePrint "OCTESSERA_AUDIO_BLOCK_FRAMES='256'"
+Assert-Contains $baselinePrint "OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES='256'"
 Assert-Contains $baselinePrint "OCTESSERA_PI_PROFILE_MEASURE_FRAMES='256'"
-Assert-Contains $baselinePrint "OCTESSERA_SYNTH_SLOT_WORKERS='2'"
 Assert-Contains $baselinePrint "sudo systemctl stop 'octessera.service'"
 Assert-Contains $baselinePrint "sudo systemctl start 'octessera.service'"
 Assert-Contains $baselinePrint "restore_status"
@@ -70,17 +69,17 @@ Assert-Contains $baselinePrint "thermal_max_millicelsius"
 Assert-Contains $baselinePrint 'current_mask & 1'
 Assert-Contains $baselinePrint 'throttled_hex" in'
 if ($baselinePrint -match "temperature_limit|temperature_or_throttling") { throw "Raspberry benchmark payload retained a temperature admission limit." }
-$livePrint = Invoke-PrintOnly $runner @{ Mode = "Live"; Durations = "30s"; Scenarios = "pulses-stress"; AudioOutputBufferFrames = 128; AudioBlockFrames = 256; SynthSlotWorkers = 2; AllowServiceInterruption = $true; PrintOnly = $true }
+$livePrint = Invoke-PrintOnly $runner @{ Mode = "Live"; Durations = "30s"; Scenarios = "pulses-stress"; AudioOutputBufferFrames = 128; AudioRenderQuantumFrames = 256; AllowServiceInterruption = $true; PrintOnly = $true }
 Assert-Contains $livePrint "OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES='128'"
 Assert-Contains $livePrint "--timing-probe-scenarios 'pulses-stress'"
 Assert-Contains $livePrint "restore_status"
-$audioDrainPrint = Invoke-PrintOnly $runner @{ Mode = "AudioDrain"; Durations = "30s"; AudioOutputBufferFrames = 512; AudioBlockFrames = 256; SynthSlotWorkers = 2; AllowServiceInterruption = $true; PrintOnly = $true }
+$audioDrainPrint = Invoke-PrintOnly $runner @{ Mode = "AudioDrain"; Durations = "30s"; AudioOutputBufferFrames = 512; AudioRenderQuantumFrames = 256; AllowServiceInterruption = $true; PrintOnly = $true }
 Assert-Contains $audioDrainPrint "OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES='512'"
 Assert-Contains $audioDrainPrint "--timing-probe-audio-drain"
 Assert-Contains $audioDrainPrint "restore_status"
-Assert-Throws { & $runner -Mode ProfileBaseline -Scenario synth_cross_slot_16 -AudioBlockFrames 256 -ProfileMeasureFrames 256 -SynthSlotWorkers 2 } "runner consent"
+Assert-Throws { & $runner -Mode ProfileBaseline -Scenario synth_cross_slot_16 -AudioRenderQuantumFrames 256 -ProfileMeasureFrames 256 } "runner consent"
 Assert-Throws { & $runner -Mode Live -Durations 30s } "live runner consent"
-Assert-Throws { & $runner -Mode ProfileBaseline -Scenario unknown_scenario -AudioBlockFrames 256 -ProfileMeasureFrames 256 -SynthSlotWorkers 2 -PrintOnly } "native unknown ID remains fail closed at the host contract"
+Assert-Throws { & $runner -Mode ProfileBaseline -Scenario unknown_scenario -AudioRenderQuantumFrames 256 -ProfileMeasureFrames 256 -PrintOnly } "native unknown ID remains fail closed at the host contract"
 if ($runnerSource -notmatch "RuntimeOnly|DspFxLimits|DspSoak") { throw "Raspberry timing runner legacy modes were not retained." }
 if ($driverSource -match "with-orange-ssh|run-orange-performance-baseline") { throw "Raspberry driver references Orange tooling." }
 if ($runnerSource -match "with-orange-ssh|run-orange-performance-baseline") { throw "Raspberry runner references Orange tooling." }

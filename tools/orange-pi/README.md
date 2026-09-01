@@ -256,13 +256,12 @@ changes. The production sandbox properties also include
 
 `LiveAudioBenchmark` runs one approved scenario through the reviewed native
 benchmark CLI. It requires the exact scenario, output buffer, engine block,
-worker count, measure duration, artifact, metadata sidecar, and
-service-interruption consent.
+measure duration, artifact, metadata sidecar, and service-interruption consent.
 The runner waits for readiness and fixed DAC ALSA geometry before publishing the
 identity-bound release file that lets the native process continue.
 
-Readiness, progress, and release evidence use schema 2. Terminal results use
-schema 3, retain optional exact worker delta and policy-error evidence, and are
+Readiness, progress, and release evidence use schema 3, 3, and 2 respectively.
+Terminal results use schema 4 and are
 independently recomputed by the host. Requested output buffer, negotiated ALSA
 period, and internal engine block are separate fields. CPAL callback batches are
 variable positive counts no larger than the requested buffer; render/audio-
@@ -283,18 +282,16 @@ Preview one cell without transport:
   -Scenario synth_cross_slot_96_steal `
   -OutputFrames 256 `
   -EngineBlockFrames 256 `
-  -Workers 2 `
   -MeasureSeconds 30 `
   -Artifact target/orange-pi-cross/octessera-pi `
   -Metadata target/orange-pi-cross/octessera-pi.metadata.json `
   -AllowServiceInterruption -PrintOnly
 ```
 
-The individual runner approves output/engine/workers tuples 256/64/2,
-256/256/0, 256/256/2, 512/128/2, and 1024/256/0|2|3. ALSA periods remain
-fixed by output at 64/128/256 for 256/512/1024 output frames. The fixed matrix
-is A (256/64, workers 2, all 11 scenarios), B (512/128, workers 2, all 11),
-and C0/C2/C3 (1024/256, workers 0/2/3, synth and mixed steal scenarios). A
+The individual runner approves output/engine tuples 128/32, 256/64, 256/128,
+256/256, 512/128, and 1024/256. ALSA periods remain fixed by output at
+32/64/128/256 for 128/256/512/1024 output frames. The fixed matrix is A
+(256/128, all 11 scenarios) and B (512/128, all 11 scenarios). A
 120-second run is accepted only with the explicit
 `-AllowLongRepeat` switch; the matrix runner selects the worst passing A cell
 before requesting that repeat.

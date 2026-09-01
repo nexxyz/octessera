@@ -97,13 +97,11 @@ fn momentary_stutter_update_resets_segment_state() {
         let _ = engine.next_sample();
     }
 
-    engine.momentary_fx_update(
-        "a",
-        BTreeMap::from([
-            ("rateHz".to_string(), json!(12.0)),
-            ("depthPct".to_string(), json!(100.0)),
-        ]),
-    );
+    let params = BTreeMap::from([
+        ("rateHz".to_string(), json!(12.0)),
+        ("depthPct".to_string(), json!(100.0)),
+    ]);
+    engine.momentary_fx_update("a", &params);
 
     let (_, _, write, ready, ramp_pos) = engine.stutter_buf_for_id("a").unwrap();
     assert_eq!(write, 0);

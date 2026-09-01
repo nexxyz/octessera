@@ -32,6 +32,8 @@ pub struct ExpectedProfileState {
     pub active_bus_fx_slots: usize,
     pub active_global_fx_slots: usize,
     pub cumulative_voice_steals: u64,
+    pub expected_voice_admission_drops_start: u64,
+    pub expected_voice_admission_drops_end: u64,
 }
 
 impl ScenarioSpec {
@@ -108,6 +110,17 @@ impl ScenarioSpec {
             return Err(format!(
                 "scenario {} {phase} state invalid: voice steals expected {}, observed {}",
                 self.name, expected.cumulative_voice_steals, snapshot.cumulative_voice_steals
+            ));
+        }
+        let expected_admission_drops = if phase == "measurement" {
+            expected.expected_voice_admission_drops_end
+        } else {
+            expected.expected_voice_admission_drops_start
+        };
+        if snapshot.cumulative_voice_admission_drops != expected_admission_drops {
+            return Err(format!(
+                "scenario {} {phase} state invalid: voice admission drops expected {}, observed {}",
+                self.name, expected_admission_drops, snapshot.cumulative_voice_admission_drops
             ));
         }
         Ok(())

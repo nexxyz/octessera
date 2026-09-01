@@ -169,9 +169,9 @@ function Invoke-OrangeCell {
     "-OutputDirectory", $cellDirectory, "-Artifact", $Artifact, "-Metadata", $Metadata, "-AllowServiceInterruption"
   )
   if ($Kind -eq "offline") {
-    $arguments += @("-Mode", "ProfileBaseline", "-Scenario", $Cell.scenario, "-EngineBlockFrames", [string]$Cell.internal_frames, "-ProfileMeasureFrames", [string]$Cell.measure_frames, "-Workers", [string]$Cell.workers)
+    $arguments += @("-Mode", "ProfileBaseline", "-Scenario", $Cell.scenario, "-EngineBlockFrames", [string]$Cell.internal_frames, "-ProfileMeasureFrames", [string]$Cell.measure_frames)
   } else {
-    $arguments += @("-Mode", "LiveAudioBenchmark", "-Scenario", $Cell.scenario, "-OutputFrames", [string]$Cell.output_frames, "-EngineBlockFrames", [string]$Cell.internal_frames, "-Workers", [string]$Cell.workers, "-MeasureSeconds", [string]$Cell.measure_seconds)
+    $arguments += @("-Mode", "LiveAudioBenchmark", "-Scenario", $Cell.scenario, "-OutputFrames", [string]$Cell.output_frames, "-EngineBlockFrames", [string]$Cell.internal_frames, "-MeasureSeconds", [string]$Cell.measure_seconds)
   }
   if ($Kind -eq "live" -and $Cell.measure_seconds -eq 120) { $arguments += "-AllowLongRepeat" }
   $process = Invoke-FreshPowerShell $arguments $stdout $stderr
@@ -194,13 +194,13 @@ function Invoke-OrangeCell {
       if ($process.ExitCode -ne 0) { throw "single-cell runner exited with code $($process.ExitCode)" }
       $row = Get-ProfileRow $evidence $Cell
       $classified = ConvertTo-PerformanceBaselineOfflineResult -Row $row -Cell $Cell -SampleRate $manifest.sample_rate -Observations $manifest.offline_observations
-      return [pscustomobject]@{ CellId = $Cell.id; Scenario = $Cell.scenario; Kind = $Kind; Repetition = $Repetition; StatusClass = $classified.StatusClass; ExitCode = $process.ExitCode; EvidenceDirectory = $evidence; StdoutPath = $stdout; StderrPath = $stderr; OverBudget = $classified.OverBudget; P99_9 = $classified.P99_9; Max = $classified.Max; WorkersEffective = $classified.WorkersEffective; WorkerFailure = $classified.WorkerFailure; WorkerFailureReason = $classified.WorkerFailureReason; RemoteArtifactSha256 = $remoteArtifactHash; Row = $classified.Row }
+      return [pscustomobject]@{ CellId = $Cell.id; Scenario = $Cell.scenario; Kind = $Kind; Repetition = $Repetition; StatusClass = $classified.StatusClass; ExitCode = $process.ExitCode; EvidenceDirectory = $evidence; StdoutPath = $stdout; StderrPath = $stderr; OverBudget = $classified.OverBudget; P99_9 = $classified.P99_9; Max = $classified.Max; RemoteArtifactSha256 = $remoteArtifactHash; Row = $classified.Row }
     } catch { throw "Orange offline cell $($Cell.id) repetition $Repetition failed identity/geometry validation: $($_.Exception.Message)" }
   }
   $hostEvidencePath = Join-Path $evidence "host-evidence.json"
   if (-not (Test-Path -LiteralPath $hostEvidencePath -PathType Leaf)) { throw "Orange live cell $($Cell.id) did not retain host evidence." }
   $hostEvidence = Get-Content -LiteralPath $hostEvidencePath -Raw | ConvertFrom-Json
-  if ([string]$hostEvidence.Scenario -cne $Cell.scenario -or [int]$hostEvidence.OutputFrames -ne $Cell.output_frames -or [int]$hostEvidence.InternalFrames -ne $Cell.internal_frames -or [int]$hostEvidence.Workers -ne $Cell.workers) { throw "Orange live cell $($Cell.id) failed identity/geometry validation." }
+  if ([string]$hostEvidence.Scenario -cne $Cell.scenario -or [int]$hostEvidence.OutputFrames -ne $Cell.output_frames -or [int]$hostEvidence.InternalFrames -ne $Cell.internal_frames) { throw "Orange live cell $($Cell.id) failed identity/geometry validation." }
   if (@("pass", "over_budget", "measured_failure") -notcontains [string]$hostEvidence.StatusClass) { throw "Orange live cell $($Cell.id) stopped on $($hostEvidence.StatusClass)." }
   if ([string]$hostEvidence.StatusClass -eq "pass" -and $process.ExitCode -ne 0) { throw "Orange live cell $($Cell.id) published pass evidence with a failing process." }
   return [pscustomobject]@{ CellId = $Cell.id; Scenario = $Cell.scenario; Kind = $Kind; Repetition = $Repetition; StatusClass = [string]$hostEvidence.StatusClass; ExitCode = $process.ExitCode; EvidenceDirectory = $evidence; StdoutPath = $stdout; StderrPath = $stderr; OverBudget = [int64]$hostEvidence.OverBudget; P99_9 = [double]$hostEvidence.RatioP999; Max = [double]$hostEvidence.RatioMax; RemoteArtifactSha256 = $remoteArtifactHash; HostEvidence = $hostEvidence }
@@ -233,11 +233,11 @@ if ($PrintOnly) {
   $index = 2
   if ($CanaryOnly) {
     $canary = Get-PerformanceBaselineCanaryCells $manifest
-    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($canary.Offline) $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6} workers={7}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames, $item.Cell.workers); $index++ }
-    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($canary.OrangeLive) $manifest.repetitions)) { Write-Output ("{0:D2}: live repetition={1}/{2} cell={3} scenario={4} output={5} internal={6} workers={7}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames, $item.Cell.workers); $index++ }
+    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($canary.Offline) $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames); $index++ }
+    foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan @($canary.OrangeLive) $manifest.repetitions)) { Write-Output ("{0:D2}: live repetition={1}/{2} cell={3} scenario={4} output={5} internal={6}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames); $index++ }
   } else {
-    if ($Phase -in @("Offline", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOfflineCells $manifest "orange-pi-zero-2w") $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6} workers={7}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames, $item.Cell.workers); $index++ } }
-    if ($Phase -in @("Live", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOrangeLiveCells $manifest) $manifest.repetitions)) { Write-Output ("{0:D2}: live repetition={1}/{2} cell={3} scenario={4} output={5} internal={6} workers={7}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames, $item.Cell.workers); $index++ }; Write-Output ("{0:D2}: live dynamic cell={1} measure=120 selection=p99.9_then_max" -f $index, $manifest.orange.long_repeat.id) }
+    if ($Phase -in @("Offline", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOfflineCells $manifest "orange-pi-zero-2w") $manifest.repetitions)) { Write-Output ("{0:D2}: offline repetition={1}/{2} cell={3} scenario={4} internal={5} measure={6}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.internal_frames, $item.Cell.measure_frames); $index++ } }
+    if ($Phase -in @("Live", "Full")) { foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan (Get-PerformanceBaselineOrangeLiveCells $manifest) $manifest.repetitions)) { Write-Output ("{0:D2}: live repetition={1}/{2} cell={3} scenario={4} output={5} internal={6}" -f $index, $item.Repetition, $manifest.repetitions, $item.Cell.id, $item.Cell.scenario, $item.Cell.output_frames, $item.Cell.internal_frames); $index++ }; Write-Output ("{0:D2}: live dynamic cell={1} measure=120 selection=p99.9_then_max" -f $index, $manifest.orange.long_repeat.id) }
   }
   exit 0
 }
@@ -274,7 +274,7 @@ if ($liveEnabled) {
   foreach ($item in @(Get-PerformanceBaselineRoundRobinPlan $liveCells $manifest.repetitions)) { $result = Invoke-OrangeCell $item.Cell "live" $item.Repetition $OutputDirectory; Add-Result $cohortManifest $result; if (-not (Test-PerformanceBaselineMeasuredOutcome $result.StatusClass)) { throw "Orange baseline stopped at $($item.Cell.id): $($result.StatusClass)" } }
   if (-not $CanaryOnly) {
     $worst = Select-PerformanceBaselineWorstPassingDefault -Results @($cohortManifest.results) -DefaultCellIds @($manifest.orange.live_defaults.id) -Repetitions $manifest.repetitions
-    $longCell = [pscustomobject]@{ id = $manifest.orange.long_repeat.id; scenario = $worst.Scenario; output_frames = 256; internal_frames = 64; workers = 2; measure_seconds = 120 }
+    $longCell = [pscustomobject]@{ id = $manifest.orange.long_repeat.id; scenario = $worst.Scenario; output_frames = 256; internal_frames = 128; measure_seconds = 120 }
     $long = Invoke-OrangeCell $longCell "live" 1 $OutputDirectory
     $long | Add-Member -NotePropertyName Selection -NotePropertyValue "p99.9_then_max:$($worst.CellId)"
     Add-Result $cohortManifest $long

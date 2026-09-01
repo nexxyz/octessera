@@ -1,5 +1,5 @@
 use realtime_engine::synth::SynthProfileSnapshot;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub struct ProfileProbe {
     requested_generation: AtomicU64,
@@ -11,13 +11,7 @@ pub struct ProfileProbe {
     active_bus_fx_slots: AtomicU64,
     active_global_fx_slots: AtomicU64,
     cumulative_voice_steals: AtomicU64,
-    synth_parallel_worker_count: AtomicU64,
-    synth_parallel_dispatches: AtomicU64,
-    synth_parallel_light_skips: AtomicU64,
-    synth_parallel_backoff_skips: AtomicU64,
-    synth_parallel_timing_backoffs: AtomicU64,
-    synth_parallel_failures: AtomicU64,
-    synth_parallel_unhealthy: AtomicBool,
+    cumulative_voice_admission_drops: AtomicU64,
 }
 
 impl ProfileProbe {
@@ -32,13 +26,7 @@ impl ProfileProbe {
             active_bus_fx_slots: AtomicU64::new(0),
             active_global_fx_slots: AtomicU64::new(0),
             cumulative_voice_steals: AtomicU64::new(0),
-            synth_parallel_worker_count: AtomicU64::new(0),
-            synth_parallel_dispatches: AtomicU64::new(0),
-            synth_parallel_light_skips: AtomicU64::new(0),
-            synth_parallel_backoff_skips: AtomicU64::new(0),
-            synth_parallel_timing_backoffs: AtomicU64::new(0),
-            synth_parallel_failures: AtomicU64::new(0),
-            synth_parallel_unhealthy: AtomicBool::new(false),
+            cumulative_voice_admission_drops: AtomicU64::new(0),
         }
     }
 
@@ -72,22 +60,8 @@ impl ProfileProbe {
             .store(snapshot.active_global_fx_slots as u64, Ordering::Relaxed);
         self.cumulative_voice_steals
             .store(snapshot.cumulative_voice_steals, Ordering::Relaxed);
-        self.synth_parallel_worker_count.store(
-            snapshot.synth_parallel_worker_count as u64,
-            Ordering::Relaxed,
-        );
-        self.synth_parallel_dispatches
-            .store(snapshot.synth_parallel_dispatches, Ordering::Relaxed);
-        self.synth_parallel_light_skips
-            .store(snapshot.synth_parallel_light_skips, Ordering::Relaxed);
-        self.synth_parallel_backoff_skips
-            .store(snapshot.synth_parallel_backoff_skips, Ordering::Relaxed);
-        self.synth_parallel_timing_backoffs
-            .store(snapshot.synth_parallel_timing_backoffs, Ordering::Relaxed);
-        self.synth_parallel_failures
-            .store(snapshot.synth_parallel_failures, Ordering::Relaxed);
-        self.synth_parallel_unhealthy
-            .store(snapshot.synth_parallel_unhealthy, Ordering::Relaxed);
+        self.cumulative_voice_admission_drops
+            .store(snapshot.cumulative_voice_admission_drops, Ordering::Relaxed);
         self.published_generation
             .store(generation, Ordering::Release);
     }
@@ -102,19 +76,12 @@ impl ProfileProbe {
             active_preview_sample_voices: self.active_preview_sample_voices.load(Ordering::Relaxed)
                 as usize,
             active_momentary_fx: self.active_momentary_fx.load(Ordering::Relaxed) as usize,
+            cumulative_voice_steals: self.cumulative_voice_steals.load(Ordering::Relaxed),
+            cumulative_voice_admission_drops: self
+                .cumulative_voice_admission_drops
+                .load(Ordering::Relaxed),
             active_bus_fx_slots: self.active_bus_fx_slots.load(Ordering::Relaxed) as usize,
             active_global_fx_slots: self.active_global_fx_slots.load(Ordering::Relaxed) as usize,
-            cumulative_voice_steals: self.cumulative_voice_steals.load(Ordering::Relaxed),
-            synth_parallel_worker_count: self.synth_parallel_worker_count.load(Ordering::Relaxed)
-                as usize,
-            synth_parallel_dispatches: self.synth_parallel_dispatches.load(Ordering::Relaxed),
-            synth_parallel_light_skips: self.synth_parallel_light_skips.load(Ordering::Relaxed),
-            synth_parallel_backoff_skips: self.synth_parallel_backoff_skips.load(Ordering::Relaxed),
-            synth_parallel_timing_backoffs: self
-                .synth_parallel_timing_backoffs
-                .load(Ordering::Relaxed),
-            synth_parallel_failures: self.synth_parallel_failures.load(Ordering::Relaxed),
-            synth_parallel_unhealthy: self.synth_parallel_unhealthy.load(Ordering::Relaxed),
         })
     }
 }
@@ -133,9 +100,12 @@ mod tests {
         assert!(probe.poll(generation).is_none());
         probe.publish(SynthProfileSnapshot {
             active_synth_voices: 16,
+            cumulative_voice_admission_drops: 3,
             ..SynthProfileSnapshot::default()
         });
-        assert_eq!(probe.poll(generation).unwrap().active_synth_voices, 16);
+        let snapshot = probe.poll(generation).unwrap();
+        assert_eq!(snapshot.active_synth_voices, 16);
+        assert_eq!(snapshot.cumulative_voice_admission_drops, 3);
         assert!(!probe.request_pending());
     }
 }

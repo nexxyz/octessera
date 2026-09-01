@@ -1,10 +1,10 @@
 use super::*;
 use crate::queue::{COALESCED_QUEUE_CAPACITY, ORDERED_QUEUE_CAPACITY};
 use realtime_engine::synth::{
-    default_synth_config, prepare_audio_config, prepare_momentary_fx_start, FxBusConfig,
-    FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
-    SampleSlotConfig, DEFAULT_PAN_POSITIONS,
+    default_synth_config, prepare_audio_config, prepare_instrument_slot_config,
+    prepare_momentary_fx_start, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
+    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
+    SampleBankConfig, SampleBuffer, SampleSlotConfig, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 
@@ -74,7 +74,34 @@ fn sample_bank() -> SampleBankConfig {
 }
 
 fn prepared(config: InstrumentsConfig) -> realtime_engine::synth::PreparedAudioConfig {
-    prepare_audio_config(config, Some(vec![sample_bank()]), None, RATE)
+    prepared_with_bank(config, sample_bank())
+}
+
+fn prepared_with_bank(
+    config: InstrumentsConfig,
+    bank: SampleBankConfig,
+) -> realtime_engine::synth::PreparedAudioConfig {
+    prepare_audio_config(config, Some(vec![bank]), None, RATE)
+}
+
+fn none_slot() -> InstrumentSlotConfig {
+    InstrumentSlotConfig {
+        kind: "none".into(),
+        synth: default_synth_config(),
+        mixer: None,
+    }
+}
+
+fn long_sample_bank() -> SampleBankConfig {
+    let mut bank = sample_bank();
+    bank.slots[0] = SampleSlotConfig {
+        buffer: Some(SampleBuffer {
+            samples: vec![0.8; 16_384].into(),
+            channels: 1,
+            sample_rate: RATE,
+        }),
+    };
+    bank
 }
 
 #[test]
@@ -102,6 +129,108 @@ fn prepared_config_note_and_dynamic_control_cross_source_blocks() {
     .unwrap();
     let after = block(&mut source);
     assert!(energy(&after) < energy(&before) * 0.1);
+}
+
+#[test]
+fn ordered_note_off_releases_synth_after_synth_to_sample_to_none() {
+    let (tx, mut source) = source();
+    let sample = sample_config().instruments[0].clone();
+    tx.send(EngineEvent::SetPreparedAudioConfig(prepared_with_bank(
+        synth_config(),
+        long_sample_bank(),
+    )))
+    .unwrap();
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 36,
+        velocity: 100,
+        duration_ms: 50_000,
+    })
+    .unwrap();
+    let _ = block(&mut source);
+
+    tx.send(EngineEvent::SetPreparedInstrumentSlot {
+        instrument_slot: 0,
+        config: prepare_instrument_slot_config(sample),
+    })
+    .unwrap();
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 36,
+        velocity: 100,
+        duration_ms: 50_000,
+    })
+    .unwrap();
+    let _ = block(&mut source);
+    tx.send(EngineEvent::SetPreparedInstrumentSlot {
+        instrument_slot: 0,
+        config: prepare_instrument_slot_config(none_slot()),
+    })
+    .unwrap();
+    tx.send(EngineEvent::NoteOff {
+        instrument_slot: 0,
+        note: 36,
+    })
+    .unwrap();
+    let _ = block(&mut source);
+
+    assert_eq!(source.engine.profile_snapshot().active_sample_voices, 0);
+    assert_eq!(source.engine.profile_snapshot().active_synth_voices, 1);
+    for _ in 0..400 {
+        let _ = block(&mut source);
+    }
+    assert_eq!(source.engine.profile_snapshot().active_synth_voices, 0);
+}
+
+#[test]
+fn ordered_note_off_stops_sample_after_sample_to_synth_to_none() {
+    let (tx, mut source) = source();
+    let synth = synth_config().instruments[0].clone();
+    tx.send(EngineEvent::SetPreparedAudioConfig(prepared_with_bank(
+        sample_config(),
+        long_sample_bank(),
+    )))
+    .unwrap();
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 36,
+        velocity: 100,
+        duration_ms: 50_000,
+    })
+    .unwrap();
+    let _ = block(&mut source);
+
+    tx.send(EngineEvent::SetPreparedInstrumentSlot {
+        instrument_slot: 0,
+        config: prepare_instrument_slot_config(synth),
+    })
+    .unwrap();
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 36,
+        velocity: 100,
+        duration_ms: 50_000,
+    })
+    .unwrap();
+    let _ = block(&mut source);
+    tx.send(EngineEvent::SetPreparedInstrumentSlot {
+        instrument_slot: 0,
+        config: prepare_instrument_slot_config(none_slot()),
+    })
+    .unwrap();
+    tx.send(EngineEvent::NoteOff {
+        instrument_slot: 0,
+        note: 36,
+    })
+    .unwrap();
+    let _ = block(&mut source);
+
+    assert_eq!(source.engine.profile_snapshot().active_sample_voices, 0);
+    assert_eq!(source.engine.profile_snapshot().active_synth_voices, 1);
+    for _ in 0..400 {
+        let _ = block(&mut source);
+    }
+    assert_eq!(source.engine.profile_snapshot().active_synth_voices, 0);
 }
 
 #[test]
@@ -258,7 +387,7 @@ fn emergency_all_notes_off_clears_voices_after_a_populated_queue() {
 #[test]
 fn control_budget_spills_into_the_next_source_block() {
     let (tx, mut source) = source();
-    let (report_tx, report_rx) = std::sync::mpsc::channel();
+    let (report_tx, report_rx) = std::sync::mpsc::sync_channel(1);
     for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
         tx.send(EngineEvent::ProbeMark {
             sent_at: std::time::Instant::now(),
@@ -275,6 +404,8 @@ fn control_budget_spills_into_the_next_source_block() {
     .unwrap();
     let first = block(&mut source);
     assert_eq!(energy(&first), 0.0);
-    assert_eq!(report_rx.try_iter().count(), MAX_CONTROL_EVENTS_PER_BLOCK);
+    assert!(report_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .is_ok());
     assert!(energy(&block(&mut source)) > 0.0);
 }

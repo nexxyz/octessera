@@ -1,4 +1,4 @@
-use super::render_synth_parallel::render_synth_slot_pool_frame;
+use super::inline_source_executor::{render_synth_voice_frame, SynthVoiceFrameContext};
 use super::*;
 
 impl SynthEngine {
@@ -27,18 +27,30 @@ impl SynthEngine {
         if !self.active_synth_slots[slot_idx] {
             return SlotFrameOutput::default();
         }
-        let rendered = render_synth_slot_pool_frame(
-            &mut self.voices[slot_idx],
-            slot_idx,
-            frame_sample_clock,
-            render_synth_parallel::SynthSlotFrameContext {
-                sample_rate: self.sample_rate,
-                config: self.instruments[slot_idx],
-                render_config: &self.synth_render_configs[slot_idx],
-                revision: self.synth_render_revisions[slot_idx],
-                mods: self.mods[slot_idx],
-            },
-        );
+        self.synth_voice_pool.compact_slot_lanes(slot_idx);
+        let mut lane_indices = [0; SYNTH_VOICE_LANE_CAPACITY];
+        let lane_count = self.synth_voice_pool.slot_lanes(slot_idx).len();
+        lane_indices[..lane_count].copy_from_slice(self.synth_voice_pool.slot_lanes(slot_idx));
+        let context = SynthVoiceFrameContext {
+            sample_rate: self.sample_rate,
+            config: self.instruments[slot_idx],
+            render_config: &self.synth_render_configs[slot_idx],
+            revision: self.synth_render_revisions[slot_idx],
+            mods: self.mods[slot_idx],
+        };
+        let mut sample = 0.0;
+        let mut active = false;
+        for lane in lane_indices.into_iter().take(lane_count) {
+            let voice = self.synth_voice_pool.lane_mut(lane);
+            if let Some(rendered) =
+                render_synth_voice_frame(voice, slot_idx, frame_sample_clock, context)
+            {
+                sample += rendered;
+                active = true;
+            }
+        }
+        self.synth_voice_pool.compact_slot_lanes(slot_idx);
+        let rendered = SlotFrameOutput { sample, active };
         self.active_synth_slots[slot_idx] = rendered.active;
         rendered
     }

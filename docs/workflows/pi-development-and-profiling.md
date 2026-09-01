@@ -92,8 +92,8 @@ Raspberry-only; never point it at Orange.
 # Focused FX budget profile.
 ./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits
 
-# Current high-headroom Pi settings.
-./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -SynthSlotWorkers 2 -AudioBlockFrames 256
+# Explicit high-headroom frame comparison settings.
+./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -AudioRenderQuantumFrames 256
 ```
 
 The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it
@@ -135,13 +135,13 @@ run long live probes for unrelated changes.
 The baseline is deliberately two-layer evidence, not a normalized score. The
 native profile layer compares the same 44.1 kHz scenarios with a two-second
 warmup, 4096 measured observations, and three fresh processes per cell. It
-contains the common reference, Orange-effective-default, block, and worker
+contains the common reference, Orange-effective-default, and block
 cohorts in [`tools/performance/cross-board-baseline.json`](../../tools/performance/cross-board-baseline.json).
 
 The board-live layer retains each board's own proof. Orange reports strict ALSA
 callback geometry and one-second thermal/load/memory sampling. Raspberry runs
 fresh `Live` and `AudioDrain` probes at output 128, 256, and 512 for 30 seconds
-each, with internal block 256 and two requested workers; its Orange-only callback
+each, with a 128-frame internal render quantum; its Orange-only callback
 fields are unavailable and remain `null`. Raspberry also retains one-second
 native thermal and throttling samples; every measurement requires valid startup
 and runtime samples and no active undervoltage. Temperature and current
@@ -153,9 +153,13 @@ population is the measured observations for one native profile repetition or
 the measured callbacks for one Orange live repetition. Do not combine board
 populations or turn them into a single score.
 
-Orange's effective shipped geometry is output 256 → internal 64 with no
-effective synth workers. Raspberry's is output 256 → internal 256 with
-effective workers. These are evidence labels, not default-change requests.
+Schema-4 profile rows require numeric, non-negative admission-drop evidence; a
+qualified current scenario must reconcile its expected start/end counters and
+report zero drops unless that scenario explicitly declares otherwise.
+
+Orange's provisional capability geometry is output 256 → internal 128.
+Raspberry's Phase 1 geometry is output 256 → internal 128. These are evidence
+labels for the current branch defaults.
 
 Print the exact deterministic plan without transport:
 

@@ -10,7 +10,6 @@ function New-OrangeProfileBaselineBody {
     [Parameter(Mandatory)][string]$Scenario,
     [Parameter(Mandatory)][int]$InternalFrames,
     [Parameter(Mandatory)][int]$MeasureFrames,
-    [Parameter(Mandatory)][int]$Workers,
     [Parameter(Mandatory)][int]$TimeoutSeconds
   )
   $body = @'
@@ -63,7 +62,7 @@ if [ "$profile_status" -eq 0 ]; then
     done
   ) &
   sampler_pid=$!
-  timeout --signal=TERM --kill-after=5 __TIMEOUT_SECONDS__s sudo -n systemd-run --quiet --unit="$unit" --service-type=exec --wait --pipe --collect --property=RuntimeMaxSec=__TIMEOUT_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_AUDIO_BLOCK_FRAMES=__INTERNAL_FRAMES__ --setenv=OCTESSERA_PI_PROFILE_MEASURE_FRAMES=__MEASURE_FRAMES__ --setenv=OCTESSERA_PI_PROFILE_SAMPLE_RATE=44100 --setenv=OCTESSERA_SYNTH_SLOT_WORKERS=__WORKERS__ --setenv=OCTESSERA_PI_PROFILE_MODE=baseline --setenv=OCTESSERA_PI_PROFILE_SCENARIO=__SCENARIO__ "$binary" --profile-dsp > "$root/profile.csv" 2> "$root/profile.stderr" || profile_status=$?
+  timeout --signal=TERM --kill-after=5 __TIMEOUT_SECONDS__s sudo -n systemd-run --quiet --unit="$unit" --service-type=exec --wait --pipe --collect --property=RuntimeMaxSec=__TIMEOUT_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES=__INTERNAL_FRAMES__ --setenv=OCTESSERA_PI_PROFILE_MEASURE_FRAMES=__MEASURE_FRAMES__ --setenv=OCTESSERA_PI_PROFILE_SAMPLE_RATE=44100 --setenv=OCTESSERA_PI_PROFILE_MODE=baseline --setenv=OCTESSERA_PI_PROFILE_SCENARIO=__SCENARIO__ "$binary" --profile-dsp > "$root/profile.csv" 2> "$root/profile.stderr" || profile_status=$?
   kill -TERM "$sampler_pid" 2>/dev/null || true
   wait "$sampler_pid" 2>/dev/null || true
   if [ -e "$safety_abort" ]; then profile_status=75; fi
@@ -73,10 +72,10 @@ if ! cmp -s "$root/governor-before.txt" "$root/governor-after.txt"; then
   printf 'reason=governor-changed\n' > "$root/governor-abort.txt"
   profile_status=75
 fi
-printf 'mode=profile-baseline\nscenario=__SCENARIO__\ninternal_block_frames=__INTERNAL_FRAMES__\nmeasure_frames=__MEASURE_FRAMES__\nworkers=__WORKERS__\nstatus=%s\nstatus_class=%s\nsafety_abort=%s\ngovernor_before=%s\ngovernor_after=%s\n' "$profile_status" "$([ "$profile_status" -eq 75 ] && printf safety_failure || printf measured)" "$([ -e "$safety_abort" ] && printf true || printf false)" "$root/governor-before.txt" "$root/governor-after.txt" > "$root/study-result.txt"
+printf 'mode=profile-baseline\nscenario=__SCENARIO__\ninternal_block_frames=__INTERNAL_FRAMES__\nmeasure_frames=__MEASURE_FRAMES__\nstatus=%s\nstatus_class=%s\nsafety_abort=%s\ngovernor_before=%s\ngovernor_after=%s\n' "$profile_status" "$([ "$profile_status" -eq 75 ] && printf safety_failure || printf measured)" "$([ -e "$safety_abort" ] && printf true || printf false)" "$root/governor-before.txt" "$root/governor-after.txt" > "$root/study-result.txt"
 exit "$profile_status"
 '@
-  return $body.Replace("__SCENARIO__", (Quote-ProfileBaselineShValue $Scenario)).Replace("__INTERNAL_FRAMES__", [string]$InternalFrames).Replace("__MEASURE_FRAMES__", [string]$MeasureFrames).Replace("__WORKERS__", [string]$Workers).Replace("__TIMEOUT_SECONDS__", [string]$TimeoutSeconds)
+  return $body.Replace("__SCENARIO__", (Quote-ProfileBaselineShValue $Scenario)).Replace("__INTERNAL_FRAMES__", [string]$InternalFrames).Replace("__MEASURE_FRAMES__", [string]$MeasureFrames).Replace("__TIMEOUT_SECONDS__", [string]$TimeoutSeconds)
 }
 
 Export-ModuleMember -Function "New-OrangeProfileBaselineBody"

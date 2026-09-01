@@ -5,15 +5,21 @@ use super::fx::{
 };
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
 use super::runtime_state::*;
+use super::synth_voice_pool::SynthVoicePool;
 use super::types::*;
 use render_voice::{refresh_synth_voice_render_cache, SynthVoiceRenderConfig};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+#[cfg(test)]
+mod admission_tests;
 mod control;
 #[cfg(test)]
 mod control_tests;
 mod dynamic_control;
+mod inline_source_executor;
+#[cfg(test)]
+mod lifecycle_tests;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
@@ -23,13 +29,16 @@ mod render;
 #[cfg(test)]
 mod render_block_tests;
 mod render_momentary_fx;
+mod render_plan;
 mod render_profile;
 mod render_routing;
 mod render_samples;
 mod render_synth;
-mod render_synth_parallel;
+#[cfg(test)]
+mod render_tests;
 mod render_voice;
 mod retired_state;
+mod sample_voice_pool;
 mod support;
 #[cfg(test)]
 mod test_support;
@@ -42,9 +51,14 @@ pub use prepared_control_prepare::{
     PreparedInstrumentsConfig, PreparedMomentaryFxStart,
 };
 pub use retired_state::RetiredAudioState;
+use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
 
+use control::MAX_MOMENTARY_FX;
+use inline_source_executor::InlineSourceExecutor;
+use render_plan::RenderPlan;
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
+use sample_voice_pool::SampleVoicePool;
 use support::{
     midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, parse_instrument_kind,
     parse_momentary_fx_kind, parse_route, sample_slot_for_note, InstrumentKind, MomentaryFxKind,
@@ -64,11 +78,15 @@ pub struct SynthEngine {
     synth_render_revisions: [u32; INSTRUMENT_SLOT_COUNT],
     sample_banks: Vec<SampleBankConfig>,
     mods: [InstrumentMod; INSTRUMENT_SLOT_COUNT],
-    voices: [[Voice; VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
-    sample_voices: [[SampleVoice; VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
+    synth_voice_pool: SynthVoicePool,
+    sample_voice_pool: SampleVoicePool,
     active_synth_slots: [bool; INSTRUMENT_SLOT_COUNT],
     active_sample_slots: [bool; INSTRUMENT_SLOT_COUNT],
-    preview_sample_voices: Vec<PreviewSampleVoice>,
+    preview_sample_voices: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+    preview_sample_orders: [u64; PREVIEW_AUDITION_SLOTS],
+    preview_sample_next_order: u64,
+    pending_render_retired: RetiredAudioState,
+    render_plan: RenderPlan,
     slot_route: [usize; INSTRUMENT_SLOT_COUNT],
     slot_pan_pos: [usize; INSTRUMENT_SLOT_COUNT],
     slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
@@ -96,22 +114,13 @@ pub struct SynthEngine {
     smoothed_load_ratio: f32,
     voice_steal_since_status: bool,
     cumulative_voice_steals: u64,
+    cumulative_voice_admission_drops: u64,
     momentary_fx: Vec<MomentaryFxState>,
     dry_history: Vec<f32>,
     dry_history_pos: usize,
     fx_activity_hold_frames: u32,
     render_profile: RenderProfileState,
     block_slot_scratch: BlockSlotScratch,
-    synth_workers: Option<render_synth_parallel::SynthSlotWorkerPool>,
-    synth_parallel_worker_count: usize,
-    synth_parallel_backoff_blocks: u32,
-    synth_parallel_failure_count: u32,
-    synth_parallel_unhealthy: bool,
-    synth_parallel_dispatches: u64,
-    synth_parallel_light_skips: u64,
-    synth_parallel_backoff_skips: u64,
-    synth_parallel_timing_backoffs: u64,
-    synth_parallel_failures: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -123,28 +132,29 @@ pub(super) struct SlotFrameOutput {
 pub(super) const BLOCK_SLOT_SCRATCH_FRAMES: usize = 2048;
 
 pub(super) struct BlockSlotScratch {
+    inline_source_executor: InlineSourceExecutor,
     sample_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
     synth_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
     sample_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
     synth_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
-    synth_voices: [Option<[Voice; VOICES_PER_SLOT]>; INSTRUMENT_SLOT_COUNT],
-    synth_final_active: [bool; INSTRUMENT_SLOT_COUNT],
 }
 
 impl BlockSlotScratch {
     fn new() -> Self {
         Self {
+            inline_source_executor: InlineSourceExecutor::new(),
             sample_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
             synth_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
             sample_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
             synth_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
-            synth_voices: std::array::from_fn(|_| None),
-            synth_final_active: [false; INSTRUMENT_SLOT_COUNT],
         }
     }
 
     fn prepare(&mut self, frames: usize) -> bool {
         if frames > BLOCK_SLOT_SCRATCH_FRAMES {
+            return false;
+        }
+        if !self.inline_source_executor.prepare(frames) {
             return false;
         }
         for buffer in &mut self.sample_slot_out {
@@ -159,8 +169,6 @@ impl BlockSlotScratch {
         for buffer in &mut self.synth_active {
             buffer[..frames].fill(false);
         }
-        self.synth_voices.fill(None);
-        self.synth_final_active.fill(false);
         true
     }
 }
@@ -178,11 +186,15 @@ impl SynthEngine {
             synth_render_revisions: [0; INSTRUMENT_SLOT_COUNT],
             sample_banks: vec![SampleBankConfig::default(); INSTRUMENT_SLOT_COUNT],
             mods: [InstrumentMod::new(); INSTRUMENT_SLOT_COUNT],
-            voices: [[Voice::off(); VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
-            sample_voices: [[SampleVoice::off(); VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
+            synth_voice_pool: SynthVoicePool::new(),
+            sample_voice_pool: SampleVoicePool::new(),
             active_synth_slots: [false; INSTRUMENT_SLOT_COUNT],
             active_sample_slots: [false; INSTRUMENT_SLOT_COUNT],
-            preview_sample_voices: Vec::new(),
+            preview_sample_voices: std::array::from_fn(|_| None),
+            preview_sample_orders: [0; PREVIEW_AUDITION_SLOTS],
+            preview_sample_next_order: 0,
+            pending_render_retired: RetiredAudioState::default(),
+            render_plan: RenderPlan::new(),
             slot_route: [0; INSTRUMENT_SLOT_COUNT],
             slot_pan_pos: [DEFAULT_PAN_POSITIONS / 2; INSTRUMENT_SLOT_COUNT],
             slot_pan_gains: [pan_gains(DEFAULT_PAN_POSITIONS / 2, DEFAULT_PAN_POSITIONS);
@@ -211,57 +223,14 @@ impl SynthEngine {
             smoothed_load_ratio: 0.0,
             voice_steal_since_status: false,
             cumulative_voice_steals: 0,
-            momentary_fx: Vec::with_capacity(2),
+            cumulative_voice_admission_drops: 0,
+            momentary_fx: Vec::with_capacity(MAX_MOMENTARY_FX),
             dry_history: vec![0.0; DRY_HISTORY_FRAMES * 2],
             dry_history_pos: 0,
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
             render_profile: RenderProfileState::default(),
             block_slot_scratch: BlockSlotScratch::new(),
-            synth_workers: None,
-            synth_parallel_worker_count: 0,
-            synth_parallel_backoff_blocks: 0,
-            synth_parallel_failure_count: 0,
-            synth_parallel_unhealthy: false,
-            synth_parallel_dispatches: 0,
-            synth_parallel_light_skips: 0,
-            synth_parallel_backoff_skips: 0,
-            synth_parallel_timing_backoffs: 0,
-            synth_parallel_failures: 0,
         }
-    }
-
-    pub fn set_synth_slot_parallelism_enabled(
-        &mut self,
-        enabled: bool,
-        worker_count: usize,
-    ) -> bool {
-        self.synth_workers = if enabled && worker_count > 0 {
-            render_synth_parallel::SynthSlotWorkerPool::start(worker_count)
-        } else {
-            None
-        };
-        self.synth_parallel_worker_count = self
-            .synth_workers
-            .as_ref()
-            .map_or(0, |_| worker_count.min(3));
-        self.synth_parallel_backoff_blocks = 0;
-        self.synth_parallel_failure_count = 0;
-        self.synth_parallel_unhealthy = false;
-        self.synth_parallel_dispatches = 0;
-        self.synth_parallel_light_skips = 0;
-        self.synth_parallel_backoff_skips = 0;
-        self.synth_parallel_timing_backoffs = 0;
-        self.synth_parallel_failures = 0;
-        self.synth_workers.is_some()
-    }
-
-    pub fn synth_slot_parallelism_enabled(&self) -> bool {
-        self.synth_workers.is_some()
-    }
-
-    #[cfg(test)]
-    pub(in crate::synth) fn enable_synth_slot_workers_for_tests(&mut self, worker_count: usize) {
-        assert!(self.set_synth_slot_parallelism_enabled(true, worker_count));
     }
 
     pub(in crate::synth::engine) fn record_voice_steal(&mut self) {
@@ -269,91 +238,67 @@ impl SynthEngine {
         self.cumulative_voice_steals = self.cumulative_voice_steals.saturating_add(1);
     }
 
+    pub(in crate::synth::engine) fn record_voice_admission_drop(&mut self) {
+        self.cumulative_voice_admission_drops =
+            self.cumulative_voice_admission_drops.saturating_add(1);
+    }
+
     pub fn profile_snapshot(&self) -> SynthProfileSnapshot {
-        let active_synth_voices = self
-            .voices
-            .iter()
-            .map(|pool| pool.iter().filter(|voice| voice.active).count())
-            .sum();
-        let active_sample_voices = self
-            .sample_voices
-            .iter()
-            .map(|pool| pool.iter().filter(|voice| voice.active).count())
-            .sum();
+        let active_synth_voices = self.synth_voice_pool.active_total();
+        let active_sample_voices = self.sample_voice_pool.active_total();
         SynthProfileSnapshot {
             active_synth_voices,
             active_sample_voices,
-            active_preview_sample_voices: self.preview_sample_voices.len(),
+            active_preview_sample_voices: self
+                .preview_sample_voices
+                .iter()
+                .filter(|voice| voice.is_some())
+                .count(),
             active_momentary_fx: self.momentary_fx.len(),
             active_bus_fx_slots: self.bus_active_slot_counts.iter().sum(),
             active_global_fx_slots: self.master_active_slot_indices.len(),
             cumulative_voice_steals: self.cumulative_voice_steals,
-            synth_parallel_worker_count: self.synth_parallel_worker_count,
-            synth_parallel_dispatches: self.synth_parallel_dispatches,
-            synth_parallel_light_skips: self.synth_parallel_light_skips,
-            synth_parallel_backoff_skips: self.synth_parallel_backoff_skips,
-            synth_parallel_timing_backoffs: self.synth_parallel_timing_backoffs,
-            synth_parallel_failures: self.synth_parallel_failures,
-            synth_parallel_unhealthy: self.synth_parallel_unhealthy,
+            cumulative_voice_admission_drops: self.cumulative_voice_admission_drops,
         }
     }
 
     pub fn is_idle(&self) -> bool {
         !self.has_active_synth_voices()
             && !self.has_active_sample_voices()
-            && self.preview_sample_voices.is_empty()
+            && self.preview_sample_voices.iter().all(Option::is_none)
             && self.momentary_fx.is_empty()
             && self.active_bus_activity_count == 0
             && self.master_activity_frames == 0
     }
 
     fn has_active_synth_voices(&self) -> bool {
-        self.voices
-            .iter()
-            .any(|pool| pool.iter().any(|voice| voice.active))
+        self.synth_voice_pool.active_total() > 0
     }
 
     fn has_active_sample_voices(&self) -> bool {
-        self.sample_voices
+        self.sample_voice_pool.active_total() > 0
+    }
+
+    pub fn take_pending_render_retired(&mut self) -> RetiredAudioState {
+        std::mem::take(&mut self.pending_render_retired)
+    }
+
+    pub fn pending_render_retired_is_empty(&self) -> bool {
+        self.pending_render_retired
+            .preview_sample_voices
             .iter()
-            .any(|pool| pool.iter().any(|voice| voice.active))
+            .all(Option::is_none)
+            && self
+                .pending_render_retired
+                .displaced_momentary_fx
+                .iter()
+                .all(Option::is_none)
     }
 
-    pub(in crate::synth::engine) fn record_synth_parallel_dispatch(&mut self) {
-        self.synth_parallel_dispatches = self.synth_parallel_dispatches.saturating_add(1);
-        self.synth_parallel_failure_count = 0;
-    }
-
-    pub(in crate::synth::engine) fn record_synth_parallel_light_skip(&mut self) {
-        self.synth_parallel_light_skips = self.synth_parallel_light_skips.saturating_add(1);
-    }
-
-    pub(in crate::synth::engine) fn record_synth_parallel_backoff_skip(&mut self) {
-        self.synth_parallel_backoff_skips = self.synth_parallel_backoff_skips.saturating_add(1);
-    }
-
-    pub(in crate::synth::engine) fn record_synth_parallel_failure(&mut self) {
-        self.synth_parallel_failures = self.synth_parallel_failures.saturating_add(1);
-        self.synth_parallel_failure_count = self.synth_parallel_failure_count.saturating_add(1);
-        self.synth_parallel_backoff_blocks = 128;
-        if self.synth_parallel_failure_count >= 3 {
-            self.synth_parallel_unhealthy = true;
-        }
-    }
-
-    pub(in crate::synth::engine) fn apply_synth_parallel_timing_backoff(
-        &mut self,
-        frames: usize,
-        elapsed_ns: u64,
-    ) {
-        let budget_ns = (frames as u128)
-            .saturating_mul(1_000_000_000)
-            .checked_div(self.sample_rate.max(1) as u128)
-            .unwrap_or(0) as u64;
-        if budget_ns > 0 && elapsed_ns > budget_ns.saturating_mul(3) / 5 {
-            self.synth_parallel_timing_backoffs =
-                self.synth_parallel_timing_backoffs.saturating_add(1);
-            self.synth_parallel_backoff_blocks = 64;
-        }
+    pub(in crate::synth::engine) fn retire_render_preview(&mut self, voice: PreviewSampleVoice) {
+        store_retired_preview(
+            &mut self.pending_render_retired.preview_sample_voices,
+            voice,
+        );
     }
 }

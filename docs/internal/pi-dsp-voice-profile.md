@@ -4,10 +4,15 @@ This note separates historical Raspberry evidence from the Orange Phase 1
 qualification path. Every measurement dated 2026-07-15 and every table below
 is Raspberry Pi Zero 2 W evidence only. None of those ratios are Orange results.
 
+Historical worker settings, comparisons, and telemetry in this note are retained
+for provenance only. They are not part of the current configuration, benchmark
+schema, or control contract.
+
 ## Orange frame mapping and evidence boundary
 
-Orange's production CPAL output buffer is 256 frames, which maps to 64-frame
-internal `EngineSource` blocks. The earlier offline 256-frame comparison
+Orange's production CPAL output buffer is 256 frames, with the provisional
+capability-selected 128-frame internal `EngineSource` quantum. The earlier
+offline 256-frame comparison
 modeled the internal block selected by a live 1024-frame output setting; it did
 not open CPAL or run that live output buffer. The corrected live comparison
 below opened output 256, observed ALSA period 64, and explicitly selected
@@ -44,7 +49,7 @@ Preview the single-cell payload or full matrix without contacting a board:
 
 ```powershell
 ./tools/orange-pi/run-orange-capability-study.ps1 -Mode LiveAudioBenchmark `
-  -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 -Workers 2 `
+  -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 `
   -MeasureSeconds 30 -Artifact target/orange-pi-cross/octessera-pi `
   -Metadata target/orange-pi-cross/octessera-pi.metadata.json `
   -AllowServiceInterruption -PrintOnly
@@ -87,15 +92,17 @@ failures, not unhealthy. Peak temperature was 59.678 C and minimum available
 memory was 1,767,164 KiB. Production was restored after every run. The
 mandatory stop means C3 synth and all new mixed C comparisons were not run.
 
-Result artifacts now use schema 3 with optional exact worker delta/policy error
-and independent host recomputation; readiness, progress, and release remain
-schema 2. Internally recovered `EPIPE` remains unobservable, so these results
-make no zero-xrun or audible-quality claim.
+Result artifacts now use schema 4 with independent host recomputation; readiness,
+progress, and release use schema 3, 3, and 2 respectively. Internally recovered
+`EPIPE` remains unobservable, so these results make no zero-xrun or audible-quality
+claim.
+Schema-4 profile results require cumulative, peak, and delta voice admission-drop
+fields. Qualified current scenarios must reconcile expected start/end counters and
+use zero unless a scenario explicitly declares a nonzero admission-drop value.
 
-Retain the current Orange production 256/64 behavior and existing shared
-capabilities/defaults. Do not promote 1024/256 workers, raise limits, or reduce
-shared limits from this one board. The live C2 result refutes a clean
-high-headroom worker operating point under `synth96`.
+Retain the current Orange production 256-output/internal-128 behavior and existing
+shared capabilities/defaults. Do not promote the historical 1024/256 comparison,
+raise limits, or reduce shared limits from this one board.
 
 ## Orange 256-output / period64 / engine256 comparison
 
@@ -127,23 +134,16 @@ unchanged.
   0 failures, and not unhealthy.
 
 The serial candidate has essentially the same aggregate cost as the baseline.
-Workers lower aggregate DSP cost by roughly one third, but both 256-frame
-candidates redistribute work into bursts. Candidate callback batches ranged
-64..160 frames serially and 64..192 with workers; the pattern is consistent with
-256-frame refills followed by cheaper drain callbacks. Workers lower average
-DSP cost but do not eliminate per-callback audio-duration budget overruns and
-add tail jitter/backoff. Production
-was restored active/enabled after every cell. The mandatory hard stop means all
-three mixed 48+48 cells and any expansion or 120-second candidate were not run.
+Both 256-frame candidates redistributed work into bursts. Production was restored
+active/enabled after every cell. The mandatory hard stop means all three mixed
+48+48 cells and any expansion or 120-second candidate were not run.
 The direct Orange 256/256 candidate was tested and rejected for the current
-256/64 ALSA path. Keep Orange production output 256/internal 64 and Raspberry
-parallel 256-internal behavior unchanged; this result is Orange-specific and
-does not invalidate Raspberry workers. Internally recovered `EPIPE` remains
+256/64 ALSA path. The provisional Orange capability path is output 256/internal
+128. This result is Orange-specific. Internally recovered `EPIPE` remains
 unobservable, so no actual xrun or audible-quality result is claimed.
 
-Oracle and QA gates passed. Final validation passed 220 Orange-feature tests,
-strict Clippy, both focused PowerShell suites, a fresh AArch64 cross-build,
-Rust formatting, and line checks. No defaults or capabilities changed.
+Oracle and QA gates passed for the historical comparison. Phase 1 now uses a
+256-frame output buffer and a 128-frame internal render quantum.
 
 ## Raspberry Pi Zero 2 W: 2026-07-15 128-frame default profile
 
@@ -181,9 +181,9 @@ mixed overload removed the apparent margin.
 
 ## Raspberry-only synth-slot parallelism measurements
 
-At the Raspberry 128-frame measurement block size, setting
-`OCTESSERA_SYNTH_SLOT_WORKERS=2` or `3` enabled the worker pool but dispatched
-zero blocks. The engine parallel gate requires at least 256 internal frames.
+At the Raspberry 128-frame measurement block size, the legacy synth worker-pool
+setting at `2` or `3` enabled the worker pool but dispatched zero blocks. The
+engine parallel gate requires at least 256 internal frames.
 
 The following 256-frame rows are also Raspberry Pi Zero 2 W measurements only:
 
@@ -196,15 +196,14 @@ The following 256-frame rows are also Raspberry Pi Zero 2 W measurements only:
 | `mixed_cross_slot_48_48_steal` | 2 | 0.711 | 0.714 | 0.803 | 48/48 |
 | `mixed_cross_slot_48_48_steal` | 3 | 0.713 | 0.731 | 0.798 | 48/48 |
 
-Raspberry's existing high-headroom behavior uses 256-frame internal render
-blocks and 2 synth-slot workers. Its runtime default output buffer remains 256
-frames. The Orange result above is Orange-specific and does not invalidate
-Raspberry workers. `OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES`,
-`OCTESSERA_AUDIO_BLOCK_FRAMES`, and `OCTESSERA_SYNTH_SLOT_WORKERS` remain
-profiling overrides.
+Raspberry's Phase 1 behavior uses a 256-frame runtime output buffer and a
+128-frame internal render quantum. The Orange result above is Orange-specific.
+`OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES` and
+`OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES` remain profiling overrides.
 
 `docs/internal/pi-audio-buffer-experiment.md` records the Raspberry
-128-frame internal/output experiment. It retained the 256/256 Raspberry
-defaults, the safe momentary FX cache, and the profiling tooling; it did not
-establish an Orange output or callback result. The corrected Orange live
-comparison is recorded above.
+128-frame internal/output experiment. It retained the 256-frame output, the
+128-frame internal render quantum, the disabled default worker pool, the safe
+momentary FX cache, and the profiling tooling; it did not establish an Orange
+output or callback result. The corrected Orange live comparison is recorded
+above.

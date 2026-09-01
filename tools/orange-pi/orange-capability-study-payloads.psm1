@@ -156,7 +156,7 @@ profile_status=0
 ) > "$root/system-evidence.txt" 2>&1 &
 sampler_pid=$!
 sudo -n systemctl stop "$service"
-timeout --signal=TERM --kill-after=5 __TIMEOUT_SECONDS__s sudo -n systemd-run --quiet --unit="$unit" --service-type=exec --wait --pipe --collect --property=RuntimeMaxSec=__TIMEOUT_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_AUDIO_BLOCK_FRAMES=__BLOCK_FRAMES__ --setenv=OCTESSERA_SYNTH_SLOT_WORKERS=2 --setenv=OCTESSERA_PI_PROFILE_MODE=__PROFILE_MODE__ "$binary" --profile-dsp > "$root/profile.csv" 2> "$root/profile.stderr" || profile_status=$?
+timeout --signal=TERM --kill-after=5 __TIMEOUT_SECONDS__s sudo -n systemd-run --quiet --unit="$unit" --service-type=exec --wait --pipe --collect --property=RuntimeMaxSec=__TIMEOUT_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES=__BLOCK_FRAMES__ --setenv=OCTESSERA_PI_PROFILE_MODE=__PROFILE_MODE__ "$binary" --profile-dsp > "$root/profile.csv" 2> "$root/profile.stderr" || profile_status=$?
 stop_sampler
 printf 'mode=dsp\ninternal_block_frames=__BLOCK_FRAMES__\nstatus=%s\n' "$profile_status" > "$root/study-result.txt"
 exit "$profile_status"
@@ -247,8 +247,7 @@ function New-RemoteStudyPayload {
     [Parameter(Mandatory)][bool]$ArtifactRequired,
     [string]$Scenario = "",
     [int]$InternalFrames = 0,
-    [int]$MeasureFrames = 0,
-    [int]$Workers = 2
+    [int]$MeasureFrames = 0
   )
   $body = switch ($Mode) {
     "PassiveBaseline" {
@@ -257,7 +256,7 @@ sample_system > "$root/system-evidence.txt"
 printf 'mode=PassiveBaseline\n' > "$root/study-result.txt"
 '@
     }
-    "ProfileBaseline" { New-OrangeProfileBaselineBody $Scenario $InternalFrames $MeasureFrames $Workers $TimeoutSeconds }
+    "ProfileBaseline" { New-OrangeProfileBaselineBody $Scenario $InternalFrames $MeasureFrames $TimeoutSeconds }
     "Dsp64" { New-DspBody 64 $TimeoutSeconds $ProfileMode }
     "Dsp256" { New-DspBody 256 $TimeoutSeconds $ProfileMode }
     "LiveCandidate" { New-LiveCandidateBody $LiveSeconds $StartupTimeoutSeconds }
@@ -463,11 +462,10 @@ function New-OrangeCapabilityStudyPayloadBundle {
     [Parameter(Mandatory)][bool]$ArtifactRequired,
     [string]$Scenario = "",
     [int]$InternalFrames = 0,
-    [int]$MeasureFrames = 0,
-    [int]$Workers = 2
+    [int]$MeasureFrames = 0
   )
   [pscustomobject]@{
-    Study = New-RemoteStudyPayload $Mode $ProfileMode $TimeoutSeconds $LiveSeconds $StartupTimeoutSeconds $RemoteRoot $HealthPath $ArtifactHash $Unit $Service $ActiveMode $ArtifactRequired $Scenario $InternalFrames $MeasureFrames $Workers
+    Study = New-RemoteStudyPayload $Mode $ProfileMode $TimeoutSeconds $LiveSeconds $StartupTimeoutSeconds $RemoteRoot $HealthPath $ArtifactHash $Unit $Service $ActiveMode $ArtifactRequired $Scenario $InternalFrames $MeasureFrames
     Prepare = New-PreparePayload $RemoteRoot
     Cleanup = New-CleanupPayload $ActiveMode $RemoteRoot $HealthPath $Unit
   }

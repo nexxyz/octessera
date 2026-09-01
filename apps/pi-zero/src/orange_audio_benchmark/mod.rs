@@ -6,7 +6,6 @@ mod probe;
 mod release;
 mod schema;
 mod stream;
-mod worker;
 
 use crate::dsp_scenarios::LiveScenarioSpec;
 use cli::{parse, BenchmarkConfig};
@@ -68,13 +67,12 @@ fn execute_benchmark(
     state: &mut RunState,
 ) -> Result<(), String> {
     let empty = CallbackMetricsSnapshot::default();
-    write_progress(config, "prepared", 0, 0, &empty, None)?;
+    write_progress(config, "prepared", 0, 0, &empty)?;
     let (sender, receiver) = event_queue();
     let built = stream::build(
         receiver,
         config.output_frames,
         config.internal_frames,
-        config.workers,
         state.metrics.clone(),
         state.profile_probe.clone(),
         state.phase_control.clone(),
@@ -120,64 +118,26 @@ fn execute_benchmark(
         stream.channels,
         stream.sample_rate,
         &readiness_metrics,
-        stream.workers_effective,
     );
     atomic_write_json(&config.readiness_path, &readiness_artifact)?;
-    write_progress(
-        config,
-        "ready",
-        0,
-        0,
-        &readiness_metrics,
-        Some(stream.workers_effective),
-    )?;
-    write_progress(
-        config,
-        "waiting_release",
-        0,
-        0,
-        &readiness_metrics,
-        Some(stream.workers_effective),
-    )?;
+    write_progress(config, "ready", 0, 0, &readiness_metrics)?;
+    write_progress(config, "waiting_release", 0, 0, &readiness_metrics)?;
     release::wait_for_release(config, &readiness_artifact, invocation_id)?;
-    write_progress(
-        config,
-        "release_accepted",
-        0,
-        0,
-        &readiness_metrics,
-        Some(stream.workers_effective),
-    )?;
+    write_progress(config, "release_accepted", 0, 0, &readiness_metrics)?;
     send_fixture(&sender, scenario.events)?;
     let fixture_snapshot = state.metrics.snapshot();
-    write_progress(
-        config,
-        "fixture_injected",
-        0,
-        0,
-        &fixture_snapshot,
-        Some(stream.workers_effective),
-    )?;
+    write_progress(config, "fixture_injected", 0, 0, &fixture_snapshot)?;
     wait_for_barrier(&sender)?;
     let profile_start = request_profile_snapshot(state)?;
-    validate_profile_state(&profile_start, scenario.expected)?;
+    validate_profile_state(
+        &profile_start,
+        scenario.expected,
+        scenario.expected.expected_voice_admission_drops_start,
+    )?;
     state.profile_start = Some(profile_start);
-    write_progress(
-        config,
-        "fixture_validated",
-        0,
-        0,
-        &state.metrics.snapshot(),
-        Some(stream.workers_effective),
-    )?;
+    write_progress(config, "fixture_validated", 0, 0, &state.metrics.snapshot())?;
     set_phase(state, MeasurementPhase::Disabled)?;
-    run_window(
-        config,
-        &state.metrics,
-        "warmup",
-        config.warmup_seconds,
-        stream.workers_effective,
-    )?;
+    run_window(config, &state.metrics, "warmup", config.warmup_seconds)?;
     state.metrics.enable_measurement();
     set_phase(state, MeasurementPhase::Measuring)?;
     run_window(
@@ -185,7 +145,6 @@ fn execute_benchmark(
         &state.metrics,
         "measurement",
         config.measure_seconds,
-        stream.workers_effective,
     )
 }
 
@@ -219,7 +178,7 @@ fn send_fixture(sender: &EngineEventSender, events: Vec<EngineEvent>) -> Result<
 }
 
 fn wait_for_barrier(sender: &EngineEventSender) -> Result<(), String> {
-    let (report_tx, report_rx) = mpsc::channel();
+    let (report_tx, report_rx) = mpsc::sync_channel(1);
     sender
         .send(EngineEvent::ProbeMark {
             sent_at: Instant::now(),
@@ -256,32 +215,17 @@ fn run_window(
     metrics: &CallbackMetrics,
     phase: &'static str,
     seconds: u64,
-    workers_effective: bool,
 ) -> Result<(), String> {
     let started = Instant::now();
     let deadline = started + Duration::from_secs(seconds);
     let mut last_heartbeat = metrics.snapshot().lifetime_callback_count;
     let mut stalled_for = 0;
-    write_progress(
-        config,
-        phase,
-        0,
-        seconds,
-        &metrics.snapshot(),
-        Some(workers_effective),
-    )?;
+    write_progress(config, phase, 0, seconds, &metrics.snapshot())?;
     while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
         std::thread::sleep(remaining.min(Duration::from_secs(1)));
         let elapsed = started.elapsed().as_secs().min(seconds);
         let snapshot = metrics.snapshot();
-        write_progress(
-            config,
-            phase,
-            elapsed,
-            seconds,
-            &snapshot,
-            Some(workers_effective),
-        )?;
+        write_progress(config, phase, elapsed, seconds, &snapshot)?;
         if snapshot.terminal_error {
             return Err("terminal callback or geometry error".into());
         }
@@ -311,17 +255,9 @@ fn write_progress(
     elapsed_seconds: u64,
     target_seconds: u64,
     metrics: &CallbackMetricsSnapshot,
-    workers_effective: Option<bool>,
 ) -> Result<(), String> {
     atomic_write_json(
         &config.progress_path,
-        &BenchmarkProgress::new(
-            config,
-            phase,
-            elapsed_seconds,
-            target_seconds,
-            metrics,
-            workers_effective,
-        ),
+        &BenchmarkProgress::new(config, phase, elapsed_seconds, target_seconds, metrics),
     )
 }

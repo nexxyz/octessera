@@ -50,6 +50,8 @@ pub struct ExpectedLiveState {
     pub active_bus_fx_slots: usize,
     pub active_global_fx_slots: usize,
     pub expected_voice_steals: u64,
+    pub expected_voice_admission_drops_start: u64,
+    pub expected_voice_admission_drops_end: u64,
 }
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
@@ -109,23 +111,23 @@ pub fn live_scenario(
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
 pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
-    let state: (usize, usize, usize, usize, usize, u64) = match name {
-        "synth_ramp_16" => (16, 0, 0, 0, 0, 0),
-        "synth_ramp_32" => (32, 0, 0, 0, 0, 0),
-        "synth_ramp_64" => (64, 0, 0, 0, 0, 0),
-        "sample_ramp_64" => (0, 64, 0, 0, 0, 0),
-        "mixed_ramp_16_16" => (16, 16, 0, 0, 0, 0),
-        "mixed_ramp_32_32" => (32, 32, 0, 0, 0, 0),
-        "bus_heavy_6_bus_fx_2_global" => (16, 0, 0, 6, 2, 0),
-        "momentary_combined" => (16, 0, 2, 0, 0, 0),
-        "synth_cross_slot_96_steal" => (64, 0, 0, 0, 0, 32),
-        "sample_cross_slot_96_steal" => (0, 64, 0, 0, 0, 32),
-        "mixed_cross_slot_48_48_steal" => (32, 32, 0, 0, 0, 32),
-        "synth_cross_slot_16" => (16, 0, 0, 0, 0, 0),
-        "sample_cross_slot_64" => (0, 64, 0, 0, 0, 0),
-        "mixed_16_synth_32_sample" => (16, 32, 0, 0, 0, 0),
-        "fixed_8_synth_8_sample_12_bus_2_global_2_momentary" => (8, 8, 2, 12, 2, 0),
-        "synth_cross_slot_32_no_steal" => (32, 0, 0, 0, 0, 0),
+    let state: (usize, usize, usize, usize, usize, u64, u64, u64) = match name {
+        "synth_ramp_16" => (16, 0, 0, 0, 0, 0, 0, 0),
+        "synth_ramp_32" => (32, 0, 0, 0, 0, 0, 0, 0),
+        "synth_ramp_64" => (64, 0, 0, 0, 0, 0, 0, 0),
+        "sample_ramp_64" => (0, 64, 0, 0, 0, 0, 0, 0),
+        "mixed_ramp_16_16" => (16, 16, 0, 0, 0, 0, 0, 0),
+        "mixed_ramp_32_32" => (32, 32, 0, 0, 0, 0, 0, 0),
+        "bus_heavy_6_bus_fx_2_global" => (16, 0, 0, 6, 2, 0, 0, 0),
+        "momentary_combined" => (16, 0, 2, 0, 0, 0, 0, 0),
+        "synth_cross_slot_96_steal" => (64, 0, 0, 0, 0, 32, 0, 0),
+        "sample_cross_slot_96_steal" => (0, 64, 0, 0, 0, 32, 0, 0),
+        "mixed_cross_slot_48_48_steal" => (32, 32, 0, 0, 0, 32, 0, 0),
+        "synth_cross_slot_16" => (16, 0, 0, 0, 0, 0, 0, 0),
+        "sample_cross_slot_64" => (0, 64, 0, 0, 0, 0, 0, 0),
+        "mixed_16_synth_32_sample" => (16, 32, 0, 0, 0, 0, 0, 0),
+        "fixed_8_synth_8_sample_12_bus_2_global_2_momentary" => (8, 8, 2, 12, 2, 0, 0, 0),
+        "synth_cross_slot_32_no_steal" => (32, 0, 0, 0, 0, 0, 0, 0),
         _ => return None,
     };
     Some(ExpectedLiveState {
@@ -135,6 +137,8 @@ pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
         active_bus_fx_slots: state.3,
         active_global_fx_slots: state.4,
         expected_voice_steals: state.5,
+        expected_voice_admission_drops_start: state.6,
+        expected_voice_admission_drops_end: state.7,
     })
 }
 
@@ -193,7 +197,8 @@ mod tests {
         for name in LIVE_SCENARIO_IDS {
             let scenario = live_scenario(name, 44_100, 600_000).unwrap();
             let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
-            crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
+            let retired_audio_states =
+                crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
             let snapshot = engine.profile_snapshot();
             assert_eq!(
                 snapshot.active_synth_voices, scenario.expected.active_synth_voices,
@@ -219,6 +224,12 @@ mod tests {
                 snapshot.cumulative_voice_steals, scenario.expected.expected_voice_steals,
                 "{name}"
             );
+            assert_eq!(
+                snapshot.cumulative_voice_admission_drops,
+                scenario.expected.expected_voice_admission_drops_start,
+                "{name}"
+            );
+            drop(retired_audio_states);
         }
     }
 
@@ -241,13 +252,15 @@ mod tests {
         )
         .unwrap();
         let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
-        crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
+        let retired_audio_states =
+            crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
         let snapshot = engine.profile_snapshot();
         assert_eq!(snapshot.active_bus_fx_slots, 12);
         assert_eq!(snapshot.active_global_fx_slots, 2);
         assert_eq!(snapshot.active_momentary_fx, 2);
         assert_eq!(scenario.expected.active_bus_fx_slots, 12);
         assert_eq!(scenario.expected.active_global_fx_slots, 2);
+        drop(retired_audio_states);
     }
 
     #[test]
@@ -259,7 +272,8 @@ mod tests {
             }
             for seconds in [35_u64, 125, u64::from(LIVE_SAMPLE_LIFETIME_SECONDS)] {
                 let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
-                crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
+                let retired_audio_states =
+                    crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
                 let blocks = seconds * 44_100 / 1_024;
                 let mut left = Vec::with_capacity(1_024);
                 let mut right = Vec::with_capacity(1_024);
@@ -272,6 +286,7 @@ mod tests {
                     scenario.expected.active_sample_voices,
                     "{name} at {seconds}s"
                 );
+                drop(retired_audio_states);
             }
         }
     }

@@ -1,18 +1,13 @@
-#[cfg(test)]
-use realtime_engine::synth::SynthEngine;
 use realtime_engine::synth::SynthProfileSnapshot;
+#[cfg(test)]
+use realtime_engine::synth::{RetiredAudioState, SynthEngine};
 #[cfg(test)]
 use rodio_engine_source::EngineEvent;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CounterDelta {
     pub cumulative_voice_steals: u64,
-    pub synth_parallel_dispatches: u64,
-    pub synth_parallel_light_skips: u64,
-    pub synth_parallel_backoff_skips: u64,
-    pub synth_parallel_timing_backoffs: u64,
-    pub synth_parallel_failures: u64,
-    pub synth_parallel_unhealthy: bool,
+    pub cumulative_voice_admission_drops: u64,
 }
 
 impl CounterDelta {
@@ -26,33 +21,11 @@ impl CounterDelta {
                 start.cumulative_voice_steals,
                 end.cumulative_voice_steals,
             )?,
-            synth_parallel_dispatches: checked_counter(
-                "parallel dispatches",
-                start.synth_parallel_dispatches,
-                end.synth_parallel_dispatches,
+            cumulative_voice_admission_drops: checked_counter(
+                "voice admission drops",
+                start.cumulative_voice_admission_drops,
+                end.cumulative_voice_admission_drops,
             )?,
-            synth_parallel_light_skips: checked_counter(
-                "parallel light skips",
-                start.synth_parallel_light_skips,
-                end.synth_parallel_light_skips,
-            )?,
-            synth_parallel_backoff_skips: checked_counter(
-                "parallel backoff skips",
-                start.synth_parallel_backoff_skips,
-                end.synth_parallel_backoff_skips,
-            )?,
-            synth_parallel_timing_backoffs: checked_counter(
-                "parallel timing backoffs",
-                start.synth_parallel_timing_backoffs,
-                end.synth_parallel_timing_backoffs,
-            )?,
-            synth_parallel_failures: checked_counter(
-                "parallel failures",
-                start.synth_parallel_failures,
-                end.synth_parallel_failures,
-            )?,
-            synth_parallel_unhealthy: start.synth_parallel_unhealthy
-                || end.synth_parallel_unhealthy,
         })
     }
 }
@@ -61,7 +34,6 @@ impl CounterDelta {
 pub struct TelemetrySummary {
     pub end_snapshot: SynthProfileSnapshot,
     pub peak_snapshot: SynthProfileSnapshot,
-    pub worker_requested: usize,
     counter_delta: CounterDelta,
 }
 
@@ -69,12 +41,10 @@ impl TelemetrySummary {
     pub fn new(
         start_snapshot: SynthProfileSnapshot,
         end_snapshot: SynthProfileSnapshot,
-        worker_requested: usize,
     ) -> Result<Self, String> {
         Ok(Self {
             end_snapshot,
             peak_snapshot: peak_snapshot(start_snapshot, end_snapshot),
-            worker_requested,
             counter_delta: CounterDelta::checked_between(start_snapshot, end_snapshot)?,
         })
     }
@@ -82,27 +52,27 @@ impl TelemetrySummary {
     pub fn counter_delta(&self) -> CounterDelta {
         self.counter_delta
     }
-
-    pub fn worker_effective(&self) -> usize {
-        self.end_snapshot.synth_parallel_worker_count
-    }
 }
 
 #[cfg(test)]
-pub(crate) fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
+pub(crate) fn apply_events(
+    engine: &mut SynthEngine,
+    events: &[EngineEvent],
+) -> Vec<RetiredAudioState> {
+    let mut retired = Vec::new();
     for event in events {
         match event {
-            EngineEvent::AllNotesOff => engine.all_notes_off(),
+            EngineEvent::AllNotesOff => retired.push(engine.all_notes_off()),
             EngineEvent::SetVoiceStealingMode(mode) => engine.set_voice_stealing_mode(*mode),
             EngineEvent::SetPreparedSampleBank {
                 instrument_slot,
                 bank,
-            } => drop(engine.apply_prepared_sample_bank(*instrument_slot, bank.clone())),
+            } => retired.push(engine.apply_prepared_sample_bank(*instrument_slot, bank.clone())),
             EngineEvent::SetPreparedInstruments(config) => {
-                drop(engine.apply_prepared_instruments_config(config.clone()))
+                retired.push(engine.apply_prepared_instruments_config(config.clone()))
             }
             EngineEvent::SetPreparedAudioConfig(config) => {
-                drop(engine.apply_prepared_audio_config(config.clone()))
+                retired.push(engine.apply_prepared_audio_config(config.clone()))
             }
             EngineEvent::SetMasterVolume { volume_pct } => engine.set_master_volume(*volume_pct),
             EngineEvent::SetInstrumentMixer {
@@ -113,7 +83,8 @@ pub(crate) fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
             EngineEvent::SetPreparedInstrumentSlot {
                 instrument_slot,
                 config,
-            } => drop(engine.apply_prepared_instrument_slot(*instrument_slot, config.clone())),
+            } => retired
+                .push(engine.apply_prepared_instrument_slot(*instrument_slot, config.clone())),
             EngineEvent::SetFxBusMixer {
                 bus_index,
                 pan_pos,
@@ -133,15 +104,19 @@ pub(crate) fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 bus_index,
                 slot_index,
                 config,
-            } => drop(engine.apply_prepared_fx_bus_slot(*bus_index, *slot_index, config.clone())),
+            } => retired.push(engine.apply_prepared_fx_bus_slot(
+                *bus_index,
+                *slot_index,
+                config.clone(),
+            )),
             EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
-                drop(engine.apply_prepared_global_fx_slot(*slot_index, config.clone()))
+                retired.push(engine.apply_prepared_global_fx_slot(*slot_index, config.clone()))
             }
             EngineEvent::PreviewSample {
                 instrument_slot,
                 buffer,
                 velocity,
-            } => engine.preview_sample(*instrument_slot, buffer.clone(), *velocity),
+            } => retired.push(engine.preview_sample(*instrument_slot, buffer.clone(), *velocity)),
             EngineEvent::NoteOn {
                 instrument_slot,
                 note,
@@ -158,15 +133,14 @@ pub(crate) fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 value,
             } => engine.cc(*instrument_slot, *controller, *value),
             EngineEvent::PreparedMomentaryFxStart(config) => {
-                drop(engine.apply_prepared_momentary_fx_start(config.clone()))
+                retired.push(engine.apply_prepared_momentary_fx_start(config.clone()))
             }
-            EngineEvent::MomentaryFxUpdate { id, params } => {
-                engine.momentary_fx_update(id, params.clone())
-            }
-            EngineEvent::MomentaryFxStop { id } => engine.momentary_fx_stop(id),
+            EngineEvent::MomentaryFxUpdate { id, params } => engine.momentary_fx_update(id, params),
+            EngineEvent::MomentaryFxStop { id } => retired.push(engine.momentary_fx_stop(id)),
             EngineEvent::ProbeMark { .. } => {}
         }
     }
+    retired
 }
 
 pub fn peak_snapshot(a: SynthProfileSnapshot, b: SynthProfileSnapshot) -> SynthProfileSnapshot {
@@ -180,21 +154,9 @@ pub fn peak_snapshot(a: SynthProfileSnapshot, b: SynthProfileSnapshot) -> SynthP
         active_bus_fx_slots: a.active_bus_fx_slots.max(b.active_bus_fx_slots),
         active_global_fx_slots: a.active_global_fx_slots.max(b.active_global_fx_slots),
         cumulative_voice_steals: a.cumulative_voice_steals.max(b.cumulative_voice_steals),
-        synth_parallel_worker_count: a
-            .synth_parallel_worker_count
-            .max(b.synth_parallel_worker_count),
-        synth_parallel_dispatches: a.synth_parallel_dispatches.max(b.synth_parallel_dispatches),
-        synth_parallel_light_skips: a
-            .synth_parallel_light_skips
-            .max(b.synth_parallel_light_skips),
-        synth_parallel_backoff_skips: a
-            .synth_parallel_backoff_skips
-            .max(b.synth_parallel_backoff_skips),
-        synth_parallel_timing_backoffs: a
-            .synth_parallel_timing_backoffs
-            .max(b.synth_parallel_timing_backoffs),
-        synth_parallel_failures: a.synth_parallel_failures.max(b.synth_parallel_failures),
-        synth_parallel_unhealthy: a.synth_parallel_unhealthy || b.synth_parallel_unhealthy,
+        cumulative_voice_admission_drops: a
+            .cumulative_voice_admission_drops
+            .max(b.cumulative_voice_admission_drops),
     }
 }
 
@@ -209,31 +171,24 @@ mod tests {
     use realtime_engine::synth::SynthProfileSnapshot;
 
     #[test]
-    fn same_run_snapshot_delta_preserves_worker_effectiveness() {
+    fn same_run_snapshot_delta_preserves_voice_counters() {
         let start = SynthProfileSnapshot {
-            synth_parallel_worker_count: 2,
             cumulative_voice_steals: 4,
-            synth_parallel_dispatches: 10,
+            cumulative_voice_admission_drops: 2,
             ..SynthProfileSnapshot::default()
         };
         let end = SynthProfileSnapshot {
-            synth_parallel_worker_count: 2,
             cumulative_voice_steals: 7,
-            synth_parallel_dispatches: 14,
-            synth_parallel_failures: 1,
+            cumulative_voice_admission_drops: 5,
             ..SynthProfileSnapshot::default()
         };
-        let summary = TelemetrySummary::new(start, end, 3).unwrap();
+        let summary = TelemetrySummary::new(start, end).unwrap();
 
-        assert_eq!(summary.worker_requested, 3);
-        assert_eq!(summary.worker_effective(), 2);
         assert_eq!(
             summary.counter_delta(),
             CounterDelta {
                 cumulative_voice_steals: 3,
-                synth_parallel_dispatches: 4,
-                synth_parallel_failures: 1,
-                ..CounterDelta::default()
+                cumulative_voice_admission_drops: 3,
             }
         );
     }
@@ -248,26 +203,40 @@ mod tests {
         let end = SynthProfileSnapshot {
             active_sample_voices: 32,
             active_global_fx_slots: 2,
+            cumulative_voice_admission_drops: 4,
             ..SynthProfileSnapshot::default()
         };
-        let summary = TelemetrySummary::new(start, end, 2).unwrap();
+        let summary = TelemetrySummary::new(start, end).unwrap();
 
         assert_eq!(summary.peak_snapshot.active_synth_voices, 8);
         assert_eq!(summary.peak_snapshot.active_sample_voices, 32);
         assert_eq!(summary.peak_snapshot.active_bus_fx_slots, 2);
         assert_eq!(summary.peak_snapshot.active_global_fx_slots, 2);
+        assert_eq!(summary.peak_snapshot.cumulative_voice_admission_drops, 4);
     }
 
     #[test]
     fn counter_regression_rejects_same_run_summary() {
         let start = SynthProfileSnapshot {
-            synth_parallel_dispatches: 2,
+            cumulative_voice_steals: 2,
             ..SynthProfileSnapshot::default()
         };
         let end = SynthProfileSnapshot::default();
 
-        let error = TelemetrySummary::new(start, end, 2).unwrap_err();
+        let error = TelemetrySummary::new(start, end).unwrap_err();
 
-        assert!(error.contains("parallel dispatches"));
+        assert!(error.contains("voice steals"));
+    }
+
+    #[test]
+    fn admission_drop_regression_is_named_separately_from_stealing() {
+        let start = SynthProfileSnapshot {
+            cumulative_voice_admission_drops: 2,
+            ..SynthProfileSnapshot::default()
+        };
+        let error = TelemetrySummary::new(start, SynthProfileSnapshot::default()).unwrap_err();
+
+        assert!(error.contains("voice admission drops"));
+        assert!(!error.contains("voice steals"));
     }
 }

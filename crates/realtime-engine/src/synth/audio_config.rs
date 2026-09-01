@@ -1,3 +1,4 @@
+use super::fx_params::FxKind;
 use super::types::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, SynthConfig,
@@ -243,27 +244,7 @@ pub fn normalize_fx_slot(value: &Value) -> Result<FxBusSlotConfig, String> {
 }
 
 pub fn validate_fx_type(kind: &str) -> Result<(), String> {
-    if matches!(
-        kind,
-        "none"
-            | "tremolo"
-            | "delay"
-            | "vibrato"
-            | "chorus"
-            | "flanger"
-            | "filter_lfo"
-            | "wah"
-            | "reverb"
-            | "glitch"
-            | "auto_pan"
-            | "duck"
-            | "saturator"
-            | "distortion"
-            | "bitcrusher"
-            | "compressor"
-            | "eq"
-            | "vinyl"
-    ) {
+    if FxKind::parse(kind).is_some() {
         return Ok(());
     }
     Err(format!("unsupported FX type `{kind}`"))

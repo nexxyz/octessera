@@ -67,7 +67,9 @@ impl Scenario {
     pub(crate) fn setup(self, engine: &mut SynthEngine) {
         match self {
             Self::Sample | Self::SampleFx => engine.set_sample_banks(vec![sample_bank()]),
-            Self::SamplePreview => engine.preview_sample(0, sample_buffer(), 96),
+            Self::SamplePreview => {
+                drop(engine.preview_sample(0, sample_buffer(), 96));
+            }
             _ => {}
         }
     }

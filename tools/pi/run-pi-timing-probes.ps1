@@ -7,8 +7,7 @@ param(
   [string]$Mode = "RuntimeOnly",
   [string]$Durations = "5s",
   [string]$Scenarios = "idle,pulses-stress",
-  [int]$SynthSlotWorkers = -1,
-  [int]$AudioBlockFrames = 0,
+  [int]$AudioRenderQuantumFrames = 0,
   [int]$ProfileMeasureFrames = 0,
   [int]$AudioOutputBufferFrames = 0,
   [int]$AudioDrainIntervalMs = 10,
@@ -31,10 +30,9 @@ if ($Mode -eq "ProfileBaseline") {
   $profileBaselineScenarioIds = @("baseline_idle", "synth_shipped_policy_8", "synth_cross_slot_16", "sample_8", "sample_cross_slot_64", "mixed_16_synth_32_sample", "fixed_8_synth_8_sample_0_bus_2_global_0_momentary", "fixed_8_synth_8_sample_6_bus_2_global_2_momentary", "fixed_8_synth_8_sample_12_bus_2_global_0_momentary", "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "synth_cross_slot_32_no_steal", "synth_cross_slot_64_no_steal")
   if ([string]::IsNullOrWhiteSpace($Scenario)) { throw "ProfileBaseline requires -Scenario." }
   if ($profileBaselineScenarioIds -notcontains $Scenario) { throw "ProfileBaseline scenario is not an approved Phase-1 baseline ID: $Scenario" }
-  if (@(64, 128, 256) -notcontains $AudioBlockFrames -or @($AudioBlockFrames) -notcontains $ProfileMeasureFrames) {
-    throw "ProfileBaseline requires equal -AudioBlockFrames and -ProfileMeasureFrames of 64, 128, or 256."
+  if (@(64, 128, 256) -notcontains $AudioRenderQuantumFrames -or @($AudioRenderQuantumFrames) -notcontains $ProfileMeasureFrames) {
+    throw "ProfileBaseline requires equal -AudioRenderQuantumFrames and -ProfileMeasureFrames of 64, 128, or 256."
   }
-  if (@(0, 2, 3) -notcontains $SynthSlotWorkers) { throw "ProfileBaseline requires -SynthSlotWorkers 0, 2, or 3." }
   if (-not $PrintOnly -and -not $AllowServiceInterruption) { throw "ProfileBaseline requires -AllowServiceInterruption." }
   if (-not $PrintOnly) {
     if ([string]::IsNullOrWhiteSpace($Metadata)) { throw "ProfileBaseline requires exact Raspberry board metadata with -Metadata." }
@@ -81,16 +79,12 @@ if ($AudioOutputBufferFrames -gt 0) {
   $envParts += Env-Assignment "OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES" ([string]$AudioOutputBufferFrames)
 }
 
-if ($AudioBlockFrames -gt 0) {
-  $envParts += Env-Assignment "OCTESSERA_AUDIO_BLOCK_FRAMES" ([string]$AudioBlockFrames)
+if ($AudioRenderQuantumFrames -gt 0) {
+  $envParts += Env-Assignment "OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES" ([string]$AudioRenderQuantumFrames)
 }
 
 if ($ProfileMeasureFrames -gt 0) {
   $envParts += Env-Assignment "OCTESSERA_PI_PROFILE_MEASURE_FRAMES" ([string]$ProfileMeasureFrames)
-}
-
-if ($SynthSlotWorkers -ge 0) {
-  $envParts += Env-Assignment "OCTESSERA_SYNTH_SLOT_WORKERS" ([string]$SynthSlotWorkers)
 }
 
 $args = @()

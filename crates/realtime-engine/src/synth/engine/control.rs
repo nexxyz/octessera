@@ -1,3 +1,5 @@
+use super::render_plan::{prepared_instrument_topology, RenderPlan, RenderPlanInstrumentSlot};
+use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::support::stutter_segment_len;
 use super::*;
 
@@ -43,7 +45,7 @@ impl SynthEngine {
         self.momentary_fx.push(MomentaryFxState::new(
             id,
             kind,
-            params,
+            &params,
             target,
             self.sample_rate,
         ));
@@ -55,16 +57,20 @@ impl SynthEngine {
         }
     }
 
-    pub fn momentary_fx_stop(&mut self, id: &str) {
+    pub fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
+        let mut retired = RetiredAudioState::default();
         let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) else {
-            return;
+            return retired;
         };
         let should_remove = matches!(
             self.momentary_fx[pos].kind,
             MomentaryFxKind::Stutter | MomentaryFxKind::PitchShift
         );
         if should_remove {
-            self.momentary_fx.remove(pos);
+            store_retired_momentary(
+                &mut retired.displaced_momentary_fx,
+                self.momentary_fx.remove(pos),
+            );
         } else {
             let fx = &mut self.momentary_fx[pos];
             fx.releasing = true;
@@ -75,15 +81,15 @@ impl SynthEngine {
                 }
             }
         }
+        retired
     }
 
-    pub fn momentary_fx_update(&mut self, id: &str, params: BTreeMap<String, Value>) {
+    pub fn momentary_fx_update(&mut self, id: &str, params: &BTreeMap<String, Value>) {
         if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
-            fx.params = params;
             fx.runtime_params =
-                MomentaryFxRuntimeParams::from_params(fx.kind, &fx.params, self.sample_rate);
+                MomentaryFxRuntimeParams::from_params(fx.kind, params, self.sample_rate);
             if fx.kind == MomentaryFxKind::Stutter {
-                fx.stutter_segment_len = stutter_segment_len(self.sample_rate, &fx.params);
+                fx.stutter_segment_len = stutter_segment_len(self.sample_rate, params);
                 fx.stutter_write = 0;
                 fx.stutter_ready = false;
                 fx.stutter_ramp_pos = 0;
@@ -115,6 +121,30 @@ impl SynthEngine {
     }
 
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {
+        let mut next_render_plan = RenderPlan::from_config(&cfg);
+        for (index, slot) in cfg
+            .instruments
+            .iter()
+            .take(INSTRUMENT_SLOT_COUNT)
+            .enumerate()
+        {
+            let topology = prepared_instrument_topology(slot);
+            next_render_plan.instrument_slots[index] = RenderPlanInstrumentSlot {
+                kind: topology.kind,
+                occupied: topology.occupied,
+                route: topology
+                    .route
+                    .unwrap_or(self.render_plan.instrument_slots[index].route),
+            };
+        }
+        for index in cfg.instruments.len().min(INSTRUMENT_SLOT_COUNT)..INSTRUMENT_SLOT_COUNT {
+            let current = self.render_plan.instrument_slots[index];
+            next_render_plan.instrument_slots[index] = RenderPlanInstrumentSlot {
+                kind: current.kind,
+                occupied: false,
+                route: current.route,
+            };
+        }
         self.pan_positions = cfg.pan_positions.max(1);
         self.master_volume = (cfg.master_volume / 100.0).clamp(0.0, 1.0);
         self.apply_instrument_slots_config(cfg.instruments);
@@ -146,6 +176,7 @@ impl SynthEngine {
         self.refresh_master_active_slot_indices();
         self.master_activity_frames = 0;
         self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
+        drop(self.render_plan.install_complete(next_render_plan));
     }
 
     fn apply_instrument_slots_config(&mut self, instruments: Vec<InstrumentSlotConfig>) {
@@ -161,8 +192,10 @@ impl SynthEngine {
         if index >= INSTRUMENT_SLOT_COUNT {
             return;
         }
+        let render_plan = prepared_instrument_topology(&slot);
         self.apply_instrument_slot_config(index, slot);
         self.refresh_slot_pan_gains();
+        self.render_plan.install_instrument_slot(index, render_plan);
         self.refresh_routed_bus_slot_count();
     }
 

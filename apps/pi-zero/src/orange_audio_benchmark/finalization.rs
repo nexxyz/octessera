@@ -4,10 +4,8 @@ use super::phase::{MeasurementControl, MeasurementPhase};
 use super::probe::ProfileProbe;
 use super::schema::{
     atomic_write_json, BenchmarkProfileSnapshot, BenchmarkProgress, BenchmarkResult,
-    BenchmarkWorkerDelta,
 };
 use super::stream::BenchmarkStream;
-use super::worker;
 use crate::dsp_scenarios::ExpectedLiveState;
 use realtime_engine::synth::SynthProfileSnapshot;
 use std::sync::Arc;
@@ -21,7 +19,6 @@ pub struct StreamEvidence {
     pub sample_format: String,
     pub channels: u16,
     pub sample_rate: u32,
-    pub workers_effective: bool,
     pub engine_block_frames: usize,
 }
 
@@ -76,7 +73,6 @@ impl RunState {
             sample_format: stream.sample_format.clone(),
             channels: stream.channels,
             sample_rate: stream.sample_rate,
-            workers_effective: stream.workers_effective,
             engine_block_frames: stream.engine_block_frames,
         });
         self.stream = Some(stream);
@@ -118,28 +114,29 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         state.note_error("callback reported a terminal CPAL, heartbeat, or geometry error");
     }
     if let Some(snapshot) = state.profile_start.as_ref() {
-        if let Err(error) = validate_profile_state(snapshot, state.expected) {
+        if let Err(error) = validate_profile_state(
+            snapshot,
+            state.expected,
+            state.expected.expected_voice_admission_drops_start,
+        ) {
             state.note_error(error);
         }
     } else if state.stream_started {
         state.note_error("initial profile evidence is missing");
     }
     if let Some(snapshot) = state.profile_end.as_ref() {
-        if let Err(error) = validate_profile_state(snapshot, state.expected) {
+        if let Err(error) = validate_profile_state(
+            snapshot,
+            state.expected,
+            state.expected.expected_voice_admission_drops_end,
+        ) {
             state.note_error(error);
         }
     } else if state.stream_started {
         state.note_error("final profile evidence is missing");
     }
 
-    let worker_evidence = resolve_worker_evidence(config, state);
-    if let Some(error) = worker_evidence.terminal_error.as_ref() {
-        state.note_error(error.clone());
-    }
-    let worker_delta = worker_evidence.worker_delta;
-    let worker_policy_error = worker_evidence.policy_error;
-
-    let final_progress_result = write_final_progress(config, state, &final_metrics);
+    let final_progress_result = write_final_progress(config, &final_metrics);
     let final_progress_write_succeeded = final_progress_result.is_ok();
     if let Err(error) = final_progress_result {
         state.note_error(error);
@@ -155,14 +152,11 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
             stream_stopped: state.stream_stopped,
             final_progress_write_succeeded,
         },
-        worker_delta.as_ref(),
-        worker_policy_error.as_deref(),
     );
     let stream = state.stream_evidence.clone().unwrap_or(StreamEvidence {
         sample_format: "unknown".into(),
         channels: 0,
         sample_rate: realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE,
-        workers_effective: false,
         engine_block_frames: config.internal_frames,
     });
     let profile_start = state
@@ -174,7 +168,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 3,
+        schema_version: 4,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -186,8 +180,6 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         sample_format: stream.sample_format,
         channels: stream.channels,
         sample_rate: stream.sample_rate,
-        workers_requested: config.workers,
-        workers_effective: stream.workers_effective,
         warmup_seconds: config.warmup_seconds,
         measure_seconds: config.measure_seconds,
         scheduler_qualified: state.scheduler_qualified,
@@ -202,8 +194,6 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         callback: final_metrics,
         profile_start,
         profile_end,
-        worker_delta,
-        worker_policy_error,
         recovered_alsa_epipe_count: None,
         recovered_alsa_epipe_observable: false,
         terminal_error: (!state.errors.is_empty()).then(|| state.errors.join("; ")),
@@ -236,6 +226,7 @@ pub fn request_profile_snapshot(state: &RunState) -> Result<SynthProfileSnapshot
 pub fn validate_profile_state(
     snapshot: &SynthProfileSnapshot,
     expected: ExpectedLiveState,
+    expected_voice_admission_drops: u64,
 ) -> Result<(), String> {
     let actual = (
         snapshot.active_synth_voices,
@@ -258,55 +249,13 @@ pub fn validate_profile_state(
             "fixture state mismatch: actual={actual:?} expected={expected:?}"
         ));
     }
-    Ok(())
-}
-
-fn validate_workers(
-    config: &BenchmarkConfig,
-    state: &RunState,
-) -> Result<(BenchmarkWorkerDelta, Option<String>), String> {
-    let Some(start) = state.profile_start.as_ref() else {
-        return Err("worker start profile evidence is missing".into());
-    };
-    let Some(end) = state.profile_end.as_ref() else {
-        return Err("worker end profile evidence is missing".into());
-    };
-    let Some(stream) = state.stream_evidence.as_ref() else {
-        return Err("worker stream evidence is missing".into());
-    };
-    let start = BenchmarkProfileSnapshot::from(*start);
-    let end = BenchmarkProfileSnapshot::from(*end);
-    let policy = worker::policy(
-        config.internal_frames,
-        config.workers,
-        config.scenario.as_str(),
-    );
-    let delta = worker::delta(&start, &end)?;
-    worker::validate_configuration(policy, stream.workers_effective, &start, &end)?;
-    let policy_error = worker::validate_policy(policy, &delta, config.scenario.as_str()).err();
-    Ok((delta, policy_error))
-}
-
-#[derive(Debug, PartialEq, Eq)]
-struct WorkerEvidence {
-    worker_delta: Option<BenchmarkWorkerDelta>,
-    policy_error: Option<String>,
-    terminal_error: Option<String>,
-}
-
-fn resolve_worker_evidence(config: &BenchmarkConfig, state: &RunState) -> WorkerEvidence {
-    match validate_workers(config, state) {
-        Ok((delta, policy_error)) => WorkerEvidence {
-            worker_delta: Some(delta),
-            policy_error,
-            terminal_error: None,
-        },
-        Err(error) => WorkerEvidence {
-            worker_delta: None,
-            policy_error: None,
-            terminal_error: Some(error),
-        },
+    if snapshot.cumulative_voice_admission_drops != expected_voice_admission_drops {
+        return Err(format!(
+            "fixture state mismatch: voice admission drops actual={} expected={}",
+            snapshot.cumulative_voice_admission_drops, expected_voice_admission_drops
+        ));
     }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -322,16 +271,13 @@ fn result_status(
     config: &BenchmarkConfig,
     metrics: &CallbackMetricsSnapshot,
     gates: FinalizationGates,
-    worker_delta: Option<&BenchmarkWorkerDelta>,
-    worker_policy_error: Option<&str>,
 ) -> &'static str {
     if gates.no_terminal_errors
         && gates.scheduler_qualified
         && gates.measurement_stop_acknowledged
         && gates.stream_stopped
         && gates.final_progress_write_succeeded
-        && worker_policy_error.is_none()
-        && worker_delta.is_some_and(|delta| result_passes(config, metrics, delta))
+        && result_passes(config, metrics)
     {
         "pass"
     } else {
@@ -339,11 +285,7 @@ fn result_status(
     }
 }
 
-fn result_passes(
-    config: &BenchmarkConfig,
-    metrics: &CallbackMetricsSnapshot,
-    workers: &BenchmarkWorkerDelta,
-) -> bool {
+fn result_passes(config: &BenchmarkConfig, metrics: &CallbackMetricsSnapshot) -> bool {
     metrics.callback_count > 0
         && metrics.callback_frames_min > 0
         && metrics.callback_frames_max <= config.output_frames
@@ -353,16 +295,10 @@ fn result_passes(
         && metrics.pre_mute_nonzero_samples > 0
         && metrics.post_mute_nonzero_samples == 0
         && !metrics.terminal_error
-        && workers.synth_parallel_light_skips == 0
-        && workers.synth_parallel_backoff_skips == 0
-        && workers.synth_parallel_timing_backoffs == 0
-        && workers.synth_parallel_failures == 0
-        && !workers.synth_parallel_unhealthy
 }
 
 fn write_final_progress(
     config: &BenchmarkConfig,
-    state: &RunState,
     metrics: &CallbackMetricsSnapshot,
 ) -> Result<(), String> {
     atomic_write_json(
@@ -373,10 +309,6 @@ fn write_final_progress(
             metrics.measured_elapsed_ns / 1_000_000_000,
             config.measure_seconds,
             metrics,
-            state
-                .stream_evidence
-                .as_ref()
-                .map(|stream| stream.workers_effective),
         ),
     )
 }

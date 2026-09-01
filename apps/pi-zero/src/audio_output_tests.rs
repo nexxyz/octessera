@@ -1,4 +1,5 @@
 use super::cpal_audio_output::resolve_output_buffer_frames;
+use platform_core::AUDIO_OUTPUT_BUFFER_FRAMES;
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::audio_replay::ReplayCache;
@@ -22,19 +23,36 @@ static ORANGE_TAP_ABSENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
 fn raspberry_direct_cpal_default_buffer_remains_256_frames() {
-    assert_eq!(resolve_output_buffer_frames(None, None, 256), 256);
-    assert_eq!(resolve_output_buffer_frames(None, Some(512), 256), 512);
+    let default_frames = AUDIO_OUTPUT_BUFFER_FRAMES as u32;
+    assert_eq!(
+        resolve_output_buffer_frames(None, None, default_frames),
+        default_frames
+    );
+    assert_eq!(
+        resolve_output_buffer_frames(None, Some(512), default_frames),
+        512
+    );
 }
 
 #[test]
 fn output_buffer_override_is_parsed_and_clamped() {
-    assert_eq!(resolve_output_buffer_frames(Some("1024"), None, 256), 1024);
+    let default_frames = AUDIO_OUTPUT_BUFFER_FRAMES as u32;
     assert_eq!(
-        resolve_output_buffer_frames(Some("invalid"), Some(512), 256),
+        resolve_output_buffer_frames(Some("1024"), None, default_frames),
+        1024
+    );
+    assert_eq!(
+        resolve_output_buffer_frames(Some("invalid"), Some(512), default_frames),
         512
     );
-    assert_eq!(resolve_output_buffer_frames(Some("1"), None, 256), 32);
-    assert_eq!(resolve_output_buffer_frames(Some("4096"), None, 256), 2048);
+    assert_eq!(
+        resolve_output_buffer_frames(Some("1"), None, default_frames),
+        32
+    );
+    assert_eq!(
+        resolve_output_buffer_frames(Some("4096"), None, default_frames),
+        2048
+    );
 }
 
 #[test]
@@ -134,7 +152,7 @@ fn orange_direct_cpal_default_buffer_is_256_frames() {
             None,
             super::cpal_audio_output::ORANGE_DEFAULT_OUTPUT_BUFFER_FRAMES,
         ),
-        256
+        AUDIO_OUTPUT_BUFFER_FRAMES as u32
     );
 }
 
@@ -170,13 +188,13 @@ fn orange_buffer_qualification_stages_remain_explicit() {
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
-fn orange_engine_blocks_follow_one_quarter_of_output_buffer() {
-    for (output_buffer, engine_block) in [(256, 64), (512, 128), (1024, 256)] {
-        assert_eq!(
-            super::cpal_audio_output::orange_engine_block_frames(output_buffer),
-            engine_block
-        );
-    }
+fn orange_render_quantum_uses_the_capability_default() {
+    assert_eq!(
+        rodio_engine_source::EngineSource::resolve_block_frames(
+            realtime_engine::synth::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES
+        ),
+        128
+    );
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]

@@ -100,8 +100,6 @@ mod tests {
             "256".into(),
             "--engine-block-frames".into(),
             "256".into(),
-            "--workers".into(),
-            "2".into(),
             "--artifact-sha256".into(),
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
             "--release-gate".into(),
@@ -125,7 +123,6 @@ mod tests {
                 lifetime_callback_frame_sample_count: 3,
                 ..Default::default()
             },
-            true,
         )
     }
 

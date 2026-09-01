@@ -19,51 +19,6 @@ fn prepared_block_slot_render_matches_canonical_for_multi_slot_synth() {
 }
 
 #[test]
-fn parallel_synth_slot_render_matches_canonical_for_multi_slot_synth() {
-    let mut block = SynthEngine::new(44_100);
-    let mut reference = SynthEngine::new(44_100);
-    block.enable_synth_slot_workers_for_tests(3);
-    for (slot, note, velocity) in [(0, 60, 96), (1, 64, 88), (2, 67, 104), (3, 72, 72)] {
-        block.note_on(slot, note, velocity, 1_000);
-        reference.note_on(slot, note, velocity, 1_000);
-    }
-
-    assert_prepared_block_matches_reference(block, reference, 256);
-}
-
-#[test]
-fn parallel_synth_slot_render_preserves_note_release_inside_block() {
-    let mut block = SynthEngine::new(44_100);
-    let mut reference = SynthEngine::new(44_100);
-    block.enable_synth_slot_workers_for_tests(3);
-    for (slot, note) in [(0, 60), (1, 64), (2, 67)] {
-        block.note_on(slot, note, 96, 0);
-        reference.note_on(slot, note, 96, 0);
-    }
-
-    assert_prepared_block_matches_reference(block, reference, 256);
-}
-
-#[test]
-fn parallel_synth_slot_render_matches_canonical_across_repeated_blocks() {
-    let mut block = SynthEngine::new(44_100);
-    let mut reference = SynthEngine::new(44_100);
-    block.enable_synth_slot_workers_for_tests(2);
-    for (slot, note, velocity) in [(0, 60, 96), (1, 64, 88), (2, 67, 104)] {
-        block.note_on(slot, note, velocity, 1_000);
-        reference.note_on(slot, note, velocity, 1_000);
-    }
-
-    assert_block_matches_reference(&mut block, &mut reference, 256);
-    assert_block_matches_reference(&mut block, &mut reference, 256);
-    assert_block_matches_reference(&mut block, &mut reference, 256);
-    let snapshot = block.profile_snapshot();
-    assert!(snapshot.synth_parallel_dispatches > 0);
-    assert_eq!(snapshot.synth_parallel_failures, 0);
-    assert!(!snapshot.synth_parallel_unhealthy);
-}
-
-#[test]
 fn prepared_block_slot_render_matches_canonical_for_multi_slot_samples() {
     let mut block = multi_slot_sample_engine();
     let mut reference = multi_slot_sample_engine();
@@ -85,6 +40,19 @@ fn prepared_block_slot_render_preserves_sample_end_inside_block() {
     reference.note_on(0, 36, 127, 1_000);
 
     assert_prepared_block_matches_reference(block, reference, 16);
+}
+
+#[test]
+fn sample_block_render_matches_serial_after_lane_reuse() {
+    let mut block = multi_slot_sample_engine();
+    let mut reference = multi_slot_sample_engine();
+    block.note_on(0, 36, 127, 1_000);
+    reference.note_on(0, 36, 127, 1_000);
+    assert_block_matches_reference(&mut block, &mut reference, 8);
+
+    block.note_on(1, 36, 127, 1_000);
+    reference.note_on(1, 36, 127, 1_000);
+    assert_block_matches_reference(&mut block, &mut reference, 8);
 }
 
 #[test]
@@ -118,41 +86,7 @@ fn prepared_block_slot_render_matches_canonical_with_preview_active() {
 }
 
 #[test]
-fn parallel_synth_slot_render_matches_canonical_with_samples_and_preview() {
-    let mut block = sampler_preview_and_synth_engine();
-    let mut reference = sampler_preview_and_synth_engine();
-    block.enable_synth_slot_workers_for_tests(3);
-    let preview = sample_buffer(vec![0.25, 0.5, 0.25, 0.0]);
-    block.note_on(0, 36, 127, 1_000);
-    reference.note_on(0, 36, 127, 1_000);
-    block.preview_sample(0, preview.clone(), 100);
-    reference.preview_sample(0, preview, 100);
-    for (slot, note) in [(1, 60), (2, 64), (3, 67)] {
-        block.note_on(slot, note, 96, 1_000);
-        reference.note_on(slot, note, 96, 1_000);
-    }
-
-    assert_prepared_block_matches_reference(block, reference, 256);
-}
-
-#[test]
-fn parallel_synth_slot_render_matches_canonical_for_routing_fx() {
-    let config = multi_synth_delay_bus_config();
-    let mut block = SynthEngine::new(44_100);
-    let mut reference = SynthEngine::new(44_100);
-    block.enable_synth_slot_workers_for_tests(3);
-    block.set_instruments(config.clone());
-    reference.set_instruments(config);
-    for (slot, note) in [(0, 60), (1, 64), (2, 67)] {
-        block.note_on(slot, note, 96, 1_000);
-        reference.note_on(slot, note, 96, 1_000);
-    }
-
-    assert_prepared_block_matches_reference(block, reference, 256);
-}
-
-#[test]
-fn worker_disabled_default_uses_safe_block_path_with_parity() {
+fn default_block_render_uses_inline_source_path_with_parity() {
     let mut block = SynthEngine::new(44_100);
     let mut reference = SynthEngine::new(44_100);
     block.note_on(0, 60, 96, 1_000);
@@ -162,47 +96,103 @@ fn worker_disabled_default_uses_safe_block_path_with_parity() {
 }
 
 #[test]
-fn parallel_synth_slot_render_skips_light_patch_without_backoff() {
+fn inline_quantum_matches_serial_when_synth_voice_ends_mid_quantum() {
     let mut block = SynthEngine::new(44_100);
     let mut reference = SynthEngine::new(44_100);
-    block.enable_synth_slot_workers_for_tests(3);
+    block.note_on(0, 60, 96, 0);
+    reference.note_on(0, 60, 96, 0);
+
+    assert_prepared_block_matches_reference(block, reference, 128);
+}
+
+#[test]
+fn inline_quantum_matches_serial_after_note_off_within_sequence() {
+    let mut block = SynthEngine::new(44_100);
+    let mut reference = SynthEngine::new(44_100);
     block.note_on(0, 60, 96, 1_000);
     reference.note_on(0, 60, 96, 1_000);
-
-    for _ in 0..4 {
-        assert_block_matches_reference(&mut block, &mut reference, 128);
+    let mut warm_left = Vec::new();
+    let mut warm_right = Vec::new();
+    let mut warm_out = Vec::new();
+    block.render_interleaved_block(32, &mut warm_left, &mut warm_right, &mut warm_out);
+    for _ in 0..32 {
+        let _ = reference.next_stereo_sample();
     }
+    block.note_off(0, 60);
+    reference.note_off(0, 60);
 
-    assert_eq!(block.profile_snapshot().synth_parallel_dispatches, 0);
-    assert_eq!(block.profile_snapshot().synth_parallel_light_skips, 4);
-    assert_eq!(block.synth_parallel_backoff_blocks, 0);
-    assert_eq!(block.synth_parallel_failure_count, 0);
-    assert!(!block.synth_parallel_unhealthy);
+    assert_block_matches_reference(&mut block, &mut reference, 128);
 }
 
 #[test]
-fn profiling_enabled_with_workers_uses_canonical_profile_path() {
-    let mut block = SynthEngine::new(44_100);
-    block.enable_synth_slot_workers_for_tests(3);
-    block.set_render_profile_enabled(true);
-    block.note_on(0, 60, 96, 1_000);
-    let mut left = Vec::new();
-    let mut right = Vec::new();
-    let mut out = Vec::new();
+fn inline_reduction_is_independent_of_physical_allocation_history() {
+    let mut direct_synth = SynthEngine::new(44_100);
+    let mut displaced_synth = SynthEngine::new(44_100);
+    displaced_synth.slot_volume[1] = 0.0;
+    direct_synth.note_on(0, 60, 96, 1_000);
+    direct_synth.note_on(0, 64, 96, 1_000);
+    displaced_synth.note_on(1, 72, 96, 1_000);
+    displaced_synth.note_on(0, 60, 96, 1_000);
+    displaced_synth.note_on(0, 64, 96, 1_000);
+    assert_inline_blocks_match(&mut direct_synth, &mut displaced_synth, 128);
 
-    block.render_interleaved_block(32, &mut left, &mut right, &mut out);
-
-    let snapshot = block.render_profile_snapshot();
-    assert!(snapshot.enabled);
-    assert_eq!(snapshot.frames_observed, 32);
-    assert_eq!(snapshot.blocks_observed, 1);
+    let mut direct_sample = multi_slot_sample_engine();
+    let mut displaced_sample = multi_slot_sample_engine();
+    displaced_sample.slot_volume[1] = 0.0;
+    direct_sample.note_on(0, 36, 127, 1_000);
+    direct_sample.note_on(0, 36, 127, 1_000);
+    displaced_sample.note_on(1, 36, 127, 1_000);
+    displaced_sample.note_on(0, 36, 127, 1_000);
+    displaced_sample.note_on(0, 36, 127, 1_000);
+    assert_inline_blocks_match(&mut direct_sample, &mut displaced_sample, 8);
 }
 
 #[test]
-fn synth_slot_worker_pool_shuts_down_on_drop() {
+fn inline_quantum_preserves_active_voices_across_omitted_type_and_route_edits() {
+    let mut block = sampler_preview_and_synth_engine();
+    let mut reference = sampler_preview_and_synth_engine();
+    block.note_on(0, 36, 127, 1_000);
+    reference.note_on(0, 36, 127, 1_000);
+    block.note_on(1, 60, 96, 1_000);
+    reference.note_on(1, 60, 96, 1_000);
+
+    let omitted = InstrumentsConfig {
+        instruments: Vec::new(),
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    };
+    block.set_instruments(omitted.clone());
+    reference.set_instruments(omitted);
+    let next = InstrumentSlotConfig {
+        kind: "synth".into(),
+        synth: default_synth_config(),
+        mixer: Some(InstrumentMixerConfig {
+            route: "direct".into(),
+            pan_pos: DEFAULT_PAN_POSITIONS / 2,
+            volume: 100.0,
+        }),
+    };
+    block.set_instrument_slot(0, next.clone());
+    reference.set_instrument_slot(0, next);
+    assert_block_matches_reference(&mut block, &mut reference, 128);
+}
+
+#[test]
+fn inline_source_executor_does_not_allocate_at_default_quantum() {
     let mut engine = SynthEngine::new(44_100);
-    engine.enable_synth_slot_workers_for_tests(3);
-    drop(engine);
+    engine.note_on(0, 60, 96, 1_000);
+    let mut left = Vec::with_capacity(128);
+    let mut right = Vec::with_capacity(128);
+    let mut out = Vec::with_capacity(256);
+    engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
+
+    let (_, allocations, deallocations) =
+        crate::synth::test_allocator::count_allocations_and_deallocations(|| {
+            engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
+        });
+    assert_eq!(allocations, 0);
+    assert_eq!(deallocations, 0);
 }
 
 #[test]
@@ -245,6 +235,21 @@ fn assert_block_matches_reference(
     }
 }
 
+fn assert_inline_blocks_match(first: &mut SynthEngine, second: &mut SynthEngine, frames: usize) {
+    let mut first_left = Vec::new();
+    let mut first_right = Vec::new();
+    let mut first_out = Vec::new();
+    let mut second_left = Vec::new();
+    let mut second_right = Vec::new();
+    let mut second_out = Vec::new();
+    first.render_interleaved_block(frames, &mut first_left, &mut first_right, &mut first_out);
+    second.render_interleaved_block(frames, &mut second_left, &mut second_right, &mut second_out);
+    assert_eq!(first_out.len(), second_out.len());
+    for (actual, expected) in first_out.iter().zip(second_out) {
+        assert_eq!(actual.to_bits(), expected.to_bits());
+    }
+}
+
 fn delay_bus_config() -> InstrumentsConfig {
     let synth = default_synth_config();
     InstrumentsConfig {
@@ -277,22 +282,6 @@ fn delay_bus_config() -> InstrumentsConfig {
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     }
-}
-
-fn multi_synth_delay_bus_config() -> InstrumentsConfig {
-    let mut config = delay_bus_config();
-    config.instruments = (0..3)
-        .map(|_| InstrumentSlotConfig {
-            kind: "synth".to_string(),
-            synth: default_synth_config(),
-            mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".to_string(),
-                pan_pos: DEFAULT_PAN_POSITIONS / 2,
-                volume: 100.0,
-            }),
-        })
-        .collect();
-    config
 }
 
 fn multi_slot_sample_engine() -> SynthEngine {

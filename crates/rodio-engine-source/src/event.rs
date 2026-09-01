@@ -4,7 +4,7 @@ use realtime_engine::synth::{
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::SyncSender;
 use std::time::Instant;
 
 #[derive(Clone)]
@@ -83,6 +83,6 @@ pub enum EngineEvent {
     },
     ProbeMark {
         sent_at: Instant,
-        report_tx: Sender<u128>,
+        report_tx: SyncSender<u128>,
     },
 }

@@ -48,7 +48,7 @@ pub(super) fn scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
         ScenarioSpec::with_expected(
             "synth_cross_slot_64_no_steal",
             synth_events(64, VoiceStealingMode::None, sample_rate, 8),
-            expected(64, 0, 0, 0, 0),
+            expected_with_admission_drops(64, 0, 0, 0, 0, 0, 0),
         ),
     ]
 }
@@ -82,6 +82,26 @@ fn expected(
     active_global_fx_slots: usize,
     active_momentary_fx: usize,
 ) -> ExpectedProfileState {
+    expected_with_admission_drops(
+        active_synth_voices,
+        active_sample_voices,
+        active_bus_fx_slots,
+        active_global_fx_slots,
+        active_momentary_fx,
+        0,
+        0,
+    )
+}
+
+fn expected_with_admission_drops(
+    active_synth_voices: usize,
+    active_sample_voices: usize,
+    active_bus_fx_slots: usize,
+    active_global_fx_slots: usize,
+    active_momentary_fx: usize,
+    expected_voice_admission_drops_start: u64,
+    expected_voice_admission_drops_end: u64,
+) -> ExpectedProfileState {
     ExpectedProfileState {
         active_synth_voices,
         active_sample_voices,
@@ -90,6 +110,8 @@ fn expected(
         active_bus_fx_slots,
         active_global_fx_slots,
         cumulative_voice_steals: 0,
+        expected_voice_admission_drops_start,
+        expected_voice_admission_drops_end,
     }
 }
 
@@ -128,11 +150,12 @@ mod tests {
     fn every_baseline_scenario_proves_its_expected_applied_state() {
         for scenario in scenarios(44_100) {
             let mut engine = SynthEngine::new(44_100);
-            apply_events(&mut engine, &scenario.events);
+            let retired_audio_states = apply_events(&mut engine, &scenario.events);
 
             scenario
                 .validate_snapshot("application", &engine.profile_snapshot())
                 .unwrap_or_else(|error| panic!("{error}"));
+            drop(retired_audio_states);
         }
     }
 }

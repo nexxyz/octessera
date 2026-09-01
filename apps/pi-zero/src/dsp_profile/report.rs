@@ -1,8 +1,8 @@
 use super::system::profile_system_output;
 use super::telemetry::{CounterDelta, TelemetrySummary};
 
-pub const PROFILE_CSV_SCHEMA_VERSION: u32 = 2;
-pub const PROFILE_CSV_FIELD_COUNT: usize = 34;
+pub const PROFILE_CSV_SCHEMA_VERSION: u32 = 4;
+pub const PROFILE_CSV_FIELD_COUNT: usize = 28;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AudioBudgetSemantics {
@@ -62,8 +62,6 @@ pub fn format_csv_header() -> String {
         "over_audio_duration_budget_count",
         "requested_measure_frames",
         "requested_internal_block_frames",
-        "workers_requested_count",
-        "workers_effective_count",
         "peak_synth_voices",
         "peak_sample_voices",
         "peak_preview_sample_voices",
@@ -72,12 +70,8 @@ pub fn format_csv_header() -> String {
         "peak_global_fx_slots",
         "peak_voice_steals",
         "voice_steal_delta",
-        "synth_parallel_dispatch_delta",
-        "synth_parallel_light_skip_delta",
-        "synth_parallel_backoff_skip_delta",
-        "synth_parallel_timing_backoff_delta",
-        "synth_parallel_failure_delta",
-        "synth_parallel_unhealthy",
+        "peak_voice_admission_drops",
+        "voice_admission_drop_delta",
     ]
     .join(",")
 }
@@ -140,7 +134,7 @@ pub fn format_timed_row(row: TimedRow<'_>) -> Option<String> {
 
 pub fn notes_for(summary: &TelemetrySummary) -> String {
     format!(
-        "synth={}/{};sample={}/{};preview={}/{};momentary={}/{};steals={}/{};parallel_dispatch={}/{};parallel_light_skip={}/{};parallel_backoff_skip={}/{};parallel_timing_backoff={}/{};parallel_fail={}/{};parallel_unhealthy={}",
+        "synth={}/{};sample={}/{};preview={}/{};momentary={}/{};steals={}/{};admission_drops={}/{}",
         summary.end_snapshot.active_synth_voices,
         summary.peak_snapshot.active_synth_voices,
         summary.end_snapshot.active_sample_voices,
@@ -151,17 +145,8 @@ pub fn notes_for(summary: &TelemetrySummary) -> String {
         summary.peak_snapshot.active_momentary_fx,
         summary.end_snapshot.cumulative_voice_steals,
         summary.peak_snapshot.cumulative_voice_steals,
-        summary.end_snapshot.synth_parallel_dispatches,
-        summary.peak_snapshot.synth_parallel_dispatches,
-        summary.end_snapshot.synth_parallel_light_skips,
-        summary.peak_snapshot.synth_parallel_light_skips,
-        summary.end_snapshot.synth_parallel_backoff_skips,
-        summary.peak_snapshot.synth_parallel_backoff_skips,
-        summary.end_snapshot.synth_parallel_timing_backoffs,
-        summary.peak_snapshot.synth_parallel_timing_backoffs,
-        summary.end_snapshot.synth_parallel_failures,
-        summary.peak_snapshot.synth_parallel_failures,
-        summary.end_snapshot.synth_parallel_unhealthy,
+        summary.end_snapshot.cumulative_voice_admission_drops,
+        summary.peak_snapshot.cumulative_voice_admission_drops,
     )
 }
 
@@ -182,8 +167,6 @@ fn telemetry_fields(summary: Option<&TelemetrySummary>) -> Vec<String> {
     };
     let delta: CounterDelta = summary.counter_delta();
     [
-        summary.worker_requested.to_string(),
-        summary.worker_effective().to_string(),
         summary.peak_snapshot.active_synth_voices.to_string(),
         summary.peak_snapshot.active_sample_voices.to_string(),
         summary
@@ -195,12 +178,11 @@ fn telemetry_fields(summary: Option<&TelemetrySummary>) -> Vec<String> {
         summary.peak_snapshot.active_global_fx_slots.to_string(),
         summary.peak_snapshot.cumulative_voice_steals.to_string(),
         delta.cumulative_voice_steals.to_string(),
-        delta.synth_parallel_dispatches.to_string(),
-        delta.synth_parallel_light_skips.to_string(),
-        delta.synth_parallel_backoff_skips.to_string(),
-        delta.synth_parallel_timing_backoffs.to_string(),
-        delta.synth_parallel_failures.to_string(),
-        delta.synth_parallel_unhealthy.to_string(),
+        summary
+            .peak_snapshot
+            .cumulative_voice_admission_drops
+            .to_string(),
+        delta.cumulative_voice_admission_drops.to_string(),
     ]
     .into_iter()
     .collect()

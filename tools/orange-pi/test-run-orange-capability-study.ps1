@@ -89,8 +89,7 @@ foreach ($dspMode in @("Dsp64", "Dsp256")) {
 
 $dsp64 = Invoke-StudyPrintOnly -Parameters @{ Mode = "Dsp64"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
 Assert-NoPayloadPlaceholders $dsp64
-Assert-Contains $dsp64 "OCTESSERA_AUDIO_BLOCK_FRAMES=64"
-Assert-Contains $dsp64 "OCTESSERA_SYNTH_SLOT_WORKERS=2"
+Assert-Contains $dsp64 "OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES=64"
 Assert-Contains $dsp64 "--profile-dsp"
 Assert-Contains $dsp64 "internal_block_frames=64"
 Assert-Contains $dsp64 "--wait --pipe --collect"
@@ -133,7 +132,7 @@ try {
 
 $dsp256 = Invoke-StudyPrintOnly -Parameters @{ Mode = "Dsp256"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
 Assert-NoPayloadPlaceholders $dsp256
-Assert-Contains $dsp256 "OCTESSERA_AUDIO_BLOCK_FRAMES=256"
+Assert-Contains $dsp256 "OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES=256"
 Assert-Contains $dsp256 "internal_block_frames=256"
 
 $refused = $false

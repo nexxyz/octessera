@@ -17,8 +17,6 @@ param(
   [int]$EngineBlockFrames = 0,
   [ValidateSet(64, 128, 256)]
   [int]$ProfileMeasureFrames = 0,
-  [ValidateSet(0, 2, 3)]
-  [int]$Workers = 2,
   [ValidateSet(30, 120)]
   [int]$MeasureSeconds = 30,
   [ValidateRange(1, 120)]
@@ -64,8 +62,7 @@ if ($Mode -eq "ProfileBaseline") {
   $baselineSelection = Assert-OrangeProfileBaselineSelection `
     -Scenario $Scenario `
     -InternalFrames $EngineBlockFrames `
-    -MeasureFrames $ProfileMeasureFrames `
-    -Workers $Workers
+    -MeasureFrames $ProfileMeasureFrames
 }
 if ($Mode -eq "LiveAudioBenchmark") {
   Import-Module $livePayloadModule -Force
@@ -74,7 +71,6 @@ if ($Mode -eq "LiveAudioBenchmark") {
     -Scenario $Scenario `
     -OutputFrames $OutputFrames `
     -EngineBlockFrames $EngineBlockFrames `
-    -Workers $Workers `
     -MeasureSeconds $MeasureSeconds `
     -AllowLongRepeat:$AllowLongRepeat
 }
@@ -219,8 +215,7 @@ $payloadBundle = if ($Mode -eq "LiveAudioBenchmark") {
     -ArtifactRequired $artifactRequired `
     -Scenario $(if ($null -ne $baselineSelection) { $baselineSelection.Scenario } else { "" }) `
     -InternalFrames $(if ($null -ne $baselineSelection) { $baselineSelection.InternalFrames } else { 0 }) `
-    -MeasureFrames $(if ($null -ne $baselineSelection) { $baselineSelection.MeasureFrames } else { 0 }) `
-    -Workers $(if ($null -ne $baselineSelection) { $baselineSelection.Workers } else { 2 })
+    -MeasureFrames $(if ($null -ne $baselineSelection) { $baselineSelection.MeasureFrames } else { 0 })
 }
 $payloadPaths = @()
 $studyFailure = $null
@@ -247,14 +242,14 @@ try {
     Write-Output "Remote study root: $remoteRoot"
     Write-Output "Candidate health path: $healthPath"
     if ($Mode -eq "LiveAudioBenchmark") {
-      Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) workers=$($liveSelection.Workers) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5"
+      Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5"
       Write-Output "Live release path: $benchmarkRoot/release.json"
       Write-Output "Live readiness path: $benchmarkRoot/readiness.json"
       Write-Output "Live progress path: $benchmarkRoot/progress.json"
       Write-Output "Live result path: $benchmarkRoot/result.json"
     }
     if ($Mode -eq "ProfileBaseline") {
-      Write-Output "Profile baseline selection: scenario=$($baselineSelection.Scenario) internal=$($baselineSelection.InternalFrames) measure=$($baselineSelection.MeasureFrames) workers=$($baselineSelection.Workers) warmup=2 observations=4096"
+      Write-Output "Profile baseline selection: scenario=$($baselineSelection.Scenario) internal=$($baselineSelection.InternalFrames) measure=$($baselineSelection.MeasureFrames) warmup=2 observations=4096"
     }
     Write-Output "Prepare payload:"
     Write-Output $payloadBundle.Prepare

@@ -37,7 +37,7 @@ function Write-PrintOnlyPlan {
   if ($CanaryOnly) {
     $cell = @(Get-OrangeLiveMatrixPlan | Where-Object { $_.Scenario -eq "synth_ramp_16" -and $_.OutputFrames -eq 256 } | Select-Object -First 1)
     Write-Output "Orange live audio matrix PrintOnly CanaryOnly: no transport is invoked."
-    Write-Output ("01: {0} output={1} internal={2} workers={3} measure={4}" -f $cell[0].Scenario, $cell[0].OutputFrames, $cell[0].InternalFrames, $cell[0].Workers, $cell[0].MeasureSeconds)
+    Write-Output ("01: {0} output={1} internal={2} measure={3}" -f $cell[0].Scenario, $cell[0].OutputFrames, $cell[0].InternalFrames, $cell[0].MeasureSeconds)
     Write-Output "Matrix cells: 1 total (CanaryOnly)."
     return
   }
@@ -45,17 +45,17 @@ function Write-PrintOnlyPlan {
   $index = 1
   $plan = @(Get-OrangeLiveMatrixPlan)
   foreach ($cell in @($plan | Where-Object { $_.OutputFrames -eq 256 })) {
-    Write-Output ("{0:D2}: {1} output={2} internal={3} workers={4} measure={5}" -f $index, $cell.Scenario, $cell.OutputFrames, $cell.InternalFrames, $cell.Workers, $cell.MeasureSeconds)
+    Write-Output ("{0:D2}: {1} output={2} internal={3} measure={4}" -f $index, $cell.Scenario, $cell.OutputFrames, $cell.InternalFrames, $cell.MeasureSeconds)
     $index++
   }
-  Write-Output ("{0:D2}: A120 scenario=<highest passing A p99.9, then max> output=256 internal=64 workers=2 measure=120 warmup=5" -f $index)
+  Write-Output ("{0:D2}: A120 scenario=<highest passing A p99.9, then max> output=256 internal=128 measure=120 warmup=5" -f $index)
   $index++
   $afterLong = @($plan | Where-Object { $_.OutputFrames -ne 256 })
   foreach ($cell in $afterLong) {
-    Write-Output ("{0:D2}: {1} output={2} internal={3} workers={4} measure={5}" -f $index, $cell.Scenario, $cell.OutputFrames, $cell.InternalFrames, $cell.Workers, $cell.MeasureSeconds)
+    Write-Output ("{0:D2}: {1} output={2} internal={3} measure={4}" -f $index, $cell.Scenario, $cell.OutputFrames, $cell.InternalFrames, $cell.MeasureSeconds)
     $index++
   }
-  Write-Output "Matrix cells: 29 total (11 A + 1 selected A120 + 11 B + 6 C)."
+  Write-Output "Matrix cells: 23 total (11 A + 1 selected A120 + 11 B)."
 }
 
 function Invoke-LiveCell {
@@ -86,8 +86,6 @@ function Invoke-LiveCell {
     [string]$Selection.OutputFrames
     "-EngineBlockFrames"
     [string]$Selection.InternalFrames
-    "-Workers"
-    [string]$Selection.Workers
     "-MeasureSeconds"
     [string]$Selection.MeasureSeconds
     "-StartupTimeoutSeconds"
@@ -132,7 +130,6 @@ function Invoke-LiveCell {
       AlsaPeriodFrames = $Selection.AlsaPeriodFrames
       EngineBlockFrames = $Selection.EngineBlockFrames
       InternalFrames = $Selection.InternalFrames
-      Workers = $Selection.Workers
       MeasureSeconds = $Selection.MeasureSeconds
       StatusClass = "infrastructure_failure"
       Reason = "single-scenario runner did not publish an evidence directory"
@@ -154,7 +151,6 @@ function Invoke-LiveCell {
       AlsaPeriodFrames = $Selection.AlsaPeriodFrames
       EngineBlockFrames = $Selection.EngineBlockFrames
       InternalFrames = $Selection.InternalFrames
-      Workers = $Selection.Workers
       MeasureSeconds = $Selection.MeasureSeconds
       StatusClass = "infrastructure_failure"
       Reason = "single-scenario runner evidence directory had no valid run ID: $($_.Exception.Message)"
@@ -175,7 +171,6 @@ function Invoke-LiveCell {
       AlsaPeriodFrames = $Selection.AlsaPeriodFrames
       EngineBlockFrames = $Selection.EngineBlockFrames
       InternalFrames = $Selection.InternalFrames
-      Workers = $Selection.Workers
       MeasureSeconds = $Selection.MeasureSeconds
       StatusClass = "infrastructure_failure"
       Reason = "single-scenario runner published staging diagnostics without terminal evidence"
@@ -196,7 +191,6 @@ function Invoke-LiveCell {
       AlsaPeriodFrames = $Selection.AlsaPeriodFrames
       EngineBlockFrames = $Selection.EngineBlockFrames
       InternalFrames = $Selection.InternalFrames
-      Workers = $Selection.Workers
       MeasureSeconds = $Selection.MeasureSeconds
       StatusClass = "infrastructure_failure"
       Reason = "single-scenario runner did not publish host evidence"
@@ -260,8 +254,7 @@ try {
     $longSelection = Assert-OrangeLiveBenchmarkSelection `
       -Scenario $worst.Scenario `
       -OutputFrames 256 `
-      -EngineBlockFrames 64 `
-      -Workers 2 `
+      -EngineBlockFrames 128 `
       -MeasureSeconds 120 `
       -AllowLongRepeat:$true
     $longResult = Invoke-LiveCell $longSelection "A120-$($longSelection.Scenario)" $matrixRunId
@@ -271,13 +264,6 @@ try {
 
     foreach ($cell in @(Get-OrangeLiveMatrixPlan | Where-Object { $_.OutputFrames -eq 512 })) {
       $key = "B-$($cell.Scenario)"
-      $result = Invoke-LiveCell $cell $key $matrixRunId
-      $results += $result
-      Write-MatrixManifest $manifestPath $results
-      if ($result.StatusClass -ne "pass") { throw "Matrix stopped at ${key}: $($result.StatusClass) $($result.Reason)" }
-    }
-    foreach ($cell in @(Get-OrangeLiveMatrixPlan | Where-Object { $_.OutputFrames -eq 1024 })) {
-      $key = "$($cell.MatrixClass)-$($cell.Scenario)"
       $result = Invoke-LiveCell $cell $key $matrixRunId
       $results += $result
       Write-MatrixManifest $manifestPath $results

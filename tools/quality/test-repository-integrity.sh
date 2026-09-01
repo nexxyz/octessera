@@ -53,7 +53,7 @@ make_fixture() {
 
   node "$HERE/../config/generate-default-configs.mjs" --root "$fixture"
 
-  printf '{\n  "gridWidth": 16,\n  "gridHeight": 16,\n  "layerCount": 2,\n  "instrumentCount": 8,\n  "sampleSlotCount": 4,\n  "audioSampleRate": 48000,\n  "audioBlockFrames": 128,\n  "synthSlotWorkers": 2,\n  "maxSynthVoices": 64,\n  "maxSampleVoices": 64,\n  "maxSynthVoicesPerSlot": 32,\n  "maxSampleVoicesPerSlot": 32,\n  "busFxWarningSlotCount": 4,\n  "busCount": 4,\n  "globalFxSlotCount": 2,\n  "auxEncoderCount": 2,\n  "sparksFxMaxConcurrent": 16,\n  "scanSectionCounts": [16, 8, 4, 2, 1],\n  "panPositionCount": 12,\n  "oledWidth": 128,\n  "oledHeight": 64\n}\n' >"$fixture/resources/platform-capabilities.json"
+  printf '{\n  "gridWidth": 16,\n  "gridHeight": 16,\n  "layerCount": 2,\n  "instrumentCount": 8,\n  "sampleSlotCount": 4,\n  "audioSampleRate": 48000,\n  "audioOutputBufferFrames": 128,\n  "audioRenderQuantumFrames": 64,\n  "synthVoiceLaneCapacity": 64,\n  "sampleVoiceLaneCapacity": 64,\n  "maxSynthVoices": 64,\n  "maxSampleVoices": 64,\n  "maxSynthVoicesPerSlot": 32,\n  "maxSampleVoicesPerSlot": 32,\n  "busFxWarningSlotCount": 4,\n  "busCount": 4,\n  "globalFxSlotCount": 2,\n  "auxEncoderCount": 2,\n  "sparksFxMaxConcurrent": 16,\n  "scanSectionCounts": [16, 8, 4, 2, 1],\n  "panPositionCount": 12,\n  "oledWidth": 128,\n  "oledHeight": 64\n}\n' >"$fixture/resources/platform-capabilities.json"
   node "$HERE/../resources/generate-platform-capabilities.mjs" --root "$fixture"
 
   printf '{\n  "green": "#00ff00",\n  "red": "#ff0000",\n  "blue": "#0000ff",\n  "yellow": "#ffff00",\n  "gray": "#808080",\n  "white": "#ffffff",\n  "black": "#000000"\n}\n' >"$fixture/resources/display-palette.json"

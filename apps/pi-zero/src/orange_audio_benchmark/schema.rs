@@ -8,10 +8,11 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const BENCHMARK_SCHEMA_VERSION: u8 = 2;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 3;
+const BENCHMARK_SCHEMA_VERSION: u8 = 3;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 4;
+const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
-fn deserialize_schema_v2<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -24,7 +25,7 @@ where
     Ok(version)
 }
 
-fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_result_schema_v4<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -37,9 +38,22 @@ where
     Ok(version)
 }
 
+fn deserialize_release_schema_v2<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = u8::deserialize(deserializer)?;
+    if version != BENCHMARK_RELEASE_SCHEMA_VERSION {
+        return Err(D::Error::custom(format!(
+            "benchmark release schema version {version} is not supported"
+        )));
+    }
+    Ok(version)
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct BenchmarkProgress {
-    #[serde(deserialize_with = "deserialize_schema_v2")]
+    #[serde(deserialize_with = "deserialize_schema_v3")]
     pub schema_version: u8,
     pub kind: String,
     pub status: String,
@@ -67,7 +81,6 @@ pub struct BenchmarkProgress {
     pub lifetime_invalid_callback_frame_count: u64,
     pub lifetime_callback_count: u64,
     pub measured_callback_count: u64,
-    pub workers_effective: Option<bool>,
     pub cpal_device_error_count: u64,
     pub cpal_stream_error_count: u64,
     pub terminal_error: bool,
@@ -76,7 +89,7 @@ pub struct BenchmarkProgress {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct BenchmarkReadiness {
-    #[serde(deserialize_with = "deserialize_schema_v2")]
+    #[serde(deserialize_with = "deserialize_schema_v3")]
     pub schema_version: u8,
     pub kind: String,
     pub status: String,
@@ -97,15 +110,13 @@ pub struct BenchmarkReadiness {
     pub sample_rate: u32,
     pub channels: u16,
     pub sample_format: String,
-    pub workers_requested: usize,
-    pub workers_effective: bool,
     pub scheduler_qualified: bool,
     pub post_dsp_zero: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct BenchmarkResult {
-    #[serde(deserialize_with = "deserialize_schema_v3")]
+    #[serde(deserialize_with = "deserialize_result_schema_v4")]
     pub schema_version: u8,
     pub kind: String,
     pub status: String,
@@ -118,8 +129,6 @@ pub struct BenchmarkResult {
     pub sample_format: String,
     pub channels: u16,
     pub sample_rate: u32,
-    pub workers_requested: usize,
-    pub workers_effective: bool,
     pub warmup_seconds: u64,
     pub measure_seconds: u64,
     pub scheduler_qualified: bool,
@@ -133,8 +142,6 @@ pub struct BenchmarkResult {
     pub callback: CallbackMetricsSnapshot,
     pub profile_start: BenchmarkProfileSnapshot,
     pub profile_end: BenchmarkProfileSnapshot,
-    pub worker_delta: Option<BenchmarkWorkerDelta>,
-    pub worker_policy_error: Option<String>,
     pub recovered_alsa_epipe_count: Option<u64>,
     pub recovered_alsa_epipe_observable: bool,
     pub terminal_error: Option<String>,
@@ -147,27 +154,12 @@ pub struct BenchmarkProfileSnapshot {
     pub active_preview_sample_voices: usize,
     pub active_momentary_fx: usize,
     pub cumulative_voice_steals: u64,
-    pub synth_parallel_dispatches: u64,
-    pub synth_parallel_light_skips: u64,
-    pub synth_parallel_backoff_skips: u64,
-    pub synth_parallel_timing_backoffs: u64,
-    pub synth_parallel_failures: u64,
-    pub synth_parallel_unhealthy: bool,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
-pub struct BenchmarkWorkerDelta {
-    pub synth_parallel_dispatches: u64,
-    pub synth_parallel_light_skips: u64,
-    pub synth_parallel_backoff_skips: u64,
-    pub synth_parallel_timing_backoffs: u64,
-    pub synth_parallel_failures: u64,
-    pub synth_parallel_unhealthy: bool,
+    pub cumulative_voice_admission_drops: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct BenchmarkReleaseGate {
-    #[serde(deserialize_with = "deserialize_schema_v2")]
+    #[serde(deserialize_with = "deserialize_release_schema_v2")]
     pub schema_version: u8,
     pub kind: String,
     pub status: String,
@@ -190,12 +182,7 @@ impl From<SynthProfileSnapshot> for BenchmarkProfileSnapshot {
             active_preview_sample_voices: snapshot.active_preview_sample_voices,
             active_momentary_fx: snapshot.active_momentary_fx,
             cumulative_voice_steals: snapshot.cumulative_voice_steals,
-            synth_parallel_dispatches: snapshot.synth_parallel_dispatches,
-            synth_parallel_light_skips: snapshot.synth_parallel_light_skips,
-            synth_parallel_backoff_skips: snapshot.synth_parallel_backoff_skips,
-            synth_parallel_timing_backoffs: snapshot.synth_parallel_timing_backoffs,
-            synth_parallel_failures: snapshot.synth_parallel_failures,
-            synth_parallel_unhealthy: snapshot.synth_parallel_unhealthy,
+            cumulative_voice_admission_drops: snapshot.cumulative_voice_admission_drops,
         }
     }
 }
@@ -243,7 +230,6 @@ impl BenchmarkProgress {
         elapsed_seconds: u64,
         target_seconds: u64,
         metrics: &CallbackMetricsSnapshot,
-        workers_effective: Option<bool>,
     ) -> Self {
         Self {
             schema_version: BENCHMARK_SCHEMA_VERSION,
@@ -274,7 +260,6 @@ impl BenchmarkProgress {
             lifetime_invalid_callback_frame_count: metrics.lifetime_invalid_callback_frame_count,
             lifetime_callback_count: metrics.lifetime_callback_count,
             measured_callback_count: metrics.callback_count,
-            workers_effective,
             cpal_device_error_count: metrics.cpal_device_error_count,
             cpal_stream_error_count: metrics.cpal_stream_error_count,
             terminal_error: metrics.terminal_error,
@@ -291,7 +276,6 @@ pub fn readiness(
     channels: u16,
     sample_rate: u32,
     metrics: &CallbackMetricsSnapshot,
-    workers_effective: bool,
 ) -> BenchmarkReadiness {
     BenchmarkReadiness {
         schema_version: BENCHMARK_SCHEMA_VERSION,
@@ -314,8 +298,6 @@ pub fn readiness(
         sample_rate,
         channels,
         sample_format: sample_format.into(),
-        workers_requested: config.workers,
-        workers_effective,
         scheduler_qualified: true,
         post_dsp_zero: true,
     }
@@ -335,8 +317,6 @@ mod tests {
             "256".into(),
             "--engine-block-frames".into(),
             "256".into(),
-            "--workers".into(),
-            "2".into(),
             "--release-gate".into(),
             "release.json".into(),
             "--artifact-sha256".into(),
@@ -346,10 +326,10 @@ mod tests {
     }
 
     #[test]
-    fn schema2_artifacts_round_trip_and_schema1_is_rejected() {
+    fn schema3_artifacts_round_trip_and_schema1_is_rejected() {
         let config = config();
         let metrics = CallbackMetricsSnapshot::default();
-        let progress = BenchmarkProgress::new(&config, "warmup", 2, 5, &metrics, Some(true));
+        let progress = BenchmarkProgress::new(&config, "warmup", 2, 5, &metrics);
         assert_eq!(progress.requested_output_buffer_frames, 256);
         assert_eq!(progress.expected_alsa_period_frames, 64);
         assert_eq!(progress.internal_block_frames, 256);
@@ -358,7 +338,7 @@ mod tests {
             serde_json::from_str::<BenchmarkProgress>(&encoded).unwrap(),
             progress
         );
-        let schema1 = encoded.replacen("\"schema_version\":2", "\"schema_version\":1", 1);
+        let schema1 = encoded.replacen("\"schema_version\":3", "\"schema_version\":1", 1);
         assert!(serde_json::from_str::<BenchmarkProgress>(&schema1).is_err());
     }
 
@@ -372,7 +352,7 @@ mod tests {
             lifetime_callback_frame_size_change_count: 4,
             ..Default::default()
         };
-        let artifact = readiness(&config, "invocation", "F32", 2, 44_100, &metrics, false);
+        let artifact = readiness(&config, "invocation", "F32", 2, 44_100, &metrics);
         assert_eq!(artifact.schema_version, BENCHMARK_SCHEMA_VERSION);
         assert_eq!(artifact.requested_output_buffer_frames, 256);
         assert_eq!(artifact.expected_alsa_period_frames, 64);
@@ -384,12 +364,12 @@ mod tests {
             serde_json::from_str::<BenchmarkReadiness>(&encoded).unwrap(),
             artifact
         );
-        let schema1 = encoded.replacen("\"schema_version\":2", "\"schema_version\":1", 1);
+        let schema1 = encoded.replacen("\"schema_version\":3", "\"schema_version\":1", 1);
         assert!(serde_json::from_str::<BenchmarkReadiness>(&schema1).is_err());
     }
 
     #[test]
-    fn result_schema3_round_trips_and_serializes_incomplete_worker_evidence_as_null() {
+    fn result_schema4_round_trips_without_removed_parallel_evidence() {
         let result = BenchmarkResult {
             schema_version: BENCHMARK_RESULT_SCHEMA_VERSION,
             kind: "orange_audio_benchmark_result".into(),
@@ -403,8 +383,6 @@ mod tests {
             sample_format: "F32".into(),
             channels: 2,
             sample_rate: 44_100,
-            workers_requested: 2,
-            workers_effective: true,
             warmup_seconds: 5,
             measure_seconds: 30,
             scheduler_qualified: false,
@@ -419,22 +397,75 @@ mod tests {
             callback: CallbackMetricsSnapshot::default(),
             profile_start: BenchmarkProfileSnapshot::default(),
             profile_end: BenchmarkProfileSnapshot::default(),
-            worker_delta: None,
-            worker_policy_error: None,
             recovered_alsa_epipe_count: None,
             recovered_alsa_epipe_observable: false,
-            terminal_error: Some("worker profile evidence is missing".into()),
+            terminal_error: Some("benchmark profile evidence is missing".into()),
         };
         let encoded = serde_json::to_string(&result).unwrap();
         let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-        assert_eq!(value["schema_version"], 3);
-        assert!(value["worker_delta"].is_null());
-        assert!(value["worker_policy_error"].is_null());
+        assert_eq!(value["schema_version"], 4);
         assert_eq!(
             serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
             result
         );
-        let schema2 = encoded.replacen("\"schema_version\":3", "\"schema_version\":2", 1);
+        let schema2 = encoded.replacen("\"schema_version\":4", "\"schema_version\":3", 1);
         assert!(serde_json::from_str::<BenchmarkResult>(&schema2).is_err());
+    }
+
+    #[test]
+    fn profile_snapshot_preserves_admission_drop_evidence() {
+        let snapshot = SynthProfileSnapshot {
+            cumulative_voice_admission_drops: 3,
+            ..SynthProfileSnapshot::default()
+        };
+
+        let profile = BenchmarkProfileSnapshot::from(snapshot);
+
+        assert_eq!(profile.cumulative_voice_admission_drops, 3);
+    }
+
+    #[test]
+    fn schema4_requires_numeric_admission_drop_evidence() {
+        let config = config();
+        let result = BenchmarkResult {
+            schema_version: BENCHMARK_RESULT_SCHEMA_VERSION,
+            kind: "orange_audio_benchmark_result".into(),
+            status: "fail".into(),
+            board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
+            scenario: "synth_ramp_16".into(),
+            requested_output_buffer_frames: 256,
+            expected_alsa_buffer_frames: 256,
+            expected_alsa_period_frames: 64,
+            internal_block_frames: 256,
+            sample_format: "F32".into(),
+            channels: 2,
+            sample_rate: 44_100,
+            warmup_seconds: 5,
+            measure_seconds: 30,
+            scheduler_qualified: false,
+            post_dsp_zero: false,
+            measurement_stop_acknowledged: false,
+            stream_stopped: false,
+            final_progress_write_succeeded: false,
+            pid: 1,
+            systemd_invocation_id: None,
+            artifact_sha256: config.artifact_sha256,
+            callback: CallbackMetricsSnapshot::default(),
+            profile_start: BenchmarkProfileSnapshot::default(),
+            profile_end: BenchmarkProfileSnapshot::default(),
+            recovered_alsa_epipe_count: None,
+            recovered_alsa_epipe_observable: false,
+            terminal_error: None,
+        };
+        let encoded = serde_json::to_value(result).unwrap();
+        let mut missing = encoded.clone();
+        missing["profile_start"]
+            .as_object_mut()
+            .unwrap()
+            .remove("cumulative_voice_admission_drops");
+        assert!(serde_json::from_value::<BenchmarkResult>(missing).is_err());
+        let mut malformed = encoded;
+        malformed["profile_end"]["cumulative_voice_admission_drops"] = "one".into();
+        assert!(serde_json::from_value::<BenchmarkResult>(malformed).is_err());
     }
 }

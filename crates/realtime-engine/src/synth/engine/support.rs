@@ -18,6 +18,7 @@ pub(super) enum InstrumentKind {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct SampleVoice {
     pub(super) active: bool,
+    pub(super) instrument_slot: u8,
     pub(super) sample_slot: usize,
     pub(super) pos: f32,
     pub(super) step: f32,
@@ -29,6 +30,7 @@ impl SampleVoice {
     pub(super) fn off() -> Self {
         Self {
             active: false,
+            instrument_slot: 0,
             sample_slot: 0,
             pos: 0.0,
             step: 1.0,
@@ -60,7 +62,6 @@ pub(super) enum MomentaryFxKind {
 pub(super) struct MomentaryFxState {
     pub(super) id: String,
     pub(super) kind: MomentaryFxKind,
-    pub(super) params: BTreeMap<String, Value>,
     pub(super) runtime_params: MomentaryFxRuntimeParams,
     pub(super) target: MomentaryFxTarget,
     pub(super) releasing: bool,
@@ -154,22 +155,21 @@ impl MomentaryFxState {
     pub(super) fn new(
         id: String,
         kind: MomentaryFxKind,
-        params: BTreeMap<String, Value>,
+        params: &BTreeMap<String, Value>,
         target: MomentaryFxTarget,
         sample_rate: u32,
     ) -> Self {
         let ramp_samples = ((sample_rate as f32 * 0.002) as usize).max(1);
         let pitch_ramp_len = ((sample_rate as f32 * 0.002) as u32).max(1);
-        let stutter_segment_len = stutter_segment_len(sample_rate, &params);
+        let stutter_segment_len = stutter_segment_len(sample_rate, params);
         const DELAY_LENS: [usize; 4] = [1557, 1617, 1491, 1422];
         let freeze_bufs: [Vec<f32>; 4] =
             DELAY_LENS.map(|n| vec![0.0; (n * sample_rate as usize / 44_100).max(1)]);
         let freeze_inject_len = (sample_rate * FREEZE_INJECT_MS / 1000).max(1);
-        let runtime_params = MomentaryFxRuntimeParams::from_params(kind, &params, sample_rate);
+        let runtime_params = MomentaryFxRuntimeParams::from_params(kind, params, sample_rate);
         Self {
             id,
             kind,
-            params,
             runtime_params,
             target,
             releasing: false,

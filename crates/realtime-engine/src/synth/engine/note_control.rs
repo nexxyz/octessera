@@ -1,3 +1,6 @@
+use super::retired_state::{
+    store_retired_preview, store_retired_preview_buffer, PREVIEW_AUDITION_SLOTS,
+};
 use super::*;
 
 impl SynthEngine {
@@ -5,11 +8,7 @@ impl SynthEngine {
         self.sample_banks = banks;
         self.sample_banks
             .resize(INSTRUMENT_SLOT_COUNT, SampleBankConfig::default());
-        for pool in self.sample_voices.iter_mut() {
-            for voice in pool.iter_mut() {
-                voice.active = false;
-            }
-        }
+        self.sample_voice_pool.clear_all();
     }
 
     pub fn set_sample_bank(&mut self, instrument_slot: usize, bank: SampleBankConfig) {
@@ -17,23 +16,55 @@ impl SynthEngine {
         self.sample_banks
             .resize(INSTRUMENT_SLOT_COUNT, SampleBankConfig::default());
         self.sample_banks[slot] = bank;
-        for voice in self.sample_voices[slot].iter_mut() {
-            voice.active = false;
-        }
+        self.sample_voice_pool.clear_slot(slot);
     }
 
-    pub fn preview_sample(&mut self, instrument_slot: u8, buffer: SampleBuffer, velocity: u8) {
+    pub fn preview_sample(
+        &mut self,
+        instrument_slot: u8,
+        buffer: SampleBuffer,
+        velocity: u8,
+    ) -> RetiredAudioState {
+        let mut retired = RetiredAudioState::default();
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
         if buffer.samples.is_empty() || buffer.channels == 0 || buffer.sample_rate == 0 {
-            return;
+            store_retired_preview_buffer(&mut retired.preview_sample_buffers, buffer);
+            return retired;
         }
-        let bank = self.sample_banks.get(slot).cloned().unwrap_or_default();
+        let (velocity_sensitivity_pct, gain_pct, tune_semis) = self
+            .sample_banks
+            .get(slot)
+            .map(|bank| {
+                (
+                    bank.velocity_sensitivity_pct,
+                    bank.gain_pct,
+                    bank.tune_semis,
+                )
+            })
+            .unwrap_or((100.0, 100.0, 0.0));
         let vel = (velocity.max(1) as f32 / 127.0).clamp(0.0, 1.0);
-        let vel_sens = (bank.velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
-        let gain = (bank.gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
-        let pitch = 2.0_f32.powf(bank.tune_semis / 12.0);
+        let vel_sens = (velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
+        let gain = (gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
+        let pitch = 2.0_f32.powf(tune_semis / 12.0);
         let step = pitch * buffer.sample_rate as f32 / self.sample_rate as f32;
-        self.preview_sample_voices.push(PreviewSampleVoice {
+        let order = self.preview_sample_next_order;
+        self.preview_sample_next_order = self.preview_sample_next_order.saturating_add(1);
+        let preview_slot = self
+            .preview_sample_voices
+            .iter()
+            .position(Option::is_none)
+            .unwrap_or_else(|| {
+                if self.preview_sample_orders[0] <= self.preview_sample_orders[1] {
+                    0
+                } else {
+                    1
+                }
+            });
+        if let Some(displaced) = self.preview_sample_voices[preview_slot].take() {
+            store_retired_preview(&mut retired.preview_sample_voices, displaced);
+        }
+        self.preview_sample_orders[preview_slot] = order;
+        self.preview_sample_voices[preview_slot] = Some(PreviewSampleVoice {
             slot,
             buffer,
             pos: 0.0,
@@ -41,6 +72,7 @@ impl SynthEngine {
             gain,
             filt: BiquadState::new(),
         });
+        retired
     }
 
     pub fn note_on(&mut self, instrument_slot: u8, midi_note: u8, velocity: u8, duration_ms: u32) {
@@ -56,18 +88,26 @@ impl SynthEngine {
         let duration_samples = ms_to_samples(duration_ms as f32, self.sample_rate).max(1) as u64;
         let note_off_sample = self.sample_clock.saturating_add(duration_samples);
         let freq = midi_note_to_hz(midi_note);
-        let (i, stole_voice) = {
-            let pool = &mut self.voices[slot];
-            let active = pool.iter().filter(|voice| voice.active).count();
-            if active >= MAX_SYNTH_VOICES_PER_SLOT {
-                (Self::steal_active_voice_index(pool), true)
-            } else {
-                match pool.iter().position(|voice| !voice.active) {
-                    Some(i) => (i, false),
-                    None => (Self::steal_active_voice_index(pool), true),
-                }
-            }
+        self.synth_voice_pool.compact_slot_lanes(slot);
+        let active = self.synth_voice_pool.active_count_for_slot(slot);
+        let lane = if self.voice_stealing_mode == VoiceStealingMode::None {
+            let Some(lane) = self.synth_voice_pool.first_inactive_lane() else {
+                self.record_voice_admission_drop();
+                return;
+            };
+            lane
+        } else if active >= MAX_SYNTH_VOICES_PER_SLOT {
+            self.steal_active_voice_index(slot)
+                .or_else(|| self.synth_voice_pool.first_inactive_lane())
+                .unwrap_or(0)
+        } else if let Some(lane) = self.synth_voice_pool.first_inactive_lane() {
+            lane
+        } else {
+            self.find_global_steal_candidate_scored(false)
+                .map(|(_, lane)| lane)
+                .unwrap_or(0)
         };
+        let stole_voice = self.synth_voice_pool.lane(lane).active;
         if stole_voice {
             self.record_voice_steal();
         }
@@ -98,8 +138,8 @@ impl SynthEngine {
             self.sample_rate,
             self.synth_render_revisions[slot],
         );
-        let pool = &mut self.voices[slot];
-        pool[i] = voice;
+        self.synth_voice_pool.assign_lane(lane, slot);
+        *self.synth_voice_pool.lane_mut(lane) = voice;
         self.active_synth_slots[slot] = true;
 
         self.enforce_voice_budgets();
@@ -119,22 +159,13 @@ impl SynthEngine {
 
     pub fn note_off(&mut self, instrument_slot: u8, midi_note: u8) {
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
-        if self.slot_kind[slot] == InstrumentKind::None {
-            return;
-        }
-        if self.slot_kind[slot] == InstrumentKind::Sample {
-            let sample_slot = sample_slot_for_note(midi_note);
-            for voice in self.sample_voices[slot].iter_mut() {
-                if voice.active && voice.sample_slot == sample_slot {
-                    voice.active = false;
-                }
-            }
-            self.active_sample_slots[slot] =
-                self.sample_voices[slot].iter().any(|voice| voice.active);
-            return;
-        }
         let cfg = self.instruments[slot];
-        for voice in self.voices[slot].iter_mut() {
+        self.synth_voice_pool.compact_slot_lanes(slot);
+        let mut lane_indices = [0; SYNTH_VOICE_LANE_CAPACITY];
+        let lane_count = self.synth_voice_pool.slot_lanes(slot).len();
+        lane_indices[..lane_count].copy_from_slice(self.synth_voice_pool.slot_lanes(slot));
+        for lane in lane_indices.into_iter().take(lane_count) {
+            let voice = self.synth_voice_pool.lane_mut(lane);
             if !voice.active || voice.midi_note != midi_note {
                 continue;
             }
@@ -144,19 +175,41 @@ impl SynthEngine {
                 .begin_release(cfg.filter_env, self.sample_rate);
             voice.note_off_sample = self.sample_clock;
         }
-    }
 
-    pub fn all_notes_off(&mut self) {
-        self.preview_sample_voices.clear();
-        for pool in self.sample_voices.iter_mut() {
-            for voice in pool.iter_mut() {
+        let sample_slot = sample_slot_for_note(midi_note);
+        self.sample_voice_pool.compact_slot_lanes(slot);
+        let mut lane_indices = [0; SAMPLE_VOICE_LANE_CAPACITY];
+        let lane_count = self.sample_voice_pool.slot_lanes(slot).len();
+        lane_indices[..lane_count].copy_from_slice(self.sample_voice_pool.slot_lanes(slot));
+        for lane in lane_indices.into_iter().take(lane_count) {
+            let voice = self.sample_voice_pool.lane_mut(lane);
+            if voice.active && voice.sample_slot == sample_slot {
                 voice.active = false;
             }
         }
+        self.sample_voice_pool.compact_slot_lanes(slot);
+        self.active_sample_slots[slot] = self.sample_voice_pool.active_count_for_slot(slot) > 0;
+    }
+
+    pub fn all_notes_off(&mut self) -> RetiredAudioState {
+        let mut retired = RetiredAudioState::default();
+        for voice in &mut self.preview_sample_voices {
+            if let Some(voice) = voice.take() {
+                store_retired_preview(&mut retired.preview_sample_voices, voice);
+            }
+        }
+        self.preview_sample_orders = [0; PREVIEW_AUDITION_SLOTS];
+        self.preview_sample_next_order = 0;
+        self.sample_voice_pool.clear_all();
         self.active_sample_slots = [false; INSTRUMENT_SLOT_COUNT];
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             let cfg = self.instruments[slot];
-            for voice in self.voices[slot].iter_mut() {
+            self.synth_voice_pool.compact_slot_lanes(slot);
+            let mut lane_indices = [0; SYNTH_VOICE_LANE_CAPACITY];
+            let lane_count = self.synth_voice_pool.slot_lanes(slot).len();
+            lane_indices[..lane_count].copy_from_slice(self.synth_voice_pool.slot_lanes(slot));
+            for lane in lane_indices.into_iter().take(lane_count) {
+                let voice = self.synth_voice_pool.lane_mut(lane);
                 if !voice.active {
                     continue;
                 }
@@ -167,5 +220,6 @@ impl SynthEngine {
                 voice.note_off_sample = self.sample_clock;
             }
         }
+        retired
     }
 }
