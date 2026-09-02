@@ -90,6 +90,14 @@ impl WorkEnvelope {
         );
         true
     }
+
+    pub(super) fn active_cost_units(&self) -> u16 {
+        let synth_units = self.owner.partitions.synth.active_count()
+            * super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize;
+        let sample_units = self.owner.partitions.sample.active_count()
+            * super::source_worker_load::SOURCE_WORKER_SAMPLE_COST_UNITS as usize;
+        (synth_units + sample_units) as u16
+    }
 }
 
 pub(super) struct CompletedEnvelope {
@@ -100,6 +108,8 @@ pub(super) struct CompletedEnvelope {
     pub(super) render_ok: bool,
     pub(super) worker_exited: bool,
     pub(super) transport_failed: bool,
+    pub(super) dsp_duration_ns: u64,
+    pub(super) active_cost_units: u16,
 }
 
 pub(super) struct WorkerExit {

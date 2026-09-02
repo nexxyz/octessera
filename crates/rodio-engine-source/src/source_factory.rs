@@ -86,7 +86,8 @@ impl EngineSource {
         load_tx: Option<AudioLoadStatusSender>,
         mut engine: SynthEngine,
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        let (lifecycle, runtime) = SourceWorkerLifecycle::start_prewarmed(&mut engine)?;
+        let (lifecycle, runtime) =
+            SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, block_frames)?;
         Self::finish_persistent_workers(
             control_rx,
             sample_rate,
@@ -114,7 +115,8 @@ impl EngineSource {
             });
         }
         let mut engine = SynthEngine::new(sample_rate);
-        let (lifecycle, mut runtime) = SourceWorkerLifecycle::start_prewarmed(&mut engine)?;
+        let (lifecycle, mut runtime) =
+            SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, block_frames)?;
         runtime.attach_timing_probe(timing_probe);
         Self::finish_persistent_workers(
             control_rx,
@@ -144,8 +146,11 @@ impl EngineSource {
             });
         }
         let mut engine = SynthEngine::new(sample_rate);
-        let (lifecycle, mut runtime) =
-            SourceWorkerLifecycle::start_prewarmed_with_hook(&mut engine, start_hook)?;
+        let (lifecycle, mut runtime) = SourceWorkerLifecycle::start_prewarmed_with_frames_and_hook(
+            &mut engine,
+            block_frames,
+            start_hook,
+        )?;
         runtime.attach_timing_probe(timing_probe);
         Self::finish_persistent_workers(
             control_rx,
@@ -202,8 +207,11 @@ impl EngineSource {
         mut engine: SynthEngine,
         start_hook: SourceWorkerStartHook,
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        let (lifecycle, runtime) =
-            SourceWorkerLifecycle::start_prewarmed_with_hook(&mut engine, start_hook)?;
+        let (lifecycle, runtime) = SourceWorkerLifecycle::start_prewarmed_with_frames_and_hook(
+            &mut engine,
+            block_frames,
+            start_hook,
+        )?;
         let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
         let (shutdown_tx, shutdown_owner) =
             match source_worker_reaper::spawn_persistent_reaper(lifecycle, retired_rx, false) {

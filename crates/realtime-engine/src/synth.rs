@@ -30,10 +30,11 @@ pub use engine::{
     prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
     PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SourceWorkerHealth,
-    SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerMode, SourceWorkerRetirement,
-    SourceWorkerRetirementError, SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown,
-    SourceWorkerStartHook, SynthEngine, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
-    SOURCE_WORKER_THREAD_NAMES,
+    SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerLoadSnapshot, SourceWorkerMode,
+    SourceWorkerRetirement, SourceWorkerRetirementError, SourceWorkerRuntime,
+    SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine,
+    SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+    SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
 };
 #[cfg(feature = "source-worker-benchmark-timing")]
 pub use source_worker_timing::{
@@ -133,7 +134,7 @@ mod capability_tests {
 
     const _: () = assert!(
         SAMPLE_VOICE_RETIREMENT_CAPACITY
-            == SAMPLE_VOICE_LANE_CAPACITY + MAX_CONTROL_EVENTS_PER_CALLBACK
+            == SAMPLE_VOICE_LANE_CAPACITY + (2 * MAX_CONTROL_EVENTS_PER_CALLBACK)
     );
 
     #[test]
@@ -142,7 +143,7 @@ mod capability_tests {
         assert_eq!(SAMPLE_VOICE_LANE_CAPACITY, 64);
         assert_eq!(
             SAMPLE_VOICE_RETIREMENT_CAPACITY,
-            SAMPLE_VOICE_LANE_CAPACITY + MAX_CONTROL_EVENTS_PER_CALLBACK
+            SAMPLE_VOICE_LANE_CAPACITY + (2 * MAX_CONTROL_EVENTS_PER_CALLBACK)
         );
     }
 }

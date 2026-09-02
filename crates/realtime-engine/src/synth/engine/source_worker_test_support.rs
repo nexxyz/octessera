@@ -102,6 +102,37 @@ impl SourceWorkerRuntime {
             .is_ok()
     }
 
+    pub(crate) fn rewrite_completion_measurement_for_test(
+        &mut self,
+        parity: usize,
+        dsp_duration_ns: u64,
+        active_cost_units: u16,
+    ) -> bool {
+        let receiver = &self.done_rxs.as_ref().expect("persistent source workers")[parity];
+        let Ok(mut completion) = receiver.try_recv() else {
+            return false;
+        };
+        completion.dsp_duration_ns = dsp_duration_ns;
+        completion.active_cost_units = active_cost_units;
+        self.done_txs
+            .as_ref()
+            .expect("source worker lifecycle is active")[parity]
+            .try_send(completion)
+            .is_ok()
+    }
+
+    pub(crate) fn completion_measurement_for_test(&mut self, parity: usize) -> Option<(u64, u16)> {
+        let receiver = &self.done_rxs.as_ref().expect("persistent source workers")[parity];
+        let completion = receiver.try_recv().ok()?;
+        let measurement = (completion.dsp_duration_ns, completion.active_cost_units);
+        self.done_txs
+            .as_ref()
+            .expect("source worker lifecycle is active")[parity]
+            .try_send(completion)
+            .ok()?;
+        Some(measurement)
+    }
+
     fn take_home_owner_for_test(&self, parity: usize) -> Option<OwnerEnvelope> {
         self.home_rxs.as_ref()?.get(parity)?.try_recv().ok()
     }

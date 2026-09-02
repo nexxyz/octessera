@@ -40,6 +40,22 @@ impl SynthEngine {
             .unwrap_or(0)
     }
 
+    pub(super) fn source_worker_active_cost_units(&self) -> [u16; 2] {
+        std::array::from_fn(|parity| {
+            let synth_units = self
+                .synth_voice_pool
+                .active_count_for_parity(parity)
+                .unwrap_or(0)
+                * SOURCE_WORKER_SYNTH_COST_UNITS as usize;
+            let sample_units = self
+                .sample_voice_pool
+                .active_count_for_parity(parity)
+                .unwrap_or(0)
+                * SOURCE_WORKER_SAMPLE_COST_UNITS as usize;
+            (synth_units + sample_units) as u16
+        })
+    }
+
     fn global_voice_budget(&self) -> usize {
         let max_voices = SYNTH_VOICE_LANE_CAPACITY;
         let (target_load, min_budget_pct) = match self.voice_stealing_mode {

@@ -16,7 +16,7 @@ fn timing_probe_records_cpu_endpoint_change_and_freezes_coordinator() {
     CPU.store(2, Ordering::Relaxed);
     let start = probe.worker_start();
     CPU.store(3, Ordering::Relaxed);
-    probe.record_worker(0, 7, start, None);
+    probe.record_worker(0, 7, start, 17, None);
     probe.record_completion(7, 0, std::time::Duration::from_nanos(50));
     probe.record_reduction(7, std::time::Duration::from_nanos(80));
     probe.freeze(0b01, 0b01, Some(std::time::Duration::from_nanos(120)), true);
@@ -55,6 +55,16 @@ fn timing_probe_leaves_unexecuted_fields_nullable() {
     assert_eq!(snapshot.coordinator.reduction_ns, None);
     assert_eq!(snapshot.workers[0].render_ns, None);
     assert_eq!(snapshot.workers[1].cpu_end, None);
+}
+
+#[test]
+fn timing_probe_uses_supplied_render_duration() {
+    let probe = SourceWorkerTimingProbe::new(None);
+    probe.begin_sequence(10, Duration::from_nanos(100));
+    let start = probe.worker_start();
+    probe.record_worker(0, 10, start, 777, None);
+
+    assert_eq!(probe.snapshot().workers[0].render_ns, Some(777));
 }
 
 #[test]
@@ -100,7 +110,7 @@ fn timing_probe_operations_do_not_allocate() {
             probe.begin_sequence(9, std::time::Duration::from_nanos(100));
             probe.record_dispatch(9, 0b11);
             let start = probe.worker_start();
-            probe.record_worker(0, 9, start, None);
+            probe.record_worker(0, 9, start, 17, None);
             probe.record_completion(9, 0, std::time::Duration::from_nanos(40));
             probe.record_reduction(9, std::time::Duration::from_nanos(10));
             probe.record_callback_total(std::time::Duration::from_nanos(50));
