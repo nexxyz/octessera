@@ -65,7 +65,18 @@ pub(super) fn build_engine_source(
         AudioSourceExecutionMode::PersistentTwoWorkers => {
             let block_frames =
                 EngineSource::resolve_block_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES);
-            EngineSource::with_persistent_workers(engine_rx, sample_rate, block_frames, None)
+            #[cfg(target_os = "linux")]
+            let result = EngineSource::with_persistent_workers_with_hook(
+                engine_rx,
+                sample_rate,
+                block_frames,
+                None,
+                crate::audio_priority::orange_worker_start_hook,
+            );
+            #[cfg(not(target_os = "linux"))]
+            let result =
+                EngineSource::with_persistent_workers(engine_rx, sample_rate, block_frames, None);
+            result
                 .map(|(source, owner)| (source, Some(owner)))
                 .map_err(|error| {
                     RouteOpenError::Fault(format!("persistent audio setup failed: {error:?}"))
@@ -237,7 +248,7 @@ fn build_stream<T>(
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
-    let scheduler = CallbackSchedulingHandle::new(crate::audio_priority::configured_priority());
+    let scheduler = CallbackSchedulingHandle::new(crate::audio_priority::callback_priority());
     let callback_scheduler = scheduler.clone();
     let callback_health = stream_health.clone();
     let mut worker_health_reported = false;

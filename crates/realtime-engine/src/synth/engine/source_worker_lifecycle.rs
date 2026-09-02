@@ -1,3 +1,5 @@
+#[path = "source_worker_startup.rs"]
+mod startup;
 #[cfg(test)]
 use super::source_lane_renderer::SampleSourceContext;
 use super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
@@ -7,7 +9,9 @@ pub(super) use super::source_worker_owner::{
 };
 use super::source_worker_protocol::SourceWorkerRetirementError;
 use super::source_worker_retirement::SourceWorkerRetirement;
-use crossbeam_channel::{bounded, Receiver, Sender};
+#[cfg(test)]
+use crossbeam_channel::bounded;
+use crossbeam_channel::{Receiver, Sender};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -15,8 +19,10 @@ use std::time::Duration;
 
 #[path = "source_worker_worker.rs"]
 pub(super) mod worker;
+#[cfg(test)]
+use worker::ReverseCompletionState;
+use worker::SourceWorkerSlot;
 pub use worker::SOURCE_WORKER_THREAD_NAMES;
-use worker::{spawn_worker, ReverseCompletionState, SourceWorkerSlot};
 
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;
 pub(super) const SOURCE_WORKER_CHANNEL_CAPACITY: usize = 1;
@@ -49,71 +55,6 @@ pub struct SourceWorkerLifecycle {
 }
 
 impl SourceWorkerLifecycle {
-    pub(super) fn start_with_hold(
-        hold_before_receive: bool,
-    ) -> Result<Self, super::source_worker_protocol::SourceWorkerSetupError> {
-        let reverse_completion = Arc::new(ReverseCompletionState {
-            enabled: AtomicBool::new(false),
-            parity_one_done: AtomicBool::new(false),
-        });
-        let generation = NEXT_SOURCE_WORKER_GENERATION.fetch_add(1, Ordering::Relaxed);
-        let runtime_close = Arc::new(SourceWorkerCloseState {
-            closed: AtomicBool::new(false),
-            generation,
-        });
-        let health = Arc::new(SourceWorkerHealthState::new(SourceWorkerHealth::Healthy));
-        let (home_tx_0, home_rx_0) = bounded(SOURCE_WORKER_MAILBOX_CAPACITY);
-        let (home_tx_1, home_rx_1) = bounded(SOURCE_WORKER_MAILBOX_CAPACITY);
-        let (fault_tx_0, fault_rx_0) = bounded(SOURCE_WORKER_MAILBOX_CAPACITY);
-        let (fault_tx_1, fault_rx_1) = bounded(SOURCE_WORKER_MAILBOX_CAPACITY);
-        let first_worker =
-            match spawn_worker(0, Arc::clone(&reverse_completion), hold_before_receive) {
-                Ok(worker) => worker,
-                Err(error) => {
-                    runtime_close.closed.store(true, Ordering::Release);
-                    return Err(error);
-                }
-            };
-        let second_worker =
-            match spawn_worker(1, Arc::clone(&reverse_completion), hold_before_receive) {
-                Ok(worker) => worker,
-                Err(error) => {
-                    runtime_close.closed.store(true, Ordering::Release);
-                    first_worker.shutdown_after_spawn_failure();
-                    return Err(error);
-                }
-            };
-        let workers = [first_worker, second_worker];
-        let completion_rxs = [workers[0].done_rx.clone(), workers[1].done_rx.clone()];
-        Ok(Self {
-            workers,
-            prewarmed: false,
-            home_txs: [home_tx_0, home_tx_1],
-            home_rxs: [home_rx_0, home_rx_1],
-            fault_txs: [fault_tx_0, fault_tx_1],
-            fault_rxs: [fault_rx_0, fault_rx_1],
-            completion_rxs,
-            runtime_close,
-            health,
-            #[cfg(any(test, feature = "test-support"))]
-            destroyed_owner_identities: std::array::from_fn(|_| None),
-            #[cfg(test)]
-            reverse_completion,
-        })
-    }
-
-    pub(super) fn prewarm(&mut self) -> bool {
-        if self.prewarmed {
-            return true;
-        }
-        let ready = self
-            .workers
-            .iter()
-            .all(|worker| worker.ready_rx.recv().is_ok());
-        self.prewarmed = ready;
-        ready
-    }
-
     pub(super) fn seed_home(&mut self, owners: [OwnerEnvelope; SOURCE_WORKER_COUNT]) -> bool {
         let mut seeded = true;
         for owner in owners {

@@ -2,9 +2,10 @@ use std::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-const DEFAULT_AUDIO_THREAD_PRIORITY: i32 = 70;
-const MIN_AUDIO_THREAD_PRIORITY: i32 = 1;
-const MAX_AUDIO_THREAD_PRIORITY: i32 = 80;
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) const ORANGE_WORKER_PRIORITY: i32 = 70;
+pub(crate) const ORANGE_CALLBACK_PRIORITY: i32 = 69;
+pub(crate) const RASPBERRY_CALLBACK_PRIORITY: i32 = 70;
 
 const STATE_PENDING: u8 = 0;
 const STATE_CONFIGURING: u8 = 1;
@@ -175,12 +176,26 @@ impl CallbackSchedulingHandle {
     }
 }
 
-pub(crate) fn configured_priority() -> i32 {
-    resolve_priority(
-        std::env::var("OCTESSERA_AUDIO_THREAD_PRIORITY")
-            .ok()
-            .as_deref(),
-    )
+pub(crate) fn callback_priority() -> i32 {
+    if cfg!(feature = "hardware-orange-pi-zero-2w") {
+        ORANGE_CALLBACK_PRIORITY
+    } else {
+        RASPBERRY_CALLBACK_PRIORITY
+    }
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) fn orange_worker_start_hook(_parity: usize) -> Result<(), ()> {
+    #[cfg(target_os = "linux")]
+    {
+        imp::configure(ORANGE_WORKER_PRIORITY)
+            .map(|_| ())
+            .map_err(|_| ())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err(())
+    }
 }
 
 pub(crate) fn qualify_callback_scheduler(
@@ -229,13 +244,6 @@ fn format_scheduling_failure(
         ),
     };
     format!("{sink_label} audio callback RT promotion not qualified: {detail}")
-}
-
-fn resolve_priority(value: Option<&str>) -> i32 {
-    value
-        .and_then(|value| value.parse::<i32>().ok())
-        .unwrap_or(DEFAULT_AUDIO_THREAD_PRIORITY)
-        .clamp(MIN_AUDIO_THREAD_PRIORITY, MAX_AUDIO_THREAD_PRIORITY)
 }
 
 #[cfg(target_os = "linux")]
@@ -356,11 +364,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn configured_priority_is_clamped() {
-        assert_eq!(resolve_priority(None), 70);
-        assert_eq!(resolve_priority(Some("0")), 1);
-        assert_eq!(resolve_priority(Some("81")), 80);
-        assert_eq!(resolve_priority(Some("invalid")), 70);
+    fn orange_workers_precede_callbacks_with_fixed_qualification_priorities() {
+        assert_eq!(ORANGE_WORKER_PRIORITY, 70);
+        assert_eq!(ORANGE_CALLBACK_PRIORITY, 69);
+        const {
+            assert!(ORANGE_CALLBACK_PRIORITY < ORANGE_WORKER_PRIORITY);
+            assert!(ORANGE_WORKER_PRIORITY <= 70);
+        }
+    }
+
+    #[test]
+    fn callback_priority_is_fixed_for_each_hardware_profile() {
+        assert_eq!(RASPBERRY_CALLBACK_PRIORITY, 70);
+        assert_eq!(
+            callback_priority(),
+            if cfg!(feature = "hardware-orange-pi-zero-2w") {
+                ORANGE_CALLBACK_PRIORITY
+            } else {
+                RASPBERRY_CALLBACK_PRIORITY
+            }
+        );
     }
 
     #[test]
