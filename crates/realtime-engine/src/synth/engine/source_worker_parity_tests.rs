@@ -78,6 +78,31 @@ fn persistent_workers_match_inline_with_full_mixed_pools() {
 }
 
 #[test]
+fn sparse_reduction_visits_only_active_synth_lanes() {
+    let mut worker = full_mixed_engine();
+    let mut inline = full_mixed_engine();
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for note in [48, 55] {
+            worker.note_on(slot as u8, note, 96, 5_000);
+            inline.note_on(slot as u8, note, 96, 5_000);
+        }
+    }
+    assert_eq!(worker.profile_snapshot().active_synth_voices, 16);
+    assert_eq!(worker.profile_snapshot().active_sample_voices, 0);
+
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
+    runtime.set_timing_for_test(TEST_POLL_LIMIT, TEST_DEADLINE);
+    assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, 64);
+    assert_eq!(
+        runtime.reduction_lane_counts_for_test(),
+        [(64, 0), (64, 16)]
+    );
+    let retirement = runtime.retire();
+    assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
+}
+
+#[test]
 fn reverse_completion_order_reduces_in_canonical_lane_order() {
     let mut worker = dynamic_engine();
     let mut inline = dynamic_engine();
