@@ -1,7 +1,5 @@
 use super::audio_output_open::source_execution_mode;
-use super::cpal_audio_output::{
-    build_engine_source, source_worker_health_is_terminal, AudioSourceExecutionMode,
-};
+use super::cpal_audio_output::{build_engine_source, AudioSourceExecutionMode};
 use super::AudioSink;
 use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::event_queue;
@@ -44,7 +42,7 @@ fn cpal_uses_persistent_workers_only_for_orange_jack() {
 #[test]
 fn cpal_worker_status_reports_only_terminal_worker_failures() {
     for health in [SourceWorkerHealth::Disabled, SourceWorkerHealth::Healthy] {
-        assert!(!source_worker_health_is_terminal(health));
+        assert!(!health.is_terminal());
     }
     for health in [
         SourceWorkerHealth::DeadlineMiss,
@@ -53,6 +51,6 @@ fn cpal_worker_status_reports_only_terminal_worker_failures() {
         SourceWorkerHealth::WorkerExited,
         SourceWorkerHealth::InvalidBlock,
     ] {
-        assert!(source_worker_health_is_terminal(health));
+        assert!(health.is_terminal());
     }
 }

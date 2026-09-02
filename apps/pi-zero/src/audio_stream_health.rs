@@ -1,5 +1,6 @@
 use cpal::StreamError;
-use std::sync::atomic::{AtomicBool, Ordering};
+use realtime_engine::synth::SourceWorkerHealth;
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -23,7 +24,7 @@ pub(crate) struct AudioStreamHealth {
     label: String,
     requirement: AudioStreamRequirement,
     state: Arc<Mutex<AudioStreamHealthState>>,
-    worker_terminal: Arc<AtomicBool>,
+    worker_health: Arc<AtomicU8>,
     #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     worker_terminal_logged: Arc<AtomicBool>,
 }
@@ -52,7 +53,7 @@ impl AudioStreamHealth {
                 last_log: None,
                 suppressed: 0,
             })),
-            worker_terminal: Arc::new(AtomicBool::new(false)),
+            worker_health: Arc::new(AtomicU8::new(SourceWorkerHealth::Healthy as u8)),
             worker_terminal_logged: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -71,29 +72,50 @@ impl AudioStreamHealth {
 
     #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     pub(crate) fn runtime_status(&self) -> AudioStreamStatus {
-        if self.worker_terminal() {
+        if self.worker_health().is_terminal() {
             AudioStreamStatus::Terminal
         } else {
             self.external_status()
         }
     }
 
-    pub(crate) fn mark_worker_terminal(&self) {
-        self.worker_terminal.store(true, Ordering::Release);
+    pub(crate) fn mark_worker_health(&self, health: SourceWorkerHealth) {
+        if !health.is_terminal() {
+            return;
+        }
+        let mut current = self.worker_health.load(Ordering::Acquire);
+        loop {
+            if SourceWorkerHealth::from_u8(current).is_terminal() {
+                return;
+            }
+            match self.worker_health.compare_exchange(
+                current,
+                health as u8,
+                Ordering::Release,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return,
+                Err(next) => current = next,
+            }
+        }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn worker_terminal(&self) -> bool {
-        self.worker_terminal.load(Ordering::Acquire)
+    pub(crate) fn worker_health(&self) -> SourceWorkerHealth {
+        SourceWorkerHealth::from_u8(self.worker_health.load(Ordering::Acquire))
     }
 
     #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
-    pub(crate) fn log_worker_terminal_once(&self) {
-        if self.worker_terminal() && !self.worker_terminal_logged.swap(true, Ordering::AcqRel) {
+    pub(crate) fn log_worker_terminal_once(&self) -> Option<SourceWorkerHealth> {
+        let health = self.worker_health();
+        if health.is_terminal() && !self.worker_terminal_logged.swap(true, Ordering::AcqRel) {
             eprintln!(
-                "{} audio worker entered a terminal health state",
-                self.label
+                "{} audio worker entered terminal health state: {}",
+                self.label,
+                health.name()
             );
+            Some(health)
+        } else {
+            None
         }
     }
 
@@ -215,21 +237,63 @@ mod tests {
     }
 
     #[test]
-    fn worker_terminal_is_sticky_and_separate_from_external_status() {
+    fn worker_health_reason_is_sticky_and_separate_from_external_status() {
         let health = AudioStreamHealth::optional("USB".into());
 
-        health.mark_worker_terminal();
-        assert!(health.worker_terminal());
+        health.mark_worker_health(SourceWorkerHealth::DeadlineMiss);
+        assert_eq!(health.worker_health(), SourceWorkerHealth::DeadlineMiss);
         assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
         assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);
         health.clear_recoverable_fault();
-        assert!(health.worker_terminal());
+        assert_eq!(health.worker_health(), SourceWorkerHealth::DeadlineMiss);
         assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
         assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);
 
         health.mark_terminal();
-        assert!(health.worker_terminal());
+        assert_eq!(health.worker_health(), SourceWorkerHealth::DeadlineMiss);
         assert_eq!(health.external_status(), AudioStreamStatus::Terminal);
+    }
+
+    #[test]
+    fn every_terminal_worker_health_reason_round_trips_and_first_wins() {
+        let terminal_reasons = [
+            SourceWorkerHealth::DeadlineMiss,
+            SourceWorkerHealth::DispatchFailed,
+            SourceWorkerHealth::CompletionFailed,
+            SourceWorkerHealth::WorkerExited,
+            SourceWorkerHealth::InvalidBlock,
+        ];
+        for reason in terminal_reasons {
+            let health = AudioStreamHealth::new("Jack".into());
+            health.mark_worker_health(reason);
+            assert_eq!(health.worker_health(), reason);
+            for later in terminal_reasons {
+                health.mark_worker_health(later);
+                assert_eq!(health.worker_health(), reason);
+            }
+        }
+    }
+
+    #[test]
+    fn disabled_and_healthy_worker_health_do_not_mark_terminal() {
+        let health = AudioStreamHealth::new("Jack".into());
+        health.mark_worker_health(SourceWorkerHealth::Disabled);
+        assert_eq!(health.worker_health(), SourceWorkerHealth::Healthy);
+        assert_eq!(health.runtime_status(), AudioStreamStatus::Healthy);
+        health.mark_worker_health(SourceWorkerHealth::Healthy);
+        assert_eq!(health.worker_health(), SourceWorkerHealth::Healthy);
+        assert_eq!(health.runtime_status(), AudioStreamStatus::Healthy);
+    }
+
+    #[test]
+    fn worker_terminal_log_reports_exact_reason_once() {
+        let health = AudioStreamHealth::new("Jack".into());
+        health.mark_worker_health(SourceWorkerHealth::DispatchFailed);
+        assert_eq!(
+            health.log_worker_terminal_once(),
+            Some(SourceWorkerHealth::DispatchFailed)
+        );
+        assert_eq!(health.log_worker_terminal_once(), None);
     }
 
     #[test]

@@ -50,7 +50,7 @@ impl BenchmarkStream {
     }
 
     pub fn worker_health(&self) -> SourceWorkerHealth {
-        source_worker_health_from_u8(self.worker_health.load(Ordering::Acquire))
+        SourceWorkerHealth::from_u8(self.worker_health.load(Ordering::Acquire))
     }
 
     pub fn worker_thread_names(&self) -> [String; 2] {
@@ -60,18 +60,6 @@ impl BenchmarkStream {
 
 pub fn expected_worker_thread_names() -> [String; 2] {
     SOURCE_WORKER_THREAD_NAMES.map(str::to_owned)
-}
-
-pub fn source_worker_health_name(health: SourceWorkerHealth) -> &'static str {
-    match health {
-        SourceWorkerHealth::Disabled => "disabled",
-        SourceWorkerHealth::Healthy => "healthy",
-        SourceWorkerHealth::DeadlineMiss => "deadline_miss",
-        SourceWorkerHealth::DispatchFailed => "dispatch_failed",
-        SourceWorkerHealth::CompletionFailed => "completion_failed",
-        SourceWorkerHealth::WorkerExited => "worker_exited",
-        SourceWorkerHealth::InvalidBlock => "invalid_block",
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -325,23 +313,22 @@ where
     T: cpal::Sample + cpal::FromSample<f32> + PartialEq,
 {
     let Some(source) = callback_source.source_mut() else {
-        worker_health.store(
-            SourceWorkerHealth::CompletionFailed as u8,
-            Ordering::Release,
-        );
-        mark_persistent_worker_terminal(data, callback_health, metrics);
+        let health = SourceWorkerHealth::CompletionFailed;
+        worker_health.store(health as u8, Ordering::Release);
+        mark_persistent_worker_terminal(data, callback_health, metrics, health);
         return CallbackBodyStats::default();
     };
-    worker_health.store(source.source_worker_health() as u8, Ordering::Release);
-    if source_worker_health_is_terminal(source.source_worker_health()) {
-        mark_persistent_worker_terminal(data, callback_health, metrics);
+    let health = source.source_worker_health();
+    worker_health.store(health as u8, Ordering::Release);
+    if health.is_terminal() {
+        mark_persistent_worker_terminal(data, callback_health, metrics, health);
         return CallbackBodyStats::default();
     }
     let stats = fill_callback_body(data, source);
     let health = source.source_worker_health();
     worker_health.store(health as u8, Ordering::Release);
-    if source_worker_health_is_terminal(health) {
-        mark_persistent_worker_terminal(data, callback_health, metrics);
+    if health.is_terminal() {
+        mark_persistent_worker_terminal(data, callback_health, metrics, health);
     }
     stats
 }
@@ -350,38 +337,15 @@ fn mark_persistent_worker_terminal<T>(
     data: &mut [T],
     callback_health: &AudioStreamHealth,
     metrics: &CallbackMetrics,
+    health: SourceWorkerHealth,
 ) where
     T: cpal::Sample + cpal::FromSample<f32>,
 {
-    callback_health.mark_worker_terminal();
+    callback_health.mark_worker_health(health);
     metrics.mark_worker_terminal();
     let zero = post_dsp_zero();
     for sample in data {
         *sample = zero;
-    }
-}
-
-fn source_worker_health_is_terminal(health: SourceWorkerHealth) -> bool {
-    matches!(
-        health,
-        SourceWorkerHealth::DeadlineMiss
-            | SourceWorkerHealth::DispatchFailed
-            | SourceWorkerHealth::CompletionFailed
-            | SourceWorkerHealth::WorkerExited
-            | SourceWorkerHealth::InvalidBlock
-    )
-}
-
-fn source_worker_health_from_u8(value: u8) -> SourceWorkerHealth {
-    match value {
-        0 => SourceWorkerHealth::Disabled,
-        1 => SourceWorkerHealth::Healthy,
-        2 => SourceWorkerHealth::DeadlineMiss,
-        3 => SourceWorkerHealth::DispatchFailed,
-        4 => SourceWorkerHealth::CompletionFailed,
-        5 => SourceWorkerHealth::WorkerExited,
-        6 => SourceWorkerHealth::InvalidBlock,
-        _ => SourceWorkerHealth::CompletionFailed,
     }
 }
 
@@ -396,7 +360,7 @@ where
 mod tests {
     use super::{
         build_persistent_source, expected_worker_thread_names, fill_callback_body, post_dsp_zero,
-        source_worker_health_name, stream_geometry, EXECUTOR_MODE,
+        stream_geometry, EXECUTOR_MODE,
     };
     use realtime_engine::synth::SourceWorkerHealth;
     use rodio_engine_source::{event_queue, SOURCE_REAPER_THREAD_NAME};
@@ -428,10 +392,7 @@ mod tests {
         assert_eq!(EXECUTOR_MODE, "persistent_two_workers");
         assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
         assert_eq!(source.block_frames(), 128);
-        assert_eq!(
-            source_worker_health_name(source.source_worker_health()),
-            "healthy"
-        );
+        assert_eq!(source.source_worker_health().name(), "healthy");
         assert_eq!(
             expected_worker_thread_names(),
             ["oct-dsp-src-0", "oct-dsp-src-1"]

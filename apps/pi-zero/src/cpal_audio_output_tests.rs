@@ -1,5 +1,6 @@
-use super::{fill_callback, AudioStreamHealth, CallbackSource};
+use super::{fill_callback, mark_worker_terminal, AudioStreamHealth, CallbackSource};
 use crate::audio_stream_health::AudioStreamStatus;
+use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::event_queue;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
@@ -85,8 +86,30 @@ fn missing_callback_source_silences_output_and_marks_health_terminal() {
     });
 
     assert!(output.iter().all(|sample| sample.to_bits() == 0));
-    assert!(health.worker_terminal());
+    assert_eq!(health.worker_health(), SourceWorkerHealth::CompletionFailed);
     assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
     assert!(worker_health_reported);
     assert_eq!((allocations, deallocations), (0, 0));
+}
+
+#[test]
+fn callback_reports_each_exact_terminal_reason_without_allocation() {
+    for reason in [
+        SourceWorkerHealth::DeadlineMiss,
+        SourceWorkerHealth::DispatchFailed,
+        SourceWorkerHealth::CompletionFailed,
+        SourceWorkerHealth::WorkerExited,
+        SourceWorkerHealth::InvalidBlock,
+    ] {
+        let health = AudioStreamHealth::new("test".into());
+        let mut output = vec![1.0_f32; 8];
+        let (_, allocations, deallocations) = count_allocations_and_deallocations(|| {
+            mark_worker_terminal(&mut output, &health, reason);
+        });
+
+        assert!(output.iter().all(|sample| sample.to_bits() == 0));
+        assert_eq!(health.worker_health(), reason);
+        assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);
+        assert_eq!((allocations, deallocations), (0, 0));
+    }
 }

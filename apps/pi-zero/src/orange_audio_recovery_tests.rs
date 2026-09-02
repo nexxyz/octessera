@@ -7,6 +7,7 @@ use crate::audio_replay::ReplayCache;
 use crate::audio_route::RouteOpenError;
 use crate::audio_sink_registry::{has_sink, new_attach_gate, register_sink};
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
+use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::event_queue;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -62,7 +63,7 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     )
     .unwrap();
 
-    jack_health.mark_worker_terminal();
+    jack_health.mark_worker_health(SourceWorkerHealth::DeadlineMiss);
     jack_controller.recover_if_due();
 
     assert_eq!(*jack_calls.lock().unwrap(), 0);
@@ -73,7 +74,10 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     );
     assert_eq!(jack_health.external_status(), AudioStreamStatus::Healthy);
     assert_eq!(jack_health.runtime_status(), AudioStreamStatus::Terminal);
-    assert!(jack_health.worker_terminal());
+    assert_eq!(
+        jack_health.worker_health(),
+        SourceWorkerHealth::DeadlineMiss
+    );
     assert!(has_sink(&jack_sinks, AudioSink::Jack));
 
     let (usb_tx, _usb_rx) = event_queue();
@@ -97,7 +101,7 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     )
     .unwrap();
 
-    usb_health.mark_worker_terminal();
+    usb_health.mark_worker_health(SourceWorkerHealth::WorkerExited);
     usb_controller.recover_if_due();
 
     assert_eq!(*usb_calls.lock().unwrap(), 0);
@@ -105,6 +109,6 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     assert_eq!(usb_controller.runtime_status(), AudioStreamStatus::Terminal);
     assert_eq!(usb_health.external_status(), AudioStreamStatus::Healthy);
     assert_eq!(usb_health.runtime_status(), AudioStreamStatus::Terminal);
-    assert!(usb_health.worker_terminal());
+    assert_eq!(usb_health.worker_health(), SourceWorkerHealth::WorkerExited);
     assert!(has_sink(&usb_sinks, AudioSink::Usb));
 }

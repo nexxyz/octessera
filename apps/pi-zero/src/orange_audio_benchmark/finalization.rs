@@ -5,7 +5,7 @@ use super::probe::ProfileProbe;
 use super::schema::{
     atomic_write_json, BenchmarkProfileSnapshot, BenchmarkProgress, BenchmarkResult,
 };
-use super::stream::{source_worker_health_name, BenchmarkStream};
+use super::stream::BenchmarkStream;
 use crate::audio::AudioStreamShutdownError;
 use crate::dsp_scenarios::ExpectedLiveState;
 use realtime_engine::synth::SourceWorkerHealth;
@@ -231,7 +231,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         recovered_alsa_epipe_observable: false,
         terminal_error: (!state.errors.is_empty()).then(|| state.errors.join("; ")),
         executor_mode: super::stream::EXECUTOR_MODE.into(),
-        worker_health: source_worker_health_name(state.worker_health).into(),
+        worker_health: state.worker_health.name().into(),
         worker_thread_name_0: state.worker_thread_names[0].clone(),
         worker_thread_name_1: state.worker_thread_names[1].clone(),
         joined_workers: state.joined_workers,
