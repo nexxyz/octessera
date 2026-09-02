@@ -146,7 +146,9 @@ if (-not $refused) {
 }
 
 $live = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 30 }
+$live120 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 120 }
 Assert-NoPayloadPlaceholders $live
+Assert-NoPayloadPlaceholders $live120
 foreach ($required in @(
     "restore_service()",
     "trap on_exit EXIT",
@@ -213,7 +215,6 @@ foreach ($required in @(
     "timeout --signal=TERM --kill-after=2 15s",
     "wait_for_stable_readiness",
     "exit_status=70",
-    "measured_seconds",
     'systemctl show "$unit"',
     "candidate-unit-before-stop.txt",
     "candidate-unit-final.txt",
@@ -238,9 +239,29 @@ foreach ($required in @(
 Assert-NotContains $live 'if ! capture_readiness "$service" "$production_health"'
 Assert-NotContains $live "sudo -n cp"
 Assert-NotContains $live "/tmp/octessera-orange-candidate-health-"
+Assert-NotContains $live "measured_seconds"
+Assert-NotContains $live120 "measured_seconds"
 Assert-Contains $live 'if [ ! -r "$marker" ]; then'
-if ([regex]::Matches($live, 'readiness_matches_unit "\$unit" .*\$pinned_main_pid.*\$pinned_invocation_id').Count -lt 2) {
-  throw "LiveCandidate did not pin both transient identities for liveness and final checks."
+Assert-Contains $live 'measurement_started_at="$(date +%s)"'
+Assert-Contains $live 'measurement_deadline=$((measurement_started_at + 30))'
+Assert-Contains $live 'remaining_seconds=$((measurement_deadline - now))'
+Assert-Contains $live 'sleep "$sleep_seconds"'
+Assert-Contains $live120 'RuntimeMaxSec=150s'
+Assert-Contains $live120 'measurement_deadline=$((measurement_started_at + 120))'
+foreach ($candidate in @($live, $live120)) {
+  if ([regex]::Matches($candidate, 'readiness_matches_unit "\$unit" .*\$pinned_main_pid.*\$pinned_invocation_id').Count -ne 2) {
+    throw "LiveCandidate did not pin both transient identities for liveness and final checks."
+  }
+}
+$startupTimeoutSeconds = 20
+$finalReadinessOverheadSeconds = 2
+$stopOverheadSeconds = 5
+foreach ($seconds in @(30, 120)) {
+  $runtimeMaxSeconds = $startupTimeoutSeconds + $seconds + 10
+  $modeledStopAt = $startupTimeoutSeconds + $seconds + $finalReadinessOverheadSeconds + $stopOverheadSeconds
+  if ($modeledStopAt -ge $runtimeMaxSeconds) {
+    throw "LiveCandidate modeled final readiness and stop reached RuntimeMaxSec for $seconds seconds."
+  }
 }
 Assert-NotContains $live 'systemctl enable "'
 Assert-NotContains $live 'systemctl disable "'
