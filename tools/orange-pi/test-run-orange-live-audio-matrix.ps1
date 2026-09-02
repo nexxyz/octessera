@@ -127,7 +127,10 @@ try {
   $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   $readiness.executor_mode = "inline"
   Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
+  $readiness.worker_health = "disabled"; $readiness.worker_thread_name_0 = ""; $readiness.worker_thread_name_1 = ""
+  Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
   $readiness.executor_mode = "persistent_two_workers"
+  $readiness.worker_health = "healthy"; $readiness.worker_thread_name_0 = "oct-dsp-src-0"; $readiness.worker_thread_name_1 = "oct-dsp-src-1"
   $readiness.worker_health = "deadline_miss"
   Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
   $readiness.worker_health = "healthy"
@@ -394,6 +397,12 @@ if ($first -match "rm -f -- '/run/octessera/candidate-ready.json'") { throw "Liv
 $studyStart = $first.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
 $studyEnd = $first.IndexOf("Study payload transport:", $studyStart, [StringComparison]::Ordinal)
 $studyPayload = $first.Substring($studyStart, $studyEnd - $studyStart)
+$inlineRunnerParameters = $runnerParameters.Clone(); $inlineRunnerParameters.ExecutorMode = "inline"; $inlineRunnerParameters.WorkerTimingMode = "disabled"
+$inlineFirst = Invoke-PrintOnly $runner $inlineRunnerParameters
+$inlineStudyStart = $inlineFirst.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
+$inlineStudyEnd = $inlineFirst.IndexOf("Study payload transport:", $inlineStudyStart, [StringComparison]::Ordinal)
+$inlineStudyPayload = $inlineFirst.Substring($inlineStudyStart, $inlineStudyEnd - $inlineStudyStart)
+Assert-OrangeGeneratedWorkerTaskAudit -PersistentPayload $studyPayload -InlinePayload $inlineStudyPayload
 $captureStart = $studyPayload.IndexOf("capture_alsa_release() {", [StringComparison]::Ordinal)
 $captureEnd = $studyPayload.IndexOf("validate_benchmark_progress() {", $captureStart, [StringComparison]::Ordinal)
 if ($captureStart -lt 0 -or $captureEnd -lt 0) { throw "Generated capture_alsa_release fixture could not be extracted." }
@@ -450,31 +459,6 @@ rm -rf -- "$root"
 $captureFixture = $captureFixture.Replace("__CAPTURE_FUNCTION__", $captureFunction)
 $captureFixture | & bash -s
 if ($LASTEXITCODE -ne 0) { throw "Generated capture_alsa_release execution fixtures failed." }
-$threadStart = $studyPayload.IndexOf("validate_benchmark_worker_threads() {", [StringComparison]::Ordinal)
-$threadEnd = $studyPayload.IndexOf("wait_for_benchmark_readiness() {", $threadStart, [StringComparison]::Ordinal)
-if ($threadStart -lt 0 -or $threadEnd -lt 0) { throw "Generated worker-thread validator fixture could not be extracted." }
-$threadFunction = $studyPayload.Substring($threadStart, $threadEnd - $threadStart)
-$threadFixture = @'
-set -u
-root="$(mktemp -d)"
-pid=123
-mkdir -p "$root/$pid/task/1" "$root/$pid/task/2" "$root/$pid/task/3"
-printf 'oct-dsp-src-0\n' > "$root/$pid/task/1/comm"
-printf 'oct-dsp-src-1\n' > "$root/$pid/task/2/comm"
-printf 'oct-src-reaper\n' > "$root/$pid/task/3/comm"
-__THREAD_FUNCTION__
-validate_benchmark_worker_threads "$pid" "$root"
-printf 'octessera-sourc\n' > "$root/$pid/task/3/comm"
-if validate_benchmark_worker_threads "$pid" "$root"; then exit 1; fi
-printf 'oct-src-reaper\n' > "$root/$pid/task/3/comm"
-mkdir -p "$root/$pid/task/4"
-printf 'oct-dsp-src-0\n' > "$root/$pid/task/4/comm"
-if validate_benchmark_worker_threads "$pid" "$root"; then exit 1; fi
-rm -rf -- "$root"
-'@
-$threadFixture = $threadFixture.Replace("__THREAD_FUNCTION__", $threadFunction)
-$threadFixture | & bash -s
-if ($LASTEXITCODE -ne 0) { throw "Worker-thread validator did not reject the prior Linux-truncated reaper name." }
 $firstRemote = [regex]::Match($first, "Remote study root: (?<root>/tmp/[^\r\n]+)").Groups["root"].Value
 $secondRemote = [regex]::Match($second, "Remote study root: (?<root>/tmp/[^\r\n]+)").Groups["root"].Value
 if ([string]::IsNullOrWhiteSpace($firstRemote) -or $firstRemote -eq $secondRemote) { throw "Live PrintOnly paths were not unique." }
