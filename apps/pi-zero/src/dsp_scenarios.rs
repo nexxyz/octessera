@@ -8,7 +8,7 @@ pub const LIVE_SAMPLE_SETUP_ALLOWANCE_SECONDS: u32 = 10;
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
 pub const LIVE_SAMPLE_WARMUP_SECONDS: u32 = 5;
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
-pub const LIVE_SAMPLE_MAX_MEASURE_SECONDS: u32 = 120;
+pub const LIVE_SAMPLE_MAX_MEASURE_SECONDS: u32 = 300;
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
 pub const LIVE_SAMPLE_SHUTDOWN_MARGIN_SECONDS: u32 = 15;
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
@@ -33,12 +33,13 @@ pub const LIVE_SCENARIO_IDS: [&str; 11] = [
 ];
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
-pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 5] = [
+pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 6] = [
     "synth_cross_slot_16",
     "sample_cross_slot_64",
     "mixed_16_synth_32_sample",
     "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
     "synth_cross_slot_32_no_steal",
+    "mixed_ramp_16_48",
 ];
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
@@ -128,6 +129,7 @@ pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
         "mixed_16_synth_32_sample" => (16, 32, 0, 0, 0, 0, 0, 0),
         "fixed_8_synth_8_sample_12_bus_2_global_2_momentary" => (8, 8, 2, 12, 2, 0, 0, 0),
         "synth_cross_slot_32_no_steal" => (32, 0, 0, 0, 0, 0, 0, 0),
+        "mixed_ramp_16_48" => (16, 48, 0, 0, 0, 0, 0, 0),
         _ => return None,
     };
     Some(ExpectedLiveState {
@@ -176,11 +178,47 @@ mod tests {
 
     #[test]
     fn baseline_live_vocabulary_is_separate_and_idle_stays_offline_only() {
-        assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 5);
+        assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 6);
         for name in BASELINE_LIVE_SCENARIO_IDS {
             assert!(live_scenario(name, 44_100, 600_000).is_some(), "{name}");
         }
         assert!(live_scenario("baseline_idle", 44_100, 600_000).is_none());
+    }
+
+    #[test]
+    fn mixed_boundary_live_state_is_exact_and_uses_one_long_sample_backing() {
+        let scenario = live_scenario("mixed_ramp_16_48", 44_100, 600_000).unwrap();
+        let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
+        let retired_audio_states =
+            crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
+        let snapshot = engine.profile_snapshot();
+        assert_eq!(snapshot.active_synth_voices, 16);
+        assert_eq!(snapshot.active_sample_voices, 48);
+        assert_eq!(snapshot.cumulative_voice_steals, 0);
+        assert_eq!(snapshot.cumulative_voice_admission_drops, 0);
+        assert_eq!(LIVE_SAMPLE_LIFETIME_SECONDS, 330);
+        let config = scenario
+            .events
+            .iter()
+            .find_map(|event| match event {
+                rodio_engine_source::EngineEvent::SetPreparedAudioConfig(config) => Some(config),
+                _ => None,
+            })
+            .unwrap();
+        let banks = config.sample_banks().unwrap();
+        assert_eq!(banks.len(), realtime_engine::synth::INSTRUMENT_SLOT_COUNT);
+        let first = &banks[0].slots[0].buffer.as_ref().unwrap().samples;
+        assert_eq!(
+            first.len(),
+            44_100 * (LIVE_SAMPLE_LIFETIME_SECONDS as usize + 1)
+        );
+        for bank in banks.iter().skip(1) {
+            assert!(std::sync::Arc::ptr_eq(
+                first,
+                &bank.slots[0].buffer.as_ref().unwrap().samples
+            ));
+        }
+        drop(retired_audio_states);
     }
 
     #[test]

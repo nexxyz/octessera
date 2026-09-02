@@ -25,6 +25,7 @@ pub enum ScenarioId {
     Mixed16Synth32Sample,
     Fixed8Synth8Sample12Bus2Global2Momentary,
     SynthCrossSlot32NoSteal,
+    MixedRamp16_48,
 }
 
 impl ScenarioId {
@@ -42,12 +43,13 @@ impl ScenarioId {
         Self::MixedSteal,
     ];
 
-    pub const BASELINE_LIVE: [Self; 5] = [
+    pub const BASELINE_LIVE: [Self; 6] = [
         Self::SynthCrossSlot16,
         Self::SampleCrossSlot64,
         Self::Mixed16Synth32Sample,
         Self::Fixed8Synth8Sample12Bus2Global2Momentary,
         Self::SynthCrossSlot32NoSteal,
+        Self::MixedRamp16_48,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -70,6 +72,7 @@ impl ScenarioId {
                 "fixed_8_synth_8_sample_12_bus_2_global_2_momentary"
             }
             Self::SynthCrossSlot32NoSteal => "synth_cross_slot_32_no_steal",
+            Self::MixedRamp16_48 => "mixed_ramp_16_48",
         }
     }
 
@@ -334,7 +337,38 @@ mod tests {
         for id in ScenarioId::BASELINE_LIVE {
             assert_eq!(ScenarioId::parse(id.as_str()), Some(id));
         }
+        assert_eq!(ScenarioId::MixedRamp16_48.as_str(), "mixed_ramp_16_48");
         assert!(ScenarioId::parse("baseline_idle").is_none());
+    }
+
+    #[test]
+    fn mixed_boundary_cli_accepts_only_approved_geometry_and_duration() {
+        for (output, internal) in [
+            (128, 32),
+            (256, 64),
+            (256, 128),
+            (256, 256),
+            (512, 128),
+            (1024, 256),
+        ] {
+            for seconds in [30, 120, 300] {
+                let mut args = args_for(output, internal);
+                set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
+                args.extend(["--measure-seconds".into(), seconds.to_string()]);
+                assert_eq!(parse(args).unwrap().measure_seconds, seconds);
+            }
+        }
+        for (output, internal) in [(128, 64), (256, 32), (512, 256), (1024, 128)] {
+            let mut args = args_for(output, internal);
+            set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
+            assert!(parse(args).is_err());
+        }
+        for seconds in [299, 3000] {
+            let mut args = valid_args();
+            set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
+            args.extend(["--measure-seconds".into(), seconds.to_string()]);
+            assert!(parse(args).is_err());
+        }
     }
 
     #[test]

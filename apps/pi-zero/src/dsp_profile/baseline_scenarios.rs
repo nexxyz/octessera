@@ -1,4 +1,6 @@
-use super::baseline_events::{fx_events, mixed_events, sample_events, synth_events};
+use super::baseline_events::{
+    fx_events, mixed_events, mixed_ramp_16_48_events, sample_events, synth_events,
+};
 use super::{ExpectedProfileState, ScenarioSpec};
 use crate::dsp_profile::samples::profile_sample_banks;
 use realtime_engine::synth::VoiceStealingMode;
@@ -49,6 +51,11 @@ pub(super) fn scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
             "synth_cross_slot_64_no_steal",
             synth_events(64, VoiceStealingMode::None, sample_rate, 8),
             expected_with_admission_drops(64, 0, 0, 0, 0, 0, 0),
+        ),
+        ScenarioSpec::with_expected(
+            "mixed_ramp_16_48",
+            mixed_ramp_16_48_events(sample_rate, &sample_banks),
+            expected(16, 48, 0, 0, 0),
         ),
     ]
 }
@@ -141,6 +148,7 @@ mod tests {
             "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
             "synth_cross_slot_32_no_steal",
             "synth_cross_slot_64_no_steal",
+            "mixed_ramp_16_48",
         ] {
             assert!(names.contains(&name.to_string()), "missing {name}");
         }
@@ -152,9 +160,11 @@ mod tests {
             let mut engine = SynthEngine::new(44_100);
             let retired_audio_states = apply_events(&mut engine, &scenario.events);
 
-            scenario
-                .validate_snapshot("application", &engine.profile_snapshot())
-                .unwrap_or_else(|error| panic!("{error}"));
+            for phase in ["application", "measurement"] {
+                scenario
+                    .validate_snapshot(phase, &engine.profile_snapshot())
+                    .unwrap_or_else(|error| panic!("{error}"));
+            }
             drop(retired_audio_states);
         }
     }
