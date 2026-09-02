@@ -26,12 +26,14 @@ pub(super) struct SourceLaneBlockScratch {
     pub(super) slots: [u8; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
 }
 
+pub(super) const INVALID_INSTRUMENT_SLOT: u8 = INSTRUMENT_SLOT_COUNT as u8;
+
 impl SourceLaneBlockScratch {
     pub(super) fn new() -> Self {
         Self {
             samples: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
             active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
-            slots: [0; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
+            slots: [INVALID_INSTRUMENT_SLOT; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
         }
     }
 
@@ -45,6 +47,7 @@ impl SourceLaneBlockScratch {
         for active in &mut self.active {
             active[..frames].fill(false);
         }
+        self.slots.fill(INVALID_INSTRUMENT_SLOT);
         true
     }
 }
@@ -71,10 +74,12 @@ pub(super) fn render_synth_partition(
 ) {
     for (lane, voice) in partition.lanes_mut().iter_mut().enumerate() {
         if !voice.active {
+            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
             continue;
         }
         let slot = voice.instrument_slot as usize;
         if slot >= INSTRUMENT_SLOT_COUNT {
+            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
             continue;
         }
         scratch.slots[lane] = slot as u8;
@@ -107,10 +112,12 @@ pub(super) fn render_sample_partition(
 ) {
     for (lane, voice) in partition.lanes_mut().iter_mut().enumerate() {
         if !voice.active {
+            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
             continue;
         }
         let slot = voice.instrument_slot as usize;
         if slot >= INSTRUMENT_SLOT_COUNT {
+            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
             continue;
         }
         scratch.slots[lane] = slot as u8;
@@ -262,5 +269,16 @@ mod tests {
             size_of::<InlineSourceExecutor>(),
             GLOBAL_SYNTH_SCRATCH_BYTES + GLOBAL_SAMPLE_SCRATCH_BYTES
         );
+    }
+
+    #[test]
+    fn scratch_prepare_invalidates_every_lane_slot() {
+        let mut scratch = SourceLaneBlockScratch::new();
+        scratch.slots.fill(0);
+        assert!(scratch.prepare(64));
+        assert!(scratch
+            .slots
+            .iter()
+            .all(|slot| *slot == INVALID_INSTRUMENT_SLOT));
     }
 }
