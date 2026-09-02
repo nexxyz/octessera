@@ -8,6 +8,7 @@ use super::schema::{
 };
 use super::stream::BenchmarkStream;
 use crate::audio::AudioStreamShutdownError;
+use crate::audio_priority::EffectiveScheduling;
 use crate::dsp_scenarios::ExpectedLiveState;
 use realtime_engine::synth::SynthProfileSnapshot;
 use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerTimingProbe};
@@ -44,6 +45,7 @@ pub struct RunState {
     pub worker_thread_names: [String; 2],
     pub joined_workers: usize,
     pub retirement_error: Option<String>,
+    pub callback_scheduling: Option<EffectiveScheduling>,
     pub worker_timing: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
@@ -78,6 +80,7 @@ impl RunState {
             worker_thread_names: [String::new(), String::new()],
             joined_workers: 0,
             retirement_error: None,
+            callback_scheduling: None,
             worker_timing: (worker_timing_mode == WorkerTimingMode::Enabled).then(|| {
                 Arc::new(SourceWorkerTimingProbe::new(Some(
                     crate::audio_priority::orange_cpu_sampler,
@@ -190,8 +193,10 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
             stream_stopped: state.stream_stopped,
             final_progress_write_succeeded,
             worker_health: state.worker_health,
+            worker_thread_names: state.worker_thread_names.clone(),
             joined_workers: state.joined_workers,
             retirement_error: state.retirement_error.is_none(),
+            worker_timing_consistent: worker_timing_is_consistent(config, state),
         },
     );
     let stream = state.stream_evidence.clone().unwrap_or(StreamEvidence {
@@ -209,7 +214,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 7,
+        schema_version: 8,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -224,6 +229,12 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         warmup_seconds: config.warmup_seconds,
         measure_seconds: config.measure_seconds,
         scheduler_qualified: state.scheduler_qualified,
+        callback_scheduling_policy: state.callback_scheduling.map(|scheduling| {
+            crate::audio_priority::scheduling_policy_name(scheduling.policy).into()
+        }),
+        callback_scheduling_priority: state
+            .callback_scheduling
+            .map(|scheduling| scheduling.priority),
         post_dsp_zero: final_metrics.callback_count > 0
             && final_metrics.post_mute_nonzero_samples == 0,
         measurement_stop_acknowledged: state.measurement_stop_acknowledged,
@@ -238,7 +249,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         recovered_alsa_epipe_count: None,
         recovered_alsa_epipe_observable: false,
         terminal_error: (!state.errors.is_empty()).then(|| state.errors.join("; ")),
-        executor_mode: super::stream::EXECUTOR_MODE.into(),
+        executor_mode: config.executor_mode.as_str().into(),
         worker_timing_mode: config.worker_timing_mode,
         worker_health: state.worker_health.name().into(),
         worker_thread_name_0: state.worker_thread_names[0].clone(),
@@ -334,7 +345,7 @@ pub fn validate_profile_state(
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct FinalizationGates {
     no_terminal_errors: bool,
     scheduler_qualified: bool,
@@ -342,8 +353,10 @@ struct FinalizationGates {
     stream_stopped: bool,
     final_progress_write_succeeded: bool,
     worker_health: SourceWorkerHealth,
+    worker_thread_names: [String; 2],
     joined_workers: usize,
     retirement_error: bool,
+    worker_timing_consistent: bool,
 }
 
 fn result_status(
@@ -356,8 +369,8 @@ fn result_status(
         && gates.measurement_stop_acknowledged
         && gates.stream_stopped
         && gates.final_progress_write_succeeded
-        && gates.worker_health == SourceWorkerHealth::Healthy
-        && gates.joined_workers == 2
+        && worker_lifecycle_passes(config, &gates)
+        && worker_timing_passes(config, &gates)
         && gates.retirement_error
         && result_passes(config, metrics)
     {
@@ -365,6 +378,33 @@ fn result_status(
     } else {
         "fail"
     }
+}
+
+fn worker_lifecycle_passes(config: &BenchmarkConfig, gates: &FinalizationGates) -> bool {
+    match config.executor_mode {
+        super::cli::BenchmarkExecutorMode::Inline => {
+            gates.worker_health == SourceWorkerHealth::Disabled
+                && gates.worker_thread_names == [String::new(), String::new()]
+                && gates.joined_workers == 0
+        }
+        super::cli::BenchmarkExecutorMode::PersistentTwoWorkers => {
+            gates.worker_health == SourceWorkerHealth::Healthy
+                && gates.worker_thread_names == super::stream::expected_worker_thread_names()
+                && gates.joined_workers == 2
+        }
+    }
+}
+
+fn worker_timing_passes(config: &BenchmarkConfig, gates: &FinalizationGates) -> bool {
+    gates.worker_timing_consistent
+        && (config.executor_mode != super::cli::BenchmarkExecutorMode::Inline
+            || config.worker_timing_mode == WorkerTimingMode::Disabled)
+}
+
+fn worker_timing_is_consistent(config: &BenchmarkConfig, state: &RunState) -> bool {
+    (config.executor_mode != super::cli::BenchmarkExecutorMode::Inline
+        || config.worker_timing_mode == WorkerTimingMode::Disabled)
+        && state.worker_timing.is_some() == (config.worker_timing_mode == WorkerTimingMode::Enabled)
 }
 
 fn result_passes(config: &BenchmarkConfig, metrics: &CallbackMetricsSnapshot) -> bool {

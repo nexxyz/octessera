@@ -184,6 +184,23 @@ pub(crate) fn callback_priority() -> i32 {
     }
 }
 
+#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
+    #[cfg(target_os = "linux")]
+    {
+        if policy == libc::SCHED_FIFO {
+            "SCHED_FIFO"
+        } else {
+            "unknown"
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = policy;
+        "unsupported"
+    }
+}
+
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) fn orange_worker_start_hook(_parity: usize) -> Result<(), ()> {
     #[cfg(target_os = "linux")]
@@ -215,7 +232,7 @@ pub(crate) fn qualify_callback_scheduler(
     sink_label: &str,
     scheduler: &CallbackSchedulingHandle,
     timeout: Duration,
-) -> Result<(), String> {
+) -> Result<EffectiveScheduling, String> {
     let status = scheduler.wait_for_status(timeout);
     match status {
         CallbackSchedulingStatus::Qualified(effective) => {
@@ -223,7 +240,7 @@ pub(crate) fn qualify_callback_scheduler(
                 "{sink_label} audio callback scheduling qualified: policy=SCHED_FIFO priority={}",
                 effective.priority
             );
-            Ok(())
+            Ok(effective)
         }
         CallbackSchedulingStatus::Pending => Err(format!(
             "{sink_label} audio callback RT promotion not qualified: callback did not report within {} ms (requested policy=SCHED_FIFO priority={})",

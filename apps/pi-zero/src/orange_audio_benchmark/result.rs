@@ -1,4 +1,4 @@
-use super::super::cli::WorkerTimingMode;
+use super::super::cli::{BenchmarkExecutorMode, WorkerTimingMode};
 use super::{
     deserialize_result_schema_v4, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
     CallbackMetricsSnapshot,
@@ -23,6 +23,8 @@ pub struct BenchmarkResult {
     pub warmup_seconds: u64,
     pub measure_seconds: u64,
     pub scheduler_qualified: bool,
+    pub callback_scheduling_policy: Option<String>,
+    pub callback_scheduling_priority: Option<i32>,
     pub post_dsp_zero: bool,
     pub measurement_stop_acknowledged: bool,
     pub stream_stopped: bool,
@@ -65,6 +67,8 @@ struct BenchmarkResultUnchecked {
     warmup_seconds: u64,
     measure_seconds: u64,
     scheduler_qualified: bool,
+    callback_scheduling_policy: Option<String>,
+    callback_scheduling_priority: Option<i32>,
     post_dsp_zero: bool,
     measurement_stop_acknowledged: bool,
     stream_stopped: bool,
@@ -111,6 +115,8 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             warmup_seconds,
             measure_seconds,
             scheduler_qualified,
+            callback_scheduling_policy,
+            callback_scheduling_priority,
             post_dsp_zero,
             measurement_stop_acknowledged,
             stream_stopped,
@@ -149,6 +155,8 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             warmup_seconds,
             measure_seconds,
             scheduler_qualified,
+            callback_scheduling_policy,
+            callback_scheduling_priority,
             post_dsp_zero,
             measurement_stop_acknowledged,
             stream_stopped,
@@ -175,6 +183,33 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
 }
 
 fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), String> {
+    if !matches!(result.status.as_str(), "pass" | "fail") {
+        return Err("benchmark result status is invalid".into());
+    }
+    let executor_mode = BenchmarkExecutorMode::parse(&result.executor_mode)
+        .ok_or_else(|| "benchmark executor mode is missing or invalid".to_string())?;
+    let expected_priority = match executor_mode {
+        BenchmarkExecutorMode::Inline => 70,
+        BenchmarkExecutorMode::PersistentTwoWorkers => 69,
+    };
+    let scheduling_is_valid = result.callback_scheduling_policy.as_deref() == Some("SCHED_FIFO")
+        && result.callback_scheduling_priority == Some(expected_priority);
+    if result.callback_scheduling_policy.is_some() != result.callback_scheduling_priority.is_some()
+        || (result.scheduler_qualified && !scheduling_is_valid)
+        || (result.callback_scheduling_policy.is_some() && !scheduling_is_valid)
+    {
+        return Err("effective callback scheduling policy or priority is invalid".into());
+    }
+    if result.status == "pass"
+        && (!result.scheduler_qualified
+            || !result.measurement_stop_acknowledged
+            || !result.stream_stopped
+            || !result.final_progress_write_succeeded
+            || result.retirement_error.is_some()
+            || result.terminal_error.is_some())
+    {
+        return Err("benchmark lifecycle evidence is incomplete".into());
+    }
     match result.worker_timing_mode {
         WorkerTimingMode::Enabled => {
             if result.worker_timing.is_none() {
@@ -187,24 +222,53 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
                     "disabled worker timing mode must not contain worker timing evidence".into(),
                 );
             }
-            if result.executor_mode != super::super::stream::EXECUTOR_MODE {
-                return Err("disabled worker timing mode requires persistent workers".into());
+        }
+    }
+    match executor_mode {
+        BenchmarkExecutorMode::Inline => {
+            if result.worker_timing_mode != WorkerTimingMode::Disabled {
+                return Err("inline executor requires disabled worker timing".into());
             }
-            if result.worker_health != "healthy" {
-                return Err("disabled worker timing mode requires healthy workers".into());
+            if !result.worker_thread_name_0.is_empty() || !result.worker_thread_name_1.is_empty() {
+                return Err("inline executor must not report worker thread names".into());
             }
-            if result.joined_workers != 2 {
-                return Err("disabled worker timing mode requires both workers to join".into());
+            if result.worker_health != "disabled" || result.joined_workers != 0 {
+                return Err("inline executor has invalid worker lifecycle evidence".into());
             }
-            if !result.scheduler_qualified
-                || !result.measurement_stop_acknowledged
-                || !result.stream_stopped
-                || !result.final_progress_write_succeeded
-                || result.retirement_error.is_some()
+        }
+        BenchmarkExecutorMode::PersistentTwoWorkers => {
+            let pre_stream_failure = result.status == "fail"
+                && result.terminal_error.is_some()
+                && result.worker_health == "disabled"
+                && result.worker_thread_name_0.is_empty()
+                && result.worker_thread_name_1.is_empty()
+                && result.joined_workers == 0;
+            let persistent_health = matches!(
+                result.worker_health.as_str(),
+                "healthy"
+                    | "deadline_miss"
+                    | "dispatch_failed"
+                    | "completion_failed"
+                    | "worker_exited"
+                    | "invalid_block"
+            );
+            if !pre_stream_failure
+                && (result.worker_thread_name_0 != "oct-dsp-src-0"
+                    || result.worker_thread_name_1 != "oct-dsp-src-1"
+                    || !persistent_health
+                    || result.joined_workers != 2)
             {
-                return Err(
-                    "disabled worker timing mode requires complete lifecycle evidence".into(),
-                );
+                return Err("persistent executor has invalid worker lifecycle evidence".into());
+            }
+            if result.status == "pass" && result.worker_health != "healthy" {
+                return Err("a passing persistent executor must report healthy workers".into());
+            }
+            if result.status == "fail"
+                && !pre_stream_failure
+                && result.worker_health != "healthy"
+                && result.terminal_error.is_none()
+            {
+                return Err("terminal persistent worker health lacks failure evidence".into());
             }
         }
     }

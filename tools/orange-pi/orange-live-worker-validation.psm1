@@ -16,19 +16,28 @@ function Get-OrangeRequiredNonNegativeInteger {
 function Assert-OrangeWorkerEvidence {
   param(
     [Parameter(Mandatory)][pscustomobject]$Evidence,
-    [bool]$RequireShutdown = $false
+    [bool]$RequireShutdown = $false,
+    [switch]$AllowTerminalHealth
   )
   $executor = $Evidence.PSObject.Properties["executor_mode"]
   $health = $Evidence.PSObject.Properties["worker_health"]
   $name0 = $Evidence.PSObject.Properties["worker_thread_name_0"]
   $name1 = $Evidence.PSObject.Properties["worker_thread_name_1"]
-  if ($null -eq $executor -or [string]$executor.Value -cne "persistent_two_workers" -or $null -eq $health -or [string]$health.Value -cne "healthy" -or $null -eq $name0 -or [string]$name0.Value -cne "oct-dsp-src-0" -or $null -eq $name1 -or [string]$name1.Value -cne "oct-dsp-src-1") {
+  if ($null -eq $executor -or $executor.Value -isnot [string] -or @("inline", "persistent_two_workers") -cnotcontains $executor.Value -or $null -eq $health -or $health.Value -isnot [string] -or $null -eq $name0 -or $name0.Value -isnot [string] -or $null -eq $name1 -or $name1.Value -isnot [string]) {
     throw "Live benchmark worker executor evidence is invalid."
+  }
+  if ($executor.Value -ceq "inline") {
+    if ($health.Value -cne "disabled" -or $name0.Value -cne "" -or $name1.Value -cne "") {
+      throw "Inline benchmark worker executor evidence is invalid."
+    }
+  } elseif (($AllowTerminalHealth -and @("healthy", "deadline_miss", "dispatch_failed", "completion_failed", "worker_exited", "invalid_block") -cnotcontains $health.Value) -or (-not $AllowTerminalHealth -and $health.Value -cne "healthy") -or $name0.Value -cne "oct-dsp-src-0" -or $name1.Value -cne "oct-dsp-src-1") {
+    throw "Persistent benchmark worker executor evidence is invalid."
   }
   if ($RequireShutdown) {
     $joined = $Evidence.PSObject.Properties["joined_workers"]
     $retirement = $Evidence.PSObject.Properties["retirement_error"]
-    if ($null -eq $joined -or [int]$joined.Value -ne 2 -or $null -eq $retirement -or $null -ne $retirement.Value) {
+    $expectedJoined = if ($executor.Value -ceq "inline") { 0 } else { 2 }
+    if ($null -eq $joined -or $joined.Value -isnot [byte] -and $joined.Value -isnot [int16] -and $joined.Value -isnot [uint16] -and $joined.Value -isnot [int32] -and $joined.Value -isnot [uint32] -and $joined.Value -isnot [int64] -and $joined.Value -isnot [uint64] -or [int]$joined.Value -ne $expectedJoined -or $null -eq $retirement -or $null -ne $retirement.Value) {
       throw "Live benchmark worker shutdown evidence is invalid."
     }
   }

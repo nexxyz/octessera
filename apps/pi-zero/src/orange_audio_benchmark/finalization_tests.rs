@@ -1,5 +1,5 @@
 use super::*;
-use crate::orange_audio_benchmark::cli::{parse, WorkerTimingMode};
+use crate::orange_audio_benchmark::cli::{parse, BenchmarkExecutorMode, WorkerTimingMode};
 use std::time::Duration;
 
 fn config() -> BenchmarkConfig {
@@ -131,16 +131,62 @@ fn result_status_requires_clean_runtime_evidence() {
         stream_stopped: true,
         final_progress_write_succeeded: true,
         worker_health: realtime_engine::synth::SourceWorkerHealth::Healthy,
+        worker_thread_names: super::super::stream::expected_worker_thread_names(),
         joined_workers: 2,
         retirement_error: true,
+        worker_timing_consistent: true,
     };
-    assert_eq!(result_status(&config, &metrics, gates), "pass");
+    assert_eq!(result_status(&config, &metrics, gates.clone()), "pass");
 
     let invalid = CallbackMetricsSnapshot {
         over_audio_duration_budget_count: 1,
         ..metrics
     };
     assert_eq!(result_status(&config, &invalid, gates), "fail");
+}
+
+#[test]
+fn inline_result_status_requires_inline_worker_lifecycle_and_timing() {
+    let mut config = config();
+    config.executor_mode = BenchmarkExecutorMode::Inline;
+    config.worker_timing_mode = WorkerTimingMode::Disabled;
+    let metrics = CallbackMetricsSnapshot {
+        callback_count: 1,
+        callback_frames_min: 1,
+        callback_frames_max: 1,
+        callback_frame_sample_count: 1,
+        pre_mute_nonzero_samples: 1,
+        ..CallbackMetricsSnapshot::default()
+    };
+    let clean = FinalizationGates {
+        no_terminal_errors: true,
+        scheduler_qualified: true,
+        measurement_stop_acknowledged: true,
+        stream_stopped: true,
+        final_progress_write_succeeded: true,
+        worker_health: SourceWorkerHealth::Disabled,
+        worker_thread_names: [String::new(), String::new()],
+        joined_workers: 0,
+        retirement_error: true,
+        worker_timing_consistent: true,
+    };
+    assert_eq!(result_status(&config, &metrics, clean.clone()), "pass");
+
+    let mut invalid = clean.clone();
+    invalid.worker_health = SourceWorkerHealth::Healthy;
+    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+    invalid = clean.clone();
+    invalid.worker_health = SourceWorkerHealth::WorkerExited;
+    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+    invalid = clean.clone();
+    invalid.joined_workers = 1;
+    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+    invalid = clean.clone();
+    invalid.worker_thread_names[0] = "oct-dsp-src-0".into();
+    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+
+    config.worker_timing_mode = WorkerTimingMode::Enabled;
+    assert_eq!(result_status(&config, &metrics, clean), "fail");
 }
 
 #[test]
@@ -167,8 +213,10 @@ fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
             stream_stopped: true,
             final_progress_write_succeeded: true,
             worker_health,
+            worker_thread_names: super::super::stream::expected_worker_thread_names(),
             joined_workers: 2,
             retirement_error: true,
+            worker_timing_consistent: true,
         };
         assert_eq!(result_status(&config, &metrics, gates), "fail");
     }
@@ -176,8 +224,19 @@ fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
 
 #[test]
 fn pre_stream_failure_serializes_worker_timing_for_both_modes() {
-    for worker_timing_mode in [WorkerTimingMode::Enabled, WorkerTimingMode::Disabled] {
+    for (executor_mode, worker_timing_mode) in [
+        (BenchmarkExecutorMode::Inline, WorkerTimingMode::Disabled),
+        (
+            BenchmarkExecutorMode::PersistentTwoWorkers,
+            WorkerTimingMode::Enabled,
+        ),
+        (
+            BenchmarkExecutorMode::PersistentTwoWorkers,
+            WorkerTimingMode::Disabled,
+        ),
+    ] {
         let mut config = config();
+        config.executor_mode = executor_mode;
         config.worker_timing_mode = worker_timing_mode;
         let root = std::env::temp_dir().join(format!(
             "octessera-pre-stream-{}-{}-{}",
@@ -204,10 +263,12 @@ fn pre_stream_failure_serializes_worker_timing_for_both_modes() {
         assert!(outcome.is_err());
         let value: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&config.result_path).unwrap()).unwrap();
+        assert_eq!(value["executor_mode"], executor_mode.as_str());
         assert_eq!(value["worker_timing_mode"], worker_timing_mode.as_str());
         if worker_timing_mode == WorkerTimingMode::Enabled {
-            let result = serde_json::from_value::<BenchmarkResult>(value).unwrap();
-            let timing = result.worker_timing.unwrap();
+            let timing =
+                serde_json::from_value::<BenchmarkWorkerTiming>(value["worker_timing"].clone())
+                    .unwrap();
             assert!(timing.coordinator.frozen);
             assert_eq!(timing.coordinator.sequence, None);
             assert_eq!(timing.coordinator.deadline_ns, None);

@@ -95,6 +95,8 @@ fn benchmark_result(
         warmup_seconds: 5,
         measure_seconds: 30,
         scheduler_qualified: true,
+        callback_scheduling_policy: Some("SCHED_FIFO".into()),
+        callback_scheduling_priority: Some(69),
         post_dsp_zero: true,
         measurement_stop_acknowledged: true,
         stream_stopped: true,
@@ -117,6 +119,17 @@ fn benchmark_result(
         worker_timing_mode,
         worker_timing,
     }
+}
+
+fn inline_benchmark_result() -> BenchmarkResult {
+    let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
+    result.executor_mode = "inline".into();
+    result.callback_scheduling_priority = Some(70);
+    result.worker_health = "disabled".into();
+    result.worker_thread_name_0.clear();
+    result.worker_thread_name_1.clear();
+    result.joined_workers = 0;
+    result
 }
 
 #[test]
@@ -178,11 +191,11 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
 }
 
 #[test]
-fn result_schema7_requires_worker_timing_and_rejects_unknown_fields() {
+fn result_schema8_requires_worker_timing_and_rejects_unknown_fields() {
     let result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert_eq!(value["schema_version"], 7);
+    assert_eq!(value["schema_version"], 8);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["worker_timing"]["workers"][1]["render_ns"], 11);
     assert_eq!(value["worker_timing"]["coordinator"]["reduction_ns"], 4);
@@ -202,8 +215,8 @@ fn result_schema7_requires_worker_timing_and_rejects_unknown_fields() {
         serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
         result
     );
-    let schema6 = encoded.replacen("\"schema_version\":7", "\"schema_version\":6", 1);
-    assert!(serde_json::from_str::<BenchmarkResult>(&schema6).is_err());
+    let schema7 = encoded.replacen("\"schema_version\":8", "\"schema_version\":7", 1);
+    assert!(serde_json::from_str::<BenchmarkResult>(&schema7).is_err());
     let missing_timing = value_without_worker_timing(&result);
     assert!(serde_json::from_value::<BenchmarkResult>(missing_timing).is_err());
     let mut null_timing = serde_json::to_value(&result).unwrap();
@@ -212,7 +225,7 @@ fn result_schema7_requires_worker_timing_and_rejects_unknown_fields() {
 }
 
 #[test]
-fn schema7_worker_timing_modes_require_exact_consistent_evidence() {
+fn schema8_worker_timing_modes_require_exact_consistent_evidence() {
     let enabled = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let enabled_encoded = serde_json::to_string(&enabled).unwrap();
     assert_eq!(
@@ -267,13 +280,77 @@ fn schema7_worker_timing_modes_require_exact_consistent_evidence() {
     }
 }
 
+#[test]
+fn schema8_executor_modes_require_exact_runtime_evidence() {
+    let inline = inline_benchmark_result();
+    let encoded = serde_json::to_string(&inline).unwrap();
+    assert_eq!(
+        serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
+        inline
+    );
+
+    let mut invalid = serde_json::to_value(&inline).unwrap();
+    invalid["worker_timing_mode"] = "enabled".into();
+    invalid["worker_timing"] = serde_json::to_value(worker_timing()).unwrap();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+
+    let mut invalid = serde_json::to_value(&inline).unwrap();
+    invalid["worker_thread_name_0"] = "oct-dsp-src-0".into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+
+    let mut invalid = serde_json::to_value(&inline).unwrap();
+    invalid["callback_scheduling_priority"] = 69.into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+
+    let mut invalid = serde_json::to_value(&inline).unwrap();
+    invalid["callback_scheduling_policy"] = "SCHED_RR".into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+
+    let mut invalid = serde_json::to_value(&inline).unwrap();
+    invalid["executor_mode"] = "unknown".into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+
+    let persistent = benchmark_result(WorkerTimingMode::Disabled, None);
+    let mut invalid = serde_json::to_value(&persistent).unwrap();
+    invalid["callback_scheduling_policy"] = 1.into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+}
+
+#[test]
+fn schema8_accepts_pre_stream_failures_for_both_executors() {
+    for executor_mode in [
+        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline,
+        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers,
+    ] {
+        let mut result = inline_benchmark_result();
+        result.executor_mode = executor_mode.as_str().into();
+        result.status = "fail".into();
+        result.scheduler_qualified = false;
+        result.callback_scheduling_policy = None;
+        result.callback_scheduling_priority = None;
+        result.measurement_stop_acknowledged = false;
+        result.stream_stopped = false;
+        result.final_progress_write_succeeded = false;
+        result.terminal_error = Some("stream build failed".into());
+        if executor_mode
+            == crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers
+        {
+            result.worker_health = "disabled".into();
+            result.worker_thread_name_0.clear();
+            result.worker_thread_name_1.clear();
+        }
+        assert!(
+            serde_json::from_value::<BenchmarkResult>(serde_json::to_value(result).unwrap())
+                .is_ok()
+        );
+    }
+}
+
 fn value_without_worker_timing(result: &BenchmarkResult) -> serde_json::Value {
     let mut value = serde_json::to_value(result).unwrap();
     value.as_object_mut().unwrap().remove("worker_timing");
     value
 }
-
-type SemanticCase = (&'static str, fn(&mut serde_json::Value));
 
 #[test]
 fn profile_snapshot_preserves_admission_drop_evidence() {
@@ -288,7 +365,7 @@ fn profile_snapshot_preserves_admission_drop_evidence() {
 }
 
 #[test]
-fn schema7_requires_numeric_admission_drop_evidence() {
+fn schema8_requires_numeric_admission_drop_evidence() {
     let config = config();
     let mut result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     result.artifact_sha256 = config.artifact_sha256;
@@ -305,7 +382,7 @@ fn schema7_requires_numeric_admission_drop_evidence() {
 }
 
 #[test]
-fn schema7_accepts_healthy_and_deadline_worker_timing() {
+fn schema8_accepts_healthy_and_deadline_worker_timing() {
     for timing in [worker_timing(), deadline_worker_timing()] {
         let encoded =
             serde_json::to_string(&benchmark_result(WorkerTimingMode::Enabled, Some(timing)))
@@ -315,166 +392,37 @@ fn schema7_accepts_healthy_and_deadline_worker_timing() {
 }
 
 #[test]
-fn schema7_rejects_impossible_worker_timing_relationships() {
-    let cases: [SemanticCase; 37] = [
-        ("missing deadline", |value| {
-            value["worker_timing"]["coordinator"]["deadline_ns"] = serde_json::Value::Null;
-        }),
-        ("missing dispatch-to-deadline start", |value| {
-            value["worker_timing"]["coordinator"]["dispatch_to_deadline_start_ns"] =
-                serde_json::Value::Null;
-        }),
-        ("missing in-flight mask", |value| {
-            value["worker_timing"]["coordinator"]["in_flight_mask"] = serde_json::Value::Null;
-        }),
-        ("missing completed mask", |value| {
-            value["worker_timing"]["coordinator"]["completed_mask"] = serde_json::Value::Null;
-        }),
-        ("missing engine total", |value| {
-            value["worker_timing"]["coordinator"]["engine_block_total_ns"] =
-                serde_json::Value::Null;
-        }),
-        ("missing callback total", |value| {
-            value["worker_timing"]["coordinator"]["callback_total_ns"] = serde_json::Value::Null;
-        }),
-        ("unknown mask bit", |value| {
-            value["worker_timing"]["coordinator"]["in_flight_mask"] = 4.into();
-        }),
-        ("overlapping masks", |value| {
-            value["worker_timing"]["coordinator"]["in_flight_mask"] = 1.into();
-        }),
-        ("mask union gap", |value| {
-            value["worker_timing"]["coordinator"]["completed_mask"] = 1.into();
-            value["worker_timing"]["coordinator"]["in_flight_mask"] = 0.into();
-        }),
-        ("engine total exceeds callback", |value| {
-            value["worker_timing"]["coordinator"]["engine_block_total_ns"] = 51.into();
-        }),
-        ("unexecuted coordinator has measurements", |value| {
-            value["worker_timing"]["coordinator"]["sequence"] = serde_json::Value::Null;
-        }),
-        ("unexecuted coordinator has finished worker", |value| {
-            let coordinator = &mut value["worker_timing"]["coordinator"];
-            for name in [
-                "sequence",
-                "deadline_ns",
-                "dispatch_to_deadline_start_ns",
-                "dispatch_to_deadline_elapsed_ns",
-                "in_flight_mask",
-                "completed_mask",
-                "first_parity",
-                "dispatch_to_first_ns",
-                "dispatch_to_both_ns",
-                "reduction_ns",
-                "coordinator_remainder_ns",
-                "engine_block_total_ns",
-                "callback_total_ns",
-            ] {
-                coordinator[name] = serde_json::Value::Null;
-            }
-        }),
-        ("zero completed has first evidence", |value| {
-            value["worker_timing"]["coordinator"]["completed_mask"] = 0.into();
-            value["worker_timing"]["coordinator"]["in_flight_mask"] = 3.into();
-        }),
-        ("completed has no first evidence", |value| {
-            value["worker_timing"]["coordinator"]["first_parity"] = serde_json::Value::Null;
-        }),
-        ("first parity is not completed", |value| {
-            value["worker_timing"]["coordinator"]["first_parity"] = 1.into();
-        }),
-        ("both completion is missing", |value| {
-            value["worker_timing"]["coordinator"]["dispatch_to_both_ns"] = serde_json::Value::Null;
-        }),
-        ("both completion is premature", |value| {
-            value["worker_timing"]["coordinator"]["completed_mask"] = 1.into();
-        }),
-        ("first follows both", |value| {
-            value["worker_timing"]["coordinator"]["dispatch_to_first_ns"] = 30.into();
-        }),
-        ("first precedes worker finish", |value| {
-            value["worker_timing"]["coordinator"]["dispatch_to_first_ns"] = 19.into();
-        }),
-        ("both precedes worker finish", |value| {
-            value["worker_timing"]["coordinator"]["dispatch_to_both_ns"] = 24.into();
-        }),
-        ("completion is after deadline", |value| {
-            value["worker_timing"]["workers"][0]["dispatch_to_finish_ns"] = 111.into();
-            value["worker_timing"]["coordinator"]["dispatch_to_first_ns"] = 111.into();
-        }),
-        ("healthy masks are incomplete", |value| {
-            value["worker_timing"]["coordinator"]["in_flight_mask"] = 2.into();
-            value["worker_timing"]["coordinator"]["completed_mask"] = 1.into();
-        }),
-        ("healthy reduction is missing", |value| {
-            value["worker_timing"]["coordinator"]["reduction_ns"] = serde_json::Value::Null;
-        }),
-        ("healthy remainder is missing", |value| {
-            value["worker_timing"]["coordinator"]["coordinator_remainder_ns"] =
-                serde_json::Value::Null;
-        }),
-        ("healthy deadline elapsed is present", |value| {
-            value["worker_timing"]["coordinator"]["dispatch_to_deadline_elapsed_ns"] = 110.into();
-        }),
-        ("failed deadline elapsed precedes deadline", |value| {
-            value["worker_timing"]["coordinator"]["failed"] = true.into();
-            value["worker_timing"]["coordinator"]["dispatch_to_deadline_elapsed_ns"] = 109.into();
-        }),
-        (
-            "failed deadline elapsed precedes dispatch boundary",
-            |value| {
-                value["worker_timing"]["coordinator"]["failed"] = true.into();
-                value["worker_timing"]["coordinator"]["dispatch_to_deadline_start_ns"] = 50.into();
-                value["worker_timing"]["coordinator"]["dispatch_to_deadline_elapsed_ns"] =
-                    149.into();
-            },
-        ),
-        ("failed incomplete timing has reduction", |value| {
-            value["worker_timing"]["coordinator"]["failed"] = true.into();
-            value["worker_timing"]["coordinator"]["in_flight_mask"] = 2.into();
-            value["worker_timing"]["coordinator"]["completed_mask"] = 1.into();
-            value["worker_timing"]["coordinator"]["dispatch_to_both_ns"] = serde_json::Value::Null;
-        }),
-        ("remainder has no reduction", |value| {
-            value["worker_timing"]["coordinator"]["failed"] = true.into();
-            value["worker_timing"]["coordinator"]["reduction_ns"] = serde_json::Value::Null;
-        }),
-        ("finished worker sequence is missing", |value| {
-            value["worker_timing"]["workers"][0]["sequence"] = serde_json::Value::Null;
-        }),
-        ("finished worker sequence disagrees", |value| {
-            value["worker_timing"]["workers"][1]["sequence"] = 8.into();
-        }),
-        ("worker dispatch precedes render", |value| {
-            value["worker_timing"]["workers"][0]["dispatch_to_finish_ns"] = 9.into();
-        }),
-        ("unfinished worker has evidence", |value| {
-            value["worker_timing"]["workers"][0]["finished"] = false.into();
-        }),
-        ("worker CPU pair is partial", |value| {
-            value["worker_timing"]["workers"][0]["cpu_start"] = serde_json::Value::Null;
-        }),
-        ("worker CPU availability disagrees", |value| {
-            value["worker_timing"]["workers"][1]["cpu_start"] = serde_json::Value::Null;
-            value["worker_timing"]["workers"][1]["cpu_end"] = serde_json::Value::Null;
-        }),
-        ("CPU endpoint-change summary disagrees", |value| {
-            value["worker_timing"]["cpu_endpoint_changed"] = false.into();
-        }),
-        ("late summary disagrees", |value| {
-            value["worker_timing"]["late_after_deadline_ns"] = 1.into();
-        }),
-    ];
-    for (name, mutate) in cases {
-        let mut value = serde_json::to_value(benchmark_result(
-            WorkerTimingMode::Enabled,
-            Some(worker_timing()),
-        ))
-        .unwrap();
-        mutate(&mut value);
-        assert!(
-            serde_json::from_value::<BenchmarkResult>(value).is_err(),
-            "case should be rejected: {name}"
-        );
-    }
+fn progress_and_readiness_report_the_selected_executor() {
+    let mut config = config();
+    config.executor_mode = crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline;
+    config.worker_timing_mode = WorkerTimingMode::Disabled;
+    let metrics = CallbackMetricsSnapshot::default();
+    let progress = BenchmarkProgress::new(
+        &config,
+        "prepared",
+        0,
+        0,
+        &metrics,
+        SourceWorkerHealth::Disabled,
+    );
+    assert_eq!(progress.executor_mode, "inline");
+    assert_eq!(progress.worker_health, "disabled");
+    assert_eq!(progress.worker_thread_name_0, "");
+    assert_eq!(progress.worker_thread_name_1, "");
+    let readiness = readiness(
+        &config,
+        "invocation",
+        "F32",
+        2,
+        44_100,
+        &metrics,
+        SourceWorkerHealth::Disabled,
+    );
+    assert_eq!(readiness.executor_mode, "inline");
+    assert_eq!(readiness.worker_health, "disabled");
+    assert_eq!(readiness.worker_thread_name_0, "");
+    assert_eq!(readiness.worker_thread_name_1, "");
 }
+
+#[path = "schema_timing_tests.rs"]
+mod timing_tests;

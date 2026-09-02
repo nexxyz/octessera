@@ -21,6 +21,8 @@ param(
   [int]$MeasureSeconds = 30,
   [ValidateSet("enabled", "disabled")]
   [string]$WorkerTimingMode = "enabled",
+  [ValidateSet("inline", "persistent_two_workers")]
+  [string]$ExecutorMode = "persistent_two_workers",
   [ValidateRange(1, 120)]
   [int]$ReleaseTimeoutSeconds = 120,
   [ValidateRange(5, 60)]
@@ -34,6 +36,8 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 if (@("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled." }
+if (@("inline", "persistent_two_workers") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline or persistent_two_workers." }
+if ($ExecutorMode -eq "inline" -and $WorkerTimingMode -ne "disabled") { throw "Inline executor requires disabled worker timing." }
 
 $target = "octessera@192.168.0.217"
 $service = "octessera.service"
@@ -202,7 +206,8 @@ $payloadBundle = if ($Mode -eq "LiveAudioBenchmark") {
     -StartupTimeoutSeconds $StartupTimeoutSeconds `
     -ReleaseTimeoutSeconds $ReleaseTimeoutSeconds `
     -RuntimeMaxSeconds $runtimeMaxSeconds `
-    -WorkerTimingMode $WorkerTimingMode
+    -WorkerTimingMode $WorkerTimingMode `
+    -ExecutorMode $ExecutorMode
 } else {
   New-OrangeCapabilityStudyPayloadBundle `
     -Mode $Mode `
@@ -246,7 +251,7 @@ try {
     Write-Output "Remote study root: $remoteRoot"
     Write-Output "Candidate health path: $healthPath"
     if ($Mode -eq "LiveAudioBenchmark") {
-      Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5 worker-timing=$WorkerTimingMode"
+      Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5 worker-timing=$WorkerTimingMode executor=$ExecutorMode"
       Write-Output "Live release path: $benchmarkRoot/release.json"
       Write-Output "Live readiness path: $benchmarkRoot/readiness.json"
       Write-Output "Live progress path: $benchmarkRoot/progress.json"
