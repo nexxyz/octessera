@@ -185,14 +185,27 @@ validate_benchmark_readiness() {
 }
 validate_benchmark_worker_evidence() {
   local marker="$1" require_shutdown="${2:-false}"
-  [ "$(json_field executor_mode "$marker")" = persistent_two_workers ]
-  [ "$(json_field worker_health "$marker")" = healthy ]
-  [ "$(json_field worker_thread_name_0 "$marker")" = oct-dsp-src-0 ]
-  [ "$(json_field worker_thread_name_1 "$marker")" = oct-dsp-src-1 ]
-  if [ "$require_shutdown" = true ]; then
-    [ "$(json_field joined_workers "$marker")" = 2 ]
-    [ "$(json_field retirement_error "$marker")" = null ]
-  fi
+  case "$(json_field executor_mode "$marker")" in
+    persistent_two_workers)
+      [ "$(json_field worker_health "$marker")" = healthy ]
+      [ "$(json_field worker_thread_name_0 "$marker")" = oct-dsp-src-0 ]
+      [ "$(json_field worker_thread_name_1 "$marker")" = oct-dsp-src-1 ]
+      if [ "$require_shutdown" = true ]; then
+        [ "$(json_field joined_workers "$marker")" = 2 ]
+        [ "$(json_field retirement_error "$marker")" = null ]
+      fi
+      ;;
+    inline)
+      [ "$(json_field worker_health "$marker")" = disabled ]
+      [ -z "$(json_field worker_thread_name_0 "$marker")" ]
+      [ -z "$(json_field worker_thread_name_1 "$marker")" ]
+      if [ "$require_shutdown" = true ]; then
+        [ "$(json_field joined_workers "$marker")" = 0 ]
+        [ "$(json_field retirement_error "$marker")" = null ]
+      fi
+      ;;
+    *) return 1;;
+  esac
 }
 validate_benchmark_worker_threads() {
   local benchmark_pid="$1" proc_root="${2:-/proc}" task comm worker_zero=0 worker_one=0 reaper=0
@@ -203,10 +216,15 @@ validate_benchmark_worker_threads() {
     case "$comm" in
       oct-dsp-src-0) worker_zero=$((worker_zero + 1));;
       oct-dsp-src-1) worker_one=$((worker_one + 1));;
+      oct-dsp-src-*) return 1;;
       oct-src-reaper) reaper=$((reaper + 1));;
     esac
   done
-  [ "$worker_zero" = 1 ] && [ "$worker_one" = 1 ] && [ "$reaper" = 1 ]
+  if [ "__EXECUTOR_MODE__" = persistent_two_workers ]; then
+    [ "$worker_zero" = 1 ] && [ "$worker_one" = 1 ] && [ "$reaper" = 1 ]
+  else
+    [ "$worker_zero" = 0 ] && [ "$worker_one" = 0 ] && [ "$reaper" = 1 ]
+  fi
 }
 wait_for_benchmark_readiness() {
   local deadline=$(( $(date +%s) + __STARTUP_TIMEOUT_SECONDS__ )) pid invocation
