@@ -9,6 +9,26 @@ fn callback_rendezvous_has_no_sleep_or_yield() {
     let source = include_str!("source_worker.rs");
     assert!(!source.contains("yield_now"));
     assert!(!source.contains("thread::sleep"));
+    assert!(!source.contains(&["SOURCE_WORKER", "_POLL_CEILING"].concat()));
+    assert!(!source.contains(&["poll", "_limit"].concat()));
+    assert!(!source.contains(&["poll", "s"].concat()));
+}
+
+#[test]
+fn rendezvous_deadline_formula_is_exact_for_supported_rates_and_frames() {
+    for sample_rate in [44_100, 48_000] {
+        let mut engine = SynthEngine::new(sample_rate);
+        let (lifecycle, runtime) =
+            SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
+        for frames in [64, 128, 256] {
+            assert_eq!(
+                runtime.deadline_for_test(frames),
+                Duration::from_secs_f64(frames as f64 / sample_rate as f64 * 0.25)
+            );
+        }
+        let retirement = runtime.retire();
+        assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
+    }
 }
 
 #[test]
@@ -174,7 +194,7 @@ fn actual_command_channel_full_is_terminal_and_recovers_both_bundles() {
         SourceWorkerLifecycle::start_prewarmed_held_for_test(&mut engine).expect("worker runtime");
     assert!(lifecycle.fill_work_channel_for_test(0));
     assert!(lifecycle.work_channel_is_full_for_test(0));
-    runtime.set_timing_for_test(0, Duration::ZERO);
+    runtime.set_deadline_for_test(Duration::ZERO);
     assert!(!runtime.dispatch_only_for_test(&mut engine, 128));
     assert_eq!(runtime.in_flight_mask_for_test(), 0b10);
     assert!(lifecycle.work_channel_is_full_for_test(0));
@@ -285,7 +305,7 @@ fn deadline_failure_discards_audio_and_late_completion_only_recovers() {
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
     lifecycle.set_pause_for_test(true);
-    runtime.set_timing_for_test(0, Duration::ZERO);
+    runtime.set_deadline_for_test(Duration::ZERO);
     let mut left = Vec::with_capacity(128);
     let mut right = Vec::with_capacity(128);
     let mut out = Vec::with_capacity(256);
@@ -400,7 +420,7 @@ fn assert_worker_exit_ownership_is_recovered_home() {
     let initial_identities = runtime.home_owner_identities_for_test();
     lifecycle.set_exit_on_job_for_test(0);
     lifecycle.set_exit_on_job_for_test(1);
-    runtime.set_timing_for_test(usize::MAX, Duration::from_secs(1));
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     lifecycle.set_hold_before_receive_for_test(false);
     let mut workers_exited = false;

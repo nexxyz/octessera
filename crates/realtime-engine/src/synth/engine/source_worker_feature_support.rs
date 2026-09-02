@@ -11,8 +11,12 @@ impl SourceWorkerRuntime {
             })
     }
 
-    pub fn set_timing_for_test(&mut self, poll_limit: usize, deadline: Duration) {
-        self.timing_override = Some((poll_limit, deadline));
+    pub fn set_deadline_for_test(&mut self, deadline: Duration) {
+        self.deadline_override = Some(deadline);
+    }
+
+    pub fn deadline_for_test(&self, frames: usize) -> Duration {
+        self.rendezvous_deadline(frames)
     }
 
     pub fn render_attempts_for_test(&self) -> u64 {
