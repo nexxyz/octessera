@@ -170,7 +170,8 @@ function New-LiveCandidateBody {
     [Parameter(Mandatory)][int]$StartupTimeoutSeconds
   )
   $sampleCount = [Math]::Min(60, [Math]::Max(2, [Math]::Ceiling(($LiveSeconds + $StartupTimeoutSeconds) / 5)))
-  $runtimeMaxSeconds = $LiveSeconds + $StartupTimeoutSeconds + 10
+  $shutdownMarginSeconds = 10
+  $runtimeMaxSeconds = $LiveSeconds + $StartupTimeoutSeconds + $shutdownMarginSeconds
   $body = @'
 candidate_status=0
 (
@@ -204,14 +205,23 @@ else
     sleep 1
   done
   if [ "$ready" -eq 1 ]; then
-    measured_seconds=0
-    while [ "$measured_seconds" -lt __LIVE_SECONDS__ ]; do
+    measurement_started_at="$(date +%s)"
+    measurement_deadline=$((measurement_started_at + __LIVE_SECONDS__))
+    while [ "$(date +%s)" -lt "$measurement_deadline" ]; do
       readiness_matches_unit "$unit" __HEALTH__ "$pinned_main_pid" "$pinned_invocation_id" || {
         candidate_status=3
         break
       }
-      sleep 1
-      measured_seconds=$((measured_seconds + 1))
+      now="$(date +%s)"
+      if [ "$now" -ge "$measurement_deadline" ]; then
+        break
+      fi
+      remaining_seconds=$((measurement_deadline - now))
+      sleep_seconds=1
+      if [ "$remaining_seconds" -lt "$sleep_seconds" ]; then
+        sleep_seconds="$remaining_seconds"
+      fi
+      sleep "$sleep_seconds"
     done
     if [ "$candidate_status" -eq 0 ] && ! readiness_matches_unit "$unit" __HEALTH__ "$pinned_main_pid" "$pinned_invocation_id"; then
       candidate_status=3
