@@ -12,6 +12,8 @@ foreach ($required in @(
     "octessera-orange-pi-cargo-registry",
     "octessera-orange-pi-cargo-git",
     "octessera-orange-pi-rustup",
+    'CARGO_TARGET_DIR=$cargoTargetDirectory',
+    "CargoTargetRelativePath",
     "export PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "dpkg --add-architecture arm64",
     "gcc-aarch64-linux-gnu",
@@ -139,8 +141,20 @@ foreach ($expected in @(
 }
 
 $dev = Invoke-DryRun @{ Profile = "dev" }
-if ($dev -notmatch "target/aarch64-unknown-linux-gnu/debug/orange-oled-smoke") {
+if ($dev -notmatch "/work/target/orange-cross-cargo/aarch64-unknown-linux-gnu/debug/orange-oled-smoke") {
   throw "Dev profile dry run did not use Cargo's debug artifact directory"
+}
+
+foreach ($dryRun in @($default, $hal, $seesaw, $candidate, $dev)) {
+  if ($dryRun -match "target/release" -or $dryRun -notmatch "/work/target/orange-cross-cargo/aarch64-unknown-linux-gnu") {
+    throw "Orange cross-builder dry run used a shared release target or omitted the dedicated Cargo target directory."
+  }
+}
+if ($default -notmatch "CARGO_TARGET_DIR=/work/target/orange-cross-cargo") {
+  throw "Orange cross-builder dry run did not export the dedicated Cargo target directory."
+}
+if ($default -notmatch "'/work/target/orange-cross-cargo/aarch64-unknown-linux-gnu/pi-dev/orange-oled-smoke'" -or $default -notmatch "'/work/target/orange-pi-cross/orange-oled-smoke'") {
+  throw "Orange cross-builder did not keep source and output paths quoted and canonical."
 }
 
 foreach ($parameters in @(

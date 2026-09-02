@@ -23,6 +23,7 @@ $CargoRegistryVolume = "octessera-orange-pi-cargo-registry"
 $CargoGitVolume = "octessera-orange-pi-cargo-git"
 $RustupVolume = "octessera-orange-pi-rustup"
 $OutputRelativePath = "target/orange-pi-cross"
+$CargoTargetRelativePath = "target/orange-cross-cargo"
 
 function Convert-ToBashSingleQuoted {
   param([Parameter(Mandatory)][string]$Value)
@@ -114,12 +115,15 @@ function New-DockerShellCommand {
   $packageQuoted = Convert-ToBashSingleQuoted $BuildSpec.Package
   $featureQuoted = Convert-ToBashSingleQuoted $BuildSpec.Feature
   $outputQuoted = Convert-ToBashSingleQuoted "/work/$OutputRelativePath"
+  $cargoTargetDirectory = "/work/$CargoTargetRelativePath"
+  $cargoTargetQuoted = Convert-ToBashSingleQuoted $cargoTargetDirectory
   $artifactProfile = if ($Profile -eq "dev") { "debug" } else { $Profile }
-  $sourceQuoted = Convert-ToBashSingleQuoted "target/$Target/$artifactProfile/$Binary"
+  $sourceQuoted = Convert-ToBashSingleQuoted "$cargoTargetDirectory/$Target/$artifactProfile/$Binary"
   $innerScript = @"
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 export PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export CARGO_TARGET_DIR=$cargoTargetQuoted
 dpkg --add-architecture arm64
 apt-get update
 apt-get install -y --no-install-recommends \
@@ -158,6 +162,8 @@ aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[
     "CARGO_HOME=/usr/local/cargo"
     "-e"
     "RUSTUP_HOME=/usr/local/rustup"
+    "-e"
+    "CARGO_TARGET_DIR=$cargoTargetDirectory"
     "-e"
     "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc"
     "-e"
