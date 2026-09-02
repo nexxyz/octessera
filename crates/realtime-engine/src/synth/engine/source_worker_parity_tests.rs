@@ -114,6 +114,8 @@ fn reverse_completion_order_reduces_in_canonical_lane_order() {
     runtime.set_deadline_for_test(TEST_DEADLINE);
     lifecycle.set_reverse_completion_for_test(true);
     assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, 256);
+    assert_eq!(worker.active_synth_slots, inline.active_synth_slots);
+    assert_eq!(worker.active_sample_slots, inline.active_sample_slots);
     let retirement = runtime.retire();
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
 }

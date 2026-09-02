@@ -125,7 +125,8 @@ fn assert_block_and_scalar_state_match(
 fn render_block(voice: &mut SampleVoice, frames: usize) -> (Vec<f32>, Vec<bool>) {
     let mut output = vec![0.0; frames];
     let mut active = vec![false; frames];
-    render_sample_voice_block(voice, frames, SAMPLE_RATE, &mut output, &mut active);
+    let rendered_frames = render_sample_voice_block(voice, frames, SAMPLE_RATE, &mut output);
+    active[..rendered_frames].fill(true);
     (output, active)
 }
 
