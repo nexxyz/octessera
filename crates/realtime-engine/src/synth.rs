@@ -29,6 +29,7 @@ pub use engine::{
     SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerMode, SourceWorkerRetirement,
     SourceWorkerRetirementError, SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown,
     SynthEngine, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+    SOURCE_WORKER_THREAD_NAMES,
 };
 pub use types::{
     default_synth_config, AudioLoadStatus, EnvConfig, FilterConfig, FilterType, FxBusConfig,

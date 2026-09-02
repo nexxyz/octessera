@@ -77,6 +77,7 @@ use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
 pub use source_worker::SourceWorkerRuntime;
 pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
 pub use source_worker_lifecycle::SourceWorkerLifecycle;
+pub use source_worker_lifecycle::SOURCE_WORKER_THREAD_NAMES;
 #[cfg(any(test, feature = "test-support"))]
 pub use source_worker_observer::{
     install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,

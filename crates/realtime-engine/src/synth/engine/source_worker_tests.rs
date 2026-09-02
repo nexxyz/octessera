@@ -12,6 +12,17 @@ fn callback_rendezvous_has_no_sleep_or_yield() {
 }
 
 #[test]
+fn persistent_worker_thread_names_are_stable_and_linux_safe() {
+    assert_eq!(
+        SOURCE_WORKER_THREAD_NAMES,
+        ["oct-dsp-src-0", "oct-dsp-src-1"]
+    );
+    assert!(SOURCE_WORKER_THREAD_NAMES
+        .iter()
+        .all(|name| name.len() <= 15));
+}
+
+#[test]
 fn lifecycle_requires_prewarm_and_joins_both_workers() {
     let mut engine = dynamic_engine();
     let (lifecycle, runtime) =
@@ -376,12 +387,49 @@ fn stale_completion_latches_and_is_not_reduced() {
 
 #[test]
 fn worker_exit_latches_and_never_restarts_or_falls_back() {
+    for _ in 0..100 {
+        assert_worker_exit_ownership_is_recovered_home();
+    }
+}
+
+fn assert_worker_exit_ownership_is_recovered_home() {
     let mut engine = dynamic_engine();
     engine.note_on(1, 60, 100, 5_000);
     let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
+        SourceWorkerLifecycle::start_prewarmed_held_for_test(&mut engine).expect("worker runtime");
+    let initial_identities = runtime.home_owner_identities_for_test();
     lifecycle.set_exit_on_job_for_test(0);
     lifecycle.set_exit_on_job_for_test(1);
+    runtime.set_timing_for_test(usize::MAX, Duration::from_secs(1));
+    assert!(runtime.dispatch_only_for_test(&mut engine, 128));
+    lifecycle.set_hold_before_receive_for_test(false);
+    let mut workers_exited = false;
+    for _ in 0..100_000 {
+        if runtime.workers_exited_for_test() == [true, true] {
+            workers_exited = true;
+            break;
+        }
+        thread::yield_now();
+    }
+    assert!(workers_exited);
+
+    let mut owners_recovered_home = false;
+    for _ in 0..100_000 {
+        let _ = runtime.collect_for_test(&mut engine);
+        if runtime.in_flight_mask_for_test() == 0 && runtime.partitions_home_for_test() {
+            owners_recovered_home = true;
+            break;
+        }
+        thread::yield_now();
+    }
+    assert!(owners_recovered_home);
+    assert_eq!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::WorkerExited
+    );
+    assert_eq!(runtime.in_flight_mask_for_test(), 0);
+    assert!(runtime.partitions_home_for_test());
+    let jobs = lifecycle.jobs_started_for_test();
     let mut left = Vec::with_capacity(128);
     let mut right = Vec::with_capacity(128);
     let mut out = Vec::with_capacity(256);
@@ -393,21 +441,15 @@ fn worker_exit_latches_and_never_restarts_or_falls_back() {
         &mut out,
     );
     assert!(out.iter().all(|sample| sample.to_bits() == 0));
-    assert_eq!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::WorkerExited
-    );
-    let jobs = lifecycle.jobs_started_for_test();
-    engine.render_interleaved_block_with_source_runtime(
-        &mut runtime,
-        128,
-        &mut left,
-        &mut right,
-        &mut out,
-    );
-    assert!(out.iter().all(|sample| sample.to_bits() == 0));
     assert_eq!(lifecycle.jobs_started_for_test(), jobs);
     assert!(runtime.partitions_home_for_test());
     let retirement = runtime.retire();
-    assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
+    let shutdown = lifecycle.shutdown(retirement);
+    assert_eq!(shutdown.joined_workers, 2);
+    assert_eq!(shutdown.retirement_error, None);
+    assert_eq!(shutdown.destroyed_owner_count, 2);
+    assert_eq!(
+        shutdown.destroyed_owner_identities,
+        [Some(initial_identities[0]), Some(initial_identities[1])]
+    );
 }

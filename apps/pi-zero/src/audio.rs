@@ -7,8 +7,9 @@ use crate::audio_route::AudioRouteRegistry;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 use crate::audio_sink_registry::test_sink_sender;
 use crate::audio_sink_registry::{broadcast_event_atomic, AudioAttachGate, SinkSender};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use crate::audio_stream_health::AudioStreamHealth;
+pub(crate) use crate::audio_stream_health::AudioStreamHealth;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) use crate::audio_stream_health::AudioStreamStatus;
 use crate::recording::{RecorderService, RecordingTap};
 #[path = "audio_defaults.rs"]
 mod audio_defaults;
@@ -19,6 +20,11 @@ mod audio_output;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
 pub(crate) use audio_output::{AudioManager, AudioSink};
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) use audio_output::{
+    AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
+    AudioStreamShutdownReport, CallbackSource,
+};
 use playback_runtime::AudioOutputSet;
 use playback_runtime::{HostMessage, RuntimeAdapterError};
 use rodio_engine_source::EngineEvent;
@@ -136,7 +142,7 @@ impl AudioService {
         if self
             .required_jack_health
             .as_ref()
-            .is_some_and(AudioStreamHealth::is_faulted)
+            .is_some_and(AudioStreamHealth::external_is_faulted)
         {
             return Err("required Jack audio stream faulted".into());
         }
@@ -163,7 +169,7 @@ impl AudioService {
     pub(crate) fn required_jack_failed(&self) -> bool {
         self.required_jack_health
             .as_ref()
-            .is_some_and(AudioStreamHealth::is_faulted)
+            .is_some_and(AudioStreamHealth::external_is_faulted)
     }
 
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), String> {

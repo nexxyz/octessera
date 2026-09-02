@@ -197,8 +197,12 @@ where
             "injected source worker spawn failure",
         ));
     }
-    thread::Builder::new().spawn(run)
+    thread::Builder::new()
+        .name(SOURCE_WORKER_THREAD_NAMES[_parity].into())
+        .spawn(run)
 }
+
+pub const SOURCE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-src-0", "oct-dsp-src-1"];
 
 impl SourceWorkerSlot {
     pub(super) fn shutdown_after_spawn_failure(mut self) {

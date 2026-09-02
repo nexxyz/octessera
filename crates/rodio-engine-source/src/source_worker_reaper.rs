@@ -24,6 +24,8 @@ pub(crate) struct SourceShutdownEnvelope {
     pub(crate) retirement: Option<SourceWorkerRetirement>,
 }
 
+pub const SOURCE_REAPER_THREAD_NAME: &str = "oct-src-reaper";
+
 pub(crate) struct PersistentReaperSpawnFailure {
     pub(crate) lifecycle: SourceWorkerLifecycle,
     pub(crate) error: SourceWorkerSetupError,
@@ -140,7 +142,7 @@ where
         return Err(io::Error::other("injected source reaper spawn failure"));
     }
     thread::Builder::new()
-        .name("octessera-source-reaper".into())
+        .name(SOURCE_REAPER_THREAD_NAME.into())
         .spawn(run)
 }
 
@@ -340,5 +342,18 @@ fn wait_for_inline_envelope(
 fn drain_retired_audio(retired_rx: Receiver<RetiredAudioItem>) {
     while let Ok(item) = retired_rx.recv() {
         drop_retired_item(item);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{spawn_persistent_reaper_thread, SOURCE_REAPER_THREAD_NAME};
+
+    #[test]
+    fn reaper_thread_name_is_linux_visible_and_bounded() {
+        assert!(SOURCE_REAPER_THREAD_NAME.len() <= 15);
+        let reaper = spawn_persistent_reaper_thread(|| {}).unwrap();
+        assert_eq!(reaper.thread().name(), Some(SOURCE_REAPER_THREAD_NAME));
+        reaper.join().unwrap();
     }
 }

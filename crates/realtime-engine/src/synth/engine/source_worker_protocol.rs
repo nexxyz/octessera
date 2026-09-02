@@ -29,6 +29,11 @@ pub enum SourceWorkerRetirementError {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceWorkerSetupError {
+    InvalidBlockFrames {
+        requested: usize,
+        min: usize,
+        max: usize,
+    },
     PrewarmFailed,
     InlineSourceExecutorUnavailable,
     PartitionsUnavailable,

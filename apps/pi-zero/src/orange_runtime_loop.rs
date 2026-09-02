@@ -25,7 +25,8 @@ pub(crate) fn run_prepared_runtime(
     let mut scheduler = HardwareRuntimeScheduler::new(Instant::now(), initial_published_revision);
     let mut readiness_gate = OrangeStartupReadinessGate::new(initial_rendered);
     let mut pending_encoder_turns = PendingEncoderTurns::default();
-    ensure_required_audio_health(audio_manager.required_jack_status())?;
+    audio_manager.report_runtime_terminal_diagnostics();
+    ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
     audio.ensure_route_readiness()?;
     audio_manager.ensure_selected_routes()?;
     let result = (|| {
@@ -53,17 +54,27 @@ pub(crate) fn run_prepared_runtime(
         if !first_snapshot_rendered {
             return Err("Orange runtime did not produce a valid initial snapshot".into());
         }
-        readiness_gate.try_mark_ready(audio_manager.required_jack_status(), candidate_readiness)?;
+        audio_manager.report_runtime_terminal_diagnostics();
+        ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
+        audio.ensure_route_readiness()?;
+        audio_manager.ensure_selected_routes()?;
+        readiness_gate.try_mark_ready(
+            audio_manager.required_jack_runtime_status(),
+            candidate_readiness,
+        )?;
         while !signal::interrupted() {
             if host.shutdown_pending() {
                 break;
             }
             audio_manager.recover_audio_if_due();
-            ensure_required_audio_health(audio_manager.required_jack_status())?;
+            audio_manager.report_runtime_terminal_diagnostics();
+            ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
             audio.ensure_route_readiness()?;
             audio_manager.ensure_selected_routes()?;
-            readiness_gate
-                .try_mark_ready(audio_manager.required_jack_status(), candidate_readiness)?;
+            readiness_gate.try_mark_ready(
+                audio_manager.required_jack_runtime_status(),
+                candidate_readiness,
+            )?;
             drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut host);
             if host.shutdown_pending() {
                 break;
@@ -119,7 +130,8 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            ensure_required_audio_health(audio_manager.required_jack_status())?;
+            audio_manager.report_runtime_terminal_diagnostics();
+            ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
             drain_host_work(&mut playback, &mut runner, &mut host)?;
             if runtime_advanced {
                 scheduler.record_runtime_advance_complete(Instant::now(), &playback);

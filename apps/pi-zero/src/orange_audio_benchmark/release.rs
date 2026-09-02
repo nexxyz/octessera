@@ -1,5 +1,6 @@
 use super::cli::BenchmarkConfig;
 use super::schema::{BenchmarkReadiness, BenchmarkReleaseGate};
+use crate::audio::{AudioStreamHealth, AudioStreamStatus};
 use std::fs;
 use std::path::Path;
 use std::thread;
@@ -18,6 +19,7 @@ pub fn wait_for_release(
     config: &BenchmarkConfig,
     readiness: &BenchmarkReadiness,
     invocation_id: &str,
+    health: &AudioStreamHealth,
 ) -> Result<BenchmarkReleaseGate, String> {
     wait_for_release_with_timeout(
         &config.release_gate_path,
@@ -25,6 +27,7 @@ pub fn wait_for_release(
         config,
         readiness,
         invocation_id,
+        health,
     )
 }
 
@@ -34,9 +37,14 @@ fn wait_for_release_with_timeout(
     config: &BenchmarkConfig,
     readiness: &BenchmarkReadiness,
     invocation_id: &str,
+    health: &AudioStreamHealth,
 ) -> Result<BenchmarkReleaseGate, String> {
     let deadline = Instant::now() + Duration::from_secs(timeout_seconds);
     loop {
+        if health.runtime_status() == AudioStreamStatus::Terminal {
+            health.log_worker_terminal_once();
+            return Err("benchmark DSP worker entered a terminal health state".into());
+        }
         if path.exists() {
             let content = fs::read_to_string(path)
                 .map_err(|error| format!("failed to read release gate: {error}"))?;
@@ -123,6 +131,7 @@ mod tests {
                 lifetime_callback_frame_sample_count: 3,
                 ..Default::default()
             },
+            realtime_engine::synth::SourceWorkerHealth::Healthy,
         )
     }
 
@@ -170,6 +179,7 @@ mod tests {
             &config,
             &readiness,
             "invocation",
+            &AudioStreamHealth::new("test".into()),
         );
         assert!(result.is_err());
     }

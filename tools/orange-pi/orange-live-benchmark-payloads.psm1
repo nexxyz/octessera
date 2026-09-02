@@ -149,7 +149,7 @@ reset_failed_unit() {
 validate_benchmark_readiness() {
   local marker="$1" expected_pid="$2" expected_invocation="$3"
   [ -r "$marker" ] || return 1
-  [ "$(json_field schema_version "$marker")" = 3 ]
+  [ "$(json_field schema_version "$marker")" = 4 ]
   [ "$(json_field kind "$marker")" = orange_audio_benchmark_readiness ]
   [ "$(json_field status "$marker")" = ready ]
   [ "$(json_field board_profile "$marker")" = orange-pi-zero-2w ]
@@ -177,12 +177,38 @@ validate_benchmark_readiness() {
   case "$(json_field sample_format "$marker")" in F32|I16|U16) ;; *) return 1;; esac
   [ "$(json_field scheduler_qualified "$marker")" = true ]
   [ "$(json_field post_dsp_zero "$marker")" = true ]
+  validate_benchmark_worker_evidence "$marker"
+}
+validate_benchmark_worker_evidence() {
+  local marker="$1" require_shutdown="${2:-false}"
+  [ "$(json_field executor_mode "$marker")" = persistent_two_workers ]
+  [ "$(json_field worker_health "$marker")" = healthy ]
+  [ "$(json_field worker_thread_name_0 "$marker")" = oct-dsp-src-0 ]
+  [ "$(json_field worker_thread_name_1 "$marker")" = oct-dsp-src-1 ]
+  if [ "$require_shutdown" = true ]; then
+    [ "$(json_field joined_workers "$marker")" = 2 ]
+    [ "$(json_field retirement_error "$marker")" = null ]
+  fi
+}
+validate_benchmark_worker_threads() {
+  local benchmark_pid="$1" proc_root="${2:-/proc}" task comm worker_zero=0 worker_one=0 reaper=0
+  [ -d "$proc_root/$benchmark_pid/task" ] || return 1
+  for task in "$proc_root/$benchmark_pid/task"/*; do
+    [ -r "$task/comm" ] || return 1
+    comm="$(cat "$task/comm")" || return 1
+    case "$comm" in
+      oct-dsp-src-0) worker_zero=$((worker_zero + 1));;
+      oct-dsp-src-1) worker_one=$((worker_one + 1));;
+      oct-src-reaper) reaper=$((reaper + 1));;
+    esac
+  done
+  [ "$worker_zero" = 1 ] && [ "$worker_one" = 1 ] && [ "$reaper" = 1 ]
 }
 wait_for_benchmark_readiness() {
   local deadline=$(( $(date +%s) + __STARTUP_TIMEOUT_SECONDS__ )) pid invocation
   while [ "$(date +%s)" -lt "$deadline" ]; do
     pid="$(unit_main_pid "$unit")"; invocation="$(unit_invocation_id "$unit")"
-    if sudo -n systemctl is-active --quiet "$unit" && positive_number "$pid" && [ -n "$invocation" ] && validate_benchmark_readiness "$readiness" "$pid" "$invocation"; then
+    if sudo -n systemctl is-active --quiet "$unit" && positive_number "$pid" && [ -n "$invocation" ] && validate_benchmark_readiness "$readiness" "$pid" "$invocation" && validate_benchmark_worker_threads "$pid"; then
       benchmark_pid="$pid"; benchmark_invocation="$invocation"
       copy_evidence "$readiness" "$root/benchmark-readiness.json"
       printf 'unit=%s\nmain_pid=%s\ninvocation_id=%s\n' "$unit" "$pid" "$invocation" > "$root/benchmark-identity.txt"
@@ -226,12 +252,13 @@ capture_alsa_release() {
   if ! sudo -n mv -f -- "$release_tmp" "$release"; then sudo -n rm -f -- "$release" "$release_tmp" "$release_source"; return 1; fi
 }
 validate_benchmark_progress() {
-  [ -r "$progress" ] && [ "$(json_field schema_version "$progress")" = 3 ] && [ "$(json_field kind "$progress")" = orange_audio_benchmark_progress ]
+  [ -r "$progress" ] && [ "$(json_field schema_version "$progress")" = 4 ] && [ "$(json_field kind "$progress")" = orange_audio_benchmark_progress ]
   [ "$(json_field board_profile "$progress")" = orange-pi-zero-2w ] && [ "$(json_field pid "$progress")" = "$benchmark_pid" ]
   [ "$(json_field systemd_invocation_id "$progress")" = "$benchmark_invocation" ] && [ "$(json_field artifact_sha256 "$progress")" = "$expected_sha" ]
   [ "$(json_field scenario "$progress")" = __SCENARIO__ ] && [ "$(json_field requested_output_buffer_frames "$progress")" = __OUTPUT_FRAMES__ ]
   [ "$(json_field expected_alsa_buffer_frames "$progress")" = __OUTPUT_FRAMES__ ] && [ "$(json_field expected_alsa_period_frames "$progress")" = __ALSA_PERIOD_FRAMES__ ]
   [ "$(json_field internal_block_frames "$progress")" = __INTERNAL_FRAMES__ ]
+  validate_benchmark_worker_evidence "$progress"
 }
 wait_for_benchmark_terminal() {
   local deadline=$(( $(date +%s) + __RUNTIME_MAX_SECONDS__ + 15 )) pid invocation phase mtime now result_status
@@ -242,6 +269,11 @@ wait_for_benchmark_terminal() {
     if [ -n "$invocation" ] && [ "$invocation" != "$benchmark_invocation" ]; then study_status=66; stop_benchmark_unit; return 1; fi
     if [ -e "$result" ] && ! sudo -n systemctl is-active --quiet "$unit"; then
       result_status="$(json_field status "$result" || true)"
+      if ! validate_benchmark_worker_evidence "$result" true; then
+        study_status=66
+        study_class=infrastructure_failure
+        return 1
+      fi
       copy_evidence "$result" "$root/benchmark-result.json"
       if [ "$result_status" = pass ]; then study_status=0; study_class=pass; else study_status=20; study_class=measured_failure; fi
       return 0

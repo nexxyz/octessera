@@ -72,14 +72,14 @@ pub(super) struct OrangeRecoveryController {
     clock: OrangeRecoveryClock,
 }
 
-struct OrangeRecoveryDependencies {
-    output_buffer_frames: Option<u32>,
-    realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-    replay_events: Arc<Mutex<ReplayCache>>,
-    attach_gate: AudioAttachGate,
-    recording_tap: Option<RecordingTapState>,
-    opener: OrangeRecoveryOpener,
-    clock: OrangeRecoveryClock,
+pub(super) struct OrangeRecoveryDependencies {
+    pub(super) output_buffer_frames: Option<u32>,
+    pub(super) realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
+    pub(super) replay_events: Arc<Mutex<ReplayCache>>,
+    pub(super) attach_gate: AudioAttachGate,
+    pub(super) recording_tap: Option<RecordingTapState>,
+    pub(super) opener: OrangeRecoveryOpener,
+    pub(super) clock: OrangeRecoveryClock,
 }
 
 impl OrangeRecoveryDependencies {
@@ -213,6 +213,25 @@ impl OrangeRecoveryController {
         Ok(controller)
     }
 
+    #[cfg(test)]
+    pub(super) fn new_initial_with_dependencies(
+        sink: AudioSink,
+        required: bool,
+        initial: OpenedAudioSink,
+        dependencies: OrangeRecoveryDependencies,
+    ) -> Result<Self, String> {
+        test_support::new_initial_with_dependencies(
+            sink,
+            if required {
+                OrangeRecoveryMode::Required
+            } else {
+                OrangeRecoveryMode::Optional
+            },
+            initial,
+            dependencies,
+        )
+    }
+
     fn new_with_dependencies(
         sink: AudioSink,
         mode: OrangeRecoveryMode,
@@ -282,7 +301,9 @@ impl OrangeRecoveryController {
         let now = (self.clock)();
         let phase = std::mem::replace(&mut self.phase, OrangeRecoveryPhase::Terminal);
         self.phase = match phase {
-            OrangeRecoveryPhase::Healthy if self.health.status() == AudioStreamStatus::Terminal => {
+            OrangeRecoveryPhase::Healthy
+                if self.health.external_status() == AudioStreamStatus::Terminal =>
+            {
                 self.detach_current();
                 OrangeRecoveryPhase::Terminal
             }
@@ -297,7 +318,7 @@ impl OrangeRecoveryController {
                 }
             }
             OrangeRecoveryPhase::Healthy
-                if self.health.status() == AudioStreamStatus::Recovering =>
+                if self.health.external_status() == AudioStreamStatus::Recovering =>
             {
                 self.detach_current();
                 OrangeRecoveryPhase::Retrying {
@@ -326,11 +347,12 @@ impl OrangeRecoveryController {
         };
     }
 
-    pub(super) fn status(&self) -> OrangeDacStatus {
-        if matches!(self.phase, OrangeRecoveryPhase::Terminal) || self.health.is_terminal() {
+    pub(super) fn device_status(&self) -> OrangeDacStatus {
+        if matches!(self.phase, OrangeRecoveryPhase::Terminal) || self.health.external_is_terminal()
+        {
             OrangeDacStatus::Terminal
         } else if matches!(self.phase, OrangeRecoveryPhase::Healthy)
-            && self.health.status() == OrangeDacStatus::Healthy
+            && self.health.external_status() == OrangeDacStatus::Healthy
         {
             OrangeDacStatus::Healthy
         } else {
@@ -338,9 +360,21 @@ impl OrangeRecoveryController {
         }
     }
 
+    pub(super) fn runtime_status(&self) -> OrangeDacStatus {
+        if self.health.runtime_status() == AudioStreamStatus::Terminal {
+            OrangeDacStatus::Terminal
+        } else {
+            self.device_status()
+        }
+    }
+
+    pub(super) fn report_runtime_terminal(&self) {
+        self.health.log_worker_terminal_once();
+    }
+
     fn try_open(&mut self, attempts: usize) -> OrangeRecoveryPhase {
         let attempt = attempts + 1;
-        if self.health.status() == AudioStreamStatus::Terminal {
+        if self.health.external_status() == AudioStreamStatus::Terminal {
             return OrangeRecoveryPhase::Terminal;
         }
         self.health.clear_recoverable_fault();
@@ -377,10 +411,10 @@ impl OrangeRecoveryController {
         stable_until: Instant,
         now: Instant,
     ) -> OrangeRecoveryPhase {
-        if self.health.status() == AudioStreamStatus::Terminal {
+        if self.health.external_status() == AudioStreamStatus::Terminal {
             return OrangeRecoveryPhase::Terminal;
         }
-        if self.health.status() == AudioStreamStatus::Recovering {
+        if self.health.external_status() == AudioStreamStatus::Recovering {
             eprintln!(
                 "Orange {:?} recovery attempt {attempts} remained unstable",
                 self.sink
@@ -442,3 +476,7 @@ impl OrangeRecoveryController {
         drop(self.current.take());
     }
 }
+
+#[cfg(test)]
+#[path = "orange_audio_recovery_test_support.rs"]
+mod test_support;

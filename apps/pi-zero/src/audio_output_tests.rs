@@ -320,7 +320,7 @@ fn orange_optional_terminal_open_failure_is_attempted_once() {
     controller.recover_if_due();
 
     assert_eq!(*attempts.lock().unwrap(), 1);
-    assert_eq!(controller.status(), super::OrangeDacStatus::Terminal);
+    assert_eq!(controller.device_status(), super::OrangeDacStatus::Terminal);
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -351,7 +351,7 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
     health.mark_terminal();
     controller.recover_if_due();
 
-    assert_eq!(controller.status(), super::OrangeDacStatus::Terminal);
+    assert_eq!(controller.device_status(), super::OrangeDacStatus::Terminal);
     assert!(!has_sink(&sinks, super::AudioSink::Jack));
 }
 
