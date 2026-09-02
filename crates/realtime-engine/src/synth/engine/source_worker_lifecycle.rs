@@ -324,6 +324,10 @@ impl SourceWorkerLifecycle {
             sample_context: SampleSourceContext {
                 sample_rate: engine.sample_rate,
             },
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at: None,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe: None,
         };
         self.workers[parity]
             .work_tx
@@ -367,6 +371,13 @@ impl SourceWorkerLifecycle {
     #[cfg(test)]
     pub(crate) fn set_pause_for_parity_for_test(&self, parity: usize, paused: bool) {
         self.workers[parity].pause.store(paused, Ordering::Release);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(super) fn worker_pause_controls_for_test(&self) -> [Arc<AtomicBool>; SOURCE_WORKER_COUNT] {
+        self.workers
+            .each_ref()
+            .map(|worker| Arc::clone(&worker.pause))
     }
 
     #[cfg(test)]

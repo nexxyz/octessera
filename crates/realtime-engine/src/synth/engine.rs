@@ -62,6 +62,9 @@ mod source_worker_start_hook_tests;
 mod source_worker_test_fixtures;
 #[cfg(test)]
 mod source_worker_tests;
+#[cfg(all(test, feature = "source-worker-benchmark-timing"))]
+#[path = "engine/source_worker_timing_integration_tests.rs"]
+mod source_worker_timing_integration_tests;
 mod source_worker_transfer;
 mod support;
 #[cfg(test)]

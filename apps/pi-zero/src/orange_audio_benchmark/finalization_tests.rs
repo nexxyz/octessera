@@ -172,3 +172,50 @@ fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
         assert_eq!(result_status(&config, &metrics, gates), "fail");
     }
 }
+
+#[test]
+fn pre_stream_failure_serializes_frozen_unexecuted_worker_timing() {
+    let mut config = config();
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pre-stream-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    config.result_path = root.join("result.json");
+    config.progress_path = root.join("progress.json");
+    config.readiness_path = root.join("readiness.json");
+    config.release_gate_path = root.join("release.json");
+
+    let previous_invocation = std::env::var_os("INVOCATION_ID");
+    std::env::remove_var("INVOCATION_ID");
+    let outcome = crate::orange_audio_benchmark::run_inner(&config);
+    match previous_invocation {
+        Some(value) => std::env::set_var("INVOCATION_ID", value),
+        None => std::env::remove_var("INVOCATION_ID"),
+    }
+
+    assert!(outcome.is_err());
+    let result = serde_json::from_str::<BenchmarkResult>(
+        &std::fs::read_to_string(&config.result_path).unwrap(),
+    )
+    .unwrap();
+    let timing = result.worker_timing;
+    assert!(timing.coordinator.frozen);
+    assert_eq!(timing.coordinator.sequence, None);
+    assert_eq!(timing.coordinator.deadline_ns, None);
+    assert_eq!(timing.coordinator.dispatch_to_deadline_start_ns, None);
+    assert_eq!(timing.coordinator.dispatch_to_deadline_elapsed_ns, None);
+    assert!(timing.workers.iter().all(|worker| {
+        !worker.finished
+            && worker.sequence.is_none()
+            && worker.render_ns.is_none()
+            && worker.dispatch_to_finish_ns.is_none()
+            && worker.cpu_start.is_none()
+            && worker.cpu_end.is_none()
+    }));
+    assert!(!timing.cpu_endpoint_changed);
+    std::fs::remove_dir_all(root).unwrap();
+}

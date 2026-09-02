@@ -3,6 +3,10 @@ mod engine;
 mod fx;
 mod fx_params;
 mod runtime_state;
+#[cfg(feature = "source-worker-benchmark-timing")]
+mod source_worker_timing;
+#[cfg(all(test, feature = "source-worker-benchmark-timing"))]
+mod source_worker_timing_tests;
 mod synth_voice_pool;
 #[cfg(test)]
 mod tests;
@@ -30,6 +34,11 @@ pub use engine::{
     SourceWorkerRetirementError, SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown,
     SourceWorkerStartHook, SynthEngine, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
     SOURCE_WORKER_THREAD_NAMES,
+};
+#[cfg(feature = "source-worker-benchmark-timing")]
+pub use source_worker_timing::{
+    SourceWorkerCoordinatorTimingSnapshot, SourceWorkerCpuSampler, SourceWorkerTimingProbe,
+    SourceWorkerTimingSnapshot, SourceWorkerWorkerTimingSnapshot,
 };
 pub use types::{
     default_synth_config, AudioLoadStatus, EnvConfig, FilterConfig, FilterType, FxBusConfig,

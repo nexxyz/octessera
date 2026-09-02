@@ -82,6 +82,7 @@ fn execute_benchmark(
         state.metrics.clone(),
         state.profile_probe.clone(),
         state.phase_control.clone(),
+        state.worker_timing.clone(),
     )?;
     state.install_stream(built);
     state.stream_started = true;

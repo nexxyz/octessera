@@ -1,6 +1,9 @@
 use super::cli::BenchmarkConfig;
 use super::metrics::CallbackMetricsSnapshot;
-use realtime_engine::synth::{SourceWorkerHealth, SynthProfileSnapshot};
+use realtime_engine::synth::{
+    SourceWorkerCoordinatorTimingSnapshot, SourceWorkerHealth, SourceWorkerTimingSnapshot,
+    SourceWorkerWorkerTimingSnapshot, SynthProfileSnapshot,
+};
 use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs::{self, OpenOptions};
@@ -8,8 +11,11 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "worker_timing_validation.rs"]
+mod worker_timing_validation;
+
 const BENCHMARK_SCHEMA_VERSION: u8 = 4;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 5;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 6;
 const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
 fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -123,6 +129,7 @@ pub struct BenchmarkReadiness {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct BenchmarkResult {
     #[serde(deserialize_with = "deserialize_result_schema_v4")]
     pub schema_version: u8,
@@ -159,6 +166,93 @@ pub struct BenchmarkResult {
     pub worker_thread_name_1: String,
     pub joined_workers: usize,
     pub retirement_error: Option<String>,
+    pub worker_timing: BenchmarkWorkerTiming,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BenchmarkWorkerTiming {
+    pub workers: [BenchmarkWorkerTimingWorker; 2],
+    pub coordinator: BenchmarkCoordinatorTiming,
+    pub late_after_deadline_ns: Option<u64>,
+    pub cpu_endpoint_changed: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BenchmarkWorkerTimingWorker {
+    pub sequence: Option<u64>,
+    pub render_ns: Option<u64>,
+    pub dispatch_to_finish_ns: Option<u64>,
+    pub cpu_start: Option<u32>,
+    pub cpu_end: Option<u32>,
+    pub finished: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BenchmarkCoordinatorTiming {
+    pub sequence: Option<u64>,
+    pub deadline_ns: Option<u64>,
+    pub dispatch_to_deadline_start_ns: Option<u64>,
+    pub dispatch_to_deadline_elapsed_ns: Option<u64>,
+    pub in_flight_mask: Option<u8>,
+    pub completed_mask: Option<u8>,
+    pub first_parity: Option<usize>,
+    pub dispatch_to_first_ns: Option<u64>,
+    pub dispatch_to_both_ns: Option<u64>,
+    pub reduction_ns: Option<u64>,
+    pub coordinator_remainder_ns: Option<u64>,
+    pub engine_block_total_ns: Option<u64>,
+    pub callback_total_ns: Option<u64>,
+    pub failed: bool,
+    pub frozen: bool,
+}
+
+impl From<SourceWorkerTimingSnapshot> for BenchmarkWorkerTiming {
+    fn from(snapshot: SourceWorkerTimingSnapshot) -> Self {
+        Self {
+            workers: snapshot.workers.map(BenchmarkWorkerTimingWorker::from),
+            coordinator: BenchmarkCoordinatorTiming::from(snapshot.coordinator),
+            late_after_deadline_ns: snapshot.late_after_deadline_ns,
+            cpu_endpoint_changed: snapshot.cpu_endpoint_changed,
+        }
+    }
+}
+
+impl From<SourceWorkerWorkerTimingSnapshot> for BenchmarkWorkerTimingWorker {
+    fn from(snapshot: SourceWorkerWorkerTimingSnapshot) -> Self {
+        Self {
+            sequence: snapshot.sequence,
+            render_ns: snapshot.render_ns,
+            dispatch_to_finish_ns: snapshot.dispatch_to_finish_ns,
+            cpu_start: snapshot.cpu_start,
+            cpu_end: snapshot.cpu_end,
+            finished: snapshot.finished,
+        }
+    }
+}
+
+impl From<SourceWorkerCoordinatorTimingSnapshot> for BenchmarkCoordinatorTiming {
+    fn from(snapshot: SourceWorkerCoordinatorTimingSnapshot) -> Self {
+        Self {
+            sequence: snapshot.sequence,
+            deadline_ns: snapshot.deadline_ns,
+            dispatch_to_deadline_start_ns: snapshot.dispatch_to_deadline_start_ns,
+            dispatch_to_deadline_elapsed_ns: snapshot.dispatch_to_deadline_elapsed_ns,
+            in_flight_mask: snapshot.in_flight_mask,
+            completed_mask: snapshot.completed_mask,
+            first_parity: snapshot.first_parity,
+            dispatch_to_first_ns: snapshot.dispatch_to_first_ns,
+            dispatch_to_both_ns: snapshot.dispatch_to_both_ns,
+            reduction_ns: snapshot.reduction_ns,
+            coordinator_remainder_ns: snapshot.coordinator_remainder_ns,
+            engine_block_total_ns: snapshot.engine_block_total_ns,
+            callback_total_ns: snapshot.callback_total_ns,
+            failed: snapshot.failed,
+            frozen: snapshot.frozen,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]

@@ -1,4 +1,5 @@
-use super::source_lane_renderer::SampleSourceContext;
+#[cfg(feature = "source-worker-benchmark-timing")]
+use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::source_worker_health::{
     SourceWorkerHealth, SourceWorkerHealthSnapshot, SourceWorkerHealthState,
 };
@@ -12,7 +13,7 @@ use super::source_worker_retirement::SourceWorkerRetirement;
 use super::source_worker_transfer;
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
-use crossbeam_channel::{Receiver, Sender, TryRecvError, TrySendError};
+use crossbeam_channel::{Receiver, Sender, TryRecvError};
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -36,6 +37,12 @@ pub struct SourceWorkerRuntime {
     jobs_started: Option<[Arc<AtomicU64>; SOURCE_WORKER_COUNT]>,
     #[cfg(any(test, feature = "test-support"))]
     render_attempts: AtomicU64,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    dispatch_started_at: Option<Instant>,
+    #[cfg(any(test, feature = "test-support"))]
+    worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
     runtime_close: Option<Arc<SourceWorkerCloseState>>,
     health: Arc<SourceWorkerHealthState>,
     next_sequence: u64,
@@ -65,6 +72,12 @@ impl SourceWorkerRuntime {
             jobs_started: None,
             #[cfg(any(test, feature = "test-support"))]
             render_attempts: AtomicU64::new(0),
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe: None,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at: None,
+            #[cfg(any(test, feature = "test-support"))]
+            worker_pauses: None,
             runtime_close: None,
             health: Arc::new(SourceWorkerHealthState::new(SourceWorkerHealth::Disabled)),
             next_sequence: 0,
@@ -110,6 +123,12 @@ impl SourceWorkerRuntime {
             ]),
             #[cfg(any(test, feature = "test-support"))]
             render_attempts: AtomicU64::new(0),
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe: None,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at: None,
+            #[cfg(any(test, feature = "test-support"))]
+            worker_pauses: Some(lifecycle.worker_pause_controls_for_test()),
             runtime_close: Some(Arc::clone(&lifecycle.runtime_close)),
             health: Arc::clone(&lifecycle.health),
             next_sequence: 0,
@@ -129,6 +148,8 @@ impl SourceWorkerRuntime {
     }
 
     pub fn retire(mut self) -> SourceWorkerRetirement {
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        self.freeze_timing(self.health.status().is_terminal(), None);
         let Some(close) = self.runtime_close.take() else {
             return SourceWorkerRetirement::inline();
         };
@@ -250,81 +271,37 @@ impl SourceWorkerRuntime {
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
             self.reclaim_available(engine);
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            self.freeze_timing(true, None);
             return false;
         }
         if frames > BLOCK_SLOT_SCRATCH_FRAMES {
             self.latch_invalid_block();
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            self.freeze_timing(true, None);
             return false;
         }
         if self.in_flight_mask != 0 || !self.home_is_ready() {
             self.latch_dispatch_failure(0b11);
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            self.freeze_timing(true, None);
             return false;
         }
         self.expected_frames = frames;
         self.expected_base_sample_clock = engine.sample_clock;
         if !self.dispatch(engine) {
             self.reclaim_available(engine);
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            self.freeze_timing(true, None);
             return false;
         }
         self.collect(engine, true)
     }
 
-    fn dispatch(&mut self, engine: &mut SynthEngine) -> bool {
-        let sequence = self.next_sequence;
-        self.next_sequence = self.next_sequence.wrapping_add(1);
-        self.expected_sequence = Some(sequence);
-        let Some(mut first) = self.lease_home(0) else {
-            self.latch_dispatch_failure(0b11);
-            return false;
-        };
-        let Some(second) = self.lease_home(1) else {
-            first.return_fault();
-            self.latch_dispatch_failure(0b11);
-            return false;
-        };
-        let first_sent = self.send_work(engine, sequence, first);
-        let second_sent = self.send_work(engine, sequence, second);
-        first_sent && second_sent && self.health.status() == SourceWorkerHealth::Healthy
-    }
-
-    fn send_work(&mut self, engine: &SynthEngine, sequence: u64, mut lease: OwnerLease) -> bool {
-        let Some(owner) = lease.take_owner() else {
-            self.latch_dispatch_failure(1 << lease.parity);
-            return false;
-        };
-        let work = WorkEnvelope {
-            owner,
-            sequence,
-            frames: self.expected_frames,
-            base_sample_clock: self.expected_base_sample_clock,
-            synth_context: engine.synth_source_context(),
-            sample_context: SampleSourceContext {
-                sample_rate: engine.sample_rate,
-            },
-        };
-        let parity = lease.parity;
-        let Some(work_tx) = self.work_txs.as_ref().map(|work_txs| &work_txs[parity]) else {
-            lease.restore_owner(work.owner);
-            lease.return_home();
-            self.latch_dispatch_failure(1 << parity);
-            return false;
-        };
-        match work_tx.try_send(work) {
-            Ok(()) => {
-                self.in_flight_mask |= 1 << parity;
-                true
-            }
-            Err(TrySendError::Full(work) | TrySendError::Disconnected(work)) => {
-                lease.restore_owner(work.owner);
-                lease.return_home();
-                self.latch_dispatch_failure(1 << parity);
-                false
-            }
-        }
-    }
-
     fn collect(&mut self, engine: &mut SynthEngine, wait: bool) -> bool {
         let start = Instant::now();
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        self.record_dispatch_to_deadline_start(start);
         let deadline = self.rendezvous_deadline(self.expected_frames);
         while self.in_flight_mask != 0 {
             for parity in 0..SOURCE_WORKER_COUNT {
@@ -347,6 +324,13 @@ impl SourceWorkerRuntime {
                 }
             }
             if self.health.status() != SourceWorkerHealth::Healthy {
+                #[cfg(feature = "source-worker-benchmark-timing")]
+                self.freeze_timing(
+                    true,
+                    (self.health.status() == SourceWorkerHealth::DeadlineMiss)
+                        .then(|| self.dispatch_elapsed())
+                        .flatten(),
+                );
                 self.reclaim_available(engine);
             }
             if self.in_flight_mask == 0 {
@@ -359,11 +343,15 @@ impl SourceWorkerRuntime {
                 if self.health.status() == SourceWorkerHealth::Healthy {
                     self.latch_deadline_or_exit();
                 }
+                #[cfg(feature = "source-worker-benchmark-timing")]
+                self.freeze_timing(true, self.dispatch_elapsed());
                 self.reclaim_available(engine);
                 return false;
             }
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            self.freeze_timing(true, None);
             self.reclaim_available(engine);
             return false;
         }
@@ -377,54 +365,6 @@ impl SourceWorkerRuntime {
         self.home_txs
             .as_ref()
             .is_some_and(|home_txs| !home_txs[parity].is_full())
-    }
-
-    fn finish_completed(&mut self, engine: &mut SynthEngine) -> bool {
-        if self.in_flight_mask != 0 || self.completed_mask != 0b11 || !self.home_is_ready() {
-            self.latch_completion_failure(0b11);
-            return false;
-        }
-        let Some(mut first) = self.lease_home(0) else {
-            self.latch_completion_failure(0b11);
-            return false;
-        };
-        let Some(mut second) = self.lease_home(1) else {
-            first.return_fault();
-            self.latch_completion_failure(0b11);
-            return false;
-        };
-        match source_worker_transfer::with_both_source_partitions(
-            engine,
-            &mut first,
-            &mut second,
-            |engine, scratch| {
-                source_worker_transfer::compact_source_pools(engine);
-                self.reduce_sources(engine, scratch, self.expected_frames);
-                for slot in 0..super::super::types::INSTRUMENT_SLOT_COUNT {
-                    engine.active_synth_slots[slot] = engine
-                        .synth_voice_pool
-                        .active_count_for_slot(slot)
-                        .unwrap_or(0)
-                        > 0;
-                    engine.active_sample_slots[slot] = engine
-                        .sample_voice_pool
-                        .active_count_for_slot(slot)
-                        .unwrap_or(0)
-                        > 0;
-                }
-            },
-        ) {
-            Ok(()) => {
-                first.return_home();
-                second.return_home();
-                self.completed_mask = 0;
-                true
-            }
-            Err(()) => {
-                self.latch_completion_failure(0b11);
-                false
-            }
-        }
     }
 
     fn latch_dispatch_failure(&self, mask: u8) {
@@ -470,6 +410,16 @@ impl Drop for SourceWorkerRuntime {
 
 #[path = "source_worker_mailboxes.rs"]
 mod mailboxes;
+
+#[path = "source_worker_dispatch.rs"]
+mod dispatch;
+
+#[path = "source_worker_completion.rs"]
+mod completion;
+
+#[cfg(feature = "source-worker-benchmark-timing")]
+#[path = "source_worker_timing_integration.rs"]
+mod timing_integration;
 
 #[path = "source_worker_reduce.rs"]
 mod reduction;
