@@ -43,6 +43,8 @@ mod retired_state;
 #[cfg(test)]
 mod sample_filter_block_tests;
 mod sample_voice_pool;
+#[cfg(test)]
+mod source_lane_prefix_tests;
 mod source_lane_renderer;
 mod source_worker;
 #[cfg(test)]

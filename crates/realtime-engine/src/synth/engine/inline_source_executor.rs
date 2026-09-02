@@ -9,6 +9,32 @@ use super::source_lane_renderer::{
     SynthSourceContext,
 };
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
+#[cfg(test)]
+use std::cell::Cell;
+
+#[cfg(test)]
+thread_local! {
+    static PREFIX_ACTIVITY_APPLIES: Cell<[usize; 2]> = const { Cell::new([0; 2]) };
+}
+
+#[cfg(test)]
+fn record_prefix_activity_apply(index: usize) {
+    PREFIX_ACTIVITY_APPLIES.with(|applies| {
+        let mut value = applies.get();
+        value[index] += 1;
+        applies.set(value);
+    });
+}
+
+#[cfg(test)]
+pub(super) fn prefix_activity_applies_for_test() -> [usize; 2] {
+    PREFIX_ACTIVITY_APPLIES.with(Cell::get)
+}
+
+#[cfg(test)]
+pub(super) fn reset_prefix_activity_applies_for_test() {
+    PREFIX_ACTIVITY_APPLIES.with(|applies| applies.set([0; 2]));
+}
 
 pub(super) struct InlineSourceExecutor {
     synth_scratch: [SourceLaneBlockScratch; VOICE_PARTITION_COUNT],
@@ -126,19 +152,27 @@ impl InlineSourceExecutor {
         active_slots: &mut [bool; INSTRUMENT_SLOT_COUNT],
     ) {
         for slot in 0..INSTRUMENT_SLOT_COUNT {
+            let mut rendered_prefix = 0;
             for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
                 let parity = lane % VOICE_PARTITION_COUNT;
                 let local_lane = lane / VOICE_PARTITION_COUNT;
                 if self.synth_scratch[parity].slots[local_lane] as usize != slot {
                     continue;
                 }
-                for frame in 0..frames {
-                    slot_out[slot][frame] += self.synth_scratch[parity].samples[local_lane][frame];
-                    slot_active[slot][frame] |=
-                        self.synth_scratch[parity].active[local_lane][frame];
-                    active_slots[slot] |= self.synth_scratch[parity].active[local_lane][frame];
+                rendered_prefix =
+                    rendered_prefix.max(self.synth_scratch[parity].rendered_frames[local_lane]);
+                for (out, sample) in slot_out[slot][..frames]
+                    .iter_mut()
+                    .zip(self.synth_scratch[parity].samples[local_lane][..frames].iter())
+                {
+                    *out += *sample;
                 }
             }
+            slot_active[slot][..rendered_prefix].fill(true);
+            slot_active[slot][rendered_prefix..frames].fill(false);
+            active_slots[slot] |= rendered_prefix > 0;
+            #[cfg(test)]
+            record_prefix_activity_apply(0);
         }
     }
 
@@ -150,19 +184,27 @@ impl InlineSourceExecutor {
         active_slots: &mut [bool; INSTRUMENT_SLOT_COUNT],
     ) {
         for slot in 0..INSTRUMENT_SLOT_COUNT {
+            let mut rendered_prefix = 0;
             for lane in 0..SAMPLE_VOICE_LANE_CAPACITY {
                 let parity = lane % VOICE_PARTITION_COUNT;
                 let local_lane = lane / VOICE_PARTITION_COUNT;
                 if self.sample_scratch[parity].slots[local_lane] as usize != slot {
                     continue;
                 }
-                for frame in 0..frames {
-                    slot_out[slot][frame] += self.sample_scratch[parity].samples[local_lane][frame];
-                    slot_active[slot][frame] |=
-                        self.sample_scratch[parity].active[local_lane][frame];
-                    active_slots[slot] |= self.sample_scratch[parity].active[local_lane][frame];
+                rendered_prefix =
+                    rendered_prefix.max(self.sample_scratch[parity].rendered_frames[local_lane]);
+                for (out, sample) in slot_out[slot][..frames]
+                    .iter_mut()
+                    .zip(self.sample_scratch[parity].samples[local_lane][..frames].iter())
+                {
+                    *out += *sample;
                 }
             }
+            slot_active[slot][..rendered_prefix].fill(true);
+            slot_active[slot][rendered_prefix..frames].fill(false);
+            active_slots[slot] |= rendered_prefix > 0;
+            #[cfg(test)]
+            record_prefix_activity_apply(1);
         }
     }
 }
@@ -171,4 +213,92 @@ pub(super) struct SourceRenderOutput<'a> {
     pub slot_out: &'a mut [Vec<f32>; INSTRUMENT_SLOT_COUNT],
     pub slot_active: &'a mut [Vec<bool>; INSTRUMENT_SLOT_COUNT],
     pub active_slots: &'a mut [bool; INSTRUMENT_SLOT_COUNT],
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::synth::engine::source_lane_renderer::INVALID_INSTRUMENT_SLOT;
+
+    #[test]
+    fn prefix_reduction_matches_boolean_activity_and_lane_order() {
+        for frames in [32, 64, 128, 256, 2048] {
+            for varied_prefixes in [false, true] {
+                let mut executor = InlineSourceExecutor::new();
+                let prefixes = if varied_prefixes {
+                    [frames, frames / 2, 0, frames / 3]
+                } else {
+                    [frames; 4]
+                };
+                for (lane, prefix) in prefixes.into_iter().enumerate() {
+                    set_synth_lane(&mut executor, lane, prefix, frames);
+                }
+                set_synth_lane(&mut executor, 4, 0, frames);
+                executor.synth_scratch[0].slots[5] = INVALID_INSTRUMENT_SLOT;
+                executor.synth_scratch[0].rendered_frames[5] = frames;
+
+                let mut expected_output = vec![0.0; frames];
+                let mut expected_active = vec![false; frames];
+                for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
+                    let parity = lane % VOICE_PARTITION_COUNT;
+                    let local_lane = lane / VOICE_PARTITION_COUNT;
+                    let scratch = &executor.synth_scratch[parity];
+                    if scratch.slots[local_lane] != 0 {
+                        continue;
+                    }
+                    for frame in 0..frames {
+                        expected_output[frame] += scratch.samples[local_lane][frame];
+                        expected_active[frame] |= frame < scratch.rendered_frames[local_lane];
+                    }
+                }
+
+                let mut slot_out = std::array::from_fn(|_| vec![0.0; frames]);
+                let mut slot_active = std::array::from_fn(|_| vec![false; frames]);
+                let mut active_slots = [false; INSTRUMENT_SLOT_COUNT];
+                executor.reduce_synth_sources(
+                    frames,
+                    &mut slot_out,
+                    &mut slot_active,
+                    &mut active_slots,
+                );
+
+                for frame in 0..frames {
+                    assert_eq!(
+                        slot_out[0][frame].to_bits(),
+                        expected_output[frame].to_bits()
+                    );
+                    assert_eq!(slot_active[0][frame], expected_active[frame]);
+                }
+                assert_eq!(
+                    active_slots[0],
+                    expected_active.iter().any(|active| *active)
+                );
+            }
+        }
+    }
+
+    fn set_synth_lane(
+        executor: &mut InlineSourceExecutor,
+        lane: usize,
+        prefix: usize,
+        frames: usize,
+    ) {
+        let parity = lane % VOICE_PARTITION_COUNT;
+        let local_lane = lane / VOICE_PARTITION_COUNT;
+        let scratch = &mut executor.synth_scratch[parity];
+        scratch.slots[local_lane] = 0;
+        scratch.rendered_frames[local_lane] = prefix;
+        for (frame, sample) in scratch.samples[local_lane][..frames].iter_mut().enumerate() {
+            *sample = if frame < prefix {
+                match lane {
+                    0 => 16_777_216.0,
+                    1 => -16_777_216.0,
+                    2 => 1.0,
+                    _ => lane as f32 * 0.125,
+                }
+            } else {
+                0.0
+            };
+        }
+    }
 }

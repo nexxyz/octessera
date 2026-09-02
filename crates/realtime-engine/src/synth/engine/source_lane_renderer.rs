@@ -13,6 +13,32 @@ use super::render_voice::{
 use super::sample_voice_pool::SampleVoicePartition;
 use super::support::{mono_frame, SampleVoice};
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
+#[cfg(test)]
+use std::cell::Cell;
+
+#[cfg(test)]
+thread_local! {
+    static RENDERED_PREFIX_WRITES: Cell<[usize; 2]> = const { Cell::new([0; 2]) };
+}
+
+#[cfg(test)]
+fn record_rendered_prefix_write(index: usize) {
+    RENDERED_PREFIX_WRITES.with(|writes| {
+        let mut value = writes.get();
+        value[index] += 1;
+        writes.set(value);
+    });
+}
+
+#[cfg(test)]
+pub(super) fn reset_rendered_prefix_writes_for_test() {
+    RENDERED_PREFIX_WRITES.with(|writes| writes.set([0; 2]));
+}
+
+#[cfg(test)]
+pub(super) fn rendered_prefix_writes_for_test() -> [usize; 2] {
+    RENDERED_PREFIX_WRITES.with(Cell::get)
+}
 
 const _: () = assert!(
     VOICE_PARTITION_COUNT * SYNTH_VOICE_PARTITION_LANE_CAPACITY == SYNTH_VOICE_LANE_CAPACITY
@@ -24,7 +50,7 @@ const _: () = assert!(SYNTH_VOICE_PARTITION_LANE_CAPACITY == SAMPLE_VOICE_PARTIT
 
 pub(super) struct SourceLaneBlockScratch {
     pub(super) samples: [Vec<f32>; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-    pub(super) active: [Vec<bool>; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
+    pub(super) rendered_frames: [usize; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
     pub(super) slots: [u8; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
 }
 
@@ -34,7 +60,7 @@ impl SourceLaneBlockScratch {
     pub(super) fn new() -> Self {
         Self {
             samples: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
-            active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
+            rendered_frames: [0; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
             slots: [INVALID_INSTRUMENT_SLOT; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
         }
     }
@@ -46,9 +72,7 @@ impl SourceLaneBlockScratch {
         for samples in &mut self.samples {
             samples[..frames].fill(0.0);
         }
-        for active in &mut self.active {
-            active[..frames].fill(false);
-        }
+        self.rendered_frames.fill(0);
         self.slots.fill(INVALID_INSTRUMENT_SLOT);
         true
     }
@@ -92,15 +116,17 @@ pub(super) fn render_synth_partition(
             revision: context.revisions[slot],
             mods: context.mods[slot],
         };
-        render_synth_voice_block(
+        let rendered_frames = render_synth_voice_block(
             voice,
             slot,
             frames,
             base_sample_clock,
             frame_context,
             &mut scratch.samples[lane],
-            &mut scratch.active[lane],
         );
+        #[cfg(test)]
+        record_rendered_prefix_write(0);
+        scratch.rendered_frames[lane] = rendered_frames;
     }
 }
 
@@ -121,13 +147,15 @@ pub(super) fn render_sample_partition(
             continue;
         }
         scratch.slots[lane] = slot as u8;
-        render_sample_voice_block(
+        let rendered_frames = render_sample_voice_block(
             voice,
             frames,
             context.sample_rate,
             &mut scratch.samples[lane],
-            &mut scratch.active[lane],
         );
+        #[cfg(test)]
+        record_rendered_prefix_write(1);
+        scratch.rendered_frames[lane] = rendered_frames;
     }
 }
 
@@ -189,10 +217,9 @@ fn render_synth_voice_block(
     base_sample_clock: u64,
     context: SynthVoiceFrameContext,
     samples: &mut [f32],
-    active: &mut [bool],
-) {
+) -> usize {
     if frames == 0 || !voice.active {
-        return;
+        return 0;
     }
     debug_assert_eq!(voice.instrument_slot as usize, slot_idx);
     let block =
@@ -206,8 +233,8 @@ fn render_synth_voice_block(
             context.sample_rate,
         );
     }
-    let mut rendered = false;
-    for frame in 0..frames {
+    let mut rendered_frames = 0;
+    for (frame, sample) in samples[..frames].iter_mut().enumerate() {
         if base_sample_clock.saturating_add(frame as u64) >= voice.note_off_sample {
             voice
                 .amp_env
@@ -220,7 +247,7 @@ fn render_synth_voice_block(
         let filt_env = voice.filt_env.next();
         if voice.amp_env.is_off() {
             voice.active = false;
-            if !rendered && block.static_cutoff.is_some() {
+            if rendered_frames == 0 && block.static_cutoff.is_some() {
                 voice.filt = initial_filter;
             }
             break;
@@ -233,7 +260,7 @@ fn render_synth_voice_block(
                 context.revision,
             );
         }
-        samples[frame] = render_synth_voice_sample_block_precomputed(
+        *sample = render_synth_voice_sample_block_precomputed(
             context.sample_rate,
             context.mods,
             &context.render_config,
@@ -242,9 +269,9 @@ fn render_synth_voice_block(
             filt_env,
             block,
         );
-        active[frame] = true;
-        rendered = true;
+        rendered_frames += 1;
     }
+    rendered_frames
 }
 
 pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u32) -> Option<f32> {
@@ -280,32 +307,33 @@ pub(super) fn render_sample_voice_block(
     frames: usize,
     sample_rate: u32,
     samples: &mut [f32],
-    active: &mut [bool],
-) {
+) -> usize {
     if frames == 0 || !voice.active {
-        return;
+        return 0;
     }
     let Some(buffer) = voice.buffer.as_ref() else {
         voice.active = false;
-        return;
+        return 0;
     };
     let buffer_frames = buffer.samples.len() / buffer.channels as usize;
     if buffer_frames == 0 || voice.pos >= buffer_frames as f32 {
         voice.active = false;
-        return;
+        return 0;
     }
     let q = sample_filter_q(voice.filter_resonance);
     voice
         .filt
         .prepare(FilterType::Lowpass, voice.filter_cutoff_hz, q, sample_rate);
-    for frame in 0..frames {
-        if let Some(sample) = render_sample_voice_frame_prepared(voice) {
-            samples[frame] = sample;
-            active[frame] = true;
+    let mut rendered_frames = 0;
+    for sample in samples[..frames].iter_mut() {
+        if let Some(rendered) = render_sample_voice_frame_prepared(voice) {
+            *sample = rendered;
+            rendered_frames += 1;
         } else if !voice.active {
             break;
         }
     }
+    rendered_frames
 }
 
 fn render_sample_voice_frame_prepared(voice: &mut SampleVoice) -> Option<f32> {
@@ -352,22 +380,38 @@ mod tests {
     use super::*;
     use std::mem::size_of;
 
-    const GLOBAL_SYNTH_SCRATCH_BYTES: usize = size_of::<[Vec<f32>; SYNTH_VOICE_LANE_CAPACITY]>()
-        + size_of::<[Vec<bool>; SYNTH_VOICE_LANE_CAPACITY]>()
-        + size_of::<[u8; SYNTH_VOICE_LANE_CAPACITY]>();
-    const GLOBAL_SAMPLE_SCRATCH_BYTES: usize = size_of::<[Vec<f32>; SAMPLE_VOICE_LANE_CAPACITY]>()
-        + size_of::<[Vec<bool>; SAMPLE_VOICE_LANE_CAPACITY]>()
-        + size_of::<[u8; SAMPLE_VOICE_LANE_CAPACITY]>();
+    const GLOBAL_SYNTH_SCRATCH_METADATA_BYTES: usize =
+        size_of::<[Vec<f32>; SYNTH_VOICE_LANE_CAPACITY]>()
+            + size_of::<[usize; SYNTH_VOICE_LANE_CAPACITY]>()
+            + size_of::<[u8; SYNTH_VOICE_LANE_CAPACITY]>();
+    const GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES: usize =
+        size_of::<[Vec<f32>; SAMPLE_VOICE_LANE_CAPACITY]>()
+            + size_of::<[usize; SAMPLE_VOICE_LANE_CAPACITY]>()
+            + size_of::<[u8; SAMPLE_VOICE_LANE_CAPACITY]>();
+    const LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES: usize =
+        size_of::<[Vec<f32>; SYNTH_VOICE_LANE_CAPACITY]>()
+            + size_of::<[Vec<bool>; SYNTH_VOICE_LANE_CAPACITY]>()
+            + size_of::<[u8; SYNTH_VOICE_LANE_CAPACITY]>();
+    const LEGACY_GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES: usize =
+        size_of::<[Vec<f32>; SAMPLE_VOICE_LANE_CAPACITY]>()
+            + size_of::<[Vec<bool>; SAMPLE_VOICE_LANE_CAPACITY]>()
+            + size_of::<[u8; SAMPLE_VOICE_LANE_CAPACITY]>();
 
     const _: () = assert!(
-        size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>() == GLOBAL_SYNTH_SCRATCH_BYTES
+        size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>()
+            == GLOBAL_SYNTH_SCRATCH_METADATA_BYTES
     );
     const _: () = assert!(
-        size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>() == GLOBAL_SAMPLE_SCRATCH_BYTES
+        size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>()
+            == GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
     );
+    const _: () =
+        assert!(GLOBAL_SYNTH_SCRATCH_METADATA_BYTES < LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES);
+    const _: () =
+        assert!(GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES < LEGACY_GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES);
     const _: () = assert!(
         size_of::<InlineSourceExecutor>()
-            == GLOBAL_SYNTH_SCRATCH_BYTES + GLOBAL_SAMPLE_SCRATCH_BYTES
+            == GLOBAL_SYNTH_SCRATCH_METADATA_BYTES + GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
     );
 
     #[test]
@@ -384,15 +428,25 @@ mod tests {
         );
         assert_eq!(
             size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>(),
-            GLOBAL_SYNTH_SCRATCH_BYTES
+            GLOBAL_SYNTH_SCRATCH_METADATA_BYTES
         );
         assert_eq!(
             size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>(),
-            GLOBAL_SAMPLE_SCRATCH_BYTES
+            GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
         );
         assert_eq!(
             size_of::<InlineSourceExecutor>(),
-            GLOBAL_SYNTH_SCRATCH_BYTES + GLOBAL_SAMPLE_SCRATCH_BYTES
+            GLOBAL_SYNTH_SCRATCH_METADATA_BYTES + GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
+        );
+        assert_eq!(
+            LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES - GLOBAL_SYNTH_SCRATCH_METADATA_BYTES,
+            size_of::<[Vec<bool>; SYNTH_VOICE_LANE_CAPACITY]>()
+                - size_of::<[usize; SYNTH_VOICE_LANE_CAPACITY]>()
+        );
+        assert_eq!(
+            LEGACY_GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES - GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES,
+            size_of::<[Vec<bool>; SAMPLE_VOICE_LANE_CAPACITY]>()
+                - size_of::<[usize; SAMPLE_VOICE_LANE_CAPACITY]>()
         );
     }
 
@@ -400,10 +454,14 @@ mod tests {
     fn scratch_prepare_invalidates_every_lane_slot() {
         let mut scratch = SourceLaneBlockScratch::new();
         scratch.slots.fill(0);
+        scratch.samples[0][0] = 1.0;
+        scratch.rendered_frames.fill(BLOCK_SLOT_SCRATCH_FRAMES);
         assert!(scratch.prepare(64));
         assert!(scratch
             .slots
             .iter()
             .all(|slot| *slot == INVALID_INSTRUMENT_SLOT));
+        assert_eq!(scratch.samples[0][0].to_bits(), 0.0_f32.to_bits());
+        assert!(scratch.rendered_frames.iter().all(|frames| *frames == 0));
     }
 }
