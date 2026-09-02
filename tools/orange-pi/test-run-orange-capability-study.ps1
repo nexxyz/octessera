@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $scriptPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
+Import-Module (Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1") -Force
 
 function Invoke-StudyPrintOnly {
   param([hashtable]$Parameters)
@@ -293,10 +294,20 @@ if ($live -match "flash|reboot|gpio|suspend|poweroff") {
   throw "LiveCandidate plan contains an unapproved hardware reconfiguration path."
 }
 
-$live300Parameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 300; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
+if ((Get-OrangeBaselineLiveScenarioIds) -notcontains "mixed_ramp_16_48" -or (Get-OrangeLiveScenarioIds) -notcontains "mixed_ramp_32_32" -or (Get-OrangeLiveScenarioIds) -contains "mixed_ramp_16_48" -or @(Get-OrangeLiveMatrixPlan | Where-Object { $_.Scenario -eq "mixed_ramp_16_48" }).Count -ne 0) {
+  throw "The current-contract scenario was not kept separate from the canonical matrix."
+}
+foreach ($seconds in @(30, 120, 300)) {
+  $allowLongRepeat = $seconds -eq 120
+  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "mixed_ramp_16_48" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds $seconds -AllowLongRepeat:$allowLongRepeat
+  if ($selection.MeasureSeconds -ne $seconds -or $selection.InternalFrames -ne 128) { throw "Current-contract scenario selection changed for $seconds seconds." }
+}
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "mixed_ramp_16_48" -OutputFrames 256 -EngineBlockFrames 32 -MeasureSeconds 300 }
+
+$live300Parameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "mixed_ramp_16_48"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 300; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
 $live300 = Invoke-StudyPrintOnly -Parameters $live300Parameters
 Assert-NoPayloadPlaceholders $live300
-Assert-Contains $live300 "Live selection: individual output=256 period=64 engine=256 internal=256 scenario=synth_ramp_16 measure=300 warmup=5"
+Assert-Contains $live300 "Live selection: A output=256 period=64 engine=128 internal=128 scenario=mixed_ramp_16_48 measure=300 warmup=5"
 Assert-Contains $live300 "RuntimeMaxSec=455s"
 Assert-Contains $live300 "with-orange-ssh.ps1"
 Assert-Contains $live300 "sensor_loop"

@@ -86,6 +86,31 @@ pub(super) fn mixed_events(
     events
 }
 
+pub(super) fn mixed_ramp_16_48_events(
+    sample_rate: u32,
+    sample_banks: &[SampleBankConfig],
+) -> Vec<EngineEvent> {
+    let mut events = vec![prepared_config(
+        instruments(
+            [
+                "synth", "synth", "sampler", "sampler", "sampler", "sampler", "sampler", "sampler",
+            ],
+            [0; INSTRUMENT_SLOT_COUNT],
+            None,
+        ),
+        Some(sample_banks.to_vec()),
+        VoiceStealingMode::Fixed16,
+        sample_rate,
+    )];
+    for slot in 0..2 {
+        push_distributed_notes_in_slots(&mut events, 8, 60, false, slot, 1);
+    }
+    for slot in 2..INSTRUMENT_SLOT_COUNT {
+        push_distributed_notes_in_slots(&mut events, 8, 36, true, slot, 1);
+    }
+    events
+}
+
 pub(super) fn fx_events(
     bus_slots: usize,
     global_slots: usize,
