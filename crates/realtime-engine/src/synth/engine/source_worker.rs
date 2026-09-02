@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;
-const SOURCE_WORKER_DEADLINE_FRACTION: f64 = 0.30;
+const SOURCE_WORKER_DEADLINE_FRACTION: f64 = 0.35;
 
 pub struct SourceWorkerRuntime {
     mode: SourceWorkerMode,
