@@ -21,10 +21,30 @@ fn rendezvous_deadline_formula_is_exact_for_supported_rates_and_frames() {
         let (lifecycle, runtime) =
             SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
         for frames in [64, 128, 256] {
-            assert_eq!(
-                runtime.deadline_for_test(frames),
-                Duration::from_secs_f64(frames as f64 / sample_rate as f64 * 0.25)
-            );
+            let expected = Duration::from_secs_f64(frames as f64 / sample_rate as f64 * 0.30);
+            let expected_ns = match (sample_rate, frames) {
+                (44_100, 64) => 435_374,
+                (44_100, 128) => 870_748,
+                (44_100, 256) => 1_741_497,
+                (48_000, 64) => 400_000,
+                (48_000, 128) => 800_000,
+                (48_000, 256) => 1_600_000,
+                _ => unreachable!(),
+            };
+            assert_eq!(runtime.deadline_for_test(frames), expected);
+            assert_eq!(expected.as_nanos(), expected_ns);
+            if sample_rate == 44_100 && frames == 128 {
+                let completion_ns = 842_502_u64;
+                let dispatch_to_deadline_start_ns = 63_709_u64;
+                let old_boundary_ns = dispatch_to_deadline_start_ns
+                    + Duration::from_secs_f64(frames as f64 / sample_rate as f64 * 0.25).as_nanos()
+                        as u64;
+                let new_deadline_ns = expected.as_nanos() as u64;
+                let new_boundary_ns = dispatch_to_deadline_start_ns + new_deadline_ns;
+                assert_eq!(new_deadline_ns, 870_748);
+                assert!(completion_ns > old_boundary_ns);
+                assert!(completion_ns < new_boundary_ns);
+            }
         }
         let retirement = runtime.retire();
         assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
