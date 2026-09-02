@@ -281,7 +281,7 @@ impl BenchmarkProgress {
             post_dsp_zero: metrics.lifetime_callback_count > 0
                 && metrics.post_mute_nonzero_samples == 0,
             executor_mode: super::stream::EXECUTOR_MODE.into(),
-            worker_health: super::stream::source_worker_health_name(worker_health).into(),
+            worker_health: worker_health.name().into(),
             worker_thread_name_0: super::stream::expected_worker_thread_names()[0].clone(),
             worker_thread_name_1: super::stream::expected_worker_thread_names()[1].clone(),
         }
@@ -321,7 +321,7 @@ pub fn readiness(
         scheduler_qualified: true,
         post_dsp_zero: true,
         executor_mode: super::stream::EXECUTOR_MODE.into(),
-        worker_health: super::stream::source_worker_health_name(worker_health).into(),
+        worker_health: worker_health.name().into(),
         worker_thread_name_0: super::stream::expected_worker_thread_names()[0].clone(),
         worker_thread_name_1: super::stream::expected_worker_thread_names()[1].clone(),
     }

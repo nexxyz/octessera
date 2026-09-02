@@ -366,7 +366,7 @@ fn required_jack_fault_terminates_orange_runtime() {
 #[test]
 fn worker_terminal_becomes_runtime_terminal_and_fails_readiness() {
     let health = AudioStreamHealth::new("Jack".into());
-    health.mark_worker_terminal();
+    health.mark_worker_health(realtime_engine::synth::SourceWorkerHealth::WorkerExited);
 
     assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
     assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);

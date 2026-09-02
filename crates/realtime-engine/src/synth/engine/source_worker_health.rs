@@ -12,6 +12,44 @@ pub enum SourceWorkerHealth {
     InvalidBlock = 6,
 }
 
+impl SourceWorkerHealth {
+    pub const fn from_u8(value: u8) -> Self {
+        match value {
+            0 => Self::Disabled,
+            1 => Self::Healthy,
+            2 => Self::DeadlineMiss,
+            3 => Self::DispatchFailed,
+            4 => Self::CompletionFailed,
+            5 => Self::WorkerExited,
+            6 => Self::InvalidBlock,
+            _ => Self::CompletionFailed,
+        }
+    }
+
+    pub const fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            Self::DeadlineMiss
+                | Self::DispatchFailed
+                | Self::CompletionFailed
+                | Self::WorkerExited
+                | Self::InvalidBlock
+        )
+    }
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Disabled => "disabled",
+            Self::Healthy => "healthy",
+            Self::DeadlineMiss => "deadline_miss",
+            Self::DispatchFailed => "dispatch_failed",
+            Self::CompletionFailed => "completion_failed",
+            Self::WorkerExited => "worker_exited",
+            Self::InvalidBlock => "invalid_block",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SourceWorkerHealthSnapshot {
     pub status: SourceWorkerHealth,
@@ -50,16 +88,7 @@ impl SourceWorkerHealthState {
     }
 
     pub(super) fn status(&self) -> SourceWorkerHealth {
-        match self.status.load(Ordering::Acquire) {
-            0 => SourceWorkerHealth::Disabled,
-            1 => SourceWorkerHealth::Healthy,
-            2 => SourceWorkerHealth::DeadlineMiss,
-            3 => SourceWorkerHealth::DispatchFailed,
-            4 => SourceWorkerHealth::CompletionFailed,
-            5 => SourceWorkerHealth::WorkerExited,
-            6 => SourceWorkerHealth::InvalidBlock,
-            _ => SourceWorkerHealth::CompletionFailed,
-        }
+        SourceWorkerHealth::from_u8(self.status.load(Ordering::Acquire))
     }
 
     pub(super) fn latch(&self, health: SourceWorkerHealth, failed_mask: u8) {

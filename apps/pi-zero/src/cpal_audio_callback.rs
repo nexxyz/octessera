@@ -1,8 +1,8 @@
 use super::audio_stream_lifecycle::{AudioStreamRetirementError, AudioStreamRetirementWaiter};
-use super::cpal_audio_output::source_worker_health_is_terminal;
 use super::RecordingTapState;
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::Sample;
+use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::EngineSource;
 use std::sync::mpsc;
 
@@ -61,26 +61,33 @@ pub(super) fn fill_callback<T>(
     T: Sample + cpal::FromSample<f32>,
 {
     let Some(source) = callback_source.source_mut() else {
-        silence_output(data);
-        callback_health.mark_worker_terminal();
+        mark_worker_terminal(data, callback_health, SourceWorkerHealth::CompletionFailed);
         *worker_health_reported = true;
         return;
     };
-    if report_worker_health && source_worker_health_is_terminal(source.source_worker_health()) {
-        silence_output(data);
-        callback_health.mark_worker_terminal();
+    let health = source.source_worker_health();
+    if report_worker_health && health.is_terminal() {
+        mark_worker_terminal(data, callback_health, health);
         *worker_health_reported = true;
         return;
     }
     fill_output(data, source, recording_tap);
-    if report_worker_health
-        && !*worker_health_reported
-        && source_worker_health_is_terminal(source.source_worker_health())
-    {
-        silence_output(data);
-        callback_health.mark_worker_terminal();
+    let health = source.source_worker_health();
+    if report_worker_health && !*worker_health_reported && health.is_terminal() {
+        mark_worker_terminal(data, callback_health, health);
         *worker_health_reported = true;
     }
+}
+
+pub(super) fn mark_worker_terminal<T>(
+    data: &mut [T],
+    callback_health: &AudioStreamHealth,
+    health: SourceWorkerHealth,
+) where
+    T: Sample + cpal::FromSample<f32>,
+{
+    silence_output(data);
+    callback_health.mark_worker_health(health);
 }
 
 fn silence_output<T>(data: &mut [T])

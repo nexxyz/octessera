@@ -11,9 +11,9 @@ use crate::audio_stream_health::AudioStreamHealth;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
 use platform_core::AUDIO_OUTPUT_BUFFER_FRAMES;
+use realtime_engine::synth::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
-use realtime_engine::synth::{SourceWorkerHealth, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES};
 use rodio_engine_source::{EngineEventReceiver, EngineSource, EngineSourceWorkerShutdownOwner};
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -295,17 +295,6 @@ where
             execution_mode,
             AudioSourceExecutionMode::PersistentTwoWorkers
         ),
-    )
-}
-
-pub(super) fn source_worker_health_is_terminal(health: SourceWorkerHealth) -> bool {
-    matches!(
-        health,
-        SourceWorkerHealth::DispatchFailed
-            | SourceWorkerHealth::CompletionFailed
-            | SourceWorkerHealth::WorkerExited
-            | SourceWorkerHealth::InvalidBlock
-            | SourceWorkerHealth::DeadlineMiss
     )
 }
 

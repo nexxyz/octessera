@@ -385,7 +385,7 @@ fn ensure_stream_runtime_health_for_stream(
         metrics.mark_terminal();
         return Err(format!(
             "benchmark DSP worker entered a terminal health state: {}",
-            stream::source_worker_health_name(stream.worker_health())
+            stream.worker_health().name()
         ));
     }
     Ok(())
