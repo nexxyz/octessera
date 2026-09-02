@@ -41,6 +41,8 @@ mod render_tests;
 mod render_voice;
 mod retired_state;
 #[cfg(test)]
+mod sample_buffer_view_tests;
+#[cfg(test)]
 mod sample_filter_block_tests;
 mod sample_voice_pool;
 #[cfg(test)]
