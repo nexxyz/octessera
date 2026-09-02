@@ -19,8 +19,8 @@ function Assert-OrangeLiveBenchmarkSelection {
   }
   $alsaPeriodFrames = @{ 128 = 32; 256 = 64; 512 = 128; 1024 = 256 }[$OutputFrames]
   if ($null -eq $alsaPeriodFrames) { throw "LiveAudioBenchmark output frames must be 128, 256, 512, or 1024." }
-  if (@(30, 120) -notcontains $MeasureSeconds) {
-    throw "LiveAudioBenchmark measure seconds must be 30 or 120."
+  if (@(30, 120, 300) -notcontains $MeasureSeconds) {
+    throw "LiveAudioBenchmark measure seconds must be 30, 120, or 300."
   }
   $approvedTuples = @("128/32", "256/64", "256/128", "256/256", "512/128", "1024/256")
   $approvedTuple = $approvedTuples -contains "$OutputFrames/$EngineBlockFrames"
