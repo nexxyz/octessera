@@ -1,3 +1,4 @@
+use super::cli::{BenchmarkConfig, BenchmarkExecutorMode};
 use super::metrics::{CallbackMetrics, CallbackPrefix};
 use super::phase::{same_measuring_generation, MeasurementControl, MeasurementPhase, PhaseCapture};
 use super::probe::ProfileProbe;
@@ -17,6 +18,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(test)]
 pub const EXECUTOR_MODE: &str = "persistent_two_workers";
 
 pub struct BenchmarkStream {
@@ -28,6 +30,7 @@ pub struct BenchmarkStream {
     pub engine_block_frames: usize,
     health: AudioStreamHealth,
     worker_health: Arc<AtomicU8>,
+    worker_thread_names: [String; 2],
 }
 
 impl BenchmarkStream {
@@ -56,7 +59,7 @@ impl BenchmarkStream {
     }
 
     pub fn worker_thread_names(&self) -> [String; 2] {
-        expected_worker_thread_names()
+        self.worker_thread_names.clone()
     }
 }
 
@@ -88,13 +91,18 @@ struct CallbackContext {
 
 pub fn build(
     engine_rx: EngineEventReceiver,
-    output_frames: u32,
-    internal_frames: usize,
+    config: &BenchmarkConfig,
     metrics: Arc<CallbackMetrics>,
     profile_probe: Arc<ProfileProbe>,
     phase_control: Arc<MeasurementControl>,
     timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 ) -> Result<BenchmarkStream, String> {
+    let executor_mode = config.executor_mode;
+    let output_frames = config.output_frames;
+    let internal_frames = config.internal_frames;
+    if executor_mode == BenchmarkExecutorMode::Inline && timing_probe.is_some() {
+        return Err("inline executor requires disabled worker timing".into());
+    }
     let geometry = stream_geometry(output_frames, internal_frames)?;
     let device =
         crate::orange_audio::select_orange_output_device().map_err(|error| error.to_string())?;
@@ -103,8 +111,9 @@ pub fn build(
     let sample_format_name = format!("{sample_format:?}");
     debug_assert_eq!(geometry.output_frames, output_frames);
     config.buffer_size = BufferSize::Fixed(output_frames);
-    let (source, shutdown_owner) = build_persistent_source(
+    let (source, shutdown_owner) = build_source(
         engine_rx,
+        executor_mode,
         config.sample_rate.0,
         geometry.internal_frames,
         timing_probe.clone(),
@@ -113,7 +122,7 @@ pub fn build(
     let health = AudioStreamHealth::new("Orange benchmark".into());
     let worker_health = Arc::new(AtomicU8::new(source.source_worker_health() as u8));
     let (callback_source, retirement_waiter) = CallbackSource::new(source, true);
-    let scheduler = CallbackSchedulingHandle::new(crate::audio_priority::callback_priority());
+    let scheduler = CallbackSchedulingHandle::new(callback_priority_for_executor(executor_mode));
     let callback_scheduler = scheduler.clone();
     let callback_context = CallbackContext {
         metrics,
@@ -152,12 +161,9 @@ pub fn build(
             ))
         }
     };
-    let lifecycle = AudioStreamLifecycle::from_build_result(
-        stream_result,
-        Some(shutdown_owner),
-        retirement_waiter,
-    )
-    .map_err(map_build_error)?;
+    let lifecycle =
+        AudioStreamLifecycle::from_build_result(stream_result, shutdown_owner, retirement_waiter)
+            .map_err(map_build_error)?;
     Ok(BenchmarkStream {
         lifecycle,
         scheduler,
@@ -167,7 +173,26 @@ pub fn build(
         engine_block_frames,
         health,
         worker_health,
+        worker_thread_names: worker_thread_names_for_executor(executor_mode),
     })
+}
+
+fn build_source(
+    engine_rx: EngineEventReceiver,
+    executor_mode: BenchmarkExecutorMode,
+    sample_rate: u32,
+    internal_frames: usize,
+    timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+) -> Result<(EngineSource, Option<EngineSourceWorkerShutdownOwner>), String> {
+    if executor_mode == BenchmarkExecutorMode::Inline {
+        return Ok((
+            EngineSource::with_block_frames(engine_rx, sample_rate, internal_frames),
+            None,
+        ));
+    }
+    let (source, shutdown_owner) =
+        build_persistent_source(engine_rx, sample_rate, internal_frames, timing_probe)?;
+    Ok((source, Some(shutdown_owner)))
 }
 
 fn build_persistent_source(
@@ -218,11 +243,29 @@ fn build_persistent_source(
         .map_err(|error| format!("failed to start persistent Orange benchmark workers: {error:?}"))
 }
 
+fn callback_priority_for_executor(executor_mode: BenchmarkExecutorMode) -> i32 {
+    match executor_mode {
+        BenchmarkExecutorMode::Inline => crate::audio_priority::ORANGE_WORKER_PRIORITY,
+        BenchmarkExecutorMode::PersistentTwoWorkers => {
+            crate::audio_priority::ORANGE_CALLBACK_PRIORITY
+        }
+    }
+}
+
+pub(super) fn worker_thread_names_for_executor(
+    executor_mode: BenchmarkExecutorMode,
+) -> [String; 2] {
+    match executor_mode {
+        BenchmarkExecutorMode::Inline => [String::new(), String::new()],
+        BenchmarkExecutorMode::PersistentTwoWorkers => expected_worker_thread_names(),
+    }
+}
+
 fn map_build_error(error: AudioStreamBuildError<String>) -> String {
     match error {
         AudioStreamBuildError::Stream(error) => error,
         AudioStreamBuildError::Shutdown(error) => {
-            format!("persistent Orange benchmark teardown failed during build: {error:?}")
+            format!("Orange benchmark teardown failed during build: {error:?}")
         }
     }
 }

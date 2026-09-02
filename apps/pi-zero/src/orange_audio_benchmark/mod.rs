@@ -78,8 +78,7 @@ fn execute_benchmark(
     let (sender, receiver) = event_queue();
     let built = stream::build(
         receiver,
-        config.output_frames,
-        config.internal_frames,
+        config,
         state.metrics.clone(),
         state.profile_probe.clone(),
         state.phase_control.clone(),
@@ -94,7 +93,7 @@ fn execute_benchmark(
         .play()
         .map_err(|error| format!("failed to start Orange benchmark stream: {error}"))?;
     ensure_stream_runtime_health(state)?;
-    {
+    let callback_scheduling = {
         let stream = state
             .stream
             .as_ref()
@@ -103,8 +102,9 @@ fn execute_benchmark(
             "Orange benchmark",
             &stream.scheduler,
             Duration::from_millis(250),
-        )?;
-    }
+        )?
+    };
+    state.callback_scheduling = Some(callback_scheduling);
     state.scheduler_qualified = true;
     wait_for_geometry_stable(state, config.output_frames)?;
     let readiness_metrics = state.metrics.snapshot();

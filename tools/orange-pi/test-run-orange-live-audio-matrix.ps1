@@ -4,6 +4,7 @@ $runner = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
 $matrix = Join-Path $PSScriptRoot "run-orange-live-audio-matrix.ps1"
 $validation = Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1"
 Import-Module $validation -Force
+Import-Module (Join-Path $PSScriptRoot "orange-live-payload-validation.psm1") -Force
 function Invoke-PrintOnly {
   param([Parameter(Mandatory)][string]$Path, [hashtable]$Parameters = @{})
   $global:LASTEXITCODE = 0
@@ -93,7 +94,9 @@ try {
   $workerTiming = [pscustomobject]@{ workers = @([pscustomobject]@{ sequence = 7; render_ns = 10; dispatch_to_finish_ns = 20; cpu_start = 2; cpu_end = 3; finished = $true }, [pscustomobject]@{ sequence = 7; render_ns = 11; dispatch_to_finish_ns = 25; cpu_start = 2; cpu_end = 2; finished = $true }); coordinator = [pscustomobject]@{ sequence = 7; deadline_ns = 100; dispatch_to_deadline_start_ns = 10; dispatch_to_deadline_elapsed_ns = $null; in_flight_mask = 0; completed_mask = 3; first_parity = 0; dispatch_to_first_ns = 20; dispatch_to_both_ns = 25; reduction_ns = 4; coordinator_remainder_ns = 5; engine_block_total_ns = 40; callback_total_ns = 50; failed = $false; frozen = $true }; late_after_deadline_ns = $null; cpu_endpoint_changed = $true }
   $result = [pscustomobject]@{ schema_version = 6; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $selection.Scenario; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256; sample_format = "F32"; channels = 2; sample_rate = 44100; warmup_seconds = 5; measure_seconds = 30; scheduler_qualified = $true; post_dsp_zero = $true; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); callback = $callback; profile_start = $profileStart; profile_end = $profileEnd; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null; executor_mode = "persistent_two_workers"; worker_health = "healthy"; worker_thread_name_0 = "oct-dsp-src-0"; worker_thread_name_1 = "oct-dsp-src-1"; joined_workers = 2; retirement_error = $null; worker_timing = $workerTiming }
   $release = [pscustomobject]@{ schema_version = 2; kind = "orange_audio_benchmark_release"; status = "released"; board_profile = "orange-pi-zero-2w"; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $selection.Scenario; expected_alsa_buffer_frames = 256; observed_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; observed_alsa_period_frames = 64 }
-  $result.schema_version = 7; $result | Add-Member -NotePropertyName worker_timing_mode -NotePropertyValue "enabled"
+  $result.schema_version = 8; $result | Add-Member -NotePropertyName worker_timing_mode -NotePropertyValue "enabled"
+  $result | Add-Member -NotePropertyName callback_scheduling_policy -NotePropertyValue "SCHED_FIFO"
+  $result | Add-Member -NotePropertyName callback_scheduling_priority -NotePropertyValue 69
   $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   $release | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-release.json")
@@ -110,6 +113,12 @@ try {
   $manifestAggregate = ConvertFrom-Json -InputObject (ConvertTo-OrangeLiveManifestJson -Results @($passEvidence))
   if ([math]::Abs([double]$manifestAggregate[0].AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Manifest did not retain the aggregate render-duration ratio." }
   Assert-OrangeLiveResult -Result $result -Selection $selection
+  $inlineFailure = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $inlineFailure.status = "fail"; $inlineFailure.executor_mode = "inline"; $inlineFailure.worker_health = "disabled"; $inlineFailure.worker_thread_name_0 = ""; $inlineFailure.worker_thread_name_1 = ""; $inlineFailure.joined_workers = 0; $inlineFailure.worker_timing_mode = "disabled"; $inlineFailure.worker_timing = $null; $inlineFailure.callback_scheduling_priority = 70
+  $inlineFailure | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=failed`nSubState=dead`nResult=exit-code`nMainPID=0`nExecMainCode=1`nExecMainStatus=1"; Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=measured_failure"
+  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "measured_failure") { throw "Failed inline benchmark evidence was not classified as measured failure." }
+  $inlineFailure.callback.worker_terminal = $true; $inlineFailure | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
+  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Terminal inline benchmark evidence was not classified as infrastructure failure." }
+  $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=1`nExecMainStatus=0"; Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=pass"
   $invalidTiming = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8)
   $invalidTiming.worker_timing.coordinator.first_parity = 1
   Assert-Throws { Assert-OrangeLiveResult -Result $invalidTiming -Selection $selection }
@@ -469,32 +478,6 @@ if ($LASTEXITCODE -ne 0) { throw "Worker-thread validator did not reject the pri
 $firstRemote = [regex]::Match($first, "Remote study root: (?<root>/tmp/[^\r\n]+)").Groups["root"].Value
 $secondRemote = [regex]::Match($second, "Remote study root: (?<root>/tmp/[^\r\n]+)").Groups["root"].Value
 if ([string]::IsNullOrWhiteSpace($firstRemote) -or $firstRemote -eq $secondRemote) { throw "Live PrintOnly paths were not unique." }
-$bashCommand = Get-Command bash -ErrorAction SilentlyContinue
-$wslCommand = Get-Command wsl.exe -ErrorAction SilentlyContinue
-if ($null -ne $bashCommand -and [string]$bashCommand.Source -notmatch "WindowsApps") {
-  $temporary = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-payload-" + [guid]::NewGuid().ToString("N") + ".sh")
-  try {
-    $studyStart = $first.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
-    $studyEnd = $first.IndexOf("Study payload transport:", $studyStart, [StringComparison]::Ordinal)
-    [IO.File]::WriteAllText($temporary, $first.Substring($studyStart, $studyEnd - $studyStart), (New-Object System.Text.UTF8Encoding($false)))
-    & bash -n $temporary
-    if ($LASTEXITCODE -ne 0) { throw "Generated live payload failed bash -n." }
-  } finally {
-    Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
-  }
-} elseif ($null -ne $wslCommand) {
-  $temporary = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-payload-" + [guid]::NewGuid().ToString("N") + ".sh")
-  try {
-    $studyStart = $first.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
-    $studyEnd = $first.IndexOf("Study payload transport:", $studyStart, [StringComparison]::Ordinal)
-    [IO.File]::WriteAllText($temporary, $first.Substring($studyStart, $studyEnd - $studyStart), (New-Object System.Text.UTF8Encoding($false)))
-    $drive = $temporary.Substring(0, 1).ToLowerInvariant()
-    $wslPath = "/mnt/$drive" + ($temporary.Substring(2) -replace "\\", "/")
-    & wsl.exe bash -n $wslPath
-    if ($LASTEXITCODE -ne 0) { throw "Generated live payload failed WSL bash -n." }
-  } finally {
-    Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
-  }
-}
+Assert-OrangeGeneratedLivePayloadSyntax -Payload $studyPayload
 
 Write-Output "Orange live benchmark matrix, selection, PrintOnly, identity, safety, release, and payload tests passed"

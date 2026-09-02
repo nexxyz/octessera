@@ -18,7 +18,7 @@ mod worker_timing_validation;
 pub use result::BenchmarkResult;
 
 const BENCHMARK_SCHEMA_VERSION: u8 = 4;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 7;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 8;
 const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
 fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -302,6 +302,8 @@ impl BenchmarkProgress {
         metrics: &CallbackMetricsSnapshot,
         worker_health: SourceWorkerHealth,
     ) -> Self {
+        let worker_thread_names =
+            super::stream::worker_thread_names_for_executor(config.executor_mode);
         Self {
             schema_version: BENCHMARK_SCHEMA_VERSION,
             kind: "orange_audio_benchmark_progress".into(),
@@ -336,10 +338,10 @@ impl BenchmarkProgress {
             terminal_error: metrics.terminal_error,
             post_dsp_zero: metrics.lifetime_callback_count > 0
                 && metrics.post_mute_nonzero_samples == 0,
-            executor_mode: super::stream::EXECUTOR_MODE.into(),
+            executor_mode: config.executor_mode.as_str().into(),
             worker_health: worker_health.name().into(),
-            worker_thread_name_0: super::stream::expected_worker_thread_names()[0].clone(),
-            worker_thread_name_1: super::stream::expected_worker_thread_names()[1].clone(),
+            worker_thread_name_0: worker_thread_names[0].clone(),
+            worker_thread_name_1: worker_thread_names[1].clone(),
         }
     }
 }
@@ -353,6 +355,7 @@ pub fn readiness(
     metrics: &CallbackMetricsSnapshot,
     worker_health: SourceWorkerHealth,
 ) -> BenchmarkReadiness {
+    let worker_thread_names = super::stream::worker_thread_names_for_executor(config.executor_mode);
     BenchmarkReadiness {
         schema_version: BENCHMARK_SCHEMA_VERSION,
         kind: "orange_audio_benchmark_readiness".into(),
@@ -376,10 +379,10 @@ pub fn readiness(
         sample_format: sample_format.into(),
         scheduler_qualified: true,
         post_dsp_zero: true,
-        executor_mode: super::stream::EXECUTOR_MODE.into(),
+        executor_mode: config.executor_mode.as_str().into(),
         worker_health: worker_health.name().into(),
-        worker_thread_name_0: super::stream::expected_worker_thread_names()[0].clone(),
-        worker_thread_name_1: super::stream::expected_worker_thread_names()[1].clone(),
+        worker_thread_name_0: worker_thread_names[0].clone(),
+        worker_thread_name_1: worker_thread_names[1].clone(),
     }
 }
 

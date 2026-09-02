@@ -307,7 +307,7 @@ Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "mixed_ramp_16_48"
 $live300Parameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "mixed_ramp_16_48"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 300; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
 $live300 = Invoke-StudyPrintOnly -Parameters $live300Parameters
 Assert-NoPayloadPlaceholders $live300
-Assert-Contains $live300 "Live selection: A output=256 period=64 engine=128 internal=128 scenario=mixed_ramp_16_48 measure=300 warmup=5"
+Assert-Contains $live300 "Live selection: A output=256 period=64 engine=128 internal=128 scenario=mixed_ramp_16_48 measure=300 warmup=5 worker-timing=enabled executor=persistent_two_workers"
 Assert-Contains $live300 "RuntimeMaxSec=455s"
 Assert-Contains $live300 "with-orange-ssh.ps1"
 Assert-Contains $live300 "sensor_loop"
@@ -318,6 +318,7 @@ Assert-Contains $live300 'sleep 1'
 Assert-Contains $live300 '-le $((120 + 15))'
 Assert-Contains $live300 '-le 5'
 Assert-Contains $live300 '--worker-timing enabled'
+Assert-Contains $live300 '--executor persistent_two_workers'
 
 $disabledTimingParameters = $live300Parameters.Clone()
 $disabledTimingParameters.WorkerTimingMode = "disabled"
@@ -325,10 +326,23 @@ $disabledTiming = Invoke-StudyPrintOnly -Parameters $disabledTimingParameters
 Assert-NoPayloadPlaceholders $disabledTiming
 Assert-Contains $disabledTiming "worker-timing=disabled"
 Assert-Contains $disabledTiming "--worker-timing disabled"
+Assert-Contains $disabledTiming "--executor persistent_two_workers"
 Assert-Throws {
   $invalidTimingParameters = $live300Parameters.Clone()
   $invalidTimingParameters.WorkerTimingMode = "invalid"
   Invoke-StudyPrintOnly -Parameters $invalidTimingParameters | Out-Null
+}
+$inlineParameters = $live300Parameters.Clone()
+$inlineParameters.WorkerTimingMode = "disabled"
+$inlineParameters.ExecutorMode = "inline"
+$inline = Invoke-StudyPrintOnly -Parameters $inlineParameters
+Assert-Contains $inline "worker-timing=disabled executor=inline"
+Assert-Contains $inline "--worker-timing disabled"
+Assert-Contains $inline "--executor inline"
+Assert-Throws {
+  $invalidExecutorParameters = $live300Parameters.Clone()
+  $invalidExecutorParameters.ExecutorMode = "inline"
+  Invoke-StudyPrintOnly -Parameters $invalidExecutorParameters | Out-Null
 }
 foreach ($seconds in @(299, 3000)) {
   $rejectedParameters = $live300Parameters.Clone()

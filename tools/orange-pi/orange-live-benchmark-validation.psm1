@@ -306,8 +306,14 @@ function Assert-OrangeLiveResult {
     [Parameter(Mandatory)][pscustomobject]$Result,
     [Parameter(Mandatory)][pscustomobject]$Selection
   )
+  $executorProperty = $Result.PSObject.Properties["executor_mode"]
+  if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers") -cnotcontains $executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
+  $schedulingPolicy = $Result.PSObject.Properties["callback_scheduling_policy"]
+  $schedulingPriority = $Result.PSObject.Properties["callback_scheduling_priority"]
+  $expectedPriority = if ($executorProperty.Value -ceq "inline") { 70 } else { 69 }
+  if ($null -eq $schedulingPolicy -or $schedulingPolicy.Value -isnot [string] -or $schedulingPolicy.Value -cne "SCHED_FIFO" -or $null -eq $schedulingPriority -or $schedulingPriority.Value -isnot [byte] -and $schedulingPriority.Value -isnot [int16] -and $schedulingPriority.Value -isnot [uint16] -and $schedulingPriority.Value -isnot [int32] -and $schedulingPriority.Value -isnot [uint32] -and $schedulingPriority.Value -isnot [int64] -and $schedulingPriority.Value -isnot [uint64] -or [int]$schedulingPriority.Value -ne $expectedPriority) { throw "Live benchmark effective scheduling evidence is invalid." }
   $checks = @(
-    @([int]$Result.schema_version, 7),
+    @([int]$Result.schema_version, 8),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),
@@ -328,7 +334,8 @@ function Assert-OrangeLiveResult {
   if (-not [bool]$Result.scheduler_qualified -or -not [bool]$Result.measurement_stop_acknowledged -or -not [bool]$Result.stream_stopped -or -not [bool]$Result.final_progress_write_succeeded) {
     throw "Live benchmark result did not complete the required finalization contract."
   }
-  Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true
+  if ([string]$Result.status -ceq "pass" -and $executorProperty.Value -ceq "persistent_two_workers" -and [string]$Result.worker_health -cne "healthy") { throw "A passing live benchmark must report healthy persistent workers." }
+  Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true -AllowTerminalHealth
   Assert-OrangeWorkerTimingEvidence -Result $Result
   if ($null -ne $Result.recovered_alsa_epipe_count -or [bool]$Result.recovered_alsa_epipe_observable) {
     throw "Live benchmark result made an invalid recovered ALSA EPIPE claim."
