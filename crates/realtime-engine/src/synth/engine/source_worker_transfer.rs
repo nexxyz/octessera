@@ -189,14 +189,36 @@ impl SourceWorkerLifecycle {
     pub fn start_prewarmed(
         engine: &mut SynthEngine,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, false, None, None)
+        Self::start_prewarmed_with_frames(
+            engine,
+            super::super::types::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+        )
+    }
+
+    pub fn start_prewarmed_with_frames(
+        engine: &mut SynthEngine,
+        active_frames: usize,
+    ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
+        Self::start_prewarmed_with_options(engine, active_frames, false, None, None)
     }
 
     pub fn start_prewarmed_with_hook(
         engine: &mut SynthEngine,
         start_hook: SourceWorkerStartHook,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, false, None, Some(start_hook))
+        Self::start_prewarmed_with_frames_and_hook(
+            engine,
+            super::super::types::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+            start_hook,
+        )
+    }
+
+    pub fn start_prewarmed_with_frames_and_hook(
+        engine: &mut SynthEngine,
+        active_frames: usize,
+        start_hook: SourceWorkerStartHook,
+    ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
+        Self::start_prewarmed_with_options(engine, active_frames, false, None, Some(start_hook))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -204,11 +226,18 @@ impl SourceWorkerLifecycle {
         engine: &mut SynthEngine,
         hold_before_receive: bool,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, hold_before_receive, None, None)
+        Self::start_prewarmed_with_options(
+            engine,
+            super::super::types::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+            hold_before_receive,
+            None,
+            None,
+        )
     }
 
     fn start_prewarmed_with_options(
         engine: &mut SynthEngine,
+        active_frames: usize,
         hold_before_receive: bool,
         #[cfg(test)] disconnected_completion: Option<usize>,
         #[cfg(not(test))] _disconnected_completion: Option<usize>,
@@ -276,7 +305,8 @@ impl SourceWorkerLifecycle {
             lifecycle.mark_runtime_closed();
             return Err(SourceWorkerSetupError::WorkerChannelsUnavailable);
         }
-        let Some(runtime) = SourceWorkerRuntime::new(&lifecycle, engine.sample_rate) else {
+        let Some(runtime) = SourceWorkerRuntime::new(&lifecycle, engine.sample_rate, active_frames)
+        else {
             lifecycle.mark_runtime_closed();
             return Err(SourceWorkerSetupError::WorkerChannelsUnavailable);
         };
@@ -295,7 +325,13 @@ impl SourceWorkerLifecycle {
         engine: &mut SynthEngine,
         parity: usize,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, false, Some(parity), None)
+        Self::start_prewarmed_with_options(
+            engine,
+            super::super::types::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+            false,
+            Some(parity),
+            None,
+        )
     }
 
     #[cfg(test)]
@@ -303,7 +339,13 @@ impl SourceWorkerLifecycle {
         engine: &mut SynthEngine,
         parity: usize,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, true, Some(parity), None)
+        Self::start_prewarmed_with_options(
+            engine,
+            super::super::types::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+            true,
+            Some(parity),
+            None,
+        )
     }
 }
 

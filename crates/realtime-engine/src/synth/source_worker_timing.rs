@@ -122,11 +122,16 @@ impl SourceWorkerTimingProbe {
         }
     }
 
+    pub(crate) fn render_start(start: SourceWorkerTimingStart) -> Instant {
+        start.started_at
+    }
+
     pub(crate) fn record_worker(
         &self,
         parity: usize,
         sequence: u64,
         start: SourceWorkerTimingStart,
+        render_duration_ns: u64,
         dispatch_started_at: Option<Instant>,
     ) {
         let Some(record) = self.workers.get(parity) else {
@@ -135,7 +140,7 @@ impl SourceWorkerTimingProbe {
         record.sequence.store(sequence, Ordering::Relaxed);
         record
             .render_ns
-            .store(duration_ns(start.started_at.elapsed()), Ordering::Relaxed);
+            .store(render_duration_ns, Ordering::Relaxed);
         record.dispatch_to_finish_ns.store(
             dispatch_started_at.map_or(0, |started| duration_ns(started.elapsed())),
             Ordering::Relaxed,

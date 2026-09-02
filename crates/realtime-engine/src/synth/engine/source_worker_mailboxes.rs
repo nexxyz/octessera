@@ -1,4 +1,5 @@
 use super::super::source_worker_lease::OwnerLease;
+use super::super::source_worker_load::SourceWorkerLoadObservation;
 use super::CompletedEnvelope;
 use super::SourceWorkerHealth;
 use super::*;
@@ -12,7 +13,9 @@ impl SourceWorkerRuntime {
             && self.expected_sequence == Some(completion.sequence)
             && completion.frames == self.expected_frames
             && completion.base_sample_clock == self.expected_base_sample_clock
-            && completion.render_ok;
+            && completion.render_ok
+            && completion.active_cost_units
+                <= super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
         if parity >= SOURCE_WORKER_COUNT
             || completion.worker_exited
             || completion.transport_failed
@@ -27,6 +30,7 @@ impl SourceWorkerRuntime {
                 worker_mask,
             );
             self.in_flight_mask &= !worker_mask;
+            self.load_observations = std::array::from_fn(|_| None);
             self.return_owner(completion.owner, true);
             return;
         }
@@ -39,6 +43,12 @@ impl SourceWorkerRuntime {
         self.health.record_completion(completion.sequence);
         self.in_flight_mask &= !worker_mask;
         self.completed_mask |= worker_mask;
+        if self.health.status() == SourceWorkerHealth::Healthy {
+            self.load_observations[parity] = Some(SourceWorkerLoadObservation {
+                dsp_duration_ns: completion.dsp_duration_ns,
+                active_cost_units: completion.active_cost_units,
+            });
+        }
         self.return_owner(completion.owner, true);
     }
 

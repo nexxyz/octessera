@@ -1,3 +1,4 @@
+use super::super::source_worker_load::SourceWorkerLoadObservation;
 use super::super::source_worker_transfer;
 use super::super::SynthEngine;
 use super::SourceWorkerRuntime;
@@ -7,6 +8,7 @@ use std::time::Instant;
 impl SourceWorkerRuntime {
     pub(super) fn finish_completed(&mut self, engine: &mut SynthEngine) -> bool {
         if self.in_flight_mask != 0 || self.completed_mask != 0b11 || !self.home_is_ready() {
+            self.load_observations = [None; 2];
             self.latch_completion_failure(0b11);
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
@@ -53,12 +55,28 @@ impl SourceWorkerRuntime {
             },
         ) {
             Ok(()) => {
+                if let (Some(load), [Some(first), Some(second)]) =
+                    (self.load.as_mut(), self.load_observations)
+                {
+                    let _ = load.observe_pair([
+                        SourceWorkerLoadObservation {
+                            dsp_duration_ns: first.dsp_duration_ns,
+                            active_cost_units: first.active_cost_units,
+                        },
+                        SourceWorkerLoadObservation {
+                            dsp_duration_ns: second.dsp_duration_ns,
+                            active_cost_units: second.active_cost_units,
+                        },
+                    ]);
+                }
+                self.load_observations = [None; 2];
                 first.return_home();
                 second.return_home();
                 self.completed_mask = 0;
                 true
             }
             Err(()) => {
+                self.load_observations = [None; 2];
                 self.latch_completion_failure(0b11);
                 #[cfg(feature = "source-worker-benchmark-timing")]
                 self.freeze_timing(true, None);

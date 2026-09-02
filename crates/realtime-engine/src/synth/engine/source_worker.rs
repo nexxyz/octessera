@@ -8,12 +8,14 @@ use super::source_worker_lifecycle::{
     CompletedEnvelope, OwnerEnvelope, SourceWorkerCloseState, SourceWorkerLifecycle,
     SourceWorkerScratch, WorkEnvelope,
 };
+use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
 use super::source_worker_protocol::SourceWorkerMode;
 use super::source_worker_retirement::SourceWorkerRetirement;
 use super::source_worker_transfer;
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -52,6 +54,9 @@ pub struct SourceWorkerRuntime {
     in_flight_mask: u8,
     completed_mask: u8,
     sample_rate: u32,
+    load: Option<SourceWorkerLoad>,
+    load_observations:
+        [Option<super::source_worker_load::SourceWorkerLoadObservation>; SOURCE_WORKER_COUNT],
     #[cfg(any(test, feature = "test-support"))]
     deadline_override: Option<Duration>,
 }
@@ -87,12 +92,18 @@ impl SourceWorkerRuntime {
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate: 0,
+            load: None,
+            load_observations: std::array::from_fn(|_| None),
             #[cfg(any(test, feature = "test-support"))]
             deadline_override: None,
         }
     }
 
-    pub(super) fn new(lifecycle: &SourceWorkerLifecycle, sample_rate: u32) -> Option<Self> {
+    pub(super) fn new(
+        lifecycle: &SourceWorkerLifecycle,
+        sample_rate: u32,
+        active_frames: usize,
+    ) -> Option<Self> {
         let workers = &lifecycle.workers;
         let work_txs = [
             workers[0].work_tx.as_ref()?.clone(),
@@ -138,6 +149,8 @@ impl SourceWorkerRuntime {
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate,
+            load: Some(SourceWorkerLoad::new(active_frames, sample_rate)),
+            load_observations: std::array::from_fn(|_| None),
             #[cfg(any(test, feature = "test-support"))]
             deadline_override: None,
         })
@@ -159,6 +172,10 @@ impl SourceWorkerRuntime {
 
     pub fn health_snapshot(&self) -> SourceWorkerHealthSnapshot {
         self.health.snapshot()
+    }
+
+    pub fn load_snapshot(&self) -> Option<SourceWorkerLoadSnapshot> {
+        self.load.as_ref().map(SourceWorkerLoad::snapshot)
     }
 
     fn rendezvous_deadline(&self, frames: usize) -> Duration {
@@ -213,11 +230,12 @@ impl SourceWorkerRuntime {
             self.latch_completion_failure(0b11);
             return None;
         };
+        let load = self.load_snapshot();
         match source_worker_transfer::with_both_source_partitions(
             engine,
             &mut first,
             &mut second,
-            |engine, _| apply(engine),
+            |engine, _| engine.with_source_worker_load(load, apply),
         ) {
             Ok(result) => {
                 first.return_home();
@@ -397,6 +415,23 @@ impl SourceWorkerRuntime {
 
     fn latch_invalid_block(&self) {
         self.health.latch(SourceWorkerHealth::InvalidBlock, 0b11);
+    }
+}
+
+impl SynthEngine {
+    pub(super) fn with_source_worker_load<R>(
+        &mut self,
+        load: Option<SourceWorkerLoadSnapshot>,
+        apply: impl FnOnce(&mut SynthEngine) -> R,
+    ) -> R {
+        let previous = self.source_worker_load;
+        self.source_worker_load = load;
+        let result = catch_unwind(AssertUnwindSafe(|| apply(self)));
+        self.source_worker_load = previous;
+        match result {
+            Ok(result) => result,
+            Err(payload) => resume_unwind(payload),
+        }
     }
 }
 

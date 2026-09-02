@@ -54,11 +54,17 @@ mod source_worker_failure_tests;
 mod source_worker_health;
 mod source_worker_lease;
 mod source_worker_lifecycle;
+mod source_worker_load;
+#[cfg(test)]
+mod source_worker_load_integration_tests;
 #[cfg(any(test, feature = "test-support"))]
 mod source_worker_observer;
 mod source_worker_owner;
 #[cfg(test)]
 mod source_worker_parity_tests;
+mod source_worker_placement;
+#[cfg(test)]
+mod source_worker_placement_tests;
 mod source_worker_protocol;
 mod source_worker_retirement;
 #[cfg(test)]
@@ -91,6 +97,10 @@ pub use source_worker::SourceWorkerRuntime;
 pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
 pub use source_worker_lifecycle::SourceWorkerLifecycle;
 pub use source_worker_lifecycle::SOURCE_WORKER_THREAD_NAMES;
+pub use source_worker_load::{
+    SourceWorkerLoadSnapshot, SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS,
+    SOURCE_WORKER_SYNTH_COST_UNITS,
+};
 #[cfg(any(test, feature = "test-support"))]
 pub use source_worker_observer::{
     install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
@@ -138,6 +148,7 @@ pub struct SynthEngine {
     preview_sample_next_order: u64,
     pending_render_retired: RetiredAudioState,
     render_plan: RenderPlan,
+    source_worker_load: Option<SourceWorkerLoadSnapshot>,
     slot_route: [usize; INSTRUMENT_SLOT_COUNT],
     slot_pan_pos: [usize; INSTRUMENT_SLOT_COUNT],
     slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
@@ -247,6 +258,7 @@ impl SynthEngine {
             preview_sample_next_order: 0,
             pending_render_retired: RetiredAudioState::default(),
             render_plan: RenderPlan::new(),
+            source_worker_load: None,
             slot_route: [0; INSTRUMENT_SLOT_COUNT],
             slot_pan_pos: [DEFAULT_PAN_POSITIONS / 2; INSTRUMENT_SLOT_COUNT],
             slot_pan_gains: [pan_gains(DEFAULT_PAN_POSITIONS / 2, DEFAULT_PAN_POSITIONS);

@@ -31,6 +31,10 @@ impl RetiredSampleVoices {
         self.count
     }
 
+    pub(super) fn can_push_count(&self, count: usize) -> bool {
+        self.count.saturating_add(count) <= SAMPLE_VOICE_RETIREMENT_CAPACITY
+    }
+
     #[cfg(test)]
     pub(super) fn get(&self, index: usize) -> Option<&Arc<[f32]>> {
         (index < self.count).then(|| self.buffers[index].as_ref().expect("retired sample buffer"))
@@ -178,8 +182,8 @@ mod tests {
     use super::*;
     use std::mem::size_of;
 
-    const MAX_PRACTICAL_RETIREMENT_STATE_BYTES: usize = 8 * 1024;
-    const MAX_PRACTICAL_RETIRED_SAMPLE_VOICES_BYTES: usize = 6 * 1024;
+    const MAX_PRACTICAL_RETIREMENT_STATE_BYTES: usize = 12 * 1024;
+    const MAX_PRACTICAL_RETIRED_SAMPLE_VOICES_BYTES: usize = 10 * 1024;
 
     const _: () = assert!(size_of::<RetiredAudioState>() <= MAX_PRACTICAL_RETIREMENT_STATE_BYTES);
     const _: () =

@@ -28,6 +28,10 @@ impl SampleVoicePartition {
         self.parity
     }
 
+    pub(super) fn active_count(&self) -> usize {
+        self.lanes.iter().filter(|voice| voice.active).count()
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub(super) fn active_sample_buffer_address_for_test(&self) -> Option<usize> {
         self.lanes.iter().find_map(|voice| {
@@ -141,11 +145,27 @@ impl SampleVoicePool {
         )
     }
 
+    pub(super) fn active_count_for_parity(&self, parity: usize) -> Option<usize> {
+        self.partitions
+            .get(parity)?
+            .as_ref()
+            .map(|partition| partition.active_count())
+    }
+
     pub(super) fn first_inactive_lane(&self) -> Option<usize> {
         if !self.partitions_home() {
             return None;
         }
         (0..SAMPLE_VOICE_LANE_CAPACITY)
+            .find(|lane| self.lane(*lane).is_some_and(|voice| !voice.active))
+    }
+
+    pub(super) fn first_inactive_lane_for_parity(&self, parity: usize) -> Option<usize> {
+        if parity >= VOICE_PARTITION_COUNT || !self.partitions_home() {
+            return None;
+        }
+        (parity..SAMPLE_VOICE_LANE_CAPACITY)
+            .step_by(VOICE_PARTITION_COUNT)
             .find(|lane| self.lane(*lane).is_some_and(|voice| !voice.active))
     }
 
@@ -297,37 +317,68 @@ impl SampleVoicePool {
         true
     }
 
-    pub(super) fn replace_lane(
+    pub(super) fn replace_lane_for_admission(
         &mut self,
         lane: usize,
         slot: usize,
+        victim_lane: Option<usize>,
         voice: SampleVoice,
         retired: &mut RetiredSampleVoices,
-    ) -> Result<bool, SampleVoice> {
+    ) -> Result<(), SampleVoice> {
         if !self.partitions_home()
             || partition_lane(lane).is_none()
             || slot >= INSTRUMENT_SLOT_COUNT
         {
             return Err(voice);
         }
-        let has_buffer = self
+        if victim_lane == Some(lane) {
+            if !self.lane(lane).is_some_and(|current| current.active) {
+                return Err(voice);
+            }
+        } else if self.lane(lane).is_some_and(|current| current.active) {
+            return Err(voice);
+        }
+        if let Some(victim_lane) = victim_lane {
+            if victim_lane >= SAMPLE_VOICE_LANE_CAPACITY
+                || !self.lane(victim_lane).is_some_and(|current| current.active)
+                || self.lane_slots[victim_lane].is_none()
+            {
+                return Err(voice);
+            }
+        }
+        let target_slot = self.lane_slots[lane];
+        let victim_slot = victim_lane.and_then(|victim| self.lane_slots[victim]);
+        let mut target_slot_count = self.slot_lane_counts[slot];
+        if victim_lane != Some(lane) && victim_slot == Some(slot) && target_slot != Some(slot) {
+            target_slot_count = target_slot_count.saturating_sub(1);
+        }
+        if target_slot != Some(slot) && target_slot_count >= SAMPLE_VOICE_LANE_CAPACITY {
+            return Err(voice);
+        }
+        let target_has_buffer = self
             .lane(lane)
-            .is_some_and(|previous| previous.buffer.is_some());
-        if has_buffer && retired.is_full() {
+            .is_some_and(|current| current.buffer.is_some());
+        let victim_has_buffer = victim_lane
+            .filter(|victim| *victim != lane)
+            .and_then(|victim| self.lane(victim))
+            .is_some_and(|current| current.buffer.is_some());
+        let retired_additions = usize::from(target_has_buffer) + usize::from(victim_has_buffer);
+        if !retired.can_push_count(retired_additions) {
             return Err(voice);
         }
-        if !self.assign_lane(lane, slot) {
-            return Err(voice);
+
+        if let Some(victim_lane) = victim_lane.filter(|victim| *victim != lane) {
+            let victim_slot = self.lane_slots[victim_lane].expect("validated victim ownership");
+            self.remove_lane(victim_slot, victim_lane);
+            let victim = self.lane_mut(victim_lane).expect("validated victim lane");
+            let mut previous = std::mem::replace(victim, SampleVoice::off());
+            debug_assert!(retired.push(&mut previous));
         }
-        let Some(target) = self.lane_mut(lane) else {
-            return Err(voice);
-        };
+        debug_assert!(self.assign_lane(lane, slot));
+        let target = self.lane_mut(lane).expect("validated target lane");
         let mut previous = std::mem::replace(target, voice);
-        let was_active = previous.active;
-        if previous.buffer.is_some() && !retired.push(&mut previous) {
-            return Err(std::mem::replace(target, previous));
-        }
-        Ok(was_active)
+        debug_assert!(retired.push(&mut previous));
+        Ok(())
     }
 
     pub(super) fn update_filter_for_slot(

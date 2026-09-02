@@ -24,6 +24,10 @@ impl SynthVoicePartition {
     pub(super) fn parity(&self) -> usize {
         self.parity
     }
+
+    pub(super) fn active_count(&self) -> usize {
+        self.lanes.iter().filter(|voice| voice.active).count()
+    }
 }
 
 pub(super) struct SynthVoicePool {
@@ -128,6 +132,13 @@ impl SynthVoicePool {
         )
     }
 
+    pub(super) fn active_count_for_parity(&self, parity: usize) -> Option<usize> {
+        self.partitions
+            .get(parity)?
+            .as_ref()
+            .map(|partition| partition.active_count())
+    }
+
     pub(super) fn active_counts_by_slot(&self) -> Option<[usize; INSTRUMENT_SLOT_COUNT]> {
         if !self.partitions_home() {
             return None;
@@ -150,6 +161,15 @@ impl SynthVoicePool {
             return None;
         }
         (0..SYNTH_VOICE_LANE_CAPACITY)
+            .find(|lane| self.lane(*lane).is_some_and(|voice| !voice.active))
+    }
+
+    pub(super) fn first_inactive_lane_for_parity(&self, parity: usize) -> Option<usize> {
+        if parity >= VOICE_PARTITION_COUNT || !self.partitions_home() {
+            return None;
+        }
+        (parity..SYNTH_VOICE_LANE_CAPACITY)
+            .step_by(VOICE_PARTITION_COUNT)
             .find(|lane| self.lane(*lane).is_some_and(|voice| !voice.active))
     }
 
@@ -204,6 +224,56 @@ impl SynthVoicePool {
         self.slot_lanes[slot][insert] = lane;
         self.slot_lane_counts[slot] = count + 1;
         self.lane_slots[lane] = Some(slot);
+        true
+    }
+
+    pub(super) fn replace_lane_for_admission(
+        &mut self,
+        lane: usize,
+        slot: usize,
+        victim_lane: Option<usize>,
+        voice: Voice,
+    ) -> bool {
+        if !self.partitions_home()
+            || partition_lane(lane).is_none()
+            || slot >= INSTRUMENT_SLOT_COUNT
+        {
+            return false;
+        }
+        if victim_lane == Some(lane) {
+            if !self.lane(lane).is_some_and(|current| current.active) {
+                return false;
+            }
+        } else if self.lane(lane).is_some_and(|current| current.active) {
+            return false;
+        }
+        if let Some(victim_lane) = victim_lane {
+            if victim_lane >= SYNTH_VOICE_LANE_CAPACITY
+                || !self.lane(victim_lane).is_some_and(|current| current.active)
+                || self.lane_slots[victim_lane].is_none()
+            {
+                return false;
+            }
+        }
+        let target_slot = self.lane_slots[lane];
+        let victim_slot = victim_lane.and_then(|victim| self.lane_slots[victim]);
+        let mut target_slot_count = self.slot_lane_counts[slot];
+        if victim_lane != Some(lane) && victim_slot == Some(slot) && target_slot != Some(slot) {
+            target_slot_count = target_slot_count.saturating_sub(1);
+        }
+        if target_slot != Some(slot) && target_slot_count >= SYNTH_VOICE_LANE_CAPACITY {
+            return false;
+        }
+
+        if let Some(victim_lane) = victim_lane.filter(|victim| *victim != lane) {
+            let victim_slot = self.lane_slots[victim_lane].expect("validated victim ownership");
+            self.remove_lane(victim_slot, victim_lane);
+            self.lane_mut(victim_lane)
+                .expect("validated victim lane")
+                .active = false;
+        }
+        debug_assert!(self.assign_lane(lane, slot));
+        *self.lane_mut(lane).expect("validated target lane") = voice;
         true
     }
 

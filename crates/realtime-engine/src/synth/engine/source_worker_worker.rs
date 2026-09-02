@@ -1,3 +1,5 @@
+#[cfg(feature = "source-worker-benchmark-timing")]
+use super::super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::source_worker_protocol::SourceWorkerStartHook;
 use super::{CompletedEnvelope, WorkEnvelope, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
@@ -9,6 +11,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
+use std::time::Instant;
 
 #[cfg(test)]
 thread_local! {
@@ -250,7 +253,10 @@ fn worker_loop(
         if state.exit_on_job.swap(false, Ordering::AcqRel) {
             return finish_worker(
                 &state,
-                send_completion(&done_tx, CompletedEnvelope::from_work(work, true, false)),
+                send_completion(
+                    &done_tx,
+                    CompletedEnvelope::from_work(work, true, false, 0, 0),
+                ),
             );
         }
         #[cfg(any(test, feature = "test-support"))]
@@ -261,8 +267,19 @@ fn worker_loop(
         let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
         #[cfg(not(any(test, feature = "test-support")))]
         let should_panic = false;
+        let active_cost_units = work.active_cost_units();
         #[cfg(feature = "source-worker-benchmark-timing")]
         let timing_start = work.timing_probe.as_ref().map(|probe| probe.worker_start());
+        let render_started_at = {
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            {
+                timing_start.map_or_else(Instant::now, SourceWorkerTimingProbe::render_start)
+            }
+            #[cfg(not(feature = "source-worker-benchmark-timing"))]
+            {
+                Instant::now()
+            }
+        };
         let render_ok = catch_unwind(AssertUnwindSafe(|| {
             if should_panic {
                 panic!("source worker test panic");
@@ -270,16 +287,35 @@ fn worker_loop(
             work.render()
         }))
         .unwrap_or(false);
+        let dsp_duration_ns = render_started_at
+            .elapsed()
+            .as_nanos()
+            .min(u128::from(u64::MAX)) as u64;
         #[cfg(feature = "source-worker-benchmark-timing")]
         if render_ok {
             if let (Some(probe), Some(start)) = (work.timing_probe.as_ref(), timing_start) {
-                probe.record_worker(parity, work.sequence, start, work.dispatch_started_at);
+                probe.record_worker(
+                    parity,
+                    work.sequence,
+                    start,
+                    dsp_duration_ns,
+                    work.dispatch_started_at,
+                );
             }
         }
         if !render_ok {
             return finish_worker(
                 &state,
-                send_completion(&done_tx, CompletedEnvelope::from_work(work, true, false)),
+                send_completion(
+                    &done_tx,
+                    CompletedEnvelope::from_work(
+                        work,
+                        true,
+                        false,
+                        dsp_duration_ns,
+                        active_cost_units,
+                    ),
+                ),
             );
         }
         if state.reverse_completion.enabled.load(Ordering::Acquire) && parity == 0 {
@@ -297,9 +333,10 @@ fn worker_loop(
                 .parity_one_done
                 .store(true, Ordering::Release);
         }
-        if let Some(exit) =
-            send_completion(&done_tx, CompletedEnvelope::from_work(work, false, true))
-        {
+        if let Some(exit) = send_completion(
+            &done_tx,
+            CompletedEnvelope::from_work(work, false, true, dsp_duration_ns, active_cost_units),
+        ) {
             state.exited.store(true, Ordering::Release);
             return exit;
         }
@@ -335,7 +372,13 @@ fn finish_worker(state: &SourceWorkerThreadState, exit: Option<WorkerExit>) -> W
 }
 
 impl CompletedEnvelope {
-    fn from_work(work: WorkEnvelope, worker_exited: bool, render_ok: bool) -> Self {
+    fn from_work(
+        work: WorkEnvelope,
+        worker_exited: bool,
+        render_ok: bool,
+        dsp_duration_ns: u64,
+        active_cost_units: u16,
+    ) -> Self {
         Self {
             owner: work.owner,
             sequence: work.sequence,
@@ -344,6 +387,8 @@ impl CompletedEnvelope {
             render_ok,
             worker_exited,
             transport_failed: false,
+            dsp_duration_ns,
+            active_cost_units,
         }
     }
 }
@@ -362,6 +407,8 @@ mod tests {
             render_ok: true,
             worker_exited: false,
             transport_failed: false,
+            dsp_duration_ns: 0,
+            active_cost_units: 0,
         }
     }
 

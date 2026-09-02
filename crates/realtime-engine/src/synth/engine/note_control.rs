@@ -1,6 +1,7 @@
 use super::retired_state::{
     store_retired_preview, store_retired_preview_buffer, PREVIEW_AUDITION_SLOTS,
 };
+use super::source_worker_placement;
 use super::*;
 
 impl SynthEngine {
@@ -119,22 +120,39 @@ impl SynthEngine {
             .synth_voice_pool
             .active_count_for_slot(slot)
             .unwrap_or(0);
-        let lane = if self.voice_stealing_mode == VoiceStealingMode::None {
-            let Some(lane) = self.synth_voice_pool.first_inactive_lane() else {
+        let first_inactive_lane = self.synth_voice_pool.first_inactive_lane();
+        if self.voice_stealing_mode == VoiceStealingMode::None && first_inactive_lane.is_none() {
+            self.record_voice_admission_drop();
+            return;
+        }
+        let victim_lane = if self.voice_stealing_mode == VoiceStealingMode::None {
+            None
+        } else if active >= MAX_SYNTH_VOICES_PER_SLOT {
+            self.steal_active_voice_index(slot)
+        } else if first_inactive_lane.is_none() {
+            self.find_global_steal_candidate_scored(false)
+                .map(|(_, lane)| lane)
+        } else {
+            None
+        };
+        let legacy_lane = victim_lane.or(first_inactive_lane).unwrap_or(0);
+        let lane = if self.source_worker_load.is_some() {
+            let inactive_lanes = [
+                self.synth_voice_pool.first_inactive_lane_for_parity(0),
+                self.synth_voice_pool.first_inactive_lane_for_parity(1),
+            ];
+            let Some(lane) = source_worker_placement::choose_lane(
+                self,
+                SOURCE_WORKER_SYNTH_COST_UNITS,
+                victim_lane,
+                inactive_lanes,
+            ) else {
                 self.record_voice_admission_drop();
                 return;
             };
             lane
-        } else if active >= MAX_SYNTH_VOICES_PER_SLOT {
-            self.steal_active_voice_index(slot)
-                .or_else(|| self.synth_voice_pool.first_inactive_lane())
-                .unwrap_or(0)
-        } else if let Some(lane) = self.synth_voice_pool.first_inactive_lane() {
-            lane
         } else {
-            self.find_global_steal_candidate_scored(false)
-                .map(|(_, lane)| lane)
-                .unwrap_or(0)
+            legacy_lane
         };
         let cfg = self.instruments[slot];
         let amp_env = EnvState::note_on(cfg.amp_env, self.sample_rate);
@@ -163,19 +181,16 @@ impl SynthEngine {
             self.sample_rate,
             self.synth_render_revisions[slot],
         );
-        let Some(stole_voice) = self.synth_voice_pool.lane(lane).map(|voice| voice.active) else {
-            return;
-        };
-        if !self.synth_voice_pool.assign_lane(lane, slot) {
+        if !self
+            .synth_voice_pool
+            .replace_lane_for_admission(lane, slot, victim_lane, voice)
+        {
+            self.record_voice_admission_drop();
             return;
         }
-        if stole_voice {
+        if victim_lane.is_some() {
             self.record_voice_steal();
         }
-        let Some(target) = self.synth_voice_pool.lane_mut(lane) else {
-            return;
-        };
-        *target = voice;
         self.active_synth_slots[slot] = true;
 
         self.enforce_voice_budgets();

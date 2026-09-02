@@ -1,4 +1,5 @@
 use super::source_lane_renderer::{render_sample_voice_frame, sample_lowpass};
+use super::source_worker_placement;
 use super::*;
 
 impl SynthEngine {
@@ -49,31 +50,48 @@ impl SynthEngine {
             .sample_voice_pool
             .active_count_for_slot(slot)
             .unwrap_or(0);
-        let lane = if self.voice_stealing_mode == VoiceStealingMode::None {
-            let Some(lane) = self.sample_voice_pool.first_inactive_lane() else {
+        let first_inactive_lane = self.sample_voice_pool.first_inactive_lane();
+        if self.voice_stealing_mode == VoiceStealingMode::None && first_inactive_lane.is_none() {
+            self.record_voice_admission_drop();
+            return;
+        }
+        let victim_lane = if self.voice_stealing_mode == VoiceStealingMode::None {
+            None
+        } else if active >= MAX_SAMPLE_VOICES_PER_SLOT {
+            self.sample_voice_pool
+                .first_active_lane_for_slot(slot)
+                .or_else(|| {
+                    first_inactive_lane.is_none().then(|| {
+                        self.sample_voice_pool
+                            .first_active_lane_global()
+                            .map(|(_, lane)| lane)
+                    })?
+                })
+        } else if first_inactive_lane.is_none() {
+            self.sample_voice_pool
+                .first_active_lane_global()
+                .map(|(_, lane)| lane)
+        } else {
+            None
+        };
+        let legacy_lane = victim_lane.or(first_inactive_lane).unwrap_or(0);
+        let lane = if self.source_worker_load.is_some() {
+            let inactive_lanes = [
+                self.sample_voice_pool.first_inactive_lane_for_parity(0),
+                self.sample_voice_pool.first_inactive_lane_for_parity(1),
+            ];
+            let Some(lane) = source_worker_placement::choose_lane(
+                self,
+                SOURCE_WORKER_SAMPLE_COST_UNITS,
+                victim_lane,
+                inactive_lanes,
+            ) else {
                 self.record_voice_admission_drop();
                 return;
             };
             lane
-        } else if active >= MAX_SAMPLE_VOICES_PER_SLOT {
-            self.sample_voice_pool
-                .first_active_lane_for_slot(slot)
-                .or_else(|| self.sample_voice_pool.first_inactive_lane())
-                .or_else(|| {
-                    self.sample_voice_pool
-                        .first_active_lane_global()
-                        .map(|(_, lane)| lane)
-                })
-                .unwrap_or(0)
         } else {
-            self.sample_voice_pool
-                .first_inactive_lane()
-                .or_else(|| {
-                    self.sample_voice_pool
-                        .first_active_lane_global()
-                        .map(|(_, lane)| lane)
-                })
-                .unwrap_or(0)
+            legacy_lane
         };
         let voice = SampleVoice {
             active: true,
@@ -87,18 +105,20 @@ impl SynthEngine {
             gain,
             filt: BiquadState::new(),
         };
-        let stole_voice = match self.sample_voice_pool.replace_lane(
-            lane,
-            slot,
-            voice,
-            &mut self.pending_render_retired.sample_voices,
-        ) {
-            Ok(stole_voice) => stole_voice,
-            Err(_voice) => {
-                self.record_voice_admission_drop();
-                return;
-            }
-        };
+        if self
+            .sample_voice_pool
+            .replace_lane_for_admission(
+                lane,
+                slot,
+                victim_lane,
+                voice,
+                &mut self.pending_render_retired.sample_voices,
+            )
+            .is_err()
+        {
+            self.record_voice_admission_drop();
+            return;
+        }
         let Some(target) = self.sample_voice_pool.lane_mut(lane) else {
             self.record_voice_admission_drop();
             return;
@@ -110,7 +130,7 @@ impl SynthEngine {
                 .expect("sample bank buffer must remain available")
                 .clone(),
         );
-        if stole_voice {
+        if victim_lane.is_some() {
             self.record_voice_steal();
         }
         self.active_sample_slots[slot] = true;
