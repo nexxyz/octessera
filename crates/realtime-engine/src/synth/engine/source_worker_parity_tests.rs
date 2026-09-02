@@ -103,19 +103,21 @@ fn sparse_reduction_visits_only_active_synth_lanes() {
 
 #[test]
 fn reverse_completion_order_reduces_in_canonical_lane_order() {
-    let mut worker = dynamic_engine();
-    let mut inline = dynamic_engine();
-    for engine in [&mut worker, &mut inline] {
-        engine.note_on(0, 36, 100, 5_000);
-        engine.note_on(1, 60, 100, 5_000);
+    for frames in SUPPORTED_QUANTA {
+        let mut worker = dynamic_engine();
+        let mut inline = dynamic_engine();
+        for engine in [&mut worker, &mut inline] {
+            engine.note_on(0, 36, 100, 5_000);
+            engine.note_on(1, 60, 100, 5_000);
+        }
+        let (lifecycle, mut runtime) =
+            SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
+        runtime.set_deadline_for_test(TEST_DEADLINE);
+        lifecycle.set_reverse_completion_for_test(true);
+        assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, frames);
+        assert_eq!(worker.active_synth_slots, inline.active_synth_slots);
+        assert_eq!(worker.active_sample_slots, inline.active_sample_slots);
+        let retirement = runtime.retire();
+        assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
     }
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
-    runtime.set_deadline_for_test(TEST_DEADLINE);
-    lifecycle.set_reverse_completion_for_test(true);
-    assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, 256);
-    assert_eq!(worker.active_synth_slots, inline.active_synth_slots);
-    assert_eq!(worker.active_sample_slots, inline.active_sample_slots);
-    let retirement = runtime.retire();
-    assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
 }

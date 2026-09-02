@@ -11,7 +11,7 @@ use super::render_voice::{
     SynthVoiceRenderConfig,
 };
 use super::sample_voice_pool::SampleVoicePartition;
-use super::support::{mono_frame, SampleVoice};
+use super::support::{mono_frame, SampleBufferView, SampleVoice};
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 #[cfg(test)]
 use std::cell::Cell;
@@ -315,8 +315,10 @@ pub(super) fn render_sample_voice_block(
         voice.active = false;
         return 0;
     };
-    let buffer_frames = buffer.samples.len() / buffer.channels as usize;
-    if buffer_frames == 0 || voice.pos >= buffer_frames as f32 {
+    let buffer_view = SampleBufferView::from_buffer(buffer);
+    let buffer_frames = buffer_view.frames();
+    let end_position = buffer_view.end_position();
+    if buffer_frames == 0 || voice.pos >= end_position {
         voice.active = false;
         return 0;
     }
@@ -324,38 +326,28 @@ pub(super) fn render_sample_voice_block(
     voice
         .filt
         .prepare(FilterType::Lowpass, voice.filter_cutoff_hz, q, sample_rate);
+    let step = voice.step;
+    let gain = voice.gain;
+    let active = &mut voice.active;
+    let pos = &mut voice.pos;
+    let filt = &mut voice.filt;
     let mut rendered_frames = 0;
     for sample in samples[..frames].iter_mut() {
-        if let Some(rendered) = render_sample_voice_frame_prepared(voice) {
-            *sample = rendered;
-            rendered_frames += 1;
-        } else if !voice.active {
+        if *pos >= end_position {
+            *active = false;
             break;
         }
+        let frame = pos.floor() as usize;
+        let frac = *pos - frame as f32;
+        let next_frame = (frame + 1).min(buffer_frames - 1);
+        let input = buffer_view.mono_frame(frame) * (1.0 - frac)
+            + buffer_view.mono_frame(next_frame) * frac;
+        let filtered = filt.process_prepared(input).clamp(-8.0, 8.0);
+        *pos += step;
+        *sample = filtered * gain;
+        rendered_frames += 1;
     }
     rendered_frames
-}
-
-fn render_sample_voice_frame_prepared(voice: &mut SampleVoice) -> Option<f32> {
-    if !voice.active {
-        return None;
-    }
-    let Some(buffer) = voice.buffer.as_ref() else {
-        voice.active = false;
-        return None;
-    };
-    let frames = buffer.samples.len() / buffer.channels as usize;
-    if frames == 0 || voice.pos >= frames as f32 {
-        voice.active = false;
-        return None;
-    }
-    let frame = voice.pos.floor() as usize;
-    let frac = voice.pos - frame as f32;
-    let next_frame = (frame + 1).min(frames - 1);
-    let sample = mono_frame(buffer, frame) * (1.0 - frac) + mono_frame(buffer, next_frame) * frac;
-    let filtered = voice.filt.process_prepared(sample).clamp(-8.0, 8.0);
-    voice.pos += voice.step;
-    Some(filtered * voice.gain)
 }
 
 pub(super) fn sample_lowpass(

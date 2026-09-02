@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(test)]
+use std::cell::Cell;
 use std::f32::consts::PI;
 
 pub(super) const FREEZE_INJECT_MS: u32 = 120;
@@ -6,6 +8,62 @@ pub(super) const DRY_HISTORY_FRAMES: usize = 2048;
 pub(super) const PITCH_BUF_FRAMES: usize = 2048;
 const PITCH_MIN_DELAY: f32 = 64.0;
 const PITCH_RANGE: f32 = 1024.0;
+
+#[cfg(test)]
+thread_local! {
+    static SAMPLE_BUFFER_VIEW_RESOLVES: Cell<usize> = const { Cell::new(0) };
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct SampleBufferView<'a> {
+    samples: &'a [f32],
+    channels: usize,
+    frames: usize,
+    end_position: f32,
+}
+
+impl<'a> SampleBufferView<'a> {
+    pub(super) fn from_buffer(buffer: &'a SampleBuffer) -> Self {
+        #[cfg(test)]
+        SAMPLE_BUFFER_VIEW_RESOLVES.with(|resolves| resolves.set(resolves.get() + 1));
+        let channels = buffer.channels as usize;
+        let frames = buffer.samples.len() / channels;
+        Self {
+            samples: buffer.samples.as_ref(),
+            channels,
+            frames,
+            end_position: frames as f32,
+        }
+    }
+
+    pub(super) fn frames(&self) -> usize {
+        self.frames
+    }
+
+    pub(super) fn end_position(&self) -> f32 {
+        self.end_position
+    }
+
+    pub(super) fn mono_frame(&self, frame: usize) -> f32 {
+        let base = frame.saturating_mul(self.channels);
+        if self.channels == 1 {
+            return self.samples.get(base).copied().unwrap_or(0.0);
+        }
+        let left = self.samples.get(base).copied().unwrap_or(0.0);
+        let right = self.samples.get(base + 1).copied().unwrap_or(left);
+        (left + right) * 0.5
+    }
+}
+
+#[cfg(test)]
+pub(super) fn reset_sample_buffer_view_resolves_for_test() {
+    SAMPLE_BUFFER_VIEW_RESOLVES.with(|resolves| resolves.set(0));
+}
+
+#[cfg(test)]
+pub(super) fn sample_buffer_view_resolves_for_test() -> usize {
+    SAMPLE_BUFFER_VIEW_RESOLVES.with(Cell::get)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum InstrumentKind {
