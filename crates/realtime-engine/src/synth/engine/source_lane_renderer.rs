@@ -6,7 +6,9 @@ use super::super::types::{
     SYNTH_VOICE_PARTITION_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
 use super::render_voice::{
-    refresh_synth_voice_render_cache, render_synth_voice_sample_precomputed, SynthVoiceRenderConfig,
+    prepare_synth_voice_block, refresh_synth_voice_render_cache,
+    render_synth_voice_sample_block_precomputed, render_synth_voice_sample_precomputed,
+    SynthVoiceRenderConfig,
 };
 use super::sample_voice_pool::SampleVoicePartition;
 use super::support::{mono_frame, SampleVoice};
@@ -90,17 +92,15 @@ pub(super) fn render_synth_partition(
             revision: context.revisions[slot],
             mods: context.mods[slot],
         };
-        for frame in 0..frames {
-            if let Some(sample) = render_synth_voice_frame(
-                voice,
-                slot,
-                base_sample_clock.saturating_add(frame as u64),
-                frame_context,
-            ) {
-                scratch.samples[lane][frame] = sample;
-                scratch.active[lane][frame] = true;
-            }
-        }
+        render_synth_voice_block(
+            voice,
+            slot,
+            frames,
+            base_sample_clock,
+            frame_context,
+            &mut scratch.samples[lane],
+            &mut scratch.active[lane],
+        );
     }
 }
 
@@ -180,6 +180,71 @@ pub(super) fn render_synth_voice_frame(
         amp_env,
         filt_env,
     ))
+}
+
+fn render_synth_voice_block(
+    voice: &mut Voice,
+    slot_idx: usize,
+    frames: usize,
+    base_sample_clock: u64,
+    context: SynthVoiceFrameContext,
+    samples: &mut [f32],
+    active: &mut [bool],
+) {
+    if frames == 0 || !voice.active {
+        return;
+    }
+    debug_assert_eq!(voice.instrument_slot as usize, slot_idx);
+    let block =
+        prepare_synth_voice_block(&context.render_config, context.mods, voice.velocity_norm);
+    let initial_filter = voice.filt;
+    if let Some(cutoff) = block.static_cutoff {
+        voice.filt.prepare(
+            context.render_config.filter_kind,
+            cutoff,
+            block.q,
+            context.sample_rate,
+        );
+    }
+    let mut rendered = false;
+    for frame in 0..frames {
+        if base_sample_clock.saturating_add(frame as u64) >= voice.note_off_sample {
+            voice
+                .amp_env
+                .begin_release(context.config.amp_env, context.sample_rate);
+            voice
+                .filt_env
+                .begin_release(context.config.filter_env, context.sample_rate);
+        }
+        let amp_env = voice.amp_env.next();
+        let filt_env = voice.filt_env.next();
+        if voice.amp_env.is_off() {
+            voice.active = false;
+            if !rendered && block.static_cutoff.is_some() {
+                voice.filt = initial_filter;
+            }
+            break;
+        }
+        if voice.render_revision != context.revision {
+            refresh_synth_voice_render_cache(
+                voice,
+                &context.render_config,
+                context.sample_rate,
+                context.revision,
+            );
+        }
+        samples[frame] = render_synth_voice_sample_block_precomputed(
+            context.sample_rate,
+            context.mods,
+            &context.render_config,
+            voice,
+            amp_env,
+            filt_env,
+            block,
+        );
+        active[frame] = true;
+        rendered = true;
+    }
 }
 
 pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u32) -> Option<f32> {

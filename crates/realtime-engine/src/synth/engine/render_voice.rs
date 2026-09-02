@@ -7,7 +7,7 @@ pub(super) struct SynthVoiceRenderConfig {
     osc2: OscRenderConfig,
     amp_velocity_sensitivity: f32,
     amp_gain: f32,
-    filter_kind: FilterType,
+    pub(super) filter_kind: FilterType,
     filter_cutoff_hz: f32,
     filter_env_amount: f32,
     filter_resonance: f32,
@@ -20,6 +20,13 @@ struct OscRenderConfig {
     detune_mul: f32,
     level: f32,
     pulse_duty: f32,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct SynthVoiceBlockRenderState {
+    pub(super) velocity_gain: f32,
+    pub(super) q: f32,
+    pub(super) static_cutoff: Option<f32>,
 }
 
 impl SynthVoiceRenderConfig {
@@ -92,6 +99,50 @@ pub(super) fn render_synth_voice_sample_precomputed(
     let q = synth_voice_q(cfg, mods.resonance_cc);
     let filtered = v.filt.process(dry, cfg.filter_kind, cutoff, q, sample_rate);
     filtered * amp_env * vel_gain * gain * 0.35
+}
+
+pub(super) fn prepare_synth_voice_block(
+    cfg: &SynthVoiceRenderConfig,
+    mods: InstrumentMod,
+    velocity_norm: f32,
+) -> SynthVoiceBlockRenderState {
+    let vel_sens = cfg.amp_velocity_sensitivity;
+    let velocity_gain = (1.0 - vel_sens) + vel_sens * velocity_norm;
+    let q = synth_voice_q(cfg, mods.resonance_cc);
+    let static_cutoff = if mods.cutoff_cc > 0.0 || cfg.filter_env_amount == 0.0 {
+        Some(synth_voice_cutoff(cfg, mods.cutoff_cc, 0.0))
+    } else {
+        None
+    };
+    SynthVoiceBlockRenderState {
+        velocity_gain,
+        q,
+        static_cutoff,
+    }
+}
+
+pub(super) fn render_synth_voice_sample_block_precomputed(
+    sample_rate: u32,
+    mods: InstrumentMod,
+    cfg: &SynthVoiceRenderConfig,
+    v: &mut Voice,
+    amp_env: f32,
+    filt_env: f32,
+    block: SynthVoiceBlockRenderState,
+) -> f32 {
+    let osc1 = osc_sample_precomputed(cfg.osc1, v.osc1_inc, &mut v.phase1);
+    let osc2 = osc_sample_precomputed(cfg.osc2, v.osc2_inc, &mut v.phase2);
+    let dry = (osc1 + osc2) * 0.5;
+    let cutoff = block
+        .static_cutoff
+        .unwrap_or_else(|| synth_voice_cutoff(cfg, mods.cutoff_cc, filt_env));
+    let filtered = if block.static_cutoff.is_some() {
+        v.filt.process_prepared(dry)
+    } else {
+        v.filt
+            .process(dry, cfg.filter_kind, cutoff, block.q, sample_rate)
+    };
+    filtered * amp_env * block.velocity_gain * cfg.amp_gain * 0.35
 }
 
 fn osc_sample_precomputed(cfg: OscRenderConfig, inc: f32, phase: &mut f32) -> f32 {

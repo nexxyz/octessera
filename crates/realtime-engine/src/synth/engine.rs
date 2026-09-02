@@ -35,6 +35,8 @@ mod render_routing;
 mod render_samples;
 mod render_synth;
 #[cfg(test)]
+mod render_synth_block_tests;
+#[cfg(test)]
 mod render_tests;
 mod render_voice;
 mod retired_state;
