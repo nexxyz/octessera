@@ -5,7 +5,6 @@ use super::source_worker_test_fixtures::{
 };
 
 const SUPPORTED_QUANTA: [usize; 4] = [64, 128, 256, 2048];
-const TEST_POLL_LIMIT: usize = 1_000_000;
 const TEST_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
 
 #[test]
@@ -24,7 +23,7 @@ fn persistent_workers_match_inline_at_supported_quanta_with_transitions() {
         }
         let (lifecycle, mut runtime) =
             SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
-        runtime.set_timing_for_test(TEST_POLL_LIMIT, TEST_DEADLINE);
+        runtime.set_deadline_for_test(TEST_DEADLINE);
         assert_eq!(worker.synth_render_revisions[1], 2);
         assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, frames);
 
@@ -70,7 +69,7 @@ fn persistent_workers_match_inline_with_full_mixed_pools() {
         assert_eq!(worker.profile_snapshot().active_sample_voices, 64);
         let (lifecycle, mut runtime) =
             SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
-        runtime.set_timing_for_test(TEST_POLL_LIMIT, TEST_DEADLINE);
+        runtime.set_deadline_for_test(TEST_DEADLINE);
         assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, frames);
         let retirement = runtime.retire();
         assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
@@ -92,7 +91,7 @@ fn sparse_reduction_visits_only_active_synth_lanes() {
 
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
-    runtime.set_timing_for_test(TEST_POLL_LIMIT, TEST_DEADLINE);
+    runtime.set_deadline_for_test(TEST_DEADLINE);
     assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, 64);
     assert_eq!(
         runtime.reduction_lane_counts_for_test(),
@@ -112,7 +111,7 @@ fn reverse_completion_order_reduces_in_canonical_lane_order() {
     }
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
-    runtime.set_timing_for_test(TEST_POLL_LIMIT, TEST_DEADLINE);
+    runtime.set_deadline_for_test(TEST_DEADLINE);
     lifecycle.set_reverse_completion_for_test(true);
     assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, 256);
     let retirement = runtime.retire();

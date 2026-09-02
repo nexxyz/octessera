@@ -141,14 +141,11 @@ fn held_persistent_source(
     } else {
         SourceWorkerLifecycle::start_prewarmed(&mut engine).unwrap()
     };
-    runtime.set_timing_for_test(
-        if terminal { 0 } else { usize::MAX },
-        if terminal {
-            Duration::ZERO
-        } else {
-            Duration::from_secs(1)
-        },
-    );
+    runtime.set_deadline_for_test(if terminal {
+        Duration::ZERO
+    } else {
+        Duration::from_secs(1)
+    });
     let worker_hold = terminal.then(|| lifecycle.hold_control_for_test());
     let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
     let (shutdown_tx, shutdown_owner, hold_retired) =

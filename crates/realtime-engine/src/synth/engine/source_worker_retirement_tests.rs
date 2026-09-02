@@ -104,7 +104,7 @@ fn deadline_after_one_completion_destroys_both_owners_off_callback() {
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     wait_for_jobs(&lifecycle);
     wait_for_completion(&runtime, 1);
-    runtime.set_timing_for_test(0, Duration::ZERO);
+    runtime.set_deadline_for_test(Duration::ZERO);
     assert_immediate_retirement(
         &mut engine,
         lifecycle,
@@ -130,7 +130,7 @@ fn disconnected_completion_preserves_owner_until_lifecycle_join() {
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     wait_for_jobs(&lifecycle);
     wait_for_completion(&runtime, 1);
-    runtime.set_timing_for_test(0, Duration::ZERO);
+    runtime.set_deadline_for_test(Duration::ZERO);
     assert_immediate_retirement(
         &mut engine,
         lifecycle,
@@ -150,7 +150,7 @@ fn stale_completion_destroys_both_original_owners_without_reduction() {
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("prewarmed worker runtime");
     let initial = runtime.home_owner_identities_for_test();
-    runtime.set_timing_for_test(1_000_000, Duration::from_secs(1));
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     for _ in 0..100_000 {
         if runtime.rewrite_completion_sequence_for_test(0) {
@@ -190,7 +190,7 @@ fn panic_after_one_recovery_destroys_both_owners_off_callback() {
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     wait_for_jobs(&lifecycle);
     wait_for_completion(&runtime, 0);
-    runtime.set_timing_for_test(0, Duration::ZERO);
+    runtime.set_deadline_for_test(Duration::ZERO);
     assert_immediate_retirement(
         &mut engine,
         lifecycle,
@@ -212,7 +212,7 @@ fn worker_exit_after_both_completions_destroys_both_owners_off_callback() {
     let initial = runtime.home_owner_identities_for_test();
     lifecycle.set_exit_on_job_for_test(0);
     lifecycle.set_exit_on_job_for_test(1);
-    runtime.set_timing_for_test(1_000_000, Duration::from_secs(1));
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     assert_immediate_retirement(
         &mut engine,
@@ -304,7 +304,7 @@ fn disconnected_work_channel_returns_exact_owner_before_terminal_retirement() {
     let initial = runtime.home_owner_identities_for_test();
     lifecycle.disconnect_work_for_test(0);
     runtime.disconnect_work_for_test(0);
-    runtime.set_timing_for_test(0, Duration::ZERO);
+    runtime.set_deadline_for_test(Duration::ZERO);
     assert!(!runtime.dispatch_only_for_test(&mut engine, 128));
     assert_eq!(runtime.home_owner_identity_for_test(0), Some(initial[0]));
     assert_eq!(
@@ -330,7 +330,7 @@ fn asymmetric_full_work_dispatch_retires_immediately_without_joining_callback() 
         SourceWorkerLifecycle::start_prewarmed_held_for_test(&mut engine)
             .expect("prewarmed worker runtime");
     assert!(lifecycle.fill_work_channel_for_test(0));
-    runtime.set_timing_for_test(0, Duration::ZERO);
+    runtime.set_deadline_for_test(Duration::ZERO);
     assert!(!runtime.dispatch_only_for_test(&mut engine, 128));
     assert_eq!(
         runtime.health_snapshot().status,

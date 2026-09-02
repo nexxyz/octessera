@@ -20,7 +20,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;
-pub(super) const SOURCE_WORKER_POLL_CEILING: usize = 4_096;
 const SOURCE_WORKER_DEADLINE_FRACTION: f64 = 0.25;
 
 pub struct SourceWorkerRuntime {
@@ -45,10 +44,9 @@ pub struct SourceWorkerRuntime {
     expected_base_sample_clock: u64,
     in_flight_mask: u8,
     completed_mask: u8,
-    poll_limit: usize,
     sample_rate: u32,
     #[cfg(any(test, feature = "test-support"))]
-    timing_override: Option<(usize, Duration)>,
+    deadline_override: Option<Duration>,
 }
 
 impl SourceWorkerRuntime {
@@ -75,10 +73,9 @@ impl SourceWorkerRuntime {
             expected_base_sample_clock: 0,
             in_flight_mask: 0,
             completed_mask: 0,
-            poll_limit: 0,
             sample_rate: 0,
             #[cfg(any(test, feature = "test-support"))]
-            timing_override: None,
+            deadline_override: None,
         }
     }
 
@@ -121,10 +118,9 @@ impl SourceWorkerRuntime {
             expected_base_sample_clock: 0,
             in_flight_mask: 0,
             completed_mask: 0,
-            poll_limit: SOURCE_WORKER_POLL_CEILING,
             sample_rate,
             #[cfg(any(test, feature = "test-support"))]
-            timing_override: None,
+            deadline_override: None,
         })
     }
 
@@ -144,20 +140,17 @@ impl SourceWorkerRuntime {
         self.health.snapshot()
     }
 
-    fn rendezvous_timing(&self, frames: usize) -> (usize, Duration) {
+    fn rendezvous_deadline(&self, frames: usize) -> Duration {
         #[cfg(any(test, feature = "test-support"))]
-        if let Some(override_timing) = self.timing_override {
-            return override_timing;
+        if let Some(deadline) = self.deadline_override {
+            return deadline;
         }
         let quantum_seconds = if self.sample_rate == 0 {
             0.0
         } else {
             frames as f64 / self.sample_rate as f64
         };
-        (
-            self.poll_limit,
-            Duration::from_secs_f64(quantum_seconds * SOURCE_WORKER_DEADLINE_FRACTION),
-        )
+        Duration::from_secs_f64(quantum_seconds * SOURCE_WORKER_DEADLINE_FRACTION)
     }
 
     fn home_is_ready(&self) -> bool {
@@ -332,10 +325,8 @@ impl SourceWorkerRuntime {
 
     fn collect(&mut self, engine: &mut SynthEngine, wait: bool) -> bool {
         let start = Instant::now();
-        let mut polls = 0;
-        let (poll_limit, deadline) = self.rendezvous_timing(self.expected_frames);
+        let deadline = self.rendezvous_deadline(self.expected_frames);
         while self.in_flight_mask != 0 {
-            let mut progress = false;
             for parity in 0..SOURCE_WORKER_COUNT {
                 if self.in_flight_mask & (1 << parity) == 0 || !self.home_is_empty(parity) {
                     continue;
@@ -346,7 +337,6 @@ impl SourceWorkerRuntime {
                     .map(|done_rxs| done_rxs[parity].try_recv());
                 match receive_result {
                     Some(Ok(completion)) => {
-                        progress = true;
                         self.accept_completion(completion);
                     }
                     Some(Err(TryRecvError::Empty)) | None => {}
@@ -365,17 +355,12 @@ impl SourceWorkerRuntime {
             if !wait && self.health.status() == SourceWorkerHealth::Healthy {
                 break;
             }
-            if progress {
-                polls = 0;
-            } else {
-                polls += 1;
-                if polls >= poll_limit || start.elapsed() >= deadline {
-                    if self.health.status() == SourceWorkerHealth::Healthy {
-                        self.latch_deadline_or_exit();
-                    }
-                    self.reclaim_available(engine);
-                    return false;
+            if start.elapsed() >= deadline {
+                if self.health.status() == SourceWorkerHealth::Healthy {
+                    self.latch_deadline_or_exit();
                 }
+                self.reclaim_available(engine);
+                return false;
             }
         }
         if self.health.status() != SourceWorkerHealth::Healthy {

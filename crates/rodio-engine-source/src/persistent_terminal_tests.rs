@@ -67,9 +67,9 @@ fn gated_source(
         SourceWorkerLifecycle::start_prewarmed(&mut engine).unwrap()
     };
     if hold_workers {
-        runtime.set_timing_for_test(0, Duration::ZERO);
+        runtime.set_deadline_for_test(Duration::ZERO);
     } else {
-        runtime.set_timing_for_test(usize::MAX, Duration::from_secs(1));
+        runtime.set_deadline_for_test(Duration::from_secs(1));
     }
     if let Some(parity) = panic_parity {
         lifecycle.set_panic_on_job_for_test(parity);

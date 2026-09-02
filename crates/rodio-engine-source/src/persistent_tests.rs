@@ -34,7 +34,7 @@ pub(super) fn persistent_source(
         .as_mut()
         .expect("persistent worker")
         .runtime
-        .set_timing_for_test(usize::MAX, Duration::from_secs(1));
+        .set_deadline_for_test(Duration::from_secs(1));
     (tx, source, shutdown)
 }
 

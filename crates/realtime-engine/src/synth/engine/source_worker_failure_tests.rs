@@ -84,7 +84,7 @@ fn deadline_runtime_drop_defers_owner_destruction_to_lifecycle_shutdown() {
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_prewarmed_held_for_test(&mut engine)
             .expect("prewarmed worker runtime");
-    runtime.set_timing_for_test(0, std::time::Duration::ZERO);
+    runtime.set_deadline_for_test(std::time::Duration::ZERO);
     let mut left = Vec::with_capacity(128);
     let mut right = Vec::with_capacity(128);
     let mut out = Vec::with_capacity(256);
@@ -152,7 +152,7 @@ fn worker_panic_returns_bundle_and_latches_terminal_health() {
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("prewarmed worker runtime");
     lifecycle.set_panic_on_job_for_test(0);
-    runtime.set_timing_for_test(1_000_000, Duration::from_secs(1));
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     let mut left = Vec::with_capacity(128);
     let mut right = Vec::with_capacity(128);
     let mut out = Vec::with_capacity(256);
