@@ -59,6 +59,12 @@ pub struct EngineSourceWorkerShutdownOwner {
     reaper: Option<std::thread::JoinHandle<()>>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EngineSourceWorkerShutdownError {
+    ReaperCompletionUnavailable,
+    ReaperThreadPanicked,
+}
+
 impl EngineSourceWorkerShutdownOwner {
     pub(super) fn new(
         completion_rx: crossbeam_channel::Receiver<realtime_engine::synth::SourceWorkerShutdown>,
@@ -70,14 +76,33 @@ impl EngineSourceWorkerShutdownOwner {
         }
     }
 
-    pub fn shutdown(mut self) -> realtime_engine::synth::SourceWorkerShutdown {
-        let completion = self
-            .completion_rx
-            .recv()
-            .expect("persistent source reaper completion");
+    pub fn shutdown(self) -> realtime_engine::synth::SourceWorkerShutdown {
+        self.try_shutdown()
+            .expect("persistent source reaper completion")
+    }
+
+    pub fn try_shutdown(
+        mut self,
+    ) -> Result<realtime_engine::synth::SourceWorkerShutdown, EngineSourceWorkerShutdownError> {
+        let completion = match self.completion_rx.recv() {
+            Ok(completion) => completion,
+            Err(_) => {
+                let reaper_panicked = self
+                    .reaper
+                    .take()
+                    .is_some_and(|reaper| reaper.join().is_err());
+                return Err(if reaper_panicked {
+                    EngineSourceWorkerShutdownError::ReaperThreadPanicked
+                } else {
+                    EngineSourceWorkerShutdownError::ReaperCompletionUnavailable
+                });
+            }
+        };
         if let Some(reaper) = self.reaper.take() {
-            let _ = reaper.join();
+            if reaper.join().is_err() {
+                return Err(EngineSourceWorkerShutdownError::ReaperThreadPanicked);
+            }
         }
-        completion
+        Ok(completion)
     }
 }

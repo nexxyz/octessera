@@ -390,3 +390,53 @@ fn explicit_block_size_respects_render_quantum_override_parser() {
     assert_eq!(resolve_audio_render_quantum_frames(Some("invalid"), 64), 64);
     assert_eq!(resolve_audio_render_quantum_frames(Some("1"), 64), 32);
 }
+
+#[test]
+fn benchmark_persistent_constructor_uses_exact_requested_frames_without_env_override() {
+    if std::env::var_os("OCTESSERA_BENCHMARK_QUANTUM_CHILD").is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "tests::benchmark_persistent_constructor_uses_exact_requested_frames_without_env_override",
+                "--nocapture",
+            ])
+            .env("OCTESSERA_BENCHMARK_QUANTUM_CHILD", "1")
+            .env("OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES", "2048")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    for block_frames in [64, 128, 256, 512, 1024, 2048] {
+        let (_tx, rx) = event_queue();
+        let (source, shutdown) =
+            EngineSource::with_persistent_workers_for_benchmark(rx, 44_100, block_frames, None)
+                .unwrap();
+        assert_eq!(source.block_frames(), block_frames);
+        drop(source);
+        assert_eq!(shutdown.shutdown().joined_workers, 2);
+    }
+}
+
+#[test]
+fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
+    for block_frames in [31, 2049] {
+        let reaper_spawn_failure = source_worker_reaper::fail_next_reaper_spawn_for_test();
+        let (_tx, rx) = event_queue();
+        let result =
+            EngineSource::with_persistent_workers_for_benchmark(rx, 44_100, block_frames, None);
+        assert!(matches!(
+            result,
+            Err(SourceWorkerSetupError::InvalidBlockFrames {
+                requested,
+                min: MIN_BLOCK_FRAMES,
+                max: MAX_BLOCK_FRAMES,
+            }) if requested == block_frames
+        ));
+        assert_eq!(reaper_spawn_failure.attempts_for_test(), 0);
+    }
+}

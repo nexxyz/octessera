@@ -15,6 +15,7 @@ use std::time::Duration;
 
 #[path = "source_worker_worker.rs"]
 pub(super) mod worker;
+pub use worker::SOURCE_WORKER_THREAD_NAMES;
 use worker::{spawn_worker, ReverseCompletionState, SourceWorkerSlot};
 
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;

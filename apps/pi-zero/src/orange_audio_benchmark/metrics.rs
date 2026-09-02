@@ -51,6 +51,7 @@ pub struct CallbackMetrics {
     post_mute_nonzero_samples: AtomicU64,
     cpal_device_errors: AtomicU64,
     cpal_stream_errors: AtomicU64,
+    worker_terminal: AtomicBool,
     terminal_error: AtomicBool,
 }
 
@@ -88,6 +89,7 @@ pub struct CallbackMetricsSnapshot {
     pub post_mute_nonzero_samples: u64,
     pub cpal_device_error_count: u64,
     pub cpal_stream_error_count: u64,
+    pub worker_terminal: bool,
     pub terminal_error: bool,
 }
 
@@ -128,6 +130,7 @@ impl CallbackMetrics {
             post_mute_nonzero_samples: AtomicU64::new(0),
             cpal_device_errors: AtomicU64::new(0),
             cpal_stream_errors: AtomicU64::new(0),
+            worker_terminal: AtomicBool::new(false),
             terminal_error: AtomicBool::new(false),
         }
     }
@@ -262,6 +265,11 @@ impl CallbackMetrics {
         self.terminal_error.store(true, Ordering::Relaxed);
     }
 
+    pub fn mark_worker_terminal(&self) {
+        self.worker_terminal.store(true, Ordering::Release);
+        self.terminal_error.store(true, Ordering::Release);
+    }
+
     pub fn enable_measurement(&self) {
         self.reset_measurement();
         self.measurement_enabled.store(true, Ordering::Release);
@@ -365,6 +373,7 @@ impl CallbackMetrics {
             post_mute_nonzero_samples: self.post_mute_nonzero_samples.load(Ordering::Relaxed),
             cpal_device_error_count: self.cpal_device_errors.load(Ordering::Relaxed),
             cpal_stream_error_count: self.cpal_stream_errors.load(Ordering::Relaxed),
+            worker_terminal: self.worker_terminal.load(Ordering::Acquire),
             terminal_error: self.terminal_error.load(Ordering::Relaxed),
         }
     }

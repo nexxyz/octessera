@@ -5,8 +5,10 @@ use super::probe::ProfileProbe;
 use super::schema::{
     atomic_write_json, BenchmarkProfileSnapshot, BenchmarkProgress, BenchmarkResult,
 };
-use super::stream::BenchmarkStream;
+use super::stream::{source_worker_health_name, BenchmarkStream};
+use crate::audio::AudioStreamShutdownError;
 use crate::dsp_scenarios::ExpectedLiveState;
+use realtime_engine::synth::SourceWorkerHealth;
 use realtime_engine::synth::SynthProfileSnapshot;
 use std::sync::Arc;
 use std::thread;
@@ -37,6 +39,10 @@ pub struct RunState {
     pub profile_end: Option<SynthProfileSnapshot>,
     pub invocation_id: Option<String>,
     pub errors: Vec<String>,
+    pub worker_health: SourceWorkerHealth,
+    pub worker_thread_names: [String; 2],
+    pub joined_workers: usize,
+    pub retirement_error: Option<String>,
 }
 
 impl RunState {
@@ -65,6 +71,10 @@ impl RunState {
             profile_end: None,
             invocation_id: None,
             errors: Vec::new(),
+            worker_health: SourceWorkerHealth::Disabled,
+            worker_thread_names: [String::new(), String::new()],
+            joined_workers: 0,
+            retirement_error: None,
         }
     }
 
@@ -75,7 +85,16 @@ impl RunState {
             sample_rate: stream.sample_rate,
             engine_block_frames: stream.engine_block_frames,
         });
+        self.worker_health = stream.worker_health();
+        self.worker_thread_names = stream.worker_thread_names();
         self.stream = Some(stream);
+    }
+
+    pub fn current_worker_health(&self) -> SourceWorkerHealth {
+        self.stream
+            .as_ref()
+            .map(BenchmarkStream::worker_health)
+            .unwrap_or(self.worker_health)
     }
 
     pub fn note_error(&mut self, error: impl Into<String>) {
@@ -101,8 +120,19 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
                 Err(error) => state.note_error(error),
             }
         }
-        if state.stream.take().is_some() {
+        if let Some(stream) = state.stream.take() {
+            state.worker_health = stream.worker_health();
+            state.worker_thread_names = stream.worker_thread_names();
+            stream.report_worker_terminal();
             state.stream_stopped = true;
+            match stream.teardown() {
+                Ok(report) => {
+                    state.joined_workers = report.joined_workers;
+                    state.retirement_error =
+                        report.retirement_error.map(|error| format!("{error:?}"));
+                }
+                Err(error) => record_shutdown_error(state, error),
+            }
             thread::sleep(SHUTDOWN_MARGIN);
         } else {
             state.note_error("benchmark stream was already absent during finalization");
@@ -136,7 +166,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         state.note_error("final profile evidence is missing");
     }
 
-    let final_progress_result = write_final_progress(config, &final_metrics);
+    let final_progress_result = write_final_progress(config, &final_metrics, state.worker_health);
     let final_progress_write_succeeded = final_progress_result.is_ok();
     if let Err(error) = final_progress_result {
         state.note_error(error);
@@ -151,6 +181,9 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
             measurement_stop_acknowledged: state.measurement_stop_acknowledged,
             stream_stopped: state.stream_stopped,
             final_progress_write_succeeded,
+            worker_health: state.worker_health,
+            joined_workers: state.joined_workers,
+            retirement_error: state.retirement_error.is_none(),
         },
     );
     let stream = state.stream_evidence.clone().unwrap_or(StreamEvidence {
@@ -168,7 +201,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 4,
+        schema_version: 5,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -197,6 +230,12 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         recovered_alsa_epipe_count: None,
         recovered_alsa_epipe_observable: false,
         terminal_error: (!state.errors.is_empty()).then(|| state.errors.join("; ")),
+        executor_mode: super::stream::EXECUTOR_MODE.into(),
+        worker_health: source_worker_health_name(state.worker_health).into(),
+        worker_thread_name_0: state.worker_thread_names[0].clone(),
+        worker_thread_name_1: state.worker_thread_names[1].clone(),
+        joined_workers: state.joined_workers,
+        retirement_error: state.retirement_error.clone(),
     };
 
     atomic_write_json(&config.result_path, &result)
@@ -215,12 +254,36 @@ pub fn request_profile_snapshot(state: &RunState) -> Result<SynthProfileSnapshot
         if let Some(snapshot) = state.profile_probe.poll(generation) {
             return Ok(snapshot);
         }
+        if let Some(stream) = state.stream.as_ref() {
+            if stream.runtime_status() == crate::audio::AudioStreamStatus::Terminal {
+                stream.report_worker_terminal();
+                return Err("benchmark DSP worker entered a terminal health state".into());
+            }
+        }
         if state.metrics.snapshot().terminal_error {
             return Err("callback error occurred while waiting for profile snapshot".into());
         }
         thread::sleep(Duration::from_millis(5));
     }
     Err("profile snapshot probe timed out".into())
+}
+
+fn record_shutdown_error(state: &mut RunState, error: AudioStreamShutdownError) {
+    match error {
+        AudioStreamShutdownError::WorkerStatus {
+            joined_workers,
+            retirement_error,
+        } => {
+            state.joined_workers = joined_workers;
+            state.retirement_error = retirement_error.map(|error| format!("{error:?}"));
+        }
+        AudioStreamShutdownError::Retirement(error) => {
+            state.retirement_error = Some(format!("{error:?}"));
+        }
+        AudioStreamShutdownError::ReaperCompletionUnavailable
+        | AudioStreamShutdownError::ReaperThreadPanicked => {}
+    }
+    state.note_error(format!("benchmark stream teardown failed: {error:?}"));
 }
 
 pub fn validate_profile_state(
@@ -265,6 +328,9 @@ struct FinalizationGates {
     measurement_stop_acknowledged: bool,
     stream_stopped: bool,
     final_progress_write_succeeded: bool,
+    worker_health: SourceWorkerHealth,
+    joined_workers: usize,
+    retirement_error: bool,
 }
 
 fn result_status(
@@ -277,6 +343,9 @@ fn result_status(
         && gates.measurement_stop_acknowledged
         && gates.stream_stopped
         && gates.final_progress_write_succeeded
+        && gates.worker_health == SourceWorkerHealth::Healthy
+        && gates.joined_workers == 2
+        && gates.retirement_error
         && result_passes(config, metrics)
     {
         "pass"
@@ -294,12 +363,14 @@ fn result_passes(config: &BenchmarkConfig, metrics: &CallbackMetricsSnapshot) ->
         && metrics.over_audio_duration_budget_count == 0
         && metrics.pre_mute_nonzero_samples > 0
         && metrics.post_mute_nonzero_samples == 0
+        && !metrics.worker_terminal
         && !metrics.terminal_error
 }
 
 fn write_final_progress(
     config: &BenchmarkConfig,
     metrics: &CallbackMetricsSnapshot,
+    worker_health: SourceWorkerHealth,
 ) -> Result<(), String> {
     atomic_write_json(
         &config.progress_path,
@@ -309,6 +380,7 @@ fn write_final_progress(
             metrics.measured_elapsed_ns / 1_000_000_000,
             config.measure_seconds,
             metrics,
+            worker_health,
         ),
     )
 }

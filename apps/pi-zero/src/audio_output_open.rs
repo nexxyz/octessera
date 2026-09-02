@@ -2,14 +2,13 @@
 use super::cpal_audio_output::build_cpal_stream;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use super::cpal_audio_output::build_orange_cpal_stream;
+use super::cpal_audio_output::AudioSourceExecutionMode;
 use super::cpal_audio_output::BuiltAudioStream;
 use super::{AudioSink, RecordingTapState};
 use crate::audio::default_pi_instruments;
 use crate::audio_priority::qualify_callback_scheduler;
 use crate::audio_route::RouteOpenError;
 use crate::audio_stream_health::AudioStreamHealth;
-use cpal::traits::StreamTrait;
-use cpal::Stream;
 use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
 #[cfg(test)]
 use rodio_engine_source::EngineEventReceiver;
@@ -22,7 +21,7 @@ const USB_AUDIO_STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
 
 pub(crate) struct OpenedAudioSink {
     pub(crate) engine_tx: EngineEventSender,
-    pub(crate) _stream: Option<Stream>,
+    pub(crate) _stream: Option<Box<BuiltAudioStream>>,
     pub(crate) health: AudioStreamHealth,
     #[cfg(test)]
     pub(crate) _test_engine_rx: Option<std::sync::Arc<std::sync::Mutex<EngineEventReceiver>>>,
@@ -33,6 +32,14 @@ pub(super) type AudioSinkOpener = fn(
     AudioSink,
     Option<RecordingTapState>,
 ) -> Result<OpenedAudioSink, RouteOpenError>;
+
+pub(super) fn source_execution_mode(sink: AudioSink) -> AudioSourceExecutionMode {
+    if cfg!(feature = "hardware-orange-pi-zero-2w") && sink == AudioSink::Jack {
+        AudioSourceExecutionMode::PersistentTwoWorkers
+    } else {
+        AudioSourceExecutionMode::Inline
+    }
+}
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn open_audio_sink(
@@ -52,21 +59,24 @@ pub(super) fn open_audio_sink(
         sink,
         recording_tap,
         health.clone(),
+        source_execution_mode(sink),
     )?;
-    let BuiltAudioStream { stream, scheduler } = built;
-    stream
-        .play()
-        .map_err(super::cpal_audio_output::map_play_stream_error)?;
+    if let Err(error) = built.play() {
+        if let Err(status) = built.teardown() {
+            return Err(super::cpal_audio_output::map_shutdown_error(status));
+        }
+        return Err(super::cpal_audio_output::map_play_stream_error(error));
+    }
     if let Err(error) = qualify_callback_scheduler(
         sink.scheduler_label(),
-        &scheduler,
+        &built.scheduler,
         CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
     ) {
         eprintln!("{error}");
     }
     if sink != AudioSink::Jack {
         std::thread::sleep(USB_AUDIO_STARTUP_FAULT_GRACE);
-        if health.is_faulted() {
+        if health.external_is_faulted() {
             return Err(RouteOpenError::Fault(format!(
                 "{sink:?} audio stream entered a high-rate error loop"
             )));
@@ -79,7 +89,7 @@ pub(super) fn open_audio_sink(
         .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
     Ok(OpenedAudioSink {
         engine_tx,
-        _stream: Some(stream),
+        _stream: Some(Box::new(built)),
         health,
         #[cfg(test)]
         _test_engine_rx: None,
@@ -114,14 +124,17 @@ pub(super) fn open_orange_audio_sink_with_health(
         sink,
         recording_tap,
         health.clone(),
+        source_execution_mode(sink),
     )?;
-    let BuiltAudioStream { stream, scheduler } = built;
-    stream
-        .play()
-        .map_err(super::cpal_audio_output::map_play_stream_error)?;
+    if let Err(error) = built.play() {
+        if let Err(status) = built.teardown() {
+            return Err(super::cpal_audio_output::map_shutdown_error(status));
+        }
+        return Err(super::cpal_audio_output::map_play_stream_error(error));
+    }
     qualify_callback_scheduler(
         sink.scheduler_label(),
-        &scheduler,
+        &built.scheduler,
         CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
     )
     .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
@@ -132,7 +145,7 @@ pub(super) fn open_orange_audio_sink_with_health(
         .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
     Ok(OpenedAudioSink {
         engine_tx,
-        _stream: Some(stream),
+        _stream: Some(Box::new(built)),
         health,
         #[cfg(test)]
         _test_engine_rx: None,

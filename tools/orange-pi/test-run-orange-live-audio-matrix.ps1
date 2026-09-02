@@ -79,17 +79,17 @@ try {
   New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
   $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -MeasureSeconds 30
   $readiness = [pscustomobject]@{
-    schema_version = 3; kind = "orange_audio_benchmark_readiness"; status = "ready"; board_profile = "orange-pi-zero-2w"; pid = 123
+    schema_version = 4; kind = "orange_audio_benchmark_readiness"; status = "ready"; board_profile = "orange-pi-zero-2w"; pid = 123
     systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $selection.Scenario; requested_output_buffer_frames = 256
     expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256
     callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 441; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0
     sample_rate = 44100; channels = 2; sample_format = "F32"
-    scheduler_qualified = $true; post_dsp_zero = $true
+    scheduler_qualified = $true; post_dsp_zero = $true; executor_mode = "persistent_two_workers"; worker_health = "healthy"; worker_thread_name_0 = "oct-dsp-src-0"; worker_thread_name_1 = "oct-dsp-src-1"
   }
-  $callback = [pscustomobject]@{ callback_count = 441; first_measured_callback_ns = 1; last_measured_callback_ns = 442; measured_elapsed_ns = 441; callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 441; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0; callback_timestamp_observed = $true; terminal_error = $false; over_audio_duration_budget_count = 0; cpal_device_error_count = 0; cpal_stream_error_count = 0; pre_mute_nonzero_samples = 10; post_mute_nonzero_samples = 0; rendered_frames = 44100; render_audio_duration_ns = 1000000000; render_audio_duration_ratio_p50 = 0.5; render_audio_duration_ratio_p95 = 0.6; render_audio_duration_ratio_p99 = 0.7; render_audio_duration_ratio_p99_9 = 0.8; render_audio_duration_ratio_max = 0.9 }
+  $callback = [pscustomobject]@{ callback_count = 441; first_measured_callback_ns = 1; last_measured_callback_ns = 442; measured_elapsed_ns = 441; callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 441; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0; callback_timestamp_observed = $true; terminal_error = $false; worker_terminal = $false; over_audio_duration_budget_count = 0; cpal_device_error_count = 0; cpal_stream_error_count = 0; pre_mute_nonzero_samples = 10; post_mute_nonzero_samples = 0; rendered_frames = 44100; render_audio_duration_ns = 1000000000; render_audio_duration_ratio_p50 = 0.5; render_audio_duration_ratio_p95 = 0.6; render_audio_duration_ratio_p99 = 0.7; render_audio_duration_ratio_p99_9 = 0.8; render_audio_duration_ratio_max = 0.9 }
   $profileStart = [pscustomobject]@{ active_synth_voices = 0; active_sample_voices = 0; active_preview_sample_voices = 0; active_momentary_fx = 0; cumulative_voice_steals = 0; cumulative_voice_admission_drops = 0 }
   $profileEnd = [pscustomobject]@{ active_synth_voices = 0; active_sample_voices = 0; active_preview_sample_voices = 0; active_momentary_fx = 0; cumulative_voice_steals = 0; cumulative_voice_admission_drops = 0 }
-  $result = [pscustomobject]@{ schema_version = 4; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $selection.Scenario; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256; sample_format = "F32"; channels = 2; sample_rate = 44100; warmup_seconds = 5; measure_seconds = 30; scheduler_qualified = $true; post_dsp_zero = $true; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); callback = $callback; profile_start = $profileStart; profile_end = $profileEnd; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null }
+  $result = [pscustomobject]@{ schema_version = 5; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $selection.Scenario; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256; sample_format = "F32"; channels = 2; sample_rate = 44100; warmup_seconds = 5; measure_seconds = 30; scheduler_qualified = $true; post_dsp_zero = $true; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); callback = $callback; profile_start = $profileStart; profile_end = $profileEnd; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null; executor_mode = "persistent_two_workers"; worker_health = "healthy"; worker_thread_name_0 = "oct-dsp-src-0"; worker_thread_name_1 = "oct-dsp-src-1"; joined_workers = 2; retirement_error = $null }
   $release = [pscustomobject]@{ schema_version = 2; kind = "orange_audio_benchmark_release"; status = "released"; board_profile = "orange-pi-zero-2w"; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $selection.Scenario; expected_alsa_buffer_frames = 256; observed_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; observed_alsa_period_frames = 64 }
   $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
@@ -107,6 +107,30 @@ try {
   $manifestAggregate = ConvertFrom-Json -InputObject (ConvertTo-OrangeLiveManifestJson -Results @($passEvidence))
   if ([math]::Abs([double]$manifestAggregate[0].AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Manifest did not retain the aggregate render-duration ratio." }
   Assert-OrangeLiveResult -Result $result -Selection $selection
+  $readiness.executor_mode = "inline"
+  Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
+  $readiness.executor_mode = "persistent_two_workers"
+  $readiness.worker_health = "deadline_miss"
+  Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
+  $readiness.worker_health = "healthy"
+  $readiness.PSObject.Properties.Remove("worker_thread_name_1")
+  Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
+  $readiness | Add-Member -NotePropertyName worker_thread_name_1 -NotePropertyValue "oct-dsp-src-1"
+  $result.executor_mode = "inline"
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $result.executor_mode = "persistent_two_workers"
+  $result.worker_health = "worker_exited"
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $result.worker_health = "healthy"
+  $result.joined_workers = 1
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $result.joined_workers = 2
+  $result.retirement_error = "retirement_failed"
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $result.retirement_error = $null
+  $result.PSObject.Properties.Remove("worker_thread_name_1")
+  Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
+  $result | Add-Member -NotePropertyName worker_thread_name_1 -NotePropertyValue "oct-dsp-src-1"
   $profileEnd.PSObject.Properties.Remove("cumulative_voice_admission_drops")
   Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
   $profileEnd | Add-Member -NotePropertyName cumulative_voice_admission_drops -NotePropertyValue "not-a-number"
@@ -334,6 +358,11 @@ $second = Invoke-PrintOnly $runner $runnerParameters
 if ($first -notmatch '(?s)(?=.*RuntimeMaxSec=185s)(?=.*RuntimeDirectoryPreserve=yes)(?=.*--benchmark-orange-audio)(?=.*--release-gate)(?=.*--output-frames 256 --engine-block-frames 256)(?=.*--measure-seconds 30)(?=.*sensor_abort)') { throw "Live payload omitted a required runtime or benchmark marker." }
 if ([regex]::Matches($first, 'systemd-run --unit="\$unit"').Count -ne 1) { throw "Live payload did not contain exactly one transient systemd-run launch." }
 if ($first -match "runtime-thermal-abort|70000|75000" -or $first -notmatch '(?s)(?=.*thermal-unreadable)(?=.*memory-unreadable)(?=.*thermal-missing)(?=.*runtime-memory-abort)(?=.*consecutive_samples)') { throw "Live payload changed its thermal or memory safety contract." }
+Assert-Contains $first "validate_benchmark_worker_threads"
+Assert-Contains $first "oct-dsp-src-0"
+Assert-Contains $first "oct-dsp-src-1"
+Assert-Contains $first "oct-src-reaper"
+if ($first -match "octessera-source-reaper") { throw "Live payload retained the prior overlong reaper name." }
 Assert-Contains $first 'systemctl stop "$unit"'
 Assert-Contains $first "benchmark-result-final.json"
 Assert-Contains $first "unit-stop-evidence"
@@ -403,6 +432,31 @@ rm -rf -- "$root"
 $captureFixture = $captureFixture.Replace("__CAPTURE_FUNCTION__", $captureFunction)
 $captureFixture | & bash -s
 if ($LASTEXITCODE -ne 0) { throw "Generated capture_alsa_release execution fixtures failed." }
+$threadStart = $studyPayload.IndexOf("validate_benchmark_worker_threads() {", [StringComparison]::Ordinal)
+$threadEnd = $studyPayload.IndexOf("wait_for_benchmark_readiness() {", $threadStart, [StringComparison]::Ordinal)
+if ($threadStart -lt 0 -or $threadEnd -lt 0) { throw "Generated worker-thread validator fixture could not be extracted." }
+$threadFunction = $studyPayload.Substring($threadStart, $threadEnd - $threadStart)
+$threadFixture = @'
+set -u
+root="$(mktemp -d)"
+pid=123
+mkdir -p "$root/$pid/task/1" "$root/$pid/task/2" "$root/$pid/task/3"
+printf 'oct-dsp-src-0\n' > "$root/$pid/task/1/comm"
+printf 'oct-dsp-src-1\n' > "$root/$pid/task/2/comm"
+printf 'oct-src-reaper\n' > "$root/$pid/task/3/comm"
+__THREAD_FUNCTION__
+validate_benchmark_worker_threads "$pid" "$root"
+printf 'octessera-sourc\n' > "$root/$pid/task/3/comm"
+if validate_benchmark_worker_threads "$pid" "$root"; then exit 1; fi
+printf 'oct-src-reaper\n' > "$root/$pid/task/3/comm"
+mkdir -p "$root/$pid/task/4"
+printf 'oct-dsp-src-0\n' > "$root/$pid/task/4/comm"
+if validate_benchmark_worker_threads "$pid" "$root"; then exit 1; fi
+rm -rf -- "$root"
+'@
+$threadFixture = $threadFixture.Replace("__THREAD_FUNCTION__", $threadFunction)
+$threadFixture | & bash -s
+if ($LASTEXITCODE -ne 0) { throw "Worker-thread validator did not reject the prior Linux-truncated reaper name." }
 $firstRemote = [regex]::Match($first, "Remote study root: (?<root>/tmp/[^\r\n]+)").Groups["root"].Value
 $secondRemote = [regex]::Match($second, "Remote study root: (?<root>/tmp/[^\r\n]+)").Groups["root"].Value
 if ([string]::IsNullOrWhiteSpace($firstRemote) -or $firstRemote -eq $secondRemote) { throw "Live PrintOnly paths were not unique." }

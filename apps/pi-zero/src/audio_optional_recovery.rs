@@ -6,8 +6,6 @@ use crate::audio_sink_registry::{
     attach_sink_atomic, has_sink, remove_sink_atomic, AudioAttachGate, SinkSender,
 };
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
-use cpal::traits::StreamTrait;
-use cpal::Stream;
 use rodio_engine_source::{event_queue, EngineEventSender};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
@@ -17,7 +15,7 @@ const RECOVERY_INTERVAL: Duration = Duration::from_secs(2);
 const STOP_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
 struct ManagedStream {
-    _stream: Stream,
+    _stream: super::cpal_audio_output::BuiltAudioStream,
     health: AudioStreamHealth,
 }
 
@@ -55,7 +53,10 @@ pub(super) fn spawn(
     let join = std::thread::spawn(move || {
         let mut managed: Option<ManagedStream> = None;
         while !worker_stop.load(std::sync::atomic::Ordering::Relaxed) {
-            match managed.as_ref().map(|stream| stream.health.status()) {
+            match managed
+                .as_ref()
+                .map(|stream| stream.health.external_status())
+            {
                 Some(AudioStreamStatus::Healthy) | None => {}
                 Some(AudioStreamStatus::Recovering) => {
                     let _ = remove_sink_atomic(&attach_gate, &realtime_txs, sink);
@@ -84,7 +85,7 @@ pub(super) fn spawn(
                             return;
                         }
                         set_status(&route_registry, sink, AudioRouteStatus::Active);
-                        stream.health.clear_faulted();
+                        stream.health.clear_external_fault();
                         managed = Some(stream);
                         eprintln!("{sink:?} audio stream ready");
                     }
@@ -129,20 +130,23 @@ fn open(
         sink,
         recording_tap,
         health.clone(),
+        super::cpal_audio_output::AudioSourceExecutionMode::Inline,
     )?;
-    let super::cpal_audio_output::BuiltAudioStream { stream, scheduler } = built;
-    stream
-        .play()
-        .map_err(super::cpal_audio_output::map_play_stream_error)?;
+    if let Err(error) = built.play() {
+        if let Err(status) = built.teardown() {
+            return Err(super::cpal_audio_output::map_shutdown_error(status));
+        }
+        return Err(super::cpal_audio_output::map_play_stream_error(error));
+    }
     if let Err(error) = crate::audio_priority::qualify_callback_scheduler(
         sink.scheduler_label(),
-        &scheduler,
+        &built.scheduler,
         super::audio_output_open::CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
     ) {
         eprintln!("{error}");
     }
     std::thread::sleep(STARTUP_FAULT_GRACE);
-    match health.status() {
+    match health.external_status() {
         AudioStreamStatus::Healthy => {}
         AudioStreamStatus::Recovering => return Err(RouteOpenError::Disconnected),
         AudioStreamStatus::Terminal => {
@@ -154,7 +158,7 @@ fn open(
     Ok((
         engine_tx,
         ManagedStream {
-            _stream: stream,
+            _stream: built,
             health,
         },
     ))

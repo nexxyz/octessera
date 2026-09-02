@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Force
 $script:OrangeLiveScenarioIds = @("synth_ramp_16", "synth_ramp_32", "synth_ramp_64", "sample_ramp_64", "mixed_ramp_16_16", "mixed_ramp_32_32", "bus_heavy_6_bus_fx_2_global", "momentary_combined", "synth_cross_slot_96_steal", "sample_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
 function Get-OrangeLiveScenarioIds {
   return @($script:OrangeLiveScenarioIds)
@@ -184,7 +185,7 @@ function Assert-OrangeLiveReadiness {
     [Parameter(Mandatory)][string]$ExpectedInvocation,
     [Parameter(Mandatory)][string]$ArtifactHash
   )
-  if ([int]$Readiness.schema_version -ne 3 -or [string]$Readiness.kind -cne "orange_audio_benchmark_readiness" -or [string]$Readiness.status -cne "ready") {
+  if ([int]$Readiness.schema_version -ne 4 -or [string]$Readiness.kind -cne "orange_audio_benchmark_readiness" -or [string]$Readiness.status -cne "ready") {
     throw "Live benchmark readiness schema or status is invalid."
   }
   $checks = @(
@@ -209,6 +210,7 @@ function Assert-OrangeLiveReadiness {
   if (-not [bool]$Readiness.scheduler_qualified -or -not [bool]$Readiness.post_dsp_zero) {
     throw "Live benchmark readiness did not prove scheduler qualification and post-DSP mute."
   }
+  Assert-OrangeWorkerEvidence -Evidence $Readiness
   if ([int]$Readiness.callback_frames_min -le 0 -or [int]$Readiness.callback_frames_max -lt [int]$Readiness.callback_frames_min -or [int]$Readiness.callback_frames_max -gt $Selection.OutputFrames -or [uint64]$Readiness.callback_frame_sample_count -lt 3 -or [uint64]$Readiness.invalid_callback_frame_count -ne 0) {
     throw "Live benchmark readiness callback batch evidence is invalid."
   }
@@ -282,29 +284,6 @@ function Get-OrangeLiveSensorExtrema {
     RuntimeSampleCount = $runtimeMemory.Count
   }
 }
-function Get-OrangeRequiredNonNegativeInteger {
-  param(
-    [Parameter(Mandatory)][object]$Parent,
-    [Parameter(Mandatory)][string]$Name,
-    [Parameter(Mandatory)][string]$Context
-  )
-  $property = $Parent.PSObject.Properties[$Name]
-  if ($null -eq $property -or $null -eq $property.Value) { throw "$Context.$Name is required." }
-  $parsed = 0L
-  if (-not [long]::TryParse([string]$property.Value, [Globalization.NumberStyles]::Integer, [Globalization.CultureInfo]::InvariantCulture, [ref]$parsed) -or $parsed -lt 0) { throw "$Context.$Name must be a non-negative integer." }
-  return $parsed
-}
-
-function Get-OrangeExpectedAdmissionDrops {
-  param(
-    [Parameter(Mandatory)][pscustomobject]$Selection,
-    [Parameter(Mandatory)][string]$Name
-  )
-  $property = $Selection.PSObject.Properties[$Name]
-  if ($null -eq $property) { return 0L }
-  return Get-OrangeRequiredNonNegativeInteger $Selection $Name "selection"
-}
-
 function Assert-OrangeAdmissionDropEvidence {
   param(
     [Parameter(Mandatory)][pscustomobject]$Result,
@@ -327,7 +306,7 @@ function Assert-OrangeLiveResult {
     [Parameter(Mandatory)][pscustomobject]$Selection
   )
   $checks = @(
-    @([int]$Result.schema_version, 4),
+    @([int]$Result.schema_version, 5),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),
@@ -348,12 +327,17 @@ function Assert-OrangeLiveResult {
   if (-not [bool]$Result.scheduler_qualified -or -not [bool]$Result.measurement_stop_acknowledged -or -not [bool]$Result.stream_stopped -or -not [bool]$Result.final_progress_write_succeeded) {
     throw "Live benchmark result did not complete the required finalization contract."
   }
+  Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true
   if ($null -ne $Result.recovered_alsa_epipe_count -or [bool]$Result.recovered_alsa_epipe_observable) {
     throw "Live benchmark result made an invalid recovered ALSA EPIPE claim."
   }
   Assert-OrangeAdmissionDropEvidence $Result $Selection
   Get-OrangeLiveAggregateRenderAudioDurationRatio $Result | Out-Null
   $callback = $Result.callback
+  $workerTerminal = $callback.PSObject.Properties["worker_terminal"]
+  if ($null -eq $workerTerminal -or [bool]$workerTerminal.Value) {
+    throw "Live benchmark callback worker terminal evidence is invalid."
+  }
   if ([uint64]$callback.callback_count -eq 0 -or [uint64]$callback.first_measured_callback_ns -eq 0 -or [uint64]$callback.last_measured_callback_ns -lt [uint64]$callback.first_measured_callback_ns -or [uint64]$callback.measured_elapsed_ns -ne ([uint64]$callback.last_measured_callback_ns - [uint64]$callback.first_measured_callback_ns) -or -not [bool]$callback.callback_timestamp_observed -or [uint32]$callback.callback_frames_min -le 0 -or [uint32]$callback.callback_frames_max -lt [uint32]$callback.callback_frames_min -or [uint32]$callback.callback_frames_max -gt $Selection.OutputFrames -or [uint64]$callback.callback_frame_sample_count -ne [uint64]$callback.callback_count -or [uint64]$callback.invalid_callback_frame_count -ne 0) {
     throw "Live benchmark callback timing or geometry evidence is incomplete."
   }

@@ -129,6 +129,9 @@ fn result_status_requires_clean_runtime_evidence() {
         measurement_stop_acknowledged: true,
         stream_stopped: true,
         final_progress_write_succeeded: true,
+        worker_health: realtime_engine::synth::SourceWorkerHealth::Healthy,
+        joined_workers: 2,
+        retirement_error: true,
     };
     assert_eq!(result_status(&config, &metrics, gates), "pass");
 
@@ -137,4 +140,35 @@ fn result_status_requires_clean_runtime_evidence() {
         ..metrics
     };
     assert_eq!(result_status(&config, &invalid, gates), "fail");
+}
+
+#[test]
+fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
+    let config = config();
+    let metrics = CallbackMetricsSnapshot {
+        callback_count: 1,
+        callback_frames_min: 1,
+        callback_frames_max: 1,
+        callback_frame_sample_count: 1,
+        pre_mute_nonzero_samples: 1,
+        worker_terminal: true,
+        terminal_error: true,
+        ..CallbackMetricsSnapshot::default()
+    };
+    for worker_health in [
+        realtime_engine::synth::SourceWorkerHealth::DeadlineMiss,
+        realtime_engine::synth::SourceWorkerHealth::WorkerExited,
+    ] {
+        let gates = FinalizationGates {
+            no_terminal_errors: true,
+            scheduler_qualified: true,
+            measurement_stop_acknowledged: true,
+            stream_stopped: true,
+            final_progress_write_succeeded: true,
+            worker_health,
+            joined_workers: 2,
+            retirement_error: true,
+        };
+        assert_eq!(result_status(&config, &metrics, gates), "fail");
+    }
 }

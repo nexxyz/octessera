@@ -33,6 +33,13 @@ impl SourceWorkerRuntime {
         self.in_flight_mask
     }
 
+    pub(crate) fn workers_exited_for_test(&self) -> [bool; SOURCE_WORKER_COUNT] {
+        self.worker_exited
+            .as_ref()
+            .map(|workers| std::array::from_fn(|parity| workers[parity].load(Ordering::Acquire)))
+            .unwrap_or([false; SOURCE_WORKER_COUNT])
+    }
+
     pub(crate) fn partitions_home_for_test(&self) -> bool {
         self.home_is_ready()
     }

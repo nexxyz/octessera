@@ -12,10 +12,25 @@ pub(crate) use audio_sink::AudioSink;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod audio_optional_recovery;
 mod audio_output_open;
+mod audio_stream_lifecycle;
+mod cpal_audio_callback;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) use audio_stream_lifecycle::{
+    AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
+    AudioStreamShutdownReport,
+};
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) use cpal_audio_callback::CallbackSource;
 #[path = "cpal_audio_output.rs"]
 mod cpal_audio_output;
+#[cfg(test)]
+#[path = "audio_direct_cpal_tests.rs"]
+mod direct_cpal_tests;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_audio_recovery;
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[path = "orange_audio_recovery_tests.rs"]
+mod orange_audio_recovery_tests;
 use crate::recording::RecordingTap;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use audio_output_open::open_audio_sink;
@@ -23,8 +38,8 @@ use audio_output_open::open_audio_sink;
 use audio_output_open::open_orange_audio_sink;
 use audio_output_open::recordings_dir;
 use audio_output_open::AudioSinkOpener;
-use cpal::Stream;
 use cpal_audio_output::probe_cpal_sink;
+use cpal_audio_output::BuiltAudioStream;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use orange_audio_recovery::OrangeRecoveryController;
 use playback_runtime::AudioOutputSet;
@@ -35,7 +50,7 @@ use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 
 pub struct AudioManager {
-    _streams: Vec<Stream>,
+    _streams: Vec<BuiltAudioStream>,
     service: AudioService,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     route_registry: AudioRouteRegistry,
@@ -203,7 +218,7 @@ impl AudioManager {
                         required_jack_health =
                             (sink == AudioSink::Jack).then(|| opened.health.clone());
                         streams.push(
-                            opened
+                            *opened
                                 ._stream
                                 .expect("Raspberry audio stream must be present"),
                         );
@@ -344,10 +359,12 @@ impl AudioManager {
     }
 
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    pub(crate) fn required_jack_status(&self) -> crate::audio_stream_health::AudioStreamStatus {
+    pub(crate) fn required_jack_runtime_status(
+        &self,
+    ) -> crate::audio_stream_health::AudioStreamStatus {
         self.orange_dac_recovery
             .as_ref()
-            .map(OrangeRecoveryController::status)
+            .map(OrangeRecoveryController::runtime_status)
             .unwrap_or(OrangeDacStatus::Healthy)
     }
 }
@@ -362,7 +379,7 @@ impl AudioManager {
             set_status(
                 &self.route_registry,
                 AudioSink::Jack,
-                match recovery.status() {
+                match recovery.device_status() {
                     OrangeDacStatus::Healthy => crate::audio_route::AudioRouteStatus::Active,
                     OrangeDacStatus::Recovering => crate::audio_route::AudioRouteStatus::Waiting,
                     OrangeDacStatus::Terminal => crate::audio_route::AudioRouteStatus::Faulted,
@@ -376,25 +393,32 @@ impl AudioManager {
             set_status(
                 &self.route_registry,
                 recovery.sink(),
-                if recovery.status() == OrangeDacStatus::Terminal {
-                    crate::audio_route::AudioRouteStatus::Faulted
-                } else if recovery.status() == OrangeDacStatus::Healthy {
-                    crate::audio_route::AudioRouteStatus::Active
-                } else {
-                    crate::audio_route::AudioRouteStatus::Waiting
+                match recovery.device_status() {
+                    OrangeDacStatus::Healthy => crate::audio_route::AudioRouteStatus::Active,
+                    OrangeDacStatus::Recovering => crate::audio_route::AudioRouteStatus::Waiting,
+                    OrangeDacStatus::Terminal => crate::audio_route::AudioRouteStatus::Faulted,
                 },
             );
         }
     }
 
+    pub(crate) fn report_runtime_terminal_diagnostics(&self) {
+        if let Some(recovery) = &self.orange_dac_recovery {
+            recovery.report_runtime_terminal();
+        }
+        for recovery in &self._orange_recovery {
+            recovery.report_runtime_terminal();
+        }
+    }
+
     pub(crate) fn ensure_selected_routes(&self) -> Result<(), String> {
         if let Some(recovery) = &self.orange_dac_recovery {
-            if recovery.status() == OrangeDacStatus::Terminal {
+            if recovery.runtime_status() == OrangeDacStatus::Terminal {
                 return Err("Orange Jack audio stream is not active".into());
             }
         }
         for recovery in &self._orange_recovery {
-            if recovery.status() == OrangeDacStatus::Terminal {
+            if recovery.runtime_status() == OrangeDacStatus::Terminal {
                 return Err(format!(
                     "selected {:?} audio route faulted",
                     recovery.sink()

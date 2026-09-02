@@ -4,6 +4,7 @@ use super::{
     wait_for_initial_audio_prep, OrangeStartupReadinessGate,
 };
 use crate::audio::test_service_with_prep_sender;
+use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
 use crate::candidate_readiness::CandidateReadiness;
 use crate::hardware_runtime_scheduler::{MAINTENANCE_TICK, PLAYBACK_TICK, SNAPSHOT_TICK};
 use crate::orange_host_adapter::OrangeHostAdapter;
@@ -360,6 +361,16 @@ fn required_jack_fault_terminates_orange_runtime() {
     .unwrap_err();
 
     assert_eq!(error, "Orange Jack audio stream faulted");
+}
+
+#[test]
+fn worker_terminal_becomes_runtime_terminal_and_fails_readiness() {
+    let health = AudioStreamHealth::new("Jack".into());
+    health.mark_worker_terminal();
+
+    assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
+    assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);
+    assert!(super::ensure_required_audio_health(health.runtime_status()).is_err());
 }
 
 #[test]

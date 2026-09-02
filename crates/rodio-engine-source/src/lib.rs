@@ -5,6 +5,7 @@ mod profile_cache;
 mod queue;
 mod retired_audio_backlog;
 mod sample_decode;
+mod source_factory;
 mod source_shutdown;
 mod source_worker;
 mod source_worker_reaper;
@@ -22,9 +23,10 @@ use realtime_engine::synth::{
 };
 use retired_audio_backlog::RetiredAudioBacklog;
 pub use sample_decode::decode_sample_file;
-pub use source_worker::EngineSourceWorkerShutdownOwner;
 use source_worker::{EngineSourceMode, EngineSourceWorkerState};
+pub use source_worker::{EngineSourceWorkerShutdownError, EngineSourceWorkerShutdownOwner};
 use source_worker_reaper::SourceShutdownEnvelope;
+pub use source_worker_reaper::SOURCE_REAPER_THREAD_NAME;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
@@ -98,56 +100,6 @@ impl EngineSource {
             block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
             None,
         )
-    }
-
-    pub fn with_persistent_workers(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        Self::with_persistent_workers_with_engine(
-            control_rx,
-            sample_rate,
-            block_frames,
-            load_tx,
-            SynthEngine::new(sample_rate),
-        )
-    }
-
-    fn with_persistent_workers_with_engine(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-        mut engine: SynthEngine,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        let (lifecycle, runtime) = SourceWorkerLifecycle::start_prewarmed(&mut engine)?;
-        let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
-        let (shutdown_tx, shutdown_owner) =
-            match source_worker_reaper::spawn_persistent_reaper(lifecycle, retired_rx, false) {
-                Ok(result) => result,
-                Err(failure) => {
-                    let source_worker_reaper::PersistentReaperSpawnFailure { lifecycle, error } =
-                        *failure;
-                    let _ = runtime.retire();
-                    let _ = lifecycle.shutdown_after_runtime_drop();
-                    return Err(error);
-                }
-            };
-        let source = Self::with_engine(
-            control_rx,
-            sample_rate,
-            block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
-            load_tx,
-            engine,
-            EngineSourceWorkerState::persistent(runtime),
-            SourceRetirementChannels {
-                retired_tx,
-                shutdown_tx,
-            },
-        );
-        Ok((source, shutdown_owner))
     }
 
     pub fn resolve_block_frames(default_frames: usize) -> usize {

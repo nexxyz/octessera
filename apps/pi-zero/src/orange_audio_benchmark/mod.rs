@@ -9,7 +9,6 @@ mod stream;
 
 use crate::dsp_scenarios::LiveScenarioSpec;
 use cli::{parse, BenchmarkConfig};
-use cpal::traits::StreamTrait;
 use finalization::{finalize, request_profile_snapshot, validate_profile_state, RunState};
 use metrics::{CallbackMetrics, CallbackMetricsSnapshot};
 use phase::MeasurementPhase;
@@ -67,7 +66,14 @@ fn execute_benchmark(
     state: &mut RunState,
 ) -> Result<(), String> {
     let empty = CallbackMetricsSnapshot::default();
-    write_progress(config, "prepared", 0, 0, &empty)?;
+    write_progress(
+        config,
+        "prepared",
+        0,
+        0,
+        &empty,
+        state.current_worker_health(),
+    )?;
     let (sender, receiver) = event_queue();
     let built = stream::build(
         receiver,
@@ -83,20 +89,22 @@ fn execute_benchmark(
         .stream
         .as_ref()
         .expect("stream was installed before playback")
-        .stream
         .play()
         .map_err(|error| format!("failed to start Orange benchmark stream: {error}"))?;
-    let stream = state
-        .stream
-        .as_ref()
-        .expect("stream was installed before scheduler qualification");
-    crate::audio_priority::qualify_callback_scheduler(
-        "Orange benchmark",
-        &stream.scheduler,
-        Duration::from_millis(250),
-    )?;
+    ensure_stream_runtime_health(state)?;
+    {
+        let stream = state
+            .stream
+            .as_ref()
+            .expect("stream was installed before scheduler qualification");
+        crate::audio_priority::qualify_callback_scheduler(
+            "Orange benchmark",
+            &stream.scheduler,
+            Duration::from_millis(250),
+        )?;
+    }
     state.scheduler_qualified = true;
-    wait_for_geometry_stable(&state.metrics, config.output_frames)?;
+    wait_for_geometry_stable(state, config.output_frames)?;
     let readiness_metrics = state.metrics.snapshot();
     if readiness_metrics.terminal_error
         || readiness_metrics.lifetime_callback_frame_sample_count < 3
@@ -111,23 +119,69 @@ fn execute_benchmark(
         .invocation_id
         .as_deref()
         .ok_or_else(|| "INVOCATION_ID is missing before readiness publication".to_string())?;
-    let readiness_artifact = readiness(
-        config,
-        invocation_id,
-        &stream.sample_format,
-        stream.channels,
-        stream.sample_rate,
-        &readiness_metrics,
-    );
+    ensure_stream_runtime_health(state)?;
+    let readiness_artifact = {
+        let stream = state
+            .stream
+            .as_ref()
+            .expect("stream was installed before readiness publication");
+        readiness(
+            config,
+            invocation_id,
+            &stream.sample_format,
+            stream.channels,
+            stream.sample_rate,
+            &readiness_metrics,
+            stream.worker_health(),
+        )
+    };
     atomic_write_json(&config.readiness_path, &readiness_artifact)?;
-    write_progress(config, "ready", 0, 0, &readiness_metrics)?;
-    write_progress(config, "waiting_release", 0, 0, &readiness_metrics)?;
-    release::wait_for_release(config, &readiness_artifact, invocation_id)?;
-    write_progress(config, "release_accepted", 0, 0, &readiness_metrics)?;
+    write_progress(
+        config,
+        "ready",
+        0,
+        0,
+        &readiness_metrics,
+        state.current_worker_health(),
+    )?;
+    write_progress(
+        config,
+        "waiting_release",
+        0,
+        0,
+        &readiness_metrics,
+        state.current_worker_health(),
+    )?;
+    ensure_stream_runtime_health(state)?;
+    release::wait_for_release(
+        config,
+        &readiness_artifact,
+        invocation_id,
+        state.stream.as_ref().expect("benchmark stream").health(),
+    )?;
+    write_progress(
+        config,
+        "release_accepted",
+        0,
+        0,
+        &readiness_metrics,
+        state.current_worker_health(),
+    )?;
     send_fixture(&sender, scenario.events)?;
     let fixture_snapshot = state.metrics.snapshot();
-    write_progress(config, "fixture_injected", 0, 0, &fixture_snapshot)?;
-    wait_for_barrier(&sender)?;
+    ensure_stream_runtime_health(state)?;
+    write_progress(
+        config,
+        "fixture_injected",
+        0,
+        0,
+        &fixture_snapshot,
+        state.current_worker_health(),
+    )?;
+    wait_for_barrier(
+        &sender,
+        state.stream.as_ref().expect("benchmark stream").health(),
+    )?;
     let profile_start = request_profile_snapshot(state)?;
     validate_profile_state(
         &profile_start,
@@ -135,14 +189,29 @@ fn execute_benchmark(
         scenario.expected.expected_voice_admission_drops_start,
     )?;
     state.profile_start = Some(profile_start);
-    write_progress(config, "fixture_validated", 0, 0, &state.metrics.snapshot())?;
+    ensure_stream_runtime_health(state)?;
+    write_progress(
+        config,
+        "fixture_validated",
+        0,
+        0,
+        &state.metrics.snapshot(),
+        state.current_worker_health(),
+    )?;
     set_phase(state, MeasurementPhase::Disabled)?;
-    run_window(config, &state.metrics, "warmup", config.warmup_seconds)?;
+    run_window(
+        config,
+        &state.metrics,
+        state.stream.as_ref().expect("benchmark stream"),
+        "warmup",
+        config.warmup_seconds,
+    )?;
     state.metrics.enable_measurement();
     set_phase(state, MeasurementPhase::Measuring)?;
     run_window(
         config,
         &state.metrics,
+        state.stream.as_ref().expect("benchmark stream"),
         "measurement",
         config.measure_seconds,
     )
@@ -177,7 +246,10 @@ fn send_fixture(sender: &EngineEventSender, events: Vec<EngineEvent>) -> Result<
     Ok(())
 }
 
-fn wait_for_barrier(sender: &EngineEventSender) -> Result<(), String> {
+fn wait_for_barrier(
+    sender: &EngineEventSender,
+    health: &crate::audio::AudioStreamHealth,
+) -> Result<(), String> {
     let (report_tx, report_rx) = mpsc::sync_channel(1);
     sender
         .send(EngineEvent::ProbeMark {
@@ -185,15 +257,28 @@ fn wait_for_barrier(sender: &EngineEventSender) -> Result<(), String> {
             report_tx,
         })
         .map_err(|error| error.to_string())?;
-    report_rx
-        .recv_timeout(PROFILE_TIMEOUT)
-        .map(|_| ())
-        .map_err(|error| format!("fixture probe barrier failed: {error}"))
+    let deadline = Instant::now() + PROFILE_TIMEOUT;
+    loop {
+        if health.runtime_status() == crate::audio::AudioStreamStatus::Terminal {
+            health.log_worker_terminal_once();
+            return Err("benchmark DSP worker entered a terminal health state".into());
+        }
+        let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+            return Err("fixture probe barrier failed: timed out".into());
+        };
+        match report_rx.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(_) => return Ok(()),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(error) => return Err(format!("fixture probe barrier failed: {error}")),
+        }
+    }
 }
 
-fn wait_for_geometry_stable(metrics: &CallbackMetrics, max_frames: u32) -> Result<(), String> {
+fn wait_for_geometry_stable(state: &RunState, max_frames: u32) -> Result<(), String> {
     let deadline = Instant::now() + PROFILE_TIMEOUT;
     while Instant::now() < deadline {
+        ensure_stream_runtime_health(state)?;
+        let metrics = &state.metrics;
         let snapshot = metrics.snapshot();
         if snapshot.terminal_error {
             return Err("callback error occurred before geometry readiness".into());
@@ -213,6 +298,7 @@ fn wait_for_geometry_stable(metrics: &CallbackMetrics, max_frames: u32) -> Resul
 fn run_window(
     config: &BenchmarkConfig,
     metrics: &CallbackMetrics,
+    stream: &stream::BenchmarkStream,
     phase: &'static str,
     seconds: u64,
 ) -> Result<(), String> {
@@ -220,12 +306,27 @@ fn run_window(
     let deadline = started + Duration::from_secs(seconds);
     let mut last_heartbeat = metrics.snapshot().lifetime_callback_count;
     let mut stalled_for = 0;
-    write_progress(config, phase, 0, seconds, &metrics.snapshot())?;
+    write_progress(
+        config,
+        phase,
+        0,
+        seconds,
+        &metrics.snapshot(),
+        stream.worker_health(),
+    )?;
     while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
         std::thread::sleep(remaining.min(Duration::from_secs(1)));
         let elapsed = started.elapsed().as_secs().min(seconds);
         let snapshot = metrics.snapshot();
-        write_progress(config, phase, elapsed, seconds, &snapshot)?;
+        ensure_stream_runtime_health_for_stream(stream, metrics)?;
+        write_progress(
+            config,
+            phase,
+            elapsed,
+            seconds,
+            &snapshot,
+            stream.worker_health(),
+        )?;
         if snapshot.terminal_error {
             return Err("terminal callback or geometry error".into());
         }
@@ -255,9 +356,37 @@ fn write_progress(
     elapsed_seconds: u64,
     target_seconds: u64,
     metrics: &CallbackMetricsSnapshot,
+    worker_health: realtime_engine::synth::SourceWorkerHealth,
 ) -> Result<(), String> {
     atomic_write_json(
         &config.progress_path,
-        &BenchmarkProgress::new(config, phase, elapsed_seconds, target_seconds, metrics),
+        &BenchmarkProgress::new(
+            config,
+            phase,
+            elapsed_seconds,
+            target_seconds,
+            metrics,
+            worker_health,
+        ),
     )
+}
+
+fn ensure_stream_runtime_health(state: &RunState) -> Result<(), String> {
+    let stream = state.stream.as_ref().expect("benchmark stream");
+    ensure_stream_runtime_health_for_stream(stream, &state.metrics)
+}
+
+fn ensure_stream_runtime_health_for_stream(
+    stream: &stream::BenchmarkStream,
+    metrics: &CallbackMetrics,
+) -> Result<(), String> {
+    if stream.runtime_status() == crate::audio::AudioStreamStatus::Terminal {
+        stream.report_worker_terminal();
+        metrics.mark_terminal();
+        return Err(format!(
+            "benchmark DSP worker entered a terminal health state: {}",
+            stream::source_worker_health_name(stream.worker_health())
+        ));
+    }
+    Ok(())
 }

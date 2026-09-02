@@ -3,7 +3,8 @@
 This is a one-key bootstrap for an Armbian Orange Pi. It creates only the
 dedicated `octessera` deployment account and its SSH key authorization. It does
 not edit global `sshd` configuration, passwords, firewall rules, or default
-users. No private key or host address belongs in the repository.
+users. The deployed Octessera board is permanently `octessera@192.168.0.217`;
+the bootstrap examples below remain generic for bringing up a replacement image.
 
 ## 1. Generate the key on Windows
 
@@ -260,15 +261,18 @@ measure duration, artifact, metadata sidecar, and service-interruption consent.
 The runner waits for readiness and fixed DAC ALSA geometry before publishing the
 identity-bound release file that lets the native process continue.
 
-Readiness, progress, and release evidence use schema 3, 3, and 2 respectively.
-Terminal results use schema 4 and are
+Readiness, progress, and release evidence use schema 4, 4, and 2 respectively.
+Terminal results use schema 5 and are
 independently recomputed by the host. Requested output buffer, negotiated ALSA
 period, and internal engine block are separate fields. CPAL callback batches are
 variable positive counts no larger than the requested buffer; render/audio-
 duration ratios use each callback's actual frame count, and callback-spacing
-lateness uses the fixed ALSA period. Schema-1 readiness/progress/release and
-schema-2 terminal results are rejected. Callback batch size changes are
-recorded as evidence, not treated as a period mismatch; zero or oversized
+lateness uses the fixed ALSA period. The benchmark reports
+`persistent_two_workers`, healthy worker status, exactly two joined workers, no
+retirement error, the two worker names `oct-dsp-src-0` and `oct-dsp-src-1`, and
+the combined reaper name `oct-src-reaper`.
+Schema-1/3 readiness/progress and schema-2/4 terminal results are
+rejected. Callback batch size changes are recorded as evidence, not treated as a period mismatch; zero or oversized
 batches and invalid-frame counts remain terminal failures. Each retained result
 also exposes the aggregate render-duration ratio from total render nanoseconds,
 rendered frames, and sample rate; missing or zero aggregate evidence fails
