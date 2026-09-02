@@ -30,6 +30,7 @@ $basePlan = @(Get-OrangeLiveMatrixPlan)
 if ($scenarios.Count -ne 11 -or $basePlan.Count -ne 22 -or $scenarios[0] -ne "synth_ramp_16" -or $scenarios[10] -ne "mixed_cross_slot_48_48_steal") {
   throw "The approved live scenario or base matrix order changed."
 }
+if (@($basePlan | Where-Object { $_.MeasureSeconds -ne 30 }).Count -ne 0) { throw "The canonical live matrix contains a non-30-second cell." }
 foreach ($tuple in @(@{ Output = 128; Engine = 32; Period = 32; Internal = 32 }, @{ Output = 256; Engine = 64; Period = 64; Internal = 64 }, @{ Output = 256; Engine = 128; Period = 64; Internal = 128 }, @{ Output = 256; Engine = 256; Period = 64; Internal = 256 }, @{ Output = 512; Engine = 128; Period = 128; Internal = 128 }, @{ Output = 1024; Engine = 256; Period = 256; Internal = 256 })) {
   $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames $tuple.Output -EngineBlockFrames $tuple.Engine -MeasureSeconds 30
   if ($selection.AlsaPeriodFrames -ne $tuple.Period -or $selection.InternalFrames -ne $tuple.Internal -or $selection.EngineBlockFrames -ne $tuple.Engine) { throw "Approved geometry tuple was not retained independently." }

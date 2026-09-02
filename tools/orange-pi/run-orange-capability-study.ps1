@@ -17,7 +17,7 @@ param(
   [int]$EngineBlockFrames = 0,
   [ValidateSet(64, 128, 256)]
   [int]$ProfileMeasureFrames = 0,
-  [ValidateSet(30, 120)]
+  [ValidateSet(30, 120, 300)]
   [int]$MeasureSeconds = 30,
   [ValidateRange(1, 120)]
   [int]$ReleaseTimeoutSeconds = 120,

@@ -178,8 +178,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     if warmup_seconds != DEFAULT_WARMUP_SECONDS {
         return Err("warmup seconds must be 5".into());
     }
-    if !matches!(measure_seconds, 30 | 120) {
-        return Err("measure seconds must be 30 or 120".into());
+    if !matches!(measure_seconds, 30 | 120 | 300) {
+        return Err("measure seconds must be 30, 120, or 300".into());
     }
     if !(1..=120).contains(&release_timeout_seconds) {
         return Err("release timeout seconds must be between 1 and 120".into());
@@ -364,8 +364,17 @@ mod tests {
         assert!(parse(args).is_err());
         let mut args = valid_args();
         args.push("--measure-seconds".into());
-        args.push("31".into());
-        assert!(parse(args).is_err());
+        args.push("300".into());
+        assert_eq!(parse(args).unwrap().measure_seconds, 300);
+        for seconds in [31, 299, 3000] {
+            let mut args = valid_args();
+            args.push("--measure-seconds".into());
+            args.push(seconds.to_string());
+            assert!(
+                parse(args).is_err(),
+                "duration {seconds} should be rejected"
+            );
+        }
         let mut args = valid_args();
         set_arg(
             &mut args,

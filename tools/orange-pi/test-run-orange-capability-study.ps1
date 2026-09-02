@@ -35,6 +35,15 @@ function Assert-NotContains {
   }
 }
 
+function Assert-Throws {
+  param([Parameter(Mandatory)][scriptblock]$Action)
+  $threw = $false
+  try { & $Action } catch { $threw = $true }
+  if (-not $threw) {
+    throw "Expected validation failure did not occur."
+  }
+}
+
 function Assert-NoPayloadPlaceholders {
   param([Parameter(Mandatory)][string]$Text)
   if ($Text -match '__[A-Z_]+__') {
@@ -282,6 +291,25 @@ Assert-NotContains $liveCleanup 'systemctl enable "'
 Assert-NotContains $liveCleanup 'systemctl disable "'
 if ($live -match "flash|reboot|gpio|suspend|poweroff") {
   throw "LiveCandidate plan contains an unapproved hardware reconfiguration path."
+}
+
+$live300Parameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 300; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
+$live300 = Invoke-StudyPrintOnly -Parameters $live300Parameters
+Assert-NoPayloadPlaceholders $live300
+Assert-Contains $live300 "Live selection: individual output=256 period=64 engine=256 internal=256 scenario=synth_ramp_16 measure=300 warmup=5"
+Assert-Contains $live300 "RuntimeMaxSec=455s"
+Assert-Contains $live300 "with-orange-ssh.ps1"
+Assert-Contains $live300 "sensor_loop"
+Assert-Contains $live300 "validate_benchmark_progress"
+Assert-Contains $live300 "wait_for_benchmark_terminal"
+Assert-Contains $live300 'waiting_release'
+Assert-Contains $live300 'sleep 1'
+Assert-Contains $live300 '-le $((120 + 15))'
+Assert-Contains $live300 '-le 5'
+foreach ($seconds in @(299, 3000)) {
+  $rejectedParameters = $live300Parameters.Clone()
+  $rejectedParameters.MeasureSeconds = $seconds
+  Assert-Throws { Invoke-StudyPrintOnly -Parameters $rejectedParameters | Out-Null }
 }
 
 Write-Output "Orange capability study PrintOnly, safety, DSP-mode, and transient-unit tests passed"
