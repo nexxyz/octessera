@@ -307,7 +307,7 @@ function Assert-OrangeLiveResult {
     [Parameter(Mandatory)][pscustomobject]$Selection
   )
   $checks = @(
-    @([int]$Result.schema_version, 6),
+    @([int]$Result.schema_version, 7),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),

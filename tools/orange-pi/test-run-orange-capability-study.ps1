@@ -317,6 +317,19 @@ Assert-Contains $live300 'waiting_release'
 Assert-Contains $live300 'sleep 1'
 Assert-Contains $live300 '-le $((120 + 15))'
 Assert-Contains $live300 '-le 5'
+Assert-Contains $live300 '--worker-timing enabled'
+
+$disabledTimingParameters = $live300Parameters.Clone()
+$disabledTimingParameters.WorkerTimingMode = "disabled"
+$disabledTiming = Invoke-StudyPrintOnly -Parameters $disabledTimingParameters
+Assert-NoPayloadPlaceholders $disabledTiming
+Assert-Contains $disabledTiming "worker-timing=disabled"
+Assert-Contains $disabledTiming "--worker-timing disabled"
+Assert-Throws {
+  $invalidTimingParameters = $live300Parameters.Clone()
+  $invalidTimingParameters.WorkerTimingMode = "invalid"
+  Invoke-StudyPrintOnly -Parameters $invalidTimingParameters | Out-Null
+}
 foreach ($seconds in @(299, 3000)) {
   $rejectedParameters = $live300Parameters.Clone()
   $rejectedParameters.MeasureSeconds = $seconds

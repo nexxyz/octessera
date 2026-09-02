@@ -1,5 +1,5 @@
 use super::*;
-use crate::orange_audio_benchmark::cli::parse;
+use crate::orange_audio_benchmark::cli::{parse, WorkerTimingMode};
 use crate::orange_audio_benchmark::stream;
 
 fn config() -> BenchmarkConfig {
@@ -75,7 +75,10 @@ fn deadline_worker_timing() -> BenchmarkWorkerTiming {
     timing
 }
 
-fn benchmark_result(worker_timing: BenchmarkWorkerTiming) -> BenchmarkResult {
+fn benchmark_result(
+    worker_timing_mode: WorkerTimingMode,
+    worker_timing: Option<BenchmarkWorkerTiming>,
+) -> BenchmarkResult {
     BenchmarkResult {
         schema_version: BENCHMARK_RESULT_SCHEMA_VERSION,
         kind: "orange_audio_benchmark_result".into(),
@@ -111,6 +114,7 @@ fn benchmark_result(worker_timing: BenchmarkWorkerTiming) -> BenchmarkResult {
         worker_thread_name_1: stream::expected_worker_thread_names()[1].clone(),
         joined_workers: 2,
         retirement_error: None,
+        worker_timing_mode,
         worker_timing,
     }
 }
@@ -174,11 +178,12 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
 }
 
 #[test]
-fn result_schema6_requires_worker_timing_and_rejects_unknown_fields() {
-    let result = benchmark_result(worker_timing());
+fn result_schema7_requires_worker_timing_and_rejects_unknown_fields() {
+    let result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert_eq!(value["schema_version"], 6);
+    assert_eq!(value["schema_version"], 7);
+    assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["worker_timing"]["workers"][1]["render_ns"], 11);
     assert_eq!(value["worker_timing"]["coordinator"]["reduction_ns"], 4);
     let mut unknown = serde_json::to_value(&result).unwrap();
@@ -197,13 +202,69 @@ fn result_schema6_requires_worker_timing_and_rejects_unknown_fields() {
         serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
         result
     );
-    let schema5 = encoded.replacen("\"schema_version\":6", "\"schema_version\":5", 1);
-    assert!(serde_json::from_str::<BenchmarkResult>(&schema5).is_err());
+    let schema6 = encoded.replacen("\"schema_version\":7", "\"schema_version\":6", 1);
+    assert!(serde_json::from_str::<BenchmarkResult>(&schema6).is_err());
     let missing_timing = value_without_worker_timing(&result);
     assert!(serde_json::from_value::<BenchmarkResult>(missing_timing).is_err());
     let mut null_timing = serde_json::to_value(&result).unwrap();
     null_timing["worker_timing"] = serde_json::Value::Null;
     assert!(serde_json::from_value::<BenchmarkResult>(null_timing).is_err());
+}
+
+#[test]
+fn schema7_worker_timing_modes_require_exact_consistent_evidence() {
+    let enabled = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
+    let enabled_encoded = serde_json::to_string(&enabled).unwrap();
+    assert_eq!(
+        serde_json::from_str::<BenchmarkResult>(&enabled_encoded).unwrap(),
+        enabled
+    );
+
+    let disabled = benchmark_result(WorkerTimingMode::Disabled, None);
+    let disabled_encoded = serde_json::to_string(&disabled).unwrap();
+    let disabled_value: serde_json::Value = serde_json::from_str(&disabled_encoded).unwrap();
+    assert_eq!(disabled_value["worker_timing_mode"], "disabled");
+    assert!(disabled_value["worker_timing"].is_null());
+    assert_eq!(
+        serde_json::from_str::<BenchmarkResult>(&disabled_encoded).unwrap(),
+        disabled
+    );
+
+    let invalid_cases: [fn(&mut serde_json::Value); 8] = [
+        |value| value["worker_timing_mode"] = "invalid".into(),
+        |value| value["worker_timing_mode"] = 1.into(),
+        |value| {
+            value.as_object_mut().unwrap().remove("worker_timing_mode");
+        },
+        |value| {
+            value["worker_timing_mode"] = "enabled".into();
+            value["worker_timing"] = serde_json::Value::Null;
+        },
+        |value| {
+            value["worker_timing_mode"] = "disabled".into();
+            value["worker_health"] = "disabled".into();
+        },
+        |value| {
+            value["worker_timing_mode"] = "disabled".into();
+            value["worker_timing"] = serde_json::to_value(worker_timing()).unwrap();
+        },
+        |value| {
+            value["worker_timing_mode"] = "disabled".into();
+            value["executor_mode"] = "inline".into();
+        },
+        |value| {
+            value["worker_timing_mode"] = "disabled".into();
+            value["joined_workers"] = 1.into();
+        },
+    ];
+    for mutate in invalid_cases {
+        let mut value = serde_json::to_value(&disabled).unwrap();
+        mutate(&mut value);
+        assert!(
+            serde_json::from_value::<BenchmarkResult>(value).is_err(),
+            "inconsistent worker timing evidence should be rejected"
+        );
+    }
 }
 
 fn value_without_worker_timing(result: &BenchmarkResult) -> serde_json::Value {
@@ -227,9 +288,9 @@ fn profile_snapshot_preserves_admission_drop_evidence() {
 }
 
 #[test]
-fn schema6_requires_numeric_admission_drop_evidence() {
+fn schema7_requires_numeric_admission_drop_evidence() {
     let config = config();
-    let mut result = benchmark_result(worker_timing());
+    let mut result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     result.artifact_sha256 = config.artifact_sha256;
     let encoded = serde_json::to_value(result).unwrap();
     let mut missing = encoded.clone();
@@ -244,15 +305,17 @@ fn schema6_requires_numeric_admission_drop_evidence() {
 }
 
 #[test]
-fn schema6_accepts_healthy_and_deadline_worker_timing() {
+fn schema7_accepts_healthy_and_deadline_worker_timing() {
     for timing in [worker_timing(), deadline_worker_timing()] {
-        let encoded = serde_json::to_string(&benchmark_result(timing)).unwrap();
+        let encoded =
+            serde_json::to_string(&benchmark_result(WorkerTimingMode::Enabled, Some(timing)))
+                .unwrap();
         assert!(serde_json::from_str::<BenchmarkResult>(&encoded).is_ok());
     }
 }
 
 #[test]
-fn schema6_rejects_impossible_worker_timing_relationships() {
+fn schema7_rejects_impossible_worker_timing_relationships() {
     let cases: [SemanticCase; 37] = [
         ("missing deadline", |value| {
             value["worker_timing"]["coordinator"]["deadline_ns"] = serde_json::Value::Null;
@@ -403,7 +466,11 @@ fn schema6_rejects_impossible_worker_timing_relationships() {
         }),
     ];
     for (name, mutate) in cases {
-        let mut value = serde_json::to_value(benchmark_result(worker_timing())).unwrap();
+        let mut value = serde_json::to_value(benchmark_result(
+            WorkerTimingMode::Enabled,
+            Some(worker_timing()),
+        ))
+        .unwrap();
         mutate(&mut value);
         assert!(
             serde_json::from_value::<BenchmarkResult>(value).is_err(),

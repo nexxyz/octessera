@@ -11,11 +11,14 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "result.rs"]
+mod result;
 #[path = "worker_timing_validation.rs"]
 mod worker_timing_validation;
+pub use result::BenchmarkResult;
 
 const BENCHMARK_SCHEMA_VERSION: u8 = 4;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 6;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 7;
 const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
 fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -126,47 +129,6 @@ pub struct BenchmarkReadiness {
     pub worker_health: String,
     pub worker_thread_name_0: String,
     pub worker_thread_name_1: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct BenchmarkResult {
-    #[serde(deserialize_with = "deserialize_result_schema_v4")]
-    pub schema_version: u8,
-    pub kind: String,
-    pub status: String,
-    pub board_profile: String,
-    pub scenario: String,
-    pub requested_output_buffer_frames: u32,
-    pub expected_alsa_buffer_frames: u32,
-    pub expected_alsa_period_frames: u32,
-    pub internal_block_frames: usize,
-    pub sample_format: String,
-    pub channels: u16,
-    pub sample_rate: u32,
-    pub warmup_seconds: u64,
-    pub measure_seconds: u64,
-    pub scheduler_qualified: bool,
-    pub post_dsp_zero: bool,
-    pub measurement_stop_acknowledged: bool,
-    pub stream_stopped: bool,
-    pub final_progress_write_succeeded: bool,
-    pub pid: u32,
-    pub systemd_invocation_id: Option<String>,
-    pub artifact_sha256: String,
-    pub callback: CallbackMetricsSnapshot,
-    pub profile_start: BenchmarkProfileSnapshot,
-    pub profile_end: BenchmarkProfileSnapshot,
-    pub recovered_alsa_epipe_count: Option<u64>,
-    pub recovered_alsa_epipe_observable: bool,
-    pub terminal_error: Option<String>,
-    pub executor_mode: String,
-    pub worker_health: String,
-    pub worker_thread_name_0: String,
-    pub worker_thread_name_1: String,
-    pub joined_workers: usize,
-    pub retirement_error: Option<String>,
-    pub worker_timing: BenchmarkWorkerTiming,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]

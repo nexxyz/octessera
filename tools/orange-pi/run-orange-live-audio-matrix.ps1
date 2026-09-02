@@ -74,6 +74,8 @@ function Invoke-LiveCell {
     $runner
     "-Mode"
     "LiveAudioBenchmark"
+    "-WorkerTimingMode"
+    "enabled"
     "-Artifact"
     $Artifact
     "-Metadata"

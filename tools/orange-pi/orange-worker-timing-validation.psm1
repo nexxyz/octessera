@@ -39,7 +39,15 @@ function Get-OrangeWorkerTimingBoolean {
 
 function Assert-OrangeWorkerTimingEvidence {
   param([Parameter(Mandatory)][pscustomobject]$Result)
+  $modeProperty = $Result.PSObject.Properties["worker_timing_mode"]
+  if ($null -eq $modeProperty -or $modeProperty.Value -isnot [string] -or @("enabled", "disabled") -cnotcontains [string]$modeProperty.Value) {
+    throw "Live benchmark worker timing mode is missing or invalid."
+  }
   $timingProperty = $Result.PSObject.Properties["worker_timing"]
+  if ($modeProperty.Value -ceq "disabled") {
+    if ($null -eq $timingProperty -or $null -ne $timingProperty.Value) { throw "Disabled worker timing mode must have null worker timing evidence." }
+    return
+  }
   if ($null -eq $timingProperty -or $timingProperty.Value -isnot [pscustomobject]) { throw "Live benchmark worker timing evidence is missing or invalid." }
   $timing = $timingProperty.Value
   Assert-OrangeWorkerTimingProperties -Object $timing -Allowed @("workers", "coordinator", "late_after_deadline_ns", "cpu_endpoint_changed") -Path "worker_timing"
