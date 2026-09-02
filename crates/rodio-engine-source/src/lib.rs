@@ -19,7 +19,7 @@ pub use event::EngineEvent;
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 use realtime_engine::synth::{
     RetiredAudioState, SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerSetupError,
-    SynthEngine, SynthProfileSnapshot, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+    SourceWorkerStartHook, SynthEngine, SynthProfileSnapshot, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
 };
 use retired_audio_backlog::RetiredAudioBacklog;
 pub use sample_decode::decode_sample_file;

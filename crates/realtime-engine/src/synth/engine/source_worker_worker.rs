@@ -1,3 +1,4 @@
+use super::super::source_worker_protocol::SourceWorkerStartHook;
 use super::{CompletedEnvelope, WorkEnvelope, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 #[cfg(test)]
@@ -47,7 +48,8 @@ pub(crate) struct SourceWorkerSlot {
     pub(crate) work_tx: Option<Sender<WorkEnvelope>>,
     pub(crate) done_rx: Receiver<CompletedEnvelope>,
     pub(crate) done_tx: Option<Sender<CompletedEnvelope>>,
-    pub(crate) ready_rx: Receiver<()>,
+    pub(crate) ready_rx:
+        Receiver<Result<(), super::super::source_worker_protocol::SourceWorkerSetupError>>,
     pub(crate) exited: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) jobs_started: Arc<AtomicU64>,
@@ -85,6 +87,7 @@ pub(super) fn spawn_worker(
     parity: usize,
     reverse_completion: Arc<ReverseCompletionState>,
     hold_before_receive: bool,
+    start_hook: Option<SourceWorkerStartHook>,
 ) -> Result<SourceWorkerSlot, super::super::source_worker_protocol::SourceWorkerSetupError> {
     let (work_tx, work_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
     let (done_tx, done_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
@@ -125,7 +128,24 @@ pub(super) fn spawn_worker(
         if let Some(active_probe) = active_probe.as_ref() {
             active_probe.fetch_add(1, Ordering::AcqRel);
         }
-        let _ = ready_tx.send(());
+        if let Some(start_hook) = start_hook {
+            if start_hook(parity).is_err() {
+                let _ = ready_tx.send(Err(
+                    super::super::source_worker_protocol::SourceWorkerSetupError::WorkerSchedulingUnavailable {
+                        parity,
+                    },
+                ));
+                worker_exited.store(true, Ordering::Release);
+                #[cfg(test)]
+                if let Some(active_probe) = active_probe.as_ref() {
+                    active_probe.fetch_sub(1, Ordering::AcqRel);
+                }
+                return WorkerExit {
+                    unsent_completion: None,
+                };
+            }
+        }
+        let _ = ready_tx.send(Ok(()));
         let exit = worker_loop(
             parity,
             work_rx,

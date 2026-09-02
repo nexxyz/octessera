@@ -6,7 +6,9 @@ use super::source_worker_lease::OwnerLease;
 use super::source_worker_lifecycle::{
     OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerLifecycle, SourceWorkerScratch,
 };
-use super::source_worker_protocol::{SourceWorkerMode, SourceWorkerSetupError};
+use super::source_worker_protocol::{
+    SourceWorkerMode, SourceWorkerSetupError, SourceWorkerStartHook,
+};
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
@@ -187,7 +189,14 @@ impl SourceWorkerLifecycle {
     pub fn start_prewarmed(
         engine: &mut SynthEngine,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, false, None)
+        Self::start_prewarmed_with_options(engine, false, None, None)
+    }
+
+    pub fn start_prewarmed_with_hook(
+        engine: &mut SynthEngine,
+        start_hook: SourceWorkerStartHook,
+    ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
+        Self::start_prewarmed_with_options(engine, false, None, Some(start_hook))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -195,7 +204,7 @@ impl SourceWorkerLifecycle {
         engine: &mut SynthEngine,
         hold_before_receive: bool,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, hold_before_receive, None)
+        Self::start_prewarmed_with_options(engine, hold_before_receive, None, None)
     }
 
     fn start_prewarmed_with_options(
@@ -203,11 +212,14 @@ impl SourceWorkerLifecycle {
         hold_before_receive: bool,
         #[cfg(test)] disconnected_completion: Option<usize>,
         #[cfg(not(test))] _disconnected_completion: Option<usize>,
+        start_hook: Option<SourceWorkerStartHook>,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        let mut lifecycle = SourceWorkerLifecycle::start_with_hold(hold_before_receive)?;
-        if !lifecycle.prewarm() {
+        let mut lifecycle =
+            SourceWorkerLifecycle::start_with_hold_and_hook(hold_before_receive, start_hook)?;
+        if let Err(error) = lifecycle.prewarm() {
             lifecycle.mark_runtime_closed();
-            return Err(SourceWorkerSetupError::PrewarmFailed);
+            let _ = lifecycle.shutdown_after_runtime_drop();
+            return Err(error);
         }
         #[cfg(test)]
         if let Some(parity) = disconnected_completion {
@@ -283,7 +295,7 @@ impl SourceWorkerLifecycle {
         engine: &mut SynthEngine,
         parity: usize,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, false, Some(parity))
+        Self::start_prewarmed_with_options(engine, false, Some(parity), None)
     }
 
     #[cfg(test)]
@@ -291,7 +303,7 @@ impl SourceWorkerLifecycle {
         engine: &mut SynthEngine,
         parity: usize,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
-        Self::start_prewarmed_with_options(engine, true, Some(parity))
+        Self::start_prewarmed_with_options(engine, true, Some(parity), None)
     }
 }
 

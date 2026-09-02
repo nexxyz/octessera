@@ -1,6 +1,8 @@
 pub const SOURCE_WORKER_MODE_INLINE: u8 = 0;
 pub const SOURCE_WORKER_MODE_PERSISTENT: u8 = 2;
 
+pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum SourceWorkerMode {
@@ -29,6 +31,9 @@ pub enum SourceWorkerRetirementError {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceWorkerSetupError {
+    WorkerSchedulingUnavailable {
+        parity: usize,
+    },
     InvalidBlockFrames {
         requested: usize,
         min: usize,

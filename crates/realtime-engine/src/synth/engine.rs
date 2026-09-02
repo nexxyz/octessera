@@ -56,6 +56,8 @@ mod source_worker_retirement;
 #[cfg(test)]
 mod source_worker_retirement_tests;
 #[cfg(test)]
+mod source_worker_start_hook_tests;
+#[cfg(test)]
 #[path = "engine/source_worker_test_fixtures.rs"]
 mod source_worker_test_fixtures;
 #[cfg(test)]
@@ -85,7 +87,7 @@ pub use source_worker_observer::{
 };
 pub use source_worker_protocol::{
     SourceWorkerMode, SourceWorkerRetirementError, SourceWorkerSetupError, SourceWorkerShutdown,
-    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+    SourceWorkerStartHook, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use source_worker_retirement::SourceWorkerHoldControl;

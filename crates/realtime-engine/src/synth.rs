@@ -28,7 +28,7 @@ pub use engine::{
     PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SourceWorkerHealth,
     SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerMode, SourceWorkerRetirement,
     SourceWorkerRetirementError, SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown,
-    SynthEngine, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+    SourceWorkerStartHook, SynthEngine, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
     SOURCE_WORKER_THREAD_NAMES,
 };
 pub use types::{

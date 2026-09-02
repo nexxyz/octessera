@@ -105,7 +105,7 @@ pub fn build(
     let health = AudioStreamHealth::new("Orange benchmark".into());
     let worker_health = Arc::new(AtomicU8::new(source.source_worker_health() as u8));
     let (callback_source, retirement_waiter) = CallbackSource::new(source, true);
-    let scheduler = CallbackSchedulingHandle::new(crate::audio_priority::configured_priority());
+    let scheduler = CallbackSchedulingHandle::new(crate::audio_priority::callback_priority());
     let callback_scheduler = scheduler.clone();
     let callback_context = CallbackContext {
         metrics,
@@ -166,13 +166,23 @@ fn build_persistent_source(
     sample_rate: u32,
     internal_frames: usize,
 ) -> Result<(EngineSource, EngineSourceWorkerShutdownOwner), String> {
-    EngineSource::with_persistent_workers_for_benchmark(
+    #[cfg(target_os = "linux")]
+    let result = EngineSource::with_persistent_workers_for_benchmark_with_hook(
         engine_rx,
         sample_rate,
         internal_frames,
         None,
-    )
-    .map_err(|error| format!("failed to start persistent Orange benchmark workers: {error:?}"))
+        crate::audio_priority::orange_worker_start_hook,
+    );
+    #[cfg(not(target_os = "linux"))]
+    let result = EngineSource::with_persistent_workers_for_benchmark(
+        engine_rx,
+        sample_rate,
+        internal_frames,
+        None,
+    );
+    result
+        .map_err(|error| format!("failed to start persistent Orange benchmark workers: {error:?}"))
 }
 
 fn map_build_error(error: AudioStreamBuildError<String>) -> String {

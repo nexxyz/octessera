@@ -3,18 +3,26 @@ use crossbeam_channel::bounded;
 use realtime_engine::synth::{
     default_synth_config, install_source_worker_shutdown_probe_for_test, prepare_audio_config,
     InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
-    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT, MAX_CONTROL_EVENTS_PER_CALLBACK,
-    MAX_SAMPLE_VOICES_PER_SLOT,
+    SourceWorkerStartHook, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    MAX_CONTROL_EVENTS_PER_CALLBACK, MAX_SAMPLE_VOICES_PER_SLOT,
 };
 use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
-use std::thread::JoinHandle;
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 const RETIREMENT_FILL_COUNT: usize =
     RETIREMENT_QUEUE_CAPACITY + RETIREMENT_CONTROL_BACKLOG_CAPACITY;
 const RETIREMENT_STORED_ITEM_COUNT: usize = RETIREMENT_FILL_COUNT + 1;
 const TEST_SAMPLE_RATE: u32 = 44_100;
+
+fn fail_schedule_parity_zero(parity: usize) -> Result<(), ()> {
+    (parity != 0).then_some(()).ok_or(())
+}
+
+fn fail_schedule_parity_one(parity: usize) -> Result<(), ()> {
+    (parity != 1).then_some(()).ok_or(())
+}
 
 fn shared_sample_engine() -> (SynthEngine, Arc<[f32]>) {
     let shared_samples: Arc<[f32]> = Arc::from(vec![0.25; 4_096]);
@@ -260,6 +268,82 @@ fn persistent_factory_reaper_spawn_failure_cleans_workers_on_construction_thread
         .any(|identity| identity.5 == Some(sample_identity)));
     assert!(after < before);
     assert_eq!(reaper_spawn_attempts, 1);
+}
+
+#[test]
+fn persistent_factory_worker_schedule_failure_joins_workers_without_reaper_or_owner_leak() {
+    for (expected_parity, start_hook) in [
+        (0, fail_schedule_parity_zero as SourceWorkerStartHook),
+        (1, fail_schedule_parity_one as SourceWorkerStartHook),
+    ] {
+        for _ in 0..100 {
+            let (result_tx, result_rx) = mpsc::sync_channel(1);
+            let construction = thread::spawn(move || {
+                let construction_thread = thread::current().id();
+                let (probe_tx, probe_rx) = bounded(1);
+                let _probe_guard = install_source_worker_shutdown_probe_for_test(probe_tx);
+                let reaper_spawn_failure =
+                    crate::source_worker_reaper::fail_next_reaper_spawn_for_test();
+                let (engine, shared_samples) = shared_sample_engine();
+                assert_eq!(engine.profile_snapshot().active_sample_voices, 1);
+                let sample_weak = Arc::downgrade(&shared_samples);
+                let (_control_tx, control_rx) = event_queue();
+                let factory = EngineSource::with_persistent_workers_with_engine_and_hook(
+                    control_rx,
+                    TEST_SAMPLE_RATE,
+                    128,
+                    None,
+                    engine,
+                    start_hook,
+                );
+                let error = match factory {
+                    Ok((_source, _shutdown)) => {
+                        panic!("worker schedule failure was not injected")
+                    }
+                    Err(error) => error,
+                };
+                let (shutdown, shutdown_thread) = probe_rx
+                    .recv_timeout(Duration::from_secs(1))
+                    .expect("worker schedule cleanup report");
+                drop(shared_samples);
+                let sample_destroyed_on_construction_thread = sample_weak.upgrade().is_none();
+                result_tx
+                    .send((
+                        construction_thread,
+                        error,
+                        shutdown,
+                        shutdown_thread,
+                        sample_destroyed_on_construction_thread,
+                        reaper_spawn_failure.attempts_for_test(),
+                    ))
+                    .unwrap();
+            });
+            let (
+                construction_thread,
+                error,
+                shutdown,
+                shutdown_thread,
+                sample_destroyed_on_construction_thread,
+                reaper_spawn_attempts,
+            ) = result_rx
+                .recv_timeout(Duration::from_secs(1))
+                .expect("worker schedule failure must return");
+            construction.join().unwrap();
+
+            assert_eq!(
+                error,
+                realtime_engine::synth::SourceWorkerSetupError::WorkerSchedulingUnavailable {
+                    parity: expected_parity
+                }
+            );
+            assert_eq!(shutdown_thread, construction_thread);
+            assert_eq!(shutdown.joined_workers, 2);
+            assert_eq!(shutdown.destroyed_owner_count, 0);
+            assert_eq!(shutdown.destroyed_owner_identities, [None, None]);
+            assert!(sample_destroyed_on_construction_thread);
+            assert_eq!(reaper_spawn_attempts, 0);
+        }
+    }
 }
 
 #[test]
