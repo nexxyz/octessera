@@ -4,7 +4,7 @@ use super::source_worker_test_fixtures::{
     assert_worker_matches_inline, dynamic_engine, full_mixed_engine,
 };
 
-const SUPPORTED_QUANTA: [usize; 4] = [64, 128, 256, 2048];
+const SUPPORTED_QUANTA: [usize; 5] = [32, 64, 128, 256, 2048];
 const TEST_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
 
 #[test]
