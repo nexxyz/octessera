@@ -1,9 +1,15 @@
+#[cfg(feature = "source-worker-benchmark-timing")]
+use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::synth_voice_pool::SynthVoicePartition;
 use super::sample_voice_pool::SampleVoicePartition;
 use super::source_lane_renderer::{
     render_sample_partition, render_synth_partition, SampleSourceContext, SourceLaneBlockScratch,
     SynthSourceContext,
 };
+#[cfg(feature = "source-worker-benchmark-timing")]
+use std::sync::Arc;
+#[cfg(feature = "source-worker-benchmark-timing")]
+use std::time::Instant;
 
 pub(super) struct SourceWorkerScratch {
     pub(super) synth: SourceLaneBlockScratch,
@@ -56,6 +62,10 @@ pub(super) struct WorkEnvelope {
     pub(super) base_sample_clock: u64,
     pub(super) synth_context: SynthSourceContext,
     pub(super) sample_context: SampleSourceContext,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    pub(super) dispatch_started_at: Option<Instant>,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
 impl WorkEnvelope {

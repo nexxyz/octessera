@@ -9,7 +9,9 @@ use crate::audio_priority::CallbackSchedulingHandle;
 use crate::orange_audio::select_orange_stream_config;
 use cpal::traits::DeviceTrait;
 use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
-use realtime_engine::synth::{SourceWorkerHealth, SOURCE_WORKER_THREAD_NAMES};
+use realtime_engine::synth::{
+    SourceWorkerHealth, SourceWorkerTimingProbe, SOURCE_WORKER_THREAD_NAMES,
+};
 use rodio_engine_source::{EngineEventReceiver, EngineSource, EngineSourceWorkerShutdownOwner};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
@@ -81,6 +83,7 @@ struct CallbackContext {
     phase_control: Arc<MeasurementControl>,
     health: AudioStreamHealth,
     worker_health: Arc<AtomicU8>,
+    timing_probe: Arc<SourceWorkerTimingProbe>,
 }
 
 pub fn build(
@@ -90,6 +93,7 @@ pub fn build(
     metrics: Arc<CallbackMetrics>,
     profile_probe: Arc<ProfileProbe>,
     phase_control: Arc<MeasurementControl>,
+    timing_probe: Arc<SourceWorkerTimingProbe>,
 ) -> Result<BenchmarkStream, String> {
     let geometry = stream_geometry(output_frames, internal_frames)?;
     let device =
@@ -99,8 +103,12 @@ pub fn build(
     let sample_format_name = format!("{sample_format:?}");
     debug_assert_eq!(geometry.output_frames, output_frames);
     config.buffer_size = BufferSize::Fixed(output_frames);
-    let (source, shutdown_owner) =
-        build_persistent_source(engine_rx, config.sample_rate.0, geometry.internal_frames)?;
+    let (source, shutdown_owner) = build_persistent_source(
+        engine_rx,
+        config.sample_rate.0,
+        geometry.internal_frames,
+        timing_probe.clone(),
+    )?;
     let engine_block_frames = source.block_frames();
     let health = AudioStreamHealth::new("Orange benchmark".into());
     let worker_health = Arc::new(AtomicU8::new(source.source_worker_health() as u8));
@@ -113,6 +121,7 @@ pub fn build(
         phase_control,
         health: health.clone(),
         worker_health: worker_health.clone(),
+        timing_probe,
     };
     let stream_result = match sample_format {
         SampleFormat::F32 => build_typed::<f32>(
@@ -165,21 +174,24 @@ fn build_persistent_source(
     engine_rx: EngineEventReceiver,
     sample_rate: u32,
     internal_frames: usize,
+    timing_probe: Arc<SourceWorkerTimingProbe>,
 ) -> Result<(EngineSource, EngineSourceWorkerShutdownOwner), String> {
     #[cfg(target_os = "linux")]
-    let result = EngineSource::with_persistent_workers_for_benchmark_with_hook(
+    let result = EngineSource::with_persistent_workers_for_benchmark_with_timing_probe_and_hook(
         engine_rx,
         sample_rate,
         internal_frames,
         None,
+        timing_probe,
         crate::audio_priority::orange_worker_start_hook,
     );
     #[cfg(not(target_os = "linux"))]
-    let result = EngineSource::with_persistent_workers_for_benchmark(
+    let result = EngineSource::with_persistent_workers_for_benchmark_with_timing_probe(
         engine_rx,
         sample_rate,
         internal_frames,
         None,
+        timing_probe,
     );
     result
         .map_err(|error| format!("failed to start persistent Orange benchmark workers: {error:?}"))
@@ -225,6 +237,7 @@ where
         phase_control,
         health: callback_health,
         worker_health,
+        timing_probe,
     } = context;
     let mut previous_timestamp: Option<cpal::StreamInstant> = None;
     let mut previous_phase: Option<PhaseCapture> = None;
@@ -274,7 +287,9 @@ where
                         profile_probe.publish(source.profile_snapshot());
                     }
                 }
-                callback_metrics.publish_timing(measured, frames, body_started.elapsed());
+                let callback_elapsed = body_started.elapsed();
+                callback_metrics.publish_timing(measured, frames, callback_elapsed);
+                timing_probe.record_callback_total(callback_elapsed);
             },
             move |error| {
                 let is_device_error = matches!(&error, cpal::StreamError::DeviceNotAvailable);
@@ -370,10 +385,11 @@ where
 mod tests {
     use super::{
         build_persistent_source, expected_worker_thread_names, fill_callback_body, post_dsp_zero,
-        stream_geometry, EXECUTOR_MODE,
+        stream_geometry, SourceWorkerTimingProbe, EXECUTOR_MODE,
     };
     use realtime_engine::synth::SourceWorkerHealth;
     use rodio_engine_source::{event_queue, SOURCE_REAPER_THREAD_NAME};
+    use std::sync::Arc;
 
     #[test]
     fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
@@ -397,7 +413,13 @@ mod tests {
     #[test]
     fn benchmark_source_is_persistent_and_reports_worker_health() {
         let (_engine_tx, engine_rx) = event_queue();
-        let (source, shutdown_owner) = build_persistent_source(engine_rx, 44_100, 128).unwrap();
+        let (source, shutdown_owner) = build_persistent_source(
+            engine_rx,
+            44_100,
+            128,
+            Arc::new(SourceWorkerTimingProbe::new(None)),
+        )
+        .unwrap();
 
         assert_eq!(EXECUTOR_MODE, "persistent_two_workers");
         assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
@@ -420,8 +442,13 @@ mod tests {
     fn benchmark_source_uses_requested_frames() {
         for block_frames in [64, 128, 256, 512, 1024, 2048] {
             let (_engine_tx, engine_rx) = event_queue();
-            let (source, shutdown_owner) =
-                build_persistent_source(engine_rx, 44_100, block_frames).unwrap();
+            let (source, shutdown_owner) = build_persistent_source(
+                engine_rx,
+                44_100,
+                block_frames,
+                Arc::new(SourceWorkerTimingProbe::new(None)),
+            )
+            .unwrap();
             assert_eq!(source.block_frames(), block_frames);
             drop(source);
             assert_eq!(shutdown_owner.shutdown().joined_workers, 2);

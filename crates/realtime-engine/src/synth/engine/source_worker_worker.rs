@@ -53,7 +53,7 @@ pub(crate) struct SourceWorkerSlot {
     pub(crate) exited: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) jobs_started: Arc<AtomicU64>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) pause: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     pub(super) exit_on_job: Arc<AtomicBool>,
@@ -72,7 +72,7 @@ pub(super) struct ReverseCompletionState {
 struct SourceWorkerThreadState {
     exited: Arc<AtomicBool>,
     jobs_started: Arc<AtomicU64>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pause: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     exit_on_job: Arc<AtomicBool>,
@@ -94,7 +94,7 @@ pub(super) fn spawn_worker(
     let (ready_tx, ready_rx) = bounded(1);
     let exited = Arc::new(AtomicBool::new(false));
     let jobs_started = Arc::new(AtomicU64::new(0));
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let pause = Arc::new(AtomicBool::new(false));
     #[cfg(any(test, feature = "test-support"))]
     let exit_on_job = Arc::new(AtomicBool::new(false));
@@ -113,7 +113,7 @@ pub(super) fn spawn_worker(
     });
     let worker_exited = Arc::clone(&exited);
     let worker_jobs = Arc::clone(&jobs_started);
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_pause = Arc::clone(&pause);
     #[cfg(any(test, feature = "test-support"))]
     let worker_exit_on_job = Arc::clone(&exit_on_job);
@@ -153,7 +153,7 @@ pub(super) fn spawn_worker(
             SourceWorkerThreadState {
                 exited: worker_exited,
                 jobs_started: worker_jobs,
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-support"))]
                 pause: worker_pause,
                 #[cfg(any(test, feature = "test-support"))]
                 exit_on_job: worker_exit_on_job,
@@ -181,7 +181,7 @@ pub(super) fn spawn_worker(
         exited,
         #[cfg(any(test, feature = "test-support"))]
         jobs_started,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         pause,
         #[cfg(any(test, feature = "test-support"))]
         exit_on_job,
@@ -253,7 +253,7 @@ fn worker_loop(
                 send_completion(&done_tx, CompletedEnvelope::from_work(work, true, false)),
             );
         }
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         while state.pause.load(Ordering::Acquire) {
             std::hint::spin_loop();
         }
@@ -261,6 +261,8 @@ fn worker_loop(
         let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
         #[cfg(not(any(test, feature = "test-support")))]
         let should_panic = false;
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        let timing_start = work.timing_probe.as_ref().map(|probe| probe.worker_start());
         let render_ok = catch_unwind(AssertUnwindSafe(|| {
             if should_panic {
                 panic!("source worker test panic");
@@ -268,6 +270,12 @@ fn worker_loop(
             work.render()
         }))
         .unwrap_or(false);
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        if render_ok {
+            if let (Some(probe), Some(start)) = (work.timing_probe.as_ref(), timing_start) {
+                probe.record_worker(parity, work.sequence, start, work.dispatch_started_at);
+            }
+        }
         if !render_ok {
             return finish_worker(
                 &state,

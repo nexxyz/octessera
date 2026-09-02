@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [features]
 test-support = []
+source-worker-benchmark-timing = []
 
 [dependencies]
 crossbeam-channel = "0.5"

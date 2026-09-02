@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "orange-worker-timing-validation.psm1") -Force
 $script:OrangeLiveScenarioIds = @("synth_ramp_16", "synth_ramp_32", "synth_ramp_64", "sample_ramp_64", "mixed_ramp_16_16", "mixed_ramp_32_32", "bus_heavy_6_bus_fx_2_global", "momentary_combined", "synth_cross_slot_96_steal", "sample_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
 function Get-OrangeLiveScenarioIds {
   return @($script:OrangeLiveScenarioIds)
@@ -306,7 +307,7 @@ function Assert-OrangeLiveResult {
     [Parameter(Mandatory)][pscustomobject]$Selection
   )
   $checks = @(
-    @([int]$Result.schema_version, 5),
+    @([int]$Result.schema_version, 6),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),
@@ -328,6 +329,7 @@ function Assert-OrangeLiveResult {
     throw "Live benchmark result did not complete the required finalization contract."
   }
   Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true
+  Assert-OrangeWorkerTimingEvidence -Result $Result
   if ($null -ne $Result.recovered_alsa_epipe_count -or [bool]$Result.recovered_alsa_epipe_observable) {
     throw "Live benchmark result made an invalid recovered ALSA EPIPE claim."
   }

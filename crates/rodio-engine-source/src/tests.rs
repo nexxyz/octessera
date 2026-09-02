@@ -440,3 +440,7 @@ fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
         assert_eq!(reaper_spawn_failure.attempts_for_test(), 0);
     }
 }
+
+#[cfg(feature = "source-worker-benchmark-timing")]
+#[path = "persistent_timing_tests.rs"]
+mod persistent_timing_tests;

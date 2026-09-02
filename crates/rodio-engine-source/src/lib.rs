@@ -17,9 +17,12 @@ use audio_quantum::resolve_audio_render_quantum_frames;
 use crossbeam_channel::{bounded, Sender, TrySendError};
 pub use event::EngineEvent;
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
+#[cfg(feature = "source-worker-benchmark-timing")]
+use realtime_engine::synth::SourceWorkerTimingProbe;
 use realtime_engine::synth::{
-    RetiredAudioState, SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerSetupError,
-    SourceWorkerStartHook, SynthEngine, SynthProfileSnapshot, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+    RetiredAudioState, SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerRuntime,
+    SourceWorkerSetupError, SourceWorkerStartHook, SynthEngine, SynthProfileSnapshot,
+    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
 };
 use retired_audio_backlog::RetiredAudioBacklog;
 pub use sample_decode::decode_sample_file;
@@ -27,6 +30,8 @@ use source_worker::{EngineSourceMode, EngineSourceWorkerState};
 pub use source_worker::{EngineSourceWorkerShutdownError, EngineSourceWorkerShutdownOwner};
 use source_worker_reaper::SourceShutdownEnvelope;
 pub use source_worker_reaper::SOURCE_REAPER_THREAD_NAME;
+#[cfg(feature = "source-worker-benchmark-timing")]
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
@@ -300,6 +305,8 @@ impl EngineSource {
         buf.resize(*block_frames * 2, 0.0);
         left_buf.resize(*block_frames, 0.0);
         right_buf.resize(*block_frames, 0.0);
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        let engine_block_started_at = runtime.timing_block_start();
         engine.render_interleaved_block_with_source_runtime(
             runtime,
             *block_frames,
@@ -307,6 +314,8 @@ impl EngineSource {
             right_buf,
             buf,
         );
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        runtime.record_engine_block_total(engine_block_started_at);
         drained
     }
 

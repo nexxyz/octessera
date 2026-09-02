@@ -355,12 +355,23 @@ impl SynthEngine {
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
         assert!(self.block_slot_scratch.prepare_output(frames));
-        if runtime.render_source_block(self, frames) {
+        let source_ok = runtime.render_source_block(self, frames);
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        let coordinator_remainder_started_at = if source_ok {
+            runtime.timing_block_start()
+        } else {
+            None
+        };
+        if source_ok {
             self.finish_block_slot_frame_graph(frames, left, right);
         } else {
             left.fill(0.0);
             right.fill(0.0);
         }
         crate::simd::interleave_stereo(left, right, out);
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        if source_ok {
+            runtime.record_coordinator_remainder(coordinator_remainder_started_at);
+        }
     }
 }

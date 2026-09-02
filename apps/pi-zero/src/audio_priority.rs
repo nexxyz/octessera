@@ -198,6 +198,19 @@ pub(crate) fn orange_worker_start_hook(_parity: usize) -> Result<(), ()> {
     }
 }
 
+#[cfg(feature = "source-worker-benchmark-timing")]
+pub(crate) fn orange_cpu_sampler() -> u32 {
+    #[cfg(target_os = "linux")]
+    {
+        let cpu = unsafe { libc::sched_getcpu() };
+        return if cpu >= 0 { cpu as u32 } else { u32::MAX };
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        u32::MAX
+    }
+}
+
 pub(crate) fn qualify_callback_scheduler(
     sink_label: &str,
     scheduler: &CallbackSchedulingHandle,

@@ -3,6 +3,15 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 impl SourceWorkerRuntime {
+    pub fn set_pause_for_parity_for_test(&self, parity: usize, paused: bool) {
+        self.worker_pauses
+            .as_ref()
+            .expect("source worker pause controls")
+            .get(parity)
+            .expect("source worker parity")
+            .store(paused, Ordering::Release);
+    }
+
     pub fn jobs_started_for_test(&self) -> [u64; SOURCE_WORKER_COUNT] {
         self.jobs_started
             .as_ref()

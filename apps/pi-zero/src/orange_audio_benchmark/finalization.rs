@@ -4,12 +4,13 @@ use super::phase::{MeasurementControl, MeasurementPhase};
 use super::probe::ProfileProbe;
 use super::schema::{
     atomic_write_json, BenchmarkProfileSnapshot, BenchmarkProgress, BenchmarkResult,
+    BenchmarkWorkerTiming,
 };
 use super::stream::BenchmarkStream;
 use crate::audio::AudioStreamShutdownError;
 use crate::dsp_scenarios::ExpectedLiveState;
-use realtime_engine::synth::SourceWorkerHealth;
 use realtime_engine::synth::SynthProfileSnapshot;
+use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerTimingProbe};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -43,6 +44,7 @@ pub struct RunState {
     pub worker_thread_names: [String; 2],
     pub joined_workers: usize,
     pub retirement_error: Option<String>,
+    pub worker_timing: Arc<SourceWorkerTimingProbe>,
 }
 
 impl RunState {
@@ -75,6 +77,9 @@ impl RunState {
             worker_thread_names: [String::new(), String::new()],
             joined_workers: 0,
             retirement_error: None,
+            worker_timing: Arc::new(SourceWorkerTimingProbe::new(Some(
+                crate::audio_priority::orange_cpu_sampler,
+            ))),
         }
     }
 
@@ -201,7 +206,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 5,
+        schema_version: 6,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -236,6 +241,10 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         worker_thread_name_1: state.worker_thread_names[1].clone(),
         joined_workers: state.joined_workers,
         retirement_error: state.retirement_error.clone(),
+        worker_timing: {
+            state.worker_timing.freeze_unexecuted();
+            BenchmarkWorkerTiming::from(state.worker_timing.snapshot())
+        },
     };
 
     atomic_write_json(&config.result_path, &result)

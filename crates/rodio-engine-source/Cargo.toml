@@ -7,6 +7,9 @@ license-file.workspace = true
 [lib]
 path = "src/lib.rs"
 
+[features]
+source-worker-benchmark-timing = ["realtime-engine/source-worker-benchmark-timing"]
+
 [dependencies]
 crossbeam-channel = "0.5"
 hound = "3.5"
