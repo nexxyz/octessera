@@ -121,12 +121,13 @@ pub(super) fn render_sample_partition(
             continue;
         }
         scratch.slots[lane] = slot as u8;
-        for frame in 0..frames {
-            if let Some(sample) = render_sample_voice_frame(voice, context.sample_rate) {
-                scratch.samples[lane][frame] = sample;
-                scratch.active[lane][frame] = true;
-            }
-        }
+        render_sample_voice_block(
+            voice,
+            frames,
+            context.sample_rate,
+            &mut scratch.samples[lane],
+            &mut scratch.active[lane],
+        );
     }
 }
 
@@ -209,6 +210,61 @@ pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u3
     Some(filtered * voice.gain)
 }
 
+pub(super) fn render_sample_voice_block(
+    voice: &mut SampleVoice,
+    frames: usize,
+    sample_rate: u32,
+    samples: &mut [f32],
+    active: &mut [bool],
+) {
+    if frames == 0 || !voice.active {
+        return;
+    }
+    let Some(buffer) = voice.buffer.as_ref() else {
+        voice.active = false;
+        return;
+    };
+    let buffer_frames = buffer.samples.len() / buffer.channels as usize;
+    if buffer_frames == 0 || voice.pos >= buffer_frames as f32 {
+        voice.active = false;
+        return;
+    }
+    let q = sample_filter_q(voice.filter_resonance);
+    voice
+        .filt
+        .prepare(FilterType::Lowpass, voice.filter_cutoff_hz, q, sample_rate);
+    for frame in 0..frames {
+        if let Some(sample) = render_sample_voice_frame_prepared(voice) {
+            samples[frame] = sample;
+            active[frame] = true;
+        } else if !voice.active {
+            break;
+        }
+    }
+}
+
+fn render_sample_voice_frame_prepared(voice: &mut SampleVoice) -> Option<f32> {
+    if !voice.active {
+        return None;
+    }
+    let Some(buffer) = voice.buffer.as_ref() else {
+        voice.active = false;
+        return None;
+    };
+    let frames = buffer.samples.len() / buffer.channels as usize;
+    if frames == 0 || voice.pos >= frames as f32 {
+        voice.active = false;
+        return None;
+    }
+    let frame = voice.pos.floor() as usize;
+    let frac = voice.pos - frame as f32;
+    let next_frame = (frame + 1).min(frames - 1);
+    let sample = mono_frame(buffer, frame) * (1.0 - frac) + mono_frame(buffer, next_frame) * frac;
+    let filtered = voice.filt.process_prepared(sample).clamp(-8.0, 8.0);
+    voice.pos += voice.step;
+    Some(filtered * voice.gain)
+}
+
 pub(super) fn sample_lowpass(
     sample: f32,
     filt: &mut BiquadState,
@@ -216,9 +272,13 @@ pub(super) fn sample_lowpass(
     resonance: f32,
     sample_rate: u32,
 ) -> f32 {
-    let q = 0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5;
+    let q = sample_filter_q(resonance);
     filt.process(sample, FilterType::Lowpass, cutoff_hz, q, sample_rate)
         .clamp(-8.0, 8.0)
+}
+
+fn sample_filter_q(resonance: f32) -> f32 {
+    0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5
 }
 
 #[cfg(test)]

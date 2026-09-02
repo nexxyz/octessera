@@ -38,6 +38,8 @@ mod render_synth;
 mod render_tests;
 mod render_voice;
 mod retired_state;
+#[cfg(test)]
+mod sample_filter_block_tests;
 mod sample_voice_pool;
 mod source_lane_renderer;
 mod source_worker;

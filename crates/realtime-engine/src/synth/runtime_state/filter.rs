@@ -1,7 +1,14 @@
 use super::super::types::FilterType;
+#[cfg(test)]
+use std::cell::Cell;
 use std::f32::consts::PI;
 
-#[derive(Clone, Copy, Debug)]
+#[cfg(test)]
+thread_local! {
+    static PREPARE_COUNT: Cell<usize> = const { Cell::new(0) };
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct BiquadCoeffs {
     b0: f32,
     b1: f32,
@@ -10,7 +17,7 @@ struct BiquadCoeffs {
     a2: f32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::synth) struct BiquadState {
     pub(in crate::synth) x1: f32,
     pub(in crate::synth) x2: f32,
@@ -38,14 +45,15 @@ impl BiquadState {
         }
     }
 
-    pub(in crate::synth) fn process(
+    pub(in crate::synth) fn prepare(
         &mut self,
-        x: f32,
         mode: FilterType,
         cutoff_hz: f32,
         q: f32,
         sample_rate: u32,
-    ) -> f32 {
+    ) {
+        #[cfg(test)]
+        PREPARE_COUNT.with(|count| count.set(count.get() + 1));
         let cutoff = cutoff_hz.clamp(20.0, 20_000.0);
         let qv = q.clamp(0.25, 20.0);
         if self.needs_coeffs(mode, cutoff, qv, sample_rate) {
@@ -55,7 +63,9 @@ impl BiquadState {
             self.sample_rate = sample_rate;
             self.coeffs = biquad_coeffs(mode, cutoff, qv, sample_rate);
         }
+    }
 
+    pub(in crate::synth) fn process_prepared(&mut self, x: f32) -> f32 {
         let y = self.coeffs.b0 * x + self.coeffs.b1 * self.x1 + self.coeffs.b2 * self.x2
             - self.coeffs.a1 * self.y1
             - self.coeffs.a2 * self.y2;
@@ -66,12 +76,34 @@ impl BiquadState {
         y
     }
 
+    pub(in crate::synth) fn process(
+        &mut self,
+        x: f32,
+        mode: FilterType,
+        cutoff_hz: f32,
+        q: f32,
+        sample_rate: u32,
+    ) -> f32 {
+        self.prepare(mode, cutoff_hz, q, sample_rate);
+        self.process_prepared(x)
+    }
+
     fn needs_coeffs(&self, mode: FilterType, cutoff: f32, qv: f32, sample_rate: u32) -> bool {
         self.mode != mode
             || self.cutoff_hz != cutoff
             || self.q != qv
             || self.sample_rate != sample_rate
     }
+}
+
+#[cfg(test)]
+pub(in crate::synth) fn reset_prepare_count_for_test() {
+    PREPARE_COUNT.with(|count| count.set(0));
+}
+
+#[cfg(test)]
+pub(in crate::synth) fn prepare_count_for_test() -> usize {
+    PREPARE_COUNT.with(Cell::get)
 }
 
 impl BiquadCoeffs {

@@ -3,6 +3,8 @@ mod filter;
 
 pub(super) use envelope::{ms_to_samples, EnvStage, EnvState};
 pub(super) use filter::BiquadState;
+#[cfg(test)]
+pub(super) use filter::{prepare_count_for_test, reset_prepare_count_for_test};
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Voice {
