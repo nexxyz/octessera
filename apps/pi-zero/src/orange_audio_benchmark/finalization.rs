@@ -1,4 +1,4 @@
-use super::cli::BenchmarkConfig;
+use super::cli::{BenchmarkConfig, WorkerTimingMode};
 use super::metrics::{CallbackMetrics, CallbackMetricsSnapshot};
 use super::phase::{MeasurementControl, MeasurementPhase};
 use super::probe::ProfileProbe;
@@ -44,7 +44,7 @@ pub struct RunState {
     pub worker_thread_names: [String; 2],
     pub joined_workers: usize,
     pub retirement_error: Option<String>,
-    pub worker_timing: Arc<SourceWorkerTimingProbe>,
+    pub worker_timing: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
 impl RunState {
@@ -53,6 +53,7 @@ impl RunState {
         sample_rate: u32,
         expected_period_frames: u32,
         max_callback_frames: u32,
+        worker_timing_mode: WorkerTimingMode,
     ) -> Self {
         Self {
             metrics: Arc::new(CallbackMetrics::new(
@@ -77,9 +78,11 @@ impl RunState {
             worker_thread_names: [String::new(), String::new()],
             joined_workers: 0,
             retirement_error: None,
-            worker_timing: Arc::new(SourceWorkerTimingProbe::new(Some(
-                crate::audio_priority::orange_cpu_sampler,
-            ))),
+            worker_timing: (worker_timing_mode == WorkerTimingMode::Enabled).then(|| {
+                Arc::new(SourceWorkerTimingProbe::new(Some(
+                    crate::audio_priority::orange_cpu_sampler,
+                )))
+            }),
         }
     }
 
@@ -206,7 +209,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 6,
+        schema_version: 7,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -236,15 +239,16 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         recovered_alsa_epipe_observable: false,
         terminal_error: (!state.errors.is_empty()).then(|| state.errors.join("; ")),
         executor_mode: super::stream::EXECUTOR_MODE.into(),
+        worker_timing_mode: config.worker_timing_mode,
         worker_health: state.worker_health.name().into(),
         worker_thread_name_0: state.worker_thread_names[0].clone(),
         worker_thread_name_1: state.worker_thread_names[1].clone(),
         joined_workers: state.joined_workers,
         retirement_error: state.retirement_error.clone(),
-        worker_timing: {
-            state.worker_timing.freeze_unexecuted();
-            BenchmarkWorkerTiming::from(state.worker_timing.snapshot())
-        },
+        worker_timing: state.worker_timing.as_ref().map(|probe| {
+            probe.freeze_unexecuted();
+            BenchmarkWorkerTiming::from(probe.snapshot())
+        }),
     };
 
     atomic_write_json(&config.result_path, &result)

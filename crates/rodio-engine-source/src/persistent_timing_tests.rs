@@ -64,6 +64,43 @@ fn persistent_engine_source_deadline_path_retains_terminal_totals_after_join() {
 }
 
 #[test]
+fn benchmark_without_timing_probe_preserves_audio_bits_health_and_joins() {
+    let (disabled_tx, disabled_rx) = event_queue();
+    let (mut disabled, disabled_shutdown) =
+        EngineSource::with_persistent_workers_for_benchmark(disabled_rx, 44_100, 128, None)
+            .unwrap();
+    let (reference_tx, reference_rx) = event_queue();
+    let (mut reference, reference_shutdown) =
+        EngineSource::with_persistent_workers(reference_rx, 44_100, 128, None).unwrap();
+    let note_on = EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 60,
+        velocity: 100,
+        duration_ms: 1_000,
+    };
+    disabled_tx.send(note_on.clone()).unwrap();
+    reference_tx.send(note_on).unwrap();
+    let disabled_bits: Vec<_> = (0..256)
+        .map(|_| disabled.next().unwrap().to_bits())
+        .collect();
+    let reference_bits: Vec<_> = (0..256)
+        .map(|_| reference.next().unwrap().to_bits())
+        .collect();
+
+    assert_eq!(disabled_bits, reference_bits);
+    assert!(disabled_bits.iter().any(|sample| *sample != 0));
+    assert_eq!(disabled.source_worker_health(), SourceWorkerHealth::Healthy);
+    assert_eq!(
+        reference.source_worker_health(),
+        SourceWorkerHealth::Healthy
+    );
+    drop(disabled);
+    drop(reference);
+    assert_eq!(disabled_shutdown.shutdown().joined_workers, 2);
+    assert_eq!(reference_shutdown.shutdown().joined_workers, 2);
+}
+
+#[test]
 fn normal_persistent_constructors_do_not_attach_timing_probe() {
     let source = include_str!("source_factory.rs");
     let normal_end = source

@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub const DEFAULT_WARMUP_SECONDS: u64 = 5;
@@ -6,6 +7,31 @@ pub const DEFAULT_RESULT_PATH: &str = "/run/octessera/orange-audio-benchmark-res
 pub const DEFAULT_PROGRESS_PATH: &str = "/run/octessera/orange-audio-benchmark-progress.json";
 pub const DEFAULT_READINESS_PATH: &str = "/run/octessera/orange-audio-benchmark-readiness.json";
 pub const DEFAULT_RELEASE_TIMEOUT_SECONDS: u64 = 30;
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorkerTimingMode {
+    Enabled,
+    Disabled,
+}
+
+impl WorkerTimingMode {
+    #[cfg(test)]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Enabled => "enabled",
+            Self::Disabled => "disabled",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "enabled" => Some(Self::Enabled),
+            "disabled" => Some(Self::Disabled),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ScenarioId {
@@ -90,6 +116,7 @@ pub struct BenchmarkConfig {
     pub output_frames: u32,
     pub expected_alsa_period_frames: u32,
     pub internal_frames: usize,
+    pub worker_timing_mode: WorkerTimingMode,
     pub warmup_seconds: u64,
     pub measure_seconds: u64,
     pub result_path: PathBuf,
@@ -113,6 +140,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     let mut scenario = None;
     let mut output_frames = None;
     let mut engine_block_frames = None;
+    let mut worker_timing_mode = WorkerTimingMode::Enabled;
     let mut warmup_seconds = DEFAULT_WARMUP_SECONDS;
     let mut measure_seconds = DEFAULT_MEASURE_SECONDS;
     let mut result_path = PathBuf::from(DEFAULT_RESULT_PATH);
@@ -132,6 +160,11 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
             "--output-frames" => output_frames = Some(parse_value(&mut iter, "output frames")?),
             "--engine-block-frames" => {
                 engine_block_frames = Some(parse_value(&mut iter, "engine block frames")?)
+            }
+            "--worker-timing" => {
+                let value = next_value(&mut iter, "worker timing")?;
+                worker_timing_mode = WorkerTimingMode::parse(&value)
+                    .ok_or_else(|| "worker timing must be enabled or disabled".to_string())?;
             }
             "--warmup-seconds" => warmup_seconds = parse_value(&mut iter, "warmup seconds")?,
             "--measure-seconds" => measure_seconds = parse_value(&mut iter, "measure seconds")?,
@@ -219,6 +252,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
         output_frames,
         expected_alsa_period_frames,
         internal_frames,
+        worker_timing_mode,
         warmup_seconds,
         measure_seconds,
         result_path,
@@ -307,9 +341,32 @@ mod tests {
             assert_eq!(config.internal_frames, internal);
         }
         let config = parse(valid_args()).unwrap();
+        assert_eq!(config.worker_timing_mode, WorkerTimingMode::Enabled);
         assert_ne!(config.result_path, config.progress_path);
         assert_ne!(config.result_path, config.readiness_path);
         assert_ne!(config.progress_path, config.readiness_path);
+    }
+
+    #[test]
+    fn worker_timing_modes_round_trip_exactly_and_reject_invalid_values() {
+        for (value, expected) in [
+            ("enabled", WorkerTimingMode::Enabled),
+            ("disabled", WorkerTimingMode::Disabled),
+        ] {
+            let mut args = valid_args();
+            args.extend(["--worker-timing".into(), value.into()]);
+            let config = parse(args).unwrap();
+            assert_eq!(config.worker_timing_mode, expected);
+            assert_eq!(config.worker_timing_mode.as_str(), value);
+        }
+        for value in ["Enabled", "disabled-now", "1"] {
+            let mut args = valid_args();
+            args.extend(["--worker-timing".into(), value.into()]);
+            assert!(
+                parse(args).is_err(),
+                "worker timing value should fail: {value}"
+            );
+        }
     }
 
     #[test]

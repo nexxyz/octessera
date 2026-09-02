@@ -1,5 +1,5 @@
 use super::*;
-use crate::orange_audio_benchmark::cli::parse;
+use crate::orange_audio_benchmark::cli::{parse, WorkerTimingMode};
 use std::time::Duration;
 
 fn config() -> BenchmarkConfig {
@@ -101,6 +101,7 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
         44_100,
         config.expected_alsa_period_frames,
         config.output_frames,
+        WorkerTimingMode::Enabled,
     );
     state.metrics.enable_measurement();
     state
@@ -174,48 +175,56 @@ fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
 }
 
 #[test]
-fn pre_stream_failure_serializes_frozen_unexecuted_worker_timing() {
-    let mut config = config();
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pre-stream-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    config.result_path = root.join("result.json");
-    config.progress_path = root.join("progress.json");
-    config.readiness_path = root.join("readiness.json");
-    config.release_gate_path = root.join("release.json");
+fn pre_stream_failure_serializes_worker_timing_for_both_modes() {
+    for worker_timing_mode in [WorkerTimingMode::Enabled, WorkerTimingMode::Disabled] {
+        let mut config = config();
+        config.worker_timing_mode = worker_timing_mode;
+        let root = std::env::temp_dir().join(format!(
+            "octessera-pre-stream-{}-{}-{}",
+            std::process::id(),
+            worker_timing_mode.as_str(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        config.result_path = root.join("result.json");
+        config.progress_path = root.join("progress.json");
+        config.readiness_path = root.join("readiness.json");
+        config.release_gate_path = root.join("release.json");
 
-    let previous_invocation = std::env::var_os("INVOCATION_ID");
-    std::env::remove_var("INVOCATION_ID");
-    let outcome = crate::orange_audio_benchmark::run_inner(&config);
-    match previous_invocation {
-        Some(value) => std::env::set_var("INVOCATION_ID", value),
-        None => std::env::remove_var("INVOCATION_ID"),
+        let previous_invocation = std::env::var_os("INVOCATION_ID");
+        std::env::remove_var("INVOCATION_ID");
+        let outcome = crate::orange_audio_benchmark::run_inner(&config);
+        match previous_invocation {
+            Some(value) => std::env::set_var("INVOCATION_ID", value),
+            None => std::env::remove_var("INVOCATION_ID"),
+        }
+
+        assert!(outcome.is_err());
+        let value: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&config.result_path).unwrap()).unwrap();
+        assert_eq!(value["worker_timing_mode"], worker_timing_mode.as_str());
+        if worker_timing_mode == WorkerTimingMode::Enabled {
+            let result = serde_json::from_value::<BenchmarkResult>(value).unwrap();
+            let timing = result.worker_timing.unwrap();
+            assert!(timing.coordinator.frozen);
+            assert_eq!(timing.coordinator.sequence, None);
+            assert_eq!(timing.coordinator.deadline_ns, None);
+            assert_eq!(timing.coordinator.dispatch_to_deadline_start_ns, None);
+            assert_eq!(timing.coordinator.dispatch_to_deadline_elapsed_ns, None);
+            assert!(timing.workers.iter().all(|worker| {
+                !worker.finished
+                    && worker.sequence.is_none()
+                    && worker.render_ns.is_none()
+                    && worker.dispatch_to_finish_ns.is_none()
+                    && worker.cpu_start.is_none()
+                    && worker.cpu_end.is_none()
+            }));
+            assert!(!timing.cpu_endpoint_changed);
+        } else {
+            assert!(value["worker_timing"].is_null());
+        }
+        std::fs::remove_dir_all(root).unwrap();
     }
-
-    assert!(outcome.is_err());
-    let result = serde_json::from_str::<BenchmarkResult>(
-        &std::fs::read_to_string(&config.result_path).unwrap(),
-    )
-    .unwrap();
-    let timing = result.worker_timing;
-    assert!(timing.coordinator.frozen);
-    assert_eq!(timing.coordinator.sequence, None);
-    assert_eq!(timing.coordinator.deadline_ns, None);
-    assert_eq!(timing.coordinator.dispatch_to_deadline_start_ns, None);
-    assert_eq!(timing.coordinator.dispatch_to_deadline_elapsed_ns, None);
-    assert!(timing.workers.iter().all(|worker| {
-        !worker.finished
-            && worker.sequence.is_none()
-            && worker.render_ns.is_none()
-            && worker.dispatch_to_finish_ns.is_none()
-            && worker.cpu_start.is_none()
-            && worker.cpu_end.is_none()
-    }));
-    assert!(!timing.cpu_endpoint_changed);
-    std::fs::remove_dir_all(root).unwrap();
 }

@@ -44,6 +44,7 @@ fn run_inner(config: &BenchmarkConfig) -> Result<(), String> {
         SAMPLE_RATE,
         config.expected_alsa_period_frames,
         config.output_frames,
+        config.worker_timing_mode,
     );
     state.invocation_id = match release::required_invocation_id() {
         Ok(invocation_id) => Some(invocation_id),
