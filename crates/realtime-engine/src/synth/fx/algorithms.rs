@@ -103,11 +103,21 @@ pub(super) fn process_duck(
         DuckSource::Instrument(idx) => slot_out.get(idx).copied().unwrap_or(0.0),
         DuckSource::Bus(idx) => bus_in.get(idx).copied().unwrap_or(0.0),
     };
+    process_duck_source(state, input, params, sc, sample_rate)
+}
+
+pub(super) fn process_duck_source(
+    state: &mut FxBusState,
+    input: f32,
+    params: DuckParams,
+    source: f32,
+    sample_rate: u32,
+) -> f32 {
     let FxBusState::Duck { env } = state else {
         *state = FxBusState::Duck { env: 0.0 };
         return input;
     };
-    let x = sc.abs().min(1.0);
+    let x = source.abs().min(1.0);
     let atk = (params.attack_ms / 1000.0 * sample_rate as f32).max(1.0);
     let rel = (params.release_ms / 1000.0 * sample_rate as f32).max(1.0);
     let coef = if x > *env { 1.0 / atk } else { 1.0 / rel };

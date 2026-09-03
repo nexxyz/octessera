@@ -1,7 +1,7 @@
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::source_worker_protocol::{SourceWorkerStartHook, WorkerCommand};
-use super::{CompletedEnvelope, SourceWork, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
+use super::{CompletedEnvelope, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 #[cfg(test)]
 use std::cell::RefCell;
@@ -248,13 +248,57 @@ fn worker_loop(
         std::hint::spin_loop();
     }
     while let Ok(command) = work_rx.recv() {
-        if let WorkerCommand::RenderBuses { owner, stamp } = command {
+        if let WorkerCommand::RenderBuses {
+            mut owner,
+            stamp,
+            frames,
+            sample_rate,
+            bus_idle_threshold,
+            fx_activity_hold_frames,
+        } = command
+        {
             state.jobs_started.fetch_add(1, Ordering::Relaxed);
-            if let Some(exit) = send_completion(
-                &done_tx,
-                CompletedEnvelope::from_unsupported_buses(owner, stamp),
-            ) {
+            #[cfg(any(test, feature = "test-support"))]
+            let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
+            #[cfg(not(any(test, feature = "test-support")))]
+            let should_panic = false;
+            let render_started_at = Instant::now();
+            let render_result = catch_unwind(AssertUnwindSafe(|| {
+                if should_panic {
+                    panic!("bus worker test panic");
+                }
+                super::super::source_worker_bus::render_bus_block(
+                    &mut owner,
+                    parity,
+                    stamp,
+                    frames,
+                    sample_rate,
+                    bus_idle_threshold,
+                    fx_activity_hold_frames,
+                )
+            }));
+            let dsp_duration_ns = render_started_at
+                .elapsed()
+                .as_nanos()
+                .min(u128::from(u64::MAX)) as u64;
+            let (render_ok, worker_exited, active_cost_units) = match render_result {
+                Ok(Ok(active_cost_units)) => (true, false, active_cost_units),
+                Ok(Err(())) => (false, false, 0),
+                Err(_) => (false, true, 0),
+            };
+            let completion = CompletedEnvelope::from_bus_work(
+                owner,
+                stamp,
+                worker_exited,
+                render_ok,
+                dsp_duration_ns,
+                active_cost_units,
+            );
+            if let Some(exit) = send_completion(&done_tx, completion) {
                 return finish_worker(&state, Some(exit));
+            }
+            if worker_exited {
+                return finish_worker(&state, None);
             }
             continue;
         }
@@ -382,43 +426,6 @@ fn finish_worker(state: &SourceWorkerThreadState, exit: Option<WorkerExit>) -> W
     exit.unwrap_or(WorkerExit {
         unsent_completion: None,
     })
-}
-
-impl CompletedEnvelope {
-    fn from_unsupported_buses(
-        owner: super::OwnerEnvelope,
-        stamp: super::super::source_worker_protocol::WorkStamp,
-    ) -> Self {
-        Self {
-            owner,
-            phase: super::super::source_worker_protocol::WorkerPhase::Buses,
-            stamp,
-            render_ok: false,
-            worker_exited: false,
-            transport_failed: false,
-            dsp_duration_ns: 0,
-            active_cost_units: 0,
-        }
-    }
-
-    fn from_work(
-        work: SourceWork,
-        worker_exited: bool,
-        render_ok: bool,
-        dsp_duration_ns: u64,
-        active_cost_units: u16,
-    ) -> Self {
-        Self {
-            owner: work.owner,
-            phase: super::super::source_worker_protocol::WorkerPhase::Sources,
-            stamp: work.stamp,
-            render_ok,
-            worker_exited,
-            transport_failed: false,
-            dsp_duration_ns,
-            active_cost_units,
-        }
-    }
 }
 
 #[cfg(test)]

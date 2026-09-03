@@ -1,7 +1,20 @@
+use super::super::super::dsp_config::BusIdleThreshold;
+use super::super::super::types::INSTRUMENT_SLOT_COUNT;
 use super::super::source_worker_lifecycle::{OwnerEnvelope, SourceWorkerOwnerIdentity};
 use super::super::source_worker_protocol::{WorkStamp, WorkerPhase};
 use super::*;
 use crossbeam_channel::bounded;
+
+pub(in crate::synth::engine) type WorkerCompletionEvidence = (
+    SourceWorkerOwnerIdentity,
+    WorkerPhase,
+    WorkStamp,
+    bool,
+    bool,
+    bool,
+    u64,
+    u16,
+);
 
 impl SourceWorkerRuntime {
     pub(crate) fn scratch_shape_for_test(&self) -> [(usize, usize); SOURCE_WORKER_COUNT] {
@@ -46,22 +59,81 @@ impl SourceWorkerRuntime {
     }
 
     pub(crate) fn dispatch_buses_for_test(&mut self, stamp: WorkStamp, parity: usize) -> bool {
+        let Some(owner) = self.take_home_owner_for_test(parity) else {
+            return false;
+        };
+        self.dispatch_staged_bus_owner_for_test(
+            owner,
+            stamp,
+            stamp.frames,
+            48_000,
+            BusIdleThreshold::Db120,
+            48_000 * 150 / 1000,
+        )
+    }
+
+    pub(crate) fn stage_and_dispatch_buses_for_test(
+        &mut self,
+        engine: &mut SynthEngine,
+        slot_out: &[Vec<f32>; INSTRUMENT_SLOT_COUNT],
+        frames: usize,
+        parity: usize,
+    ) -> bool {
+        if parity >= SOURCE_WORKER_COUNT {
+            return false;
+        }
+        let Some(mut owners) = self.take_home_owners_for_test() else {
+            return false;
+        };
+        if !super::super::source_worker_bus::stage_bus_block(engine, &mut owners, slot_out, frames)
+        {
+            self.return_home_owners_for_test(owners);
+            return false;
+        }
+        let stamp = self.stamp_for_test(engine, frames);
+        let [first, second] = owners;
+        let (selected, other) = if parity == 0 {
+            (first, second)
+        } else {
+            (second, first)
+        };
+        self.return_home_owner_for_test(other);
+        self.dispatch_staged_bus_owner_for_test(
+            selected,
+            stamp,
+            frames,
+            engine.sample_rate,
+            engine.dsp_config.bus_idle_threshold,
+            engine.fx_activity_hold_frames,
+        )
+    }
+
+    pub(in crate::synth::engine) fn dispatch_staged_bus_owner_for_test(
+        &mut self,
+        owner: OwnerEnvelope,
+        stamp: WorkStamp,
+        frames: usize,
+        sample_rate: u32,
+        bus_idle_threshold: BusIdleThreshold,
+        fx_activity_hold_frames: u32,
+    ) -> bool {
+        let parity = owner.parity;
         let Some(work_tx) = self
             .work_txs
             .as_ref()
             .and_then(|work_txs| work_txs.get(parity))
         else {
+            self.return_home_owner_for_test(owner);
             return false;
         };
-        let Some(owner) = self
-            .home_rxs
-            .as_ref()
-            .and_then(|home_rxs| home_rxs.get(parity))
-            .and_then(|home_rx| home_rx.try_recv().ok())
-        else {
-            return false;
+        let command = WorkerCommand::RenderBuses {
+            stamp,
+            owner,
+            frames,
+            sample_rate,
+            bus_idle_threshold,
+            fx_activity_hold_frames,
         };
-        let command = WorkerCommand::RenderBuses { stamp, owner };
         match work_tx.try_send(command) {
             Ok(()) => {
                 self.expected_stamp = Some(stamp);
@@ -85,14 +157,7 @@ impl SourceWorkerRuntime {
     pub(crate) fn completion_evidence_for_test(
         &mut self,
         parity: usize,
-    ) -> Option<(
-        SourceWorkerOwnerIdentity,
-        WorkerPhase,
-        WorkStamp,
-        bool,
-        bool,
-        bool,
-    )> {
+    ) -> Option<WorkerCompletionEvidence> {
         let receiver = &self.done_rxs.as_ref().expect("persistent source workers")[parity];
         let completion = receiver.try_recv().ok()?;
         let evidence = (
@@ -102,6 +167,8 @@ impl SourceWorkerRuntime {
             completion.render_ok,
             completion.worker_exited,
             completion.transport_failed,
+            completion.dsp_duration_ns,
+            completion.active_cost_units,
         );
         self.done_txs
             .as_ref()
@@ -147,6 +214,21 @@ impl SourceWorkerRuntime {
         let identity = owner_identity(&owner);
         self.return_home_owner_for_test(owner);
         Some(identity)
+    }
+
+    pub(in crate::synth::engine) fn take_home_owners_for_test(&self) -> Option<[OwnerEnvelope; 2]> {
+        let first = self.take_home_owner_for_test(0)?;
+        let Some(second) = self.take_home_owner_for_test(1) else {
+            self.return_home_owner_for_test(first);
+            return None;
+        };
+        Some([first, second])
+    }
+
+    pub(in crate::synth::engine) fn return_home_owners_for_test(&self, owners: [OwnerEnvelope; 2]) {
+        for owner in owners {
+            self.return_home_owner_for_test(owner);
+        }
     }
 
     pub(crate) fn home_bus_carrier_ids_for_test(

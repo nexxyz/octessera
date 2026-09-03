@@ -1,5 +1,8 @@
 use super::super::dsp_config::BusIdleThreshold;
-use super::super::fx::{fx_bus_state_matches_params, process_fx_bus_slot, FxBusState};
+use super::super::fx::{
+    fx_bus_state_matches_params, process_fx_bus_slot, process_fx_bus_slot_with_duck_source,
+    FxBusState,
+};
 use super::super::fx_params::{FxBusParams, FxKind};
 use super::super::types::{BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
 use super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
@@ -55,6 +58,18 @@ impl BusChainBlockScratch {
         self.input[..frames].fill(0.0);
         for buffer in &mut self.resolved_duck {
             buffer[..frames].fill(0.0);
+        }
+        self.mono_output[..frames].fill(0.0);
+        self.auto_pan_pos[..frames].fill(f32::NAN);
+        self.processed_prefix = 0;
+        self.spread = 0.0;
+        self.executed = false;
+        true
+    }
+
+    pub(super) fn prepare_for_render(&mut self, frames: usize) -> bool {
+        if frames > super::BLOCK_SLOT_SCRATCH_FRAMES {
+            return false;
         }
         self.mono_output[..frames].fill(0.0);
         self.auto_pan_pos[..frames].fill(f32::NAN);
@@ -195,6 +210,69 @@ impl BusChainOwner {
             auto_pan_pos,
             spread,
         }
+    }
+
+    pub(super) fn process_block(
+        &mut self,
+        scratch: &mut BusChainBlockScratch,
+        frames: usize,
+        sample_rate: u32,
+        threshold: BusIdleThreshold,
+        hold_frames: u32,
+    ) -> Result<u16, ()> {
+        if !scratch.prepare_for_render(frames) || sample_rate == 0 {
+            return Err(());
+        }
+        let cost = self.cost_units();
+        for frame in 0..frames {
+            let input = scratch.input[frame];
+            if input.abs() <= 1.0e-5 && !self.is_active() {
+                self.observe(input, 0.0, threshold, sample_rate);
+                self.observe_render_hold(false, false, hold_frames);
+                continue;
+            }
+            scratch.executed = true;
+            let mut processed = input;
+            let mut auto_pan_pos = None;
+            for slot_index in self
+                .active_slot_indices
+                .iter()
+                .take(self.active_slot_count)
+                .copied()
+            {
+                processed = process_fx_bus_slot_with_duck_source(
+                    &self.slot_params[slot_index],
+                    &mut self.slot_state[slot_index],
+                    processed,
+                    scratch.resolved_duck[slot_index][frame],
+                    sample_rate,
+                );
+                match (&self.slot_params[slot_index], &self.slot_state[slot_index]) {
+                    (
+                        FxBusParams::Delay {
+                            mix,
+                            spread: slot_spread,
+                            ..
+                        },
+                        _,
+                    ) => {
+                        scratch.spread = scratch.spread.max(slot_spread * mix);
+                    }
+                    (_, FxBusState::AutoPan { pos, .. }) => {
+                        auto_pan_pos = Some(pos.clamp(0.0, 1.0));
+                    }
+                    _ => {}
+                }
+            }
+            scratch.mono_output[frame] = processed;
+            scratch.auto_pan_pos[frame] = auto_pan_pos.unwrap_or(f32::NAN);
+            self.observe(input, processed, threshold, sample_rate);
+            let input_present = input.abs() > 1.0e-5;
+            let output_present = processed.abs() > 1.0e-5;
+            self.observe_render_hold(input_present, output_present, hold_frames);
+        }
+        scratch.processed_prefix = frames;
+        Ok(if scratch.executed { cost } else { 0 })
     }
 
     pub(super) fn replace_slot(

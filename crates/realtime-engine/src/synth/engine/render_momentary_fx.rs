@@ -176,7 +176,8 @@ impl SynthEngine {
         for index in (0..self.momentary_fx.len()).rev() {
             let completed = {
                 let fx = &self.momentary_fx[index];
-                fx.releasing
+                fx.target == target
+                    && fx.releasing
                     && match fx.kind {
                         MomentaryFxKind::FilterSweep => fx.sweep_pos <= 0.0,
                         MomentaryFxKind::Freeze => fx.release_pos >= fx.release_len,
