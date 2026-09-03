@@ -1,8 +1,7 @@
 use super::dsp_config::{DspRuntimeConfig, WorkerLoadWarningState};
 use super::fx::{
     fx_bus_state_from_params, fx_bus_state_matches_params, master_fx_state_from_params,
-    master_fx_state_matches_params, process_fx_bus_slot, process_master_fx_slot, FxBusState,
-    MasterFxState,
+    master_fx_state_matches_params, process_master_fx_slot, FxBusState, MasterFxState,
 };
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
 use super::runtime_state::*;
@@ -14,6 +13,9 @@ use std::collections::BTreeMap;
 
 #[cfg(test)]
 mod admission_tests;
+mod bus_chain_owner;
+#[cfg(test)]
+mod bus_chain_owner_tests;
 mod control;
 #[cfg(test)]
 mod control_tests;
@@ -117,6 +119,8 @@ pub use source_worker_protocol::{
 pub use source_worker_retirement::SourceWorkerHoldControl;
 pub use source_worker_retirement::SourceWorkerRetirement;
 
+use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
+pub use bus_chain_owner::{BUS_CHAIN_SLOT_COST_UNITS, BUS_CHAIN_WORKER_MAX_COST_UNITS};
 use control::MAX_MOMENTARY_FX;
 use inline_source_executor::InlineSourceExecutor;
 use render_plan::RenderPlan;
@@ -162,11 +166,7 @@ pub struct SynthEngine {
     bus_mono_scratch: Vec<f32>,
     bus_mono_snapshot: Vec<f32>,
     bus_output_spread_state: Vec<FxBusOutputSpreadState>,
-    bus_slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
-    bus_slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
-    bus_active_slot_indices: Vec<[usize; BUS_SLOTS_PER_BUS]>,
-    bus_active_slot_counts: Vec<usize>,
-    bus_activity_frames: Vec<u32>,
+    bus_chains: Vec<BusChainOwner>,
     active_bus_activity_count: usize,
     routed_bus_slot_count: usize,
     master_slot_params: Vec<FxBusParams>,
@@ -276,11 +276,7 @@ impl SynthEngine {
             bus_mono_scratch: Vec::new(),
             bus_mono_snapshot: Vec::new(),
             bus_output_spread_state: Vec::new(),
-            bus_slot_params: Vec::new(),
-            bus_slot_state: Vec::new(),
-            bus_active_slot_indices: Vec::new(),
-            bus_active_slot_counts: Vec::new(),
-            bus_activity_frames: Vec::new(),
+            bus_chains: Vec::new(),
             active_bus_activity_count: 0,
             routed_bus_slot_count: 0,
             master_slot_params: Vec::new(),
@@ -331,7 +327,11 @@ impl SynthEngine {
                 .filter(|voice| voice.is_some())
                 .count(),
             active_momentary_fx: self.momentary_fx.len(),
-            active_bus_fx_slots: self.bus_active_slot_counts.iter().sum(),
+            active_bus_fx_slots: self
+                .bus_chains
+                .iter()
+                .map(|chain| chain.active_slot_count)
+                .sum(),
             active_global_fx_slots: self.master_active_slot_indices.len(),
             cumulative_voice_steals: self.cumulative_voice_steals,
             cumulative_voice_admission_drops: self.cumulative_voice_admission_drops,
@@ -344,6 +344,10 @@ impl SynthEngine {
             && self.preview_sample_voices.iter().all(Option::is_none)
             && self.momentary_fx.is_empty()
             && self.active_bus_activity_count == 0
+            && self
+                .bus_chains
+                .iter()
+                .all(|chain| chain.assigned_worker.is_none())
             && self.master_activity_frames == 0
     }
 
@@ -368,6 +372,7 @@ impl SynthEngine {
             .preview_sample_voices
             .iter()
             .all(Option::is_none)
+            && self.pending_render_retired.bus_chains.is_empty()
             && self
                 .pending_render_retired
                 .displaced_momentary_fx

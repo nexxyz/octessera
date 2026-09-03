@@ -9,13 +9,6 @@ pub(super) struct FxBusOutputSpreadState {
     idx: usize,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct FxBusOutput {
-    mono: f32,
-    auto_pan_pos: Option<f32>,
-    spread: f32,
-}
-
 impl FxBusOutputSpreadState {
     pub(super) fn new(sample_rate: u32) -> Self {
         let len = ((FX_BUS_SPREAD_DELAY_MS / 1000.0) * sample_rate as f32)
@@ -46,12 +39,17 @@ impl FxBusOutputSpreadState {
 
 impl SynthEngine {
     pub(super) fn should_process_fx_buses(&self) -> bool {
-        self.routed_bus_slot_count > 0 || self.active_bus_activity_count > 0
+        self.routed_bus_slot_count > 0
+            || self.active_bus_activity_count > 0
+            || self
+                .bus_chains
+                .iter()
+                .any(|chain| chain.assigned_worker.is_some())
     }
 
     pub(super) fn prepare_bus_buffers(&mut self) {
-        if self.bus_mono_scratch.len() != self.bus_pan_pos.len() {
-            self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
+        if self.bus_mono_scratch.len() != self.bus_chains.len() {
+            self.bus_mono_scratch.resize(self.bus_chains.len(), 0.0);
         } else {
             self.bus_mono_scratch.fill(0.0);
         }
@@ -122,14 +120,21 @@ impl SynthEngine {
     ) -> (f32, f32) {
         self.bus_mono_snapshot
             .copy_from_slice(&self.bus_mono_scratch);
-        for bus_idx in 0..self.bus_mono_scratch.len() {
+        for bus_idx in 0..self.bus_chains.len() {
             let bus_input = self.bus_mono_scratch[bus_idx];
-            let bus_active = self.signal_present_mono(bus_input)
-                || self.bus_activity_frames.get(bus_idx).copied().unwrap_or(0) > 0;
+            let bus_active =
+                self.signal_present_mono(bus_input) || self.bus_chains[bus_idx].is_active();
             if !bus_active {
+                self.observe_bus_chain(bus_idx, bus_input, 0.0);
                 continue;
             }
-            let mut bus_output = self.process_fx_bus(bus_idx, slot_out);
+            let mut bus_output = self.bus_chains[bus_idx].process(
+                bus_input,
+                slot_out,
+                &self.bus_mono_snapshot,
+                self.sample_rate,
+            );
+            self.observe_bus_chain(bus_idx, bus_input, bus_output.mono);
             bus_output.mono = if self.momentary_fx.is_empty() {
                 bus_output.mono
             } else {
@@ -140,78 +145,26 @@ impl SynthEngine {
                 );
                 (fx_l + fx_r) * 0.5
             };
-            if self.signal_present_mono(bus_output.mono) || self.signal_present_mono(bus_input) {
-                self.set_bus_activity_hold(bus_idx);
-            } else {
-                let became_inactive =
-                    if let Some(counter) = self.bus_activity_frames.get_mut(bus_idx) {
-                        let was_active = *counter > 0;
-                        *counter = counter.saturating_sub(1);
-                        was_active && *counter == 0
-                    } else {
-                        false
-                    };
-                if became_inactive {
-                    self.active_bus_activity_count =
-                        self.active_bus_activity_count.saturating_sub(1);
-                }
-            }
+            let input_present = self.signal_present_mono(bus_input);
+            let output_present = self.signal_present_mono(bus_output.mono);
+            self.bus_chains[bus_idx].observe_render_hold(
+                input_present,
+                output_present,
+                self.fx_activity_hold_frames,
+            );
             let (bus_left, bus_right) = self.fx_bus_stereo_output(bus_idx, bus_output);
             left += bus_left;
             right += bus_right;
         }
+        self.active_bus_activity_count = self
+            .bus_chains
+            .iter()
+            .filter(|chain| chain.is_active())
+            .count();
         (left, right)
     }
 
-    fn process_fx_bus(
-        &mut self,
-        bus_idx: usize,
-        slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
-    ) -> FxBusOutput {
-        let mut processed = self.bus_mono_scratch[bus_idx];
-        let mut auto_pan_pos = None;
-        let mut spread = 0.0_f32;
-        if let (Some(params), Some(states)) = (
-            self.bus_slot_params.get(bus_idx),
-            self.bus_slot_state.get_mut(bus_idx),
-        ) {
-            let active_indices = self.bus_active_slot_indices[bus_idx];
-            let active_count = self.bus_active_slot_counts[bus_idx];
-            for j in active_indices.iter().take(active_count).copied() {
-                processed = process_fx_bus_slot(
-                    &params[j],
-                    &mut states[j],
-                    processed,
-                    slot_out,
-                    &self.bus_mono_snapshot,
-                    self.sample_rate,
-                );
-                match (&params[j], &states[j]) {
-                    (
-                        FxBusParams::Delay {
-                            mix,
-                            spread: slot_spread,
-                            ..
-                        },
-                        _,
-                    ) => {
-                        spread = spread.max(slot_spread * mix);
-                    }
-                    (_, FxBusState::AutoPan { pos, .. }) => {
-                        auto_pan_pos = Some(pos.clamp(0.0, 1.0));
-                    }
-                    _ => {}
-                }
-            }
-        }
-        FxBusOutput {
-            mono: processed,
-            auto_pan_pos,
-            spread,
-        }
-    }
-
-    fn fx_bus_stereo_output(&mut self, bus_idx: usize, output: FxBusOutput) -> (f32, f32) {
+    fn fx_bus_stereo_output(&mut self, bus_idx: usize, output: BusChainFrameOutput) -> (f32, f32) {
         let stereo_output = if output.spread > 0.0 {
             Some(self.bus_output_spread_state[bus_idx].process(output.mono, output.spread))
         } else if let Some(pos) = output.auto_pan_pos {
@@ -258,13 +211,46 @@ impl SynthEngine {
         stereo_balance_gains(pos)
     }
 
-    fn set_bus_activity_hold(&mut self, bus_idx: usize) {
-        if let Some(counter) = self.bus_activity_frames.get_mut(bus_idx) {
-            if *counter == 0 {
-                self.active_bus_activity_count += 1;
+    pub(super) fn observe_bus_chain(&mut self, bus_idx: usize, input: f32, output: f32) {
+        let threshold = self.dsp_config.bus_idle_threshold;
+        let was_unassigned = self.bus_chains[bus_idx].assigned_worker.is_none();
+        self.bus_chains[bus_idx].observe(input, output, threshold, self.sample_rate);
+        if was_unassigned
+            && self.bus_chains[bus_idx].assigned_worker.is_none()
+            && self.bus_chains[bus_idx].cost_units() > 0
+            && BusChainOwner::is_loud(input, output, threshold)
+        {
+            if let Some(worker) = self.choose_bus_worker(self.bus_chains[bus_idx].cost_units()) {
+                self.bus_chains[bus_idx].assigned_worker = Some(worker);
             }
-            *counter = self.fx_activity_hold_frames;
         }
+    }
+
+    pub(super) fn choose_bus_worker(&self, chain_cost: u16) -> Option<usize> {
+        let mut active_cost_units = self.source_worker_active_cost_units();
+        for chain in &self.bus_chains {
+            let Some(worker) = chain.assigned_worker else {
+                continue;
+            };
+            if worker < active_cost_units.len() {
+                active_cost_units[worker] =
+                    active_cost_units[worker].saturating_add(chain.cost_units());
+            }
+        }
+        let load = self.source_worker_load.as_ref()?;
+        let projected: [u64; 2] = std::array::from_fn(|worker| {
+            let mut candidate = active_cost_units;
+            candidate[worker] = candidate[worker].saturating_add(chain_cost);
+            load.projected_ns(candidate)[worker]
+        });
+        Some(
+            projected
+                .into_iter()
+                .enumerate()
+                .min_by_key(|(_, value)| *value)
+                .map(|(worker, _)| worker)
+                .unwrap_or(0),
+        )
     }
 
     pub(super) fn push_dry_history(&mut self, left: f32, right: f32) {

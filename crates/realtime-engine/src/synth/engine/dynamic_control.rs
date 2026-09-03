@@ -1,12 +1,17 @@
 use super::super::dsp_config::DspRuntimeConfig;
+use super::bus_chain_owner::fx_kind_cost;
 use super::*;
-use crate::synth::engine::control::active_fx_bus_slots;
 use crate::synth::engine::render_plan::render_plan_fx_slot;
 
 impl SynthEngine {
     pub fn set_dsp_config(&mut self, config: DspRuntimeConfig) {
         self.worker_load_warning
             .set_threshold(config.worker_warning_threshold);
+        if self.dsp_config.bus_idle_threshold != config.bus_idle_threshold {
+            for chain in &mut self.bus_chains {
+                chain.reset_quiet();
+            }
+        }
         self.dsp_config = config;
     }
 
@@ -126,7 +131,7 @@ impl SynthEngine {
         fx_type: String,
         params: BTreeMap<String, Value>,
     ) {
-        if bus_index >= self.bus_slot_params.len() || slot_index >= BUS_SLOTS_PER_BUS {
+        if bus_index >= self.bus_chains.len() || slot_index >= BUS_SLOTS_PER_BUS {
             return;
         }
         let config = FxBusSlotConfig::Config {
@@ -135,16 +140,31 @@ impl SynthEngine {
         };
         let render_plan = render_plan_fx_slot(&config);
         let next_params = compile_fx_bus_params(&config);
-        if !fx_bus_state_matches_params(&self.bus_slot_state[bus_index][slot_index], &next_params) {
-            self.bus_slot_state[bus_index][slot_index] =
-                fx_bus_state_from_params(&next_params, self.sample_rate);
+        let next_state = if fx_bus_state_matches_params(
+            &self.bus_chains[bus_index].slot_state[slot_index],
+            &next_params,
+        ) {
+            FxBusState::None
+        } else {
+            fx_bus_state_from_params(&next_params, self.sample_rate)
+        };
+        let retired_slot = self.bus_chains[bus_index].replace_slot(
+            slot_index,
+            next_params,
+            next_state,
+            fx_kind_cost(render_plan.kind),
+        );
+        if let Some(retired_slot) = retired_slot {
+            self.pending_render_retired
+                .bus_chains
+                .push(BusChainOwner::from_slot(
+                    bus_index,
+                    slot_index,
+                    retired_slot,
+                ));
         }
-        self.bus_slot_params[bus_index][slot_index] = next_params;
         self.render_plan
             .install_bus_fx_slot(bus_index, slot_index, render_plan);
-        let (active_indices, active_count) = active_fx_bus_slots(&self.bus_slot_params[bus_index]);
-        self.bus_active_slot_indices[bus_index] = active_indices;
-        self.bus_active_slot_counts[bus_index] = active_count;
     }
 
     pub fn set_global_fx_slot(
@@ -206,14 +226,14 @@ mod tests {
         });
 
         engine.set_fx_bus_slot(0, 2, "tremolo".into(), BTreeMap::new());
-        assert_eq!(engine.bus_active_slot_counts[0], 1);
+        assert_eq!(engine.bus_chains[0].active_slot_count, 1);
         assert!(matches!(
-            engine.bus_slot_params[0][2],
+            engine.bus_chains[0].slot_params[2],
             FxBusParams::Tremolo { .. }
         ));
 
         engine.set_fx_bus_slot(0, 3, "delay".into(), BTreeMap::new());
-        assert_eq!(engine.bus_active_slot_counts[0], 1);
+        assert_eq!(engine.bus_chains[0].active_slot_count, 1);
     }
 
     #[test]

@@ -26,6 +26,7 @@ fn main() {
          pub const BUS_FX_WARNING_SLOT_COUNT: usize = {};\n\
          pub const GLOBAL_FX_SLOT_COUNT: usize = {};\n\
          pub const INSTRUMENT_SLOT_COUNT: usize = {};\n\
+         pub const BUS_COUNT: usize = {};\n\
          pub const DEFAULT_PAN_POSITIONS: usize = {};\n\
          pub const SAMPLE_SLOTS_PER_INSTRUMENT: usize = {};\n",
         positive_usize(&value, "audioSampleRate"),
@@ -39,6 +40,7 @@ fn main() {
         positive_usize(&value, "busFxWarningSlotCount"),
         positive_usize(&value, "globalFxSlotCount"),
         positive_usize(&value, "instrumentCount"),
+        positive_usize(&value, "busCount"),
         positive_usize(&value, "panPositionCount"),
         positive_usize(&value, "sampleSlotCount")
     );

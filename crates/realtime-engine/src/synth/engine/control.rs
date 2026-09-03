@@ -1,3 +1,5 @@
+use super::super::fx_params::FxKind;
+use super::bus_chain_owner::fx_kind_cost;
 use super::render_plan::{prepared_instrument_topology, RenderPlan, RenderPlanInstrumentSlot};
 use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::support::stutter_segment_len;
@@ -16,10 +18,7 @@ struct CompiledBusMixerState {
     pan_positions: Vec<usize>,
     pan_gains: Vec<(f32, f32)>,
     volumes: Vec<f32>,
-    slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
-    slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
-    active_slot_indices: Vec<[usize; BUS_SLOTS_PER_BUS]>,
-    active_slot_counts: Vec<usize>,
+    chains: Vec<BusChainOwner>,
 }
 
 impl SynthEngine {
@@ -154,33 +153,40 @@ impl SynthEngine {
         self.master_volume = (cfg.master_volume / 100.0).clamp(0.0, 1.0);
         self.apply_instrument_slots_config(cfg.instruments);
         self.refresh_slot_pan_gains();
-        let next_bus = self.compile_bus_mixer_state(cfg.mixer.as_ref());
+        let mut next_bus = self.compile_bus_mixer_state(cfg.mixer.as_ref());
         let (next_master_slot_params, next_master_slot_state) =
             self.compile_master_mixer_state(cfg.mixer.as_ref());
+        let mut previous_bus_chains = std::mem::take(&mut self.bus_chains);
+        for next in &mut next_bus.chains {
+            if let Some(previous) = previous_bus_chains
+                .iter_mut()
+                .find(|previous| previous.logical_bus_id == next.logical_bus_id)
+            {
+                next.preserve_state_from(previous);
+            }
+        }
+        self.pending_render_retired
+            .bus_chains
+            .append(&mut previous_bus_chains);
         self.bus_pan_pos = next_bus.pan_positions;
         self.bus_pan_gains_cache = next_bus.pan_gains;
         self.bus_volume = next_bus.volumes;
-        self.bus_slot_params = next_bus.slot_params;
-        self.bus_slot_state = next_bus.slot_state;
-        self.bus_active_slot_indices = next_bus.active_slot_indices;
-        self.bus_active_slot_counts = next_bus.active_slot_counts;
+        self.bus_chains = next_bus.chains;
         self.refresh_routed_bus_slot_count();
-        self.bus_activity_frames
-            .resize(self.bus_slot_params.len(), 0);
         self.bus_output_spread_state
-            .resize_with(self.bus_slot_params.len(), || {
+            .resize_with(self.bus_chains.len(), || {
                 FxBusOutputSpreadState::new(self.sample_rate)
             });
         self.active_bus_activity_count = self
-            .bus_activity_frames
+            .bus_chains
             .iter()
-            .filter(|frames| **frames > 0)
+            .filter(|chain| chain.is_active())
             .count();
         self.master_slot_params = next_master_slot_params;
         self.master_slot_state = next_master_slot_state;
         self.refresh_master_active_slot_indices();
         self.master_activity_frames = 0;
-        self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
+        self.bus_mono_scratch.resize(self.bus_chains.len(), 0.0);
         drop(self.render_plan.install_complete(next_render_plan));
     }
 
@@ -282,26 +288,18 @@ impl SynthEngine {
         let mut next_bus_pan_pos = Vec::new();
         let mut next_bus_pan_gains = Vec::new();
         let mut next_bus_volumes = Vec::new();
-        let mut next_bus_slot_params = Vec::new();
-        let mut next_bus_slot_state = Vec::new();
         let Some(mixer) = mixer else {
             return CompiledBusMixerState {
                 pan_positions: next_bus_pan_pos,
                 pan_gains: next_bus_pan_gains,
                 volumes: next_bus_volumes,
-                slot_params: next_bus_slot_params,
-                slot_state: next_bus_slot_state,
-                active_slot_indices: Vec::new(),
-                active_slot_counts: Vec::new(),
+                chains: Vec::new(),
             };
         };
         next_bus_pan_pos.reserve_exact(mixer.buses.len());
         next_bus_pan_gains.reserve_exact(mixer.buses.len());
         next_bus_volumes.reserve_exact(mixer.buses.len());
-        next_bus_slot_params.reserve_exact(mixer.buses.len());
-        next_bus_slot_state.reserve_exact(mixer.buses.len());
-        let mut next_bus_active_slot_indices = Vec::with_capacity(mixer.buses.len());
-        let mut next_bus_active_slot_counts = Vec::with_capacity(mixer.buses.len());
+        let mut next_bus_chains = Vec::with_capacity(mixer.buses.len());
         for (bus_idx, bus) in mixer.buses.iter().enumerate() {
             let pan_pos = bus.pan_pos.min(self.pan_positions - 1);
             next_bus_pan_pos.push(pan_pos);
@@ -310,28 +308,18 @@ impl SynthEngine {
             let cfgs = compile_bus_slot_configs(bus);
             let params: [FxBusParams; BUS_SLOTS_PER_BUS] =
                 std::array::from_fn(|j| compile_fx_bus_params(&cfgs[j]));
-            let states: [FxBusState; BUS_SLOTS_PER_BUS] = std::array::from_fn(|j| {
-                self.bus_slot_state
-                    .get(bus_idx)
-                    .and_then(|states| states.get(j))
-                    .filter(|state| fx_bus_state_matches_params(state, &params[j]))
-                    .cloned()
-                    .unwrap_or_else(|| fx_bus_state_from_params(&params[j], self.sample_rate))
+            let states: [FxBusState; BUS_SLOTS_PER_BUS] =
+                std::array::from_fn(|j| fx_bus_state_from_params(&params[j], self.sample_rate));
+            let costs = std::array::from_fn(|j| {
+                fx_kind_cost(FxKind::parse(cfgs[j].kind_str()).unwrap_or(FxKind::None))
             });
-            let (active_indices, active_count) = active_fx_bus_slots(&params);
-            next_bus_slot_params.push(params);
-            next_bus_slot_state.push(states);
-            next_bus_active_slot_indices.push(active_indices);
-            next_bus_active_slot_counts.push(active_count);
+            next_bus_chains.push(BusChainOwner::new(bus_idx, params, states, costs));
         }
         CompiledBusMixerState {
             pan_positions: next_bus_pan_pos,
             pan_gains: next_bus_pan_gains,
             volumes: next_bus_volumes,
-            slot_params: next_bus_slot_params,
-            slot_state: next_bus_slot_state,
-            active_slot_indices: next_bus_active_slot_indices,
-            active_slot_counts: next_bus_active_slot_counts,
+            chains: next_bus_chains,
         }
     }
 
@@ -380,18 +368,4 @@ fn compile_bus_slot_configs(bus: &FxBusConfig) -> [FxBusSlotConfig; BUS_SLOTS_PE
         cfgs[j] = slot.clone();
     }
     cfgs
-}
-
-pub(super) fn active_fx_bus_slots(
-    params: &[FxBusParams; BUS_SLOTS_PER_BUS],
-) -> ([usize; BUS_SLOTS_PER_BUS], usize) {
-    let mut indices = [0; BUS_SLOTS_PER_BUS];
-    let mut count = 0;
-    for (idx, params) in params.iter().enumerate() {
-        if !matches!(params, FxBusParams::None) {
-            indices[count] = idx;
-            count += 1;
-        }
-    }
-    (indices, count)
 }

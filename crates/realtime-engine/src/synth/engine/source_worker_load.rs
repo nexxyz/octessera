@@ -1,8 +1,7 @@
 pub const SOURCE_WORKER_SYNTH_COST_UNITS: u16 = 3;
 pub const SOURCE_WORKER_SAMPLE_COST_UNITS: u16 = 2;
 pub const SOURCE_WORKER_MAX_COST_UNITS: u16 = 160;
-
-const SOURCE_WORKER_COUNT: usize = 2;
+pub(super) const SOURCE_WORKER_COUNT: usize = 2;
 const EWMA_SCALE: u64 = 1_000_000;
 const EWMA_WINDOW_NS: u64 = 250_000_000;
 

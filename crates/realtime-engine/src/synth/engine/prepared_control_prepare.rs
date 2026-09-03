@@ -1,11 +1,11 @@
 use super::super::fx::{fx_bus_state_from_params, master_fx_state_from_params};
-use super::super::fx_params::{compile_fx_bus_params, FxBusParams};
+use super::super::fx_params::{compile_fx_bus_params, FxBusParams, FxKind};
 use super::super::types::{
     FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig,
     SampleBankConfig, VoiceStealingMode, BUS_SLOTS_PER_BUS, GLOBAL_FX_SLOT_COUNT,
     INSTRUMENT_SLOT_COUNT,
 };
-use super::control::active_fx_bus_slots;
+use super::bus_chain_owner::{fx_kind_cost, BusChainOwner};
 use super::render_plan::{
     prepared_instrument_topology, render_plan_fx_slot, PreparedInstrumentTopology, RenderPlan,
 };
@@ -43,11 +43,7 @@ pub struct PreparedInstrumentsConfig {
     pub(super) bus_pan_pos: Vec<usize>,
     pub(super) bus_pan_gains_cache: Vec<(f32, f32)>,
     pub(super) bus_volume: Vec<f32>,
-    pub(super) bus_slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
-    pub(super) bus_slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
-    pub(super) bus_active_slot_indices: Vec<[usize; BUS_SLOTS_PER_BUS]>,
-    pub(super) bus_active_slot_counts: Vec<usize>,
-    pub(super) bus_activity_frames: Vec<u32>,
+    pub(super) bus_chains: Vec<BusChainOwner>,
     pub(super) bus_output_spread_state: Vec<FxBusOutputSpreadState>,
     pub(super) bus_mono_scratch: Vec<f32>,
     pub(super) bus_mono_snapshot: Vec<f32>,
@@ -55,7 +51,6 @@ pub struct PreparedInstrumentsConfig {
     pub(super) master_slot_state: Vec<MasterFxState>,
     pub(super) master_active_slot_indices: Vec<usize>,
     pub(super) master_activity_frames: u32,
-    pub(super) displaced_bus_fx_states: Vec<FxBusState>,
     pub(super) displaced_master_fx_states: Vec<MasterFxState>,
 }
 
@@ -80,7 +75,7 @@ pub struct PreparedFxBusSlot {
     pub(super) render_plan: super::render_plan::RenderPlanFxSlot,
     pub(super) params: FxBusParams,
     pub(super) state: FxBusState,
-    pub(super) displaced_states: Vec<FxBusState>,
+    pub(super) displaced_chains: Vec<BusChainOwner>,
 }
 
 #[derive(Clone)]
@@ -123,7 +118,7 @@ pub fn prepare_instruments_config(
     let bus = prepare_bus_mixer_state(config.mixer.as_ref(), pan_positions, sample_rate);
     let (master_slot_params, master_slot_state, master_active_slot_indices) =
         prepare_master_mixer_state(config.mixer.as_ref());
-    let bus_count = bus.slot_params.len();
+    let bus_count = bus.chains.len();
     PreparedInstrumentsConfig {
         slots,
         render_plan,
@@ -132,11 +127,7 @@ pub fn prepare_instruments_config(
         bus_pan_pos: bus.pan_pos,
         bus_pan_gains_cache: bus.pan_gains,
         bus_volume: bus.volumes,
-        bus_slot_params: bus.slot_params,
-        bus_slot_state: bus.slot_state,
-        bus_active_slot_indices: bus.active_slot_indices,
-        bus_active_slot_counts: bus.active_slot_counts,
-        bus_activity_frames: vec![0; bus_count],
+        bus_chains: bus.chains,
         bus_output_spread_state: (0..bus_count)
             .map(|_| FxBusOutputSpreadState::new(sample_rate))
             .collect(),
@@ -146,7 +137,6 @@ pub fn prepare_instruments_config(
         master_slot_state,
         master_active_slot_indices,
         master_activity_frames: 0,
-        displaced_bus_fx_states: Vec::with_capacity(bus_count * BUS_SLOTS_PER_BUS),
         displaced_master_fx_states: Vec::with_capacity(GLOBAL_FX_SLOT_COUNT),
     }
 }
@@ -208,7 +198,7 @@ pub fn prepare_fx_bus_slot(
         render_plan,
         state: fx_bus_state_from_params(&params, sample_rate),
         params,
-        displaced_states: Vec::with_capacity(2),
+        displaced_chains: Vec::with_capacity(2),
     }
 }
 
@@ -234,10 +224,7 @@ struct PreparedBusMixerState {
     pan_pos: Vec<usize>,
     pan_gains: Vec<(f32, f32)>,
     volumes: Vec<f32>,
-    slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
-    slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
-    active_slot_indices: Vec<[usize; BUS_SLOTS_PER_BUS]>,
-    active_slot_counts: Vec<usize>,
+    chains: Vec<BusChainOwner>,
 }
 
 fn prepare_bus_mixer_state(
@@ -250,22 +237,16 @@ fn prepare_bus_mixer_state(
             pan_pos: Vec::new(),
             pan_gains: Vec::new(),
             volumes: Vec::new(),
-            slot_params: Vec::new(),
-            slot_state: Vec::new(),
-            active_slot_indices: Vec::new(),
-            active_slot_counts: Vec::new(),
+            chains: Vec::new(),
         };
     };
     let mut output = PreparedBusMixerState {
         pan_pos: Vec::with_capacity(mixer.buses.len()),
         pan_gains: Vec::with_capacity(mixer.buses.len()),
         volumes: Vec::with_capacity(mixer.buses.len()),
-        slot_params: Vec::with_capacity(mixer.buses.len()),
-        slot_state: Vec::with_capacity(mixer.buses.len()),
-        active_slot_indices: Vec::with_capacity(mixer.buses.len()),
-        active_slot_counts: Vec::with_capacity(mixer.buses.len()),
+        chains: Vec::with_capacity(mixer.buses.len()),
     };
-    for bus in &mixer.buses {
+    for (bus_idx, bus) in mixer.buses.iter().enumerate() {
         let pan_pos = bus.pan_pos.min(pan_positions - 1);
         output.pan_pos.push(pan_pos);
         output
@@ -279,11 +260,12 @@ fn prepare_bus_mixer_state(
             std::array::from_fn(|index| compile_fx_bus_params(&cfgs[index]));
         let states =
             std::array::from_fn(|index| fx_bus_state_from_params(&params[index], sample_rate));
-        let (active_indices, active_count) = active_fx_bus_slots(&params);
-        output.slot_params.push(params);
-        output.slot_state.push(states);
-        output.active_slot_indices.push(active_indices);
-        output.active_slot_counts.push(active_count);
+        let costs = std::array::from_fn(|index| {
+            fx_kind_cost(FxKind::parse(cfgs[index].kind_str()).unwrap_or(FxKind::None))
+        });
+        output
+            .chains
+            .push(BusChainOwner::new(bus_idx, params, states, costs));
     }
     output
 }
