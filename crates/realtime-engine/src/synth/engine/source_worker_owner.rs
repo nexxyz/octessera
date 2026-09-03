@@ -6,6 +6,7 @@ use super::source_lane_renderer::{
     render_sample_partition, render_synth_partition, SampleSourceContext, SourceLaneBlockScratch,
     SynthSourceContext,
 };
+use super::source_worker_protocol::{WorkStamp, WorkerPhase};
 #[cfg(feature = "source-worker-benchmark-timing")]
 use std::sync::Arc;
 #[cfg(feature = "source-worker-benchmark-timing")]
@@ -50,16 +51,37 @@ pub(super) struct SourceLanePartitionBundle {
 }
 
 pub(super) struct OwnerEnvelope {
+    pub(super) runtime_generation: u64,
     pub(super) parity: usize,
     pub(super) partitions: SourceLanePartitionBundle,
     pub(super) scratch: SourceWorkerScratch,
+    pub(super) bus_carriers:
+        [Option<super::bus_chain_owner::BusChainCarrier>; super::super::types::BUS_COUNT],
 }
 
-pub(super) struct WorkEnvelope {
+#[allow(dead_code)]
+#[allow(clippy::large_enum_variant)]
+pub(super) enum WorkerCommand {
+    RenderSources {
+        stamp: WorkStamp,
+        owner: OwnerEnvelope,
+        synth_context: SynthSourceContext,
+        sample_context: SampleSourceContext,
+
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        dispatch_started_at: Option<Instant>,
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+    },
+    RenderBuses {
+        stamp: WorkStamp,
+        owner: OwnerEnvelope,
+    },
+}
+
+pub(super) struct SourceWork {
     pub(super) owner: OwnerEnvelope,
-    pub(super) sequence: u64,
-    pub(super) frames: usize,
-    pub(super) base_sample_clock: u64,
+    pub(super) stamp: WorkStamp,
     pub(super) synth_context: SynthSourceContext,
     pub(super) sample_context: SampleSourceContext,
     #[cfg(feature = "source-worker-benchmark-timing")]
@@ -68,23 +90,51 @@ pub(super) struct WorkEnvelope {
     pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
-impl WorkEnvelope {
+impl WorkerCommand {
+    pub(super) fn into_source_work(self) -> Option<SourceWork> {
+        let Self::RenderSources {
+            stamp,
+            owner,
+            synth_context,
+            sample_context,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe,
+        } = self
+        else {
+            return None;
+        };
+        Some(SourceWork {
+            owner,
+            stamp,
+            synth_context,
+            sample_context,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe,
+        })
+    }
+}
+
+impl SourceWork {
     pub(super) fn render(&mut self) -> bool {
-        if !self.owner.scratch.sample.prepare(self.frames)
-            || !self.owner.scratch.synth.prepare(self.frames)
+        if !self.owner.scratch.sample.prepare(self.stamp.frames)
+            || !self.owner.scratch.synth.prepare(self.stamp.frames)
         {
             return false;
         }
         render_sample_partition(
             &mut self.owner.partitions.sample,
-            self.frames,
+            self.stamp.frames,
             self.sample_context,
             &mut self.owner.scratch.sample,
         );
         render_synth_partition(
             &mut self.owner.partitions.synth,
-            self.frames,
-            self.base_sample_clock,
+            self.stamp.frames,
+            self.stamp.base_sample_clock,
             &self.synth_context,
             &mut self.owner.scratch.synth,
         );
@@ -102,9 +152,8 @@ impl WorkEnvelope {
 
 pub(super) struct CompletedEnvelope {
     pub(super) owner: OwnerEnvelope,
-    pub(super) sequence: u64,
-    pub(super) frames: usize,
-    pub(super) base_sample_clock: u64,
+    pub(super) phase: WorkerPhase,
+    pub(super) stamp: WorkStamp,
     pub(super) render_ok: bool,
     pub(super) worker_exited: bool,
     pub(super) transport_failed: bool,

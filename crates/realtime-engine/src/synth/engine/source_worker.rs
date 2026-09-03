@@ -6,10 +6,10 @@ use super::source_worker_health::{
 use super::source_worker_lease::OwnerLease;
 use super::source_worker_lifecycle::{
     CompletedEnvelope, OwnerEnvelope, SourceWorkerCloseState, SourceWorkerLifecycle,
-    SourceWorkerScratch, WorkEnvelope,
+    SourceWorkerScratch,
 };
 use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
-use super::source_worker_protocol::SourceWorkerMode;
+use super::source_worker_protocol::{SourceWorkerMode, WorkStamp, WorkerCommand};
 use super::source_worker_retirement::SourceWorkerRetirement;
 use super::source_worker_transfer;
 use super::SynthEngine;
@@ -27,7 +27,7 @@ const SOURCE_WORKER_DEADLINE_FRACTION: f64 = 0.35;
 
 pub struct SourceWorkerRuntime {
     mode: SourceWorkerMode,
-    work_txs: Option<[Sender<WorkEnvelope>; SOURCE_WORKER_COUNT]>,
+    work_txs: Option<[Sender<WorkerCommand>; SOURCE_WORKER_COUNT]>,
     #[cfg(test)]
     done_txs: Option<[Sender<CompletedEnvelope>; SOURCE_WORKER_COUNT]>,
     done_rxs: Option<[Receiver<CompletedEnvelope>; SOURCE_WORKER_COUNT]>,
@@ -43,14 +43,15 @@ pub struct SourceWorkerRuntime {
     timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     #[cfg(feature = "source-worker-benchmark-timing")]
     dispatch_started_at: Option<Instant>,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    coordinator_remainder_started_at: Option<Instant>,
     #[cfg(any(test, feature = "test-support"))]
     worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
     runtime_close: Option<Arc<SourceWorkerCloseState>>,
     health: Arc<SourceWorkerHealthState>,
+    runtime_generation: u64,
     next_sequence: u64,
-    expected_sequence: Option<u64>,
-    expected_frames: usize,
-    expected_base_sample_clock: u64,
+    expected_stamp: Option<WorkStamp>,
     in_flight_mask: u8,
     completed_mask: u8,
     sample_rate: u32,
@@ -81,14 +82,15 @@ impl SourceWorkerRuntime {
             timing_probe: None,
             #[cfg(feature = "source-worker-benchmark-timing")]
             dispatch_started_at: None,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: None,
             runtime_close: None,
             health: Arc::new(SourceWorkerHealthState::new(SourceWorkerHealth::Disabled)),
+            runtime_generation: 0,
             next_sequence: 0,
-            expected_sequence: None,
-            expected_frames: 0,
-            expected_base_sample_clock: 0,
+            expected_stamp: None,
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate: 0,
@@ -138,14 +140,15 @@ impl SourceWorkerRuntime {
             timing_probe: None,
             #[cfg(feature = "source-worker-benchmark-timing")]
             dispatch_started_at: None,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: Some(lifecycle.worker_pause_controls_for_test()),
             runtime_close: Some(Arc::clone(&lifecycle.runtime_close)),
             health: Arc::clone(&lifecycle.health),
+            runtime_generation: lifecycle.runtime_generation(),
             next_sequence: 0,
-            expected_sequence: None,
-            expected_frames: 0,
-            expected_base_sample_clock: 0,
+            expected_stamp: None,
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate,
@@ -282,45 +285,71 @@ impl SourceWorkerRuntime {
     }
 
     pub(super) fn render_source_block(&mut self, engine: &mut SynthEngine, frames: usize) -> bool {
+        self.render_source_block_with(engine, frames, |_| ())
+            .is_some()
+    }
+
+    pub(super) fn render_source_block_with<R>(
+        &mut self,
+        engine: &mut SynthEngine,
+        frames: usize,
+        render: impl FnOnce(&mut SynthEngine) -> R,
+    ) -> Option<R> {
         #[cfg(any(test, feature = "test-support"))]
         self.render_attempts.fetch_add(1, Ordering::Relaxed);
         if self.mode == SourceWorkerMode::Inline {
-            return false;
+            return None;
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
             self.reclaim_available(engine);
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
-            return false;
+            return None;
         }
         if frames > BLOCK_SLOT_SCRATCH_FRAMES {
             self.latch_invalid_block();
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
-            return false;
+            return None;
         }
         if self.in_flight_mask != 0 || !self.home_is_ready() {
             self.latch_dispatch_failure(0b11);
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
-            return false;
+            return None;
         }
-        self.expected_frames = frames;
-        self.expected_base_sample_clock = engine.sample_clock;
+        self.expected_stamp = Some(WorkStamp {
+            runtime_generation: self.runtime_generation,
+            render_plan_generation: engine.render_plan.generation,
+            quantum_sequence: self.next_sequence,
+            frames,
+            base_sample_clock: engine.sample_clock,
+        });
         if !self.dispatch(engine) {
             self.reclaim_available(engine);
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
-            return false;
+            return None;
         }
-        self.collect(engine, true)
+        self.collect_with(engine, true, render)
     }
 
+    #[cfg(test)]
     fn collect(&mut self, engine: &mut SynthEngine, wait: bool) -> bool {
+        self.collect_with(engine, wait, |_| ()).is_some()
+    }
+
+    fn collect_with<R>(
+        &mut self,
+        engine: &mut SynthEngine,
+        wait: bool,
+        render: impl FnOnce(&mut SynthEngine) -> R,
+    ) -> Option<R> {
         let start = Instant::now();
         #[cfg(feature = "source-worker-benchmark-timing")]
         self.record_dispatch_to_deadline_start(start);
-        let deadline = self.rendezvous_deadline(self.expected_frames);
+        let expected_frames = self.expected_stamp.map_or(0, |stamp| stamp.frames);
+        let deadline = self.rendezvous_deadline(expected_frames);
         while self.in_flight_mask != 0 {
             for parity in 0..SOURCE_WORKER_COUNT {
                 if self.in_flight_mask & (1 << parity) == 0 || !self.home_is_empty(parity) {
@@ -332,7 +361,7 @@ impl SourceWorkerRuntime {
                     .map(|done_rxs| done_rxs[parity].try_recv());
                 match receive_result {
                     Some(Ok(completion)) => {
-                        self.accept_completion(completion);
+                        self.accept_completion(parity, completion);
                     }
                     Some(Err(TryRecvError::Empty)) | None => {}
                     Some(Err(TryRecvError::Disconnected)) => {
@@ -364,19 +393,19 @@ impl SourceWorkerRuntime {
                 #[cfg(feature = "source-worker-benchmark-timing")]
                 self.freeze_timing(true, self.dispatch_elapsed());
                 self.reclaim_available(engine);
-                return false;
+                return None;
             }
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
             self.reclaim_available(engine);
-            return false;
+            return None;
         }
         if self.in_flight_mask != 0 {
-            return false;
+            return None;
         }
-        self.finish_completed(engine)
+        self.finish_completed(engine, render)
     }
 
     fn home_is_empty(&self, parity: usize) -> bool {

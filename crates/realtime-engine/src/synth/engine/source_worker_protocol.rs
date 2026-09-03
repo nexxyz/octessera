@@ -1,6 +1,23 @@
 pub const SOURCE_WORKER_MODE_INLINE: u8 = 0;
 pub const SOURCE_WORKER_MODE_PERSISTENT: u8 = 2;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WorkerPhase {
+    Sources,
+    Buses,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WorkStamp {
+    pub runtime_generation: u64,
+    pub render_plan_generation: u64,
+    pub quantum_sequence: u64,
+    pub frames: usize,
+    pub base_sample_clock: u64,
+}
+
+pub(super) use super::source_worker_owner::WorkerCommand;
+
 pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,4 +62,8 @@ pub enum SourceWorkerSetupError {
     WorkerChannelsUnavailable,
     WorkerThreadUnavailable,
     RetirementReaperUnavailable,
+    UnsupportedPersistentBusCount {
+        requested: usize,
+        max: usize,
+    },
 }

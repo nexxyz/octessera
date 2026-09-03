@@ -172,7 +172,7 @@ fn worker_panic_returns_bundle_and_latches_terminal_health() {
     assert_eq!(health.status, SourceWorkerHealth::WorkerExited);
     assert_ne!(health.failed_mask & 1, 0);
     assert_eq!(health.worker_exits, 1);
-    assert!(runtime.partitions_home_for_test());
+    assert!(lifecycle.fault_owner_identities_for_test()[0].is_some());
     assert_eq!(Arc::strong_count(&shared_samples), before_render);
 
     let jobs = lifecycle.jobs_started_for_test();

@@ -12,6 +12,13 @@ type OwnerIdentity = SourceWorkerOwnerIdentity;
 
 static PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
 
+struct RetirementExpectation {
+    health: SourceWorkerHealth,
+    home: [Option<OwnerIdentity>; 2],
+    fault: [Option<OwnerIdentity>; 2],
+    destroyed: [Option<OwnerIdentity>; 2],
+}
+
 fn count_without_panic_hook<F, R>(operation: F) -> (R, usize, usize)
 where
     F: FnOnce() -> R,
@@ -56,9 +63,7 @@ fn assert_immediate_retirement(
     engine: &mut SynthEngine,
     lifecycle: SourceWorkerLifecycle,
     mut runtime: SourceWorkerRuntime,
-    expected_health: SourceWorkerHealth,
-    expected_home: [Option<OwnerIdentity>; 2],
-    expected_destroyed: [Option<OwnerIdentity>; 2],
+    expected: RetirementExpectation,
     release_workers: impl FnOnce(&SourceWorkerLifecycle),
 ) {
     let (_, allocations, deallocations) =
@@ -66,14 +71,15 @@ fn assert_immediate_retirement(
             assert!(!runtime.collect_wait_for_test(engine));
         });
     assert_eq!((allocations, deallocations), (0, 0));
-    assert_eq!(runtime.health_snapshot().status, expected_health);
+    assert_eq!(runtime.health_snapshot().status, expected.health);
     assert_eq!(
         [
             runtime.home_owner_identity_for_test(0),
             runtime.home_owner_identity_for_test(1),
         ],
-        expected_home
+        expected.home
     );
+    assert_eq!(lifecycle.fault_owner_identities_for_test(), expected.fault);
 
     let join_handles_before = lifecycle.join_handles_present_for_test();
     let (retirement, allocations, deallocations) =
@@ -88,7 +94,7 @@ fn assert_immediate_retirement(
     let shutdown = lifecycle.shutdown(retirement);
     assert_eq!(shutdown.joined_workers, 2);
     assert_eq!(shutdown.destroyed_owner_count, 2);
-    assert_eq!(shutdown.destroyed_owner_identities, expected_destroyed);
+    assert_eq!(shutdown.destroyed_owner_identities, expected.destroyed);
 }
 
 #[test]
@@ -109,9 +115,12 @@ fn deadline_after_one_completion_destroys_both_owners_off_callback() {
         &mut engine,
         lifecycle,
         runtime,
-        SourceWorkerHealth::DeadlineMiss,
-        [None, Some(initial[1])],
-        [Some(initial[0]), Some(initial[1])],
+        RetirementExpectation {
+            health: SourceWorkerHealth::DeadlineMiss,
+            home: [None, Some(initial[1])],
+            fault: [None, None],
+            destroyed: [Some(initial[0]), Some(initial[1])],
+        },
         |lifecycle| lifecycle.set_pause_for_parity_for_test(0, false),
     );
     assert!(Arc::strong_count(&shared_samples) < before_shutdown);
@@ -135,9 +144,12 @@ fn disconnected_completion_preserves_owner_until_lifecycle_join() {
         &mut engine,
         lifecycle,
         runtime,
-        SourceWorkerHealth::CompletionFailed,
-        [None, Some(initial[1])],
-        [Some(initial[0]), Some(initial[1])],
+        RetirementExpectation {
+            health: SourceWorkerHealth::CompletionFailed,
+            home: [None, Some(initial[1])],
+            fault: [None, None],
+            destroyed: [Some(initial[0]), Some(initial[1])],
+        },
         |lifecycle| lifecycle.set_pause_for_parity_for_test(0, false),
     );
     assert!(Arc::strong_count(&shared_samples) < before_shutdown);
@@ -163,14 +175,21 @@ fn stale_completion_destroys_both_original_owners_without_reduction() {
         runtime.health_snapshot().status,
         SourceWorkerHealth::CompletionFailed
     );
-    assert_eq!(runtime.home_owner_identities_for_test(), initial);
+    assert_eq!(runtime.home_owner_identity_for_test(1), Some(initial[1]));
+    assert_eq!(
+        lifecycle.fault_owner_identities_for_test()[0],
+        Some(initial[0])
+    );
     assert_immediate_retirement(
         &mut engine,
         lifecycle,
         runtime,
-        SourceWorkerHealth::CompletionFailed,
-        [Some(initial[0]), Some(initial[1])],
-        [Some(initial[0]), Some(initial[1])],
+        RetirementExpectation {
+            health: SourceWorkerHealth::CompletionFailed,
+            home: [None, Some(initial[1])],
+            fault: [Some(initial[0]), None],
+            destroyed: [Some(initial[0]), Some(initial[1])],
+        },
         |_| {},
     );
     assert!(Arc::strong_count(&shared_samples) < before_shutdown);
@@ -195,9 +214,12 @@ fn panic_after_one_recovery_destroys_both_owners_off_callback() {
         &mut engine,
         lifecycle,
         runtime,
-        SourceWorkerHealth::WorkerExited,
-        [Some(initial[0]), None],
-        [Some(initial[0]), Some(initial[1])],
+        RetirementExpectation {
+            health: SourceWorkerHealth::WorkerExited,
+            home: [None, None],
+            fault: [Some(initial[0]), None],
+            destroyed: [Some(initial[0]), Some(initial[1])],
+        },
         |lifecycle| lifecycle.set_pause_for_parity_for_test(1, false),
     );
     assert!(Arc::strong_count(&shared_samples) < before_shutdown);
@@ -218,9 +240,12 @@ fn worker_exit_after_both_completions_destroys_both_owners_off_callback() {
         &mut engine,
         lifecycle,
         runtime,
-        SourceWorkerHealth::WorkerExited,
-        [Some(initial[0]), Some(initial[1])],
-        [Some(initial[0]), Some(initial[1])],
+        RetirementExpectation {
+            health: SourceWorkerHealth::WorkerExited,
+            home: [None, None],
+            fault: [Some(initial[0]), Some(initial[1])],
+            destroyed: [Some(initial[0]), Some(initial[1])],
+        },
         |_| {},
     );
     assert!(Arc::strong_count(&shared_samples) < before_shutdown);

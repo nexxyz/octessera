@@ -15,7 +15,7 @@ impl SourceWorkerRuntime {
     ) {
         if let Some(probe) = self.timing_probe.as_ref() {
             let completed_mask = if !failed
-                && self.expected_sequence.is_some()
+                && self.expected_stamp.is_some()
                 && self.in_flight_mask == 0
                 && self.completed_mask == 0
             {
@@ -37,23 +37,25 @@ impl SourceWorkerRuntime {
     }
 
     pub fn record_engine_block_total(&self, started_at: Option<Instant>) {
-        if let (Some(probe), Some(started_at), Some(sequence)) = (
-            self.timing_probe.as_ref(),
-            started_at,
-            self.expected_sequence,
-        ) {
-            probe.record_engine_block_total(sequence, started_at.elapsed());
+        if let (Some(probe), Some(started_at), Some(stamp)) =
+            (self.timing_probe.as_ref(), started_at, self.expected_stamp)
+        {
+            probe.record_engine_block_total(stamp.quantum_sequence, started_at.elapsed());
         }
     }
 
+    pub(crate) fn take_coordinator_remainder_started_at(&mut self) -> Option<Instant> {
+        self.coordinator_remainder_started_at.take()
+    }
+
     pub(super) fn record_dispatch_to_deadline_start(&self, deadline_start: Instant) {
-        if let (Some(probe), Some(dispatch_started_at), Some(sequence)) = (
+        if let (Some(probe), Some(dispatch_started_at), Some(stamp)) = (
             self.timing_probe.as_ref(),
             self.dispatch_started_at,
-            self.expected_sequence,
+            self.expected_stamp,
         ) {
             probe.record_dispatch_to_deadline_start(
-                sequence,
+                stamp.quantum_sequence,
                 deadline_start.duration_since(dispatch_started_at),
             );
         }
@@ -65,12 +67,10 @@ impl SourceWorkerRuntime {
     }
 
     pub(crate) fn record_coordinator_remainder(&self, started_at: Option<Instant>) {
-        if let (Some(probe), Some(started_at), Some(sequence)) = (
-            self.timing_probe.as_ref(),
-            started_at,
-            self.expected_sequence,
-        ) {
-            probe.record_coordinator_remainder(sequence, started_at.elapsed());
+        if let (Some(probe), Some(started_at), Some(stamp)) =
+            (self.timing_probe.as_ref(), started_at, self.expected_stamp)
+        {
+            probe.record_coordinator_remainder(stamp.quantum_sequence, started_at.elapsed());
         }
     }
 }

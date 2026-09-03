@@ -125,6 +125,13 @@ impl SynthEngine {
     }
 
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {
+        if self.persistent_bus_limit.is_some_and(|limit| {
+            cfg.mixer
+                .as_ref()
+                .is_some_and(|mixer| mixer.buses.len() > limit)
+        }) {
+            return;
+        }
         let mut next_render_plan = RenderPlan::from_config(&cfg);
         for (index, slot) in cfg
             .instruments

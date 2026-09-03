@@ -53,6 +53,9 @@ mod source_lane_prefix_tests;
 mod source_lane_renderer;
 mod source_worker;
 #[cfg(test)]
+mod source_worker_carrier_tests;
+mod source_worker_carrier_transfer;
+#[cfg(test)]
 mod source_worker_failure_tests;
 mod source_worker_health;
 #[cfg(test)]
@@ -113,14 +116,15 @@ pub use source_worker_observer::{
 };
 pub use source_worker_protocol::{
     SourceWorkerMode, SourceWorkerRetirementError, SourceWorkerSetupError, SourceWorkerShutdown,
-    SourceWorkerStartHook, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+    SourceWorkerStartHook, WorkStamp, WorkerPhase, SOURCE_WORKER_MODE_INLINE,
+    SOURCE_WORKER_MODE_PERSISTENT,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use source_worker_retirement::SourceWorkerHoldControl;
 pub use source_worker_retirement::SourceWorkerRetirement;
 
+pub use bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
-pub use bus_chain_owner::{BUS_CHAIN_SLOT_COST_UNITS, BUS_CHAIN_WORKER_MAX_COST_UNITS};
 use control::MAX_MOMENTARY_FX;
 use inline_source_executor::InlineSourceExecutor;
 use render_plan::RenderPlan;
@@ -189,6 +193,7 @@ pub struct SynthEngine {
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
     worker_load_warning: WorkerLoadWarningState,
+    persistent_bus_limit: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -299,6 +304,7 @@ impl SynthEngine {
             dsp_config: DspRuntimeConfig::default(),
             worker_utilization_ppm: None,
             worker_load_warning: WorkerLoadWarningState::default(),
+            persistent_bus_limit: None,
         }
     }
 
@@ -365,6 +371,10 @@ impl SynthEngine {
 
     pub fn take_pending_render_retired(&mut self) -> RetiredAudioState {
         std::mem::take(&mut self.pending_render_retired)
+    }
+
+    pub(super) fn set_persistent_bus_limit(&mut self, limit: Option<usize>) {
+        self.persistent_bus_limit = limit;
     }
 
     pub fn pending_render_retired_is_empty(&self) -> bool {
