@@ -60,6 +60,8 @@ mod source_worker_bus_tests;
 mod source_worker_carrier_tests;
 mod source_worker_carrier_transfer;
 #[cfg(test)]
+mod source_worker_carrier_transfer_tests;
+#[cfg(test)]
 mod source_worker_failure_tests;
 mod source_worker_health;
 #[cfg(test)]
@@ -85,6 +87,8 @@ mod source_worker_residency_tests;
 mod source_worker_retirement;
 #[cfg(test)]
 mod source_worker_retirement_tests;
+#[cfg(test)]
+mod source_worker_staging_tests;
 #[cfg(test)]
 mod source_worker_start_hook_tests;
 #[cfg(test)]
