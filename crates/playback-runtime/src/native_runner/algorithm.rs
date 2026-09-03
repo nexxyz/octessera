@@ -131,7 +131,6 @@ impl NativeRunner {
         for (index, mapped_intents) in inactive_modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
         }
-        events.dedupe_note_ons_by_highest_velocity();
         if !events.is_empty() {
             let now = self.display.transients.now();
             self.display.transients.trigger_event_dot(now);

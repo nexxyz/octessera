@@ -24,11 +24,6 @@ impl RoutedMusicalEvents {
         self.audio.extend(other.audio);
         self.midi.extend(other.midi);
     }
-
-    pub(super) fn dedupe_note_ons_by_highest_velocity(&mut self) {
-        self.audio = platform_core::dedupe_simultaneous_notes(&self.audio);
-        self.midi = platform_core::dedupe_simultaneous_notes(&self.midi);
-    }
 }
 
 #[cfg(test)]
@@ -342,7 +337,7 @@ fn take_held_note(
     held_note
 }
 
-fn event_channel(event: &MusicalEvent) -> u8 {
+pub(super) fn event_channel(event: &MusicalEvent) -> u8 {
     match event {
         MusicalEvent::NoteOn { channel, .. }
         | MusicalEvent::NoteOff { channel, .. }
