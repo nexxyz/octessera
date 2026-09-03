@@ -42,6 +42,6 @@ pub use platform_capabilities::{
     SPARKS_FX_MAX_CONCURRENT, SYNTH_VOICE_LANE_CAPACITY,
 };
 pub use transforms::{
-    apply_global_sound, apply_note_behavior, dedupe_simultaneous_notes, GlobalSoundConfig,
-    NoteBehavior, NoteBehaviorResult, VelocityCurve,
+    apply_global_sound, apply_note_behavior, GlobalSoundConfig, NoteBehavior, NoteBehaviorResult,
+    VelocityCurve,
 };

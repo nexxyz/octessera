@@ -1,6 +1,7 @@
 use super::*;
 mod link;
 mod link_arp;
+mod link_dedupe;
 mod link_hold;
 
 #[test]
