@@ -46,7 +46,7 @@ impl SourceWorkerTimingProbe {
                 .map(|_| self.coordinator.in_flight_mask.load(Ordering::Relaxed)),
             completed_mask: sequence
                 .map(|_| self.coordinator.completed_mask.load(Ordering::Relaxed)),
-            first_parity: if self.coordinator.first_parity_valid.load(Ordering::Relaxed) {
+            first_parity: if self.coordinator.first_parity_valid.load(Ordering::Acquire) {
                 Some(self.coordinator.first_parity.load(Ordering::Relaxed) as usize)
             } else {
                 None
@@ -151,7 +151,7 @@ fn cpu_value(finished: bool, value: u32) -> Option<u32> {
 
 fn timing_value(value: &AtomicU64, valid: &AtomicBool) -> Option<u64> {
     valid
-        .load(Ordering::Relaxed)
+        .load(Ordering::Acquire)
         .then(|| value.load(Ordering::Relaxed))
 }
 

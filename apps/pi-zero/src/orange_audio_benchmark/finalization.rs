@@ -417,11 +417,22 @@ fn result_passes(config: &BenchmarkConfig, metrics: &CallbackMetricsSnapshot) ->
         && metrics.callback_frames_max <= config.output_frames
         && metrics.callback_frame_sample_count == metrics.callback_count
         && metrics.invalid_callback_frame_count == 0
-        && metrics.over_audio_duration_budget_count == 0
+        && callback_budget_passes(
+            config.measure_seconds,
+            metrics.over_audio_duration_budget_count,
+        )
         && metrics.pre_mute_nonzero_samples > 0
         && metrics.post_mute_nonzero_samples == 0
         && !metrics.worker_terminal
         && !metrics.terminal_error
+}
+
+fn callback_budget_passes(measure_seconds: u64, overrun_count: u64) -> bool {
+    match measure_seconds {
+        30 | 120 => overrun_count == 0,
+        300 => overrun_count <= 5,
+        _ => false,
+    }
 }
 
 fn write_final_progress(

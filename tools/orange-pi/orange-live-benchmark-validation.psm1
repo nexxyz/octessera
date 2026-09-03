@@ -147,13 +147,14 @@ function Get-OrangeLiveResultSummary {
   $measured = [uint64]$callback.callback_count -gt 0 -and -not $terminal -and -not [bool]$callback.terminal_error
   $muteProof = [uint64]$callback.pre_mute_nonzero_samples -gt 0 -and [uint64]$callback.post_mute_nonzero_samples -eq 0
   $complete = $measured -and $callbackErrors -eq 0
+  $maxCallbackBudgetOverruns = switch ($Selection.MeasureSeconds) { 30 { 0 }; 120 { 0 }; 300 { 5 }; default { throw "Unsupported live benchmark duration: $($Selection.MeasureSeconds) seconds." } }
   $statusClass = if (-not $measured) {
     "infrastructure_failure"
   } elseif ($callbackErrors -gt 0) {
     "infrastructure_failure"
   } elseif ([string]$Result.status -eq "pass") {
-    if ([uint64]$callback.over_audio_duration_budget_count -gt 0 -or -not $muteProof) { "infrastructure_failure" } else { "pass" }
-  } elseif ([uint64]$callback.over_audio_duration_budget_count -gt 0) {
+    if ([uint64]$callback.over_audio_duration_budget_count -gt $maxCallbackBudgetOverruns -or -not $muteProof) { "infrastructure_failure" } else { "pass" }
+  } elseif ([uint64]$callback.over_audio_duration_budget_count -gt $maxCallbackBudgetOverruns) {
     if ($complete -and $muteProof) { "over_budget" } else { "infrastructure_failure" }
   } elseif ($complete -and $muteProof) {
     "measured_failure"

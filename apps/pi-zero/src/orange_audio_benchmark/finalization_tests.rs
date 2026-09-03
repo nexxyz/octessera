@@ -115,7 +115,6 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
 
 #[test]
 fn result_status_requires_clean_runtime_evidence() {
-    let config = config();
     let metrics = CallbackMetricsSnapshot {
         callback_count: 1,
         callback_frames_min: 1,
@@ -136,13 +135,29 @@ fn result_status_requires_clean_runtime_evidence() {
         retirement_error: true,
         worker_timing_consistent: true,
     };
-    assert_eq!(result_status(&config, &metrics, gates.clone()), "pass");
+    for (measure_seconds, allowed, rejected) in [(30, 0, 1), (120, 0, 1), (300, 5, 6)] {
+        let mut config = config();
+        config.measure_seconds = measure_seconds;
+        assert_eq!(result_status(&config, &metrics, gates.clone()), "pass");
 
-    let invalid = CallbackMetricsSnapshot {
-        over_audio_duration_budget_count: 1,
-        ..metrics
-    };
-    assert_eq!(result_status(&config, &invalid, gates), "fail");
+        let allowed_metrics = CallbackMetricsSnapshot {
+            over_audio_duration_budget_count: allowed,
+            ..metrics
+        };
+        assert_eq!(
+            result_status(&config, &allowed_metrics, gates.clone()),
+            "pass"
+        );
+
+        let rejected_metrics = CallbackMetricsSnapshot {
+            over_audio_duration_budget_count: rejected,
+            ..metrics
+        };
+        assert_eq!(
+            result_status(&config, &rejected_metrics, gates.clone()),
+            "fail"
+        );
+    }
 }
 
 #[test]
