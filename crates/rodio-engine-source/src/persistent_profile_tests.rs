@@ -1,8 +1,9 @@
 use super::*;
 use realtime_engine::synth::{
-    default_synth_config, prepare_audio_config, InstrumentSlotConfig, InstrumentsConfig,
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, SourceWorkerHealth, VoiceStealingMode,
-    DEFAULT_PAN_POSITIONS, SYNTH_VOICE_LANE_CAPACITY,
+    default_synth_config, prepare_audio_config, FxBusConfig, FxBusSlotConfig,
+    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig,
+    SampleBankConfig, SampleBuffer, SampleSlotConfig, SourceWorkerHealth, SynthEngine,
+    VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -58,6 +59,54 @@ fn prepare_config(
         None,
         RATE,
     )
+}
+
+fn bus_heavy_config() -> realtime_engine::synth::PreparedAudioConfig {
+    prepare_audio_config(
+        InstrumentsConfig {
+            instruments: (0..INSTRUMENT_SLOT_COUNT)
+                .map(|slot| InstrumentSlotConfig {
+                    kind: "synth".into(),
+                    synth: default_synth_config(),
+                    mixer: Some(InstrumentMixerConfig {
+                        route: format!("fx_bus_{}", (slot % 4) + 1),
+                        pan_pos: slot.min(DEFAULT_PAN_POSITIONS - 1),
+                        volume: 100.0,
+                    }),
+                })
+                .collect(),
+            mixer: Some(MixerConfig {
+                buses: vec![
+                    bus(vec!["delay", "reverb"], 1),
+                    bus(vec!["filter_lfo", "chorus"], 2),
+                    bus(vec!["compressor"], 3),
+                    bus(vec!["eq"], 4),
+                ],
+                master: Some(MasterFxConfig {
+                    slots: vec![
+                        FxBusSlotConfig::Kind("compressor".into()),
+                        FxBusSlotConfig::Kind("eq".into()),
+                    ],
+                }),
+            }),
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        },
+        None,
+        Some(VoiceStealingMode::None),
+        RATE,
+    )
+}
+
+fn bus(slots: Vec<&str>, pan_pos: usize) -> FxBusConfig {
+    FxBusConfig {
+        slots: slots
+            .into_iter()
+            .map(|kind| FxBusSlotConfig::Kind(kind.into()))
+            .collect(),
+        pan_pos,
+        volume_pct: 100.0,
+    }
 }
 
 fn persistent_source() -> (
@@ -150,6 +199,48 @@ fn persistent_profile_cache_tracks_controls_without_pool_reads() {
         source.profile_snapshot().cumulative_voice_admission_drops,
         1
     );
+
+    drop(source);
+    assert_eq!(shutdown.shutdown().joined_workers, 2);
+}
+
+#[test]
+fn persistent_profile_cache_reports_bus_fx_after_completed_block() {
+    let config = bus_heavy_config();
+    let (tx, mut source, shutdown) = persistent_source();
+    tx.send(EngineEvent::SetPreparedAudioConfig(config.clone()))
+        .unwrap();
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for note in [60, 67] {
+            tx.send(EngineEvent::NoteOn {
+                instrument_slot: slot as u8,
+                note,
+                velocity: 100,
+                duration_ms: 60_000,
+            })
+            .unwrap();
+        }
+    }
+    let _ = block_bits(&mut source);
+    let cached = source.profile_snapshot();
+
+    let mut inline = SynthEngine::new(RATE);
+    let retired = inline.apply_prepared_audio_config(config);
+    drop(retired);
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for note in [60, 67] {
+            inline.note_on(slot as u8, note, 100, 60_000);
+        }
+    }
+    let inline_snapshot = inline.profile_snapshot();
+
+    assert_eq!(cached.active_synth_voices, 16);
+    assert_eq!(cached.active_sample_voices, 0);
+    assert_eq!(cached.active_preview_sample_voices, 0);
+    assert_eq!(cached.active_momentary_fx, 0);
+    assert_eq!(cached.active_bus_fx_slots, 6);
+    assert_eq!(cached.active_global_fx_slots, 2);
+    assert_eq!(cached, inline_snapshot);
 
     drop(source);
     assert_eq!(shutdown.shutdown().joined_workers, 2);

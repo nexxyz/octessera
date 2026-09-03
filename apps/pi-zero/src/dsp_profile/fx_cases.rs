@@ -104,7 +104,7 @@ fn bus_heavy_instruments() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: format!("fx_bus_{}", (slot % 6) + 1),
+                    route: format!("fx_bus_{}", (slot % 4) + 1),
                     pan_pos: slot.min(DEFAULT_PAN_POSITIONS - 1),
                     volume: 100.0,
                 }),
@@ -112,12 +112,10 @@ fn bus_heavy_instruments() -> InstrumentsConfig {
             .collect(),
         mixer: Some(MixerConfig {
             buses: vec![
-                bus(vec!["delay"], 1),
-                bus(vec!["reverb"], 2),
-                bus(vec!["filter_lfo"], 3),
-                bus(vec!["chorus"], 4),
-                bus(vec!["compressor"], 5),
-                bus(vec!["eq"], 6),
+                bus(vec!["delay", "reverb"], 1),
+                bus(vec!["filter_lfo", "chorus"], 2),
+                bus(vec!["compressor"], 3),
+                bus(vec!["eq"], 4),
             ],
             master: Some(master(vec!["compressor", "eq"])),
         }),
@@ -256,6 +254,60 @@ fn master(slots: Vec<&str>) -> MasterFxConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use realtime_engine::synth::{
+        SourceWorkerLifecycle, SynthEngine, BUS_COUNT, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+    };
+
+    #[test]
+    fn bus_heavy_fixture_matches_persistent_bus_contract() {
+        let instruments = bus_heavy_instruments();
+        let mixer = instruments.mixer.as_ref().expect("bus-heavy mixer");
+        assert_eq!(mixer.buses.len(), BUS_COUNT);
+        assert_eq!(
+            mixer.buses.iter().map(|bus| bus.slots.len()).sum::<usize>(),
+            6
+        );
+        assert_eq!(mixer.master.as_ref().expect("master FX").slots.len(), 2);
+        for instrument in &instruments.instruments {
+            let route = instrument
+                .mixer
+                .as_ref()
+                .expect("bus-heavy instrument mixer")
+                .route
+                .strip_prefix("fx_bus_")
+                .and_then(|index| index.parse::<usize>().ok())
+                .expect("bus-heavy instrument route");
+            assert!((1..=BUS_COUNT).contains(&route));
+        }
+
+        let mut engine = SynthEngine::new(44_100);
+        let retired = engine.apply_prepared_audio_config(prepare_audio_config(
+            instruments,
+            None,
+            Some(VoiceStealingMode::None),
+            44_100,
+        ));
+        drop(retired);
+        for slot in 0..INSTRUMENT_SLOT_COUNT {
+            for note in [60, 67] {
+                engine.note_on(slot as u8, note, 100, 60_000);
+            }
+        }
+        let snapshot = engine.profile_snapshot();
+        assert_eq!(snapshot.active_synth_voices, 16);
+        assert_eq!(snapshot.active_sample_voices, 0);
+        assert_eq!(snapshot.active_preview_sample_voices, 0);
+        assert_eq!(snapshot.active_momentary_fx, 0);
+        assert_eq!(snapshot.active_bus_fx_slots, 6);
+        assert_eq!(snapshot.active_global_fx_slots, 2);
+
+        let (lifecycle, runtime) = SourceWorkerLifecycle::start_prewarmed_with_frames(
+            &mut engine,
+            DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+        )
+        .expect("persistent bus-heavy fixture");
+        assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
+    }
 
     #[test]
     fn fx_limit_buses_pack_three_slots_per_bus_up_to_twenty_four() {
