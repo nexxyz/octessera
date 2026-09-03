@@ -8,8 +8,9 @@ use realtime_engine::synth::{
     prepare_instrument_slot_config, prepare_momentary_fx_start, MomentaryFxTarget,
     DEFAULT_AUDIO_SAMPLE_RATE,
 };
-use rodio_engine_source::{event_queue, EngineEvent, EngineEventSender};
-use rodio_engine_source::{AudioLoadStatusReceiver, AudioLoadStatusSender};
+use rodio_engine_source::{
+    event_queue, AudioLoadStatusReceiver, AudioLoadStatusSender, EngineEvent, EngineEventSender,
+};
 use serde::Serialize;
 use std::sync::mpsc::Receiver;
 use std::thread;
@@ -20,6 +21,12 @@ struct AudioLoadPayload {
     ratio: f32,
     #[serde(rename = "voiceSteal")]
     voice_steal: bool,
+    #[serde(rename = "workerUtilization")]
+    worker_utilization: Option<f32>,
+    #[serde(rename = "highCpuSteady")]
+    high_cpu_steady: bool,
+    #[serde(rename = "missedQuantumFlash")]
+    missed_quantum_flash: bool,
     #[serde(rename = "blockRatioP95")]
     block_ratio_p95: f32,
     #[serde(rename = "blockRatioMax")]
@@ -49,7 +56,7 @@ pub(crate) fn spawn_audio_engine_thread(
         let mut active_request_id = None;
         let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
             let (engine_tx, engine_rx) = event_queue();
-            let audio = AudioRuntime::new()?;
+            let mut audio = AudioRuntime::new()?;
             audio.start_engine(engine_rx, load_tx)?;
 
             while let Ok(event) = trigger_rx.recv() {
@@ -129,6 +136,9 @@ pub(crate) fn spawn_audio_engine_thread(
                     }
                     QueuedAudioEvent::SetMasterVolume { volume_pct } => {
                         send_engine_event(&engine_tx, EngineEvent::SetMasterVolume { volume_pct })?;
+                    }
+                    QueuedAudioEvent::SetDspConfig { config } => {
+                        send_engine_event(&engine_tx, EngineEvent::SetDspConfig(config))?;
                     }
                     QueuedAudioEvent::SetInstrumentMixer {
                         instrument_slot,
@@ -332,6 +342,9 @@ pub(crate) fn spawn_load_listener(
                 RuntimePresentationMetrics {
                     audio_load_ratio: status.ratio,
                     voice_steal: status.voice_steal,
+                    worker_utilization: status.worker_utilization,
+                    high_cpu_steady: status.high_cpu_steady,
+                    missed_quantum_flash: status.missed_quantum_flash,
                 },
             ));
             let _ = app_handle.emit(
@@ -339,6 +352,9 @@ pub(crate) fn spawn_load_listener(
                 AudioLoadPayload {
                     ratio: status.ratio,
                     voice_steal: status.voice_steal,
+                    worker_utilization: status.worker_utilization,
+                    high_cpu_steady: status.high_cpu_steady,
+                    missed_quantum_flash: status.missed_quantum_flash,
                     block_ratio_p95: status.block_ratio_p95,
                     block_ratio_max: status.block_ratio_max,
                     blocks: status.blocks,

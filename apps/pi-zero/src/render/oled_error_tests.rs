@@ -43,7 +43,9 @@ pub(super) fn menu_snapshot() -> Value {
         "transportIcon": "play",
         "transportFlash": "beat",
         "eventDotOn": true,
-        "cpuLoadRatio": 0.0
+        "cpuLoadRatio": 0.0,
+        "highCpuSteady": false,
+        "missedQuantumFlash": false
     })
 }
 

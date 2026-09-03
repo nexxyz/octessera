@@ -148,7 +148,8 @@ fn status_icons_are_invisible_until_warning_or_save_flash() {
     assert_eq!(pixel(&frame, 107, 5), 0);
 
     let mut high_cpu = snapshot.clone();
-    high_cpu["cpuLoadRatio"] = json!(0.9);
+    high_cpu["workerUtilization"] = json!(0.9);
+    high_cpu["highCpuSteady"] = json!(true);
     let frame = oled_frame(&high_cpu);
     assert_eq!(pixel(&frame, 118, 6), palette::RED_RGB565);
 

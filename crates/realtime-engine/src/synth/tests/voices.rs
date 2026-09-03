@@ -245,6 +245,27 @@ fn auto_hard_global_voice_budget_reduces_polyphony_under_load() {
 }
 
 #[test]
+fn audio_load_status_has_no_worker_warning_without_persistent_evidence() {
+    let mut engine = SynthEngine::new(48_000);
+    let status = engine.audio_load_status();
+
+    assert_eq!(status.worker_utilization, None);
+    assert!(!status.high_cpu_steady);
+    assert!(!status.missed_quantum_flash);
+}
+
+#[test]
+fn audio_load_status_reports_native_worker_warning_fields() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.observe_worker_utilization(900_000, 128);
+    let status = engine.audio_load_status();
+
+    assert_eq!(status.worker_utilization, Some(0.9));
+    assert!(status.high_cpu_steady);
+    assert!(!status.missed_quantum_flash);
+}
+
+#[test]
 fn disabled_global_voice_budget_preserves_per_slot_cap() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_voice_stealing_mode(VoiceStealingMode::None);

@@ -81,6 +81,7 @@ impl CapturedOutput {
             RuntimeAudioCommand::MomentaryFxStart { .. } => self.momentary_fx_start_count += 1,
             RuntimeAudioCommand::MomentaryFxStop { .. } => self.momentary_fx_stop_count += 1,
             RuntimeAudioCommand::SetAudioConfig { .. }
+            | RuntimeAudioCommand::SetDspConfig { .. }
             | RuntimeAudioCommand::SetMasterVolume { .. }
             | RuntimeAudioCommand::SetInstrumentMixer { .. }
             | RuntimeAudioCommand::SetFxBusMixer { .. }

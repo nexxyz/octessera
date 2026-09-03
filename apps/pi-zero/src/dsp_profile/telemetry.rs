@@ -63,6 +63,7 @@ pub(crate) fn apply_events(
     for event in events {
         match event {
             EngineEvent::AllNotesOff => retired.push(engine.all_notes_off()),
+            EngineEvent::SetDspConfig(config) => engine.set_dsp_config(*config),
             EngineEvent::SetVoiceStealingMode(mode) => engine.set_voice_stealing_mode(*mode),
             EngineEvent::SetPreparedSampleBank {
                 instrument_slot,

@@ -71,6 +71,10 @@ impl NativeRunner {
                         request_id: None,
                         config: audio_config_payload(self),
                     });
+                self.outbox
+                    .push_audio_command(RuntimeAudioCommand::SetDspConfig {
+                        config: self.dsp_config,
+                    });
             }
         }
     }
@@ -100,6 +104,7 @@ fn audio_config_payload(runner: &NativeRunner) -> Value {
             "voiceStealingMode".into(),
             serde_json::json!(runner.voice_stealing_mode),
         );
+        fields.insert("dsp".into(), serde_json::json!(runner.dsp_config));
     }
     config
 }

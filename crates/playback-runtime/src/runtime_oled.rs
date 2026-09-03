@@ -11,7 +11,7 @@ use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct RuntimeOled {
-    normalized_metrics: OledPresentationMetrics,
+    pub(super) normalized_metrics: OledPresentationMetrics,
     current: Vec<u8>,
     scratch: Vec<u8>,
     revision: u64,
@@ -162,8 +162,12 @@ impl PlaybackRuntime {
         &mut self,
         metrics: RuntimePresentationMetrics,
     ) -> RuntimeIngest {
-        let normalized =
-            OledPresentationMetrics::normalized(metrics.audio_load_ratio, metrics.voice_steal);
+        let normalized = OledPresentationMetrics::from_status(
+            metrics.worker_utilization,
+            metrics.high_cpu_steady,
+            metrics.missed_quantum_flash,
+            metrics.voice_steal,
+        );
         if normalized == self.oled.normalized_metrics {
             return RuntimeIngest::default();
         }

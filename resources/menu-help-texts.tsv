@@ -293,6 +293,9 @@ filt_env_amt	*	key:instruments.*.synth.filter.envAmountPct	number	Filter Env Amo
 filt_keytrack	*	key:instruments.*.synth.filter.keyTrackingPct	number	Filter Key Tracking	Sets how cutoff follows played pitch across notes.	Higher values keep timbre more consistent by pitch.
 filt_env_adsr	*	key:instruments.*.synth.filterEnv.*	number	Filter Envelope	Shapes filter movement over time using ADSR stages.	Use with Env Amount for plucks, swells, and contour motion.
 bpm_help	*	key:transport.bpm	number	BPM	Sets master tempo in beats per minute.	Affects internal clock rate and algorithm pulse timing.
+dsp_group	Menu > System > DSP		group	DSP	Stores the native DSP worker and bus-idle thresholds.	Worker warning presentation and bus silence behavior are separate runtime phases.
+dsp_worker_warning	*	key:dsp.workerWarningThreshold	enum	CPU Warn %	Sets the CPU percentage threshold used by DSP worker diagnostics: 70, 75, 80, 85, 90, or 95 percent.	Clears only strictly below threshold minus 5 points; equality holds and resets the clear timer.
+dsp_bus_idle	*	key:dsp.busIdleThreshold	enum	Bus Idle	Sets the linear-amplitude threshold used by DSP bus-idle handling: exact, -140, -120, -100, or -80 dB.	Exact requires a zero signal; the dB choices allow a small residual to count as quiet.
 sound_group	Menu > System > Sound		group	Sound	Global volume, voice shaping, and note behavior controls.	Includes Master Vol, Voice Limit, Note Length, Velocity Scale, Velocity Curve, and Output Buffer.
 master_vol	*	key:masterVolume	number	Master Volume	Sets overall output volume scaling.	Use this for final level trim without changing patch balance.
 tones_stealing_mode	*	key:sound.voiceStealingMode	enum	Voice Limit	fixed12=12 voices; fixed16=16 voices; auto-soft=adaptive soft; auto-balanced=adaptive middle; auto-hard=adaptive hard; none=no cap.	At a cap, older voices are stolen; softer modes preserve more tails and harder modes leave more CPU headroom.

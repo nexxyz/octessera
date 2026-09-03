@@ -2774,6 +2774,7 @@ dependencies = [
  "flate2",
  "image",
  "platform-core",
+ "realtime-engine",
  "serde",
  "serde_json",
  "sha2",

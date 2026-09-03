@@ -7,6 +7,7 @@ use crate::audio_sink_registry::{
     attach_sink_atomic, has_sink, remove_sink_atomic, AudioAttachGate, SinkSender,
 };
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
+use rodio_engine_source::AudioLoadStatusSender;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -27,6 +28,7 @@ pub(super) type OrangeRecoveryOpener = Arc<
             AudioSink,
             AudioStreamHealth,
             Option<RecordingTapState>,
+            Option<AudioLoadStatusSender>,
         ) -> Result<OpenedAudioSink, RouteOpenError>
         + Send
         + Sync,
@@ -34,9 +36,17 @@ pub(super) type OrangeRecoveryOpener = Arc<
 pub(super) type OrangeRecoveryClock = Arc<dyn Fn() -> Instant + Send + Sync>;
 
 fn production_opener() -> OrangeRecoveryOpener {
-    Arc::new(|output_buffer_frames, sink, health, recording_tap| {
-        open_orange_audio_sink_with_health(output_buffer_frames, sink, health, recording_tap)
-    })
+    Arc::new(
+        |output_buffer_frames, sink, health, recording_tap, load_tx| {
+            open_orange_audio_sink_with_health(
+                output_buffer_frames,
+                sink,
+                health,
+                recording_tap,
+                load_tx,
+            )
+        },
+    )
 }
 
 fn system_clock() -> OrangeRecoveryClock {
@@ -298,6 +308,14 @@ impl OrangeRecoveryController {
     }
 
     pub(super) fn recover_if_due(&mut self) {
+        self.recover_if_due_with(|| {}, None);
+    }
+
+    pub(super) fn recover_if_due_with(
+        &mut self,
+        mut before_open: impl FnMut(),
+        load_tx: Option<AudioLoadStatusSender>,
+    ) {
         let now = (self.clock)();
         let phase = std::mem::replace(&mut self.phase, OrangeRecoveryPhase::Terminal);
         self.phase = match phase {
@@ -330,7 +348,7 @@ impl OrangeRecoveryController {
             OrangeRecoveryPhase::Retrying {
                 attempts,
                 next_attempt_at,
-            } if now >= next_attempt_at => self.try_open(attempts),
+            } if now >= next_attempt_at => self.try_open(attempts, &mut before_open, load_tx),
             OrangeRecoveryPhase::Retrying {
                 attempts,
                 next_attempt_at,
@@ -370,38 +388,6 @@ impl OrangeRecoveryController {
 
     pub(super) fn report_runtime_terminal(&self) {
         self.health.log_worker_terminal_once();
-    }
-
-    fn try_open(&mut self, attempts: usize) -> OrangeRecoveryPhase {
-        let attempt = attempts + 1;
-        if self.health.external_status() == AudioStreamStatus::Terminal {
-            return OrangeRecoveryPhase::Terminal;
-        }
-        self.health.clear_recoverable_fault();
-        let opened = match (self.opener)(
-            self.output_buffer_frames,
-            self.sink,
-            self.health.clone(),
-            self.recording_tap.clone(),
-        ) {
-            Ok(opened) => opened,
-            Err(error) => {
-                eprintln!(
-                    "Orange {:?} recovery attempt {attempt} failed: {error}",
-                    self.sink
-                );
-                if !matches!(error, RouteOpenError::Absent | RouteOpenError::Disconnected) {
-                    self.health.mark_terminal();
-                    return OrangeRecoveryPhase::Terminal;
-                }
-                return self.failed_attempt(attempt);
-            }
-        };
-        OrangeRecoveryPhase::Stabilizing {
-            opened,
-            attempts: attempt,
-            stable_until: (self.clock)() + ORANGE_RECOVERY_STABLE_GRACE,
-        }
     }
 
     fn finish_stabilizing(
@@ -477,6 +463,8 @@ impl OrangeRecoveryController {
     }
 }
 
+#[path = "orange_audio_recovery_open.rs"]
+mod open;
 #[cfg(test)]
 #[path = "orange_audio_recovery_test_support.rs"]
 mod test_support;

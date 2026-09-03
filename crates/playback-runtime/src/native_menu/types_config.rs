@@ -1,5 +1,6 @@
 use crate::native_runner::AudioOutputSet;
 use crate::protocol::SyncSource;
+use realtime_engine::synth::DspRuntimeConfig;
 
 use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
 
@@ -10,6 +11,7 @@ pub struct NativeMenuConfig {
     pub worlds_items: Vec<NativeMenuItem>,
     pub worlds_items_by_layer: Vec<Vec<NativeMenuItem>>,
     pub behavior_target_items: Vec<Vec<NativeMenuItem>>,
+    pub dsp_config: DspRuntimeConfig,
     pub layer_labels: Vec<String>,
     pub layer_names: Vec<String>,
     pub layer_auto_names: Vec<bool>,

@@ -15,7 +15,7 @@ use std::time::Instant;
 fn opener_with_calls() -> (OrangeRecoveryOpener, Arc<Mutex<usize>>) {
     let calls = Arc::new(Mutex::new(0));
     let call_count = calls.clone();
-    let opener: OrangeRecoveryOpener = Arc::new(move |_, _, _, _| {
+    let opener: OrangeRecoveryOpener = Arc::new(move |_, _, _, _, _| {
         *call_count.lock().unwrap() += 1;
         Err(RouteOpenError::Fault(
             "unexpected recovery opener call".into(),
@@ -111,4 +111,63 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     assert_eq!(usb_health.runtime_status(), AudioStreamStatus::Terminal);
     assert_eq!(usb_health.worker_health(), SourceWorkerHealth::WorkerExited);
     assert!(has_sink(&usb_sinks, AudioSink::Usb));
+}
+
+#[test]
+fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
+    let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
+    load_tx.try_send(load_status(0.95));
+    let health = AudioStreamHealth::optional("Jack".into());
+    let (initial_tx, _initial_rx) = event_queue();
+    let initial = opened(initial_tx, health.clone());
+    let seen_sender = Arc::new(Mutex::new(false));
+    let seen_sender_for_opener = seen_sender.clone();
+    let opener: OrangeRecoveryOpener = Arc::new(move |_, _sink, health, _, sender| {
+        *seen_sender_for_opener.lock().unwrap() = sender.is_some();
+        sender.unwrap().try_send(load_status(0.7));
+        let (engine_tx, engine_rx) = event_queue();
+        Ok(OpenedAudioSink {
+            engine_tx,
+            _stream: None,
+            health,
+            _test_engine_rx: Some(Arc::new(Mutex::new(engine_rx))),
+        })
+    });
+    let clock = clock();
+    let mut controller = OrangeRecoveryController::new_initial_with_dependencies(
+        AudioSink::Jack,
+        true,
+        initial,
+        OrangeRecoveryDependencies {
+            output_buffer_frames: None,
+            realtime_txs: Arc::new(Mutex::new(Vec::new())),
+            replay_events: Arc::new(Mutex::new(ReplayCache::default())),
+            attach_gate: new_attach_gate(),
+            recording_tap: None,
+            opener,
+            clock,
+        },
+    )
+    .unwrap();
+    health.log(cpal::StreamError::DeviceNotAvailable);
+    controller.recover_if_due();
+    controller.recover_if_due_with(|| while load_rx.try_recv().is_ok() {}, Some(load_tx));
+
+    assert!(*seen_sender.lock().unwrap());
+    assert_eq!(load_rx.try_recv().unwrap().worker_utilization, Some(0.7));
+}
+
+fn load_status(worker_utilization: f32) -> realtime_engine::synth::AudioLoadStatus {
+    realtime_engine::synth::AudioLoadStatus {
+        ratio: 0.2,
+        voice_steal: false,
+        worker_utilization: Some(worker_utilization),
+        high_cpu_steady: worker_utilization >= 0.85,
+        missed_quantum_flash: false,
+        block_ratio_p95: 0.2,
+        block_ratio_max: 0.2,
+        blocks: 1,
+        control_events: 0,
+        config_events: 0,
+    }
 }

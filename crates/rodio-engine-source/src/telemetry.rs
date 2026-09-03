@@ -4,6 +4,7 @@ use realtime_engine::synth::AudioLoadStatus;
 pub(super) const TELEMETRY_WINDOW_BLOCKS: usize = 128;
 pub const TELEMETRY_QUEUE_CAPACITY: usize = 4;
 
+#[derive(Clone)]
 pub struct AudioLoadStatusSender(Sender<AudioLoadStatus>);
 
 pub struct AudioLoadStatusReceiver(Receiver<AudioLoadStatus>);
@@ -17,7 +18,7 @@ pub fn audio_load_status_channel() -> (AudioLoadStatusSender, AudioLoadStatusRec
 }
 
 impl AudioLoadStatusSender {
-    pub(crate) fn try_send(&self, status: AudioLoadStatus) {
+    pub fn try_send(&self, status: AudioLoadStatus) {
         let _ = self.0.try_send(status);
     }
 }
@@ -91,5 +92,40 @@ impl EngineTelemetry {
 
     fn max(&self) -> f32 {
         self.ratios[..self.len].iter().copied().fold(0.0, f32::max)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn status(ratio: f32) -> AudioLoadStatus {
+        AudioLoadStatus {
+            ratio,
+            voice_steal: false,
+            worker_utilization: Some(ratio),
+            high_cpu_steady: false,
+            missed_quantum_flash: false,
+            block_ratio_p95: ratio,
+            block_ratio_max: ratio,
+            blocks: 0,
+            control_events: 0,
+            config_events: 0,
+        }
+    }
+
+    #[test]
+    fn full_status_queue_drops_without_blocking() {
+        let (sender, receiver) = audio_load_status_channel();
+        for index in 0..TELEMETRY_QUEUE_CAPACITY {
+            sender.try_send(status(index as f32));
+        }
+        sender.try_send(status(99.0));
+
+        let mut newest = None;
+        while let Ok(next) = receiver.try_recv() {
+            newest = Some(next);
+        }
+        assert_eq!(newest.map(|status| status.ratio), Some(3.0));
     }
 }

@@ -1,7 +1,7 @@
 use super::runtime_state::Voice;
 use super::types::{
-    INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY, SYNTH_VOICE_PARTITION_LANE_CAPACITY,
-    VOICE_PARTITION_COUNT,
+    LogicalLaneId, INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY,
+    SYNTH_VOICE_PARTITION_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
 
 pub(super) struct SynthVoicePartition {
@@ -36,6 +36,9 @@ pub(super) struct SynthVoicePool {
     slot_lane_counts: [usize; INSTRUMENT_SLOT_COUNT],
     lane_slots: [Option<usize>; SYNTH_VOICE_LANE_CAPACITY],
 }
+
+#[path = "synth_voice_pool_identity.rs"]
+mod identity;
 
 impl SynthVoicePool {
     pub(super) fn new() -> Self {
@@ -193,16 +196,30 @@ impl SynthVoicePool {
                 write += 1;
             } else {
                 self.lane_slots[lane] = None;
+                self.lane_mut(lane)
+                    .expect("home partition lane")
+                    .canonical_lane = None;
             }
         }
         self.slot_lane_counts[slot] = write;
         true
     }
 
+    #[cfg(test)]
     pub(super) fn assign_lane(&mut self, lane: usize, slot: usize) -> bool {
+        self.assign_lane_with_canonical(lane, slot, lane as LogicalLaneId)
+    }
+
+    fn assign_lane_with_canonical(
+        &mut self,
+        lane: usize,
+        slot: usize,
+        canonical_lane: LogicalLaneId,
+    ) -> bool {
         if !self.partitions_home()
             || partition_lane(lane).is_none()
             || slot >= INSTRUMENT_SLOT_COUNT
+            || canonical_lane as usize >= SYNTH_VOICE_LANE_CAPACITY
         {
             return false;
         }
@@ -224,6 +241,9 @@ impl SynthVoicePool {
         self.slot_lanes[slot][insert] = lane;
         self.slot_lane_counts[slot] = count + 1;
         self.lane_slots[lane] = Some(slot);
+        self.lane_mut(lane)
+            .expect("home partition lane")
+            .canonical_lane = Some(canonical_lane);
         true
     }
 
@@ -232,12 +252,16 @@ impl SynthVoicePool {
         lane: usize,
         slot: usize,
         victim_lane: Option<usize>,
+        canonical_lane: LogicalLaneId,
         voice: Voice,
     ) -> bool {
         if !self.partitions_home()
             || partition_lane(lane).is_none()
             || slot >= INSTRUMENT_SLOT_COUNT
         {
+            return false;
+        }
+        if canonical_lane as usize >= SYNTH_VOICE_LANE_CAPACITY {
             return false;
         }
         if victim_lane == Some(lane) {
@@ -255,6 +279,14 @@ impl SynthVoicePool {
                 return false;
             }
         }
+        let canonical_owner = (0..SYNTH_VOICE_LANE_CAPACITY).find(|candidate| {
+            self.lane(*candidate).is_some_and(|current| {
+                current.active && current.canonical_lane == Some(canonical_lane)
+            })
+        });
+        if canonical_owner != victim_lane {
+            return false;
+        }
         let target_slot = self.lane_slots[lane];
         let victim_slot = victim_lane.and_then(|victim| self.lane_slots[victim]);
         let mut target_slot_count = self.slot_lane_counts[slot];
@@ -268,11 +300,11 @@ impl SynthVoicePool {
         if let Some(victim_lane) = victim_lane.filter(|victim| *victim != lane) {
             let victim_slot = self.lane_slots[victim_lane].expect("validated victim ownership");
             self.remove_lane(victim_slot, victim_lane);
-            self.lane_mut(victim_lane)
-                .expect("validated victim lane")
-                .active = false;
+            debug_assert!(self.deactivate_lane(victim_lane));
         }
-        debug_assert!(self.assign_lane(lane, slot));
+        debug_assert!(self.assign_lane_with_canonical(lane, slot, canonical_lane));
+        let mut voice = voice;
+        voice.canonical_lane = Some(canonical_lane);
         *self.lane_mut(lane).expect("validated target lane") = voice;
         true
     }
@@ -289,12 +321,14 @@ impl SynthVoicePool {
             self.slot_lanes[slot][shift] = self.slot_lanes[slot][shift + 1];
         }
         self.slot_lane_counts[slot] = count - 1;
+        self.lane_slots[lane] = None;
     }
 
     #[cfg(test)]
     pub(super) fn assert_invariants(&self) {
         assert!(self.partitions_home());
         let mut ownership_counts = [0; SYNTH_VOICE_LANE_CAPACITY];
+        let mut canonical_ownership_counts = [0; SYNTH_VOICE_LANE_CAPACITY];
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             let count = self.slot_lane_counts[slot];
             assert!(count <= SYNTH_VOICE_LANE_CAPACITY);
@@ -304,6 +338,9 @@ impl SynthVoicePool {
                 assert_eq!(self.lane_slots[lane], Some(slot));
                 let voice = self.lane(lane).expect("home partition lane");
                 assert!(voice.active);
+                let canonical_lane = voice.canonical_lane.expect("active canonical lane");
+                assert!((canonical_lane as usize) < SYNTH_VOICE_LANE_CAPACITY);
+                canonical_ownership_counts[canonical_lane as usize] += 1;
                 assert_eq!(voice.instrument_slot as usize, slot);
             }
         }
@@ -315,10 +352,15 @@ impl SynthVoicePool {
                 }
                 None => {
                     assert_eq!(ownership_count, 0);
-                    assert!(!self.lane(lane).expect("home partition lane").active);
+                    let voice = self.lane(lane).expect("home partition lane");
+                    assert!(!voice.active);
+                    assert!(voice.canonical_lane.is_none());
                 }
             }
         }
+        assert!(canonical_ownership_counts
+            .into_iter()
+            .all(|count| count <= 1));
     }
 
     fn partitions_home(&self) -> bool {

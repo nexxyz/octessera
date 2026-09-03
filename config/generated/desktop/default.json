@@ -65,6 +65,10 @@
     "buttonBrightness": 100,
     "dimTimerSeconds": 60,
     "displayBrightness": 100,
+    "dsp": {
+      "busIdleThreshold": "-120",
+      "workerWarningThreshold": "85"
+    },
     "ghostCells": false,
     "gridBrightness": 100,
     "hdmi": {

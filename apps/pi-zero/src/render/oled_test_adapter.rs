@@ -96,11 +96,13 @@ pub(super) fn input_from_snapshot(snapshot: &Value) -> OledPresentationInput {
             None => OledSaveFlash::None,
         },
         save_flash_serial: number_field(settings, "autoSaveFlashSerial", 0),
-        metrics: OledPresentationMetrics::normalized(
+        metrics: OledPresentationMetrics::from_status(
             snapshot
-                .get("cpuLoadRatio")
+                .get("workerUtilization")
                 .and_then(Value::as_f64)
-                .unwrap_or(0.0) as f32,
+                .map(|value| value as f32),
+            bool_field(snapshot, "highCpuSteady"),
+            bool_field(snapshot, "missedQuantumFlash"),
             bool_field(snapshot, "voiceSteal"),
         ),
         runtime_error,

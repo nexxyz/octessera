@@ -385,6 +385,7 @@ fn is_realtime_dynamic_event(event: &EngineEvent) -> bool {
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
             | EngineEvent::PreviewSample { .. }
+            | EngineEvent::SetDspConfig(_)
             | EngineEvent::MomentaryFxUpdate { .. }
             | EngineEvent::MomentaryFxStop { .. }
             | EngineEvent::ProbeMark { .. }

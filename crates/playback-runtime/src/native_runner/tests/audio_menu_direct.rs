@@ -1,6 +1,38 @@
 use super::*;
 
 #[test]
+pub(crate) fn dsp_menu_uses_direct_audio_command_without_revision_bump() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    assert!(runner.menu.focus_item_key("dsp.workerWarningThreshold"));
+    runner.menu.state.editing = true;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["dsp"]["workerWarningThreshold"],
+        "90"
+    );
+    assert_eq!(runner.audio_config_revision, 0);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetDspConfig { config }
+                    if config.worker_warning_threshold
+                        == realtime_engine::synth::WorkerWarningThreshold::Percent90
+            ))
+    )));
+    assert_no_full_audio_config(&messages);
+}
+
+#[test]
 pub(crate) fn fast_path_audio_param_still_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner

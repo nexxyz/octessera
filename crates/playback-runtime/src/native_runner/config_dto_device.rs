@@ -1,4 +1,5 @@
 use super::{AudioOutputsDto, AuxBindingDto, HdmiDto, MidiDto, RuntimeConfigDto, UsbDto};
+use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -24,6 +25,8 @@ pub struct DeviceRuntimeConfigDto {
     pub(super) screen_sleep_seconds: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) display_brightness: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) dsp: Option<DspRuntimeConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) grid_brightness: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -76,6 +79,7 @@ impl DeviceRuntimeConfigDto {
             dim_timer_seconds: runtime.dim_timer_seconds,
             screen_sleep_seconds: runtime.screen_sleep_seconds,
             display_brightness: runtime.display_brightness,
+            dsp: Some(runtime.dsp.unwrap_or_default()),
             grid_brightness: runtime.grid_brightness,
             button_brightness: runtime.button_brightness,
             auto_save_default: runtime.auto_save_default,

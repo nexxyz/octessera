@@ -278,7 +278,7 @@ fn base() -> OledPresentationInput {
         },
         event_dot_on: true,
         display_brightness: 100,
-        metrics: OledPresentationMetrics::normalized(0.0, false),
+        metrics: OledPresentationMetrics::from_status(None, false, false, false),
         ..Default::default()
     }
 }

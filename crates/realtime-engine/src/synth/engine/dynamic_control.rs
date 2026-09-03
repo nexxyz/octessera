@@ -1,8 +1,15 @@
+use super::super::dsp_config::DspRuntimeConfig;
 use super::*;
 use crate::synth::engine::control::active_fx_bus_slots;
 use crate::synth::engine::render_plan::render_plan_fx_slot;
 
 impl SynthEngine {
+    pub fn set_dsp_config(&mut self, config: DspRuntimeConfig) {
+        self.worker_load_warning
+            .set_threshold(config.worker_warning_threshold);
+        self.dsp_config = config;
+    }
+
     pub fn set_master_volume(&mut self, volume_pct: f32) {
         self.master_volume = (volume_pct / 100.0).clamp(0.0, 1.0);
     }
@@ -168,6 +175,22 @@ impl SynthEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::synth::{BusIdleThreshold, WorkerWarningThreshold};
+
+    #[test]
+    fn dsp_config_is_dynamic_and_does_not_change_render_plan() {
+        let mut engine = SynthEngine::new(48_000);
+        let generation = engine.render_plan.generation;
+        let config = DspRuntimeConfig {
+            worker_warning_threshold: WorkerWarningThreshold::Percent95,
+            bus_idle_threshold: BusIdleThreshold::Exact,
+        };
+
+        engine.set_dsp_config(config);
+
+        assert_eq!(engine.dsp_config(), config);
+        assert_eq!(engine.render_plan.generation, generation);
+    }
 
     #[test]
     fn dynamic_fx_bus_slot_accepts_third_slot_and_ignores_fourth() {

@@ -11,7 +11,7 @@ pub(super) fn draw_status_indicators(
     input: &OledPresentationInput,
     brightness: f32,
 ) {
-    if input.metrics.cpu_hot {
+    if input.metrics.high_cpu_steady {
         draw_cpu_icon(frame, 117, 5, rgb565(scale(palette::RED, brightness)));
     }
     if input.save_flash == OledSaveFlash::Flash {

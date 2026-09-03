@@ -74,14 +74,18 @@ fn normalized_metrics_only_publish_visible_changes() {
     let _ = present(&mut runtime, metric_snapshot);
     assert!(runtime
         .update_presentation_metrics(RuntimePresentationMetrics {
-            audio_load_ratio: 0.4,
+            audio_load_ratio: 0.99,
             voice_steal: false,
+            ..Default::default()
         })
         .messages
         .is_empty());
     let hot = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         audio_load_ratio: 0.85,
         voice_steal: false,
+        worker_utilization: Some(0.93),
+        high_cpu_steady: true,
+        ..Default::default()
     });
     assert!(matches!(
         hot.messages.as_slice(),
@@ -91,6 +95,37 @@ fn normalized_metrics_only_publish_visible_changes() {
             RunnerMessage::RuntimeStatus { .. }
         ]
     ));
+    assert_eq!(
+        hot.messages.iter().find_map(|message| match message {
+            RunnerMessage::Snapshot { snapshot } => snapshot.get("highCpuSteady"),
+            _ => None,
+        }),
+        Some(&json!(true))
+    );
+    assert_eq!(
+        hot.messages.iter().find_map(|message| match message {
+            RunnerMessage::Snapshot { snapshot } => snapshot.get("workerUtilization"),
+            _ => None,
+        }),
+        Some(&json!(0.93_f32))
+    );
+}
+
+#[test]
+fn aggregate_load_ratio_does_not_set_worker_warning_state() {
+    assert!(
+        !crate::oled_frame::OledPresentationMetrics::from_status(None, true, false, false)
+            .high_cpu_steady
+    );
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let _ = present(&mut runtime, snapshot("metrics"));
+
+    let output = runtime.update_presentation_metrics(RuntimePresentationMetrics {
+        audio_load_ratio: 1.0,
+        ..Default::default()
+    });
+
+    assert!(output.messages.is_empty());
 }
 
 #[test]
@@ -104,6 +139,7 @@ fn normalized_voice_steal_metrics_publish_on_edges_and_clear_below_threshold() {
         .update_presentation_metrics(RuntimePresentationMetrics {
             audio_load_ratio: 0.84,
             voice_steal: false,
+            ..Default::default()
         })
         .messages
         .is_empty());
@@ -111,6 +147,7 @@ fn normalized_voice_steal_metrics_publish_on_edges_and_clear_below_threshold() {
     let voice_steal = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         audio_load_ratio: 0.2,
         voice_steal: true,
+        ..Default::default()
     });
     assert!(matches!(
         voice_steal.messages.as_slice(),
@@ -124,6 +161,7 @@ fn normalized_voice_steal_metrics_publish_on_edges_and_clear_below_threshold() {
     let cleared = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         audio_load_ratio: 0.84,
         voice_steal: false,
+        ..Default::default()
     });
     assert!(matches!(
         cleared.messages.as_slice(),

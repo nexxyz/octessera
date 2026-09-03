@@ -86,10 +86,12 @@ pub(super) fn parity_corpus() -> Vec<(String, Value)> {
     save["settings"]["autoSaveFlashSerial"] = json!(12);
     push(&mut cases, "save-flash", save);
     let mut high_load = menu_snapshot();
-    high_load["cpuLoadRatio"] = json!(0.95);
+    high_load["workerUtilization"] = json!(0.95);
+    high_load["highCpuSteady"] = json!(true);
     push(&mut cases, "high-load", high_load);
     let mut cpu_save = menu_snapshot();
-    cpu_save["cpuLoadRatio"] = json!(0.95);
+    cpu_save["workerUtilization"] = json!(0.95);
+    cpu_save["highCpuSteady"] = json!(true);
     cpu_save["settings"]["autoSaveFlash"] = json!("flash");
     cpu_save["settings"]["autoSaveFlashSerial"] = json!(13);
     push(&mut cases, "cpu-save-together", cpu_save);

@@ -20,6 +20,10 @@ use std::time::{Duration, Instant};
 static ORANGE_TAP_OWNER_COUNT: AtomicUsize = AtomicUsize::new(0);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 static ORANGE_TAP_ABSENT_COUNT: AtomicUsize = AtomicUsize::new(0);
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+static ORANGE_LOAD_TX_COUNT: AtomicUsize = AtomicUsize::new(0);
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+static ORANGE_LOAD_TX_ABSENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
 fn raspberry_direct_cpal_default_buffer_remains_256_frames() {
@@ -214,7 +218,7 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
         let attempts = attempts.clone();
         let tap_seen = tap_seen.clone();
         let replay_receiver = replay_receiver.clone();
-        Arc::new(move |_, sink, health, recording_tap| {
+        Arc::new(move |_, sink, health, recording_tap, _load_tx| {
             attempts.lock().unwrap().push(sink);
             tap_seen.lock().unwrap().push(recording_tap.is_some());
             if attempts.lock().unwrap().len() < 4 {
@@ -296,7 +300,7 @@ fn orange_optional_terminal_open_failure_is_attempted_once() {
     let attempts = Arc::new(Mutex::new(0));
     let attempt_counter = attempts.clone();
     let opener: super::orange_audio_recovery::OrangeRecoveryOpener =
-        Arc::new(move |_, _, _, _recording_tap| {
+        Arc::new(move |_, _, _, _recording_tap, _load_tx| {
             *attempt_counter.lock().unwrap() += 1;
             Err(crate::audio_route::RouteOpenError::Busy)
         });
@@ -360,6 +364,8 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
 fn orange_multiple_selected_routes_open_one_recording_tap_owner() {
     ORANGE_TAP_OWNER_COUNT.store(0, Ordering::SeqCst);
     ORANGE_TAP_ABSENT_COUNT.store(0, Ordering::SeqCst);
+    ORANGE_LOAD_TX_COUNT.store(0, Ordering::SeqCst);
+    ORANGE_LOAD_TX_ABSENT_COUNT.store(0, Ordering::SeqCst);
 
     let outputs = playback_runtime::AudioOutputSet::from_flags(true, true, true).unwrap();
     let manager = super::AudioManager::new_with_opener(
@@ -375,6 +381,8 @@ fn orange_multiple_selected_routes_open_one_recording_tap_owner() {
 
     assert_eq!(ORANGE_TAP_OWNER_COUNT.load(Ordering::SeqCst), 1);
     assert_eq!(ORANGE_TAP_ABSENT_COUNT.load(Ordering::SeqCst), 2);
+    assert_eq!(ORANGE_LOAD_TX_COUNT.load(Ordering::SeqCst), 1);
+    assert_eq!(ORANGE_LOAD_TX_ABSENT_COUNT.load(Ordering::SeqCst), 2);
     drop(manager);
 }
 
@@ -420,11 +428,17 @@ fn orange_test_opener(
     _output_buffer_frames: Option<u32>,
     sink: super::AudioSink,
     recording_tap: Option<super::RecordingTapState>,
+    load_tx: Option<rodio_engine_source::AudioLoadStatusSender>,
 ) -> Result<super::audio_output_open::OpenedAudioSink, crate::audio_route::RouteOpenError> {
     if recording_tap.is_some() {
         ORANGE_TAP_OWNER_COUNT.fetch_add(1, Ordering::SeqCst);
     } else {
         ORANGE_TAP_ABSENT_COUNT.fetch_add(1, Ordering::SeqCst);
+    }
+    if load_tx.is_some() {
+        ORANGE_LOAD_TX_COUNT.fetch_add(1, Ordering::SeqCst);
+    } else {
+        ORANGE_LOAD_TX_ABSENT_COUNT.fetch_add(1, Ordering::SeqCst);
     }
     let (engine_tx, engine_rx) = event_queue();
     Ok(super::audio_output_open::OpenedAudioSink {

@@ -471,6 +471,7 @@ fn is_realtime_dynamic_event(event: &QueuedAudioEvent) -> bool {
             | QueuedAudioEvent::NoteOff { .. }
             | QueuedAudioEvent::Cc { .. }
             | QueuedAudioEvent::PreviewSample { .. }
+            | QueuedAudioEvent::SetDspConfig { .. }
             | QueuedAudioEvent::MomentaryFxStart { .. }
             | QueuedAudioEvent::MomentaryFxUpdate { .. }
             | QueuedAudioEvent::MomentaryFxStop { .. }

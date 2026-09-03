@@ -3,7 +3,7 @@ use super::NativeMenuItem;
 pub(super) fn navigation_memory_allowed(path: &str) -> bool {
     matches!(
         path,
-        "Menu > System" | "Menu > System > Sound" | "Menu > System > UI"
+        "Menu > System" | "Menu > System > DSP" | "Menu > System > Sound" | "Menu > System > UI"
     )
 }
 

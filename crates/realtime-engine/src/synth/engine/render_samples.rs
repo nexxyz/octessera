@@ -75,6 +75,13 @@ impl SynthEngine {
             None
         };
         let legacy_lane = victim_lane.or(first_inactive_lane).unwrap_or(0);
+        let Some(canonical_lane) = victim_lane
+            .and_then(|lane| self.sample_voice_pool.canonical_lane(lane))
+            .or_else(|| self.sample_voice_pool.first_free_canonical_lane())
+        else {
+            self.record_voice_admission_drop();
+            return;
+        };
         let lane = if self.source_worker_load.is_some() {
             let inactive_lanes = [
                 self.sample_voice_pool.first_inactive_lane_for_parity(0),
@@ -95,6 +102,7 @@ impl SynthEngine {
         };
         let voice = SampleVoice {
             active: true,
+            canonical_lane: None,
             instrument_slot: slot as u8,
             sample_slot,
             buffer: None,
@@ -111,6 +119,7 @@ impl SynthEngine {
                 lane,
                 slot,
                 victim_lane,
+                canonical_lane,
                 voice,
                 &mut self.pending_render_retired.sample_voices,
             )

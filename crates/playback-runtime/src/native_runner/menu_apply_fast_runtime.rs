@@ -2,6 +2,7 @@ use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
 use super::NativeRunner;
+use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 
 impl NativeRunner {
     pub(super) fn apply_runtime_menu_key_fast(&mut self, key: &str) -> Option<bool> {
@@ -26,6 +27,9 @@ impl NativeRunner {
             }
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
             "recording.maxMinutes" => Some(self.fast_recording_max_minutes_menu_key()),
+            "dsp.workerWarningThreshold" | "dsp.busIdleThreshold" => {
+                Some(self.fast_dsp_config_menu_key())
+            }
             "hdmi.mode" => Some(self.fast_string_menu_key(key, |runner, value| {
                 let value = match value.as_str() {
                     "Terminal" => "none".into(),
@@ -209,6 +213,34 @@ impl NativeRunner {
         };
         let value = value.parse::<u16>().unwrap_or(10).clamp(1, 120);
         if value_changed(&mut self.recording_max_minutes, value) {
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    fn fast_dsp_config_menu_key(&mut self) -> bool {
+        let Some(worker_warning_threshold) = self
+            .menu
+            .value_for_key("dsp.workerWarningThreshold")
+            .as_deref()
+            .and_then(WorkerWarningThreshold::from_id)
+        else {
+            return false;
+        };
+        let Some(bus_idle_threshold) = self
+            .menu
+            .value_for_key("dsp.busIdleThreshold")
+            .as_deref()
+            .and_then(BusIdleThreshold::from_id)
+        else {
+            return false;
+        };
+        let config = DspRuntimeConfig {
+            worker_warning_threshold,
+            bus_idle_threshold,
+        };
+        if value_changed(&mut self.dsp_config, config) {
+            self.queue_audio_command(RuntimeAudioCommand::SetDspConfig { config });
             self.mark_fast_autosave_dirty();
         }
         true

@@ -44,6 +44,10 @@ pub fn send_audio_command(
             })?;
             Ok(())
         }
+        RuntimeAudioCommand::SetDspConfig { config } => {
+            audio.send(EngineEvent::SetDspConfig(*config))?;
+            Ok(())
+        }
         RuntimeAudioCommand::SetInstrumentMixer {
             instrument_slot,
             volume_pct,
@@ -276,6 +280,9 @@ mod tests {
                 revision: 1,
                 request_id: None,
                 config: serde_json::json!({ "instruments": [] }),
+            },
+            RuntimeAudioCommand::SetDspConfig {
+                config: realtime_engine::synth::DspRuntimeConfig::default(),
             },
             RuntimeAudioCommand::SetMasterVolume { volume_pct: 80.0 },
             RuntimeAudioCommand::SetInstrumentMixer {

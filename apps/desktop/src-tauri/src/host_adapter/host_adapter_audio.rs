@@ -34,6 +34,9 @@ impl DesktopPlaybackHostAdapter {
                     volume_pct: *volume_pct,
                 }
             }
+            RuntimeAudioCommand::SetDspConfig { config } => {
+                QueuedAudioEvent::SetDspConfig { config: *config }
+            }
             RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot,
                 volume_pct,

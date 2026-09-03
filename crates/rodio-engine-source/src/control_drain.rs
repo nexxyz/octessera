@@ -127,6 +127,10 @@ impl<'a> ControlDrain<'a> {
                         drained.config_events += 1;
                         engine.set_voice_stealing_mode(mode)
                     }
+                    EngineEvent::SetDspConfig(config) => {
+                        drained.config_events += 1;
+                        engine.set_dsp_config(config)
+                    }
                     EngineEvent::SetMasterVolume { volume_pct } => {
                         engine.set_master_volume(volume_pct);
                     }

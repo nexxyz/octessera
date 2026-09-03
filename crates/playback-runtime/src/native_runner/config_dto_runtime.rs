@@ -1,4 +1,5 @@
 use super::{InstrumentDto, LayerDto, MixerDto};
+use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -54,6 +55,8 @@ pub struct RuntimeConfigDto {
     pub(super) screen_sleep_seconds: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) display_brightness: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) dsp: Option<DspRuntimeConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) grid_brightness: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -282,6 +285,7 @@ impl RuntimeConfigDto {
             "dimTimerSeconds",
             "screenSleepSeconds",
             "displayBrightness",
+            "dsp",
             "gridBrightness",
             "buttonBrightness",
             "autoSaveDefault",

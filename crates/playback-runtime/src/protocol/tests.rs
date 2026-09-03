@@ -1,5 +1,5 @@
 use super::*;
-use crate::RuntimeConfig;
+use crate::{DspRuntimeConfig, RuntimeConfig};
 use serde_json::json;
 use std::collections::BTreeMap;
 
@@ -340,6 +340,9 @@ fn every_runtime_audio_command_round_trips_through_json() {
             revision: 4,
             request_id: Some("audio-4".into()),
             config: json!({ "instruments": [] }),
+        },
+        RuntimeAudioCommand::SetDspConfig {
+            config: DspRuntimeConfig::default(),
         },
         RuntimeAudioCommand::SetMasterVolume { volume_pct: 82.0 },
         RuntimeAudioCommand::SetInstrumentMixer {

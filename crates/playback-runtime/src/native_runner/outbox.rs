@@ -94,6 +94,9 @@ fn same_dynamic_audio_target(left: &RuntimeAudioCommand, right: &RuntimeAudioCom
             RuntimeAudioCommand::SetMasterVolume { .. },
             RuntimeAudioCommand::SetMasterVolume { .. },
         ) => true,
+        (RuntimeAudioCommand::SetDspConfig { .. }, RuntimeAudioCommand::SetDspConfig { .. }) => {
+            true
+        }
         (
             RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot: left_slot,
