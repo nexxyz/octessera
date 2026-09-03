@@ -314,7 +314,7 @@ fn oversized_block_latches_invalid_without_dispatch() {
 }
 
 #[test]
-fn deadline_failure_discards_audio_and_late_completion_only_recovers() {
+fn deadline_failure_discards_audio_and_late_completion_recovers() {
     let mut engine = dynamic_engine();
     engine.note_on(1, 60, 100, 5_000);
     let (lifecycle, mut runtime) =
@@ -336,6 +336,10 @@ fn deadline_failure_discards_audio_and_late_completion_only_recovers() {
         runtime.health_snapshot().status,
         SourceWorkerHealth::DeadlineMiss
     );
+    assert_eq!(runtime.health_snapshot().failed_mask, 0b11);
+    assert_eq!(runtime.health_snapshot().deadline_misses, 1);
+    assert_eq!(runtime.health_snapshot().deadline_recoveries, 0);
+    assert_eq!(engine.sample_clock, 0);
     assert!(!engine.voice_pools_home());
     lifecycle.set_pause_for_test(false);
     for _ in 0..100_000 {
@@ -346,10 +350,12 @@ fn deadline_failure_discards_audio_and_late_completion_only_recovers() {
         thread::yield_now();
     }
     assert!(runtime.partitions_home_for_test());
-    assert_eq!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::DeadlineMiss
-    );
+    let health = runtime.health_snapshot();
+    assert_eq!(health.status, SourceWorkerHealth::Healthy);
+    assert_eq!(health.failed_mask, 0);
+    assert_eq!(health.deadline_misses, 1);
+    assert_eq!(health.deadline_recoveries, 1);
+    assert_eq!(engine.sample_clock, 128);
     let retirement = runtime.retire();
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
 }

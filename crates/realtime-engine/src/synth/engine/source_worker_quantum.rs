@@ -45,6 +45,11 @@ impl SourceWorkerRuntime {
                 }
             }
             if self.health.status() != SourceWorkerHealth::Healthy {
+                if self.health.status().is_recovering() {
+                    #[cfg(feature = "source-worker-benchmark-timing")]
+                    self.freeze_timing(true, None);
+                    return None;
+                }
                 #[cfg(feature = "source-worker-benchmark-timing")]
                 self.freeze_timing(
                     true,
@@ -64,6 +69,11 @@ impl SourceWorkerRuntime {
                 if self.health.status() == SourceWorkerHealth::Healthy {
                     self.latch_deadline_or_exit();
                 }
+                if self.health.status().is_recovering() {
+                    #[cfg(feature = "source-worker-benchmark-timing")]
+                    self.freeze_timing(true, self.dispatch_elapsed());
+                    return None;
+                }
                 #[cfg(feature = "source-worker-benchmark-timing")]
                 self.freeze_timing(true, self.dispatch_elapsed());
                 self.reclaim_available(engine);
@@ -71,6 +81,11 @@ impl SourceWorkerRuntime {
             }
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
+            if self.health.status().is_recovering() {
+                #[cfg(feature = "source-worker-benchmark-timing")]
+                self.freeze_timing(true, None);
+                return None;
+            }
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
             self.reclaim_available(engine);
@@ -93,6 +108,9 @@ impl SourceWorkerRuntime {
         self.render_attempts
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if self.mode != super::super::source_worker_protocol::SourceWorkerMode::Persistent {
+            return false;
+        }
+        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
             return false;
         }
         if self.health.status() != SourceWorkerHealth::Healthy {

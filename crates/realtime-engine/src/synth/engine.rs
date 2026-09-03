@@ -79,6 +79,8 @@ mod source_worker_placement;
 mod source_worker_placement_tests;
 mod source_worker_protocol;
 #[cfg(test)]
+mod source_worker_recovery_tests;
+#[cfg(test)]
 mod source_worker_residency_tests;
 mod source_worker_retirement;
 #[cfg(test)]

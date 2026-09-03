@@ -93,9 +93,22 @@ fn missing_callback_source_silences_output_and_marks_health_terminal() {
 }
 
 #[test]
-fn callback_reports_each_exact_terminal_reason_without_allocation() {
+fn callback_keeps_deadline_miss_silent_without_terminal_health_or_allocation() {
+    let health = AudioStreamHealth::new("test".into());
+    let mut output = vec![1.0_f32; 8];
+    let (_, allocations, deallocations) = count_allocations_and_deallocations(|| {
+        mark_worker_terminal(&mut output, &health, SourceWorkerHealth::DeadlineMiss);
+    });
+
+    assert!(output.iter().all(|sample| sample.to_bits() == 0));
+    assert_eq!(health.worker_health(), SourceWorkerHealth::Healthy);
+    assert_eq!(health.runtime_status(), AudioStreamStatus::Healthy);
+    assert_eq!((allocations, deallocations), (0, 0));
+}
+
+#[test]
+fn callback_reports_each_exact_structural_terminal_reason_without_allocation() {
     for reason in [
-        SourceWorkerHealth::DeadlineMiss,
         SourceWorkerHealth::DispatchFailed,
         SourceWorkerHealth::CompletionFailed,
         SourceWorkerHealth::WorkerExited,

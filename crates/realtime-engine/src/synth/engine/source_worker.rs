@@ -247,6 +247,9 @@ impl SourceWorkerRuntime {
         if self.mode == SourceWorkerMode::Inline {
             return Some(apply(engine));
         }
+        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
+            return None;
+        }
         self.reclaim_available(engine);
         if self.health.status() != SourceWorkerHealth::Healthy
             || self.in_flight_mask != 0
@@ -288,6 +291,9 @@ impl SourceWorkerRuntime {
         if self.mode == SourceWorkerMode::Inline {
             return Some(inspect(engine));
         }
+        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
+            return None;
+        }
         self.reclaim_available(engine);
         if !self.home_is_ready() {
             return None;
@@ -326,6 +332,9 @@ impl SourceWorkerRuntime {
         #[cfg(any(test, feature = "test-support"))]
         self.render_attempts.fetch_add(1, Ordering::Relaxed);
         if self.mode == SourceWorkerMode::Inline {
+            return None;
+        }
+        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
             return None;
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
@@ -401,25 +410,6 @@ impl SourceWorkerRuntime {
             .latch(SourceWorkerHealth::CompletionFailed, mask);
     }
 
-    fn latch_deadline_or_exit(&self) {
-        let Some(workers) = self.worker_exited.as_ref() else {
-            self.latch_completion_failure(0b11);
-            return;
-        };
-        for (parity, worker) in workers.iter().enumerate() {
-            if self.in_flight_mask & (1 << parity) == 0 {
-                continue;
-            }
-            if worker.load(Ordering::Acquire) {
-                self.health
-                    .latch(SourceWorkerHealth::WorkerExited, 1 << parity);
-            } else {
-                self.health
-                    .latch(SourceWorkerHealth::DeadlineMiss, 1 << parity);
-            }
-        }
-    }
-
     fn latch_invalid_block(&self) {
         self.health.latch(SourceWorkerHealth::InvalidBlock, 0b11);
     }
@@ -462,6 +452,9 @@ mod dispatch;
 #[path = "source_worker_completion.rs"]
 mod completion;
 
+#[path = "source_worker_recovery.rs"]
+mod recovery;
+
 #[cfg(feature = "source-worker-benchmark-timing")]
 #[path = "source_worker_timing_integration.rs"]
 mod timing_integration;
@@ -472,6 +465,14 @@ mod reduction;
 #[cfg(test)]
 #[path = "source_worker_test_support.rs"]
 pub(super) mod test_support;
+
+#[cfg(test)]
+#[path = "source_worker_recovery_test_support.rs"]
+mod recovery_test_support;
+
+#[cfg(test)]
+#[path = "source_worker_collection_test_support.rs"]
+mod collection_test_support;
 
 #[cfg(test)]
 #[path = "source_worker_residency_test_support.rs"]

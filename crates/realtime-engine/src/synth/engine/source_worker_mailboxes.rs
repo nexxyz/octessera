@@ -14,21 +14,7 @@ impl SourceWorkerRuntime {
     ) {
         let parity = completion.owner.parity;
         let worker_mask = worker_mask(parity);
-        let expected = parity < SOURCE_WORKER_COUNT
-            && channel_parity == parity
-            && self.in_flight_mask & worker_mask != 0
-            && completion.owner.runtime_generation == self.runtime_generation
-            && self.expected_phase == Some(completion.phase)
-            && self.expected_stamp == Some(completion.stamp)
-            && completion.render_ok
-            && (completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses
-                || (self.bus_dispatch_residency_valid
-                    && source_worker_carrier_transfer::valid_bus_completion_owner(
-                        &completion.owner,
-                        &self.bus_dispatch_residency,
-                    )))
-            && completion.active_cost_units
-                <= super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
+        let expected = self.completion_is_valid(channel_parity, &completion);
         if parity >= SOURCE_WORKER_COUNT
             || completion.worker_exited
             || completion.transport_failed
@@ -86,8 +72,35 @@ impl SourceWorkerRuntime {
         self.return_owner(completion.owner, true, parity);
     }
 
+    pub(super) fn completion_is_valid(
+        &self,
+        channel_parity: usize,
+        completion: &CompletedEnvelope,
+    ) -> bool {
+        let parity = completion.owner.parity;
+        let worker_mask = worker_mask(parity);
+        parity < SOURCE_WORKER_COUNT
+            && channel_parity == parity
+            && self.in_flight_mask & worker_mask != 0
+            && completion.owner.runtime_generation == self.runtime_generation
+            && self.expected_phase == Some(completion.phase)
+            && self.expected_stamp == Some(completion.stamp)
+            && completion.render_ok
+            && (completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses
+                || (self.bus_dispatch_residency_valid
+                    && source_worker_carrier_transfer::valid_bus_completion_owner(
+                        &completion.owner,
+                        &self.bus_dispatch_residency,
+                    )))
+            && completion.active_cost_units
+                <= super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS
+    }
+
     pub(super) fn reclaim_available(&mut self, _engine: &mut SynthEngine) {
         if self.mode == SourceWorkerMode::Inline {
+            return;
+        }
+        if self.health.status().is_recovering() {
             return;
         }
         for parity in 0..SOURCE_WORKER_COUNT {
@@ -109,7 +122,7 @@ impl SourceWorkerRuntime {
         }
     }
 
-    fn return_owner(&self, owner: OwnerEnvelope, home: bool, fallback_parity: usize) {
+    pub(super) fn return_owner(&self, owner: OwnerEnvelope, home: bool, fallback_parity: usize) {
         let Some(mut lease) = self.owner_lease(owner, fallback_parity) else {
             self.health
                 .latch(SourceWorkerHealth::CompletionFailed, 0b11);
@@ -122,7 +135,11 @@ impl SourceWorkerRuntime {
         }
     }
 
-    fn owner_lease(&self, owner: OwnerEnvelope, fallback_parity: usize) -> Option<OwnerLease> {
+    pub(super) fn owner_lease(
+        &self,
+        owner: OwnerEnvelope,
+        fallback_parity: usize,
+    ) -> Option<OwnerLease> {
         let parity = if owner.parity < SOURCE_WORKER_COUNT {
             owner.parity
         } else {
