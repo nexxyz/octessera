@@ -8,7 +8,6 @@ use super::source_worker_transfer::{
     source_partitions_vacant, take_source_partition_bundles,
 };
 use super::SynthEngine;
-use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
 struct OwnerReturnData {
@@ -28,7 +27,7 @@ pub(super) fn with_both_source_owners<R>(
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
-    with_both_source_owners_inner(engine, first, second, true, true, None, operation)
+    with_both_source_owners_inner(engine, first, second, true, None, operation)
 }
 
 pub(super) fn with_both_source_owners_preserving_carriers<R>(
@@ -47,7 +46,6 @@ pub(super) fn with_both_source_owners_preserving_carriers<R>(
         first,
         second,
         false,
-        false,
         Some(expected_residency),
         operation,
     )
@@ -57,7 +55,6 @@ fn with_both_source_owners_inner<R>(
     engine: &mut SynthEngine,
     first: &mut OwnerLease,
     second: &mut OwnerLease,
-    prepare_carriers: bool,
     install_bus_owners: bool,
     expected_residency: Option<&[u8; super::super::types::BUS_COUNT]>,
     operation: impl FnOnce(
@@ -104,11 +101,6 @@ fn with_both_source_owners_inner<R>(
         install_source_partition_bundle_after_check(engine, second_parity, second_partitions);
         if install_bus_owners {
             install_bus_chain_owners_after_check(engine, &mut bus_carriers);
-        }
-        if prepare_carriers {
-            for carrier in bus_carriers.iter_mut().flatten() {
-                assert!(carrier.prepare(BLOCK_SLOT_SCRATCH_FRAMES));
-            }
         }
         let result = operation(engine, [&first_scratch, &second_scratch], &mut bus_carriers);
         let partitions = take_source_partition_bundles(engine);
