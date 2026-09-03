@@ -1,6 +1,6 @@
 use crate::events::MusicalEvent;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -31,40 +31,6 @@ pub struct GlobalSoundConfig {
 pub struct NoteBehaviorResult {
     pub events: Vec<MusicalEvent>,
     pub held_notes: Vec<String>,
-}
-
-pub fn dedupe_simultaneous_notes(events: &[MusicalEvent]) -> Vec<MusicalEvent> {
-    let mut out = Vec::with_capacity(events.len());
-    let mut seen = HashMap::<(u8, u8), usize>::with_capacity(events.len());
-    for event in events {
-        match event {
-            MusicalEvent::NoteOn {
-                channel,
-                note,
-                velocity,
-                duration_ms,
-            } => {
-                let key = (*channel, *note);
-                if let Some(index) = seen.get(&key).copied() {
-                    if let MusicalEvent::NoteOn {
-                        velocity: existing_velocity,
-                        duration_ms: existing_duration,
-                        ..
-                    } = &mut out[index]
-                    {
-                        *existing_velocity = (*existing_velocity).max(*velocity);
-                        *existing_duration =
-                            Some(existing_duration.unwrap_or(0).max(duration_ms.unwrap_or(0)));
-                    }
-                } else {
-                    seen.insert(key, out.len());
-                    out.push(event.clone());
-                }
-            }
-            _ => out.push(event.clone()),
-        }
-    }
-    out
 }
 
 pub fn apply_global_sound(
@@ -162,45 +128,6 @@ pub fn apply_note_behavior(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn dedupes_note_ons_by_max_values() {
-        let events = vec![
-            MusicalEvent::NoteOn {
-                channel: 1,
-                note: 60,
-                velocity: 90,
-                duration_ms: Some(10),
-            },
-            MusicalEvent::Cc {
-                channel: 1,
-                controller: 74,
-                value: 40,
-            },
-            MusicalEvent::NoteOn {
-                channel: 1,
-                note: 60,
-                velocity: 100,
-                duration_ms: Some(20),
-            },
-        ];
-        assert_eq!(
-            dedupe_simultaneous_notes(&events),
-            vec![
-                MusicalEvent::NoteOn {
-                    channel: 1,
-                    note: 60,
-                    velocity: 100,
-                    duration_ms: Some(20)
-                },
-                MusicalEvent::Cc {
-                    channel: 1,
-                    controller: 74,
-                    value: 40
-                },
-            ]
-        );
-    }
 
     #[test]
     fn applies_global_sound_defaults_duration() {

@@ -1,7 +1,6 @@
 use super::*;
 use crate::native_runner::modulation_sampler::{
     apply_sampler_assignments_for_instruments, apply_sampler_assignments_for_instruments_routed,
-    RoutedMusicalEvents,
 };
 
 #[test]
@@ -311,59 +310,4 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
     );
     assert!(muted_note_off.audio.is_empty());
     assert!(muted_note_off.midi.is_empty());
-}
-
-#[test]
-pub(crate) fn cross_layer_duplicate_note_ons_keep_highest_velocity_per_route() {
-    let mut routed = RoutedMusicalEvents {
-        audio: vec![
-            MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 50,
-                duration_ms: Some(80),
-            },
-            MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 100,
-                duration_ms: Some(40),
-            },
-        ],
-        midi: vec![
-            MusicalEvent::NoteOn {
-                channel: 1,
-                note: 64,
-                velocity: 20,
-                duration_ms: Some(40),
-            },
-            MusicalEvent::NoteOn {
-                channel: 1,
-                note: 64,
-                velocity: 90,
-                duration_ms: Some(120),
-            },
-        ],
-    };
-
-    routed.dedupe_note_ons_by_highest_velocity();
-
-    assert!(matches!(
-        routed.audio.as_slice(),
-        [MusicalEvent::NoteOn {
-            channel: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: Some(80)
-        }]
-    ));
-    assert!(matches!(
-        routed.midi.as_slice(),
-        [MusicalEvent::NoteOn {
-            channel: 1,
-            note: 64,
-            velocity: 90,
-            duration_ms: Some(120)
-        }]
-    ));
 }

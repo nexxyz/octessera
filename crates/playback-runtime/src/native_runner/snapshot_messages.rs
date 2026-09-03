@@ -207,7 +207,7 @@ impl NativeRunner {
             .unwrap_or(0);
         let instruments = self.instruments.clone();
         let sense = self.pulses_layers.get(self.active_layer_index).cloned();
-        let mut events = self.route_events_with_link_timing(
+        let events = self.route_events_with_link_timing(
             self.active_layer_index,
             LinkRoutingInput {
                 events: result.events,
@@ -217,7 +217,6 @@ impl NativeRunner {
                 transpose_offset,
             },
         )?;
-        events.dedupe_note_ons_by_highest_velocity();
         if !events.is_empty() {
             let now = self.display.transients.now();
             self.display.transients.trigger_event_dot(now);
