@@ -57,3 +57,37 @@ fn normal_runtime_does_not_start_timing_without_a_probe() {
     let retirement = runtime.retire();
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
 }
+
+#[test]
+fn timing_probe_records_both_persistent_worker_waves() {
+    let mut engine = dynamic_engine();
+    engine.note_on(0, 36, 100, 5_000);
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("persistent runtime");
+    let probe = Arc::new(SourceWorkerTimingProbe::new(None));
+    runtime.attach_timing_probe(Arc::clone(&probe));
+    runtime.set_deadline_for_test(Duration::from_secs(1));
+
+    let mut left = Vec::with_capacity(128);
+    let mut right = Vec::with_capacity(128);
+    let mut out = Vec::with_capacity(256);
+    engine.render_interleaved_block_with_source_runtime(
+        &mut runtime,
+        128,
+        &mut left,
+        &mut right,
+        &mut out,
+    );
+
+    let snapshot = probe.snapshot();
+    assert!(snapshot.workers.iter().all(|worker| worker.finished));
+    assert!(snapshot
+        .workers
+        .iter()
+        .all(|worker| worker.render_ns.is_some_and(|duration| duration > 0)));
+    assert_eq!(snapshot.coordinator.completed_mask, Some(0b11));
+    assert!(snapshot.coordinator.dispatch_to_both_ns.is_some());
+    assert!(!snapshot.coordinator.failed);
+
+    assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
+}

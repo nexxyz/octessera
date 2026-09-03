@@ -78,6 +78,8 @@ mod source_worker_placement;
 #[cfg(test)]
 mod source_worker_placement_tests;
 mod source_worker_protocol;
+#[cfg(test)]
+mod source_worker_residency_tests;
 mod source_worker_retirement;
 #[cfg(test)]
 mod source_worker_retirement_tests;
@@ -92,6 +94,8 @@ mod source_worker_tests;
 #[path = "engine/source_worker_timing_integration_tests.rs"]
 mod source_worker_timing_integration_tests;
 mod source_worker_transfer;
+#[cfg(test)]
+mod source_worker_two_wave_tests;
 mod support;
 #[cfg(test)]
 mod test_support;
@@ -214,6 +218,8 @@ pub(super) struct BlockSlotScratch {
     synth_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
     sample_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
     synth_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
+    source_active: Vec<bool>,
+    bus_active: Vec<bool>,
 }
 
 impl BlockSlotScratch {
@@ -224,6 +230,8 @@ impl BlockSlotScratch {
             synth_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
             sample_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
             synth_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
+            source_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
+            bus_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
         }
     }
 
@@ -243,6 +251,8 @@ impl BlockSlotScratch {
         for buffer in &mut self.synth_active {
             buffer[..frames].fill(false);
         }
+        self.source_active[..frames].fill(false);
+        self.bus_active[..frames].fill(false);
         true
     }
 }

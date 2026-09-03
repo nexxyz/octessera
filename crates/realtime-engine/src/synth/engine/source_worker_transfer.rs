@@ -51,7 +51,12 @@ pub(super) fn with_both_source_partitions<R>(
     second: &mut OwnerLease,
     operation: impl FnOnce(&mut SynthEngine, [&SourceWorkerScratch; 2]) -> R,
 ) -> Result<R, ()> {
-    super::source_worker_carrier_transfer::with_both_source_owners(engine, first, second, operation)
+    super::source_worker_carrier_transfer::with_both_source_owners(
+        engine,
+        first,
+        second,
+        |engine, scratch, _| operation(engine, scratch),
+    )
 }
 
 pub(super) fn with_both_source_partitions_read_only<R>(
@@ -64,7 +69,7 @@ pub(super) fn with_both_source_partitions_read_only<R>(
         engine,
         first,
         second,
-        |engine, _| inspect(engine),
+        |engine, _, _| inspect(engine),
     )
 }
 
@@ -361,12 +366,12 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
-        assert!(self.block_slot_scratch.prepare_output(frames));
-        let source_ok = runtime
-            .render_source_block_with(self, frames, |engine| {
-                engine.finish_block_slot_frame_graph(frames, left, right);
-            })
-            .is_some();
+        let source_ok = runtime.render_persistent_block(
+            self,
+            frames,
+            &mut left[..frames],
+            &mut right[..frames],
+        );
         #[cfg(feature = "source-worker-benchmark-timing")]
         let coordinator_remainder_started_at = runtime.take_coordinator_remainder_started_at();
         if !source_ok {

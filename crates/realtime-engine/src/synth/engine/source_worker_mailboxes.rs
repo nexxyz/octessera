@@ -1,8 +1,10 @@
+use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_lease::OwnerLease;
 use super::super::source_worker_load::SourceWorkerLoadObservation;
 use super::CompletedEnvelope;
 use super::SourceWorkerHealth;
 use super::*;
+use crossbeam_channel::TryRecvError;
 
 impl SourceWorkerRuntime {
     pub(super) fn accept_completion(
@@ -16,14 +18,21 @@ impl SourceWorkerRuntime {
             && channel_parity == parity
             && self.in_flight_mask & worker_mask != 0
             && completion.owner.runtime_generation == self.runtime_generation
-            && completion.phase == super::super::source_worker_protocol::WorkerPhase::Sources
+            && self.expected_phase == Some(completion.phase)
             && self.expected_stamp == Some(completion.stamp)
             && completion.render_ok
+            && (completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses
+                || (self.bus_dispatch_residency_valid
+                    && source_worker_carrier_transfer::valid_bus_completion_owner(
+                        &completion.owner,
+                        &self.bus_dispatch_residency,
+                    )))
             && completion.active_cost_units
                 <= super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
         if parity >= SOURCE_WORKER_COUNT
             || completion.worker_exited
             || completion.transport_failed
+            || self.force_fault_mask & worker_mask != 0
             || !expected
         {
             self.health.latch(
@@ -35,7 +44,9 @@ impl SourceWorkerRuntime {
                 worker_mask,
             );
             self.in_flight_mask &= !worker_mask;
-            self.load_observations = std::array::from_fn(|_| None);
+            self.source_load_observations = std::array::from_fn(|_| None);
+            self.bus_load_observations = std::array::from_fn(|_| None);
+            self.force_fault_mask &= !worker_mask;
             self.return_owner(completion.owner, false, channel_parity);
             return;
         }
@@ -43,21 +54,34 @@ impl SourceWorkerRuntime {
         if let (Some(probe), Some(dispatch_started_at)) =
             (self.timing_probe.as_ref(), self.dispatch_started_at)
         {
-            probe.record_completion(
-                completion.stamp.quantum_sequence,
-                parity,
-                dispatch_started_at.elapsed(),
-            );
+            if completion.phase == super::super::source_worker_protocol::WorkerPhase::Sources {
+                probe.record_completion(
+                    completion.stamp.quantum_sequence,
+                    parity,
+                    dispatch_started_at.elapsed(),
+                );
+            } else {
+                probe.record_bus_completion(
+                    completion.stamp.quantum_sequence,
+                    parity,
+                    dispatch_started_at.elapsed(),
+                );
+            }
         }
         self.health
             .record_completion(completion.stamp.quantum_sequence);
         self.in_flight_mask &= !worker_mask;
         self.completed_mask |= worker_mask;
         if self.health.status() == SourceWorkerHealth::Healthy {
-            self.load_observations[parity] = Some(SourceWorkerLoadObservation {
+            let observation = Some(SourceWorkerLoadObservation {
                 dsp_duration_ns: completion.dsp_duration_ns,
                 active_cost_units: completion.active_cost_units,
             });
+            if completion.phase == super::super::source_worker_protocol::WorkerPhase::Sources {
+                self.source_load_observations[parity] = observation;
+            } else {
+                self.bus_load_observations[parity] = observation;
+            }
         }
         self.return_owner(completion.owner, true, parity);
     }

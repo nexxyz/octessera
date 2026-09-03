@@ -13,6 +13,9 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
+#[path = "source_worker_bus_worker.rs"]
+mod bus_worker;
+
 #[cfg(test)]
 thread_local! {
     static FAIL_WORKER_SPAWN: RefCell<Option<(usize, Arc<AtomicUsize>)>> =
@@ -64,6 +67,10 @@ pub(crate) struct SourceWorkerSlot {
     pub(super) hold_before_receive: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     pub(super) panic_on_job: Arc<AtomicBool>,
+    #[cfg(any(test, feature = "test-support"))]
+    pub(super) panic_on_bus: Arc<AtomicBool>,
+    #[cfg(any(test, feature = "test-support"))]
+    pub(super) exit_on_bus: Arc<AtomicBool>,
     pub(super) join: Option<JoinHandle<WorkerExit>>,
 }
 
@@ -83,6 +90,10 @@ struct SourceWorkerThreadState {
     hold_before_receive: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     panic_on_job: Arc<AtomicBool>,
+    #[cfg(any(test, feature = "test-support"))]
+    panic_on_bus: Arc<AtomicBool>,
+    #[cfg(any(test, feature = "test-support"))]
+    exit_on_bus: Arc<AtomicBool>,
     reverse_completion: Arc<ReverseCompletionState>,
 }
 
@@ -107,6 +118,10 @@ pub(super) fn spawn_worker(
     let _ = hold_before_receive;
     #[cfg(any(test, feature = "test-support"))]
     let panic_on_job = Arc::new(AtomicBool::new(false));
+    #[cfg(any(test, feature = "test-support"))]
+    let panic_on_bus = Arc::new(AtomicBool::new(false));
+    #[cfg(any(test, feature = "test-support"))]
+    let exit_on_bus = Arc::new(AtomicBool::new(false));
     #[cfg(test)]
     let active_probe = FAIL_WORKER_SPAWN.with(|failure| {
         failure
@@ -124,6 +139,10 @@ pub(super) fn spawn_worker(
     let worker_hold_before_receive = Arc::clone(&hold_before_receive);
     #[cfg(any(test, feature = "test-support"))]
     let worker_panic_on_job = Arc::clone(&panic_on_job);
+    #[cfg(any(test, feature = "test-support"))]
+    let worker_panic_on_bus = Arc::clone(&panic_on_bus);
+    #[cfg(any(test, feature = "test-support"))]
+    let worker_exit_on_bus = Arc::clone(&exit_on_bus);
     let worker_done_tx = done_tx.clone();
     let lifecycle_done_tx = done_tx.clone();
     let join = spawn_worker_thread(parity, move || {
@@ -164,6 +183,10 @@ pub(super) fn spawn_worker(
                 hold_before_receive: worker_hold_before_receive,
                 #[cfg(any(test, feature = "test-support"))]
                 panic_on_job: worker_panic_on_job,
+                #[cfg(any(test, feature = "test-support"))]
+                panic_on_bus: worker_panic_on_bus,
+                #[cfg(any(test, feature = "test-support"))]
+                exit_on_bus: worker_exit_on_bus,
                 reverse_completion,
             },
         );
@@ -192,6 +215,10 @@ pub(super) fn spawn_worker(
         hold_before_receive,
         #[cfg(any(test, feature = "test-support"))]
         panic_on_job,
+        #[cfg(any(test, feature = "test-support"))]
+        panic_on_bus,
+        #[cfg(any(test, feature = "test-support"))]
+        exit_on_bus,
         join: Some(join),
     })
 }
@@ -248,57 +275,9 @@ fn worker_loop(
         std::hint::spin_loop();
     }
     while let Ok(command) = work_rx.recv() {
-        if let WorkerCommand::RenderBuses {
-            mut owner,
-            stamp,
-            frames,
-            sample_rate,
-            bus_idle_threshold,
-            fx_activity_hold_frames,
-        } = command
-        {
-            state.jobs_started.fetch_add(1, Ordering::Relaxed);
-            #[cfg(any(test, feature = "test-support"))]
-            let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
-            #[cfg(not(any(test, feature = "test-support")))]
-            let should_panic = false;
-            let render_started_at = Instant::now();
-            let render_result = catch_unwind(AssertUnwindSafe(|| {
-                if should_panic {
-                    panic!("bus worker test panic");
-                }
-                super::super::source_worker_bus::render_bus_block(
-                    &mut owner,
-                    parity,
-                    stamp,
-                    frames,
-                    sample_rate,
-                    bus_idle_threshold,
-                    fx_activity_hold_frames,
-                )
-            }));
-            let dsp_duration_ns = render_started_at
-                .elapsed()
-                .as_nanos()
-                .min(u128::from(u64::MAX)) as u64;
-            let (render_ok, worker_exited, active_cost_units) = match render_result {
-                Ok(Ok(active_cost_units)) => (true, false, active_cost_units),
-                Ok(Err(())) => (false, false, 0),
-                Err(_) => (false, true, 0),
-            };
-            let completion = CompletedEnvelope::from_bus_work(
-                owner,
-                stamp,
-                worker_exited,
-                render_ok,
-                dsp_duration_ns,
-                active_cost_units,
-            );
-            if let Some(exit) = send_completion(&done_tx, completion) {
-                return finish_worker(&state, Some(exit));
-            }
-            if worker_exited {
-                return finish_worker(&state, None);
+        if matches!(command, WorkerCommand::RenderBuses { .. }) {
+            if let Some(exit) = bus_worker::process(command, parity, &done_tx, &state) {
+                return exit;
             }
             continue;
         }

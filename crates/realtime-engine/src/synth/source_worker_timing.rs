@@ -153,6 +153,34 @@ impl SourceWorkerTimingProbe {
         record.finished.store(true, Ordering::Release);
     }
 
+    pub(crate) fn record_bus_worker(
+        &self,
+        parity: usize,
+        sequence: u64,
+        render_duration_ns: u64,
+        dispatch_started_at: Option<Instant>,
+    ) {
+        let Some(record) = self.workers.get(parity) else {
+            return;
+        };
+        if record.sequence.load(Ordering::Relaxed) != sequence
+            || !record.finished.load(Ordering::Acquire)
+        {
+            return;
+        }
+        record
+            .render_ns
+            .fetch_add(render_duration_ns, Ordering::Relaxed);
+        record.dispatch_to_finish_ns.store(
+            dispatch_started_at.map_or(0, |started| duration_ns(started.elapsed())),
+            Ordering::Relaxed,
+        );
+        record.cpu_end.store(
+            self.cpu_sampler.map_or(NO_CPU, |sampler| sampler()),
+            Ordering::Relaxed,
+        );
+    }
+
     pub(crate) fn begin_sequence(&self, sequence: u64, deadline: Duration) {
         if self.coordinator.frozen.load(Ordering::Acquire) {
             return;
@@ -208,6 +236,18 @@ impl SourceWorkerTimingProbe {
         }
     }
 
+    pub(crate) fn record_bus_dispatch(&self, sequence: u64) {
+        if self.accepts(sequence) {
+            self.coordinator
+                .in_flight_mask
+                .store(0b11, Ordering::Relaxed);
+            self.coordinator.completed_mask.store(0, Ordering::Relaxed);
+            self.coordinator
+                .dispatch_to_both_valid
+                .store(false, Ordering::Relaxed);
+        }
+    }
+
     pub(crate) fn record_dispatch_to_deadline_start(&self, sequence: u64, elapsed: Duration) {
         self.record_timing(
             sequence,
@@ -215,6 +255,14 @@ impl SourceWorkerTimingProbe {
             &self.coordinator.dispatch_to_deadline_start_valid,
             elapsed,
         );
+    }
+
+    pub(crate) fn record_remaining_deadline(&self, sequence: u64, remaining: Duration) {
+        if self.accepts(sequence) {
+            self.coordinator
+                .deadline_ns
+                .store(duration_ns(remaining), Ordering::Relaxed);
+        }
     }
 
     pub(crate) fn record_completion(
@@ -246,6 +294,34 @@ impl SourceWorkerTimingProbe {
             self.coordinator
                 .dispatch_to_first_valid
                 .store(true, Ordering::Relaxed);
+        }
+        let completed = completed | worker_mask;
+        self.coordinator
+            .completed_mask
+            .store(completed, Ordering::Relaxed);
+        if completed == 0b11 {
+            self.coordinator
+                .dispatch_to_both_ns
+                .store(duration_ns(dispatch_to_completion), Ordering::Relaxed);
+            self.coordinator
+                .dispatch_to_both_valid
+                .store(true, Ordering::Relaxed);
+        }
+    }
+
+    pub(crate) fn record_bus_completion(
+        &self,
+        sequence: u64,
+        parity: usize,
+        dispatch_to_completion: Duration,
+    ) {
+        if parity >= SOURCE_WORKER_COUNT || !self.accepts(sequence) {
+            return;
+        }
+        let worker_mask = 1 << parity;
+        let completed = self.coordinator.completed_mask.load(Ordering::Relaxed);
+        if completed & worker_mask != 0 {
+            return;
         }
         let completed = completed | worker_mask;
         self.coordinator

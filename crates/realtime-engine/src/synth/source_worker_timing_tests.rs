@@ -68,6 +68,17 @@ fn timing_probe_uses_supplied_render_duration() {
 }
 
 #[test]
+fn timing_probe_accumulates_source_and_bus_render_duration() {
+    let probe = SourceWorkerTimingProbe::new(None);
+    probe.begin_sequence(12, Duration::from_nanos(100));
+    let start = probe.worker_start();
+    probe.record_worker(0, 12, start, 777, None);
+    probe.record_bus_worker(0, 12, 333, None);
+
+    assert_eq!(probe.snapshot().workers[0].render_ns, Some(1_110));
+}
+
+#[test]
 fn timing_probe_records_reverse_completion_order_and_phase_totals() {
     let probe = SourceWorkerTimingProbe::new(None);
     probe.begin_sequence(11, Duration::from_nanos(100));

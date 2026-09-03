@@ -81,6 +81,10 @@ pub(super) enum WorkerCommand {
         sample_rate: u32,
         bus_idle_threshold: BusIdleThreshold,
         fx_activity_hold_frames: u32,
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        dispatch_started_at: Option<Instant>,
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     },
 }
 

@@ -22,7 +22,49 @@ pub(super) fn with_both_source_owners<R>(
     engine: &mut SynthEngine,
     first: &mut OwnerLease,
     second: &mut OwnerLease,
-    operation: impl FnOnce(&mut SynthEngine, [&SourceWorkerScratch; 2]) -> R,
+    operation: impl FnOnce(
+        &mut SynthEngine,
+        [&SourceWorkerScratch; 2],
+        &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+    ) -> R,
+) -> Result<R, ()> {
+    with_both_source_owners_inner(engine, first, second, true, true, None, operation)
+}
+
+pub(super) fn with_both_source_owners_preserving_carriers<R>(
+    engine: &mut SynthEngine,
+    first: &mut OwnerLease,
+    second: &mut OwnerLease,
+    expected_residency: &[u8; super::super::types::BUS_COUNT],
+    operation: impl FnOnce(
+        &mut SynthEngine,
+        [&SourceWorkerScratch; 2],
+        &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+    ) -> R,
+) -> Result<R, ()> {
+    with_both_source_owners_inner(
+        engine,
+        first,
+        second,
+        false,
+        false,
+        Some(expected_residency),
+        operation,
+    )
+}
+
+fn with_both_source_owners_inner<R>(
+    engine: &mut SynthEngine,
+    first: &mut OwnerLease,
+    second: &mut OwnerLease,
+    prepare_carriers: bool,
+    install_bus_owners: bool,
+    expected_residency: Option<&[u8; super::super::types::BUS_COUNT]>,
+    operation: impl FnOnce(
+        &mut SynthEngine,
+        [&SourceWorkerScratch; 2],
+        &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+    ) -> R,
 ) -> Result<R, ()> {
     let Some(first_owner) = first.take_owner() else {
         return Err(());
@@ -36,6 +78,7 @@ pub(super) fn with_both_source_owners<R>(
         &first_owner,
         &second_owner,
         first_owner.runtime_generation,
+        expected_residency,
     ) {
         first.restore_owner(first_owner);
         second.restore_owner(second_owner);
@@ -59,11 +102,15 @@ pub(super) fn with_both_source_owners<R>(
     let operation_result = catch_unwind(AssertUnwindSafe(|| {
         install_source_partition_bundle_after_check(engine, first_parity, first_partitions);
         install_source_partition_bundle_after_check(engine, second_parity, second_partitions);
-        install_bus_chain_owners_after_check(engine, &mut bus_carriers);
-        for carrier in bus_carriers.iter_mut().flatten() {
-            assert!(carrier.prepare(BLOCK_SLOT_SCRATCH_FRAMES));
+        if install_bus_owners {
+            install_bus_chain_owners_after_check(engine, &mut bus_carriers);
         }
-        let result = operation(engine, [&first_scratch, &second_scratch]);
+        if prepare_carriers {
+            for carrier in bus_carriers.iter_mut().flatten() {
+                assert!(carrier.prepare(BLOCK_SLOT_SCRATCH_FRAMES));
+            }
+        }
+        let result = operation(engine, [&first_scratch, &second_scratch], &mut bus_carriers);
         let partitions = take_source_partition_bundles(engine);
         let carriers = take_bus_chain_owners(engine, &mut bus_carriers);
         (result, partitions, carriers)
@@ -143,6 +190,7 @@ fn valid_owner_pair(
     first: &OwnerEnvelope,
     second: &OwnerEnvelope,
     runtime_generation: u64,
+    expected_residency: Option<&[u8; super::super::types::BUS_COUNT]>,
 ) -> bool {
     first.parity == 0
         && second.parity == 1
@@ -157,10 +205,15 @@ fn valid_owner_pair(
         && source_partitions_vacant(engine)
         && engine.bus_chains.is_empty()
         && engine.bus_pan_pos.len() <= super::super::types::BUS_COUNT
-        && valid_bus_carrier_pair(first, second, engine.bus_pan_pos.len())
+        && valid_bus_carrier_pair(first, second, engine.bus_pan_pos.len(), expected_residency)
 }
 
-fn valid_bus_carrier_pair(first: &OwnerEnvelope, second: &OwnerEnvelope, bus_count: usize) -> bool {
+fn valid_bus_carrier_pair(
+    first: &OwnerEnvelope,
+    second: &OwnerEnvelope,
+    bus_count: usize,
+    expected_residency: Option<&[u8; super::super::types::BUS_COUNT]>,
+) -> bool {
     (0..super::super::types::BUS_COUNT).all(|logical_bus_id| {
         if usize::from(first.bus_carriers[logical_bus_id].is_some())
             + usize::from(second.bus_carriers[logical_bus_id].is_some())
@@ -177,18 +230,52 @@ fn valid_bus_carrier_pair(first: &OwnerEnvelope, second: &OwnerEnvelope, bus_cou
         if carrier.logical_bus_id != logical_bus_id || !carrier.within_worker_capacity() {
             return false;
         }
-        let expected_parity = carrier
-            .owner
-            .as_ref()
-            .and_then(|owner| owner.assigned_worker)
-            .unwrap_or(logical_bus_id % 2);
         let actual_parity = if first.bus_carriers[logical_bus_id].is_some() {
             first.parity
         } else {
             second.parity
         };
-        carrier.owner.is_some() == (logical_bus_id < bus_count) && actual_parity == expected_parity
+        let expected_parity = expected_residency.map_or_else(
+            || {
+                carrier
+                    .owner
+                    .as_ref()
+                    .and_then(|owner| owner.assigned_worker)
+                    .unwrap_or(logical_bus_id % 2) as u8
+            },
+            |residency| residency[logical_bus_id],
+        );
+        carrier.owner.is_some() == (logical_bus_id < bus_count)
+            && actual_parity == usize::from(expected_parity)
+            && carrier
+                .owner
+                .as_ref()
+                .and_then(|owner| owner.assigned_worker)
+                .is_none_or(|assigned_worker| assigned_worker == actual_parity)
     })
+}
+
+pub(super) fn valid_bus_completion_owner(
+    owner: &OwnerEnvelope,
+    expected_residency: &[u8; super::super::types::BUS_COUNT],
+) -> bool {
+    owner
+        .bus_carriers
+        .iter()
+        .enumerate()
+        .all(|(logical_bus_id, carrier)| {
+            let Some(carrier) = carrier.as_ref() else {
+                return true;
+            };
+            carrier.logical_bus_id == logical_bus_id
+                && carrier.within_worker_capacity()
+                && expected_residency[logical_bus_id] == owner.parity as u8
+                && carrier
+                    .owner
+                    .as_ref()
+                    .and_then(|owner| owner.assigned_worker)
+                    .is_none_or(|assigned_worker| assigned_worker == owner.parity)
+        })
 }
 
 fn combine_bus_carriers(

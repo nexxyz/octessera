@@ -307,6 +307,20 @@ impl SourceWorkerLifecycle {
             .store(true, Ordering::Release);
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_panic_on_bus_for_test(&self, parity: usize) {
+        self.workers[parity]
+            .panic_on_bus
+            .store(true, Ordering::Release);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_exit_on_bus_for_test(&self, parity: usize) {
+        self.workers[parity]
+            .exit_on_bus
+            .store(true, Ordering::Release);
+    }
+
     #[cfg(test)]
     pub(crate) fn disconnect_completion_for_test(&mut self, parity: usize) {
         let (done_tx, done_rx) = bounded(0);
