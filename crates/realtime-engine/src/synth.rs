@@ -34,8 +34,8 @@ pub use engine::{
     PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SourceWorkerHealth,
     SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerLoadSnapshot, SourceWorkerMode,
     SourceWorkerRetirement, SourceWorkerRetirementError, SourceWorkerRuntime,
-    SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine,
-    BUS_CHAIN_SLOT_COST_UNITS, BUS_CHAIN_WORKER_MAX_COST_UNITS, SOURCE_WORKER_MAX_COST_UNITS,
+    SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine, WorkStamp,
+    WorkerPhase, BUS_CHAIN_SLOT_COST_UNITS, SOURCE_WORKER_MAX_COST_UNITS,
     SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT, SOURCE_WORKER_SAMPLE_COST_UNITS,
     SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
 };

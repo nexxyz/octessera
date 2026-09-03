@@ -1,7 +1,7 @@
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::super::source_worker_timing::SourceWorkerTimingProbe;
-use super::super::source_worker_protocol::SourceWorkerStartHook;
-use super::{CompletedEnvelope, WorkEnvelope, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
+use super::super::source_worker_protocol::{SourceWorkerStartHook, WorkerCommand};
+use super::{CompletedEnvelope, SourceWork, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 #[cfg(test)]
 use std::cell::RefCell;
@@ -48,7 +48,7 @@ impl WorkerSpawnFailureGuard {
 }
 
 pub(crate) struct SourceWorkerSlot {
-    pub(crate) work_tx: Option<Sender<WorkEnvelope>>,
+    pub(crate) work_tx: Option<Sender<WorkerCommand>>,
     pub(crate) done_rx: Receiver<CompletedEnvelope>,
     pub(crate) done_tx: Option<Sender<CompletedEnvelope>>,
     pub(crate) ready_rx:
@@ -239,7 +239,7 @@ impl SourceWorkerSlot {
 
 fn worker_loop(
     parity: usize,
-    work_rx: Receiver<WorkEnvelope>,
+    work_rx: Receiver<WorkerCommand>,
     done_tx: Sender<CompletedEnvelope>,
     state: SourceWorkerThreadState,
 ) -> WorkerExit {
@@ -247,7 +247,20 @@ fn worker_loop(
     while state.hold_before_receive.load(Ordering::Acquire) {
         std::hint::spin_loop();
     }
-    while let Ok(mut work) = work_rx.recv() {
+    while let Ok(command) = work_rx.recv() {
+        if let WorkerCommand::RenderBuses { owner, stamp } = command {
+            state.jobs_started.fetch_add(1, Ordering::Relaxed);
+            if let Some(exit) = send_completion(
+                &done_tx,
+                CompletedEnvelope::from_unsupported_buses(owner, stamp),
+            ) {
+                return finish_worker(&state, Some(exit));
+            }
+            continue;
+        }
+        let Some(mut work) = command.into_source_work() else {
+            continue;
+        };
         state.jobs_started.fetch_add(1, Ordering::Relaxed);
         #[cfg(any(test, feature = "test-support"))]
         if state.exit_on_job.swap(false, Ordering::AcqRel) {
@@ -296,7 +309,7 @@ fn worker_loop(
             if let (Some(probe), Some(start)) = (work.timing_probe.as_ref(), timing_start) {
                 probe.record_worker(
                     parity,
-                    work.sequence,
+                    work.stamp.quantum_sequence,
                     start,
                     dsp_duration_ns,
                     work.dispatch_started_at,
@@ -372,8 +385,24 @@ fn finish_worker(state: &SourceWorkerThreadState, exit: Option<WorkerExit>) -> W
 }
 
 impl CompletedEnvelope {
+    fn from_unsupported_buses(
+        owner: super::OwnerEnvelope,
+        stamp: super::super::source_worker_protocol::WorkStamp,
+    ) -> Self {
+        Self {
+            owner,
+            phase: super::super::source_worker_protocol::WorkerPhase::Buses,
+            stamp,
+            render_ok: false,
+            worker_exited: false,
+            transport_failed: false,
+            dsp_duration_ns: 0,
+            active_cost_units: 0,
+        }
+    }
+
     fn from_work(
-        work: WorkEnvelope,
+        work: SourceWork,
         worker_exited: bool,
         render_ok: bool,
         dsp_duration_ns: u64,
@@ -381,9 +410,8 @@ impl CompletedEnvelope {
     ) -> Self {
         Self {
             owner: work.owner,
-            sequence: work.sequence,
-            frames: work.frames,
-            base_sample_clock: work.base_sample_clock,
+            phase: super::super::source_worker_protocol::WorkerPhase::Sources,
+            stamp: work.stamp,
             render_ok,
             worker_exited,
             transport_failed: false,
@@ -401,9 +429,14 @@ mod tests {
     fn completion(parity: usize) -> CompletedEnvelope {
         CompletedEnvelope {
             owner: super::super::owner_for_test(parity),
-            sequence: 1,
-            frames: 128,
-            base_sample_clock: 0,
+            phase: super::super::super::source_worker_protocol::WorkerPhase::Sources,
+            stamp: super::super::super::source_worker_protocol::WorkStamp {
+                runtime_generation: 1,
+                render_plan_generation: 0,
+                quantum_sequence: 1,
+                frames: 128,
+                base_sample_clock: 0,
+            },
             render_ok: true,
             worker_exited: false,
             transport_failed: false,

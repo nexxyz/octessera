@@ -1,7 +1,16 @@
+use super::bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
+
 pub const SOURCE_WORKER_SYNTH_COST_UNITS: u16 = 3;
 pub const SOURCE_WORKER_SAMPLE_COST_UNITS: u16 = 2;
-pub const SOURCE_WORKER_MAX_COST_UNITS: u16 = 160;
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;
+pub const SOURCE_WORKER_MAX_COST_UNITS: u16 = ((super::super::types::SYNTH_VOICE_LANE_CAPACITY
+    / SOURCE_WORKER_COUNT)
+    * SOURCE_WORKER_SYNTH_COST_UNITS as usize
+    + (super::super::types::SAMPLE_VOICE_LANE_CAPACITY / SOURCE_WORKER_COUNT)
+        * SOURCE_WORKER_SAMPLE_COST_UNITS as usize
+    + super::super::types::BUS_COUNT
+        * super::super::types::BUS_SLOTS_PER_BUS
+        * BUS_CHAIN_SLOT_COST_UNITS as usize) as u16;
 const EWMA_SCALE: u64 = 1_000_000;
 const EWMA_WINDOW_NS: u64 = 250_000_000;
 
@@ -202,7 +211,15 @@ mod tests {
     fn fixed_costs_fill_one_worker_partition() {
         assert_eq!(SOURCE_WORKER_SYNTH_COST_UNITS, 3);
         assert_eq!(SOURCE_WORKER_SAMPLE_COST_UNITS, 2);
-        assert_eq!(SOURCE_WORKER_MAX_COST_UNITS, 160);
+        let expected = ((crate::synth::types::SYNTH_VOICE_LANE_CAPACITY / SOURCE_WORKER_COUNT)
+            * SOURCE_WORKER_SYNTH_COST_UNITS as usize
+            + (crate::synth::types::SAMPLE_VOICE_LANE_CAPACITY / SOURCE_WORKER_COUNT)
+                * SOURCE_WORKER_SAMPLE_COST_UNITS as usize
+            + crate::synth::types::BUS_COUNT
+                * crate::synth::types::BUS_SLOTS_PER_BUS
+                * BUS_CHAIN_SLOT_COST_UNITS as usize) as u16;
+        assert_eq!(SOURCE_WORKER_MAX_COST_UNITS, expected);
+        assert_eq!(SOURCE_WORKER_MAX_COST_UNITS, 208);
     }
 
     #[test]
@@ -283,8 +300,8 @@ mod tests {
         let load = SourceWorkerLoad::new(128, 48_000);
         let snapshot = load.snapshot();
         assert_eq!(snapshot.quantum_ns, 2_666_666);
-        assert_eq!(snapshot.ns_per_unit_ewma, [16_666; 2]);
-        assert_eq!(snapshot.projected_ns([3, 160]), [49_998, 2_666_560]);
+        assert_eq!(snapshot.ns_per_unit_ewma, [12_820; 2]);
+        assert_eq!(snapshot.projected_ns([3, 160]), [38_460, 2_051_200]);
     }
 
     #[test]
@@ -299,7 +316,7 @@ mod tests {
             utilization_ppm: None,
             observed: [true, true],
         };
-        assert_eq!(snapshot.projected_ns([3, 4]), [19_750, 27_000]);
+        assert_eq!(snapshot.projected_ns([3, 4]), [15_421, 21_228]);
     }
 
     #[test]

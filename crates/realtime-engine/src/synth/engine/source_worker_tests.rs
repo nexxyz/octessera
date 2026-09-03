@@ -309,7 +309,6 @@ fn oversized_block_latches_invalid_without_dispatch() {
     );
     assert_eq!(runtime.health_snapshot().invalid_blocks, 1);
     assert_eq!(lifecycle.jobs_started_for_test(), [0, 0]);
-    assert!(runtime.partitions_home_for_test());
     let retirement = runtime.retire();
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
 }
@@ -409,14 +408,8 @@ fn stale_completion_latches_and_is_not_reduced() {
         runtime.health_snapshot().status,
         SourceWorkerHealth::CompletionFailed
     );
-    for _ in 0..100_000 {
-        if runtime.partitions_home_for_test() {
-            break;
-        }
-        let _ = runtime.collect_for_test(&mut engine);
-        thread::yield_now();
-    }
-    assert!(runtime.partitions_home_for_test());
+    assert!(lifecycle.fault_owner_identities_for_test()[0].is_some());
+    assert!(runtime.home_owner_identity_for_test(1).is_some());
     let retirement = runtime.retire();
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
 }
@@ -449,22 +442,24 @@ fn assert_worker_exit_ownership_is_recovered_home() {
     }
     assert!(workers_exited);
 
-    let mut owners_recovered_home = false;
+    let mut owners_recovered_fault = false;
     for _ in 0..100_000 {
         let _ = runtime.collect_for_test(&mut engine);
-        if runtime.in_flight_mask_for_test() == 0 && runtime.partitions_home_for_test() {
-            owners_recovered_home = true;
+        if runtime.in_flight_mask_for_test() == 0
+            && lifecycle.fault_owner_identities_for_test()
+                == [Some(initial_identities[0]), Some(initial_identities[1])]
+        {
+            owners_recovered_fault = true;
             break;
         }
         thread::yield_now();
     }
-    assert!(owners_recovered_home);
+    assert!(owners_recovered_fault);
     assert_eq!(
         runtime.health_snapshot().status,
         SourceWorkerHealth::WorkerExited
     );
     assert_eq!(runtime.in_flight_mask_for_test(), 0);
-    assert!(runtime.partitions_home_for_test());
     let jobs = lifecycle.jobs_started_for_test();
     let mut left = Vec::with_capacity(128);
     let mut right = Vec::with_capacity(128);
@@ -478,7 +473,6 @@ fn assert_worker_exit_ownership_is_recovered_home() {
     );
     assert!(out.iter().all(|sample| sample.to_bits() == 0));
     assert_eq!(lifecycle.jobs_started_for_test(), jobs);
-    assert!(runtime.partitions_home_for_test());
     let retirement = runtime.retire();
     let shutdown = lifecycle.shutdown(retirement);
     assert_eq!(shutdown.joined_workers, 2);

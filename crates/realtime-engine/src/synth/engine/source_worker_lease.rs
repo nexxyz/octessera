@@ -49,14 +49,7 @@ impl OwnerLease {
             Err(error) => {
                 self.health
                     .latch(SourceWorkerHealth::CompletionFailed, 1 << self.parity);
-                match self.home_tx.try_send(error.into_inner()) {
-                    Ok(()) => {}
-                    Err(error) => {
-                        self.health
-                            .latch(SourceWorkerHealth::CompletionFailed, 1 << self.parity);
-                        self.owner = Some(error.into_inner());
-                    }
-                }
+                self.owner = Some(error.into_inner());
             }
         }
     }

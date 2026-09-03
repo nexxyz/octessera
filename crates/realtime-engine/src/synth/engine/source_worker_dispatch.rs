@@ -1,7 +1,7 @@
 use super::super::source_lane_renderer::SampleSourceContext;
 use super::super::source_worker_health::SourceWorkerHealth;
 use super::super::source_worker_lease::OwnerLease;
-use super::super::source_worker_lifecycle::WorkEnvelope;
+use super::super::source_worker_protocol::{WorkStamp, WorkerCommand};
 use super::super::SynthEngine;
 use super::SourceWorkerRuntime;
 use crossbeam_channel::TrySendError;
@@ -12,12 +12,20 @@ impl SourceWorkerRuntime {
     pub(super) fn dispatch(&mut self, engine: &mut SynthEngine) -> bool {
         let sequence = self.next_sequence;
         self.next_sequence = self.next_sequence.wrapping_add(1);
-        self.expected_sequence = Some(sequence);
+        let mut stamp = self.expected_stamp.unwrap_or(WorkStamp {
+            runtime_generation: self.runtime_generation,
+            render_plan_generation: engine.render_plan.generation,
+            quantum_sequence: sequence,
+            frames: 0,
+            base_sample_clock: engine.sample_clock,
+        });
+        stamp.quantum_sequence = sequence;
+        self.expected_stamp = Some(stamp);
         #[cfg(feature = "source-worker-benchmark-timing")]
         let dispatch_started_at = self.timing_probe.as_ref().map(|_| Instant::now());
         #[cfg(feature = "source-worker-benchmark-timing")]
         if let Some(probe) = self.timing_probe.as_ref() {
-            probe.begin_sequence(sequence, self.rendezvous_deadline(self.expected_frames));
+            probe.begin_sequence(sequence, self.rendezvous_deadline(stamp.frames));
         }
         let Some(mut first) = self.lease_home(0) else {
             self.latch_dispatch_failure(0b11);
@@ -34,14 +42,14 @@ impl SourceWorkerRuntime {
         }
         let first_sent = self.send_work(
             engine,
-            sequence,
+            stamp,
             first,
             #[cfg(feature = "source-worker-benchmark-timing")]
             dispatch_started_at,
         );
         let second_sent = self.send_work(
             engine,
-            sequence,
+            stamp,
             second,
             #[cfg(feature = "source-worker-benchmark-timing")]
             dispatch_started_at,
@@ -56,7 +64,7 @@ impl SourceWorkerRuntime {
     fn send_work(
         &mut self,
         engine: &SynthEngine,
-        sequence: u64,
+        stamp: WorkStamp,
         mut lease: OwnerLease,
         #[cfg(feature = "source-worker-benchmark-timing")] dispatch_started_at: Option<Instant>,
     ) -> bool {
@@ -64,11 +72,9 @@ impl SourceWorkerRuntime {
             self.latch_dispatch_failure(1 << lease.parity);
             return false;
         };
-        let work = WorkEnvelope {
+        let work = WorkerCommand::RenderSources {
             owner,
-            sequence,
-            frames: self.expected_frames,
-            base_sample_clock: self.expected_base_sample_clock,
+            stamp,
             synth_context: engine.synth_source_context(),
             sample_context: SampleSourceContext {
                 sample_rate: engine.sample_rate,
@@ -80,7 +86,10 @@ impl SourceWorkerRuntime {
         };
         let parity = lease.parity;
         let Some(work_tx) = self.work_txs.as_ref().map(|work_txs| &work_txs[parity]) else {
-            lease.restore_owner(work.owner);
+            let WorkerCommand::RenderSources { owner, .. } = work else {
+                unreachable!("source dispatch only creates source commands");
+            };
+            lease.restore_owner(owner);
             lease.return_home();
             self.latch_dispatch_failure(1 << parity);
             return false;
@@ -90,9 +99,19 @@ impl SourceWorkerRuntime {
                 self.in_flight_mask |= 1 << parity;
                 true
             }
-            Err(TrySendError::Full(work) | TrySendError::Disconnected(work)) => {
-                lease.restore_owner(work.owner);
+            Err(
+                TrySendError::Full(WorkerCommand::RenderSources { owner, .. })
+                | TrySendError::Disconnected(WorkerCommand::RenderSources { owner, .. }),
+            ) => {
+                lease.restore_owner(owner);
                 lease.return_home();
+                self.latch_dispatch_failure(1 << parity);
+                false
+            }
+            Err(
+                TrySendError::Full(WorkerCommand::RenderBuses { .. })
+                | TrySendError::Disconnected(WorkerCommand::RenderBuses { .. }),
+            ) => {
                 self.latch_dispatch_failure(1 << parity);
                 false
             }

@@ -1,18 +1,10 @@
 use super::super::dsp_config::BusIdleThreshold;
 use super::super::fx::{fx_bus_state_matches_params, process_fx_bus_slot, FxBusState};
 use super::super::fx_params::{FxBusParams, FxKind};
-use super::super::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
-use super::source_worker_load::{
-    SOURCE_WORKER_COUNT, SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS,
-};
+use super::super::types::{BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
+use super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
 
 pub const BUS_CHAIN_SLOT_COST_UNITS: u16 = 4;
-pub const BUS_CHAIN_WORKER_MAX_COST_UNITS: u16 =
-    ((super::super::types::SYNTH_VOICE_LANE_CAPACITY / SOURCE_WORKER_COUNT)
-        * SOURCE_WORKER_SYNTH_COST_UNITS as usize
-        + (super::super::types::SAMPLE_VOICE_LANE_CAPACITY / SOURCE_WORKER_COUNT)
-            * SOURCE_WORKER_SAMPLE_COST_UNITS as usize
-        + BUS_COUNT * BUS_SLOTS_PER_BUS * BUS_CHAIN_SLOT_COST_UNITS as usize) as u16;
 
 pub(super) const fn fx_kind_cost(kind: FxKind) -> u16 {
     match kind {
@@ -20,7 +12,9 @@ pub(super) const fn fx_kind_cost(kind: FxKind) -> u16 {
         FxKind::Duck | FxKind::Distortion | FxKind::Bitcrusher => 1,
         FxKind::Tremolo | FxKind::Delay | FxKind::Glitch | FxKind::AutoPan | FxKind::Saturator => 2,
         FxKind::Vibrato | FxKind::Chorus | FxKind::Flanger | FxKind::Reverb | FxKind::Eq => 3,
-        FxKind::FilterLfo | FxKind::Wah | FxKind::Compressor | FxKind::Vinyl => 4,
+        FxKind::FilterLfo | FxKind::Wah | FxKind::Compressor | FxKind::Vinyl => {
+            BUS_CHAIN_SLOT_COST_UNITS
+        }
     }
 }
 
@@ -29,6 +23,74 @@ pub(super) struct BusChainFrameOutput {
     pub(super) mono: f32,
     pub(super) auto_pan_pos: Option<f32>,
     pub(super) spread: f32,
+}
+
+pub(super) struct BusChainBlockScratch {
+    pub(super) input: Vec<f32>,
+    pub(super) resolved_duck: [Vec<f32>; BUS_SLOTS_PER_BUS],
+    pub(super) mono_output: Vec<f32>,
+    pub(super) auto_pan_pos: Vec<f32>,
+    pub(super) processed_prefix: usize,
+    pub(super) spread: f32,
+    pub(super) executed: bool,
+}
+
+impl BusChainBlockScratch {
+    pub(super) fn new() -> Self {
+        Self {
+            input: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            resolved_duck: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
+            mono_output: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            auto_pan_pos: vec![f32::NAN; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            processed_prefix: 0,
+            spread: 0.0,
+            executed: false,
+        }
+    }
+
+    pub(super) fn prepare(&mut self, frames: usize) -> bool {
+        if frames > super::BLOCK_SLOT_SCRATCH_FRAMES {
+            return false;
+        }
+        self.input[..frames].fill(0.0);
+        for buffer in &mut self.resolved_duck {
+            buffer[..frames].fill(0.0);
+        }
+        self.mono_output[..frames].fill(0.0);
+        self.auto_pan_pos[..frames].fill(f32::NAN);
+        self.processed_prefix = 0;
+        self.spread = 0.0;
+        self.executed = false;
+        true
+    }
+}
+
+pub(super) struct BusChainCarrier {
+    pub(super) logical_bus_id: usize,
+    pub(super) owner: Option<BusChainOwner>,
+    pub(super) scratch: BusChainBlockScratch,
+}
+
+impl BusChainCarrier {
+    pub(super) fn new(logical_bus_id: usize, owner: Option<BusChainOwner>) -> Self {
+        Self {
+            logical_bus_id,
+            owner,
+            scratch: BusChainBlockScratch::new(),
+        }
+    }
+
+    pub(super) fn cost_units(&self) -> u16 {
+        self.owner.as_ref().map_or(0, BusChainOwner::cost_units)
+    }
+
+    pub(super) fn prepare(&mut self, frames: usize) -> bool {
+        self.scratch.prepare(frames)
+    }
+
+    pub(super) fn within_worker_capacity(&self) -> bool {
+        self.cost_units() <= SOURCE_WORKER_MAX_COST_UNITS
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -306,15 +368,14 @@ mod tests {
             (FxKind::Flanger, 3),
             (FxKind::Reverb, 3),
             (FxKind::Eq, 3),
-            (FxKind::FilterLfo, 4),
-            (FxKind::Wah, 4),
-            (FxKind::Compressor, 4),
-            (FxKind::Vinyl, 4),
+            (FxKind::FilterLfo, BUS_CHAIN_SLOT_COST_UNITS),
+            (FxKind::Wah, BUS_CHAIN_SLOT_COST_UNITS),
+            (FxKind::Compressor, BUS_CHAIN_SLOT_COST_UNITS),
+            (FxKind::Vinyl, BUS_CHAIN_SLOT_COST_UNITS),
         ];
         for (kind, cost) in kinds {
             assert_eq!(fx_kind_cost(kind), cost);
         }
-        assert_eq!(BUS_CHAIN_WORKER_MAX_COST_UNITS, 208);
     }
 
     #[test]

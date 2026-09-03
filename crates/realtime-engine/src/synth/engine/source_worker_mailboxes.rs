@@ -5,14 +5,19 @@ use super::SourceWorkerHealth;
 use super::*;
 
 impl SourceWorkerRuntime {
-    pub(super) fn accept_completion(&mut self, completion: CompletedEnvelope) {
+    pub(super) fn accept_completion(
+        &mut self,
+        channel_parity: usize,
+        completion: CompletedEnvelope,
+    ) {
         let parity = completion.owner.parity;
         let worker_mask = worker_mask(parity);
         let expected = parity < SOURCE_WORKER_COUNT
+            && channel_parity == parity
             && self.in_flight_mask & worker_mask != 0
-            && self.expected_sequence == Some(completion.sequence)
-            && completion.frames == self.expected_frames
-            && completion.base_sample_clock == self.expected_base_sample_clock
+            && completion.owner.runtime_generation == self.runtime_generation
+            && completion.phase == super::super::source_worker_protocol::WorkerPhase::Sources
+            && self.expected_stamp == Some(completion.stamp)
             && completion.render_ok
             && completion.active_cost_units
                 <= super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
@@ -31,16 +36,21 @@ impl SourceWorkerRuntime {
             );
             self.in_flight_mask &= !worker_mask;
             self.load_observations = std::array::from_fn(|_| None);
-            self.return_owner(completion.owner, true);
+            self.return_owner(completion.owner, false, channel_parity);
             return;
         }
         #[cfg(feature = "source-worker-benchmark-timing")]
         if let (Some(probe), Some(dispatch_started_at)) =
             (self.timing_probe.as_ref(), self.dispatch_started_at)
         {
-            probe.record_completion(completion.sequence, parity, dispatch_started_at.elapsed());
+            probe.record_completion(
+                completion.stamp.quantum_sequence,
+                parity,
+                dispatch_started_at.elapsed(),
+            );
         }
-        self.health.record_completion(completion.sequence);
+        self.health
+            .record_completion(completion.stamp.quantum_sequence);
         self.in_flight_mask &= !worker_mask;
         self.completed_mask |= worker_mask;
         if self.health.status() == SourceWorkerHealth::Healthy {
@@ -49,7 +59,7 @@ impl SourceWorkerRuntime {
                 active_cost_units: completion.active_cost_units,
             });
         }
-        self.return_owner(completion.owner, true);
+        self.return_owner(completion.owner, true, parity);
     }
 
     pub(super) fn reclaim_available(&mut self, _engine: &mut SynthEngine) {
@@ -65,7 +75,7 @@ impl SourceWorkerRuntime {
                 continue;
             };
             match done_rxs[parity].try_recv() {
-                Ok(completion) => self.accept_completion(completion),
+                Ok(completion) => self.accept_completion(parity, completion),
                 Err(TryRecvError::Empty) => {}
                 Err(TryRecvError::Disconnected) => {
                     self.latch_completion_failure(1 << parity);
@@ -75,8 +85,8 @@ impl SourceWorkerRuntime {
         }
     }
 
-    fn return_owner(&self, owner: OwnerEnvelope, home: bool) {
-        let Some(mut lease) = self.owner_lease(owner) else {
+    fn return_owner(&self, owner: OwnerEnvelope, home: bool, fallback_parity: usize) {
+        let Some(mut lease) = self.owner_lease(owner, fallback_parity) else {
             self.health
                 .latch(SourceWorkerHealth::CompletionFailed, 0b11);
             return;
@@ -88,8 +98,12 @@ impl SourceWorkerRuntime {
         }
     }
 
-    fn owner_lease(&self, owner: OwnerEnvelope) -> Option<OwnerLease> {
-        let parity = owner.parity;
+    fn owner_lease(&self, owner: OwnerEnvelope, fallback_parity: usize) -> Option<OwnerLease> {
+        let parity = if owner.parity < SOURCE_WORKER_COUNT {
+            owner.parity
+        } else {
+            fallback_parity
+        };
         if parity >= SOURCE_WORKER_COUNT {
             return None;
         }

@@ -1,17 +1,22 @@
+#[path = "source_worker_owner_routing.rs"]
+mod owner_routing;
 #[path = "source_worker_startup.rs"]
 mod startup;
 #[cfg(test)]
 use super::source_lane_renderer::SampleSourceContext;
 use super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
 pub(super) use super::source_worker_owner::{
-    CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerScratch, WorkEnvelope,
+    CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, SourceWork, SourceWorkerScratch,
     WorkerExit,
 };
 use super::source_worker_protocol::SourceWorkerRetirementError;
+#[cfg(test)]
+use super::source_worker_protocol::WorkerCommand;
 use super::source_worker_retirement::SourceWorkerRetirement;
 #[cfg(test)]
 use crossbeam_channel::bounded;
 use crossbeam_channel::{Receiver, Sender};
+use owner_routing::{route_completion, route_owner, worker_mask};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -55,6 +60,10 @@ pub struct SourceWorkerLifecycle {
 }
 
 impl SourceWorkerLifecycle {
+    pub(super) fn runtime_generation(&self) -> u64 {
+        self.runtime_close.generation
+    }
+
     pub(super) fn seed_home(&mut self, owners: [OwnerEnvelope; SOURCE_WORKER_COUNT]) -> bool {
         let mut seeded = true;
         for owner in owners {
@@ -68,6 +77,8 @@ impl SourceWorkerLifecycle {
                     &self.home_txs,
                     &self.fault_txs,
                     &self.health,
+                    true,
+                    parity,
                 ) {
                     self.finish_owner(owner);
                 }
@@ -157,7 +168,7 @@ impl SourceWorkerLifecycle {
             worker.done_tx.take();
         }
         let mut joined = 0;
-        let mut unsent_owners: [Option<OwnerEnvelope>; SOURCE_WORKER_COUNT] =
+        let mut unsent_completions: [Option<CompletedEnvelope>; SOURCE_WORKER_COUNT] =
             std::array::from_fn(|_| None);
         for (parity, worker) in self.workers.iter_mut().enumerate() {
             if let Some(join) = worker.join.take() {
@@ -173,7 +184,7 @@ impl SourceWorkerLifecycle {
                                 },
                                 worker_mask(completion.owner.parity),
                             );
-                            unsent_owners[parity] = Some(completion.owner);
+                            unsent_completions[parity] = Some(completion);
                         }
                     }
                     Err(_) => {
@@ -183,8 +194,18 @@ impl SourceWorkerLifecycle {
                 }
             }
         }
-        for owner in unsent_owners.into_iter().flatten() {
-            if let Some(owner) = route_owner(owner, &self.home_txs, &self.fault_txs, &self.health) {
+        for (parity, completion) in unsent_completions
+            .into_iter()
+            .enumerate()
+            .filter_map(|(parity, completion)| completion.map(|completion| (parity, completion)))
+        {
+            if let Some(owner) = route_completion(
+                completion,
+                &self.home_txs,
+                &self.fault_txs,
+                &self.health,
+                parity,
+            ) {
                 self.finish_owner(owner);
             }
         }
@@ -200,11 +221,12 @@ impl SourceWorkerLifecycle {
                         worker_mask(completion.owner.parity),
                     );
                 }
-                if let Some(owner) = route_owner(
-                    completion.owner,
+                if let Some(owner) = route_completion(
+                    completion,
                     &self.home_txs,
                     &self.fault_txs,
                     &self.health,
+                    parity,
                 ) {
                     self.finish_owner(owner);
                 }
@@ -302,6 +324,7 @@ impl SourceWorkerLifecycle {
     pub(crate) fn fill_work_channel_for_test(&self, parity: usize) -> bool {
         let mut engine = super::SynthEngine::new(48_000);
         let owner = OwnerEnvelope {
+            runtime_generation: self.runtime_generation(),
             parity,
             partitions: SourceLanePartitionBundle {
                 synth: engine
@@ -314,12 +337,17 @@ impl SourceWorkerLifecycle {
                     .expect("test sample partition"),
             },
             scratch: SourceWorkerScratch::new(),
+            bus_carriers: std::array::from_fn(|_| None),
         };
-        let work = WorkEnvelope {
+        let work = WorkerCommand::RenderSources {
             owner,
-            sequence: u64::MAX,
-            frames: 0,
-            base_sample_clock: engine.sample_clock,
+            stamp: super::source_worker_protocol::WorkStamp {
+                runtime_generation: self.runtime_generation(),
+                render_plan_generation: engine.render_plan.generation,
+                quantum_sequence: u64::MAX,
+                frames: 0,
+                base_sample_clock: engine.sample_clock,
+            },
             synth_context: engine.synth_source_context(),
             sample_context: SampleSourceContext {
                 sample_rate: engine.sample_rate,
@@ -399,6 +427,7 @@ impl Drop for SourceWorkerLifecycle {
 pub(super) fn owner_for_test(parity: usize) -> OwnerEnvelope {
     let mut engine = super::SynthEngine::new(48_000);
     OwnerEnvelope {
+        runtime_generation: 1,
         parity,
         partitions: SourceLanePartitionBundle {
             synth: engine
@@ -411,40 +440,6 @@ pub(super) fn owner_for_test(parity: usize) -> OwnerEnvelope {
                 .expect("sample partition"),
         },
         scratch: SourceWorkerScratch::new(),
-    }
-}
-
-fn route_owner(
-    owner: OwnerEnvelope,
-    home_txs: &[Sender<OwnerEnvelope>; SOURCE_WORKER_COUNT],
-    fault_txs: &[Sender<OwnerEnvelope>; SOURCE_WORKER_COUNT],
-    health: &SourceWorkerHealthState,
-) -> Option<OwnerEnvelope> {
-    let parity = owner.parity;
-    if parity >= SOURCE_WORKER_COUNT {
-        health.latch(SourceWorkerHealth::CompletionFailed, 0b11);
-        return Some(owner);
-    }
-    match home_txs[parity].try_send(owner) {
-        Ok(()) => None,
-        Err(error) => {
-            let owner = error.into_inner();
-            health.latch(SourceWorkerHealth::CompletionFailed, worker_mask(parity));
-            match fault_txs[parity].try_send(owner) {
-                Ok(()) => None,
-                Err(error) => {
-                    health.latch(SourceWorkerHealth::CompletionFailed, worker_mask(parity));
-                    Some(error.into_inner())
-                }
-            }
-        }
-    }
-}
-
-fn worker_mask(parity: usize) -> u8 {
-    if parity < SOURCE_WORKER_COUNT {
-        1 << parity
-    } else {
-        0b11
+        bus_carriers: std::array::from_fn(|_| None),
     }
 }

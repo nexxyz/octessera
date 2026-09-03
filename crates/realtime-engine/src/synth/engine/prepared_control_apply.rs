@@ -40,6 +40,12 @@ impl SynthEngine {
         mut prepared: PreparedInstrumentsConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        if self
+            .persistent_bus_limit
+            .is_some_and(|limit| prepared.bus_chains.len() > limit)
+        {
+            return retired;
+        }
         let mut next_render_plan = prepared.render_plan;
         self.pan_positions = prepared.pan_positions;
         self.master_volume = prepared.master_volume;
