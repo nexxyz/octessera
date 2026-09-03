@@ -3,8 +3,8 @@ use super::*;
 type SemanticCase = (&'static str, fn(&mut serde_json::Value));
 
 #[test]
-fn schema8_rejects_impossible_worker_timing_relationships() {
-    let cases: [SemanticCase; 37] = [
+fn schema9_rejects_impossible_worker_timing_relationships() {
+    let cases: [SemanticCase; 40] = [
         ("missing deadline", |value| {
             value["worker_timing"]["coordinator"]["deadline_ns"] = serde_json::Value::Null;
         }),
@@ -142,12 +142,21 @@ fn schema8_rejects_impossible_worker_timing_relationships() {
         ("worker CPU pair is partial", |value| {
             value["worker_timing"]["workers"][0]["cpu_start"] = serde_json::Value::Null;
         }),
-        ("worker CPU availability disagrees", |value| {
+        ("worker CPU evidence missing", |value| {
             value["worker_timing"]["workers"][1]["cpu_start"] = serde_json::Value::Null;
             value["worker_timing"]["workers"][1]["cpu_end"] = serde_json::Value::Null;
         }),
+        ("worker 0 CPU is not fixed", |value| {
+            value["worker_timing"]["workers"][0]["cpu_start"] = 3.into();
+        }),
+        ("worker 1 CPU is not fixed", |value| {
+            value["worker_timing"]["workers"][1]["cpu_end"] = 2.into();
+        }),
+        ("worker CPU endpoint changed", |value| {
+            value["worker_timing"]["workers"][0]["cpu_end"] = 3.into();
+        }),
         ("CPU endpoint-change summary disagrees", |value| {
-            value["worker_timing"]["cpu_endpoint_changed"] = false.into();
+            value["worker_timing"]["cpu_endpoint_changed"] = true.into();
         }),
         ("late summary disagrees", |value| {
             value["worker_timing"]["late_after_deadline_ns"] = 1.into();

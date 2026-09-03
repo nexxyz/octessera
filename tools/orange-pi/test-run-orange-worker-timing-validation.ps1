@@ -10,14 +10,14 @@ function Assert-Throws {
 }
 
 function New-TimingResult {
-  $worker0 = [pscustomobject]@{ sequence = 7; render_ns = 10; dispatch_to_finish_ns = 20; cpu_start = 2; cpu_end = 3; finished = $true }
-  $worker1 = [pscustomobject]@{ sequence = 7; render_ns = 11; dispatch_to_finish_ns = 25; cpu_start = 2; cpu_end = 2; finished = $true }
+  $worker0 = [pscustomobject]@{ sequence = 7; render_ns = 10; dispatch_to_finish_ns = 20; cpu_start = 2; cpu_end = 2; finished = $true }
+  $worker1 = [pscustomobject]@{ sequence = 7; render_ns = 11; dispatch_to_finish_ns = 25; cpu_start = 3; cpu_end = 3; finished = $true }
   $coordinator = [pscustomobject]@{ sequence = 7; deadline_ns = 100; dispatch_to_deadline_start_ns = 10; dispatch_to_deadline_elapsed_ns = $null; in_flight_mask = 0; completed_mask = 3; first_parity = 0; dispatch_to_first_ns = 20; dispatch_to_both_ns = 25; reduction_ns = 4; coordinator_remainder_ns = 5; engine_block_total_ns = 40; callback_total_ns = 50; failed = $false; frozen = $true }
   [pscustomobject]@{
     worker_timing_mode = "enabled"
     executor_mode = "persistent_two_workers"
     joined_workers = 2
-    worker_timing = [pscustomobject]@{ workers = @($worker0, $worker1); coordinator = $coordinator; late_after_deadline_ns = $null; cpu_endpoint_changed = $true }
+    worker_timing = [pscustomobject]@{ workers = @($worker0, $worker1); coordinator = $coordinator; late_after_deadline_ns = $null; cpu_endpoint_changed = $false }
   }
 }
 
@@ -78,7 +78,10 @@ Assert-Rejects { param($result) $result.worker_timing.coordinator.in_flight_mask
 Assert-Rejects { param($result) $result.worker_timing.coordinator.in_flight_mask = 1 }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.frozen = "true" }
 Assert-Rejects { param($result) $result.worker_timing.cpu_endpoint_changed = 1 }
+Assert-Rejects { param($result) $result.worker_timing.cpu_endpoint_changed = $true }
 Assert-Rejects { param($result) $result.worker_timing.workers[0].cpu_start = "2" }
+Assert-Rejects { param($result) $result.worker_timing.workers[0].cpu_start = 3 }
+Assert-Rejects { param($result) $result.worker_timing.workers[1].cpu_end = 2 }
 Assert-Rejects { param($result) $result.worker_timing.workers[0].finished = 1 }
 Assert-Rejects { param($result) $result.worker_timing.workers[0].render_ns = $null }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.first_parity = 1 }

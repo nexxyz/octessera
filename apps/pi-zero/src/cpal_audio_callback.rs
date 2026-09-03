@@ -1,5 +1,6 @@
 use super::audio_stream_lifecycle::{AudioStreamRetirementError, AudioStreamRetirementWaiter};
 use super::RecordingTapState;
+use crate::audio_priority::CallbackSchedulingHandle;
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::Sample;
 use realtime_engine::synth::SourceWorkerHealth;
@@ -79,6 +80,36 @@ pub(super) fn fill_callback<T>(
     }
 }
 
+pub(super) fn fill_callback_with_scheduler<T>(
+    data: &mut [T],
+    callback_source: &mut CallbackSource,
+    recording_tap: Option<&RecordingTapState>,
+    callback_health: &AudioStreamHealth,
+    report_worker_health: bool,
+    worker_health_reported: &mut bool,
+    scheduler: &CallbackSchedulingHandle,
+) where
+    T: Sample + cpal::FromSample<f32>,
+{
+    if scheduler.is_strict() {
+        if !scheduler.configure_callback_thread() {
+            silence_output(data);
+            callback_health.mark_callback_terminal();
+            return;
+        }
+    } else {
+        scheduler.configure_callback_thread();
+    }
+    fill_callback(
+        data,
+        callback_source,
+        recording_tap,
+        callback_health,
+        report_worker_health,
+        worker_health_reported,
+    );
+}
+
 pub(super) fn mark_worker_terminal<T>(
     data: &mut [T],
     callback_health: &AudioStreamHealth,
@@ -90,7 +121,7 @@ pub(super) fn mark_worker_terminal<T>(
     callback_health.mark_worker_health(health);
 }
 
-fn silence_output<T>(data: &mut [T])
+pub(super) fn silence_output<T>(data: &mut [T])
 where
     T: Sample + cpal::FromSample<f32>,
 {

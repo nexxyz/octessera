@@ -124,12 +124,15 @@ switch line is unavailable because physical pin 8 / H618 PH0 is active UART0
 TX; its A/B lines remain available. This is a bring-up condition, not the
 production control-surface contract. Runtime readiness follows healthy required
 audio, initialized control-surface devices, and the first rendered snapshot.
-The service uses `LimitRTPRIO=70`; only CPAL callback threads may be promoted to
-verified `SCHED_FIFO` priority 70. Its sole ambient and bounding capability is
+The service uses `LimitRTPRIO=70`; for the DAC-only persistent Jack
+qualification, the callback is fixed to CPU1 and both DSP workers are fixed to
+CPUs 2 and 3, all at verified `SCHED_FIFO` priority 70. USB/HDMI remain on
+legacy, unqualified handling and are disabled for reported measurements; full
+fanout is deferred. Its sole ambient and bounding capability is
 `CAP_SYS_TTY_CONFIG` for native VT leasing; it does not use `CAP_SYS_NICE` or
 other realtime capability elevation. Startup reports the
-named `DAC` or `UAC2` sink and rejects an Orange stream when callback promotion
-is not verified.
+named `DAC` or `UAC2` sink and rejects the qualified Jack stream when callback
+promotion is not verified.
 Its typed bus descriptors record `/dev/i2c-2` at `5002400.i2c` and
 `/dev/spidev1.0` at `5011000.spi`; its encoder descriptor records H618
 `300b000.pinctrl` offsets rather than Raspberry GPIO fields. The Orange OLED

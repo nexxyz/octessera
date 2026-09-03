@@ -214,7 +214,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 8,
+        schema_version: 9,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -235,6 +235,10 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         callback_scheduling_priority: state
             .callback_scheduling
             .map(|scheduling| scheduling.priority),
+        callback_scheduling_cpu: state
+            .callback_scheduling
+            .and_then(|scheduling| scheduling.cpu)
+            .map(|cpu| cpu as u32),
         post_dsp_zero: final_metrics.callback_count > 0
             && final_metrics.post_mute_nonzero_samples == 0,
         measurement_stop_acknowledged: state.measurement_stop_acknowledged,

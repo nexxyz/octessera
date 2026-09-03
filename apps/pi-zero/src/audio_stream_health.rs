@@ -24,6 +24,7 @@ pub(crate) struct AudioStreamHealth {
     label: String,
     requirement: AudioStreamRequirement,
     state: Arc<Mutex<AudioStreamHealthState>>,
+    callback_terminal: Arc<AtomicBool>,
     worker_health: Arc<AtomicU8>,
     #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     worker_terminal_logged: Arc<AtomicBool>,
@@ -53,6 +54,7 @@ impl AudioStreamHealth {
                 last_log: None,
                 suppressed: 0,
             })),
+            callback_terminal: Arc::new(AtomicBool::new(false)),
             worker_health: Arc::new(AtomicU8::new(SourceWorkerHealth::Healthy as u8)),
             worker_terminal_logged: Arc::new(AtomicBool::new(false)),
         }
@@ -64,6 +66,9 @@ impl AudioStreamHealth {
     }
 
     pub(crate) fn external_status(&self) -> AudioStreamStatus {
+        if self.callback_terminal.load(Ordering::Acquire) {
+            return AudioStreamStatus::Terminal;
+        }
         self.state
             .lock()
             .map(|state| state.status)
@@ -148,9 +153,14 @@ impl AudioStreamHealth {
 
     #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     pub(crate) fn mark_terminal(&self) {
+        self.callback_terminal.store(true, Ordering::Release);
         if let Ok(mut state) = self.state.lock() {
             state.status = AudioStreamStatus::Terminal;
         }
+    }
+
+    pub(crate) fn mark_callback_terminal(&self) {
+        self.callback_terminal.store(true, Ordering::Release);
     }
 
     pub(crate) fn log(&self, error: StreamError) {

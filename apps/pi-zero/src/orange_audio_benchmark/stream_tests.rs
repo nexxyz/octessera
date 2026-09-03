@@ -1,8 +1,8 @@
 use super::{
     build_persistent_source, build_source, callback_priority_for_executor,
-    expected_worker_thread_names, fill_callback_body, post_dsp_zero, stream_geometry,
-    worker_thread_names_for_executor, BenchmarkExecutorMode, SourceWorkerTimingProbe,
-    EXECUTOR_MODE,
+    callback_scheduler_for_executor, expected_worker_thread_names, fill_callback_body,
+    post_dsp_zero, stream_geometry, worker_thread_names_for_executor, BenchmarkExecutorMode,
+    SourceWorkerTimingProbe, EXECUTOR_MODE,
 };
 use crate::orange_audio_benchmark::cli::parse;
 use crate::orange_audio_benchmark::metrics::CallbackMetrics;
@@ -160,8 +160,19 @@ fn benchmark_executor_priorities_preserve_orange_scheduling_policy() {
     );
     assert_eq!(
         callback_priority_for_executor(BenchmarkExecutorMode::PersistentTwoWorkers),
-        69
+        70
     );
+}
+
+#[test]
+fn persistent_benchmark_uses_strict_jack_scheduler_and_inline_stays_legacy() {
+    let inline = callback_scheduler_for_executor(BenchmarkExecutorMode::Inline);
+    assert!(!inline.is_strict());
+    assert_eq!(inline.requested_priority(), 70);
+
+    let persistent = callback_scheduler_for_executor(BenchmarkExecutorMode::PersistentTwoWorkers);
+    assert!(persistent.is_strict());
+    assert_eq!(persistent.requested_priority(), 70);
 }
 
 #[test]
