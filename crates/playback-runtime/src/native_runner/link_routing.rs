@@ -1,6 +1,8 @@
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
+use super::modulation_sampler::event_channel;
 use super::{DelayedRoutedEvents, LinkEventTiming, NativeRunner};
 use platform_core::{CellTriggerIntent, CellTriggerKind, MusicalEvent};
+use std::collections::HashMap;
 
 pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
@@ -157,12 +159,15 @@ impl NativeRunner {
                 event_index += 1;
                 continue;
             };
+            let mapping_context = event_channel(&events[event_index]);
             let mut end = event_index + 1;
             while end < events.len()
                 && event_intents
                     .get(end)
                     .and_then(Clone::clone)
-                    .is_some_and(|next| next.kind == intent.kind)
+                    .is_some_and(|next| {
+                        next.kind == intent.kind && event_channel(&events[end]) == mapping_context
+                    })
             {
                 end += 1;
             }
@@ -180,6 +185,7 @@ impl NativeRunner {
                 transpose_offset,
                 self.sparks_transpose_active_notes.get_mut(layer_index),
             );
+            let routed = dedupe_note_ons_in_group(routed);
             out.extend(self.apply_link_timing_with_sense(
                 layer_index,
                 &grouped_intents,
@@ -190,6 +196,48 @@ impl NativeRunner {
         }
         Ok(out)
     }
+}
+
+fn dedupe_note_ons_in_group(mut routed: RoutedMusicalEvents) -> RoutedMusicalEvents {
+    dedupe_note_ons_in_lane(&mut routed.audio);
+    dedupe_note_ons_in_lane(&mut routed.midi);
+    routed
+}
+
+fn dedupe_note_ons_in_lane(events: &mut Vec<MusicalEvent>) {
+    let mut deduped = Vec::with_capacity(events.len());
+    let mut seen = HashMap::<(u8, u8, Option<u32>), usize>::with_capacity(events.len());
+    for event in events.drain(..) {
+        match event {
+            MusicalEvent::NoteOn {
+                channel,
+                note,
+                velocity,
+                duration_ms,
+            } => {
+                let key = (channel, note, duration_ms);
+                if let Some(index) = seen.get(&key).copied() {
+                    if let MusicalEvent::NoteOn {
+                        velocity: existing_velocity,
+                        ..
+                    } = &mut deduped[index]
+                    {
+                        *existing_velocity = (*existing_velocity).max(velocity);
+                    }
+                } else {
+                    seen.insert(key, deduped.len());
+                    deduped.push(MusicalEvent::NoteOn {
+                        channel,
+                        note,
+                        velocity,
+                        duration_ms,
+                    });
+                }
+            }
+            event => deduped.push(event),
+        }
+    }
+    *events = deduped;
 }
 
 fn note_off_keys(events: &[MusicalEvent]) -> Vec<(u8, u8)> {

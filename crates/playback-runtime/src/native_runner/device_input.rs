@@ -414,7 +414,6 @@ impl NativeRunner {
                 transpose_offset,
             },
         )?);
-        events.dedupe_note_ons_by_highest_velocity();
         let mut messages = self.messages_with_routed_events(events)?;
         messages.extend(self.messages_with_snapshot()?);
         Ok(messages)
