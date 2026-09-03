@@ -366,6 +366,32 @@ test('worker warning follows explicit native status instead of aggregate load ra
   assert.equal(result.runtime.getSnapshot().audioLoad.highCpuSteady, true);
 });
 
+test('missed quantum status preserves native true and clear transitions', async () => {
+  const result = await acceptedHarness();
+  result.emitAudioLoad({
+    ratio: 0,
+    voiceSteal: false,
+    workerUtilization: 0.9,
+    highCpuSteady: false,
+    missedQuantumFlash: true,
+  });
+  assert.equal(result.runtime.getSnapshot().audioLoad.missedQuantumFlash, true);
+  assert.equal(result.runtime.getSnapshot().audioLoad.highCpuSteady, false);
+
+  result.emitAudioLoad({
+    ratio: 0,
+    voiceSteal: false,
+    workerUtilization: 0.9,
+    highCpuSteady: true,
+    missedQuantumFlash: false,
+  });
+  assert.equal(
+    result.runtime.getSnapshot().audioLoad.missedQuantumFlash,
+    false,
+  );
+  assert.equal(result.runtime.getSnapshot().audioLoad.highCpuSteady, true);
+});
+
 test('OLED faults expose typed copy without changing native-only rendering', () => {
   const faults = [
     'malformed',

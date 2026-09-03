@@ -8,7 +8,7 @@ export type AudioLoadStatus = {
   missedQuantumFlash: boolean;
 };
 
-type AudioLoadPayload = {
+export type AudioLoadPayload = {
   ratio?: number;
   voiceSteal?: boolean;
   workerUtilization?: number;
@@ -29,20 +29,23 @@ export class TauriAudioLoadService implements AudioLoadService {
     if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window))
       return () => {};
     const unlisten = await listen<AudioLoadPayload>('audio_load', (evt) => {
-      const ratio = Number(evt.payload?.ratio ?? 0);
-      const workerUtilization = normalizeWorkerUtilization(
-        evt.payload?.workerUtilization,
-      );
-      handler({
-        ratio: Number.isFinite(ratio) ? ratio : 0,
-        voiceSteal: evt.payload?.voiceSteal === true,
-        workerUtilization,
-        highCpuSteady: evt.payload?.highCpuSteady === true,
-        missedQuantumFlash: false,
-      });
+      handler(normalizeAudioLoadPayload(evt.payload));
     });
     return unlisten;
   }
+}
+
+export function normalizeAudioLoadPayload(
+  payload: AudioLoadPayload | undefined,
+): AudioLoadStatus {
+  const ratio = Number(payload?.ratio ?? 0);
+  return {
+    ratio: Number.isFinite(ratio) ? ratio : 0,
+    voiceSteal: payload?.voiceSteal === true,
+    workerUtilization: normalizeWorkerUtilization(payload?.workerUtilization),
+    highCpuSteady: payload?.highCpuSteady === true,
+    missedQuantumFlash: payload?.missedQuantumFlash === true,
+  };
 }
 
 function normalizeWorkerUtilization(

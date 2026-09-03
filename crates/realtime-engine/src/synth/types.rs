@@ -72,6 +72,11 @@ pub struct AudioLoadStatus {
     pub blocks: u64,
     pub control_events: u64,
     pub config_events: u64,
+    pub rendered_quantums: u64,
+    pub repeated_quantums: u64,
+    pub dropped_quantums: u64,
+    pub deadline_misses: u64,
+    pub deadline_recoveries: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

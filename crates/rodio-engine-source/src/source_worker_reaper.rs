@@ -17,7 +17,39 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[cfg(test)]
-static ACTIVE_REAPERS: AtomicUsize = AtomicUsize::new(0);
+#[derive(Clone)]
+pub(crate) struct ReaperLifecycleProbe {
+    starts: Arc<AtomicUsize>,
+    exits: Arc<AtomicUsize>,
+}
+
+#[cfg(test)]
+impl ReaperLifecycleProbe {
+    fn new() -> Self {
+        Self {
+            starts: Arc::new(AtomicUsize::new(0)),
+            exits: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    pub(crate) fn starts_for_test(&self) -> usize {
+        self.starts.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn exits_for_test(&self) -> usize {
+        self.exits.load(Ordering::Acquire)
+    }
+}
+
+#[cfg(test)]
+struct ReaperLifecycleExitGuard(ReaperLifecycleProbe);
+
+#[cfg(test)]
+impl Drop for ReaperLifecycleExitGuard {
+    fn drop(&mut self) {
+        self.0.exits.fetch_add(1, Ordering::AcqRel);
+    }
+}
 
 pub(crate) struct SourceShutdownEnvelope {
     pub(crate) backlog: RetiredAudioBacklog,
@@ -105,7 +137,15 @@ fn spawn_persistent_reaper_with_options(
     };
     let state = Arc::new(state);
     let thread_state = Arc::clone(&state);
+    #[cfg(test)]
+    let lifecycle_probe = ReaperLifecycleProbe::new();
+    #[cfg(test)]
+    let reaper_probe = lifecycle_probe.clone();
     let reaper = spawn_persistent_reaper_thread(move || {
+        #[cfg(test)]
+        let _exit_guard = ReaperLifecycleExitGuard(reaper_probe.clone());
+        #[cfg(test)]
+        reaper_probe.starts.fetch_add(1, Ordering::AcqRel);
         while Arc::strong_count(&thread_state) > 1 {
             thread::yield_now();
         }
@@ -118,7 +158,12 @@ fn spawn_persistent_reaper_with_options(
             drop(state);
             Ok((
                 shutdown_tx,
-                EngineSourceWorkerShutdownOwner::new(completion_rx, reaper),
+                EngineSourceWorkerShutdownOwner::new(
+                    completion_rx,
+                    reaper,
+                    #[cfg(test)]
+                    lifecycle_probe,
+                ),
             ))
         }
         Err(_) => {
@@ -196,8 +241,6 @@ struct PersistentReaper {
 }
 
 fn run_persistent_reaper(mut state: PersistentReaper) {
-    #[cfg(test)]
-    ACTIVE_REAPERS.fetch_add(1, Ordering::AcqRel);
     let envelope = match catch_unwind(AssertUnwindSafe(|| state.wait_for_envelope())) {
         Ok(envelope) => envelope,
         Err(_) => state.wait_for_envelope_after_panic(),
@@ -225,13 +268,6 @@ fn run_persistent_reaper(mut state: PersistentReaper) {
         None => lifecycle.shutdown_after_runtime_drop(),
     };
     let _ = completion_tx.send(shutdown);
-    #[cfg(test)]
-    ACTIVE_REAPERS.fetch_sub(1, Ordering::AcqRel);
-}
-
-#[cfg(test)]
-pub(crate) fn active_reapers_for_test() -> usize {
-    ACTIVE_REAPERS.load(Ordering::Acquire)
 }
 
 impl PersistentReaper {

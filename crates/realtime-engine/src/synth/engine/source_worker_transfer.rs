@@ -7,7 +7,7 @@ use super::source_worker_lifecycle::{
     OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerLifecycle, SourceWorkerScratch,
 };
 use super::source_worker_protocol::{
-    SourceWorkerMode, SourceWorkerSetupError, SourceWorkerStartHook,
+    SourceWorkerMode, SourceWorkerRenderDisposition, SourceWorkerSetupError, SourceWorkerStartHook,
 };
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
@@ -349,28 +349,54 @@ impl SynthEngine {
         left: &mut Vec<f32>,
         right: &mut Vec<f32>,
         out: &mut Vec<f32>,
-    ) {
+    ) -> SourceWorkerRenderDisposition {
         if runtime.mode() == SourceWorkerMode::Inline {
             self.render_interleaved_block(frames, left, right, out);
-            return;
+            return SourceWorkerRenderDisposition::Fresh;
         }
-        if runtime.health_snapshot().status.is_recovering() {
-            let _ = runtime.refresh_recovery(self);
+        let _ = runtime.refresh_recovery_disposition(self);
+        self.render_interleaved_block_with_source_runtime_ready(runtime, frames, left, right, out)
+    }
+
+    pub fn render_interleaved_block_with_source_runtime_ready(
+        &mut self,
+        runtime: &mut SourceWorkerRuntime,
+        frames: usize,
+        left: &mut Vec<f32>,
+        right: &mut Vec<f32>,
+        out: &mut Vec<f32>,
+    ) -> SourceWorkerRenderDisposition {
+        if runtime.mode() == SourceWorkerMode::Inline {
+            self.render_interleaved_block(frames, left, right, out);
+            return SourceWorkerRenderDisposition::Fresh;
         }
+        if frames > BLOCK_SLOT_SCRATCH_FRAMES {
+            if runtime.health_snapshot().status == SourceWorkerHealth::Healthy {
+                let _ = runtime.render_source_block(self, frames);
+            }
+            left.fill(0.0);
+            right.fill(0.0);
+            out.fill(0.0);
+            return SourceWorkerRenderDisposition::Fatal;
+        }
+        left.resize(frames, 0.0);
+        right.resize(frames, 0.0);
+        out.resize(frames * 2, 0.0);
         let health = runtime.health_snapshot().status;
-        if frames > BLOCK_SLOT_SCRATCH_FRAMES || health != SourceWorkerHealth::Healthy {
+        if health != SourceWorkerHealth::Healthy {
             if !health.is_recovering() {
                 let _ = runtime.render_source_block(self, frames);
             }
             left.fill(0.0);
             right.fill(0.0);
             out.fill(0.0);
-            return;
+            return if health.is_recovering() {
+                SourceWorkerRenderDisposition::Recovering
+            } else {
+                SourceWorkerRenderDisposition::Fatal
+            };
         }
-        left.resize(frames, 0.0);
-        right.resize(frames, 0.0);
-        out.resize(frames * 2, 0.0);
-        let source_ok = runtime.render_persistent_block(
+        let disposition = runtime.render_persistent_block(
             self,
             frames,
             &mut left[..frames],
@@ -378,14 +404,15 @@ impl SynthEngine {
         );
         #[cfg(feature = "source-worker-benchmark-timing")]
         let coordinator_remainder_started_at = runtime.take_coordinator_remainder_started_at();
-        if !source_ok {
+        if disposition != SourceWorkerRenderDisposition::Fresh {
             left.fill(0.0);
             right.fill(0.0);
         }
         crate::simd::interleave_stereo(left, right, out);
         #[cfg(feature = "source-worker-benchmark-timing")]
-        if source_ok {
+        if disposition == SourceWorkerRenderDisposition::Fresh {
             runtime.record_coordinator_remainder(coordinator_remainder_started_at);
         }
+        disposition
     }
 }

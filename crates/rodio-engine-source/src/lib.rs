@@ -1,6 +1,7 @@
 mod audio_quantum;
 mod control_drain;
 mod event;
+mod persistent_output;
 mod profile_cache;
 mod queue;
 mod retired_audio_backlog;
@@ -16,6 +17,7 @@ use audio_quantum::audio_render_quantum_frames;
 use audio_quantum::resolve_audio_render_quantum_frames;
 use crossbeam_channel::{bounded, Sender, TrySendError};
 pub use event::EngineEvent;
+use persistent_output::{PreviousMasterQuantum, RefillResult};
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 #[cfg(feature = "source-worker-benchmark-timing")]
 use realtime_engine::synth::SourceWorkerTimingProbe;
@@ -38,6 +40,7 @@ use telemetry::{DrainedControlEvents, EngineTelemetry};
 
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
+const OUTPUT_CHANNELS: usize = 2;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
 const RETIREMENT_QUEUE_CAPACITY: usize = 64;
 const RETIREMENT_BACKLOG_CAPACITY: usize = 256;
@@ -87,6 +90,7 @@ pub struct EngineSource {
     retirement_disconnected: bool,
     #[cfg(test)]
     retired_drop_probe: Option<std::sync::mpsc::Sender<std::thread::ThreadId>>,
+    persistent_output: PreviousMasterQuantum,
 }
 
 impl EngineSource {
@@ -198,7 +202,7 @@ impl EngineSource {
             sample_rate,
             block_frames,
             cached_profile_snapshot: SynthProfileSnapshot::default(),
-            buf: Vec::with_capacity(block_frames * 2),
+            buf: Vec::with_capacity(block_frames * OUTPUT_CHANNELS),
             left_buf: Vec::with_capacity(block_frames),
             right_buf: Vec::with_capacity(block_frames),
             idx: 0,
@@ -211,16 +215,20 @@ impl EngineSource {
             retirement_disconnected: false,
             #[cfg(test)]
             retired_drop_probe: None,
+            persistent_output: PreviousMasterQuantum::new(),
         }
     }
 
     fn refill(&mut self) {
         let t0 = Instant::now();
-        let drained = match self.worker_state.mode {
+        let result = match self.worker_state.mode {
             EngineSourceMode::Inline => {
                 let drained = self.drain_control_events();
                 self.refill_inline();
-                drained
+                RefillResult {
+                    drained,
+                    force_status: false,
+                }
             }
             EngineSourceMode::Persistent => self.refill_persistent(),
         };
@@ -241,15 +249,18 @@ impl EngineSource {
         } else {
             0.0
         };
-        self.telemetry
-            .observe_block(ratio, drained.control_events, drained.config_events);
+        self.telemetry.observe_block(
+            ratio,
+            result.drained.control_events,
+            result.drained.config_events,
+        );
         self.engine.set_runtime_load_ratio(ratio);
-        self.report_load_status();
+        self.report_load_status(result.force_status);
     }
 
     fn refill_inline(&mut self) {
         if self.engine.is_idle() {
-            self.buf.resize(self.block_frames * 2, 0.0);
+            self.buf.resize(self.block_frames * OUTPUT_CHANNELS, 0.0);
             self.buf.fill(0.0);
             self.left_buf.clear();
             self.right_buf.clear();
@@ -263,72 +274,17 @@ impl EngineSource {
         }
     }
 
-    fn refill_persistent(&mut self) -> DrainedControlEvents {
-        let Self {
-            engine,
-            worker_state,
-            control_rx,
-            retired_tx,
-            retired_backlog,
-            retirement_disconnected,
-            #[cfg(test)]
-            retired_drop_probe,
-            block_frames,
-            cached_profile_snapshot,
-            buf,
-            left_buf,
-            right_buf,
-            ..
-        } = self;
-        let Some(worker) = worker_state.worker.as_mut() else {
-            return DrainedControlEvents::default();
-        };
-        let runtime = &mut worker.runtime;
-        let mut controls = control_drain::ControlDrain::new(
-            control_rx,
-            retired_tx,
-            retired_backlog.as_mut().expect("retired backlog"),
-            retirement_disconnected,
-            #[cfg(test)]
-            retired_drop_probe.clone(),
-        );
-        let cached = *cached_profile_snapshot;
-        let (drained, profile_snapshot) = match runtime.with_controls_ready(engine, |engine| {
-            let drained = controls.drain(engine);
-            (drained, engine.profile_snapshot())
-        }) {
-            Some(result) => result,
-            None => (DrainedControlEvents::default(), cached),
-        };
-        *cached_profile_snapshot = profile_snapshot;
-        debug_assert!((MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(block_frames));
-        buf.resize(*block_frames * 2, 0.0);
-        left_buf.resize(*block_frames, 0.0);
-        right_buf.resize(*block_frames, 0.0);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let engine_block_started_at = runtime.timing_block_start();
-        engine.render_interleaved_block_with_source_runtime(
-            runtime,
-            *block_frames,
-            left_buf,
-            right_buf,
-            buf,
-        );
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        runtime.record_engine_block_total(engine_block_started_at);
-        drained
-    }
-
-    fn report_load_status(&mut self) {
+    fn report_load_status(&mut self, force: bool) {
         if self.load_tx.is_none() {
             return;
         }
-        if self.last_load_report.elapsed() < LOAD_REPORT_INTERVAL {
+        if !force && self.last_load_report.elapsed() < LOAD_REPORT_INTERVAL {
             return;
         }
         self.last_load_report = Instant::now();
         let mut status = self.engine.audio_load_status();
         self.telemetry.apply_to_status(&mut status);
+        self.persistent_output.apply_to_status(&mut status);
         if let Some(load_tx) = &self.load_tx {
             load_tx.try_send(status);
         }
@@ -423,8 +379,12 @@ impl Iterator for EngineSource {
         if self.idx >= self.buf.len() {
             self.refill();
         }
+        debug_assert_eq!(self.buf.len() % OUTPUT_CHANNELS, 0);
         let v = self.buf.get(self.idx).copied().unwrap_or(0.0);
         self.idx += 1;
+        if self.idx.is_multiple_of(OUTPUT_CHANNELS) && self.persistent_output.consume_frame() {
+            self.report_load_status(true);
+        }
         Some(v)
     }
 }
@@ -435,7 +395,7 @@ impl rodio::Source for EngineSource {
     }
 
     fn channels(&self) -> u16 {
-        2
+        OUTPUT_CHANNELS as u16
     }
 
     fn sample_rate(&self) -> u32 {
