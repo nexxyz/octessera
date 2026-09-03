@@ -63,6 +63,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)
   - owns all internal musical audio rendering, instrument route/pan, FX bus sends, FX bus processing, sidechain ducking, and final stereo mix
+  - `BusChainOwner` keeps each logical bus's persistent mono slot state, cost, sticky worker assignment, render hold, and 250 ms quiet observation; bus DSP remains coordinator-inline in this slice, while coordinator-owned buffers, spread, routing, momentary FX, and final stereo work stay outside the owner
   - optional persistent source-worker rendering keeps one canonical partition+scratch `OwnerEnvelope` per parity in lifecycle-owned capacity-one home mailboxes, work/completion transport, worker local state, or a short callback lease; `SourceWorkerRuntime` owns no DSP bundles at callback boundaries, while `SourceWorkerLifecycle` owns fault mailboxes, completion receivers, joins, and final owner destruction. Lifecycle-first drop on another thread waits for runtime close; same-thread reverse destruction is prohibited. The default inline path remains available
   - generates synth slot/sample/pan constants from `resources/platform-capabilities.json`
   - `crates/rodio-engine-source` owns only shared non-realtime file opening and WAV decoding into `SampleBuffer`

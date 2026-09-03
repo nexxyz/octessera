@@ -1,4 +1,4 @@
-use super::control::active_fx_bus_slots;
+use super::bus_chain_owner::{fx_kind_cost, BusChainOwner, BusChainSlot};
 use super::prepared_control_prepare::{
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
     PreparedInstrumentsConfig, PreparedMomentaryFxStart,
@@ -76,21 +76,11 @@ impl SynthEngine {
                 super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
         }
 
-        let previous_bus_slot_state = preserve_bus_states(
-            &mut prepared.bus_slot_state,
-            &prepared.bus_slot_params,
-            std::mem::take(&mut self.bus_slot_state),
-            &mut prepared.displaced_bus_fx_states,
-        );
         let previous_master_slot_state = preserve_master_states(
             &mut prepared.master_slot_state,
             &prepared.master_slot_params,
             std::mem::take(&mut self.master_slot_state),
             &mut prepared.displaced_master_fx_states,
-        );
-        let previous_activity_frames = preserve_activity(
-            &mut prepared.bus_activity_frames,
-            std::mem::take(&mut self.bus_activity_frames),
         );
         let previous_spread_state = preserve_spread_state(
             &mut prepared.bus_output_spread_state,
@@ -101,20 +91,17 @@ impl SynthEngine {
         retired.bus_pan_gains_cache =
             std::mem::replace(&mut self.bus_pan_gains_cache, prepared.bus_pan_gains_cache);
         retired.bus_volume = std::mem::replace(&mut self.bus_volume, prepared.bus_volume);
-        retired.bus_slot_params =
-            std::mem::replace(&mut self.bus_slot_params, prepared.bus_slot_params);
-        retired.bus_slot_state = previous_bus_slot_state;
-        self.bus_slot_state = prepared.bus_slot_state;
-        retired.bus_active_slot_indices = std::mem::replace(
-            &mut self.bus_active_slot_indices,
-            prepared.bus_active_slot_indices,
-        );
-        retired.bus_active_slot_counts = std::mem::replace(
-            &mut self.bus_active_slot_counts,
-            prepared.bus_active_slot_counts,
-        );
-        retired.bus_activity_frames = previous_activity_frames;
-        self.bus_activity_frames = prepared.bus_activity_frames;
+        let mut previous_bus_chains = std::mem::take(&mut self.bus_chains);
+        for next in &mut prepared.bus_chains {
+            if let Some(previous) = previous_bus_chains
+                .iter_mut()
+                .find(|previous| previous.logical_bus_id == next.logical_bus_id)
+            {
+                next.preserve_state_from(previous);
+            }
+        }
+        retired.bus_chains = previous_bus_chains;
+        self.bus_chains = prepared.bus_chains;
         retired.bus_output_spread_state = previous_spread_state;
         self.bus_output_spread_state = prepared.bus_output_spread_state;
         retired.bus_mono_scratch =
@@ -122,9 +109,9 @@ impl SynthEngine {
         retired.bus_mono_snapshot =
             std::mem::replace(&mut self.bus_mono_snapshot, prepared.bus_mono_snapshot);
         self.active_bus_activity_count = self
-            .bus_activity_frames
+            .bus_chains
             .iter()
-            .filter(|frames| **frames > 0)
+            .filter(|chain| chain.is_active())
             .count();
         self.refresh_routed_bus_slot_count();
         retired.master_slot_params =
@@ -137,7 +124,6 @@ impl SynthEngine {
         );
         self.master_activity_frames = prepared.master_activity_frames;
         retired.prepared_slots = prepared.slots;
-        retired.displaced_bus_fx_states = prepared.displaced_bus_fx_states;
         retired.displaced_master_fx_states = prepared.displaced_master_fx_states;
         retired.render_plan = Some(self.render_plan.install_complete(next_render_plan));
         retired
@@ -231,31 +217,34 @@ impl SynthEngine {
         mut prepared: PreparedFxBusSlot,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        if bus_index >= self.bus_slot_params.len() || slot_index >= BUS_SLOTS_PER_BUS {
-            let state = std::mem::replace(&mut prepared.state, FxBusState::None);
-            prepared.displaced_states.push(state);
-            retired.displaced_bus_fx_states = prepared.displaced_states;
+        if bus_index >= self.bus_chains.len() || slot_index >= BUS_SLOTS_PER_BUS {
+            let slot = BusChainSlot {
+                params: prepared.params,
+                state: std::mem::replace(&mut prepared.state, FxBusState::None),
+                cost: fx_kind_cost(prepared.render_plan.kind),
+            };
+            prepared
+                .displaced_chains
+                .push(BusChainOwner::from_slot(bus_index, slot_index, slot));
+            retired.bus_chains = prepared.displaced_chains;
             return retired;
         }
-        let old_state = std::mem::replace(
-            &mut self.bus_slot_state[bus_index][slot_index],
-            FxBusState::None,
-        );
-        if fx_bus_state_matches_params(&old_state, &prepared.params) {
-            let fresh_state = std::mem::replace(&mut prepared.state, FxBusState::None);
-            prepared.displaced_states.push(fresh_state);
-            prepared.state = old_state;
-        } else {
-            prepared.displaced_states.push(old_state);
-        }
-        self.bus_slot_params[bus_index][slot_index] = prepared.params;
-        self.bus_slot_state[bus_index][slot_index] = prepared.state;
+        let retired_slot = self.bus_chains[bus_index]
+            .replace_slot(
+                slot_index,
+                prepared.params,
+                std::mem::replace(&mut prepared.state, FxBusState::None),
+                fx_kind_cost(prepared.render_plan.kind),
+            )
+            .expect("validated bus slot");
+        prepared.displaced_chains.push(BusChainOwner::from_slot(
+            bus_index,
+            slot_index,
+            retired_slot,
+        ));
         self.render_plan
             .install_bus_fx_slot(bus_index, slot_index, prepared.render_plan);
-        let (active_indices, active_count) = active_fx_bus_slots(&self.bus_slot_params[bus_index]);
-        self.bus_active_slot_indices[bus_index] = active_indices;
-        self.bus_active_slot_counts[bus_index] = active_count;
-        retired.displaced_bus_fx_states = prepared.displaced_states;
+        retired.bus_chains = prepared.displaced_chains;
         retired
     }
 
@@ -290,27 +279,6 @@ impl SynthEngine {
     }
 }
 
-fn preserve_bus_states(
-    next: &mut [[FxBusState; BUS_SLOTS_PER_BUS]],
-    params: &[[FxBusParams; BUS_SLOTS_PER_BUS]],
-    mut previous: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
-    displaced: &mut Vec<FxBusState>,
-) -> Vec<[FxBusState; BUS_SLOTS_PER_BUS]> {
-    for (bus_index, old_states) in previous.iter_mut().enumerate() {
-        let Some(next_states) = next.get_mut(bus_index) else {
-            continue;
-        };
-        for slot_index in 0..BUS_SLOTS_PER_BUS {
-            if fx_bus_state_matches_params(&old_states[slot_index], &params[bus_index][slot_index])
-            {
-                let old_state = std::mem::replace(&mut old_states[slot_index], FxBusState::None);
-                displaced.push(std::mem::replace(&mut next_states[slot_index], old_state));
-            }
-        }
-    }
-    previous
-}
-
 fn preserve_master_states(
     next: &mut [MasterFxState],
     params: &[FxBusParams],
@@ -325,13 +293,6 @@ fn preserve_master_states(
             let old_state = std::mem::replace(old_state, MasterFxState::None);
             displaced.push(std::mem::replace(next_state, old_state));
         }
-    }
-    previous
-}
-
-fn preserve_activity(next: &mut [u32], previous: Vec<u32>) -> Vec<u32> {
-    for (next, previous) in next.iter_mut().zip(previous.iter()) {
-        *next = *previous;
     }
     previous
 }

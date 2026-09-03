@@ -57,7 +57,7 @@ impl FxKind {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum FilterLfoKind {
     FilterLfo,
     Wah,
@@ -69,7 +69,7 @@ pub(super) enum DuckSource {
     Bus(usize),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum FxBusParams {
     None,
     Tremolo {

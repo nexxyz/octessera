@@ -401,7 +401,7 @@ fn config_with_duck_source(source: &str) -> InstrumentsConfig {
 fn capacities(engine: &SynthEngine) -> (usize, usize, usize, usize, usize, usize) {
     (
         engine.bus_pan_pos.capacity(),
-        engine.bus_slot_state.capacity(),
+        engine.bus_chains.capacity(),
         engine.bus_mono_scratch.capacity(),
         engine.bus_mono_snapshot.capacity(),
         engine.master_slot_state.capacity(),

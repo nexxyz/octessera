@@ -35,8 +35,9 @@ pub use engine::{
     SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerLoadSnapshot, SourceWorkerMode,
     SourceWorkerRetirement, SourceWorkerRetirementError, SourceWorkerRuntime,
     SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine,
-    SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
-    SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
+    BUS_CHAIN_SLOT_COST_UNITS, BUS_CHAIN_WORKER_MAX_COST_UNITS, SOURCE_WORKER_MAX_COST_UNITS,
+    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT, SOURCE_WORKER_SAMPLE_COST_UNITS,
+    SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
 };
 #[cfg(feature = "source-worker-benchmark-timing")]
 pub use source_worker_timing::{
@@ -48,7 +49,7 @@ pub use types::{
     FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
     MasterFxConfig, MixerConfig, MomentaryFxTarget, OscConfig, RenderProfileSnapshot,
     SampleBankConfig, SampleBuffer, SampleSlotConfig, SynthConfig, SynthProfileSnapshot,
-    VoiceStealingMode, BUS_FX_WARNING_SLOT_COUNT, BUS_SLOTS_PER_BUS,
+    VoiceStealingMode, BUS_COUNT, BUS_FX_WARNING_SLOT_COUNT, BUS_SLOTS_PER_BUS,
     DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT, MAX_CONTROL_EVENTS_PER_CALLBACK,
     MAX_SAMPLE_VOICES, MAX_SAMPLE_VOICES_PER_SLOT, MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT,
