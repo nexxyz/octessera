@@ -2,7 +2,7 @@ use super::audio_stream_lifecycle::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
     AudioStreamShutdownReport, PlayableAudioStream,
 };
-use super::cpal_audio_callback::{fill_callback, CallbackSource};
+use super::cpal_audio_callback::{fill_callback_with_scheduler, CallbackSource};
 use super::AudioSink;
 use super::RecordingTapState;
 use crate::audio_priority::CallbackSchedulingHandle;
@@ -68,7 +68,7 @@ pub(super) fn build_engine_source(
         AudioSourceExecutionMode::PersistentTwoWorkers => {
             let block_frames =
                 EngineSource::resolve_block_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES);
-            #[cfg(target_os = "linux")]
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
             let result = EngineSource::with_persistent_workers_with_hook(
                 engine_rx,
                 sample_rate,
@@ -76,7 +76,7 @@ pub(super) fn build_engine_source(
                 load_tx,
                 crate::audio_priority::orange_worker_start_hook,
             );
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             let result = EngineSource::with_persistent_workers(
                 engine_rx,
                 sample_rate,
@@ -262,14 +262,26 @@ fn build_stream<T>(
     config: &StreamConfig,
     source: EngineSource,
     shutdown_owner: Option<EngineSourceWorkerShutdownOwner>,
+    execution_mode: AudioSourceExecutionMode,
     recording_tap: Option<RecordingTapState>,
     stream_health: AudioStreamHealth,
-    report_worker_health: bool,
 ) -> Result<BuiltAudioStream, RouteOpenError>
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
-    let scheduler = CallbackSchedulingHandle::new(crate::audio_priority::callback_priority());
+    let scheduler = if cfg!(feature = "hardware-orange-pi-zero-2w")
+        && matches!(
+            execution_mode,
+            AudioSourceExecutionMode::PersistentTwoWorkers
+        ) {
+        CallbackSchedulingHandle::new_orange_jack()
+    } else {
+        CallbackSchedulingHandle::new(crate::audio_priority::callback_priority())
+    };
+    let report_worker_health = matches!(
+        execution_mode,
+        AudioSourceExecutionMode::PersistentTwoWorkers
+    );
     let callback_scheduler = scheduler.clone();
     let callback_health = stream_health.clone();
     let mut worker_health_reported = false;
@@ -278,14 +290,14 @@ where
     let stream = device.build_output_stream(
         config,
         move |data: &mut [T], _| {
-            callback_scheduler.configure_callback_thread();
-            fill_callback(
+            fill_callback_with_scheduler(
                 data,
                 &mut callback_source,
                 recording_tap.as_ref(),
                 &callback_health,
                 report_worker_health,
                 &mut worker_health_reported,
+                &callback_scheduler,
             );
         },
         move |error| stream_health.log(error),
@@ -301,6 +313,15 @@ where
         lifecycle,
         scheduler,
     })
+}
+
+#[cfg(test)]
+pub(super) fn callback_scheduler_for_sink(sink: AudioSink) -> CallbackSchedulingHandle {
+    if cfg!(feature = "hardware-orange-pi-zero-2w") && sink == AudioSink::Jack {
+        CallbackSchedulingHandle::new_orange_jack()
+    } else {
+        CallbackSchedulingHandle::new(crate::audio_priority::callback_priority())
+    }
 }
 
 fn build_stream_with_mode<T>(
@@ -322,12 +343,9 @@ where
         config,
         source,
         shutdown_owner,
+        execution_mode,
         recording_tap,
         stream_health,
-        matches!(
-            execution_mode,
-            AudioSourceExecutionMode::PersistentTwoWorkers
-        ),
     )
 }
 

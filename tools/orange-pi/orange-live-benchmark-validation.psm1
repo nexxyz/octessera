@@ -310,10 +310,17 @@ function Assert-OrangeLiveResult {
   if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers") -cnotcontains $executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
   $schedulingPolicy = $Result.PSObject.Properties["callback_scheduling_policy"]
   $schedulingPriority = $Result.PSObject.Properties["callback_scheduling_priority"]
-  $expectedPriority = if ($executorProperty.Value -ceq "inline") { 70 } else { 69 }
+  $schedulingCpu = $Result.PSObject.Properties["callback_scheduling_cpu"]
+  $expectedPriority = 70
   if ($null -eq $schedulingPolicy -or $schedulingPolicy.Value -isnot [string] -or $schedulingPolicy.Value -cne "SCHED_FIFO" -or $null -eq $schedulingPriority -or $schedulingPriority.Value -isnot [byte] -and $schedulingPriority.Value -isnot [int16] -and $schedulingPriority.Value -isnot [uint16] -and $schedulingPriority.Value -isnot [int32] -and $schedulingPriority.Value -isnot [uint32] -and $schedulingPriority.Value -isnot [int64] -and $schedulingPriority.Value -isnot [uint64] -or [int]$schedulingPriority.Value -ne $expectedPriority) { throw "Live benchmark effective scheduling evidence is invalid." }
+  if ($null -eq $schedulingCpu) { throw "Live benchmark callback CPU evidence is missing." }
+  if ($executorProperty.Value -ceq "persistent_two_workers") {
+    if ($schedulingCpu.Value -isnot [byte] -and $schedulingCpu.Value -isnot [int16] -and $schedulingCpu.Value -isnot [uint16] -and $schedulingCpu.Value -isnot [int32] -and $schedulingCpu.Value -isnot [uint32] -and $schedulingCpu.Value -isnot [int64] -and $schedulingCpu.Value -isnot [uint64] -or [int]$schedulingCpu.Value -ne 1) { throw "Live benchmark persistent callback CPU evidence is invalid." }
+  } elseif ($null -ne $schedulingCpu.Value) {
+    throw "Live benchmark inline callback CPU evidence must be null."
+  }
   $checks = @(
-    @([int]$Result.schema_version, 8),
+    @([int]$Result.schema_version, 9),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),

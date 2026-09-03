@@ -1,3 +1,5 @@
+#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+use super::audio_stream_lifecycle::{AudioStreamShutdownError, AudioStreamShutdownReport};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use super::cpal_audio_output::build_cpal_stream;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -137,12 +139,18 @@ pub(super) fn open_orange_audio_sink_with_health(
         }
         return Err(super::cpal_audio_output::map_play_stream_error(error));
     }
-    qualify_callback_scheduler(
-        sink.scheduler_label(),
-        &built.scheduler,
-        CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
-    )
-    .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
+    let built = if sink == AudioSink::Jack {
+        let scheduler = built.scheduler.clone();
+        qualify_jack_or_teardown(&scheduler, built, |built| built.teardown())?
+    } else {
+        qualify_callback_scheduler(
+            sink.scheduler_label(),
+            &built.scheduler,
+            CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
+        )
+        .map_err(RouteOpenError::Fault)?;
+        built
+    };
     engine_tx
         .send(EngineEvent::SetPreparedInstruments(
             prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
@@ -157,6 +165,56 @@ pub(super) fn open_orange_audio_sink_with_health(
     })
 }
 
+#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+fn qualify_jack_or_teardown<T>(
+    scheduler: &crate::audio_priority::CallbackSchedulingHandle,
+    built: T,
+    teardown: impl FnOnce(T) -> Result<AudioStreamShutdownReport, AudioStreamShutdownError>,
+) -> Result<T, RouteOpenError> {
+    if let Err(error) =
+        qualify_callback_scheduler("Jack", scheduler, CALLBACK_SCHEDULING_STARTUP_TIMEOUT)
+    {
+        if let Err(status) = teardown(built) {
+            return Err(RouteOpenError::Fault(format!(
+                "{error}; audio worker teardown failed: {status:?}"
+            )));
+        }
+        return Err(RouteOpenError::Fault(error));
+    }
+    Ok(built)
+}
+
 pub(super) fn recordings_dir() -> std::path::PathBuf {
     crate::main_paths::default_recordings_dir()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio_priority::CallbackSchedulingHandle;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    #[test]
+    fn jack_timeout_tears_down_built_stream_and_workers_before_faulting() {
+        let scheduler = CallbackSchedulingHandle::new_orange_jack();
+        let stream_dropped = Arc::new(AtomicBool::new(false));
+        let workers_joined = Arc::new(AtomicUsize::new(0));
+        let dropped = stream_dropped.clone();
+        let joined = workers_joined.clone();
+        let result = qualify_jack_or_teardown(&scheduler, (), move |_| {
+            dropped.store(true, Ordering::Release);
+            joined.store(2, Ordering::Release);
+            Ok(AudioStreamShutdownReport {
+                joined_workers: 2,
+                retirement_error: None,
+            })
+        });
+
+        assert!(
+            matches!(result, Err(RouteOpenError::Fault(error)) if error.contains("stage=timeout"))
+        );
+        assert!(stream_dropped.load(Ordering::Acquire));
+        assert_eq!(workers_joined.load(Ordering::Acquire), 2);
+    }
 }

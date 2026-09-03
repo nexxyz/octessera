@@ -79,9 +79,8 @@ function Assert-OrangeWorkerTimingEvidence {
   if (-not $frozen) { throw "Live benchmark coordinator timing was not frozen." }
 
   $workers = @()
-  $cpuAvailability = $null
-  $expectedEndpointChange = $false
-  foreach ($worker in $timing.workers) {
+  for ($parity = 0; $parity -lt $timing.workers.Count; $parity++) {
+    $worker = $timing.workers[$parity]
     $required = @("sequence", "render_ns", "dispatch_to_finish_ns", "cpu_start", "cpu_end", "finished")
     Assert-OrangeWorkerTimingProperties -Object $worker -Allowed $required -Path "worker_timing.workers"
     foreach ($name in $required) {
@@ -97,11 +96,9 @@ function Assert-OrangeWorkerTimingEvidence {
       if ($null -eq $workerSequence -or $null -eq $render -or $null -eq $dispatchToFinish) { throw "Finished worker timing has nullable required fields." }
       if ($null -ne $coordinatorSequence -and $workerSequence -ne $coordinatorSequence) { throw "Worker timing sequence does not match the coordinator sequence." }
       if ($dispatchToFinish -lt $render) { throw "Worker dispatch timing precedes render timing." }
-      $hasCpu = $null -ne $cpuStart
-      if ($hasCpu -ne ($null -ne $cpuEnd)) { throw "Finished worker timing has partial CPU evidence." }
-      if ($null -ne $cpuAvailability -and $cpuAvailability -ne $hasCpu) { throw "Worker CPU evidence disagrees about sampler availability." }
-      $cpuAvailability = $hasCpu
-      if ($hasCpu -and $cpuStart -ne $cpuEnd) { $expectedEndpointChange = $true }
+      $expectedCpu = @(2, 3)[$parity]
+      if ($null -eq $cpuStart -or $null -eq $cpuEnd) { throw "Finished worker timing is missing fixed CPU evidence." }
+      if ($cpuStart -ne $expectedCpu -or $cpuEnd -ne $expectedCpu) { throw "Worker CPU evidence does not match its fixed Orange CPU." }
     } elseif ($null -ne $workerSequence -or $null -ne $render -or $null -ne $dispatchToFinish -or $null -ne $cpuStart -or $null -ne $cpuEnd) {
       throw "Unexecuted worker timing must retain null measurements."
     }
@@ -110,7 +107,7 @@ function Assert-OrangeWorkerTimingEvidence {
 
   $late = Get-OrangeWorkerTimingInteger $timing.late_after_deadline_ns "worker_timing.late_after_deadline_ns" -Nullable
   $cpuEndpointChanged = Get-OrangeWorkerTimingBoolean $timing.cpu_endpoint_changed "worker_timing.cpu_endpoint_changed"
-  if ($cpuEndpointChanged -ne $expectedEndpointChange) { throw "Worker CPU endpoint-change summary does not match sampled endpoints." }
+  if ($cpuEndpointChanged) { throw "Worker CPU endpoint-change summary must be false." }
 
   if ($null -eq $coordinatorSequence) {
     foreach ($name in @("deadline_ns", "dispatch_to_deadline_start_ns", "dispatch_to_deadline_elapsed_ns", "in_flight_mask", "completed_mask", "first_parity", "dispatch_to_first_ns", "dispatch_to_both_ns", "reduction_ns", "coordinator_remainder_ns", "engine_block_total_ns", "callback_total_ns")) {

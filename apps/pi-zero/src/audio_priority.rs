@@ -1,72 +1,224 @@
-use std::sync::atomic::{AtomicI32, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[path = "audio_priority_syscalls.rs"]
+mod syscalls;
+
+#[cfg(test)]
+use syscalls::SCHED_FIFO_POLICY;
+use syscalls::{configure_legacy, configure_strict, CPU_MASK_WORDS};
+
+pub(crate) const ORANGE_JACK_CPU: usize = 1;
+pub(crate) const ORANGE_WORKER_CPUS: [usize; 2] = [2, 3];
 pub(crate) const ORANGE_WORKER_PRIORITY: i32 = 70;
-pub(crate) const ORANGE_CALLBACK_PRIORITY: i32 = 69;
+pub(crate) const ORANGE_CALLBACK_PRIORITY: i32 = 70;
+pub(crate) const ORANGE_SECONDARY_CALLBACK_PRIORITY: i32 = 69;
 pub(crate) const RASPBERRY_CALLBACK_PRIORITY: i32 = 70;
+
+#[path = "orange_worker_scheduling.rs"]
+mod worker_scheduling;
 
 const STATE_PENDING: u8 = 0;
 const STATE_CONFIGURING: u8 = 1;
 const STATE_QUALIFIED: u8 = 2;
 const STATE_FAILED: u8 = 3;
 const STATE_UNSUPPORTED: u8 = 4;
+const STATE_TIMED_OUT: u8 = 5;
+const STATE_PUBLISHING_QUALIFIED: u8 = 6;
+const STATE_PUBLISHING_FAILED: u8 = 7;
 
-const FAILURE_SET: u8 = 1;
-const FAILURE_GET: u8 = 2;
-const FAILURE_EFFECTIVE: u8 = 3;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub(crate) enum SchedulingFailureStage {
+    AffinitySet = 1,
+    AffinityGet = 2,
+    AffinityMismatch = 3,
+    SchedulingSet = 4,
+    SchedulingGet = 5,
+    SchedulingMismatch = 6,
+    Unsupported = 7,
+    Timeout = 8,
+}
+
+impl SchedulingFailureStage {
+    fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::AffinitySet,
+            2 => Self::AffinityGet,
+            3 => Self::AffinityMismatch,
+            4 => Self::SchedulingSet,
+            5 => Self::SchedulingGet,
+            6 => Self::SchedulingMismatch,
+            8 => Self::Timeout,
+            _ => Self::Unsupported,
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::AffinitySet => "affinity_set",
+            Self::AffinityGet => "affinity_get",
+            Self::AffinityMismatch => "affinity_mismatch",
+            Self::SchedulingSet => "scheduling_set",
+            Self::SchedulingGet => "scheduling_get",
+            Self::SchedulingMismatch => "scheduling_mismatch",
+            Self::Unsupported => "unsupported",
+            Self::Timeout => "timeout",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct CpuMask {
+    pub(crate) bits: [u64; CPU_MASK_WORDS],
+    pub(crate) extra_cpu: bool,
+}
+
+impl CpuMask {
+    pub(crate) const fn empty() -> Self {
+        Self {
+            bits: [0; CPU_MASK_WORDS],
+            extra_cpu: false,
+        }
+    }
+
+    #[cfg(any(test, all(not(test), target_os = "linux")))]
+    pub(crate) fn single(cpu: usize) -> Self {
+        let mut mask = Self::empty();
+        if cpu < u64::BITS as usize {
+            mask.bits[cpu / u64::BITS as usize] |= 1 << (cpu % u64::BITS as usize);
+        } else {
+            mask.extra_cpu = true;
+        }
+        mask
+    }
+
+    #[cfg(all(not(test), target_os = "linux"))]
+    pub(crate) fn from_linux(set: &libc::cpu_set_t) -> Self {
+        let mut mask = Self::empty();
+        for cpu in 0..libc::CPU_SETSIZE as usize {
+            if unsafe { libc::CPU_ISSET(cpu, set) } {
+                if cpu < u64::BITS as usize {
+                    mask.bits[cpu / u64::BITS as usize] |= 1 << (cpu % u64::BITS as usize);
+                } else {
+                    mask.extra_cpu = true;
+                }
+            }
+        }
+        mask
+    }
+}
+
+impl std::ops::BitOr for CpuMask {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self {
+            bits: std::array::from_fn(|index| self.bits[index] | rhs.bits[index]),
+            extra_cpu: self.extra_cpu || rhs.extra_cpu,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct EffectiveScheduling {
     pub(crate) policy: i32,
     pub(crate) priority: i32,
+    pub(crate) cpu: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CallbackSchedulingFailure {
-    Set { error: i32 },
-    Get { error: i32 },
-    Effective(EffectiveScheduling),
+pub(crate) struct SchedulingFailure {
+    pub(crate) stage: SchedulingFailureStage,
+    pub(crate) errno: i32,
+    pub(crate) requested_cpu: usize,
+    pub(crate) requested_priority: i32,
+    pub(crate) observed_mask: CpuMask,
+    pub(crate) observed_policy: i32,
+    pub(crate) observed_priority: i32,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CallbackSchedulingStatus {
     Pending,
     Qualified(EffectiveScheduling),
-    Failed(CallbackSchedulingFailure),
+    Failed(SchedulingFailure),
     Unsupported,
+    TimedOut,
 }
 
 struct CallbackSchedulingState {
     state: AtomicU8,
-    failure_kind: AtomicU8,
-    failure_error: AtomicI32,
+    failure_stage: AtomicU8,
+    failure_errno: AtomicI32,
+    requested_cpu: AtomicI32,
+    requested_priority: AtomicI32,
+    observed_mask: [AtomicU64; CPU_MASK_WORDS],
+    observed_mask_extra_cpu: AtomicBool,
+    observed_policy: AtomicI32,
+    observed_priority: AtomicI32,
     effective_policy: AtomicI32,
     effective_priority: AtomicI32,
+    effective_cpu: AtomicI32,
+}
+
+#[derive(Clone, Copy)]
+enum CallbackSchedulingRole {
+    Legacy,
+    OrangeJack,
 }
 
 #[derive(Clone)]
 pub(crate) struct CallbackSchedulingHandle {
     state: Arc<CallbackSchedulingState>,
+    role: CallbackSchedulingRole,
     requested_priority: i32,
 }
 
 impl CallbackSchedulingHandle {
     pub(crate) fn new(requested_priority: i32) -> Self {
+        Self::new_with_role(requested_priority, CallbackSchedulingRole::Legacy, None)
+    }
+
+    pub(crate) fn new_orange_jack() -> Self {
+        Self::new_with_role(
+            ORANGE_CALLBACK_PRIORITY,
+            CallbackSchedulingRole::OrangeJack,
+            Some(ORANGE_JACK_CPU),
+        )
+    }
+
+    fn new_with_role(
+        requested_priority: i32,
+        role: CallbackSchedulingRole,
+        requested_cpu: Option<usize>,
+    ) -> Self {
         Self {
             state: Arc::new(CallbackSchedulingState {
                 state: AtomicU8::new(STATE_PENDING),
-                failure_kind: AtomicU8::new(0),
-                failure_error: AtomicI32::new(0),
+                failure_stage: AtomicU8::new(0),
+                failure_errno: AtomicI32::new(0),
+                requested_cpu: AtomicI32::new(requested_cpu.map_or(-1, |cpu| cpu as i32)),
+                requested_priority: AtomicI32::new(requested_priority),
+                observed_mask: std::array::from_fn(|_| AtomicU64::new(0)),
+                observed_mask_extra_cpu: AtomicBool::new(false),
+                observed_policy: AtomicI32::new(0),
+                observed_priority: AtomicI32::new(0),
                 effective_policy: AtomicI32::new(0),
                 effective_priority: AtomicI32::new(0),
+                effective_cpu: AtomicI32::new(-1),
             }),
+            role,
             requested_priority,
         }
     }
 
-    pub(crate) fn configure_callback_thread(&self) {
+    pub(crate) fn configure_callback_thread(&self) -> bool {
+        let state = self.state.state.load(Ordering::Acquire);
+        if state != STATE_PENDING {
+            return state == STATE_QUALIFIED;
+        }
         if self
             .state
             .state
@@ -78,25 +230,33 @@ impl CallbackSchedulingHandle {
             )
             .is_err()
         {
-            return;
+            return self.state.state.load(Ordering::Acquire) == STATE_QUALIFIED;
         }
-
-        #[cfg(target_os = "linux")]
-        match imp::configure(self.requested_priority) {
-            Ok(effective) => {
-                self.state
-                    .effective_policy
-                    .store(effective.policy, Ordering::Relaxed);
-                self.state
-                    .effective_priority
-                    .store(effective.priority, Ordering::Relaxed);
-                self.state.state.store(STATE_QUALIFIED, Ordering::Release);
+        let result = match self.role {
+            CallbackSchedulingRole::Legacy => configure_legacy(self.requested_priority),
+            CallbackSchedulingRole::OrangeJack => {
+                configure_strict(ORANGE_JACK_CPU, self.requested_priority)
             }
-            Err(failure) => self.publish_failure(failure),
+        };
+        match result {
+            Ok(effective) => self.publish_qualified(effective),
+            Err(failure) => {
+                if !matches!(self.role, CallbackSchedulingRole::Legacy)
+                    || failure.stage != SchedulingFailureStage::Unsupported
+                {
+                    self.publish_failed(failure);
+                    false
+                } else {
+                    let _ = self.state.state.compare_exchange(
+                        STATE_CONFIGURING,
+                        STATE_UNSUPPORTED,
+                        Ordering::Release,
+                        Ordering::Acquire,
+                    );
+                    false
+                }
+            }
         }
-
-        #[cfg(not(target_os = "linux"))]
-        self.state.state.store(STATE_UNSUPPORTED, Ordering::Release);
     }
 
     pub(crate) fn status(&self) -> CallbackSchedulingStatus {
@@ -104,9 +264,14 @@ impl CallbackSchedulingHandle {
             STATE_QUALIFIED => CallbackSchedulingStatus::Qualified(EffectiveScheduling {
                 policy: self.state.effective_policy.load(Ordering::Relaxed),
                 priority: self.state.effective_priority.load(Ordering::Relaxed),
+                cpu: match self.state.effective_cpu.load(Ordering::Relaxed) {
+                    value if value < 0 => None,
+                    value => Some(value as usize),
+                },
             }),
             STATE_FAILED => CallbackSchedulingStatus::Failed(self.failure()),
             STATE_UNSUPPORTED => CallbackSchedulingStatus::Unsupported,
+            STATE_TIMED_OUT => CallbackSchedulingStatus::TimedOut,
             _ => CallbackSchedulingStatus::Pending,
         }
     }
@@ -129,102 +294,150 @@ impl CallbackSchedulingHandle {
         self.requested_priority
     }
 
-    #[cfg(target_os = "linux")]
-    fn publish_failure(&self, failure: CallbackSchedulingFailure) {
-        match failure {
-            CallbackSchedulingFailure::Set { error } => {
-                self.state
-                    .failure_kind
-                    .store(FAILURE_SET, Ordering::Relaxed);
-                self.state.failure_error.store(error, Ordering::Relaxed);
-            }
-            CallbackSchedulingFailure::Get { error } => {
-                self.state
-                    .failure_kind
-                    .store(FAILURE_GET, Ordering::Relaxed);
-                self.state.failure_error.store(error, Ordering::Relaxed);
-            }
-            CallbackSchedulingFailure::Effective(effective) => {
-                self.state
-                    .failure_kind
-                    .store(FAILURE_EFFECTIVE, Ordering::Relaxed);
-                self.state
-                    .effective_policy
-                    .store(effective.policy, Ordering::Relaxed);
-                self.state
-                    .effective_priority
-                    .store(effective.priority, Ordering::Relaxed);
-            }
-        }
-        self.state.state.store(STATE_FAILED, Ordering::Release);
+    pub(crate) fn is_strict(&self) -> bool {
+        matches!(self.role, CallbackSchedulingRole::OrangeJack)
     }
 
-    fn failure(&self) -> CallbackSchedulingFailure {
-        match self.state.failure_kind.load(Ordering::Relaxed) {
-            FAILURE_SET => CallbackSchedulingFailure::Set {
-                error: self.state.failure_error.load(Ordering::Relaxed),
+    fn publish_timeout(&self) -> CallbackSchedulingStatus {
+        let mut state = self.state.state.load(Ordering::Acquire);
+        loop {
+            if !matches!(state, STATE_PENDING | STATE_CONFIGURING) {
+                break;
+            }
+            match self.state.state.compare_exchange(
+                state,
+                STATE_TIMED_OUT,
+                Ordering::Release,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return CallbackSchedulingStatus::TimedOut,
+                Err(next) => state = next,
+            }
+        }
+        loop {
+            let status = self.status();
+            if !matches!(status, CallbackSchedulingStatus::Pending) {
+                return status;
+            }
+            std::thread::yield_now();
+        }
+    }
+
+    fn timeout_failure(&self) -> SchedulingFailure {
+        SchedulingFailure {
+            stage: SchedulingFailureStage::Timeout,
+            errno: 0,
+            requested_cpu: ORANGE_JACK_CPU,
+            requested_priority: self.requested_priority,
+            observed_mask: CpuMask::empty(),
+            observed_policy: 0,
+            observed_priority: 0,
+        }
+    }
+
+    fn publish_qualified(&self, effective: EffectiveScheduling) -> bool {
+        if self
+            .state
+            .state
+            .compare_exchange(
+                STATE_CONFIGURING,
+                STATE_PUBLISHING_QUALIFIED,
+                Ordering::Acquire,
+                Ordering::Acquire,
+            )
+            .is_err()
+        {
+            return false;
+        }
+        self.state
+            .effective_policy
+            .store(effective.policy, Ordering::Relaxed);
+        self.state
+            .effective_priority
+            .store(effective.priority, Ordering::Relaxed);
+        self.state.effective_cpu.store(
+            effective.cpu.map_or(-1, |cpu| cpu as i32),
+            Ordering::Relaxed,
+        );
+        self.state.state.store(STATE_QUALIFIED, Ordering::Release);
+        true
+    }
+
+    fn publish_failed(&self, failure: SchedulingFailure) -> bool {
+        if self
+            .state
+            .state
+            .compare_exchange(
+                STATE_CONFIGURING,
+                STATE_PUBLISHING_FAILED,
+                Ordering::Acquire,
+                Ordering::Acquire,
+            )
+            .is_err()
+        {
+            return false;
+        }
+        self.state
+            .failure_stage
+            .store(failure.stage as u8, Ordering::Relaxed);
+        self.state
+            .failure_errno
+            .store(failure.errno, Ordering::Relaxed);
+        self.state
+            .requested_cpu
+            .store(failure.requested_cpu as i32, Ordering::Relaxed);
+        self.state
+            .requested_priority
+            .store(failure.requested_priority, Ordering::Relaxed);
+        for (slot, word) in self
+            .state
+            .observed_mask
+            .iter()
+            .zip(failure.observed_mask.bits)
+        {
+            slot.store(word, Ordering::Relaxed);
+        }
+        self.state
+            .observed_mask_extra_cpu
+            .store(failure.observed_mask.extra_cpu, Ordering::Relaxed);
+        self.state
+            .observed_policy
+            .store(failure.observed_policy, Ordering::Relaxed);
+        self.state
+            .observed_priority
+            .store(failure.observed_priority, Ordering::Relaxed);
+        self.state.state.store(STATE_FAILED, Ordering::Release);
+        true
+    }
+
+    fn failure(&self) -> SchedulingFailure {
+        SchedulingFailure {
+            stage: SchedulingFailureStage::from_u8(
+                self.state.failure_stage.load(Ordering::Relaxed),
+            ),
+            errno: self.state.failure_errno.load(Ordering::Relaxed),
+            requested_cpu: match self.state.requested_cpu.load(Ordering::Relaxed) {
+                value if value < 0 => usize::MAX,
+                value => value as usize,
             },
-            FAILURE_GET => CallbackSchedulingFailure::Get {
-                error: self.state.failure_error.load(Ordering::Relaxed),
+            requested_priority: self.state.requested_priority.load(Ordering::Relaxed),
+            observed_mask: CpuMask {
+                bits: std::array::from_fn(|index| {
+                    self.state.observed_mask[index].load(Ordering::Relaxed)
+                }),
+                extra_cpu: self.state.observed_mask_extra_cpu.load(Ordering::Relaxed),
             },
-            FAILURE_EFFECTIVE => CallbackSchedulingFailure::Effective(EffectiveScheduling {
-                policy: self.state.effective_policy.load(Ordering::Relaxed),
-                priority: self.state.effective_priority.load(Ordering::Relaxed),
-            }),
-            _ => CallbackSchedulingFailure::Get { error: 0 },
+            observed_policy: self.state.observed_policy.load(Ordering::Relaxed),
+            observed_priority: self.state.observed_priority.load(Ordering::Relaxed),
         }
     }
 }
 
 pub(crate) fn callback_priority() -> i32 {
     if cfg!(feature = "hardware-orange-pi-zero-2w") {
-        ORANGE_CALLBACK_PRIORITY
+        ORANGE_SECONDARY_CALLBACK_PRIORITY
     } else {
         RASPBERRY_CALLBACK_PRIORITY
-    }
-}
-
-#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
-pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
-    #[cfg(target_os = "linux")]
-    {
-        if policy == libc::SCHED_FIFO {
-            "SCHED_FIFO"
-        } else {
-            "unknown"
-        }
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = policy;
-        "unsupported"
-    }
-}
-
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-pub(crate) fn orange_worker_start_hook(_parity: usize) -> Result<(), ()> {
-    #[cfg(target_os = "linux")]
-    {
-        imp::configure(ORANGE_WORKER_PRIORITY)
-            .map(|_| ())
-            .map_err(|_| ())
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        Err(())
-    }
-}
-
-#[cfg(feature = "source-worker-benchmark-timing")]
-pub(crate) fn orange_cpu_sampler() -> u32 {
-    #[cfg(target_os = "linux")]
-    {
-        let cpu = unsafe { libc::sched_getcpu() };
-        return if cpu >= 0 { cpu as u32 } else { u32::MAX };
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        u32::MAX
     }
 }
 
@@ -233,7 +446,10 @@ pub(crate) fn qualify_callback_scheduler(
     scheduler: &CallbackSchedulingHandle,
     timeout: Duration,
 ) -> Result<EffectiveScheduling, String> {
-    let status = scheduler.wait_for_status(timeout);
+    let mut status = scheduler.wait_for_status(timeout);
+    if matches!(status, CallbackSchedulingStatus::Pending) && scheduler.is_strict() {
+        status = scheduler.publish_timeout();
+    }
     match status {
         CallbackSchedulingStatus::Qualified(effective) => {
             eprintln!(
@@ -248,7 +464,10 @@ pub(crate) fn qualify_callback_scheduler(
             scheduler.requested_priority()
         )),
         CallbackSchedulingStatus::Failed(failure) => {
-            Err(format_scheduling_failure(sink_label, scheduler.requested_priority(), failure))
+            Err(syscalls::format_failure(sink_label, failure))
+        }
+        CallbackSchedulingStatus::TimedOut => {
+            Err(syscalls::format_failure(sink_label, scheduler.timeout_failure()))
         }
         CallbackSchedulingStatus::Unsupported => Err(format!(
             "{sink_label} audio callback RT promotion not qualified: pthread scheduling is unsupported on this platform"
@@ -256,181 +475,21 @@ pub(crate) fn qualify_callback_scheduler(
     }
 }
 
-fn format_scheduling_failure(
-    sink_label: &str,
-    requested_priority: i32,
-    failure: CallbackSchedulingFailure,
-) -> String {
-    let detail = match failure {
-        CallbackSchedulingFailure::Set { error } => {
-            format!("pthread_setschedparam returned error {error}")
-        }
-        CallbackSchedulingFailure::Get { error } => {
-            format!("pthread_getschedparam returned error {error}")
-        }
-        CallbackSchedulingFailure::Effective(effective) => format!(
-            "effective policy={} priority={} did not match SCHED_FIFO priority={requested_priority}",
-            effective.policy, effective.priority
-        ),
-    };
-    format!("{sink_label} audio callback RT promotion not qualified: {detail}")
-}
-
-#[cfg(target_os = "linux")]
-mod imp {
-    use super::{CallbackSchedulingFailure, EffectiveScheduling};
-
-    pub(super) fn configure(
-        requested_priority: i32,
-    ) -> Result<EffectiveScheduling, CallbackSchedulingFailure> {
-        let params = libc::sched_param {
-            sched_priority: requested_priority,
-        };
-        let set_result =
-            unsafe { libc::pthread_setschedparam(libc::pthread_self(), libc::SCHED_FIFO, &params) };
-        let set_result = if set_result == 0 {
-            Ok(())
-        } else {
-            Err(set_result)
-        };
-        let effective_result = if set_result.is_ok() {
-            let mut policy = 0;
-            let mut params = libc::sched_param { sched_priority: 0 };
-            let get_result = unsafe {
-                libc::pthread_getschedparam(libc::pthread_self(), &mut policy, &mut params)
-            };
-            if get_result == 0 {
-                Ok(EffectiveScheduling {
-                    policy,
-                    priority: params.sched_priority,
-                })
-            } else {
-                Err(get_result)
-            }
-        } else {
-            Err(0)
-        };
-        classify_results(requested_priority, set_result, effective_result)
-    }
-
-    fn classify_results(
-        requested_priority: i32,
-        set_result: Result<(), i32>,
-        effective_result: Result<EffectiveScheduling, i32>,
-    ) -> Result<EffectiveScheduling, CallbackSchedulingFailure> {
-        if let Err(error) = set_result {
-            return Err(CallbackSchedulingFailure::Set { error });
-        }
-        let effective =
-            effective_result.map_err(|error| CallbackSchedulingFailure::Get { error })?;
-        verify_effective(requested_priority, effective.policy, effective.priority)
-    }
-
-    fn verify_effective(
-        requested_priority: i32,
-        policy: i32,
-        priority: i32,
-    ) -> Result<EffectiveScheduling, CallbackSchedulingFailure> {
-        let effective = EffectiveScheduling { policy, priority };
-        if policy == libc::SCHED_FIFO && priority == requested_priority {
-            Ok(effective)
-        } else {
-            Err(CallbackSchedulingFailure::Effective(effective))
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn exact_fifo_priority_is_qualified_only_after_effective_verification() {
-            assert_eq!(
-                verify_effective(70, libc::SCHED_FIFO, 70),
-                Ok(EffectiveScheduling {
-                    policy: libc::SCHED_FIFO,
-                    priority: 70,
-                })
-            );
-            assert_eq!(
-                verify_effective(70, libc::SCHED_FIFO, 69),
-                Err(CallbackSchedulingFailure::Effective(EffectiveScheduling {
-                    policy: libc::SCHED_FIFO,
-                    priority: 69,
-                }))
-            );
-        }
-
-        #[test]
-        fn non_fifo_policy_is_not_qualified() {
-            assert!(matches!(
-                verify_effective(70, libc::SCHED_FIFO - 1, 70),
-                Err(CallbackSchedulingFailure::Effective(EffectiveScheduling {
-                    priority: 70,
-                    ..
-                }))
-            ));
-        }
-
-        #[test]
-        fn set_failure_is_not_qualified_even_if_effective_values_look_right() {
-            assert_eq!(
-                classify_results(
-                    70,
-                    Err(libc::EPERM),
-                    Ok(EffectiveScheduling {
-                        policy: libc::SCHED_FIFO,
-                        priority: 70,
-                    })
-                ),
-                Err(CallbackSchedulingFailure::Set { error: libc::EPERM })
-            );
-        }
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) use syscalls::{
+    install as install_test_scheduling, install_blocked as install_blocked_test_scheduling,
+    InjectedSchedulingOutcomes, SchedulingSyscall,
+};
 
-    #[test]
-    fn orange_workers_precede_callbacks_with_fixed_qualification_priorities() {
-        assert_eq!(ORANGE_WORKER_PRIORITY, 70);
-        assert_eq!(ORANGE_CALLBACK_PRIORITY, 69);
-        const {
-            assert!(ORANGE_CALLBACK_PRIORITY < ORANGE_WORKER_PRIORITY);
-            assert!(ORANGE_WORKER_PRIORITY <= 70);
-        }
-    }
+#[cfg(feature = "source-worker-benchmark-timing")]
+pub(crate) use syscalls::orange_cpu_sampler;
+#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) use worker_scheduling::orange_worker_start_hook;
 
-    #[test]
-    fn callback_priority_is_fixed_for_each_hardware_profile() {
-        assert_eq!(RASPBERRY_CALLBACK_PRIORITY, 70);
-        assert_eq!(
-            callback_priority(),
-            if cfg!(feature = "hardware-orange-pi-zero-2w") {
-                ORANGE_CALLBACK_PRIORITY
-            } else {
-                RASPBERRY_CALLBACK_PRIORITY
-            }
-        );
-    }
-
-    #[test]
-    fn scheduler_starts_pending() {
-        let scheduler = CallbackSchedulingHandle::new(70);
-
-        assert_eq!(scheduler.status(), CallbackSchedulingStatus::Pending);
-        assert_eq!(scheduler.requested_priority(), 70);
-    }
-
-    #[test]
-    fn startup_timeout_is_not_a_qualification() {
-        let scheduler = CallbackSchedulingHandle::new(70);
-
-        let error = qualify_callback_scheduler("DAC", &scheduler, Duration::ZERO).unwrap_err();
-
-        assert!(error.contains("DAC"));
-        assert!(error.contains("not qualified"));
-    }
+#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
+    syscalls::scheduling_policy_name(policy)
 }
+#[cfg(test)]
+#[path = "audio_priority_tests.rs"]
+mod tests;

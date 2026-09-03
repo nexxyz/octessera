@@ -184,8 +184,6 @@ fn validate_workers(
     sequence: u64,
     cpu_endpoint_changed: bool,
 ) -> Result<[WorkerEvidence; 2], String> {
-    let mut cpu_availability = None;
-    let mut expected_endpoint_change = false;
     let mut evidence = [WorkerEvidence::default(); 2];
     for (parity, worker) in workers.iter().enumerate() {
         if !worker.finished {
@@ -210,28 +208,26 @@ fn validate_workers(
                 "worker {parity} dispatch timing precedes render timing"
             ));
         }
-        let availability = match (worker.cpu_start, worker.cpu_end) {
-            (Some(start), Some(end)) => {
-                expected_endpoint_change |= start != end;
-                true
+        let expected_cpu = [2_u32, 3_u32][parity];
+        match (worker.cpu_start, worker.cpu_end) {
+            (Some(start), Some(end)) if start == expected_cpu && end == expected_cpu => {}
+            (Some(_), Some(_)) => {
+                return Err(format!(
+                    "worker {parity} CPU evidence does not match its fixed Orange CPU"
+                ));
             }
-            (None, None) => false,
+            (None, None) => {
+                return Err(format!("worker {parity} is missing fixed CPU evidence"));
+            }
             _ => return Err(format!("worker {parity} has partial CPU evidence")),
-        };
-        if let Some(previous) = cpu_availability {
-            if previous != availability {
-                return Err("worker CPU evidence disagrees about sampler availability".into());
-            }
-        } else {
-            cpu_availability = Some(availability);
         }
         evidence[parity] = WorkerEvidence {
             dispatch_to_finish: Some(dispatch_to_finish),
             finished: true,
         };
     }
-    if cpu_endpoint_changed != expected_endpoint_change {
-        return Err("worker CPU endpoint-change summary does not match sampled endpoints".into());
+    if cpu_endpoint_changed {
+        return Err("worker CPU endpoint-change summary must be false".into());
     }
     Ok(evidence)
 }

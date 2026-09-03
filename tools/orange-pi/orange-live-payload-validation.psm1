@@ -111,6 +111,7 @@ benchmark_invocation=
 unit=fixture.service
 readiness="$root/readiness.json"
 result="$root/result.json"
+sensor_abort="$root/sensor_abort"
 release_marker="$root/release-marker"
 study_status=0
 study_class=infrastructure_failure
@@ -133,9 +134,15 @@ sleep() { :; }
 write_readiness
 mkdir -p "$task_root/$pid/task"
 date_calls=0
+date_state="$(mktemp)"
+printf '0\n' > "$date_state"
+cleanup_date_state() { rm -f -- "$date_state"; }
+trap cleanup_date_state EXIT
 date() {
   if [ "$1" = +%s ]; then
+    date_calls="$(cat "$date_state")"
     date_calls=$((date_calls + 1))
+    printf '%s\n' "$date_calls" > "$date_state"
     if [ "$date_calls" = 1 ]; then printf '100\n'; else printf '999\n'; fi
   else
     command date "$@"
@@ -153,13 +160,13 @@ printf '{\n"status":"pass",\n"executor_mode":"inline",\n"worker_health":"disable
 wait_for_benchmark_terminal
 [ "$study_status" = 0 ]
 [ "$study_class" = pass ]
-printf '{\n"status":"pass",\n"executor_mode":"inline",\n"worker_health":"disabled",\n"worker_thread_name_0":"",\n"worker_thread_name_1":"",\n"joined_workers":1,\n"retirement_error":null\n}\n' > "$result"
+printf '{\n"status":"pass",\n"executor_mode":"inline",\n"worker_health":"disabled",\n"worker_thread_name_0":"",\n"worker_thread_name_1":"",\n"joined_workers":1,\n"retirement_error":"fixture-invalid"\n}\n' > "$result"
 study_status=0
 study_class=infrastructure_failure
 if wait_for_benchmark_terminal; then exit 1; fi
 [ "$study_status" = 66 ]
 [ "$study_class" = infrastructure_failure ]
-printf accepted > "$release_marker"
+printf accepted >> "$release_marker"
 grep -q released "$release_marker"
 grep -q accepted "$release_marker"
 rm -rf -- "$root" "$task_root"

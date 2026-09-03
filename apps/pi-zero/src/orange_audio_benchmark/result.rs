@@ -1,6 +1,6 @@
 use super::super::cli::{BenchmarkExecutorMode, WorkerTimingMode};
 use super::{
-    deserialize_result_schema_v4, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
+    deserialize_result_schema_v9, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
     CallbackMetricsSnapshot,
 };
 use serde::de::Error as DeserializeError;
@@ -25,6 +25,7 @@ pub struct BenchmarkResult {
     pub scheduler_qualified: bool,
     pub callback_scheduling_policy: Option<String>,
     pub callback_scheduling_priority: Option<i32>,
+    pub callback_scheduling_cpu: Option<u32>,
     pub post_dsp_zero: bool,
     pub measurement_stop_acknowledged: bool,
     pub stream_stopped: bool,
@@ -51,7 +52,7 @@ pub struct BenchmarkResult {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BenchmarkResultUnchecked {
-    #[serde(deserialize_with = "deserialize_result_schema_v4")]
+    #[serde(deserialize_with = "deserialize_result_schema_v9")]
     schema_version: u8,
     kind: String,
     status: String,
@@ -69,6 +70,7 @@ struct BenchmarkResultUnchecked {
     scheduler_qualified: bool,
     callback_scheduling_policy: Option<String>,
     callback_scheduling_priority: Option<i32>,
+    callback_scheduling_cpu: Option<u32>,
     post_dsp_zero: bool,
     measurement_stop_acknowledged: bool,
     stream_stopped: bool,
@@ -117,6 +119,7 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             scheduler_qualified,
             callback_scheduling_policy,
             callback_scheduling_priority,
+            callback_scheduling_cpu,
             post_dsp_zero,
             measurement_stop_acknowledged,
             stream_stopped,
@@ -157,6 +160,7 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             scheduler_qualified,
             callback_scheduling_policy,
             callback_scheduling_priority,
+            callback_scheduling_cpu,
             post_dsp_zero,
             measurement_stop_acknowledged,
             stream_stopped,
@@ -189,16 +193,23 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
     let executor_mode = BenchmarkExecutorMode::parse(&result.executor_mode)
         .ok_or_else(|| "benchmark executor mode is missing or invalid".to_string())?;
     let expected_priority = match executor_mode {
-        BenchmarkExecutorMode::Inline => 70,
-        BenchmarkExecutorMode::PersistentTwoWorkers => 69,
+        BenchmarkExecutorMode::Inline | BenchmarkExecutorMode::PersistentTwoWorkers => 70,
+    };
+    let expected_cpu = match executor_mode {
+        BenchmarkExecutorMode::Inline => None,
+        BenchmarkExecutorMode::PersistentTwoWorkers => Some(1),
     };
     let scheduling_is_valid = result.callback_scheduling_policy.as_deref() == Some("SCHED_FIFO")
-        && result.callback_scheduling_priority == Some(expected_priority);
+        && result.callback_scheduling_priority == Some(expected_priority)
+        && result.callback_scheduling_cpu == expected_cpu;
     if result.callback_scheduling_policy.is_some() != result.callback_scheduling_priority.is_some()
+        || result.callback_scheduling_cpu.is_some()
+            != (executor_mode == BenchmarkExecutorMode::PersistentTwoWorkers
+                && result.callback_scheduling_policy.is_some())
         || (result.scheduler_qualified && !scheduling_is_valid)
         || (result.callback_scheduling_policy.is_some() && !scheduling_is_valid)
     {
-        return Err("effective callback scheduling policy or priority is invalid".into());
+        return Err("effective callback scheduling policy, priority, or CPU is invalid".into());
     }
     if result.status == "pass"
         && (!result.scheduler_qualified

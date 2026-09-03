@@ -27,15 +27,15 @@ fn worker_timing() -> BenchmarkWorkerTiming {
                 render_ns: Some(10),
                 dispatch_to_finish_ns: Some(20),
                 cpu_start: Some(2),
-                cpu_end: Some(3),
+                cpu_end: Some(2),
                 finished: true,
             },
             BenchmarkWorkerTimingWorker {
                 sequence: Some(7),
                 render_ns: Some(11),
                 dispatch_to_finish_ns: Some(25),
-                cpu_start: Some(2),
-                cpu_end: Some(2),
+                cpu_start: Some(3),
+                cpu_end: Some(3),
                 finished: true,
             },
         ],
@@ -57,7 +57,7 @@ fn worker_timing() -> BenchmarkWorkerTiming {
             frozen: true,
         },
         late_after_deadline_ns: None,
-        cpu_endpoint_changed: true,
+        cpu_endpoint_changed: false,
     }
 }
 
@@ -96,7 +96,8 @@ fn benchmark_result(
         measure_seconds: 30,
         scheduler_qualified: true,
         callback_scheduling_policy: Some("SCHED_FIFO".into()),
-        callback_scheduling_priority: Some(69),
+        callback_scheduling_priority: Some(70),
+        callback_scheduling_cpu: Some(1),
         post_dsp_zero: true,
         measurement_stop_acknowledged: true,
         stream_stopped: true,
@@ -125,6 +126,7 @@ fn inline_benchmark_result() -> BenchmarkResult {
     let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
     result.executor_mode = "inline".into();
     result.callback_scheduling_priority = Some(70);
+    result.callback_scheduling_cpu = None;
     result.worker_health = "disabled".into();
     result.worker_thread_name_0.clear();
     result.worker_thread_name_1.clear();
@@ -191,11 +193,12 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
 }
 
 #[test]
-fn result_schema8_requires_worker_timing_and_rejects_unknown_fields() {
+fn result_schema9_requires_worker_timing_and_rejects_unknown_fields() {
     let result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert_eq!(value["schema_version"], 8);
+    assert_eq!(value["schema_version"], 9);
+    assert_eq!(value["callback_scheduling_cpu"], 1);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["worker_timing"]["workers"][1]["render_ns"], 11);
     assert_eq!(value["worker_timing"]["coordinator"]["reduction_ns"], 4);
@@ -215,8 +218,8 @@ fn result_schema8_requires_worker_timing_and_rejects_unknown_fields() {
         serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
         result
     );
-    let schema7 = encoded.replacen("\"schema_version\":8", "\"schema_version\":7", 1);
-    assert!(serde_json::from_str::<BenchmarkResult>(&schema7).is_err());
+    let schema8 = encoded.replacen("\"schema_version\":9", "\"schema_version\":8", 1);
+    assert!(serde_json::from_str::<BenchmarkResult>(&schema8).is_err());
     let missing_timing = value_without_worker_timing(&result);
     assert!(serde_json::from_value::<BenchmarkResult>(missing_timing).is_err());
     let mut null_timing = serde_json::to_value(&result).unwrap();
@@ -225,7 +228,7 @@ fn result_schema8_requires_worker_timing_and_rejects_unknown_fields() {
 }
 
 #[test]
-fn schema8_worker_timing_modes_require_exact_consistent_evidence() {
+fn schema9_worker_timing_modes_require_exact_consistent_evidence() {
     let enabled = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let enabled_encoded = serde_json::to_string(&enabled).unwrap();
     assert_eq!(
@@ -281,7 +284,7 @@ fn schema8_worker_timing_modes_require_exact_consistent_evidence() {
 }
 
 #[test]
-fn schema8_executor_modes_require_exact_runtime_evidence() {
+fn schema9_executor_modes_require_exact_runtime_evidence() {
     let inline = inline_benchmark_result();
     let encoded = serde_json::to_string(&inline).unwrap();
     assert_eq!(
@@ -303,6 +306,15 @@ fn schema8_executor_modes_require_exact_runtime_evidence() {
     assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
 
     let mut invalid = serde_json::to_value(&inline).unwrap();
+    invalid["callback_scheduling_cpu"] = 1.into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+
+    let mut invalid =
+        serde_json::to_value(benchmark_result(WorkerTimingMode::Disabled, None)).unwrap();
+    invalid["callback_scheduling_cpu"] = 2.into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
+
+    let mut invalid = serde_json::to_value(&inline).unwrap();
     invalid["callback_scheduling_policy"] = "SCHED_RR".into();
     assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
 
@@ -317,7 +329,7 @@ fn schema8_executor_modes_require_exact_runtime_evidence() {
 }
 
 #[test]
-fn schema8_accepts_pre_stream_failures_for_both_executors() {
+fn schema9_accepts_pre_stream_failures_for_both_executors() {
     for executor_mode in [
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline,
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers,
@@ -328,6 +340,7 @@ fn schema8_accepts_pre_stream_failures_for_both_executors() {
         result.scheduler_qualified = false;
         result.callback_scheduling_policy = None;
         result.callback_scheduling_priority = None;
+        result.callback_scheduling_cpu = None;
         result.measurement_stop_acknowledged = false;
         result.stream_stopped = false;
         result.final_progress_write_succeeded = false;
@@ -365,7 +378,7 @@ fn profile_snapshot_preserves_admission_drop_evidence() {
 }
 
 #[test]
-fn schema8_requires_numeric_admission_drop_evidence() {
+fn schema9_requires_numeric_admission_drop_evidence() {
     let config = config();
     let mut result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     result.artifact_sha256 = config.artifact_sha256;
@@ -382,7 +395,7 @@ fn schema8_requires_numeric_admission_drop_evidence() {
 }
 
 #[test]
-fn schema8_accepts_healthy_and_deadline_worker_timing() {
+fn schema9_accepts_healthy_and_deadline_worker_timing() {
     for timing in [worker_timing(), deadline_worker_timing()] {
         let encoded =
             serde_json::to_string(&benchmark_result(WorkerTimingMode::Enabled, Some(timing)))

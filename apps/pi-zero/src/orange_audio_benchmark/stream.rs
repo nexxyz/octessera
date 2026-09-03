@@ -122,7 +122,7 @@ pub fn build(
     let health = AudioStreamHealth::new("Orange benchmark".into());
     let worker_health = Arc::new(AtomicU8::new(source.source_worker_health() as u8));
     let (callback_source, retirement_waiter) = CallbackSource::new(source, true);
-    let scheduler = CallbackSchedulingHandle::new(callback_priority_for_executor(executor_mode));
+    let scheduler = callback_scheduler_for_executor(executor_mode);
     let callback_scheduler = scheduler.clone();
     let callback_context = CallbackContext {
         metrics,
@@ -201,7 +201,6 @@ fn build_persistent_source(
     internal_frames: usize,
     timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 ) -> Result<(EngineSource, EngineSourceWorkerShutdownOwner), String> {
-    #[cfg(target_os = "linux")]
     let result = match timing_probe {
         Some(timing_probe) => {
             EngineSource::with_persistent_workers_for_benchmark_with_timing_probe_and_hook(
@@ -221,24 +220,6 @@ fn build_persistent_source(
             crate::audio_priority::orange_worker_start_hook,
         ),
     };
-    #[cfg(not(target_os = "linux"))]
-    let result = match timing_probe {
-        Some(timing_probe) => {
-            EngineSource::with_persistent_workers_for_benchmark_with_timing_probe(
-                engine_rx,
-                sample_rate,
-                internal_frames,
-                None,
-                timing_probe,
-            )
-        }
-        None => EngineSource::with_persistent_workers_for_benchmark(
-            engine_rx,
-            sample_rate,
-            internal_frames,
-            None,
-        ),
-    };
     result
         .map_err(|error| format!("failed to start persistent Orange benchmark workers: {error:?}"))
 }
@@ -249,6 +230,17 @@ fn callback_priority_for_executor(executor_mode: BenchmarkExecutorMode) -> i32 {
         BenchmarkExecutorMode::PersistentTwoWorkers => {
             crate::audio_priority::ORANGE_CALLBACK_PRIORITY
         }
+    }
+}
+
+fn callback_scheduler_for_executor(
+    executor_mode: BenchmarkExecutorMode,
+) -> CallbackSchedulingHandle {
+    match executor_mode {
+        BenchmarkExecutorMode::Inline => {
+            CallbackSchedulingHandle::new(callback_priority_for_executor(executor_mode))
+        }
+        BenchmarkExecutorMode::PersistentTwoWorkers => CallbackSchedulingHandle::new_orange_jack(),
     }
 }
 
@@ -314,8 +306,17 @@ where
             config,
             move |data: &mut [T], info: &cpal::OutputCallbackInfo| {
                 let body_started = Instant::now();
+                let scheduling_qualified = callback_scheduler.configure_callback_thread();
+                if callback_scheduler.is_strict() && !scheduling_qualified {
+                    let zero = post_dsp_zero();
+                    for sample in data {
+                        *sample = zero;
+                    }
+                    callback_health.mark_callback_terminal();
+                    callback_metrics.mark_terminal();
+                    return;
+                }
                 let phase_capture = phase_control.capture_at_callback_entry();
-                callback_scheduler.configure_callback_thread();
                 let timestamp = info.timestamp().callback;
                 let spacing = match (previous_timestamp, previous_phase) {
                     (Some(previous), Some(previous_phase))
