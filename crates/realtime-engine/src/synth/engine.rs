@@ -125,9 +125,9 @@ pub use source_worker_observer::{
     SourceWorkerShutdownProbeGuard,
 };
 pub use source_worker_protocol::{
-    SourceWorkerMode, SourceWorkerRetirementError, SourceWorkerSetupError, SourceWorkerShutdown,
-    SourceWorkerStartHook, WorkStamp, WorkerPhase, SOURCE_WORKER_MODE_INLINE,
-    SOURCE_WORKER_MODE_PERSISTENT,
+    SourceWorkerMode, SourceWorkerRenderDisposition, SourceWorkerRetirementError,
+    SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook, WorkStamp, WorkerPhase,
+    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use source_worker_retirement::SourceWorkerHoldControl;
@@ -212,7 +212,7 @@ pub(super) struct SlotFrameOutput {
     pub active: bool,
 }
 
-pub(super) const BLOCK_SLOT_SCRATCH_FRAMES: usize = 2048;
+pub const BLOCK_SLOT_SCRATCH_FRAMES: usize = 2048;
 
 pub(super) struct BlockSlotScratch {
     inline_source_executor: Option<InlineSourceExecutor>,

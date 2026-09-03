@@ -39,8 +39,11 @@ separate runtime phases.
 Aggregate audio-load and voice-steal status is separate from the red persistent-
 worker CPU icon. The icon is at `(117,5)` and requires valid persistent
 `high_cpu_steady` evidence; inline or missing evidence hides it. The yellow save
-icon at `(107,5)` may coexist, and missed-quantum flash remains reserved for
-Phase 2.
+icon at `(107,5)` may coexist. A matching newly missed quantum repeats the
+previous final master quantum once; subsequent pending-recovery refills are
+silent. `missedQuantumFlash` stays true for five emitted seconds, clears on the
+exact emitted-frame crossing, and resets on a later miss. The existing OLED
+presentation structure and coordinates are unchanged.
 
 The System section's `HDMI` group displays `Terminal` for the stored/runtime
 value `none`; its `Bars per cycle` row is conditional on `cycle-behaviors`.

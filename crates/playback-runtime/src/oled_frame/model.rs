@@ -109,13 +109,13 @@ impl OledPresentationMetrics {
     pub fn from_status(
         worker_utilization: Option<f32>,
         high_cpu_steady: bool,
-        _missed_quantum_flash: bool,
+        missed_quantum_flash: bool,
         voice_steal: bool,
     ) -> Self {
         Self {
             worker_utilization,
             high_cpu_steady: worker_utilization.is_some() && high_cpu_steady,
-            missed_quantum_flash: false,
+            missed_quantum_flash,
             voice_steal,
         }
     }

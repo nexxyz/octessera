@@ -111,6 +111,11 @@ mod tests {
             blocks: 0,
             control_events: 0,
             config_events: 0,
+            rendered_quantums: 0,
+            repeated_quantums: 0,
+            dropped_quantums: 0,
+            deadline_misses: 0,
+            deadline_recoveries: 0,
         }
     }
 

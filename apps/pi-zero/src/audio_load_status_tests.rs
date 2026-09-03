@@ -78,8 +78,8 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
     .unwrap();
     let (mut playback, mut runner, mut host, root) = runtime_with_snapshot(manager.service());
 
-    manager.load_tx.try_send(status(Some(0.8), false));
-    manager.load_tx.try_send(status(Some(0.9), true));
+    manager.load_tx.try_send(status(Some(0.8), false, true));
+    manager.load_tx.try_send(status(Some(0.9), true, true));
     let output = manager.drain_audio_load_status(&mut playback);
     crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
@@ -92,8 +92,12 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
             < 1e-6
     );
     assert_eq!(playback.last_snapshot().unwrap()["highCpuSteady"], true);
+    assert_eq!(
+        playback.last_snapshot().unwrap()["missedQuantumFlash"],
+        true
+    );
 
-    manager.load_tx.try_send(status(None, true));
+    manager.load_tx.try_send(status(None, true, false));
     let output = manager.drain_audio_load_status(&mut playback);
     crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
@@ -103,21 +107,31 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
         .unwrap()
         .contains_key("workerUtilization"));
     assert_eq!(snapshot["highCpuSteady"], false);
+    assert_eq!(snapshot["missedQuantumFlash"], false);
     let _ = std::fs::remove_dir_all(root);
 }
 
-fn status(worker_utilization: Option<f32>, high_cpu_steady: bool) -> AudioLoadStatus {
+fn status(
+    worker_utilization: Option<f32>,
+    high_cpu_steady: bool,
+    missed_quantum_flash: bool,
+) -> AudioLoadStatus {
     AudioLoadStatus {
         ratio: 0.2,
         voice_steal: false,
         worker_utilization,
         high_cpu_steady,
-        missed_quantum_flash: false,
+        missed_quantum_flash,
         block_ratio_p95: 0.2,
         block_ratio_max: 0.2,
         blocks: 1,
         control_events: 0,
         config_events: 0,
+        rendered_quantums: 0,
+        repeated_quantums: 0,
+        dropped_quantums: 0,
+        deadline_misses: 0,
+        deadline_recoveries: 0,
     }
 }
 

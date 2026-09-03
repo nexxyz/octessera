@@ -112,6 +112,54 @@ fn normalized_metrics_only_publish_visible_changes() {
 }
 
 #[test]
+fn missed_quantum_flash_preserves_native_transition_independently_of_cpu_warning() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let _ = present(&mut runtime, snapshot("metrics"));
+
+    let missed = runtime.update_presentation_metrics(RuntimePresentationMetrics {
+        worker_utilization: Some(0.9),
+        high_cpu_steady: false,
+        missed_quantum_flash: true,
+        ..Default::default()
+    });
+    assert_eq!(
+        missed.messages.iter().find_map(|message| match message {
+            RunnerMessage::Snapshot { snapshot } => snapshot.get("missedQuantumFlash"),
+            _ => None,
+        }),
+        Some(&json!(true))
+    );
+    assert_eq!(
+        missed.messages.iter().find_map(|message| match message {
+            RunnerMessage::Snapshot { snapshot } => snapshot.get("highCpuSteady"),
+            _ => None,
+        }),
+        Some(&json!(false))
+    );
+
+    let cleared = runtime.update_presentation_metrics(RuntimePresentationMetrics {
+        worker_utilization: Some(0.9),
+        high_cpu_steady: true,
+        missed_quantum_flash: false,
+        ..Default::default()
+    });
+    assert_eq!(
+        cleared.messages.iter().find_map(|message| match message {
+            RunnerMessage::Snapshot { snapshot } => snapshot.get("missedQuantumFlash"),
+            _ => None,
+        }),
+        Some(&json!(false))
+    );
+    assert_eq!(
+        cleared.messages.iter().find_map(|message| match message {
+            RunnerMessage::Snapshot { snapshot } => snapshot.get("highCpuSteady"),
+            _ => None,
+        }),
+        Some(&json!(true))
+    );
+}
+
+#[test]
 fn aggregate_load_ratio_does_not_set_worker_warning_state() {
     assert!(
         !crate::oled_frame::OledPresentationMetrics::from_status(None, true, false, false)

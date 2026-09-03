@@ -2,6 +2,15 @@ pub const SOURCE_WORKER_MODE_INLINE: u8 = 0;
 pub const SOURCE_WORKER_MODE_PERSISTENT: u8 = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceWorkerRenderDisposition {
+    Fresh,
+    NewlyMissed,
+    Recovering,
+    RecoveredReady,
+    Fatal,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorkerPhase {
     Sources,
     Buses,

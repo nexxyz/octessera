@@ -1,6 +1,6 @@
 use super::super::source_worker_bus;
 use super::super::source_worker_health::SourceWorkerHealth;
-use super::super::source_worker_protocol::{WorkStamp, WorkerPhase};
+use super::super::source_worker_protocol::{SourceWorkerRenderDisposition, WorkStamp, WorkerPhase};
 use super::super::SynthEngine;
 use super::{SourceWorkerRuntime, SOURCE_WORKER_COUNT};
 use crossbeam_channel::TryRecvError;
@@ -103,21 +103,22 @@ impl SourceWorkerRuntime {
         frames: usize,
         left: &mut [f32],
         right: &mut [f32],
-    ) -> bool {
+    ) -> SourceWorkerRenderDisposition {
         #[cfg(any(test, feature = "test-support"))]
         self.render_attempts
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if self.mode != super::super::source_worker_protocol::SourceWorkerMode::Persistent {
-            return false;
-        }
-        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
             self.reclaim_available(engine);
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
-            return false;
+            return if self.health.status().is_recovering() {
+                SourceWorkerRenderDisposition::Recovering
+            } else {
+                SourceWorkerRenderDisposition::Fatal
+            };
         }
         if frames > super::BLOCK_SLOT_SCRATCH_FRAMES
             || engine.bus_pan_pos.len() > super::super::super::types::BUS_COUNT
@@ -125,15 +126,15 @@ impl SourceWorkerRuntime {
             || right.len() < frames
         {
             self.latch_invalid_block();
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         }
         if self.in_flight_mask != 0 || self.completed_mask != 0 || !self.home_is_ready() {
             self.latch_dispatch_failure(0b11);
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         }
         if !engine.block_slot_scratch.prepare_output(frames) {
             self.latch_invalid_block();
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         }
         let operation_started_at = Instant::now();
         let deadline = operation_started_at + self.rendezvous_deadline(frames);
@@ -150,13 +151,13 @@ impl SourceWorkerRuntime {
             self.reclaim_available(engine);
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, None);
-            return false;
+            return self.render_failure_disposition();
         }
         if self
             .collect_wave_with_deadline(engine, true, WorkerPhase::Sources, deadline, true)
             .is_none()
         {
-            return false;
+            return self.render_failure_disposition();
         }
         if self
             .finish_source_wave(engine, |engine, _, carriers| {
@@ -167,7 +168,7 @@ impl SourceWorkerRuntime {
             .is_none()
         {
             self.reclaim_available(engine);
-            return false;
+            return self.render_failure_disposition();
         }
         let stamp = self.expected_stamp.expect("persistent source stamp");
         #[cfg(test)]
@@ -178,7 +179,7 @@ impl SourceWorkerRuntime {
             self.reclaim_available(engine);
             #[cfg(feature = "source-worker-benchmark-timing")]
             self.freeze_timing(true, self.dispatch_elapsed());
-            return false;
+            return self.render_failure_disposition();
         }
         #[cfg(test)]
         if let Some(hook) = self.after_bus_dispatch.take() {
@@ -188,13 +189,21 @@ impl SourceWorkerRuntime {
             .collect_wave_with_deadline(engine, true, WorkerPhase::Buses, deadline, false)
             .is_none()
         {
-            return false;
+            return self.render_failure_disposition();
         }
         if !self.finish_bus_wave(engine, frames, left, right) {
             self.reclaim_available(engine);
-            return false;
+            return self.render_failure_disposition();
         }
         engine.finish_persistent_block(frames, left, right);
-        true
+        SourceWorkerRenderDisposition::Fresh
+    }
+
+    fn render_failure_disposition(&self) -> SourceWorkerRenderDisposition {
+        if self.health.status() == SourceWorkerHealth::DeadlineMiss {
+            SourceWorkerRenderDisposition::NewlyMissed
+        } else {
+            SourceWorkerRenderDisposition::Fatal
+        }
     }
 }

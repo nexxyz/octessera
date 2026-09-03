@@ -1,7 +1,7 @@
 use super::super::super::types::BUS_COUNT;
 use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_health::SourceWorkerHealth;
-use super::super::source_worker_protocol::WorkerPhase;
+use super::super::source_worker_protocol::{SourceWorkerRenderDisposition, WorkerPhase};
 use super::super::source_worker_transfer;
 use super::super::SynthEngine;
 use super::{SourceWorkerRuntime, SOURCE_WORKER_COUNT};
@@ -34,30 +34,44 @@ impl SourceWorkerRuntime {
     }
 
     pub fn refresh_recovery(&mut self, engine: &mut SynthEngine) -> bool {
+        matches!(
+            self.refresh_recovery_disposition(engine),
+            SourceWorkerRenderDisposition::Fresh | SourceWorkerRenderDisposition::RecoveredReady
+        )
+    }
+
+    pub fn refresh_recovery_disposition(
+        &mut self,
+        engine: &mut SynthEngine,
+    ) -> SourceWorkerRenderDisposition {
         if self.mode == super::super::source_worker_protocol::SourceWorkerMode::Inline {
-            return true;
+            return SourceWorkerRenderDisposition::Fresh;
         }
         if self.health.status() != SourceWorkerHealth::DeadlineMiss {
-            return self.health.status() == SourceWorkerHealth::Healthy;
+            return if self.health.status() == SourceWorkerHealth::Healthy {
+                SourceWorkerRenderDisposition::Fresh
+            } else {
+                SourceWorkerRenderDisposition::Fatal
+            };
         }
         self.refresh_recovery_completions();
         if self.health.status() != SourceWorkerHealth::DeadlineMiss {
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         }
         if self.in_flight_mask != 0 {
-            return false;
+            return SourceWorkerRenderDisposition::Recovering;
         }
         if self.completed_mask != 0b11 || !self.home_is_ready() {
             self.latch_completion_failure(0b11);
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         }
         let Some(phase) = self.expected_phase else {
             self.latch_completion_failure(0b11);
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         };
         let Some(stamp) = self.expected_stamp else {
             self.latch_completion_failure(0b11);
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         };
         let recovered = match phase {
             WorkerPhase::Sources => self.recover_source_wave(engine),
@@ -65,11 +79,15 @@ impl SourceWorkerRuntime {
         };
         if !recovered {
             self.latch_completion_failure(0b11);
-            return false;
+            return SourceWorkerRenderDisposition::Fatal;
         }
         engine.sample_clock = engine.sample_clock.saturating_add(stamp.frames as u64);
         self.clear_recovery_state();
-        self.health.recover()
+        if self.health.recover() {
+            SourceWorkerRenderDisposition::RecoveredReady
+        } else {
+            SourceWorkerRenderDisposition::Fatal
+        }
     }
 
     fn refresh_recovery_completions(&mut self) {

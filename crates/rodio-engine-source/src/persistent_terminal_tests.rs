@@ -412,19 +412,23 @@ fn concurrent_source_and_owner_drop_races_are_nonblocking() {
 #[test]
 fn persistent_startup_has_two_workers_and_one_combined_reaper() {
     let (_tx, source, owner) = super::persistent_tests::persistent_source(128);
+    let lifecycle_probe = owner.lifecycle_probe_for_test();
     for _ in 0..100_000 {
-        if crate::source_worker_reaper::active_reapers_for_test() == 1 {
+        if lifecycle_probe.starts_for_test() == 1 {
             break;
         }
         std::thread::yield_now();
     }
-    assert_eq!(crate::source_worker_reaper::active_reapers_for_test(), 1);
+    assert_eq!(lifecycle_probe.starts_for_test(), 1);
+    assert_eq!(lifecycle_probe.exits_for_test(), 0);
     let worker = source
         .worker_state
         .worker
         .as_ref()
         .expect("persistent worker");
     assert_eq!(worker.runtime.jobs_started_for_test(), [0, 0]);
-    drop(owner);
     drop(source);
+    assert_eq!(owner.shutdown().joined_workers, 2);
+    assert_eq!(lifecycle_probe.starts_for_test(), 1);
+    assert_eq!(lifecycle_probe.exits_for_test(), 1);
 }

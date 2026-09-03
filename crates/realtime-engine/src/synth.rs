@@ -33,11 +33,11 @@ pub use engine::{
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
     PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SourceWorkerHealth,
     SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerLoadSnapshot, SourceWorkerMode,
-    SourceWorkerRetirement, SourceWorkerRetirementError, SourceWorkerRuntime,
-    SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine, WorkStamp,
-    WorkerPhase, BUS_CHAIN_SLOT_COST_UNITS, SOURCE_WORKER_MAX_COST_UNITS,
-    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT, SOURCE_WORKER_SAMPLE_COST_UNITS,
-    SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
+    SourceWorkerRenderDisposition, SourceWorkerRetirement, SourceWorkerRetirementError,
+    SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook,
+    SynthEngine, WorkStamp, WorkerPhase, BLOCK_SLOT_SCRATCH_FRAMES, BUS_CHAIN_SLOT_COST_UNITS,
+    SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
+    SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
 };
 #[cfg(feature = "source-worker-benchmark-timing")]
 pub use source_worker_timing::{

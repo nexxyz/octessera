@@ -339,6 +339,12 @@ mod persistent_profile_tests;
 #[path = "persistent_terminal_tests.rs"]
 mod persistent_terminal_tests;
 
+#[path = "persistent_output_integration_tests.rs"]
+mod persistent_output_integration_tests;
+
+#[path = "persistent_flash_tests.rs"]
+mod persistent_flash_tests;
+
 #[test]
 fn explicit_profile_block_sizes_reach_source_configuration() {
     for block_frames in [64, 128, 256] {

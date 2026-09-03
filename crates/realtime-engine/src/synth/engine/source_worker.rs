@@ -247,9 +247,6 @@ impl SourceWorkerRuntime {
         if self.mode == SourceWorkerMode::Inline {
             return Some(apply(engine));
         }
-        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
-            return None;
-        }
         self.reclaim_available(engine);
         if self.health.status() != SourceWorkerHealth::Healthy
             || self.in_flight_mask != 0
@@ -291,9 +288,6 @@ impl SourceWorkerRuntime {
         if self.mode == SourceWorkerMode::Inline {
             return Some(inspect(engine));
         }
-        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
-            return None;
-        }
         self.reclaim_available(engine);
         if !self.home_is_ready() {
             return None;
@@ -332,9 +326,6 @@ impl SourceWorkerRuntime {
         #[cfg(any(test, feature = "test-support"))]
         self.render_attempts.fetch_add(1, Ordering::Relaxed);
         if self.mode == SourceWorkerMode::Inline {
-            return None;
-        }
-        if self.health.status().is_recovering() && !self.refresh_recovery(engine) {
             return None;
         }
         if self.health.status() != SourceWorkerHealth::Healthy {

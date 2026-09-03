@@ -57,6 +57,8 @@ impl PersistentSourceWorker {
 pub struct EngineSourceWorkerShutdownOwner {
     completion_rx: crossbeam_channel::Receiver<realtime_engine::synth::SourceWorkerShutdown>,
     reaper: Option<std::thread::JoinHandle<()>>,
+    #[cfg(test)]
+    lifecycle_probe: crate::source_worker_reaper::ReaperLifecycleProbe,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -69,11 +71,21 @@ impl EngineSourceWorkerShutdownOwner {
     pub(super) fn new(
         completion_rx: crossbeam_channel::Receiver<realtime_engine::synth::SourceWorkerShutdown>,
         reaper: std::thread::JoinHandle<()>,
+        #[cfg(test)] lifecycle_probe: crate::source_worker_reaper::ReaperLifecycleProbe,
     ) -> Self {
         Self {
             completion_rx,
             reaper: Some(reaper),
+            #[cfg(test)]
+            lifecycle_probe,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn lifecycle_probe_for_test(
+        &self,
+    ) -> crate::source_worker_reaper::ReaperLifecycleProbe {
+        self.lifecycle_probe.clone()
     }
 
     pub fn shutdown(self) -> realtime_engine::synth::SourceWorkerShutdown {
