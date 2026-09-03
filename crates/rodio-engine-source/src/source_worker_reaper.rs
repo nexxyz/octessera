@@ -66,7 +66,10 @@ pub(crate) struct PersistentReaperSpawnFailure {
 pub(crate) fn spawn_inline_reaper() -> (Sender<RetiredAudioItem>, Sender<SourceShutdownEnvelope>) {
     let (retired_tx, retired_rx) = bounded(super::RETIREMENT_QUEUE_CAPACITY);
     let (shutdown_tx, shutdown_rx) = bounded(1);
-    thread::spawn(move || run_inline_reaper(shutdown_rx, retired_rx));
+    let _ = thread::Builder::new()
+        .name(SOURCE_REAPER_THREAD_NAME.into())
+        .spawn(move || run_inline_reaper(shutdown_rx, retired_rx))
+        .expect("inline source reaper");
     (retired_tx, shutdown_tx)
 }
 
@@ -337,7 +340,7 @@ pub(crate) fn spawn_inline_reaper_for_test() -> (
     let hold_retired = Arc::new(AtomicBool::new(true));
     let thread_hold = Arc::clone(&hold_retired);
     let reaper = thread::Builder::new()
-        .name("octessera-inline-reaper-test".into())
+        .name(SOURCE_REAPER_THREAD_NAME.into())
         .spawn(move || {
             while thread_hold.load(Ordering::Acquire) {
                 std::hint::spin_loop();
@@ -383,13 +386,33 @@ fn drain_retired_audio(retired_rx: Receiver<RetiredAudioItem>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{spawn_persistent_reaper_thread, SOURCE_REAPER_THREAD_NAME};
+    use super::{
+        spawn_inline_reaper_for_test, spawn_persistent_reaper_thread, SourceShutdownEnvelope,
+        SOURCE_REAPER_THREAD_NAME,
+    };
+    use crate::retired_audio_backlog::RetiredAudioBacklog;
+    use std::sync::atomic::Ordering;
 
     #[test]
     fn reaper_thread_name_is_linux_visible_and_bounded() {
         assert!(SOURCE_REAPER_THREAD_NAME.len() <= 15);
         let reaper = spawn_persistent_reaper_thread(|| {}).unwrap();
         assert_eq!(reaper.thread().name(), Some(SOURCE_REAPER_THREAD_NAME));
+        reaper.join().unwrap();
+    }
+
+    #[test]
+    fn inline_reaper_thread_starts_named_and_exits_after_shutdown() {
+        let (retired_tx, shutdown_tx, hold_retired, reaper) = spawn_inline_reaper_for_test();
+        assert_eq!(reaper.thread().name(), Some(SOURCE_REAPER_THREAD_NAME));
+        hold_retired.store(false, Ordering::Release);
+        shutdown_tx
+            .send(SourceShutdownEnvelope {
+                backlog: RetiredAudioBacklog::new(),
+                retirement: None,
+            })
+            .unwrap();
+        drop(retired_tx);
         reaper.join().unwrap();
     }
 }
