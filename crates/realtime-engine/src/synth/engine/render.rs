@@ -151,6 +151,41 @@ impl SynthEngine {
         }
     }
 
+    pub(super) fn finish_persistent_block(
+        &mut self,
+        frames: usize,
+        left: &mut [f32],
+        right: &mut [f32],
+    ) {
+        for frame in 0..frames {
+            let mut frame_left = left[frame];
+            let mut frame_right = right[frame];
+            self.push_dry_history(frame_left, frame_right);
+            let master_signal = self.signal_present(frame_left, frame_right)
+                || self.block_slot_scratch.source_active[frame]
+                || !self.momentary_fx.is_empty()
+                || self.block_slot_scratch.bus_active[frame];
+            let master_active = master_signal || self.master_activity_frames > 0;
+            if master_active {
+                (frame_left, frame_right) = self.apply_master_fx_slots(frame_left, frame_right);
+                (frame_left, frame_right) = self.process_momentary_fx_target(
+                    MomentaryFxTarget::Global,
+                    frame_left,
+                    frame_right,
+                );
+                self.master_activity_frames =
+                    if master_signal || self.signal_present(frame_left, frame_right) {
+                        self.fx_activity_hold_frames
+                    } else {
+                        self.master_activity_frames.saturating_sub(1)
+                    };
+            }
+            self.sample_clock = self.sample_clock.saturating_add(1);
+            left[frame] = (frame_left * self.master_volume).clamp(-1.0, 1.0);
+            right[frame] = (frame_right * self.master_volume).clamp(-1.0, 1.0);
+        }
+    }
+
     fn profiled_serial_frame_graph(&mut self) -> (f32, f32) {
         if !self.voice_pools_home() {
             return (0.0, 0.0);

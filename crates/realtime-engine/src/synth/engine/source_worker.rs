@@ -9,12 +9,12 @@ use super::source_worker_lifecycle::{
     SourceWorkerScratch,
 };
 use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
-use super::source_worker_protocol::{SourceWorkerMode, WorkStamp, WorkerCommand};
+use super::source_worker_protocol::{SourceWorkerMode, WorkStamp, WorkerCommand, WorkerPhase};
 use super::source_worker_retirement::SourceWorkerRetirement;
 use super::source_worker_transfer;
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
-use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use crossbeam_channel::{Receiver, Sender};
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::atomic::AtomicU64;
@@ -52,14 +52,24 @@ pub struct SourceWorkerRuntime {
     runtime_generation: u64,
     next_sequence: u64,
     expected_stamp: Option<WorkStamp>,
+    expected_phase: Option<WorkerPhase>,
     in_flight_mask: u8,
     completed_mask: u8,
     sample_rate: u32,
     load: Option<SourceWorkerLoad>,
-    load_observations:
+    source_load_observations:
         [Option<super::source_worker_load::SourceWorkerLoadObservation>; SOURCE_WORKER_COUNT],
+    bus_load_observations:
+        [Option<super::source_worker_load::SourceWorkerLoadObservation>; SOURCE_WORKER_COUNT],
+    bus_dispatch_residency: [u8; super::super::types::BUS_COUNT],
+    bus_dispatch_residency_valid: bool,
+    force_fault_mask: u8,
     #[cfg(any(test, feature = "test-support"))]
     deadline_override: Option<Duration>,
+    #[cfg(test)]
+    before_bus_dispatch: Option<fn(&mut SourceWorkerRuntime, &mut Instant)>,
+    #[cfg(test)]
+    after_bus_dispatch: Option<fn(&mut SourceWorkerRuntime)>,
 }
 
 impl SourceWorkerRuntime {
@@ -91,13 +101,22 @@ impl SourceWorkerRuntime {
             runtime_generation: 0,
             next_sequence: 0,
             expected_stamp: None,
+            expected_phase: None,
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate: 0,
             load: None,
-            load_observations: std::array::from_fn(|_| None),
+            source_load_observations: std::array::from_fn(|_| None),
+            bus_load_observations: std::array::from_fn(|_| None),
+            bus_dispatch_residency: [0; super::super::types::BUS_COUNT],
+            bus_dispatch_residency_valid: false,
+            force_fault_mask: 0,
             #[cfg(any(test, feature = "test-support"))]
             deadline_override: None,
+            #[cfg(test)]
+            before_bus_dispatch: None,
+            #[cfg(test)]
+            after_bus_dispatch: None,
         }
     }
 
@@ -149,13 +168,22 @@ impl SourceWorkerRuntime {
             runtime_generation: lifecycle.runtime_generation(),
             next_sequence: 0,
             expected_stamp: None,
+            expected_phase: None,
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate,
             load: Some(SourceWorkerLoad::new(active_frames, sample_rate)),
-            load_observations: std::array::from_fn(|_| None),
+            source_load_observations: std::array::from_fn(|_| None),
+            bus_load_observations: std::array::from_fn(|_| None),
+            bus_dispatch_residency: [0; super::super::types::BUS_COUNT],
+            bus_dispatch_residency_valid: false,
+            force_fault_mask: 0,
             #[cfg(any(test, feature = "test-support"))]
             deadline_override: None,
+            #[cfg(test)]
+            before_bus_dispatch: None,
+            #[cfg(test)]
+            after_bus_dispatch: None,
         })
     }
 
@@ -346,65 +374,15 @@ impl SourceWorkerRuntime {
         render: impl FnOnce(&mut SynthEngine) -> R,
     ) -> Option<R> {
         let start = Instant::now();
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        self.record_dispatch_to_deadline_start(start);
         let expected_frames = self.expected_stamp.map_or(0, |stamp| stamp.frames);
-        let deadline = self.rendezvous_deadline(expected_frames);
-        while self.in_flight_mask != 0 {
-            for parity in 0..SOURCE_WORKER_COUNT {
-                if self.in_flight_mask & (1 << parity) == 0 || !self.home_is_empty(parity) {
-                    continue;
-                }
-                let receive_result = self
-                    .done_rxs
-                    .as_ref()
-                    .map(|done_rxs| done_rxs[parity].try_recv());
-                match receive_result {
-                    Some(Ok(completion)) => {
-                        self.accept_completion(parity, completion);
-                    }
-                    Some(Err(TryRecvError::Empty)) | None => {}
-                    Some(Err(TryRecvError::Disconnected)) => {
-                        self.latch_completion_failure(1 << parity);
-                        self.in_flight_mask &= !(1 << parity);
-                    }
-                }
-            }
-            if self.health.status() != SourceWorkerHealth::Healthy {
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                self.freeze_timing(
-                    true,
-                    (self.health.status() == SourceWorkerHealth::DeadlineMiss)
-                        .then(|| self.dispatch_elapsed())
-                        .flatten(),
-                );
-                self.reclaim_available(engine);
-            }
-            if self.in_flight_mask == 0 {
-                break;
-            }
-            if !wait && self.health.status() == SourceWorkerHealth::Healthy {
-                break;
-            }
-            if start.elapsed() >= deadline {
-                if self.health.status() == SourceWorkerHealth::Healthy {
-                    self.latch_deadline_or_exit();
-                }
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                self.freeze_timing(true, self.dispatch_elapsed());
-                self.reclaim_available(engine);
-                return None;
-            }
-        }
-        if self.health.status() != SourceWorkerHealth::Healthy {
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
-            self.reclaim_available(engine);
-            return None;
-        }
-        if self.in_flight_mask != 0 {
-            return None;
-        }
+        let deadline = start + self.rendezvous_deadline(expected_frames);
+        self.collect_wave_with_deadline(
+            engine,
+            wait,
+            super::source_worker_protocol::WorkerPhase::Sources,
+            deadline,
+            true,
+        )?;
         self.finish_completed(engine, render)
     }
 
@@ -475,6 +453,9 @@ impl Drop for SourceWorkerRuntime {
 #[path = "source_worker_mailboxes.rs"]
 mod mailboxes;
 
+#[path = "source_worker_quantum.rs"]
+mod quantum;
+
 #[path = "source_worker_dispatch.rs"]
 mod dispatch;
 
@@ -491,6 +472,10 @@ mod reduction;
 #[cfg(test)]
 #[path = "source_worker_test_support.rs"]
 pub(super) mod test_support;
+
+#[cfg(test)]
+#[path = "source_worker_residency_test_support.rs"]
+mod residency_test_support;
 
 #[cfg(any(test, feature = "test-support"))]
 #[path = "source_worker_feature_support.rs"]

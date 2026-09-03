@@ -3,7 +3,7 @@ use super::super::fx_params::{DuckSource, FxBusParams};
 use super::super::types::{
     MomentaryFxTarget, BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT, VOICE_PARTITION_COUNT,
 };
-use super::bus_chain_owner::{BusChainCarrier, BusChainFrameOutput};
+use super::bus_chain_owner::{BusChainCarrier, BusChainFrameOutput, BusChainOwner};
 use super::source_worker_lifecycle::OwnerEnvelope;
 use super::source_worker_protocol::WorkStamp;
 use super::SynthEngine;
@@ -42,7 +42,7 @@ pub(super) fn stage_bus_block(
                 continue;
             }
             let bus = route - 1;
-            if bus >= BUS_COUNT {
+            if bus >= engine.bus_pan_pos.len() {
                 continue;
             }
             let Some(carrier) = carrier_mut(owners, bus) else {
@@ -75,6 +75,167 @@ pub(super) fn stage_bus_block(
         }
     }
     true
+}
+
+pub(super) fn stage_source_block(
+    engine: &mut SynthEngine,
+    carriers: &mut [Option<BusChainCarrier>; BUS_COUNT],
+    frames: usize,
+    left: &mut [f32],
+    right: &mut [f32],
+) -> bool {
+    if frames > BLOCK_SLOT_SCRATCH_FRAMES
+        || engine.bus_pan_pos.len() > BUS_COUNT
+        || left.len() < frames
+        || right.len() < frames
+    {
+        return false;
+    }
+    for carrier in carriers.iter_mut().flatten() {
+        if !carrier.scratch.prepare(frames) {
+            return false;
+        }
+    }
+    left[..frames].fill(0.0);
+    right[..frames].fill(0.0);
+    for frame in 0..frames {
+        let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
+        let mut sample_active = false;
+        let mut synth_active = false;
+        for (slot, output) in slot_out.iter_mut().enumerate() {
+            *output = engine.block_slot_scratch.sample_slot_out[slot][frame];
+            sample_active |= engine.block_slot_scratch.sample_active[slot][frame];
+        }
+        let preview_active = engine.render_preview_sample_voices(&mut slot_out);
+        for (slot, output) in slot_out.iter_mut().enumerate() {
+            *output += engine.block_slot_scratch.synth_slot_out[slot][frame];
+            synth_active |= engine.block_slot_scratch.synth_active[slot][frame];
+        }
+        engine.block_slot_scratch.source_active[frame] =
+            sample_active || preview_active || synth_active;
+        if !stage_carrier_frame(engine, carriers, &slot_out, frame, left, right) {
+            return false;
+        }
+        for bus in 0..engine.bus_pan_pos.len() {
+            for slot in 0..BUS_SLOTS_PER_BUS {
+                if matches!(
+                    bus_duck_source(engine, bus, slot),
+                    Some(DuckSource::Instrument(_))
+                ) {
+                    let source = match bus_duck_source(engine, bus, slot) {
+                        Some(DuckSource::Instrument(index)) => {
+                            slot_out.get(index).copied().unwrap_or(0.0)
+                        }
+                        _ => 0.0,
+                    };
+                    let Some(carrier) = carriers.get_mut(bus).and_then(Option::as_mut) else {
+                        return false;
+                    };
+                    carrier.scratch.resolved_duck[slot][frame] = source;
+                }
+            }
+        }
+    }
+    for bus in 0..engine.bus_pan_pos.len() {
+        for slot in 0..BUS_SLOTS_PER_BUS {
+            if let Some(DuckSource::Bus(index)) = bus_duck_source(engine, bus, slot) {
+                for frame in 0..frames {
+                    let source = carriers
+                        .get(index)
+                        .and_then(|carrier| carrier.as_ref())
+                        .map(|carrier| carrier.scratch.input[frame])
+                        .unwrap_or(0.0);
+                    let Some(carrier) = carriers.get_mut(bus).and_then(Option::as_mut) else {
+                        return false;
+                    };
+                    carrier.scratch.resolved_duck[slot][frame] = source;
+                }
+            }
+        }
+    }
+    reactivate_parked_carriers(engine, carriers, frames);
+    true
+}
+
+fn stage_carrier_frame(
+    engine: &mut SynthEngine,
+    carriers: &mut [Option<BusChainCarrier>; BUS_COUNT],
+    slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
+    frame: usize,
+    left: &mut [f32],
+    right: &mut [f32],
+) -> bool {
+    for (slot, output) in slot_out.iter().enumerate() {
+        let mut sample = *output * engine.slot_volume[slot];
+        if !engine.momentary_fx.is_empty() {
+            let (processed_left, processed_right) = engine.process_momentary_fx_target(
+                MomentaryFxTarget::Instrument { index: slot },
+                sample,
+                sample,
+            );
+            sample = (processed_left + processed_right) * 0.5;
+        }
+        let route = engine.slot_route[slot];
+        let bus = route.saturating_sub(1);
+        if route == 0 || bus >= engine.bus_pan_pos.len() {
+            let (pan_left, pan_right) = engine.slot_pan_gains[slot];
+            left[frame] += sample * pan_left;
+            right[frame] += sample * pan_right;
+            continue;
+        }
+        let Some(carrier) = carriers[bus].as_mut() else {
+            return false;
+        };
+        carrier.scratch.input[frame] += sample;
+    }
+    true
+}
+
+fn bus_duck_source(engine: &SynthEngine, bus: usize, slot: usize) -> Option<DuckSource> {
+    engine
+        .bus_chains
+        .iter()
+        .find(|owner| owner.logical_bus_id == bus)
+        .and_then(|owner| match owner.slot_params[slot] {
+            FxBusParams::Duck { source, .. } => Some(source),
+            _ => None,
+        })
+}
+
+fn reactivate_parked_carriers(
+    engine: &mut SynthEngine,
+    carriers: &mut [Option<BusChainCarrier>; BUS_COUNT],
+    frames: usize,
+) {
+    let threshold = engine.dsp_config.bus_idle_threshold;
+    for (bus, carrier) in carriers.iter().enumerate().take(engine.bus_pan_pos.len()) {
+        let input_is_loud = carrier.as_ref().is_some_and(|carrier| {
+            carrier.scratch.input[..frames]
+                .iter()
+                .any(|input| BusChainOwner::is_loud(*input, 0.0, threshold))
+        });
+        let Some(chain) = engine
+            .bus_chains
+            .iter()
+            .find(|owner| owner.logical_bus_id == bus)
+        else {
+            continue;
+        };
+        if !input_is_loud || chain.assigned_worker.is_some() || chain.cost_units() == 0 {
+            continue;
+        }
+        let cost = chain.cost_units();
+        let Some(worker) = engine.choose_bus_worker(cost) else {
+            continue;
+        };
+        if let Some(chain) = engine
+            .bus_chains
+            .iter_mut()
+            .find(|owner| owner.logical_bus_id == bus)
+        {
+            chain.assigned_worker = Some(worker);
+        }
+    }
 }
 
 pub(super) fn render_bus_block(
@@ -126,18 +287,58 @@ pub(super) fn apply_bus_block(
     left: &mut [f32],
     right: &mut [f32],
 ) -> bool {
-    if frames > BLOCK_SLOT_SCRATCH_FRAMES || left.len() < frames || right.len() < frames {
+    if frames > BLOCK_SLOT_SCRATCH_FRAMES
+        || left.len() < frames
+        || right.len() < frames
+        || !valid_carrier_layout(owners)
+        || !valid_carrier_residency(owners)
+    {
         return false;
     }
-    left[..frames].fill(0.0);
-    right[..frames].fill(0.0);
+    let carriers = std::array::from_fn(|logical_bus_id| carrier_ref(owners, logical_bus_id));
+    apply_bus_output(engine, &carriers, frames, left, right)
+}
+
+pub(super) fn apply_bus_block_from_carriers(
+    engine: &mut SynthEngine,
+    carriers: &[Option<BusChainCarrier>; BUS_COUNT],
+    frames: usize,
+    left: &mut [f32],
+    right: &mut [f32],
+) -> bool {
+    if carriers
+        .iter()
+        .enumerate()
+        .any(|(logical_bus_id, carrier)| {
+            carrier.as_ref().is_none_or(|carrier| {
+                carrier.logical_bus_id != logical_bus_id || !carrier.within_worker_capacity()
+            })
+        })
+    {
+        return false;
+    }
+    let carriers = std::array::from_fn(|logical_bus_id| carriers[logical_bus_id].as_ref());
+    apply_bus_output(engine, &carriers, frames, left, right)
+}
+
+fn apply_bus_output(
+    engine: &mut SynthEngine,
+    carriers: &[Option<&BusChainCarrier>; BUS_COUNT],
+    frames: usize,
+    left: &mut [f32],
+    right: &mut [f32],
+) -> bool {
     for frame in 0..frames {
-        for logical_bus_id in 0..BUS_COUNT {
-            let Some(carrier) = carrier_ref(owners, logical_bus_id) else {
+        let mut active_buses = 0;
+        for (logical_bus_id, carrier) in carriers.iter().enumerate() {
+            let Some(carrier) = *carrier else {
                 return false;
             };
             if carrier.owner.is_none() {
                 continue;
+            }
+            if carrier.owner.as_ref().is_some_and(BusChainOwner::is_active) {
+                active_buses += 1;
             }
             if !carrier.scratch.executed || frame >= carrier.scratch.processed_prefix {
                 continue;
@@ -164,11 +365,11 @@ pub(super) fn apply_bus_block(
             left[frame] += processed_left;
             right[frame] += processed_right;
         }
+        engine.block_slot_scratch.bus_active[frame] = active_buses > 0;
     }
-    engine.active_bus_activity_count = owners
+    engine.active_bus_activity_count = carriers
         .iter()
-        .flat_map(|owner| owner.bus_carriers.iter().flatten())
-        .filter_map(|carrier| carrier.owner.as_ref())
+        .filter_map(|carrier| carrier.and_then(|carrier| carrier.owner.as_ref()))
         .filter(|owner| owner.is_active())
         .count();
     true
@@ -218,6 +419,24 @@ fn valid_carrier_layout(owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT]) -> bool
             }
         }
         count == 1
+    })
+}
+
+fn valid_carrier_residency(owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT]) -> bool {
+    (0..BUS_COUNT).all(|logical_bus_id| {
+        let Some(carrier) = carrier_ref(owners, logical_bus_id) else {
+            return false;
+        };
+        let actual_parity = owners
+            .iter()
+            .find(|owner| owner.bus_carriers[logical_bus_id].is_some())
+            .map(|owner| owner.parity);
+        let expected_parity = carrier
+            .owner
+            .as_ref()
+            .and_then(|owner| owner.assigned_worker)
+            .unwrap_or(logical_bus_id % VOICE_PARTITION_COUNT);
+        actual_parity == Some(expected_parity)
     })
 }
 

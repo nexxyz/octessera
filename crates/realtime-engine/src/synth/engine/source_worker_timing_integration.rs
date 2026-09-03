@@ -48,12 +48,20 @@ impl SourceWorkerRuntime {
         self.coordinator_remainder_started_at.take()
     }
 
-    pub(super) fn record_dispatch_to_deadline_start(&self, deadline_start: Instant) {
+    pub(super) fn record_dispatch_to_deadline_start(
+        &self,
+        deadline_start: Instant,
+        deadline: Instant,
+    ) {
         if let (Some(probe), Some(dispatch_started_at), Some(stamp)) = (
             self.timing_probe.as_ref(),
             self.dispatch_started_at,
             self.expected_stamp,
         ) {
+            probe.record_remaining_deadline(
+                stamp.quantum_sequence,
+                deadline.saturating_duration_since(deadline_start),
+            );
             probe.record_dispatch_to_deadline_start(
                 stamp.quantum_sequence,
                 deadline_start.duration_since(dispatch_started_at),

@@ -4,6 +4,7 @@ use super::super::source_worker_lifecycle::{OwnerEnvelope, SourceWorkerOwnerIden
 use super::super::source_worker_protocol::{WorkStamp, WorkerPhase};
 use super::*;
 use crossbeam_channel::bounded;
+use std::time::Instant;
 
 pub(in crate::synth::engine) type WorkerCompletionEvidence = (
     SourceWorkerOwnerIdentity,
@@ -133,10 +134,15 @@ impl SourceWorkerRuntime {
             sample_rate,
             bus_idle_threshold,
             fx_activity_hold_frames,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at: self.dispatch_started_at,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe: self.timing_probe.clone(),
         };
         match work_tx.try_send(command) {
             Ok(()) => {
                 self.expected_stamp = Some(stamp);
+                self.expected_phase = Some(WorkerPhase::Buses);
                 self.in_flight_mask |= 1 << parity;
                 true
             }
@@ -179,7 +185,14 @@ impl SourceWorkerRuntime {
     }
 
     pub(crate) fn collect_for_test(&mut self, engine: &mut SynthEngine) -> bool {
-        self.collect(engine, false)
+        if self.expected_phase == Some(WorkerPhase::Buses) {
+            let deadline = Instant::now()
+                + self.rendezvous_deadline(self.expected_stamp.map_or(0, |stamp| stamp.frames));
+            self.collect_wave_with_deadline(engine, false, WorkerPhase::Buses, deadline, false)
+                .is_some()
+        } else {
+            self.collect(engine, false)
+        }
     }
 
     pub(crate) fn in_flight_mask_for_test(&self) -> u8 {
@@ -325,13 +338,27 @@ impl SourceWorkerRuntime {
     }
 
     pub(crate) fn collect_wait_for_test(&mut self, engine: &mut SynthEngine) -> bool {
-        self.collect(engine, true)
+        if self.expected_phase == Some(WorkerPhase::Buses) {
+            let deadline = Instant::now()
+                + self.rendezvous_deadline(self.expected_stamp.map_or(0, |stamp| stamp.frames));
+            self.collect_wave_with_deadline(engine, true, WorkerPhase::Buses, deadline, false)
+                .is_some()
+        } else {
+            self.collect(engine, true)
+        }
     }
 
     pub(crate) fn disconnect_work_for_test(&mut self, parity: usize) {
         let (work_tx, work_rx) = bounded(0);
         drop(work_rx);
         self.work_txs.as_mut().expect("persistent source workers")[parity] = work_tx;
+    }
+
+    pub(crate) fn set_before_bus_dispatch_hook_for_test(
+        &mut self,
+        hook: fn(&mut SourceWorkerRuntime, &mut Instant),
+    ) {
+        self.before_bus_dispatch = Some(hook);
     }
 
     pub(crate) fn completion_ready_for_test(&self, parity: usize) -> bool {
@@ -445,11 +472,11 @@ impl SourceWorkerRuntime {
         Some(measurement)
     }
 
-    fn take_home_owner_for_test(&self, parity: usize) -> Option<OwnerEnvelope> {
+    pub(super) fn take_home_owner_for_test(&self, parity: usize) -> Option<OwnerEnvelope> {
         self.home_rxs.as_ref()?.get(parity)?.try_recv().ok()
     }
 
-    fn return_home_owner_for_test(&self, owner: OwnerEnvelope) {
+    pub(super) fn return_home_owner_for_test(&self, owner: OwnerEnvelope) {
         let parity = owner.parity;
         self.home_txs.as_ref().expect("persistent source workers")[parity]
             .try_send(owner)
