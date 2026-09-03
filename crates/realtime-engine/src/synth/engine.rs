@@ -1,3 +1,4 @@
+use super::dsp_config::{DspRuntimeConfig, WorkerLoadWarningState};
 use super::fx::{
     fx_bus_state_from_params, fx_bus_state_matches_params, master_fx_state_from_params,
     master_fx_state_matches_params, process_fx_bus_slot, process_master_fx_slot, FxBusState,
@@ -52,6 +53,8 @@ mod source_worker;
 #[cfg(test)]
 mod source_worker_failure_tests;
 mod source_worker_health;
+#[cfg(test)]
+mod source_worker_identity_tests;
 mod source_worker_lease;
 mod source_worker_lifecycle;
 mod source_worker_load;
@@ -183,6 +186,9 @@ pub struct SynthEngine {
     fx_activity_hold_frames: u32,
     render_profile: RenderProfileState,
     block_slot_scratch: BlockSlotScratch,
+    dsp_config: DspRuntimeConfig,
+    worker_utilization_ppm: Option<u32>,
+    worker_load_warning: WorkerLoadWarningState,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -294,6 +300,9 @@ impl SynthEngine {
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
             render_profile: RenderProfileState::default(),
             block_slot_scratch: BlockSlotScratch::new(),
+            dsp_config: DspRuntimeConfig::default(),
+            worker_utilization_ppm: None,
+            worker_load_warning: WorkerLoadWarningState::default(),
         }
     }
 
@@ -365,6 +374,20 @@ impl SynthEngine {
                 .iter()
                 .all(Option::is_none)
             && self.pending_render_retired.sample_voices.is_empty()
+    }
+
+    pub fn dsp_config(&self) -> DspRuntimeConfig {
+        self.dsp_config
+    }
+
+    pub(super) fn observe_worker_utilization(
+        &mut self,
+        utilization_ppm: u32,
+        rendered_frames: usize,
+    ) {
+        self.worker_utilization_ppm = Some(utilization_ppm);
+        self.worker_load_warning
+            .observe(utilization_ppm, rendered_frames, self.sample_rate);
     }
 
     pub(in crate::synth::engine) fn retire_render_preview(&mut self, voice: PreviewSampleVoice) {

@@ -12,7 +12,9 @@ pub struct SourceWorkerLoadSnapshot {
     pub ewma_coefficient_ppm: u32,
     pub busy_ns_ewma: [u64; SOURCE_WORKER_COUNT],
     pub ns_per_unit_ewma: [u64; SOURCE_WORKER_COUNT],
-    pub utilization_ppm: u32,
+    pub observed_active_cost_units: [u16; SOURCE_WORKER_COUNT],
+    pub has_useful_measurement: [bool; SOURCE_WORKER_COUNT],
+    pub utilization_ppm: Option<u32>,
     pub observed: [bool; SOURCE_WORKER_COUNT],
 }
 
@@ -55,11 +57,26 @@ impl SourceWorkerLoadSnapshot {
         &self,
         active_cost_units: [u16; SOURCE_WORKER_COUNT],
     ) -> [u64; SOURCE_WORKER_COUNT] {
-        std::array::from_fn(|worker| {
-            self.busy_ns_ewma[worker].saturating_add(
-                self.ns_per_unit_ewma[worker].saturating_mul(u64::from(active_cost_units[worker])),
+        std::array::from_fn(|worker| self.projected_worker_ns(worker, active_cost_units[worker]))
+    }
+
+    fn projected_worker_ns(&self, worker: usize, active_cost_units: u16) -> u64 {
+        let baseline_units = self.observed_active_cost_units[worker];
+        let ns_per_unit = if self.has_useful_measurement[worker] {
+            self.ns_per_unit_ewma[worker]
+        } else {
+            self.quantum_ns / u64::from(SOURCE_WORKER_MAX_COST_UNITS)
+        };
+        let busy_ns = self.busy_ns_ewma[worker];
+        if active_cost_units >= baseline_units {
+            busy_ns.saturating_add(
+                ns_per_unit.saturating_mul(u64::from(active_cost_units - baseline_units)),
             )
-        })
+        } else {
+            busy_ns.saturating_sub(
+                ns_per_unit.saturating_mul(u64::from(baseline_units - active_cost_units)),
+            )
+        }
     }
 }
 
@@ -74,6 +91,8 @@ pub(super) struct SourceWorkerLoad {
     ewma_coefficient_ppm: u32,
     busy_ns_ewma: [u64; SOURCE_WORKER_COUNT],
     ns_per_unit_ewma: [u64; SOURCE_WORKER_COUNT],
+    observed_active_cost_units: [u16; SOURCE_WORKER_COUNT],
+    has_useful_measurement: [bool; SOURCE_WORKER_COUNT],
     observed: [bool; SOURCE_WORKER_COUNT],
 }
 
@@ -86,6 +105,8 @@ impl SourceWorkerLoad {
             ewma_coefficient_ppm: ewma_coefficient_ppm(quantum_ns),
             busy_ns_ewma: [0; SOURCE_WORKER_COUNT],
             ns_per_unit_ewma: [seed_ns_per_unit; SOURCE_WORKER_COUNT],
+            observed_active_cost_units: [0; SOURCE_WORKER_COUNT],
+            has_useful_measurement: [false; SOURCE_WORKER_COUNT],
             observed: [false; SOURCE_WORKER_COUNT],
         }
     }
@@ -115,25 +136,32 @@ impl SourceWorkerLoad {
                     sample_ns_per_unit,
                     self.ewma_coefficient_ppm,
                 );
+                self.has_useful_measurement[worker] = true;
             }
+            self.observed_active_cost_units[worker] = observation.active_cost_units;
             self.observed[worker] = true;
         }
         true
     }
 
     pub(super) fn snapshot(&self) -> SourceWorkerLoadSnapshot {
-        let utilization_ppm = if self.quantum_ns == 0 {
-            0
-        } else {
-            let busy_ns = self.busy_ns_ewma.into_iter().max().unwrap_or(0);
-            ((u128::from(busy_ns) * u128::from(EWMA_SCALE)) / u128::from(self.quantum_ns))
-                .min(u128::from(u32::MAX)) as u32
-        };
+        let utilization_ppm =
+            if self.quantum_ns == 0 || !self.observed.iter().all(|observed| *observed) {
+                None
+            } else {
+                let busy_ns = self.busy_ns_ewma.into_iter().max().unwrap_or(0);
+                Some(
+                    ((u128::from(busy_ns) * u128::from(EWMA_SCALE)) / u128::from(self.quantum_ns))
+                        .min(u128::from(u32::MAX)) as u32,
+                )
+            };
         SourceWorkerLoadSnapshot {
             quantum_ns: self.quantum_ns,
             ewma_coefficient_ppm: self.ewma_coefficient_ppm,
             busy_ns_ewma: self.busy_ns_ewma,
             ns_per_unit_ewma: self.ns_per_unit_ewma,
+            observed_active_cost_units: self.observed_active_cost_units,
+            has_useful_measurement: self.has_useful_measurement,
             utilization_ppm,
             observed: self.observed,
         }
@@ -261,13 +289,30 @@ mod tests {
     }
 
     #[test]
+    fn empty_baseline_keeps_measured_scratch_time_and_uses_seed_for_units() {
+        let snapshot = SourceWorkerLoadSnapshot {
+            quantum_ns: 1_000_000,
+            ewma_coefficient_ppm: 1_000_000,
+            busy_ns_ewma: [1_000, 2_000],
+            ns_per_unit_ewma: [9, 9],
+            observed_active_cost_units: [0, 0],
+            has_useful_measurement: [false, false],
+            utilization_ppm: None,
+            observed: [true, true],
+        };
+        assert_eq!(snapshot.projected_ns([3, 4]), [19_750, 27_000]);
+    }
+
+    #[test]
     fn worker_choice_ties_at_zero_and_uses_measured_ns_per_unit() {
         let snapshot = SourceWorkerLoadSnapshot {
             quantum_ns: 1_000_000,
             ewma_coefficient_ppm: 1_000_000,
             busy_ns_ewma: [0, 0],
             ns_per_unit_ewma: [100, 10],
-            utilization_ppm: 0,
+            observed_active_cost_units: [0, 0],
+            has_useful_measurement: [true, true],
+            utilization_ppm: None,
             observed: [true, true],
         };
         assert_eq!(
@@ -299,7 +344,9 @@ mod tests {
             ewma_coefficient_ppm: 1_000_000,
             busy_ns_ewma: [0, 0],
             ns_per_unit_ewma: [10, 10],
-            utilization_ppm: 0,
+            observed_active_cost_units: [0, 0],
+            has_useful_measurement: [true, true],
+            utilization_ppm: None,
             observed: [true, true],
         };
         assert_eq!(
@@ -321,11 +368,46 @@ mod tests {
                 active_cost_units: 1,
             },
         ]));
-        assert_eq!(load.snapshot().utilization_ppm, 2_000_000);
+        assert_eq!(load.snapshot().utilization_ppm, Some(2_000_000));
     }
 
     #[test]
-    fn projection_adds_active_cost_to_each_worker_busy_time_in_ns() {
+    fn fixed_scratch_overhead_does_not_make_a_full_worker_appear_cheaper() {
+        let snapshot = SourceWorkerLoadSnapshot {
+            quantum_ns: 1_000_000,
+            ewma_coefficient_ppm: 1_000_000,
+            busy_ns_ewma: [1_250, 1_000],
+            ns_per_unit_ewma: [1, 200],
+            observed_active_cost_units: [100, 1],
+            has_useful_measurement: [true, true],
+            utilization_ppm: None,
+            observed: [true, true],
+        };
+        assert_eq!(snapshot.projected_ns([100, 1]), [1_250, 1_000]);
+        assert_eq!(snapshot.projected_ns([101, 2]), [1_251, 1_200]);
+        assert_eq!(
+            snapshot.choose_worker([100, 1], 1, None, [true, true]),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn projection_saturates_bounded_addition_and_subtraction() {
+        let snapshot = SourceWorkerLoadSnapshot {
+            quantum_ns: 1_000_000,
+            ewma_coefficient_ppm: 1_000_000,
+            busy_ns_ewma: [u64::MAX, 0],
+            ns_per_unit_ewma: [u64::MAX, u64::MAX],
+            observed_active_cost_units: [0, u16::MAX],
+            has_useful_measurement: [true, true],
+            utilization_ppm: None,
+            observed: [true, true],
+        };
+        assert_eq!(snapshot.projected_ns([u16::MAX, 0]), [u64::MAX, 0]);
+    }
+
+    #[test]
+    fn projection_anchors_at_measured_busy_and_applies_only_unit_delta() {
         let mut load = SourceWorkerLoad::new(12_000, 48_000);
         assert!(load.observe_pair([
             SourceWorkerLoadObservation {
@@ -337,7 +419,10 @@ mod tests {
                 active_cost_units: 20,
             },
         ]));
-        assert_eq!(load.snapshot().projected_ns([3, 3]), [130_000, 230_000]);
+        let snapshot = load.snapshot();
+        assert_eq!(snapshot.projected_ns([10, 20]), [100_000, 200_000]);
+        assert_eq!(snapshot.projected_ns([13, 17]), [130_000, 170_000]);
+        assert_eq!(snapshot.projected_ns([7, 23]), [70_000, 230_000]);
     }
 
     #[test]

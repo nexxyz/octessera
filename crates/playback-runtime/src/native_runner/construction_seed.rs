@@ -8,6 +8,7 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) ui: NativeUiState,
     pub(super) hdmi: NativeHdmiConfig,
     pub(super) global_sound: GlobalSoundConfig,
+    pub(super) dsp_config: realtime_engine::synth::DspRuntimeConfig,
     pub(super) bpm: f64,
     pub(super) swing_pct: u8,
     pub(super) audio_output_buffer_frames: u32,
@@ -72,6 +73,7 @@ impl NativeRunnerConstructionSeed {
                 source_layer_index: 0,
             },
             global_sound: config.global_sound.clone(),
+            dsp_config: realtime_engine::synth::DspRuntimeConfig::default(),
             bpm: config.bpm,
             swing_pct: config.swing_pct.min(75),
             audio_output_buffer_frames: config.audio_output_buffer_frames,
@@ -129,6 +131,7 @@ impl NativeRunnerConstructionSeed {
             worlds_items: vec![],
             worlds_items_by_layer: vec![vec![]; LAYER_COUNT],
             behavior_target_items: vec![vec![]; LAYER_COUNT],
+            dsp_config: self.dsp_config,
             layer_labels: self
                 .layer_names
                 .iter()

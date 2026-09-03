@@ -32,6 +32,16 @@ The System section's `Audio / USB` group contains the independent Jack Audio,
 USB Audio, HDMI Audio, USB MIDI, Save / Reboot, Start SD2 Xfer, and Stop SD2
 Xfer rows. See the split-out tree for the stable order and restart semantics.
 
+The System section's `DSP` group stores the native worker CPU warning and bus
+idle thresholds. Worker warning presentation and bus silence behavior are
+separate runtime phases.
+
+Aggregate audio-load and voice-steal status is separate from the red persistent-
+worker CPU icon. The icon is at `(117,5)` and requires valid persistent
+`high_cpu_steady` evidence; inline or missing evidence hides it. The yellow save
+icon at `(107,5)` may coexist, and missed-quantum flash remains reserved for
+Phase 2.
+
 The System section's `HDMI` group displays `Terminal` for the stored/runtime
 value `none`; its `Bars per cycle` row is conditional on `cycle-behaviors`.
 See the split-out tree for the framebuffer ownership and snapshot semantics.

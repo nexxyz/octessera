@@ -229,6 +229,29 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
             updates_group(),
             hdmi_group(config),
             group(
+                "DSP",
+                vec![
+                    enum_item(
+                        "CPU Warn %",
+                        "dsp.workerWarningThreshold",
+                        vec!["70", "75", "80", "85", "90", "95"],
+                        selected_index(
+                            &["70", "75", "80", "85", "90", "95"],
+                            config.dsp_config.worker_warning_threshold.id(),
+                        ),
+                    ),
+                    enum_item(
+                        "Bus Idle",
+                        "dsp.busIdleThreshold",
+                        vec!["exact", "-140", "-120", "-100", "-80"],
+                        selected_index(
+                            &["exact", "-140", "-120", "-100", "-80"],
+                            config.dsp_config.bus_idle_threshold.id(),
+                        ),
+                    ),
+                ],
+            ),
+            group(
                 "Diagnostics",
                 vec![action_item(
                     "Hardware Test",

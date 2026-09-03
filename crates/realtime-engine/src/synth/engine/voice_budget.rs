@@ -12,7 +12,13 @@ impl SynthEngine {
                 continue;
             }
             let score = voice.amp_env.level;
-            if score < best_score {
+            let canonical_lane = voice.canonical_lane.expect("active canonical lane");
+            let best_canonical_lane =
+                best_lane.and_then(|best| self.synth_voice_pool.canonical_lane(best));
+            if score < best_score
+                || (score == best_score
+                    && best_canonical_lane.is_none_or(|best| canonical_lane < best))
+            {
                 best_score = score;
                 best_lane = Some(lane);
             }
@@ -92,20 +98,18 @@ impl SynthEngine {
                 let Some(lane) = self.steal_active_voice_index(slot) else {
                     break;
                 };
-                let Some(voice) = self.synth_voice_pool.lane_mut(lane) else {
+                if !self.synth_voice_pool.deactivate_lane(lane) {
                     break;
-                };
-                voice.active = false;
+                }
                 self.record_voice_steal();
             }
             while self.active_sample_voice_count(slot) > MAX_SAMPLE_VOICES_PER_SLOT {
                 let Some(lane) = self.sample_voice_pool.first_active_lane_for_slot(slot) else {
                     break;
                 };
-                let Some(voice) = self.sample_voice_pool.lane_mut(lane) else {
+                if !self.sample_voice_pool.deactivate_lane(lane) {
                     break;
-                };
-                voice.active = false;
+                }
                 self.record_voice_steal();
             }
         }
@@ -124,10 +128,9 @@ impl SynthEngine {
             let Some((_slot, idx)) = candidate else {
                 break;
             };
-            let Some(voice) = self.synth_voice_pool.lane_mut(idx) else {
+            if !self.synth_voice_pool.deactivate_lane(idx) {
                 break;
-            };
-            voice.active = false;
+            }
             self.record_voice_steal();
         }
     }
@@ -137,10 +140,9 @@ impl SynthEngine {
             let Some((_slot, lane)) = self.sample_voice_pool.first_active_lane_global() else {
                 break;
             };
-            let Some(voice) = self.sample_voice_pool.lane_mut(lane) else {
+            if !self.sample_voice_pool.deactivate_lane(lane) {
                 break;
-            };
-            voice.active = false;
+            }
             self.record_voice_steal();
         }
     }
@@ -171,8 +173,16 @@ impl SynthEngine {
                 if age_ms < 30.0 {
                     score += 1.0;
                 }
+                let canonical_lane = voice.canonical_lane.expect("active canonical lane");
                 match best {
-                    Some((_, _, best_score)) if score >= best_score => {}
+                    Some((_, best_lane, best_score))
+                        if score > best_score
+                            || (score == best_score
+                                && canonical_lane
+                                    >= self
+                                        .synth_voice_pool
+                                        .canonical_lane(best_lane)
+                                        .expect("active canonical lane")) => {}
                     _ => best = Some((slot_idx, voice_idx, score)),
                 }
             }
@@ -218,8 +228,16 @@ impl SynthEngine {
             if age_ms < 30.0 {
                 score += 1.0;
             }
+            let canonical_lane = voice.canonical_lane.expect("active canonical lane");
             match best {
-                Some((_, best_score)) if score >= best_score => {}
+                Some((best_lane, best_score))
+                    if score > best_score
+                        || (score == best_score
+                            && canonical_lane
+                                >= self
+                                    .synth_voice_pool
+                                    .canonical_lane(best_lane)
+                                    .expect("active canonical lane")) => {}
                 _ => best = Some((voice_idx, score)),
             }
         }

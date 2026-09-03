@@ -1,6 +1,7 @@
 use realtime_engine::synth::{
-    PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
-    PreparedInstrumentsConfig, PreparedMomentaryFxStart, SampleBankConfig, VoiceStealingMode,
+    DspRuntimeConfig, PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot,
+    PreparedInstrumentSlot, PreparedInstrumentsConfig, PreparedMomentaryFxStart, SampleBankConfig,
+    VoiceStealingMode,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -37,6 +38,7 @@ pub enum EngineEvent {
         velocity: u8,
     },
     SetVoiceStealingMode(VoiceStealingMode),
+    SetDspConfig(DspRuntimeConfig),
     SetMasterVolume {
         volume_pct: f32,
     },

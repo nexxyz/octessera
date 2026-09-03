@@ -1,4 +1,4 @@
-use rodio_engine_source::{audio_load_status_channel, event_queue, EngineEvent, EngineSource};
+use rodio_engine_source::{event_queue, EngineEvent, EngineSource};
 use std::time::Instant;
 
 const SAMPLE_RATE: u32 = 44_100;
@@ -6,7 +6,6 @@ const SECONDS: usize = 20;
 
 fn main() {
     let (tx, rx) = event_queue();
-    let (load_tx, load_rx) = audio_load_status_channel();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
         note: 60,
@@ -15,7 +14,7 @@ fn main() {
     })
     .expect("send note on");
 
-    let mut source = EngineSource::with_load_status_tx(rx, SAMPLE_RATE, Some(load_tx));
+    let mut source = EngineSource::with_load_status_tx(rx, SAMPLE_RATE, None);
     let samples = SAMPLE_RATE as usize * SECONDS * 2;
     let started = Instant::now();
     let mut checksum = 0.0_f32;
@@ -31,17 +30,4 @@ fn main() {
     println!("elapsed_seconds={elapsed:.4}");
     println!("realtime_ratio={realtime_ratio:.2}");
     println!("checksum={checksum:.6}");
-    let mut last_status = None;
-    while let Ok(status) = load_rx.try_recv() {
-        last_status = Some(status);
-    }
-    if let Some(status) = last_status {
-        println!("load_ratio={:.6}", status.ratio);
-        println!("block_ratio_p95={:.6}", status.block_ratio_p95);
-        println!("block_ratio_max={:.6}", status.block_ratio_max);
-        println!("blocks={}", status.blocks);
-        println!("control_events={}", status.control_events);
-        println!("config_events={}", status.config_events);
-        println!("voice_steal={}", status.voice_steal);
-    }
 }

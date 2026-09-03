@@ -156,7 +156,19 @@ impl ConfigDto {
     }
 
     pub(super) fn typed_runtime_config_value(&self) -> Result<Value, String> {
-        self.typed_runtime_config()?.to_value()
+        let typed = self.typed_runtime_config()?;
+        let mut value = typed.to_value()?;
+        if let Some(object) = value.as_object_mut() {
+            object.insert(
+                "dsp".into(),
+                typed
+                    .dsp
+                    .unwrap_or_default()
+                    .to_value()
+                    .map_err(|error| format!("runtimeConfig DSP encode failed: {error}"))?,
+            );
+        }
+        Ok(value)
     }
 
     pub(super) fn mapping_config(&self) -> Option<&Value> {

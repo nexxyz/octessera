@@ -1,3 +1,4 @@
+use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -18,6 +19,9 @@ pub enum RuntimeAudioCommand {
         #[serde(default, rename = "requestId", skip_serializing_if = "Option::is_none")]
         request_id: Option<String>,
         config: Value,
+    },
+    SetDspConfig {
+        config: DspRuntimeConfig,
     },
     SetMasterVolume {
         #[serde(rename = "volumePct")]

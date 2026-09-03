@@ -32,6 +32,8 @@ pub(crate) fn run_prepared_runtime(
     let result = (|| {
         let initial_audio_prep = wait_for_initial_audio_prep(&mut playback, &mut runner, &mut host);
         readiness_gate.acknowledge_initial_audio_prep(initial_audio_prep)?;
+        let metrics = audio_manager.drain_audio_load_status(&mut playback);
+        process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
         scheduler.observe_snapshot(Instant::now(), &playback);
         let first_snapshot_rendered = if initial_rendered {
             true
@@ -67,6 +69,8 @@ pub(crate) fn run_prepared_runtime(
                 break;
             }
             audio_manager.recover_audio_if_due();
+            let metrics = audio_manager.drain_audio_load_status(&mut playback);
+            process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
             audio_manager.report_runtime_terminal_diagnostics();
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
             audio.ensure_route_readiness()?;
@@ -130,6 +134,8 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
+            let metrics = audio_manager.drain_audio_load_status(&mut playback);
+            process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
             audio_manager.report_runtime_terminal_diagnostics();
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
             drain_host_work(&mut playback, &mut runner, &mut host)?;

@@ -104,6 +104,7 @@ fn merge_fx_bus_mixer_event(
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum ReplayKey {
     SampleBank(usize),
+    DspConfig,
     VoiceStealingMode,
     MasterVolume,
     InstrumentMixer(usize),
@@ -120,6 +121,7 @@ fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
         EngineEvent::SetPreparedSampleBank {
             instrument_slot, ..
         } => Some(ReplayKey::SampleBank(*instrument_slot)),
+        EngineEvent::SetDspConfig(_) => Some(ReplayKey::DspConfig),
         EngineEvent::SetVoiceStealingMode(_) => Some(ReplayKey::VoiceStealingMode),
         EngineEvent::SetMasterVolume { .. } => Some(ReplayKey::MasterVolume),
         EngineEvent::SetInstrumentMixer {
@@ -260,6 +262,34 @@ mod tests {
                 value,
                 ..
             } if *value == 0.75
+        )));
+    }
+
+    #[test]
+    fn replay_cache_keeps_one_current_dsp_config() {
+        let mut cache = ReplayCache::default();
+        cache.remember(&EngineEvent::SetDspConfig(
+            realtime_engine::synth::DspRuntimeConfig {
+                worker_warning_threshold: realtime_engine::synth::WorkerWarningThreshold::Percent70,
+                bus_idle_threshold: realtime_engine::synth::BusIdleThreshold::Exact,
+            },
+        ));
+        cache.remember(&EngineEvent::SetDspConfig(
+            realtime_engine::synth::DspRuntimeConfig::default(),
+        ));
+
+        let replay = collect_replay_events(&cache);
+        assert_eq!(
+            replay
+                .iter()
+                .filter(|event| matches!(event, EngineEvent::SetDspConfig(_)))
+                .count(),
+            1
+        );
+        assert!(replay.iter().any(|event| matches!(
+            event,
+            EngineEvent::SetDspConfig(config)
+                if *config == realtime_engine::synth::DspRuntimeConfig::default()
         )));
     }
 

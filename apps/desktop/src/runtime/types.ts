@@ -30,7 +30,7 @@ export type SimulatorSnapshot = {
     | 'auto-balanced'
     | 'auto-hard'
     | 'none';
-  audioLoad: { ratio: number; voiceSteal: boolean };
+  audioLoad: import('../audio/audioLoadEvents').AudioLoadStatus;
   instruments: unknown[];
   mixer: unknown;
   panPositions: number;

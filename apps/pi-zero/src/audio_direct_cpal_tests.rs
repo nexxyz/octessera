@@ -15,6 +15,7 @@ fn persistent_cpal_mode_starts_two_workers_before_stream_construction() {
         engine_rx,
         48_000,
         AudioSourceExecutionMode::PersistentTwoWorkers,
+        None,
     )
     .unwrap();
 

@@ -1,8 +1,20 @@
 import { listen } from '@tauri-apps/api/event';
 
-export type AudioLoadStatus = { ratio: number; voiceSteal: boolean };
+export type AudioLoadStatus = {
+  ratio: number;
+  voiceSteal: boolean;
+  workerUtilization?: number;
+  highCpuSteady: boolean;
+  missedQuantumFlash: boolean;
+};
 
-type AudioLoadPayload = { ratio?: number; voiceSteal?: boolean };
+type AudioLoadPayload = {
+  ratio?: number;
+  voiceSteal?: boolean;
+  workerUtilization?: number;
+  highCpuSteady?: boolean;
+  missedQuantumFlash?: boolean;
+};
 
 export type AudioLoadService = {
   listenAudioLoad(
@@ -18,11 +30,25 @@ export class TauriAudioLoadService implements AudioLoadService {
       return () => {};
     const unlisten = await listen<AudioLoadPayload>('audio_load', (evt) => {
       const ratio = Number(evt.payload?.ratio ?? 0);
+      const workerUtilization = normalizeWorkerUtilization(
+        evt.payload?.workerUtilization,
+      );
       handler({
         ratio: Number.isFinite(ratio) ? ratio : 0,
         voiceSteal: evt.payload?.voiceSteal === true,
+        workerUtilization,
+        highCpuSteady: evt.payload?.highCpuSteady === true,
+        missedQuantumFlash: false,
       });
     });
     return unlisten;
   }
+}
+
+function normalizeWorkerUtilization(
+  value: number | undefined,
+): number | undefined {
+  return value !== undefined && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
 }

@@ -28,6 +28,7 @@ const FULL_FIELDS: &[&str] = &[
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
+    "dsp",
     "gridBrightness",
     "buttonBrightness",
     "autoSaveDefault",
@@ -81,7 +82,7 @@ const PREFERENCE_FIELDS: &[&str] = &[
     "recording",
 ];
 
-const DEVICE_FIELDS: &[&str] = &["sampleFavouriteDirs"];
+const DEVICE_FIELDS: &[&str] = &["sampleFavouriteDirs", "dsp"];
 const SHARED_FIELDS: &[&str] = &["sound", "auxBindings", "shiftAuxBindings", "midi"];
 const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "hdmi",
@@ -134,6 +135,7 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
+    "dsp",
     "gridBrightness",
     "buttonBrightness",
     "autoSaveDefault",
@@ -265,6 +267,18 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     }
     source_runtime["recording"]["maxMinutes"] =
         alternate_unsigned(&canonical_runtime["recording"]["maxMinutes"], 1, 120);
+    source_runtime["dsp"] = json!({
+        "busIdleThreshold": alternate_enum(
+            &canonical_runtime["dsp"]["busIdleThreshold"],
+            "exact",
+            "-80",
+        ),
+        "workerWarningThreshold": alternate_enum(
+            &canonical_runtime["dsp"]["workerWarningThreshold"],
+            "70",
+            "95",
+        )
+    });
     source_runtime["sound"]["audioOutputBufferFrames"] = alternate_unsigned(
         &canonical_runtime["sound"]["audioOutputBufferFrames"],
         64,
@@ -363,6 +377,10 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     assert_eq!(
         applied["runtimeConfig"]["sampleFavouriteDirs"],
         canonical["runtimeConfig"]["sampleFavouriteDirs"]
+    );
+    assert_eq!(
+        applied["runtimeConfig"]["dsp"],
+        canonical["runtimeConfig"]["dsp"]
     );
     assert_eq!(
         applied["runtimeConfig"]["sound"],

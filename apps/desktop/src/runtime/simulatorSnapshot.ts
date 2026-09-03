@@ -23,7 +23,7 @@ export type RuntimeSnapshotCache = {
 };
 
 export type SnapshotAudioState = {
-  audioLoad: { ratio: number; voiceSteal: boolean };
+  audioLoad: import('../audio/audioLoadEvents').AudioLoadStatus;
   runtimeStatus: RuntimeStatus | null;
   oledFrameFault?: OledFrameCacheFault | null;
   oledFrameAvailable?: boolean;

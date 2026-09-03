@@ -12,7 +12,7 @@ use crate::audio_stream_health::AudioStreamHealth;
 use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
 #[cfg(test)]
 use rodio_engine_source::EngineEventReceiver;
-use rodio_engine_source::{event_queue, EngineEvent, EngineEventSender};
+use rodio_engine_source::{event_queue, AudioLoadStatusSender, EngineEvent, EngineEventSender};
 use std::time::Duration;
 
 pub(super) const CALLBACK_SCHEDULING_STARTUP_TIMEOUT: Duration = Duration::from_millis(250);
@@ -31,6 +31,7 @@ pub(super) type AudioSinkOpener = fn(
     Option<u32>,
     AudioSink,
     Option<RecordingTapState>,
+    Option<AudioLoadStatusSender>,
 ) -> Result<OpenedAudioSink, RouteOpenError>;
 
 pub(super) fn source_execution_mode(sink: AudioSink) -> AudioSourceExecutionMode {
@@ -46,6 +47,7 @@ pub(super) fn open_audio_sink(
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
     recording_tap: Option<RecordingTapState>,
+    _load_tx: Option<AudioLoadStatusSender>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
     let (engine_tx, engine_rx) = event_queue();
     let health = if sink == AudioSink::Jack {
@@ -101,13 +103,14 @@ pub(super) fn open_orange_audio_sink(
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
     recording_tap: Option<RecordingTapState>,
+    load_tx: Option<AudioLoadStatusSender>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
     let health = match sink {
         AudioSink::Jack => AudioStreamHealth::new("Jack".into()),
         AudioSink::Usb => AudioStreamHealth::optional("UAC2Gadget".into()),
         AudioSink::Hdmi => AudioStreamHealth::optional("HDMI".into()),
     };
-    open_orange_audio_sink_with_health(output_buffer_frames, sink, health, recording_tap)
+    open_orange_audio_sink_with_health(output_buffer_frames, sink, health, recording_tap, load_tx)
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -116,6 +119,7 @@ pub(super) fn open_orange_audio_sink_with_health(
     sink: AudioSink,
     health: AudioStreamHealth,
     recording_tap: Option<RecordingTapState>,
+    load_tx: Option<AudioLoadStatusSender>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
     let (engine_tx, engine_rx) = event_queue();
     let built = build_orange_cpal_stream(
@@ -125,6 +129,7 @@ pub(super) fn open_orange_audio_sink_with_health(
         recording_tap,
         health.clone(),
         source_execution_mode(sink),
+        load_tx,
     )?;
     if let Err(error) = built.play() {
         if let Err(status) = built.teardown() {

@@ -1,5 +1,6 @@
 use super::*;
 use crate::native_runner::AudioOutputSet;
+use realtime_engine::synth::DspRuntimeConfig;
 
 pub(crate) fn config() -> NativeMenuConfig {
     NativeMenuConfig {
@@ -69,6 +70,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         ],
         worlds_items_by_layer: vec![],
         behavior_target_items: behavior_target_items(),
+        dsp_config: DspRuntimeConfig::default(),
         layer_labels: (0..LAYER_COUNT)
             .map(|index| format!("L{}: life", index + 1))
             .collect(),

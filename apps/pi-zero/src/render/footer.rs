@@ -6,8 +6,11 @@ use playback_runtime::oled_frame::{fit_line_ellipsis, TOAST_RECT};
 
 #[rustfmt::skip]
 pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
-    let cpu = snapshot.get("cpuLoadRatio").and_then(Value::as_f64).unwrap_or(0.0);
-    if cpu >= 0.85 {
+    if snapshot
+        .get("highCpuSteady")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         draw_cpu_icon(frame, 117, 5, rgb565(scale(palette::RED, brightness)));
     }
     let save_flash = snapshot

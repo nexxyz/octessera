@@ -31,6 +31,7 @@ use platform_core::{
 };
 #[cfg(test)]
 use platform_core::{CellTriggerIntent, MusicalEvent};
+use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::{json, Value};
 #[cfg(any(test, feature = "test-support"))]
 use std::cell::Cell;
@@ -305,6 +306,7 @@ pub struct NativeRunner {
     mapping_config: platform_core::MappingConfig,
     base_mapping_config: platform_core::MappingConfig,
     global_sound: GlobalSoundConfig,
+    dsp_config: DspRuntimeConfig,
     note_behaviors: Vec<NoteBehavior>,
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,

@@ -80,6 +80,9 @@ export type RuntimeSnapshotFields = {
   selectedRow?: number | null;
   eventDotOn: boolean;
   voiceSteal?: boolean;
+  workerUtilization?: number;
+  highCpuSteady?: boolean;
+  missedQuantumFlash?: boolean;
   transportIcon: "play" | "pause" | "stop";
   transportFlash: "none" | "beat" | "measure";
   cpuLoadRatio?: number;

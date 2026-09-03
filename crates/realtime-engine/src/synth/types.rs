@@ -29,6 +29,7 @@ include!(concat!(
 pub const MAX_CONTROL_EVENTS_PER_CALLBACK: usize = 256;
 pub const SAMPLE_VOICE_RETIREMENT_CAPACITY: usize =
     SAMPLE_VOICE_LANE_CAPACITY + (2 * MAX_CONTROL_EVENTS_PER_CALLBACK);
+pub(super) type LogicalLaneId = u8;
 pub(super) const VOICE_PARTITION_COUNT: usize = 2;
 pub(super) const SYNTH_VOICE_PARTITION_LANE_CAPACITY: usize =
     SYNTH_VOICE_LANE_CAPACITY / VOICE_PARTITION_COUNT;
@@ -63,6 +64,9 @@ pub enum VoiceStealingMode {
 pub struct AudioLoadStatus {
     pub ratio: f32,
     pub voice_steal: bool,
+    pub worker_utilization: Option<f32>,
+    pub high_cpu_steady: bool,
+    pub missed_quantum_flash: bool,
     pub block_ratio_p95: f32,
     pub block_ratio_max: f32,
     pub blocks: u64,

@@ -1,5 +1,6 @@
 use super::oled::same_semantic_snapshot;
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeIngest};
+use crate::oled_frame::OledPresentationMetrics;
 use crate::protocol::{
     is_midi_input_list_failure, HostMessage, RunnerMessage, RuntimeErrorDomain, RuntimeErrorFacts,
     RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState,
@@ -276,7 +277,7 @@ impl PlaybackRuntime {
             self.presented_snapshot = None;
             return;
         };
-        let presented = if let Some(error) = self.latched_errors.last() {
+        let mut presented = if let Some(error) = self.latched_errors.last() {
             let Some(mut snapshot) = raw_snapshot.as_object().cloned() else {
                 self.presented_snapshot = None;
                 return;
@@ -295,6 +296,7 @@ impl PlaybackRuntime {
         } else {
             raw_snapshot.clone()
         };
+        apply_presentation_metrics(&mut presented, &self.oled.normalized_metrics);
         let semantic_unchanged = self
             .presented_snapshot
             .as_ref()
@@ -324,6 +326,25 @@ impl PlaybackRuntime {
             Some("runtime snapshot must be a JSON object".into()),
         )
     }
+}
+
+fn apply_presentation_metrics(snapshot: &mut Value, metrics: &OledPresentationMetrics) {
+    let Some(snapshot) = snapshot.as_object_mut() else {
+        return;
+    };
+    match metrics.worker_utilization {
+        Some(utilization) => {
+            snapshot.insert("workerUtilization".into(), json!(utilization));
+        }
+        None => {
+            snapshot.remove("workerUtilization");
+        }
+    }
+    snapshot.insert("highCpuSteady".into(), json!(metrics.high_cpu_steady));
+    snapshot.insert(
+        "missedQuantumFlash".into(),
+        json!(metrics.missed_quantum_flash),
+    );
 }
 
 fn rehydrate_midi_input_display(snapshot: &mut serde_json::Map<String, Value>) {

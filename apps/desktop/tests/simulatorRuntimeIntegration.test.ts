@@ -5,6 +5,7 @@ import {
   type RuntimeRunnerMessage,
 } from '@octessera/device-contracts';
 import { createSimulatorRuntime } from '../src/runtime/simulatorRuntime';
+import type { AudioLoadStatus } from '../src/audio/audioLoadEvents';
 import type { RuntimeScheduler } from '../src/runtime/runtimeScheduler';
 
 const CONTRACT_FIXTURE = SHARED_RUNTIME_CONTRACT_FIXTURES[0]!;
@@ -117,10 +118,7 @@ test('simulator teardown stops transport and native subscriptions', async () => 
     seq: number,
     messages: RuntimeRunnerMessage[],
   ) => void = () => {};
-  let emitAudioLoad: (status: {
-    ratio: number;
-    voiceSteal: boolean;
-  }) => void = () => {};
+  let emitAudioLoad: (status: AudioLoadStatus) => void = () => {};
   let unlistenCount = 0;
   const runtime = createSimulatorRuntime(scheduler, {
     runtimeDispatch: async () => [],
@@ -143,7 +141,13 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   runtime.stop();
   const afterStop = runtime.getSnapshot();
   emitAsync(1, [CONTRACT_FIXTURE.runnerMessages[2]!]);
-  emitAudioLoad({ ratio: 1, voiceSteal: true });
+  emitAudioLoad({
+    ratio: 1,
+    voiceSteal: true,
+    workerUtilization: 1,
+    highCpuSteady: true,
+    missedQuantumFlash: false,
+  });
   await waitTurn();
 
   assert.equal(scheduler.starts, 1);
@@ -153,7 +157,47 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   assert.deepEqual(runtime.getSnapshot().audioLoad, {
     ratio: 0,
     voiceSteal: false,
+    workerUtilization: undefined,
+    highCpuSteady: false,
+    missedQuantumFlash: false,
   });
+});
+
+test('desktop applies an audio load message to aggregate and voice-steal presentation', async () => {
+  let emitAudioLoad: (status: AudioLoadStatus) => void = () => {};
+  const runtime = createSimulatorRuntime(new RecordingScheduler(), {
+    runtimeDispatch: async () => [],
+    audioLoadService: {
+      listenAudioLoad: async (handler) => {
+        emitAudioLoad = handler;
+        return () => {};
+      },
+    },
+  });
+  const published: boolean[] = [];
+  runtime.subscribe((snapshot) => {
+    published.push(snapshot.audioLoad.voiceSteal);
+  });
+  const publishedBeforeLoad = published.length;
+
+  emitAudioLoad({
+    ratio: 0.72,
+    voiceSteal: true,
+    workerUtilization: undefined,
+    highCpuSteady: false,
+    missedQuantumFlash: false,
+  });
+  await waitTurn();
+
+  assert.deepEqual(runtime.getSnapshot().audioLoad, {
+    ratio: 0.72,
+    voiceSteal: true,
+    workerUtilization: undefined,
+    highCpuSteady: false,
+    missedQuantumFlash: false,
+  });
+  assert.equal(published.length, publishedBeforeLoad + 1);
+  assert.equal(published.at(-1), true);
 });
 
 test('simulator requires the native dispatch boundary', () => {

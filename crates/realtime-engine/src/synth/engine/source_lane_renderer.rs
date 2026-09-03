@@ -190,6 +190,7 @@ pub(super) fn render_synth_voice_frame(
     let filt_env = voice.filt_env.next();
     if voice.amp_env.is_off() {
         voice.active = false;
+        voice.canonical_lane = None;
         return None;
     }
     if voice.render_revision != context.revision {
@@ -247,6 +248,7 @@ fn render_synth_voice_block(
         let filt_env = voice.filt_env.next();
         if voice.amp_env.is_off() {
             voice.active = false;
+            voice.canonical_lane = None;
             if rendered_frames == 0 && block.static_cutoff.is_some() {
                 voice.filt = initial_filter;
             }
@@ -280,11 +282,13 @@ pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u3
     }
     let Some(buffer) = voice.buffer.as_ref() else {
         voice.active = false;
+        voice.canonical_lane = None;
         return None;
     };
     let frames = buffer.samples.len() / buffer.channels as usize;
     if frames == 0 || voice.pos >= frames as f32 {
         voice.active = false;
+        voice.canonical_lane = None;
         return None;
     }
     let frame = voice.pos.floor() as usize;
@@ -313,6 +317,7 @@ pub(super) fn render_sample_voice_block(
     }
     let Some(buffer) = voice.buffer.as_ref() else {
         voice.active = false;
+        voice.canonical_lane = None;
         return 0;
     };
     let buffer_view = SampleBufferView::from_buffer(buffer);
@@ -320,6 +325,7 @@ pub(super) fn render_sample_voice_block(
     let end_position = buffer_view.end_position();
     if buffer_frames == 0 || voice.pos >= end_position {
         voice.active = false;
+        voice.canonical_lane = None;
         return 0;
     }
     let q = sample_filter_q(voice.filter_resonance);
@@ -329,12 +335,14 @@ pub(super) fn render_sample_voice_block(
     let step = voice.step;
     let gain = voice.gain;
     let active = &mut voice.active;
+    let canonical_lane = &mut voice.canonical_lane;
     let pos = &mut voice.pos;
     let filt = &mut voice.filt;
     let mut rendered_frames = 0;
     for sample in samples[..frames].iter_mut() {
         if *pos >= end_position {
             *active = false;
+            *canonical_lane = None;
             break;
         }
         let frame = pos.floor() as usize;

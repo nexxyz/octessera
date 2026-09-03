@@ -45,6 +45,7 @@ impl NativeRunner {
             mapping_config: config.mapping_config.clone(),
             base_mapping_config: config.mapping_config,
             global_sound: seed.global_sound,
+            dsp_config: seed.dsp_config,
             note_behaviors: config.note_behaviors,
             transport: NativeTransportState::new(
                 seed.bpm,

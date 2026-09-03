@@ -29,6 +29,7 @@ impl NativeRunner {
         mapping_config: Option<&Value>,
     ) -> Result<(), String> {
         self.apply_sound_payload(runtime);
+        self.apply_dsp_payload(runtime)?;
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
             runtime,
@@ -55,6 +56,7 @@ impl NativeRunner {
         mapping_config: Option<&Value>,
     ) -> Result<(), String> {
         self.apply_sound_payload(runtime);
+        self.apply_dsp_payload(runtime)?;
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
             runtime,
@@ -103,6 +105,14 @@ impl NativeRunner {
                     super::normalize_audio_output_buffer_frames(value);
             }
         }
+    }
+
+    fn apply_dsp_payload(&mut self, runtime: &Value) -> Result<(), String> {
+        let Some(dsp) = runtime.get("dsp") else {
+            return Ok(());
+        };
+        self.dsp_config = realtime_engine::synth::DspRuntimeConfig::from_value(dsp)?;
+        Ok(())
     }
 
     fn apply_ui_payload(&mut self, runtime: &Value) {

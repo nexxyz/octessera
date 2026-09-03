@@ -70,6 +70,9 @@ System
 │   ├── Mode: [Terminal | live-grid | plain-grid | active-behavior | cycle-behaviors]  default Terminal (stored none)
 │   ├── Bars per cycle: [1..64] bars  default 4 (cycle-behaviors only)
 │   └── Grid Lines: [on | off]  default off
+├── DSP (group)
+│   ├── CPU Warn %: [70 | 75 | 80 | 85 | 90 | 95]  default 85  ← native worker threshold; clear only below threshold - 5 points
+│   └── Bus Idle: [exact | -140 | -120 | -100 | -80]  default -120  ← native bus-idle amplitude threshold
 ├── Diagnostics (group)
 │   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
 ├── Info: (action)                    ← opens native loading/system information popup

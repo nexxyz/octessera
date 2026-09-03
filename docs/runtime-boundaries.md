@@ -19,6 +19,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - owns native menu state, config payloads, snapshots, platform effects, and `NativeRunner`
   - owns schema-v2 global modulation state, legacy migration, keyed Link LFO menu/binding paths, canonical global Play XY serialization, and transient global-LFO endpoint composition; it emits resolved audio commands while the realtime engine owns rendering
   - owns the schema-v2 canonical device audio contract: atomic `AudioOutputSet` values for Jack, USB, and HDMI output preferences, whole-set validation, explicit rejection of legacy `runtimeConfig.usb.audioOut`, and next-boot apply confirmation; adapters open the selected exact physical routes under this native contract
+  - owns the typed schema-v2 DSP runtime configuration and native `System > DSP` menu; it emits direct coalescible DSP audio commands without rebuilding prepared audio or changing structural render-plan revisions
   - `PlaybackRuntime::dispatch` is the canonical host-message/result observation path; desktop and Pi loops schedule work and render its presented output
   - consumes typed runtime-config changes published by `NativeRunner` during canonical dispatch; hosts must not derive playback scheduling config from snapshots
   - maps typed adapter failure facts to recovery policy and owns the best-effort stop-and-silence operation
@@ -50,6 +51,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 - Output adapters (`apps/desktop/src-tauri/src/`)
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
+  - desktop `AudioRuntime` retains the rodio `Sink` and matching persistent source-worker shutdown owner; its source publishes aggregate load, voice-steal, and paired worker-warning status, and the listener forwards the status to `PlaybackRuntime` and the desktop event bridge
   - MIDI input/output uses Tauri-side midir adapters
   - storage and sample-browser filesystem access remain host adapter responsibilities
   - desktop and Pi retain sample path resolution/containment, caching, preparation, preview/bank orchestration, and typed error adaptation
@@ -57,12 +59,14 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - `System > Backup / Restore` is a separate native action. PlaybackRuntime owns its action/status/card presentation and existing archive contract; Pi adapters select a usable regular `wlan0` IPv4, bind the authenticated service to `0.0.0.0:8081`, and publish the dynamic URL/code/lifetime. No regular address returns typed unavailable without binding or retry. Desktop returns typed unsupported. The service is never opened through the setup AP or coordinator.
   - Raspberry Pi device-update effects are executed by the host updater, which owns profile-qualified asset selection, checksum/manifest validation, candidate health guarding, and automatic fallback; `NativeRunner` owns menu/action semantics and confirmation. Orange device-update effects are executed by the Orange root-owned broker and guarded updater, which own profile-qualified selection of `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` plus `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`, checksum/manifest validation, candidate health guarding, and runtime rollback. Both paths fail closed on board or asset mismatch; neither path selects another board's asset or turns a manual/full-image install into an OTA fallback.
   - returns typed failure facts and carries runtime request/revision identity through asynchronous platform/audio-prep jobs; it does not choose recovery policy
+  - Orange `AudioManager` owns the bounded `audio_load_status_channel` receiver and its clonable sender source; only the persistent Jack source receives a sender, and the Orange runtime loop drains the newest status before snapshot/readiness work. Inline, secondary-route, benchmark, and pre-persistent Raspberry sources publish no load evidence.
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)
   - owns all internal musical audio rendering, instrument route/pan, FX bus sends, FX bus processing, sidechain ducking, and final stereo mix
   - optional persistent source-worker rendering keeps one canonical partition+scratch `OwnerEnvelope` per parity in lifecycle-owned capacity-one home mailboxes, work/completion transport, worker local state, or a short callback lease; `SourceWorkerRuntime` owns no DSP bundles at callback boundaries, while `SourceWorkerLifecycle` owns fault mailboxes, completion receivers, joins, and final owner destruction. Lifecycle-first drop on another thread waits for runtime close; same-thread reverse destruction is prohibited. The default inline path remains available
   - generates synth slot/sample/pan constants from `resources/platform-capabilities.json`
   - `crates/rodio-engine-source` owns only shared non-realtime file opening and WAV decoding into `SampleBuffer`
+  - stores the typed DSP worker-warning and bus-idle configuration received through direct control events; evaluates worker warning state only from valid persistent paired completions, while threshold interpretation does not alter prepared audio topology
   - `EngineSource` receives prepared sample buffers and control events; shared file opening/decoding remains strictly outside the audio callback
   - receives an explicit `AllNotesOff` internal command for clearing synth, sample, and preview voices; internal safety does not use MIDI CC 120/123
   - is the only path for synth/sample instrument audio before device output

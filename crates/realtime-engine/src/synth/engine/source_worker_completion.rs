@@ -55,10 +55,11 @@ impl SourceWorkerRuntime {
             },
         ) {
             Ok(()) => {
+                let rendered_frames = self.expected_frames;
                 if let (Some(load), [Some(first), Some(second)]) =
                     (self.load.as_mut(), self.load_observations)
                 {
-                    let _ = load.observe_pair([
+                    if load.observe_pair([
                         SourceWorkerLoadObservation {
                             dsp_duration_ns: first.dsp_duration_ns,
                             active_cost_units: first.active_cost_units,
@@ -67,7 +68,11 @@ impl SourceWorkerRuntime {
                             dsp_duration_ns: second.dsp_duration_ns,
                             active_cost_units: second.active_cost_units,
                         },
-                    ]);
+                    ]) {
+                        if let Some(utilization_ppm) = load.snapshot().utilization_ppm {
+                            engine.observe_worker_utilization(utilization_ppm, rendered_frames);
+                        }
+                    }
                 }
                 self.load_observations = [None; 2];
                 first.return_home();

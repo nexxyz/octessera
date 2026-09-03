@@ -1,4 +1,5 @@
 mod audio_config;
+mod dsp_config;
 mod engine;
 mod fx;
 mod fx_params;
@@ -18,6 +19,7 @@ pub use audio_config::{
     validate_sample_bank_param_path, validate_synth_param_path, NormalizedAudioConfig,
     NormalizedInstrumentSlot, NormalizedSampleConfig,
 };
+pub use dsp_config::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 #[cfg(any(test, feature = "test-support"))]
 pub use engine::SourceWorkerHoldControl;
 #[cfg(any(test, feature = "test-support"))]

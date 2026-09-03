@@ -8,6 +8,7 @@ use super::mapping_bindings;
 use super::mixer_fx;
 use super::modulation;
 use super::Value;
+use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::Map;
 
 pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -29,6 +30,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     )?;
     enum_field(runtime, "sparksMode", "runtimeConfig", SPARKS_MODES)?;
     enum_field(runtime, "xyRelease", "runtimeConfig", XY_RELEASES)?;
+    validate_dsp(runtime)?;
     unsigned_field(
         runtime,
         "audioOutputBufferFrames",
@@ -54,6 +56,15 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     device_io::validate_usb(runtime)?;
     device_io::validate_hdmi(runtime)?;
     device_io::validate_recording(runtime)
+}
+
+fn validate_dsp(runtime: &Map<String, Value>) -> Result<(), String> {
+    let Some(dsp) = object_field(runtime, "dsp", "runtimeConfig")? else {
+        return Ok(());
+    };
+    DspRuntimeConfig::from_value(&Value::Object(dsp.clone()))
+        .map(|_| ())
+        .map_err(|error| format!("runtimeConfig.dsp is invalid: {error}"))
 }
 
 pub(super) fn validate_system(root: &Map<String, Value>) -> Result<(), String> {

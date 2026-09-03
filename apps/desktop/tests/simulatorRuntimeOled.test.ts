@@ -334,9 +334,36 @@ test('semantic and audio-load updates preserve native OLED pixels', async () => 
   assert.equal(result.runtime.getSnapshot().frame.display.title, 'Changed');
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 
-  result.emitAudioLoad({ ratio: 0.9, voiceSteal: true });
+  result.emitAudioLoad({
+    ratio: 0.9,
+    voiceSteal: true,
+    workerUtilization: 0.9,
+    highCpuSteady: false,
+    missedQuantumFlash: false,
+  });
   assert.equal(result.runtime.getSnapshot().audioLoad.voiceSteal, true);
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
+});
+
+test('worker warning follows explicit native status instead of aggregate load ratio', async () => {
+  const result = await acceptedHarness();
+  result.emitAudioLoad({
+    ratio: 1,
+    voiceSteal: false,
+    workerUtilization: 1,
+    highCpuSteady: false,
+    missedQuantumFlash: false,
+  });
+  assert.equal(result.runtime.getSnapshot().audioLoad.highCpuSteady, false);
+
+  result.emitAudioLoad({
+    ratio: 0,
+    voiceSteal: false,
+    workerUtilization: 0.9,
+    highCpuSteady: true,
+    missedQuantumFlash: false,
+  });
+  assert.equal(result.runtime.getSnapshot().audioLoad.highCpuSteady, true);
 });
 
 test('OLED faults expose typed copy without changing native-only rendering', () => {

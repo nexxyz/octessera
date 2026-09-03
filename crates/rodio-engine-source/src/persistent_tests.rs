@@ -43,6 +43,34 @@ fn inline_source(block_frames: usize) -> (EngineEventSender, EngineSource) {
     (tx, EngineSource::with_block_frames(rx, RATE, block_frames))
 }
 
+#[test]
+fn persistent_source_publishes_status_after_paired_worker_completion() {
+    let (tx, rx) = event_queue();
+    let (load_tx, load_rx) = audio_load_status_channel();
+    let (mut source, shutdown) =
+        EngineSource::with_persistent_workers(rx, RATE, 128, Some(load_tx)).unwrap();
+    source.last_load_report = Instant::now() - LOAD_REPORT_INTERVAL;
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 60,
+        velocity: 100,
+        duration_ms: 1_000,
+    })
+    .unwrap();
+
+    for _ in 0..256 {
+        source.next();
+    }
+
+    let status = load_rx.try_recv().expect("paired completion status");
+    assert!(status
+        .worker_utilization
+        .is_some_and(|value| value.is_finite()));
+    assert!(!status.missed_quantum_flash);
+    drop(source);
+    assert_eq!(shutdown.shutdown().joined_workers, 2);
+}
+
 fn block_bits(source: &mut EngineSource, frames: usize) -> Vec<u32> {
     (0..frames * 2)
         .map(|_| source.next().unwrap().to_bits())

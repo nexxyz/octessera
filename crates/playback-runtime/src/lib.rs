@@ -28,6 +28,7 @@ pub use protocol::{
     RuntimeUserDataTransferStatus, SampleEntry, SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
     USER_DATA_TRANSFER_CODE_ALPHABET, USER_DATA_TRANSFER_CODE_LENGTH,
 };
+pub use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 pub use runtime::{
     CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
     RuntimeOledCacheFault, RuntimePresentationMetrics,

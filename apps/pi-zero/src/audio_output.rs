@@ -9,6 +9,9 @@ use crate::audio_sink_registry::{new_attach_gate, AudioAttachGate};
 pub(crate) use crate::audio_stream_health::AudioStreamStatus as OrangeDacStatus;
 mod audio_sink;
 pub(crate) use audio_sink::AudioSink;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[path = "audio_load_status.rs"]
+mod audio_load_status;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod audio_optional_recovery;
 mod audio_output_open;
@@ -44,6 +47,8 @@ use cpal_audio_output::BuiltAudioStream;
 use orange_audio_recovery::OrangeRecoveryController;
 use playback_runtime::AudioOutputSet;
 use playback_runtime::HostMessage;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use rodio_engine_source::{AudioLoadStatusReceiver, AudioLoadStatusSender};
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc;
 use std::sync::RwLock;
@@ -58,6 +63,12 @@ pub struct AudioManager {
     orange_dac_recovery: Option<OrangeRecoveryController>,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     _orange_recovery: Vec<OrangeRecoveryController>,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    load_tx: AudioLoadStatusSender,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    load_rx: AudioLoadStatusReceiver,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    load_status_reset_pending: bool,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[allow(dead_code)]
     optional_recovery: Vec<audio_optional_recovery::OptionalRecoveryWorker>,
@@ -175,6 +186,8 @@ impl AudioManager {
     ) -> Result<Self, String> {
         let (control_tx, control_rx) = mpsc::channel::<AudioControlRequest>();
         let (prep_result_tx, prep_result_rx) = mpsc::channel::<HostMessage>();
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let mut streams = Vec::new();
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -198,7 +211,11 @@ impl AudioManager {
                 AudioOpenPolicy::Outputs(outputs) => outputs,
             }) == Some(sink))
             .then(|| recording_tap.clone());
-            match open_sink(output_buffer_frames, sink, tap) {
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            let source_load_tx = (sink == AudioSink::Jack).then(|| load_tx.clone());
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            let source_load_tx = None;
+            match open_sink(output_buffer_frames, sink, tap, source_load_tx) {
                 Ok(opened) => {
                     set_status(
                         &route_registry,
@@ -351,6 +368,12 @@ impl AudioManager {
             orange_dac_recovery,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             _orange_recovery: orange_recovery,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            load_tx,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            load_rx,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            load_status_reset_pending: false,
         })
     }
 
@@ -373,7 +396,20 @@ impl AudioManager {
 impl AudioManager {
     pub(crate) fn recover_audio_if_due(&mut self) {
         if let Some(recovery) = self.orange_dac_recovery.as_mut() {
-            recovery.recover_if_due();
+            let load_rx = &self.load_rx;
+            let reset_pending = &mut self.load_status_reset_pending;
+            recovery.recover_if_due_with(
+                || {
+                    if !*reset_pending {
+                        while load_rx.try_recv().is_ok() {}
+                        *reset_pending = true;
+                    }
+                },
+                Some(self.load_tx.clone()),
+            );
+            if recovery.device_status() == OrangeDacStatus::Healthy {
+                self.load_status_reset_pending = false;
+            }
         }
         if let Some(recovery) = &self.orange_dac_recovery {
             set_status(
@@ -429,6 +465,9 @@ impl AudioManager {
     }
 }
 
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[path = "audio_load_status_tests.rs"]
+mod audio_load_status_tests;
 #[cfg(test)]
 #[path = "audio_output_tests.rs"]
 mod tests;

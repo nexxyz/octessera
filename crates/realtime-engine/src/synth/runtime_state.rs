@@ -9,6 +9,7 @@ pub(super) use filter::{prepare_count_for_test, reset_prepare_count_for_test};
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Voice {
     pub(super) active: bool,
+    pub(super) canonical_lane: Option<super::types::LogicalLaneId>,
     pub(super) instrument_slot: u8,
     pub(super) midi_note: u8,
     pub(super) velocity: u8,
@@ -30,6 +31,7 @@ impl Voice {
     pub(super) fn off() -> Self {
         Self {
             active: false,
+            canonical_lane: None,
             instrument_slot: 0,
             midi_note: 0,
             velocity: 0,

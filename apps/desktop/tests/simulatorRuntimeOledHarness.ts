@@ -8,6 +8,7 @@ import {
   type RuntimeOledFrameMessage,
   type RuntimeRunnerMessage,
 } from '@octessera/device-contracts';
+import type { AudioLoadStatus } from '../src/audio/audioLoadEvents';
 import { createSimulatorRuntime } from '../src/runtime/simulatorRuntime';
 import type { RuntimeScheduler } from '../src/runtime/runtimeScheduler';
 
@@ -22,7 +23,7 @@ export type Harness = {
   runtime: ReturnType<typeof createSimulatorRuntime>;
   setResponse: (messages: RuntimeRunnerMessage[]) => void;
   emitAsync: (seq: number, messages: RuntimeRunnerMessage[]) => void;
-  emitAudioLoad: (status: { ratio: number; voiceSteal: boolean }) => void;
+  emitAudioLoad: (status: AudioLoadStatus) => void;
 };
 
 function base64(bytes: Uint8Array): string {

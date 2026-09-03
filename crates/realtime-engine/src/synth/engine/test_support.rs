@@ -37,6 +37,24 @@ impl SynthEngine {
     }
 
     #[cfg(test)]
+    pub(in crate::synth) fn active_synth_canonical_lane_indices_for_slot(
+        &self,
+        slot: usize,
+    ) -> Vec<usize> {
+        let mut lanes: Vec<usize> = self
+            .synth_voice_pool
+            .slot_lanes(slot)
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|lane| self.synth_voice_pool.lane(*lane))
+            .filter(|voice| voice.active)
+            .map(|voice| voice.canonical_lane.expect("active canonical lane") as usize)
+            .collect();
+        lanes.sort_unstable();
+        lanes
+    }
+
+    #[cfg(test)]
     pub(in crate::synth) fn active_sample_lane_indices_for_slot(&self, slot: usize) -> Vec<usize> {
         self.sample_voice_pool
             .slot_lanes(slot)
@@ -49,6 +67,24 @@ impl SynthEngine {
                     .is_some_and(|voice| voice.active)
             })
             .collect()
+    }
+
+    #[cfg(test)]
+    pub(in crate::synth) fn active_sample_canonical_lane_indices_for_slot(
+        &self,
+        slot: usize,
+    ) -> Vec<usize> {
+        let mut lanes: Vec<usize> = self
+            .sample_voice_pool
+            .slot_lanes(slot)
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|lane| self.sample_voice_pool.lane(*lane))
+            .filter(|voice| voice.active)
+            .map(|voice| voice.canonical_lane.expect("active canonical lane") as usize)
+            .collect();
+        lanes.sort_unstable();
+        lanes
     }
 
     #[cfg(test)]

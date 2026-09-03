@@ -15,6 +15,7 @@ base64 = "0.22.1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 flate2 = "1.1"
 platform-core = { path = "../platform-core" }
+realtime-engine = { path = "../realtime-engine" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

@@ -8,7 +8,9 @@ fn load(ns_per_unit_ewma: [u64; 2]) -> SourceWorkerLoadSnapshot {
         ewma_coefficient_ppm: 1_000_000,
         busy_ns_ewma: [0, 0],
         ns_per_unit_ewma,
-        utilization_ppm: 0,
+        observed_active_cost_units: [0, 0],
+        has_useful_measurement: [true, true],
+        utilization_ppm: None,
         observed: [true, true],
     }
 }
@@ -234,6 +236,7 @@ fn cross_worker_sample_replacement_retains_both_old_arcs_without_callback_drop()
         [1, 2, 3, 4, 5, 6, 7, 9]
     );
     assert_eq!(engine.pending_render_retired.sample_voices.len(), 2);
+    assert_eq!(engine.sample_voice_pool.canonical_lane(9), Some(0));
     assert!(Arc::ptr_eq(
         engine
             .pending_render_retired

@@ -97,16 +97,25 @@ pub enum OledSplash {
     Shutdown,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct OledPresentationMetrics {
-    pub cpu_hot: bool,
+    pub worker_utilization: Option<f32>,
+    pub high_cpu_steady: bool,
+    pub missed_quantum_flash: bool,
     pub voice_steal: bool,
 }
 
 impl OledPresentationMetrics {
-    pub fn normalized(audio_load_ratio: f32, voice_steal: bool) -> Self {
+    pub fn from_status(
+        worker_utilization: Option<f32>,
+        high_cpu_steady: bool,
+        _missed_quantum_flash: bool,
+        voice_steal: bool,
+    ) -> Self {
         Self {
-            cpu_hot: audio_load_ratio.is_finite() && audio_load_ratio >= 0.85,
+            worker_utilization,
+            high_cpu_steady: worker_utilization.is_some() && high_cpu_steady,
+            missed_quantum_flash: false,
             voice_steal,
         }
     }

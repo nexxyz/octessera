@@ -33,6 +33,7 @@ impl NativeRunner {
             worlds_items: self.worlds_menu_items(),
             worlds_items_by_layer: self.worlds_menu_items_by_layer(),
             behavior_target_items: self.behavior_target_items(),
+            dsp_config: self.dsp_config,
             layer_labels: self.layer_labels(),
             layer_names: self.layer_names.clone(),
             layer_auto_names: self.layer_auto_names.clone(),
@@ -236,6 +237,7 @@ impl NativeRunner {
                     "voiceStealingMode": self.voice_stealing_mode.clone(),
                     "audioOutputBufferFrames": self.audio_output_buffer_frames
                 },
+                "dsp": self.dsp_config,
                 "noteLengthMs": self.global_sound.note_length_ms,
                 "velocityScalePct": self.global_sound.velocity_scale_pct,
                 "velocityCurve": velocity_curve_id(self.global_sound.velocity_curve),

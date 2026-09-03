@@ -30,6 +30,9 @@ pub struct RuntimeIngest {
 pub struct RuntimePresentationMetrics {
     pub audio_load_ratio: f32,
     pub voice_steal: bool,
+    pub worker_utilization: Option<f32>,
+    pub high_cpu_steady: bool,
+    pub missed_quantum_flash: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
