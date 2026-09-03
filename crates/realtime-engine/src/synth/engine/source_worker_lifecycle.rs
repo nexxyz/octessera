@@ -6,8 +6,7 @@ mod startup;
 use super::source_lane_renderer::SampleSourceContext;
 use super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
 pub(super) use super::source_worker_owner::{
-    CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, SourceWork, SourceWorkerScratch,
-    WorkerExit,
+    CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerScratch, WorkerExit,
 };
 use super::source_worker_protocol::SourceWorkerRetirementError;
 #[cfg(test)]

@@ -185,3 +185,42 @@ pub(in crate::synth) fn process_fx_bus_slot(
         }
     }
 }
+
+pub(in crate::synth) fn process_fx_bus_slot_with_duck_source(
+    params: &FxBusParams,
+    state: &mut FxBusState,
+    input: f32,
+    duck_source: f32,
+    sample_rate: u32,
+) -> f32 {
+    let FxBusParams::Duck {
+        source,
+        threshold,
+        amount,
+        attack_ms,
+        release_ms,
+    } = *params
+    else {
+        return process_fx_bus_slot(
+            params,
+            state,
+            input,
+            &[0.0; INSTRUMENT_SLOT_COUNT],
+            &[],
+            sample_rate,
+        );
+    };
+    process_duck_source(
+        state,
+        input,
+        DuckParams {
+            source,
+            threshold,
+            amount,
+            attack_ms,
+            release_ms,
+        },
+        duck_source,
+        sample_rate,
+    )
+}

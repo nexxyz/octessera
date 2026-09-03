@@ -134,7 +134,15 @@ impl SynthEngine {
                 &self.bus_mono_snapshot,
                 self.sample_rate,
             );
-            self.observe_bus_chain(bus_idx, bus_input, bus_output.mono);
+            let chain_output = bus_output.mono;
+            self.observe_bus_chain(bus_idx, bus_input, chain_output);
+            let input_present = self.signal_present_mono(bus_input);
+            let output_present = self.signal_present_mono(chain_output);
+            self.bus_chains[bus_idx].observe_render_hold(
+                input_present,
+                output_present,
+                self.fx_activity_hold_frames,
+            );
             bus_output.mono = if self.momentary_fx.is_empty() {
                 bus_output.mono
             } else {
@@ -145,13 +153,6 @@ impl SynthEngine {
                 );
                 (fx_l + fx_r) * 0.5
             };
-            let input_present = self.signal_present_mono(bus_input);
-            let output_present = self.signal_present_mono(bus_output.mono);
-            self.bus_chains[bus_idx].observe_render_hold(
-                input_present,
-                output_present,
-                self.fx_activity_hold_frames,
-            );
             let (bus_left, bus_right) = self.fx_bus_stereo_output(bus_idx, bus_output);
             left += bus_left;
             right += bus_right;
@@ -164,7 +165,11 @@ impl SynthEngine {
         (left, right)
     }
 
-    fn fx_bus_stereo_output(&mut self, bus_idx: usize, output: BusChainFrameOutput) -> (f32, f32) {
+    pub(super) fn fx_bus_stereo_output(
+        &mut self,
+        bus_idx: usize,
+        output: BusChainFrameOutput,
+    ) -> (f32, f32) {
         let stereo_output = if output.spread > 0.0 {
             Some(self.bus_output_spread_state[bus_idx].process(output.mono, output.spread))
         } else if let Some(pos) = output.auto_pan_pos {

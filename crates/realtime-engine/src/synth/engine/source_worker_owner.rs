@@ -1,3 +1,4 @@
+use super::super::dsp_config::BusIdleThreshold;
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::synth_voice_pool::SynthVoicePartition;
@@ -76,6 +77,10 @@ pub(super) enum WorkerCommand {
     RenderBuses {
         stamp: WorkStamp,
         owner: OwnerEnvelope,
+        frames: usize,
+        sample_rate: u32,
+        bus_idle_threshold: BusIdleThreshold,
+        fx_activity_hold_frames: u32,
     },
 }
 
@@ -163,4 +168,45 @@ pub(super) struct CompletedEnvelope {
 
 pub(super) struct WorkerExit {
     pub(super) unsent_completion: Option<CompletedEnvelope>,
+}
+
+impl CompletedEnvelope {
+    pub(super) fn from_bus_work(
+        owner: OwnerEnvelope,
+        stamp: WorkStamp,
+        worker_exited: bool,
+        render_ok: bool,
+        dsp_duration_ns: u64,
+        active_cost_units: u16,
+    ) -> Self {
+        Self {
+            owner,
+            phase: WorkerPhase::Buses,
+            stamp,
+            render_ok,
+            worker_exited,
+            transport_failed: false,
+            dsp_duration_ns,
+            active_cost_units,
+        }
+    }
+
+    pub(super) fn from_work(
+        work: SourceWork,
+        worker_exited: bool,
+        render_ok: bool,
+        dsp_duration_ns: u64,
+        active_cost_units: u16,
+    ) -> Self {
+        Self {
+            owner: work.owner,
+            phase: WorkerPhase::Sources,
+            stamp: work.stamp,
+            render_ok,
+            worker_exited,
+            transport_failed: false,
+            dsp_duration_ns,
+            active_cost_units,
+        }
+    }
 }

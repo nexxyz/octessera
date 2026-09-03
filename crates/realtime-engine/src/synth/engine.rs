@@ -52,6 +52,10 @@ mod sample_voice_pool;
 mod source_lane_prefix_tests;
 mod source_lane_renderer;
 mod source_worker;
+#[allow(dead_code)]
+mod source_worker_bus;
+#[cfg(test)]
+mod source_worker_bus_tests;
 #[cfg(test)]
 mod source_worker_carrier_tests;
 mod source_worker_carrier_transfer;
