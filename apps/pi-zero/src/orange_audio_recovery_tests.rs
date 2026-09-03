@@ -68,15 +68,19 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
 
     assert_eq!(*jack_calls.lock().unwrap(), 0);
     assert_eq!(jack_controller.device_status(), AudioStreamStatus::Healthy);
+    assert_eq!(jack_controller.runtime_status(), AudioStreamStatus::Healthy);
+    assert_eq!(jack_health.external_status(), AudioStreamStatus::Healthy);
+    assert_eq!(jack_health.runtime_status(), AudioStreamStatus::Healthy);
+    assert_eq!(jack_health.worker_health(), SourceWorkerHealth::Healthy);
+    assert!(has_sink(&jack_sinks, AudioSink::Jack));
+
+    jack_health.mark_worker_health(SourceWorkerHealth::CompletionFailed);
+    jack_controller.recover_if_due();
+
+    assert_eq!(*jack_calls.lock().unwrap(), 0);
     assert_eq!(
         jack_controller.runtime_status(),
         AudioStreamStatus::Terminal
-    );
-    assert_eq!(jack_health.external_status(), AudioStreamStatus::Healthy);
-    assert_eq!(jack_health.runtime_status(), AudioStreamStatus::Terminal);
-    assert_eq!(
-        jack_health.worker_health(),
-        SourceWorkerHealth::DeadlineMiss
     );
     assert!(has_sink(&jack_sinks, AudioSink::Jack));
 

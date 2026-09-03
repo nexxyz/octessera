@@ -45,12 +45,12 @@ fn cpal_uses_persistent_workers_only_for_orange_jack() {
 }
 
 #[test]
-fn cpal_worker_status_reports_only_terminal_worker_failures() {
+fn cpal_worker_status_keeps_deadline_miss_nonterminal() {
     for health in [SourceWorkerHealth::Disabled, SourceWorkerHealth::Healthy] {
         assert!(!health.is_terminal());
     }
+    assert!(!SourceWorkerHealth::DeadlineMiss.is_terminal());
     for health in [
-        SourceWorkerHealth::DeadlineMiss,
         SourceWorkerHealth::DispatchFailed,
         SourceWorkerHealth::CompletionFailed,
         SourceWorkerHealth::WorkerExited,

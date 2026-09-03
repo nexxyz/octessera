@@ -237,27 +237,32 @@ mod tests {
     }
 
     #[test]
-    fn worker_health_reason_is_sticky_and_separate_from_external_status() {
+    fn deadline_miss_is_absent_until_a_fatal_worker_failure() {
         let health = AudioStreamHealth::optional("USB".into());
 
         health.mark_worker_health(SourceWorkerHealth::DeadlineMiss);
-        assert_eq!(health.worker_health(), SourceWorkerHealth::DeadlineMiss);
+        assert_eq!(health.worker_health(), SourceWorkerHealth::Healthy);
         assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
-        assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);
+        assert_eq!(health.runtime_status(), AudioStreamStatus::Healthy);
+        assert_eq!(health.log_worker_terminal_once(), None);
         health.clear_recoverable_fault();
-        assert_eq!(health.worker_health(), SourceWorkerHealth::DeadlineMiss);
+        assert_eq!(health.worker_health(), SourceWorkerHealth::Healthy);
         assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
-        assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);
+        assert_eq!(health.runtime_status(), AudioStreamStatus::Healthy);
 
-        health.mark_terminal();
-        assert_eq!(health.worker_health(), SourceWorkerHealth::DeadlineMiss);
-        assert_eq!(health.external_status(), AudioStreamStatus::Terminal);
+        health.mark_worker_health(SourceWorkerHealth::CompletionFailed);
+        assert_eq!(health.worker_health(), SourceWorkerHealth::CompletionFailed);
+        assert_eq!(health.runtime_status(), AudioStreamStatus::Terminal);
+        assert_eq!(
+            health.log_worker_terminal_once(),
+            Some(SourceWorkerHealth::CompletionFailed)
+        );
+        assert_eq!(health.log_worker_terminal_once(), None);
     }
 
     #[test]
-    fn every_terminal_worker_health_reason_round_trips_and_first_wins() {
+    fn every_structural_worker_health_reason_round_trips_and_first_wins() {
         let terminal_reasons = [
-            SourceWorkerHealth::DeadlineMiss,
             SourceWorkerHealth::DispatchFailed,
             SourceWorkerHealth::CompletionFailed,
             SourceWorkerHealth::WorkerExited,

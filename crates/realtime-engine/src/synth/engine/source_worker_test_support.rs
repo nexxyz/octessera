@@ -184,17 +184,6 @@ impl SourceWorkerRuntime {
         Some(evidence)
     }
 
-    pub(crate) fn collect_for_test(&mut self, engine: &mut SynthEngine) -> bool {
-        if self.expected_phase == Some(WorkerPhase::Buses) {
-            let deadline = Instant::now()
-                + self.rendezvous_deadline(self.expected_stamp.map_or(0, |stamp| stamp.frames));
-            self.collect_wave_with_deadline(engine, false, WorkerPhase::Buses, deadline, false)
-                .is_some()
-        } else {
-            self.collect(engine, false)
-        }
-    }
-
     pub(crate) fn in_flight_mask_for_test(&self) -> u8 {
         self.in_flight_mask
     }
@@ -335,17 +324,6 @@ impl SourceWorkerRuntime {
             self.return_home_owner_for_test(owner);
             identity
         })
-    }
-
-    pub(crate) fn collect_wait_for_test(&mut self, engine: &mut SynthEngine) -> bool {
-        if self.expected_phase == Some(WorkerPhase::Buses) {
-            let deadline = Instant::now()
-                + self.rendezvous_deadline(self.expected_stamp.map_or(0, |stamp| stamp.frames));
-            self.collect_wave_with_deadline(engine, true, WorkerPhase::Buses, deadline, false)
-                .is_some()
-        } else {
-            self.collect(engine, true)
-        }
     }
 
     pub(crate) fn disconnect_work_for_test(&mut self, parity: usize) {

@@ -224,7 +224,7 @@ fn second_wave_worker_exit_is_terminal_and_preserves_owner_for_shutdown() {
 }
 
 #[test]
-fn second_wave_deadline_miss_is_terminal_and_preserves_owner_for_shutdown() {
+fn second_wave_deadline_miss_recovers_after_late_completion() {
     let mut persistent = dynamic_engine();
     persistent.set_instruments(full_bus_config());
     persistent.note_on(0, 36, 100, 5_000);
@@ -248,9 +248,22 @@ fn second_wave_deadline_miss_is_terminal_and_preserves_owner_for_shutdown() {
         SourceWorkerHealth::DeadlineMiss
     );
     runtime.set_pause_for_parity_for_test(0, false);
+    let mut recovered = false;
+    for _ in 0..100_000 {
+        if runtime.collect_for_test(&mut persistent) {
+            recovered = true;
+            break;
+        }
+        std::thread::yield_now();
+    }
+    assert!(recovered);
+    assert_eq!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::Healthy
+    );
+    assert_eq!(persistent.sample_clock, 128);
     let shutdown = lifecycle.shutdown(runtime.retire());
     assert_eq!(shutdown.joined_workers, 2);
-    assert_eq!(shutdown.destroyed_owner_count, 2);
 }
 
 pub(super) fn full_bus_config() -> InstrumentsConfig {

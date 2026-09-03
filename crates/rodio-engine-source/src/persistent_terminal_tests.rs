@@ -232,7 +232,7 @@ fn persistent_deadline_keeps_cache_and_controls_unconsumed() {
     );
     assert_eq!(worker_health(&source).deadline_misses, 1);
     assert_eq!(worker_jobs(&source), [0, 0]);
-    assert_eq!(render_attempts(&source), 3);
+    assert_eq!(render_attempts(&source), 1);
 
     let (allocations, deallocations) = allocations_and_deallocations(|| {
         source.retire_workers_for_test();
@@ -289,7 +289,7 @@ fn persistent_worker_panic_is_terminal_through_iterator() {
 }
 
 #[test]
-fn terminal_recovered_owner_refreshes_post_render_profile_without_controls() {
+fn recovered_owner_refreshes_post_render_profile_and_allows_controls() {
     let samples: Arc<[f32]> = Arc::from(vec![0.8, -0.4, 0.2, -0.1]);
     let (tx, mut source, shutdown, hold_control) = gated_source(true, None, false);
     tx.send(EngineEvent::SetPreparedAudioConfig(
@@ -315,17 +315,22 @@ fn terminal_recovered_owner_refreshes_post_render_profile_without_controls() {
     hold_control.release();
     wait_for_worker_jobs(&source, [1, 1]);
     wait_for_worker_completions(&source);
+    source
+        .worker_state
+        .worker
+        .as_mut()
+        .expect("persistent worker")
+        .runtime
+        .set_deadline_for_test(Duration::from_secs(1));
     let report_rx = queue_unconsumed_controls(&tx);
     assert_silence(&block_bits(&mut source));
     let after_late_render = source.profile_snapshot();
     assert_eq!(after_late_render.active_sample_voices, 0);
     assert_ne!(after_late_render, before_late_render);
-    assert!(report_rx.try_recv().is_err());
-    assert_eq!(
-        source.source_worker_health(),
-        SourceWorkerHealth::DeadlineMiss
-    );
-    assert_eq!(worker_jobs(&source), [1, 1]);
+    assert!(report_rx.recv_timeout(Duration::from_secs(1)).is_ok());
+    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
+    assert_eq!(worker_health(&source).deadline_recoveries, 1);
+    assert_eq!(worker_jobs(&source), [3, 3]);
     assert_eq!(render_attempts(&source), 2);
 
     let (allocations, deallocations) = allocations_and_deallocations(|| {

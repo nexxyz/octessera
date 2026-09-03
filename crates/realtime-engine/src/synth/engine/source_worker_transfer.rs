@@ -354,10 +354,14 @@ impl SynthEngine {
             self.render_interleaved_block(frames, left, right, out);
             return;
         }
-        if frames > BLOCK_SLOT_SCRATCH_FRAMES
-            || runtime.health_snapshot().status != SourceWorkerHealth::Healthy
-        {
-            let _ = runtime.render_source_block(self, frames);
+        if runtime.health_snapshot().status.is_recovering() {
+            let _ = runtime.refresh_recovery(self);
+        }
+        let health = runtime.health_snapshot().status;
+        if frames > BLOCK_SLOT_SCRATCH_FRAMES || health != SourceWorkerHealth::Healthy {
+            if !health.is_recovering() {
+                let _ = runtime.render_source_block(self, frames);
+            }
             left.fill(0.0);
             right.fill(0.0);
             out.fill(0.0);

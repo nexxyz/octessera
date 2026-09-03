@@ -114,6 +114,25 @@ fn timing_probe_records_reverse_completion_order_and_phase_totals() {
 }
 
 #[test]
+fn timing_probe_accepts_recovery_completion_without_restarting_sequence() {
+    let probe = SourceWorkerTimingProbe::new(None);
+    probe.begin_sequence(13, Duration::from_nanos(100));
+    probe.record_dispatch(13, 0b11);
+    probe.record_completion(13, 0, Duration::from_nanos(40));
+    probe.freeze(0b01, 0b01, None, true);
+    probe.record_recovery_completion(13, 1, Duration::from_nanos(70));
+    probe.record_recovery_completion(13, 1, Duration::from_nanos(1));
+    probe.begin_sequence(14, Duration::from_nanos(200));
+
+    let snapshot = probe.snapshot();
+    assert_eq!(snapshot.coordinator.sequence, Some(13));
+    assert_eq!(snapshot.coordinator.completed_mask, Some(0b11));
+    assert_eq!(snapshot.coordinator.dispatch_to_first_ns, Some(40));
+    assert_eq!(snapshot.coordinator.dispatch_to_both_ns, Some(70));
+    assert!(snapshot.coordinator.frozen);
+}
+
+#[test]
 fn timing_probe_operations_do_not_allocate() {
     let probe = SourceWorkerTimingProbe::new(Some(test_cpu));
     let (_, allocations, deallocations) =
