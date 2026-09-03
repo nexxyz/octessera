@@ -68,14 +68,42 @@ fn timing_probe_uses_supplied_render_duration() {
 }
 
 #[test]
-fn timing_probe_accumulates_source_and_bus_render_duration() {
+fn timing_probe_tracks_source_and_bus_wave_timing() {
     let probe = SourceWorkerTimingProbe::new(None);
     probe.begin_sequence(12, Duration::from_nanos(100));
-    let start = probe.worker_start();
-    probe.record_worker(0, 12, start, 777, None);
-    probe.record_bus_worker(0, 12, 333, None);
+    probe.record_dispatch(12, 0b11);
 
-    assert_eq!(probe.snapshot().workers[0].render_ns, Some(1_110));
+    let first_start = probe.worker_start();
+    probe.record_worker(0, 12, first_start, 777, None);
+    probe.record_completion(12, 0, Duration::from_nanos(20));
+    let second_start = probe.worker_start();
+    probe.record_worker(1, 12, second_start, 555, None);
+    probe.record_completion(12, 1, Duration::from_nanos(25));
+
+    let source_snapshot = probe.snapshot();
+    assert_eq!(source_snapshot.coordinator.first_parity, Some(0));
+    assert_eq!(source_snapshot.coordinator.dispatch_to_first_ns, Some(20));
+    assert_eq!(source_snapshot.coordinator.dispatch_to_both_ns, Some(25));
+
+    probe.record_bus_dispatch(12);
+    let dispatched_snapshot = probe.snapshot();
+    assert_eq!(dispatched_snapshot.coordinator.completed_mask, Some(0));
+    assert_eq!(dispatched_snapshot.coordinator.first_parity, None);
+    assert_eq!(dispatched_snapshot.coordinator.dispatch_to_first_ns, None);
+    assert_eq!(dispatched_snapshot.coordinator.dispatch_to_both_ns, None);
+
+    probe.record_bus_worker(0, 12, 333, None);
+    probe.record_bus_worker(1, 12, 222, None);
+    probe.record_bus_completion(12, 1, Duration::from_nanos(50));
+    probe.record_bus_completion(12, 0, Duration::from_nanos(60));
+
+    let bus_snapshot = probe.snapshot();
+    assert_eq!(bus_snapshot.workers[0].render_ns, Some(1_110));
+    assert_eq!(bus_snapshot.workers[1].render_ns, Some(777));
+    assert_eq!(bus_snapshot.coordinator.completed_mask, Some(0b11));
+    assert_eq!(bus_snapshot.coordinator.first_parity, Some(1));
+    assert_eq!(bus_snapshot.coordinator.dispatch_to_first_ns, Some(50));
+    assert_eq!(bus_snapshot.coordinator.dispatch_to_both_ns, Some(60));
 }
 
 #[test]

@@ -111,6 +111,19 @@ try {
   if ($passEvidence.SensorStartupMaxThermalMillicelsius -ne 70000 -or $passEvidence.SensorRuntimeMaxThermalMillicelsius -ne 75000 -or $passEvidence.SensorMaxThermalMillicelsius -ne 75000) { throw "High startup/runtime temperatures were not retained as extrema." }
   if ([math]::Abs([double]$passEvidence.AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Aggregate render-duration ratio was not computed from total evidence." }
   if ([math]::Abs([double](Get-OrangeLiveResultSummary -Result $result -Selection $selection).AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Result summary did not expose the aggregate render-duration ratio." }
+  foreach ($durationCase in @(
+      @{ Selection = $selection; Allowed = 0; Rejected = 1 },
+      @{ Selection = (Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 120 -AllowLongRepeat:$true); Allowed = 0; Rejected = 1 },
+      @{ Selection = (Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 300); Allowed = 5; Rejected = 6 }
+    )) {
+    $callback.over_audio_duration_budget_count = $durationCase.Allowed
+    $result.status = "pass"
+    if ((Get-OrangeLiveResultSummary -Result $result -Selection $durationCase.Selection).StatusClass -ne "pass") { throw "$($durationCase.Selection.MeasureSeconds) seconds allowed callback budget overruns did not satisfy the approved ceiling." }
+    $callback.over_audio_duration_budget_count = $durationCase.Rejected
+    $result.status = "fail"
+    if ((Get-OrangeLiveResultSummary -Result $result -Selection $durationCase.Selection).StatusClass -ne "over_budget") { throw "$($durationCase.Selection.MeasureSeconds) seconds rejected callback budget overruns were not classified as over-budget." }
+  }
+  $callback.over_audio_duration_budget_count = 0; $result.status = "pass"
   $manifestAggregate = ConvertFrom-Json -InputObject (ConvertTo-OrangeLiveManifestJson -Results @($passEvidence))
   if ([math]::Abs([double]$manifestAggregate[0].AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Manifest did not retain the aggregate render-duration ratio." }
   Assert-OrangeLiveResult -Result $result -Selection $selection
@@ -191,9 +204,9 @@ try {
   $callback.cpal_device_error_count = 1
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Pass with CPAL error was accepted." }
-  $callback.cpal_device_error_count = 0; $callback.over_audio_duration_budget_count = 1
+  $callback.cpal_device_error_count = 0; $callback.over_audio_duration_budget_count = 6
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Pass with over-budget callback was accepted." }
+  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Pass above the callback budget overrun ceiling was accepted." }
   $callback.over_audio_duration_budget_count = 0; $callback.pre_mute_nonzero_samples = 0
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Pass with no pre-mute activity was accepted." }
@@ -224,7 +237,7 @@ try {
   if ($staleRelease.StatusClass -ne "infrastructure_failure") { throw "Mismatched release geometry was not refused." }
   $release.observed_alsa_period_frames = 64
   $release | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-release.json")
-  $callback.over_audio_duration_budget_count = 1
+  $callback.over_audio_duration_budget_count = 6
   $result.status = "fail"
   Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=measured_failure"
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")

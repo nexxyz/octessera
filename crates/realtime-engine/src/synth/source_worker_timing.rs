@@ -216,10 +216,16 @@ impl SourceWorkerTimingProbe {
             self.coordinator
                 .in_flight_mask
                 .store(0b11, Ordering::Relaxed);
-            self.coordinator.completed_mask.store(0, Ordering::Relaxed);
+            self.coordinator
+                .first_parity_valid
+                .store(false, Ordering::Relaxed);
+            self.coordinator
+                .dispatch_to_first_valid
+                .store(false, Ordering::Relaxed);
             self.coordinator
                 .dispatch_to_both_valid
                 .store(false, Ordering::Relaxed);
+            self.coordinator.completed_mask.store(0, Ordering::Relaxed);
         }
     }
 
