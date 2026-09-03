@@ -118,9 +118,37 @@ study_class=infrastructure_failure
 benchmark_active=true
 write_readiness() { printf '{\n"executor_mode":"inline",\n"worker_health":"disabled",\n"worker_thread_name_0":"",\n"worker_thread_name_1":""\n}\n' > "$readiness"; }
 write_tasks() {
-  mkdir -p "$task_root/$pid/task/1" "$task_root/$pid/task/2"
-  printf 'oct-src-reaper\n' > "$task_root/$pid/task/1/comm"
-  printf 'unrelated-runtime-task\n' > "$task_root/$pid/task/2/comm"
+  rm -rf -- "$task_root/$pid/task"
+  case "$1" in
+    valid)
+      mkdir -p "$task_root/$pid/task/1" "$task_root/$pid/task/2"
+      printf 'oct-src-reaper\n' > "$task_root/$pid/task/1/comm"
+      printf 'unrelated-runtime-task\n' > "$task_root/$pid/task/2/comm"
+      ;;
+    missing)
+      mkdir -p "$task_root/$pid/task/1"
+      printf 'unrelated-runtime-task\n' > "$task_root/$pid/task/1/comm"
+      ;;
+    extra)
+      mkdir -p "$task_root/$pid/task/1" "$task_root/$pid/task/2" "$task_root/$pid/task/3"
+      printf 'oct-src-reaper\n' > "$task_root/$pid/task/1/comm"
+      printf 'oct-src-reaper\n' > "$task_root/$pid/task/2/comm"
+      printf 'unrelated-runtime-task\n' > "$task_root/$pid/task/3/comm"
+      ;;
+  esac
+}
+run_readiness_case() {
+  expected="$1"
+  write_tasks "$2"
+  printf '0\n' > "$date_state"
+  benchmark_pid=
+  benchmark_invocation=
+  if [ "$expected" = pass ]; then
+    wait_for_benchmark_readiness
+    [ "$benchmark_pid" = 123 ]
+  elif wait_for_benchmark_readiness; then
+    exit 1
+  fi
 }
 unit_main_pid() { printf '123\n'; }
 unit_invocation_id() { printf 'fixture-invocation\n'; }
@@ -143,16 +171,15 @@ date() {
     date_calls="$(cat "$date_state")"
     date_calls=$((date_calls + 1))
     printf '%s\n' "$date_calls" > "$date_state"
-    if [ "$date_calls" = 1 ]; then printf '100\n'; else printf '999\n'; fi
+    if [ "$date_calls" -le 2 ]; then printf '100\n'; else printf '999\n'; fi
   else
     command date "$@"
   fi
 }
 if wait_for_benchmark_readiness; then exit 1; fi
-unset -f date
-write_tasks
-wait_for_benchmark_readiness
-[ "$benchmark_pid" = 123 ]
+run_readiness_case fail missing
+run_readiness_case fail extra
+run_readiness_case pass valid
 printf released > "$release_marker"
 rm -rf -- "$task_root/$pid/task"
 benchmark_active=false
