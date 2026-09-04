@@ -159,7 +159,7 @@ impl ScenarioId {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BenchmarkConfig {
-    pub scenario: ScenarioId,
+    pub scenario: String,
     pub output_frames: u32,
     pub expected_alsa_period_frames: u32,
     pub internal_frames: usize,
@@ -248,8 +248,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     {
         return Err("inline executor requires worker timing disabled".into());
     }
-    let scenario = ScenarioId::parse(scenario.as_deref().unwrap_or_default())
-        .ok_or_else(|| "an exact --scenario is required".to_string())?;
+    let scenario = scenario.ok_or_else(|| "an exact --scenario is required".to_string())?;
+    if ScenarioId::parse(&scenario).is_none()
+        && !crate::dsp_scenarios::is_dynamic_live_scenario_name(&scenario)
+    {
+        return Err("an exact --scenario is required".into());
+    }
     let output_frames = output_frames.ok_or_else(|| "--output-frames is required".to_string())?;
     if !matches!(output_frames, 128 | 256 | 512 | 1024) {
         return Err("output frames must be 128, 256, 512, or 1024".into());

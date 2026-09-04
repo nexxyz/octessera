@@ -12,7 +12,12 @@ pub fn all_sample_banks(sample_rate: u32) -> Vec<SampleBankConfig> {
         .collect()
 }
 
-#[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256",
+    feature = "hardware-orange-pi-zero-2w",
+    test
+))]
 pub fn long_sample_banks(sample_rate: u32, duration_seconds: u32) -> Vec<SampleBankConfig> {
     let frames = sample_rate as usize * duration_seconds as usize + sample_rate as usize;
     sample_banks(sample_rate, frames)

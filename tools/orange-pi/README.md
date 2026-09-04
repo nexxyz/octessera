@@ -232,6 +232,44 @@ correctly flag a deliberately running `octessera.service`. The passive study
 does not make that claim: it reports the initial service state and leaves it
 alone.
 
+### Phase 1 actual-limit diagnostics
+
+Expanded pool builds use `-BenchmarkVoicePoolCapacity 128` or `256`. They build
+only `octessera-pi`, mark the sidecar `diagnostic-only`, and write to the
+capacity-specific directories under `target/orange-pi-cross-diagnostics/`.
+
+```powershell
+./tools/orange-pi/build-orange-cross.ps1 `
+  -Binary octessera-pi `
+  -Profile release `
+  -BenchmarkVoicePoolCapacity 128
+```
+
+Dynamic scenarios are `capacity_synth_<N>`, `capacity_sample_<N>`, and
+`capacity_mixed_<S>_<P>`. Each requested count must be positive, use no leading
+zeros, and fit within the artifact's pool stage. Phase-1 runs use output 256,
+ALSA period 64, and engine block 64. Use 30 seconds for a screen and 180
+seconds for a qualification run. A 128-pool artifact accepts counts through
+128; a 256-pool artifact accepts counts through 256:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 `
+  -Mode LiveAudioBenchmark `
+  -Scenario capacity_mixed_16_128 `
+  -OutputFrames 256 `
+  -EngineBlockFrames 64 `
+  -MeasureSeconds 30 `
+  -Artifact target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi `
+  -Metadata target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi.metadata.json `
+  -AllowServiceInterruption -PrintOnly
+```
+
+Use the release profile and the matching hash/source sidecar. Accept a
+capacity result only with exact profile identity, zero voice steals, and
+profile start/end admission counters that reconcile to zero. This diagnostic
+workflow does not change shipped `resources/platform-capabilities.json` or
+`config/defaults/`.
+
 The bounded live-candidate plan is reserved for Phase 2 and requires an
 explicit interruption acknowledgement:
 

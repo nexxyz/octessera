@@ -219,6 +219,10 @@ mod tests {
                 * crate::synth::types::BUS_SLOTS_PER_BUS
                 * BUS_CHAIN_SLOT_COST_UNITS as usize) as u16;
         assert_eq!(SOURCE_WORKER_MAX_COST_UNITS, expected);
+        #[cfg(not(any(
+            feature = "benchmark-voice-pools-128",
+            feature = "benchmark-voice-pools-256"
+        )))]
         assert_eq!(SOURCE_WORKER_MAX_COST_UNITS, 208);
     }
 
@@ -299,9 +303,10 @@ mod tests {
     fn seed_and_projection_use_nanoseconds_only() {
         let load = SourceWorkerLoad::new(128, 48_000);
         let snapshot = load.snapshot();
+        let seed = snapshot.quantum_ns / u64::from(SOURCE_WORKER_MAX_COST_UNITS);
         assert_eq!(snapshot.quantum_ns, 2_666_666);
-        assert_eq!(snapshot.ns_per_unit_ewma, [12_820; 2]);
-        assert_eq!(snapshot.projected_ns([3, 160]), [38_460, 2_051_200]);
+        assert_eq!(snapshot.ns_per_unit_ewma, [seed; 2]);
+        assert_eq!(snapshot.projected_ns([3, 160]), [seed * 3, seed * 160]);
     }
 
     #[test]
@@ -316,7 +321,11 @@ mod tests {
             utilization_ppm: None,
             observed: [true, true],
         };
-        assert_eq!(snapshot.projected_ns([3, 4]), [15_421, 21_228]);
+        let seed = snapshot.quantum_ns / u64::from(SOURCE_WORKER_MAX_COST_UNITS);
+        assert_eq!(
+            snapshot.projected_ns([3, 4]),
+            [1_000 + seed * 3, 2_000 + seed * 4]
+        );
     }
 
     #[test]

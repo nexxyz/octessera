@@ -117,8 +117,9 @@ fn mixed_costs_follow_measured_worker_skew_and_existing_lanes_do_not_migrate() {
 fn a_full_partition_forces_the_other_worker_without_rejecting() {
     let mut engine = SynthEngine::new(48_000);
     engine.source_worker_load = Some(load([1, 1_000]));
+    engine.set_voice_stealing_mode(VoiceStealingMode::None);
     for slot in 0..INSTRUMENT_SLOT_COUNT {
-        for note in 0..MAX_SYNTH_VOICES_PER_SLOT {
+        for note in 0..(SYNTH_VOICE_LANE_CAPACITY / INSTRUMENT_SLOT_COUNT) {
             engine.note_on(slot as u8, 36 + note as u8, 100, 5_000);
         }
     }
@@ -128,7 +129,10 @@ fn a_full_partition_forces_the_other_worker_without_rejecting() {
             parity_counts[lane % 2] += 1;
         }
     }
-    assert_eq!(parity_counts, [32, 32]);
+    assert_eq!(
+        parity_counts,
+        [SYNTH_VOICE_LANE_CAPACITY / 2, SYNTH_VOICE_LANE_CAPACITY / 2]
+    );
     assert_eq!(
         engine.profile_snapshot().cumulative_voice_admission_drops,
         0
@@ -186,7 +190,7 @@ fn none_mode_still_drops_at_full_capacity_with_load_state() {
     engine.set_voice_stealing_mode(VoiceStealingMode::None);
     engine.source_worker_load = Some(load([1, 1]));
     for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
-        engine.note_on(0, (36 + lane as u8) % 128, 100, 5_000);
+        engine.note_on(0, ((36 + lane) % 128) as u8, 100, 5_000);
     }
     let before = engine.active_synth_lane_indices_for_slot(0);
     engine.note_on(0, 127, 1, 5_000);

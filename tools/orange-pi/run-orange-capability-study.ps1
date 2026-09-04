@@ -102,12 +102,40 @@ function Get-StudyArtifactHash {
 function Assert-StudyArtifact {
   param(
     [Parameter(Mandatory)][string]$BinaryPath,
-    [Parameter(Mandatory)][string]$MetadataPath
+    [Parameter(Mandatory)][string]$MetadataPath,
+    [pscustomobject]$LiveSelection
   )
-  $buildSpec = [pscustomobject]@{
-    Package = "octessera-pi"
-    Feature = "hardware-orange-pi-zero-2w"
-    ArtifactKind = "runtime-candidate"
+  $isCapacityDiagnostic = $null -ne $LiveSelection -and $null -ne $LiveSelection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$LiveSelection.IsCapacityDiagnostic
+  $buildSpec = if (-not $isCapacityDiagnostic) {
+    [pscustomobject]@{
+      Package = "octessera-pi"
+      Feature = "hardware-orange-pi-zero-2w"
+      ArtifactKind = "runtime-candidate"
+    }
+  } else {
+    $metadataRecord = Read-OrangeBuildMetadata $MetadataPath
+    $artifactKind = $metadataRecord.PSObject.Properties["artifact_kind"]
+    if ($null -eq $artifactKind -or [string]$artifactKind.Value -cne "diagnostic-only") {
+      throw "Dynamic capacity scenarios require a diagnostic-only Orange artifact; runtime candidates are not accepted."
+    }
+    $cargoFeature = $metadataRecord.PSObject.Properties["cargo_feature"]
+    $featureMatch = if ($null -ne $cargoFeature -and $cargoFeature.Value -is [string]) {
+      [regex]::Match([string]$cargoFeature.Value, '^hardware-orange-pi-zero-2w benchmark-voice-pools-(128|256)$')
+    } else {
+      [regex]::Match("", "a^")
+    }
+    if (-not $featureMatch.Success) {
+      throw "Dynamic capacity scenarios require an exact hardware-orange-pi-zero-2w benchmark pool feature."
+    }
+    $poolCapacity = [int]$featureMatch.Groups[1].Value
+    if ($LiveSelection.RequiredPoolCapacity -gt $poolCapacity) {
+      throw "Dynamic capacity scenario requests $($LiveSelection.RequiredPoolCapacity) voices, but the artifact pool stage is $poolCapacity."
+    }
+    [pscustomobject]@{
+      Package = "octessera-pi"
+      Feature = [string]$cargoFeature.Value
+      ArtifactKind = "diagnostic-only"
+    }
   }
   Assert-OrangeBuildMetadata `
     -MetadataPath $MetadataPath `
@@ -116,6 +144,9 @@ function Assert-StudyArtifact {
     -SelectedTarget "aarch64-unknown-linux-gnu" `
     -SelectedProfile "release" `
     -BuildSpec $buildSpec
+  if ($isCapacityDiagnostic) {
+    return [pscustomobject]@{ PoolCapacity = $poolCapacity; CargoFeature = [string]$buildSpec.Feature }
+  }
 }
 
 function Write-PayloadFile {
@@ -176,10 +207,11 @@ function Invoke-OrangeTransport {
 $runId = [guid]::NewGuid().ToString("N")
 $artifactExists = Test-Path -LiteralPath $Artifact -PathType Leaf
 $artifactHash = "artifact-sha256"
+$artifactIdentity = $null
 if ($artifactRequired -and $artifactExists) {
   $artifactHash = Get-StudyArtifactHash $Artifact
   if (Test-Path -LiteralPath $Metadata -PathType Leaf) {
-    Assert-StudyArtifact $Artifact $Metadata
+    $artifactIdentity = Assert-StudyArtifact -BinaryPath $Artifact -MetadataPath $Metadata -LiveSelection $liveSelection
   } elseif (-not $PrintOnly) {
     throw "Orange runtime-candidate metadata sidecar was not found: $Metadata"
   }
@@ -252,6 +284,11 @@ try {
     Write-Output "Candidate health path: $healthPath"
     if ($Mode -eq "LiveAudioBenchmark") {
       Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5 worker-timing=$WorkerTimingMode executor=$ExecutorMode"
+      $isCapacityDiagnostic = $null -ne $liveSelection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$liveSelection.IsCapacityDiagnostic
+      if ($isCapacityDiagnostic) {
+        $diagnosticPoolIdentity = if ($null -ne $artifactIdentity) { "benchmark-voice-pools-$($artifactIdentity.PoolCapacity)" } else { "metadata-required (benchmark-voice-pools-128 or benchmark-voice-pools-256)" }
+        Write-Output "Diagnostic pool identity: $diagnosticPoolIdentity requested-synth=$($liveSelection.SynthCount) requested-sample=$($liveSelection.SampleCount) required-stage=$($liveSelection.RequiredPoolCapacity)"
+      }
       Write-Output "Live release path: $benchmarkRoot/release.json"
       Write-Output "Live readiness path: $benchmarkRoot/readiness.json"
       Write-Output "Live progress path: $benchmarkRoot/progress.json"

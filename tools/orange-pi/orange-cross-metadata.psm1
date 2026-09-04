@@ -215,5 +215,6 @@ Export-ModuleMember -Function @(
   "Invoke-VerifiedOrangeBuildMetadata",
   "New-OrangeBuildMetadata",
   "Publish-OrangeBuildMetadata",
+  "Read-OrangeBuildMetadata",
   "Remove-OrangeBuildArtifacts"
 )

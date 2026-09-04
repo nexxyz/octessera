@@ -43,6 +43,7 @@ Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -O
 Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 }
 $long = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 120 -AllowLongRepeat:$true
 if (-not $long.LongRepeat -or $long.InternalFrames -ne 128 -or $long.AlsaPeriodFrames -ne 64) { throw "Long-repeat selection was not classified as A/128." }
+if (@(Get-OrangeLiveMatrixPlan | Where-Object { $null -ne $_.PSObject.Properties["IsCapacityDiagnostic"] }).Count -ne 0) { throw "Dynamic capacity scenarios changed the canonical live matrix." }
 $missingActive = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-missing-" + [guid]::NewGuid().ToString("N"))
 Assert-Throws {
   & $runner -Mode LiveAudioBenchmark -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 -Artifact $missingActive -Metadata "$missingActive.metadata.json" -AllowServiceInterruption

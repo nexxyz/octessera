@@ -140,6 +140,10 @@ mod capability_tests {
             == SAMPLE_VOICE_LANE_CAPACITY + (2 * MAX_CONTROL_EVENTS_PER_CALLBACK)
     );
 
+    #[cfg(not(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    )))]
     #[test]
     fn physical_voice_lane_capacities_match_the_capability_contract() {
         assert_eq!(SYNTH_VOICE_LANE_CAPACITY, 64);
@@ -148,5 +152,19 @@ mod capability_tests {
             SAMPLE_VOICE_RETIREMENT_CAPACITY,
             SAMPLE_VOICE_LANE_CAPACITY + (2 * MAX_CONTROL_EVENTS_PER_CALLBACK)
         );
+    }
+
+    #[cfg(feature = "benchmark-voice-pools-128")]
+    #[test]
+    fn benchmark_voice_lane_capacities_are_128() {
+        assert_eq!(SYNTH_VOICE_LANE_CAPACITY, 128);
+        assert_eq!(SAMPLE_VOICE_LANE_CAPACITY, 128);
+    }
+
+    #[cfg(feature = "benchmark-voice-pools-256")]
+    #[test]
+    fn benchmark_voice_lane_capacities_are_256() {
+        assert_eq!(SYNTH_VOICE_LANE_CAPACITY, 256);
+        assert_eq!(SAMPLE_VOICE_LANE_CAPACITY, 256);
     }
 }

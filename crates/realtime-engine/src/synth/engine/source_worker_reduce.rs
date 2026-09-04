@@ -154,7 +154,13 @@ mod tests {
         );
         assert!(engine.block_slot_scratch.sample_active[0][0]);
         assert!(engine.block_slot_scratch.synth_active[0][0]);
-        assert_eq!(runtime.reduction_lane_counts_for_test(), [(64, 1), (64, 1)]);
+        assert_eq!(
+            runtime.reduction_lane_counts_for_test(),
+            [
+                (SAMPLE_VOICE_LANE_CAPACITY, 1),
+                (SYNTH_VOICE_LANE_CAPACITY, 1)
+            ]
+        );
         assert_eq!(
             runtime.prefix_activity_applies_for_test(),
             [INSTRUMENT_SLOT_COUNT, INSTRUMENT_SLOT_COUNT]

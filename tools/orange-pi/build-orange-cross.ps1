@@ -8,6 +8,8 @@ param(
   [string]$Target = "aarch64-unknown-linux-gnu",
   [ValidatePattern("^[A-Za-z0-9][A-Za-z0-9._/:@-]{0,127}$")]
   [string]$Image = "rust:1-bookworm",
+  [ValidateSet(64, 128, 256)]
+  [int]$BenchmarkVoicePoolCapacity = 64,
   [switch]$DryRun
 )
 
@@ -22,7 +24,6 @@ $Target = $Target.ToLowerInvariant()
 $CargoRegistryVolume = "octessera-orange-pi-cargo-registry"
 $CargoGitVolume = "octessera-orange-pi-cargo-git"
 $RustupVolume = "octessera-orange-pi-rustup"
-$OutputRelativePath = "target/orange-pi-cross"
 $CargoTargetRelativePath = "target/orange-cross-cargo"
 
 function Convert-ToBashSingleQuoted {
@@ -82,9 +83,15 @@ function Get-WslDockerArguments {
 }
 
 function Get-BuildSpec {
-  param([Parameter(Mandatory)][string]$SelectedBinary)
+  param(
+    [Parameter(Mandatory)][string]$SelectedBinary,
+    [Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity
+  )
 
   if ($SelectedBinary -in @("orange-oled-smoke", "orange-seesaw-smoke")) {
+    if ($SelectedBenchmarkVoicePoolCapacity -ne 64) {
+      throw "Expanded benchmark voice-pool capacities support only octessera-pi."
+    }
     return [pscustomobject]@{
       Package = "octessera-hal"
       Feature = "orange-pi-zero-2w"
@@ -93,10 +100,13 @@ function Get-BuildSpec {
   }
 
   if ($SelectedBinary -eq "octessera-pi") {
+    $benchmarkFeature = if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { $null } else { "benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity" }
+    $feature = if ($null -eq $benchmarkFeature) { "hardware-orange-pi-zero-2w" } else { "hardware-orange-pi-zero-2w $benchmarkFeature" }
+    $artifactKind = if ($null -eq $benchmarkFeature) { "runtime-candidate" } else { "diagnostic-only" }
     return [pscustomobject]@{
       Package = "octessera-pi"
-      Feature = "hardware-orange-pi-zero-2w"
-      ArtifactKind = "runtime-candidate"
+      Feature = $feature
+      ArtifactKind = $artifactKind
     }
   }
 
@@ -106,7 +116,8 @@ function Get-BuildSpec {
 function New-DockerShellCommand {
   param(
     [Parameter(Mandatory)][string]$RepositoryWslPath,
-    [Parameter(Mandatory)][pscustomobject]$BuildSpec
+    [Parameter(Mandatory)][pscustomobject]$BuildSpec,
+    [Parameter(Mandatory)][string]$SelectedOutputRelativePath
   )
 
   $targetQuoted = Convert-ToBashSingleQuoted $Target
@@ -114,7 +125,7 @@ function New-DockerShellCommand {
   $binaryQuoted = Convert-ToBashSingleQuoted $Binary
   $packageQuoted = Convert-ToBashSingleQuoted $BuildSpec.Package
   $featureQuoted = Convert-ToBashSingleQuoted $BuildSpec.Feature
-  $outputQuoted = Convert-ToBashSingleQuoted "/work/$OutputRelativePath"
+  $outputQuoted = Convert-ToBashSingleQuoted "/work/$SelectedOutputRelativePath"
   $cargoTargetDirectory = "/work/$CargoTargetRelativePath"
   $cargoTargetQuoted = Convert-ToBashSingleQuoted $cargoTargetDirectory
   $artifactProfile = if ($Profile -eq "dev") { "debug" } else { $Profile }
@@ -138,9 +149,9 @@ rustup target add $targetQuoted
 cargo build --target $targetQuoted --profile $profileQuoted --no-default-features -p $packageQuoted --bin $binaryQuoted --features $featureQuoted
 test -f $sourceQuoted
 mkdir -p $outputQuoted
-cp -- $sourceQuoted '/work/$OutputRelativePath/$Binary'
-aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Class:[[:space:]]*ELF64[[:space:]]*$'
-aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Machine:[[:space:]]*AArch64[[:space:]]*$'
+cp -- $sourceQuoted '/work/$SelectedOutputRelativePath/$Binary'
+aarch64-linux-gnu-readelf -h '/work/$SelectedOutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Class:[[:space:]]*ELF64[[:space:]]*$'
+aarch64-linux-gnu-readelf -h '/work/$SelectedOutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Machine:[[:space:]]*AArch64[[:space:]]*$'
 "@
   $innerScript = $innerScript -replace "`r`n", "`n"
 
@@ -181,14 +192,21 @@ aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[
   return (($dockerArguments | ForEach-Object { Convert-ToBashSingleQuoted ([string]$_) }) -join " ")
 }
 
+function Get-OutputRelativePath {
+  param([Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity)
+  if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { return "target/orange-pi-cross" }
+  return "target/orange-pi-cross-diagnostics/benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity"
+}
+
 $repositoryRoot = Resolve-RepositoryRoot
 $sourceCommit = Get-RepositorySourceCommit $repositoryRoot
-$buildSpec = Get-BuildSpec $Binary
-$outputDirectory = Join-Path $repositoryRoot $OutputRelativePath.Replace("/", "\")
+$buildSpec = Get-BuildSpec -SelectedBinary $Binary -SelectedBenchmarkVoicePoolCapacity $BenchmarkVoicePoolCapacity
+$selectedOutputRelativePath = Get-OutputRelativePath $BenchmarkVoicePoolCapacity
+$outputDirectory = Join-Path $repositoryRoot $selectedOutputRelativePath.Replace("/", "\")
 $outputBinary = Join-Path $outputDirectory $Binary
 $outputMetadata = "$outputBinary.metadata.json"
 $repositoryWslPath = Convert-ToWslPath $repositoryRoot
-$dockerCommand = New-DockerShellCommand $repositoryWslPath $buildSpec
+$dockerCommand = New-DockerShellCommand -RepositoryWslPath $repositoryWslPath -BuildSpec $buildSpec -SelectedOutputRelativePath $selectedOutputRelativePath
 
 if ($DryRun) {
   Write-Output "Dry run: no Docker container was started and no board connection is attempted."

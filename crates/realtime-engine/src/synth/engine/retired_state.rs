@@ -167,8 +167,26 @@ mod tests {
     use super::*;
     use std::mem::size_of;
 
+    #[cfg(not(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    )))]
     const MAX_PRACTICAL_RETIREMENT_STATE_BYTES: usize = 12 * 1024;
+    #[cfg(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ))]
+    const MAX_PRACTICAL_RETIREMENT_STATE_BYTES: usize = 16 * 1024;
+    #[cfg(not(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    )))]
     const MAX_PRACTICAL_RETIRED_SAMPLE_VOICES_BYTES: usize = 10 * 1024;
+    #[cfg(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ))]
+    const MAX_PRACTICAL_RETIRED_SAMPLE_VOICES_BYTES: usize = 16 * 1024;
 
     const _: () = assert!(size_of::<RetiredAudioState>() <= MAX_PRACTICAL_RETIREMENT_STATE_BYTES);
     const _: () =

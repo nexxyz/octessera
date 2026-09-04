@@ -3,6 +3,7 @@ Import-Module (Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1"
 Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-worker-timing-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-result-evidence-validation.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "orange-live-capacity-validation.psm1") -Force
 $script:OrangeLiveScenarioIds = @("synth_ramp_16", "synth_ramp_32", "synth_ramp_64", "sample_ramp_64", "mixed_ramp_16_16", "mixed_ramp_32_32", "bus_heavy_6_bus_fx_2_global", "momentary_combined", "synth_cross_slot_96_steal", "sample_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
 function Get-OrangeLiveScenarioIds {
   return @($script:OrangeLiveScenarioIds)
@@ -15,6 +16,10 @@ function Assert-OrangeLiveBenchmarkSelection {
     [Parameter(Mandatory)][int]$MeasureSeconds,
     [bool]$AllowLongRepeat = $false
   )
+  $capacityScenario = ConvertFrom-OrangeCapacityScenario $Scenario
+  if ($null -ne $capacityScenario) {
+    return Assert-OrangeCapacityBenchmarkSelection -Scenario $Scenario -CapacityScenario $capacityScenario -OutputFrames $OutputFrames -EngineBlockFrames $EngineBlockFrames -MeasureSeconds $MeasureSeconds -AllowLongRepeat:$AllowLongRepeat
+  }
   if ($script:OrangeLiveScenarioIds -notcontains $Scenario -and (Get-OrangeBaselineLiveScenarioIds) -notcontains $Scenario) {
     throw "LiveAudioBenchmark scenario is not an approved live baseline ID: $Scenario"
   }
@@ -490,4 +495,4 @@ function Get-OrangeLiveHostEvidence {
     UnitStatusPath = Join-Path $EvidenceDirectory "unit-final.txt"
   }
 }
-Export-ModuleMember -Function @("Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")
+Export-ModuleMember -Function @("Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertFrom-OrangeCapacityScenario", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")

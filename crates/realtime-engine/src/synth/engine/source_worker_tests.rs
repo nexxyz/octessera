@@ -139,7 +139,13 @@ fn worker_scratch_is_exactly_one_parity_shape() {
     let mut engine = dynamic_engine();
     let (lifecycle, runtime) =
         SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
-    assert_eq!(runtime.scratch_shape_for_test(), [(32, 2048), (32, 2048)]);
+    assert_eq!(
+        runtime.scratch_shape_for_test(),
+        [
+            (SYNTH_VOICE_PARTITION_LANE_CAPACITY, 2048),
+            (SYNTH_VOICE_PARTITION_LANE_CAPACITY, 2048)
+        ]
+    );
     assert!(engine.block_slot_scratch.inline_source_executor.is_none());
     let retirement = runtime.retire();
     let _ = lifecycle.shutdown(retirement);
