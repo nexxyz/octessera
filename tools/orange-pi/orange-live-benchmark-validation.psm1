@@ -4,6 +4,7 @@ Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Fo
 Import-Module (Join-Path $PSScriptRoot "orange-worker-timing-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-result-evidence-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-capacity-validation.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "orange-live-sensor-validation.psm1") -Force
 $script:OrangeLiveScenarioIds = @("synth_ramp_16", "synth_ramp_32", "synth_ramp_64", "sample_ramp_64", "mixed_ramp_16_16", "mixed_ramp_32_32", "bus_heavy_6_bus_fx_2_global", "momentary_combined", "synth_cross_slot_96_steal", "sample_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
 function Get-OrangeLiveScenarioIds {
   return @($script:OrangeLiveScenarioIds)
@@ -243,39 +244,6 @@ function Read-OrangeLiveKeyValueFile {
   }
   return $values
 }
-function Get-OrangeLiveSensorExtrema {
-  param([Parameter(Mandatory)][string]$Path)
-  $thermal = @()
-  $memory = @()
-  $startupThermal = @()
-  $runtimeThermal = @()
-  $startupMemory = @()
-  $runtimeMemory = @()
-  if (Test-Path -LiteralPath $Path -PathType Leaf) {
-    foreach ($line in Get-Content -LiteralPath $Path) {
-      if ($line -match "sample=thermal phase=(?<phase>[^ ]+).*millicelsius=(?<value>[0-9]+)") {
-        $value = [int]$Matches.value
-        $thermal += $value
-        if ($Matches.phase -eq "startup") { $startupThermal += $value } else { $runtimeThermal += $value }
-      }
-      if ($line -match "sample=memory phase=(?<phase>[^ ]+).*mem_available_kb=(?<value>[0-9]+)") {
-        $value = [int64]$Matches.value
-        $memory += $value
-        if ($Matches.phase -eq "startup") { $startupMemory += $value } else { $runtimeMemory += $value }
-      }
-    }
-  }
-  return [pscustomobject]@{
-    MaxThermalMillicelsius = if ($thermal.Count -gt 0) { ($thermal | Measure-Object -Maximum).Maximum } else { $null }
-    MinMemAvailableKb = if ($memory.Count -gt 0) { ($memory | Measure-Object -Minimum).Minimum } else { $null }
-    StartupMaxThermalMillicelsius = if ($startupThermal.Count -gt 0) { ($startupThermal | Measure-Object -Maximum).Maximum } else { $null }
-    StartupMinMemAvailableKb = if ($startupMemory.Count -gt 0) { ($startupMemory | Measure-Object -Minimum).Minimum } else { $null }
-    RuntimeMaxThermalMillicelsius = if ($runtimeThermal.Count -gt 0) { ($runtimeThermal | Measure-Object -Maximum).Maximum } else { $null }
-    RuntimeMinMemAvailableKb = if ($runtimeMemory.Count -gt 0) { ($runtimeMemory | Measure-Object -Minimum).Minimum } else { $null }
-    StartupSampleCount = $startupMemory.Count
-    RuntimeSampleCount = $runtimeMemory.Count
-  }
-}
 function Assert-OrangeAdmissionDropEvidence {
   param(
     [Parameter(Mandatory)][pscustomobject]$Result,
@@ -380,7 +348,7 @@ function Get-OrangeLiveHostEvidence {
   $result = $null
   $readiness = $null
   $aggregateRatio = $null
-  $sensor = Get-OrangeLiveSensorExtrema (Join-Path $EvidenceDirectory "sensor-series.txt")
+  $sensor = Get-OrangeLiveSensorEvidence (Join-Path $EvidenceDirectory "sensor-series.txt")
   $statusClass = "infrastructure_failure"
   $reason = "missing benchmark result or readiness evidence"
   if ((Test-Path -LiteralPath $resultPath -PathType Leaf) -and (Test-Path -LiteralPath $readinessPath -PathType Leaf)) {
@@ -451,9 +419,9 @@ function Get-OrangeLiveHostEvidence {
     $reason = "remote study status and retained benchmark result disagree"
   }
   if (@("pass", "measured_failure", "over_budget") -contains $statusClass) {
-    if ((Test-Path -LiteralPath $sensorAbortPath -PathType Leaf) -or $sensor.StartupSampleCount -lt 1 -or $sensor.RuntimeSampleCount -lt 1 -or $null -eq $sensor.StartupMaxThermalMillicelsius -or $null -eq $sensor.StartupMinMemAvailableKb -or $null -eq $sensor.RuntimeMaxThermalMillicelsius -or $null -eq $sensor.RuntimeMinMemAvailableKb) {
+    if ((Test-Path -LiteralPath $sensorAbortPath -PathType Leaf) -or -not $sensor.CoolingEvidenceValid -or -not $sensor.FrequencyEvidenceValid -or $sensor.StartupSampleCount -lt 1 -or $sensor.RuntimeSampleCount -lt 1 -or $null -eq $sensor.StartupMaxThermalMillicelsius -or $null -eq $sensor.StartupMinMemAvailableKb -or $null -eq $sensor.RuntimeMaxThermalMillicelsius -or $null -eq $sensor.RuntimeMinMemAvailableKb) {
       $statusClass = "infrastructure_failure"
-      $reason = "passing evidence did not retain startup/runtime sensor samples and extrema"
+      $reason = if (-not $sensor.CoolingEvidenceValid) { "passing evidence contained incomplete or malformed cooling-device state" } elseif (-not $sensor.FrequencyEvidenceValid) { "passing evidence contained malformed frequency data" } else { "passing evidence did not retain startup/runtime sensor samples and extrema" }
     }
   }
   return [pscustomobject]@{
@@ -484,6 +452,11 @@ function Get-OrangeLiveHostEvidence {
     SensorStartupMinMemAvailableKb = $sensor.StartupMinMemAvailableKb
     SensorRuntimeMaxThermalMillicelsius = $sensor.RuntimeMaxThermalMillicelsius
     SensorRuntimeMinMemAvailableKb = $sensor.RuntimeMinMemAvailableKb
+    SensorCoolingObserved = $sensor.CoolingObserved
+    SensorMaxCoolingState = $sensor.MaxCoolingState
+    SensorMinFrequencyKhz = $sensor.MinFrequencyKhz
+    SensorCoolingEvidenceValid = $sensor.CoolingEvidenceValid
+    SensorFrequencyEvidenceValid = $sensor.FrequencyEvidenceValid
     SensorAbortPath = $sensorAbortPath
     ResultPath = if ($null -ne $result) { $resultPath } else { "" }
     ReadinessPath = if ($null -ne $readiness) { $readinessPath } else { "" }
@@ -495,4 +468,4 @@ function Get-OrangeLiveHostEvidence {
     UnitStatusPath = Join-Path $EvidenceDirectory "unit-final.txt"
   }
 }
-Export-ModuleMember -Function @("Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertFrom-OrangeCapacityScenario", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")
+Export-ModuleMember -Function @("Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertFrom-OrangeCapacityScenario", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveSensorEvidence", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")

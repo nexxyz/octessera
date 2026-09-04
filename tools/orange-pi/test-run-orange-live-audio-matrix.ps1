@@ -107,10 +107,10 @@ try {
   Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=1`nExecMainStatus=0"
   Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=pass"
   Set-Content (Join-Path $evidenceRoot "service-restored-state.txt") "restore_status=0`nfinal_active=active`nfinal_enabled=enabled"
-  Set-Content (Join-Path $evidenceRoot "sensor-series.txt") "sample=memory phase=startup mem_available_kb=600000`nsample=thermal phase=startup millicelsius=70000`nsample=memory phase=runtime mem_available_kb=580000`nsample=thermal phase=runtime millicelsius=75000"
+  Set-Content (Join-Path $evidenceRoot "sensor-series.txt") "sample=memory phase=startup mem_available_kb=600000`nsample=thermal phase=startup millicelsius=70000`nsample=frequency phase=startup time=1 path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq khz=1200000`nsample=cooling phase=startup time=1 path=/sys/class/thermal/cooling_device0 type=thermal-cpufreq-0 cur_state=0 max_state=10 observed=true`nsample=memory phase=runtime mem_available_kb=580000`nsample=thermal phase=runtime millicelsius=75000`nsample=frequency phase=runtime time=2 path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq khz=800000`nsample=cooling phase=runtime time=2 path=/sys/class/thermal/cooling_device0 type=thermal-cpufreq-0 cur_state=3 max_state=10 observed=true"
   $passEvidence = Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)
   if ($passEvidence.StatusClass -ne "pass") { throw "Clean fake evidence did not classify as pass: $($passEvidence.StatusClass) $($passEvidence.Reason)" }
-  if ($passEvidence.SensorStartupMaxThermalMillicelsius -ne 70000 -or $passEvidence.SensorRuntimeMaxThermalMillicelsius -ne 75000 -or $passEvidence.SensorMaxThermalMillicelsius -ne 75000) { throw "High startup/runtime temperatures were not retained as extrema." }
+  if ($passEvidence.SensorStartupMaxThermalMillicelsius -ne 70000 -or $passEvidence.SensorRuntimeMaxThermalMillicelsius -ne 75000 -or $passEvidence.SensorMaxThermalMillicelsius -ne 75000 -or -not $passEvidence.SensorCoolingObserved -or $passEvidence.SensorMaxCoolingState -ne 3 -or $passEvidence.SensorMinFrequencyKhz -ne 800000 -or -not $passEvidence.SensorCoolingEvidenceValid) { throw "Thermal, cooling-state, or frequency sensor evidence was not retained." }
   if ([math]::Abs([double]$passEvidence.AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Aggregate render-duration ratio was not computed from total evidence." }
   if ([math]::Abs([double](Get-OrangeLiveResultSummary -Result $result -Selection $selection).AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Result summary did not expose the aggregate render-duration ratio." }
   foreach ($durationCase in @(
@@ -410,7 +410,7 @@ $first = Invoke-PrintOnly $runner $runnerParameters
 $second = Invoke-PrintOnly $runner $runnerParameters
 if ($first -notmatch '(?s)(?=.*RuntimeMaxSec=185s)(?=.*RuntimeDirectoryPreserve=yes)(?=.*--benchmark-orange-audio)(?=.*--release-gate)(?=.*--output-frames 256 --engine-block-frames 256)(?=.*--measure-seconds 30)(?=.*sensor_abort)') { throw "Live payload omitted a required runtime or benchmark marker." }
 if ([regex]::Matches($first, 'systemd-run --unit="\$unit"').Count -ne 1) { throw "Live payload did not contain exactly one transient systemd-run launch." }
-if ($first -match "runtime-thermal-abort|70000|75000" -or $first -notmatch '(?s)(?=.*thermal-unreadable)(?=.*memory-unreadable)(?=.*thermal-missing)(?=.*runtime-memory-abort)(?=.*consecutive_samples)') { throw "Live payload changed its thermal or memory safety contract." }
+if ($first -match "runtime-thermal-abort|70000|75000" -or $first -notmatch '(?s)(?=.*thermal-unreadable)(?=.*memory-unreadable)(?=.*thermal-missing)(?=.*runtime-memory-abort)(?=.*consecutive_samples)(?=.*cooling_device)(?=.*nonnegative_number)(?=.*cur_state)(?=.*max_state)(?=.*observed=false)(?=.*cooling-device-unreadable)') { throw "Live payload changed its thermal or cooling-state safety contract." }
 Assert-Contains $first "validate_benchmark_worker_threads"
 Assert-Contains $first "oct-dsp-src-0"
 Assert-Contains $first "oct-dsp-src-1"
