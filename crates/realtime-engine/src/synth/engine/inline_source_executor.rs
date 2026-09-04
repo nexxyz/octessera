@@ -159,12 +159,12 @@ impl InlineSourceExecutor {
                 if self.synth_scratch[parity].slots[local_lane] as usize != slot {
                     continue;
                 }
-                rendered_prefix =
-                    rendered_prefix.max(self.synth_scratch[parity].rendered_frames[local_lane]);
-                for (out, sample) in slot_out[slot][..frames]
-                    .iter_mut()
-                    .zip(self.synth_scratch[parity].samples[local_lane][..frames].iter())
-                {
+                let lane_rendered_frames =
+                    self.synth_scratch[parity].rendered_frames[local_lane].min(frames);
+                rendered_prefix = rendered_prefix.max(lane_rendered_frames);
+                for (out, sample) in slot_out[slot][..lane_rendered_frames].iter_mut().zip(
+                    self.synth_scratch[parity].samples[local_lane][..lane_rendered_frames].iter(),
+                ) {
                     *out += *sample;
                 }
             }
@@ -191,12 +191,12 @@ impl InlineSourceExecutor {
                 if self.sample_scratch[parity].slots[local_lane] as usize != slot {
                     continue;
                 }
-                rendered_prefix =
-                    rendered_prefix.max(self.sample_scratch[parity].rendered_frames[local_lane]);
-                for (out, sample) in slot_out[slot][..frames]
-                    .iter_mut()
-                    .zip(self.sample_scratch[parity].samples[local_lane][..frames].iter())
-                {
+                let lane_rendered_frames =
+                    self.sample_scratch[parity].rendered_frames[local_lane].min(frames);
+                rendered_prefix = rendered_prefix.max(lane_rendered_frames);
+                for (out, sample) in slot_out[slot][..lane_rendered_frames].iter_mut().zip(
+                    self.sample_scratch[parity].samples[local_lane][..lane_rendered_frames].iter(),
+                ) {
                     *out += *sample;
                 }
             }
@@ -225,8 +225,14 @@ mod tests {
         for frames in [32, 64, 128, 256, 2048] {
             for varied_prefixes in [false, true] {
                 let mut executor = InlineSourceExecutor::new();
+                for scratch in &mut executor.synth_scratch {
+                    for samples in &mut scratch.samples {
+                        samples[..frames].fill(10_000_000.0);
+                    }
+                }
+                assert!(executor.prepare(frames));
                 let prefixes = if varied_prefixes {
-                    [frames, frames / 2, 0, frames / 3]
+                    [frames, frames / 2, 0, frames + 1]
                 } else {
                     [frames; 4]
                 };
@@ -246,9 +252,10 @@ mod tests {
                     if scratch.slots[local_lane] != 0 {
                         continue;
                     }
-                    for frame in 0..frames {
+                    let rendered_frames = scratch.rendered_frames[local_lane].min(frames);
+                    for frame in 0..rendered_frames {
                         expected_output[frame] += scratch.samples[local_lane][frame];
-                        expected_active[frame] |= frame < scratch.rendered_frames[local_lane];
+                        expected_active[frame] = true;
                     }
                 }
 
@@ -277,6 +284,33 @@ mod tests {
         }
     }
 
+    #[test]
+    fn sample_prefix_reduction_ignores_stale_tail_after_prepare() {
+        let frames = 64;
+        let mut executor = InlineSourceExecutor::new();
+        for scratch in &mut executor.sample_scratch {
+            for samples in &mut scratch.samples {
+                samples[..frames].fill(7.0);
+            }
+        }
+        assert!(executor.prepare(frames));
+        assert_eq!(executor.sample_scratch[0].samples[0][1], 7.0);
+        executor.sample_scratch[0].slots[0] = 0;
+        executor.sample_scratch[0].rendered_frames[0] = 1;
+        executor.sample_scratch[0].samples[0][0] = 1.0;
+
+        let mut slot_out = std::array::from_fn(|_| vec![0.0; frames]);
+        let mut slot_active = std::array::from_fn(|_| vec![false; frames]);
+        let mut active_slots = [false; INSTRUMENT_SLOT_COUNT];
+        executor.reduce_sample_sources(frames, &mut slot_out, &mut slot_active, &mut active_slots);
+
+        assert_eq!(slot_out[0][0], 1.0);
+        assert!(slot_out[0][1..].iter().all(|sample| *sample == 0.0));
+        assert!(slot_active[0][0]);
+        assert!(slot_active[0][1..].iter().all(|active| !active));
+        assert!(active_slots[0]);
+    }
+
     fn set_synth_lane(
         executor: &mut InlineSourceExecutor,
         lane: usize,
@@ -288,16 +322,15 @@ mod tests {
         let scratch = &mut executor.synth_scratch[parity];
         scratch.slots[local_lane] = 0;
         scratch.rendered_frames[local_lane] = prefix;
-        for (frame, sample) in scratch.samples[local_lane][..frames].iter_mut().enumerate() {
-            *sample = if frame < prefix {
-                match lane {
-                    0 => 16_777_216.0,
-                    1 => -16_777_216.0,
-                    2 => 1.0,
-                    _ => lane as f32 * 0.125,
-                }
-            } else {
-                0.0
+        for sample in scratch.samples[local_lane][..frames]
+            .iter_mut()
+            .take(prefix)
+        {
+            *sample = match lane {
+                0 => 16_777_216.0,
+                1 => -16_777_216.0,
+                2 => 1.0,
+                _ => lane as f32 * 0.125,
             };
         }
     }

@@ -61,9 +61,9 @@ impl SourceWorkerRuntime {
                 continue;
             }
             let slot = slot as usize;
-            sample_prefixes[slot] =
-                sample_prefixes[slot].max(source.sample.rendered_frames[local_lane]);
-            for frame in 0..frames {
+            let lane_rendered_frames = source.sample.rendered_frames[local_lane].min(frames);
+            sample_prefixes[slot] = sample_prefixes[slot].max(lane_rendered_frames);
+            for frame in 0..lane_rendered_frames {
                 engine.block_slot_scratch.sample_slot_out[slot][frame] +=
                     source.sample.samples[local_lane][frame];
             }
@@ -91,9 +91,9 @@ impl SourceWorkerRuntime {
                 continue;
             }
             let slot = slot as usize;
-            synth_prefixes[slot] =
-                synth_prefixes[slot].max(source.synth.rendered_frames[local_lane]);
-            for frame in 0..frames {
+            let lane_rendered_frames = source.synth.rendered_frames[local_lane].min(frames);
+            synth_prefixes[slot] = synth_prefixes[slot].max(lane_rendered_frames);
+            for frame in 0..lane_rendered_frames {
                 engine.block_slot_scratch.synth_slot_out[slot][frame] +=
                     source.synth.samples[local_lane][frame];
             }
@@ -210,13 +210,25 @@ mod tests {
         varied_prefixes: bool,
     ) -> [SourceWorkerScratch; SOURCE_WORKER_COUNT] {
         let mut scratch = std::array::from_fn(|_| SourceWorkerScratch::new());
+        for owner in &mut scratch {
+            for samples in owner
+                .sample
+                .samples
+                .iter_mut()
+                .chain(owner.synth.samples.iter_mut())
+            {
+                samples[..frames].fill(10_000_000.0);
+            }
+            assert!(owner.sample.prepare(frames));
+            assert!(owner.synth.prepare(frames));
+        }
         let sample_prefixes = if varied_prefixes {
-            [frames, frames / 2, 0, frames, frames / 3]
+            [frames, frames / 2, 0, frames + 1, frames / 3]
         } else {
             [frames; 5]
         };
         let synth_prefixes = if varied_prefixes {
-            [frames / 4, frames, frames / 2, 0, frames]
+            [frames / 4, frames, frames / 2, 0, frames + 1]
         } else {
             [frames; 5]
         };
@@ -272,12 +284,12 @@ mod tests {
         };
         slots[local_lane] = slot;
         rendered_frames[local_lane] = prefix;
-        for (frame, sample) in samples[local_lane][..frames].iter_mut().enumerate() {
-            *sample = if frame < prefix {
-                cancellation_sensitive_value(lane, frame)
-            } else {
-                0.0
-            };
+        for (frame, sample) in samples[local_lane][..frames]
+            .iter_mut()
+            .enumerate()
+            .take(prefix)
+        {
+            *sample = cancellation_sensitive_value(lane, frame);
         }
     }
 
@@ -312,9 +324,10 @@ mod tests {
                 continue;
             }
             let slot = slot as usize;
-            for frame in 0..frames {
+            let rendered_prefix = rendered_frames[local_lane].min(frames);
+            for frame in 0..rendered_prefix {
                 output[slot][frame] += source_samples[local_lane][frame];
-                active[slot][frame] |= frame < rendered_frames[local_lane];
+                active[slot][frame] = true;
             }
         }
         (output, active)
