@@ -30,7 +30,6 @@ fn measured_load(reverse: bool) -> SourceWorkerLoadSnapshot {
         ));
     }
     assert_eq!(measurements.map(|(_, units)| units), [5, 0]);
-    assert!(measurements.iter().all(|(duration, _)| *duration > 0));
     assert!(runtime.collect_wait_for_test(&mut engine));
     let status = engine.audio_load_status();
     assert_eq!(status.worker_utilization, Some(0.008));

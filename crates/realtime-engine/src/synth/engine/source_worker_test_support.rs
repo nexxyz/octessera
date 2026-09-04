@@ -475,3 +475,7 @@ fn owner_identity(owner: &OwnerEnvelope) -> SourceWorkerOwnerIdentity {
             .active_sample_buffer_address_for_test(),
     )
 }
+
+#[cfg(test)]
+#[path = "source_worker_completion_tests.rs"]
+mod completion_tests;

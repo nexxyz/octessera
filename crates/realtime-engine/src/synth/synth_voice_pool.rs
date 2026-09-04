@@ -7,6 +7,8 @@ use super::types::{
 pub(super) struct SynthVoicePartition {
     parity: usize,
     lanes: [Voice; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
+    pub(super) render_lanes: [usize; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
+    pub(super) render_lane_count: usize,
 }
 
 impl SynthVoicePartition {
@@ -14,6 +16,8 @@ impl SynthVoicePartition {
         Self {
             parity,
             lanes: [Voice::off(); SYNTH_VOICE_PARTITION_LANE_CAPACITY],
+            render_lanes: [0; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
+            render_lane_count: 0,
         }
     }
 
@@ -27,6 +31,17 @@ impl SynthVoicePartition {
 
     pub(super) fn active_count(&self) -> usize {
         self.lanes.iter().filter(|voice| voice.active).count()
+    }
+
+    fn rebuild_render_lanes(&mut self, lane_slots: &[Option<usize>; SYNTH_VOICE_LANE_CAPACITY]) {
+        let mut count = 0;
+        for (global_lane, owner) in lane_slots.iter().enumerate() {
+            if owner.is_some() && global_lane % VOICE_PARTITION_COUNT == self.parity {
+                self.render_lanes[count] = global_lane / VOICE_PARTITION_COUNT;
+                count += 1;
+            }
+        }
+        self.render_lane_count = count;
     }
 }
 
@@ -53,7 +68,9 @@ impl SynthVoicePool {
     }
 
     pub(super) fn take_partition(&mut self, parity: usize) -> Option<Box<SynthVoicePartition>> {
-        self.partitions.get_mut(parity)?.take()
+        let partition = self.partitions.get_mut(parity)?.as_mut()?;
+        partition.rebuild_render_lanes(&self.lane_slots);
+        self.partitions[parity].take()
     }
 
     pub(super) fn install_partition(
@@ -470,3 +487,7 @@ mod tests {
         assert!(pool.take_partition(2).is_none());
     }
 }
+
+#[cfg(test)]
+#[path = "synth_voice_pool_render_tests.rs"]
+mod render_tests;

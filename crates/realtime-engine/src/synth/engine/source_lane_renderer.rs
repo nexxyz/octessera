@@ -95,36 +95,50 @@ pub(super) fn render_synth_partition(
     context: &SynthSourceContext,
     scratch: &mut SourceLaneBlockScratch,
 ) {
-    for (lane, voice) in partition.lanes_mut().iter_mut().enumerate() {
-        if !voice.active {
-            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-            continue;
-        }
-        let slot = voice.instrument_slot as usize;
-        if slot >= INSTRUMENT_SLOT_COUNT {
-            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-            continue;
-        }
-        scratch.slots[lane] = slot as u8;
-        let frame_context = SynthVoiceFrameContext {
-            sample_rate: context.sample_rate,
-            config: context.configs[slot],
-            render_config: context.render_configs[slot],
-            revision: context.revisions[slot],
-            mods: context.mods[slot],
+    let render_lane_count = partition.render_lane_count;
+    let mut survivor_count = 0;
+    for read in 0..render_lane_count {
+        let lane = partition.render_lanes[read];
+        let remains_active = {
+            let voice = &mut partition.lanes_mut()[lane];
+            if !voice.active {
+                scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
+                false
+            } else {
+                let slot = voice.instrument_slot as usize;
+                if slot >= INSTRUMENT_SLOT_COUNT {
+                    scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
+                    true
+                } else {
+                    scratch.slots[lane] = slot as u8;
+                    let frame_context = SynthVoiceFrameContext {
+                        sample_rate: context.sample_rate,
+                        config: context.configs[slot],
+                        render_config: context.render_configs[slot],
+                        revision: context.revisions[slot],
+                        mods: context.mods[slot],
+                    };
+                    let rendered_frames = render_synth_voice_block(
+                        voice,
+                        slot,
+                        frames,
+                        base_sample_clock,
+                        frame_context,
+                        &mut scratch.samples[lane],
+                    );
+                    #[cfg(test)]
+                    record_rendered_prefix_write(0);
+                    scratch.rendered_frames[lane] = rendered_frames;
+                    voice.active
+                }
+            }
         };
-        let rendered_frames = render_synth_voice_block(
-            voice,
-            slot,
-            frames,
-            base_sample_clock,
-            frame_context,
-            &mut scratch.samples[lane],
-        );
-        #[cfg(test)]
-        record_rendered_prefix_write(0);
-        scratch.rendered_frames[lane] = rendered_frames;
+        if remains_active {
+            partition.render_lanes[survivor_count] = lane;
+            survivor_count += 1;
+        }
     }
+    partition.render_lane_count = survivor_count;
 }
 
 pub(super) fn render_sample_partition(
@@ -133,27 +147,41 @@ pub(super) fn render_sample_partition(
     context: SampleSourceContext,
     scratch: &mut SourceLaneBlockScratch,
 ) {
-    for (lane, voice) in partition.lanes_mut().iter_mut().enumerate() {
-        if !voice.active {
-            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-            continue;
+    let render_lane_count = partition.render_lane_count;
+    let mut survivor_count = 0;
+    for read in 0..render_lane_count {
+        let lane = partition.render_lanes[read];
+        let remains_active = {
+            let voice = &mut partition.lanes_mut()[lane];
+            if !voice.active {
+                scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
+                false
+            } else {
+                let slot = voice.instrument_slot as usize;
+                if slot >= INSTRUMENT_SLOT_COUNT {
+                    scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
+                    true
+                } else {
+                    scratch.slots[lane] = slot as u8;
+                    let rendered_frames = render_sample_voice_block(
+                        voice,
+                        frames,
+                        context.sample_rate,
+                        &mut scratch.samples[lane],
+                    );
+                    #[cfg(test)]
+                    record_rendered_prefix_write(1);
+                    scratch.rendered_frames[lane] = rendered_frames;
+                    voice.active
+                }
+            }
+        };
+        if remains_active {
+            partition.render_lanes[survivor_count] = lane;
+            survivor_count += 1;
         }
-        let slot = voice.instrument_slot as usize;
-        if slot >= INSTRUMENT_SLOT_COUNT {
-            scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-            continue;
-        }
-        scratch.slots[lane] = slot as u8;
-        let rendered_frames = render_sample_voice_block(
-            voice,
-            frames,
-            context.sample_rate,
-            &mut scratch.samples[lane],
-        );
-        #[cfg(test)]
-        record_rendered_prefix_write(1);
-        scratch.rendered_frames[lane] = rendered_frames;
     }
+    partition.render_lane_count = survivor_count;
 }
 
 #[derive(Clone, Copy)]
@@ -462,3 +490,7 @@ mod tests {
         assert!(scratch.rendered_frames.iter().all(|frames| *frames == 0));
     }
 }
+
+#[cfg(test)]
+#[path = "source_lane_renderer_render_tests.rs"]
+mod render_tests;

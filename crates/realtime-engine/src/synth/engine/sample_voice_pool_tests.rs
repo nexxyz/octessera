@@ -88,6 +88,49 @@ fn partition_take_install_rejects_wrong_duplicate_and_missing_ownership() {
 }
 
 #[test]
+fn take_and_retake_rebuild_sorted_sparse_parity_local_render_lanes() {
+    let mut pool = SampleVoicePool::new();
+    let capacity = SAMPLE_VOICE_LANE_CAPACITY;
+    for (lane, slot) in [
+        (0, 0),
+        (1, 1),
+        (3, 2),
+        (6, 3),
+        (capacity - 2, 4),
+        (capacity - 1, 5),
+    ] {
+        assert!(pool.assign_lane(lane, slot));
+        pool.lane_mut(lane).expect("home partition lane").active = true;
+    }
+
+    let first = pool.take_partition(0).expect("partition 0 home");
+    assert_eq!(
+        &first.render_lanes[..first.render_lane_count],
+        &[0, 3, capacity / 2 - 1]
+    );
+    assert!(pool.install_partition(0, first).is_ok());
+
+    let second = pool.take_partition(1).expect("partition 1 home");
+    assert_eq!(
+        &second.render_lanes[..second.render_lane_count],
+        &[0, 1, capacity / 2 - 1]
+    );
+    assert!(pool.install_partition(1, second).is_ok());
+
+    pool.lane_mut(6).expect("home partition lane").active = false;
+    assert!(pool.compact_slot_lanes(3));
+    assert!(pool.assign_lane(8, 6));
+    pool.lane_mut(8).expect("home partition lane").active = true;
+    let first = pool
+        .take_partition(0)
+        .expect("partition 0 home after update");
+    assert_eq!(
+        &first.render_lanes[..first.render_lane_count],
+        &[0, 4, capacity / 2 - 1]
+    );
+}
+
+#[test]
 fn fixed_retirement_holds_every_physical_sample_lane() {
     let mut pool = SampleVoicePool::new();
     for lane in 0..SAMPLE_VOICE_LANE_CAPACITY {
