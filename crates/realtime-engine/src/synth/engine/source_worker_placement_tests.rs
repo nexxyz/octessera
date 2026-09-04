@@ -181,7 +181,53 @@ fn cross_worker_synth_victim_replacement_is_one_steal() {
         engine.active_synth_lane_indices_for_slot(0),
         [1, 2, 3, 4, 5, 6, 7, 9]
     );
+    engine.synth_voice_pool.assert_invariants();
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
+}
+
+#[test]
+fn prepared_many_note_render_preserves_synth_ownership_and_audio() {
+    let mut engine = SynthEngine::new(48_000);
+    let prepared = prepare_audio_config(
+        InstrumentsConfig {
+            instruments: (0..INSTRUMENT_SLOT_COUNT)
+                .map(|_| InstrumentSlotConfig {
+                    kind: "synth".into(),
+                    synth: default_synth_config(),
+                    mixer: None,
+                })
+                .collect(),
+            mixer: None,
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        },
+        None,
+        None,
+        48_000,
+    );
+    let _ = engine.apply_prepared_audio_config(prepared);
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for note in 0..MAX_SYNTH_VOICES_PER_SLOT {
+            engine.note_on(slot as u8, 48 + note as u8, 96, 5_000);
+        }
+    }
+    engine.source_worker_load = Some(load([100, 1]));
+    engine.note_on(0, 90, 96, 5_000);
+
+    let snapshot = engine.profile_snapshot();
+    assert_eq!(
+        snapshot.active_synth_voices,
+        INSTRUMENT_SLOT_COUNT * MAX_SYNTH_VOICES_PER_SLOT
+    );
+    assert_eq!(snapshot.cumulative_voice_steals, 1);
+    engine.synth_voice_pool.assert_invariants();
+
+    let mut left = Vec::new();
+    let mut right = Vec::new();
+    let mut out = Vec::new();
+    engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
+    assert!(out.iter().any(|sample| sample.abs() > f32::EPSILON));
+    engine.synth_voice_pool.assert_invariants();
 }
 
 #[test]
@@ -257,6 +303,7 @@ fn cross_worker_sample_replacement_retains_both_old_arcs_without_callback_drop()
             .expect("target retirement"),
         &target_samples,
     ));
+    engine.sample_voice_pool.assert_invariants();
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
 }
 
@@ -305,6 +352,7 @@ fn sample_cross_worker_replacement_preflights_two_retirement_additions() {
         engine.pending_render_retired.sample_voices.len(),
         SAMPLE_VOICE_RETIREMENT_CAPACITY - 1
     );
+    engine.sample_voice_pool.assert_invariants();
     assert_eq!(
         engine.profile_snapshot().cumulative_voice_admission_drops,
         1
