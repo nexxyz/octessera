@@ -354,6 +354,9 @@ Assert-Contains $live300 '-le $((120 + 15))'
 Assert-Contains $live300 '-le 5'
 Assert-Contains $live300 '--worker-timing enabled'
 Assert-Contains $live300 '--executor persistent_two_workers'
+Assert-Contains $live300 '"artifact_kind":"runtime-candidate"'
+Assert-Contains $live300 '"cargo_feature":"hardware-orange-pi-zero-2w"'
+Assert-NotContains $live300 '"artifact_kind":"diagnostic-only"'
 
 $disabledTimingParameters = $live300Parameters.Clone()
 $disabledTimingParameters.WorkerTimingMode = "disabled"
@@ -397,9 +400,17 @@ try {
   Publish-OrangeBuildMetadata @diagnosticMetadataParameters
   $capacityPrint = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 180; Artifact = $diagnosticArtifact; Metadata = $diagnosticMetadata; AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $capacityPrint "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_mixed_16_128 measure=180"
+  Assert-Contains $capacityPrint "Live artifact identity: artifact_kind=diagnostic-only cargo_feature=hardware-orange-pi-zero-2w benchmark-voice-pools-128"
   Assert-Contains $capacityPrint "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=16 requested-sample=128 required-stage=128"
+  Assert-Contains $capacityPrint '"artifact_kind":"diagnostic-only"'
+  Assert-Contains $capacityPrint '"cargo_feature":"hardware-orange-pi-zero-2w benchmark-voice-pools-128"'
+  Assert-NotContains $capacityPrint '"artifact_kind":"runtime-candidate"'
+  $capacityGateIndex = $capacityPrint.IndexOf('"artifact_kind":"diagnostic-only"', [StringComparison]::Ordinal)
+  $capacityStopIndex = $capacityPrint.IndexOf('systemctl stop "$service"', [StringComparison]::Ordinal)
+  if ($capacityGateIndex -lt 0 -or $capacityStopIndex -lt 0 -or $capacityGateIndex -ge $capacityStopIndex) { throw "Dynamic remote identity validation was not before production interruption." }
   $capacityPrintWithoutArtifact = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_synth_16"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $missingArtifact; Metadata = "$missingArtifact.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
-  Assert-Contains $capacityPrintWithoutArtifact "Diagnostic pool identity: metadata-required (benchmark-voice-pools-128 or benchmark-voice-pools-256) requested-synth=16 requested-sample=0 required-stage=16"
+  Assert-Contains $capacityPrintWithoutArtifact "Live artifact identity: artifact_kind=diagnostic-only cargo_feature=hardware-orange-pi-zero-2w benchmark-voice-pools-128"
+  Assert-Contains $capacityPrintWithoutArtifact "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=16 requested-sample=0 required-stage=16"
 
   $stageMismatchRejected = $false
   try {

@@ -10,6 +10,10 @@ use std::path::{Path, PathBuf};
 pub const CANONICAL_BINARY_NAME: &str = "orange-oled-smoke";
 pub const SEESAW_BINARY_NAME: &str = "orange-seesaw-smoke";
 pub const RUNTIME_CANDIDATE_BINARY_NAME: &str = "octessera-pi";
+pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128: &str =
+    "hardware-orange-pi-zero-2w benchmark-voice-pools-128";
+pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256: &str =
+    "hardware-orange-pi-zero-2w benchmark-voice-pools-256";
 pub const METADATA_SUFFIX: &str = ".metadata.json";
 pub const METADATA_SCHEMA_VERSION: u64 = 2;
 pub const MAX_METADATA_BYTES: usize = 4096;
@@ -135,6 +139,18 @@ pub fn print_runtime_candidate_metadata() -> Result<(), String> {
         "runtime-candidate",
         "octessera-pi",
         "hardware-orange-pi-zero-2w",
+        "runtime-candidate",
+    )
+}
+
+pub fn print_runtime_benchmark_diagnostic_metadata(cargo_feature: &str) -> Result<(), String> {
+    validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature)?;
+    print_metadata_for(
+        RUNTIME_CANDIDATE_BINARY_NAME,
+        "diagnostic-only",
+        "octessera-pi",
+        cargo_feature,
+        "runtime benchmark diagnostic",
     )
 }
 
@@ -144,6 +160,7 @@ pub fn print_build_metadata_for(expected_binary: &str) -> Result<(), String> {
         "diagnostic-only",
         "octessera-hal",
         "orange-pi-zero-2w",
+        "diagnostic-only",
     )
 }
 
@@ -152,6 +169,7 @@ fn print_metadata_for(
     artifact_kind: &str,
     package: &str,
     cargo_feature: &str,
+    contract_name: &str,
 ) -> Result<(), String> {
     let executable_location = env::current_exe()
         .map_err(|error| format!("cannot locate executable for metadata sidecar: {error}"))?;
@@ -167,11 +185,7 @@ fn print_metadata_for(
         artifact_kind,
         package,
         cargo_feature,
-        if artifact_kind == "runtime-candidate" {
-            "runtime-candidate"
-        } else {
-            "diagnostic-only"
-        },
+        contract_name,
     )?;
     println!("{}", metadata_text.trim_end());
     Ok(())
@@ -256,6 +270,23 @@ pub fn validate_metadata_for(
     )
 }
 
+pub fn validate_runtime_benchmark_diagnostic_metadata(
+    metadata: &BuildMetadata,
+    executable_hash: &str,
+    cargo_feature: &str,
+) -> Result<(), String> {
+    validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature)?;
+    validate_metadata_contract(
+        metadata,
+        executable_hash,
+        RUNTIME_CANDIDATE_BINARY_NAME,
+        "diagnostic-only",
+        "octessera-pi",
+        cargo_feature,
+        "runtime benchmark diagnostic",
+    )
+}
+
 pub fn validate_runtime_candidate_metadata(
     metadata: &BuildMetadata,
     executable_hash: &str,
@@ -269,6 +300,21 @@ pub fn validate_runtime_candidate_metadata(
         "hardware-orange-pi-zero-2w",
         "runtime-candidate",
     )
+}
+
+fn validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature: &str) -> Result<(), String> {
+    if matches!(
+        cargo_feature,
+        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128
+            | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256
+    ) {
+        Ok(())
+    } else {
+        Err(
+            "runtime benchmark diagnostic metadata requires an exact 128 or 256 voice-pool cargo feature"
+                .into(),
+        )
+    }
 }
 
 fn validate_metadata_contract(
