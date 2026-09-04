@@ -430,14 +430,27 @@ impl SampleVoicePool {
             self.remove_lane(victim_slot, victim_lane);
             let victim = self.lane_mut(victim_lane).expect("validated victim lane");
             let mut previous = std::mem::replace(victim, SampleVoice::off());
-            debug_assert!(retired.push(&mut previous));
+            let retired_victim = retired.push(&mut previous);
+            debug_assert!(retired_victim || previous.buffer.is_none());
+            if !retired_victim && previous.buffer.is_some() {
+                return Err(voice);
+            }
         }
-        debug_assert!(self.assign_lane_with_canonical(lane, slot, canonical_lane));
+        let assigned = self.assign_lane_with_canonical(lane, slot, canonical_lane);
+        debug_assert!(assigned);
+        if !assigned {
+            return Err(voice);
+        }
         let mut voice = voice;
         voice.canonical_lane = Some(canonical_lane);
         let target = self.lane_mut(lane).expect("validated target lane");
         let mut previous = std::mem::replace(target, voice);
-        debug_assert!(retired.push(&mut previous));
+        let retired_target = retired.push(&mut previous);
+        debug_assert!(retired_target || previous.buffer.is_none());
+        if !retired_target && previous.buffer.is_some() {
+            let rejected = std::mem::replace(target, previous);
+            return Err(rejected);
+        }
         Ok(())
     }
 

@@ -315,11 +315,17 @@ impl SynthVoicePool {
         }
 
         if let Some(victim_lane) = victim_lane.filter(|victim| *victim != lane) {
-            let victim_slot = self.lane_slots[victim_lane].expect("validated victim ownership");
-            self.remove_lane(victim_slot, victim_lane);
-            debug_assert!(self.deactivate_lane(victim_lane));
+            let deactivated = self.deactivate_lane(victim_lane);
+            debug_assert!(deactivated);
+            if !deactivated {
+                return false;
+            }
         }
-        debug_assert!(self.assign_lane_with_canonical(lane, slot, canonical_lane));
+        let assigned = self.assign_lane_with_canonical(lane, slot, canonical_lane);
+        debug_assert!(assigned);
+        if !assigned {
+            return false;
+        }
         let mut voice = voice;
         voice.canonical_lane = Some(canonical_lane);
         *self.lane_mut(lane).expect("validated target lane") = voice;
