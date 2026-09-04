@@ -35,6 +35,10 @@ pub(super) const SYNTH_VOICE_PARTITION_LANE_CAPACITY: usize =
     SYNTH_VOICE_LANE_CAPACITY / VOICE_PARTITION_COUNT;
 pub(super) const SAMPLE_VOICE_PARTITION_LANE_CAPACITY: usize =
     SAMPLE_VOICE_LANE_CAPACITY / VOICE_PARTITION_COUNT;
+const _: () = assert!(SYNTH_VOICE_LANE_CAPACITY.is_multiple_of(VOICE_PARTITION_COUNT));
+const _: () = assert!(SAMPLE_VOICE_LANE_CAPACITY.is_multiple_of(VOICE_PARTITION_COUNT));
+const _: () = assert!(SYNTH_VOICE_LANE_CAPACITY <= (u8::MAX as usize) + 1);
+const _: () = assert!(SAMPLE_VOICE_LANE_CAPACITY <= (u8::MAX as usize) + 1);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]

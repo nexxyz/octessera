@@ -227,7 +227,7 @@ fn none_mode_rejects_without_mutating_canonical_identity() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_voice_stealing_mode(VoiceStealingMode::None);
     for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
-        engine.note_on(0, (36 + lane as u8) % 128, 100, 5_000);
+        engine.note_on(0, ((36 + lane) % 128) as u8, 100, 5_000);
     }
     let before = engine.active_synth_canonical_lane_indices_for_slot(0);
     engine.source_worker_load = Some(load([1, 100]));

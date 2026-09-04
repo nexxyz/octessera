@@ -2,6 +2,7 @@ use super::*;
 use crate::synth::{
     prepare_instrument_slot_config, MomentaryFxTarget, VoiceStealingMode,
     MAX_SAMPLE_VOICES_PER_SLOT, MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT,
+    SYNTH_VOICE_LANE_CAPACITY,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -237,9 +238,12 @@ fn auto_hard_global_voice_budget_reduces_polyphony_under_load() {
         .sum();
     let status = engine.audio_load_status();
 
-    assert!(active <= 29);
+    assert!(active <= (SYNTH_VOICE_LANE_CAPACITY as f32 * 0.45).round() as usize);
     assert!(active > MAX_SYNTH_VOICES);
+    #[cfg(not(feature = "benchmark-voice-pools-256"))]
     assert!(status.voice_steal);
+    #[cfg(feature = "benchmark-voice-pools-256")]
+    assert!(!status.voice_steal);
     assert!(status.ratio > 1.0);
     assert!(!engine.audio_load_status().voice_steal);
 }

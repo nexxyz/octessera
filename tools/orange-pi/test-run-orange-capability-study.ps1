@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $scriptPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
 Import-Module (Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "orange-cross-metadata.psm1") -Force
 
 function Invoke-StudyPrintOnly {
   param([hashtable]$Parameters)
@@ -310,6 +311,7 @@ $defaultCapacityScenarios = @(
 $baselineLiveScenarioIds = @(Get-OrangeBaselineLiveScenarioIds)
 $liveMatrixPlan = @(Get-OrangeLiveMatrixPlan)
 if ($baselineLiveScenarioIds.Count -ne 14) { throw "The baseline-live allowlist count changed." }
+if (@($baselineLiveScenarioIds | Where-Object { $_ -like "capacity_*" }).Count -ne 0 -or @(Get-OrangeLiveScenarioIds | Where-Object { $_ -like "capacity_*" }).Count -ne 0) { throw "Dynamic capacity scenarios entered a historical live allowlist." }
 foreach ($scenario in $defaultCapacityScenarios) {
   if ($baselineLiveScenarioIds -notcontains $scenario -or (Get-OrangeLiveScenarioIds) -contains $scenario -or @($liveMatrixPlan | Where-Object { $_.Scenario -eq $scenario }).Count -ne 0) {
     throw "Default-capacity scenario was not kept in the separate baseline-live allowlist: $scenario"
@@ -325,6 +327,17 @@ foreach ($seconds in @(30, 120, 180, 300)) {
   if ($selection.MeasureSeconds -ne $seconds -or $selection.InternalFrames -ne 128) { throw "Current-contract scenario selection changed for $seconds seconds." }
 }
 Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "mixed_ramp_16_48" -OutputFrames 256 -EngineBlockFrames 32 -MeasureSeconds 300 }
+foreach ($case in @(@{ Scenario = "capacity_synth_1"; Synth = 1; Sample = 0; Required = 1 }, @{ Scenario = "capacity_sample_256"; Synth = 0; Sample = 256; Required = 256 }, @{ Scenario = "capacity_mixed_16_128"; Synth = 16; Sample = 128; Required = 128 })) {
+  foreach ($seconds in @(30, 180)) {
+    $capacitySelection = Assert-OrangeLiveBenchmarkSelection -Scenario $case.Scenario -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds $seconds
+    if (-not $capacitySelection.IsCapacityDiagnostic -or $capacitySelection.MatrixClass -ne "diagnostic" -or $capacitySelection.SynthCount -ne $case.Synth -or $capacitySelection.SampleCount -ne $case.Sample -or $capacitySelection.RequiredPoolCapacity -ne $case.Required -or $capacitySelection.MeasureSeconds -ne $seconds) { throw "Dynamic capacity selection did not retain its canonical counts: $($case.Scenario) $seconds" }
+  }
+}
+foreach ($scenario in @("capacity_synth_0", "capacity_synth_01", "capacity_synth_257", "capacity_sample_999", "capacity_mixed_1_01", "capacity_mixed_1_257", "capacity_mixed_1_2_extra", "capacity_mixed_1")) { Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 } }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_synth_16" -OutputFrames 512 -EngineBlockFrames 64 -MeasureSeconds 30 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_synth_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_synth_16" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_synth_16" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 300 }
 
 $live300Parameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "mixed_ramp_16_48"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 300; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
 $live300 = Invoke-StudyPrintOnly -Parameters $live300Parameters
@@ -366,6 +379,63 @@ Assert-Throws {
   $invalidExecutorParameters.ExecutorMode = "inline"
   Invoke-StudyPrintOnly -Parameters $invalidExecutorParameters | Out-Null
 }
+
+$diagnosticArtifact = Join-Path ([IO.Path]::GetTempPath()) ("octessera-orange-capacity-artifact-" + [guid]::NewGuid().ToString("N"))
+$diagnosticMetadata = "$diagnosticArtifact.metadata.json"
+$diagnosticSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w benchmark-voice-pools-128"; ArtifactKind = "diagnostic-only" }
+$diagnosticMetadataParameters = @{
+  BinaryPath = $diagnosticArtifact
+  MetadataPath = $diagnosticMetadata
+  SelectedBinary = "octessera-pi"
+  SelectedTarget = "aarch64-unknown-linux-gnu"
+  SelectedProfile = "release"
+  BuildSpec = $diagnosticSpec
+  SourceCommit = ("a" * 40)
+}
+try {
+  [IO.File]::WriteAllBytes($diagnosticArtifact, [byte[]](1, 2, 3, 4))
+  Publish-OrangeBuildMetadata @diagnosticMetadataParameters
+  $capacityPrint = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 180; Artifact = $diagnosticArtifact; Metadata = $diagnosticMetadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  Assert-Contains $capacityPrint "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_mixed_16_128 measure=180"
+  Assert-Contains $capacityPrint "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=16 requested-sample=128 required-stage=128"
+  $capacityPrintWithoutArtifact = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_synth_16"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $missingArtifact; Metadata = "$missingArtifact.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
+  Assert-Contains $capacityPrintWithoutArtifact "Diagnostic pool identity: metadata-required (benchmark-voice-pools-128 or benchmark-voice-pools-256) requested-synth=16 requested-sample=0 required-stage=16"
+
+  $stageMismatchRejected = $false
+  try {
+    Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_synth_256"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $diagnosticArtifact; Metadata = $diagnosticMetadata; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null
+  } catch {
+    $stageMismatchRejected = $true
+    if ($_.Exception.Message -notmatch "requests 256 voices") { throw }
+  }
+  if (-not $stageMismatchRejected) { throw "Stage-mismatch capacity validation unexpectedly passed." }
+} finally {
+  Remove-Item -LiteralPath $diagnosticArtifact, $diagnosticMetadata -Force -ErrorAction SilentlyContinue
+}
+
+$candidateArtifact = Join-Path ([IO.Path]::GetTempPath()) ("octessera-orange-capacity-candidate-" + [guid]::NewGuid().ToString("N"))
+$candidateMetadata = "$candidateArtifact.metadata.json"
+$candidateSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate" }
+$candidateMetadataParameters = @{
+  BinaryPath = $candidateArtifact
+  MetadataPath = $candidateMetadata
+  SelectedBinary = "octessera-pi"
+  SelectedTarget = "aarch64-unknown-linux-gnu"
+  SelectedProfile = "release"
+  BuildSpec = $candidateSpec
+  SourceCommit = ("b" * 40)
+}
+try {
+  [IO.File]::WriteAllBytes($candidateArtifact, [byte[]](1, 2, 3, 4))
+  Publish-OrangeBuildMetadata @candidateMetadataParameters
+  Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_synth_1"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $candidateArtifact; Metadata = $candidateMetadata; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
+} finally {
+  Remove-Item -LiteralPath $candidateArtifact, $candidateMetadata -Force -ErrorAction SilentlyContinue
+}
+$runnerSource = [IO.File]::ReadAllText($scriptPath)
+$artifactValidationIndex = $runnerSource.IndexOf('$artifactIdentity = Assert-StudyArtifact', [StringComparison]::Ordinal)
+$transportIndex = $runnerSource.IndexOf('Invoke-OrangeTransport "ssh-payload"', [StringComparison]::Ordinal)
+if ($artifactValidationIndex -lt 0 -or $transportIndex -lt 0 -or $artifactValidationIndex -ge $transportIndex) { throw "Dynamic artifact validation was not placed before Orange board transport." }
 foreach ($seconds in @(299, 3000)) {
   $rejectedParameters = $live300Parameters.Clone()
   $rejectedParameters.MeasureSeconds = $seconds

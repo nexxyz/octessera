@@ -174,8 +174,44 @@ fn baseline_live_ids_match_canonical_scenarios_and_parse_at_180_seconds() {
         set_arg(&mut args, "--scenario", id.as_str().into());
         args.extend(["--measure-seconds".into(), "180".into()]);
         let config = parse(args).unwrap();
-        assert_eq!(config.scenario, id);
+        assert_eq!(config.scenario, id.as_str());
         assert_eq!(config.measure_seconds, 180);
+    }
+}
+
+#[cfg(not(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+)))]
+#[test]
+fn large_pool_scenario_names_are_rejected_in_normal_builds() {
+    for name in [
+        "capacity_synth_64",
+        "capacity_sample_64",
+        "capacity_mixed_64_64",
+    ] {
+        let mut args = valid_args();
+        set_arg(&mut args, "--scenario", name.into());
+        assert!(parse(args).is_err(), "normal build accepted {name}");
+    }
+}
+
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+#[test]
+fn large_pool_scenario_names_round_trip_as_exact_strings() {
+    let capacity = realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY;
+    for name in [
+        format!("capacity_synth_{capacity}"),
+        format!("capacity_sample_{capacity}"),
+        format!("capacity_mixed_{capacity}_{capacity}"),
+    ] {
+        let mut args = valid_args();
+        set_arg(&mut args, "--scenario", name.clone());
+        let config = parse(args).unwrap();
+        assert_eq!(config.scenario, name);
     }
 }
 

@@ -95,7 +95,10 @@ fn sparse_reduction_visits_only_active_synth_lanes() {
     assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, 64);
     assert_eq!(
         runtime.reduction_lane_counts_for_test(),
-        [(64, 0), (64, 16)]
+        [
+            (SAMPLE_VOICE_LANE_CAPACITY, 0),
+            (SYNTH_VOICE_LANE_CAPACITY, 16)
+        ]
     );
     let retirement = runtime.retire();
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);

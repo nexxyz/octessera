@@ -37,6 +37,14 @@ source-worker-benchmark-timing = [
     "realtime-engine/source-worker-benchmark-timing",
     "rodio-engine-source/source-worker-benchmark-timing",
 ]
+benchmark-voice-pools-128 = [
+    "native-audio",
+    "realtime-engine/benchmark-voice-pools-128",
+]
+benchmark-voice-pools-256 = [
+    "native-audio",
+    "realtime-engine/benchmark-voice-pools-256",
+]
 raspberry-runtime = [
     "external-midi",
 ]

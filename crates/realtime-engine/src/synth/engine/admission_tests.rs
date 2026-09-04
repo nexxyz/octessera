@@ -80,7 +80,7 @@ fn none_rejects_synth_admission_at_physical_capacity_without_mutation() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_voice_stealing_mode(VoiceStealingMode::None);
     for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
-        engine.note_on(0, (36 + lane as u8) % 128, 100, 50_000);
+        engine.note_on(0, ((36 + lane) % 128) as u8, 100, 50_000);
     }
     let before = synth_slot_state(&engine, 0);
     let before_steals = engine.profile_snapshot().cumulative_voice_steals;
