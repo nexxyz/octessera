@@ -208,6 +208,7 @@ $runId = [guid]::NewGuid().ToString("N")
 $artifactExists = Test-Path -LiteralPath $Artifact -PathType Leaf
 $artifactHash = "artifact-sha256"
 $artifactIdentity = $null
+$isCapacityDiagnostic = $null -ne $liveSelection -and $null -ne $liveSelection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$liveSelection.IsCapacityDiagnostic
 if ($artifactRequired -and $artifactExists) {
   $artifactHash = Get-StudyArtifactHash $Artifact
   if (Test-Path -LiteralPath $Metadata -PathType Leaf) {
@@ -217,6 +218,15 @@ if ($artifactRequired -and $artifactExists) {
   }
 } elseif ($artifactRequired -and -not $PrintOnly) {
   throw "A release Orange octessera-pi artifact is required for ${Mode}: $Artifact"
+}
+$expectedArtifactKind = if ($isCapacityDiagnostic) { "diagnostic-only" } else { "runtime-candidate" }
+$expectedCargoFeature = if ($isCapacityDiagnostic -and $null -ne $artifactIdentity) {
+  $artifactIdentity.CargoFeature
+} elseif ($isCapacityDiagnostic) {
+  $minimumPoolCapacity = if ($liveSelection.RequiredPoolCapacity -le 128) { 128 } else { 256 }
+  "hardware-orange-pi-zero-2w benchmark-voice-pools-$minimumPoolCapacity"
+} else {
+  "hardware-orange-pi-zero-2w"
 }
 
 $remoteRoot = "/tmp/octessera-orange-study-$artifactHash-$runId"
@@ -239,7 +249,9 @@ $payloadBundle = if ($Mode -eq "LiveAudioBenchmark") {
     -ReleaseTimeoutSeconds $ReleaseTimeoutSeconds `
     -RuntimeMaxSeconds $runtimeMaxSeconds `
     -WorkerTimingMode $WorkerTimingMode `
-    -ExecutorMode $ExecutorMode
+    -ExecutorMode $ExecutorMode `
+    -ExpectedArtifactKind $expectedArtifactKind `
+    -ExpectedCargoFeature $expectedCargoFeature
 } else {
   New-OrangeCapabilityStudyPayloadBundle `
     -Mode $Mode `
@@ -284,9 +296,9 @@ try {
     Write-Output "Candidate health path: $healthPath"
     if ($Mode -eq "LiveAudioBenchmark") {
       Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5 worker-timing=$WorkerTimingMode executor=$ExecutorMode"
-      $isCapacityDiagnostic = $null -ne $liveSelection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$liveSelection.IsCapacityDiagnostic
+      Write-Output "Live artifact identity: artifact_kind=$expectedArtifactKind cargo_feature=$expectedCargoFeature"
       if ($isCapacityDiagnostic) {
-        $diagnosticPoolIdentity = if ($null -ne $artifactIdentity) { "benchmark-voice-pools-$($artifactIdentity.PoolCapacity)" } else { "metadata-required (benchmark-voice-pools-128 or benchmark-voice-pools-256)" }
+        $diagnosticPoolIdentity = if ($null -ne $artifactIdentity) { "benchmark-voice-pools-$($artifactIdentity.PoolCapacity)" } else { [regex]::Match($expectedCargoFeature, 'benchmark-voice-pools-(128|256)').Value }
         Write-Output "Diagnostic pool identity: $diagnosticPoolIdentity requested-synth=$($liveSelection.SynthCount) requested-sample=$($liveSelection.SampleCount) required-stage=$($liveSelection.RequiredPoolCapacity)"
       }
       Write-Output "Live release path: $benchmarkRoot/release.json"

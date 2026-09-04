@@ -32,6 +32,38 @@ pub const BOARD_PROFILE_ID: &str = BOARD_COMPOSITION.profile_id();
 pub const BINARY_NAME: &str = "octessera-pi";
 
 #[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "benchmark-voice-pools-128"
+))]
+const ORANGE_METADATA_CARGO_FEATURE: &str =
+    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128;
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "benchmark-voice-pools-256"
+))]
+const ORANGE_METADATA_CARGO_FEATURE: &str =
+    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256;
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    )
+))]
+const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime benchmark diagnostic";
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    not(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ))
+))]
+const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime-candidate";
+
+#[cfg(all(
     feature = "hardware-raspberry-pi-zero-2w",
     not(any(
         feature = "legacy-hardware-rpi-zero-2w",
@@ -198,12 +230,7 @@ fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> 
 
 pub fn print_build_metadata() {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    {
-        if let Err(error) = octessera_hal::orange_metadata::print_runtime_candidate_metadata() {
-            eprintln!("Orange runtime-candidate metadata check failed: {error}");
-            std::process::exit(1);
-        }
-    }
+    print_orange_build_metadata();
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     println!(
         "{}",
@@ -215,6 +242,37 @@ pub fn print_build_metadata() {
             "package_version": env!("CARGO_PKG_VERSION"),
         })
     );
+}
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    )
+))]
+fn print_orange_build_metadata() {
+    let result = octessera_hal::orange_metadata::print_runtime_benchmark_diagnostic_metadata(
+        ORANGE_METADATA_CARGO_FEATURE,
+    );
+    if let Err(error) = result {
+        eprintln!("Orange {ORANGE_METADATA_CONTRACT_NAME} metadata check failed: {error}");
+        std::process::exit(1);
+    }
+}
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    not(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ))
+))]
+fn print_orange_build_metadata() {
+    if let Err(error) = octessera_hal::orange_metadata::print_runtime_candidate_metadata() {
+        eprintln!("Orange {ORANGE_METADATA_CONTRACT_NAME} metadata check failed: {error}");
+        std::process::exit(1);
+    }
 }
 
 pub fn metadata_requested() -> bool {
@@ -343,5 +401,33 @@ mod tests {
             error,
             "OCTESSERA_EXPECTED_BOARD_PROFILE must be set to orange-pi-zero-2w"
         );
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn orange_metadata_selection_matches_the_compiled_contract() {
+        #[cfg(feature = "benchmark-voice-pools-128")]
+        assert_eq!(
+            super::ORANGE_METADATA_CARGO_FEATURE,
+            octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128
+        );
+        #[cfg(feature = "benchmark-voice-pools-256")]
+        assert_eq!(
+            super::ORANGE_METADATA_CARGO_FEATURE,
+            octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256
+        );
+        #[cfg(any(
+            feature = "benchmark-voice-pools-128",
+            feature = "benchmark-voice-pools-256"
+        ))]
+        assert_eq!(
+            super::ORANGE_METADATA_CONTRACT_NAME,
+            "runtime benchmark diagnostic"
+        );
+        #[cfg(not(any(
+            feature = "benchmark-voice-pools-128",
+            feature = "benchmark-voice-pools-256"
+        )))]
+        assert_eq!(super::ORANGE_METADATA_CONTRACT_NAME, "runtime-candidate");
     }
 }

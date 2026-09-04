@@ -21,10 +21,15 @@ function New-OrangeLiveBenchmarkPayloadBundle {
     [Parameter(Mandatory)][int]$ReleaseTimeoutSeconds,
     [Parameter(Mandatory)][int]$RuntimeMaxSeconds,
     [Parameter(Mandatory)][ValidateSet("enabled", "disabled")][string]$WorkerTimingMode,
-    [Parameter(Mandatory)][ValidateSet("inline", "persistent_two_workers")][string]$ExecutorMode
+    [Parameter(Mandatory)][ValidateSet("inline", "persistent_two_workers")][string]$ExecutorMode,
+    [Parameter(Mandatory)][ValidateSet("runtime-candidate", "diagnostic-only")][string]$ExpectedArtifactKind,
+    [Parameter(Mandatory)][ValidateSet("hardware-orange-pi-zero-2w", "hardware-orange-pi-zero-2w benchmark-voice-pools-128", "hardware-orange-pi-zero-2w benchmark-voice-pools-256")][string]$ExpectedCargoFeature
   )
   if (@("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled." }
   if (@("inline", "persistent_two_workers") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline or persistent_two_workers." }
+  $isCapacityDiagnostic = $null -ne $Selection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$Selection.IsCapacityDiagnostic
+  if ($isCapacityDiagnostic -and ($ExpectedArtifactKind -cne "diagnostic-only" -or $ExpectedCargoFeature -cnotmatch '^hardware-orange-pi-zero-2w benchmark-voice-pools-(128|256)$')) { throw "Dynamic capacity payload identity must be diagnostic-only with an exact benchmark pool feature." }
+  if (-not $isCapacityDiagnostic -and ($ExpectedArtifactKind -cne "runtime-candidate" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w")) { throw "Fixed live payload identity must be runtime-candidate with the exact Orange hardware feature." }
 
   $readinessHelpers = Get-OrangeReadinessHelpers
   $body = @'
@@ -366,7 +371,7 @@ trap 'exit 143' INT TERM
 trap 'exit 129' HUP
 sudo -n install -d -o octessera-runtime -g octessera-runtime -m 0750 "$benchmark_root"
 chmod 0755 "$binary"; sudo -n chgrp octessera-runtime "$root"; chmod 0710 "$root"; sudo -n chgrp octessera-runtime "$binary" "$metadata"; chmod 0750 "$binary"; chmod 0640 "$metadata"
-test -x "$binary"; test -r "$metadata"; remote_sha="$(sha256sum -- "$binary" | awk 'NR == 1 {print $1}')"; printf '%s\n' "$remote_sha" > "$root/runtime-candidate-sha256.txt"; test "$remote_sha" = "$expected_sha"; "$binary" --print-build-metadata > "$root/runtime-candidate-metadata.json"; grep -q '"artifact_kind":"runtime-candidate"' "$root/runtime-candidate-metadata.json"; grep -q '"profile":"release"' "$root/runtime-candidate-metadata.json"
+test -x "$binary"; test -r "$metadata"; remote_sha="$(sha256sum -- "$binary" | awk 'NR == 1 {print $1}')"; printf '%s\n' "$remote_sha" > "$root/runtime-candidate-sha256.txt"; test "$remote_sha" = "$expected_sha"; "$binary" --print-build-metadata > "$root/runtime-candidate-metadata.json"; grep -q '"artifact_kind":"__ARTIFACT_KIND__"' "$root/runtime-candidate-metadata.json"; grep -q '"cargo_feature":"__CARGO_FEATURE__"' "$root/runtime-candidate-metadata.json"; grep -q '"profile":"release"' "$root/runtime-candidate-metadata.json"
 sudo -n systemctl stop "$service"
 interruption_started=true
 launch_status=0
@@ -378,7 +383,7 @@ capture_alsa_release || { study_status=66; stop_benchmark_unit; exit "$study_sta
 wait_for_benchmark_terminal || true
 exit "$study_status"
 '@
-  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds).Replace("__EXECUTOR_MODE__", $ExecutorMode)
+  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds).Replace("__EXECUTOR_MODE__", $ExecutorMode).Replace("__ARTIFACT_KIND__", $ExpectedArtifactKind).Replace("__CARGO_FEATURE__", $ExpectedCargoFeature)
   $body = $body.Replace("__WORKER_TIMING_MODE__", $WorkerTimingMode)
   $study = "set -eu`numask 077`nroot=$(Quote-LiveShValue $RemoteRoot)`nhealth=$(Quote-LiveShValue $HealthPath)`nunit=$(Quote-LiveShValue $Unit)`n$readinessHelpers`n$body"
   $prepare = "set -eu`numask 077`ntest ! -e $(Quote-LiveShValue $RemoteRoot)`nmkdir -m 0700 -- $(Quote-LiveShValue $RemoteRoot)`nsudo -n chgrp octessera-runtime $(Quote-LiveShValue $RemoteRoot)`nchmod 0710 $(Quote-LiveShValue $RemoteRoot)"
