@@ -1,6 +1,6 @@
 use super::baseline_events::{
     default_capacity_events, fx_events, mixed_events, mixed_ramp_16_48_events, sample_events,
-    synth_events,
+    synth_events, DefaultCapacitySlot,
 };
 use super::{ExpectedProfileState, ScenarioSpec};
 use crate::dsp_profile::samples::profile_sample_banks;
@@ -60,36 +60,57 @@ pub(super) fn scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
         ),
         default_capacity_scenario(
             "default_envelope_24_synth_8_sample",
-            &[0, 2, 3],
-            &[1],
+            &[(0, 8), (2, 8), (3, 8)],
+            &[(1, 8)],
             sample_rate,
             &sample_banks,
         ),
         default_capacity_scenario(
             "default_headroom_32_synth_8_sample",
-            &[0, 2, 3, 4],
-            &[1],
+            &[(0, 8), (2, 8), (3, 8), (4, 8)],
+            &[(1, 8)],
             sample_rate,
             &sample_banks,
         ),
         default_capacity_scenario(
             "default_headroom_32_synth_16_sample",
-            &[0, 2, 3, 4],
-            &[1, 5],
+            &[(0, 8), (2, 8), (3, 8), (4, 8)],
+            &[(1, 8), (5, 8)],
             sample_rate,
             &sample_banks,
         ),
         default_capacity_scenario(
             "default_headroom_40_synth_16_sample",
-            &[0, 2, 3, 4, 6],
-            &[1, 5],
+            &[(0, 8), (2, 8), (3, 8), (4, 8), (6, 8)],
+            &[(1, 8), (5, 8)],
             sample_rate,
             &sample_banks,
         ),
         default_capacity_scenario(
             "default_headroom_48_synth_16_sample",
-            &[0, 2, 3, 4, 6, 7],
-            &[1, 5],
+            &[(0, 8), (2, 8), (3, 8), (4, 8), (6, 8), (7, 8)],
+            &[(1, 8), (5, 8)],
+            sample_rate,
+            &sample_banks,
+        ),
+        default_capacity_scenario(
+            "default_capacity_64_synth_16_sample",
+            &[(0, 11), (2, 11), (3, 11), (4, 11), (6, 10), (7, 10)],
+            &[(1, 8), (5, 8)],
+            sample_rate,
+            &sample_banks,
+        ),
+        default_capacity_scenario(
+            "default_capacity_48_synth_64_sample",
+            &[(0, 8), (2, 8), (3, 8), (4, 8), (6, 8), (7, 8)],
+            &[(1, 32), (5, 32)],
+            sample_rate,
+            &sample_banks,
+        ),
+        default_capacity_scenario(
+            "default_capacity_64_synth_64_sample",
+            &[(0, 11), (2, 11), (3, 11), (4, 11), (6, 10), (7, 10)],
+            &[(1, 32), (5, 32)],
             sample_rate,
             &sample_banks,
         ),
@@ -98,15 +119,21 @@ pub(super) fn scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
 
 fn default_capacity_scenario(
     name: &str,
-    synth_slots: &[usize],
-    sample_slots: &[usize],
+    synth_slots: &[DefaultCapacitySlot],
+    sample_slots: &[DefaultCapacitySlot],
     sample_rate: u32,
     sample_banks: &[realtime_engine::synth::SampleBankConfig],
 ) -> ScenarioSpec {
     ScenarioSpec::with_expected(
         name,
         default_capacity_events(synth_slots, sample_slots, sample_rate, sample_banks),
-        expected(synth_slots.len() * 8, sample_slots.len() * 8, 4, 1, 2),
+        expected(
+            synth_slots.iter().map(|(_, voices)| voices).sum(),
+            sample_slots.iter().map(|(_, voices)| voices).sum(),
+            4,
+            1,
+            2,
+        ),
     )
 }
 
@@ -204,6 +231,9 @@ mod tests {
             "default_headroom_32_synth_16_sample",
             "default_headroom_40_synth_16_sample",
             "default_headroom_48_synth_16_sample",
+            "default_capacity_64_synth_16_sample",
+            "default_capacity_48_synth_64_sample",
+            "default_capacity_64_synth_64_sample",
         ] {
             assert!(names.contains(&name.to_string()), "missing {name}");
         }

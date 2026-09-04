@@ -23,6 +23,8 @@ const BASELINE_FX_KINDS: [&str; 12] = [
     "eq",
 ];
 
+pub(super) type DefaultCapacitySlot = (usize, usize);
+
 pub(super) fn synth_events(
     voices: usize,
     mode: VoiceStealingMode,
@@ -112,8 +114,8 @@ pub(super) fn mixed_ramp_16_48_events(
 }
 
 pub(super) fn default_capacity_events(
-    synth_slots: &[usize],
-    sample_slots: &[usize],
+    synth_slots: &[DefaultCapacitySlot],
+    sample_slots: &[DefaultCapacitySlot],
     sample_rate: u32,
     sample_banks: &[SampleBankConfig],
 ) -> Vec<EngineEvent> {
@@ -123,11 +125,11 @@ pub(super) fn default_capacity_events(
         VoiceStealingMode::None,
         sample_rate,
     )];
-    for &slot in synth_slots {
-        push_distributed_notes_in_slots(&mut events, 8, 60, false, slot, 1);
+    for &(slot, voices) in synth_slots {
+        push_distributed_notes_in_slots(&mut events, voices, 60, false, slot, 1);
     }
-    for &slot in sample_slots {
-        push_distributed_notes_in_slots(&mut events, 8, 36, true, slot, 1);
+    for &(slot, voices) in sample_slots {
+        push_distributed_notes_in_slots(&mut events, voices, 36, true, slot, 1);
     }
     events.extend(default_capacity_momentary_events(sample_rate));
     events
@@ -206,16 +208,16 @@ fn instruments(
 }
 
 fn default_capacity_instruments(
-    synth_slots: &[usize],
-    sample_slots: &[usize],
+    synth_slots: &[DefaultCapacitySlot],
+    sample_slots: &[DefaultCapacitySlot],
 ) -> InstrumentsConfig {
     let mut kinds = ["none"; INSTRUMENT_SLOT_COUNT];
     let mut routes = [0; INSTRUMENT_SLOT_COUNT];
-    for (index, &slot) in synth_slots.iter().enumerate() {
+    for (index, &(slot, _)) in synth_slots.iter().enumerate() {
         kinds[slot] = "synth";
         routes[slot] = [1, 1, 2][index % 3];
     }
-    for &slot in sample_slots {
+    for &(slot, _) in sample_slots {
         kinds[slot] = "sampler";
     }
     instruments(kinds, routes, Some(default_capacity_mixer()))

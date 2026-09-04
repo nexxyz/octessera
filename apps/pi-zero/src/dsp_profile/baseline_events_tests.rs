@@ -1,6 +1,6 @@
 use super::{
     default_capacity_events, default_capacity_instruments, fx_events, mixed_ramp_16_48_events,
-    mixer, sample_events, synth_events, BASELINE_FX_KINDS,
+    mixer, sample_events, synth_events, DefaultCapacitySlot, BASELINE_FX_KINDS,
 };
 use realtime_engine::synth::{FxBusSlotConfig, SampleBankConfig, VoiceStealingMode};
 use rodio_engine_source::EngineEvent;
@@ -110,7 +110,9 @@ fn baseline_fx_sequence_is_exact_and_six_slot_fixture_uses_its_prefix() {
 
 #[test]
 fn default_capacity_fixture_uses_shipped_slot_and_fx_topology() {
-    let instruments = default_capacity_instruments(&[0, 2, 3, 4, 6, 7], &[1, 5]);
+    let synth_slots: [DefaultCapacitySlot; 6] = [(0, 8), (2, 8), (3, 8), (4, 8), (6, 8), (7, 8)];
+    let sample_slots: [DefaultCapacitySlot; 2] = [(1, 8), (5, 8)];
+    let instruments = default_capacity_instruments(&synth_slots, &sample_slots);
     assert_eq!(
         instruments
             .instruments
@@ -154,7 +156,7 @@ fn default_capacity_fixture_uses_shipped_slot_and_fx_topology() {
             .collect::<Vec<_>>(),
         ["compressor"]
     );
-    let events = default_capacity_events(&[0, 2, 3, 4, 6, 7], &[1, 5], 44_100, &[]);
+    let events = default_capacity_events(&synth_slots, &sample_slots, 44_100, &[]);
     assert_eq!(
         events
             .iter()
@@ -162,4 +164,22 @@ fn default_capacity_fixture_uses_shipped_slot_and_fx_topology() {
             .count(),
         2
     );
+}
+
+#[test]
+fn default_capacity_fixture_emits_each_explicit_voice_count() {
+    let synth_slots: [DefaultCapacitySlot; 6] =
+        [(0, 11), (2, 11), (3, 11), (4, 11), (6, 10), (7, 10)];
+    let sample_slots: [DefaultCapacitySlot; 2] = [(1, 32), (5, 32)];
+    let events = default_capacity_events(&synth_slots, &sample_slots, 44_100, &[]);
+    let mut observed_slots = [0; 8];
+    for event in events {
+        if let EngineEvent::NoteOn {
+            instrument_slot, ..
+        } = event
+        {
+            observed_slots[instrument_slot as usize] += 1;
+        }
+    }
+    assert_eq!(observed_slots, [11, 32, 11, 11, 11, 32, 10, 10]);
 }

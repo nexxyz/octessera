@@ -149,6 +149,25 @@ fn historical_order_is_unchanged_and_baseline_live_ids_are_separate() {
 fn baseline_live_ids_match_canonical_scenarios_and_parse_at_180_seconds() {
     let native_ids = ScenarioId::BASELINE_LIVE.map(ScenarioId::as_str);
     assert_eq!(native_ids, crate::dsp_scenarios::BASELINE_LIVE_SCENARIO_IDS);
+    assert_eq!(
+        native_ids,
+        [
+            "synth_cross_slot_16",
+            "sample_cross_slot_64",
+            "mixed_16_synth_32_sample",
+            "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
+            "synth_cross_slot_32_no_steal",
+            "mixed_ramp_16_48",
+            "default_envelope_24_synth_8_sample",
+            "default_headroom_32_synth_8_sample",
+            "default_headroom_32_synth_16_sample",
+            "default_headroom_40_synth_16_sample",
+            "default_headroom_48_synth_16_sample",
+            "default_capacity_64_synth_16_sample",
+            "default_capacity_48_synth_64_sample",
+            "default_capacity_64_synth_64_sample",
+        ]
+    );
 
     for id in ScenarioId::BASELINE_LIVE.into_iter().skip(6) {
         let mut args = args_for(256, 64);

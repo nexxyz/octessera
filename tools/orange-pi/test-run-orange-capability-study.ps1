@@ -302,11 +302,14 @@ $defaultCapacityScenarios = @(
   "default_headroom_32_synth_8_sample",
   "default_headroom_32_synth_16_sample",
   "default_headroom_40_synth_16_sample",
-  "default_headroom_48_synth_16_sample"
+  "default_headroom_48_synth_16_sample",
+  "default_capacity_64_synth_16_sample",
+  "default_capacity_48_synth_64_sample",
+  "default_capacity_64_synth_64_sample"
 )
 $baselineLiveScenarioIds = @(Get-OrangeBaselineLiveScenarioIds)
 $liveMatrixPlan = @(Get-OrangeLiveMatrixPlan)
-if ($baselineLiveScenarioIds.Count -ne 11) { throw "The baseline-live allowlist count changed." }
+if ($baselineLiveScenarioIds.Count -ne 14) { throw "The baseline-live allowlist count changed." }
 foreach ($scenario in $defaultCapacityScenarios) {
   if ($baselineLiveScenarioIds -notcontains $scenario -or (Get-OrangeLiveScenarioIds) -contains $scenario -or @($liveMatrixPlan | Where-Object { $_.Scenario -eq $scenario }).Count -ne 0) {
     throw "Default-capacity scenario was not kept in the separate baseline-live allowlist: $scenario"

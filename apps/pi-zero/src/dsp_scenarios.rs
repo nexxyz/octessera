@@ -33,7 +33,7 @@ pub const LIVE_SCENARIO_IDS: [&str; 11] = [
 ];
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
-pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 11] = [
+pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 14] = [
     "synth_cross_slot_16",
     "sample_cross_slot_64",
     "mixed_16_synth_32_sample",
@@ -45,15 +45,9 @@ pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 11] = [
     "default_headroom_32_synth_16_sample",
     "default_headroom_40_synth_16_sample",
     "default_headroom_48_synth_16_sample",
-];
-
-#[cfg(test)]
-const DEFAULT_CAPACITY_LIVE_SCENARIO_IDS: [&str; 5] = [
-    "default_envelope_24_synth_8_sample",
-    "default_headroom_32_synth_8_sample",
-    "default_headroom_32_synth_16_sample",
-    "default_headroom_40_synth_16_sample",
-    "default_headroom_48_synth_16_sample",
+    "default_capacity_64_synth_16_sample",
+    "default_capacity_48_synth_64_sample",
+    "default_capacity_64_synth_64_sample",
 ];
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
@@ -149,6 +143,9 @@ pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
         "default_headroom_32_synth_16_sample" => (32, 16, 2, 4, 1, 0, 0, 0),
         "default_headroom_40_synth_16_sample" => (40, 16, 2, 4, 1, 0, 0, 0),
         "default_headroom_48_synth_16_sample" => (48, 16, 2, 4, 1, 0, 0, 0),
+        "default_capacity_64_synth_16_sample" => (64, 16, 2, 4, 1, 0, 0, 0),
+        "default_capacity_48_synth_64_sample" => (48, 64, 2, 4, 1, 0, 0, 0),
+        "default_capacity_64_synth_64_sample" => (64, 64, 2, 4, 1, 0, 0, 0),
         _ => return None,
     };
     Some(ExpectedLiveState {
@@ -197,7 +194,7 @@ mod tests {
 
     #[test]
     fn baseline_live_vocabulary_is_separate_and_idle_stays_offline_only() {
-        assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 11);
+        assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 14);
         for name in BASELINE_LIVE_SCENARIO_IDS {
             assert!(live_scenario(name, 44_100, 600_000).is_some(), "{name}");
         }
@@ -206,20 +203,57 @@ mod tests {
 
     #[test]
     fn default_capacity_live_fixtures_prove_slot_feasibility_and_zero_drops() {
-        let slot_counts = [
-            [8, 8, 8, 8, 0, 0, 0, 0],
-            [8, 8, 8, 8, 8, 0, 0, 0],
-            [8, 8, 8, 8, 8, 8, 0, 0],
-            [8, 8, 8, 8, 8, 8, 8, 0],
-            [8, 8, 8, 8, 8, 8, 8, 8],
+        let fixtures = [
+            (
+                "default_envelope_24_synth_8_sample",
+                [8, 8, 8, 8, 0, 0, 0, 0],
+                24,
+                8,
+            ),
+            (
+                "default_headroom_32_synth_8_sample",
+                [8, 8, 8, 8, 8, 0, 0, 0],
+                32,
+                8,
+            ),
+            (
+                "default_headroom_32_synth_16_sample",
+                [8, 8, 8, 8, 8, 8, 0, 0],
+                32,
+                16,
+            ),
+            (
+                "default_headroom_40_synth_16_sample",
+                [8, 8, 8, 8, 8, 8, 8, 0],
+                40,
+                16,
+            ),
+            (
+                "default_headroom_48_synth_16_sample",
+                [8, 8, 8, 8, 8, 8, 8, 8],
+                48,
+                16,
+            ),
+            (
+                "default_capacity_64_synth_16_sample",
+                [11, 8, 11, 11, 11, 8, 10, 10],
+                64,
+                16,
+            ),
+            (
+                "default_capacity_48_synth_64_sample",
+                [8, 32, 8, 8, 8, 32, 8, 8],
+                48,
+                64,
+            ),
+            (
+                "default_capacity_64_synth_64_sample",
+                [11, 32, 11, 11, 11, 32, 10, 10],
+                64,
+                64,
+            ),
         ];
-        let voice_counts = [(24, 8), (32, 8), (32, 16), (40, 16), (48, 16)];
-        for ((name, expected_slots), (expected_synth, expected_sample)) in
-            DEFAULT_CAPACITY_LIVE_SCENARIO_IDS
-                .into_iter()
-                .zip(slot_counts)
-                .zip(voice_counts)
-        {
+        for (name, expected_slots, expected_synth, expected_sample) in fixtures {
             let scenario = live_scenario(name, 44_100, 600_000).unwrap();
             assert_eq!(
                 scenario.expected.active_synth_voices, expected_synth,
