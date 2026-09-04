@@ -11,7 +11,7 @@ use super::support::SampleVoice;
 mod filter;
 #[path = "sample_voice_pool_identity.rs"]
 mod identity;
-#[cfg(test)]
+#[cfg(any(test, debug_assertions))]
 #[path = "sample_voice_pool_invariants.rs"]
 mod invariants;
 
@@ -149,12 +149,9 @@ impl SampleVoicePool {
         if !self.partitions_home() {
             return None;
         }
-        Some(
-            (0..SAMPLE_VOICE_LANE_CAPACITY)
-                .filter_map(|lane| self.lane(lane))
-                .filter(|voice| voice.active)
-                .count(),
-        )
+        #[cfg(debug_assertions)]
+        self.assert_invariants();
+        Some(self.slot_lane_counts.iter().sum())
     }
 
     pub(super) fn active_count_for_slot(&self, slot: usize) -> Option<usize> {

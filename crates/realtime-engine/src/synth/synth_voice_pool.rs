@@ -131,12 +131,9 @@ impl SynthVoicePool {
         if !self.partitions_home() {
             return None;
         }
-        Some(
-            (0..SYNTH_VOICE_LANE_CAPACITY)
-                .filter_map(|lane| self.lane(lane))
-                .filter(|voice| voice.active)
-                .count(),
-        )
+        #[cfg(debug_assertions)]
+        self.assert_invariants();
+        Some(self.slot_lane_counts.iter().sum())
     }
 
     pub(super) fn active_count_for_slot(&self, slot: usize) -> Option<usize> {
@@ -347,7 +344,7 @@ impl SynthVoicePool {
         self.lane_slots[lane] = None;
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, debug_assertions))]
     pub(super) fn assert_invariants(&self) {
         assert!(self.partitions_home());
         let mut ownership_counts = [0; SYNTH_VOICE_LANE_CAPACITY];
