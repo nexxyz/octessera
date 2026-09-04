@@ -453,4 +453,20 @@ foreach ($seconds in @(299, 3000)) {
   Assert-Throws { Invoke-StudyPrintOnly -Parameters $rejectedParameters | Out-Null }
 }
 
+$sensorSeriesTest = Join-Path ([IO.Path]::GetTempPath()) ("octessera-orange-sensor-series-" + [guid]::NewGuid().ToString("N"))
+try {
+  Set-Content -LiteralPath $sensorSeriesTest -Value @(
+    "sample=frequency phase=startup time=1 path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq khz=1200000",
+    "sample=cooling phase=startup time=1 path=/sys/class/thermal/cooling_device0 type=thermal-cpufreq-0 cur_state=0 max_state=10 observed=true",
+    "sample=frequency phase=runtime time=2 path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq khz=800000",
+    "sample=cooling phase=runtime time=2 path=/sys/class/thermal/cooling_device0 type=thermal-cpufreq-0 cur_state=3 max_state=10 observed=true"
+  )
+  $sensorEvidence = Get-OrangeLiveSensorEvidence $sensorSeriesTest
+  if (-not $sensorEvidence.CoolingObserved -or $sensorEvidence.MaxCoolingState -ne 3 -or $sensorEvidence.MinFrequencyKhz -ne 800000 -or -not $sensorEvidence.CoolingEvidenceValid) { throw "Cooling state zero/throttled or frequency evidence was not summarized." }
+  Add-Content -LiteralPath $sensorSeriesTest -Value "sample=cooling phase=runtime time=3 path=/sys/class/thermal/cooling_device0 type=thermal-cpufreq-0 cur_state=bad max_state=10 observed=true"
+  if ((Get-OrangeLiveSensorEvidence $sensorSeriesTest).CoolingEvidenceValid) { throw "Malformed cooling state evidence was accepted." }
+} finally {
+  Remove-Item -LiteralPath $sensorSeriesTest -Force -ErrorAction SilentlyContinue
+}
+
 Write-Output "Orange capability study PrintOnly, safety, DSP-mode, and transient-unit tests passed"

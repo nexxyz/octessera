@@ -65,6 +65,7 @@ json_field() {
   sed -n "s/^[[:space:]]*\"$key\"[[:space:]]*:[[:space:]]*//p" "$marker" | sed 's/[",]//g; s/^[[:space:]]*//; s/[[:space:]]*$//' | head -n 1
 }
 positive_number() { case "$1" in ''|0|*[!0-9]*) return 1;; *) return 0;; esac; }
+nonnegative_number() { case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }
 copy_evidence() {
   local source="$1" destination="$2"
   if [ -r "$source" ]; then
@@ -79,8 +80,9 @@ capture_service_state() {
   printf 'active=%s\nenabled=%s\n' "$initial_active" "$initial_enabled" > "$root/service-initial-state.txt"
 }
 capture_sensor_sample() {
-  local phase="$1" now mem thermal_zone thermal thermal_value thermal_type frequency
+  local phase="$1" now mem thermal_zone thermal thermal_value thermal_type frequency cooling_device cooling_type cur_state max_state
   local thermal_count=0 max_thermal=0
+  local cooling_count=0
   now="$(date +%s)"
   mem="$(awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo || true)"
   if ! positive_number "$mem"; then
@@ -112,6 +114,24 @@ capture_sensor_sample() {
     [ -e "$frequency" ] || continue
     printf 'sample=frequency phase=%s time=%s path=%s khz=%s\n' "$phase" "$now" "$frequency" "$(cat "$frequency" 2>/dev/null || printf unreadable)" >> "$sensor_series"
   done
+  for cooling_device in /sys/class/thermal/cooling_device*; do
+    [ -e "$cooling_device" ] || continue
+    cooling_count=$((cooling_count + 1))
+    cooling_type="$(cat "$cooling_device/type" 2>/dev/null || true)"
+    cooling_type="$(printf '%s' "$cooling_type" | tr -c 'A-Za-z0-9_.:-' '_')"
+    cur_state="$(cat "$cooling_device/cur_state" 2>/dev/null || true)"
+    max_state="$(cat "$cooling_device/max_state" 2>/dev/null || true)"
+    if [ -z "$cooling_type" ] || ! nonnegative_number "$cur_state" || ! nonnegative_number "$max_state" || [ "$cur_state" -gt "$max_state" ]; then
+      printf 'sample=cooling phase=%s time=%s observed=false reason=cooling-device-unreadable path=%s type=%s cur_state=%s max_state=%s\n' "$phase" "$now" "$cooling_device" "$cooling_type" "$cur_state" "$max_state" >> "$sensor_series"
+      printf 'reason=cooling-device-unreadable\nphase=%s\ntime=%s\npath=%s\n' "$phase" "$now" "$cooling_device" > "$sensor_abort"
+      [ "$phase" = startup ] || sudo -n systemctl stop "$unit" >/dev/null 2>&1 || true
+      return 1
+    fi
+    printf 'sample=cooling phase=%s time=%s path=%s type=%s cur_state=%s max_state=%s observed=true\n' "$phase" "$now" "$cooling_device" "$cooling_type" "$cur_state" "$max_state" >> "$sensor_series"
+  done
+  if [ "$cooling_count" -eq 0 ]; then
+    printf 'sample=cooling phase=%s time=%s observed=false reason=cooling-devices-unobserved\n' "$phase" "$now" >> "$sensor_series"
+  fi
   if [ "$phase" = startup ]; then
     if [ "$mem" -lt 524288 ]; then
       printf 'reason=startup-safety-limit\nphase=%s\ntime=%s\nmax_millicelsius=%s\nmem_available_kb=%s\n' "$phase" "$now" "$max_thermal" "$mem" > "$sensor_abort"
