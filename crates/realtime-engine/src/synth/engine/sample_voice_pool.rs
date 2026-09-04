@@ -18,6 +18,8 @@ mod invariants;
 pub(super) struct SampleVoicePartition {
     parity: usize,
     lanes: [SampleVoice; SAMPLE_VOICE_PARTITION_LANE_CAPACITY],
+    pub(super) render_lanes: [usize; SAMPLE_VOICE_PARTITION_LANE_CAPACITY],
+    pub(super) render_lane_count: usize,
 }
 
 impl SampleVoicePartition {
@@ -25,6 +27,8 @@ impl SampleVoicePartition {
         Self {
             parity,
             lanes: std::array::from_fn(|_| SampleVoice::off()),
+            render_lanes: [0; SAMPLE_VOICE_PARTITION_LANE_CAPACITY],
+            render_lane_count: 0,
         }
     }
 
@@ -38,6 +42,17 @@ impl SampleVoicePartition {
 
     pub(super) fn active_count(&self) -> usize {
         self.lanes.iter().filter(|voice| voice.active).count()
+    }
+
+    fn rebuild_render_lanes(&mut self, lane_slots: &[Option<usize>; SAMPLE_VOICE_LANE_CAPACITY]) {
+        let mut count = 0;
+        for (global_lane, owner) in lane_slots.iter().enumerate() {
+            if owner.is_some() && global_lane % VOICE_PARTITION_COUNT == self.parity {
+                self.render_lanes[count] = global_lane / VOICE_PARTITION_COUNT;
+                count += 1;
+            }
+        }
+        self.render_lane_count = count;
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -71,7 +86,9 @@ impl SampleVoicePool {
     }
 
     pub(super) fn take_partition(&mut self, parity: usize) -> Option<Box<SampleVoicePartition>> {
-        self.partitions.get_mut(parity)?.take()
+        let partition = self.partitions.get_mut(parity)?.as_mut()?;
+        partition.rebuild_render_lanes(&self.lane_slots);
+        self.partitions[parity].take()
     }
 
     pub(super) fn install_partition(
