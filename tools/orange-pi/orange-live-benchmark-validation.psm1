@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-worker-timing-validation.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "orange-live-result-evidence-validation.psm1") -Force
 $script:OrangeLiveScenarioIds = @("synth_ramp_16", "synth_ramp_32", "synth_ramp_64", "sample_ramp_64", "mixed_ramp_16_16", "mixed_ramp_32_32", "bus_heavy_6_bus_fx_2_global", "momentary_combined", "synth_cross_slot_96_steal", "sample_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
 function Get-OrangeLiveScenarioIds {
   return @($script:OrangeLiveScenarioIds)
@@ -19,8 +20,8 @@ function Assert-OrangeLiveBenchmarkSelection {
   }
   $alsaPeriodFrames = @{ 128 = 32; 256 = 64; 512 = 128; 1024 = 256 }[$OutputFrames]
   if ($null -eq $alsaPeriodFrames) { throw "LiveAudioBenchmark output frames must be 128, 256, 512, or 1024." }
-  if (@(30, 120, 300) -notcontains $MeasureSeconds) {
-    throw "LiveAudioBenchmark measure seconds must be 30, 120, or 300."
+  if (@(30, 120, 180, 300) -notcontains $MeasureSeconds) {
+    throw "LiveAudioBenchmark measure seconds must be 30, 120, 180, or 300."
   }
   $approvedTuples = @("128/32", "256/64", "256/128", "256/256", "512/128", "1024/256")
   $approvedTuple = $approvedTuples -contains "$OutputFrames/$EngineBlockFrames"
@@ -99,24 +100,6 @@ function ConvertTo-OrangeLiveManifestJson {
   param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Results)
   return (ConvertTo-Json -InputObject @($Results) -Depth 8)
 }
-function Get-OrangeLiveAggregateRenderAudioDurationRatio {
-  param([Parameter(Mandatory)][pscustomobject]$Result)
-  $callback = $Result.PSObject.Properties["callback"]
-  $duration = if ($null -ne $callback) { $callback.Value.PSObject.Properties["render_audio_duration_ns"] } else { $null }
-  $frames = if ($null -ne $callback) { $callback.Value.PSObject.Properties["rendered_frames"] } else { $null }
-  $count = if ($null -ne $callback) { $callback.Value.PSObject.Properties["callback_count"] } else { $null }; $minimum = if ($null -ne $callback) { $callback.Value.PSObject.Properties["callback_frames_min"] } else { $null }; $maximum = if ($null -ne $callback) { $callback.Value.PSObject.Properties["callback_frames_max"] } else { $null }
-  $rate = $Result.PSObject.Properties["sample_rate"]
-  if ($null -eq $duration -or $null -eq $frames -or $null -eq $count -or $null -eq $minimum -or $null -eq $maximum -or $null -eq $rate -or $null -eq $duration.Value -or $null -eq $frames.Value -or $null -eq $count.Value -or $null -eq $minimum.Value -or $null -eq $maximum.Value -or $null -eq $rate.Value) { throw "Live benchmark aggregate render-duration evidence is missing." }
-  try { $durationValue = [double]$duration.Value; $frameValue = [double]$frames.Value; $countValue = [double]$count.Value; $minimumValue = [double]$minimum.Value; $maximumValue = [double]$maximum.Value; $rateValue = [double]$rate.Value } catch { throw "Live benchmark aggregate render-duration evidence is invalid." }
-  if ([double]::IsNaN($durationValue) -or [double]::IsInfinity($durationValue) -or [double]::IsNaN($frameValue) -or [double]::IsInfinity($frameValue) -or [double]::IsNaN($countValue) -or [double]::IsInfinity($countValue) -or [double]::IsNaN($minimumValue) -or [double]::IsInfinity($minimumValue) -or [double]::IsNaN($maximumValue) -or [double]::IsInfinity($maximumValue) -or [double]::IsNaN($rateValue) -or [double]::IsInfinity($rateValue) -or $durationValue -ne [math]::Truncate($durationValue) -or $frameValue -ne [math]::Truncate($frameValue) -or $countValue -ne [math]::Truncate($countValue) -or $minimumValue -ne [math]::Truncate($minimumValue) -or $maximumValue -ne [math]::Truncate($maximumValue) -or $rateValue -ne [math]::Truncate($rateValue) -or $durationValue -le 0 -or $frameValue -le 0 -or $countValue -le 0 -or $minimumValue -le 0 -or $maximumValue -le 0 -or $rateValue -le 0 -or $minimumValue -gt $maximumValue) {
-    throw "Live benchmark aggregate render-duration evidence is zero or invalid."
-  }
-  $lowerFrameBound = $countValue * $minimumValue; $upperFrameBound = $countValue * $maximumValue
-  if ([double]::IsInfinity($lowerFrameBound) -or [double]::IsInfinity($upperFrameBound) -or $frameValue -lt $lowerFrameBound -or $frameValue -gt $upperFrameBound) { throw "Live benchmark callback frame aggregate is outside its measured bounds." }
-  $ratio = $durationValue / ($frameValue * 1e9 / $rateValue)
-  if ([double]::IsNaN($ratio) -or [double]::IsInfinity($ratio) -or $ratio -le 0) { throw "Live benchmark aggregate render-duration ratio is invalid." }
-  return $ratio
-}
 function Get-OrangeLiveWorstPassingScenario {
   param([Parameter(Mandatory)][object[]]$Results)
   $passing = @($Results | Where-Object {
@@ -141,19 +124,21 @@ function Get-OrangeLiveResultSummary {
     [Parameter(Mandatory)][pscustomobject]$Result,
     [Parameter(Mandatory)][pscustomobject]$Selection
   )
+  Assert-OrangeLiveResultFieldNames -Result $Result
   $callback = $Result.callback
   $terminal = $null -ne $Result.terminal_error -and -not [string]::IsNullOrWhiteSpace([string]$Result.terminal_error)
   $callbackErrors = [uint64]$callback.cpal_device_error_count + [uint64]$callback.cpal_stream_error_count
+  $detectedContinuityEvents = Get-OrangeLiveStrictInteger -Value $Result.detected_continuity_events -Path "detected_continuity_events"
   $measured = [uint64]$callback.callback_count -gt 0 -and -not $terminal -and -not [bool]$callback.terminal_error
   $muteProof = [uint64]$callback.pre_mute_nonzero_samples -gt 0 -and [uint64]$callback.post_mute_nonzero_samples -eq 0
   $complete = $measured -and $callbackErrors -eq 0
-  $maxCallbackBudgetOverruns = switch ($Selection.MeasureSeconds) { 30 { 0 }; 120 { 0 }; 300 { 5 }; default { throw "Unsupported live benchmark duration: $($Selection.MeasureSeconds) seconds." } }
+  $maxCallbackBudgetOverruns = switch ($Selection.MeasureSeconds) { 30 { 0 }; 120 { 0 }; 180 { 0 }; 300 { 5 }; default { throw "Unsupported live benchmark duration: $($Selection.MeasureSeconds) seconds." } }
   $statusClass = if (-not $measured) {
     "infrastructure_failure"
   } elseif ($callbackErrors -gt 0) {
     "infrastructure_failure"
   } elseif ([string]$Result.status -eq "pass") {
-    if ([uint64]$callback.over_audio_duration_budget_count -gt $maxCallbackBudgetOverruns -or -not $muteProof) { "infrastructure_failure" } else { "pass" }
+    if ([uint64]$callback.over_audio_duration_budget_count -gt $maxCallbackBudgetOverruns -or -not $muteProof -or ($Selection.MeasureSeconds -eq 180 -and ($detectedContinuityEvents -ne 0 -or [uint64]$callback.over_audio_duration_budget_count -ne 0 -or [uint64]$callback.cpal_device_error_count -ne 0 -or [uint64]$callback.cpal_stream_error_count -ne 0))) { "infrastructure_failure" } else { "pass" }
   } elseif ([uint64]$callback.over_audio_duration_budget_count -gt $maxCallbackBudgetOverruns) {
     if ($complete -and $muteProof) { "over_budget" } else { "infrastructure_failure" }
   } elseif ($complete -and $muteProof) {
@@ -307,6 +292,8 @@ function Assert-OrangeLiveResult {
     [Parameter(Mandatory)][pscustomobject]$Result,
     [Parameter(Mandatory)][pscustomobject]$Selection
   )
+  Assert-OrangeLiveResultFieldNames -Result $Result
+  $callback = $Result.callback
   $executorProperty = $Result.PSObject.Properties["executor_mode"]
   if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers") -cnotcontains $executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
   $schedulingPolicy = $Result.PSObject.Properties["callback_scheduling_policy"]
@@ -315,13 +302,9 @@ function Assert-OrangeLiveResult {
   $expectedPriority = 70
   if ($null -eq $schedulingPolicy -or $schedulingPolicy.Value -isnot [string] -or $schedulingPolicy.Value -cne "SCHED_FIFO" -or $null -eq $schedulingPriority -or $schedulingPriority.Value -isnot [byte] -and $schedulingPriority.Value -isnot [int16] -and $schedulingPriority.Value -isnot [uint16] -and $schedulingPriority.Value -isnot [int32] -and $schedulingPriority.Value -isnot [uint32] -and $schedulingPriority.Value -isnot [int64] -and $schedulingPriority.Value -isnot [uint64] -or [int]$schedulingPriority.Value -ne $expectedPriority) { throw "Live benchmark effective scheduling evidence is invalid." }
   if ($null -eq $schedulingCpu) { throw "Live benchmark callback CPU evidence is missing." }
-  if ($executorProperty.Value -ceq "persistent_two_workers") {
-    if ($schedulingCpu.Value -isnot [byte] -and $schedulingCpu.Value -isnot [int16] -and $schedulingCpu.Value -isnot [uint16] -and $schedulingCpu.Value -isnot [int32] -and $schedulingCpu.Value -isnot [uint32] -and $schedulingCpu.Value -isnot [int64] -and $schedulingCpu.Value -isnot [uint64] -or [int]$schedulingCpu.Value -ne 1) { throw "Live benchmark persistent callback CPU evidence is invalid." }
-  } elseif ($null -ne $schedulingCpu.Value) {
-    throw "Live benchmark inline callback CPU evidence must be null."
-  }
+  if ((Get-OrangeLiveStrictInteger -Value $schedulingCpu.Value -Path "callback_scheduling_cpu") -ne 1) { throw "Live benchmark callback CPU evidence is invalid." }
   $checks = @(
-    @([int]$Result.schema_version, 9),
+    @((Get-OrangeLiveStrictInteger -Value $Result.schema_version -Path "schema_version"), 10),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),
@@ -345,12 +328,25 @@ function Assert-OrangeLiveResult {
   if ([string]$Result.status -ceq "pass" -and $executorProperty.Value -ceq "persistent_two_workers" -and [string]$Result.worker_health -cne "healthy") { throw "A passing live benchmark must report healthy persistent workers." }
   Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true -AllowTerminalHealth
   Assert-OrangeWorkerTimingEvidence -Result $Result
-  if ($null -ne $Result.recovered_alsa_epipe_count -or [bool]$Result.recovered_alsa_epipe_observable) {
+  $persistentOutputProperty = $Result.PSObject.Properties["persistent_output_counters"]
+  $persistentOutput = if ($null -ne $persistentOutputProperty) { Assert-OrangeLivePersistentOutputEvidence -Evidence $persistentOutputProperty.Value -ExecutorMode $executorProperty.Value } else { throw "Live benchmark persistent output counter evidence is missing." }
+  $detectedContinuityEvents = Get-OrangeLiveStrictInteger -Value $Result.detected_continuity_events -Path "detected_continuity_events"
+  $callbackOverruns = Get-OrangeLiveStrictInteger -Value $callback.over_audio_duration_budget_count -Path "callback.over_audio_duration_budget_count"
+  $callbackDeviceErrors = Get-OrangeLiveStrictInteger -Value $callback.cpal_device_error_count -Path "callback.cpal_device_error_count"
+  $callbackStreamErrors = Get-OrangeLiveStrictInteger -Value $callback.cpal_stream_error_count -Path "callback.cpal_stream_error_count"
+  $carryIn = $persistentOutput.start.deadline_misses -gt $persistentOutput.start.deadline_recoveries -and ($persistentOutput.delta.repeated_quantums -gt 0 -or $persistentOutput.delta.dropped_quantums -gt 0)
+  $counterContinuityEvents = $persistentOutput.delta.deadline_misses
+  if ($carryIn -and $counterContinuityEvents -lt [uint64]::MaxValue) { $counterContinuityEvents++ }
+  $expectedContinuityEvents = if ($callbackOverruns -gt $counterContinuityEvents) { $callbackOverruns } else { $counterContinuityEvents }
+  if ($detectedContinuityEvents -ne $expectedContinuityEvents) { throw "Live benchmark detected continuity event evidence is inconsistent." }
+  if ([string]$Result.status -ceq "pass" -and $Selection.MeasureSeconds -eq 180 -and ($detectedContinuityEvents -ne 0 -or $callbackOverruns -ne 0 -or $callbackDeviceErrors -ne 0 -or $callbackStreamErrors -ne 0)) { throw "A passing 180-second benchmark must have zero callback continuity events." }
+  $recoveredCount = $Result.PSObject.Properties["recovered_alsa_epipe_count"]
+  $recoveredObservable = $Result.PSObject.Properties["recovered_alsa_epipe_observable"]
+  if ($null -eq $recoveredCount -or $null -eq $recoveredObservable -or $null -ne $recoveredCount.Value -or $recoveredObservable.Value -isnot [bool] -or $recoveredObservable.Value) {
     throw "Live benchmark result made an invalid recovered ALSA EPIPE claim."
   }
   Assert-OrangeAdmissionDropEvidence $Result $Selection
   Get-OrangeLiveAggregateRenderAudioDurationRatio $Result | Out-Null
-  $callback = $Result.callback
   $workerTerminal = $callback.PSObject.Properties["worker_terminal"]
   if ($null -eq $workerTerminal -or [bool]$workerTerminal.Value) {
     throw "Live benchmark callback worker terminal evidence is invalid."

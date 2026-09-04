@@ -165,9 +165,9 @@ fn benchmark_executor_priorities_preserve_orange_scheduling_policy() {
 }
 
 #[test]
-fn persistent_benchmark_uses_strict_jack_scheduler_and_inline_stays_legacy() {
+fn both_benchmark_executors_use_strict_jack_scheduler() {
     let inline = callback_scheduler_for_executor(BenchmarkExecutorMode::Inline);
-    assert!(!inline.is_strict());
+    assert!(inline.is_strict());
     assert_eq!(inline.requested_priority(), 70);
 
     let persistent = callback_scheduler_for_executor(BenchmarkExecutorMode::PersistentTwoWorkers);

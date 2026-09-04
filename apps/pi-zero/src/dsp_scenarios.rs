@@ -33,13 +33,27 @@ pub const LIVE_SCENARIO_IDS: [&str; 11] = [
 ];
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
-pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 6] = [
+pub const BASELINE_LIVE_SCENARIO_IDS: [&str; 11] = [
     "synth_cross_slot_16",
     "sample_cross_slot_64",
     "mixed_16_synth_32_sample",
     "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
     "synth_cross_slot_32_no_steal",
     "mixed_ramp_16_48",
+    "default_envelope_24_synth_8_sample",
+    "default_headroom_32_synth_8_sample",
+    "default_headroom_32_synth_16_sample",
+    "default_headroom_40_synth_16_sample",
+    "default_headroom_48_synth_16_sample",
+];
+
+#[cfg(test)]
+const DEFAULT_CAPACITY_LIVE_SCENARIO_IDS: [&str; 5] = [
+    "default_envelope_24_synth_8_sample",
+    "default_headroom_32_synth_8_sample",
+    "default_headroom_32_synth_16_sample",
+    "default_headroom_40_synth_16_sample",
+    "default_headroom_48_synth_16_sample",
 ];
 
 #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
@@ -130,6 +144,11 @@ pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
         "fixed_8_synth_8_sample_12_bus_2_global_2_momentary" => (8, 8, 2, 12, 2, 0, 0, 0),
         "synth_cross_slot_32_no_steal" => (32, 0, 0, 0, 0, 0, 0, 0),
         "mixed_ramp_16_48" => (16, 48, 0, 0, 0, 0, 0, 0),
+        "default_envelope_24_synth_8_sample" => (24, 8, 2, 4, 1, 0, 0, 0),
+        "default_headroom_32_synth_8_sample" => (32, 8, 2, 4, 1, 0, 0, 0),
+        "default_headroom_32_synth_16_sample" => (32, 16, 2, 4, 1, 0, 0, 0),
+        "default_headroom_40_synth_16_sample" => (40, 16, 2, 4, 1, 0, 0, 0),
+        "default_headroom_48_synth_16_sample" => (48, 16, 2, 4, 1, 0, 0, 0),
         _ => return None,
     };
     Some(ExpectedLiveState {
@@ -178,11 +197,65 @@ mod tests {
 
     #[test]
     fn baseline_live_vocabulary_is_separate_and_idle_stays_offline_only() {
-        assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 6);
+        assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 11);
         for name in BASELINE_LIVE_SCENARIO_IDS {
             assert!(live_scenario(name, 44_100, 600_000).is_some(), "{name}");
         }
         assert!(live_scenario("baseline_idle", 44_100, 600_000).is_none());
+    }
+
+    #[test]
+    fn default_capacity_live_fixtures_prove_slot_feasibility_and_zero_drops() {
+        let slot_counts = [
+            [8, 8, 8, 8, 0, 0, 0, 0],
+            [8, 8, 8, 8, 8, 0, 0, 0],
+            [8, 8, 8, 8, 8, 8, 0, 0],
+            [8, 8, 8, 8, 8, 8, 8, 0],
+            [8, 8, 8, 8, 8, 8, 8, 8],
+        ];
+        let voice_counts = [(24, 8), (32, 8), (32, 16), (40, 16), (48, 16)];
+        for ((name, expected_slots), (expected_synth, expected_sample)) in
+            DEFAULT_CAPACITY_LIVE_SCENARIO_IDS
+                .into_iter()
+                .zip(slot_counts)
+                .zip(voice_counts)
+        {
+            let scenario = live_scenario(name, 44_100, 600_000).unwrap();
+            assert_eq!(
+                scenario.expected.active_synth_voices, expected_synth,
+                "{name}"
+            );
+            assert_eq!(
+                scenario.expected.active_sample_voices, expected_sample,
+                "{name}"
+            );
+            let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
+            let retired_audio_states =
+                crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
+            let snapshot = engine.profile_snapshot();
+            assert_eq!(snapshot.active_synth_voices, expected_synth, "{name}");
+            assert_eq!(snapshot.active_sample_voices, expected_sample, "{name}");
+            assert_eq!(snapshot.active_momentary_fx, 2, "{name}");
+            assert_eq!(snapshot.active_bus_fx_slots, 4, "{name}");
+            assert_eq!(snapshot.active_global_fx_slots, 1, "{name}");
+            assert_eq!(snapshot.cumulative_voice_steals, 0, "{name}");
+            assert_eq!(snapshot.cumulative_voice_admission_drops, 0, "{name}");
+
+            let mut observed_slots = [0; 8];
+            for event in &scenario.events {
+                if let rodio_engine_source::EngineEvent::NoteOn {
+                    instrument_slot,
+                    duration_ms,
+                    ..
+                } = event
+                {
+                    observed_slots[*instrument_slot as usize] += 1;
+                    assert_eq!(*duration_ms, 600_000, "{name}");
+                }
+            }
+            assert_eq!(observed_slots, expected_slots, "{name}");
+            drop(retired_audio_states);
+        }
     }
 
     #[test]

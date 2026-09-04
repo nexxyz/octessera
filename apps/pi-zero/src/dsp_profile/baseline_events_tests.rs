@@ -1,7 +1,8 @@
 use super::{
-    fx_events, mixed_ramp_16_48_events, mixer, sample_events, synth_events, BASELINE_FX_KINDS,
+    default_capacity_events, default_capacity_instruments, fx_events, mixed_ramp_16_48_events,
+    mixer, sample_events, synth_events, BASELINE_FX_KINDS,
 };
-use realtime_engine::synth::{SampleBankConfig, VoiceStealingMode};
+use realtime_engine::synth::{FxBusSlotConfig, SampleBankConfig, VoiceStealingMode};
 use rodio_engine_source::EngineEvent;
 
 fn note_on_slots(events: &[EngineEvent]) -> Vec<u8> {
@@ -105,4 +106,60 @@ fn baseline_fx_sequence_is_exact_and_six_slot_fixture_uses_its_prefix() {
         12
     );
     assert_eq!(fx_events(6, 2, 0, 44_100, &[]).len(), 17);
+}
+
+#[test]
+fn default_capacity_fixture_uses_shipped_slot_and_fx_topology() {
+    let instruments = default_capacity_instruments(&[0, 2, 3, 4, 6, 7], &[1, 5]);
+    assert_eq!(
+        instruments
+            .instruments
+            .iter()
+            .map(|slot| slot.kind.as_str())
+            .collect::<Vec<_>>(),
+        ["synth", "sampler", "synth", "synth", "synth", "sampler", "synth", "synth"]
+    );
+    assert_eq!(
+        instruments
+            .instruments
+            .iter()
+            .map(|slot| slot.mixer.as_ref().unwrap().route.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "fx_bus_1", "direct", "fx_bus_1", "fx_bus_2", "fx_bus_1", "direct", "fx_bus_1",
+            "fx_bus_2",
+        ]
+    );
+    let mixer = instruments.mixer.unwrap();
+    let bus_kinds: Vec<_> = mixer
+        .buses
+        .iter()
+        .flat_map(|bus| bus.slots.iter())
+        .map(|slot| match slot {
+            FxBusSlotConfig::Kind(kind) => kind.as_str(),
+            FxBusSlotConfig::Config { .. } => "config",
+        })
+        .collect();
+    assert_eq!(bus_kinds, ["delay", "duck", "duck", "saturator"]);
+    assert_eq!(
+        mixer
+            .master
+            .unwrap()
+            .slots
+            .iter()
+            .map(|slot| match slot {
+                FxBusSlotConfig::Kind(kind) => kind.as_str(),
+                FxBusSlotConfig::Config { .. } => "config",
+            })
+            .collect::<Vec<_>>(),
+        ["compressor"]
+    );
+    let events = default_capacity_events(&[0, 2, 3, 4, 6, 7], &[1, 5], 44_100, &[]);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, EngineEvent::PreparedMomentaryFxStart(_)))
+            .count(),
+        2
+    );
 }

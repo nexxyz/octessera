@@ -3151,6 +3151,7 @@ dependencies = [
  "hound",
  "realtime-engine",
  "rodio",
+ "serde",
  "serde_json",
 ]
 

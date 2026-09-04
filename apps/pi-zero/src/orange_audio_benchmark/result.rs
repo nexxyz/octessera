@@ -1,7 +1,7 @@
 use super::super::cli::{BenchmarkExecutorMode, WorkerTimingMode};
 use super::{
-    deserialize_result_schema_v9, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
-    CallbackMetricsSnapshot,
+    deserialize_result_schema_v10, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
+    CallbackMetricsSnapshot, PersistentOutputCountersEvidence,
 };
 use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -34,6 +34,8 @@ pub struct BenchmarkResult {
     pub systemd_invocation_id: Option<String>,
     pub artifact_sha256: String,
     pub callback: CallbackMetricsSnapshot,
+    pub persistent_output_counters: PersistentOutputCountersEvidence,
+    pub detected_continuity_events: u64,
     pub profile_start: BenchmarkProfileSnapshot,
     pub profile_end: BenchmarkProfileSnapshot,
     pub recovered_alsa_epipe_count: Option<u64>,
@@ -52,7 +54,7 @@ pub struct BenchmarkResult {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BenchmarkResultUnchecked {
-    #[serde(deserialize_with = "deserialize_result_schema_v9")]
+    #[serde(deserialize_with = "deserialize_result_schema_v10")]
     schema_version: u8,
     kind: String,
     status: String,
@@ -79,6 +81,8 @@ struct BenchmarkResultUnchecked {
     systemd_invocation_id: Option<String>,
     artifact_sha256: String,
     callback: CallbackMetricsSnapshot,
+    persistent_output_counters: PersistentOutputCountersEvidence,
+    detected_continuity_events: u64,
     profile_start: BenchmarkProfileSnapshot,
     profile_end: BenchmarkProfileSnapshot,
     recovered_alsa_epipe_count: Option<u64>,
@@ -128,6 +132,8 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             systemd_invocation_id,
             artifact_sha256,
             callback,
+            persistent_output_counters,
+            detected_continuity_events,
             profile_start,
             profile_end,
             recovered_alsa_epipe_count,
@@ -169,6 +175,8 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             systemd_invocation_id,
             artifact_sha256,
             callback,
+            persistent_output_counters,
+            detected_continuity_events,
             profile_start,
             profile_end,
             recovered_alsa_epipe_count,
@@ -195,17 +203,12 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
     let expected_priority = match executor_mode {
         BenchmarkExecutorMode::Inline | BenchmarkExecutorMode::PersistentTwoWorkers => 70,
     };
-    let expected_cpu = match executor_mode {
-        BenchmarkExecutorMode::Inline => None,
-        BenchmarkExecutorMode::PersistentTwoWorkers => Some(1),
-    };
+    let expected_cpu = Some(1);
     let scheduling_is_valid = result.callback_scheduling_policy.as_deref() == Some("SCHED_FIFO")
         && result.callback_scheduling_priority == Some(expected_priority)
         && result.callback_scheduling_cpu == expected_cpu;
     if result.callback_scheduling_policy.is_some() != result.callback_scheduling_priority.is_some()
-        || result.callback_scheduling_cpu.is_some()
-            != (executor_mode == BenchmarkExecutorMode::PersistentTwoWorkers
-                && result.callback_scheduling_policy.is_some())
+        || result.callback_scheduling_cpu.is_some() != result.callback_scheduling_policy.is_some()
         || (result.scheduler_qualified && !scheduling_is_valid)
         || (result.callback_scheduling_policy.is_some() && !scheduling_is_valid)
     {
@@ -220,6 +223,28 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
             || result.terminal_error.is_some())
     {
         return Err("benchmark lifecycle evidence is incomplete".into());
+    }
+    result.persistent_output_counters.validate(executor_mode)?;
+    if result.detected_continuity_events
+        != result
+            .persistent_output_counters
+            .detected_continuity_events(result.callback.over_audio_duration_budget_count)
+    {
+        return Err("detected continuity event count is inconsistent".into());
+    }
+    if result.recovered_alsa_epipe_count.is_some() || result.recovered_alsa_epipe_observable {
+        return Err("ALSA EPIPE recovery is not observable in this benchmark".into());
+    }
+    if result.status == "pass"
+        && result.measure_seconds == 180
+        && (result.detected_continuity_events != 0
+            || result.callback.over_audio_duration_budget_count != 0
+            || result.callback.cpal_device_error_count != 0
+            || result.callback.cpal_stream_error_count != 0)
+    {
+        return Err(
+            "a passing 180-second benchmark must have zero callback continuity events".into(),
+        );
     }
     match result.worker_timing_mode {
         WorkerTimingMode::Enabled => {

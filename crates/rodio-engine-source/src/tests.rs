@@ -121,6 +121,17 @@ fn idle_source_refills_with_silence() {
 }
 
 #[test]
+fn public_persistent_output_counter_snapshot_is_zero_for_inline_sources() {
+    let (_tx, rx) = event_queue();
+    let source = EngineSource::with_block_frames(rx, 44_100, 128);
+
+    assert_eq!(
+        source.persistent_output_counters(),
+        PersistentOutputCounters::default()
+    );
+}
+
+#[test]
 fn note_on_after_idle_renders_audio() {
     let (tx, rx) = event_queue();
     let mut source = EngineSource::new(rx, 44_100);

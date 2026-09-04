@@ -1,7 +1,7 @@
 Set-StrictMode -Version Latest
 
 $script:OrangeProfileBaselineScenarioIds = @("baseline_idle", "synth_shipped_policy_8", "synth_cross_slot_16", "sample_8", "sample_cross_slot_64", "mixed_16_synth_32_sample", "fixed_8_synth_8_sample_0_bus_2_global_0_momentary", "fixed_8_synth_8_sample_6_bus_2_global_2_momentary", "fixed_8_synth_8_sample_12_bus_2_global_0_momentary", "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "synth_cross_slot_32_no_steal", "synth_cross_slot_64_no_steal")
-$script:OrangeBaselineLiveScenarioIds = @("synth_cross_slot_16", "sample_cross_slot_64", "mixed_16_synth_32_sample", "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "synth_cross_slot_32_no_steal", "mixed_ramp_16_48")
+$script:OrangeBaselineLiveScenarioIds = @("synth_cross_slot_16", "sample_cross_slot_64", "mixed_16_synth_32_sample", "fixed_8_synth_8_sample_12_bus_2_global_2_momentary", "synth_cross_slot_32_no_steal", "mixed_ramp_16_48", "default_envelope_24_synth_8_sample", "default_headroom_32_synth_8_sample", "default_headroom_32_synth_16_sample", "default_headroom_40_synth_16_sample", "default_headroom_48_synth_16_sample")
 
 function Get-OrangeBaselineLiveScenarioIds {
   return @($script:OrangeBaselineLiveScenarioIds)
