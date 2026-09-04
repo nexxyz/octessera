@@ -80,6 +80,9 @@ pub enum ScenarioId {
     DefaultHeadroom32Synth16Sample,
     DefaultHeadroom40Synth16Sample,
     DefaultHeadroom48Synth16Sample,
+    DefaultCapacity64Synth16Sample,
+    DefaultCapacity48Synth64Sample,
+    DefaultCapacity64Synth64Sample,
 }
 
 impl ScenarioId {
@@ -97,7 +100,7 @@ impl ScenarioId {
         Self::MixedSteal,
     ];
 
-    pub const BASELINE_LIVE: [Self; 11] = [
+    pub const BASELINE_LIVE: [Self; 14] = [
         Self::SynthCrossSlot16,
         Self::SampleCrossSlot64,
         Self::Mixed16Synth32Sample,
@@ -109,6 +112,9 @@ impl ScenarioId {
         Self::DefaultHeadroom32Synth16Sample,
         Self::DefaultHeadroom40Synth16Sample,
         Self::DefaultHeadroom48Synth16Sample,
+        Self::DefaultCapacity64Synth16Sample,
+        Self::DefaultCapacity48Synth64Sample,
+        Self::DefaultCapacity64Synth64Sample,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -137,6 +143,9 @@ impl ScenarioId {
             Self::DefaultHeadroom32Synth16Sample => "default_headroom_32_synth_16_sample",
             Self::DefaultHeadroom40Synth16Sample => "default_headroom_40_synth_16_sample",
             Self::DefaultHeadroom48Synth16Sample => "default_headroom_48_synth_16_sample",
+            Self::DefaultCapacity64Synth16Sample => "default_capacity_64_synth_16_sample",
+            Self::DefaultCapacity48Synth64Sample => "default_capacity_48_synth_64_sample",
+            Self::DefaultCapacity64Synth64Sample => "default_capacity_64_synth_64_sample",
         }
     }
 
