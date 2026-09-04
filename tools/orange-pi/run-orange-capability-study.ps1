@@ -128,7 +128,11 @@ function Assert-StudyArtifact {
       throw "Dynamic capacity scenarios require an exact hardware-orange-pi-zero-2w benchmark pool feature."
     }
     $poolCapacity = [int]$featureMatch.Groups[1].Value
-    if ($LiveSelection.RequiredPoolCapacity -gt $poolCapacity) {
+    if ($LiveSelection.CapacityKind -ceq "analogue") {
+      if ($poolCapacity -ne $LiveSelection.RequiredPoolStage) {
+        throw "Analogue capacity scenario requires diagnostic pool stage $($LiveSelection.RequiredPoolStage), but the artifact pool stage is $poolCapacity."
+      }
+    } elseif ($LiveSelection.RequiredPoolCapacity -gt $poolCapacity) {
       throw "Dynamic capacity scenario requests $($LiveSelection.RequiredPoolCapacity) voices, but the artifact pool stage is $poolCapacity."
     }
     [pscustomobject]@{
@@ -223,7 +227,7 @@ $expectedArtifactKind = if ($isCapacityDiagnostic) { "diagnostic-only" } else { 
 $expectedCargoFeature = if ($isCapacityDiagnostic -and $null -ne $artifactIdentity) {
   $artifactIdentity.CargoFeature
 } elseif ($isCapacityDiagnostic) {
-  $minimumPoolCapacity = if ($liveSelection.RequiredPoolCapacity -le 128) { 128 } else { 256 }
+  $minimumPoolCapacity = if ($liveSelection.CapacityKind -ceq "analogue") { $liveSelection.RequiredPoolStage } elseif ($liveSelection.RequiredPoolCapacity -le 128) { 128 } else { 256 }
   "hardware-orange-pi-zero-2w benchmark-voice-pools-$minimumPoolCapacity"
 } else {
   "hardware-orange-pi-zero-2w"
@@ -299,7 +303,8 @@ try {
       Write-Output "Live artifact identity: artifact_kind=$expectedArtifactKind cargo_feature=$expectedCargoFeature"
       if ($isCapacityDiagnostic) {
         $diagnosticPoolIdentity = if ($null -ne $artifactIdentity) { "benchmark-voice-pools-$($artifactIdentity.PoolCapacity)" } else { [regex]::Match($expectedCargoFeature, 'benchmark-voice-pools-(128|256)').Value }
-        Write-Output "Diagnostic pool identity: $diagnosticPoolIdentity requested-synth=$($liveSelection.SynthCount) requested-sample=$($liveSelection.SampleCount) required-stage=$($liveSelection.RequiredPoolCapacity)"
+        $requiredPoolStage = if ($liveSelection.PSObject.Properties["RequiredPoolStage"]) { " required-pool-stage=$($liveSelection.RequiredPoolStage)" } else { "" }
+        Write-Output "Diagnostic pool identity: $diagnosticPoolIdentity requested-synth=$($liveSelection.SynthCount) requested-sample=$($liveSelection.SampleCount) required-capacity=$($liveSelection.RequiredPoolCapacity)$requiredPoolStage"
       }
       Write-Output "Live release path: $benchmarkRoot/release.json"
       Write-Output "Live readiness path: $benchmarkRoot/readiness.json"

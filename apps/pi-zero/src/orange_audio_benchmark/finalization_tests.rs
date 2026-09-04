@@ -49,6 +49,15 @@ fn profile_validation_proves_max_fx_state() {
     )
     .is_err());
 
+    let mut preview = snapshot;
+    preview.active_preview_sample_voices = 1;
+    assert!(validate_profile_state(
+        &preview,
+        expected,
+        expected.expected_voice_admission_drops_start
+    )
+    .is_err());
+
     let mut admission_mismatch = snapshot;
     admission_mismatch.cumulative_voice_admission_drops = 1;
     let error = validate_profile_state(

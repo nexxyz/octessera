@@ -128,6 +128,32 @@ fn default_capacity_live_fixtures_prove_slot_feasibility_and_zero_drops() {
     }
 }
 
+#[cfg(not(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+)))]
+#[test]
+fn normal_build_rejects_analogue_capacity_scenarios() {
+    assert!(live_scenario("capacity_analogue_1", 44_100, 600_000).is_none());
+}
+
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+#[test]
+fn analogue_capacity_names_resolve_through_canonical_live_dispatch() {
+    for units in [8, 16, 24] {
+        let name = format!("capacity_analogue_{units}");
+        let scenario = live_scenario(&name, 44_100, 600_000).expect("analogue scenario");
+        assert_eq!(
+            expected_live_state(&name),
+            Some(scenario.expected),
+            "{name}"
+        );
+    }
+}
+
 #[test]
 fn mixed_boundary_live_state_is_exact_and_uses_one_long_sample_backing() {
     let scenario = live_scenario("mixed_ramp_16_48", 44_100, 600_000).unwrap();

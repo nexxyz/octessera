@@ -64,6 +64,7 @@ pub(crate) fn is_dynamic_live_scenario_name(name: &str) -> bool {
     ))]
     {
         crate::dsp_profile::capacity_scenarios::parse(name).is_some()
+            || crate::dsp_profile::analogue_capacity_scenario::parse(name).is_some()
     }
     #[cfg(not(any(
         feature = "benchmark-voice-pools-128",
@@ -143,6 +144,15 @@ pub fn live_scenario(
         feature = "benchmark-voice-pools-256"
     ))]
     if let Some(scenario) =
+        crate::dsp_profile::analogue_capacity_scenario::build(name, sample_rate, note_duration_ms)
+    {
+        return Some(scenario);
+    }
+    #[cfg(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ))]
+    if let Some(scenario) =
         crate::dsp_profile::capacity_scenarios::build(name, sample_rate, note_duration_ms)
     {
         return Some(scenario);
@@ -197,6 +207,13 @@ pub fn live_scenario(
     test
 ))]
 pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
+    #[cfg(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ))]
+    if let Some(expected) = crate::dsp_profile::analogue_capacity_scenario::expected(name) {
+        return Some(expected);
+    }
     #[cfg(any(
         feature = "benchmark-voice-pools-128",
         feature = "benchmark-voice-pools-256"

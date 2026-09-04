@@ -10,8 +10,7 @@ use super::stream::BenchmarkStream;
 use crate::audio::AudioStreamShutdownError;
 use crate::audio_priority::EffectiveScheduling;
 use crate::dsp_scenarios::ExpectedLiveState;
-use realtime_engine::synth::SynthProfileSnapshot;
-use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerTimingProbe};
+use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerTimingProbe, SynthProfileSnapshot};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -243,7 +242,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 10,
+        schema_version: 11,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -353,6 +352,7 @@ pub fn validate_profile_state(
     let actual = (
         snapshot.active_synth_voices,
         snapshot.active_sample_voices,
+        snapshot.active_preview_sample_voices,
         snapshot.active_momentary_fx,
         snapshot.active_bus_fx_slots,
         snapshot.active_global_fx_slots,
@@ -361,6 +361,7 @@ pub fn validate_profile_state(
     let expected = (
         expected.active_synth_voices,
         expected.active_sample_voices,
+        0,
         expected.active_momentary_fx,
         expected.active_bus_fx_slots,
         expected.active_global_fx_slots,
@@ -379,7 +380,6 @@ pub fn validate_profile_state(
     }
     Ok(())
 }
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FinalizationGates {
     no_terminal_errors: bool,
@@ -497,4 +497,4 @@ fn write_final_progress(
 
 #[cfg(test)]
 #[path = "finalization_tests.rs"]
-mod tests;
+mod finalization_tests;
