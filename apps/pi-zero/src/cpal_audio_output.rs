@@ -57,6 +57,14 @@ pub(super) enum AudioSourceExecutionMode {
     PersistentTwoWorkers,
 }
 
+struct StreamBuildOptions {
+    sink: AudioSink,
+    execution_mode: AudioSourceExecutionMode,
+    recording_tap: Option<RecordingTapState>,
+    stream_health: AudioStreamHealth,
+    load_tx: Option<AudioLoadStatusSender>,
+}
+
 pub(super) fn build_engine_source(
     engine_rx: EngineEventReceiver,
     sample_rate: u32,
@@ -132,34 +140,17 @@ pub(super) fn build_cpal_stream(
     config.channels = 2;
     config.sample_rate = cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE);
     config.buffer_size = output_buffer_size(output_buffer_frames);
+    let options = StreamBuildOptions {
+        sink,
+        execution_mode,
+        recording_tap,
+        stream_health,
+        load_tx: None,
+    };
     match supported.sample_format() {
-        SampleFormat::F32 => build_stream_with_mode::<f32>(
-            &device,
-            &config,
-            engine_rx,
-            execution_mode,
-            recording_tap,
-            stream_health,
-            None,
-        ),
-        SampleFormat::I16 => build_stream_with_mode::<i16>(
-            &device,
-            &config,
-            engine_rx,
-            execution_mode,
-            recording_tap,
-            stream_health,
-            None,
-        ),
-        SampleFormat::U16 => build_stream_with_mode::<u16>(
-            &device,
-            &config,
-            engine_rx,
-            execution_mode,
-            recording_tap,
-            stream_health,
-            None,
-        ),
+        SampleFormat::F32 => build_stream_with_mode::<f32>(&device, &config, engine_rx, options),
+        SampleFormat::I16 => build_stream_with_mode::<i16>(&device, &config, engine_rx, options),
+        SampleFormat::U16 => build_stream_with_mode::<u16>(&device, &config, engine_rx, options),
         format => Err(RouteOpenError::Unsupported(format!(
             "unsupported audio sample format: {format:?}"
         ))),
@@ -192,34 +183,17 @@ pub(super) fn build_orange_cpal_stream(
         ))
     .then_some(load_tx)
     .flatten();
+    let options = StreamBuildOptions {
+        sink,
+        execution_mode,
+        recording_tap,
+        stream_health,
+        load_tx,
+    };
     match sample_format {
-        SampleFormat::F32 => build_stream_with_mode::<f32>(
-            &device,
-            &config,
-            engine_rx,
-            execution_mode,
-            recording_tap,
-            stream_health,
-            load_tx,
-        ),
-        SampleFormat::I16 => build_stream_with_mode::<i16>(
-            &device,
-            &config,
-            engine_rx,
-            execution_mode,
-            recording_tap,
-            stream_health,
-            load_tx,
-        ),
-        SampleFormat::U16 => build_stream_with_mode::<u16>(
-            &device,
-            &config,
-            engine_rx,
-            execution_mode,
-            recording_tap,
-            stream_health,
-            load_tx,
-        ),
+        SampleFormat::F32 => build_stream_with_mode::<f32>(&device, &config, engine_rx, options),
+        SampleFormat::I16 => build_stream_with_mode::<i16>(&device, &config, engine_rx, options),
+        SampleFormat::U16 => build_stream_with_mode::<u16>(&device, &config, engine_rx, options),
         format => Err(RouteOpenError::Unsupported(format!(
             "unsupported Orange audio sample format: {format:?}"
         ))),
@@ -262,26 +236,15 @@ fn build_stream<T>(
     config: &StreamConfig,
     source: EngineSource,
     shutdown_owner: Option<EngineSourceWorkerShutdownOwner>,
-    execution_mode: AudioSourceExecutionMode,
+    sink: AudioSink,
     recording_tap: Option<RecordingTapState>,
     stream_health: AudioStreamHealth,
 ) -> Result<BuiltAudioStream, RouteOpenError>
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
-    let scheduler = if cfg!(feature = "hardware-orange-pi-zero-2w")
-        && matches!(
-            execution_mode,
-            AudioSourceExecutionMode::PersistentTwoWorkers
-        ) {
-        CallbackSchedulingHandle::new_orange_jack()
-    } else {
-        CallbackSchedulingHandle::new(crate::audio_priority::callback_priority())
-    };
-    let report_worker_health = matches!(
-        execution_mode,
-        AudioSourceExecutionMode::PersistentTwoWorkers
-    );
+    let scheduler = callback_scheduler_for_sink(sink);
+    let report_worker_health = shutdown_owner.is_some();
     let callback_scheduler = scheduler.clone();
     let callback_health = stream_health.clone();
     let mut worker_health_reported = false;
@@ -315,7 +278,6 @@ where
     })
 }
 
-#[cfg(test)]
 pub(super) fn callback_scheduler_for_sink(sink: AudioSink) -> CallbackSchedulingHandle {
     if cfg!(feature = "hardware-orange-pi-zero-2w") && sink == AudioSink::Jack {
         CallbackSchedulingHandle::new_orange_jack()
@@ -328,14 +290,18 @@ fn build_stream_with_mode<T>(
     device: &cpal::Device,
     config: &StreamConfig,
     engine_rx: EngineEventReceiver,
-    execution_mode: AudioSourceExecutionMode,
-    recording_tap: Option<RecordingTapState>,
-    stream_health: AudioStreamHealth,
-    load_tx: Option<AudioLoadStatusSender>,
+    options: StreamBuildOptions,
 ) -> Result<BuiltAudioStream, RouteOpenError>
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
+    let StreamBuildOptions {
+        sink,
+        execution_mode,
+        recording_tap,
+        stream_health,
+        load_tx,
+    } = options;
     let (source, shutdown_owner) =
         build_engine_source(engine_rx, config.sample_rate.0, execution_mode, load_tx)?;
     build_stream::<T>(
@@ -343,7 +309,7 @@ where
         config,
         source,
         shutdown_owner,
-        execution_mode,
+        sink,
         recording_tap,
         stream_health,
     )

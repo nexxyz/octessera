@@ -15,10 +15,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod result;
 #[path = "worker_timing_validation.rs"]
 mod worker_timing_validation;
+pub use super::output_counters::PersistentOutputCountersEvidence;
 pub use result::BenchmarkResult;
 
 const BENCHMARK_SCHEMA_VERSION: u8 = 4;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 9;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 10;
 const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
 fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -34,7 +35,7 @@ where
     Ok(version)
 }
 
-fn deserialize_result_schema_v9<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_result_schema_v10<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {

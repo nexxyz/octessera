@@ -124,8 +124,8 @@ switch line is unavailable because physical pin 8 / H618 PH0 is active UART0
 TX; its A/B lines remain available. This is a bring-up condition, not the
 production control-surface contract. Runtime readiness follows healthy required
 audio, initialized control-surface devices, and the first rendered snapshot.
-The service uses `LimitRTPRIO=70`; for the DAC-only persistent Jack
-qualification, the callback is fixed to CPU1 and both DSP workers are fixed to
+The service uses `LimitRTPRIO=70`; for DAC-only Jack qualification, the inline
+and persistent callbacks are fixed to CPU1. Persistent DSP workers are fixed to
 CPUs 2 and 3, all at verified `SCHED_FIFO` priority 70. USB/HDMI remain on
 legacy, unqualified handling and are disabled for reported measurements; full
 fanout is deferred. Its sole ambient and bounding capability is

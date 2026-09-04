@@ -75,6 +75,11 @@ pub enum ScenarioId {
     Fixed8Synth8Sample12Bus2Global2Momentary,
     SynthCrossSlot32NoSteal,
     MixedRamp16_48,
+    DefaultEnvelope24Synth8Sample,
+    DefaultHeadroom32Synth8Sample,
+    DefaultHeadroom32Synth16Sample,
+    DefaultHeadroom40Synth16Sample,
+    DefaultHeadroom48Synth16Sample,
 }
 
 impl ScenarioId {
@@ -92,13 +97,18 @@ impl ScenarioId {
         Self::MixedSteal,
     ];
 
-    pub const BASELINE_LIVE: [Self; 6] = [
+    pub const BASELINE_LIVE: [Self; 11] = [
         Self::SynthCrossSlot16,
         Self::SampleCrossSlot64,
         Self::Mixed16Synth32Sample,
         Self::Fixed8Synth8Sample12Bus2Global2Momentary,
         Self::SynthCrossSlot32NoSteal,
         Self::MixedRamp16_48,
+        Self::DefaultEnvelope24Synth8Sample,
+        Self::DefaultHeadroom32Synth8Sample,
+        Self::DefaultHeadroom32Synth16Sample,
+        Self::DefaultHeadroom40Synth16Sample,
+        Self::DefaultHeadroom48Synth16Sample,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -122,6 +132,11 @@ impl ScenarioId {
             }
             Self::SynthCrossSlot32NoSteal => "synth_cross_slot_32_no_steal",
             Self::MixedRamp16_48 => "mixed_ramp_16_48",
+            Self::DefaultEnvelope24Synth8Sample => "default_envelope_24_synth_8_sample",
+            Self::DefaultHeadroom32Synth8Sample => "default_headroom_32_synth_8_sample",
+            Self::DefaultHeadroom32Synth16Sample => "default_headroom_32_synth_16_sample",
+            Self::DefaultHeadroom40Synth16Sample => "default_headroom_40_synth_16_sample",
+            Self::DefaultHeadroom48Synth16Sample => "default_headroom_48_synth_16_sample",
         }
     }
 
@@ -250,8 +265,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     if warmup_seconds != DEFAULT_WARMUP_SECONDS {
         return Err("warmup seconds must be 5".into());
     }
-    if !matches!(measure_seconds, 30 | 120 | 300) {
-        return Err("measure seconds must be 30, 120, or 300".into());
+    if !matches!(measure_seconds, 30 | 120 | 180 | 300) {
+        return Err("measure seconds must be 30, 120, 180, or 300".into());
     }
     if !(1..=120).contains(&release_timeout_seconds) {
         return Err("release timeout seconds must be between 1 and 120".into());

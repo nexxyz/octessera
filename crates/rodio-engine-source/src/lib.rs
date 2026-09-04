@@ -17,6 +17,7 @@ use audio_quantum::audio_render_quantum_frames;
 use audio_quantum::resolve_audio_render_quantum_frames;
 use crossbeam_channel::{bounded, Sender, TrySendError};
 pub use event::EngineEvent;
+pub use persistent_output::PersistentOutputCounters;
 use persistent_output::{PreviousMasterQuantum, RefillResult};
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 #[cfg(feature = "source-worker-benchmark-timing")]
@@ -121,6 +122,11 @@ impl EngineSource {
 
     pub fn source_worker_health(&self) -> SourceWorkerHealth {
         self.worker_state.health()
+    }
+
+    /// Returns cumulative persistent-output counters without changing source state.
+    pub fn persistent_output_counters(&self) -> PersistentOutputCounters {
+        self.persistent_output.counters()
     }
 
     pub fn profile_snapshot(&self) -> realtime_engine::synth::SynthProfileSnapshot {

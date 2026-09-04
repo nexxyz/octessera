@@ -290,7 +290,7 @@ mod tests {
     fn baseline_mode_has_only_current_profile_scenarios() {
         let scenarios = profile_scenarios(44_100, ProfileMode::Baseline);
 
-        assert_eq!(scenarios.len(), 13);
+        assert_eq!(scenarios.len(), 18);
         assert_eq!(scenarios[0].name, "baseline_idle");
         assert_eq!(
             ProfileMode::from_str("baseline"),

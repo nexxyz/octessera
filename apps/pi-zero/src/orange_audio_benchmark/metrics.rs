@@ -1,3 +1,5 @@
+use super::output_counters::PersistentOutputCountersMirror;
+use rodio_engine_source::PersistentOutputCounters;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
@@ -53,6 +55,8 @@ pub struct CallbackMetrics {
     cpal_stream_errors: AtomicU64,
     worker_terminal: AtomicBool,
     terminal_error: AtomicBool,
+    phase_boundary_generation: AtomicU64,
+    phase_boundary_counters: PersistentOutputCountersMirror,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -132,6 +136,8 @@ impl CallbackMetrics {
             cpal_stream_errors: AtomicU64::new(0),
             worker_terminal: AtomicBool::new(false),
             terminal_error: AtomicBool::new(false),
+            phase_boundary_generation: AtomicU64::new(u64::MAX),
+            phase_boundary_counters: PersistentOutputCountersMirror::new(),
         }
     }
 
@@ -268,6 +274,20 @@ impl CallbackMetrics {
     pub fn mark_worker_terminal(&self) {
         self.worker_terminal.store(true, Ordering::Release);
         self.terminal_error.store(true, Ordering::Release);
+    }
+
+    pub fn publish_phase_boundary(&self, generation: u64, counters: PersistentOutputCounters) {
+        self.phase_boundary_counters.publish(counters);
+        self.phase_boundary_generation
+            .store(generation, Ordering::Release);
+    }
+
+    pub fn phase_boundary_snapshot(&self, generation: u64) -> Option<PersistentOutputCounters> {
+        if self.phase_boundary_generation.load(Ordering::Acquire) != generation {
+            return None;
+        }
+        let counters = self.phase_boundary_counters.snapshot();
+        (self.phase_boundary_generation.load(Ordering::Acquire) == generation).then_some(counters)
     }
 
     pub fn enable_measurement(&self) {

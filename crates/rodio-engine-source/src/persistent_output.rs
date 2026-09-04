@@ -4,6 +4,7 @@ use super::{EngineSource, MAX_BLOCK_FRAMES, MIN_BLOCK_FRAMES, OUTPUT_CHANNELS};
 use realtime_engine::synth::{
     AudioLoadStatus, SourceWorkerRenderDisposition, BLOCK_SLOT_SCRATCH_FRAMES,
 };
+use serde::{Deserialize, Serialize};
 
 const _: () = assert!(BLOCK_SLOT_SCRATCH_FRAMES == super::MAX_BLOCK_FRAMES);
 
@@ -13,6 +14,17 @@ pub(super) enum PersistentOutputKind {
     Repeated,
     Dropped,
     Fatal,
+}
+
+/// Cumulative output quantum counters from the persistent source cache.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PersistentOutputCounters {
+    pub rendered_quantums: u64,
+    pub repeated_quantums: u64,
+    pub dropped_quantums: u64,
+    pub deadline_misses: u64,
+    pub deadline_recoveries: u64,
 }
 
 pub(super) struct PreviousMasterQuantum {
@@ -109,6 +121,16 @@ impl PreviousMasterQuantum {
         status.deadline_misses = self.deadline_misses;
         status.deadline_recoveries = self.deadline_recoveries;
         status.missed_quantum_flash = self.flash_frames_remaining > 0;
+    }
+
+    pub(super) fn counters(&self) -> PersistentOutputCounters {
+        PersistentOutputCounters {
+            rendered_quantums: self.rendered_quantums,
+            repeated_quantums: self.repeated_quantums,
+            dropped_quantums: self.dropped_quantums,
+            deadline_misses: self.deadline_misses,
+            deadline_recoveries: self.deadline_recoveries,
+        }
     }
 
     pub(super) fn consume_frame(&mut self) -> bool {
@@ -290,6 +312,29 @@ mod tests {
         assert_eq!(
             cache.deadline_miss(44_100, 2, &mut no_stale_revival),
             PersistentOutputKind::Dropped
+        );
+    }
+
+    #[test]
+    fn counters_snapshot_contains_only_previous_master_quantum_totals() {
+        let mut cache = PreviousMasterQuantum::new();
+        let fresh = [1.0_f32, 0.0, 0.0, 1.0];
+        assert_eq!(cache.fresh(2, &fresh), PersistentOutputKind::Fresh);
+        let mut repeated = vec![0.0; 4];
+        assert_eq!(
+            cache.deadline_miss(44_100, 2, &mut repeated),
+            PersistentOutputKind::Repeated
+        );
+        let counters = cache.counters();
+        assert_eq!(
+            counters,
+            PersistentOutputCounters {
+                rendered_quantums: 1,
+                repeated_quantums: 1,
+                dropped_quantums: 0,
+                deadline_misses: 1,
+                deadline_recoveries: 0,
+            }
         );
     }
 }

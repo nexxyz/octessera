@@ -146,6 +146,21 @@ fn historical_order_is_unchanged_and_baseline_live_ids_are_separate() {
 }
 
 #[test]
+fn baseline_live_ids_match_canonical_scenarios_and_parse_at_180_seconds() {
+    let native_ids = ScenarioId::BASELINE_LIVE.map(ScenarioId::as_str);
+    assert_eq!(native_ids, crate::dsp_scenarios::BASELINE_LIVE_SCENARIO_IDS);
+
+    for id in ScenarioId::BASELINE_LIVE.into_iter().skip(6) {
+        let mut args = args_for(256, 64);
+        set_arg(&mut args, "--scenario", id.as_str().into());
+        args.extend(["--measure-seconds".into(), "180".into()]);
+        let config = parse(args).unwrap();
+        assert_eq!(config.scenario, id);
+        assert_eq!(config.measure_seconds, 180);
+    }
+}
+
+#[test]
 fn mixed_boundary_cli_accepts_only_approved_geometry_and_duration() {
     for (output, internal) in [
         (128, 32),
@@ -155,7 +170,7 @@ fn mixed_boundary_cli_accepts_only_approved_geometry_and_duration() {
         (512, 128),
         (1024, 256),
     ] {
-        for seconds in [30, 120, 300] {
+        for seconds in [30, 120, 180, 300] {
             let mut args = args_for(output, internal);
             set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
             args.extend(["--measure-seconds".into(), seconds.to_string()]);
@@ -204,6 +219,10 @@ fn invalid_scenario_duration_and_unmuted_are_rejected() {
     args.push("--measure-seconds".into());
     args.push("300".into());
     assert_eq!(parse(args).unwrap().measure_seconds, 300);
+    let mut args = valid_args();
+    args.push("--measure-seconds".into());
+    args.push("180".into());
+    assert_eq!(parse(args).unwrap().measure_seconds, 180);
     for seconds in [31, 299, 3000] {
         let mut args = valid_args();
         args.push("--measure-seconds".into());

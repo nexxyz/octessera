@@ -111,6 +111,28 @@ pub(super) fn mixed_ramp_16_48_events(
     events
 }
 
+pub(super) fn default_capacity_events(
+    synth_slots: &[usize],
+    sample_slots: &[usize],
+    sample_rate: u32,
+    sample_banks: &[SampleBankConfig],
+) -> Vec<EngineEvent> {
+    let mut events = vec![prepared_config(
+        default_capacity_instruments(synth_slots, sample_slots),
+        Some(sample_banks.to_vec()),
+        VoiceStealingMode::None,
+        sample_rate,
+    )];
+    for &slot in synth_slots {
+        push_distributed_notes_in_slots(&mut events, 8, 60, false, slot, 1);
+    }
+    for &slot in sample_slots {
+        push_distributed_notes_in_slots(&mut events, 8, 36, true, slot, 1);
+    }
+    events.extend(default_capacity_momentary_events(sample_rate));
+    events
+}
+
 pub(super) fn fx_events(
     bus_slots: usize,
     global_slots: usize,
@@ -181,6 +203,69 @@ fn instruments(
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     }
+}
+
+fn default_capacity_instruments(
+    synth_slots: &[usize],
+    sample_slots: &[usize],
+) -> InstrumentsConfig {
+    let mut kinds = ["none"; INSTRUMENT_SLOT_COUNT];
+    let mut routes = [0; INSTRUMENT_SLOT_COUNT];
+    for (index, &slot) in synth_slots.iter().enumerate() {
+        kinds[slot] = "synth";
+        routes[slot] = [1, 1, 2][index % 3];
+    }
+    for &slot in sample_slots {
+        kinds[slot] = "sampler";
+    }
+    instruments(kinds, routes, Some(default_capacity_mixer()))
+}
+
+fn default_capacity_mixer() -> MixerConfig {
+    MixerConfig {
+        buses: vec![
+            bus(vec!["delay", "duck"], 16),
+            bus(vec!["duck", "saturator"], 16),
+        ],
+        master: Some(MasterFxConfig {
+            slots: vec![FxBusSlotConfig::Kind("compressor".into())],
+        }),
+    }
+}
+
+fn default_capacity_momentary_events(sample_rate: u32) -> Vec<EngineEvent> {
+    [
+        (
+            "default-stutter",
+            "stutter",
+            BTreeMap::from([
+                ("depthPct".into(), serde_json::json!(100)),
+                ("rateHz".into(), serde_json::json!(8)),
+            ]),
+        ),
+        (
+            "default-freeze",
+            "freeze",
+            BTreeMap::from([
+                ("mixPct".into(), serde_json::json!(100)),
+                ("releaseMs".into(), serde_json::json!(500)),
+            ]),
+        ),
+    ]
+    .into_iter()
+    .map(|(id, kind, params)| {
+        EngineEvent::PreparedMomentaryFxStart(
+            prepare_momentary_fx_start(
+                id.into(),
+                kind.into(),
+                params,
+                MomentaryFxTarget::Global,
+                sample_rate,
+            )
+            .expect("default capacity momentary FX is valid"),
+        )
+    })
+    .collect()
 }
 
 fn mixer(bus_slots: usize, global_slots: usize) -> MixerConfig {

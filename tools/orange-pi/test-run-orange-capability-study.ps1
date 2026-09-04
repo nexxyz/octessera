@@ -297,7 +297,26 @@ if ($live -match "flash|reboot|gpio|suspend|poweroff") {
 if ((Get-OrangeBaselineLiveScenarioIds) -notcontains "mixed_ramp_16_48" -or (Get-OrangeLiveScenarioIds) -notcontains "mixed_ramp_32_32" -or (Get-OrangeLiveScenarioIds) -contains "mixed_ramp_16_48" -or @(Get-OrangeLiveMatrixPlan | Where-Object { $_.Scenario -eq "mixed_ramp_16_48" }).Count -ne 0) {
   throw "The current-contract scenario was not kept separate from the canonical matrix."
 }
-foreach ($seconds in @(30, 120, 300)) {
+$defaultCapacityScenarios = @(
+  "default_envelope_24_synth_8_sample",
+  "default_headroom_32_synth_8_sample",
+  "default_headroom_32_synth_16_sample",
+  "default_headroom_40_synth_16_sample",
+  "default_headroom_48_synth_16_sample"
+)
+$baselineLiveScenarioIds = @(Get-OrangeBaselineLiveScenarioIds)
+$liveMatrixPlan = @(Get-OrangeLiveMatrixPlan)
+if ($baselineLiveScenarioIds.Count -ne 11) { throw "The baseline-live allowlist count changed." }
+foreach ($scenario in $defaultCapacityScenarios) {
+  if ($baselineLiveScenarioIds -notcontains $scenario -or (Get-OrangeLiveScenarioIds) -contains $scenario -or @($liveMatrixPlan | Where-Object { $_.Scenario -eq $scenario }).Count -ne 0) {
+    throw "Default-capacity scenario was not kept in the separate baseline-live allowlist: $scenario"
+  }
+  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 180
+  if ($selection.OutputFrames -ne 256 -or $selection.EngineBlockFrames -ne 64 -or $selection.InternalFrames -ne 64 -or $selection.MeasureSeconds -ne 180 -or $selection.AlsaPeriodFrames -ne 64) {
+    throw "Default-capacity scenario selection changed: $scenario"
+  }
+}
+foreach ($seconds in @(30, 120, 180, 300)) {
   $allowLongRepeat = $seconds -eq 120
   $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "mixed_ramp_16_48" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds $seconds -AllowLongRepeat:$allowLongRepeat
   if ($selection.MeasureSeconds -ne $seconds -or $selection.InternalFrames -ne 128) { throw "Current-contract scenario selection changed for $seconds seconds." }

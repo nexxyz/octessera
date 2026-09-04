@@ -12,6 +12,7 @@ use realtime_engine::synth::AudioLoadStatus;
 use rodio_engine_source::{event_queue, AudioLoadStatusSender, EngineEvent, EngineSource};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 #[test]
 fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
@@ -44,11 +45,24 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
             duration_ms: 1_000,
         })
         .unwrap();
-    for _ in 0..2 {
-        std::thread::sleep(std::time::Duration::from_millis(110));
+    let status_deadline = Instant::now() + Duration::from_secs(1);
+    while Instant::now() < status_deadline
+        && !playback
+            .last_snapshot()
+            .and_then(|snapshot| snapshot["workerUtilization"].as_f64())
+            .is_some_and(|value| value.is_finite())
+    {
         for _ in 0..256 {
             source.next();
         }
+        let output = manager.drain_audio_load_status(&mut playback);
+        crate::orange_candidate::process_runtime_output(
+            &mut playback,
+            &mut runner,
+            &mut host,
+            output,
+        )
+        .unwrap();
     }
     drop(source);
     assert_eq!(shutdown.shutdown().joined_workers, 2);

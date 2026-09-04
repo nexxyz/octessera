@@ -106,6 +106,11 @@ fn benchmark_result(
         systemd_invocation_id: None,
         artifact_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
         callback: CallbackMetricsSnapshot::default(),
+        persistent_output_counters: PersistentOutputCountersEvidence {
+            observable: true,
+            ..PersistentOutputCountersEvidence::default()
+        },
+        detected_continuity_events: 0,
         profile_start: BenchmarkProfileSnapshot::default(),
         profile_end: BenchmarkProfileSnapshot::default(),
         recovered_alsa_epipe_count: None,
@@ -126,7 +131,8 @@ fn inline_benchmark_result() -> BenchmarkResult {
     let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
     result.executor_mode = "inline".into();
     result.callback_scheduling_priority = Some(70);
-    result.callback_scheduling_cpu = None;
+    result.callback_scheduling_cpu = Some(1);
+    result.persistent_output_counters = PersistentOutputCountersEvidence::default();
     result.worker_health = "disabled".into();
     result.worker_thread_name_0.clear();
     result.worker_thread_name_1.clear();
@@ -193,11 +199,11 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
 }
 
 #[test]
-fn result_schema9_requires_worker_timing_and_rejects_unknown_fields() {
+fn result_schema10_requires_worker_timing_and_rejects_unknown_fields() {
     let result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert_eq!(value["schema_version"], 9);
+    assert_eq!(value["schema_version"], 10);
     assert_eq!(value["callback_scheduling_cpu"], 1);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["worker_timing"]["workers"][1]["render_ns"], 11);
@@ -218,8 +224,8 @@ fn result_schema9_requires_worker_timing_and_rejects_unknown_fields() {
         serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
         result
     );
-    let schema8 = encoded.replacen("\"schema_version\":9", "\"schema_version\":8", 1);
-    assert!(serde_json::from_str::<BenchmarkResult>(&schema8).is_err());
+    let schema9 = encoded.replacen("\"schema_version\":10", "\"schema_version\":9", 1);
+    assert!(serde_json::from_str::<BenchmarkResult>(&schema9).is_err());
     let missing_timing = value_without_worker_timing(&result);
     assert!(serde_json::from_value::<BenchmarkResult>(missing_timing).is_err());
     let mut null_timing = serde_json::to_value(&result).unwrap();
@@ -228,7 +234,7 @@ fn result_schema9_requires_worker_timing_and_rejects_unknown_fields() {
 }
 
 #[test]
-fn schema9_worker_timing_modes_require_exact_consistent_evidence() {
+fn schema10_worker_timing_modes_require_exact_consistent_evidence() {
     let enabled = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let enabled_encoded = serde_json::to_string(&enabled).unwrap();
     assert_eq!(
@@ -284,7 +290,7 @@ fn schema9_worker_timing_modes_require_exact_consistent_evidence() {
 }
 
 #[test]
-fn schema9_executor_modes_require_exact_runtime_evidence() {
+fn schema10_executor_modes_require_exact_runtime_evidence() {
     let inline = inline_benchmark_result();
     let encoded = serde_json::to_string(&inline).unwrap();
     assert_eq!(
@@ -302,11 +308,11 @@ fn schema9_executor_modes_require_exact_runtime_evidence() {
     assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
 
     let mut invalid = serde_json::to_value(&inline).unwrap();
-    invalid["callback_scheduling_priority"] = 69.into();
+    invalid["callback_scheduling_cpu"] = serde_json::Value::Null;
     assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
 
     let mut invalid = serde_json::to_value(&inline).unwrap();
-    invalid["callback_scheduling_cpu"] = 1.into();
+    invalid["callback_scheduling_cpu"] = 2.into();
     assert!(serde_json::from_value::<BenchmarkResult>(invalid).is_err());
 
     let mut invalid =
@@ -329,13 +335,15 @@ fn schema9_executor_modes_require_exact_runtime_evidence() {
 }
 
 #[test]
-fn schema9_accepts_pre_stream_failures_for_both_executors() {
+fn schema10_accepts_pre_stream_failures_for_both_executors() {
     for executor_mode in [
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline,
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers,
     ] {
         let mut result = inline_benchmark_result();
         result.executor_mode = executor_mode.as_str().into();
+        result.persistent_output_counters =
+            PersistentOutputCountersEvidence::for_executor(executor_mode);
         result.status = "fail".into();
         result.scheduler_qualified = false;
         result.callback_scheduling_policy = None;
@@ -378,7 +386,7 @@ fn profile_snapshot_preserves_admission_drop_evidence() {
 }
 
 #[test]
-fn schema9_requires_numeric_admission_drop_evidence() {
+fn schema10_requires_numeric_admission_drop_evidence() {
     let config = config();
     let mut result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     result.artifact_sha256 = config.artifact_sha256;
@@ -395,13 +403,61 @@ fn schema9_requires_numeric_admission_drop_evidence() {
 }
 
 #[test]
-fn schema9_accepts_healthy_and_deadline_worker_timing() {
+fn schema10_accepts_healthy_and_deadline_worker_timing() {
     for timing in [worker_timing(), deadline_worker_timing()] {
         let encoded =
             serde_json::to_string(&benchmark_result(WorkerTimingMode::Enabled, Some(timing)))
                 .unwrap();
         assert!(serde_json::from_str::<BenchmarkResult>(&encoded).is_ok());
     }
+}
+
+#[test]
+fn schema10_validates_persistent_output_counter_evidence_and_detection() {
+    let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
+    result.persistent_output_counters = PersistentOutputCountersEvidence {
+        observable: true,
+        warmup: rodio_engine_source::PersistentOutputCounters {
+            rendered_quantums: 1,
+            ..Default::default()
+        },
+        start: rodio_engine_source::PersistentOutputCounters {
+            rendered_quantums: 2,
+            dropped_quantums: 1,
+            deadline_misses: 1,
+            ..Default::default()
+        },
+        end: rodio_engine_source::PersistentOutputCounters {
+            rendered_quantums: 3,
+            dropped_quantums: 2,
+            deadline_misses: 1,
+            ..Default::default()
+        },
+        delta: rodio_engine_source::PersistentOutputCounters {
+            rendered_quantums: 1,
+            dropped_quantums: 1,
+            ..Default::default()
+        },
+    };
+    result.detected_continuity_events = 1;
+    let encoded = serde_json::to_value(&result).unwrap();
+    assert!(serde_json::from_value::<BenchmarkResult>(encoded.clone()).is_ok());
+
+    let mut invalid_delta = encoded.clone();
+    invalid_delta["persistent_output_counters"]["delta"]["dropped_quantums"] = 0.into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid_delta).is_err());
+
+    let mut invalid_detected = encoded;
+    invalid_detected["detected_continuity_events"] = 0.into();
+    assert!(serde_json::from_value::<BenchmarkResult>(invalid_detected).is_err());
+
+    let mut invalid_capacity = result;
+    invalid_capacity.measure_seconds = 180;
+    invalid_capacity.detected_continuity_events = 1;
+    assert!(serde_json::from_value::<BenchmarkResult>(
+        serde_json::to_value(invalid_capacity).unwrap()
+    )
+    .is_err());
 }
 
 #[test]

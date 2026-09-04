@@ -1,10 +1,10 @@
-use super::cli::{BenchmarkConfig, WorkerTimingMode};
+use super::cli::{BenchmarkConfig, BenchmarkExecutorMode, WorkerTimingMode};
 use super::metrics::{CallbackMetrics, CallbackMetricsSnapshot};
 use super::phase::{MeasurementControl, MeasurementPhase};
 use super::probe::ProfileProbe;
 use super::schema::{
     atomic_write_json, BenchmarkProfileSnapshot, BenchmarkProgress, BenchmarkResult,
-    BenchmarkWorkerTiming,
+    BenchmarkWorkerTiming, PersistentOutputCountersEvidence,
 };
 use super::stream::BenchmarkStream;
 use crate::audio::AudioStreamShutdownError;
@@ -47,6 +47,7 @@ pub struct RunState {
     pub retirement_error: Option<String>,
     pub callback_scheduling: Option<EffectiveScheduling>,
     pub worker_timing: Option<Arc<SourceWorkerTimingProbe>>,
+    pub persistent_output_counters: PersistentOutputCountersEvidence,
 }
 
 impl RunState {
@@ -55,6 +56,7 @@ impl RunState {
         sample_rate: u32,
         expected_period_frames: u32,
         max_callback_frames: u32,
+        executor_mode: BenchmarkExecutorMode,
         worker_timing_mode: WorkerTimingMode,
     ) -> Self {
         Self {
@@ -86,6 +88,9 @@ impl RunState {
                     crate::audio_priority::orange_cpu_sampler,
                 )))
             }),
+            persistent_output_counters: PersistentOutputCountersEvidence::for_executor(
+                executor_mode,
+            ),
         }
     }
 
@@ -111,6 +116,17 @@ impl RunState {
     pub fn note_error(&mut self, error: impl Into<String>) {
         self.errors.push(error.into());
     }
+
+    pub fn phase_boundary_counters(
+        &self,
+        generation: u64,
+    ) -> Result<rodio_engine_source::PersistentOutputCounters, String> {
+        self.metrics
+            .phase_boundary_snapshot(generation)
+            .ok_or_else(|| {
+                format!("phase boundary counters are missing for generation {generation}")
+            })
+    }
 }
 
 pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), String> {
@@ -121,7 +137,13 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
             MeasurementPhase::Disabled,
             Duration::from_secs(5),
         ) {
-            Ok(_) => state.measurement_stop_acknowledged = true,
+            Ok(capture) => {
+                state.measurement_stop_acknowledged = true;
+                match state.phase_boundary_counters(capture.generation) {
+                    Ok(counters) => state.persistent_output_counters.set_end(counters),
+                    Err(error) => state.note_error(error),
+                }
+            }
             Err(error) => state.note_error(error),
         }
         state.metrics.disable_measurement();
@@ -150,6 +172,9 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         }
     }
 
+    if let Err(error) = state.persistent_output_counters.calculate_delta() {
+        state.note_error(error);
+    }
     let final_metrics = state.metrics.snapshot();
     if final_metrics.terminal_error {
         state.note_error("callback reported a terminal CPAL, heartbeat, or geometry error");
@@ -183,9 +208,13 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         state.note_error(error);
     }
 
+    let detected_continuity_events = state
+        .persistent_output_counters
+        .detected_continuity_events(final_metrics.over_audio_duration_budget_count);
     let status = result_status(
         config,
         &final_metrics,
+        detected_continuity_events,
         FinalizationGates {
             no_terminal_errors: state.errors.is_empty(),
             scheduler_qualified: state.scheduler_qualified,
@@ -214,7 +243,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 9,
+        schema_version: 10,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -248,6 +277,8 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         systemd_invocation_id: state.invocation_id.clone(),
         artifact_sha256: config.artifact_sha256.clone(),
         callback: final_metrics,
+        persistent_output_counters: state.persistent_output_counters,
+        detected_continuity_events,
         profile_start,
         profile_end,
         recovered_alsa_epipe_count: None,
@@ -366,6 +397,7 @@ struct FinalizationGates {
 fn result_status(
     config: &BenchmarkConfig,
     metrics: &CallbackMetricsSnapshot,
+    detected_continuity_events: u64,
     gates: FinalizationGates,
 ) -> &'static str {
     if gates.no_terminal_errors
@@ -376,7 +408,7 @@ fn result_status(
         && worker_lifecycle_passes(config, &gates)
         && worker_timing_passes(config, &gates)
         && gates.retirement_error
-        && result_passes(config, metrics)
+        && result_passes(config, metrics, detected_continuity_events)
     {
         "pass"
     } else {
@@ -411,7 +443,11 @@ fn worker_timing_is_consistent(config: &BenchmarkConfig, state: &RunState) -> bo
         && state.worker_timing.is_some() == (config.worker_timing_mode == WorkerTimingMode::Enabled)
 }
 
-fn result_passes(config: &BenchmarkConfig, metrics: &CallbackMetricsSnapshot) -> bool {
+fn result_passes(
+    config: &BenchmarkConfig,
+    metrics: &CallbackMetricsSnapshot,
+    detected_continuity_events: u64,
+) -> bool {
     metrics.callback_count > 0
         && metrics.callback_frames_min > 0
         && metrics.callback_frames_max <= config.output_frames
@@ -421,6 +457,11 @@ fn result_passes(config: &BenchmarkConfig, metrics: &CallbackMetricsSnapshot) ->
             config.measure_seconds,
             metrics.over_audio_duration_budget_count,
         )
+        && (config.measure_seconds != 180
+            || (detected_continuity_events == 0
+                && metrics.over_audio_duration_budget_count == 0
+                && metrics.cpal_device_error_count == 0
+                && metrics.cpal_stream_error_count == 0))
         && metrics.pre_mute_nonzero_samples > 0
         && metrics.post_mute_nonzero_samples == 0
         && !metrics.worker_terminal
@@ -430,6 +471,7 @@ fn result_passes(config: &BenchmarkConfig, metrics: &CallbackMetricsSnapshot) ->
 fn callback_budget_passes(measure_seconds: u64, overrun_count: u64) -> bool {
     match measure_seconds {
         30 | 120 => overrun_count == 0,
+        180 => overrun_count == 0,
         300 => overrun_count <= 5,
         _ => false,
     }

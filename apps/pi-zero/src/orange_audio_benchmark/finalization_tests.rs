@@ -1,5 +1,6 @@
 use super::*;
 use crate::orange_audio_benchmark::cli::{parse, BenchmarkExecutorMode, WorkerTimingMode};
+use rodio_engine_source::PersistentOutputCounters;
 use std::time::Duration;
 
 fn config() -> BenchmarkConfig {
@@ -101,6 +102,7 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
         44_100,
         config.expected_alsa_period_frames,
         config.output_frames,
+        config.executor_mode,
         WorkerTimingMode::Enabled,
     );
     state.metrics.enable_measurement();
@@ -111,6 +113,77 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
         state.metrics.snapshot().callback_lateness_max_ns,
         2_000_000 - (64_u64 * 1_000_000_000 / 44_100)
     );
+}
+
+#[test]
+fn run_state_captures_mirrored_cumulative_output_counters_at_each_boundary() {
+    let config = config();
+    let mut state = RunState::new(
+        ExpectedLiveState {
+            active_synth_voices: 0,
+            active_sample_voices: 0,
+            active_momentary_fx: 0,
+            active_bus_fx_slots: 0,
+            active_global_fx_slots: 0,
+            expected_voice_steals: 0,
+            expected_voice_admission_drops_start: 0,
+            expected_voice_admission_drops_end: 0,
+        },
+        44_100,
+        config.expected_alsa_period_frames,
+        config.output_frames,
+        BenchmarkExecutorMode::PersistentTwoWorkers,
+        WorkerTimingMode::Disabled,
+    );
+    let warmup_generation = state.phase_control.request(MeasurementPhase::Disabled);
+    let warmup_capture = state.phase_control.capture_at_callback_entry();
+    assert!(state
+        .phase_control
+        .acknowledgement(warmup_generation, MeasurementPhase::Disabled)
+        .is_none());
+    state.metrics.publish_phase_boundary(
+        warmup_generation,
+        PersistentOutputCounters {
+            rendered_quantums: 2,
+            ..Default::default()
+        },
+    );
+    state.phase_control.acknowledge(warmup_capture);
+    state.persistent_output_counters.warmup =
+        state.phase_boundary_counters(warmup_generation).unwrap();
+    let start_generation = state.phase_control.request(MeasurementPhase::Measuring);
+    let start_capture = state.phase_control.capture_at_callback_entry();
+    state.metrics.publish_phase_boundary(
+        start_generation,
+        PersistentOutputCounters {
+            rendered_quantums: 3,
+            dropped_quantums: 1,
+            deadline_misses: 1,
+            ..Default::default()
+        },
+    );
+    state.phase_control.acknowledge(start_capture);
+    state.persistent_output_counters.start =
+        state.phase_boundary_counters(start_generation).unwrap();
+    let end_generation = state.phase_control.request(MeasurementPhase::Disabled);
+    let end_capture = state.phase_control.capture_at_callback_entry();
+    state.metrics.publish_phase_boundary(
+        end_generation,
+        PersistentOutputCounters {
+            rendered_quantums: 4,
+            dropped_quantums: 2,
+            deadline_misses: 1,
+            ..Default::default()
+        },
+    );
+    state.phase_control.acknowledge(end_capture);
+    state.persistent_output_counters.end = state.phase_boundary_counters(end_generation).unwrap();
+    state.persistent_output_counters.calculate_delta().unwrap();
+
+    assert_eq!(state.persistent_output_counters.warmup.rendered_quantums, 2);
+    assert_eq!(state.persistent_output_counters.start.dropped_quantums, 1);
+    assert_eq!(state.persistent_output_counters.delta.rendered_quantums, 1);
+    assert_eq!(state.persistent_output_counters.delta.dropped_quantums, 1);
 }
 
 #[test]
@@ -135,17 +208,18 @@ fn result_status_requires_clean_runtime_evidence() {
         retirement_error: true,
         worker_timing_consistent: true,
     };
-    for (measure_seconds, allowed, rejected) in [(30, 0, 1), (120, 0, 1), (300, 5, 6)] {
+    for (measure_seconds, allowed, rejected) in [(30, 0, 1), (120, 0, 1), (180, 0, 1), (300, 5, 6)]
+    {
         let mut config = config();
         config.measure_seconds = measure_seconds;
-        assert_eq!(result_status(&config, &metrics, gates.clone()), "pass");
+        assert_eq!(result_status(&config, &metrics, 0, gates.clone()), "pass");
 
         let allowed_metrics = CallbackMetricsSnapshot {
             over_audio_duration_budget_count: allowed,
             ..metrics
         };
         assert_eq!(
-            result_status(&config, &allowed_metrics, gates.clone()),
+            result_status(&config, &allowed_metrics, 0, gates.clone()),
             "pass"
         );
 
@@ -154,10 +228,38 @@ fn result_status_requires_clean_runtime_evidence() {
             ..metrics
         };
         assert_eq!(
-            result_status(&config, &rejected_metrics, gates.clone()),
+            result_status(&config, &rejected_metrics, 0, gates.clone()),
             "fail"
         );
     }
+}
+
+#[test]
+fn one_eighty_second_result_requires_zero_detected_continuity_events() {
+    let mut config = config();
+    config.measure_seconds = 180;
+    let metrics = CallbackMetricsSnapshot {
+        callback_count: 1,
+        callback_frames_min: 1,
+        callback_frames_max: 1,
+        callback_frame_sample_count: 1,
+        pre_mute_nonzero_samples: 1,
+        ..CallbackMetricsSnapshot::default()
+    };
+    let gates = FinalizationGates {
+        no_terminal_errors: true,
+        scheduler_qualified: true,
+        measurement_stop_acknowledged: true,
+        stream_stopped: true,
+        final_progress_write_succeeded: true,
+        worker_health: SourceWorkerHealth::Healthy,
+        worker_thread_names: super::super::stream::expected_worker_thread_names(),
+        joined_workers: 2,
+        retirement_error: true,
+        worker_timing_consistent: true,
+    };
+    assert_eq!(result_status(&config, &metrics, 0, gates.clone()), "pass");
+    assert_eq!(result_status(&config, &metrics, 1, gates), "fail");
 }
 
 #[test]
@@ -185,23 +287,23 @@ fn inline_result_status_requires_inline_worker_lifecycle_and_timing() {
         retirement_error: true,
         worker_timing_consistent: true,
     };
-    assert_eq!(result_status(&config, &metrics, clean.clone()), "pass");
+    assert_eq!(result_status(&config, &metrics, 0, clean.clone()), "pass");
 
     let mut invalid = clean.clone();
     invalid.worker_health = SourceWorkerHealth::Healthy;
-    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+    assert_eq!(result_status(&config, &metrics, 0, invalid), "fail");
     invalid = clean.clone();
     invalid.worker_health = SourceWorkerHealth::WorkerExited;
-    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+    assert_eq!(result_status(&config, &metrics, 0, invalid), "fail");
     invalid = clean.clone();
     invalid.joined_workers = 1;
-    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+    assert_eq!(result_status(&config, &metrics, 0, invalid), "fail");
     invalid = clean.clone();
     invalid.worker_thread_names[0] = "oct-dsp-src-0".into();
-    assert_eq!(result_status(&config, &metrics, invalid), "fail");
+    assert_eq!(result_status(&config, &metrics, 0, invalid), "fail");
 
     config.worker_timing_mode = WorkerTimingMode::Enabled;
-    assert_eq!(result_status(&config, &metrics, clean), "fail");
+    assert_eq!(result_status(&config, &metrics, 0, clean), "fail");
 }
 
 #[test]
@@ -233,7 +335,7 @@ fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
             retirement_error: true,
             worker_timing_consistent: true,
         };
-        assert_eq!(result_status(&config, &metrics, gates), "fail");
+        assert_eq!(result_status(&config, &metrics, 0, gates), "fail");
     }
 }
 

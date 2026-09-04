@@ -224,6 +224,7 @@ fn build_persistent_source(
         .map_err(|error| format!("failed to start persistent Orange benchmark workers: {error:?}"))
 }
 
+#[cfg(test)]
 fn callback_priority_for_executor(executor_mode: BenchmarkExecutorMode) -> i32 {
     match executor_mode {
         BenchmarkExecutorMode::Inline => crate::audio_priority::ORANGE_WORKER_PRIORITY,
@@ -234,14 +235,9 @@ fn callback_priority_for_executor(executor_mode: BenchmarkExecutorMode) -> i32 {
 }
 
 fn callback_scheduler_for_executor(
-    executor_mode: BenchmarkExecutorMode,
+    _executor_mode: BenchmarkExecutorMode,
 ) -> CallbackSchedulingHandle {
-    match executor_mode {
-        BenchmarkExecutorMode::Inline => {
-            CallbackSchedulingHandle::new(callback_priority_for_executor(executor_mode))
-        }
-        BenchmarkExecutorMode::PersistentTwoWorkers => CallbackSchedulingHandle::new_orange_jack(),
-    }
+    CallbackSchedulingHandle::new_orange_jack()
 }
 
 pub(super) fn worker_thread_names_for_executor(
@@ -317,6 +313,14 @@ where
                     return;
                 }
                 let phase_capture = phase_control.capture_at_callback_entry();
+                if phase_control.boundary_pending(phase_capture.generation) {
+                    let counters = callback_source
+                        .source_mut()
+                        .map(|source| source.persistent_output_counters())
+                        .unwrap_or_default();
+                    callback_metrics.publish_phase_boundary(phase_capture.generation, counters);
+                    phase_control.acknowledge(phase_capture);
+                }
                 let timestamp = info.timestamp().callback;
                 let spacing = match (previous_timestamp, previous_phase) {
                     (Some(previous), Some(previous_phase))

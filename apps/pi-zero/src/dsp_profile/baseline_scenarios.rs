@@ -1,5 +1,6 @@
 use super::baseline_events::{
-    fx_events, mixed_events, mixed_ramp_16_48_events, sample_events, synth_events,
+    default_capacity_events, fx_events, mixed_events, mixed_ramp_16_48_events, sample_events,
+    synth_events,
 };
 use super::{ExpectedProfileState, ScenarioSpec};
 use crate::dsp_profile::samples::profile_sample_banks;
@@ -57,7 +58,56 @@ pub(super) fn scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
             mixed_ramp_16_48_events(sample_rate, &sample_banks),
             expected(16, 48, 0, 0, 0),
         ),
+        default_capacity_scenario(
+            "default_envelope_24_synth_8_sample",
+            &[0, 2, 3],
+            &[1],
+            sample_rate,
+            &sample_banks,
+        ),
+        default_capacity_scenario(
+            "default_headroom_32_synth_8_sample",
+            &[0, 2, 3, 4],
+            &[1],
+            sample_rate,
+            &sample_banks,
+        ),
+        default_capacity_scenario(
+            "default_headroom_32_synth_16_sample",
+            &[0, 2, 3, 4],
+            &[1, 5],
+            sample_rate,
+            &sample_banks,
+        ),
+        default_capacity_scenario(
+            "default_headroom_40_synth_16_sample",
+            &[0, 2, 3, 4, 6],
+            &[1, 5],
+            sample_rate,
+            &sample_banks,
+        ),
+        default_capacity_scenario(
+            "default_headroom_48_synth_16_sample",
+            &[0, 2, 3, 4, 6, 7],
+            &[1, 5],
+            sample_rate,
+            &sample_banks,
+        ),
     ]
+}
+
+fn default_capacity_scenario(
+    name: &str,
+    synth_slots: &[usize],
+    sample_slots: &[usize],
+    sample_rate: u32,
+    sample_banks: &[realtime_engine::synth::SampleBankConfig],
+) -> ScenarioSpec {
+    ScenarioSpec::with_expected(
+        name,
+        default_capacity_events(synth_slots, sample_slots, sample_rate, sample_banks),
+        expected(synth_slots.len() * 8, sample_slots.len() * 8, 4, 1, 2),
+    )
 }
 
 fn fx_scenario(
@@ -149,6 +199,11 @@ mod tests {
             "synth_cross_slot_32_no_steal",
             "synth_cross_slot_64_no_steal",
             "mixed_ramp_16_48",
+            "default_envelope_24_synth_8_sample",
+            "default_headroom_32_synth_8_sample",
+            "default_headroom_32_synth_16_sample",
+            "default_headroom_40_synth_16_sample",
+            "default_headroom_48_synth_16_sample",
         ] {
             assert!(names.contains(&name.to_string()), "missing {name}");
         }

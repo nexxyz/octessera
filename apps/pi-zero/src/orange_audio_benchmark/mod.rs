@@ -1,6 +1,7 @@
 mod cli;
 mod finalization;
 mod metrics;
+mod output_counters;
 mod phase;
 mod probe;
 mod release;
@@ -11,7 +12,7 @@ use crate::dsp_scenarios::LiveScenarioSpec;
 use cli::{parse, BenchmarkConfig};
 use finalization::{finalize, request_profile_snapshot, validate_profile_state, RunState};
 use metrics::{CallbackMetrics, CallbackMetricsSnapshot};
-use phase::MeasurementPhase;
+use phase::{MeasurementPhase, PhaseCapture};
 use rodio_engine_source::{event_queue, EngineEvent, EngineEventSender};
 use schema::{atomic_write_json, readiness, BenchmarkProgress};
 use std::sync::mpsc;
@@ -44,6 +45,7 @@ fn run_inner(config: &BenchmarkConfig) -> Result<(), String> {
         SAMPLE_RATE,
         config.expected_alsa_period_frames,
         config.output_frames,
+        config.executor_mode,
         config.worker_timing_mode,
     );
     state.invocation_id = match release::required_invocation_id() {
@@ -200,16 +202,21 @@ fn execute_benchmark(
         &state.metrics.snapshot(),
         state.current_worker_health(),
     )?;
-    set_phase(state, MeasurementPhase::Disabled)?;
-    run_window(
+    let warmup_phase = set_phase(state, MeasurementPhase::Disabled)?;
+    state.persistent_output_counters.warmup =
+        state.phase_boundary_counters(warmup_phase.generation)?;
+    let warmup_result = run_window(
         config,
         &state.metrics,
         state.stream.as_ref().expect("benchmark stream"),
         "warmup",
         config.warmup_seconds,
-    )?;
+    );
+    warmup_result?;
     state.metrics.enable_measurement();
-    set_phase(state, MeasurementPhase::Measuring)?;
+    let measurement_phase = set_phase(state, MeasurementPhase::Measuring)?;
+    state.persistent_output_counters.start =
+        state.phase_boundary_counters(measurement_phase.generation)?;
     run_window(
         config,
         &state.metrics,
@@ -219,12 +226,11 @@ fn execute_benchmark(
     )
 }
 
-fn set_phase(state: &RunState, phase: MeasurementPhase) -> Result<(), String> {
+fn set_phase(state: &RunState, phase: MeasurementPhase) -> Result<PhaseCapture, String> {
     let generation = state.phase_control.request(phase);
     state
         .phase_control
         .wait_for_ack(generation, phase, PROFILE_TIMEOUT)
-        .map(|_| ())
 }
 
 fn clear_previous_artifacts(config: &BenchmarkConfig) -> Result<(), String> {

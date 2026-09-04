@@ -1,4 +1,5 @@
 use super::CallbackMetrics;
+use rodio_engine_source::PersistentOutputCounters;
 use std::time::Duration;
 
 fn metrics() -> CallbackMetrics {
@@ -87,4 +88,23 @@ fn post_mute_proof_consumes_variable_batches() {
     assert_eq!(snapshot.rendered_frames, 448);
     assert_eq!(snapshot.pre_mute_nonzero_samples, 448);
     assert_eq!(snapshot.post_mute_nonzero_samples, 0);
+}
+
+#[test]
+fn phase_boundary_counters_are_mirrored_without_changing_callback_metrics() {
+    let metrics = metrics();
+    let counters = PersistentOutputCounters {
+        rendered_quantums: 8,
+        repeated_quantums: 1,
+        dropped_quantums: 2,
+        deadline_misses: 3,
+        deadline_recoveries: 1,
+    };
+    metrics.publish_phase_boundary(7, counters);
+
+    assert_eq!(metrics.phase_boundary_snapshot(7), Some(counters));
+    assert_eq!(
+        metrics.snapshot(),
+        super::CallbackMetricsSnapshot::default()
+    );
 }
