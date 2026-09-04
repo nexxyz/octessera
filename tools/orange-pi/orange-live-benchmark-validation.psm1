@@ -277,7 +277,7 @@ function Assert-OrangeLiveResult {
   if ($null -eq $schedulingCpu) { throw "Live benchmark callback CPU evidence is missing." }
   if ((Get-OrangeLiveStrictInteger -Value $schedulingCpu.Value -Path "callback_scheduling_cpu") -ne 1) { throw "Live benchmark callback CPU evidence is invalid." }
   $checks = @(
-    @((Get-OrangeLiveStrictInteger -Value $Result.schema_version -Path "schema_version"), 10),
+    @((Get-OrangeLiveStrictInteger -Value $Result.schema_version -Path "schema_version"), 11),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),
@@ -293,6 +293,11 @@ function Assert-OrangeLiveResult {
   if (@("pass", "fail") -notcontains [string]$Result.status) { throw "Live benchmark result status is invalid." }
   foreach ($check in $checks) {
     if ($check[0] -cne $check[1]) { throw "Live benchmark result contract mismatch." }
+  }
+  $profileStart = Assert-OrangeLiveProfileSnapshot -Snapshot $Result.profile_start -Path "profile_start"
+  $profileEnd = Assert-OrangeLiveProfileSnapshot -Snapshot $Result.profile_end -Path "profile_end"
+  if ($Selection.PSObject.Properties["CapacityKind"] -and [string]$Selection.CapacityKind -ceq "analogue") {
+    Assert-OrangeAnalogueProfileEvidence -Selection $Selection -ProfileStart $profileStart -ProfileEnd $profileEnd
   }
   if (@("F32", "I16", "U16") -notcontains [string]$Result.sample_format) { throw "Live benchmark result sample format is unsupported." }
   if (-not [bool]$Result.scheduler_qualified -or -not [bool]$Result.measurement_stop_acknowledged -or -not [bool]$Result.stream_stopped -or -not [bool]$Result.final_progress_write_succeeded) {

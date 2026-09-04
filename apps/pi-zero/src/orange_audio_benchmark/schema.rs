@@ -19,7 +19,7 @@ pub use super::output_counters::PersistentOutputCountersEvidence;
 pub use result::BenchmarkResult;
 
 const BENCHMARK_SCHEMA_VERSION: u8 = 4;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 10;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 11;
 const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
 fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -35,7 +35,7 @@ where
     Ok(version)
 }
 
-fn deserialize_result_schema_v10<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_result_schema_v11<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -219,11 +219,14 @@ impl From<SourceWorkerCoordinatorTimingSnapshot> for BenchmarkCoordinatorTiming 
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct BenchmarkProfileSnapshot {
     pub active_synth_voices: usize,
     pub active_sample_voices: usize,
     pub active_preview_sample_voices: usize,
     pub active_momentary_fx: usize,
+    pub active_bus_fx_slots: usize,
+    pub active_global_fx_slots: usize,
     pub cumulative_voice_steals: u64,
     pub cumulative_voice_admission_drops: u64,
 }
@@ -252,6 +255,8 @@ impl From<SynthProfileSnapshot> for BenchmarkProfileSnapshot {
             active_sample_voices: snapshot.active_sample_voices,
             active_preview_sample_voices: snapshot.active_preview_sample_voices,
             active_momentary_fx: snapshot.active_momentary_fx,
+            active_bus_fx_slots: snapshot.active_bus_fx_slots,
+            active_global_fx_slots: snapshot.active_global_fx_slots,
             cumulative_voice_steals: snapshot.cumulative_voice_steals,
             cumulative_voice_admission_drops: snapshot.cumulative_voice_admission_drops,
         }

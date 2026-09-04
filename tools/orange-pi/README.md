@@ -245,17 +245,19 @@ capacity-specific directories under `target/orange-pi-cross-diagnostics/`.
   -BenchmarkVoicePoolCapacity 128
 ```
 
-Dynamic scenarios are `capacity_synth_<N>`, `capacity_sample_<N>`, and
-`capacity_mixed_<S>_<P>`. Each requested count must be positive, use no leading
-zeros, and fit within the artifact's pool stage. Phase-1 runs use output 256,
-ALSA period 64, and engine block 64. Use 30 seconds for a screen and 180
-seconds for a qualification run. A 128-pool artifact accepts counts through
-128; a 256-pool artifact accepts counts through 256:
+Dynamic controls are `capacity_synth_<N>`, `capacity_sample_<N>`, and
+`capacity_mixed_<S>_<P>`. Representative runs use `capacity_analogue_<u>`:
+`3u` synth voices, `u` sample voices, and proportionally scaled bus, global,
+and momentary FX up to the product limits. Each value must be positive and use
+no leading zeros. Analogue units 1–42 require the 128-pool artifact; units
+43–85 require the 256-pool artifact. Phase-1 runs use output 256, ALSA period
+64, and engine block 64. Use 30 seconds for a screen and 180 seconds for a
+qualification run:
 
 ```powershell
 ./tools/orange-pi/run-orange-capability-study.ps1 `
   -Mode LiveAudioBenchmark `
-  -Scenario capacity_mixed_16_128 `
+  -Scenario capacity_analogue_16 `
   -OutputFrames 256 `
   -EngineBlockFrames 64 `
   -MeasureSeconds 30 `
@@ -264,11 +266,11 @@ seconds for a qualification run. A 128-pool artifact accepts counts through
   -AllowServiceInterruption -PrintOnly
 ```
 
-Use the release profile and the matching hash/source sidecar. Accept a
-capacity result only with exact profile identity, zero voice steals, and
-profile start/end admission counters that reconcile to zero. This diagnostic
-workflow does not change shipped `resources/platform-capabilities.json` or
-`config/defaults/`.
+Use the release profile and matching hash/source sidecar. Accept an analogue
+result only when the retained start/end voice and FX counts match the selected
+unit, preview voices remain zero, and voice steals and admission drops remain
+zero. This diagnostic workflow does not change shipped
+`resources/platform-capabilities.json` or `config/defaults/`.
 
 The bounded live-candidate plan is reserved for Phase 2 and requires an
 explicit interruption acknowledgement:

@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 
 $script:OrangePersistentOutputCounterFields = @("rendered_quantums", "repeated_quantums", "dropped_quantums", "deadline_misses", "deadline_recoveries")
+$script:OrangeLiveProfileSnapshotFields = @("active_synth_voices", "active_sample_voices", "active_preview_sample_voices", "active_momentary_fx", "active_bus_fx_slots", "active_global_fx_slots", "cumulative_voice_steals", "cumulative_voice_admission_drops")
 $script:OrangeLiveResultFields = @("schema_version", "kind", "status", "board_profile", "scenario", "requested_output_buffer_frames", "expected_alsa_buffer_frames", "expected_alsa_period_frames", "internal_block_frames", "sample_format", "channels", "sample_rate", "warmup_seconds", "measure_seconds", "scheduler_qualified", "callback_scheduling_policy", "callback_scheduling_priority", "callback_scheduling_cpu", "post_dsp_zero", "measurement_stop_acknowledged", "stream_stopped", "final_progress_write_succeeded", "pid", "systemd_invocation_id", "artifact_sha256", "callback", "persistent_output_counters", "detected_continuity_events", "profile_start", "profile_end", "recovered_alsa_epipe_count", "recovered_alsa_epipe_observable", "terminal_error", "executor_mode", "worker_health", "worker_thread_name_0", "worker_thread_name_1", "joined_workers", "retirement_error", "worker_timing_mode", "worker_timing")
 function Get-OrangeLiveStrictInteger {
   param(
@@ -12,6 +13,23 @@ function Get-OrangeLiveStrictInteger {
   }
   if ([decimal]$Value -lt 0) { throw "Live benchmark integer field is negative: $Path" }
   return [uint64]$Value
+}
+function Assert-OrangeLiveProfileSnapshot {
+  param(
+    [AllowNull()][object]$Snapshot,
+    [Parameter(Mandatory)][string]$Path
+  )
+  if ($Snapshot -isnot [pscustomobject]) { throw "Live benchmark profile snapshot is missing or invalid: $Path" }
+  foreach ($property in $Snapshot.PSObject.Properties) {
+    if ($script:OrangeLiveProfileSnapshotFields -cnotcontains $property.Name) { throw "Live benchmark profile snapshot field is unknown: $Path.$($property.Name)" }
+  }
+  $values = [ordered]@{}
+  foreach ($name in $script:OrangeLiveProfileSnapshotFields) {
+    $property = $Snapshot.PSObject.Properties[$name]
+    if ($null -eq $property) { throw "Live benchmark profile snapshot field is missing: $Path.$name" }
+    $values[$name] = Get-OrangeLiveStrictInteger -Value $property.Value -Path "$Path.$name"
+  }
+  return [pscustomobject]$values
 }
 function Get-OrangeLiveStrictBoolean {
   param([AllowNull()][object]$Value, [Parameter(Mandatory)][string]$Path)
@@ -117,4 +135,4 @@ function Get-OrangeLiveAggregateRenderAudioDurationRatio {
   if ([double]::IsNaN($ratio) -or [double]::IsInfinity($ratio) -or $ratio -le 0) { throw "Live benchmark aggregate render-duration ratio is invalid." }
   return $ratio
 }
-Export-ModuleMember -Function @("Assert-OrangeLivePersistentOutputEvidence", "Assert-OrangeLiveResultFieldNames", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveStrictInteger")
+Export-ModuleMember -Function @("Assert-OrangeLivePersistentOutputEvidence", "Assert-OrangeLiveProfileSnapshot", "Assert-OrangeLiveResultFieldNames", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveStrictInteger")

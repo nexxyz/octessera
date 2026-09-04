@@ -199,11 +199,11 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
 }
 
 #[test]
-fn result_schema10_requires_worker_timing_and_rejects_unknown_fields() {
+fn result_schema11_requires_worker_timing_and_rejects_unknown_fields() {
     let result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert_eq!(value["schema_version"], 10);
+    assert_eq!(value["schema_version"], 11);
     assert_eq!(value["callback_scheduling_cpu"], 1);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["worker_timing"]["workers"][1]["render_ns"], 11);
@@ -224,8 +224,8 @@ fn result_schema10_requires_worker_timing_and_rejects_unknown_fields() {
         serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
         result
     );
-    let schema9 = encoded.replacen("\"schema_version\":10", "\"schema_version\":9", 1);
-    assert!(serde_json::from_str::<BenchmarkResult>(&schema9).is_err());
+    let unsupported_schema = encoded.replacen("\"schema_version\":11", "\"schema_version\":10", 1);
+    assert!(serde_json::from_str::<BenchmarkResult>(&unsupported_schema).is_err());
     let missing_timing = value_without_worker_timing(&result);
     assert!(serde_json::from_value::<BenchmarkResult>(missing_timing).is_err());
     let mut null_timing = serde_json::to_value(&result).unwrap();
@@ -234,7 +234,7 @@ fn result_schema10_requires_worker_timing_and_rejects_unknown_fields() {
 }
 
 #[test]
-fn schema10_worker_timing_modes_require_exact_consistent_evidence() {
+fn schema11_worker_timing_modes_require_exact_consistent_evidence() {
     let enabled = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let enabled_encoded = serde_json::to_string(&enabled).unwrap();
     assert_eq!(
@@ -290,7 +290,7 @@ fn schema10_worker_timing_modes_require_exact_consistent_evidence() {
 }
 
 #[test]
-fn schema10_executor_modes_require_exact_runtime_evidence() {
+fn schema11_executor_modes_require_exact_runtime_evidence() {
     let inline = inline_benchmark_result();
     let encoded = serde_json::to_string(&inline).unwrap();
     assert_eq!(
@@ -335,7 +335,7 @@ fn schema10_executor_modes_require_exact_runtime_evidence() {
 }
 
 #[test]
-fn schema10_accepts_pre_stream_failures_for_both_executors() {
+fn schema11_accepts_pre_stream_failures_for_both_executors() {
     for executor_mode in [
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline,
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers,
@@ -374,36 +374,7 @@ fn value_without_worker_timing(result: &BenchmarkResult) -> serde_json::Value {
 }
 
 #[test]
-fn profile_snapshot_preserves_admission_drop_evidence() {
-    let snapshot = SynthProfileSnapshot {
-        cumulative_voice_admission_drops: 3,
-        ..SynthProfileSnapshot::default()
-    };
-
-    let profile = BenchmarkProfileSnapshot::from(snapshot);
-
-    assert_eq!(profile.cumulative_voice_admission_drops, 3);
-}
-
-#[test]
-fn schema10_requires_numeric_admission_drop_evidence() {
-    let config = config();
-    let mut result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
-    result.artifact_sha256 = config.artifact_sha256;
-    let encoded = serde_json::to_value(result).unwrap();
-    let mut missing = encoded.clone();
-    missing["profile_start"]
-        .as_object_mut()
-        .unwrap()
-        .remove("cumulative_voice_admission_drops");
-    assert!(serde_json::from_value::<BenchmarkResult>(missing).is_err());
-    let mut malformed = encoded;
-    malformed["profile_end"]["cumulative_voice_admission_drops"] = "one".into();
-    assert!(serde_json::from_value::<BenchmarkResult>(malformed).is_err());
-}
-
-#[test]
-fn schema10_accepts_healthy_and_deadline_worker_timing() {
+fn schema11_accepts_healthy_and_deadline_worker_timing() {
     for timing in [worker_timing(), deadline_worker_timing()] {
         let encoded =
             serde_json::to_string(&benchmark_result(WorkerTimingMode::Enabled, Some(timing)))
@@ -413,7 +384,7 @@ fn schema10_accepts_healthy_and_deadline_worker_timing() {
 }
 
 #[test]
-fn schema10_validates_persistent_output_counter_evidence_and_detection() {
+fn schema11_validates_persistent_output_counter_evidence_and_detection() {
     let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
     result.persistent_output_counters = PersistentOutputCountersEvidence {
         observable: true,
@@ -493,5 +464,7 @@ fn progress_and_readiness_report_the_selected_executor() {
     assert_eq!(readiness.worker_thread_name_1, "");
 }
 
+#[path = "schema_profile_tests.rs"]
+mod profile_tests;
 #[path = "schema_timing_tests.rs"]
 mod timing_tests;

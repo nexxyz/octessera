@@ -189,6 +189,7 @@ fn large_pool_scenario_names_are_rejected_in_normal_builds() {
         "capacity_synth_64",
         "capacity_sample_64",
         "capacity_mixed_64_64",
+        "capacity_analogue_1",
     ] {
         let mut args = valid_args();
         set_arg(&mut args, "--scenario", name.into());
@@ -207,6 +208,11 @@ fn large_pool_scenario_names_round_trip_as_exact_strings() {
         format!("capacity_synth_{capacity}"),
         format!("capacity_sample_{capacity}"),
         format!("capacity_mixed_{capacity}_{capacity}"),
+        format!(
+            "capacity_analogue_{}",
+            realtime_engine::synth::SAMPLE_VOICE_LANE_CAPACITY
+                .min(realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY / 3)
+        ),
     ] {
         let mut args = valid_args();
         set_arg(&mut args, "--scenario", name.clone());

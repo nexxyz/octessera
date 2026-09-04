@@ -1,6 +1,6 @@
 use super::super::cli::{BenchmarkExecutorMode, WorkerTimingMode};
 use super::{
-    deserialize_result_schema_v10, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
+    deserialize_result_schema_v11, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
     CallbackMetricsSnapshot, PersistentOutputCountersEvidence,
 };
 use serde::de::Error as DeserializeError;
@@ -54,7 +54,7 @@ pub struct BenchmarkResult {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BenchmarkResultUnchecked {
-    #[serde(deserialize_with = "deserialize_result_schema_v10")]
+    #[serde(deserialize_with = "deserialize_result_schema_v11")]
     schema_version: u8,
     kind: String,
     status: String,
