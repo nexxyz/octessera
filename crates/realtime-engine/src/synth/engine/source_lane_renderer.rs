@@ -69,9 +69,6 @@ impl SourceLaneBlockScratch {
         if frames > BLOCK_SLOT_SCRATCH_FRAMES {
             return false;
         }
-        for samples in &mut self.samples {
-            samples[..frames].fill(0.0);
-        }
         self.rendered_frames.fill(0);
         self.slots.fill(INVALID_INSTRUMENT_SLOT);
         true
@@ -451,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn scratch_prepare_invalidates_every_lane_slot() {
+    fn scratch_prepare_invalidates_metadata_but_preserves_samples() {
         let mut scratch = SourceLaneBlockScratch::new();
         scratch.slots.fill(0);
         scratch.samples[0][0] = 1.0;
@@ -461,7 +458,7 @@ mod tests {
             .slots
             .iter()
             .all(|slot| *slot == INVALID_INSTRUMENT_SLOT));
-        assert_eq!(scratch.samples[0][0].to_bits(), 0.0_f32.to_bits());
+        assert_eq!(scratch.samples[0][0].to_bits(), 1.0_f32.to_bits());
         assert!(scratch.rendered_frames.iter().all(|frames| *frames == 0));
     }
 }
