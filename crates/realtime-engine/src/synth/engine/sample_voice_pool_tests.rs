@@ -153,6 +153,34 @@ fn fixed_retirement_holds_every_physical_sample_lane() {
 }
 
 #[test]
+fn active_total_tracks_compaction_clear_and_partition_ownership() {
+    let mut pool = SampleVoicePool::new();
+    for (lane, slot) in [(0, 0), (1, 1), (2, 0)] {
+        assert!(pool.assign_lane(lane, slot));
+        let voice = pool.lane_mut(lane).expect("home partition lane");
+        voice.active = true;
+        voice.instrument_slot = slot as u8;
+    }
+    assert_eq!(pool.active_total(), Some(3));
+
+    pool.lane_mut(1).expect("home partition lane").active = false;
+    assert!(pool.compact_slot_lanes(1));
+    assert_eq!(pool.active_total(), Some(2));
+
+    assert!(pool.deactivate_lane(0));
+    assert_eq!(pool.active_total(), Some(1));
+    assert!(pool.clear_slot(0).is_some());
+    assert_eq!(pool.active_total(), Some(0));
+    pool.assert_invariants();
+
+    let partition = pool.take_partition(0).expect("partition 0 home");
+    assert_eq!(pool.active_total(), None);
+    assert!(pool.install_partition(0, partition).is_ok());
+    assert_eq!(pool.active_total(), Some(0));
+    pool.assert_invariants();
+}
+
+#[test]
 fn retirement_overflow_rejects_without_taking_sample_handle() {
     let mut retired = RetiredSampleVoices::default();
     for lane in 0..SAMPLE_VOICE_RETIREMENT_CAPACITY {
