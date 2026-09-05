@@ -27,11 +27,13 @@ pub fn requested() -> bool {
 
 pub fn run() -> Result<(), String> {
     let config = parse(std::env::args().skip(1))?;
+    cli::preflight(&config)?;
     clear_previous_artifacts(&config)?;
     run_inner(&config)
 }
 
 fn run_inner(config: &BenchmarkConfig) -> Result<(), String> {
+    cli::preflight(config)?;
     let scenario =
         crate::dsp_scenarios::live_scenario(config.scenario.as_str(), SAMPLE_RATE, 600_000)
             .ok_or_else(|| {

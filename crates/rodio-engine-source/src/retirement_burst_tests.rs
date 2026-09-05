@@ -1,8 +1,26 @@
 use super::*;
 use std::mem::size_of;
 
+#[cfg(not(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+)))]
 const MAX_PRACTICAL_RETIREMENT_ITEM_BYTES: usize = 12 * 1024;
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+const MAX_PRACTICAL_RETIREMENT_ITEM_BYTES: usize = 16 * 1024;
+#[cfg(not(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+)))]
 const MAX_PRACTICAL_RETIREMENT_STORAGE_BYTES: usize = 4 * 1024 * 1024;
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+const MAX_PRACTICAL_RETIREMENT_STORAGE_BYTES: usize = 8 * 1024 * 1024;
 
 const _: () = assert!(size_of::<RetiredAudioItem>() <= MAX_PRACTICAL_RETIREMENT_ITEM_BYTES);
 const _: () = assert!(
@@ -59,7 +77,7 @@ fn full_sample_burst_replacements_preserve_fifo_and_retirement_ownership() {
     let burst_retired = receive_retired_state(&retired_rx);
     assert_eq!(
         bulk_retired.sample_voice_count(),
-        SAMPLE_VOICE_LANE_CAPACITY
+        SAMPLE_VOICE_LANE_CAPACITY.min(INSTRUMENT_SLOT_COUNT * MAX_SAMPLE_VOICES_PER_SLOT)
     );
     assert_eq!(
         burst_retired.sample_voice_count(),

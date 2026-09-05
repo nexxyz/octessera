@@ -10,6 +10,7 @@ param(
   [string]$Image = "rust:1-bookworm",
   [ValidateSet(64, 128, 256)]
   [int]$BenchmarkVoicePoolCapacity = 64,
+  [switch]$RoutingTreeBenchmark,
   [switch]$DryRun
 )
 
@@ -85,10 +86,14 @@ function Get-WslDockerArguments {
 function Get-BuildSpec {
   param(
     [Parameter(Mandatory)][string]$SelectedBinary,
-    [Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity
+    [Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity,
+    [bool]$SelectedRoutingTreeBenchmark = $false
   )
 
   if ($SelectedBinary -in @("orange-oled-smoke", "orange-seesaw-smoke")) {
+    if ($SelectedRoutingTreeBenchmark) {
+      throw "Routing-tree benchmark builds support only octessera-pi."
+    }
     if ($SelectedBenchmarkVoicePoolCapacity -ne 64) {
       throw "Expanded benchmark voice-pool capacities support only octessera-pi."
     }
@@ -100,6 +105,15 @@ function Get-BuildSpec {
   }
 
   if ($SelectedBinary -eq "octessera-pi") {
+    if ($SelectedRoutingTreeBenchmark) {
+      $poolFeature = if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { $null } else { "benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity" }
+      $feature = if ($null -eq $poolFeature) { "hardware-orange-pi-zero-2w routing-tree-benchmark" } else { "hardware-orange-pi-zero-2w routing-tree-benchmark $poolFeature" }
+      return [pscustomobject]@{
+        Package = "octessera-pi"
+        Feature = $feature
+        ArtifactKind = "diagnostic-only"
+      }
+    }
     $benchmarkFeature = if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { $null } else { "benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity" }
     $feature = if ($null -eq $benchmarkFeature) { "hardware-orange-pi-zero-2w" } else { "hardware-orange-pi-zero-2w $benchmarkFeature" }
     $artifactKind = if ($null -eq $benchmarkFeature) { "runtime-candidate" } else { "diagnostic-only" }
@@ -193,15 +207,23 @@ aarch64-linux-gnu-readelf -h '/work/$SelectedOutputRelativePath/$Binary' | grep 
 }
 
 function Get-OutputRelativePath {
-  param([Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity)
+  param(
+    [Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity,
+    [bool]$SelectedRoutingTreeBenchmark = $false
+  )
+  if ($SelectedRoutingTreeBenchmark) {
+    if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { return "target/orange-pi-cross-diagnostics/routing-tree-benchmark" }
+    return "target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity"
+  }
   if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { return "target/orange-pi-cross" }
   return "target/orange-pi-cross-diagnostics/benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity"
 }
 
 $repositoryRoot = Resolve-RepositoryRoot
 $sourceCommit = Get-RepositorySourceCommit $repositoryRoot
-$buildSpec = Get-BuildSpec -SelectedBinary $Binary -SelectedBenchmarkVoicePoolCapacity $BenchmarkVoicePoolCapacity
-$selectedOutputRelativePath = Get-OutputRelativePath $BenchmarkVoicePoolCapacity
+if ($RoutingTreeBenchmark -and $Binary -ne "octessera-pi") { throw "Routing-tree benchmark builds support only octessera-pi." }
+$buildSpec = Get-BuildSpec -SelectedBinary $Binary -SelectedBenchmarkVoicePoolCapacity $BenchmarkVoicePoolCapacity -SelectedRoutingTreeBenchmark:$RoutingTreeBenchmark
+$selectedOutputRelativePath = Get-OutputRelativePath $BenchmarkVoicePoolCapacity -SelectedRoutingTreeBenchmark:$RoutingTreeBenchmark
 $outputDirectory = Join-Path $repositoryRoot $selectedOutputRelativePath.Replace("/", "\")
 $outputBinary = Join-Path $outputDirectory $Binary
 $outputMetadata = "$outputBinary.metadata.json"

@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 
 $script:OrangePersistentOutputCounterFields = @("rendered_quantums", "repeated_quantums", "dropped_quantums", "deadline_misses", "deadline_recoveries")
 $script:OrangeLiveProfileSnapshotFields = @("active_synth_voices", "active_sample_voices", "active_preview_sample_voices", "active_momentary_fx", "active_bus_fx_slots", "active_global_fx_slots", "cumulative_voice_steals", "cumulative_voice_admission_drops")
-$script:OrangeLiveResultFields = @("schema_version", "kind", "status", "board_profile", "scenario", "requested_output_buffer_frames", "expected_alsa_buffer_frames", "expected_alsa_period_frames", "internal_block_frames", "sample_format", "channels", "sample_rate", "warmup_seconds", "measure_seconds", "scheduler_qualified", "callback_scheduling_policy", "callback_scheduling_priority", "callback_scheduling_cpu", "post_dsp_zero", "measurement_stop_acknowledged", "stream_stopped", "final_progress_write_succeeded", "pid", "systemd_invocation_id", "artifact_sha256", "callback", "persistent_output_counters", "detected_continuity_events", "profile_start", "profile_end", "recovered_alsa_epipe_count", "recovered_alsa_epipe_observable", "terminal_error", "executor_mode", "worker_health", "worker_thread_name_0", "worker_thread_name_1", "joined_workers", "retirement_error", "worker_timing_mode", "worker_timing")
+$script:OrangeLiveResultFields = @("schema_version", "kind", "status", "board_profile", "scenario", "requested_output_buffer_frames", "expected_alsa_buffer_frames", "expected_alsa_period_frames", "internal_block_frames", "sample_format", "channels", "sample_rate", "warmup_seconds", "measure_seconds", "scheduler_qualified", "callback_scheduling_policy", "callback_scheduling_priority", "callback_scheduling_cpu", "post_dsp_zero", "measurement_stop_acknowledged", "stream_stopped", "final_progress_write_succeeded", "pid", "systemd_invocation_id", "artifact_sha256", "callback", "persistent_output_counters", "detected_continuity_events", "profile_start", "profile_end", "recovered_alsa_epipe_count", "recovered_alsa_epipe_observable", "terminal_error", "executor_mode", "lookahead_frames", "effective_output_latency_frames", "worker_health", "worker_thread_name_0", "worker_thread_name_1", "joined_workers", "retirement_error", "worker_timing_mode", "worker_timing")
 function Get-OrangeLiveStrictInteger {
   param(
     [AllowNull()][object]$Value,
@@ -63,6 +63,25 @@ function Assert-OrangeLiveResultFieldNames {
     if ($null -eq $Result.PSObject.Properties[$name]) { throw "Live benchmark result field is missing: $name" }
   }
 }
+function Assert-OrangeLiveExecutorGeometry {
+  param(
+    [Parameter(Mandatory)][pscustomobject]$Evidence,
+    [Parameter(Mandatory)][pscustomobject]$Selection,
+    [Parameter(Mandatory)][string]$Path,
+    [switch]$RequireEffectiveOutputLatency
+  )
+  $executor = $Evidence.PSObject.Properties["executor_mode"]
+  if ($null -eq $executor -or $executor.Value -isnot [string] -or $executor.Value -cne $Selection.ExecutorMode) { throw "Live benchmark executor mismatch: $Path.executor_mode" }
+  $lookahead = $Evidence.PSObject.Properties["lookahead_frames"]
+  if ($null -eq $lookahead) { throw "Live benchmark geometry field is missing: $Path.lookahead_frames" }
+  if ((Get-OrangeLiveStrictInteger -Value $lookahead.Value -Path "$Path.lookahead_frames") -ne [uint64]$Selection.LookaheadFrames) { throw "Live benchmark geometry mismatch: $Path.lookahead_frames" }
+  if ($RequireEffectiveOutputLatency) {
+    $effective = $Evidence.PSObject.Properties["effective_output_latency_frames"]
+    if ($null -eq $effective) { throw "Live benchmark geometry field is missing: $Path.effective_output_latency_frames" }
+    $expectedEffective = [uint64]$Selection.OutputFrames + [uint64]$Selection.LookaheadFrames
+    if ((Get-OrangeLiveStrictInteger -Value $effective.Value -Path "$Path.effective_output_latency_frames") -ne $expectedEffective) { throw "Live benchmark geometry mismatch: $Path.effective_output_latency_frames" }
+  }
+}
 function Assert-OrangeLivePersistentOutputEvidence {
   param(
     [AllowNull()][object]$Evidence,
@@ -77,7 +96,7 @@ function Assert-OrangeLivePersistentOutputEvidence {
     if ($null -eq $Evidence.PSObject.Properties[$name]) { throw "Live benchmark persistent output evidence field is missing: $name" }
   }
   $observable = Get-OrangeLiveStrictBoolean -Value $Evidence.observable -Path "persistent_output_counters.observable"
-  $expectedObservable = $ExecutorMode -ceq "persistent_two_workers"
+  $expectedObservable = $ExecutorMode -cne "inline"
   if ($observable -ne $expectedObservable) { throw "Live benchmark persistent output observability does not match executor." }
   $snapshots = [ordered]@{}
   foreach ($name in @("warmup", "start", "end", "delta")) {
@@ -135,4 +154,4 @@ function Get-OrangeLiveAggregateRenderAudioDurationRatio {
   if ([double]::IsNaN($ratio) -or [double]::IsInfinity($ratio) -or $ratio -le 0) { throw "Live benchmark aggregate render-duration ratio is invalid." }
   return $ratio
 }
-Export-ModuleMember -Function @("Assert-OrangeLivePersistentOutputEvidence", "Assert-OrangeLiveProfileSnapshot", "Assert-OrangeLiveResultFieldNames", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveStrictInteger")
+Export-ModuleMember -Function @("Assert-OrangeLiveExecutorGeometry", "Assert-OrangeLivePersistentOutputEvidence", "Assert-OrangeLiveProfileSnapshot", "Assert-OrangeLiveResultFieldNames", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveStrictInteger")

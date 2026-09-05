@@ -1,8 +1,11 @@
+use super::callback::{fill_callback_body, post_dsp_zero};
+#[cfg(feature = "routing-tree-benchmark")]
+use super::expected_routing_worker_thread_names;
 use super::{
     build_persistent_source, build_source, callback_priority_for_executor,
-    callback_scheduler_for_executor, expected_worker_thread_names, fill_callback_body,
-    post_dsp_zero, stream_geometry, worker_thread_names_for_executor, BenchmarkExecutorMode,
-    SourceWorkerTimingProbe, EXECUTOR_MODE,
+    callback_scheduler_for_executor, expected_worker_thread_names, stream_geometry,
+    worker_thread_names_for_executor, BenchmarkExecutorMode, SourceWorkerTimingProbe,
+    EXECUTOR_MODE,
 };
 use crate::orange_audio_benchmark::cli::parse;
 use crate::orange_audio_benchmark::metrics::CallbackMetrics;
@@ -68,6 +71,90 @@ fn disabled_benchmark_source_is_persistent_without_timing_probe() {
     assert_eq!(source.block_frames(), 128);
     drop(source);
     assert_eq!(shutdown_owner.shutdown().joined_workers, 2);
+}
+
+#[cfg(not(feature = "routing-tree-benchmark"))]
+#[test]
+fn disabled_routing_tree_source_fails_without_starting_workers() {
+    let (_engine_tx, engine_rx) = event_queue();
+    let result = build_source(
+        engine_rx,
+        BenchmarkExecutorMode::RoutingTreePersistent,
+        44_100,
+        128,
+        None,
+    );
+    let error = match result {
+        Err(error) => error,
+        Ok(_) => panic!("routing-tree source unexpectedly built without its feature"),
+    };
+    assert_eq!(
+        error,
+        "routing_tree_persistent executor requires a binary built with routing-tree-benchmark"
+    );
+}
+
+#[cfg(feature = "routing-tree-benchmark")]
+#[test]
+fn routing_tree_benchmark_source_reports_actual_lookahead_and_names() {
+    let (_engine_tx, engine_rx) = event_queue();
+    let (source, shutdown_owner) = build_source(
+        engine_rx,
+        BenchmarkExecutorMode::RoutingTreePersistent,
+        44_100,
+        128,
+        Some(Arc::new(SourceWorkerTimingProbe::new(None))),
+    )
+    .unwrap();
+    assert_eq!(source.lookahead_frames(), 128);
+    assert_eq!(
+        worker_thread_names_for_executor(BenchmarkExecutorMode::RoutingTreePersistent),
+        expected_routing_worker_thread_names()
+    );
+    drop(source);
+    assert_eq!(shutdown_owner.unwrap().shutdown().joined_workers, 2);
+}
+
+#[cfg(feature = "routing-tree-benchmark")]
+#[test]
+fn routing_tree_stream_rejects_large_output_before_device_access() {
+    let mut config = parse(
+        [
+            "--benchmark-orange-audio",
+            "--scenario",
+            "synth_ramp_16",
+            "--output-frames",
+            "256",
+            "--engine-block-frames",
+            "128",
+            "--executor",
+            "routing_tree_persistent",
+            "--release-gate",
+            "release.json",
+            "--artifact-sha256",
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    )
+    .unwrap();
+    config.output_frames = 512;
+    let (_sender, receiver) = event_queue();
+    let result = super::build(
+        receiver,
+        &config,
+        Arc::new(CallbackMetrics::new(44_100, 128, 512)),
+        Arc::new(ProfileProbe::new()),
+        Arc::new(MeasurementControl::new()),
+        None,
+    );
+    match result {
+        Err(error) => assert_eq!(
+            error,
+            "routing_tree_persistent executor requires output frames <= 256"
+        ),
+        Ok(_) => panic!("routing-tree stream unexpectedly accepted a large output buffer"),
+    }
 }
 
 #[test]

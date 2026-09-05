@@ -10,11 +10,16 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+#[cfg(test)]
+use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
 #[path = "source_worker_bus_worker.rs"]
 mod bus_worker;
+#[cfg(feature = "routing-tree-benchmark")]
+#[path = "source_worker_routing_tree_worker.rs"]
+mod routing_tree;
 
 #[cfg(test)]
 thread_local! {
@@ -62,6 +67,8 @@ pub(crate) struct SourceWorkerSlot {
     #[cfg(any(test, feature = "test-support"))]
     pub(super) pause: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
+    pub(super) pause_entered: Arc<AtomicBool>,
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) exit_on_job: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     pub(super) hold_before_receive: Arc<AtomicBool>,
@@ -74,9 +81,29 @@ pub(crate) struct SourceWorkerSlot {
     pub(super) join: Option<JoinHandle<WorkerExit>>,
 }
 
+#[cfg(test)]
 pub(super) struct ReverseCompletionState {
     pub(super) enabled: AtomicBool,
     pub(super) parity_one_done: AtomicBool,
+    pub(super) completion_order: Mutex<Vec<usize>>,
+}
+
+#[cfg(test)]
+impl ReverseCompletionState {
+    fn observe_send(&self, parity: usize) {
+        if !self.enabled.load(Ordering::Acquire) {
+            return;
+        }
+        self.completion_order
+            .lock()
+            .expect("reverse completion observation lock")
+            .push(parity);
+        if parity == 1 {
+            self.parity_one_done.store(true, Ordering::Release);
+        } else if parity == 0 {
+            self.parity_one_done.store(false, Ordering::Release);
+        }
+    }
 }
 
 struct SourceWorkerThreadState {
@@ -84,6 +111,8 @@ struct SourceWorkerThreadState {
     jobs_started: Arc<AtomicU64>,
     #[cfg(any(test, feature = "test-support"))]
     pause: Arc<AtomicBool>,
+    #[cfg(any(test, feature = "test-support"))]
+    pause_entered: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     exit_on_job: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
@@ -94,14 +123,16 @@ struct SourceWorkerThreadState {
     panic_on_bus: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     exit_on_bus: Arc<AtomicBool>,
+    #[cfg(test)]
     reverse_completion: Arc<ReverseCompletionState>,
 }
 
-pub(super) fn spawn_worker(
+pub(super) fn spawn_worker_named(
     parity: usize,
-    reverse_completion: Arc<ReverseCompletionState>,
+    #[cfg(test)] reverse_completion: Arc<ReverseCompletionState>,
     hold_before_receive: bool,
     start_hook: Option<SourceWorkerStartHook>,
+    thread_name: &'static str,
 ) -> Result<SourceWorkerSlot, super::super::source_worker_protocol::SourceWorkerSetupError> {
     let (work_tx, work_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
     let (done_tx, done_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
@@ -110,6 +141,8 @@ pub(super) fn spawn_worker(
     let jobs_started = Arc::new(AtomicU64::new(0));
     #[cfg(any(test, feature = "test-support"))]
     let pause = Arc::new(AtomicBool::new(false));
+    #[cfg(any(test, feature = "test-support"))]
+    let pause_entered = Arc::new(AtomicBool::new(false));
     #[cfg(any(test, feature = "test-support"))]
     let exit_on_job = Arc::new(AtomicBool::new(false));
     #[cfg(any(test, feature = "test-support"))]
@@ -134,6 +167,8 @@ pub(super) fn spawn_worker(
     #[cfg(any(test, feature = "test-support"))]
     let worker_pause = Arc::clone(&pause);
     #[cfg(any(test, feature = "test-support"))]
+    let worker_pause_entered = Arc::clone(&pause_entered);
+    #[cfg(any(test, feature = "test-support"))]
     let worker_exit_on_job = Arc::clone(&exit_on_job);
     #[cfg(any(test, feature = "test-support"))]
     let worker_hold_before_receive = Arc::clone(&hold_before_receive);
@@ -145,7 +180,7 @@ pub(super) fn spawn_worker(
     let worker_exit_on_bus = Arc::clone(&exit_on_bus);
     let worker_done_tx = done_tx.clone();
     let lifecycle_done_tx = done_tx.clone();
-    let join = spawn_worker_thread(parity, move || {
+    let join = spawn_worker_thread(parity, thread_name, move || {
         #[cfg(test)]
         if let Some(active_probe) = active_probe.as_ref() {
             active_probe.fetch_add(1, Ordering::AcqRel);
@@ -178,6 +213,8 @@ pub(super) fn spawn_worker(
                 #[cfg(any(test, feature = "test-support"))]
                 pause: worker_pause,
                 #[cfg(any(test, feature = "test-support"))]
+                pause_entered: worker_pause_entered,
+                #[cfg(any(test, feature = "test-support"))]
                 exit_on_job: worker_exit_on_job,
                 #[cfg(any(test, feature = "test-support"))]
                 hold_before_receive: worker_hold_before_receive,
@@ -187,6 +224,7 @@ pub(super) fn spawn_worker(
                 panic_on_bus: worker_panic_on_bus,
                 #[cfg(any(test, feature = "test-support"))]
                 exit_on_bus: worker_exit_on_bus,
+                #[cfg(test)]
                 reverse_completion,
             },
         );
@@ -210,6 +248,8 @@ pub(super) fn spawn_worker(
         #[cfg(any(test, feature = "test-support"))]
         pause,
         #[cfg(any(test, feature = "test-support"))]
+        pause_entered,
+        #[cfg(any(test, feature = "test-support"))]
         exit_on_job,
         #[cfg(any(test, feature = "test-support"))]
         hold_before_receive,
@@ -223,7 +263,11 @@ pub(super) fn spawn_worker(
     })
 }
 
-fn spawn_worker_thread<F>(_parity: usize, run: F) -> std::io::Result<JoinHandle<WorkerExit>>
+fn spawn_worker_thread<F>(
+    _parity: usize,
+    thread_name: &'static str,
+    run: F,
+) -> std::io::Result<JoinHandle<WorkerExit>>
 where
     F: FnOnce() -> WorkerExit + Send + 'static,
 {
@@ -247,12 +291,11 @@ where
             "injected source worker spawn failure",
         ));
     }
-    thread::Builder::new()
-        .name(SOURCE_WORKER_THREAD_NAMES[_parity].into())
-        .spawn(run)
+    thread::Builder::new().name(thread_name.into()).spawn(run)
 }
 
 pub const SOURCE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-src-0", "oct-dsp-src-1"];
+pub const ROUTING_TREE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-tree-0", "oct-dsp-tree-1"];
 
 impl SourceWorkerSlot {
     pub(super) fn shutdown_after_spawn_failure(mut self) {
@@ -275,8 +318,15 @@ fn worker_loop(
         std::hint::spin_loop();
     }
     while let Ok(command) = work_rx.recv() {
-        if matches!(command, WorkerCommand::RenderBuses { .. }) {
+        if matches!(command, WorkerCommand::Buses { .. }) {
             if let Some(exit) = bus_worker::process(command, parity, &done_tx, &state) {
+                return exit;
+            }
+            continue;
+        }
+        #[cfg(feature = "routing-tree-benchmark")]
+        if matches!(command, WorkerCommand::RoutingTree { .. }) {
+            if let Some(exit) = routing_tree::process(command, parity, &done_tx, &state) {
                 return exit;
             }
             continue;
@@ -296,9 +346,13 @@ fn worker_loop(
             );
         }
         #[cfg(any(test, feature = "test-support"))]
+        state.pause_entered.store(true, Ordering::Release);
+        #[cfg(any(test, feature = "test-support"))]
         while state.pause.load(Ordering::Acquire) {
             std::hint::spin_loop();
         }
+        #[cfg(any(test, feature = "test-support"))]
+        state.pause_entered.store(false, Ordering::Release);
         #[cfg(any(test, feature = "test-support"))]
         let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
         #[cfg(not(any(test, feature = "test-support")))]
@@ -354,25 +408,16 @@ fn worker_loop(
                 ),
             );
         }
-        if state.reverse_completion.enabled.load(Ordering::Acquire) && parity == 0 {
-            while !state
-                .reverse_completion
-                .parity_one_done
-                .load(Ordering::Acquire)
-            {
-                std::hint::spin_loop();
-            }
+        #[cfg(test)]
+        wait_for_reverse_completion(&state, parity);
+        let completion =
+            CompletedEnvelope::from_work(work, false, true, dsp_duration_ns, active_cost_units);
+        let send_result = send_completion(&done_tx, completion);
+        #[cfg(test)]
+        if send_result.is_none() {
+            state.reverse_completion.observe_send(parity);
         }
-        if state.reverse_completion.enabled.load(Ordering::Acquire) && parity == 1 {
-            state
-                .reverse_completion
-                .parity_one_done
-                .store(true, Ordering::Release);
-        }
-        if let Some(exit) = send_completion(
-            &done_tx,
-            CompletedEnvelope::from_work(work, false, true, dsp_duration_ns, active_cost_units),
-        ) {
+        if let Some(exit) = send_result {
             state.exited.store(true, Ordering::Release);
             return exit;
         }
@@ -380,6 +425,22 @@ fn worker_loop(
     state.exited.store(true, Ordering::Release);
     WorkerExit {
         unsent_completion: None,
+    }
+}
+
+#[cfg(test)]
+fn wait_for_reverse_completion(state: &SourceWorkerThreadState, parity: usize) {
+    if !state.reverse_completion.enabled.load(Ordering::Acquire) {
+        return;
+    }
+    if parity == 0 {
+        while !state
+            .reverse_completion
+            .parity_one_done
+            .load(Ordering::Acquire)
+        {
+            std::hint::spin_loop();
+        }
     }
 }
 
@@ -408,43 +469,5 @@ fn finish_worker(state: &SourceWorkerThreadState, exit: Option<WorkerExit>) -> W
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crossbeam_channel::bounded;
-
-    fn completion(parity: usize) -> CompletedEnvelope {
-        CompletedEnvelope {
-            owner: super::super::owner_for_test(parity),
-            phase: super::super::super::source_worker_protocol::WorkerPhase::Sources,
-            stamp: super::super::super::source_worker_protocol::WorkStamp {
-                runtime_generation: 1,
-                render_plan_generation: 0,
-                quantum_sequence: 1,
-                frames: 128,
-                base_sample_clock: 0,
-            },
-            render_ok: true,
-            worker_exited: false,
-            transport_failed: false,
-            dsp_duration_ns: 0,
-            active_cost_units: 0,
-        }
-    }
-
-    #[test]
-    fn full_completion_is_preserved_in_worker_exit() {
-        let (done_tx, done_rx) = bounded(1);
-        done_tx.try_send(completion(0)).expect("queued completion");
-        let exit = send_completion(&done_tx, completion(0)).expect("worker exit");
-        assert!(exit.unsent_completion.is_some());
-        assert!(done_rx.try_recv().is_ok());
-    }
-
-    #[test]
-    fn disconnected_completion_is_preserved_in_worker_exit() {
-        let (done_tx, done_rx) = bounded(1);
-        drop(done_rx);
-        let exit = send_completion(&done_tx, completion(1)).expect("worker exit");
-        assert!(exit.unsent_completion.is_some());
-    }
-}
+#[path = "source_worker_worker_tests.rs"]
+mod tests;

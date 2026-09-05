@@ -102,20 +102,73 @@ fn benchmark_without_timing_probe_preserves_audio_bits_health_and_joins() {
 
 #[test]
 fn normal_persistent_constructors_do_not_attach_timing_probe() {
-    let source = include_str!("source_factory.rs");
-    let normal_end = source
-        .find("#[cfg(feature = \"source-worker-benchmark-timing\")]")
-        .expect("benchmark timing constructor boundary");
-    let normal = &source[..normal_end];
-    for forbidden in [
-        "SourceWorkerTimingProbe",
-        "timing_probe",
-        "orange_cpu_sampler",
-        "Instant::now",
-    ] {
-        assert!(
-            !normal.contains(forbidden),
-            "normal path contains {forbidden}"
-        );
+    fn successful_start_hook(_: usize) -> Result<(), ()> {
+        Ok(())
+    }
+
+    fn assert_without_timing_probe(
+        constructor: impl FnOnce() -> Result<
+            (EngineSource, EngineSourceWorkerShutdownOwner),
+            SourceWorkerSetupError,
+        >,
+    ) {
+        let (source, shutdown_owner) = constructor().unwrap();
+        assert!(source
+            .worker_state
+            .worker
+            .as_ref()
+            .expect("persistent worker")
+            .runtime
+            .timing_block_start()
+            .is_none());
+        drop(source);
+        assert_eq!(shutdown_owner.shutdown().joined_workers, 2);
+    }
+
+    assert_without_timing_probe(|| {
+        let (_tx, rx) = event_queue();
+        EngineSource::with_persistent_workers(rx, 44_100, 128, None)
+    });
+    assert_without_timing_probe(|| {
+        let (_tx, rx) = event_queue();
+        EngineSource::with_persistent_workers_with_hook(
+            rx,
+            44_100,
+            128,
+            None,
+            successful_start_hook,
+        )
+    });
+    assert_without_timing_probe(|| {
+        let (_tx, rx) = event_queue();
+        EngineSource::with_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+    });
+    assert_without_timing_probe(|| {
+        let (_tx, rx) = event_queue();
+        EngineSource::with_persistent_workers_for_benchmark_with_hook(
+            rx,
+            44_100,
+            128,
+            None,
+            successful_start_hook,
+        )
+    });
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    {
+        assert_without_timing_probe(|| {
+            let (_tx, rx) = event_queue();
+            EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        });
+        assert_without_timing_probe(|| {
+            let (_tx, rx) = event_queue();
+            EngineSource::with_routing_tree_persistent_workers_for_benchmark_with_hook(
+                rx,
+                44_100,
+                128,
+                None,
+                successful_start_hook,
+            )
+        });
     }
 }

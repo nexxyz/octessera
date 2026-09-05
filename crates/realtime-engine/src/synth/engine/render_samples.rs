@@ -82,17 +82,30 @@ impl SynthEngine {
             self.record_voice_admission_drop();
             return;
         };
+        let required_worker = source_worker_placement::worker_for_slot(self, slot);
         let lane = if self.source_worker_load.is_some() {
             let inactive_lanes = [
                 self.sample_voice_pool.first_inactive_lane_for_parity(0),
                 self.sample_voice_pool.first_inactive_lane_for_parity(1),
             ];
-            let Some(lane) = source_worker_placement::choose_lane(
-                self,
-                SOURCE_WORKER_SAMPLE_COST_UNITS,
-                victim_lane,
-                inactive_lanes,
-            ) else {
+            let lane = if let Some(worker) = required_worker {
+                source_worker_placement::choose_lane_for_worker(worker, victim_lane, inactive_lanes)
+            } else {
+                source_worker_placement::choose_lane(
+                    self,
+                    SOURCE_WORKER_SAMPLE_COST_UNITS,
+                    victim_lane,
+                    inactive_lanes,
+                )
+            };
+            let Some(lane) = lane else {
+                #[cfg(feature = "routing-tree-benchmark")]
+                if required_worker.is_some() && first_inactive_lane.is_some() {
+                    self.reject_routing_tree_mutation_for_control();
+                } else {
+                    self.record_voice_admission_drop();
+                }
+                #[cfg(not(feature = "routing-tree-benchmark"))]
                 self.record_voice_admission_drop();
                 return;
             };

@@ -37,12 +37,13 @@ function Assert-Throws {
 }
 
 function New-DiagnosticFixture {
-  param([Parameter(Mandatory)][int]$PoolCapacity)
+  param([Parameter(Mandatory)][int]$PoolCapacity, [bool]$RoutingTreeBenchmark = $false)
   $directory = Join-Path ([IO.Path]::GetTempPath()) ("octessera-orange-capacity-$PoolCapacity-" + [guid]::NewGuid().ToString("N"))
   $binary = Join-Path $directory "octessera-pi"
   $metadata = "$binary.metadata.json"
   New-Item -ItemType Directory -Path $directory | Out-Null
-  $spec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w benchmark-voice-pools-$PoolCapacity"; ArtifactKind = "diagnostic-only" }
+  $feature = if ($RoutingTreeBenchmark -and $PoolCapacity -eq 64) { "hardware-orange-pi-zero-2w routing-tree-benchmark" } elseif ($RoutingTreeBenchmark) { "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-$PoolCapacity" } else { "hardware-orange-pi-zero-2w benchmark-voice-pools-$PoolCapacity" }
+  $spec = [pscustomobject]@{ Package = "octessera-pi"; Feature = $feature; ArtifactKind = "diagnostic-only" }
   $parameters = @{
     BinaryPath = $binary
     MetadataPath = $metadata
@@ -108,6 +109,8 @@ foreach ($scenario in @("default_envelope_24_synth_8_sample", "default_headroom_
 
 $stage128 = New-DiagnosticFixture 128
 $stage256 = New-DiagnosticFixture 256
+$routingCandidate = New-DiagnosticFixture 64 $true
+$routingStage128 = New-DiagnosticFixture 128 $true
 try {
   $legacyPrint = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 180; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $legacyPrint "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_mixed_16_128 measure=180"
@@ -136,11 +139,18 @@ try {
   Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_43"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
   Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_42"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage256.Binary; Metadata = $stage256.Metadata; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
   Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_synth_256"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
+  $routingFixed = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 30; ExecutorMode = "routing_tree_persistent"; Artifact = $routingCandidate.Binary; Metadata = $routingCandidate.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  Assert-Contains $routingFixed "Live selection: A output=256 period=64 engine=128 internal=128 scenario=synth_ramp_16 measure=30 warmup=5 worker-timing=enabled executor=routing_tree_persistent lookahead=128 effective-latency=384"
+  Assert-Contains $routingFixed "Live artifact identity: artifact_kind=diagnostic-only cargo_feature=hardware-orange-pi-zero-2w routing-tree-benchmark"
+  Assert-Contains $routingFixed '"cargo_feature":"hardware-orange-pi-zero-2w routing-tree-benchmark"'
+  $routingCapacity = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = "routing_tree_persistent"; Artifact = $routingStage128.Binary; Metadata = $routingStage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  Assert-Contains $routingCapacity "Live artifact identity: artifact_kind=diagnostic-only cargo_feature=hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128"
+  Assert-Contains $routingCapacity "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=16 requested-sample=128 required-capacity=128"
   $artifactValidationIndex = $runnerSource.IndexOf('$artifactIdentity = Assert-StudyArtifact', [StringComparison]::Ordinal)
   $transportIndex = $runnerSource.IndexOf('Invoke-OrangeTransport "ssh-payload"', [StringComparison]::Ordinal)
   if ($artifactValidationIndex -lt 0 -or $transportIndex -lt 0 -or $artifactValidationIndex -ge $transportIndex) { throw "Capacity artifact validation was not placed before Orange board transport." }
 } finally {
-  Remove-Item -LiteralPath $stage128.Directory, $stage256.Directory -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $stage128.Directory, $stage256.Directory, $routingCandidate.Directory, $routingStage128.Directory -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $candidate = New-DiagnosticFixture 64
@@ -190,14 +200,23 @@ function New-AnalogueResult {
 
 $analogueSelection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_24" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30
 $analogueResult = New-AnalogueResult $analogueSelection
+$analogueResult.schema_version = 12
+$analogueResult | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0
+$analogueResult | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 256
 Assert-OrangeLiveResult -Result $analogueResult -Selection $analogueSelection
 foreach ($profileName in @("profile_start", "profile_end")) {
   foreach ($field in @("active_synth_voices", "active_sample_voices", "active_preview_sample_voices", "active_momentary_fx", "active_bus_fx_slots", "active_global_fx_slots", "cumulative_voice_steals", "cumulative_voice_admission_drops")) {
     $invalid = New-AnalogueResult $analogueSelection
+    $invalid.schema_version = 12
+    $invalid | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0
+    $invalid | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 256
     $snapshot = $invalid.$profileName
     $snapshot.$field = [uint64]$snapshot.$field + 1
     Assert-Throws { Assert-OrangeLiveResult -Result $invalid -Selection $analogueSelection }
     $invalid = New-AnalogueResult $analogueSelection
+    $invalid.schema_version = 12
+    $invalid | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0
+    $invalid | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 256
     $snapshot = $invalid.$profileName
     $snapshot.$field = "not-an-integer"
     Assert-Throws { Assert-OrangeLiveResult -Result $invalid -Selection $analogueSelection }

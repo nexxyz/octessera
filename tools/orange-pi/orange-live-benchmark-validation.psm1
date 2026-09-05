@@ -15,11 +15,17 @@ function Assert-OrangeLiveBenchmarkSelection {
     [Parameter(Mandatory)][int]$OutputFrames,
     [Parameter(Mandatory)][ValidateSet(32, 64, 128, 256)][int]$EngineBlockFrames,
     [Parameter(Mandatory)][int]$MeasureSeconds,
+    [ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode = "persistent_two_workers",
+    [string]$WorkerTimingMode = "",
     [bool]$AllowLongRepeat = $false
   )
+  if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
+  $expectedWorkerTimingMode = if ($ExecutorMode -eq "inline") { "disabled" } else { "enabled" }; if ([string]::IsNullOrWhiteSpace($WorkerTimingMode)) { $WorkerTimingMode = $expectedWorkerTimingMode }
+  if (($ExecutorMode -eq "inline" -and $WorkerTimingMode -cne "disabled") -or ($ExecutorMode -eq "routing_tree_persistent" -and $WorkerTimingMode -cne "enabled")) { throw "Worker timing mode does not match the selected executor." }
+  if ($ExecutorMode -eq "routing_tree_persistent" -and $OutputFrames -gt 256) { throw "Routing-tree persistent executor requires output/device buffer frames no greater than 256." }
   $capacityScenario = ConvertFrom-OrangeCapacityScenario $Scenario
   if ($null -ne $capacityScenario) {
-    return Assert-OrangeCapacityBenchmarkSelection -Scenario $Scenario -CapacityScenario $capacityScenario -OutputFrames $OutputFrames -EngineBlockFrames $EngineBlockFrames -MeasureSeconds $MeasureSeconds -AllowLongRepeat:$AllowLongRepeat
+    return Assert-OrangeCapacityBenchmarkSelection -Scenario $Scenario -CapacityScenario $capacityScenario -OutputFrames $OutputFrames -EngineBlockFrames $EngineBlockFrames -MeasureSeconds $MeasureSeconds -ExecutorMode $ExecutorMode -WorkerTimingMode $WorkerTimingMode -AllowLongRepeat:$AllowLongRepeat
   }
   if ($script:OrangeLiveScenarioIds -notcontains $Scenario -and (Get-OrangeBaselineLiveScenarioIds) -notcontains $Scenario) {
     throw "LiveAudioBenchmark scenario is not an approved live baseline ID: $Scenario"
@@ -48,6 +54,7 @@ function Assert-OrangeLiveBenchmarkSelection {
   if ($AllowLongRepeat -and $MeasureSeconds -ne 120) {
     throw "-AllowLongRepeat is only valid for a 120-second A repeat."
   }
+  $lookaheadFrames = if ($ExecutorMode -eq "routing_tree_persistent") { $EngineBlockFrames } else { 0 }
   $matrixClass = if ($OutputFrames -eq 256 -and $EngineBlockFrames -eq 128) { "A" } elseif ($OutputFrames -eq 512) { "B" } else { "individual" }
   return [pscustomobject]@{
     Scenario = $Scenario
@@ -59,15 +66,25 @@ function Assert-OrangeLiveBenchmarkSelection {
     WarmupSeconds = 5
     MatrixClass = $matrixClass
     LongRepeat = $MeasureSeconds -eq 120
+    ExecutorMode = $ExecutorMode
+    WorkerTimingMode = $WorkerTimingMode
+    LookaheadFrames = $lookaheadFrames
+    EffectiveOutputLatencyFrames = $OutputFrames + $lookaheadFrames
   }
 }
 function Get-OrangeLiveMatrixPlan {
+  param(
+    [ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode = "persistent_two_workers",
+    [string]$WorkerTimingMode = ""
+  )
   $plan = @()
   foreach ($scenario in $script:OrangeLiveScenarioIds) {
-    $plan += Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30
+    $plan += Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode $ExecutorMode -WorkerTimingMode $WorkerTimingMode
   }
-  foreach ($scenario in $script:OrangeLiveScenarioIds) {
-    $plan += Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 512 -EngineBlockFrames 128 -MeasureSeconds 30
+  if ($ExecutorMode -ne "routing_tree_persistent") {
+    foreach ($scenario in $script:OrangeLiveScenarioIds) {
+      $plan += Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 512 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode $ExecutorMode -WorkerTimingMode $WorkerTimingMode
+    }
   }
   return $plan
 }
@@ -131,6 +148,7 @@ function Get-OrangeLiveResultSummary {
     [Parameter(Mandatory)][pscustomobject]$Selection
   )
   Assert-OrangeLiveResultFieldNames -Result $Result
+  Assert-OrangeLiveExecutorGeometry -Evidence $Result -Selection $Selection -Path "result" -RequireEffectiveOutputLatency
   $callback = $Result.callback
   $terminal = $null -ne $Result.terminal_error -and -not [string]::IsNullOrWhiteSpace([string]$Result.terminal_error)
   $callbackErrors = [uint64]$callback.cpal_device_error_count + [uint64]$callback.cpal_stream_error_count
@@ -160,6 +178,9 @@ function Get-OrangeLiveResultSummary {
     EngineBlockFrames = $Selection.EngineBlockFrames
     InternalFrames = $Selection.InternalFrames
     MeasureSeconds = $Selection.MeasureSeconds
+    ExecutorMode = $Selection.ExecutorMode
+    LookaheadFrames = $Selection.LookaheadFrames
+    EffectiveOutputLatencyFrames = $Selection.EffectiveOutputLatencyFrames
     RatioP50 = [double]$callback.render_audio_duration_ratio_p50
     RatioP95 = [double]$callback.render_audio_duration_ratio_p95
     RatioP99 = [double]$callback.render_audio_duration_ratio_p99
@@ -178,7 +199,7 @@ function Assert-OrangeLiveReadiness {
     [Parameter(Mandatory)][string]$ExpectedInvocation,
     [Parameter(Mandatory)][string]$ArtifactHash
   )
-  if ([int]$Readiness.schema_version -ne 4 -or [string]$Readiness.kind -cne "orange_audio_benchmark_readiness" -or [string]$Readiness.status -cne "ready") {
+  if ([int]$Readiness.schema_version -ne 5 -or [string]$Readiness.kind -cne "orange_audio_benchmark_readiness" -or [string]$Readiness.status -cne "ready") {
     throw "Live benchmark readiness schema or status is invalid."
   }
   $checks = @(
@@ -197,6 +218,7 @@ function Assert-OrangeLiveReadiness {
   foreach ($check in $checks) {
     if ($check[0] -cne $check[1]) { throw "Live benchmark readiness identity or geometry mismatch." }
   }
+  Assert-OrangeLiveExecutorGeometry -Evidence $Readiness -Selection $Selection -Path "readiness"
   if (@("F32", "I16", "U16") -notcontains [string]$Readiness.sample_format) {
     throw "Live benchmark readiness sample format is unsupported."
   }
@@ -268,7 +290,8 @@ function Assert-OrangeLiveResult {
   Assert-OrangeLiveResultFieldNames -Result $Result
   $callback = $Result.callback
   $executorProperty = $Result.PSObject.Properties["executor_mode"]
-  if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers") -cnotcontains $executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
+  if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers", "routing_tree_persistent") -cnotcontains $executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
+  Assert-OrangeLiveExecutorGeometry -Evidence $Result -Selection $Selection -Path "result" -RequireEffectiveOutputLatency
   $schedulingPolicy = $Result.PSObject.Properties["callback_scheduling_policy"]
   $schedulingPriority = $Result.PSObject.Properties["callback_scheduling_priority"]
   $schedulingCpu = $Result.PSObject.Properties["callback_scheduling_cpu"]
@@ -277,7 +300,7 @@ function Assert-OrangeLiveResult {
   if ($null -eq $schedulingCpu) { throw "Live benchmark callback CPU evidence is missing." }
   if ((Get-OrangeLiveStrictInteger -Value $schedulingCpu.Value -Path "callback_scheduling_cpu") -ne 1) { throw "Live benchmark callback CPU evidence is invalid." }
   $checks = @(
-    @((Get-OrangeLiveStrictInteger -Value $Result.schema_version -Path "schema_version"), 11),
+    @((Get-OrangeLiveStrictInteger -Value $Result.schema_version -Path "schema_version"), 12),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),
@@ -303,7 +326,8 @@ function Assert-OrangeLiveResult {
   if (-not [bool]$Result.scheduler_qualified -or -not [bool]$Result.measurement_stop_acknowledged -or -not [bool]$Result.stream_stopped -or -not [bool]$Result.final_progress_write_succeeded) {
     throw "Live benchmark result did not complete the required finalization contract."
   }
-  if ([string]$Result.status -ceq "pass" -and $executorProperty.Value -ceq "persistent_two_workers" -and [string]$Result.worker_health -cne "healthy") { throw "A passing live benchmark must report healthy persistent workers." }
+  if ([string]$Result.worker_timing_mode -cne $Selection.WorkerTimingMode) { throw "Live benchmark worker timing mode does not match the executor." }
+  if ([string]$Result.status -ceq "pass" -and $executorProperty.Value -ne "inline" -and [string]$Result.worker_health -cne "healthy") { throw "A passing live benchmark must report healthy persistent workers." }
   Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true -AllowTerminalHealth
   Assert-OrangeWorkerTimingEvidence -Result $Result
   $persistentOutputProperty = $Result.PSObject.Properties["persistent_output_counters"]

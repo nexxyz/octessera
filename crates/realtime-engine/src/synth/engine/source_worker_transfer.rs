@@ -261,6 +261,8 @@ impl SourceWorkerLifecycle {
                 partitions: home_partitions.0,
                 scratch: first_scratch,
                 bus_carriers: first_carriers,
+                #[cfg(feature = "routing-tree-benchmark")]
+                routing_tree: None,
             },
             OwnerEnvelope {
                 runtime_generation: lifecycle.runtime_generation(),
@@ -268,6 +270,8 @@ impl SourceWorkerLifecycle {
                 partitions: home_partitions.1,
                 scratch: second_scratch,
                 bus_carriers: second_carriers,
+                #[cfg(feature = "routing-tree-benchmark")]
+                routing_tree: None,
             },
         ]) {
             engine.set_persistent_bus_limit(None);
@@ -320,7 +324,7 @@ impl SourceWorkerLifecycle {
 }
 
 impl SynthEngine {
-    fn take_inline_source_scratch(
+    pub(super) fn take_inline_source_scratch(
         &mut self,
     ) -> Option<(
         [super::source_lane_renderer::SourceLaneBlockScratch; 2],
@@ -354,6 +358,13 @@ impl SynthEngine {
             self.render_interleaved_block(frames, left, right, out);
             return SourceWorkerRenderDisposition::Fresh;
         }
+        #[cfg(feature = "routing-tree-benchmark")]
+        if runtime.mode() == SourceWorkerMode::RoutingTreePersistent {
+            let _ = runtime.refresh_recovery_disposition(self);
+            return self.render_interleaved_block_with_source_runtime_ready(
+                runtime, frames, left, right, out,
+            );
+        }
         let _ = runtime.refresh_recovery_disposition(self);
         self.render_interleaved_block_with_source_runtime_ready(runtime, frames, left, right, out)
     }
@@ -366,6 +377,47 @@ impl SynthEngine {
         right: &mut Vec<f32>,
         out: &mut Vec<f32>,
     ) -> SourceWorkerRenderDisposition {
+        self.render_interleaved_block_with_source_runtime_ready_inner(
+            runtime,
+            frames,
+            left,
+            right,
+            out,
+            |_| Ok(()),
+        )
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub fn render_interleaved_block_with_source_runtime_ready_with_controls(
+        &mut self,
+        runtime: &mut SourceWorkerRuntime,
+        frames: usize,
+        left: &mut Vec<f32>,
+        right: &mut Vec<f32>,
+        out: &mut Vec<f32>,
+        apply_controls: impl FnOnce(&mut SynthEngine) -> Result<(), ()>,
+    ) -> SourceWorkerRenderDisposition {
+        self.render_interleaved_block_with_source_runtime_ready_inner(
+            runtime,
+            frames,
+            left,
+            right,
+            out,
+            apply_controls,
+        )
+    }
+
+    fn render_interleaved_block_with_source_runtime_ready_inner(
+        &mut self,
+        runtime: &mut SourceWorkerRuntime,
+        frames: usize,
+        left: &mut Vec<f32>,
+        right: &mut Vec<f32>,
+        out: &mut Vec<f32>,
+        apply_controls: impl FnOnce(&mut SynthEngine) -> Result<(), ()>,
+    ) -> SourceWorkerRenderDisposition {
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let _ = &apply_controls;
         if runtime.mode() == SourceWorkerMode::Inline {
             self.render_interleaved_block(frames, left, right, out);
             return SourceWorkerRenderDisposition::Fresh;
@@ -382,6 +434,22 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
+        #[cfg(feature = "routing-tree-benchmark")]
+        if runtime.mode() == SourceWorkerMode::RoutingTreePersistent {
+            let disposition = runtime.render_routing_tree_persistent_block(
+                self,
+                frames,
+                &mut left[..frames],
+                &mut right[..frames],
+                apply_controls,
+            );
+            if disposition != SourceWorkerRenderDisposition::Fresh {
+                left.fill(0.0);
+                right.fill(0.0);
+            }
+            crate::simd::interleave_stereo(left, right, out);
+            return disposition;
+        }
         let health = runtime.health_snapshot().status;
         if health != SourceWorkerHealth::Healthy {
             if !health.is_recovering() {

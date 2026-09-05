@@ -33,6 +33,34 @@ pub const BINARY_NAME: &str = "octessera-pi";
 
 #[cfg(all(
     feature = "hardware-orange-pi-zero-2w",
+    feature = "routing-tree-benchmark",
+    feature = "benchmark-voice-pools-128"
+))]
+const ORANGE_METADATA_CARGO_FEATURE: &str =
+    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128;
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "routing-tree-benchmark",
+    feature = "benchmark-voice-pools-256"
+))]
+const ORANGE_METADATA_CARGO_FEATURE: &str =
+    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256;
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "routing-tree-benchmark",
+    not(any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ))
+))]
+const ORANGE_METADATA_CARGO_FEATURE: &str =
+    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING;
+
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    not(feature = "routing-tree-benchmark"),
     feature = "benchmark-voice-pools-128"
 ))]
 const ORANGE_METADATA_CARGO_FEATURE: &str =
@@ -40,6 +68,7 @@ const ORANGE_METADATA_CARGO_FEATURE: &str =
 
 #[cfg(all(
     feature = "hardware-orange-pi-zero-2w",
+    not(feature = "routing-tree-benchmark"),
     feature = "benchmark-voice-pools-256"
 ))]
 const ORANGE_METADATA_CARGO_FEATURE: &str =
@@ -48,6 +77,7 @@ const ORANGE_METADATA_CARGO_FEATURE: &str =
 #[cfg(all(
     feature = "hardware-orange-pi-zero-2w",
     any(
+        feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
         feature = "benchmark-voice-pools-256"
     )
@@ -57,6 +87,7 @@ const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime benchmark diagnostic";
 #[cfg(all(
     feature = "hardware-orange-pi-zero-2w",
     not(any(
+        feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
         feature = "benchmark-voice-pools-256"
     ))
@@ -247,6 +278,7 @@ pub fn print_build_metadata() {
 #[cfg(all(
     feature = "hardware-orange-pi-zero-2w",
     any(
+        feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
         feature = "benchmark-voice-pools-256"
     )
@@ -264,6 +296,7 @@ fn print_orange_build_metadata() {
 #[cfg(all(
     feature = "hardware-orange-pi-zero-2w",
     not(any(
+        feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
         feature = "benchmark-voice-pools-256"
     ))
@@ -406,17 +439,47 @@ mod tests {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     #[test]
     fn orange_metadata_selection_matches_the_compiled_contract() {
+        #[cfg(all(
+            feature = "routing-tree-benchmark",
+            feature = "benchmark-voice-pools-128"
+        ))]
+        assert_eq!(
+            super::ORANGE_METADATA_CARGO_FEATURE,
+            octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128
+        );
+        #[cfg(all(
+            feature = "routing-tree-benchmark",
+            feature = "benchmark-voice-pools-256"
+        ))]
+        assert_eq!(
+            super::ORANGE_METADATA_CARGO_FEATURE,
+            octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256
+        );
+        #[cfg(all(
+            feature = "routing-tree-benchmark",
+            not(any(
+                feature = "benchmark-voice-pools-128",
+                feature = "benchmark-voice-pools-256"
+            ))
+        ))]
+        assert_eq!(
+            super::ORANGE_METADATA_CARGO_FEATURE,
+            octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING
+        );
         #[cfg(feature = "benchmark-voice-pools-128")]
+        #[cfg(not(feature = "routing-tree-benchmark"))]
         assert_eq!(
             super::ORANGE_METADATA_CARGO_FEATURE,
             octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128
         );
         #[cfg(feature = "benchmark-voice-pools-256")]
+        #[cfg(not(feature = "routing-tree-benchmark"))]
         assert_eq!(
             super::ORANGE_METADATA_CARGO_FEATURE,
             octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256
         );
         #[cfg(any(
+            feature = "routing-tree-benchmark",
             feature = "benchmark-voice-pools-128",
             feature = "benchmark-voice-pools-256"
         ))]
@@ -425,6 +488,7 @@ mod tests {
             "runtime benchmark diagnostic"
         );
         #[cfg(not(any(
+            feature = "routing-tree-benchmark",
             feature = "benchmark-voice-pools-128",
             feature = "benchmark-voice-pools-256"
         )))]

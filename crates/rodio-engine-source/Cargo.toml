@@ -9,6 +9,9 @@ path = "src/lib.rs"
 
 [features]
 source-worker-benchmark-timing = ["realtime-engine/source-worker-benchmark-timing"]
+routing-tree-benchmark = ["realtime-engine/routing-tree-benchmark"]
+benchmark-voice-pools-128 = ["realtime-engine/benchmark-voice-pools-128"]
+benchmark-voice-pools-256 = ["realtime-engine/benchmark-voice-pools-256"]
 
 [dependencies]
 crossbeam-channel = "0.5"

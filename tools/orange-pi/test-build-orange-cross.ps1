@@ -30,6 +30,8 @@ foreach ($required in @(
     "octessera-pi",
     "--no-default-features",
     "BenchmarkVoicePoolCapacity",
+    "RoutingTreeBenchmark",
+    "routing-tree-benchmark",
     "benchmark-voice-pools-",
     "diagnostic-only",
     "orange-pi-cross-diagnostics",
@@ -140,6 +142,42 @@ $candidateExplicitCapacity = Invoke-DryRun @{ Binary = "octessera-pi"; Profile =
 if ($candidateExplicitCapacity -cne $candidate) {
   throw "Explicit default benchmark voice-pool capacity changed the runtime-candidate command."
 }
+
+$routing = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; RoutingTreeBenchmark = $true }
+foreach ($expected in @(
+    "target/orange-pi-cross-diagnostics/routing-tree-benchmark/octessera-pi",
+    "octessera-pi.metadata.json",
+    "-p.*octessera-pi",
+    "--features.*hardware-orange-pi-zero-2w routing-tree-benchmark",
+    "--no-default-features"
+  )) {
+  if ($routing -notmatch $expected) {
+    throw "Orange routing-tree benchmark dry run is missing: $expected"
+  }
+}
+
+foreach ($capacity in @(128, 256)) {
+  $routingDiagnostic = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; BenchmarkVoicePoolCapacity = $capacity; RoutingTreeBenchmark = $true }
+  foreach ($expected in @(
+      "target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-$capacity/octessera-pi",
+      "--features.*hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-$capacity"
+    )) {
+    if ($routingDiagnostic -notmatch $expected) {
+      throw "Orange routing-tree benchmark capacity $capacity dry run is missing: $expected"
+    }
+  }
+  if ($routingDiagnostic -match "target/orange-pi-cross/octessera-pi") {
+    throw "Orange routing-tree benchmark capacity $capacity selected the production candidate output path."
+  }
+}
+foreach ($parameters in @(
+    @{ Binary = "orange-oled-smoke"; RoutingTreeBenchmark = $true },
+    @{ Binary = "orange-seesaw-smoke"; RoutingTreeBenchmark = $true }
+  )) {
+  $rejected = $false
+  try { Invoke-DryRun $parameters | Out-Null } catch { $rejected = $true }
+  if (-not $rejected) { throw "Orange cross-builder accepted routing-tree benchmark for a HAL smoke binary." }
+}
 foreach ($expected in @(
     "target/orange-pi-cross/octessera-pi",
     "octessera-pi.metadata.json",
@@ -184,7 +222,7 @@ if ($dev -notmatch "/work/target/orange-cross-cargo/aarch64-unknown-linux-gnu/de
   throw "Dev profile dry run did not use Cargo's debug artifact directory"
 }
 
-foreach ($dryRun in @($default, $hal, $seesaw, $candidate, $dev)) {
+foreach ($dryRun in @($default, $hal, $seesaw, $candidate, $routing, $dev)) {
   if ($dryRun -match "target/release" -or $dryRun -notmatch "/work/target/orange-cross-cargo/aarch64-unknown-linux-gnu") {
     throw "Orange cross-builder dry run used a shared release target or omitted the dedicated Cargo target directory."
   }

@@ -1,4 +1,6 @@
 use super::{SourceWorkerRuntime, SOURCE_WORKER_COUNT};
+#[cfg(test)]
+use crossbeam_channel::bounded;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -10,6 +12,23 @@ impl SourceWorkerRuntime {
             .get(parity)
             .expect("source worker parity")
             .store(paused, Ordering::Release);
+    }
+
+    pub fn wait_until_paused_for_test(&self, parity: usize, timeout: Duration) -> bool {
+        let entered = self
+            .worker_pause_entries
+            .as_ref()
+            .expect("source worker pause entry controls")
+            .get(parity)
+            .expect("source worker parity");
+        let deadline = std::time::Instant::now() + timeout;
+        while !entered.load(Ordering::Acquire) {
+            if std::time::Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::yield_now();
+        }
+        true
     }
 
     pub fn jobs_started_for_test(&self) -> [u64; SOURCE_WORKER_COUNT] {
@@ -38,5 +57,12 @@ impl SourceWorkerRuntime {
             .map_or([false; SOURCE_WORKER_COUNT], |done_rxs| {
                 done_rxs.each_ref().map(|done_rx| !done_rx.is_empty())
             })
+    }
+
+    #[cfg(test)]
+    pub fn disconnect_completion_for_test(&mut self, parity: usize) {
+        let (sender, receiver) = bounded(0);
+        drop(sender);
+        self.done_rxs.as_mut().expect("persistent source workers")[parity] = receiver;
     }
 }

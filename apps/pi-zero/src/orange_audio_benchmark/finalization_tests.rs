@@ -315,6 +315,40 @@ fn inline_result_status_requires_inline_worker_lifecycle_and_timing() {
     assert_eq!(result_status(&config, &metrics, 0, clean), "fail");
 }
 
+#[cfg(feature = "routing-tree-benchmark")]
+#[test]
+fn routing_tree_result_status_requires_routing_worker_lifecycle() {
+    let mut config = config();
+    config.executor_mode = BenchmarkExecutorMode::RoutingTreePersistent;
+    config.output_frames = 256;
+    config.expected_alsa_period_frames = 64;
+    config.internal_frames = 128;
+    let metrics = CallbackMetricsSnapshot {
+        callback_count: 1,
+        callback_frames_min: 1,
+        callback_frames_max: 1,
+        callback_frame_sample_count: 1,
+        pre_mute_nonzero_samples: 1,
+        ..CallbackMetricsSnapshot::default()
+    };
+    let clean = FinalizationGates {
+        no_terminal_errors: true,
+        scheduler_qualified: true,
+        measurement_stop_acknowledged: true,
+        stream_stopped: true,
+        final_progress_write_succeeded: true,
+        worker_health: SourceWorkerHealth::Healthy,
+        worker_thread_names: super::super::stream::expected_routing_worker_thread_names(),
+        joined_workers: 2,
+        retirement_error: true,
+        worker_timing_consistent: true,
+    };
+    assert_eq!(result_status(&config, &metrics, 0, clean.clone()), "pass");
+    let mut invalid = clean;
+    invalid.worker_thread_names = super::super::stream::expected_worker_thread_names();
+    assert_eq!(result_status(&config, &metrics, 0, invalid), "fail");
+}
+
 #[test]
 fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
     let config = config();

@@ -7,12 +7,24 @@ use std::time::{Duration, Instant};
 const RATE: u32 = 44_100;
 const BLOCK_FRAMES: usize = 128;
 
+fn expected_active_synth_voices_after_first_callback() -> usize {
+    realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY
+        .min(realtime_engine::synth::MAX_CONTROL_EVENTS_PER_CALLBACK - 3)
+}
+
+fn expected_voice_admission_drops_after_first_callback() -> u64 {
+    u64::from(
+        expected_active_synth_voices_after_first_callback()
+            == realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY,
+    )
+}
+
 impl EngineSource {
     fn with_persistent_workers_for_test(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
         block_frames: usize,
-        engine: SynthEngine,
+        engine: Box<SynthEngine>,
         lifecycle: SourceWorkerLifecycle,
         runtime: SourceWorkerRuntime,
         panic_before_envelope: bool,
@@ -60,7 +72,7 @@ fn gated_source(
     EngineSourceWorkerShutdownOwner,
     SourceWorkerHoldControl,
 ) {
-    let mut engine = SynthEngine::new(RATE);
+    let mut engine = Box::new(SynthEngine::new(RATE));
     let (lifecycle, mut runtime) = if hold_workers {
         SourceWorkerLifecycle::start_prewarmed_held_for_test(&mut engine).unwrap()
     } else {
@@ -137,7 +149,7 @@ fn queue_active_state(tx: &EngineEventSender, samples: Arc<[f32]>) {
     for note in 0..=realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY {
         tx.send(EngineEvent::NoteOn {
             instrument_slot: 0,
-            note: 36 + note as u8,
+            note: note as u8,
             velocity: 100,
             duration_ms: 50_000,
         })
@@ -207,10 +219,13 @@ fn persistent_deadline_keeps_cache_and_controls_unconsumed() {
     let cached = source.profile_snapshot();
     assert_eq!(
         cached.active_synth_voices,
-        realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY
+        expected_active_synth_voices_after_first_callback()
     );
     assert_eq!(cached.active_sample_voices, 1);
-    assert_eq!(cached.cumulative_voice_admission_drops, 1);
+    assert_eq!(
+        cached.cumulative_voice_admission_drops,
+        expected_voice_admission_drops_after_first_callback()
+    );
     assert_eq!(
         source.source_worker_health(),
         SourceWorkerHealth::DeadlineMiss
@@ -253,7 +268,7 @@ fn persistent_worker_panic_is_terminal_through_iterator() {
     let cached = source.profile_snapshot();
     assert_eq!(
         cached.active_synth_voices,
-        realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY
+        expected_active_synth_voices_after_first_callback()
     );
     assert_eq!(cached.active_sample_voices, 1);
     assert_eq!(

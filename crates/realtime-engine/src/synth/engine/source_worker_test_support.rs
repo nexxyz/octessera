@@ -127,7 +127,7 @@ impl SourceWorkerRuntime {
             self.return_home_owner_for_test(owner);
             return false;
         };
-        let command = WorkerCommand::RenderBuses {
+        let command = WorkerCommand::Buses {
             stamp,
             owner,
             frames,
@@ -147,7 +147,7 @@ impl SourceWorkerRuntime {
                 true
             }
             Err(error) => {
-                let WorkerCommand::RenderBuses { owner, .. } = error.into_inner() else {
+                let WorkerCommand::Buses { owner, .. } = error.into_inner() else {
                     unreachable!("test bus dispatch only creates bus commands");
                 };
                 self.home_txs
@@ -265,6 +265,20 @@ impl SourceWorkerRuntime {
         })
     }
 
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(crate) fn set_home_bus_assignment_for_test(&self, bus: usize, worker: usize) {
+        let mut owners = self.take_home_owners_for_test().expect("worker homes");
+        for owner in &mut owners {
+            if let Some(chain) = owner.bus_carriers[bus]
+                .as_mut()
+                .and_then(|carrier| carrier.owner.as_mut())
+            {
+                chain.assigned_worker = Some(worker);
+            }
+        }
+        self.return_home_owners_for_test(owners);
+    }
+
     pub(crate) fn bus_carrier_scratch_shape_for_test(
         &self,
     ) -> Option<(
@@ -312,18 +326,6 @@ impl SourceWorkerRuntime {
             + carrier.scratch.auto_pan_pos.len() * std::mem::size_of::<f32>();
         self.return_home_owner_for_test(owner);
         Some(bytes)
-    }
-
-    pub(crate) fn home_sample_buffer_addresses_for_test(&self) -> [Option<usize>; 2] {
-        std::array::from_fn(|parity| {
-            let owner = self.take_home_owner_for_test(parity)?;
-            let identity = owner
-                .partitions
-                .sample
-                .active_sample_buffer_address_for_test();
-            self.return_home_owner_for_test(owner);
-            identity
-        })
     }
 
     pub(crate) fn disconnect_work_for_test(&mut self, parity: usize) {

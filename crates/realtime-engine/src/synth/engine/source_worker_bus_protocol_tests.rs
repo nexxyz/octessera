@@ -1,9 +1,59 @@
+use super::super::bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use super::super::source_worker_bus::render_bus_block;
 use super::super::source_worker_test_fixtures::dynamic_engine;
 use super::super::*;
 use super::{configured_fx, install_momentary, one_bus, slot_out};
 use std::collections::BTreeMap;
 use std::thread;
+use std::time::Duration;
+
+fn render_ordinary_bus_load(active: bool) -> [u16; 2] {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(one_bus(vec![
+        configured_fx("reverb"),
+        configured_fx("none"),
+        configured_fx("none"),
+    ]));
+    if active {
+        engine.note_on(0, 36, 100, 10_000);
+    }
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("persistent runtime");
+    runtime.set_deadline_for_test(Duration::from_secs(1));
+    let mut left = vec![0.0; 128];
+    let mut right = vec![0.0; 128];
+    let mut out = vec![0.0; 256];
+    assert_eq!(
+        engine.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut left,
+            &mut right,
+            &mut out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    let observed = runtime.load_snapshot().expect("ordinary worker load");
+    let result = observed.observed_active_cost_units;
+    assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
+    result
+}
+
+#[test]
+fn ordinary_active_bus_cost_is_counted_once_after_source_cost() {
+    assert_eq!(
+        render_ordinary_bus_load(true),
+        [
+            SOURCE_WORKER_SYNTH_COST_UNITS,
+            BUS_CHAIN_SLOT_COST_UNITS - 1,
+        ]
+    );
+}
+
+#[test]
+fn ordinary_quiet_bus_reports_zero_executed_cost() {
+    assert_eq!(render_ordinary_bus_load(false), [0, 0]);
+}
 
 #[test]
 fn worker_bus_command_returns_successful_stamped_completion_and_cost() {

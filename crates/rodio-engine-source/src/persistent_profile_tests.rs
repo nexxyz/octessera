@@ -147,12 +147,13 @@ fn persistent_profile_cache_tracks_controls_without_pool_reads() {
     for note in 0..=SYNTH_VOICE_LANE_CAPACITY {
         tx.send(EngineEvent::NoteOn {
             instrument_slot: 0,
-            note: 36 + note as u8,
+            note: note as u8,
             velocity: 100,
             duration_ms: 50_000,
         })
         .unwrap();
     }
+    let _ = block_bits(&mut source);
     let _ = block_bits(&mut source);
 
     let active = source.profile_snapshot();

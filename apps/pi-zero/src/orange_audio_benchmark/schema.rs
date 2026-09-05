@@ -11,6 +11,8 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "schema_deserialization.rs"]
+mod deserialization;
 #[path = "result.rs"]
 mod result;
 #[path = "worker_timing_validation.rs"]
@@ -18,24 +20,11 @@ mod worker_timing_validation;
 pub use super::output_counters::PersistentOutputCountersEvidence;
 pub use result::BenchmarkResult;
 
-const BENCHMARK_SCHEMA_VERSION: u8 = 4;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 11;
+const BENCHMARK_SCHEMA_VERSION: u8 = 5;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 12;
 const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
-fn deserialize_schema_v3<'de, D>(deserializer: D) -> Result<u8, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let version = u8::deserialize(deserializer)?;
-    if version != BENCHMARK_SCHEMA_VERSION {
-        return Err(D::Error::custom(format!(
-            "benchmark schema version {version} is not supported"
-        )));
-    }
-    Ok(version)
-}
-
-fn deserialize_result_schema_v11<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_result_schema_v12<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -61,9 +50,8 @@ where
     Ok(version)
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct BenchmarkProgress {
-    #[serde(deserialize_with = "deserialize_schema_v3")]
     pub schema_version: u8,
     pub kind: String,
     pub status: String,
@@ -79,6 +67,7 @@ pub struct BenchmarkProgress {
     pub expected_alsa_buffer_frames: u32,
     pub expected_alsa_period_frames: u32,
     pub internal_block_frames: usize,
+    pub lookahead_frames: usize,
     pub callback_frames_min: u32,
     pub callback_frames_max: u32,
     pub callback_frame_sample_count: u64,
@@ -101,9 +90,8 @@ pub struct BenchmarkProgress {
     pub worker_thread_name_1: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct BenchmarkReadiness {
-    #[serde(deserialize_with = "deserialize_schema_v3")]
     pub schema_version: u8,
     pub kind: String,
     pub status: String,
@@ -116,6 +104,7 @@ pub struct BenchmarkReadiness {
     pub expected_alsa_buffer_frames: u32,
     pub expected_alsa_period_frames: u32,
     pub internal_block_frames: usize,
+    pub lookahead_frames: usize,
     pub callback_frames_min: u32,
     pub callback_frames_max: u32,
     pub callback_frame_sample_count: u64,
@@ -326,6 +315,10 @@ impl BenchmarkProgress {
             expected_alsa_buffer_frames: config.output_frames,
             expected_alsa_period_frames: config.expected_alsa_period_frames,
             internal_block_frames: config.internal_frames,
+            lookahead_frames: super::cli::expected_lookahead_frames(
+                config.executor_mode,
+                config.internal_frames,
+            ),
             callback_frames_min: metrics.callback_frames_min,
             callback_frames_max: metrics.callback_frames_max,
             callback_frame_sample_count: metrics.callback_frame_sample_count,
@@ -375,6 +368,10 @@ pub fn readiness(
         expected_alsa_buffer_frames: config.output_frames,
         expected_alsa_period_frames: config.expected_alsa_period_frames,
         internal_block_frames: config.internal_frames,
+        lookahead_frames: super::cli::expected_lookahead_frames(
+            config.executor_mode,
+            config.internal_frames,
+        ),
         callback_frames_min: metrics.lifetime_callback_frames_min,
         callback_frames_max: metrics.lifetime_callback_frames_max,
         callback_frame_sample_count: metrics.lifetime_callback_frame_sample_count,

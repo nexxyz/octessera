@@ -14,6 +14,12 @@ pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128: &str =
     "hardware-orange-pi-zero-2w benchmark-voice-pools-128";
 pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256: &str =
     "hardware-orange-pi-zero-2w benchmark-voice-pools-256";
+pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING: &str =
+    "hardware-orange-pi-zero-2w routing-tree-benchmark";
+pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128: &str =
+    "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128";
+pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256: &str =
+    "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-256";
 pub const METADATA_SUFFIX: &str = ".metadata.json";
 pub const METADATA_SCHEMA_VERSION: u64 = 2;
 pub const MAX_METADATA_BYTES: usize = 4096;
@@ -307,11 +313,14 @@ fn validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature: &str) -> R
         cargo_feature,
         RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128
             | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256
+            | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING
+            | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128
+            | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256
     ) {
         Ok(())
     } else {
         Err(
-            "runtime benchmark diagnostic metadata requires an exact 128 or 256 voice-pool cargo feature"
+            "runtime benchmark diagnostic metadata requires an exact routing or 128/256 voice-pool cargo feature"
                 .into(),
         )
     }

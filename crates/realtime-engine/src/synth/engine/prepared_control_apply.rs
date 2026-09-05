@@ -13,6 +13,18 @@ impl SynthEngine {
         &mut self,
         prepared: PreparedAudioConfig,
     ) -> RetiredAudioState {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && !self.routing_tree_prepared_audio_allowed(&prepared)
+        {
+            self.reject_routing_tree_mutation_for_control();
+            let PreparedAudioConfig {
+                instruments,
+                sample_banks,
+                ..
+            } = prepared;
+            return retired_rejected_instruments(instruments, sample_banks);
+        }
         let PreparedAudioConfig {
             instruments,
             sample_banks,
@@ -40,6 +52,13 @@ impl SynthEngine {
         mut prepared: PreparedInstrumentsConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && !self.routing_tree_prepared_instruments_allowed(&prepared)
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return retired_rejected_instruments(prepared, None);
+        }
         if self
             .persistent_bus_limit
             .is_some_and(|limit| prepared.bus_chains.len() > limit)
@@ -132,6 +151,10 @@ impl SynthEngine {
         retired.prepared_slots = prepared.slots;
         retired.displaced_master_fx_states = prepared.displaced_master_fx_states;
         retired.render_plan = Some(self.render_plan.install_complete(next_render_plan));
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() && !self.refresh_routing_tree_assignment() {
+            return retired;
+        }
         retired
     }
 
@@ -142,6 +165,13 @@ impl SynthEngine {
     ) -> RetiredAudioState {
         let retired = RetiredAudioState::default();
         if index >= INSTRUMENT_SLOT_COUNT {
+            return retired;
+        }
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && !self.routing_tree_prepared_instrument_slot_allowed(index, &prepared)
+        {
+            self.reject_routing_tree_mutation_for_control();
             return retired;
         }
         let has_mixer = prepared.route.is_some();
@@ -165,6 +195,10 @@ impl SynthEngine {
         self.render_plan
             .install_instrument_slot(index, prepared.render_plan);
         self.refresh_routed_bus_slot_count();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() {
+            let _ = self.refresh_routing_tree_assignment();
+        }
         retired
     }
 
@@ -194,6 +228,14 @@ impl SynthEngine {
         prepared: PreparedMomentaryFxStart,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && !self.routing_tree_momentary_start_allowed(&prepared)
+        {
+            self.reject_routing_tree_mutation_for_control();
+            store_retired_momentary(&mut retired.displaced_momentary_fx, prepared.state);
+            return retired;
+        }
         let mut state = prepared.state;
         if let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == state.id) {
             store_retired_momentary(
@@ -223,6 +265,31 @@ impl SynthEngine {
         mut prepared: PreparedFxBusSlot,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && !self.routing_tree_prepared_fx_bus_slot_allowed(bus_index, slot_index, &prepared)
+        {
+            self.reject_routing_tree_mutation_for_control();
+            let PreparedFxBusSlot {
+                render_plan,
+                params,
+                state,
+                mut displaced_chains,
+            } = prepared;
+            displaced_chains.push(BusChainOwner::from_slot(
+                bus_index,
+                slot_index,
+                BusChainSlot {
+                    params,
+                    state,
+                    cost: fx_kind_cost(render_plan.kind),
+                },
+            ));
+            return RetiredAudioState {
+                bus_chains: displaced_chains,
+                ..RetiredAudioState::default()
+            };
+        }
         if bus_index >= self.bus_chains.len() || slot_index >= BUS_SLOTS_PER_BUS {
             let slot = BusChainSlot {
                 params: prepared.params,
@@ -250,6 +317,10 @@ impl SynthEngine {
         ));
         self.render_plan
             .install_bus_fx_slot(bus_index, slot_index, prepared.render_plan);
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() {
+            let _ = self.refresh_routing_tree_assignment();
+        }
         retired.bus_chains = prepared.displaced_chains;
         retired
     }
@@ -285,6 +356,44 @@ impl SynthEngine {
     }
 }
 
+#[cfg(feature = "routing-tree-benchmark")]
+fn retired_rejected_instruments(
+    prepared: PreparedInstrumentsConfig,
+    sample_banks: Option<Vec<SampleBankConfig>>,
+) -> RetiredAudioState {
+    let PreparedInstrumentsConfig {
+        slots,
+        bus_pan_pos,
+        bus_pan_gains_cache,
+        bus_volume,
+        bus_chains,
+        bus_output_spread_state,
+        bus_mono_scratch,
+        bus_mono_snapshot,
+        master_slot_params,
+        master_slot_state,
+        master_active_slot_indices,
+        displaced_master_fx_states,
+        ..
+    } = prepared;
+    RetiredAudioState {
+        sample_banks,
+        prepared_slots: slots,
+        bus_pan_pos,
+        bus_pan_gains_cache,
+        bus_volume,
+        bus_chains,
+        bus_output_spread_state,
+        bus_mono_scratch,
+        bus_mono_snapshot,
+        master_slot_params,
+        master_slot_state,
+        master_active_slot_indices,
+        displaced_master_fx_states,
+        ..RetiredAudioState::default()
+    }
+}
+
 fn preserve_master_states(
     next: &mut [MasterFxState],
     params: &[FxBusParams],
@@ -317,3 +426,7 @@ fn preserve_spread_state(
 #[cfg(test)]
 #[path = "prepared_control_tests.rs"]
 mod prepared_control_tests;
+
+#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[path = "routing_tree_prepared_tests.rs"]
+mod routing_tree_prepared_tests;

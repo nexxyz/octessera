@@ -21,15 +21,19 @@ function New-OrangeLiveBenchmarkPayloadBundle {
     [Parameter(Mandatory)][int]$ReleaseTimeoutSeconds,
     [Parameter(Mandatory)][int]$RuntimeMaxSeconds,
     [Parameter(Mandatory)][ValidateSet("enabled", "disabled")][string]$WorkerTimingMode,
-    [Parameter(Mandatory)][ValidateSet("inline", "persistent_two_workers")][string]$ExecutorMode,
+    [Parameter(Mandatory)][ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode,
     [Parameter(Mandatory)][ValidateSet("runtime-candidate", "diagnostic-only")][string]$ExpectedArtifactKind,
-    [Parameter(Mandatory)][ValidateSet("hardware-orange-pi-zero-2w", "hardware-orange-pi-zero-2w benchmark-voice-pools-128", "hardware-orange-pi-zero-2w benchmark-voice-pools-256")][string]$ExpectedCargoFeature
+    [Parameter(Mandatory)][ValidateSet("hardware-orange-pi-zero-2w", "hardware-orange-pi-zero-2w benchmark-voice-pools-128", "hardware-orange-pi-zero-2w benchmark-voice-pools-256", "hardware-orange-pi-zero-2w routing-tree-benchmark", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-256")][string]$ExpectedCargoFeature
   )
   if (@("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled." }
-  if (@("inline", "persistent_two_workers") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline or persistent_two_workers." }
+  if (@("inline", "persistent_two_workers", "routing_tree_persistent") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline, persistent_two_workers, or routing_tree_persistent." }
+  if ($Selection.ExecutorMode -cne $ExecutorMode -or $Selection.WorkerTimingMode -cne $WorkerTimingMode) { throw "Live payload executor and worker timing do not match the selected contract." }
+  $expectedLookahead = if ($ExecutorMode -eq "routing_tree_persistent") { $Selection.EngineBlockFrames } else { 0 }
+  if ($Selection.LookaheadFrames -ne $expectedLookahead -or $Selection.EffectiveOutputLatencyFrames -ne ($Selection.OutputFrames + $Selection.LookaheadFrames)) { throw "Live payload selection geometry is inconsistent with the selected executor." }
   $isCapacityDiagnostic = $null -ne $Selection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$Selection.IsCapacityDiagnostic
-  if ($isCapacityDiagnostic -and ($ExpectedArtifactKind -cne "diagnostic-only" -or $ExpectedCargoFeature -cnotmatch '^hardware-orange-pi-zero-2w benchmark-voice-pools-(128|256)$')) { throw "Dynamic capacity payload identity must be diagnostic-only with an exact benchmark pool feature." }
-  if (-not $isCapacityDiagnostic -and ($ExpectedArtifactKind -cne "runtime-candidate" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w")) { throw "Fixed live payload identity must be runtime-candidate with the exact Orange hardware feature." }
+  $isRoutingExecutor = $ExecutorMode -ceq "routing_tree_persistent"
+  if ($isCapacityDiagnostic -and ($ExpectedArtifactKind -cne "diagnostic-only" -or ($isRoutingExecutor -and $ExpectedCargoFeature -cnotmatch '^hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-(128|256)$') -or (-not $isRoutingExecutor -and $ExpectedCargoFeature -cnotmatch '^hardware-orange-pi-zero-2w benchmark-voice-pools-(128|256)$'))) { throw "Dynamic capacity payload identity must be diagnostic-only with an exact benchmark pool feature." }
+  if (-not $isCapacityDiagnostic -and (($isRoutingExecutor -and ($ExpectedArtifactKind -cne "diagnostic-only" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w routing-tree-benchmark")) -or (-not $isRoutingExecutor -and ($ExpectedArtifactKind -cne "runtime-candidate" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w")))) { throw "Fixed live payload identity does not match the selected executor." }
 
   $readinessHelpers = Get-OrangeReadinessHelpers
   $body = @'
@@ -178,7 +182,7 @@ reset_failed_unit() {
 validate_benchmark_readiness() {
   local marker="$1" expected_pid="$2" expected_invocation="$3"
   [ -r "$marker" ] || return 1
-  [ "$(json_field schema_version "$marker")" = 4 ]
+  [ "$(json_field schema_version "$marker")" = 5 ]
   [ "$(json_field kind "$marker")" = orange_audio_benchmark_readiness ]
   [ "$(json_field status "$marker")" = ready ]
   [ "$(json_field board_profile "$marker")" = orange-pi-zero-2w ]
@@ -186,6 +190,8 @@ validate_benchmark_readiness() {
   [ "$(json_field systemd_invocation_id "$marker")" = "$expected_invocation" ]
   [ "$(json_field artifact_sha256 "$marker")" = "$expected_sha" ]
   [ "$(json_field scenario "$marker")" = __SCENARIO__ ]
+  [ "$(json_field executor_mode "$marker")" = __EXECUTOR_MODE__ ]
+  [ "$(json_field lookahead_frames "$marker")" = __LOOKAHEAD_FRAMES__ ]
   [ "$(json_field requested_output_buffer_frames "$marker")" = __OUTPUT_FRAMES__ ]
   [ "$(json_field expected_alsa_buffer_frames "$marker")" = __OUTPUT_FRAMES__ ]
   [ "$(json_field expected_alsa_period_frames "$marker")" = __ALSA_PERIOD_FRAMES__ ]
@@ -210,6 +216,7 @@ validate_benchmark_readiness() {
 }
 validate_benchmark_worker_evidence() {
   local marker="$1" require_shutdown="${2:-false}"
+  [ "$(json_field executor_mode "$marker")" = __EXECUTOR_MODE__ ]
   case "$(json_field executor_mode "$marker")" in
     persistent_two_workers)
       [ "$(json_field worker_health "$marker")" = healthy ]
@@ -229,6 +236,15 @@ validate_benchmark_worker_evidence() {
         [ "$(json_field retirement_error "$marker")" = null ]
       fi
       ;;
+    routing_tree_persistent)
+      [ "$(json_field worker_health "$marker")" = healthy ]
+      [ "$(json_field worker_thread_name_0 "$marker")" = oct-dsp-tree-0 ]
+      [ "$(json_field worker_thread_name_1 "$marker")" = oct-dsp-tree-1 ]
+      if [ "$require_shutdown" = true ]; then
+        [ "$(json_field joined_workers "$marker")" = 2 ]
+        [ "$(json_field retirement_error "$marker")" = null ]
+      fi
+      ;;
     *) return 1;;
   esac
 }
@@ -239,13 +255,17 @@ validate_benchmark_worker_threads() {
     [ -r "$task/comm" ] || return 1
     comm="$(cat "$task/comm")" || return 1
     case "$comm" in
-      oct-dsp-src-0) worker_zero=$((worker_zero + 1));;
-      oct-dsp-src-1) worker_one=$((worker_one + 1));;
-      oct-dsp-src-*) return 1;;
+      oct-dsp-src-0|oct-dsp-tree-0)
+        if { [ "__EXECUTOR_MODE__" = persistent_two_workers ] && [ "$comm" != oct-dsp-src-0 ]; } || { [ "__EXECUTOR_MODE__" = routing_tree_persistent ] && [ "$comm" != oct-dsp-tree-0 ]; } || [ "__EXECUTOR_MODE__" = inline ]; then return 1; fi
+        worker_zero=$((worker_zero + 1));;
+      oct-dsp-src-1|oct-dsp-tree-1)
+        if { [ "__EXECUTOR_MODE__" = persistent_two_workers ] && [ "$comm" != oct-dsp-src-1 ]; } || { [ "__EXECUTOR_MODE__" = routing_tree_persistent ] && [ "$comm" != oct-dsp-tree-1 ]; } || [ "__EXECUTOR_MODE__" = inline ]; then return 1; fi
+        worker_one=$((worker_one + 1));;
+      oct-dsp-src-*|oct-dsp-tree-*) return 1;;
       oct-src-reaper) reaper=$((reaper + 1));;
     esac
   done
-  if [ "__EXECUTOR_MODE__" = persistent_two_workers ]; then
+  if [ "__EXECUTOR_MODE__" != inline ]; then
     [ "$worker_zero" = 1 ] && [ "$worker_one" = 1 ] && [ "$reaper" = 1 ]
   else
     [ "$worker_zero" = 0 ] && [ "$worker_one" = 0 ] && [ "$reaper" = 1 ]
@@ -299,13 +319,26 @@ capture_alsa_release() {
   if ! sudo -n mv -f -- "$release_tmp" "$release"; then sudo -n rm -f -- "$release" "$release_tmp" "$release_source"; return 1; fi
 }
 validate_benchmark_progress() {
-  [ -r "$progress" ] && [ "$(json_field schema_version "$progress")" = 4 ] && [ "$(json_field kind "$progress")" = orange_audio_benchmark_progress ]
+  [ -r "$progress" ] && [ "$(json_field schema_version "$progress")" = 5 ] && [ "$(json_field kind "$progress")" = orange_audio_benchmark_progress ]
   [ "$(json_field board_profile "$progress")" = orange-pi-zero-2w ] && [ "$(json_field pid "$progress")" = "$benchmark_pid" ]
   [ "$(json_field systemd_invocation_id "$progress")" = "$benchmark_invocation" ] && [ "$(json_field artifact_sha256 "$progress")" = "$expected_sha" ]
-  [ "$(json_field scenario "$progress")" = __SCENARIO__ ] && [ "$(json_field requested_output_buffer_frames "$progress")" = __OUTPUT_FRAMES__ ]
+  [ "$(json_field scenario "$progress")" = __SCENARIO__ ] && [ "$(json_field executor_mode "$progress")" = __EXECUTOR_MODE__ ]
+  [ "$(json_field lookahead_frames "$progress")" = __LOOKAHEAD_FRAMES__ ]
+  [ "$(json_field requested_output_buffer_frames "$progress")" = __OUTPUT_FRAMES__ ]
   [ "$(json_field expected_alsa_buffer_frames "$progress")" = __OUTPUT_FRAMES__ ] && [ "$(json_field expected_alsa_period_frames "$progress")" = __ALSA_PERIOD_FRAMES__ ]
   [ "$(json_field internal_block_frames "$progress")" = __INTERNAL_FRAMES__ ]
   validate_benchmark_worker_evidence "$progress"
+}
+validate_benchmark_result() {
+  [ -r "$result" ] && [ "$(json_field schema_version "$result")" = 12 ] && [ "$(json_field kind "$result")" = orange_audio_benchmark_result ]
+  [ "$(json_field board_profile "$result")" = orange-pi-zero-2w ] && [ "$(json_field pid "$result")" = "$benchmark_pid" ]
+  [ "$(json_field systemd_invocation_id "$result")" = "$benchmark_invocation" ] && [ "$(json_field artifact_sha256 "$result")" = "$expected_sha" ]
+  [ "$(json_field scenario "$result")" = __SCENARIO__ ] && [ "$(json_field executor_mode "$result")" = __EXECUTOR_MODE__ ]
+  [ "$(json_field lookahead_frames "$result")" = __LOOKAHEAD_FRAMES__ ] && [ "$(json_field effective_output_latency_frames "$result")" = __EFFECTIVE_OUTPUT_LATENCY_FRAMES__ ]
+  [ "$(json_field worker_timing_mode "$result")" = __WORKER_TIMING_MODE__ ]
+  [ "$(json_field requested_output_buffer_frames "$result")" = __OUTPUT_FRAMES__ ] && [ "$(json_field expected_alsa_buffer_frames "$result")" = __OUTPUT_FRAMES__ ]
+  [ "$(json_field expected_alsa_period_frames "$result")" = __ALSA_PERIOD_FRAMES__ ] && [ "$(json_field internal_block_frames "$result")" = __INTERNAL_FRAMES__ ]
+  validate_benchmark_worker_evidence "$result" true
 }
 wait_for_benchmark_terminal() {
   local deadline=$(( $(date +%s) + __RUNTIME_MAX_SECONDS__ + 15 )) pid invocation phase mtime now result_status
@@ -316,7 +349,7 @@ wait_for_benchmark_terminal() {
     if [ -n "$invocation" ] && [ "$invocation" != "$benchmark_invocation" ]; then study_status=66; stop_benchmark_unit; return 1; fi
     if [ -e "$result" ] && ! sudo -n systemctl is-active --quiet "$unit"; then
       result_status="$(json_field status "$result" || true)"
-      if ! validate_benchmark_worker_evidence "$result" true; then
+      if ! validate_benchmark_result; then
         study_status=66
         study_class=infrastructure_failure
         return 1
@@ -403,7 +436,7 @@ capture_alsa_release || { study_status=66; stop_benchmark_unit; exit "$study_sta
 wait_for_benchmark_terminal || true
 exit "$study_status"
 '@
-  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds).Replace("__EXECUTOR_MODE__", $ExecutorMode).Replace("__ARTIFACT_KIND__", $ExpectedArtifactKind).Replace("__CARGO_FEATURE__", $ExpectedCargoFeature)
+  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds).Replace("__EXECUTOR_MODE__", $ExecutorMode).Replace("__LOOKAHEAD_FRAMES__", [string]$Selection.LookaheadFrames).Replace("__EFFECTIVE_OUTPUT_LATENCY_FRAMES__", [string]$Selection.EffectiveOutputLatencyFrames).Replace("__ARTIFACT_KIND__", $ExpectedArtifactKind).Replace("__CARGO_FEATURE__", $ExpectedCargoFeature)
   $body = $body.Replace("__WORKER_TIMING_MODE__", $WorkerTimingMode)
   $study = "set -eu`numask 077`nroot=$(Quote-LiveShValue $RemoteRoot)`nhealth=$(Quote-LiveShValue $HealthPath)`nunit=$(Quote-LiveShValue $Unit)`n$readinessHelpers`n$body"
   $prepare = "set -eu`numask 077`ntest ! -e $(Quote-LiveShValue $RemoteRoot)`nmkdir -m 0700 -- $(Quote-LiveShValue $RemoteRoot)`nsudo -n chgrp octessera-runtime $(Quote-LiveShValue $RemoteRoot)`nchmod 0710 $(Quote-LiveShValue $RemoteRoot)"

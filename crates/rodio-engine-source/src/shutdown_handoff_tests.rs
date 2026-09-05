@@ -112,7 +112,7 @@ fn held_inline_source() -> (
         TEST_SAMPLE_RATE,
         128,
         None,
-        SynthEngine::new(TEST_SAMPLE_RATE),
+        Box::new(SynthEngine::new(TEST_SAMPLE_RATE)),
         EngineSourceWorkerState::inline(),
         SourceRetirementChannels {
             retired_tx,
@@ -134,7 +134,7 @@ fn held_persistent_source(
     Receiver<std::thread::ThreadId>,
     Option<realtime_engine::synth::SourceWorkerHoldControl>,
 ) {
-    let mut engine = SynthEngine::new(TEST_SAMPLE_RATE);
+    let mut engine = Box::new(SynthEngine::new(TEST_SAMPLE_RATE));
     prime_engine_pending_render_retirement(&mut engine);
     let (lifecycle, mut runtime) = if terminal {
         SourceWorkerLifecycle::start_prewarmed_held_for_test(&mut engine).unwrap()
@@ -215,7 +215,7 @@ fn persistent_factory_reaper_spawn_failure_cleans_workers_on_construction_thread
             TEST_SAMPLE_RATE,
             128,
             None,
-            engine,
+            Box::new(engine),
         );
         let after = Arc::strong_count(&shared_samples);
         let error = match factory {
@@ -290,7 +290,7 @@ fn persistent_factory_worker_schedule_failure_joins_workers_without_reaper_or_ow
                     TEST_SAMPLE_RATE,
                     128,
                     None,
-                    engine,
+                    Box::new(engine),
                     start_hook,
                 );
                 let error = match factory {

@@ -12,7 +12,7 @@ impl EngineSource {
             sample_rate,
             block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
             load_tx,
-            SynthEngine::new(sample_rate),
+            Box::new(SynthEngine::new(sample_rate)),
         )
     }
 
@@ -28,7 +28,7 @@ impl EngineSource {
             sample_rate,
             block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
             load_tx,
-            SynthEngine::new(sample_rate),
+            Box::new(SynthEngine::new(sample_rate)),
             start_hook,
         )
     }
@@ -51,7 +51,7 @@ impl EngineSource {
             sample_rate,
             block_frames,
             load_tx,
-            SynthEngine::new(sample_rate),
+            Box::new(SynthEngine::new(sample_rate)),
         )
     }
 
@@ -74,8 +74,118 @@ impl EngineSource {
             sample_rate,
             block_frames,
             load_tx,
-            SynthEngine::new(sample_rate),
+            Box::new(SynthEngine::new(sample_rate)),
             start_hook,
+        )
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub fn with_routing_tree_persistent_workers_for_benchmark(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
+        if !(MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(&block_frames) {
+            return Err(SourceWorkerSetupError::InvalidBlockFrames {
+                requested: block_frames,
+                min: MIN_BLOCK_FRAMES,
+                max: MAX_BLOCK_FRAMES,
+            });
+        }
+        let mut engine = Box::new(SynthEngine::new(sample_rate));
+        let (lifecycle, runtime) =
+            SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, block_frames)?;
+        #[cfg(test)]
+        let runtime = {
+            let mut runtime = runtime;
+            runtime.set_deadline_for_test(Duration::from_secs(1));
+            runtime
+        };
+        Self::finish_workers(
+            control_rx,
+            sample_rate,
+            block_frames,
+            load_tx,
+            engine,
+            lifecycle,
+            EngineSourceWorkerState::routing_tree_persistent(runtime),
+        )
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub fn with_routing_tree_persistent_workers_for_benchmark_with_hook(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+        start_hook: SourceWorkerStartHook,
+    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
+        if !(MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(&block_frames) {
+            return Err(SourceWorkerSetupError::InvalidBlockFrames {
+                requested: block_frames,
+                min: MIN_BLOCK_FRAMES,
+                max: MAX_BLOCK_FRAMES,
+            });
+        }
+        let mut engine = Box::new(SynthEngine::new(sample_rate));
+        let (lifecycle, runtime) = SourceWorkerLifecycle::start_routing_tree_prewarmed_with_hook(
+            &mut engine,
+            block_frames,
+            start_hook,
+        )?;
+        #[cfg(test)]
+        let runtime = {
+            let mut runtime = runtime;
+            runtime.set_deadline_for_test(Duration::from_secs(1));
+            runtime
+        };
+        Self::finish_workers(
+            control_rx,
+            sample_rate,
+            block_frames,
+            load_tx,
+            engine,
+            lifecycle,
+            EngineSourceWorkerState::routing_tree_persistent(runtime),
+        )
+    }
+
+    #[cfg(all(
+        feature = "routing-tree-benchmark",
+        feature = "source-worker-benchmark-timing"
+    ))]
+    pub fn with_routing_tree_persistent_workers_for_benchmark_with_timing_probe_and_hook(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+        timing_probe: Arc<SourceWorkerTimingProbe>,
+        start_hook: SourceWorkerStartHook,
+    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
+        if !(MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(&block_frames) {
+            return Err(SourceWorkerSetupError::InvalidBlockFrames {
+                requested: block_frames,
+                min: MIN_BLOCK_FRAMES,
+                max: MAX_BLOCK_FRAMES,
+            });
+        }
+        let mut engine = Box::new(SynthEngine::new(sample_rate));
+        let (lifecycle, mut runtime) =
+            SourceWorkerLifecycle::start_routing_tree_prewarmed_with_hook(
+                &mut engine,
+                block_frames,
+                start_hook,
+            )?;
+        runtime.attach_timing_probe(timing_probe);
+        Self::finish_workers(
+            control_rx,
+            sample_rate,
+            block_frames,
+            load_tx,
+            engine,
+            lifecycle,
+            EngineSourceWorkerState::routing_tree_persistent(runtime),
         )
     }
 
@@ -84,7 +194,7 @@ impl EngineSource {
         sample_rate: u32,
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
-        mut engine: SynthEngine,
+        mut engine: Box<SynthEngine>,
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
         let (lifecycle, runtime) =
             SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, block_frames)?;
@@ -114,7 +224,7 @@ impl EngineSource {
                 max: MAX_BLOCK_FRAMES,
             });
         }
-        let mut engine = SynthEngine::new(sample_rate);
+        let mut engine = Box::new(SynthEngine::new(sample_rate));
         let (lifecycle, mut runtime) =
             SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, block_frames)?;
         runtime.attach_timing_probe(timing_probe);
@@ -145,7 +255,7 @@ impl EngineSource {
                 max: MAX_BLOCK_FRAMES,
             });
         }
-        let mut engine = SynthEngine::new(sample_rate);
+        let mut engine = Box::new(SynthEngine::new(sample_rate));
         let (lifecycle, mut runtime) = SourceWorkerLifecycle::start_prewarmed_with_frames_and_hook(
             &mut engine,
             block_frames,
@@ -168,9 +278,29 @@ impl EngineSource {
         sample_rate: u32,
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
-        engine: SynthEngine,
+        engine: Box<SynthEngine>,
         lifecycle: SourceWorkerLifecycle,
         runtime: SourceWorkerRuntime,
+    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
+        Self::finish_workers(
+            control_rx,
+            sample_rate,
+            block_frames,
+            load_tx,
+            engine,
+            lifecycle,
+            EngineSourceWorkerState::persistent(runtime),
+        )
+    }
+
+    fn finish_workers(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+        engine: Box<SynthEngine>,
+        lifecycle: SourceWorkerLifecycle,
+        mut worker_state: EngineSourceWorkerState,
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
         let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
         let (shutdown_tx, shutdown_owner) =
@@ -179,7 +309,7 @@ impl EngineSource {
                 Err(failure) => {
                     let source_worker_reaper::PersistentReaperSpawnFailure { lifecycle, error } =
                         *failure;
-                    let _ = runtime.retire();
+                    let _ = worker_state.retire();
                     let _ = lifecycle.shutdown_after_runtime_drop();
                     return Err(error);
                 }
@@ -190,7 +320,7 @@ impl EngineSource {
             block_frames,
             load_tx,
             engine,
-            EngineSourceWorkerState::persistent(runtime),
+            worker_state,
             SourceRetirementChannels {
                 retired_tx,
                 shutdown_tx,
@@ -204,7 +334,7 @@ impl EngineSource {
         sample_rate: u32,
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
-        mut engine: SynthEngine,
+        mut engine: Box<SynthEngine>,
         start_hook: SourceWorkerStartHook,
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
         let (lifecycle, runtime) = SourceWorkerLifecycle::start_prewarmed_with_frames_and_hook(

@@ -1,5 +1,7 @@
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::source_worker_timing::SourceWorkerTimingProbe;
+#[cfg(feature = "routing-tree-benchmark")]
+use super::routing_tree_worker::RoutingTreeOutputBlock;
 use super::source_worker_health::{
     SourceWorkerHealth, SourceWorkerHealthSnapshot, SourceWorkerHealthState,
 };
@@ -11,11 +13,9 @@ use super::source_worker_lifecycle::{
 use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
 use super::source_worker_protocol::{SourceWorkerMode, WorkStamp, WorkerCommand, WorkerPhase};
 use super::source_worker_retirement::SourceWorkerRetirement;
-use super::source_worker_transfer;
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use crossbeam_channel::{Receiver, Sender};
-use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -47,6 +47,8 @@ pub struct SourceWorkerRuntime {
     coordinator_remainder_started_at: Option<Instant>,
     #[cfg(any(test, feature = "test-support"))]
     worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
+    #[cfg(any(test, feature = "test-support"))]
+    worker_pause_entries: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
     runtime_close: Option<Arc<SourceWorkerCloseState>>,
     health: Arc<SourceWorkerHealthState>,
     runtime_generation: u64,
@@ -56,6 +58,20 @@ pub struct SourceWorkerRuntime {
     in_flight_mask: u8,
     completed_mask: u8,
     sample_rate: u32,
+    lookahead_frames: usize,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_output_spares: Option<[RoutingTreeOutputBlock; SOURCE_WORKER_COUNT]>,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_output_stamp: Option<WorkStamp>,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_output_ready: bool,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_tree_reprime_pending: bool,
+    #[cfg(all(
+        feature = "routing-tree-benchmark",
+        any(test, feature = "test-support")
+    ))]
+    routing_tree_probe: Option<Arc<RoutingTreePipelineProbe>>,
     load: Option<SourceWorkerLoad>,
     source_load_observations:
         [Option<super::source_worker_load::SourceWorkerLoadObservation>; SOURCE_WORKER_COUNT],
@@ -96,6 +112,8 @@ impl SourceWorkerRuntime {
             coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: None,
+            #[cfg(any(test, feature = "test-support"))]
+            worker_pause_entries: None,
             runtime_close: None,
             health: Arc::new(SourceWorkerHealthState::new(SourceWorkerHealth::Disabled)),
             runtime_generation: 0,
@@ -105,6 +123,20 @@ impl SourceWorkerRuntime {
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate: 0,
+            lookahead_frames: 0,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_output_spares: None,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_output_stamp: None,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_output_ready: false,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_reprime_pending: false,
+            #[cfg(all(
+                feature = "routing-tree-benchmark",
+                any(test, feature = "test-support")
+            ))]
+            routing_tree_probe: None,
             load: None,
             source_load_observations: std::array::from_fn(|_| None),
             bus_load_observations: std::array::from_fn(|_| None),
@@ -125,6 +157,37 @@ impl SourceWorkerRuntime {
         sample_rate: u32,
         active_frames: usize,
     ) -> Option<Self> {
+        Self::new_with_mode(
+            lifecycle,
+            sample_rate,
+            active_frames,
+            SourceWorkerMode::Persistent,
+            0,
+        )
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) fn new_routing_tree(
+        lifecycle: &SourceWorkerLifecycle,
+        sample_rate: u32,
+        active_frames: usize,
+    ) -> Option<Self> {
+        Self::new_with_mode(
+            lifecycle,
+            sample_rate,
+            active_frames,
+            SourceWorkerMode::RoutingTreePersistent,
+            active_frames,
+        )
+    }
+
+    fn new_with_mode(
+        lifecycle: &SourceWorkerLifecycle,
+        sample_rate: u32,
+        active_frames: usize,
+        mode: SourceWorkerMode,
+        lookahead_frames: usize,
+    ) -> Option<Self> {
         let workers = &lifecycle.workers;
         let work_txs = [
             workers[0].work_tx.as_ref()?.clone(),
@@ -136,7 +199,7 @@ impl SourceWorkerRuntime {
             workers[1].done_tx.as_ref()?.clone(),
         ];
         Some(Self {
-            mode: SourceWorkerMode::Persistent,
+            mode,
             work_txs: Some(work_txs),
             #[cfg(test)]
             done_txs: Some(done_txs),
@@ -163,6 +226,8 @@ impl SourceWorkerRuntime {
             coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: Some(lifecycle.worker_pause_controls_for_test()),
+            #[cfg(any(test, feature = "test-support"))]
+            worker_pause_entries: Some(lifecycle.worker_pause_entry_controls_for_test()),
             runtime_close: Some(Arc::clone(&lifecycle.runtime_close)),
             health: Arc::clone(&lifecycle.health),
             runtime_generation: lifecycle.runtime_generation(),
@@ -172,6 +237,21 @@ impl SourceWorkerRuntime {
             in_flight_mask: 0,
             completed_mask: 0,
             sample_rate,
+            lookahead_frames,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_output_spares: (mode == SourceWorkerMode::RoutingTreePersistent)
+                .then(|| std::array::from_fn(|_| RoutingTreeOutputBlock::new())),
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_output_stamp: None,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_output_ready: false,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_reprime_pending: false,
+            #[cfg(all(
+                feature = "routing-tree-benchmark",
+                any(test, feature = "test-support")
+            ))]
+            routing_tree_probe: None,
             load: Some(SourceWorkerLoad::new(active_frames, sample_rate)),
             source_load_observations: std::array::from_fn(|_| None),
             bus_load_observations: std::array::from_fn(|_| None),
@@ -189,6 +269,10 @@ impl SourceWorkerRuntime {
 
     pub fn mode(&self) -> SourceWorkerMode {
         self.mode
+    }
+
+    pub fn lookahead_frames(&self) -> usize {
+        self.lookahead_frames
     }
 
     pub fn retire(mut self) -> SourceWorkerRetirement {
@@ -237,79 +321,6 @@ impl SourceWorkerRuntime {
             fault_tx: self.fault_txs.as_ref()?[parity].clone(),
             health: Arc::clone(&self.health),
         })
-    }
-
-    pub fn with_controls_ready<R>(
-        &mut self,
-        engine: &mut SynthEngine,
-        apply: impl FnOnce(&mut SynthEngine) -> R,
-    ) -> Option<R> {
-        if self.mode == SourceWorkerMode::Inline {
-            return Some(apply(engine));
-        }
-        self.reclaim_available(engine);
-        if self.health.status() != SourceWorkerHealth::Healthy
-            || self.in_flight_mask != 0
-            || self.completed_mask != 0
-            || !self.home_is_ready()
-        {
-            return None;
-        }
-        let mut first = self.lease_home(0)?;
-        let Some(mut second) = self.lease_home(1) else {
-            first.return_fault();
-            self.latch_completion_failure(0b11);
-            return None;
-        };
-        let load = self.load_snapshot();
-        match source_worker_transfer::with_both_source_partitions(
-            engine,
-            &mut first,
-            &mut second,
-            |engine, _| engine.with_source_worker_load(load, apply),
-        ) {
-            Ok(result) => {
-                first.return_home();
-                second.return_home();
-                Some(result)
-            }
-            Err(()) => {
-                self.latch_completion_failure(0b11);
-                None
-            }
-        }
-    }
-
-    pub fn with_recovered_owners<R>(
-        &mut self,
-        engine: &mut SynthEngine,
-        inspect: impl FnOnce(&SynthEngine) -> R,
-    ) -> Option<R> {
-        if self.mode == SourceWorkerMode::Inline {
-            return Some(inspect(engine));
-        }
-        self.reclaim_available(engine);
-        if !self.home_is_ready() {
-            return None;
-        }
-        let mut first = self.lease_home(0)?;
-        let Some(mut second) = self.lease_home(1) else {
-            first.return_fault();
-            return None;
-        };
-        match source_worker_transfer::with_both_source_partitions_read_only(
-            engine,
-            &mut first,
-            &mut second,
-            inspect,
-        ) {
-            Ok(result) => {
-                first.return_home();
-                second.return_home();
-                Some(result)
-            }
-            Err(()) => None,
-        }
     }
 
     pub(super) fn render_source_block(&mut self, engine: &mut SynthEngine, frames: usize) -> bool {
@@ -406,31 +417,6 @@ impl SourceWorkerRuntime {
     }
 }
 
-impl SynthEngine {
-    pub(super) fn with_source_worker_load<R>(
-        &mut self,
-        load: Option<SourceWorkerLoadSnapshot>,
-        apply: impl FnOnce(&mut SynthEngine) -> R,
-    ) -> R {
-        let previous = self.source_worker_load;
-        self.source_worker_load = load;
-        let result = catch_unwind(AssertUnwindSafe(|| apply(self)));
-        self.source_worker_load = previous;
-        match result {
-            Ok(result) => result,
-            Err(payload) => resume_unwind(payload),
-        }
-    }
-}
-
-impl Drop for SourceWorkerRuntime {
-    fn drop(&mut self) {
-        if let Some(close) = self.runtime_close.as_ref() {
-            close.closed.store(true, Ordering::Release);
-        }
-    }
-}
-
 #[path = "source_worker_mailboxes.rs"]
 mod mailboxes;
 
@@ -442,6 +428,21 @@ mod dispatch;
 
 #[path = "source_worker_completion.rs"]
 mod completion;
+
+#[path = "source_worker_controls.rs"]
+mod controls;
+
+#[cfg(all(
+    feature = "routing-tree-benchmark",
+    any(test, feature = "test-support")
+))]
+#[path = "source_worker_pipeline_probe.rs"]
+mod pipeline_probe;
+#[cfg(all(
+    feature = "routing-tree-benchmark",
+    any(test, feature = "test-support")
+))]
+pub use pipeline_probe::RoutingTreePipelineProbe;
 
 #[path = "source_worker_recovery.rs"]
 mod recovery;
@@ -458,6 +459,10 @@ mod reduction;
 pub(super) mod test_support;
 
 #[cfg(test)]
+#[path = "source_worker_sample_test_support.rs"]
+mod sample_test_support;
+
+#[cfg(test)]
 #[path = "source_worker_recovery_test_support.rs"]
 mod recovery_test_support;
 
@@ -472,3 +477,10 @@ mod residency_test_support;
 #[cfg(any(test, feature = "test-support"))]
 #[path = "source_worker_feature_support.rs"]
 mod feature_support;
+
+#[cfg(feature = "routing-tree-benchmark")]
+#[path = "routing_tree_pipeline.rs"]
+mod routing_tree_pipeline;
+
+#[path = "source_worker_runtime_helpers.rs"]
+mod runtime_helpers;

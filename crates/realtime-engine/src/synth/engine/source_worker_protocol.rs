@@ -1,5 +1,7 @@
 pub const SOURCE_WORKER_MODE_INLINE: u8 = 0;
 pub const SOURCE_WORKER_MODE_PERSISTENT: u8 = 2;
+#[cfg(feature = "routing-tree-benchmark")]
+pub const SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceWorkerRenderDisposition {
@@ -14,6 +16,8 @@ pub enum SourceWorkerRenderDisposition {
 pub enum WorkerPhase {
     Sources,
     Buses,
+    #[cfg(feature = "routing-tree-benchmark")]
+    RoutingTree,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,6 +38,8 @@ pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
 pub enum SourceWorkerMode {
     Inline = SOURCE_WORKER_MODE_INLINE,
     Persistent = SOURCE_WORKER_MODE_PERSISTENT,
+    #[cfg(feature = "routing-tree-benchmark")]
+    RoutingTreePersistent = SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,4 +81,6 @@ pub enum SourceWorkerSetupError {
         requested: usize,
         max: usize,
     },
+    #[cfg(feature = "routing-tree-benchmark")]
+    RoutingTreeAdmissionUnavailable,
 }

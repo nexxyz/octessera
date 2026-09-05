@@ -4,6 +4,8 @@ use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerRetirement, SourceW
 pub(super) enum EngineSourceMode {
     Inline,
     Persistent,
+    #[cfg(feature = "routing-tree-benchmark")]
+    RoutingTreePersistent,
 }
 
 pub(super) struct PersistentSourceWorker {
@@ -30,12 +32,42 @@ impl EngineSourceWorkerState {
         }
     }
 
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) fn routing_tree_persistent(runtime: SourceWorkerRuntime) -> Self {
+        Self {
+            mode: EngineSourceMode::RoutingTreePersistent,
+            worker: Some(PersistentSourceWorker::new(runtime)),
+        }
+    }
+
     pub(super) fn health(&self) -> SourceWorkerHealth {
         match (&self.mode, &self.worker) {
             (EngineSourceMode::Inline, _) => SourceWorkerHealth::Disabled,
             (EngineSourceMode::Persistent, Some(worker)) => worker.runtime.health_snapshot().status,
+            #[cfg(feature = "routing-tree-benchmark")]
+            (EngineSourceMode::RoutingTreePersistent, Some(worker)) => {
+                worker.runtime.health_snapshot().status
+            }
             (EngineSourceMode::Persistent, None) => SourceWorkerHealth::CompletionFailed,
+            #[cfg(feature = "routing-tree-benchmark")]
+            (EngineSourceMode::RoutingTreePersistent, None) => SourceWorkerHealth::CompletionFailed,
         }
+    }
+
+    pub(super) fn is_persistent(&self) -> bool {
+        match self.mode {
+            EngineSourceMode::Persistent => true,
+            #[cfg(feature = "routing-tree-benchmark")]
+            EngineSourceMode::RoutingTreePersistent => true,
+            EngineSourceMode::Inline => false,
+        }
+    }
+
+    pub(super) fn lookahead_frames(&self) -> usize {
+        self.worker
+            .as_ref()
+            .map(|worker| worker.runtime.lookahead_frames())
+            .unwrap_or(0)
     }
 
     pub(super) fn retire(&mut self) -> Option<SourceWorkerRetirement> {

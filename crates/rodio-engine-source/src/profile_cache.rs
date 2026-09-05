@@ -1,4 +1,6 @@
 use super::EngineSource;
+#[cfg(feature = "routing-tree-benchmark")]
+use super::EngineSourceMode;
 
 impl EngineSource {
     pub(super) fn refresh_persistent_profile_cache(&mut self) {
@@ -11,6 +13,10 @@ impl EngineSource {
         let Some(worker) = worker_state.worker.as_mut() else {
             return;
         };
+        #[cfg(feature = "routing-tree-benchmark")]
+        if matches!(worker_state.mode, EngineSourceMode::RoutingTreePersistent) {
+            return;
+        }
         if let Some(snapshot) = worker
             .runtime
             .with_recovered_owners(engine, |engine| engine.profile_snapshot())

@@ -29,6 +29,11 @@ impl SynthEngine {
         params: BTreeMap<String, Value>,
         target: MomentaryFxTarget,
     ) {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() && target != MomentaryFxTarget::Global {
+            self.reject_routing_tree_mutation_for_control();
+            return;
+        }
         let Some(kind) = parse_momentary_fx_kind(&fx_type) else {
             return;
         };
@@ -58,6 +63,11 @@ impl SynthEngine {
 
     pub fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() && !self.routing_tree_momentary_stop_allowed(id) {
+            self.reject_routing_tree_mutation_for_control();
+            return retired;
+        }
         let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) else {
             return retired;
         };
@@ -84,6 +94,12 @@ impl SynthEngine {
     }
 
     pub fn momentary_fx_update(&mut self, id: &str, params: &BTreeMap<String, Value>) {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() && !self.routing_tree_momentary_update_allowed(id)
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return;
+        }
         if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
             fx.runtime_params =
                 MomentaryFxRuntimeParams::from_params(fx.kind, params, self.sample_rate);
@@ -135,6 +151,8 @@ impl SynthEngine {
                 .as_ref()
                 .is_some_and(|mixer| mixer.buses.len() > limit)
         }) {
+            #[cfg(feature = "routing-tree-benchmark")]
+            self.reject_routing_tree_mutation_for_control();
             return;
         }
         let mut next_render_plan = RenderPlan::from_config(&cfg);
@@ -160,6 +178,13 @@ impl SynthEngine {
                 occupied: false,
                 route: current.route,
             };
+        }
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && !self.routing_tree_render_plan_allowed(&next_render_plan)
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return;
         }
         self.pan_positions = cfg.pan_positions.max(1);
         self.master_volume = (cfg.master_volume / 100.0).clamp(0.0, 1.0);
@@ -213,9 +238,22 @@ impl SynthEngine {
 
     pub fn set_instrument_slot(&mut self, index: usize, slot: InstrumentSlotConfig) {
         if index >= INSTRUMENT_SLOT_COUNT {
+            #[cfg(feature = "routing-tree-benchmark")]
+            if self.routing_tree_assignment.is_some() {
+                self.reject_routing_tree_mutation_for_control();
+            }
             return;
         }
         let render_plan = prepared_instrument_topology(&slot);
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() {
+            let mut next_render_plan = self.render_plan.clone();
+            next_render_plan.install_instrument_slot(index, render_plan);
+            if !self.routing_tree_render_plan_allowed(&next_render_plan) {
+                self.reject_routing_tree_mutation_for_control();
+                return;
+            }
+        }
         self.apply_instrument_slot_config(index, slot);
         self.refresh_slot_pan_gains();
         self.render_plan.install_instrument_slot(index, render_plan);

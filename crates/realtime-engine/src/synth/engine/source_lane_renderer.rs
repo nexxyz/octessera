@@ -75,6 +75,7 @@ impl SourceLaneBlockScratch {
     }
 }
 
+#[derive(Clone, Copy)]
 pub(super) struct SynthSourceContext {
     pub(super) sample_rate: u32,
     pub(super) configs: [SynthConfig; INSTRUMENT_SLOT_COUNT],

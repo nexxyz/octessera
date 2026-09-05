@@ -360,13 +360,13 @@ fn accepted_fx_kinds_have_structural_plan_mappings() {
     }
 }
 
-fn prepared_engine(config: InstrumentsConfig) -> SynthEngine {
+pub(super) fn prepared_engine(config: InstrumentsConfig) -> SynthEngine {
     let mut engine = SynthEngine::new(44_100);
     drop(install_prepared_config(&mut engine, config));
     engine
 }
 
-fn install_prepared_config(
+pub(super) fn install_prepared_config(
     engine: &mut SynthEngine,
     config: InstrumentsConfig,
 ) -> RetiredAudioState {
@@ -409,7 +409,7 @@ fn capacities(engine: &SynthEngine) -> (usize, usize, usize, usize, usize, usize
     )
 }
 
-fn test_config() -> InstrumentsConfig {
+pub(super) fn test_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             kind: "synth".into(),
