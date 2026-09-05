@@ -462,6 +462,10 @@ mod block_configuration_tests;
 mod routing_tree_tests;
 
 #[cfg(feature = "routing-tree-benchmark")]
+#[path = "routing_tree_status_tests.rs"]
+mod routing_tree_status_tests;
+
+#[cfg(feature = "routing-tree-benchmark")]
 #[path = "routing_tree_parity_tests.rs"]
 mod routing_tree_parity_tests;
 
