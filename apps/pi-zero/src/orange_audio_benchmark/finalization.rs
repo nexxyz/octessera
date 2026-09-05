@@ -314,7 +314,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         joined_workers: state.joined_workers,
         retirement_error: state.retirement_error.clone(),
         worker_timing: state.worker_timing.as_ref().map(|probe| {
-            probe.freeze_unexecuted();
+            probe.freeze_latest_completed();
             BenchmarkWorkerTiming::from(probe.snapshot())
         }),
     };

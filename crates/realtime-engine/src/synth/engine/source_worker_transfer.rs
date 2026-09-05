@@ -443,11 +443,25 @@ impl SynthEngine {
                 &mut right[..frames],
                 apply_controls,
             );
+            #[cfg(all(
+                feature = "routing-tree-benchmark",
+                feature = "source-worker-benchmark-timing"
+            ))]
+            let routing_coordinator_remainder_started_at =
+                runtime.take_routing_coordinator_remainder_started_at();
             if disposition != SourceWorkerRenderDisposition::Fresh {
                 left.fill(0.0);
                 right.fill(0.0);
             }
             crate::simd::interleave_stereo(left, right, out);
+            #[cfg(all(
+                feature = "routing-tree-benchmark",
+                feature = "source-worker-benchmark-timing"
+            ))]
+            if disposition == SourceWorkerRenderDisposition::Fresh {
+                runtime
+                    .record_routing_coordinator_remainder(routing_coordinator_remainder_started_at);
+            }
             return disposition;
         }
         let health = runtime.health_snapshot().status;

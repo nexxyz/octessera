@@ -1,3 +1,4 @@
+use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::routing_tree_executor_test_support::{
     assert_momentary_state_matches, assert_reassociated_close,
 };
@@ -203,7 +204,9 @@ fn routing_tree_pipeline_has_no_callback_allocations_after_prewarm() {
 fn routing_tree_pipeline_recovers_after_a_deadline_miss() {
     let (mut engine, lifecycle, mut runtime) = start_runtime();
     let probe = Arc::new(RoutingTreePipelineProbe::default());
+    let timing_probe = Arc::new(SourceWorkerTimingProbe::new(None));
     runtime.set_routing_tree_probe_for_test(Arc::clone(&probe));
+    runtime.attach_timing_probe(Arc::clone(&timing_probe));
     runtime.set_pause_for_parity_for_test(0, true);
     runtime.set_deadline_for_test(Duration::ZERO);
     assert_eq!(
@@ -219,6 +222,11 @@ fn routing_tree_pipeline_recovers_after_a_deadline_miss() {
         runtime.health_snapshot().status,
         SourceWorkerHealth::DeadlineMiss
     );
+    let failed_sequence = timing_probe
+        .snapshot()
+        .coordinator
+        .sequence
+        .expect("failed routing timing sequence");
 
     runtime.set_pause_for_parity_for_test(0, false);
     runtime.set_deadline_for_test(Duration::from_secs(1));
@@ -235,6 +243,30 @@ fn routing_tree_pipeline_recovers_after_a_deadline_miss() {
     assert_eq!(
         runtime.health_snapshot().status,
         SourceWorkerHealth::Healthy
+    );
+    assert_ne!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::DispatchFailed
+    );
+    let recovered_timing = timing_probe.snapshot();
+    assert_eq!(recovered_timing.coordinator.sequence, Some(failed_sequence));
+    assert!(recovered_timing.coordinator.failed);
+    assert_eq!(recovered_timing.coordinator.completed_mask, Some(0b11));
+    assert!(recovered_timing
+        .workers
+        .iter()
+        .all(|worker| worker.finished));
+    assert_eq!(
+        render_block(&mut engine, &mut runtime),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    assert_eq!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::Healthy
+    );
+    assert_eq!(
+        timing_probe.snapshot().coordinator.sequence,
+        Some(failed_sequence)
     );
     shutdown(lifecycle, runtime);
 }

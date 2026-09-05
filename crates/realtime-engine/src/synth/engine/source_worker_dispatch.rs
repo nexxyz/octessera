@@ -43,7 +43,7 @@ impl SourceWorkerRuntime {
         let dispatch_started_at = self.timing_probe.as_ref().map(|_| operation_started_at);
         #[cfg(feature = "source-worker-benchmark-timing")]
         if let Some(probe) = self.timing_probe.as_ref() {
-            probe.begin_sequence(sequence, deadline.duration_since(operation_started_at));
+            let _ = probe.begin_sequence(sequence, deadline.duration_since(operation_started_at));
         }
         let Some(mut first) = self.lease_home(0) else {
             self.latch_dispatch_failure(0b11);
