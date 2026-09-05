@@ -59,6 +59,8 @@ function New-DiagnosticFixture {
 }
 $u16Selection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_24" -OutputFrames 128 -EngineBlockFrames 64 -MeasureSeconds 30 -ExecutorMode "inline" -WorkerTimingMode "disabled"
 if ($u16Selection.CapacityKind -cne "analogue" -or $u16Selection.OutputFrames -ne 128 -or $u16Selection.AlsaPeriodFrames -ne 32 -or $u16Selection.EngineBlockFrames -ne 64 -or $u16Selection.InternalFrames -ne 64 -or $u16Selection.LookaheadFrames -ne 0 -or $u16Selection.EffectiveOutputLatencyFrames -ne 128 -or $u16Selection.RequiredPoolStage -ne 128 -or $u16Selection.RequiredPoolCapacity -ne 72) { throw "Analogue U16 capacity selection did not retain its exact geometry or pool stage." }
+$u16Engine32Selection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_24" -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 30 -ExecutorMode "inline" -WorkerTimingMode "disabled"
+if ($u16Engine32Selection.OutputFrames -ne 128 -or $u16Engine32Selection.AlsaPeriodFrames -ne 32 -or $u16Engine32Selection.EngineBlockFrames -ne 32 -or $u16Engine32Selection.InternalFrames -ne 32 -or $u16Engine32Selection.LookaheadFrames -ne 0 -or $u16Engine32Selection.EffectiveOutputLatencyFrames -ne 128 -or $u16Engine32Selection.RequiredPoolStage -ne 128 -or $u16Engine32Selection.RequiredPoolCapacity -ne 72) { throw "Analogue U16 engine=32 capacity selection did not retain its exact geometry or pool stage." }
 foreach ($parameters in @(
     @{ Scenario = "capacity_synth_16"; ExecutorMode = "inline"; WorkerTimingMode = "disabled" },
     @{ Scenario = "capacity_sample_16"; ExecutorMode = "inline"; WorkerTimingMode = "disabled" },
@@ -68,8 +70,10 @@ foreach ($parameters in @(
     @{ Scenario = "capacity_analogue_24"; ExecutorMode = "routing_tree_persistent"; WorkerTimingMode = "enabled" },
     @{ Scenario = "capacity_analogue_24"; ExecutorMode = "inline"; WorkerTimingMode = "enabled" }
   )) {
-  $invalidParameters = @{ Scenario = $parameters.Scenario; OutputFrames = 128; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = $parameters.ExecutorMode; WorkerTimingMode = $parameters.WorkerTimingMode }
-  Assert-Throws { Assert-OrangeLiveBenchmarkSelection @invalidParameters }
+  foreach ($engineFrames in @(32, 64)) {
+    $invalidParameters = @{ Scenario = $parameters.Scenario; OutputFrames = 128; EngineBlockFrames = $engineFrames; MeasureSeconds = 30; ExecutorMode = $parameters.ExecutorMode; WorkerTimingMode = $parameters.WorkerTimingMode }
+    Assert-Throws { Assert-OrangeLiveBenchmarkSelection @invalidParameters }
+  }
 }
 $u16Output256 = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_24" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 -ExecutorMode "inline" -WorkerTimingMode "disabled"
 if ($u16Output256.AlsaPeriodFrames -ne 64 -or $u16Output256.EffectiveOutputLatencyFrames -ne 256) { throw "Existing analogue output=256 capacity geometry changed." }
@@ -151,6 +155,10 @@ try {
   Assert-Contains $u16Payload "--worker-timing disabled"
   Assert-Contains $u16Payload "--executor inline"
   Assert-Contains $u16Payload "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=72 requested-sample=24 required-capacity=72 required-pool-stage=128"
+  $u16Engine32Payload = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_24"; OutputFrames = 128; EngineBlockFrames = 32; MeasureSeconds = 30; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  Assert-Contains $u16Engine32Payload "Live selection: diagnostic output=128 period=32 engine=32 internal=32 scenario=capacity_analogue_24 measure=30 warmup=5 worker-timing=disabled executor=inline lookahead=0 effective-latency=128"
+  Assert-Contains $u16Engine32Payload "--output-frames 128 --engine-block-frames 32"
+  Assert-Contains $u16Engine32Payload "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=72 requested-sample=24 required-capacity=72 required-pool-stage=128"
   foreach ($invalid in @(
       @{ Scenario = "capacity_analogue_24"; ExecutorMode = "persistent_two_workers"; WorkerTimingMode = "disabled" },
       @{ Scenario = "capacity_analogue_24"; ExecutorMode = "routing_tree_persistent"; WorkerTimingMode = "enabled" },
@@ -238,10 +246,15 @@ $zeroU16Counters = [pscustomobject]@{ rendered_quantums = 0; repeated_quantums =
 $u16Result = New-AnalogueResult $u16Selection
 $u16Result.schema_version = 12; $u16Result.requested_output_buffer_frames = 128; $u16Result.expected_alsa_buffer_frames = 128; $u16Result.expected_alsa_period_frames = 32; $u16Result.internal_block_frames = 64; $u16Result.sample_format = "U16"; $u16Result.executor_mode = "inline"; $u16Result | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0; $u16Result | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 128; $u16Result.worker_health = "disabled"; $u16Result.worker_thread_name_0 = ""; $u16Result.worker_thread_name_1 = ""; $u16Result.joined_workers = 0; $u16Result.worker_timing_mode = "disabled"; $u16Result.worker_timing = $null; $u16Result.persistent_output_counters = [pscustomobject]@{ observable = $false; warmup = $zeroU16Counters; start = $zeroU16Counters; end = $zeroU16Counters; delta = $zeroU16Counters }; $u16Result.detected_continuity_events = 0
 Assert-OrangeLiveResult -Result $u16Result -Selection $u16Selection
+$u16Engine32Result = ConvertFrom-Json -InputObject ($u16Result | ConvertTo-Json -Depth 8); $u16Engine32Result.internal_block_frames = 32
+Assert-OrangeLiveResult -Result $u16Engine32Result -Selection $u16Engine32Selection
 $u16Readiness = [pscustomobject]@{ schema_version = 5; kind = "orange_audio_benchmark_readiness"; status = "ready"; board_profile = "orange-pi-zero-2w"; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $u16Selection.Scenario; requested_output_buffer_frames = 128; expected_alsa_buffer_frames = 128; expected_alsa_period_frames = 32; internal_block_frames = 64; lookahead_frames = 0; callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 3; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0; sample_rate = 44100; channels = 2; sample_format = "U16"; scheduler_qualified = $true; post_dsp_zero = $true; executor_mode = "inline"; worker_health = "disabled"; worker_thread_name_0 = ""; worker_thread_name_1 = "" }
 Assert-OrangeLiveReadiness -Readiness $u16Readiness -Selection $u16Selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
+$u16Engine32Readiness = ConvertFrom-Json -InputObject ($u16Readiness | ConvertTo-Json -Depth 8); $u16Engine32Readiness.internal_block_frames = 32
+Assert-OrangeLiveReadiness -Readiness $u16Engine32Readiness -Selection $u16Engine32Selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
 $u16Release = [pscustomobject]@{ schema_version = 2; kind = "orange_audio_benchmark_release"; status = "released"; board_profile = "orange-pi-zero-2w"; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $u16Selection.Scenario; expected_alsa_buffer_frames = 128; observed_alsa_buffer_frames = 128; expected_alsa_period_frames = 32; observed_alsa_period_frames = 32 }
 Assert-OrangeLiveRelease -Release $u16Release -Selection $u16Selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
+Assert-OrangeLiveRelease -Release $u16Release -Selection $u16Engine32Selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
 foreach ($profileName in @("profile_start", "profile_end")) {
   foreach ($field in @("active_synth_voices", "active_sample_voices", "active_preview_sample_voices", "active_momentary_fx", "active_bus_fx_slots", "active_global_fx_slots", "cumulative_voice_steals", "cumulative_voice_admission_drops")) {
     $invalid = New-AnalogueResult $analogueSelection
