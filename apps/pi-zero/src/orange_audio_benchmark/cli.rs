@@ -179,6 +179,7 @@ pub struct BenchmarkConfig {
     pub release_gate_path: PathBuf,
     pub release_timeout_seconds: u64,
     pub artifact_sha256: String,
+    pub continue_on_recovered_miss: bool,
 }
 
 pub fn requested() -> bool {
@@ -204,6 +205,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     let mut release_gate_path = None;
     let mut release_timeout_seconds = DEFAULT_RELEASE_TIMEOUT_SECONDS;
     let mut artifact_sha256 = None;
+    let mut continue_on_recovered_miss = false;
     let mut iter = args.into_iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -244,6 +246,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
             "--artifact-sha256" => {
                 artifact_sha256 = Some(next_value(&mut iter, "artifact SHA-256")?)
             }
+            "--continue-on-recovered-miss" => continue_on_recovered_miss = true,
             value => return Err(format!("unknown Orange benchmark argument: {value}")),
         }
     }
@@ -314,7 +317,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     {
         return Err("artifact SHA-256 must be 64 hexadecimal characters".into());
     }
-    Ok(BenchmarkConfig {
+    let config = BenchmarkConfig {
         scenario,
         output_frames,
         expected_alsa_period_frames,
@@ -329,7 +332,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
         release_gate_path,
         release_timeout_seconds,
         artifact_sha256,
-    })
+        continue_on_recovered_miss,
+    };
+    validate_continue_on_recovered_miss(&config)?;
+    Ok(config)
 }
 
 pub(crate) fn preflight(config: &BenchmarkConfig) -> Result<(), String> {
@@ -347,7 +353,25 @@ pub(crate) fn preflight(config: &BenchmarkConfig) -> Result<(), String> {
         config.executor_mode,
         config.output_frames,
         config.internal_frames,
-    )
+    )?;
+    validate_continue_on_recovered_miss(config)
+}
+
+fn validate_continue_on_recovered_miss(config: &BenchmarkConfig) -> Result<(), String> {
+    if !config.continue_on_recovered_miss {
+        return Ok(());
+    }
+    if config.measure_seconds == 120
+        && config.scenario == "capacity_analogue_32"
+        && config.executor_mode == BenchmarkExecutorMode::RoutingTreePersistent
+        && config.worker_timing_mode == WorkerTimingMode::Enabled
+        && config.output_frames == 256
+        && config.expected_alsa_period_frames == 64
+        && config.internal_frames == 64
+    {
+        return Ok(());
+    }
+    Err("--continue-on-recovered-miss requires the capacity_analogue_32 routing_tree_persistent 120-second 256/64 observation cell with worker timing enabled".into())
 }
 
 pub(crate) fn expected_lookahead_frames(

@@ -373,6 +373,37 @@ Assert-Throws {
   Invoke-StudyPrintOnly -Parameters $invalidRoutingGeometry | Out-Null
 }
 
+$recoveredMissRoutingParameters = @{
+  Mode = "LiveAudioBenchmark"
+  Scenario = "capacity_analogue_32"
+  OutputFrames = 256
+  EngineBlockFrames = 64
+  MeasureSeconds = 120
+  ExecutorMode = "routing_tree_persistent"
+  WorkerTimingMode = "enabled"
+  Artifact = $missingArtifact
+  AllowServiceInterruption = $true
+  ContinueOnRecoveredMiss = $true
+  PrintOnly = $true
+}
+$recoveredMissRouting = Invoke-StudyPrintOnly -Parameters $recoveredMissRoutingParameters
+Assert-NoPayloadPlaceholders $recoveredMissRouting
+Assert-Contains $recoveredMissRouting "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_32 measure=120"
+Assert-Contains $recoveredMissRouting "--continue-on-recovered-miss"
+Assert-Contains $recoveredMissRouting '--artifact-sha256 "$expected_sha" --continue-on-recovered-miss || launch_status=$?'
+Assert-Contains $recoveredMissRouting 'validate_benchmark_worker_evidence "$progress" false true'
+Assert-Contains $recoveredMissRouting 'validate_benchmark_worker_evidence "$marker"'
+Assert-Contains $recoveredMissRouting 'validate_benchmark_worker_evidence "$result" true'
+Assert-Contains $recoveredMissRouting '[ "$worker_health" = healthy ] || [ "$worker_health" = deadline_miss ]'
+$recoveredMissRoutingWithoutSwitchParameters = $recoveredMissRoutingParameters.Clone()
+$recoveredMissRoutingWithoutSwitchParameters.Remove("ContinueOnRecoveredMiss")
+$recoveredMissRoutingWithoutSwitch = Invoke-StudyPrintOnly -Parameters $recoveredMissRoutingWithoutSwitchParameters
+Assert-NotContains $recoveredMissRoutingWithoutSwitch "--continue-on-recovered-miss"
+Assert-Contains $recoveredMissRoutingWithoutSwitch 'validate_benchmark_worker_evidence "$progress" false false'
+$invalidRecoveredMissParameters = $recoveredMissRoutingParameters.Clone()
+$invalidRecoveredMissParameters.Scenario = "capacity_analogue_31"
+Assert-Throws { Invoke-StudyPrintOnly -Parameters $invalidRecoveredMissParameters | Out-Null }
+
 foreach ($seconds in @(299, 3000)) {
   $rejectedParameters = $live300Parameters.Clone()
   $rejectedParameters.MeasureSeconds = $seconds
