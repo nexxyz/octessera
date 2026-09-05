@@ -26,6 +26,7 @@ pub(super) mod worker;
 #[cfg(test)]
 use worker::ReverseCompletionState;
 use worker::SourceWorkerSlot;
+pub use worker::ROUTING_TREE_WORKER_THREAD_NAMES;
 pub use worker::SOURCE_WORKER_THREAD_NAMES;
 
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;
@@ -351,8 +352,10 @@ impl SourceWorkerLifecycle {
             },
             scratch: SourceWorkerScratch::new(),
             bus_carriers: std::array::from_fn(|_| None),
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree: None,
         };
-        let work = WorkerCommand::RenderSources {
+        let work = WorkerCommand::Sources {
             owner,
             stamp: super::source_worker_protocol::WorkStamp {
                 runtime_generation: self.runtime_generation(),
@@ -393,8 +396,24 @@ impl SourceWorkerLifecycle {
             .parity_one_done
             .store(false, Ordering::Release);
         self.reverse_completion
+            .completion_order
+            .lock()
+            .expect("reverse completion observation lock")
+            .clear();
+        self.reverse_completion
             .enabled
             .store(enabled, Ordering::Release);
+    }
+
+    #[cfg(all(test, feature = "routing-tree-benchmark"))]
+    pub(crate) fn take_reverse_completion_order_for_test(&self) -> Vec<usize> {
+        std::mem::take(
+            &mut *self
+                .reverse_completion
+                .completion_order
+                .lock()
+                .expect("reverse completion observation lock"),
+        )
     }
 
     #[cfg(test)]
@@ -419,6 +438,15 @@ impl SourceWorkerLifecycle {
         self.workers
             .each_ref()
             .map(|worker| Arc::clone(&worker.pause))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(super) fn worker_pause_entry_controls_for_test(
+        &self,
+    ) -> [Arc<AtomicBool>; SOURCE_WORKER_COUNT] {
+        self.workers
+            .each_ref()
+            .map(|worker| Arc::clone(&worker.pause_entered))
     }
 
     #[cfg(test)]
@@ -454,5 +482,7 @@ pub(super) fn owner_for_test(parity: usize) -> OwnerEnvelope {
         },
         scratch: SourceWorkerScratch::new(),
         bus_carriers: std::array::from_fn(|_| None),
+        #[cfg(feature = "routing-tree-benchmark")]
+        routing_tree: None,
     }
 }

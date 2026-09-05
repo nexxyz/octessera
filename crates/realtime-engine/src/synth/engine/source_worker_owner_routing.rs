@@ -49,7 +49,7 @@ pub(super) fn route_completion(
     health: &SourceWorkerHealthState,
     fallback_parity: usize,
 ) -> Option<OwnerEnvelope> {
-    let home = completion.phase == WorkerPhase::Sources
+    let home = completion.phase != WorkerPhase::Buses
         && completion.render_ok
         && !completion.worker_exited
         && !completion.transport_failed;

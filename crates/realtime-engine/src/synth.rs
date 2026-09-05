@@ -20,8 +20,16 @@ pub use audio_config::{
     NormalizedInstrumentSlot, NormalizedSampleConfig,
 };
 pub use dsp_config::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
+#[cfg(all(
+    feature = "routing-tree-benchmark",
+    any(test, feature = "test-support")
+))]
+pub use engine::RoutingTreePipelineProbe;
 #[cfg(any(test, feature = "test-support"))]
 pub use engine::SourceWorkerHoldControl;
+pub use engine::ROUTING_TREE_WORKER_THREAD_NAMES;
+#[cfg(feature = "routing-tree-benchmark")]
+pub use engine::SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT;
 #[cfg(any(test, feature = "test-support"))]
 pub use engine::{
     install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,

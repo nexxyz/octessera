@@ -44,8 +44,9 @@ function Assert-OrangeWorkerTimingEvidence {
     throw "Live benchmark worker timing mode is missing or invalid."
   }
   $executorProperty = $Result.PSObject.Properties["executor_mode"]
-  if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers") -cnotcontains [string]$executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
+  if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers", "routing_tree_persistent") -cnotcontains [string]$executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
   if ($executorProperty.Value -ceq "inline" -and $modeProperty.Value -cne "disabled") { throw "Inline executor requires disabled worker timing." }
+  if ($executorProperty.Value -ceq "routing_tree_persistent" -and $modeProperty.Value -cne "enabled") { throw "Routing-tree persistent executor requires enabled worker timing." }
   $timingProperty = $Result.PSObject.Properties["worker_timing"]
   if ($modeProperty.Value -ceq "disabled") {
     if ($null -eq $timingProperty -or $null -ne $timingProperty.Value) { throw "Disabled worker timing mode must have null worker timing evidence." }

@@ -34,6 +34,25 @@ impl<'a> ControlDrain<'a> {
     }
 
     pub(super) fn drain(&mut self, engine: &mut SynthEngine) -> DrainedControlEvents {
+        self.drain_with_source_event_clock(engine, None)
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) fn drain_routing_tree(
+        &mut self,
+        engine: &mut SynthEngine,
+        source_event_sample_clock: u64,
+    ) -> DrainedControlEvents {
+        self.drain_with_source_event_clock(engine, Some(source_event_sample_clock))
+    }
+
+    fn drain_with_source_event_clock(
+        &mut self,
+        engine: &mut SynthEngine,
+        source_event_sample_clock: Option<u64>,
+    ) -> DrainedControlEvents {
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let _ = source_event_sample_clock;
         let mut drained = DrainedControlEvents::default();
         for _ in 0..MAX_CONTROL_EVENTS_PER_CALLBACK {
             self.retired_backlog
@@ -79,7 +98,11 @@ impl<'a> ControlDrain<'a> {
                 }
                 _ => match event {
                     EngineEvent::AllNotesOff => {
-                        let retired = engine.all_notes_off();
+                        let retired = Self::apply_source_event(
+                            engine,
+                            source_event_sample_clock,
+                            SynthEngine::all_notes_off,
+                        );
                         self.retire_state(retired);
                     }
                     EngineEvent::NoteOn {
@@ -87,11 +110,15 @@ impl<'a> ControlDrain<'a> {
                         note,
                         velocity,
                         duration_ms,
-                    } => engine.note_on(instrument_slot, note, velocity, duration_ms),
+                    } => Self::apply_source_event(engine, source_event_sample_clock, |engine| {
+                        engine.note_on(instrument_slot, note, velocity, duration_ms)
+                    }),
                     EngineEvent::NoteOff {
                         instrument_slot,
                         note,
-                    } => engine.note_off(instrument_slot, note),
+                    } => Self::apply_source_event(engine, source_event_sample_clock, |engine| {
+                        engine.note_off(instrument_slot, note)
+                    }),
                     EngineEvent::Cc {
                         instrument_slot,
                         controller,
@@ -182,6 +209,20 @@ impl<'a> ControlDrain<'a> {
             }
         }
         drained
+    }
+
+    fn apply_source_event<R>(
+        engine: &mut SynthEngine,
+        source_event_sample_clock: Option<u64>,
+        apply: impl FnOnce(&mut SynthEngine) -> R,
+    ) -> R {
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let _ = source_event_sample_clock;
+        #[cfg(feature = "routing-tree-benchmark")]
+        if let Some(sample_clock) = source_event_sample_clock {
+            return engine.with_routing_tree_source_event_sample_clock(sample_clock, apply);
+        }
+        apply(engine)
     }
 
     fn retire_state(&mut self, state: realtime_engine::synth::RetiredAudioState) {

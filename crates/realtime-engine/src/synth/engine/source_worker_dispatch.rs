@@ -140,7 +140,7 @@ impl SourceWorkerRuntime {
             self.latch_dispatch_failure(1 << lease.parity);
             return false;
         };
-        let work = WorkerCommand::RenderSources {
+        let work = WorkerCommand::Sources {
             owner,
             stamp,
             synth_context: engine.synth_source_context(),
@@ -154,7 +154,7 @@ impl SourceWorkerRuntime {
         };
         let parity = lease.parity;
         let Some(work_tx) = self.work_txs.as_ref().map(|work_txs| &work_txs[parity]) else {
-            let WorkerCommand::RenderSources { owner, .. } = work else {
+            let WorkerCommand::Sources { owner, .. } = work else {
                 unreachable!("source dispatch only creates source commands");
             };
             lease.restore_owner(owner);
@@ -168,8 +168,8 @@ impl SourceWorkerRuntime {
                 true
             }
             Err(
-                TrySendError::Full(WorkerCommand::RenderSources { owner, .. })
-                | TrySendError::Disconnected(WorkerCommand::RenderSources { owner, .. }),
+                TrySendError::Full(WorkerCommand::Sources { owner, .. })
+                | TrySendError::Disconnected(WorkerCommand::Sources { owner, .. }),
             ) => {
                 lease.restore_owner(owner);
                 lease.return_home();
@@ -177,12 +177,17 @@ impl SourceWorkerRuntime {
                 false
             }
             Err(
-                TrySendError::Full(WorkerCommand::RenderBuses { .. })
-                | TrySendError::Disconnected(WorkerCommand::RenderBuses { .. }),
+                TrySendError::Full(WorkerCommand::Buses { .. })
+                | TrySendError::Disconnected(WorkerCommand::Buses { .. }),
             ) => {
                 self.latch_dispatch_failure(1 << parity);
                 false
             }
+            #[cfg(feature = "routing-tree-benchmark")]
+            Err(
+                TrySendError::Full(WorkerCommand::RoutingTree { .. })
+                | TrySendError::Disconnected(WorkerCommand::RoutingTree { .. }),
+            ) => unreachable!("source dispatch only creates source commands"),
         }
     }
 
@@ -197,7 +202,7 @@ impl SourceWorkerRuntime {
             return false;
         };
         let parity = lease.parity;
-        let command = WorkerCommand::RenderBuses {
+        let command = WorkerCommand::Buses {
             owner,
             stamp,
             frames: stamp.frames,
@@ -210,7 +215,7 @@ impl SourceWorkerRuntime {
             timing_probe: self.timing_probe.clone(),
         };
         let Some(work_tx) = self.work_txs.as_ref().map(|work_txs| &work_txs[parity]) else {
-            let WorkerCommand::RenderBuses { owner, .. } = command else {
+            let WorkerCommand::Buses { owner, .. } = command else {
                 unreachable!("bus dispatch only creates bus commands");
             };
             lease.restore_owner(owner);
@@ -224,8 +229,8 @@ impl SourceWorkerRuntime {
                 true
             }
             Err(
-                TrySendError::Full(WorkerCommand::RenderBuses { owner, .. })
-                | TrySendError::Disconnected(WorkerCommand::RenderBuses { owner, .. }),
+                TrySendError::Full(WorkerCommand::Buses { owner, .. })
+                | TrySendError::Disconnected(WorkerCommand::Buses { owner, .. }),
             ) => {
                 lease.restore_owner(owner);
                 self.latch_dispatch_failure(1 << parity);
@@ -233,8 +238,13 @@ impl SourceWorkerRuntime {
                 false
             }
             Err(
-                TrySendError::Full(WorkerCommand::RenderSources { .. })
-                | TrySendError::Disconnected(WorkerCommand::RenderSources { .. }),
+                TrySendError::Full(WorkerCommand::Sources { .. })
+                | TrySendError::Disconnected(WorkerCommand::Sources { .. }),
+            ) => unreachable!("bus dispatch only creates bus commands"),
+            #[cfg(feature = "routing-tree-benchmark")]
+            Err(
+                TrySendError::Full(WorkerCommand::RoutingTree { .. })
+                | TrySendError::Disconnected(WorkerCommand::RoutingTree { .. }),
             ) => unreachable!("bus dispatch only creates bus commands"),
         }
     }

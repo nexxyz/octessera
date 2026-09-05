@@ -154,6 +154,117 @@ pub(super) struct RefillResult {
 }
 
 impl EngineSource {
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) fn refill_routing_tree_persistent(&mut self) -> RefillResult {
+        let Self {
+            engine,
+            worker_state,
+            control_rx,
+            retired_tx,
+            retired_backlog,
+            retirement_disconnected,
+            #[cfg(test)]
+            retired_drop_probe,
+            sample_rate,
+            block_frames,
+            cached_profile_snapshot,
+            buf,
+            left_buf,
+            right_buf,
+            persistent_output,
+            ..
+        } = self;
+        let Some(worker) = worker_state.worker.as_mut() else {
+            buf.resize(*block_frames * OUTPUT_CHANNELS, 0.0);
+            persistent_output.fatal_silence(buf);
+            return RefillResult {
+                drained: DrainedControlEvents::default(),
+                force_status: false,
+            };
+        };
+        let runtime = &mut worker.runtime;
+        let recovery = runtime.refresh_recovery_disposition(engine);
+        debug_assert!((MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(block_frames));
+        buf.resize(*block_frames * OUTPUT_CHANNELS, 0.0);
+        left_buf.resize(*block_frames, 0.0);
+        right_buf.resize(*block_frames, 0.0);
+        match recovery {
+            SourceWorkerRenderDisposition::Recovering => {
+                persistent_output.recovery_silence(buf);
+                return RefillResult {
+                    drained: DrainedControlEvents::default(),
+                    force_status: false,
+                };
+            }
+            SourceWorkerRenderDisposition::Fatal => {
+                let _ = engine.render_interleaved_block_with_source_runtime_ready(
+                    runtime,
+                    *block_frames,
+                    left_buf,
+                    right_buf,
+                    buf,
+                );
+                persistent_output.fatal_silence(buf);
+                return RefillResult {
+                    drained: DrainedControlEvents::default(),
+                    force_status: false,
+                };
+            }
+            SourceWorkerRenderDisposition::Fresh
+            | SourceWorkerRenderDisposition::RecoveredReady => {}
+            SourceWorkerRenderDisposition::NewlyMissed => unreachable!("recovery refresh miss"),
+        }
+        let recovered = recovery == SourceWorkerRenderDisposition::RecoveredReady;
+        if recovered {
+            persistent_output.deadline_recovery();
+        }
+        let mut controls = control_drain::ControlDrain::new(
+            control_rx,
+            retired_tx,
+            retired_backlog.as_mut().expect("retired backlog"),
+            retirement_disconnected,
+            #[cfg(test)]
+            retired_drop_probe.clone(),
+        );
+        let effective_sample_clock = if recovered {
+            engine.sample_clock()
+        } else {
+            engine.sample_clock().saturating_add(*block_frames as u64)
+        };
+        let mut drained = DrainedControlEvents::default();
+        let disposition = engine.render_interleaved_block_with_source_runtime_ready_with_controls(
+            runtime,
+            *block_frames,
+            left_buf,
+            right_buf,
+            buf,
+            |engine| {
+                drained = controls.drain_routing_tree(engine, effective_sample_clock);
+                if engine.take_routing_tree_rejection() {
+                    Err(())
+                } else {
+                    Ok(())
+                }
+            },
+        );
+        *cached_profile_snapshot = engine.profile_snapshot();
+        match disposition {
+            SourceWorkerRenderDisposition::Fresh => persistent_output.fresh(*block_frames, buf),
+            SourceWorkerRenderDisposition::NewlyMissed => {
+                persistent_output.deadline_miss(*sample_rate, *block_frames, buf)
+            }
+            SourceWorkerRenderDisposition::Recovering => persistent_output.recovery_silence(buf),
+            SourceWorkerRenderDisposition::RecoveredReady => {
+                unreachable!("recovery must precede rendering")
+            }
+            SourceWorkerRenderDisposition::Fatal => persistent_output.fatal_silence(buf),
+        };
+        RefillResult {
+            drained,
+            force_status: recovered || disposition == SourceWorkerRenderDisposition::NewlyMissed,
+        }
+    }
+
     pub(super) fn refill_persistent(&mut self) -> RefillResult {
         let Self {
             engine,

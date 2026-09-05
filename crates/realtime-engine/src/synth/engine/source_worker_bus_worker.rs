@@ -13,7 +13,7 @@ pub(super) fn process(
     done_tx: &Sender<CompletedEnvelope>,
     state: &SourceWorkerThreadState,
 ) -> Option<WorkerExit> {
-    let WorkerCommand::RenderBuses {
+    let WorkerCommand::Buses {
         mut owner,
         stamp,
         frames,
@@ -38,9 +38,13 @@ pub(super) fn process(
     #[cfg(not(any(test, feature = "test-support")))]
     let should_exit = false;
     #[cfg(any(test, feature = "test-support"))]
+    state.pause_entered.store(true, Ordering::Release);
+    #[cfg(any(test, feature = "test-support"))]
     while state.pause.load(Ordering::Acquire) {
         std::hint::spin_loop();
     }
+    #[cfg(any(test, feature = "test-support"))]
+    state.pause_entered.store(false, Ordering::Release);
     #[cfg(any(test, feature = "test-support"))]
     let should_panic_bus = state.panic_on_bus.swap(false, Ordering::AcqRel);
     #[cfg(not(any(test, feature = "test-support")))]

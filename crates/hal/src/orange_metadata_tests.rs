@@ -4,7 +4,10 @@ use super::{
     validate_metadata_for, validate_runtime_benchmark_diagnostic_metadata,
     validate_runtime_candidate_metadata, BuildMetadata, CANONICAL_BINARY_NAME, MAX_METADATA_BYTES,
     RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128, RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256,
-    RUNTIME_CANDIDATE_BINARY_NAME, SEESAW_BINARY_NAME,
+    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING,
+    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128,
+    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256, RUNTIME_CANDIDATE_BINARY_NAME,
+    SEESAW_BINARY_NAME,
 };
 use std::fs;
 use std::path::Path;
@@ -250,11 +253,14 @@ fn runtime_candidate_metadata_is_hash_bound_but_not_runtime_ready() {
 }
 
 #[test]
-fn runtime_benchmark_diagnostic_accepts_only_the_exact_capacity_features() {
+fn runtime_benchmark_diagnostic_accepts_only_exact_supported_features() {
     let hash = "e".repeat(64);
     for cargo_feature in [
         RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128,
         RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256,
+        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING,
+        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128,
+        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256,
     ] {
         let metadata = valid_runtime_benchmark_metadata(cargo_feature, &hash);
         assert!(
@@ -271,7 +277,7 @@ fn runtime_benchmark_diagnostic_print_rejects_an_unapproved_feature() {
     .unwrap_err();
     assert_eq!(
         error,
-        "runtime benchmark diagnostic metadata requires an exact 128 or 256 voice-pool cargo feature"
+        "runtime benchmark diagnostic metadata requires an exact routing or 128/256 voice-pool cargo feature"
     );
 }
 

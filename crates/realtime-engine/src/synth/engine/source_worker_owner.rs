@@ -2,6 +2,8 @@ use super::super::dsp_config::BusIdleThreshold;
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::synth_voice_pool::SynthVoicePartition;
+#[cfg(feature = "routing-tree-benchmark")]
+use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use super::sample_voice_pool::SampleVoicePartition;
 use super::source_lane_renderer::{
     render_sample_partition, render_synth_partition, SampleSourceContext, SourceLaneBlockScratch,
@@ -58,12 +60,13 @@ pub(super) struct OwnerEnvelope {
     pub(super) scratch: SourceWorkerScratch,
     pub(super) bus_carriers:
         [Option<super::bus_chain_owner::BusChainCarrier>; super::super::types::BUS_COUNT],
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) routing_tree: Option<RoutingTreeOwnerData>,
 }
 
-#[allow(dead_code)]
 #[allow(clippy::large_enum_variant)]
 pub(super) enum WorkerCommand {
-    RenderSources {
+    Sources {
         stamp: WorkStamp,
         owner: OwnerEnvelope,
         synth_context: SynthSourceContext,
@@ -74,13 +77,23 @@ pub(super) enum WorkerCommand {
         #[cfg(feature = "source-worker-benchmark-timing")]
         timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     },
-    RenderBuses {
+    Buses {
         stamp: WorkStamp,
         owner: OwnerEnvelope,
         frames: usize,
         sample_rate: u32,
         bus_idle_threshold: BusIdleThreshold,
         fx_activity_hold_frames: u32,
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        dispatch_started_at: Option<Instant>,
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+    },
+    #[cfg(feature = "routing-tree-benchmark")]
+    RoutingTree {
+        stamp: WorkStamp,
+        owner: OwnerEnvelope,
+        context: RoutingTreeWorkerContext,
         #[cfg(feature = "source-worker-benchmark-timing")]
         dispatch_started_at: Option<Instant>,
         #[cfg(feature = "source-worker-benchmark-timing")]
@@ -99,9 +112,20 @@ pub(super) struct SourceWork {
     pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
+#[cfg(feature = "routing-tree-benchmark")]
+pub(super) struct RoutingTreeWork {
+    pub(super) owner: OwnerEnvelope,
+    pub(super) stamp: WorkStamp,
+    pub(super) context: RoutingTreeWorkerContext,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    pub(super) dispatch_started_at: Option<Instant>,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+}
+
 impl WorkerCommand {
     pub(super) fn into_source_work(self) -> Option<SourceWork> {
-        let Self::RenderSources {
+        let Self::Sources {
             stamp,
             owner,
             synth_context,
@@ -119,6 +143,31 @@ impl WorkerCommand {
             stamp,
             synth_context,
             sample_context,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe,
+        })
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) fn into_routing_tree_work(self) -> Option<RoutingTreeWork> {
+        let Self::RoutingTree {
+            owner,
+            stamp,
+            context,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            dispatch_started_at,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_probe,
+        } = self
+        else {
+            return None;
+        };
+        Some(RoutingTreeWork {
+            owner,
+            stamp,
+            context,
             #[cfg(feature = "source-worker-benchmark-timing")]
             dispatch_started_at,
             #[cfg(feature = "source-worker-benchmark-timing")]
@@ -155,7 +204,26 @@ impl SourceWork {
             * super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize;
         let sample_units = self.owner.partitions.sample.render_lane_count
             * super::source_worker_load::SOURCE_WORKER_SAMPLE_COST_UNITS as usize;
-        (synth_units + sample_units) as u16
+        synth_units
+            .saturating_add(sample_units)
+            .min(usize::from(u16::MAX)) as u16
+    }
+}
+
+#[cfg(feature = "routing-tree-benchmark")]
+impl RoutingTreeWork {
+    pub(super) fn render(&mut self) -> Result<u16, ()> {
+        super::routing_tree_worker::render_owner(&mut self.owner, self.context, self.stamp)
+    }
+
+    pub(super) fn active_cost_units(&self) -> u16 {
+        let synth_units = self.owner.partitions.synth.render_lane_count
+            * super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize;
+        let sample_units = self.owner.partitions.sample.render_lane_count
+            * super::source_worker_load::SOURCE_WORKER_SAMPLE_COST_UNITS as usize;
+        synth_units
+            .saturating_add(sample_units)
+            .min(usize::from(u16::MAX)) as u16
     }
 }
 
@@ -209,6 +277,26 @@ impl CompletedEnvelope {
         Self {
             owner: work.owner,
             phase: WorkerPhase::Sources,
+            stamp: work.stamp,
+            render_ok,
+            worker_exited,
+            transport_failed: false,
+            dsp_duration_ns,
+            active_cost_units,
+        }
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) fn from_routing_tree_work(
+        work: RoutingTreeWork,
+        worker_exited: bool,
+        render_ok: bool,
+        dsp_duration_ns: u64,
+        active_cost_units: u16,
+    ) -> Self {
+        Self {
+            owner: work.owner,
+            phase: WorkerPhase::RoutingTree,
             stamp: work.stamp,
             render_ok,
             worker_exited,

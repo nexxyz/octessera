@@ -19,9 +19,8 @@ param(
   [int]$ProfileMeasureFrames = 0,
   [ValidateSet(30, 120, 180, 300)]
   [int]$MeasureSeconds = 30,
-  [ValidateSet("enabled", "disabled")]
-  [string]$WorkerTimingMode = "enabled",
-  [ValidateSet("inline", "persistent_two_workers")]
+  [string]$WorkerTimingMode = "",
+  [ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")]
   [string]$ExecutorMode = "persistent_two_workers",
   [ValidateRange(1, 120)]
   [int]$ReleaseTimeoutSeconds = 120,
@@ -35,9 +34,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
-if (@("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled." }
-if (@("inline", "persistent_two_workers") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline or persistent_two_workers." }
-if ($ExecutorMode -eq "inline" -and $WorkerTimingMode -ne "disabled") { throw "Inline executor requires disabled worker timing." }
+if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
 
 $target = "octessera@192.168.0.217"
 $service = "octessera.service"
@@ -79,7 +76,10 @@ if ($Mode -eq "LiveAudioBenchmark") {
     -OutputFrames $OutputFrames `
     -EngineBlockFrames $EngineBlockFrames `
     -MeasureSeconds $MeasureSeconds `
-    -AllowLongRepeat:$AllowLongRepeat
+    -AllowLongRepeat:$AllowLongRepeat `
+    -ExecutorMode $ExecutorMode `
+    -WorkerTimingMode $WorkerTimingMode
+  $WorkerTimingMode = $liveSelection.WorkerTimingMode
 }
 
 function Quote-PowerShellValue {
@@ -106,7 +106,8 @@ function Assert-StudyArtifact {
     [pscustomobject]$LiveSelection
   )
   $isCapacityDiagnostic = $null -ne $LiveSelection -and $null -ne $LiveSelection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$LiveSelection.IsCapacityDiagnostic
-  $buildSpec = if (-not $isCapacityDiagnostic) {
+  $isRoutingExecutor = $null -ne $LiveSelection -and $LiveSelection.ExecutorMode -ceq "routing_tree_persistent"
+  $buildSpec = if (-not $isCapacityDiagnostic -and -not $isRoutingExecutor) {
     [pscustomobject]@{
       Package = "octessera-pi"
       Feature = "hardware-orange-pi-zero-2w"
@@ -116,29 +117,41 @@ function Assert-StudyArtifact {
     $metadataRecord = Read-OrangeBuildMetadata $MetadataPath
     $artifactKind = $metadataRecord.PSObject.Properties["artifact_kind"]
     if ($null -eq $artifactKind -or [string]$artifactKind.Value -cne "diagnostic-only") {
-      throw "Dynamic capacity scenarios require a diagnostic-only Orange artifact; runtime candidates are not accepted."
+      throw "Diagnostic or routing scenarios require a diagnostic-only Orange artifact; runtime candidates are not accepted."
     }
     $cargoFeature = $metadataRecord.PSObject.Properties["cargo_feature"]
-    $featureMatch = if ($null -ne $cargoFeature -and $cargoFeature.Value -is [string]) {
-      [regex]::Match([string]$cargoFeature.Value, '^hardware-orange-pi-zero-2w benchmark-voice-pools-(128|256)$')
-    } else {
-      [regex]::Match("", "a^")
-    }
-    if (-not $featureMatch.Success) {
-      throw "Dynamic capacity scenarios require an exact hardware-orange-pi-zero-2w benchmark pool feature."
-    }
-    $poolCapacity = [int]$featureMatch.Groups[1].Value
-    if ($LiveSelection.CapacityKind -ceq "analogue") {
-      if ($poolCapacity -ne $LiveSelection.RequiredPoolStage) {
-        throw "Analogue capacity scenario requires diagnostic pool stage $($LiveSelection.RequiredPoolStage), but the artifact pool stage is $poolCapacity."
+    if ($isRoutingExecutor -and -not $isCapacityDiagnostic) {
+      if ($null -eq $cargoFeature -or $cargoFeature.Value -cne "hardware-orange-pi-zero-2w routing-tree-benchmark") {
+        throw "Routing-tree live scenarios require the exact routing-tree benchmark feature."
       }
-    } elseif ($LiveSelection.RequiredPoolCapacity -gt $poolCapacity) {
-      throw "Dynamic capacity scenario requests $($LiveSelection.RequiredPoolCapacity) voices, but the artifact pool stage is $poolCapacity."
-    }
-    [pscustomobject]@{
-      Package = "octessera-pi"
-      Feature = [string]$cargoFeature.Value
-      ArtifactKind = "diagnostic-only"
+      [pscustomobject]@{
+        Package = "octessera-pi"
+        Feature = [string]$cargoFeature.Value
+        ArtifactKind = "diagnostic-only"
+      }
+    } else {
+      $featurePattern = if ($isRoutingExecutor) { '^hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-(128|256)$' } else { '^hardware-orange-pi-zero-2w benchmark-voice-pools-(128|256)$' }
+      $featureMatch = if ($null -ne $cargoFeature -and $cargoFeature.Value -is [string]) {
+        [regex]::Match([string]$cargoFeature.Value, $featurePattern)
+      } else {
+        [regex]::Match("", "a^")
+      }
+      if (-not $featureMatch.Success) {
+        throw "Dynamic capacity scenarios require an exact Orange benchmark pool feature."
+      }
+      $poolCapacity = [int]$featureMatch.Groups[1].Value
+      if ($LiveSelection.CapacityKind -ceq "analogue") {
+        if ($poolCapacity -ne $LiveSelection.RequiredPoolStage) {
+          throw "Analogue capacity scenario requires diagnostic pool stage $($LiveSelection.RequiredPoolStage), but the artifact pool stage is $poolCapacity."
+        }
+      } elseif ($LiveSelection.RequiredPoolCapacity -gt $poolCapacity) {
+        throw "Dynamic capacity scenario requests $($LiveSelection.RequiredPoolCapacity) voices, but the artifact pool stage is $poolCapacity."
+      }
+      [pscustomobject]@{
+        Package = "octessera-pi"
+        Feature = [string]$cargoFeature.Value
+        ArtifactKind = "diagnostic-only"
+      }
     }
   }
   Assert-OrangeBuildMetadata `
@@ -150,6 +163,9 @@ function Assert-StudyArtifact {
     -BuildSpec $buildSpec
   if ($isCapacityDiagnostic) {
     return [pscustomobject]@{ PoolCapacity = $poolCapacity; CargoFeature = [string]$buildSpec.Feature }
+  }
+  if ($isRoutingExecutor) {
+    return [pscustomobject]@{ PoolCapacity = 64; CargoFeature = [string]$buildSpec.Feature }
   }
 }
 
@@ -218,17 +234,20 @@ if ($artifactRequired -and $artifactExists) {
   if (Test-Path -LiteralPath $Metadata -PathType Leaf) {
     $artifactIdentity = Assert-StudyArtifact -BinaryPath $Artifact -MetadataPath $Metadata -LiveSelection $liveSelection
   } elseif (-not $PrintOnly) {
-    throw "Orange runtime-candidate metadata sidecar was not found: $Metadata"
+    throw "Orange artifact metadata sidecar was not found: $Metadata"
   }
 } elseif ($artifactRequired -and -not $PrintOnly) {
   throw "A release Orange octessera-pi artifact is required for ${Mode}: $Artifact"
 }
-$expectedArtifactKind = if ($isCapacityDiagnostic) { "diagnostic-only" } else { "runtime-candidate" }
+$isRoutingExecutor = $null -ne $liveSelection -and $liveSelection.ExecutorMode -ceq "routing_tree_persistent"
+$expectedArtifactKind = if ($isCapacityDiagnostic -or $isRoutingExecutor) { "diagnostic-only" } else { "runtime-candidate" }
 $expectedCargoFeature = if ($isCapacityDiagnostic -and $null -ne $artifactIdentity) {
   $artifactIdentity.CargoFeature
 } elseif ($isCapacityDiagnostic) {
   $minimumPoolCapacity = if ($liveSelection.CapacityKind -ceq "analogue") { $liveSelection.RequiredPoolStage } elseif ($liveSelection.RequiredPoolCapacity -le 128) { 128 } else { 256 }
-  "hardware-orange-pi-zero-2w benchmark-voice-pools-$minimumPoolCapacity"
+  if ($isRoutingExecutor) { "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-$minimumPoolCapacity" } else { "hardware-orange-pi-zero-2w benchmark-voice-pools-$minimumPoolCapacity" }
+} elseif ($isRoutingExecutor) {
+  "hardware-orange-pi-zero-2w routing-tree-benchmark"
 } else {
   "hardware-orange-pi-zero-2w"
 }
@@ -252,8 +271,8 @@ $payloadBundle = if ($Mode -eq "LiveAudioBenchmark") {
     -StartupTimeoutSeconds $StartupTimeoutSeconds `
     -ReleaseTimeoutSeconds $ReleaseTimeoutSeconds `
     -RuntimeMaxSeconds $runtimeMaxSeconds `
-    -WorkerTimingMode $WorkerTimingMode `
-    -ExecutorMode $ExecutorMode `
+    -WorkerTimingMode $liveSelection.WorkerTimingMode `
+    -ExecutorMode $liveSelection.ExecutorMode `
     -ExpectedArtifactKind $expectedArtifactKind `
     -ExpectedCargoFeature $expectedCargoFeature
 } else {
@@ -299,7 +318,7 @@ try {
     Write-Output "Remote study root: $remoteRoot"
     Write-Output "Candidate health path: $healthPath"
     if ($Mode -eq "LiveAudioBenchmark") {
-      Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5 worker-timing=$WorkerTimingMode executor=$ExecutorMode"
+      Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5 worker-timing=$($liveSelection.WorkerTimingMode) executor=$($liveSelection.ExecutorMode) lookahead=$($liveSelection.LookaheadFrames) effective-latency=$($liveSelection.EffectiveOutputLatencyFrames)"
       Write-Output "Live artifact identity: artifact_kind=$expectedArtifactKind cargo_feature=$expectedCargoFeature"
       if ($isCapacityDiagnostic) {
         $diagnosticPoolIdentity = if ($null -ne $artifactIdentity) { "benchmark-voice-pools-$($artifactIdentity.PoolCapacity)" } else { [regex]::Match($expectedCargoFeature, 'benchmark-voice-pools-(128|256)').Value }

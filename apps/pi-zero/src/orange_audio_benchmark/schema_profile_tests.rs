@@ -19,7 +19,7 @@ fn profile_snapshot_preserves_admission_drop_evidence() {
 }
 
 #[test]
-fn schema11_requires_numeric_admission_drop_evidence() {
+fn schema12_requires_numeric_admission_drop_evidence() {
     let config = config();
     let mut result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     result.artifact_sha256 = config.artifact_sha256;
@@ -36,7 +36,7 @@ fn schema11_requires_numeric_admission_drop_evidence() {
 }
 
 #[test]
-fn schema11_rejects_unknown_nested_profile_fields() {
+fn schema12_rejects_unknown_nested_profile_fields() {
     let result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     for profile in ["profile_start", "profile_end"] {
         let mut unknown = serde_json::to_value(&result).unwrap();

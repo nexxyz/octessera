@@ -15,6 +15,10 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+#[path = "finalization_profile_validation.rs"]
+mod profile_validation;
+pub(super) use profile_validation::validate_profile_state;
+
 const SHUTDOWN_MARGIN: Duration = Duration::from_millis(100);
 
 #[derive(Clone, Debug)]
@@ -23,6 +27,7 @@ pub struct StreamEvidence {
     pub channels: u16,
     pub sample_rate: u32,
     pub engine_block_frames: usize,
+    pub lookahead_frames: usize,
 }
 
 pub struct RunState {
@@ -99,6 +104,7 @@ impl RunState {
             channels: stream.channels,
             sample_rate: stream.sample_rate,
             engine_block_frames: stream.engine_block_frames,
+            lookahead_frames: stream.lookahead_frames,
         });
         self.worker_health = stream.worker_health();
         self.worker_thread_names = stream.worker_thread_names();
@@ -210,6 +216,27 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
     let detected_continuity_events = state
         .persistent_output_counters
         .detected_continuity_events(final_metrics.over_audio_duration_budget_count);
+    let stream = state.stream_evidence.clone().unwrap_or(StreamEvidence {
+        sample_format: "unknown".into(),
+        channels: 0,
+        sample_rate: realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE,
+        engine_block_frames: config.internal_frames,
+        lookahead_frames: super::cli::expected_lookahead_frames(
+            config.executor_mode,
+            config.internal_frames,
+        ),
+    });
+    if let Err(error) = super::cli::validate_recorded_geometry(
+        config.executor_mode,
+        config.output_frames,
+        config.output_frames,
+        config.expected_alsa_period_frames,
+        stream.engine_block_frames,
+        stream.lookahead_frames,
+        Some(config.output_frames as usize + stream.lookahead_frames),
+    ) {
+        state.note_error(error);
+    }
     let status = result_status(
         config,
         &final_metrics,
@@ -227,12 +254,6 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
             worker_timing_consistent: worker_timing_is_consistent(config, state),
         },
     );
-    let stream = state.stream_evidence.clone().unwrap_or(StreamEvidence {
-        sample_format: "unknown".into(),
-        channels: 0,
-        sample_rate: realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE,
-        engine_block_frames: config.internal_frames,
-    });
     let profile_start = state
         .profile_start
         .map(BenchmarkProfileSnapshot::from)
@@ -242,7 +263,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
     let result = BenchmarkResult {
-        schema_version: 11,
+        schema_version: 12,
         kind: "orange_audio_benchmark_result".into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -251,6 +272,8 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         expected_alsa_buffer_frames: config.output_frames,
         expected_alsa_period_frames: config.expected_alsa_period_frames,
         internal_block_frames: stream.engine_block_frames,
+        lookahead_frames: stream.lookahead_frames,
+        effective_output_latency_frames: config.output_frames as usize + stream.lookahead_frames,
         sample_format: stream.sample_format,
         channels: stream.channels,
         sample_rate: stream.sample_rate,
@@ -344,42 +367,6 @@ fn record_shutdown_error(state: &mut RunState, error: AudioStreamShutdownError) 
     state.note_error(format!("benchmark stream teardown failed: {error:?}"));
 }
 
-pub fn validate_profile_state(
-    snapshot: &SynthProfileSnapshot,
-    expected: ExpectedLiveState,
-    expected_voice_admission_drops: u64,
-) -> Result<(), String> {
-    let actual = (
-        snapshot.active_synth_voices,
-        snapshot.active_sample_voices,
-        snapshot.active_preview_sample_voices,
-        snapshot.active_momentary_fx,
-        snapshot.active_bus_fx_slots,
-        snapshot.active_global_fx_slots,
-        snapshot.cumulative_voice_steals,
-    );
-    let expected = (
-        expected.active_synth_voices,
-        expected.active_sample_voices,
-        0,
-        expected.active_momentary_fx,
-        expected.active_bus_fx_slots,
-        expected.active_global_fx_slots,
-        expected.expected_voice_steals,
-    );
-    if actual != expected {
-        return Err(format!(
-            "fixture state mismatch: actual={actual:?} expected={expected:?}"
-        ));
-    }
-    if snapshot.cumulative_voice_admission_drops != expected_voice_admission_drops {
-        return Err(format!(
-            "fixture state mismatch: voice admission drops actual={} expected={}",
-            snapshot.cumulative_voice_admission_drops, expected_voice_admission_drops
-        ));
-    }
-    Ok(())
-}
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FinalizationGates {
     no_terminal_errors: bool,
@@ -423,9 +410,11 @@ fn worker_lifecycle_passes(config: &BenchmarkConfig, gates: &FinalizationGates) 
                 && gates.worker_thread_names == [String::new(), String::new()]
                 && gates.joined_workers == 0
         }
-        super::cli::BenchmarkExecutorMode::PersistentTwoWorkers => {
+        super::cli::BenchmarkExecutorMode::PersistentTwoWorkers
+        | super::cli::BenchmarkExecutorMode::RoutingTreePersistent => {
             gates.worker_health == SourceWorkerHealth::Healthy
-                && gates.worker_thread_names == super::stream::expected_worker_thread_names()
+                && gates.worker_thread_names
+                    == super::stream::worker_thread_names_for_executor(config.executor_mode)
                 && gates.joined_workers == 2
         }
     }

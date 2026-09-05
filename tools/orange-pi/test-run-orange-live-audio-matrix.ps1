@@ -36,10 +36,8 @@ foreach ($tuple in @(@{ Output = 128; Engine = 32; Period = 32; Internal = 32 },
   $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames $tuple.Output -EngineBlockFrames $tuple.Engine -MeasureSeconds 30
   if ($selection.AlsaPeriodFrames -ne $tuple.Period -or $selection.InternalFrames -ne $tuple.Internal -or $selection.EngineBlockFrames -ne $tuple.Engine) { throw "Approved geometry tuple was not retained independently." }
 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 32 -MeasureSeconds 30 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 512 -EngineBlockFrames 256 -MeasureSeconds 30 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 1024 -EngineBlockFrames 256 -MeasureSeconds 30 }
-Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 32 -MeasureSeconds 30 }; Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 512 -EngineBlockFrames 256 -MeasureSeconds 30 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 1024 -EngineBlockFrames 256 -MeasureSeconds 30 }; Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 }
 Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 }
 $long = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 120 -AllowLongRepeat:$true
 if (-not $long.LongRepeat -or $long.InternalFrames -ne 128 -or $long.AlsaPeriodFrames -ne 64) { throw "Long-repeat selection was not classified as A/128." }
@@ -81,8 +79,9 @@ $evidenceRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-evidence-"
 try {
   New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
   $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -MeasureSeconds 30
+  $inlineSelection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -MeasureSeconds 30 -ExecutorMode "inline"
   $readiness = [pscustomobject]@{
-    schema_version = 4; kind = "orange_audio_benchmark_readiness"; status = "ready"; board_profile = "orange-pi-zero-2w"; pid = 123
+    schema_version = 5; kind = "orange_audio_benchmark_readiness"; status = "ready"; board_profile = "orange-pi-zero-2w"; pid = 123
     systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $selection.Scenario; requested_output_buffer_frames = 256
     expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 256
     callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 441; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0
@@ -99,8 +98,8 @@ try {
   $release = [pscustomobject]@{ schema_version = 2; kind = "orange_audio_benchmark_release"; status = "released"; board_profile = "orange-pi-zero-2w"; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); scenario = $selection.Scenario; expected_alsa_buffer_frames = 256; observed_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; observed_alsa_period_frames = 64 }
   $result | Add-Member -NotePropertyName callback_scheduling_policy -NotePropertyValue "SCHED_FIFO"
   $result | Add-Member -NotePropertyName callback_scheduling_priority -NotePropertyValue 70
-  $result | Add-Member -NotePropertyName callback_scheduling_cpu -NotePropertyValue 1
-  $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
+  $result | Add-Member -NotePropertyName callback_scheduling_cpu -NotePropertyValue 1; $result.schema_version = 12; $result | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0; $result | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 256
+  $readiness | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   $release | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-release.json")
   Set-Content (Join-Path $evidenceRoot "benchmark-identity.txt") "unit=u.service`nmain_pid=123`ninvocation_id=invocation"
@@ -146,10 +145,12 @@ try {
   $invalidSchedulingCpu = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $invalidSchedulingCpu.callback_scheduling_cpu = 2; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingCpu -Selection $selection }; $invalidSchedulingCpu.callback_scheduling_cpu = $null; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingCpu -Selection $selection }
   $invalidSchedulingPriority = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $invalidSchedulingPriority.callback_scheduling_priority = 69; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingPriority -Selection $selection }; $invalidSchedulingPriority.callback_scheduling_priority = 70; $invalidSchedulingPriority.schema_version = 9; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingPriority -Selection $selection }; $invalidResultCase = ConvertFrom-Json -InputObject (($result | ConvertTo-Json -Depth 8) -replace '"schema_version"', '"Schema_Version"'); Assert-Throws { Assert-OrangeLiveResult -Result $invalidResultCase -Selection $selection }
   $inlineFailure = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $inlineFailure.status = "fail"; $inlineFailure.executor_mode = "inline"; $inlineFailure.worker_health = "disabled"; $inlineFailure.worker_thread_name_0 = ""; $inlineFailure.worker_thread_name_1 = ""; $inlineFailure.joined_workers = 0; $inlineFailure.worker_timing_mode = "disabled"; $inlineFailure.worker_timing = $null; $inlineFailure.callback_scheduling_cpu = 1; $inlineFailure.persistent_output_counters = [pscustomobject]@{ observable = $false; warmup = $zeroPersistentCounters; start = $zeroPersistentCounters; end = $zeroPersistentCounters; delta = $zeroPersistentCounters }; $inlineFailure.detected_continuity_events = 0
+  $readiness.executor_mode = "inline"; $readiness.worker_health = "disabled"; $readiness.worker_thread_name_0 = ""; $readiness.worker_thread_name_1 = ""; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $inlineFailure | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=failed`nSubState=dead`nResult=exit-code`nMainPID=0`nExecMainCode=1`nExecMainStatus=1"; Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=measured_failure"
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "measured_failure") { throw "Failed inline benchmark evidence was not classified as measured failure." }
+  if ((Get-OrangeLiveHostEvidence $evidenceRoot $inlineSelection ("a" * 64)).StatusClass -ne "measured_failure") { throw "Failed inline benchmark evidence was not classified as measured failure." }
   $inlineFailure.callback.worker_terminal = $true; $inlineFailure | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Terminal inline benchmark evidence was not classified as infrastructure failure." }
+  if ((Get-OrangeLiveHostEvidence $evidenceRoot $inlineSelection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Terminal inline benchmark evidence was not classified as infrastructure failure." }
+  $readiness.executor_mode = "persistent_two_workers"; $readiness.worker_health = "healthy"; $readiness.worker_thread_name_0 = "oct-dsp-src-0"; $readiness.worker_thread_name_1 = "oct-dsp-src-1"; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=1`nExecMainStatus=0"; Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=pass"
   $invalidTiming = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8)
   $invalidTiming.worker_timing.coordinator.first_parity = 1
@@ -160,7 +161,7 @@ try {
   $readiness.executor_mode = "inline"
   Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
   $readiness.worker_health = "disabled"; $readiness.worker_thread_name_0 = ""; $readiness.worker_thread_name_1 = ""
-  Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
+  Assert-OrangeLiveReadiness -Readiness $readiness -Selection $inlineSelection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
   $readiness.executor_mode = "persistent_two_workers"
   $readiness.worker_health = "healthy"; $readiness.worker_thread_name_0 = "oct-dsp-src-0"; $readiness.worker_thread_name_1 = "oct-dsp-src-1"
   $readiness.worker_health = "deadline_miss"

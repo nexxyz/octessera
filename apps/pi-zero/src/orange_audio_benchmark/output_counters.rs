@@ -76,7 +76,11 @@ pub struct PersistentOutputCountersEvidence {
 impl PersistentOutputCountersEvidence {
     pub fn for_executor(executor_mode: BenchmarkExecutorMode) -> Self {
         Self {
-            observable: executor_mode == BenchmarkExecutorMode::PersistentTwoWorkers,
+            observable: matches!(
+                executor_mode,
+                BenchmarkExecutorMode::PersistentTwoWorkers
+                    | BenchmarkExecutorMode::RoutingTreePersistent
+            ),
             ..Self::default()
         }
     }
@@ -91,7 +95,11 @@ impl PersistentOutputCountersEvidence {
     }
 
     pub fn validate(&self, executor_mode: BenchmarkExecutorMode) -> Result<(), String> {
-        let expected_observable = executor_mode == BenchmarkExecutorMode::PersistentTwoWorkers;
+        let expected_observable = matches!(
+            executor_mode,
+            BenchmarkExecutorMode::PersistentTwoWorkers
+                | BenchmarkExecutorMode::RoutingTreePersistent
+        );
         if self.observable != expected_observable {
             return Err("persistent output counter observability does not match executor".into());
         }

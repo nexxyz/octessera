@@ -23,15 +23,19 @@ function Assert-OrangeWorkerEvidence {
   $health = $Evidence.PSObject.Properties["worker_health"]
   $name0 = $Evidence.PSObject.Properties["worker_thread_name_0"]
   $name1 = $Evidence.PSObject.Properties["worker_thread_name_1"]
-  if ($null -eq $executor -or $executor.Value -isnot [string] -or @("inline", "persistent_two_workers") -cnotcontains $executor.Value -or $null -eq $health -or $health.Value -isnot [string] -or $null -eq $name0 -or $name0.Value -isnot [string] -or $null -eq $name1 -or $name1.Value -isnot [string]) {
+  if ($null -eq $executor -or $executor.Value -isnot [string] -or @("inline", "persistent_two_workers", "routing_tree_persistent") -cnotcontains $executor.Value -or $null -eq $health -or $health.Value -isnot [string] -or $null -eq $name0 -or $name0.Value -isnot [string] -or $null -eq $name1 -or $name1.Value -isnot [string]) {
     throw "Live benchmark worker executor evidence is invalid."
   }
   if ($executor.Value -ceq "inline") {
     if ($health.Value -cne "disabled" -or $name0.Value -cne "" -or $name1.Value -cne "") {
       throw "Inline benchmark worker executor evidence is invalid."
     }
-  } elseif (($AllowTerminalHealth -and @("healthy", "deadline_miss", "dispatch_failed", "completion_failed", "worker_exited", "invalid_block") -cnotcontains $health.Value) -or (-not $AllowTerminalHealth -and $health.Value -cne "healthy") -or $name0.Value -cne "oct-dsp-src-0" -or $name1.Value -cne "oct-dsp-src-1") {
-    throw "Persistent benchmark worker executor evidence is invalid."
+  } else {
+    $expectedName0 = if ($executor.Value -ceq "routing_tree_persistent") { "oct-dsp-tree-0" } else { "oct-dsp-src-0" }
+    $expectedName1 = if ($executor.Value -ceq "routing_tree_persistent") { "oct-dsp-tree-1" } else { "oct-dsp-src-1" }
+    if (($AllowTerminalHealth -and @("healthy", "deadline_miss", "dispatch_failed", "completion_failed", "worker_exited", "invalid_block") -cnotcontains $health.Value) -or (-not $AllowTerminalHealth -and $health.Value -cne "healthy") -or $name0.Value -cne $expectedName0 -or $name1.Value -cne $expectedName1) {
+      throw "Persistent benchmark worker executor evidence is invalid."
+    }
   }
   if ($RequireShutdown) {
     $joined = $Evidence.PSObject.Properties["joined_workers"]

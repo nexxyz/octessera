@@ -42,17 +42,25 @@ function Get-OrangeGeneratedLiveFunction {
 function Assert-OrangeGeneratedWorkerTaskAudit {
   param(
     [Parameter(Mandatory)][string]$PersistentPayload,
-    [Parameter(Mandatory)][string]$InlinePayload
+    [Parameter(Mandatory)][string]$InlinePayload,
+    [string]$RoutingPayload = ""
   )
-  foreach ($payload in @($PersistentPayload, $InlinePayload)) {
+  $payloads = @($PersistentPayload, $InlinePayload)
+  if (-not [string]::IsNullOrWhiteSpace($RoutingPayload)) { $payloads += $RoutingPayload }
+  foreach ($payload in $payloads) {
     if ([regex]::Matches($payload, 'validate_benchmark_worker_threads "\$pid"').Count -lt 1) { throw "Generated live payload did not audit worker tasks during readiness." }
   }
   $persistentAudit = Get-OrangeGeneratedLiveFunction $PersistentPayload "validate_benchmark_worker_threads" "wait_for_benchmark_readiness"
   $inlineAudit = Get-OrangeGeneratedLiveFunction $InlinePayload "validate_benchmark_worker_threads" "wait_for_benchmark_readiness"
-  foreach ($case in @(
+  $auditCases = @(
       @{ Name = "persistent"; Function = $persistentAudit; Valid = @("oct-dsp-src-0", "oct-dsp-src-1", "oct-src-reaper", "unrelated-runtime-task"); Invalid = @(@("oct-dsp-src-0", "oct-src-reaper"), @("oct-dsp-src-0", "oct-dsp-src-0", "oct-dsp-src-1", "oct-src-reaper"), @("oct-dsp-src-0", "oct-dsp-src-1", "oct-dsp-src-2", "oct-src-reaper"), @("oct-dsp-src-0", "oct-dsp-src-1"), @("oct-dsp-src-0", "oct-dsp-src-1", "oct-src-reaper", "oct-src-reaper")) };
       @{ Name = "inline"; Function = $inlineAudit; Valid = @("oct-src-reaper", "unrelated-runtime-task"); Invalid = @(@("unrelated-runtime-task"), @("oct-src-reaper", "oct-src-reaper"), @("oct-dsp-src-0", "oct-src-reaper"), @("oct-dsp-src-2", "oct-src-reaper")) }
-    )) {
+    )
+  if (-not [string]::IsNullOrWhiteSpace($RoutingPayload)) {
+    $routingAudit = Get-OrangeGeneratedLiveFunction $RoutingPayload "validate_benchmark_worker_threads" "wait_for_benchmark_readiness"
+    $auditCases += @{ Name = "routing"; Function = $routingAudit; Valid = @("oct-dsp-tree-0", "oct-dsp-tree-1", "oct-src-reaper", "unrelated-runtime-task"); Invalid = @(@("oct-dsp-tree-0", "oct-src-reaper"), @("oct-dsp-tree-0", "oct-dsp-tree-0", "oct-dsp-tree-1", "oct-src-reaper"), @("oct-dsp-tree-0", "oct-dsp-tree-1", "oct-dsp-src-0", "oct-src-reaper"), @("oct-dsp-tree-0", "oct-dsp-tree-1"), @("oct-dsp-tree-0", "oct-dsp-tree-1", "oct-src-reaper", "oct-src-reaper")) }
+  }
+  foreach ($case in $auditCases) {
     $fixture = @'
 set -eu
 __AUDIT_FUNCTION__
@@ -101,6 +109,7 @@ set -eu
 __INLINE_AUDIT__
 __INLINE_EVIDENCE__
 __INLINE_READINESS__
+validate_benchmark_result() { validate_benchmark_worker_evidence "$result" true; }
 __INLINE_TERMINAL__
 root="$(mktemp -d)"
 task_root="$(mktemp -d)"

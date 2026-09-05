@@ -1,6 +1,6 @@
 use super::cli::{BenchmarkConfig, BenchmarkExecutorMode};
-use super::metrics::{CallbackMetrics, CallbackPrefix};
-use super::phase::{same_measuring_generation, MeasurementControl, MeasurementPhase, PhaseCapture};
+use super::metrics::CallbackMetrics;
+use super::phase::MeasurementControl;
 use super::probe::ProfileProbe;
 use crate::audio::{
     AudioStreamBuildError, AudioStreamHealth, AudioStreamLifecycle, AudioStreamShutdownError,
@@ -8,15 +8,17 @@ use crate::audio::{
 };
 use crate::audio_priority::CallbackSchedulingHandle;
 use crate::orange_audio::select_orange_stream_config;
-use cpal::traits::DeviceTrait;
-use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
+use cpal::{BufferSize, SampleFormat, Stream};
 use realtime_engine::synth::{
-    SourceWorkerHealth, SourceWorkerTimingProbe, SOURCE_WORKER_THREAD_NAMES,
+    SourceWorkerHealth, SourceWorkerTimingProbe, ROUTING_TREE_WORKER_THREAD_NAMES,
+    SOURCE_WORKER_THREAD_NAMES,
 };
 use rodio_engine_source::{EngineEventReceiver, EngineSource, EngineSourceWorkerShutdownOwner};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+
+#[path = "stream_callback.rs"]
+mod callback;
 
 #[cfg(test)]
 pub const EXECUTOR_MODE: &str = "persistent_two_workers";
@@ -28,6 +30,7 @@ pub struct BenchmarkStream {
     pub channels: u16,
     pub sample_rate: u32,
     pub engine_block_frames: usize,
+    pub lookahead_frames: usize,
     health: AudioStreamHealth,
     worker_health: Arc<AtomicU8>,
     worker_thread_names: [String; 2],
@@ -67,26 +70,14 @@ pub fn expected_worker_thread_names() -> [String; 2] {
     SOURCE_WORKER_THREAD_NAMES.map(str::to_owned)
 }
 
+pub fn expected_routing_worker_thread_names() -> [String; 2] {
+    ROUTING_TREE_WORKER_THREAD_NAMES.map(str::to_owned)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct StreamGeometry {
     output_frames: u32,
     internal_frames: usize,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-struct CallbackBodyStats {
-    pre_mute_nonzero: u64,
-    pre_mute_peak: f32,
-    post_mute_nonzero: u64,
-}
-
-struct CallbackContext {
-    metrics: Arc<CallbackMetrics>,
-    profile_probe: Arc<ProfileProbe>,
-    phase_control: Arc<MeasurementControl>,
-    health: AudioStreamHealth,
-    worker_health: Arc<AtomicU8>,
-    timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
 pub fn build(
@@ -97,6 +88,7 @@ pub fn build(
     phase_control: Arc<MeasurementControl>,
     timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 ) -> Result<BenchmarkStream, String> {
+    super::cli::preflight(config)?;
     let executor_mode = config.executor_mode;
     let output_frames = config.output_frames;
     let internal_frames = config.internal_frames;
@@ -106,25 +98,35 @@ pub fn build(
     let geometry = stream_geometry(output_frames, internal_frames)?;
     let device =
         crate::orange_audio::select_orange_output_device().map_err(|error| error.to_string())?;
-    let (sample_format, mut config) =
+    let (sample_format, mut stream_config) =
         select_orange_stream_config(&device).map_err(|error| error.to_string())?;
     let sample_format_name = format!("{sample_format:?}");
     debug_assert_eq!(geometry.output_frames, output_frames);
-    config.buffer_size = BufferSize::Fixed(output_frames);
+    stream_config.buffer_size = BufferSize::Fixed(output_frames);
     let (source, shutdown_owner) = build_source(
         engine_rx,
         executor_mode,
-        config.sample_rate.0,
+        stream_config.sample_rate.0,
         geometry.internal_frames,
         timing_probe.clone(),
     )?;
     let engine_block_frames = source.block_frames();
+    let lookahead_frames = source.lookahead_frames();
+    super::cli::validate_recorded_geometry(
+        executor_mode,
+        output_frames,
+        output_frames,
+        config.expected_alsa_period_frames,
+        engine_block_frames,
+        lookahead_frames,
+        None,
+    )?;
     let health = AudioStreamHealth::new("Orange benchmark".into());
     let worker_health = Arc::new(AtomicU8::new(source.source_worker_health() as u8));
     let (callback_source, retirement_waiter) = CallbackSource::new(source, true);
     let scheduler = callback_scheduler_for_executor(executor_mode);
     let callback_scheduler = scheduler.clone();
-    let callback_context = CallbackContext {
+    let callback_context = callback::CallbackContext {
         metrics,
         profile_probe,
         phase_control,
@@ -133,23 +135,23 @@ pub fn build(
         timing_probe,
     };
     let stream_result = match sample_format {
-        SampleFormat::F32 => build_typed::<f32>(
+        SampleFormat::F32 => callback::build_typed::<f32>(
             &device,
-            &config,
+            &stream_config,
             callback_source,
             callback_scheduler,
             callback_context,
         ),
-        SampleFormat::I16 => build_typed::<i16>(
+        SampleFormat::I16 => callback::build_typed::<i16>(
             &device,
-            &config,
+            &stream_config,
             callback_source,
             callback_scheduler,
             callback_context,
         ),
-        SampleFormat::U16 => build_typed::<u16>(
+        SampleFormat::U16 => callback::build_typed::<u16>(
             &device,
-            &config,
+            &stream_config,
             callback_source,
             callback_scheduler,
             callback_context,
@@ -168,9 +170,10 @@ pub fn build(
         lifecycle,
         scheduler,
         sample_format: sample_format_name,
-        channels: config.channels,
-        sample_rate: config.sample_rate.0,
+        channels: stream_config.channels,
+        sample_rate: stream_config.sample_rate.0,
         engine_block_frames,
+        lookahead_frames,
         health,
         worker_health,
         worker_thread_names: worker_thread_names_for_executor(executor_mode),
@@ -190,9 +193,60 @@ fn build_source(
             None,
         ));
     }
-    let (source, shutdown_owner) =
-        build_persistent_source(engine_rx, sample_rate, internal_frames, timing_probe)?;
-    Ok((source, Some(shutdown_owner)))
+    match executor_mode {
+        BenchmarkExecutorMode::PersistentTwoWorkers => {
+            let (source, shutdown_owner) =
+                build_persistent_source(engine_rx, sample_rate, internal_frames, timing_probe)?;
+            Ok((source, Some(shutdown_owner)))
+        }
+        BenchmarkExecutorMode::RoutingTreePersistent => {
+            let (source, shutdown_owner) =
+                build_routing_tree_source(engine_rx, sample_rate, internal_frames, timing_probe)?;
+            Ok((source, Some(shutdown_owner)))
+        }
+        BenchmarkExecutorMode::Inline => unreachable!("inline source handled above"),
+    }
+}
+
+#[cfg(feature = "routing-tree-benchmark")]
+fn build_routing_tree_source(
+    engine_rx: EngineEventReceiver,
+    sample_rate: u32,
+    internal_frames: usize,
+    timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+) -> Result<(EngineSource, EngineSourceWorkerShutdownOwner), String> {
+    let result = match timing_probe {
+        Some(timing_probe) => {
+            EngineSource::with_routing_tree_persistent_workers_for_benchmark_with_timing_probe_and_hook(
+                engine_rx,
+                sample_rate,
+                internal_frames,
+                None,
+                timing_probe,
+                crate::audio_priority::orange_worker_start_hook,
+            )
+        }
+        None => EngineSource::with_routing_tree_persistent_workers_for_benchmark_with_hook(
+            engine_rx,
+            sample_rate,
+            internal_frames,
+            None,
+            crate::audio_priority::orange_worker_start_hook,
+        ),
+    };
+    result.map_err(|error| {
+        format!("failed to start routing-tree Orange benchmark workers: {error:?}")
+    })
+}
+
+#[cfg(not(feature = "routing-tree-benchmark"))]
+fn build_routing_tree_source(
+    _engine_rx: EngineEventReceiver,
+    _sample_rate: u32,
+    _internal_frames: usize,
+    _timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+) -> Result<(EngineSource, EngineSourceWorkerShutdownOwner), String> {
+    Err(super::cli::ROUTING_TREE_FEATURE_REQUIRED_ERROR.into())
 }
 
 fn build_persistent_source(
@@ -231,6 +285,9 @@ fn callback_priority_for_executor(executor_mode: BenchmarkExecutorMode) -> i32 {
         BenchmarkExecutorMode::PersistentTwoWorkers => {
             crate::audio_priority::ORANGE_CALLBACK_PRIORITY
         }
+        BenchmarkExecutorMode::RoutingTreePersistent => {
+            crate::audio_priority::ORANGE_CALLBACK_PRIORITY
+        }
     }
 }
 
@@ -246,6 +303,7 @@ pub(super) fn worker_thread_names_for_executor(
     match executor_mode {
         BenchmarkExecutorMode::Inline => [String::new(), String::new()],
         BenchmarkExecutorMode::PersistentTwoWorkers => expected_worker_thread_names(),
+        BenchmarkExecutorMode::RoutingTreePersistent => expected_routing_worker_thread_names(),
     }
 }
 
@@ -271,185 +329,6 @@ fn stream_geometry(output_frames: u32, internal_frames: usize) -> Result<StreamG
         output_frames,
         internal_frames,
     })
-}
-
-fn build_typed<T>(
-    device: &cpal::Device,
-    config: &StreamConfig,
-    mut callback_source: CallbackSource,
-    callback_scheduler: CallbackSchedulingHandle,
-    context: CallbackContext,
-) -> Result<Stream, String>
-where
-    T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32> + PartialEq,
-{
-    let CallbackContext {
-        metrics,
-        profile_probe,
-        phase_control,
-        health: callback_health,
-        worker_health,
-        timing_probe,
-    } = context;
-    let mut previous_timestamp: Option<cpal::StreamInstant> = None;
-    let mut previous_phase: Option<PhaseCapture> = None;
-    let channels = config.channels;
-    let callback_metrics = metrics.clone();
-    let callback_health_for_error = callback_health.clone();
-    let metrics_for_error = metrics.clone();
-    device
-        .build_output_stream(
-            config,
-            move |data: &mut [T], info: &cpal::OutputCallbackInfo| {
-                let body_started = Instant::now();
-                let scheduling_qualified = callback_scheduler.configure_callback_thread();
-                if callback_scheduler.is_strict() && !scheduling_qualified {
-                    let zero = post_dsp_zero();
-                    for sample in data {
-                        *sample = zero;
-                    }
-                    callback_health.mark_callback_terminal();
-                    callback_metrics.mark_terminal();
-                    return;
-                }
-                let phase_capture = phase_control.capture_at_callback_entry();
-                if phase_control.boundary_pending(phase_capture.generation) {
-                    let counters = callback_source
-                        .source_mut()
-                        .map(|source| source.persistent_output_counters())
-                        .unwrap_or_default();
-                    callback_metrics.publish_phase_boundary(phase_capture.generation, counters);
-                    phase_control.acknowledge(phase_capture);
-                }
-                let timestamp = info.timestamp().callback;
-                let spacing = match (previous_timestamp, previous_phase) {
-                    (Some(previous), Some(previous_phase))
-                        if same_measuring_generation(previous_phase, phase_capture) =>
-                    {
-                        timestamp
-                            .duration_since(&previous)
-                            .map(|duration| duration.as_nanos().min(u128::from(u64::MAX)) as u64)
-                    }
-                    _ => None,
-                };
-                previous_timestamp = Some(timestamp);
-                previous_phase = Some(phase_capture);
-                let body = fill_persistent_callback_body(
-                    data,
-                    &mut callback_source,
-                    &callback_health,
-                    &callback_metrics,
-                    &worker_health,
-                );
-                let frames = (data.len() / usize::from(channels)) as u32;
-                let measured = callback_metrics.record_prefix(CallbackPrefix {
-                    entry_ns: phase_capture.entry_ns,
-                    measured: phase_capture.phase == MeasurementPhase::Measuring,
-                    frames,
-                    pre_mute_nonzero: body.pre_mute_nonzero,
-                    pre_mute_peak: body.pre_mute_peak,
-                    post_mute_nonzero: body.post_mute_nonzero,
-                    spacing_ns: spacing,
-                });
-                if profile_probe.request_pending() {
-                    if let Some(source) = callback_source.source_mut() {
-                        profile_probe.publish(source.profile_snapshot());
-                    }
-                }
-                let callback_elapsed = body_started.elapsed();
-                callback_metrics.publish_timing(measured, frames, callback_elapsed);
-                if let Some(timing_probe) = timing_probe.as_ref() {
-                    timing_probe.record_callback_total(callback_elapsed);
-                }
-            },
-            move |error| {
-                let is_device_error = matches!(&error, cpal::StreamError::DeviceNotAvailable);
-                callback_health_for_error.log(error);
-                if is_device_error {
-                    metrics_for_error.record_cpal_device_error()
-                } else {
-                    metrics_for_error.record_cpal_stream_error()
-                }
-            },
-            None,
-        )
-        .map_err(|error| format!("failed to build Orange benchmark stream: {error}"))
-}
-
-fn fill_callback_body<T, I>(data: &mut [T], source: &mut I) -> CallbackBodyStats
-where
-    T: cpal::Sample + cpal::FromSample<f32> + PartialEq,
-    I: Iterator<Item = f32>,
-{
-    let mut stats = CallbackBodyStats::default();
-    for sample in data.iter_mut() {
-        let value = source.next().unwrap_or(0.0);
-        if value != 0.0 {
-            stats.pre_mute_nonzero += 1;
-        }
-        stats.pre_mute_peak = stats.pre_mute_peak.max(value.abs());
-        *sample = T::from_sample(value);
-    }
-    let zero = post_dsp_zero();
-    for sample in data.iter_mut() {
-        *sample = zero;
-    }
-    stats.post_mute_nonzero = data.iter().filter(|sample| **sample != zero).count() as u64;
-    stats
-}
-
-fn fill_persistent_callback_body<T>(
-    data: &mut [T],
-    callback_source: &mut CallbackSource,
-    callback_health: &AudioStreamHealth,
-    metrics: &CallbackMetrics,
-    worker_health: &AtomicU8,
-) -> CallbackBodyStats
-where
-    T: cpal::Sample + cpal::FromSample<f32> + PartialEq,
-{
-    let Some(source) = callback_source.source_mut() else {
-        let health = SourceWorkerHealth::CompletionFailed;
-        worker_health.store(health as u8, Ordering::Release);
-        mark_persistent_worker_terminal(data, callback_health, metrics, health);
-        return CallbackBodyStats::default();
-    };
-    let health = source.source_worker_health();
-    worker_health.store(health as u8, Ordering::Release);
-    if health.is_terminal() {
-        mark_persistent_worker_terminal(data, callback_health, metrics, health);
-        return CallbackBodyStats::default();
-    }
-    let stats = fill_callback_body(data, source);
-    let health = source.source_worker_health();
-    worker_health.store(health as u8, Ordering::Release);
-    if health.is_terminal() {
-        mark_persistent_worker_terminal(data, callback_health, metrics, health);
-    }
-    stats
-}
-
-fn mark_persistent_worker_terminal<T>(
-    data: &mut [T],
-    callback_health: &AudioStreamHealth,
-    metrics: &CallbackMetrics,
-    health: SourceWorkerHealth,
-) where
-    T: cpal::Sample + cpal::FromSample<f32>,
-{
-    callback_health.mark_worker_health(health);
-    metrics.mark_worker_terminal();
-    let zero = post_dsp_zero();
-    for sample in data {
-        *sample = zero;
-    }
-}
-
-fn post_dsp_zero<T>() -> T
-where
-    T: cpal::Sample + cpal::FromSample<f32>,
-{
-    T::from_sample(0.0)
 }
 
 #[cfg(test)]

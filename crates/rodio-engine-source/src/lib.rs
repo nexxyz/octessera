@@ -72,7 +72,7 @@ impl Drop for RetiredAudioDropProbe {
 }
 
 pub struct EngineSource {
-    engine: SynthEngine,
+    engine: Box<SynthEngine>,
     worker_state: EngineSourceWorkerState,
     control_rx: EngineEventReceiver,
     sample_rate: u32,
@@ -120,6 +120,10 @@ impl EngineSource {
         self.block_frames
     }
 
+    pub fn lookahead_frames(&self) -> usize {
+        self.worker_state.lookahead_frames()
+    }
+
     pub fn source_worker_health(&self) -> SourceWorkerHealth {
         self.worker_state.health()
     }
@@ -133,6 +137,8 @@ impl EngineSource {
         match self.worker_state.mode {
             EngineSourceMode::Inline => self.engine.profile_snapshot(),
             EngineSourceMode::Persistent => self.cached_profile_snapshot,
+            #[cfg(feature = "routing-tree-benchmark")]
+            EngineSourceMode::RoutingTreePersistent => self.cached_profile_snapshot,
         }
     }
 
@@ -179,7 +185,7 @@ impl EngineSource {
             sample_rate,
             block_frames,
             load_tx,
-            SynthEngine::new(sample_rate),
+            Box::new(SynthEngine::new(sample_rate)),
             EngineSourceWorkerState::inline(),
             SourceRetirementChannels {
                 retired_tx,
@@ -193,7 +199,7 @@ impl EngineSource {
         sample_rate: u32,
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
-        engine: SynthEngine,
+        engine: Box<SynthEngine>,
         worker_state: EngineSourceWorkerState,
         retirement: SourceRetirementChannels,
     ) -> Self {
@@ -237,6 +243,8 @@ impl EngineSource {
                 }
             }
             EngineSourceMode::Persistent => self.refill_persistent(),
+            #[cfg(feature = "routing-tree-benchmark")]
+            EngineSourceMode::RoutingTreePersistent => self.refill_routing_tree_persistent(),
         };
         if !self.engine.pending_render_retired_is_empty()
             && self.retirement_storage_can_accept_item()
@@ -244,7 +252,7 @@ impl EngineSource {
             let retired = self.engine.take_pending_render_retired();
             self.retire_state(retired);
         }
-        if matches!(self.worker_state.mode, EngineSourceMode::Persistent) {
+        if self.worker_state.is_persistent() {
             self.refresh_persistent_profile_cache();
         }
         self.idx = 0;

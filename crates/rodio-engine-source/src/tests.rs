@@ -36,6 +36,50 @@ impl EngineSource {
             retired_rx,
         )
     }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    fn with_routing_tree_test_retirement_receiver(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+    ) -> (Self, crossbeam_channel::Receiver<RetiredAudioItem>) {
+        let mut engine = Box::new(SynthEngine::new(sample_rate));
+        let (lifecycle, mut runtime) =
+            SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, block_frames)
+                .expect("routing-tree runtime");
+        runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
+        let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
+        let reaper_retired_rx = retired_rx.clone();
+        let (shutdown_tx, shutdown_rx) = bounded::<SourceShutdownEnvelope>(1);
+        std::thread::spawn(move || {
+            if let Ok(envelope) = shutdown_rx.recv() {
+                while let Ok(item) = reaper_retired_rx.try_recv() {
+                    drop(item);
+                }
+                envelope.backlog.drain();
+                if let Some(retirement) = envelope.retirement {
+                    let _ = lifecycle.shutdown(retirement);
+                } else {
+                    let _ = lifecycle.shutdown_after_runtime_drop();
+                }
+            }
+        });
+        (
+            Self::with_engine(
+                control_rx,
+                sample_rate,
+                block_frames,
+                None,
+                engine,
+                EngineSourceWorkerState::routing_tree_persistent(runtime),
+                SourceRetirementChannels {
+                    retired_tx,
+                    shutdown_tx,
+                },
+            ),
+            retired_rx,
+        )
+    }
 }
 
 thread_local! {
@@ -357,58 +401,6 @@ mod persistent_output_integration_tests;
 mod persistent_flash_tests;
 
 #[test]
-fn explicit_profile_block_sizes_reach_source_configuration() {
-    for block_frames in [64, 128, 256] {
-        let (_tx, rx) = event_queue();
-        let source = EngineSource::with_block_frames(rx, 44_100, block_frames);
-
-        assert_eq!(source.block_frames(), block_frames);
-    }
-    let (_tx, rx) = event_queue();
-    let source = EngineSource::with_block_frames(rx, 44_100, 1);
-    assert_eq!(source.block_frames(), 32);
-}
-
-#[test]
-fn default_and_explicit_block_apis_use_inline_source_path() {
-    let (default_tx, default_rx) = event_queue();
-    let (explicit_tx, explicit_rx) = event_queue();
-    let note_on = EngineEvent::NoteOn {
-        instrument_slot: 0,
-        note: 60,
-        velocity: 100,
-        duration_ms: 1_000,
-    };
-    default_tx.send(note_on.clone()).unwrap();
-    explicit_tx.send(note_on).unwrap();
-    let mut default_source = EngineSource::new(default_rx, 44_100);
-    let mut explicit_source =
-        EngineSource::with_block_frames(explicit_rx, 44_100, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES);
-    assert_eq!(
-        default_source.block_frames(),
-        DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES
-    );
-    assert_eq!(
-        explicit_source.block_frames(),
-        DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES
-    );
-
-    for _ in 0..256 {
-        assert_eq!(
-            default_source.next().unwrap().to_bits(),
-            explicit_source.next().unwrap().to_bits()
-        );
-    }
-}
-
-#[test]
-fn explicit_block_size_respects_render_quantum_override_parser() {
-    assert_eq!(resolve_audio_render_quantum_frames(Some("128"), 64), 128);
-    assert_eq!(resolve_audio_render_quantum_frames(Some("invalid"), 64), 64);
-    assert_eq!(resolve_audio_render_quantum_frames(Some("1"), 64), 32);
-}
-
-#[test]
 fn benchmark_persistent_constructor_uses_exact_requested_frames_without_env_override() {
     if std::env::var_os("OCTESSERA_BENCHMARK_QUANTUM_CHILD").is_none() {
         let output = std::process::Command::new(std::env::current_exe().unwrap())
@@ -461,3 +453,18 @@ fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
 #[cfg(feature = "source-worker-benchmark-timing")]
 #[path = "persistent_timing_tests.rs"]
 mod persistent_timing_tests;
+
+#[path = "block_configuration_tests.rs"]
+mod block_configuration_tests;
+
+#[cfg(feature = "routing-tree-benchmark")]
+#[path = "routing_tree_tests.rs"]
+mod routing_tree_tests;
+
+#[cfg(feature = "routing-tree-benchmark")]
+#[path = "routing_tree_parity_tests.rs"]
+mod routing_tree_parity_tests;
+
+#[cfg(feature = "routing-tree-benchmark")]
+#[path = "routing_tree_recovery_tests.rs"]
+mod routing_tree_recovery_tests;

@@ -43,6 +43,30 @@ mod render_synth_block_tests;
 mod render_tests;
 mod render_voice;
 mod retired_state;
+#[cfg(feature = "routing-tree-benchmark")]
+mod routing_tree_admission;
+#[cfg(any(test, feature = "routing-tree-benchmark"))]
+mod routing_tree_executor;
+#[cfg(test)]
+mod routing_tree_executor_assignment_tests;
+#[cfg(test)]
+mod routing_tree_executor_state_tests;
+#[cfg(test)]
+mod routing_tree_executor_test_support;
+#[cfg(test)]
+mod routing_tree_executor_tests;
+#[cfg(feature = "routing-tree-benchmark")]
+mod routing_tree_lifecycle;
+#[cfg(all(test, feature = "routing-tree-benchmark"))]
+mod routing_tree_pipeline_tests;
+#[cfg(any(test, feature = "routing-tree-benchmark"))]
+mod routing_tree_plan;
+#[cfg(test)]
+mod routing_tree_plan_tests;
+#[cfg(test)]
+mod routing_tree_validation;
+#[cfg(feature = "routing-tree-benchmark")]
+mod routing_tree_worker;
 #[cfg(test)]
 mod sample_buffer_view_tests;
 #[cfg(test)]
@@ -115,9 +139,15 @@ pub use prepared_control_prepare::{
 };
 pub use retired_state::RetiredAudioState;
 use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
+#[cfg(all(
+    feature = "routing-tree-benchmark",
+    any(test, feature = "test-support")
+))]
+pub use source_worker::RoutingTreePipelineProbe;
 pub use source_worker::SourceWorkerRuntime;
 pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
 pub use source_worker_lifecycle::SourceWorkerLifecycle;
+pub use source_worker_lifecycle::ROUTING_TREE_WORKER_THREAD_NAMES;
 pub use source_worker_lifecycle::SOURCE_WORKER_THREAD_NAMES;
 pub use source_worker_load::{
     SourceWorkerLoadSnapshot, SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS,
@@ -128,6 +158,8 @@ pub use source_worker_observer::{
     install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
     SourceWorkerShutdownProbeGuard,
 };
+#[cfg(feature = "routing-tree-benchmark")]
+pub use source_worker_protocol::SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT;
 pub use source_worker_protocol::{
     SourceWorkerMode, SourceWorkerRenderDisposition, SourceWorkerRetirementError,
     SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook, WorkStamp, WorkerPhase,
@@ -144,6 +176,10 @@ use inline_source_executor::InlineSourceExecutor;
 use render_plan::RenderPlan;
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
+#[cfg(feature = "routing-tree-benchmark")]
+use routing_tree_executor::RoutingTreeAssignment;
+#[cfg(test)]
+use routing_tree_executor::RoutingTreeBlockScratch;
 use sample_voice_pool::SampleVoicePool;
 use support::{
     midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, parse_instrument_kind,
@@ -204,6 +240,18 @@ pub struct SynthEngine {
     fx_activity_hold_frames: u32,
     render_profile: RenderProfileState,
     block_slot_scratch: BlockSlotScratch,
+    #[cfg(test)]
+    routing_tree_scratch: RoutingTreeBlockScratch,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_tree_assignment: Option<RoutingTreeAssignment>,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_tree_notes_started: bool,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_tree_profile: SynthProfileSnapshot,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_tree_source_event_sample_clock: Option<u64>,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_tree_rejection: bool,
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
     worker_load_warning: WorkerLoadWarningState,
@@ -321,6 +369,18 @@ impl SynthEngine {
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
             render_profile: RenderProfileState::default(),
             block_slot_scratch: BlockSlotScratch::new(),
+            #[cfg(test)]
+            routing_tree_scratch: RoutingTreeBlockScratch::new(),
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_assignment: None,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_notes_started: false,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_profile: SynthProfileSnapshot::default(),
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_source_event_sample_clock: None,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_rejection: false,
             dsp_config: DspRuntimeConfig::default(),
             worker_utilization_ppm: None,
             worker_load_warning: WorkerLoadWarningState::default(),
@@ -340,6 +400,10 @@ impl SynthEngine {
 
     pub fn profile_snapshot(&self) -> SynthProfileSnapshot {
         if !self.voice_pools_home() {
+            #[cfg(feature = "routing-tree-benchmark")]
+            if self.routing_tree_assignment.is_some() {
+                return self.routing_tree_profile;
+            }
             return SynthProfileSnapshot::default();
         }
         let active_synth_voices = self.synth_voice_pool.active_total().unwrap_or(0);

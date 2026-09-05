@@ -84,6 +84,8 @@ pub(super) struct BusChainCarrier {
     pub(super) logical_bus_id: usize,
     pub(super) owner: Option<BusChainOwner>,
     pub(super) scratch: BusChainBlockScratch,
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub(super) routing_tree_spread_state: Option<super::render_routing::FxBusOutputSpreadState>,
 }
 
 impl BusChainCarrier {
@@ -92,6 +94,8 @@ impl BusChainCarrier {
             logical_bus_id,
             owner,
             scratch: BusChainBlockScratch::new(),
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_tree_spread_state: None,
         }
     }
 

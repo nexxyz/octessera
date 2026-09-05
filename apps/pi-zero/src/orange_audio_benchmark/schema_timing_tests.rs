@@ -3,7 +3,7 @@ use super::*;
 type SemanticCase = (&'static str, fn(&mut serde_json::Value));
 
 #[test]
-fn schema11_rejects_impossible_worker_timing_relationships() {
+fn schema12_rejects_impossible_worker_timing_relationships() {
     let cases: [SemanticCase; 40] = [
         ("missing deadline", |value| {
             value["worker_timing"]["coordinator"]["deadline_ns"] = serde_json::Value::Null;

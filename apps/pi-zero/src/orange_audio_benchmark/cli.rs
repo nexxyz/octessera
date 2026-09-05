@@ -7,6 +7,9 @@ pub const DEFAULT_RESULT_PATH: &str = "/run/octessera/orange-audio-benchmark-res
 pub const DEFAULT_PROGRESS_PATH: &str = "/run/octessera/orange-audio-benchmark-progress.json";
 pub const DEFAULT_READINESS_PATH: &str = "/run/octessera/orange-audio-benchmark-readiness.json";
 pub const DEFAULT_RELEASE_TIMEOUT_SECONDS: u64 = 30;
+#[cfg(not(feature = "routing-tree-benchmark"))]
+pub(crate) const ROUTING_TREE_FEATURE_REQUIRED_ERROR: &str =
+    "routing_tree_persistent executor requires a binary built with routing-tree-benchmark";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -19,6 +22,7 @@ pub enum WorkerTimingMode {
 pub enum BenchmarkExecutorMode {
     Inline,
     PersistentTwoWorkers,
+    RoutingTreePersistent,
 }
 
 impl BenchmarkExecutorMode {
@@ -26,6 +30,7 @@ impl BenchmarkExecutorMode {
         match self {
             Self::Inline => "inline",
             Self::PersistentTwoWorkers => "persistent_two_workers",
+            Self::RoutingTreePersistent => "routing_tree_persistent",
         }
     }
 
@@ -33,6 +38,7 @@ impl BenchmarkExecutorMode {
         match value {
             "inline" => Some(Self::Inline),
             "persistent_two_workers" => Some(Self::PersistentTwoWorkers),
+            "routing_tree_persistent" => Some(Self::RoutingTreePersistent),
             _ => None,
         }
     }
@@ -213,7 +219,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
             "--executor" => {
                 let value = next_value(&mut iter, "executor")?;
                 executor_mode = BenchmarkExecutorMode::parse(&value).ok_or_else(|| {
-                    "executor must be inline or persistent_two_workers".to_string()
+                    "executor must be inline, persistent_two_workers, or routing_tree_persistent"
+                        .to_string()
                 })?;
             }
             "--worker-timing" => {
@@ -270,11 +277,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     if !matches!(internal_frames, 32 | 64 | 128 | 256) {
         return Err("engine block frames must be 32, 64, 128, or 256".into());
     }
-    if !approved_tuple(output_frames, internal_frames) {
-        return Err(format!(
-            "unsupported Orange benchmark geometry tuple: output={output_frames} internal={internal_frames}"
-        ));
-    }
+    validate_requested_geometry(executor_mode, output_frames, internal_frames)?;
     if warmup_seconds != DEFAULT_WARMUP_SECONDS {
         return Err("warmup seconds must be 5".into());
     }
@@ -329,11 +332,85 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     })
 }
 
-fn approved_tuple(output_frames: u32, internal_frames: usize) -> bool {
-    matches!(
+pub(crate) fn preflight(config: &BenchmarkConfig) -> Result<(), String> {
+    #[cfg(not(feature = "routing-tree-benchmark"))]
+    if config.executor_mode == BenchmarkExecutorMode::RoutingTreePersistent {
+        return Err(ROUTING_TREE_FEATURE_REQUIRED_ERROR.into());
+    }
+    validate_requested_geometry(
+        config.executor_mode,
+        config.output_frames,
+        config.internal_frames,
+    )
+}
+
+pub(crate) fn expected_lookahead_frames(
+    executor_mode: BenchmarkExecutorMode,
+    internal_frames: usize,
+) -> usize {
+    match executor_mode {
+        BenchmarkExecutorMode::RoutingTreePersistent => internal_frames,
+        BenchmarkExecutorMode::Inline | BenchmarkExecutorMode::PersistentTwoWorkers => 0,
+    }
+}
+
+pub(crate) fn validate_requested_geometry(
+    executor_mode: BenchmarkExecutorMode,
+    output_frames: u32,
+    internal_frames: usize,
+) -> Result<(), String> {
+    if executor_mode == BenchmarkExecutorMode::RoutingTreePersistent && output_frames > 256 {
+        return Err("routing_tree_persistent executor requires output frames <= 256".into());
+    }
+    if !matches!(
         (output_frames, internal_frames),
         (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
-    )
+    ) {
+        return Err(format!(
+            "unsupported Orange benchmark geometry tuple: output={output_frames} internal={internal_frames}"
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_recorded_geometry(
+    executor_mode: BenchmarkExecutorMode,
+    requested_output_buffer_frames: u32,
+    expected_alsa_buffer_frames: u32,
+    expected_alsa_period_frames: u32,
+    internal_block_frames: usize,
+    lookahead_frames: usize,
+    effective_output_latency_frames: Option<usize>,
+) -> Result<(), String> {
+    validate_requested_geometry(
+        executor_mode,
+        requested_output_buffer_frames,
+        internal_block_frames,
+    )?;
+    let expected_period_frames = match requested_output_buffer_frames {
+        128 => 32,
+        256 => 64,
+        512 => 128,
+        1024 => 256,
+        _ => return Err("benchmark output frames are invalid".into()),
+    };
+    if expected_alsa_buffer_frames != requested_output_buffer_frames
+        || expected_alsa_period_frames != expected_period_frames
+    {
+        return Err("benchmark ALSA geometry does not match requested output geometry".into());
+    }
+    let expected_lookahead = expected_lookahead_frames(executor_mode, internal_block_frames);
+    if lookahead_frames != expected_lookahead {
+        return Err("benchmark executor lookahead does not match executor geometry".into());
+    }
+    if let Some(effective) = effective_output_latency_frames {
+        if effective != requested_output_buffer_frames as usize + lookahead_frames {
+            return Err(
+                "benchmark effective output latency does not match benchmark geometry".into(),
+            );
+        }
+    }
+    Ok(())
 }
 
 fn next_value(iter: &mut impl Iterator<Item = String>, name: &str) -> Result<String, String> {

@@ -68,6 +68,17 @@ pub fn validate_release_gate(
 ) -> Result<(), String> {
     let expected_buffer_frames = config.output_frames;
     let expected_period_frames = config.expected_alsa_period_frames;
+    let expected_worker_names =
+        crate::orange_audio_benchmark::stream::worker_thread_names_for_executor(
+            config.executor_mode,
+        );
+    let expected_worker_health = match config.executor_mode {
+        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline => "disabled",
+        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers
+        | crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::RoutingTreePersistent => {
+            "healthy"
+        }
+    };
     if release.schema_version != 2
         || release.kind != "orange_audio_benchmark_release"
         || release.status != "released"
@@ -84,6 +95,16 @@ pub fn validate_release_gate(
     }
     if readiness.expected_alsa_buffer_frames != expected_buffer_frames
         || readiness.expected_alsa_period_frames != expected_period_frames
+        || readiness.executor_mode != config.executor_mode.as_str()
+        || readiness.internal_block_frames != config.internal_frames
+        || readiness.lookahead_frames
+            != crate::orange_audio_benchmark::cli::expected_lookahead_frames(
+                config.executor_mode,
+                config.internal_frames,
+            )
+        || readiness.worker_thread_name_0 != expected_worker_names[0]
+        || readiness.worker_thread_name_1 != expected_worker_names[1]
+        || readiness.worker_health != expected_worker_health
         || release.expected_alsa_buffer_frames != expected_buffer_frames
         || release.observed_alsa_buffer_frames != expected_buffer_frames
         || release.expected_alsa_period_frames != expected_period_frames

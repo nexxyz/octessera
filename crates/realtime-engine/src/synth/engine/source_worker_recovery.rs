@@ -76,12 +76,20 @@ impl SourceWorkerRuntime {
         let recovered = match phase {
             WorkerPhase::Sources => self.recover_source_wave(engine),
             WorkerPhase::Buses => self.recover_bus_wave(engine, stamp.frames),
+            #[cfg(feature = "routing-tree-benchmark")]
+            WorkerPhase::RoutingTree => self.recover_routing_tree_wave(),
         };
         if !recovered {
             self.latch_completion_failure(0b11);
             return SourceWorkerRenderDisposition::Fatal;
         }
         engine.sample_clock = engine.sample_clock.saturating_add(stamp.frames as u64);
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.mode
+            == super::super::source_worker_protocol::SourceWorkerMode::RoutingTreePersistent
+        {
+            self.routing_tree_reprime_pending = true;
+        }
         self.clear_recovery_state();
         if self.health.recover() {
             SourceWorkerRenderDisposition::RecoveredReady
@@ -213,6 +221,33 @@ impl SourceWorkerRuntime {
             }
             Ok(Err(())) | Err(()) => false,
         }
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    fn recover_routing_tree_wave(&mut self) -> bool {
+        let Some(mut first) = self.lease_home(0) else {
+            return false;
+        };
+        let Some(mut second) = self.lease_home(1) else {
+            first.return_fault();
+            return false;
+        };
+        let valid = first
+            .owner
+            .as_ref()
+            .is_some_and(|owner| owner.routing_tree.is_some())
+            && second
+                .owner
+                .as_ref()
+                .is_some_and(|owner| owner.routing_tree.is_some());
+        if !valid {
+            first.return_fault();
+            second.return_fault();
+            return false;
+        }
+        first.return_home();
+        second.return_home();
+        true
     }
 
     fn clear_recovery_state(&mut self) {

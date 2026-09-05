@@ -49,6 +49,13 @@ fn persistent_source_publishes_status_after_paired_worker_completion() {
     let (load_tx, load_rx) = audio_load_status_channel();
     let (mut source, shutdown) =
         EngineSource::with_persistent_workers(rx, RATE, 128, Some(load_tx)).unwrap();
+    source
+        .worker_state
+        .worker
+        .as_mut()
+        .expect("persistent worker")
+        .runtime
+        .set_deadline_for_test(Duration::from_secs(1));
     source.last_load_report = Instant::now() - LOAD_REPORT_INTERVAL;
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
@@ -275,6 +282,7 @@ fn run_mixed_flow(frames: usize) {
 fn persistent_factory_prewarm_workers_and_keeps_inline_disabled() {
     let (tx, source, shutdown) = persistent_source(128);
     assert_eq!(source.block_frames(), 128);
+    assert_eq!(source.lookahead_frames(), 0);
     assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
     drop(tx);
     drop(source);
@@ -282,6 +290,7 @@ fn persistent_factory_prewarm_workers_and_keeps_inline_disabled() {
 
     let (_tx, inline) = inline_source(128);
     assert_eq!(inline.source_worker_health(), SourceWorkerHealth::Disabled);
+    assert_eq!(inline.lookahead_frames(), 0);
 }
 
 #[test]

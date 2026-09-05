@@ -93,6 +93,10 @@ fn executor_modes_round_trip_exactly_and_require_disabled_inline_timing() {
             "persistent_two_workers",
             BenchmarkExecutorMode::PersistentTwoWorkers,
         ),
+        (
+            "routing_tree_persistent",
+            BenchmarkExecutorMode::RoutingTreePersistent,
+        ),
     ] {
         let mut args = valid_args();
         args.extend(["--executor".into(), value.into()]);
@@ -103,6 +107,18 @@ fn executor_modes_round_trip_exactly_and_require_disabled_inline_timing() {
         assert_eq!(config.executor_mode, expected);
         assert_eq!(config.executor_mode.as_str(), value);
     }
+
+    let mut routing = args_for(256, 128);
+    routing.extend(["--executor".into(), "routing_tree_persistent".into()]);
+    let routing_config = parse(routing).unwrap();
+    assert_eq!(
+        routing_config.executor_mode,
+        BenchmarkExecutorMode::RoutingTreePersistent
+    );
+    assert_eq!(
+        routing_config.executor_mode.as_str(),
+        "routing_tree_persistent"
+    );
     let mut invalid_combination = valid_args();
     invalid_combination.extend(["--executor".into(), "inline".into()]);
     assert_eq!(
@@ -114,6 +130,28 @@ fn executor_modes_round_trip_exactly_and_require_disabled_inline_timing() {
         args.extend(["--executor".into(), value.into()]);
         assert!(parse(args).is_err(), "executor value should fail: {value}");
     }
+}
+
+#[cfg(not(feature = "routing-tree-benchmark"))]
+#[test]
+fn routing_tree_selection_fails_preflight_before_runtime_access() {
+    let mut args = args_for(256, 128);
+    args.extend(["--executor".into(), "routing_tree_persistent".into()]);
+    let config = parse(args).unwrap();
+    assert_eq!(
+        preflight(&config).unwrap_err(),
+        "routing_tree_persistent executor requires a binary built with routing-tree-benchmark"
+    );
+}
+
+#[test]
+fn routing_tree_executor_rejects_output_buffers_above_256() {
+    let mut args = args_for(512, 128);
+    args.extend(["--executor".into(), "routing_tree_persistent".into()]);
+    assert_eq!(
+        parse(args).unwrap_err(),
+        "routing_tree_persistent executor requires output frames <= 256"
+    );
 }
 
 #[test]

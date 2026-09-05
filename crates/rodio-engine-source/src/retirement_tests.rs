@@ -183,7 +183,7 @@ fn full_sample_source() -> (
     assert_no_callback_memory_activity(&mut source);
     assert_eq!(
         source.engine.profile_snapshot().active_sample_voices,
-        SAMPLE_VOICE_LANE_CAPACITY
+        SAMPLE_VOICE_LANE_CAPACITY.min(INSTRUMENT_SLOT_COUNT * MAX_SAMPLE_VOICES_PER_SLOT)
     );
     (tx, source, retired_rx)
 }
@@ -208,7 +208,7 @@ fn full_sample_lane_reuse_has_no_callback_memory_activity() {
     assert_eq!(drop_retired_state_off_callback(retired), (0, 0));
     assert_eq!(
         source.engine.profile_snapshot().active_sample_voices,
-        SAMPLE_VOICE_LANE_CAPACITY
+        SAMPLE_VOICE_LANE_CAPACITY.min(INSTRUMENT_SLOT_COUNT * MAX_SAMPLE_VOICES_PER_SLOT)
     );
 }
 

@@ -47,6 +47,12 @@ impl SynthEngine {
         velocity: u8,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() {
+            store_retired_preview_buffer(&mut retired.preview_sample_buffers, buffer);
+            self.reject_routing_tree_mutation_for_control();
+            return retired;
+        }
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
         if buffer.samples.is_empty() || buffer.channels == 0 || buffer.sample_rate == 0 {
             store_retired_preview_buffer(&mut retired.preview_sample_buffers, buffer);
@@ -97,10 +103,20 @@ impl SynthEngine {
     }
 
     pub fn note_on(&mut self, instrument_slot: u8, midi_note: u8, velocity: u8, duration_ms: u32) {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() {
+            self.routing_tree_mark_note_event();
+        }
         if !self.voice_pools_home() {
             return;
         }
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
+        #[cfg(feature = "routing-tree-benchmark")]
+        let event_sample_clock = self
+            .routing_tree_source_event_sample_clock
+            .unwrap_or(self.sample_clock);
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let event_sample_clock = self.sample_clock;
         if self.slot_kind[slot] == InstrumentKind::Sample {
             self.sample_note_on(slot, midi_note, velocity);
             return;
@@ -113,7 +129,7 @@ impl SynthEngine {
         }
         let v = velocity.max(1);
         let duration_samples = ms_to_samples(duration_ms as f32, self.sample_rate).max(1) as u64;
-        let note_off_sample = self.sample_clock.saturating_add(duration_samples);
+        let note_off_sample = event_sample_clock.saturating_add(duration_samples);
         let freq = midi_note_to_hz(midi_note);
         self.synth_voice_pool.compact_slot_lanes(slot);
         let active = self
@@ -143,17 +159,30 @@ impl SynthEngine {
             self.record_voice_admission_drop();
             return;
         };
+        let required_worker = source_worker_placement::worker_for_slot(self, slot);
         let lane = if self.source_worker_load.is_some() {
             let inactive_lanes = [
                 self.synth_voice_pool.first_inactive_lane_for_parity(0),
                 self.synth_voice_pool.first_inactive_lane_for_parity(1),
             ];
-            let Some(lane) = source_worker_placement::choose_lane(
-                self,
-                SOURCE_WORKER_SYNTH_COST_UNITS,
-                victim_lane,
-                inactive_lanes,
-            ) else {
+            let lane = if let Some(worker) = required_worker {
+                source_worker_placement::choose_lane_for_worker(worker, victim_lane, inactive_lanes)
+            } else {
+                source_worker_placement::choose_lane(
+                    self,
+                    SOURCE_WORKER_SYNTH_COST_UNITS,
+                    victim_lane,
+                    inactive_lanes,
+                )
+            };
+            let Some(lane) = lane else {
+                #[cfg(feature = "routing-tree-benchmark")]
+                if required_worker.is_some() && first_inactive_lane.is_some() {
+                    self.reject_routing_tree_mutation_for_control();
+                } else {
+                    self.record_voice_admission_drop();
+                }
+                #[cfg(not(feature = "routing-tree-benchmark"))]
                 self.record_voice_admission_drop();
                 return;
             };
@@ -172,7 +201,7 @@ impl SynthEngine {
             velocity: v,
             velocity_norm: 0.0,
             note_off_sample,
-            started_sample: self.sample_clock,
+            started_sample: event_sample_clock,
             freq_hz: freq,
             osc1_inc: 0.0,
             osc2_inc: 0.0,
@@ -224,6 +253,12 @@ impl SynthEngine {
             return;
         }
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
+        #[cfg(feature = "routing-tree-benchmark")]
+        let event_sample_clock = self
+            .routing_tree_source_event_sample_clock
+            .unwrap_or(self.sample_clock);
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let event_sample_clock = self.sample_clock;
         let cfg = self.instruments[slot];
         if self.synth_voice_pool.compact_slot_lanes(slot) {
             let mut lane_indices = [0; SYNTH_VOICE_LANE_CAPACITY];
@@ -243,7 +278,7 @@ impl SynthEngine {
                 voice
                     .filt_env
                     .begin_release(cfg.filter_env, self.sample_rate);
-                voice.note_off_sample = self.sample_clock;
+                voice.note_off_sample = event_sample_clock;
             }
         }
 
@@ -274,6 +309,12 @@ impl SynthEngine {
 
     pub fn all_notes_off(&mut self) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        let event_sample_clock = self
+            .routing_tree_source_event_sample_clock
+            .unwrap_or(self.sample_clock);
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let event_sample_clock = self.sample_clock;
         if !self.voice_pools_home() {
             return retired;
         }
@@ -308,7 +349,7 @@ impl SynthEngine {
                     voice
                         .filt_env
                         .begin_release(cfg.filter_env, self.sample_rate);
-                    voice.note_off_sample = self.sample_clock;
+                    voice.note_off_sample = event_sample_clock;
                 }
             }
         }

@@ -40,7 +40,7 @@ impl SourceWorkerRuntime {
         if let (Some(probe), Some(dispatch_started_at)) =
             (self.timing_probe.as_ref(), self.dispatch_started_at)
         {
-            if completion.phase == super::super::source_worker_protocol::WorkerPhase::Sources {
+            if completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses {
                 probe.record_completion(
                     completion.stamp.quantum_sequence,
                     parity,
@@ -63,7 +63,7 @@ impl SourceWorkerRuntime {
                 dsp_duration_ns: completion.dsp_duration_ns,
                 active_cost_units: completion.active_cost_units,
             });
-            if completion.phase == super::super::source_worker_protocol::WorkerPhase::Sources {
+            if completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses {
                 self.source_load_observations[parity] = observation;
             } else {
                 self.bus_load_observations[parity] = observation;

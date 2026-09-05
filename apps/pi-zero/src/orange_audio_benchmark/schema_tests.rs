@@ -89,6 +89,8 @@ fn benchmark_result(
         expected_alsa_buffer_frames: 256,
         expected_alsa_period_frames: 64,
         internal_block_frames: 256,
+        lookahead_frames: 0,
+        effective_output_latency_frames: 256,
         sample_format: "F32".into(),
         channels: 2,
         sample_rate: 44_100,
@@ -141,7 +143,7 @@ fn inline_benchmark_result() -> BenchmarkResult {
 }
 
 #[test]
-fn schema4_artifacts_round_trip_and_schema1_is_rejected() {
+fn schema5_artifacts_round_trip_and_schema1_is_rejected() {
     let config = config();
     let metrics = CallbackMetricsSnapshot::default();
     let progress = BenchmarkProgress::new(
@@ -155,12 +157,13 @@ fn schema4_artifacts_round_trip_and_schema1_is_rejected() {
     assert_eq!(progress.requested_output_buffer_frames, 256);
     assert_eq!(progress.expected_alsa_period_frames, 64);
     assert_eq!(progress.internal_block_frames, 256);
+    assert_eq!(progress.lookahead_frames, 0);
     let encoded = serde_json::to_string(&progress).unwrap();
     assert_eq!(
         serde_json::from_str::<BenchmarkProgress>(&encoded).unwrap(),
         progress
     );
-    let schema1 = encoded.replacen("\"schema_version\":4", "\"schema_version\":1", 1);
+    let schema1 = encoded.replacen("\"schema_version\":5", "\"schema_version\":1", 1);
     assert!(serde_json::from_str::<BenchmarkProgress>(&schema1).is_err());
 }
 
@@ -187,6 +190,7 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
     assert_eq!(artifact.requested_output_buffer_frames, 256);
     assert_eq!(artifact.expected_alsa_period_frames, 64);
     assert_eq!(artifact.internal_block_frames, 256);
+    assert_eq!(artifact.lookahead_frames, 0);
     assert_eq!(artifact.callback_frames_min, 64);
     assert_eq!(artifact.callback_frames_max, 256);
     let encoded = serde_json::to_string(&artifact).unwrap();
@@ -194,16 +198,18 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
         serde_json::from_str::<BenchmarkReadiness>(&encoded).unwrap(),
         artifact
     );
-    let schema1 = encoded.replacen("\"schema_version\":4", "\"schema_version\":1", 1);
+    let schema1 = encoded.replacen("\"schema_version\":5", "\"schema_version\":1", 1);
     assert!(serde_json::from_str::<BenchmarkReadiness>(&schema1).is_err());
 }
 
 #[test]
-fn result_schema11_requires_worker_timing_and_rejects_unknown_fields() {
+fn result_schema12_requires_worker_timing_and_rejects_unknown_fields() {
     let result = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert_eq!(value["schema_version"], 11);
+    assert_eq!(value["schema_version"], 12);
+    assert_eq!(value["lookahead_frames"], 0);
+    assert_eq!(value["effective_output_latency_frames"], 256);
     assert_eq!(value["callback_scheduling_cpu"], 1);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["worker_timing"]["workers"][1]["render_ns"], 11);
@@ -224,7 +230,7 @@ fn result_schema11_requires_worker_timing_and_rejects_unknown_fields() {
         serde_json::from_str::<BenchmarkResult>(&encoded).unwrap(),
         result
     );
-    let unsupported_schema = encoded.replacen("\"schema_version\":11", "\"schema_version\":10", 1);
+    let unsupported_schema = encoded.replacen("\"schema_version\":12", "\"schema_version\":10", 1);
     assert!(serde_json::from_str::<BenchmarkResult>(&unsupported_schema).is_err());
     let missing_timing = value_without_worker_timing(&result);
     assert!(serde_json::from_value::<BenchmarkResult>(missing_timing).is_err());
@@ -234,7 +240,7 @@ fn result_schema11_requires_worker_timing_and_rejects_unknown_fields() {
 }
 
 #[test]
-fn schema11_worker_timing_modes_require_exact_consistent_evidence() {
+fn schema12_worker_timing_modes_require_exact_consistent_evidence() {
     let enabled = benchmark_result(WorkerTimingMode::Enabled, Some(worker_timing()));
     let enabled_encoded = serde_json::to_string(&enabled).unwrap();
     assert_eq!(
@@ -290,7 +296,7 @@ fn schema11_worker_timing_modes_require_exact_consistent_evidence() {
 }
 
 #[test]
-fn schema11_executor_modes_require_exact_runtime_evidence() {
+fn schema12_executor_modes_require_exact_runtime_evidence() {
     let inline = inline_benchmark_result();
     let encoded = serde_json::to_string(&inline).unwrap();
     assert_eq!(
@@ -335,7 +341,7 @@ fn schema11_executor_modes_require_exact_runtime_evidence() {
 }
 
 #[test]
-fn schema11_accepts_pre_stream_failures_for_both_executors() {
+fn schema12_accepts_pre_stream_failures_for_both_executors() {
     for executor_mode in [
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline,
         crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers,
@@ -374,7 +380,7 @@ fn value_without_worker_timing(result: &BenchmarkResult) -> serde_json::Value {
 }
 
 #[test]
-fn schema11_accepts_healthy_and_deadline_worker_timing() {
+fn schema12_accepts_healthy_and_deadline_worker_timing() {
     for timing in [worker_timing(), deadline_worker_timing()] {
         let encoded =
             serde_json::to_string(&benchmark_result(WorkerTimingMode::Enabled, Some(timing)))
@@ -384,7 +390,7 @@ fn schema11_accepts_healthy_and_deadline_worker_timing() {
 }
 
 #[test]
-fn schema11_validates_persistent_output_counter_evidence_and_detection() {
+fn schema12_validates_persistent_output_counter_evidence_and_detection() {
     let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
     result.persistent_output_counters = PersistentOutputCountersEvidence {
         observable: true,
@@ -431,39 +437,8 @@ fn schema11_validates_persistent_output_counter_evidence_and_detection() {
     .is_err());
 }
 
-#[test]
-fn progress_and_readiness_report_the_selected_executor() {
-    let mut config = config();
-    config.executor_mode = crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline;
-    config.worker_timing_mode = WorkerTimingMode::Disabled;
-    let metrics = CallbackMetricsSnapshot::default();
-    let progress = BenchmarkProgress::new(
-        &config,
-        "prepared",
-        0,
-        0,
-        &metrics,
-        SourceWorkerHealth::Disabled,
-    );
-    assert_eq!(progress.executor_mode, "inline");
-    assert_eq!(progress.worker_health, "disabled");
-    assert_eq!(progress.worker_thread_name_0, "");
-    assert_eq!(progress.worker_thread_name_1, "");
-    let readiness = readiness(
-        &config,
-        "invocation",
-        "F32",
-        2,
-        44_100,
-        &metrics,
-        SourceWorkerHealth::Disabled,
-    );
-    assert_eq!(readiness.executor_mode, "inline");
-    assert_eq!(readiness.worker_health, "disabled");
-    assert_eq!(readiness.worker_thread_name_0, "");
-    assert_eq!(readiness.worker_thread_name_1, "");
-}
-
+#[path = "schema_executor_tests.rs"]
+mod executor_tests;
 #[path = "schema_profile_tests.rs"]
 mod profile_tests;
 #[path = "schema_timing_tests.rs"]

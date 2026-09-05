@@ -20,7 +20,7 @@ impl FxBusOutputSpreadState {
         }
     }
 
-    fn process(&mut self, mono: f32, spread: f32) -> (f32, f32) {
+    pub(super) fn process(&mut self, mono: f32, spread: f32) -> (f32, f32) {
         if spread <= 0.0 {
             let (center_l, center_r) = pan_gains_float(0.5);
             return (mono * center_l, mono * center_r);
@@ -34,6 +34,11 @@ impl FxBusOutputSpreadState {
             (mono * center_l + side).clamp(-1.5, 1.5),
             (mono * center_r - side).clamp(-1.5, 1.5),
         )
+    }
+
+    #[cfg(all(test, feature = "routing-tree-benchmark"))]
+    pub(super) fn state_for_test(&self) -> (usize, &[f32]) {
+        (self.idx, &self.buf)
     }
 }
 
@@ -170,32 +175,16 @@ impl SynthEngine {
         bus_idx: usize,
         output: BusChainFrameOutput,
     ) -> (f32, f32) {
-        let stereo_output = if output.spread > 0.0 {
-            Some(self.bus_output_spread_state[bus_idx].process(output.mono, output.spread))
-        } else if let Some(pos) = output.auto_pan_pos {
-            let (gl, gr) = pan_gains_float(pos);
-            Some((output.mono * gl, output.mono * gr))
-        } else {
-            None
-        };
-        if let Some((mut bus_left, mut bus_right)) = stereo_output {
-            if output.spread > 0.0 {
-                if let Some(pos) = output.auto_pan_pos {
-                    let (gl, gr) = stereo_balance_gains(pos);
-                    bus_left *= gl;
-                    bus_right *= gr;
-                }
-            }
-            let (gl, gr) = self.bus_stereo_balance_gains(bus_idx);
-            bus_left *= gl;
-            bus_right *= gr;
-            let volume = self.bus_volume.get(bus_idx).copied().unwrap_or(1.0);
-            (bus_left * volume, bus_right * volume)
-        } else {
-            let (gl, gr) = self.bus_mono_pan_gains(bus_idx);
-            let volume = self.bus_volume.get(bus_idx).copied().unwrap_or(1.0);
-            (output.mono * gl * volume, output.mono * gr * volume)
-        }
+        let pan_gains = self.bus_mono_pan_gains(bus_idx);
+        let spread_state = &mut self.bus_output_spread_state[bus_idx];
+        render_bus_stereo_output(
+            output,
+            spread_state,
+            self.bus_pan_pos.get(bus_idx).copied(),
+            self.pan_positions,
+            pan_gains,
+            self.bus_volume.get(bus_idx).copied().unwrap_or(1.0),
+        )
     }
 
     fn bus_mono_pan_gains(&self, bus_idx: usize) -> (f32, f32) {
@@ -203,17 +192,6 @@ impl SynthEngine {
             .get(bus_idx)
             .copied()
             .unwrap_or_else(|| pan_gains(0, self.pan_positions))
-    }
-
-    fn bus_stereo_balance_gains(&self, bus_idx: usize) -> (f32, f32) {
-        let Some(pan_pos) = self.bus_pan_pos.get(bus_idx).copied() else {
-            return (1.0, 1.0);
-        };
-        if self.pan_positions <= 1 {
-            return (1.0, 1.0);
-        }
-        let pos = (pan_pos.min(self.pan_positions - 1) as f32) / ((self.pan_positions - 1) as f32);
-        stereo_balance_gains(pos)
     }
 
     pub(super) fn observe_bus_chain(&mut self, bus_idx: usize, input: f32, output: f32) {
@@ -285,6 +263,53 @@ impl SynthEngine {
     pub(super) fn signal_present(&self, left: f32, right: f32) -> bool {
         self.signal_present_mono(left) || self.signal_present_mono(right)
     }
+}
+
+pub(super) fn render_bus_stereo_output(
+    output: BusChainFrameOutput,
+    spread_state: &mut FxBusOutputSpreadState,
+    pan_pos: Option<usize>,
+    pan_positions: usize,
+    mono_pan_gains: (f32, f32),
+    volume: f32,
+) -> (f32, f32) {
+    let stereo_output = if output.spread > 0.0 {
+        Some(spread_state.process(output.mono, output.spread))
+    } else if let Some(pos) = output.auto_pan_pos {
+        let (gl, gr) = pan_gains_float(pos);
+        Some((output.mono * gl, output.mono * gr))
+    } else {
+        None
+    };
+    if let Some((mut bus_left, mut bus_right)) = stereo_output {
+        if output.spread > 0.0 {
+            if let Some(pos) = output.auto_pan_pos {
+                let (gl, gr) = stereo_balance_gains(pos);
+                bus_left *= gl;
+                bus_right *= gr;
+            }
+        }
+        let (gl, gr) = stereo_balance_gains_from_pan(pan_pos, pan_positions);
+        bus_left *= gl;
+        bus_right *= gr;
+        (bus_left * volume, bus_right * volume)
+    } else {
+        (
+            output.mono * mono_pan_gains.0 * volume,
+            output.mono * mono_pan_gains.1 * volume,
+        )
+    }
+}
+
+fn stereo_balance_gains_from_pan(pan_pos: Option<usize>, pan_positions: usize) -> (f32, f32) {
+    let Some(pan_pos) = pan_pos else {
+        return (1.0, 1.0);
+    };
+    if pan_positions <= 1 {
+        return (1.0, 1.0);
+    }
+    let pos = (pan_pos.min(pan_positions - 1) as f32) / ((pan_positions - 1) as f32);
+    stereo_balance_gains(pos)
 }
 
 fn stereo_balance_gains(pos: f32) -> (f32, f32) {

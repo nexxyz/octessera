@@ -1,6 +1,6 @@
 use super::super::cli::{BenchmarkExecutorMode, WorkerTimingMode};
 use super::{
-    deserialize_result_schema_v11, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
+    deserialize_result_schema_v12, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
     CallbackMetricsSnapshot, PersistentOutputCountersEvidence,
 };
 use serde::de::Error as DeserializeError;
@@ -17,6 +17,8 @@ pub struct BenchmarkResult {
     pub expected_alsa_buffer_frames: u32,
     pub expected_alsa_period_frames: u32,
     pub internal_block_frames: usize,
+    pub lookahead_frames: usize,
+    pub effective_output_latency_frames: usize,
     pub sample_format: String,
     pub channels: u16,
     pub sample_rate: u32,
@@ -54,7 +56,7 @@ pub struct BenchmarkResult {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BenchmarkResultUnchecked {
-    #[serde(deserialize_with = "deserialize_result_schema_v11")]
+    #[serde(deserialize_with = "deserialize_result_schema_v12")]
     schema_version: u8,
     kind: String,
     status: String,
@@ -64,6 +66,8 @@ struct BenchmarkResultUnchecked {
     expected_alsa_buffer_frames: u32,
     expected_alsa_period_frames: u32,
     internal_block_frames: usize,
+    lookahead_frames: usize,
+    effective_output_latency_frames: usize,
     sample_format: String,
     channels: u16,
     sample_rate: u32,
@@ -115,6 +119,8 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             expected_alsa_buffer_frames,
             expected_alsa_period_frames,
             internal_block_frames,
+            lookahead_frames,
+            effective_output_latency_frames,
             sample_format,
             channels,
             sample_rate,
@@ -158,6 +164,8 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             expected_alsa_buffer_frames,
             expected_alsa_period_frames,
             internal_block_frames,
+            lookahead_frames,
+            effective_output_latency_frames,
             sample_format,
             channels,
             sample_rate,
@@ -200,8 +208,19 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
     }
     let executor_mode = BenchmarkExecutorMode::parse(&result.executor_mode)
         .ok_or_else(|| "benchmark executor mode is missing or invalid".to_string())?;
+    super::super::cli::validate_recorded_geometry(
+        executor_mode,
+        result.requested_output_buffer_frames,
+        result.expected_alsa_buffer_frames,
+        result.expected_alsa_period_frames,
+        result.internal_block_frames,
+        result.lookahead_frames,
+        Some(result.effective_output_latency_frames),
+    )?;
     let expected_priority = match executor_mode {
-        BenchmarkExecutorMode::Inline | BenchmarkExecutorMode::PersistentTwoWorkers => 70,
+        BenchmarkExecutorMode::Inline
+        | BenchmarkExecutorMode::PersistentTwoWorkers
+        | BenchmarkExecutorMode::RoutingTreePersistent => 70,
     };
     let expected_cpu = Some(1);
     let scheduling_is_valid = result.callback_scheduling_policy.as_deref() == Some("SCHED_FIFO")
@@ -272,7 +291,8 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
                 return Err("inline executor has invalid worker lifecycle evidence".into());
             }
         }
-        BenchmarkExecutorMode::PersistentTwoWorkers => {
+        BenchmarkExecutorMode::PersistentTwoWorkers
+        | BenchmarkExecutorMode::RoutingTreePersistent => {
             let pre_stream_failure = result.status == "fail"
                 && result.terminal_error.is_some()
                 && result.worker_health == "disabled"
@@ -288,9 +308,11 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
                     | "worker_exited"
                     | "invalid_block"
             );
+            let expected_names =
+                super::super::stream::worker_thread_names_for_executor(executor_mode);
             if !pre_stream_failure
-                && (result.worker_thread_name_0 != "oct-dsp-src-0"
-                    || result.worker_thread_name_1 != "oct-dsp-src-1"
+                && (result.worker_thread_name_0 != expected_names[0]
+                    || result.worker_thread_name_1 != expected_names[1]
                     || !persistent_health
                     || result.joined_workers != 2)
             {

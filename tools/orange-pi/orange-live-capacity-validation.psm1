@@ -47,8 +47,15 @@ function Assert-OrangeCapacityBenchmarkSelection {
     [Parameter(Mandatory)][int]$OutputFrames,
     [Parameter(Mandatory)][int]$EngineBlockFrames,
     [Parameter(Mandatory)][int]$MeasureSeconds,
+    [Parameter(Mandatory)][ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode,
+    [string]$WorkerTimingMode = "",
     [bool]$AllowLongRepeat = $false
   )
+  if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
+  $expectedWorkerTimingMode = if ($ExecutorMode -eq "inline") { "disabled" } else { "enabled" }
+  if ([string]::IsNullOrWhiteSpace($WorkerTimingMode)) { $WorkerTimingMode = $expectedWorkerTimingMode }
+  if ($ExecutorMode -eq "inline" -and $WorkerTimingMode -cne "disabled") { throw "Inline executor requires disabled worker timing." }
+  if ($ExecutorMode -eq "routing_tree_persistent" -and $WorkerTimingMode -cne "enabled") { throw "Routing-tree persistent executor requires enabled worker timing." }
   if ($OutputFrames -ne 256 -or $EngineBlockFrames -ne 64) { throw "LiveAudioBenchmark capacity scenarios require output=256 and engine=64." }
   if (@(30, 180) -notcontains $MeasureSeconds) { throw "LiveAudioBenchmark capacity scenarios require a 30- or 180-second measurement." }
   if ($AllowLongRepeat) { throw "-AllowLongRepeat is only valid for a 120-second A repeat." }
@@ -62,6 +69,10 @@ function Assert-OrangeCapacityBenchmarkSelection {
     WarmupSeconds = 5
     MatrixClass = "diagnostic"
     LongRepeat = $false
+    ExecutorMode = $ExecutorMode
+    WorkerTimingMode = $WorkerTimingMode
+    LookaheadFrames = if ($ExecutorMode -eq "routing_tree_persistent") { $EngineBlockFrames } else { 0 }
+    EffectiveOutputLatencyFrames = if ($ExecutorMode -eq "routing_tree_persistent") { $OutputFrames + $EngineBlockFrames } else { $OutputFrames }
     IsCapacityDiagnostic = $true
     CapacityKind = $CapacityScenario.Kind
     SynthCount = $CapacityScenario.SynthCount

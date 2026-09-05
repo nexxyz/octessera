@@ -153,7 +153,10 @@ impl SourceWorkerRuntime {
         );
         match result {
             Ok(Ok(true)) => {
-                self.observe_combined_load(engine, frames);
+                if !self.observe_combined_load(engine, frames) {
+                    self.fail_completion();
+                    return false;
+                }
                 first.return_home();
                 second.return_home();
                 self.completed_mask = 0;
@@ -167,7 +170,8 @@ impl SourceWorkerRuntime {
         }
     }
 
-    fn observe_combined_load(&mut self, engine: &mut SynthEngine, rendered_frames: usize) {
+    fn observe_combined_load(&mut self, engine: &mut SynthEngine, rendered_frames: usize) -> bool {
+        let mut valid = true;
         if let (
             Some(load),
             [Some(source_first), Some(source_second)],
@@ -199,10 +203,13 @@ impl SourceWorkerRuntime {
                 if let Some(utilization_ppm) = load.snapshot().utilization_ppm {
                     engine.observe_worker_utilization(utilization_ppm, rendered_frames);
                 }
+            } else {
+                valid = false;
             }
         }
         self.source_load_observations = [None; 2];
         self.bus_load_observations = [None; 2];
+        valid
     }
 
     fn fail_completion(&mut self) {

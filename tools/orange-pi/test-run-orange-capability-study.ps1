@@ -330,17 +330,14 @@ Assert-NotContains $live300 '"artifact_kind":"diagnostic-only"'
 $disabledTimingParameters = $live300Parameters.Clone()
 $disabledTimingParameters.WorkerTimingMode = "disabled"
 $disabledTiming = Invoke-StudyPrintOnly -Parameters $disabledTimingParameters
-Assert-NoPayloadPlaceholders $disabledTiming
-Assert-Contains $disabledTiming "worker-timing=disabled"
+Assert-Contains $disabledTiming "worker-timing=disabled executor=persistent_two_workers"
 Assert-Contains $disabledTiming "--worker-timing disabled"
-Assert-Contains $disabledTiming "--executor persistent_two_workers"
 Assert-Throws {
   $invalidTimingParameters = $live300Parameters.Clone()
   $invalidTimingParameters.WorkerTimingMode = "invalid"
   Invoke-StudyPrintOnly -Parameters $invalidTimingParameters | Out-Null
 }
 $inlineParameters = $live300Parameters.Clone()
-$inlineParameters.WorkerTimingMode = "disabled"
 $inlineParameters.ExecutorMode = "inline"
 $inline = Invoke-StudyPrintOnly -Parameters $inlineParameters
 Assert-Contains $inline "worker-timing=disabled executor=inline"
@@ -349,7 +346,31 @@ Assert-Contains $inline "--executor inline"
 Assert-Throws {
   $invalidExecutorParameters = $live300Parameters.Clone()
   $invalidExecutorParameters.ExecutorMode = "inline"
+  $invalidExecutorParameters.WorkerTimingMode = "enabled"
   Invoke-StudyPrintOnly -Parameters $invalidExecutorParameters | Out-Null
+}
+
+$routingParameters = $live300Parameters.Clone()
+$routingParameters.Remove("WorkerTimingMode")
+$routingParameters.ExecutorMode = "routing_tree_persistent"
+$routing = Invoke-StudyPrintOnly -Parameters $routingParameters
+Assert-NoPayloadPlaceholders $routing
+Assert-Contains $routing "worker-timing=enabled executor=routing_tree_persistent lookahead=128 effective-latency=384"
+Assert-Contains $routing "--worker-timing enabled"
+Assert-Contains $routing "--executor routing_tree_persistent"
+Assert-Contains $routing '"artifact_kind":"diagnostic-only"'
+Assert-Contains $routing '"cargo_feature":"hardware-orange-pi-zero-2w routing-tree-benchmark"'
+Assert-Contains $routing 'lookahead_frames'
+Assert-Contains $routing 'effective_output_latency_frames'
+Assert-Throws {
+  $invalidRoutingTiming = $routingParameters.Clone()
+  $invalidRoutingTiming.WorkerTimingMode = "disabled"
+  Invoke-StudyPrintOnly -Parameters $invalidRoutingTiming | Out-Null
+}
+Assert-Throws {
+  $invalidRoutingGeometry = $routingParameters.Clone()
+  $invalidRoutingGeometry.OutputFrames = 512
+  Invoke-StudyPrintOnly -Parameters $invalidRoutingGeometry | Out-Null
 }
 
 foreach ($seconds in @(299, 3000)) {
