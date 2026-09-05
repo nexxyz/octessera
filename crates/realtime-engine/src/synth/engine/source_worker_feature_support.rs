@@ -47,6 +47,16 @@ impl SourceWorkerRuntime {
         self.rendezvous_deadline(frames)
     }
 
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub fn routing_tree_deadline_for_test(&self, frames: usize) -> Duration {
+        self.routing_tree_deadline_duration(frames)
+    }
+
+    #[cfg(feature = "routing-tree-benchmark")]
+    pub fn routing_absolute_deadline_for_test(&self) -> Option<std::time::Instant> {
+        self.routing_absolute_deadline
+    }
+
     pub fn render_attempts_for_test(&self) -> u64 {
         self.render_attempts.load(Ordering::Relaxed)
     }

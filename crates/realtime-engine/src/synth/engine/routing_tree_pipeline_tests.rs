@@ -1,3 +1,4 @@
+#[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::routing_tree_executor_test_support::{
     assert_momentary_state_matches, assert_reassociated_close,
@@ -200,6 +201,7 @@ fn routing_tree_pipeline_has_no_callback_allocations_after_prewarm() {
     shutdown(lifecycle, runtime);
 }
 
+#[cfg(feature = "source-worker-benchmark-timing")]
 #[test]
 fn routing_tree_pipeline_recovers_after_a_deadline_miss() {
     let (mut engine, lifecycle, mut runtime) = start_runtime();

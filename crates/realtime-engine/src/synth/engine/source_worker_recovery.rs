@@ -260,6 +260,8 @@ impl SourceWorkerRuntime {
         self.bus_dispatch_residency = [0; BUS_COUNT];
         self.bus_dispatch_residency_valid = false;
         self.force_fault_mask = 0;
+        #[cfg(feature = "routing-tree-benchmark")]
+        self.clear_routing_absolute_deadline();
         #[cfg(feature = "source-worker-benchmark-timing")]
         {
             self.dispatch_started_at = None;
