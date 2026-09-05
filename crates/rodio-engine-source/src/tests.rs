@@ -388,6 +388,9 @@ mod retirement_storage_tests;
 #[path = "persistent_tests.rs"]
 mod persistent_tests;
 
+#[path = "barrier_tests.rs"]
+mod barrier_tests;
+
 #[path = "persistent_profile_tests.rs"]
 mod persistent_profile_tests;
 

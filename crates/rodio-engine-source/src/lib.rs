@@ -92,6 +92,8 @@ pub struct EngineSource {
     retirement_disconnected: bool,
     #[cfg(test)]
     retired_drop_probe: Option<std::sync::mpsc::Sender<std::thread::ThreadId>>,
+    #[cfg(test)]
+    refill_generation: u64,
     persistent_output: PreviousMasterQuantum,
 }
 
@@ -229,11 +231,17 @@ impl EngineSource {
             retirement_disconnected: false,
             #[cfg(test)]
             retired_drop_probe: None,
+            #[cfg(test)]
+            refill_generation: 0,
             persistent_output: PreviousMasterQuantum::new(),
         }
     }
 
     fn refill(&mut self) {
+        #[cfg(test)]
+        {
+            self.refill_generation = self.refill_generation.saturating_add(1);
+        }
         let t0 = Instant::now();
         let had_pending = self.pending_load_status_after_fresh;
         let result = match self.worker_state.mode {
@@ -395,6 +403,11 @@ impl EngineSource {
             self.retired_drop_probe.clone(),
         );
         controls.drain(&mut self.engine)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn refill_generation_for_test(&self) -> u64 {
+        self.refill_generation
     }
 }
 

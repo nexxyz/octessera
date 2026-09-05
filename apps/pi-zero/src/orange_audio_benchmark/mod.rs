@@ -9,7 +9,7 @@ mod schema;
 mod stream;
 
 use crate::dsp_scenarios::LiveScenarioSpec;
-use cli::{parse, BenchmarkConfig};
+use cli::{parse, BenchmarkConfig, BenchmarkExecutorMode};
 use finalization::{finalize, request_profile_snapshot, validate_profile_state, RunState};
 use metrics::{CallbackMetrics, CallbackMetricsSnapshot};
 use phase::{MeasurementPhase, PhaseCapture};
@@ -184,10 +184,12 @@ fn execute_benchmark(
         &fixture_snapshot,
         state.current_worker_health(),
     )?;
-    wait_for_barrier(
-        &sender,
-        state.stream.as_ref().expect("benchmark stream").health(),
-    )?;
+    wait_for_fixture_profile_barriers(config.executor_mode, || {
+        wait_for_barrier(
+            &sender,
+            state.stream.as_ref().expect("benchmark stream").health(),
+        )
+    })?;
     let profile_start = request_profile_snapshot(state)?;
     validate_profile_state(
         &profile_start,
@@ -260,6 +262,10 @@ fn wait_for_barrier(
     sender: &EngineEventSender,
     health: &crate::audio::AudioStreamHealth,
 ) -> Result<(), String> {
+    wait_for_barrier_report(send_probe(sender)?, health)
+}
+
+fn send_probe(sender: &EngineEventSender) -> Result<mpsc::Receiver<u128>, String> {
     let (report_tx, report_rx) = mpsc::sync_channel(1);
     sender
         .send(EngineEvent::ProbeMark {
@@ -267,6 +273,13 @@ fn wait_for_barrier(
             report_tx,
         })
         .map_err(|error| error.to_string())?;
+    Ok(report_rx)
+}
+
+fn wait_for_barrier_report(
+    report_rx: mpsc::Receiver<u128>,
+    health: &crate::audio::AudioStreamHealth,
+) -> Result<(), String> {
     let deadline = Instant::now() + PROFILE_TIMEOUT;
     loop {
         if health.runtime_status() == crate::audio::AudioStreamStatus::Terminal {
@@ -282,6 +295,17 @@ fn wait_for_barrier(
             Err(error) => return Err(format!("fixture probe barrier failed: {error}")),
         }
     }
+}
+
+fn wait_for_fixture_profile_barriers(
+    executor_mode: BenchmarkExecutorMode,
+    mut wait_for_barrier: impl FnMut() -> Result<(), String>,
+) -> Result<(), String> {
+    wait_for_barrier()?;
+    if executor_mode == BenchmarkExecutorMode::RoutingTreePersistent {
+        wait_for_barrier()?;
+    }
+    Ok(())
 }
 
 fn wait_for_geometry_stable(state: &RunState, max_frames: u32) -> Result<(), String> {
@@ -400,3 +424,7 @@ fn ensure_stream_runtime_health_for_stream(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "fixture_barrier_tests.rs"]
+mod fixture_barrier_tests;
