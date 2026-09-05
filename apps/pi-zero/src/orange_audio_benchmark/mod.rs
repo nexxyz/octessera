@@ -1,5 +1,6 @@
 mod cli;
 mod finalization;
+mod fixture_profile;
 mod metrics;
 mod output_counters;
 mod phase;
@@ -9,13 +10,12 @@ mod schema;
 mod stream;
 
 use crate::dsp_scenarios::LiveScenarioSpec;
-use cli::{parse, BenchmarkConfig, BenchmarkExecutorMode};
-use finalization::{finalize, request_profile_snapshot, validate_profile_state, RunState};
+use cli::{parse, BenchmarkConfig};
+use finalization::{finalize, RunState};
 use metrics::{CallbackMetrics, CallbackMetricsSnapshot};
 use phase::{MeasurementPhase, PhaseCapture};
-use rodio_engine_source::{event_queue, EngineEvent, EngineEventSender};
+use rodio_engine_source::event_queue;
 use schema::{atomic_write_json, readiness, BenchmarkProgress};
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 const SAMPLE_RATE: u32 = realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
@@ -173,7 +173,12 @@ fn execute_benchmark(
         &readiness_metrics,
         state.current_worker_health(),
     )?;
-    send_fixture(&sender, scenario.events)?;
+    let fixture_counters_before = if config.continue_on_recovered_miss {
+        Some(fixture_profile::capture_disabled_phase_counters(state)?)
+    } else {
+        None
+    };
+    fixture_profile::send_fixture(&sender, scenario.events)?;
     let fixture_snapshot = state.metrics.snapshot();
     ensure_stream_runtime_health(state)?;
     write_progress(
@@ -184,17 +189,12 @@ fn execute_benchmark(
         &fixture_snapshot,
         state.current_worker_health(),
     )?;
-    wait_for_fixture_profile_barriers(config.executor_mode, || {
-        wait_for_barrier(
-            &sender,
-            state.stream.as_ref().expect("benchmark stream").health(),
-        )
-    })?;
-    let profile_start = request_profile_snapshot(state)?;
-    validate_profile_state(
-        &profile_start,
+    let profile_start = fixture_profile::validate_fixture_profile(
+        config,
         scenario.expected,
-        scenario.expected.expected_voice_admission_drops_start,
+        &sender,
+        state,
+        fixture_counters_before,
     )?;
     state.profile_start = Some(profile_start);
     ensure_stream_runtime_health(state)?;
@@ -247,63 +247,6 @@ fn clear_previous_artifacts(config: &BenchmarkConfig) -> Result<(), String> {
             std::fs::remove_file(path)
                 .map_err(|error| format!("failed to clear benchmark artifact {path:?}: {error}"))?;
         }
-    }
-    Ok(())
-}
-
-fn send_fixture(sender: &EngineEventSender, events: Vec<EngineEvent>) -> Result<(), String> {
-    for event in events {
-        sender.send(event).map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
-fn wait_for_barrier(
-    sender: &EngineEventSender,
-    health: &crate::audio::AudioStreamHealth,
-) -> Result<(), String> {
-    wait_for_barrier_report(send_probe(sender)?, health)
-}
-
-fn send_probe(sender: &EngineEventSender) -> Result<mpsc::Receiver<u128>, String> {
-    let (report_tx, report_rx) = mpsc::sync_channel(1);
-    sender
-        .send(EngineEvent::ProbeMark {
-            sent_at: Instant::now(),
-            report_tx,
-        })
-        .map_err(|error| error.to_string())?;
-    Ok(report_rx)
-}
-
-fn wait_for_barrier_report(
-    report_rx: mpsc::Receiver<u128>,
-    health: &crate::audio::AudioStreamHealth,
-) -> Result<(), String> {
-    let deadline = Instant::now() + PROFILE_TIMEOUT;
-    loop {
-        if health.runtime_status() == crate::audio::AudioStreamStatus::Terminal {
-            health.log_worker_terminal_once();
-            return Err("benchmark DSP worker entered a terminal health state".into());
-        }
-        let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
-            return Err("fixture probe barrier failed: timed out".into());
-        };
-        match report_rx.recv_timeout(remaining.min(Duration::from_millis(50))) {
-            Ok(_) => return Ok(()),
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(error) => return Err(format!("fixture probe barrier failed: {error}")),
-        }
-    }
-}
-
-fn wait_for_fixture_profile_barriers(
-    executor_mode: BenchmarkExecutorMode,
-    mut wait_for_barrier: impl FnMut() -> Result<(), String>,
-) -> Result<(), String> {
-    wait_for_barrier()?;
-    if executor_mode == BenchmarkExecutorMode::RoutingTreePersistent {
-        wait_for_barrier()?;
     }
     Ok(())
 }
@@ -424,7 +367,3 @@ fn ensure_stream_runtime_health_for_stream(
     }
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "fixture_barrier_tests.rs"]
-mod fixture_barrier_tests;

@@ -61,6 +61,8 @@ $u16Selection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue
 if ($u16Selection.CapacityKind -cne "analogue" -or $u16Selection.OutputFrames -ne 128 -or $u16Selection.AlsaPeriodFrames -ne 32 -or $u16Selection.EngineBlockFrames -ne 64 -or $u16Selection.InternalFrames -ne 64 -or $u16Selection.LookaheadFrames -ne 0 -or $u16Selection.EffectiveOutputLatencyFrames -ne 128 -or $u16Selection.RequiredPoolStage -ne 128 -or $u16Selection.RequiredPoolCapacity -ne 72) { throw "Analogue U16 capacity selection did not retain its exact geometry or pool stage." }
 $u16Engine32Selection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_24" -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 30 -ExecutorMode "inline" -WorkerTimingMode "disabled"
 if ($u16Engine32Selection.OutputFrames -ne 128 -or $u16Engine32Selection.AlsaPeriodFrames -ne 32 -or $u16Engine32Selection.EngineBlockFrames -ne 32 -or $u16Engine32Selection.InternalFrames -ne 32 -or $u16Engine32Selection.LookaheadFrames -ne 0 -or $u16Engine32Selection.EffectiveOutputLatencyFrames -ne 128 -or $u16Engine32Selection.RequiredPoolStage -ne 128 -or $u16Engine32Selection.RequiredPoolCapacity -ne 72) { throw "Analogue U16 engine=32 capacity selection did not retain its exact geometry or pool stage." }
+$u16Measure120 = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_16" -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 120 -ExecutorMode "inline" -WorkerTimingMode "disabled"
+if ($u16Measure120.MeasureSeconds -ne 120 -or $u16Measure120.OutputFrames -ne 128 -or $u16Measure120.InternalFrames -ne 32) { throw "Analogue U16 120-second capacity selection did not retain its exact geometry." }
 foreach ($parameters in @(
     @{ Scenario = "capacity_synth_16"; ExecutorMode = "inline"; WorkerTimingMode = "disabled" },
     @{ Scenario = "capacity_sample_16"; ExecutorMode = "inline"; WorkerTimingMode = "disabled" },
@@ -112,11 +114,11 @@ foreach ($scenario in @("capacity_analogue_0", "capacity_analogue_01", "capacity
 foreach ($parameters in @(
     @{ Scenario = "capacity_synth_16"; OutputFrames = 512; EngineBlockFrames = 64; MeasureSeconds = 30 },
     @{ Scenario = "capacity_synth_16"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 30 },
-    @{ Scenario = "capacity_synth_16"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 120 },
     @{ Scenario = "capacity_synth_16"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 300 }
   )) {
   Assert-Throws { Assert-OrangeLiveBenchmarkSelection @parameters }
 }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_synth_16" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 60 }
 
 $baselineLiveScenarioIds = @(Get-OrangeBaselineLiveScenarioIds)
 $liveMatrixPlan = @(Get-OrangeLiveMatrixPlan)

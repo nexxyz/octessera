@@ -60,7 +60,7 @@ function Assert-OrangeCapacityBenchmarkSelection {
   if ($OutputFrames -eq 128) {
     if (-not $isAnalogueU16 -or @(32, 64) -notcontains $EngineBlockFrames) { throw "Analogue U16 capacity scenarios require output=128 and engine=32 or 64." }
   } elseif ($OutputFrames -ne 256 -or $EngineBlockFrames -ne 64) { throw "LiveAudioBenchmark capacity scenarios require output=256 and engine=64." }
-  if (@(30, 180) -notcontains $MeasureSeconds) { throw "LiveAudioBenchmark capacity scenarios require a 30- or 180-second measurement." }
+  if (@(30, 120, 180) -notcontains $MeasureSeconds) { throw "LiveAudioBenchmark capacity scenarios require a 30-, 120-, or 180-second measurement." }
   if ($AllowLongRepeat) { throw "-AllowLongRepeat is only valid for a 120-second A repeat." }
   $selection = [ordered]@{
     Scenario = $Scenario

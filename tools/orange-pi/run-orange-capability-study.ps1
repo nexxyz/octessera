@@ -29,6 +29,7 @@ param(
   [string]$OutputDirectory = "",
   [switch]$AllowServiceInterruption,
   [switch]$AllowLongRepeat,
+  [switch]$ContinueOnRecoveredMiss,
   [switch]$PrintOnly
 )
 
@@ -80,6 +81,17 @@ if ($Mode -eq "LiveAudioBenchmark") {
     -ExecutorMode $ExecutorMode `
     -WorkerTimingMode $WorkerTimingMode
   $WorkerTimingMode = $liveSelection.WorkerTimingMode
+}
+if ($ContinueOnRecoveredMiss -and (
+    $null -eq $liveSelection -or
+    $liveSelection.Scenario -cne "capacity_analogue_32" -or
+    $liveSelection.ExecutorMode -cne "routing_tree_persistent" -or
+    $liveSelection.WorkerTimingMode -cne "enabled" -or
+    [int]$liveSelection.OutputFrames -ne 256 -or
+    [int]$liveSelection.InternalFrames -ne 64 -or
+    [int]$liveSelection.MeasureSeconds -ne 120
+  )) {
+  throw "-ContinueOnRecoveredMiss requires capacity_analogue_32, routing_tree_persistent, enabled worker timing, output=256, internal=64, and measure=120."
 }
 
 function Quote-PowerShellValue {
@@ -274,7 +286,8 @@ $payloadBundle = if ($Mode -eq "LiveAudioBenchmark") {
     -WorkerTimingMode $liveSelection.WorkerTimingMode `
     -ExecutorMode $liveSelection.ExecutorMode `
     -ExpectedArtifactKind $expectedArtifactKind `
-    -ExpectedCargoFeature $expectedCargoFeature
+    -ExpectedCargoFeature $expectedCargoFeature `
+    -ContinueOnRecoveredMiss:$ContinueOnRecoveredMiss
 } else {
   New-OrangeCapabilityStudyPayloadBundle `
     -Mode $Mode `

@@ -1,12 +1,13 @@
-use super::probe::ProfileProbe;
+use super::super::probe::ProfileProbe;
 use super::*;
 use crate::audio::AudioStreamHealth;
 use realtime_engine::synth::{
     default_synth_config, prepare_instruments_config, InstrumentSlotConfig, InstrumentsConfig,
-    DEFAULT_PAN_POSITIONS,
+    SynthProfileSnapshot, DEFAULT_PAN_POSITIONS,
 };
 use rodio_engine_source::{
     event_queue, EngineEvent, EngineSource, EngineSourceWorkerShutdownOwner,
+    PersistentOutputCounters,
 };
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -170,5 +171,128 @@ fn source_for_executor(
         BenchmarkExecutorMode::RoutingTreePersistent => {
             unreachable!("routing-tree source requires its benchmark feature")
         }
+    }
+}
+
+#[test]
+fn recovered_miss_retry_requires_a_new_deadline_miss_and_does_not_retry() {
+    let original_error = "fixture state mismatch: expected profile";
+    let mut recovery_waits = 0;
+    let mut retries = 0;
+    let error = retry_fixture_profile_after_recovered_miss(
+        original_error.into(),
+        true,
+        Some(PersistentOutputCounters::default()),
+        || Ok(PersistentOutputCounters::default()),
+        || {
+            recovery_waits += 1;
+            Ok(())
+        },
+        || {
+            retries += 1;
+            Ok(SynthProfileSnapshot::default())
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error, original_error);
+    assert_eq!(recovery_waits, 0);
+    assert_eq!(retries, 0);
+}
+
+#[test]
+fn recovered_miss_retry_waits_once_and_runs_two_routing_barriers() {
+    let mut recovery_waits = 0;
+    let mut barriers = 0;
+    let profile = retry_fixture_profile_after_recovered_miss(
+        "fixture state mismatch: expected profile".into(),
+        true,
+        Some(PersistentOutputCounters::default()),
+        || {
+            Ok(PersistentOutputCounters {
+                deadline_misses: 1,
+                deadline_recoveries: 1,
+                ..PersistentOutputCounters::default()
+            })
+        },
+        || {
+            recovery_waits += 1;
+            Ok(())
+        },
+        || {
+            wait_for_fixture_profile_barriers(
+                BenchmarkExecutorMode::RoutingTreePersistent,
+                || {
+                    barriers += 1;
+                    Ok(())
+                },
+            )?;
+            Ok(SynthProfileSnapshot::default())
+        },
+    )
+    .unwrap();
+    assert_eq!(profile, SynthProfileSnapshot::default());
+    assert_eq!(recovery_waits, 1);
+    assert_eq!(barriers, 2);
+}
+
+#[test]
+fn recovered_miss_retry_returns_second_profile_failure_after_one_attempt() {
+    let mut barriers = 0;
+    let mut retries = 0;
+    let error = retry_fixture_profile_after_recovered_miss(
+        "fixture state mismatch: first".into(),
+        true,
+        Some(PersistentOutputCounters::default()),
+        || {
+            Ok(PersistentOutputCounters {
+                deadline_misses: 1,
+                ..PersistentOutputCounters::default()
+            })
+        },
+        || Ok(()),
+        || {
+            retries += 1;
+            wait_for_fixture_profile_barriers(
+                BenchmarkExecutorMode::RoutingTreePersistent,
+                || {
+                    barriers += 1;
+                    Ok(())
+                },
+            )?;
+            Err("fixture state mismatch: second".into())
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error, "fixture state mismatch: second");
+    assert_eq!(retries, 1);
+    assert_eq!(barriers, 2);
+}
+
+#[test]
+fn recovered_miss_retry_fails_on_terminal_or_unrecovered_worker() {
+    for expected_error in [
+        "benchmark DSP worker entered a terminal health state",
+        "benchmark DSP worker did not recover before fixture profile retry",
+    ] {
+        let mut retries = 0;
+        let error = retry_fixture_profile_after_recovered_miss(
+            "fixture state mismatch: first".into(),
+            true,
+            Some(PersistentOutputCounters::default()),
+            || {
+                Ok(PersistentOutputCounters {
+                    deadline_misses: 1,
+                    ..PersistentOutputCounters::default()
+                })
+            },
+            || Err(expected_error.into()),
+            || {
+                retries += 1;
+                Ok(SynthProfileSnapshot::default())
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error, expected_error);
+        assert_eq!(retries, 0);
     }
 }
