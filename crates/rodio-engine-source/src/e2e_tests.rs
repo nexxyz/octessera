@@ -386,7 +386,7 @@ fn emergency_all_notes_off_clears_voices_after_a_populated_queue() {
 }
 
 #[test]
-fn control_budget_spills_into_the_next_source_block() {
+fn probe_mark_fence_spills_controls_into_following_source_blocks() {
     let (tx, mut source) = source();
     let (report_tx, report_rx) = std::sync::mpsc::sync_channel(1);
     for _ in 0..MAX_CONTROL_EVENTS_PER_CALLBACK {
@@ -408,5 +408,8 @@ fn control_budget_spills_into_the_next_source_block() {
     assert!(report_rx
         .recv_timeout(std::time::Duration::from_secs(1))
         .is_ok());
+    for _ in 0..MAX_CONTROL_EVENTS_PER_CALLBACK - 1 {
+        assert_eq!(energy(&block(&mut source)), 0.0);
+    }
     assert!(energy(&block(&mut source)) > 0.0);
 }

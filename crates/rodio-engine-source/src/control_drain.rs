@@ -95,6 +95,7 @@ impl<'a> ControlDrain<'a> {
                 EngineEvent::ProbeMark { sent_at, report_tx } => {
                     let _ = report_tx.try_send(sent_at.elapsed().as_micros());
                     self.retire_event(event);
+                    break;
                 }
                 _ => match event {
                     EngineEvent::AllNotesOff => {
