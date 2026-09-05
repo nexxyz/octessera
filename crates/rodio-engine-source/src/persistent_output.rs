@@ -151,6 +151,8 @@ impl Default for PreviousMasterQuantum {
 pub(super) struct RefillResult {
     pub(super) drained: DrainedControlEvents,
     pub(super) force_status: bool,
+    pub(super) fresh: bool,
+    pub(super) defer_status: bool,
 }
 
 impl EngineSource {
@@ -180,6 +182,8 @@ impl EngineSource {
             return RefillResult {
                 drained: DrainedControlEvents::default(),
                 force_status: false,
+                fresh: false,
+                defer_status: false,
             };
         };
         let runtime = &mut worker.runtime;
@@ -194,6 +198,8 @@ impl EngineSource {
                 return RefillResult {
                     drained: DrainedControlEvents::default(),
                     force_status: false,
+                    fresh: false,
+                    defer_status: false,
                 };
             }
             SourceWorkerRenderDisposition::Fatal => {
@@ -208,6 +214,8 @@ impl EngineSource {
                 return RefillResult {
                     drained: DrainedControlEvents::default(),
                     force_status: false,
+                    fresh: false,
+                    defer_status: false,
                 };
             }
             SourceWorkerRenderDisposition::Fresh
@@ -248,6 +256,7 @@ impl EngineSource {
             },
         );
         *cached_profile_snapshot = engine.profile_snapshot();
+        let defer_status = drained.control_events > 0 || drained.config_events > 0;
         match disposition {
             SourceWorkerRenderDisposition::Fresh => persistent_output.fresh(*block_frames, buf),
             SourceWorkerRenderDisposition::NewlyMissed => {
@@ -261,7 +270,10 @@ impl EngineSource {
         };
         RefillResult {
             drained,
-            force_status: recovered || disposition == SourceWorkerRenderDisposition::NewlyMissed,
+            force_status: disposition == SourceWorkerRenderDisposition::NewlyMissed
+                || (recovered && disposition == SourceWorkerRenderDisposition::Fresh),
+            fresh: disposition == SourceWorkerRenderDisposition::Fresh,
+            defer_status,
         }
     }
 
@@ -290,6 +302,8 @@ impl EngineSource {
             return RefillResult {
                 drained: DrainedControlEvents::default(),
                 force_status: false,
+                fresh: false,
+                defer_status: false,
             };
         };
         let runtime = &mut worker.runtime;
@@ -304,6 +318,8 @@ impl EngineSource {
                 return RefillResult {
                     drained: DrainedControlEvents::default(),
                     force_status: false,
+                    fresh: false,
+                    defer_status: false,
                 };
             }
             SourceWorkerRenderDisposition::Fatal => {
@@ -318,6 +334,8 @@ impl EngineSource {
                 return RefillResult {
                     drained: DrainedControlEvents::default(),
                     force_status: false,
+                    fresh: false,
+                    defer_status: false,
                 };
             }
             SourceWorkerRenderDisposition::Fresh
@@ -369,7 +387,10 @@ impl EngineSource {
         };
         RefillResult {
             drained,
-            force_status: recovered || disposition == SourceWorkerRenderDisposition::NewlyMissed,
+            force_status: disposition == SourceWorkerRenderDisposition::NewlyMissed
+                || (recovered && disposition == SourceWorkerRenderDisposition::Fresh),
+            fresh: disposition == SourceWorkerRenderDisposition::Fresh,
+            defer_status: false,
         }
     }
 }

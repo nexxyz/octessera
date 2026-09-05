@@ -84,6 +84,7 @@ pub struct EngineSource {
     idx: usize,
     load_tx: Option<AudioLoadStatusSender>,
     last_load_report: Instant,
+    pending_load_status_after_fresh: bool,
     telemetry: EngineTelemetry,
     retired_tx: Sender<RetiredAudioItem>,
     retired_backlog: Option<RetiredAudioBacklog>,
@@ -220,6 +221,7 @@ impl EngineSource {
             idx: 0,
             load_tx,
             last_load_report: Instant::now(),
+            pending_load_status_after_fresh: false,
             telemetry: EngineTelemetry::default(),
             retired_tx,
             retired_backlog: Some(RetiredAudioBacklog::new()),
@@ -233,6 +235,7 @@ impl EngineSource {
 
     fn refill(&mut self) {
         let t0 = Instant::now();
+        let had_pending = self.pending_load_status_after_fresh;
         let result = match self.worker_state.mode {
             EngineSourceMode::Inline => {
                 let drained = self.drain_control_events();
@@ -240,6 +243,8 @@ impl EngineSource {
                 RefillResult {
                     drained,
                     force_status: false,
+                    fresh: true,
+                    defer_status: false,
                 }
             }
             EngineSourceMode::Persistent => self.refill_persistent(),
@@ -255,6 +260,12 @@ impl EngineSource {
         if self.worker_state.is_persistent() {
             self.refresh_persistent_profile_cache();
         }
+        let deferred_status_pending = had_pending || result.defer_status;
+        let deferred_status_ready = had_pending && result.fresh;
+        let force_status = result.force_status && !deferred_status_pending;
+        if deferred_status_pending {
+            self.pending_load_status_after_fresh = true;
+        }
         self.idx = 0;
         let elapsed = t0.elapsed().as_secs_f32();
         let block_seconds = (self.block_frames as f32) / (self.sample_rate as f32);
@@ -269,7 +280,14 @@ impl EngineSource {
             result.drained.config_events,
         );
         self.engine.set_runtime_load_ratio(ratio);
-        self.report_load_status(result.force_status);
+        let status_queued = if deferred_status_pending && !deferred_status_ready {
+            false
+        } else {
+            self.report_load_status(force_status || deferred_status_ready, deferred_status_ready)
+        };
+        if deferred_status_ready && status_queued {
+            self.pending_load_status_after_fresh = result.defer_status;
+        }
     }
 
     fn refill_inline(&mut self) {
@@ -288,20 +306,21 @@ impl EngineSource {
         }
     }
 
-    fn report_load_status(&mut self, force: bool) {
-        if self.load_tx.is_none() {
-            return;
-        }
+    fn report_load_status(&mut self, force: bool, acknowledge_send: bool) -> bool {
+        let Some(load_tx) = self.load_tx.as_ref() else {
+            return false;
+        };
         if !force && self.last_load_report.elapsed() < LOAD_REPORT_INTERVAL {
-            return;
+            return false;
         }
-        self.last_load_report = Instant::now();
         let mut status = self.engine.audio_load_status();
         self.telemetry.apply_to_status(&mut status);
         self.persistent_output.apply_to_status(&mut status);
-        if let Some(load_tx) = &self.load_tx {
-            load_tx.try_send(status);
+        let status_queued = load_tx.try_send(status);
+        if status_queued || !acknowledge_send {
+            self.last_load_report = Instant::now();
         }
+        status_queued
     }
 
     fn retire_state(&mut self, state: RetiredAudioState) {
@@ -396,8 +415,11 @@ impl Iterator for EngineSource {
         debug_assert_eq!(self.buf.len() % OUTPUT_CHANNELS, 0);
         let v = self.buf.get(self.idx).copied().unwrap_or(0.0);
         self.idx += 1;
-        if self.idx.is_multiple_of(OUTPUT_CHANNELS) && self.persistent_output.consume_frame() {
-            self.report_load_status(true);
+        if self.idx.is_multiple_of(OUTPUT_CHANNELS)
+            && self.persistent_output.consume_frame()
+            && !self.pending_load_status_after_fresh
+        {
+            self.report_load_status(true, false);
         }
         Some(v)
     }

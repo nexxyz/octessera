@@ -18,8 +18,8 @@ pub fn audio_load_status_channel() -> (AudioLoadStatusSender, AudioLoadStatusRec
 }
 
 impl AudioLoadStatusSender {
-    pub fn try_send(&self, status: AudioLoadStatus) {
-        let _ = self.0.try_send(status);
+    pub fn try_send(&self, status: AudioLoadStatus) -> bool {
+        self.0.try_send(status).is_ok()
     }
 }
 
