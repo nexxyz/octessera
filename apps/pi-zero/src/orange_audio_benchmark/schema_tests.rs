@@ -75,6 +75,19 @@ fn deadline_worker_timing() -> BenchmarkWorkerTiming {
     timing
 }
 
+fn routing_worker_timing() -> BenchmarkWorkerTiming {
+    let mut timing = worker_timing();
+    timing.workers[0].render_ns = Some(80_000);
+    timing.workers[0].dispatch_to_finish_ns = Some(95_000);
+    timing.workers[1].render_ns = Some(300_000);
+    timing.workers[1].dispatch_to_finish_ns = Some(356_000);
+    timing.coordinator.deadline_ns = Some(0);
+    timing.coordinator.dispatch_to_deadline_start_ns = Some(1_289_000);
+    timing.coordinator.dispatch_to_first_ns = Some(1_300_000);
+    timing.coordinator.dispatch_to_both_ns = Some(1_317_000);
+    timing
+}
+
 fn benchmark_result(
     worker_timing_mode: WorkerTimingMode,
     worker_timing: Option<BenchmarkWorkerTiming>,
@@ -387,6 +400,21 @@ fn schema12_accepts_healthy_and_deadline_worker_timing() {
                 .unwrap();
         assert!(serde_json::from_str::<BenchmarkResult>(&encoded).is_ok());
     }
+}
+
+#[test]
+fn schema12_accepts_routing_observations_after_deadline_boundary() {
+    let mut result = benchmark_result(WorkerTimingMode::Enabled, Some(routing_worker_timing()));
+    result.executor_mode = "routing_tree_persistent".into();
+    result.lookahead_frames = result.internal_block_frames;
+    result.effective_output_latency_frames =
+        result.requested_output_buffer_frames as usize + result.lookahead_frames;
+    let names = stream::expected_routing_worker_thread_names();
+    result.worker_thread_name_0 = names[0].clone();
+    result.worker_thread_name_1 = names[1].clone();
+    assert!(
+        serde_json::from_value::<BenchmarkResult>(serde_json::to_value(result).unwrap()).is_ok()
+    );
 }
 
 #[test]

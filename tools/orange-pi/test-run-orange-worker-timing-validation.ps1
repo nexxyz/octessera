@@ -9,6 +9,14 @@ function Assert-Throws {
   if (-not $threw) { throw "Expected worker timing validation failure did not occur." }
 }
 
+function Assert-ThrowsWithMessage {
+  param([Parameter(Mandatory)][scriptblock]$Action, [Parameter(Mandatory)][string]$ExpectedMessage)
+  $message = $null
+  try { & $Action } catch { $message = $_.Exception.Message }
+  if ($null -eq $message) { throw "Expected worker timing validation failure did not occur." }
+  if ($message -ne $ExpectedMessage) { throw "Unexpected worker timing validation failure: $message" }
+}
+
 function New-TimingResult {
   $worker0 = [pscustomobject]@{ sequence = 7; render_ns = 10; dispatch_to_finish_ns = 20; cpu_start = 2; cpu_end = 2; finished = $true }
   $worker1 = [pscustomobject]@{ sequence = 7; render_ns = 11; dispatch_to_finish_ns = 25; cpu_start = 3; cpu_end = 3; finished = $true }
@@ -40,6 +48,19 @@ function New-DeadlineTimingResult {
   return $result
 }
 
+function New-HardwareObservationTimingResult {
+  $result = New-TimingResult
+  $result.worker_timing.workers[0].render_ns = 80000
+  $result.worker_timing.workers[0].dispatch_to_finish_ns = 95000
+  $result.worker_timing.workers[1].render_ns = 300000
+  $result.worker_timing.workers[1].dispatch_to_finish_ns = 356000
+  $result.worker_timing.coordinator.deadline_ns = 0
+  $result.worker_timing.coordinator.dispatch_to_deadline_start_ns = 1289000
+  $result.worker_timing.coordinator.dispatch_to_first_ns = 1300000
+  $result.worker_timing.coordinator.dispatch_to_both_ns = 1317000
+  return $result
+}
+
 function Assert-Rejects {
   param([Parameter(Mandatory)][scriptblock]$Mutate)
   $candidate = Copy-TimingResult (New-TimingResult)
@@ -50,6 +71,7 @@ function Assert-Rejects {
 $valid = New-TimingResult
 Assert-OrangeWorkerTimingEvidence -Result $valid
 Assert-OrangeWorkerTimingEvidence -Result (New-DeadlineTimingResult)
+Assert-OrangeWorkerTimingEvidence -Result (New-HardwareObservationTimingResult)
 $disabled = Copy-TimingResult $valid
 $disabled.worker_timing_mode = "disabled"
 $disabled.worker_timing = $null
@@ -85,6 +107,7 @@ Assert-Rejects { param($result) $result.worker_timing.workers[1].cpu_end = 2 }
 Assert-Rejects { param($result) $result.worker_timing.workers[0].finished = 1 }
 Assert-Rejects { param($result) $result.worker_timing.workers[0].render_ns = $null }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.first_parity = 1 }
+$invalidFirstParityMask = New-TimingResult; $invalidFirstParityMask.worker_timing.coordinator.in_flight_mask = 2; $invalidFirstParityMask.worker_timing.coordinator.completed_mask = 1; $invalidFirstParityMask.worker_timing.coordinator.first_parity = 1; $invalidFirstParityMask.worker_timing.coordinator.dispatch_to_first_ns = 30; $invalidFirstParityMask.worker_timing.coordinator.dispatch_to_both_ns = $null; $invalidFirstParityMask.worker_timing.coordinator.reduction_ns = $null; $invalidFirstParityMask.worker_timing.coordinator.coordinator_remainder_ns = $null; $invalidFirstParityMask.worker_timing.coordinator.failed = $true; Assert-ThrowsWithMessage { Assert-OrangeWorkerTimingEvidence -Result $invalidFirstParityMask } "First-completion parity is absent from the completed mask."
 Assert-Rejects { param($result) $result.worker_timing.coordinator.completed_mask = 0; $result.worker_timing.coordinator.in_flight_mask = 3 }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.dispatch_to_both_ns = $null }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.dispatch_to_both_ns = 24 }
@@ -104,8 +127,13 @@ Assert-Rejects { param($result) $result.worker_timing.workers[0].PSObject.Proper
 Assert-Rejects { param($result) $result.worker_timing.coordinator.PSObject.Properties.Add([psnoteproperty]::new("unknown", $true)) }
 Assert-Rejects { param($result) $result.worker_timing.workers[1].sequence = 8 }
 Assert-Rejects { param($result) $result.worker_timing.workers[0].dispatch_to_finish_ns = 9 }
-Assert-Rejects { param($result) $result.worker_timing.coordinator.dispatch_to_first_ns = 30 }
+Assert-Rejects { param($result) $result.worker_timing.coordinator.dispatch_to_first_ns = 19 }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.dispatch_to_both_ns = 19 }
+$invalidHardware = New-HardwareObservationTimingResult; $invalidHardware.worker_timing.coordinator.dispatch_to_first_ns = 94999; Assert-Throws { Assert-OrangeWorkerTimingEvidence -Result $invalidHardware }
+$invalidHardware = New-HardwareObservationTimingResult; $invalidHardware.worker_timing.coordinator.dispatch_to_first_ns = 1288999; Assert-ThrowsWithMessage { Assert-OrangeWorkerTimingEvidence -Result $invalidHardware } "First completion observation precedes collection start."
+$invalidHardware = New-HardwareObservationTimingResult; $invalidHardware.worker_timing.coordinator.dispatch_to_both_ns = 1299999; Assert-Throws { Assert-OrangeWorkerTimingEvidence -Result $invalidHardware }
+$invalidHardware = New-HardwareObservationTimingResult; $invalidHardware.worker_timing.coordinator.dispatch_to_both_ns = 1288999; Assert-ThrowsWithMessage { Assert-OrangeWorkerTimingEvidence -Result $invalidHardware } "Both completion observation precedes collection start."
+$invalidHardware = New-HardwareObservationTimingResult; $invalidHardware.worker_timing.workers[1].dispatch_to_finish_ns = 1300000; $invalidHardware.worker_timing.workers[1].render_ns = 1299000; $invalidHardware.worker_timing.late_after_deadline_ns = 11000; Assert-ThrowsWithMessage { Assert-OrangeWorkerTimingEvidence -Result $invalidHardware } "Completed worker finish exceeds deadline."
 Assert-Rejects { param($result) $result.worker_timing.coordinator.engine_block_total_ns = 51 }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.dispatch_to_deadline_elapsed_ns = 99; $result.worker_timing.coordinator.failed = $true }
 Assert-Rejects { param($result) $result.worker_timing.coordinator.dispatch_to_deadline_start_ns = 50; $result.worker_timing.coordinator.dispatch_to_deadline_elapsed_ns = 149; $result.worker_timing.coordinator.failed = $true }

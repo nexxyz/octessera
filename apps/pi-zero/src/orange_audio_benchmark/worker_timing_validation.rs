@@ -169,7 +169,13 @@ fn validate_executed(
     }
 
     let worker_state = validate_workers(workers, sequence, cpu_endpoint_changed)?;
-    validate_completion_observations(coordinator, &worker_state, deadline_boundary, completed)?;
+    validate_completion_observations(
+        coordinator,
+        &worker_state,
+        dispatch_to_deadline_start,
+        deadline_boundary,
+        completed,
+    )?;
     validate_summaries(
         workers,
         sequence,
@@ -235,6 +241,7 @@ fn validate_workers(
 fn validate_completion_observations(
     coordinator: &BenchmarkCoordinatorTiming,
     worker_state: &[WorkerEvidence; 2],
+    dispatch_to_deadline_start: u64,
     deadline_boundary: u64,
     completed: u8,
 ) -> Result<(), String> {
@@ -256,15 +263,21 @@ fn validate_completion_observations(
     let first_worker = worker_state[first_parity]
         .dispatch_to_finish
         .ok_or_else(|| "first completion has no finished worker evidence".to_string())?;
+    if first < dispatch_to_deadline_start {
+        return Err("first completion observation precedes collection start".into());
+    }
     if first < first_worker {
         return Err("first completion observation precedes the selected worker finish".into());
     }
-    if first > deadline_boundary || first_worker > deadline_boundary {
-        return Err("completed-before-deadline evidence exceeds the deadline".into());
+    if first_worker > deadline_boundary {
+        return Err("completed worker finish exceeds the deadline".into());
     }
 
     if completed == WORKER_MASK {
         let both = required(coordinator.dispatch_to_both_ns, "dispatch_to_both_ns")?;
+        if both < dispatch_to_deadline_start {
+            return Err("both completion observation precedes collection start".into());
+        }
         if first > both {
             return Err("first completion observation follows both completion".into());
         }
@@ -272,12 +285,12 @@ fn validate_completion_observations(
             let finish = worker
                 .dispatch_to_finish
                 .ok_or_else(|| format!("completed worker {parity} has no finish evidence"))?;
-            if both < finish || finish > deadline_boundary {
-                return Err("both completion observation is temporally impossible".into());
+            if finish > deadline_boundary {
+                return Err("completed worker finish exceeds the deadline".into());
             }
-        }
-        if both > deadline_boundary {
-            return Err("both completion evidence exceeds the deadline".into());
+            if both < finish {
+                return Err("both completion observation precedes a worker finish".into());
+            }
         }
     } else if coordinator.dispatch_to_both_ns.is_some() {
         return Err("both completion evidence exists without both completions".into());

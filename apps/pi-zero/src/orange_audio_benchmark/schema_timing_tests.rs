@@ -1,6 +1,7 @@
 use super::*;
 
 type SemanticCase = (&'static str, fn(&mut serde_json::Value));
+type TimingSemanticCase = (&'static str, fn(&mut BenchmarkWorkerTiming), &'static str);
 
 #[test]
 fn schema12_rejects_impossible_worker_timing_relationships() {
@@ -174,4 +175,89 @@ fn schema12_rejects_impossible_worker_timing_relationships() {
             "case should be rejected: {name}"
         );
     }
+}
+
+#[test]
+fn schema12_rejects_routing_finish_and_observation_violations() {
+    let cases: [TimingSemanticCase; 6] = [
+        (
+            "first before collection start",
+            |timing| {
+                timing.coordinator.dispatch_to_first_ns = Some(1_288_999);
+            },
+            "first completion observation precedes collection start",
+        ),
+        (
+            "both before collection start",
+            |timing| {
+                timing.coordinator.dispatch_to_both_ns = Some(1_288_999);
+            },
+            "both completion observation precedes collection start",
+        ),
+        (
+            "first before selected finish",
+            |timing| {
+                timing.coordinator.dispatch_to_deadline_start_ns = Some(90_000);
+                timing.coordinator.deadline_ns = Some(300_000);
+                timing.coordinator.dispatch_to_first_ns = Some(94_999);
+                timing.coordinator.dispatch_to_both_ns = Some(356_000);
+            },
+            "first completion observation precedes the selected worker finish",
+        ),
+        (
+            "both before first",
+            |timing| {
+                timing.coordinator.dispatch_to_both_ns = Some(1_299_999);
+            },
+            "first completion observation follows both completion",
+        ),
+        (
+            "both before an unselected worker finish",
+            |timing| {
+                timing.coordinator.deadline_ns = Some(200_000);
+                timing.workers[1].render_ns = Some(1_300_000);
+                timing.workers[1].dispatch_to_finish_ns = Some(1_400_000);
+                timing.coordinator.dispatch_to_both_ns = Some(1_399_999);
+            },
+            "both completion observation precedes a worker finish",
+        ),
+        (
+            "first parity is not completed",
+            |timing| {
+                timing.coordinator.in_flight_mask = Some(2);
+                timing.coordinator.completed_mask = Some(1);
+                timing.coordinator.first_parity = Some(1);
+                timing.coordinator.dispatch_to_both_ns = None;
+                timing.coordinator.failed = true;
+                timing.coordinator.reduction_ns = None;
+                timing.coordinator.coordinator_remainder_ns = None;
+            },
+            "first completion parity is absent from the completed mask",
+        ),
+    ];
+    for (name, mutate, expected_error) in cases {
+        let mut timing = super::routing_worker_timing();
+        mutate(&mut timing);
+        let error =
+            serde_json::from_value::<BenchmarkWorkerTiming>(serde_json::to_value(timing).unwrap());
+        assert!(
+            error.unwrap_err().to_string().contains(expected_error),
+            "unexpected rejection for {name}"
+        );
+    }
+
+    let mut timing = super::routing_worker_timing();
+    timing.workers[1].render_ns = Some(1_317_000);
+    timing.workers[1].dispatch_to_finish_ns = Some(1_318_000);
+    timing.coordinator.dispatch_to_first_ns = Some(1_318_001);
+    timing.coordinator.dispatch_to_both_ns = Some(1_318_002);
+    timing.late_after_deadline_ns = Some(29_000);
+    let error =
+        serde_json::from_value::<BenchmarkWorkerTiming>(serde_json::to_value(timing).unwrap())
+            .unwrap_err()
+            .to_string();
+    assert!(
+        error.contains("completed worker finish exceeds the deadline"),
+        "unexpected late-worker rejection: {error}"
+    );
 }
