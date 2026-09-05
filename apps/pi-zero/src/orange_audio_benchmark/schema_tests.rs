@@ -467,6 +467,12 @@ fn schema12_validates_persistent_output_counter_evidence_and_detection() {
 
 #[path = "schema_executor_tests.rs"]
 mod executor_tests;
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+#[path = "schema_geometry_tests.rs"]
+mod geometry_tests;
 #[path = "schema_profile_tests.rs"]
 mod profile_tests;
 #[path = "schema_timing_tests.rs"]

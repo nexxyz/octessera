@@ -1,4 +1,4 @@
-use super::cli::{BenchmarkConfig, BenchmarkExecutorMode};
+use super::cli::{BenchmarkConfig, BenchmarkExecutorMode, RecordedGeometry};
 use super::metrics::CallbackMetrics;
 use super::phase::MeasurementControl;
 use super::probe::ProfileProbe;
@@ -112,15 +112,16 @@ pub fn build(
     )?;
     let engine_block_frames = source.block_frames();
     let lookahead_frames = source.lookahead_frames();
-    super::cli::validate_recorded_geometry(
+    super::cli::validate_recorded_geometry(RecordedGeometry {
+        scenario: config.scenario.as_str(),
         executor_mode,
-        output_frames,
-        output_frames,
-        config.expected_alsa_period_frames,
-        engine_block_frames,
+        requested_output_buffer_frames: output_frames,
+        expected_alsa_buffer_frames: output_frames,
+        expected_alsa_period_frames: config.expected_alsa_period_frames,
+        internal_block_frames: engine_block_frames,
         lookahead_frames,
-        None,
-    )?;
+        effective_output_latency_frames: None,
+    })?;
     let health = AudioStreamHealth::new("Orange benchmark".into());
     let worker_health = Arc::new(AtomicU8::new(source.source_worker_health() as u8));
     let (callback_source, retirement_waiter) = CallbackSource::new(source, true);
@@ -319,7 +320,7 @@ fn map_build_error(error: AudioStreamBuildError<String>) -> String {
 fn stream_geometry(output_frames: u32, internal_frames: usize) -> Result<StreamGeometry, String> {
     if !matches!(
         (output_frames, internal_frames),
-        (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
+        (128, 32) | (128, 64) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
     ) {
         return Err(format!(
             "benchmark output/internal frame mapping is invalid: output={output_frames} internal={internal_frames}"

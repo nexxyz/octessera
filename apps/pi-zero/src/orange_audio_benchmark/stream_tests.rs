@@ -8,6 +8,11 @@ use super::{
     EXECUTOR_MODE,
 };
 use crate::orange_audio_benchmark::cli::parse;
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+use crate::orange_audio_benchmark::cli::{validate_recorded_geometry, RecordedGeometry};
 use crate::orange_audio_benchmark::metrics::CallbackMetrics;
 use crate::orange_audio_benchmark::phase::MeasurementControl;
 use crate::orange_audio_benchmark::probe::ProfileProbe;
@@ -19,6 +24,7 @@ use std::sync::Arc;
 fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
     for (output_frames, internal_frames) in [
         (128, 32),
+        (128, 64),
         (256, 64),
         (256, 128),
         (256, 256),
@@ -30,8 +36,93 @@ fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
         assert_eq!(geometry.internal_frames, internal_frames);
     }
     assert!(stream_geometry(512, 256).is_err());
-    assert!(stream_geometry(128, 64).is_err());
     assert!(stream_geometry(64, 32).is_err());
+}
+
+#[test]
+fn stream_preflight_rejects_non_analogue_128_64_before_device_access() {
+    let mut config = parse(
+        [
+            "--benchmark-orange-audio",
+            "--scenario",
+            "synth_ramp_16",
+            "--output-frames",
+            "256",
+            "--engine-block-frames",
+            "64",
+            "--release-gate",
+            "release.json",
+            "--artifact-sha256",
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    )
+    .unwrap();
+    config.output_frames = 128;
+    config.expected_alsa_period_frames = 32;
+    config.internal_frames = 64;
+    config.worker_timing_mode = super::super::cli::WorkerTimingMode::Disabled;
+    for executor_mode in [
+        BenchmarkExecutorMode::Inline,
+        BenchmarkExecutorMode::PersistentTwoWorkers,
+    ] {
+        config.executor_mode = executor_mode;
+        let (_sender, receiver) = event_queue();
+        let error = match super::build(
+            receiver,
+            &config,
+            Arc::new(CallbackMetrics::new(44_100, 32, 128)),
+            Arc::new(ProfileProbe::new()),
+            Arc::new(MeasurementControl::new()),
+            None,
+        ) {
+            Err(error) => error,
+            Ok(_) => panic!("invalid Orange benchmark geometry unexpectedly built"),
+        };
+        assert_eq!(
+            error,
+            "unsupported Orange benchmark geometry tuple: output=128 internal=64"
+        );
+    }
+}
+
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+#[test]
+fn inline_analogue_recorded_geometry_requires_exact_latency_evidence() {
+    let valid = (32, 64, 0, Some(128));
+    assert!(validate_recorded_geometry(RecordedGeometry {
+        scenario: "capacity_analogue_1",
+        executor_mode: BenchmarkExecutorMode::Inline,
+        requested_output_buffer_frames: 128,
+        expected_alsa_buffer_frames: 128,
+        expected_alsa_period_frames: valid.0,
+        internal_block_frames: valid.1,
+        lookahead_frames: valid.2,
+        effective_output_latency_frames: valid.3,
+    })
+    .is_ok());
+    for (period, lookahead, effective) in
+        [(64, 0, Some(128)), (32, 64, Some(192)), (32, 0, Some(192))]
+    {
+        assert!(
+            validate_recorded_geometry(RecordedGeometry {
+                scenario: "capacity_analogue_1",
+                executor_mode: BenchmarkExecutorMode::Inline,
+                requested_output_buffer_frames: 128,
+                expected_alsa_buffer_frames: 128,
+                expected_alsa_period_frames: period,
+                internal_block_frames: 64,
+                lookahead_frames: lookahead,
+                effective_output_latency_frames: effective,
+            })
+            .is_err(),
+            "mismatched recorded geometry should fail: period={period} lookahead={lookahead} effective={effective:?}"
+        );
+    }
 }
 
 #[test]

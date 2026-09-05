@@ -277,7 +277,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     if !matches!(internal_frames, 32 | 64 | 128 | 256) {
         return Err("engine block frames must be 32, 64, 128, or 256".into());
     }
-    validate_requested_geometry(executor_mode, output_frames, internal_frames)?;
+    validate_requested_geometry(&scenario, executor_mode, output_frames, internal_frames)?;
     if warmup_seconds != DEFAULT_WARMUP_SECONDS {
         return Err("warmup seconds must be 5".into());
     }
@@ -333,11 +333,17 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
 }
 
 pub(crate) fn preflight(config: &BenchmarkConfig) -> Result<(), String> {
+    if config.executor_mode == BenchmarkExecutorMode::Inline
+        && config.worker_timing_mode == WorkerTimingMode::Enabled
+    {
+        return Err("inline executor requires worker timing disabled".into());
+    }
     #[cfg(not(feature = "routing-tree-benchmark"))]
     if config.executor_mode == BenchmarkExecutorMode::RoutingTreePersistent {
         return Err(ROUTING_TREE_FEATURE_REQUIRED_ERROR.into());
     }
     validate_requested_geometry(
+        &config.scenario,
         config.executor_mode,
         config.output_frames,
         config.internal_frames,
@@ -355,6 +361,7 @@ pub(crate) fn expected_lookahead_frames(
 }
 
 pub(crate) fn validate_requested_geometry(
+    scenario: &str,
     executor_mode: BenchmarkExecutorMode,
     output_frames: u32,
     internal_frames: usize,
@@ -362,10 +369,15 @@ pub(crate) fn validate_requested_geometry(
     if executor_mode == BenchmarkExecutorMode::RoutingTreePersistent && output_frames > 256 {
         return Err("routing_tree_persistent executor requires output frames <= 256".into());
     }
-    if !matches!(
-        (output_frames, internal_frames),
-        (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
-    ) {
+    let approved = match (output_frames, internal_frames) {
+        (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256) => true,
+        (128, 64) => {
+            executor_mode == BenchmarkExecutorMode::Inline
+                && is_analogue_capacity_scenario(scenario)
+        }
+        _ => false,
+    };
+    if !approved {
         return Err(format!(
             "unsupported Orange benchmark geometry tuple: output={output_frames} internal={internal_frames}"
         ));
@@ -373,16 +385,30 @@ pub(crate) fn validate_requested_geometry(
     Ok(())
 }
 
-pub(crate) fn validate_recorded_geometry(
-    executor_mode: BenchmarkExecutorMode,
-    requested_output_buffer_frames: u32,
-    expected_alsa_buffer_frames: u32,
-    expected_alsa_period_frames: u32,
-    internal_block_frames: usize,
-    lookahead_frames: usize,
-    effective_output_latency_frames: Option<usize>,
-) -> Result<(), String> {
+pub(crate) struct RecordedGeometry<'a> {
+    pub(crate) scenario: &'a str,
+    pub(crate) executor_mode: BenchmarkExecutorMode,
+    pub(crate) requested_output_buffer_frames: u32,
+    pub(crate) expected_alsa_buffer_frames: u32,
+    pub(crate) expected_alsa_period_frames: u32,
+    pub(crate) internal_block_frames: usize,
+    pub(crate) lookahead_frames: usize,
+    pub(crate) effective_output_latency_frames: Option<usize>,
+}
+
+pub(crate) fn validate_recorded_geometry(geometry: RecordedGeometry<'_>) -> Result<(), String> {
+    let RecordedGeometry {
+        scenario,
+        executor_mode,
+        requested_output_buffer_frames,
+        expected_alsa_buffer_frames,
+        expected_alsa_period_frames,
+        internal_block_frames,
+        lookahead_frames,
+        effective_output_latency_frames,
+    } = geometry;
     validate_requested_geometry(
+        scenario,
         executor_mode,
         requested_output_buffer_frames,
         internal_block_frames,
@@ -411,6 +437,23 @@ pub(crate) fn validate_recorded_geometry(
         }
     }
     Ok(())
+}
+
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+fn is_analogue_capacity_scenario(scenario: &str) -> bool {
+    crate::dsp_profile::analogue_capacity_scenario::parse(scenario).is_some()
+}
+
+#[cfg(not(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+)))]
+fn is_analogue_capacity_scenario(scenario: &str) -> bool {
+    let _ = scenario;
+    false
 }
 
 fn next_value(iter: &mut impl Iterator<Item = String>, name: &str) -> Result<String, String> {
