@@ -10,13 +10,14 @@ impl SourceWorkerTimingProbe {
         render_duration_ns: u64,
         dispatch_started_at: Option<Instant>,
     ) {
-        if !self.accepts_with_frozen(sequence, true) {
-            return;
-        }
-        let Some(record) = self.workers.get(parity) else {
+        let Some(sequence_record) = self.record_for(sequence) else {
             return;
         };
-        if record.sequence.load(Ordering::Relaxed) != sequence
+        if parity >= SOURCE_WORKER_COUNT || !self.accepts_record(sequence_record, sequence, true) {
+            return;
+        }
+        let record = &sequence_record.workers[parity];
+        if record.sequence.load(Ordering::Acquire) != sequence
             || !record.finished.load(Ordering::Acquire)
         {
             return;
@@ -59,37 +60,44 @@ impl SourceWorkerTimingProbe {
         dispatch_to_completion: Duration,
         allow_frozen: bool,
     ) {
-        if parity >= SOURCE_WORKER_COUNT || !self.accepts_with_frozen(sequence, allow_frozen) {
+        let Some(record) = self.record_for(sequence) else {
+            return;
+        };
+        if parity >= SOURCE_WORKER_COUNT || !self.accepts_record(record, sequence, allow_frozen) {
             return;
         }
         let worker_mask = 1 << parity;
-        let completed = self.coordinator.completed_mask.load(Ordering::Relaxed);
+        let coordinator = &record.coordinator;
+        let completed = coordinator.completed_mask.load(Ordering::Relaxed);
         if completed & worker_mask != 0 {
             return;
         }
         if completed == 0 {
-            self.coordinator
+            coordinator
                 .first_parity
                 .store(parity as u8, Ordering::Relaxed);
-            self.coordinator
+            coordinator
                 .dispatch_to_first_ns
                 .store(duration_ns(dispatch_to_completion), Ordering::Relaxed);
-            self.coordinator
+            coordinator
                 .first_parity_valid
                 .store(true, Ordering::Release);
-            self.coordinator
+            coordinator
                 .dispatch_to_first_valid
                 .store(true, Ordering::Release);
         }
         let completed = completed | worker_mask;
-        self.coordinator
+        coordinator
+            .in_flight_mask
+            .fetch_and(!worker_mask, Ordering::Relaxed);
+        coordinator
             .completed_mask
             .store(completed, Ordering::Relaxed);
         if completed == 0b11 {
-            self.coordinator
+            coordinator
                 .dispatch_to_both_ns
                 .store(duration_ns(dispatch_to_completion), Ordering::Relaxed);
-            self.coordinator
+            coordinator
                 .dispatch_to_both_valid
                 .store(true, Ordering::Release);
         }

@@ -240,6 +240,8 @@ impl EngineSource {
             engine.sample_clock().saturating_add(*block_frames as u64)
         };
         let mut drained = DrainedControlEvents::default();
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        let engine_block_started_at = runtime.timing_block_start();
         let disposition = engine.render_interleaved_block_with_source_runtime_ready_with_controls(
             runtime,
             *block_frames,
@@ -255,6 +257,8 @@ impl EngineSource {
                 }
             },
         );
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        runtime.record_engine_block_total(engine_block_started_at);
         *cached_profile_snapshot = engine.profile_snapshot();
         let defer_status = drained.control_events > 0 || drained.config_events > 0;
         match disposition {

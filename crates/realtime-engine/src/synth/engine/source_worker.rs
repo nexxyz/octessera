@@ -45,6 +45,10 @@ pub struct SourceWorkerRuntime {
     dispatch_started_at: Option<Instant>,
     #[cfg(feature = "source-worker-benchmark-timing")]
     coordinator_remainder_started_at: Option<Instant>,
+    #[cfg(feature = "source-worker-benchmark-timing")]
+    timing_output_sequence: Option<u64>,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_coordinator_remainder_started_at: Option<(u64, Instant)>,
     #[cfg(any(test, feature = "test-support"))]
     worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
     #[cfg(any(test, feature = "test-support"))]
@@ -110,6 +114,10 @@ impl SourceWorkerRuntime {
             dispatch_started_at: None,
             #[cfg(feature = "source-worker-benchmark-timing")]
             coordinator_remainder_started_at: None,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_output_sequence: None,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: None,
             #[cfg(any(test, feature = "test-support"))]
@@ -224,6 +232,10 @@ impl SourceWorkerRuntime {
             dispatch_started_at: None,
             #[cfg(feature = "source-worker-benchmark-timing")]
             coordinator_remainder_started_at: None,
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            timing_output_sequence: None,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: Some(lifecycle.worker_pause_controls_for_test()),
             #[cfg(any(test, feature = "test-support"))]

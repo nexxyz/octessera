@@ -110,6 +110,10 @@ impl SourceWorkerRuntime {
         if self.mode != super::super::source_worker_protocol::SourceWorkerMode::Persistent {
             return SourceWorkerRenderDisposition::Fatal;
         }
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        {
+            self.timing_output_sequence = None;
+        }
         if self.health.status() != SourceWorkerHealth::Healthy {
             self.reclaim_available(engine);
             #[cfg(feature = "source-worker-benchmark-timing")]
@@ -196,6 +200,10 @@ impl SourceWorkerRuntime {
             return self.render_failure_disposition();
         }
         engine.finish_persistent_block(frames, left, right);
+        #[cfg(feature = "source-worker-benchmark-timing")]
+        {
+            self.record_output_sequence(stamp.quantum_sequence);
+        }
         SourceWorkerRenderDisposition::Fresh
     }
 

@@ -47,6 +47,77 @@ fn timing_probe_keeps_late_worker_data_through_deadline_retire_and_join() {
 }
 
 #[test]
+fn timing_probe_freeze_does_not_block_ordinary_recovery_or_fresh_render() {
+    let mut engine = dynamic_engine();
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
+    let probe = Arc::new(SourceWorkerTimingProbe::new(None));
+    runtime.attach_timing_probe(Arc::clone(&probe));
+    lifecycle.set_pause_for_parity_for_test(0, true);
+    assert!(runtime.dispatch_only_for_test(&mut engine, 128));
+    for _ in 0..100_000 {
+        if runtime.completion_ready_for_test(1) {
+            break;
+        }
+        thread::yield_now();
+    }
+    assert!(runtime.completion_ready_for_test(1));
+    runtime.set_deadline_for_test(Duration::ZERO);
+    assert!(!runtime.collect_wait_for_test(&mut engine));
+    let failed_sequence = probe
+        .snapshot()
+        .coordinator
+        .sequence
+        .expect("failed timing sequence");
+
+    lifecycle.set_pause_for_parity_for_test(0, false);
+    runtime.set_deadline_for_test(Duration::from_secs(1));
+    let recovery_deadline = std::time::Instant::now() + Duration::from_secs(1);
+    while !runtime.collect_for_test(&mut engine) {
+        assert!(std::time::Instant::now() < recovery_deadline);
+        thread::yield_now();
+    }
+    assert_eq!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::Healthy
+    );
+    assert_ne!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::DispatchFailed
+    );
+
+    let recovered_timing = probe.snapshot();
+    assert_eq!(recovered_timing.coordinator.sequence, Some(failed_sequence));
+    assert!(recovered_timing.coordinator.failed);
+    assert_eq!(recovered_timing.coordinator.completed_mask, Some(0b11));
+    assert!(recovered_timing
+        .workers
+        .iter()
+        .all(|worker| worker.finished));
+
+    let mut left = Vec::with_capacity(128);
+    let mut right = Vec::with_capacity(128);
+    let mut out = Vec::with_capacity(256);
+    assert_eq!(
+        engine.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut left,
+            &mut right,
+            &mut out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    assert_eq!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::Healthy
+    );
+    assert_eq!(probe.snapshot().coordinator.sequence, Some(failed_sequence));
+
+    assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
+}
+
+#[test]
 fn normal_runtime_does_not_start_timing_without_a_probe() {
     let mut engine = dynamic_engine();
     let (lifecycle, runtime) =

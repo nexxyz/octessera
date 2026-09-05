@@ -1,82 +1,100 @@
+use super::records::SequenceTimingRecord;
 use super::{SourceWorkerTimingProbe, NO_CPU, SOURCE_WORKER_COUNT, TIMING_SET};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 impl SourceWorkerTimingProbe {
+    pub(super) fn latest_completed_record(&self) -> Option<&SequenceTimingRecord> {
+        self.newest_record(|record| record.coordinator.fully_completed.load(Ordering::Acquire))
+    }
+
+    fn selected_record_for_snapshot(&self) -> Option<&SequenceTimingRecord> {
+        if self.failed_sequence_valid.load(Ordering::Acquire) {
+            return self.failed_sequence().and_then(|sequence| {
+                self.record_for(sequence)
+                    .filter(|record| self.accepts_record(record, sequence, true))
+            });
+        }
+        self.latest_completed_record().or_else(|| {
+            if self.unexecuted_frozen() {
+                None
+            } else {
+                self.newest_record(|_| true)
+            }
+        })
+    }
+
     pub fn snapshot(&self) -> SourceWorkerTimingSnapshot {
-        let coordinator_frozen = self.coordinator.frozen.load(Ordering::Acquire);
-        let sequence = self
-            .coordinator
+        let Some(record) = self.selected_record_for_snapshot() else {
+            return empty_snapshot(self.unexecuted_frozen());
+        };
+        let coordinator_record = &record.coordinator;
+        let sequence = coordinator_record
             .sequence_valid
             .load(Ordering::Acquire)
-            .then(|| self.coordinator.sequence.load(Ordering::Relaxed));
-        let workers = self.workers.each_ref().map(|record| {
-            let finished = record.finished.load(Ordering::Acquire);
+            .then(|| coordinator_record.sequence.load(Ordering::Relaxed));
+        let workers = record.workers.each_ref().map(|worker| {
+            let finished = worker.finished.load(Ordering::Acquire)
+                && sequence
+                    .is_some_and(|sequence| worker.sequence.load(Ordering::Acquire) == sequence);
             SourceWorkerWorkerTimingSnapshot {
-                sequence: finished.then(|| record.sequence.load(Ordering::Relaxed)),
-                render_ns: finished.then(|| record.render_ns.load(Ordering::Relaxed)),
+                sequence: finished.then_some(sequence).flatten(),
+                render_ns: finished.then(|| worker.render_ns.load(Ordering::Relaxed)),
                 dispatch_to_finish_ns: finished
-                    .then(|| record.dispatch_to_finish_ns.load(Ordering::Relaxed)),
-                cpu_start: cpu_value(finished, record.cpu_start.load(Ordering::Relaxed)),
-                cpu_end: cpu_value(finished, record.cpu_end.load(Ordering::Relaxed)),
+                    .then(|| worker.dispatch_to_finish_ns.load(Ordering::Relaxed)),
+                cpu_start: cpu_value(finished, worker.cpu_start.load(Ordering::Relaxed)),
+                cpu_end: cpu_value(finished, worker.cpu_end.load(Ordering::Relaxed)),
                 finished,
             }
         });
-        let dispatch_to_deadline_start_ns = timing_value(
-            &self.coordinator.dispatch_to_deadline_start_ns,
-            &self.coordinator.dispatch_to_deadline_start_valid,
-        );
         let coordinator = SourceWorkerCoordinatorTimingSnapshot {
             sequence,
-            deadline_ns: sequence.map(|_| self.coordinator.deadline_ns.load(Ordering::Relaxed)),
-            dispatch_to_deadline_start_ns,
-            dispatch_to_deadline_elapsed_ns: if self
-                .coordinator
-                .dispatch_to_deadline_elapsed_valid
-                .load(Ordering::Relaxed)
-            {
-                Some(
-                    self.coordinator
-                        .dispatch_to_deadline_elapsed_ns
-                        .load(Ordering::Relaxed),
-                )
-            } else {
-                None
-            },
+            deadline_ns: sequence.map(|_| coordinator_record.deadline_ns.load(Ordering::Relaxed)),
+            dispatch_to_deadline_start_ns: timing_value(
+                &coordinator_record.dispatch_to_deadline_start_ns,
+                &coordinator_record.dispatch_to_deadline_start_valid,
+            ),
+            dispatch_to_deadline_elapsed_ns: timing_value(
+                &coordinator_record.dispatch_to_deadline_elapsed_ns,
+                &coordinator_record.dispatch_to_deadline_elapsed_valid,
+            ),
             in_flight_mask: sequence
-                .map(|_| self.coordinator.in_flight_mask.load(Ordering::Relaxed)),
+                .map(|_| coordinator_record.in_flight_mask.load(Ordering::Relaxed)),
             completed_mask: sequence
-                .map(|_| self.coordinator.completed_mask.load(Ordering::Relaxed)),
-            first_parity: if self.coordinator.first_parity_valid.load(Ordering::Acquire) {
-                Some(self.coordinator.first_parity.load(Ordering::Relaxed) as usize)
+                .map(|_| coordinator_record.completed_mask.load(Ordering::Relaxed)),
+            first_parity: if coordinator_record
+                .first_parity_valid
+                .load(Ordering::Acquire)
+            {
+                Some(coordinator_record.first_parity.load(Ordering::Relaxed) as usize)
             } else {
                 None
             },
             dispatch_to_first_ns: timing_value(
-                &self.coordinator.dispatch_to_first_ns,
-                &self.coordinator.dispatch_to_first_valid,
+                &coordinator_record.dispatch_to_first_ns,
+                &coordinator_record.dispatch_to_first_valid,
             ),
             dispatch_to_both_ns: timing_value(
-                &self.coordinator.dispatch_to_both_ns,
-                &self.coordinator.dispatch_to_both_valid,
+                &coordinator_record.dispatch_to_both_ns,
+                &coordinator_record.dispatch_to_both_valid,
             ),
             reduction_ns: timing_value(
-                &self.coordinator.reduction_ns,
-                &self.coordinator.reduction_valid,
+                &coordinator_record.reduction_ns,
+                &coordinator_record.reduction_valid,
             ),
             coordinator_remainder_ns: timing_value(
-                &self.coordinator.coordinator_remainder_ns,
-                &self.coordinator.coordinator_remainder_valid,
+                &coordinator_record.coordinator_remainder_ns,
+                &coordinator_record.coordinator_remainder_valid,
             ),
             engine_block_total_ns: total_value(
-                &self.coordinator.engine_block_total_ns,
-                &self.coordinator.engine_block_total_state,
+                &coordinator_record.engine_block_total_ns,
+                &coordinator_record.engine_block_total_state,
             ),
             callback_total_ns: total_value(
-                &self.coordinator.callback_total_ns,
-                &self.coordinator.callback_total_state,
+                &coordinator_record.callback_total_ns,
+                &coordinator_record.callback_total_state,
             ),
-            failed: self.coordinator.failed.load(Ordering::Relaxed),
-            frozen: coordinator_frozen,
+            failed: coordinator_record.failed.load(Ordering::Relaxed),
+            frozen: coordinator_record.frozen.load(Ordering::Acquire),
         };
         let deadline_boundary = coordinator
             .dispatch_to_deadline_start_ns
@@ -106,6 +124,39 @@ impl SourceWorkerTimingProbe {
             cpu_endpoint_changed,
         }
     }
+
+    fn newest_record(
+        &self,
+        matches: impl Fn(&SequenceTimingRecord) -> bool,
+    ) -> Option<&SequenceTimingRecord> {
+        let mut selected = None;
+        for record in &self.records {
+            if !record.coordinator.sequence_valid.load(Ordering::Acquire) || !matches(record) {
+                continue;
+            }
+            selected = match selected {
+                Some(current)
+                    if !is_newer_sequence(record_sequence(record), record_sequence(current)) =>
+                {
+                    Some(current)
+                }
+                _ => Some(record),
+            };
+        }
+        selected
+    }
+
+    fn unexecuted_frozen(&self) -> bool {
+        self.unexecuted_frozen.load(Ordering::Acquire)
+    }
+}
+
+fn record_sequence(record: &SequenceTimingRecord) -> u64 {
+    record.coordinator.sequence.load(Ordering::Relaxed)
+}
+
+fn is_newer_sequence(candidate: u64, current: u64) -> bool {
+    candidate != current && candidate.wrapping_sub(current) < (1_u64 << 63)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -143,6 +194,38 @@ pub struct SourceWorkerTimingSnapshot {
     pub coordinator: SourceWorkerCoordinatorTimingSnapshot,
     pub late_after_deadline_ns: Option<u64>,
     pub cpu_endpoint_changed: bool,
+}
+
+fn empty_snapshot(frozen: bool) -> SourceWorkerTimingSnapshot {
+    SourceWorkerTimingSnapshot {
+        workers: std::array::from_fn(|_| SourceWorkerWorkerTimingSnapshot {
+            sequence: None,
+            render_ns: None,
+            dispatch_to_finish_ns: None,
+            cpu_start: None,
+            cpu_end: None,
+            finished: false,
+        }),
+        coordinator: SourceWorkerCoordinatorTimingSnapshot {
+            sequence: None,
+            deadline_ns: None,
+            dispatch_to_deadline_start_ns: None,
+            dispatch_to_deadline_elapsed_ns: None,
+            in_flight_mask: None,
+            completed_mask: None,
+            first_parity: None,
+            dispatch_to_first_ns: None,
+            dispatch_to_both_ns: None,
+            reduction_ns: None,
+            coordinator_remainder_ns: None,
+            engine_block_total_ns: None,
+            callback_total_ns: None,
+            failed: false,
+            frozen,
+        },
+        late_after_deadline_ns: None,
+        cpu_endpoint_changed: false,
+    }
 }
 
 fn cpu_value(finished: bool, value: u32) -> Option<u32> {

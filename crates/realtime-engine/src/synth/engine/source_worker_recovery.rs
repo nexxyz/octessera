@@ -264,6 +264,11 @@ impl SourceWorkerRuntime {
         {
             self.dispatch_started_at = None;
             self.coordinator_remainder_started_at = None;
+            self.timing_output_sequence = None;
+            #[cfg(feature = "routing-tree-benchmark")]
+            {
+                self.routing_coordinator_remainder_started_at = None;
+            }
         }
     }
 
