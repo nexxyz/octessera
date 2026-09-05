@@ -56,15 +56,18 @@ function Assert-OrangeCapacityBenchmarkSelection {
   if ([string]::IsNullOrWhiteSpace($WorkerTimingMode)) { $WorkerTimingMode = $expectedWorkerTimingMode }
   if ($ExecutorMode -eq "inline" -and $WorkerTimingMode -cne "disabled") { throw "Inline executor requires disabled worker timing." }
   if ($ExecutorMode -eq "routing_tree_persistent" -and $WorkerTimingMode -cne "enabled") { throw "Routing-tree persistent executor requires enabled worker timing." }
-  if ($OutputFrames -ne 256 -or $EngineBlockFrames -ne 64) { throw "LiveAudioBenchmark capacity scenarios require output=256 and engine=64." }
+  $isAnalogueU16 = $CapacityScenario.Kind -ceq "analogue" -and $ExecutorMode -ceq "inline" -and $WorkerTimingMode -ceq "disabled"
+  if ($OutputFrames -eq 128) {
+    if (-not $isAnalogueU16 -or $EngineBlockFrames -ne 64) { throw "Analogue U16 capacity scenarios require output=128 and engine=64." }
+  } elseif ($OutputFrames -ne 256 -or $EngineBlockFrames -ne 64) { throw "LiveAudioBenchmark capacity scenarios require output=256 and engine=64." }
   if (@(30, 180) -notcontains $MeasureSeconds) { throw "LiveAudioBenchmark capacity scenarios require a 30- or 180-second measurement." }
   if ($AllowLongRepeat) { throw "-AllowLongRepeat is only valid for a 120-second A repeat." }
   $selection = [ordered]@{
     Scenario = $Scenario
-    OutputFrames = 256
-    AlsaPeriodFrames = 64
-    EngineBlockFrames = 64
-    InternalFrames = 64
+    OutputFrames = $OutputFrames
+    AlsaPeriodFrames = if ($OutputFrames -eq 128) { 32 } else { 64 }
+    EngineBlockFrames = $EngineBlockFrames
+    InternalFrames = $EngineBlockFrames
     MeasureSeconds = $MeasureSeconds
     WarmupSeconds = 5
     MatrixClass = "diagnostic"

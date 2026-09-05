@@ -1,4 +1,4 @@
-use super::super::cli::{BenchmarkExecutorMode, WorkerTimingMode};
+use super::super::cli::{BenchmarkExecutorMode, RecordedGeometry, WorkerTimingMode};
 use super::{
     deserialize_result_schema_v12, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
     CallbackMetricsSnapshot, PersistentOutputCountersEvidence,
@@ -208,15 +208,16 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
     }
     let executor_mode = BenchmarkExecutorMode::parse(&result.executor_mode)
         .ok_or_else(|| "benchmark executor mode is missing or invalid".to_string())?;
-    super::super::cli::validate_recorded_geometry(
+    super::super::cli::validate_recorded_geometry(RecordedGeometry {
+        scenario: result.scenario.as_str(),
         executor_mode,
-        result.requested_output_buffer_frames,
-        result.expected_alsa_buffer_frames,
-        result.expected_alsa_period_frames,
-        result.internal_block_frames,
-        result.lookahead_frames,
-        Some(result.effective_output_latency_frames),
-    )?;
+        requested_output_buffer_frames: result.requested_output_buffer_frames,
+        expected_alsa_buffer_frames: result.expected_alsa_buffer_frames,
+        expected_alsa_period_frames: result.expected_alsa_period_frames,
+        internal_block_frames: result.internal_block_frames,
+        lookahead_frames: result.lookahead_frames,
+        effective_output_latency_frames: Some(result.effective_output_latency_frames),
+    })?;
     let expected_priority = match executor_mode {
         BenchmarkExecutorMode::Inline
         | BenchmarkExecutorMode::PersistentTwoWorkers

@@ -27,6 +27,18 @@ fn args_for(output_frames: u32, internal_frames: usize) -> Vec<String> {
     args
 }
 
+fn inline_args_for(scenario: &str, output_frames: u32, internal_frames: usize) -> Vec<String> {
+    let mut args = args_for(output_frames, internal_frames);
+    set_arg(&mut args, "--scenario", scenario.into());
+    args.extend([
+        "--executor".into(),
+        "inline".into(),
+        "--worker-timing".into(),
+        "disabled".into(),
+    ]);
+    args
+}
+
 fn set_arg(args: &mut [String], name: &str, value: String) {
     let index = args.iter().position(|arg| arg == name).unwrap();
     args[index + 1] = value;
@@ -61,6 +73,53 @@ fn approved_cli_tuples_store_independent_geometry() {
     assert_ne!(config.result_path, config.progress_path);
     assert_ne!(config.result_path, config.readiness_path);
     assert_ne!(config.progress_path, config.readiness_path);
+}
+
+#[test]
+fn inline_128_64_requires_an_analogue_capacity_scenario() {
+    assert_eq!(
+        parse(inline_args_for("synth_ramp_16", 128, 64)).unwrap_err(),
+        "unsupported Orange benchmark geometry tuple: output=128 internal=64"
+    );
+}
+
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+#[test]
+fn analogue_capacity_128_64_is_inline_only_and_preflight_validates_it() {
+    let mut config = parse(inline_args_for("capacity_analogue_1", 128, 64)).unwrap();
+    assert_eq!(config.expected_alsa_period_frames, 32);
+    assert_eq!(config.executor_mode, BenchmarkExecutorMode::Inline);
+    assert_eq!(config.internal_frames, 64);
+    preflight(&config).unwrap();
+
+    config.worker_timing_mode = WorkerTimingMode::Enabled;
+    assert_eq!(
+        preflight(&config).unwrap_err(),
+        "inline executor requires worker timing disabled"
+    );
+
+    let mut persistent = args_for(128, 64);
+    set_arg(&mut persistent, "--scenario", "capacity_analogue_1".into());
+    assert!(parse(persistent).is_err());
+
+    let mut routing = args_for(128, 64);
+    set_arg(&mut routing, "--scenario", "capacity_analogue_1".into());
+    routing.extend(["--executor".into(), "routing_tree_persistent".into()]);
+    assert!(parse(routing).is_err());
+
+    for scenario in [
+        "capacity_analogue_0",
+        "capacity_analogue_01",
+        "capacity_analogue_1x",
+    ] {
+        assert!(
+            parse(inline_args_for(scenario, 128, 64)).is_err(),
+            "invalid analogue scenario should fail: {scenario}"
+        );
+    }
 }
 
 #[test]

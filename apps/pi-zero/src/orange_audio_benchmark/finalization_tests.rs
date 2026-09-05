@@ -20,6 +20,21 @@ fn config() -> BenchmarkConfig {
     .unwrap()
 }
 
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+fn analogue_inline_config() -> BenchmarkConfig {
+    let mut config = config();
+    config.scenario = "capacity_analogue_1".into();
+    config.output_frames = 128;
+    config.expected_alsa_period_frames = 32;
+    config.internal_frames = 64;
+    config.executor_mode = BenchmarkExecutorMode::Inline;
+    config.worker_timing_mode = WorkerTimingMode::Disabled;
+    config
+}
+
 #[test]
 fn profile_validation_proves_max_fx_state() {
     let expected = crate::dsp_scenarios::expected_live_state(
@@ -449,3 +464,10 @@ fn pre_stream_failure_serializes_worker_timing_for_both_modes() {
         std::fs::remove_dir_all(root).unwrap();
     }
 }
+
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+#[path = "finalization_geometry_tests.rs"]
+mod geometry_tests;

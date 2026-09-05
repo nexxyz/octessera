@@ -1,4 +1,4 @@
-use super::super::cli::BenchmarkExecutorMode;
+use super::super::cli::{BenchmarkExecutorMode, RecordedGeometry};
 use super::{BenchmarkProgress, BenchmarkReadiness};
 use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer};
@@ -87,15 +87,16 @@ impl<'de> Deserialize<'de> for BenchmarkProgress {
         if value.kind != "orange_audio_benchmark_progress" {
             return Err(D::Error::custom("benchmark progress kind is invalid"));
         }
-        validate_geometry(
+        validate_geometry(RecordedGeometry {
+            scenario: &value.scenario,
             executor_mode,
-            value.requested_output_buffer_frames,
-            value.expected_alsa_buffer_frames,
-            value.expected_alsa_period_frames,
-            value.internal_block_frames,
-            value.lookahead_frames,
-            None,
-        )?;
+            requested_output_buffer_frames: value.requested_output_buffer_frames,
+            expected_alsa_buffer_frames: value.expected_alsa_buffer_frames,
+            expected_alsa_period_frames: value.expected_alsa_period_frames,
+            internal_block_frames: value.internal_block_frames,
+            lookahead_frames: value.lookahead_frames,
+            effective_output_latency_frames: None,
+        })?;
         validate_worker_names(
             executor_mode,
             &value.worker_thread_name_0,
@@ -156,15 +157,16 @@ impl<'de> Deserialize<'de> for BenchmarkReadiness {
                 "benchmark readiness kind or status is invalid",
             ));
         }
-        validate_geometry(
+        validate_geometry(RecordedGeometry {
+            scenario: &value.scenario,
             executor_mode,
-            value.requested_output_buffer_frames,
-            value.expected_alsa_buffer_frames,
-            value.expected_alsa_period_frames,
-            value.internal_block_frames,
-            value.lookahead_frames,
-            None,
-        )?;
+            requested_output_buffer_frames: value.requested_output_buffer_frames,
+            expected_alsa_buffer_frames: value.expected_alsa_buffer_frames,
+            expected_alsa_period_frames: value.expected_alsa_period_frames,
+            internal_block_frames: value.internal_block_frames,
+            lookahead_frames: value.lookahead_frames,
+            effective_output_latency_frames: None,
+        })?;
         validate_worker_names(
             executor_mode,
             &value.worker_thread_name_0,
@@ -229,25 +231,8 @@ fn validate_schema<E: DeserializeError>(version: u8, name: &str) -> Result<(), E
     Ok(())
 }
 
-fn validate_geometry<E: DeserializeError>(
-    executor_mode: BenchmarkExecutorMode,
-    requested_output_buffer_frames: u32,
-    expected_alsa_buffer_frames: u32,
-    expected_alsa_period_frames: u32,
-    internal_block_frames: usize,
-    lookahead_frames: usize,
-    effective_output_latency_frames: Option<usize>,
-) -> Result<(), E> {
-    super::super::cli::validate_recorded_geometry(
-        executor_mode,
-        requested_output_buffer_frames,
-        expected_alsa_buffer_frames,
-        expected_alsa_period_frames,
-        internal_block_frames,
-        lookahead_frames,
-        effective_output_latency_frames,
-    )
-    .map_err(E::custom)
+fn validate_geometry<E: DeserializeError>(geometry: RecordedGeometry<'_>) -> Result<(), E> {
+    super::super::cli::validate_recorded_geometry(geometry).map_err(E::custom)
 }
 
 fn validate_worker_names<E: DeserializeError>(

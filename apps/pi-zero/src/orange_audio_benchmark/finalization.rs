@@ -1,4 +1,4 @@
-use super::cli::{BenchmarkConfig, BenchmarkExecutorMode, WorkerTimingMode};
+use super::cli::{BenchmarkConfig, BenchmarkExecutorMode, RecordedGeometry, WorkerTimingMode};
 use super::metrics::{CallbackMetrics, CallbackMetricsSnapshot};
 use super::phase::{MeasurementControl, MeasurementPhase};
 use super::probe::ProfileProbe;
@@ -226,15 +226,18 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
             config.internal_frames,
         ),
     });
-    if let Err(error) = super::cli::validate_recorded_geometry(
-        config.executor_mode,
-        config.output_frames,
-        config.output_frames,
-        config.expected_alsa_period_frames,
-        stream.engine_block_frames,
-        stream.lookahead_frames,
-        Some(config.output_frames as usize + stream.lookahead_frames),
-    ) {
+    if let Err(error) = super::cli::validate_recorded_geometry(RecordedGeometry {
+        scenario: config.scenario.as_str(),
+        executor_mode: config.executor_mode,
+        requested_output_buffer_frames: config.output_frames,
+        expected_alsa_buffer_frames: config.output_frames,
+        expected_alsa_period_frames: config.expected_alsa_period_frames,
+        internal_block_frames: stream.engine_block_frames,
+        lookahead_frames: stream.lookahead_frames,
+        effective_output_latency_frames: Some(
+            config.output_frames as usize + stream.lookahead_frames,
+        ),
+    }) {
         state.note_error(error);
     }
     let status = result_status(
