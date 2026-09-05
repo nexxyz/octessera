@@ -162,3 +162,52 @@ fn timing_probe_records_both_persistent_worker_waves() {
 
     assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
 }
+
+#[cfg(feature = "routing-tree-benchmark")]
+#[test]
+fn routing_timing_evidence_uses_the_absolute_85_percent_deadline() {
+    let mut engine = SynthEngine::new(48_000);
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
+            .expect("routing-tree runtime");
+    let probe = Arc::new(SourceWorkerTimingProbe::new(None));
+    runtime.attach_timing_probe(Arc::clone(&probe));
+    let mut left = Vec::with_capacity(128);
+    let mut right = Vec::with_capacity(128);
+    let mut out = Vec::with_capacity(256);
+
+    assert_eq!(
+        engine.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut left,
+            &mut right,
+            &mut out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    assert_eq!(
+        engine.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut left,
+            &mut right,
+            &mut out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    runtime.record_engine_block_total(runtime.timing_block_start());
+    probe.record_callback_total(Duration::ZERO);
+
+    let snapshot = probe.snapshot();
+    let budget_ns = Duration::from_secs_f64(128.0 / 48_000.0 * 0.85).as_nanos() as u64;
+    let dispatch_to_deadline_start_ns = snapshot
+        .coordinator
+        .dispatch_to_deadline_start_ns
+        .expect("routing dispatch-to-deadline start");
+    let deadline_ns = snapshot.coordinator.deadline_ns.expect("routing deadline");
+    let observed_budget_ns = dispatch_to_deadline_start_ns + deadline_ns;
+    assert!(observed_budget_ns.abs_diff(budget_ns) <= 2);
+
+    assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
+}

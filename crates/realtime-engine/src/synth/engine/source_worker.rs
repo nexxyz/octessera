@@ -20,10 +20,11 @@ use crossbeam_channel::{Receiver, Sender};
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+#[cfg(any(test, feature = "test-support"))]
+use std::time::Duration;
+use std::time::Instant;
 
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;
-const SOURCE_WORKER_DEADLINE_FRACTION: f64 = 0.35;
 
 pub struct SourceWorkerRuntime {
     mode: SourceWorkerMode,
@@ -47,7 +48,10 @@ pub struct SourceWorkerRuntime {
     coordinator_remainder_started_at: Option<Instant>,
     #[cfg(feature = "source-worker-benchmark-timing")]
     timing_output_sequence: Option<u64>,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(all(
+        feature = "routing-tree-benchmark",
+        feature = "source-worker-benchmark-timing"
+    ))]
     routing_coordinator_remainder_started_at: Option<(u64, Instant)>,
     #[cfg(any(test, feature = "test-support"))]
     worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
@@ -71,6 +75,8 @@ pub struct SourceWorkerRuntime {
     routing_output_ready: bool,
     #[cfg(feature = "routing-tree-benchmark")]
     routing_tree_reprime_pending: bool,
+    #[cfg(feature = "routing-tree-benchmark")]
+    routing_absolute_deadline: Option<Instant>,
     #[cfg(all(
         feature = "routing-tree-benchmark",
         any(test, feature = "test-support")
@@ -116,7 +122,10 @@ impl SourceWorkerRuntime {
             coordinator_remainder_started_at: None,
             #[cfg(feature = "source-worker-benchmark-timing")]
             timing_output_sequence: None,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(all(
+                feature = "routing-tree-benchmark",
+                feature = "source-worker-benchmark-timing"
+            ))]
             routing_coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: None,
@@ -140,6 +149,8 @@ impl SourceWorkerRuntime {
             routing_output_ready: false,
             #[cfg(feature = "routing-tree-benchmark")]
             routing_tree_reprime_pending: false,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_absolute_deadline: None,
             #[cfg(all(
                 feature = "routing-tree-benchmark",
                 any(test, feature = "test-support")
@@ -234,7 +245,10 @@ impl SourceWorkerRuntime {
             coordinator_remainder_started_at: None,
             #[cfg(feature = "source-worker-benchmark-timing")]
             timing_output_sequence: None,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(all(
+                feature = "routing-tree-benchmark",
+                feature = "source-worker-benchmark-timing"
+            ))]
             routing_coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: Some(lifecycle.worker_pause_controls_for_test()),
@@ -259,6 +273,8 @@ impl SourceWorkerRuntime {
             routing_output_ready: false,
             #[cfg(feature = "routing-tree-benchmark")]
             routing_tree_reprime_pending: false,
+            #[cfg(feature = "routing-tree-benchmark")]
+            routing_absolute_deadline: None,
             #[cfg(all(
                 feature = "routing-tree-benchmark",
                 any(test, feature = "test-support")
@@ -290,6 +306,8 @@ impl SourceWorkerRuntime {
     pub fn retire(mut self) -> SourceWorkerRetirement {
         #[cfg(feature = "source-worker-benchmark-timing")]
         self.freeze_timing(self.health.status().is_terminal(), None);
+        #[cfg(feature = "routing-tree-benchmark")]
+        self.clear_routing_absolute_deadline();
         let Some(close) = self.runtime_close.take() else {
             return SourceWorkerRetirement::inline();
         };
@@ -303,19 +321,6 @@ impl SourceWorkerRuntime {
 
     pub fn load_snapshot(&self) -> Option<SourceWorkerLoadSnapshot> {
         self.load.as_ref().map(SourceWorkerLoad::snapshot)
-    }
-
-    fn rendezvous_deadline(&self, frames: usize) -> Duration {
-        #[cfg(any(test, feature = "test-support"))]
-        if let Some(deadline) = self.deadline_override {
-            return deadline;
-        }
-        let quantum_seconds = if self.sample_rate == 0 {
-            0.0
-        } else {
-            frames as f64 / self.sample_rate as f64
-        };
-        Duration::from_secs_f64(quantum_seconds * SOURCE_WORKER_DEADLINE_FRACTION)
     }
 
     fn home_is_ready(&self) -> bool {
@@ -431,6 +436,9 @@ impl SourceWorkerRuntime {
 
 #[path = "source_worker_mailboxes.rs"]
 mod mailboxes;
+
+#[path = "source_worker_deadlines.rs"]
+mod deadlines;
 
 #[path = "source_worker_quantum.rs"]
 mod quantum;

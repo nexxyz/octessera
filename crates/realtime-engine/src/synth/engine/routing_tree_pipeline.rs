@@ -20,12 +20,15 @@ impl SourceWorkerRuntime {
         {
             return false;
         }
-        self.collect_routing_tree_output_with_deadline(
-            engine,
-            true,
-            std::time::Instant::now() + std::time::Duration::from_secs(1),
-        )
-        .is_some()
+        let primed = self
+            .collect_routing_tree_output_with_deadline(
+                engine,
+                true,
+                std::time::Instant::now() + std::time::Duration::from_secs(1),
+            )
+            .is_some();
+        self.clear_routing_absolute_deadline();
+        primed
     }
 
     pub(in crate::synth::engine) fn render_routing_tree_persistent_block(
@@ -154,6 +157,7 @@ impl SourceWorkerRuntime {
         frames: usize,
         base_sample_clock: u64,
     ) -> bool {
+        self.clear_routing_absolute_deadline();
         if self.in_flight_mask != 0
             || self.completed_mask != 0
             || !self.home_is_ready()
@@ -172,6 +176,7 @@ impl SourceWorkerRuntime {
         };
         let sequence = self.next_sequence;
         self.next_sequence = self.next_sequence.wrapping_add(1);
+        let dispatch_started_at = std::time::Instant::now();
         let stamp = super::super::source_worker_protocol::WorkStamp {
             runtime_generation: self.runtime_generation,
             render_plan_generation: assignment.plan.generation,
@@ -185,12 +190,9 @@ impl SourceWorkerRuntime {
         self.force_fault_mask = 0;
         #[cfg(feature = "source-worker-benchmark-timing")]
         {
-            self.dispatch_started_at = self
-                .timing_probe
-                .as_ref()
-                .map(|_| std::time::Instant::now());
+            self.dispatch_started_at = self.timing_probe.as_ref().map(|_| dispatch_started_at);
             if let Some(probe) = self.timing_probe.as_ref() {
-                let _ = probe.begin_sequence(sequence, self.rendezvous_deadline(frames));
+                let _ = probe.begin_sequence(sequence, self.routing_tree_deadline_duration(frames));
                 probe.record_dispatch(sequence, 0b11);
             }
         }
@@ -218,7 +220,13 @@ impl SourceWorkerRuntime {
                 probe.record_dispatch(sequence, stamp.base_sample_clock);
             }
         }
-        first_sent && second_sent && self.health.status() == SourceWorkerHealth::Healthy
+        let sent = first_sent && second_sent && self.health.status() == SourceWorkerHealth::Healthy;
+        if sent {
+            self.set_routing_absolute_deadline(dispatch_started_at, frames);
+        } else {
+            self.clear_routing_absolute_deadline();
+        }
+        sent
     }
 
     fn send_routing_tree_work(
@@ -271,12 +279,11 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         wait: bool,
     ) -> Option<()> {
-        let stamp = self.expected_stamp?;
-        self.collect_routing_tree_output_with_deadline(
-            engine,
-            wait,
-            std::time::Instant::now() + self.rendezvous_deadline(stamp.frames),
-        )
+        let Some(deadline) = self.routing_absolute_deadline.take() else {
+            self.latch_completion_failure(0b11);
+            return None;
+        };
+        self.collect_routing_tree_output_with_deadline(engine, wait, deadline)
     }
 
     fn collect_routing_tree_output_with_deadline(
@@ -285,6 +292,7 @@ impl SourceWorkerRuntime {
         wait: bool,
         deadline: std::time::Instant,
     ) -> Option<()> {
+        self.clear_routing_absolute_deadline();
         let stamp = self.expected_stamp?;
         self.collect_wave_with_deadline(engine, wait, WorkerPhase::RoutingTree, deadline, true)?;
         if self.completed_mask != 0b11 || !self.home_is_ready() {
@@ -389,7 +397,8 @@ impl SourceWorkerRuntime {
         }
     }
 
-    fn routing_tree_failure_disposition(&self) -> SourceWorkerRenderDisposition {
+    fn routing_tree_failure_disposition(&mut self) -> SourceWorkerRenderDisposition {
+        self.clear_routing_absolute_deadline();
         if self.health.status() == SourceWorkerHealth::DeadlineMiss {
             SourceWorkerRenderDisposition::NewlyMissed
         } else {

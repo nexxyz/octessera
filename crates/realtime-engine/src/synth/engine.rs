@@ -111,6 +111,8 @@ mod source_worker_residency_tests;
 mod source_worker_retirement;
 #[cfg(test)]
 mod source_worker_retirement_tests;
+#[cfg(all(test, feature = "routing-tree-benchmark"))]
+mod source_worker_routing_deadline_tests;
 #[cfg(test)]
 mod source_worker_staging_tests;
 #[cfg(test)]
