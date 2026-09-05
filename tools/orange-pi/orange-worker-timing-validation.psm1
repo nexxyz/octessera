@@ -140,13 +140,18 @@ function Assert-OrangeWorkerTimingEvidence {
       if (($completed -band ([uint64]1 -shl [int]$firstParity)) -eq 0) { throw "First-completion parity is absent from the completed mask." }
       $firstWorker = $workers[[int]$firstParity]
       if (-not $firstWorker.finished -or $null -eq $firstWorker.dispatch_to_finish_ns) { throw "First completion has no finished worker evidence." }
-      if ($dispatchToFirst -lt $firstWorker.dispatch_to_finish_ns -or $dispatchToFirst -gt $deadlineBoundary -or $firstWorker.dispatch_to_finish_ns -gt $deadlineBoundary) { throw "Completed-before-deadline first evidence is temporally impossible." }
+      if ($dispatchToFirst -lt $dispatchToDeadlineStart) { throw "First completion observation precedes collection start." }
+      if ($dispatchToFirst -lt $firstWorker.dispatch_to_finish_ns) { throw "First completion observation precedes the selected worker finish." }
+      if ($firstWorker.dispatch_to_finish_ns -gt $deadlineBoundary) { throw "Completed worker finish exceeds deadline." }
       if ($completed -eq 3) {
         if ($null -eq $dispatchToBoth) { throw "Both-completion mask has no timing." }
-        if ($dispatchToFirst -gt $dispatchToBoth -or $dispatchToBoth -gt $deadlineBoundary) { throw "Completion timing order is impossible." }
+        if ($dispatchToBoth -lt $dispatchToDeadlineStart) { throw "Both completion observation precedes collection start." }
+        if ($dispatchToFirst -gt $dispatchToBoth) { throw "Completion timing order is impossible." }
         foreach ($parity in 0..1) {
           $completedWorker = $workers[$parity]
-          if (-not $completedWorker.finished -or $null -eq $completedWorker.dispatch_to_finish_ns -or $completedWorker.dispatch_to_finish_ns -gt $deadlineBoundary -or $dispatchToBoth -lt $completedWorker.dispatch_to_finish_ns) { throw "Both-completion evidence is temporally impossible." }
+          if (-not $completedWorker.finished -or $null -eq $completedWorker.dispatch_to_finish_ns) { throw "Completed worker has no finish evidence." }
+          if ($completedWorker.dispatch_to_finish_ns -gt $deadlineBoundary) { throw "Completed worker finish exceeds deadline." }
+          if ($dispatchToBoth -lt $completedWorker.dispatch_to_finish_ns) { throw "Both completion observation precedes a completed worker finish." }
         }
       } elseif ($null -ne $dispatchToBoth) {
         throw "Both-completion timing exists without both completions."
