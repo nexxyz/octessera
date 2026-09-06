@@ -79,6 +79,14 @@ impl SourceWorkerRuntime {
     ) -> bool {
         let parity = completion.owner.parity;
         let worker_mask = worker_mask(parity);
+        #[cfg(feature = "routing-tree-benchmark")]
+        let max_cost_units = if completion.phase == WorkerPhase::RoutingTree {
+            super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS
+        } else {
+            super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS
+        };
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let max_cost_units = super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
         parity < SOURCE_WORKER_COUNT
             && channel_parity == parity
             && self.in_flight_mask & worker_mask != 0
@@ -92,8 +100,7 @@ impl SourceWorkerRuntime {
                         &completion.owner,
                         &self.bus_dispatch_residency,
                     )))
-            && completion.active_cost_units
-                <= super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS
+            && completion.active_cost_units <= max_cost_units
     }
 
     pub(super) fn reclaim_available(&mut self, _engine: &mut SynthEngine) {

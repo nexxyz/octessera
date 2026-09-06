@@ -123,9 +123,17 @@ impl SourceWorkerLoad {
         &mut self,
         observations: [SourceWorkerLoadObservation; SOURCE_WORKER_COUNT],
     ) -> bool {
+        self.observe_pair_with_max_cost(observations, SOURCE_WORKER_MAX_COST_UNITS)
+    }
+
+    pub(super) fn observe_pair_with_max_cost(
+        &mut self,
+        observations: [SourceWorkerLoadObservation; SOURCE_WORKER_COUNT],
+        max_cost_units: u16,
+    ) -> bool {
         if observations
             .iter()
-            .any(|observation| observation.active_cost_units > SOURCE_WORKER_MAX_COST_UNITS)
+            .any(|observation| observation.active_cost_units > max_cost_units)
         {
             return false;
         }

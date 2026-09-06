@@ -2,9 +2,18 @@ use self::spread_state::{
     assert_spread_state_is_nontrivial, assert_spread_state_matches,
     bus_output_spread_state_signature, recovered_source_state_signature,
 };
-use super::super::routing_tree_executor_state_tests::engine_source_state_signature;
-use super::*;
-use crate::synth::engine::routing_tree_executor_test_support::bus_chain_state;
+use super::routing_tree_executor_state_tests::engine_source_state_signature;
+use super::routing_tree_executor_test_support::bus_chain_state;
+use super::routing_tree_pipeline_tests::{
+    assert_global_mixer_state_matches, assert_interleaved_reassociated_close,
+    assert_worker_outputs_are_nonzero, shutdown,
+};
+use super::{
+    FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
+    MixerConfig, SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerRenderDisposition,
+    SynthEngine,
+};
+use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
 use crate::synth::{
     MomentaryFxTarget, SampleBankConfig, SampleBuffer, SampleSlotConfig, VoiceStealingMode,
 };
@@ -13,40 +22,6 @@ use std::collections::BTreeMap;
 
 #[path = "routing_tree_spread_state_test_support.rs"]
 mod spread_state;
-
-fn observed_routing_cost(active: bool) -> [u16; 2] {
-    let mut engine = SynthEngine::new(44_100);
-    engine.set_instruments(bus_config_with_reverb());
-    if active {
-        engine.note_on(0, 60, 100, 500);
-    }
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
-            .expect("routing-tree runtime");
-    runtime.set_deadline_for_test(Duration::from_secs(1));
-    let disposition = render_block(&mut engine, &mut runtime);
-    assert_eq!(disposition, SourceWorkerRenderDisposition::Fresh);
-    let observed = runtime.load_snapshot().expect("routing worker load");
-    let result = observed.observed_active_cost_units;
-    shutdown(lifecycle, runtime);
-    result
-}
-
-#[test]
-fn routing_tree_actual_threaded_active_bus_cost_is_counted_once() {
-    assert_eq!(
-        observed_routing_cost(true),
-        [
-            SOURCE_WORKER_SYNTH_COST_UNITS + BUS_CHAIN_SLOT_COST_UNITS - 1,
-            0
-        ]
-    );
-}
-
-#[test]
-fn routing_tree_actual_threaded_quiet_bus_cost_is_zero() {
-    assert_eq!(observed_routing_cost(false), [0, 0]);
-}
 
 #[test]
 fn routing_tree_reverse_completion_preserves_four_bus_output_parity() {
@@ -74,8 +49,8 @@ fn routing_tree_reverse_completion_preserves_four_bus_output_parity() {
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut forced_reverse, 128)
             .expect("routing-tree runtime");
     reverse_lifecycle.set_reverse_completion_for_test(true);
-    normal_runtime.set_deadline_for_test(Duration::from_secs(1));
-    reverse_runtime.set_deadline_for_test(Duration::from_secs(1));
+    normal_runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
+    reverse_runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
     for block in 0..4 {
         let pending_source_state = if block > 0 {
             assert!(normal_runtime.collect_wait_for_test(&mut normal));
@@ -245,6 +220,146 @@ fn routing_tree_reverse_completion_preserves_four_bus_output_parity() {
     );
 }
 
+#[test]
+fn routing_tree_inline_parity_tracks_bus_hold_expiry_inside_quantum() {
+    let config = hold_expiry_config();
+    let mut routed = SynthEngine::new(44_100);
+    let mut inline = SynthEngine::new(44_100);
+    for engine in [&mut routed, &mut inline] {
+        engine.set_instruments(config.clone());
+    }
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut routed, 128)
+            .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
+    let mut inline_left = vec![0.0; 128];
+    let mut inline_right = vec![0.0; 128];
+    let mut inline_out = vec![0.0; 256];
+    inline.render_interleaved_block(128, &mut inline_left, &mut inline_right, &mut inline_out);
+    inline.bus_chains[0].render_hold_frames = 64;
+    assert!(runtime
+        .with_controls_ready(&mut routed, |engine| {
+            engine.bus_chains[0].render_hold_frames = 64;
+        })
+        .is_some());
+
+    let mut routed_left = vec![0.0; 128];
+    let mut routed_right = vec![0.0; 128];
+    let mut routed_out = vec![0.0; 256];
+    assert_eq!(
+        routed.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut routed_left,
+            &mut routed_right,
+            &mut routed_out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    assert_eq!(
+        routed.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut routed_left,
+            &mut routed_right,
+            &mut routed_out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    inline.render_interleaved_block(128, &mut inline_left, &mut inline_right, &mut inline_out);
+    assert_interleaved_reassociated_close(&runtime, &routed_out, &inline_out);
+    assert_eq!(
+        routed.block_slot_scratch.bus_active[..128]
+            .iter()
+            .filter(|active| **active)
+            .count(),
+        63
+    );
+    assert_eq!(routed.master_activity_frames, inline.master_activity_frames);
+    assert_eq!(routed.dry_history, inline.dry_history);
+    lifecycle.shutdown(runtime.retire());
+}
+
+#[test]
+fn routing_tree_inline_parity_tracks_local_momentary_expiry_frame() {
+    let config = momentary_expiry_config();
+    let mut routed = SynthEngine::new(44_100);
+    let mut inline = SynthEngine::new(44_100);
+    for engine in [&mut routed, &mut inline] {
+        engine.set_instruments(config.clone());
+        engine.momentary_fx_start(
+            "expiry".into(),
+            "filter_sweep".into(),
+            BTreeMap::from([
+                ("sweepInMs".into(), json!(1.0)),
+                ("sweepOutMs".into(), json!(1.0)),
+            ]),
+            MomentaryFxTarget::Instrument { index: 0 },
+        );
+    }
+    let mut warm_left = vec![0.0; 128];
+    let mut warm_right = vec![0.0; 128];
+    let mut warm_out = vec![0.0; 256];
+    inline.render_interleaved_block(128, &mut warm_left, &mut warm_right, &mut warm_out);
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut routed, 128)
+            .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
+    assert!(runtime
+        .with_controls_ready(&mut routed, |engine| {
+            engine.momentary_fx_stop("expiry");
+        })
+        .is_some());
+    inline.momentary_fx_stop("expiry");
+
+    let mut routed_left = vec![0.0; 128];
+    let mut routed_right = vec![0.0; 128];
+    let mut routed_out = vec![0.0; 256];
+    assert_eq!(
+        routed.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut routed_left,
+            &mut routed_right,
+            &mut routed_out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    assert_eq!(
+        routed.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut routed_left,
+            &mut routed_right,
+            &mut routed_out,
+        ),
+        SourceWorkerRenderDisposition::Fresh
+    );
+
+    let mut expected_active = Vec::with_capacity(128);
+    let mut inline_out = vec![0.0; 256];
+    for frame in 0..128 {
+        let (left, right) = inline.next_stereo_sample();
+        inline_out[frame * 2] = left;
+        inline_out[frame * 2 + 1] = right;
+        expected_active.push(!inline.momentary_fx.is_empty());
+    }
+    assert_eq!(routed_out, vec![0.0; 256]);
+    assert_eq!(routed_out, inline_out);
+    assert_eq!(
+        &routed.block_slot_scratch.source_active[..128],
+        expected_active.as_slice()
+    );
+    let expiry_frame = expected_active
+        .iter()
+        .position(|active| !active)
+        .expect("momentary expiry frame");
+    assert_eq!(expiry_frame, 44);
+    assert!(expected_active[..expiry_frame].iter().all(|active| *active));
+    assert!(!routed.block_slot_scratch.source_active[expiry_frame]);
+    shutdown(lifecycle, runtime);
+}
+
 fn apply_duplicated_analogue_sources(engine: &mut SynthEngine) {
     for (slot, note) in [(0, 36), (1, 36), (2, 48), (4, 67), (5, 36), (6, 72)] {
         engine.note_on(slot, note, 100, 5_000);
@@ -269,6 +384,43 @@ fn duplicated_analogue_sample_banks() -> Vec<SampleBankConfig> {
         };
     }
     banks
+}
+
+fn hold_expiry_config() -> InstrumentsConfig {
+    InstrumentsConfig {
+        instruments: vec![InstrumentSlotConfig {
+            kind: "sampler".into(),
+            synth: default_synth_config(),
+            mixer: Some(InstrumentMixerConfig {
+                route: "fx_bus_1".into(),
+                pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume: 100.0,
+            }),
+        }],
+        mixer: Some(MixerConfig {
+            buses: vec![FxBusConfig::default()],
+            master: None,
+        }),
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    }
+}
+
+fn momentary_expiry_config() -> InstrumentsConfig {
+    InstrumentsConfig {
+        instruments: vec![InstrumentSlotConfig {
+            kind: "synth".into(),
+            synth: default_synth_config(),
+            mixer: Some(InstrumentMixerConfig {
+                route: "direct".into(),
+                pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume: 100.0,
+            }),
+        }],
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    }
 }
 
 fn duplicated_analogue_config() -> InstrumentsConfig {
@@ -333,163 +485,4 @@ fn spread_delay_slot() -> FxBusSlotConfig {
             ("spreadPct".into(), json!(25.0)),
         ]),
     }
-}
-
-#[test]
-fn routing_tree_actual_threaded_over_max_combined_completion_is_terminal() {
-    let mut engine = SynthEngine::new(44_100);
-    engine.set_instruments(bus_config_with_reverb());
-    engine.note_on(0, 60, 100, 500);
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
-            .expect("routing-tree runtime");
-    runtime.set_deadline_for_test(Duration::from_secs(1));
-    assert!(runtime.dispatch_routing_tree_for_test(&engine, 128, engine.sample_clock()));
-    for parity in 0..2 {
-        for _ in 0..100_000 {
-            if runtime.completion_ready_for_test(parity) {
-                break;
-            }
-            thread::yield_now();
-        }
-    }
-    assert!(runtime.rewrite_completion_measurement_for_test(
-        0,
-        1_000_000,
-        crate::synth::SOURCE_WORKER_MAX_COST_UNITS + 1,
-    ));
-    assert!(!runtime.collect_wait_for_test(&mut engine));
-    assert_eq!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::CompletionFailed
-    );
-    shutdown(lifecycle, runtime);
-}
-
-fn partition_fill_config(kind: &str) -> InstrumentsConfig {
-    InstrumentsConfig {
-        instruments: (0..4)
-            .map(|_| InstrumentSlotConfig {
-                kind: kind.into(),
-                synth: default_synth_config(),
-                mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".into(),
-                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
-                    volume: 100.0,
-                }),
-            })
-            .collect(),
-        mixer: Some(MixerConfig {
-            buses: vec![FxBusConfig::default()],
-            master: None,
-        }),
-        pan_positions: DEFAULT_PAN_POSITIONS,
-        master_volume: 100.0,
-    }
-}
-
-#[test]
-fn routing_tree_synth_note_admission_overflow_is_rejected_without_mutation() {
-    let mut engine = SynthEngine::new(44_100);
-    engine.set_instruments(partition_fill_config("synth"));
-    engine.set_voice_stealing_mode(VoiceStealingMode::None);
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
-            .expect("routing-tree runtime");
-    assert_eq!(
-        engine
-            .routing_tree_assignment
-            .as_ref()
-            .and_then(|assignment| assignment.worker_for_slot(0)),
-        Some(0)
-    );
-    assert!(runtime
-        .with_controls_ready(&mut engine, |engine| {
-            let per_slot = crate::synth::types::SYNTH_VOICE_PARTITION_LANE_CAPACITY / 4;
-            for slot in 0..4 {
-                for note in 0..per_slot {
-                    engine.note_on(slot as u8, 36 + note as u8, 100, 5_000);
-                }
-            }
-        })
-        .is_some());
-    let before = recovered_profile(&mut runtime, &mut engine);
-    assert_eq!(
-        before.active_synth_voices,
-        crate::synth::types::SYNTH_VOICE_PARTITION_LANE_CAPACITY
-    );
-    assert!(runtime
-        .with_controls_ready(&mut engine, |engine| {
-            engine.note_on(0, 36, 100, 5_000);
-        })
-        .is_some());
-    assert!(engine.take_routing_tree_rejection());
-    assert_eq!(recovered_profile(&mut runtime, &mut engine), before);
-    assert!(engine.routing_tree_assignment_is_valid());
-    shutdown(lifecycle, runtime);
-}
-
-fn sample_partition_banks() -> Vec<SampleBankConfig> {
-    let mut banks = vec![SampleBankConfig::default(); 8];
-    for bank in banks.iter_mut().take(4) {
-        bank.slots[0] = SampleSlotConfig {
-            buffer: Some(SampleBuffer {
-                samples: vec![0.25; 128].into(),
-                channels: 1,
-                sample_rate: 44_100,
-            }),
-        };
-    }
-    banks
-}
-
-#[test]
-fn routing_tree_sample_note_admission_overflow_is_rejected_without_mutation() {
-    let mut engine = SynthEngine::new(44_100);
-    engine.set_instruments(partition_fill_config("sampler"));
-    drop(engine.set_sample_banks(sample_partition_banks()));
-    engine.set_voice_stealing_mode(VoiceStealingMode::None);
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
-            .expect("routing-tree runtime");
-    assert_eq!(
-        engine
-            .routing_tree_assignment
-            .as_ref()
-            .and_then(|assignment| assignment.worker_for_slot(0)),
-        Some(0)
-    );
-    assert!(runtime
-        .with_controls_ready(&mut engine, |engine| {
-            let per_slot = crate::synth::types::SAMPLE_VOICE_PARTITION_LANE_CAPACITY / 4;
-            for slot in 0..4 {
-                for _ in 0..per_slot {
-                    engine.note_on(slot as u8, 36, 100, 5_000);
-                }
-            }
-        })
-        .is_some());
-    let before = recovered_profile(&mut runtime, &mut engine);
-    assert_eq!(
-        before.active_sample_voices,
-        crate::synth::types::SAMPLE_VOICE_PARTITION_LANE_CAPACITY
-    );
-    assert!(runtime
-        .with_controls_ready(&mut engine, |engine| {
-            engine.note_on(0, 36, 100, 5_000);
-        })
-        .is_some());
-    assert!(engine.take_routing_tree_rejection());
-    assert_eq!(recovered_profile(&mut runtime, &mut engine), before);
-    assert!(engine.routing_tree_assignment_is_valid());
-    shutdown(lifecycle, runtime);
-}
-
-fn recovered_profile(
-    runtime: &mut SourceWorkerRuntime,
-    engine: &mut SynthEngine,
-) -> crate::synth::SynthProfileSnapshot {
-    runtime
-        .with_recovered_owners(engine, |engine| engine.profile_snapshot())
-        .expect("recovered source owners")
 }

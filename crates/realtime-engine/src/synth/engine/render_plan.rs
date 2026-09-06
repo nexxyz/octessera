@@ -107,6 +107,7 @@ impl RenderPlan {
                     .collect();
             }
         }
+        plan.normalize_routes();
         plan
     }
 
@@ -175,6 +176,15 @@ impl RenderPlan {
 
     fn bump_generation(&mut self) {
         self.generation = self.generation.wrapping_add(1);
+    }
+
+    pub(super) fn normalize_routes(&mut self) {
+        let bus_count = self.bus_fx_slots.len();
+        for slot in &mut self.instrument_slots {
+            if matches!(slot.route, RenderPlanRoute::Bus(bus) if bus >= bus_count) {
+                slot.route = RenderPlanRoute::Direct;
+            }
+        }
     }
 }
 

@@ -1,8 +1,7 @@
 use super::prepared_control_prepare::{
     PreparedAudioConfig, PreparedFxBusSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
-    PreparedMomentaryFxStart,
 };
-use super::render_plan::{RenderPlan, RenderPlanFxSlot, RenderPlanInstrumentSlot};
+use super::render_plan::RenderPlan;
 use super::routing_tree_executor::{RoutingTreeAssignment, RoutingTreeBlockScratch};
 use super::routing_tree_plan::RoutingTreePlan;
 use super::routing_tree_worker::RoutingTreeOutputBlock;
@@ -24,14 +23,6 @@ impl SynthEngine {
         self.routing_tree_rejection = true;
     }
 
-    fn routing_tree_state_is_supported(&self) -> bool {
-        self.preview_sample_voices.iter().all(Option::is_none)
-            && self
-                .momentary_fx
-                .iter()
-                .all(|fx| fx.target == super::super::types::MomentaryFxTarget::Global)
-    }
-
     pub fn with_routing_tree_source_event_sample_clock<R>(
         &mut self,
         sample_clock: u64,
@@ -48,10 +39,6 @@ impl SynthEngine {
     }
 
     pub(super) fn enable_routing_tree(&mut self) -> bool {
-        if !self.routing_tree_state_is_supported() {
-            self.reject_routing_tree_mutation();
-            return false;
-        }
         let Some(assignment) = RoutingTreeBlockScratch::assignment_for_engine(self) else {
             self.reject_routing_tree_mutation();
             return false;
@@ -69,26 +56,17 @@ impl SynthEngine {
         let Some(current) = self.routing_tree_assignment else {
             return false;
         };
-        let Some(mut next) = (if self.routing_tree_notes_started {
-            RoutingTreeBlockScratch::assignment_for_engine_unvalidated(self)
-        } else {
-            RoutingTreeBlockScratch::assignment_for_engine(self)
-        }) else {
+        let Some(mut next) = RoutingTreeBlockScratch::assignment_for_engine_unvalidated(self)
+        else {
             self.reject_routing_tree_mutation();
             return false;
         };
-        if self.routing_tree_notes_started {
-            if !current.plan.same_structure(&next.plan) {
-                self.reject_routing_tree_mutation();
-                return false;
-            }
-            if !current.has_same_component_worker_mapping(&next) {
-                next.preserve_component_worker_mapping(&current);
-            }
-            if !next.validate_engine(self) {
-                self.reject_routing_tree_mutation();
-                return false;
-            }
+        if self.routing_tree_notes_started && !current.has_same_component_worker_mapping(&next) {
+            next.preserve_component_worker_mapping(&current);
+        }
+        if !next.validate_engine(self) {
+            self.reject_routing_tree_mutation();
+            return false;
         }
         self.routing_tree_assignment = Some(next);
         self.apply_routing_tree_bus_assignment();
@@ -103,10 +81,9 @@ impl SynthEngine {
         let Some(assignment) = self.routing_tree_assignment.as_ref() else {
             return false;
         };
-        if !self.routing_tree_state_is_supported()
-            || !assignment
-                .plan
-                .same_structure(&RoutingTreePlan::from_render_plan(&self.render_plan))
+        if !assignment
+            .plan
+            .same_structure(&RoutingTreePlan::from_render_plan(&self.render_plan))
         {
             return false;
         }
@@ -118,81 +95,45 @@ impl SynthEngine {
     }
 
     pub(super) fn routing_tree_prepared_audio_allowed(&self, config: &PreparedAudioConfig) -> bool {
-        config.instruments.bus_chains.len() <= BUS_COUNT
-            && (!self.routing_tree_notes_started
-                || same_routing_topology(&self.render_plan, &config.instruments.render_plan))
+        self.routing_tree_source_event_sample_clock.is_some()
+            && config.instruments.bus_chains.len() <= BUS_COUNT
     }
 
     pub(super) fn routing_tree_render_plan_allowed(&self, plan: &RenderPlan) -> bool {
-        !self.routing_tree_notes_started || same_routing_topology(&self.render_plan, plan)
+        let _ = plan;
+        self.routing_tree_source_event_sample_clock.is_some()
     }
 
     pub(super) fn routing_tree_prepared_instruments_allowed(
         &self,
         config: &PreparedInstrumentsConfig,
     ) -> bool {
-        config.bus_chains.len() <= BUS_COUNT
-            && (!self.routing_tree_notes_started
-                || same_routing_topology(&self.render_plan, &config.render_plan))
+        self.routing_tree_source_event_sample_clock.is_some()
+            && config.bus_chains.len() <= BUS_COUNT
     }
 
     pub(super) fn routing_tree_prepared_instrument_slot_allowed(
         &self,
         slot: usize,
-        config: &PreparedInstrumentSlot,
+        _config: &PreparedInstrumentSlot,
     ) -> bool {
-        if !self.routing_tree_notes_started {
-            return true;
-        }
-        let Some(current) = self.render_plan.instrument_slots.get(slot).copied() else {
-            return false;
-        };
-        current
-            == RenderPlanInstrumentSlot {
-                kind: config.render_plan.kind,
-                occupied: config.render_plan.occupied,
-                route: config.render_plan.route.unwrap_or(current.route),
-            }
+        self.routing_tree_source_event_sample_clock.is_some()
+            && self.render_plan.instrument_slots.get(slot).is_some()
     }
 
     pub(super) fn routing_tree_prepared_fx_bus_slot_allowed(
         &self,
         bus: usize,
         slot: usize,
-        config: &PreparedFxBusSlot,
+        _config: &PreparedFxBusSlot,
     ) -> bool {
-        if !self.routing_tree_notes_started {
-            return true;
-        }
-        self.render_plan
-            .bus_fx_slots
-            .get(bus)
-            .and_then(|slots| slots.get(slot))
-            .is_some_and(|current| {
-                *current
-                    == RenderPlanFxSlot {
-                        kind: config.render_plan.kind,
-                        duck_source: config.render_plan.duck_source,
-                    }
-            })
-    }
-
-    pub(super) fn routing_tree_momentary_start_allowed(
-        &self,
-        config: &PreparedMomentaryFxStart,
-    ) -> bool {
-        config.state.target == super::super::types::MomentaryFxTarget::Global
-    }
-
-    pub(super) fn routing_tree_momentary_update_allowed(&self, id: &str) -> bool {
-        self.momentary_fx
-            .iter()
-            .find(|fx| fx.id == id)
-            .is_none_or(|fx| fx.target == super::super::types::MomentaryFxTarget::Global)
-    }
-
-    pub(super) fn routing_tree_momentary_stop_allowed(&self, id: &str) -> bool {
-        self.routing_tree_momentary_update_allowed(id)
+        self.routing_tree_source_event_sample_clock.is_some()
+            && self
+                .render_plan
+                .bus_fx_slots
+                .get(bus)
+                .and_then(|slots| slots.get(slot))
+                .is_some()
     }
 
     pub(super) fn reject_routing_tree_mutation_for_control(&mut self) {
@@ -209,8 +150,15 @@ impl SynthEngine {
                 .iter()
                 .map(|output| output.active_sample_voices)
                 .sum(),
-            active_preview_sample_voices: 0,
-            active_momentary_fx: self.momentary_fx.len(),
+            active_preview_sample_voices: outputs
+                .iter()
+                .map(|output| output.active_preview_sample_voices)
+                .sum(),
+            active_momentary_fx: self.momentary_fx.len()
+                + outputs
+                    .iter()
+                    .map(|output| output.active_momentary_fx)
+                    .sum::<usize>(),
             active_bus_fx_slots: outputs
                 .iter()
                 .map(|output| output.active_bus_fx_slots)
@@ -229,9 +177,4 @@ impl SynthEngine {
             self.bus_chains[bus].assigned_worker = assignment.worker_for_bus(bus);
         }
     }
-}
-
-fn same_routing_topology(left: &RenderPlan, right: &RenderPlan) -> bool {
-    RoutingTreePlan::from_render_plan(left)
-        .same_structure(&RoutingTreePlan::from_render_plan(right))
 }

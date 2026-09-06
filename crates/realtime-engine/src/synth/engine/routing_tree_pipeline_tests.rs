@@ -4,8 +4,8 @@ use super::routing_tree_executor_test_support::{
     assert_momentary_state_matches, assert_reassociated_close,
 };
 use super::{
-    prepare_instruments_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MixerConfig,
+    FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
+    MixerConfig,
 };
 use super::{
     SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerRenderDisposition, SynthEngine,
@@ -40,13 +40,13 @@ fn render_block(
         .render_interleaved_block_with_source_runtime(runtime, 128, &mut left, &mut right, &mut out)
 }
 
-fn shutdown(lifecycle: SourceWorkerLifecycle, runtime: SourceWorkerRuntime) {
+pub(super) fn shutdown(lifecycle: SourceWorkerLifecycle, runtime: SourceWorkerRuntime) {
     let retirement = runtime.retire();
     let report = lifecycle.shutdown(retirement);
     assert_eq!(report.joined_workers, 2);
 }
 
-fn assert_interleaved_reassociated_close(
+pub(super) fn assert_interleaved_reassociated_close(
     runtime: &SourceWorkerRuntime,
     actual: &[f32],
     expected: &[f32],
@@ -71,7 +71,7 @@ fn assert_interleaved_reassociated_close(
     }
 }
 
-fn assert_worker_outputs_are_nonzero(runtime: &SourceWorkerRuntime, frames: usize) {
+pub(super) fn assert_worker_outputs_are_nonzero(runtime: &SourceWorkerRuntime, frames: usize) {
     let mut peak_by_worker = [0.0_f32; 2];
     for frame in 0..frames {
         for (worker, (left, right)) in runtime
@@ -90,7 +90,7 @@ fn assert_worker_outputs_are_nonzero(runtime: &SourceWorkerRuntime, frames: usiz
     }
 }
 
-fn assert_global_mixer_state_matches(
+pub(super) fn assert_global_mixer_state_matches(
     runtime: &SourceWorkerRuntime,
     actual: &SynthEngine,
     expected: &SynthEngine,
@@ -346,108 +346,6 @@ fn routing_tree_reasserts_bus_assignment_before_dispatch() {
     shutdown(lifecycle, runtime);
 }
 
-#[test]
-fn routing_tree_rejects_topology_mutation_after_notes_start() {
-    let (mut engine, lifecycle, runtime) = start_runtime();
-    engine.note_on(0, 60, 100, 500);
-    let config = InstrumentsConfig {
-        instruments: vec![InstrumentSlotConfig {
-            kind: "synth".into(),
-            synth: default_synth_config(),
-            mixer: None,
-        }],
-        mixer: None,
-        pan_positions: DEFAULT_PAN_POSITIONS,
-        master_volume: 100.0,
-    };
-
-    let retired =
-        engine.apply_prepared_instruments_config(prepare_instruments_config(config, 44_100));
-    assert!(!retired.is_empty());
-    assert_eq!(retired.prepared_slots.len(), 1);
-    assert!(engine.take_routing_tree_rejection());
-    assert!(!engine.take_routing_tree_rejection());
-    assert!(engine.routing_tree_assignment_is_valid());
-
-    shutdown(lifecycle, runtime);
-}
-
-#[test]
-fn routing_tree_parameter_refresh_preserves_component_workers_after_counts_change() {
-    let mut engine = SynthEngine::new(44_100);
-    engine.set_instruments(mapping_config(100.0));
-    engine.note_on(0, 36, 100, 50_000);
-    engine.note_on(1, 48, 100, 50_000);
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
-            .expect("routing-tree runtime");
-    let initial_mapping = [0, 1, 2].map(|slot| {
-        engine
-            .routing_tree_assignment
-            .as_ref()
-            .and_then(|assignment| assignment.worker_for_slot(slot))
-    });
-    assert_eq!(initial_mapping, [Some(0), Some(1), Some(0)]);
-    let mut left = vec![0.0; 128];
-    let mut right = vec![0.0; 128];
-    let mut out = vec![0.0; 256];
-    let mut retired_state = None;
-    let prepared = {
-        let mut config = mapping_config(100.0);
-        config.instruments[0].synth.amp.gain_pct = 40.0;
-        prepare_instruments_config(config, 44_100)
-    };
-    assert_eq!(
-        engine.render_interleaved_block_with_source_runtime_ready_with_controls(
-            &mut runtime,
-            128,
-            &mut left,
-            &mut right,
-            &mut out,
-            |engine| {
-                for note in 36..46 {
-                    engine.note_on(0, note, 100, 50_000);
-                }
-                let retired = engine.apply_prepared_instruments_config(prepared);
-                assert_eq!(retired.prepared_slots.len(), 3);
-                retired_state = Some(retired);
-                Ok(())
-            },
-        ),
-        SourceWorkerRenderDisposition::Fresh
-    );
-    let refreshed_mapping = [0, 1, 2].map(|slot| {
-        engine
-            .routing_tree_assignment
-            .as_ref()
-            .and_then(|assignment| assignment.worker_for_slot(slot))
-    });
-    assert_eq!(refreshed_mapping, initial_mapping);
-    assert!(engine.routing_tree_assignment_is_valid());
-    drop(retired_state);
-
-    shutdown(lifecycle, runtime);
-}
-
-fn mapping_config(gain_pct: f32) -> InstrumentsConfig {
-    InstrumentsConfig {
-        instruments: (0..3)
-            .map(|_| InstrumentSlotConfig {
-                kind: "synth".into(),
-                synth: {
-                    let mut synth = default_synth_config();
-                    synth.amp.gain_pct = gain_pct;
-                    synth
-                },
-                mixer: None,
-            })
-            .collect(),
-        mixer: None,
-        pan_positions: DEFAULT_PAN_POSITIONS,
-        master_volume: 100.0,
-    }
-}
-
 fn bus_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
@@ -475,5 +373,5 @@ fn bus_config_with_reverb() -> InstrumentsConfig {
     config
 }
 
-#[path = "routing_tree_pipeline_accounting_tests.rs"]
-mod accounting;
+#[path = "routing_tree_capacity_tests.rs"]
+mod capacity;

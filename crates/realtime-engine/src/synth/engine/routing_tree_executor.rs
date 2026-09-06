@@ -13,9 +13,7 @@ use super::support::InstrumentKind;
 use super::SynthEngine;
 use crate::synth::types::INSTRUMENT_SLOT_COUNT;
 #[cfg(feature = "routing-tree-benchmark")]
-use crate::synth::types::{
-    SAMPLE_VOICE_PARTITION_LANE_CAPACITY, SYNTH_VOICE_PARTITION_LANE_CAPACITY,
-};
+use crate::synth::types::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};
 
 const WORKER_COUNT: usize = 2;
 const INVALID_WORKER: u8 = u8::MAX;
@@ -29,16 +27,20 @@ mod reference;
 pub(super) struct RoutingTreeAssignment {
     pub(super) plan: RoutingTreePlan,
     component_worker: [u8; ROUTING_NODE_COUNT],
+    slot_worker: [u8; INSTRUMENT_SLOT_COUNT],
 }
 
 #[cfg(feature = "routing-tree-benchmark")]
 impl RoutingTreeAssignment {
     pub(super) fn worker_for_slot(&self, slot: usize) -> Option<usize> {
-        self.plan
-            .slot_component
-            .get(slot)
-            .copied()
-            .and_then(|component| self.worker_for_component(component))
+        let component = self.plan.slot_component.get(slot).copied()?;
+        if component != INVALID_COMPONENT_ID {
+            return self.worker_for_component(component);
+        }
+        match self.slot_worker.get(slot).copied()? {
+            worker if usize::from(worker) < WORKER_COUNT => Some(usize::from(worker)),
+            _ => None,
+        }
     }
 
     pub(super) fn worker_for_bus(&self, bus: usize) -> Option<usize> {
@@ -65,12 +67,45 @@ impl RoutingTreeAssignment {
 
     #[cfg(feature = "routing-tree-benchmark")]
     pub(super) fn has_same_component_worker_mapping(&self, other: &Self) -> bool {
-        self.component_worker == other.component_worker
+        self.component_worker == other.component_worker && self.slot_worker == other.slot_worker
     }
 
     #[cfg(feature = "routing-tree-benchmark")]
     pub(super) fn preserve_component_worker_mapping(&mut self, other: &Self) {
-        self.component_worker = other.component_worker;
+        let mut preserved = [INVALID_WORKER; ROUTING_NODE_COUNT];
+        for (next_component, preserved_worker) in preserved
+            .iter_mut()
+            .enumerate()
+            .take(self.plan.component_count)
+        {
+            let next_mask = self.plan.component_masks[next_component];
+            let exact = (0..other.plan.component_count)
+                .find(|component| other.plan.component_masks[*component] == next_mask);
+            let source = exact.or_else(|| {
+                (0..other.plan.component_count)
+                    .find(|component| other.plan.component_masks[*component] & next_mask != 0)
+            });
+            if let Some(source) = source {
+                *preserved_worker = other.component_worker[source];
+            }
+        }
+        for (component, preserved_worker) in preserved
+            .iter_mut()
+            .enumerate()
+            .take(self.plan.component_count)
+        {
+            if *preserved_worker == INVALID_WORKER {
+                *preserved_worker = self.component_worker[component];
+            }
+        }
+        self.component_worker = preserved;
+        for slot in 0..INSTRUMENT_SLOT_COUNT {
+            if self.plan.slot_component[slot] == INVALID_COMPONENT_ID {
+                self.slot_worker[slot] = other.slot_worker[slot];
+            } else if let Some(worker) = self.worker_for_component(self.plan.slot_component[slot]) {
+                self.slot_worker[slot] = worker as u8;
+            }
+        }
     }
 
     pub(super) fn validate_engine(&self, engine: &SynthEngine) -> bool {
@@ -94,30 +129,36 @@ impl RoutingTreeAssignment {
         };
         let mut component_synth = [0_usize; ROUTING_NODE_COUNT];
         let mut component_sample = [0_usize; ROUTING_NODE_COUNT];
+        let mut worker_synth = [0_usize; WORKER_COUNT];
+        let mut worker_sample = [0_usize; WORKER_COUNT];
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             let component = self.plan.slot_component[slot];
+            let worker = self.worker_for_slot(slot);
+            let Some(worker) = worker else {
+                return false;
+            };
+            worker_synth[worker] = worker_synth[worker].saturating_add(synth_counts[slot]);
+            worker_sample[worker] = worker_sample[worker].saturating_add(sample_counts[slot]);
             if component == INVALID_COMPONENT_ID {
                 continue;
             }
             if usize::from(component) >= self.plan.component_count {
                 return false;
             }
-            match engine.slot_kind[slot] {
-                InstrumentKind::Synth => {
-                    component_synth[component as usize] =
-                        component_synth[component as usize].saturating_add(synth_counts[slot]);
-                }
-                InstrumentKind::Sample => {
-                    component_sample[component as usize] =
-                        component_sample[component as usize].saturating_add(sample_counts[slot]);
-                }
-                InstrumentKind::Midi | InstrumentKind::None => {}
-            }
+            component_synth[component as usize] =
+                component_synth[component as usize].saturating_add(synth_counts[slot]);
+            component_sample[component as usize] =
+                component_sample[component as usize].saturating_add(sample_counts[slot]);
         }
         (0..self.plan.component_count).all(|component| {
-            component_synth[component] <= SYNTH_VOICE_PARTITION_LANE_CAPACITY
-                && component_sample[component] <= SAMPLE_VOICE_PARTITION_LANE_CAPACITY
-        }) && validate_engine_partition_residency(engine, self)
+            component_synth[component] <= SYNTH_VOICE_LANE_CAPACITY
+                && component_sample[component] <= SAMPLE_VOICE_LANE_CAPACITY
+        }) && worker_synth
+            .into_iter()
+            .all(|count| count <= SYNTH_VOICE_LANE_CAPACITY)
+            && worker_sample
+                .into_iter()
+                .all(|count| count <= SAMPLE_VOICE_LANE_CAPACITY)
     }
 }
 
@@ -129,6 +170,7 @@ pub(super) struct RoutingTreeBlockScratch {
     #[cfg(test)]
     bus_input: [Vec<f32>; BUS_COUNT],
     component_worker: [u8; ROUTING_NODE_COUNT],
+    slot_worker: [u8; INSTRUMENT_SLOT_COUNT],
     plan: RoutingTreePlan,
 }
 
@@ -142,6 +184,7 @@ impl RoutingTreeBlockScratch {
             #[cfg(test)]
             bus_input: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
             component_worker: [INVALID_WORKER; ROUTING_NODE_COUNT],
+            slot_worker: [INVALID_WORKER; INSTRUMENT_SLOT_COUNT],
             plan: RoutingTreePlan::from_render_plan(&RenderPlan::new()),
         }
     }
@@ -159,13 +202,14 @@ impl RoutingTreeBlockScratch {
             self.bus_input[bus][..frames].fill(0.0);
         }
         self.component_worker.fill(INVALID_WORKER);
+        self.slot_worker.fill(INVALID_WORKER);
         true
     }
 
     fn assign_workers(
         &mut self,
         plan: RoutingTreePlan,
-        instrument_kinds: [InstrumentKind; INSTRUMENT_SLOT_COUNT],
+        _instrument_kinds: [InstrumentKind; INSTRUMENT_SLOT_COUNT],
         synth_counts: [usize; INSTRUMENT_SLOT_COUNT],
         sample_counts: [usize; INSTRUMENT_SLOT_COUNT],
         bus_costs: [u16; BUS_COUNT],
@@ -185,32 +229,23 @@ impl RoutingTreeBlockScratch {
             if usize::from(component) >= plan.component_count {
                 return false;
             }
-            let kind = instrument_kinds[slot];
-            let count = match kind {
-                InstrumentKind::Synth => synth_counts[slot],
-                InstrumentKind::Sample => sample_counts[slot],
-                InstrumentKind::Midi | InstrumentKind::None => 0,
-            };
-            let unit = match kind {
-                InstrumentKind::Synth => SOURCE_WORKER_SYNTH_COST_UNITS,
-                InstrumentKind::Sample => SOURCE_WORKER_SAMPLE_COST_UNITS,
-                InstrumentKind::Midi | InstrumentKind::None => 0,
-            };
-            match kind {
-                InstrumentKind::Synth => {
-                    component_synth[component as usize] =
-                        component_synth[component as usize].saturating_add(count)
-                }
-                InstrumentKind::Sample => {
-                    component_sample[component as usize] =
-                        component_sample[component as usize].saturating_add(count)
-                }
-                InstrumentKind::Midi | InstrumentKind::None => {}
-            }
-            let Some(cost) = cost_units(count, unit) else {
+            let synth_count = synth_counts[slot];
+            let sample_count = sample_counts[slot];
+            component_synth[component as usize] =
+                component_synth[component as usize].saturating_add(synth_count);
+            component_sample[component as usize] =
+                component_sample[component as usize].saturating_add(sample_count);
+            let Some(synth_cost) = cost_units(synth_count, SOURCE_WORKER_SYNTH_COST_UNITS) else {
                 return false;
             };
-            let Some(total) = component_cost[component as usize].checked_add(cost) else {
+            let Some(sample_cost) = cost_units(sample_count, SOURCE_WORKER_SAMPLE_COST_UNITS)
+            else {
+                return false;
+            };
+            let Some(total) = component_cost[component as usize]
+                .checked_add(synth_cost)
+                .and_then(|total| total.checked_add(sample_cost))
+            else {
                 return false;
             };
             component_cost[component as usize] = total;
@@ -238,9 +273,34 @@ impl RoutingTreeBlockScratch {
                 return false;
             };
             projected[worker] = total;
-            if projected[worker] > SOURCE_WORKER_MAX_COST_UNITS {
+        }
+        for slot in 0..INSTRUMENT_SLOT_COUNT {
+            let component = plan.slot_component[slot];
+            if component != INVALID_COMPONENT_ID {
+                self.slot_worker[slot] = self.component_worker[component as usize];
+                continue;
+            }
+            let Some(synth_cost) = cost_units(synth_counts[slot], SOURCE_WORKER_SYNTH_COST_UNITS)
+            else {
+                return false;
+            };
+            let Some(sample_cost) =
+                cost_units(sample_counts[slot], SOURCE_WORKER_SAMPLE_COST_UNITS)
+            else {
+                return false;
+            };
+            let worker = if projected[1] < projected[0] { 1 } else { 0 };
+            let Some(total) = projected[worker]
+                .checked_add(synth_cost)
+                .and_then(|total| total.checked_add(sample_cost))
+            else {
+                return false;
+            };
+            if total > SOURCE_WORKER_MAX_COST_UNITS {
                 return false;
             }
+            projected[worker] = total;
+            self.slot_worker[slot] = worker as u8;
         }
         self.plan = plan;
         true
@@ -251,13 +311,14 @@ impl RoutingTreeBlockScratch {
         RoutingTreeAssignment {
             plan: self.plan,
             component_worker: self.component_worker,
+            slot_worker: self.slot_worker,
         }
     }
 
     #[cfg(feature = "routing-tree-benchmark")]
     pub(super) fn assignment_for_engine(engine: &SynthEngine) -> Option<RoutingTreeAssignment> {
         let assignment = Self::assignment_for_engine_unvalidated(engine)?;
-        validate_engine_partition_residency(engine, &assignment).then_some(assignment)
+        assignment.validate_engine(engine).then_some(assignment)
     }
 
     #[cfg(feature = "routing-tree-benchmark")]
@@ -289,11 +350,14 @@ impl RoutingTreeBlockScratch {
 
     #[cfg(test)]
     pub(super) fn worker_for_slot(&self, slot: usize) -> Option<usize> {
-        self.plan
-            .slot_component
-            .get(slot)
-            .copied()
-            .and_then(|component| self.worker_for_component(component))
+        let component = self.plan.slot_component.get(slot).copied()?;
+        if component != INVALID_COMPONENT_ID {
+            return self.worker_for_component(component);
+        }
+        match self.slot_worker.get(slot).copied()? {
+            worker if usize::from(worker) < WORKER_COUNT => Some(usize::from(worker)),
+            _ => None,
+        }
     }
 
     #[cfg(test)]
@@ -352,6 +416,7 @@ impl RoutingTreeBlockScratch {
         plan: RoutingTreePlan,
     ) {
         self.component_worker = component_worker;
+        self.slot_worker = [INVALID_WORKER; INSTRUMENT_SLOT_COUNT];
         self.plan = plan;
     }
 
@@ -386,34 +451,4 @@ fn active_sample_counts_by_slot(pool: &SampleVoicePool) -> Option<[usize; INSTRU
         *count = pool.active_count_for_slot(slot)?;
     }
     Some(counts)
-}
-
-#[cfg(feature = "routing-tree-benchmark")]
-fn validate_engine_partition_residency(
-    engine: &SynthEngine,
-    assignment: &RoutingTreeAssignment,
-) -> bool {
-    for lane in 0..super::super::types::SYNTH_VOICE_LANE_CAPACITY {
-        let Some(voice) = engine.synth_voice_pool.lane(lane) else {
-            return false;
-        };
-        if voice.active
-            && assignment.worker_for_slot(voice.instrument_slot as usize)
-                != Some(lane % WORKER_COUNT)
-        {
-            return false;
-        }
-    }
-    for lane in 0..super::super::types::SAMPLE_VOICE_LANE_CAPACITY {
-        let Some(voice) = engine.sample_voice_pool.lane(lane) else {
-            return false;
-        };
-        if voice.active
-            && assignment.worker_for_slot(voice.instrument_slot as usize)
-                != Some(lane % WORKER_COUNT)
-        {
-            return false;
-        }
-    }
-    true
 }

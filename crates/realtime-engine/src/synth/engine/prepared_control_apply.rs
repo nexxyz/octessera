@@ -96,6 +96,7 @@ impl SynthEngine {
                 route: current.route,
             };
         }
+        next_render_plan.normalize_routes();
         for index in 0..INSTRUMENT_SLOT_COUNT {
             self.slot_pan_gains[index] =
                 super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
@@ -192,8 +193,14 @@ impl SynthEngine {
             self.slot_pan_gains[index] =
                 super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
         }
-        self.render_plan
-            .install_instrument_slot(index, prepared.render_plan);
+        let mut render_plan = prepared.render_plan;
+        render_plan.route = render_plan.route.map(|route| match route {
+            super::render_plan::RenderPlanRoute::Bus(bus) if bus >= self.bus_chains.len() => {
+                super::render_plan::RenderPlanRoute::Direct
+            }
+            route => route,
+        });
+        self.render_plan.install_instrument_slot(index, render_plan);
         self.refresh_routed_bus_slot_count();
         #[cfg(feature = "routing-tree-benchmark")]
         if self.routing_tree_assignment.is_some() {
@@ -208,6 +215,14 @@ impl SynthEngine {
         bank: SampleBankConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            retired.sample_bank = Some(bank);
+            self.reject_routing_tree_mutation_for_control();
+            return retired;
+        }
         let Some(current) = self.sample_banks.get_mut(index) else {
             retired.sample_bank = Some(bank);
             return retired;
@@ -230,10 +245,10 @@ impl SynthEngine {
         let mut retired = RetiredAudioState::default();
         #[cfg(feature = "routing-tree-benchmark")]
         if self.routing_tree_assignment.is_some()
-            && !self.routing_tree_momentary_start_allowed(&prepared)
+            && self.routing_tree_source_event_sample_clock.is_none()
         {
-            self.reject_routing_tree_mutation_for_control();
             store_retired_momentary(&mut retired.displaced_momentary_fx, prepared.state);
+            self.reject_routing_tree_mutation_for_control();
             return retired;
         }
         let mut state = prepared.state;

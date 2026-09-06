@@ -11,6 +11,12 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         apply: impl FnOnce(&mut SynthEngine) -> R,
     ) -> Option<R> {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.mode == SourceWorkerMode::RoutingTreePersistent {
+            return self.with_routing_tree_controls_ready(engine, engine.sample_clock, |engine| {
+                Ok(apply(engine))
+            });
+        }
         if self.mode == SourceWorkerMode::Inline {
             return Some(apply(engine));
         }
@@ -52,6 +58,12 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         inspect: impl FnOnce(&SynthEngine) -> R,
     ) -> Option<R> {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.mode == SourceWorkerMode::RoutingTreePersistent {
+            return self.with_routing_tree_controls_ready(engine, engine.sample_clock, |engine| {
+                Ok(inspect(engine))
+            });
+        }
         if self.mode == SourceWorkerMode::Inline {
             return Some(inspect(engine));
         }
