@@ -15,12 +15,12 @@
     "firmware": false
   },
   "exact_inputs": [
-    {"path": "resources/legal/notice-bundle.json", "sha256": "353d4c29da082e02373c0cc06d88f5ce9cc1bc1dac5f22724b3dd2aa4c310dff", "size": 6418, "mode": 420},
+    {"path": "resources/legal/notice-bundle.json", "sha256": "19071149df6cd07fb415212ae12d4f61f2655662d39c79d73601d5f9afb7aac8", "size": 6418, "mode": 420},
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320, "mode": 493},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911, "mode": 420},
     {"path": "userpatches/overlay/etc/default/locale", "sha256": "a168159d33de0c86614b65ea1e6d2165c79ea7c05372d36a4794e108d8ddf8f0", "size": 45, "mode": 420},
     {"path": "tools/armbian-image/stage-canonical-welcome.sh", "sha256": "1048803ddfe6132d4906444d29fe16065445eafc5080bcf6d8fff999762f321b", "size": 593, "mode": 493},
-    {"path": "config/generated/pi/default.json", "sha256": "c076628ca5240ff82c63cdaa0886e9bb0828b9e1cd02188498251cc474f018ce", "size": 83596, "mode": 420},
+    {"path": "config/generated/pi/default.json", "sha256": "c08d63fbd04155cf9a6c0a16617abcc28d5642275b97b7d2869dc9ff3af6c6b0", "size": 83719, "mode": 420},
     {"path": "userpatches/customize-image.sh", "sha256": "879dbefa223e2e7eb090145beba07934823198e5abacd9422bece9d883980d18", "size": 30880, "mode": 493},
     {"path": "userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf", "sha256": "8e28cd9b704d7be60e9b467ecc62bffb58578d8add8c9c88e5015771a8a7b2d4", "size": 66, "mode": 420},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh", "sha256": "df0629b19e20294075f66f9fd2c988b753da1f0d227fa7a4b0c82bfdbefa57c0", "size": 3213, "mode": 420},
