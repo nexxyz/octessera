@@ -151,7 +151,7 @@ fn strict_callback_qualifies_before_consuming_the_first_sample_and_only_once() {
         false,
     );
     let health = AudioStreamHealth::new("Jack".into());
-    let scheduler = CallbackSchedulingHandle::new_orange_jack();
+    let scheduler = CallbackSchedulingHandle::new_jack();
     let mut reported = false;
     let mut output = [1.0_f32; 8];
 
@@ -224,7 +224,7 @@ fn strict_callback_failure_silences_without_source_access_or_retry() {
         false,
     );
     let health = AudioStreamHealth::new("Jack".into());
-    let scheduler = CallbackSchedulingHandle::new_orange_jack();
+    let scheduler = CallbackSchedulingHandle::new_jack();
     let mut reported = false;
     let mut output = [1.0_f32; 8];
 
@@ -275,7 +275,7 @@ fn strict_callback_setup_and_silence_do_not_allocate_or_deallocate() {
         false,
     );
     let health = AudioStreamHealth::new("Jack".into());
-    let scheduler = CallbackSchedulingHandle::new_orange_jack();
+    let scheduler = CallbackSchedulingHandle::new_jack();
     let mut reported = false;
     let mut output = [1.0_f32; 8];
     let (_, allocations, deallocations) = count_allocations_and_deallocations(|| {
@@ -295,10 +295,11 @@ fn strict_callback_setup_and_silence_do_not_allocate_or_deallocate() {
 
 #[test]
 fn mirror_callback_has_no_allocation_activity_after_warmup() {
+    let _guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(0));
     let pair = new_pcm_mirror();
     let producer = pair.producer;
     let mut callback_source = MirrorCallbackSource::new(pair.consumer);
-    let scheduler = CallbackSchedulingHandle::new(0);
+    let scheduler = CallbackSchedulingHandle::new_mirror();
     producer.publish(&[1.0, -1.0].repeat(128), 128);
     let mut output = [0.0_f32; 16];
 
@@ -311,10 +312,11 @@ fn mirror_callback_has_no_allocation_activity_after_warmup() {
 
 #[test]
 fn mirror_callback_underrun_is_silent_and_restarts_after_target_priming() {
+    let _guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(0));
     let pair = new_pcm_mirror();
     let producer = pair.producer;
     let mut callback_source = MirrorCallbackSource::new(pair.consumer);
-    let scheduler = CallbackSchedulingHandle::new(0);
+    let scheduler = CallbackSchedulingHandle::new_mirror();
     let mut output = [1.0_f32; 8];
 
     fill_mirror_callback_with_scheduler(&mut output, &mut callback_source, &scheduler);
@@ -328,7 +330,7 @@ fn mirror_callback_underrun_is_silent_and_restarts_after_target_priming() {
 #[test]
 fn strict_timeout_records_terminal_failure_without_running_setup() {
     let guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(1));
-    let scheduler = CallbackSchedulingHandle::new_orange_jack();
+    let scheduler = CallbackSchedulingHandle::new_jack();
     let error = crate::audio_priority::qualify_callback_scheduler(
         "Jack",
         &scheduler,
@@ -359,7 +361,7 @@ fn strict_timeout_wins_during_setup_without_source_advance_or_retry() {
         false,
     );
     let health = AudioStreamHealth::new("Jack".into());
-    let scheduler = CallbackSchedulingHandle::new_orange_jack();
+    let scheduler = CallbackSchedulingHandle::new_jack();
     let callback_scheduler = scheduler.clone();
     let callback_health = health.clone();
     let callback_thread = std::thread::spawn(move || {

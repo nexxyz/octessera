@@ -298,17 +298,17 @@ fn invalid_stream_geometry_fails_build_for_both_executors() {
 #[test]
 fn benchmark_executor_priorities_preserve_orange_scheduling_policy() {
     assert_eq!(crate::audio_priority::ORANGE_WORKER_PRIORITY, 70);
-    assert_eq!(crate::audio_priority::ORANGE_CALLBACK_PRIORITY, 70);
+    assert_eq!(crate::audio_priority::PI_JACK_CALLBACK_PRIORITY, 70);
 }
 
 #[test]
 fn benchmark_executors_use_strict_jack_scheduler() {
     let inline = callback_scheduler_for_executor(BenchmarkExecutorMode::Inline);
-    assert!(inline.is_strict());
+    assert_eq!(inline.requested_cpu(), 1);
     assert_eq!(inline.requested_priority(), 70);
 
     let routing = callback_scheduler_for_executor(BenchmarkExecutorMode::RoutingTreePersistent);
-    assert!(routing.is_strict());
+    assert_eq!(routing.requested_cpu(), 1);
     assert_eq!(routing.requested_priority(), 70);
 }
 

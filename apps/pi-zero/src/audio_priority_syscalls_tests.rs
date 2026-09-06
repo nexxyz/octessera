@@ -169,16 +169,20 @@ pub(super) fn configure_strict(
     requested_priority: i32,
 ) -> Result<EffectiveScheduling, SchedulingFailure> {
     let outcomes = *TEST_OUTCOMES.lock().unwrap();
-    if outcomes
-        .target_cpu
-        .is_some_and(|target_cpu| target_cpu != requested_cpu)
-    {
-        return Ok(EffectiveScheduling {
-            policy: SCHED_FIFO_POLICY,
-            priority: requested_priority,
-            cpu: Some(requested_cpu),
-        });
-    }
+    let observed = configure_affinity(&outcomes, requested_cpu, requested_priority)?;
+    configure_sched(&outcomes, requested_cpu, requested_priority, observed)
+}
+
+pub(super) fn configure_affinity_only(requested_cpu: usize) -> Result<CpuMask, SchedulingFailure> {
+    let outcomes = *TEST_OUTCOMES.lock().unwrap();
+    configure_affinity(&outcomes, requested_cpu, 0)
+}
+
+fn configure_affinity(
+    outcomes: &InjectedSchedulingOutcomes,
+    requested_cpu: usize,
+    requested_priority: i32,
+) -> Result<CpuMask, SchedulingFailure> {
     record(SchedulingSyscall::SetAffinity, requested_cpu);
     maybe_block(SchedulingSyscall::SetAffinity);
     if let Some(errno) = outcomes.affinity_set_errno {
@@ -204,9 +208,11 @@ pub(super) fn configure_strict(
             0,
         ));
     }
-    let observed = outcomes
-        .observed_affinity
-        .unwrap_or_else(|| CpuMask::single(requested_cpu));
+    let observed = outcomes.observed_affinity.unwrap_or_else(|| {
+        outcomes
+            .target_cpu
+            .map_or_else(|| CpuMask::single(requested_cpu), CpuMask::single)
+    });
     if observed != CpuMask::single(requested_cpu) {
         return Err(failure(
             SchedulingFailureStage::AffinityMismatch,
@@ -218,24 +224,7 @@ pub(super) fn configure_strict(
             0,
         ));
     }
-    configure_sched(&outcomes, requested_cpu, requested_priority, observed)
-}
-
-pub(super) fn configure_legacy(
-    requested_priority: i32,
-) -> Result<EffectiveScheduling, SchedulingFailure> {
-    let outcomes = *TEST_OUTCOMES.lock().unwrap();
-    if outcomes
-        .target_cpu
-        .is_some_and(|target_cpu| target_cpu != usize::MAX)
-    {
-        return Ok(EffectiveScheduling {
-            policy: SCHED_FIFO_POLICY,
-            priority: requested_priority,
-            cpu: None,
-        });
-    }
-    configure_sched(&outcomes, usize::MAX, requested_priority, CpuMask::empty())
+    Ok(observed)
 }
 
 fn configure_sched(

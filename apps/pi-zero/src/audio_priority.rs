@@ -7,14 +7,15 @@ mod syscalls;
 
 #[cfg(test)]
 use syscalls::SCHED_FIFO_POLICY;
-use syscalls::{configure_legacy, configure_strict, CPU_MASK_WORDS};
+use syscalls::{configure_affinity_only, configure_strict, CPU_MASK_WORDS};
 
-pub(crate) const ORANGE_JACK_CPU: usize = 1;
+pub(crate) const PI_RUNTIME_CPU: usize = 0;
+pub(crate) const PI_JACK_CPU: usize = 1;
+pub(crate) const PI_MIRROR_CPU: usize = 0;
 pub(crate) const ORANGE_WORKER_CPUS: [usize; 2] = [2, 3];
 pub(crate) const ORANGE_WORKER_PRIORITY: i32 = 70;
-pub(crate) const ORANGE_CALLBACK_PRIORITY: i32 = 70;
-pub(crate) const ORANGE_SECONDARY_CALLBACK_PRIORITY: i32 = 69;
-pub(crate) const RASPBERRY_CALLBACK_PRIORITY: i32 = 70;
+pub(crate) const PI_JACK_CALLBACK_PRIORITY: i32 = 70;
+pub(crate) const PI_MIRROR_CALLBACK_PRIORITY: i32 = 60;
 
 #[path = "orange_worker_scheduling.rs"]
 mod worker_scheduling;
@@ -23,10 +24,9 @@ const STATE_PENDING: u8 = 0;
 const STATE_CONFIGURING: u8 = 1;
 const STATE_QUALIFIED: u8 = 2;
 const STATE_FAILED: u8 = 3;
-const STATE_UNSUPPORTED: u8 = 4;
-const STATE_TIMED_OUT: u8 = 5;
-const STATE_PUBLISHING_QUALIFIED: u8 = 6;
-const STATE_PUBLISHING_FAILED: u8 = 7;
+const STATE_TIMED_OUT: u8 = 4;
+const STATE_PUBLISHING_QUALIFIED: u8 = 5;
+const STATE_PUBLISHING_FAILED: u8 = 6;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -144,7 +144,6 @@ pub(crate) enum CallbackSchedulingStatus {
     Pending,
     Qualified(EffectiveScheduling),
     Failed(SchedulingFailure),
-    Unsupported,
     TimedOut,
 }
 
@@ -163,43 +162,29 @@ struct CallbackSchedulingState {
     effective_cpu: AtomicI32,
 }
 
-#[derive(Clone, Copy)]
-enum CallbackSchedulingRole {
-    Legacy,
-    OrangeJack,
-}
-
 #[derive(Clone)]
 pub(crate) struct CallbackSchedulingHandle {
     state: Arc<CallbackSchedulingState>,
-    role: CallbackSchedulingRole,
+    requested_cpu: usize,
     requested_priority: i32,
 }
 
 impl CallbackSchedulingHandle {
-    pub(crate) fn new(requested_priority: i32) -> Self {
-        Self::new_with_role(requested_priority, CallbackSchedulingRole::Legacy, None)
+    pub(crate) fn new_jack() -> Self {
+        Self::new(PI_JACK_CPU, PI_JACK_CALLBACK_PRIORITY)
     }
 
-    pub(crate) fn new_orange_jack() -> Self {
-        Self::new_with_role(
-            ORANGE_CALLBACK_PRIORITY,
-            CallbackSchedulingRole::OrangeJack,
-            Some(ORANGE_JACK_CPU),
-        )
+    pub(crate) fn new_mirror() -> Self {
+        Self::new(PI_MIRROR_CPU, PI_MIRROR_CALLBACK_PRIORITY)
     }
 
-    fn new_with_role(
-        requested_priority: i32,
-        role: CallbackSchedulingRole,
-        requested_cpu: Option<usize>,
-    ) -> Self {
+    fn new(requested_cpu: usize, requested_priority: i32) -> Self {
         Self {
             state: Arc::new(CallbackSchedulingState {
                 state: AtomicU8::new(STATE_PENDING),
                 failure_stage: AtomicU8::new(0),
                 failure_errno: AtomicI32::new(0),
-                requested_cpu: AtomicI32::new(requested_cpu.map_or(-1, |cpu| cpu as i32)),
+                requested_cpu: AtomicI32::new(requested_cpu as i32),
                 requested_priority: AtomicI32::new(requested_priority),
                 observed_mask: std::array::from_fn(|_| AtomicU64::new(0)),
                 observed_mask_extra_cpu: AtomicBool::new(false),
@@ -209,7 +194,7 @@ impl CallbackSchedulingHandle {
                 effective_priority: AtomicI32::new(0),
                 effective_cpu: AtomicI32::new(-1),
             }),
-            role,
+            requested_cpu,
             requested_priority,
         }
     }
@@ -232,29 +217,12 @@ impl CallbackSchedulingHandle {
         {
             return self.state.state.load(Ordering::Acquire) == STATE_QUALIFIED;
         }
-        let result = match self.role {
-            CallbackSchedulingRole::Legacy => configure_legacy(self.requested_priority),
-            CallbackSchedulingRole::OrangeJack => {
-                configure_strict(ORANGE_JACK_CPU, self.requested_priority)
-            }
-        };
+        let result = configure_strict(self.requested_cpu, self.requested_priority);
         match result {
             Ok(effective) => self.publish_qualified(effective),
             Err(failure) => {
-                if !matches!(self.role, CallbackSchedulingRole::Legacy)
-                    || failure.stage != SchedulingFailureStage::Unsupported
-                {
-                    self.publish_failed(failure);
-                    false
-                } else {
-                    let _ = self.state.state.compare_exchange(
-                        STATE_CONFIGURING,
-                        STATE_UNSUPPORTED,
-                        Ordering::Release,
-                        Ordering::Acquire,
-                    );
-                    false
-                }
+                self.publish_failed(failure);
+                false
             }
         }
     }
@@ -270,7 +238,6 @@ impl CallbackSchedulingHandle {
                 },
             }),
             STATE_FAILED => CallbackSchedulingStatus::Failed(self.failure()),
-            STATE_UNSUPPORTED => CallbackSchedulingStatus::Unsupported,
             STATE_TIMED_OUT => CallbackSchedulingStatus::TimedOut,
             _ => CallbackSchedulingStatus::Pending,
         }
@@ -294,8 +261,9 @@ impl CallbackSchedulingHandle {
         self.requested_priority
     }
 
-    pub(crate) fn is_strict(&self) -> bool {
-        matches!(self.role, CallbackSchedulingRole::OrangeJack)
+    #[cfg(test)]
+    pub(crate) fn requested_cpu(&self) -> usize {
+        self.requested_cpu
     }
 
     fn publish_timeout(&self) -> CallbackSchedulingStatus {
@@ -327,7 +295,7 @@ impl CallbackSchedulingHandle {
         SchedulingFailure {
             stage: SchedulingFailureStage::Timeout,
             errno: 0,
-            requested_cpu: ORANGE_JACK_CPU,
+            requested_cpu: self.requested_cpu,
             requested_priority: self.requested_priority,
             observed_mask: CpuMask::empty(),
             observed_policy: 0,
@@ -433,12 +401,10 @@ impl CallbackSchedulingHandle {
     }
 }
 
-pub(crate) fn callback_priority() -> i32 {
-    if cfg!(feature = "hardware-orange-pi-zero-2w") {
-        ORANGE_SECONDARY_CALLBACK_PRIORITY
-    } else {
-        RASPBERRY_CALLBACK_PRIORITY
-    }
+pub(crate) fn pin_main_thread_to_cpu0() -> Result<(), String> {
+    configure_affinity_only(PI_RUNTIME_CPU)
+        .map(|_| ())
+        .map_err(|failure| syscalls::format_affinity_failure("main", failure))
 }
 
 pub(crate) fn qualify_callback_scheduler(
@@ -447,14 +413,15 @@ pub(crate) fn qualify_callback_scheduler(
     timeout: Duration,
 ) -> Result<EffectiveScheduling, String> {
     let mut status = scheduler.wait_for_status(timeout);
-    if matches!(status, CallbackSchedulingStatus::Pending) && scheduler.is_strict() {
+    if matches!(status, CallbackSchedulingStatus::Pending) {
         status = scheduler.publish_timeout();
     }
     match status {
         CallbackSchedulingStatus::Qualified(effective) => {
             eprintln!(
-                "{sink_label} audio callback scheduling qualified: policy=SCHED_FIFO priority={}",
-                effective.priority
+                "{sink_label} audio callback scheduling qualified: cpu={} policy=SCHED_FIFO priority={}",
+                effective.cpu.unwrap_or(usize::MAX),
+                effective.priority,
             );
             Ok(effective)
         }
@@ -469,9 +436,6 @@ pub(crate) fn qualify_callback_scheduler(
         CallbackSchedulingStatus::TimedOut => {
             Err(syscalls::format_failure(sink_label, scheduler.timeout_failure()))
         }
-        CallbackSchedulingStatus::Unsupported => Err(format!(
-            "{sink_label} audio callback RT promotion not qualified: pthread scheduling is unsupported on this platform"
-        )),
     }
 }
 

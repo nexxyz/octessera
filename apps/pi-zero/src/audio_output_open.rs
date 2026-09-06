@@ -1,4 +1,3 @@
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
 use super::audio_stream_lifecycle::{AudioStreamShutdownError, AudioStreamShutdownReport};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use super::cpal_audio_output::build_cpal_stream;
@@ -135,13 +134,18 @@ pub(super) fn open_audio_sink(
         }
         return Err(super::cpal_audio_output::map_play_stream_error(error));
     }
-    if let Err(error) = qualify_callback_scheduler(
-        sink.scheduler_label(),
-        &built.scheduler,
-        CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
-    ) {
-        eprintln!("{error}");
-    }
+    let built = if sink == AudioSink::Jack {
+        let scheduler = built.scheduler.clone();
+        qualify_jack_or_teardown(&scheduler, built, |built| built.teardown())?
+    } else {
+        qualify_callback_scheduler(
+            sink.scheduler_label(),
+            &built.scheduler,
+            CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
+        )
+        .map_err(RouteOpenError::Fault)?;
+        built
+    };
     if sink != AudioSink::Jack {
         std::thread::sleep(USB_AUDIO_STARTUP_FAULT_GRACE);
         if health.external_is_faulted() {
@@ -265,7 +269,6 @@ pub(super) fn open_orange_audio_sink_with_health(
     })
 }
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
 fn qualify_jack_or_teardown<T>(
     scheduler: &crate::audio_priority::CallbackSchedulingHandle,
     built: T,
@@ -297,7 +300,7 @@ mod tests {
 
     #[test]
     fn jack_timeout_tears_down_built_stream_and_workers_before_faulting() {
-        let scheduler = CallbackSchedulingHandle::new_orange_jack();
+        let scheduler = CallbackSchedulingHandle::new_jack();
         let stream_dropped = Arc::new(AtomicBool::new(false));
         let workers_joined = Arc::new(AtomicUsize::new(0));
         let dropped = stream_dropped.clone();

@@ -4,8 +4,7 @@ use super::cpal_audio_output::OrangeAudioProfile;
 use super::cpal_audio_output::{build_engine_source, AudioSourceExecutionMode};
 use super::AudioSink;
 use crate::audio_priority::{
-    callback_priority, ORANGE_CALLBACK_PRIORITY, ORANGE_SECONDARY_CALLBACK_PRIORITY,
-    ORANGE_WORKER_PRIORITY, RASPBERRY_CALLBACK_PRIORITY,
+    ORANGE_WORKER_PRIORITY, PI_JACK_CALLBACK_PRIORITY, PI_MIRROR_CALLBACK_PRIORITY,
 };
 use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::event_queue;
@@ -83,29 +82,21 @@ fn cpal_worker_status_keeps_deadline_miss_nonterminal() {
 #[test]
 fn cpal_qualification_priorities_keep_orange_workers_above_callbacks() {
     assert_eq!(ORANGE_WORKER_PRIORITY, 70);
-    assert_eq!(ORANGE_CALLBACK_PRIORITY, 70);
-    assert_eq!(ORANGE_SECONDARY_CALLBACK_PRIORITY, 69);
-    assert_eq!(RASPBERRY_CALLBACK_PRIORITY, 70);
+    assert_eq!(PI_JACK_CALLBACK_PRIORITY, 70);
+    assert_eq!(PI_MIRROR_CALLBACK_PRIORITY, 60);
     const {
-        assert!(ORANGE_CALLBACK_PRIORITY <= ORANGE_WORKER_PRIORITY);
+        assert!(PI_JACK_CALLBACK_PRIORITY <= ORANGE_WORKER_PRIORITY);
     }
-    assert_eq!(
-        callback_priority(),
-        if cfg!(feature = "hardware-orange-pi-zero-2w") {
-            ORANGE_SECONDARY_CALLBACK_PRIORITY
-        } else {
-            RASPBERRY_CALLBACK_PRIORITY
-        }
-    );
 }
 
 #[test]
-fn only_orange_jack_uses_strict_callback_placement() {
+fn all_pi_callbacks_use_strict_fixed_roles() {
+    let jack = super::cpal_audio_output::callback_scheduler_for_sink(AudioSink::Jack);
+    assert_eq!(jack.requested_cpu(), 1);
+    assert_eq!(jack.requested_priority(), 70);
     for sink in [AudioSink::Usb, AudioSink::Hdmi] {
-        assert!(!super::cpal_audio_output::callback_scheduler_for_sink(sink).is_strict());
+        let mirror = super::cpal_audio_output::callback_scheduler_for_sink(sink);
+        assert_eq!(mirror.requested_cpu(), 0);
+        assert_eq!(mirror.requested_priority(), 60);
     }
-    assert_eq!(
-        super::cpal_audio_output::callback_scheduler_for_sink(AudioSink::Jack).is_strict(),
-        cfg!(feature = "hardware-orange-pi-zero-2w")
-    );
 }
