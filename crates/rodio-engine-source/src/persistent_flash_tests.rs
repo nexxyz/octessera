@@ -1,6 +1,6 @@
 use super::*;
 use realtime_engine::synth::AudioLoadStatus;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const TEST_BLOCK_FRAMES: usize = 2048;
 const OUTPUT_CHANNELS: usize = 2;
@@ -12,6 +12,14 @@ fn runtime(source: &mut EngineSource) -> &mut realtime_engine::synth::SourceWork
         .as_mut()
         .expect("persistent worker")
         .runtime
+}
+
+fn wait_for_worker_completions(source: &mut EngineSource) {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while runtime(source).completion_states_for_test() != [true, true] {
+        assert!(Instant::now() < deadline, "source workers did not complete");
+        std::thread::yield_now();
+    }
 }
 
 fn drain_statuses(receiver: &AudioLoadStatusReceiver, statuses: &mut Vec<AudioLoadStatus>) {
@@ -106,17 +114,10 @@ fn iterator_consumed_flash_boundaries_are_exact_at_supported_rates() {
         runtime(&mut source).set_pause_for_parity_for_test(0, false);
         runtime(&mut source).set_pause_for_parity_for_test(1, false);
         runtime(&mut source).set_deadline_for_test(Duration::from_secs(1));
-        let mut consumed = 1 + TEST_BLOCK_FRAMES as u64;
-        let mut recovered = false;
-        for _ in 0..TEST_BLOCK_FRAMES * 64 {
-            consume_frames(&mut source, &load_rx, &mut statuses, 1);
-            consumed += 1;
-            if source.persistent_output.rendered_quantums == 2 {
-                recovered = true;
-                break;
-            }
-        }
-        assert!(recovered);
+        wait_for_worker_completions(&mut source);
+        consume_frames(&mut source, &load_rx, &mut statuses, 1);
+        let consumed = TEST_BLOCK_FRAMES as u64 + 2;
+        assert_eq!(source.persistent_output.rendered_quantums, 2);
         assert_eq!(source.persistent_output.repeated_quantums, 1);
         assert!(source.persistent_output.dropped_quantums >= 1);
         assert_eq!(
