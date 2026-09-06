@@ -3,6 +3,12 @@ use super::*;
 
 impl NativeRunner {
     pub fn new(config: NativeRunnerConfig) -> Result<Self, String> {
+        if !config
+            .audio_optimization
+            .is_supported(config.audio_optimization_capacity_available)
+        {
+            return Err("audio optimization capacity is unavailable".into());
+        }
         let behavior = platform_core::get_native_behavior(&config.behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{}`", config.behavior_id))?;
         let engine = Self::build_engine(
@@ -46,6 +52,8 @@ impl NativeRunner {
             base_mapping_config: config.mapping_config,
             global_sound: seed.global_sound,
             dsp_config: seed.dsp_config,
+            audio_optimization: seed.audio_optimization,
+            audio_optimization_capacity_available: seed.audio_optimization_capacity_available,
             note_behaviors: config.note_behaviors,
             transport: NativeTransportState::new(
                 seed.bpm,

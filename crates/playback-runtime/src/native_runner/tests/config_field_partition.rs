@@ -284,6 +284,11 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         64,
         2048,
     );
+    source_runtime["sound"]["optimizeFor"] = alternate_enum(
+        &canonical_runtime["sound"]["optimizeFor"],
+        "latency",
+        "capacity",
+    );
 
     let mut partition = expected(PATCH_FIELDS);
     partition.extend(expected(DEVICE_FIELDS));
@@ -321,11 +326,11 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     );
     assert_eq!(
         keys(&device["runtimeConfig"]["sound"]),
-        expected(&["audioOutputBufferFrames"])
+        expected(&["audioOutputBufferFrames", "optimizeFor"])
     );
     assert_eq!(
         keys(&preferences.values["sound"]),
-        expected(&["audioOutputBufferFrames"])
+        expected(&["audioOutputBufferFrames", "optimizeFor"])
     );
     assert_eq!(
         keys(&portable["runtimeConfig"]["auxBindings"]["aux1"]),

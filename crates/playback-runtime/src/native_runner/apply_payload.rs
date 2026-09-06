@@ -83,6 +83,7 @@ impl NativeRunner {
         self.last_snapshot_audio_config_revision = source.last_snapshot_audio_config_revision;
         self.last_published_runtime_config = source.last_published_runtime_config.clone();
         self.trigger_probability_rng = source.trigger_probability_rng;
+        self.audio_optimization_capacity_available = source.audio_optimization_capacity_available;
     }
 
     fn copy_live_runtime_state_from(&mut self, source: &NativeRunner) {

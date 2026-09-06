@@ -32,14 +32,22 @@ The System section's `Audio / USB` group contains the independent Jack Audio,
 USB Audio, HDMI Audio, USB MIDI, Save / Reboot, Start SD2 Xfer, and Stop SD2
 Xfer rows. See the split-out tree for the stable order and restart semantics.
 
+On Orange-capability hosts, `System > Sound` shows `DSP Mode` in place of
+`Output Buffer`: `Inline / low latency` (default) or `Multicore / capacity`.
+The choice applies through the existing restart confirmation, is preserved
+alongside output-buffer preferences, and does not alter voice or FX limits.
+Other platforms keep `Output Buffer` and do not expose capacity mode.
+
 The System section's `DSP` group stores the native worker CPU warning and bus
 idle thresholds. Worker warning presentation and bus silence behavior are
 separate runtime phases.
 
 Aggregate audio-load and voice-steal status is separate from the red persistent-
 worker CPU icon. The icon is at `(117,5)` and requires valid persistent
-`high_cpu_steady` evidence; inline or missing evidence hides it. The yellow save
-icon at `(107,5)` may coexist. A matching newly missed quantum repeats the
+`high_cpu_steady` evidence; inline or missing evidence hides it. An active
+missed-quantum flash takes priority in that CPU slot and inverts the CPU glyph
+white/black; the red CPU icon is hidden until the flash clears. The yellow save
+icon at `(107,5)` may coexist with either CPU-slot state. A matching newly missed quantum repeats the
 previous final master quantum once; subsequent pending-recovery refills are
 silent. `missedQuantumFlash` stays true for five emitted seconds, clears on the
 exact emitted-frame crossing, and resets on a later miss. The existing OLED

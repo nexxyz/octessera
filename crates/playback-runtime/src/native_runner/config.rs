@@ -137,6 +137,8 @@ impl NativeRunner {
             midi_clock_in_enabled: self.midi_clock_in_enabled,
             midi_respond_to_start_stop: self.midi_respond_to_start_stop,
             audio_outputs: self.audio_outputs,
+            audio_optimization: self.audio_optimization,
+            audio_optimization_capacity_available: self.audio_optimization_capacity_available,
             usb_midi_out_enabled: self.usb_midi_out_enabled,
             recording_max_minutes: self.recording_max_minutes,
             hdmi_mode: self.display.hdmi.mode.clone(),
@@ -235,7 +237,8 @@ impl NativeRunner {
                     "velocityScalePct": self.global_sound.velocity_scale_pct,
                     "velocityCurve": velocity_curve_id(self.global_sound.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode.clone(),
-                    "audioOutputBufferFrames": self.audio_output_buffer_frames
+                    "audioOutputBufferFrames": self.audio_output_buffer_frames,
+                    "optimizeFor": self.audio_optimization
                 },
                 "dsp": self.dsp_config,
                 "noteLengthMs": self.global_sound.note_length_ms,

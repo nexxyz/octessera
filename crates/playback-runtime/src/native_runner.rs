@@ -46,6 +46,7 @@ mod apply_payload_instrument_values;
 mod apply_payload_instruments;
 mod apply_payload_layers;
 mod apply_payload_mixer_values;
+mod audio_optimization;
 mod audio_outputs;
 mod aux_auto_map;
 mod aux_auto_map_fx_layouts;
@@ -98,6 +99,7 @@ mod link_routing;
 mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;
+mod menu_apply_fast_audio;
 mod menu_apply_fast_behavior;
 mod menu_apply_fast_bindings;
 mod menu_apply_fast_fx;
@@ -193,6 +195,7 @@ mod user_data_transfer_state;
 mod velocity_curve;
 
 use crate::{clean_preset_name, fresh_preset_name};
+pub use audio_optimization::AudioOptimization;
 pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub use runner_config::NativeRunnerConfig;
@@ -307,6 +310,8 @@ pub struct NativeRunner {
     base_mapping_config: platform_core::MappingConfig,
     global_sound: GlobalSoundConfig,
     dsp_config: DspRuntimeConfig,
+    audio_optimization: AudioOptimization,
+    audio_optimization_capacity_available: bool,
     note_behaviors: Vec<NoteBehavior>,
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,

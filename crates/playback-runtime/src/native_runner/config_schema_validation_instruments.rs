@@ -33,6 +33,12 @@ pub(super) fn validate_sound(runtime: &Map<String, Value>) -> Result<(), String>
         "runtimeConfig.sound",
         VOICE_MODES,
     )?;
+    enum_field(
+        sound,
+        "optimizeFor",
+        "runtimeConfig.sound",
+        &["latency", "capacity"],
+    )?;
     unsigned_field(
         sound,
         "audioOutputBufferFrames",

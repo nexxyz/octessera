@@ -32,7 +32,7 @@ const OBJECTS: &[(&str, &[&str])] = &[
     ("usb", &["midiOutEnabled"]),
     ("audioOutputs", &["dac", "usb", "hdmi"]),
     ("recording", &["maxMinutes"]),
-    ("sound", &["audioOutputBufferFrames"]),
+    ("sound", &["audioOutputBufferFrames", "optimizeFor"]),
 ];
 
 pub(super) fn projection(runtime: &Map<String, Value>) -> BTreeMap<String, Value> {

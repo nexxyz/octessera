@@ -279,9 +279,13 @@ impl NativeRunner {
             if self.audio_output_buffer_frames != value {
                 changed = true;
                 self.audio_output_buffer_frames = value;
-                self.pending.pending_audio_output_buffer_reboot_prompt = true;
+                self.pending.pending_audio_restart_prompt = true;
                 self.show_toast("Restart device to apply");
             }
+        }
+        if let Some(value) = self.menu.value_for_key("sound.optimizeFor") {
+            let (_, optimization_changed) = self.apply_audio_optimization_menu_value(&value);
+            changed |= optimization_changed;
         }
         (changed, audio_config_changed)
     }

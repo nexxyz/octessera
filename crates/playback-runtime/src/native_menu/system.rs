@@ -120,15 +120,30 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                             &config.voice_stealing_mode,
                         ),
                     ),
-                    enum_item(
-                        "Output Buffer",
-                        "sound.audioOutputBufferFrames",
-                        vec!["64", "128", "256", "512", "1024", "2048"],
-                        selected_index(
-                            &["64", "128", "256", "512", "1024", "2048"],
-                            &config.audio_output_buffer_frames.to_string(),
-                        ),
-                    ),
+                    if config.audio_optimization_capacity_available {
+                        enum_item(
+                            "DSP Mode",
+                            "sound.optimizeFor",
+                            vec!["latency", "capacity"],
+                            selected_index(
+                                &["latency", "capacity"],
+                                match config.audio_optimization {
+                                    crate::native_runner::AudioOptimization::Latency => "latency",
+                                    crate::native_runner::AudioOptimization::Capacity => "capacity",
+                                },
+                            ),
+                        )
+                    } else {
+                        enum_item(
+                            "Output Buffer",
+                            "sound.audioOutputBufferFrames",
+                            vec!["64", "128", "256", "512", "1024", "2048"],
+                            selected_index(
+                                &["64", "128", "256", "512", "1024", "2048"],
+                                &config.audio_output_buffer_frames.to_string(),
+                            ),
+                        )
+                    },
                 ],
             ),
             group(

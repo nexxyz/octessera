@@ -6,6 +6,8 @@ use platform_core::{
 };
 use serde_json::Value;
 
+use super::AudioOptimization;
+
 #[derive(Clone, Debug)]
 pub struct NativeRunnerConfig {
     pub behavior_id: String,
@@ -18,6 +20,8 @@ pub struct NativeRunnerConfig {
     pub bpm: f64,
     pub swing_pct: u8,
     pub audio_output_buffer_frames: u32,
+    pub audio_optimization: AudioOptimization,
+    pub audio_optimization_capacity_available: bool,
     pub sample_builtin_favourite_dirs: Vec<String>,
 }
 
@@ -47,6 +51,8 @@ impl Default for NativeRunnerConfig {
             bpm: 120.0,
             swing_pct: 0,
             audio_output_buffer_frames: 256,
+            audio_optimization: AudioOptimization::Latency,
+            audio_optimization_capacity_available: false,
             sample_builtin_favourite_dirs: Vec::new(),
         }
     }

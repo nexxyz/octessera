@@ -112,6 +112,7 @@ impl NativeRunner {
             "sound.audioOutputBufferFrames" => {
                 Some(self.fast_audio_output_buffer_frames_menu_key())
             }
+            "sound.optimizeFor" => Some(self.fast_audio_optimization_menu_key()),
             _ => None,
         }
     }
@@ -384,22 +385,6 @@ impl NativeRunner {
                 self.show_toast(format!("modulation composition unavailable: {error}"));
             }
             self.mark_fast_autosave_dirty();
-        }
-        true
-    }
-
-    fn fast_audio_output_buffer_frames_menu_key(&mut self) -> bool {
-        let Some(value) = self.menu.value_for_key("sound.audioOutputBufferFrames") else {
-            return false;
-        };
-        let value = value
-            .parse::<u32>()
-            .map(super::normalize_audio_output_buffer_frames)
-            .unwrap_or(256);
-        if value_changed(&mut self.audio_output_buffer_frames, value) {
-            self.pending.pending_audio_output_buffer_reboot_prompt = true;
-            self.mark_fast_autosave_dirty();
-            self.show_toast("Restart device to apply");
         }
         true
     }

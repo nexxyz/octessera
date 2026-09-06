@@ -3,7 +3,9 @@ use crate::protocol::RuntimePlatformEffect;
 use super::apply_payload_instrument_values::*;
 use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
-use super::{velocity_curve_from_id, AudioOutputSet, NativeRunner, SyncSource, Value};
+use super::{
+    velocity_curve_from_id, AudioOptimization, AudioOutputSet, NativeRunner, SyncSource, Value,
+};
 
 impl NativeRunner {
     pub(super) fn apply_instruments_payload(&mut self, runtime: &Value) {
@@ -28,7 +30,7 @@ impl NativeRunner {
         runtime: &Value,
         mapping_config: Option<&Value>,
     ) -> Result<(), String> {
-        self.apply_sound_payload(runtime);
+        self.apply_sound_payload(runtime)?;
         self.apply_dsp_payload(runtime)?;
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
@@ -55,7 +57,7 @@ impl NativeRunner {
         runtime: &Value,
         mapping_config: Option<&Value>,
     ) -> Result<(), String> {
-        self.apply_sound_payload(runtime);
+        self.apply_sound_payload(runtime)?;
         self.apply_dsp_payload(runtime)?;
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
@@ -74,7 +76,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    fn apply_sound_payload(&mut self, runtime: &Value) {
+    fn apply_sound_payload(&mut self, runtime: &Value) -> Result<(), String> {
         if let Some(master) = runtime.get("masterVolume").and_then(Value::as_u64) {
             if let Ok(master) = u8::try_from(master) {
                 self.display.ui.master_volume = master.min(100);
@@ -105,6 +107,15 @@ impl NativeRunner {
                     super::normalize_audio_output_buffer_frames(value);
             }
         }
+        if let Some(value) = sound_or_runtime_str(sound, runtime, "optimizeFor") {
+            let optimization = AudioOptimization::from_wire_name(value)
+                .ok_or_else(|| format!("unsupported audio optimization `{value}`"))?;
+            if !optimization.is_supported(self.audio_optimization_capacity_available) {
+                return Err("audio optimization capacity is unavailable".into());
+            }
+            self.audio_optimization = optimization;
+        }
+        Ok(())
     }
 
     fn apply_dsp_payload(&mut self, runtime: &Value) -> Result<(), String> {

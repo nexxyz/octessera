@@ -94,7 +94,8 @@ pub(super) fn parity_corpus() -> Vec<(String, Value)> {
     cpu_save["highCpuSteady"] = json!(true);
     cpu_save["settings"]["autoSaveFlash"] = json!("flash");
     cpu_save["settings"]["autoSaveFlashSerial"] = json!(13);
-    push(&mut cases, "cpu-save-together", cpu_save);
+    cpu_save["missedQuantumFlash"] = json!(true);
+    push(&mut cases, "cpu-missed-save-together", cpu_save);
 
     let mut midi_error = menu_snapshot();
     midi_error["display"]["splash"] = json!("startup");

@@ -3,6 +3,13 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     let Some(key) = key else {
         return raw;
     };
+    if key == "sound.optimizeFor" {
+        return match raw.as_str() {
+            "latency" => "Inline / low latency".into(),
+            "capacity" => "Multicore / capacity".into(),
+            _ => raw,
+        };
+    }
     if key.ends_with("panPos") {
         return format_pan_position(raw.parse::<i32>().unwrap_or(16));
     }
