@@ -140,7 +140,7 @@ impl EngineSource {
         match self.worker_state.mode {
             EngineSourceMode::Inline => self.engine.profile_snapshot(),
             EngineSourceMode::Persistent => self.cached_profile_snapshot,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             EngineSourceMode::RoutingTreePersistent => self.cached_profile_snapshot,
         }
     }
@@ -256,7 +256,7 @@ impl EngineSource {
                 }
             }
             EngineSourceMode::Persistent => self.refill_persistent(),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             EngineSourceMode::RoutingTreePersistent => self.refill_routing_tree_persistent(),
         };
         if !self.engine.pending_render_retired_is_empty()

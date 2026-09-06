@@ -1,5 +1,5 @@
 use super::EngineSource;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use super::EngineSourceMode;
 
 impl EngineSource {
@@ -13,7 +13,7 @@ impl EngineSource {
         let Some(worker) = worker_state.worker.as_mut() else {
             return;
         };
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if matches!(worker_state.mode, EngineSourceMode::RoutingTreePersistent) {
             return;
         }

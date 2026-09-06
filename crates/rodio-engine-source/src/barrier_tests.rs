@@ -21,17 +21,12 @@ fn persistent_probe_marks_fence_two_refills() {
     assert_two_probe_marks_fence(tx, source, Some(shutdown));
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_tree_probe_marks_fence_two_refills() {
     let (tx, rx) = event_queue();
-    let (source, shutdown) = EngineSource::with_routing_tree_persistent_workers_for_benchmark(
-        rx,
-        44_100,
-        BLOCK_FRAMES,
-        None,
-    )
-    .unwrap();
+    let (source, shutdown) =
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, BLOCK_FRAMES, None).unwrap();
     assert_two_probe_marks_fence(tx, source, Some(shutdown));
 }
 

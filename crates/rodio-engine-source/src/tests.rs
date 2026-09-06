@@ -37,7 +37,7 @@ impl EngineSource {
         )
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     fn with_routing_tree_test_retirement_receiver(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -460,18 +460,26 @@ mod persistent_timing_tests;
 #[path = "block_configuration_tests.rs"]
 mod block_configuration_tests;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "routing_tree_tests.rs"]
 mod routing_tree_tests;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "routing_tree_status_tests.rs"]
 mod routing_tree_status_tests;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "routing_tree_parity_tests.rs"]
 mod routing_tree_parity_tests;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "routing_tree_recovery_tests.rs"]
 mod routing_tree_recovery_tests;
+
+#[cfg(feature = "routing-tree-executor")]
+#[path = "routing_tree_factory_tests.rs"]
+mod routing_tree_factory_tests;
+
+#[cfg(feature = "routing-tree-executor")]
+#[path = "routing_tree_control_tests.rs"]
+mod routing_tree_control_tests;

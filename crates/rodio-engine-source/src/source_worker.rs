@@ -4,7 +4,7 @@ use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerRetirement, SourceW
 pub(super) enum EngineSourceMode {
     Inline,
     Persistent,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     RoutingTreePersistent,
 }
 
@@ -32,7 +32,7 @@ impl EngineSourceWorkerState {
         }
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn routing_tree_persistent(runtime: SourceWorkerRuntime) -> Self {
         Self {
             mode: EngineSourceMode::RoutingTreePersistent,
@@ -44,12 +44,12 @@ impl EngineSourceWorkerState {
         match (&self.mode, &self.worker) {
             (EngineSourceMode::Inline, _) => SourceWorkerHealth::Disabled,
             (EngineSourceMode::Persistent, Some(worker)) => worker.runtime.health_snapshot().status,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             (EngineSourceMode::RoutingTreePersistent, Some(worker)) => {
                 worker.runtime.health_snapshot().status
             }
             (EngineSourceMode::Persistent, None) => SourceWorkerHealth::CompletionFailed,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             (EngineSourceMode::RoutingTreePersistent, None) => SourceWorkerHealth::CompletionFailed,
         }
     }
@@ -57,7 +57,7 @@ impl EngineSourceWorkerState {
     pub(super) fn is_persistent(&self) -> bool {
         match self.mode {
             EngineSourceMode::Persistent => true,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             EngineSourceMode::RoutingTreePersistent => true,
             EngineSourceMode::Inline => false,
         }

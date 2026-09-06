@@ -37,7 +37,7 @@ impl<'a> ControlDrain<'a> {
         self.drain_with_source_event_clock(engine, None)
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn drain_routing_tree(
         &mut self,
         engine: &mut SynthEngine,
@@ -51,7 +51,7 @@ impl<'a> ControlDrain<'a> {
         engine: &mut SynthEngine,
         source_event_sample_clock: Option<u64>,
     ) -> DrainedControlEvents {
-        #[cfg(not(feature = "routing-tree-benchmark"))]
+        #[cfg(not(feature = "routing-tree-executor"))]
         let _ = source_event_sample_clock;
         let mut drained = DrainedControlEvents::default();
         for _ in 0..MAX_CONTROL_EVENTS_PER_CALLBACK {
@@ -217,9 +217,9 @@ impl<'a> ControlDrain<'a> {
         source_event_sample_clock: Option<u64>,
         apply: impl FnOnce(&mut SynthEngine) -> R,
     ) -> R {
-        #[cfg(not(feature = "routing-tree-benchmark"))]
+        #[cfg(not(feature = "routing-tree-executor"))]
         let _ = source_event_sample_clock;
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if let Some(sample_clock) = source_event_sample_clock {
             return engine.with_routing_tree_source_event_sample_clock(sample_clock, apply);
         }
