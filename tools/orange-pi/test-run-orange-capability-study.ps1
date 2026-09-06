@@ -400,6 +400,12 @@ $recoveredMissRoutingWithoutSwitchParameters.Remove("ContinueOnRecoveredMiss")
 $recoveredMissRoutingWithoutSwitch = Invoke-StudyPrintOnly -Parameters $recoveredMissRoutingWithoutSwitchParameters
 Assert-NotContains $recoveredMissRoutingWithoutSwitch "--continue-on-recovered-miss"
 Assert-Contains $recoveredMissRoutingWithoutSwitch 'validate_benchmark_worker_evidence "$progress" false false'
+$recoveredMissU16Parameters = $recoveredMissRoutingParameters.Clone()
+$recoveredMissU16Parameters.Scenario = "capacity_analogue_16"
+$recoveredMissU16 = Invoke-StudyPrintOnly -Parameters $recoveredMissU16Parameters
+Assert-NoPayloadPlaceholders $recoveredMissU16
+Assert-Contains $recoveredMissU16 "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_16 measure=120"
+Assert-Contains $recoveredMissU16 "--continue-on-recovered-miss"
 $invalidRecoveredMissParameters = $recoveredMissRoutingParameters.Clone()
 $invalidRecoveredMissParameters.Scenario = "capacity_analogue_31"
 Assert-Throws { Invoke-StudyPrintOnly -Parameters $invalidRecoveredMissParameters | Out-Null }

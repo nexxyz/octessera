@@ -84,14 +84,15 @@ if ($Mode -eq "LiveAudioBenchmark") {
 }
 if ($ContinueOnRecoveredMiss -and (
     $null -eq $liveSelection -or
-    $liveSelection.Scenario -cne "capacity_analogue_32" -or
+    $liveSelection.Scenario -cnotin @("capacity_analogue_16", "capacity_analogue_32") -or
     $liveSelection.ExecutorMode -cne "routing_tree_persistent" -or
     $liveSelection.WorkerTimingMode -cne "enabled" -or
     [int]$liveSelection.OutputFrames -ne 256 -or
+    [int]$liveSelection.AlsaPeriodFrames -ne 64 -or
     [int]$liveSelection.InternalFrames -ne 64 -or
     [int]$liveSelection.MeasureSeconds -ne 120
   )) {
-  throw "-ContinueOnRecoveredMiss requires capacity_analogue_32, routing_tree_persistent, enabled worker timing, output=256, internal=64, and measure=120."
+  throw "-ContinueOnRecoveredMiss requires capacity_analogue_16 (u16) or capacity_analogue_32 (u32), routing_tree_persistent, measure=120, output=256, ALSA period=64, internal=64, and worker timing=enabled."
 }
 
 function Quote-PowerShellValue {
