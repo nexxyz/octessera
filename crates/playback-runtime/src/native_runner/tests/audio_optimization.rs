@@ -149,7 +149,7 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
     assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     runner.menu.state.editing = true;
 
-    let _ = runner
+    let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
             request_snapshot: None,
@@ -161,10 +161,13 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
         runner.menu.value_for_key("sound.optimizeFor"),
         Some("capacity".into())
     );
-    assert_eq!(
-        runner.display.toast.as_ref().unwrap().message,
-        "Restart device to apply"
-    );
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["display"]["title"], "Confirm Audio");
+    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert!(lines.iter().any(|line| line == "> Cancel"));
+    assert!(lines.iter().any(|line| line == "  Save / Reboot"));
+    assert_eq!(snapshot["display"]["toast"], "");
+    assert!(!runner.pending.pending_audio_restart_prompt);
     assert!(runner.config_dirty);
 }
 

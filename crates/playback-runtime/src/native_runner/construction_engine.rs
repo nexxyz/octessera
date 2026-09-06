@@ -42,7 +42,8 @@ impl NativeRunner {
     }
 
     pub(super) fn reset_transport_position(&mut self) {
-        let _ = self.clear_lfo_audio();
+        self.clear_lfo_audio();
+        self.drain_all_layer_engine_notes();
         self.drain_all_sparks_transpose_notes();
         self.transport.pending_resync = false;
         self.transport.tick = 0;
@@ -62,6 +63,7 @@ impl NativeRunner {
             queue.clear();
         }
         self.clear_all_link_arp_state();
+        self.trigger_probability_rng = TRIGGER_PROBABILITY_RNG_INITIAL_SEED;
     }
 
     pub(super) fn sync_engine_runtime_config(&mut self) {

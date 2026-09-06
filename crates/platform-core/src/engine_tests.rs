@@ -3,7 +3,7 @@ use crate::interpretation::{
     AxisStrategy, CellTriggerIntent, CellTriggerKind, InterpretationEventProfile,
     InterpretationStateProfile, TickStrategy,
 };
-use crate::mapping::default_mapping_config;
+use crate::mapping::{default_mapping_config, TriggerAction};
 use crate::transforms::{GlobalSoundConfig, VelocityCurve};
 use std::collections::BTreeSet;
 
@@ -149,6 +149,8 @@ fn held_note_drain_is_bounded_and_returns_note_off_events() {
 
 #[test]
 fn scan_interpretation_advances_with_engine_ticks() {
+    let mut mapping_config = default_mapping_config();
+    mapping_config.scanned_empty.action = TriggerAction::NoteOn;
     let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
         behavior: NativeBehavior::Sequencer,
         behavior_config: Value::Null,
@@ -165,7 +167,7 @@ fn scan_interpretation_advances_with_engine_ticks() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config: default_mapping_config(),
+        mapping_config,
         global_sound: GlobalSoundConfig {
             velocity_scale_pct: 100,
             velocity_curve: VelocityCurve::Linear,
@@ -182,8 +184,18 @@ fn scan_interpretation_advances_with_engine_ticks() {
     let first = engine.tick(120.0).unwrap();
     let second = engine.tick(120.0).unwrap();
 
-    assert!(first.events.is_empty());
+    assert!(!first.events.is_empty());
     assert!(!second.events.is_empty());
+
+    engine.reset_transport_phase();
+    let after_reset = engine.tick(120.0).unwrap();
+    assert!(!after_reset.events.is_empty());
+    assert_eq!(after_reset.mapped_intents[0].x, 0);
+    assert_eq!(after_reset.mapped_intents[0].y, 0);
+    assert_eq!(
+        after_reset.mapped_intents[0].kind,
+        CellTriggerKind::ScannedEmpty
+    );
 }
 
 #[test]

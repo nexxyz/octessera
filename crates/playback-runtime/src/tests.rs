@@ -18,3 +18,5 @@ mod setup_portal;
 mod support;
 #[path = "runtime_transport_tests.rs"]
 mod transport;
+#[path = "runtime_transport_origin_tests.rs"]
+mod transport_origin;

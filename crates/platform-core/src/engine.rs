@@ -247,6 +247,7 @@ impl NativeLayerEngine {
 
     pub fn reset_transport_phase(&mut self) {
         self.tick = 0;
+        self.state.reset_transport_phase();
     }
 
     pub fn state(&self) -> &NativeBehaviorState {

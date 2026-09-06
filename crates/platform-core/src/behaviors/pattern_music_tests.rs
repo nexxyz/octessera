@@ -1,5 +1,6 @@
 use super::*;
 use crate::behavior::BehaviorContext;
+use crate::behaviors::pattern_music::{pattern_init, reset_transport_phase};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -161,4 +162,47 @@ fn assert_control_changes_frame(id: &str, key: &str, low: i32, high: i32) {
         .unwrap()
         .cells;
     assert_ne!(left_cells, right_cells, "{id} should respond to {key}");
+}
+
+#[test]
+fn reset_transport_phase_rebuilds_phase_zero_frame_and_transitions() {
+    let config = serde_json::json!({
+        "phase": 11,
+        "densityPct": 45,
+        "variationPct": 60,
+        "cycleLength": 16,
+        "seed": 401
+    });
+    let mut state = pattern_init("weave", config).unwrap();
+    let previous = state.cells.clone();
+    let expected = pattern_init(
+        "weave",
+        serde_json::json!({
+            "phase": 0,
+            "densityPct": 45,
+            "variationPct": 60,
+            "cycleLength": 16,
+            "seed": 401
+        }),
+    )
+    .unwrap();
+
+    reset_transport_phase(&mut state);
+
+    assert_eq!(state.phase, 0);
+    assert_eq!(state.cells, expected.cells);
+    for (index, (before, after)) in previous.iter().zip(state.cells.iter()).enumerate() {
+        let expected_trigger = match (*before, *after) {
+            (false, true) => crate::CellTriggerType::Activate,
+            (true, false) => crate::CellTriggerType::Deactivate,
+            (true, true) => crate::CellTriggerType::Stable,
+            (false, false) => crate::CellTriggerType::None,
+        };
+        assert_eq!(state.trigger_types[index], expected_trigger);
+    }
+    assert_eq!(state.kind, "weave");
+    assert_eq!(state.seed, 401);
+    assert_eq!(state.density_pct, 45);
+    assert_eq!(state.variation_pct, 60);
+    assert_eq!(state.cycle_length, 16);
 }

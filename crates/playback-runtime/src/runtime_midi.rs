@@ -99,6 +99,9 @@ impl PlaybackRuntime {
         status: RuntimeStatus,
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
+        if transport_status_resets_origin(self.last_good_status.as_ref(), &status) {
+            self.pulse_remainder = 0.0;
+        }
         if let Some(error) = status.error.clone() {
             if self.last_good_status.is_none() {
                 let mut baseline = status.clone();
@@ -211,4 +214,17 @@ impl PlaybackRuntime {
         }
         Ok(())
     }
+}
+
+fn transport_status_resets_origin(
+    previous: Option<&RuntimeStatus>,
+    status: &RuntimeStatus,
+) -> bool {
+    status.transport == RuntimeTransportState::Stopped
+        || (status.transport == RuntimeTransportState::Playing
+            && previous
+                .is_some_and(|previous| previous.transport == RuntimeTransportState::Stopped))
+        || (status.sync_source == SyncSource::External
+            && previous
+                .is_some_and(|previous| status.current_ppqn_pulse < previous.current_ppqn_pulse))
 }

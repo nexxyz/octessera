@@ -67,7 +67,6 @@ impl NativeRunner {
     pub(super) fn stop_for_setup_portal(&mut self) {
         self.transport.transport = RuntimeTransportState::Stopped;
         self.reset_transport_position();
-        self.clear_all_link_arp_state();
         self.display.setup_portal = Some(NativeSetupPortalState {
             status: RuntimeSetupPortalStatus {
                 phase: RuntimeSetupPortalPhase::Starting,

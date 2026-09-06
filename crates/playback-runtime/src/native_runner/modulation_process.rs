@@ -382,11 +382,10 @@ impl NativeRunner {
         self.process_modulation_step(force)
     }
 
-    pub(super) fn clear_lfo_audio(&mut self) -> Result<(), String> {
+    pub(super) fn clear_lfo_audio(&mut self) {
         let mut state = std::mem::take(&mut self.modulation_process);
         state.clear_lfo_audio(self);
         self.modulation_process = state;
-        Ok(())
     }
 
     pub(super) fn clear_all_modulation_sources(&mut self) {

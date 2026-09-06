@@ -37,6 +37,10 @@ probability, transpose, and Play FX behavior.
 | *Shift* + *Back* | **Clear active layer** | Re-initialize the active layer. Very useful. Also very easy to press on purpose only. |
 | *Shift* + *Fn* + *click main encoder* | **Context help** | Hold *Shift* + *Fn*, then click a menu option with *Main* to open help for that row. |
 
+Stop, accepted MIDI Start, and resync reset the transport origin, scan, autonomous
+Build cadence, Pattern phase, and Looper playback position. They keep evolved
+worlds, settings, and the recorded loop. Pause/Continue resumes the exact phase.
+
 ## Context help
 
 Context help belongs to the native runtime, not to a desktop-only shortcut

@@ -144,6 +144,13 @@ pub fn pattern_on_tick(
     state
 }
 
+pub(crate) fn reset_transport_phase(state: &mut PatternBehaviorState) {
+    let previous = state.cells.clone();
+    state.phase = 0;
+    recompute_cells(state);
+    state.trigger_types = trigger_types(&previous, &state.cells);
+}
+
 pub fn pattern_render_model(state: &PatternBehaviorState) -> BehaviorRenderModel {
     let label = pattern_spec(&state.kind)
         .map(|spec| spec.label)

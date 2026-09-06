@@ -170,19 +170,13 @@ impl NativeRunner {
         &mut self,
         pulses: u32,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.transport.sync_source == SyncSource::External && !self.midi_clock_in_enabled {
+        if self.transport.sync_source != SyncSource::External
+            || !self.midi_clock_in_enabled
+            || self.transport.transport != RuntimeTransportState::Playing
+        {
             return self.messages_with_snapshot();
         }
-        if self.transport.sync_source == SyncSource::External
-            && self.transport.transport == RuntimeTransportState::Playing
-        {
-            return self.send_external_clock_pulses(pulses);
-        }
-        self.transport.current_ppqn_pulse = self
-            .transport
-            .current_ppqn_pulse
-            .saturating_add(pulses as u64);
-        self.messages_with_snapshot()
+        self.send_external_clock_pulses(pulses)
     }
 
     fn send_external_clock_pulses(&mut self, pulses: u32) -> Result<Vec<RunnerMessage>, String> {

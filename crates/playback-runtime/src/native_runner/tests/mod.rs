@@ -59,6 +59,8 @@ mod step_rates;
 mod store;
 mod store_result_contracts;
 mod structural_draft;
+mod transport_origins;
+mod transport_phase_resets;
 mod trigger_gates;
 mod twinkle;
 mod ui_scenario;

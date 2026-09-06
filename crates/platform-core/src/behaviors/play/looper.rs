@@ -135,6 +135,14 @@ pub fn looper_on_tick(state: LooperState, _context: &mut BehaviorContext) -> Loo
     }
 }
 
+pub(crate) fn reset_transport_phase(state: &mut LooperState) {
+    let previous = state.cells.clone();
+    state.step_index = 0;
+    state.playback_cells.fill(false);
+    state.cells = state.held_cells.clone();
+    state.trigger_types = trigger_types_from_cells(&previous, &state.cells);
+}
+
 pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "looper".into(),

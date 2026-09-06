@@ -3,7 +3,6 @@ use super::*;
 
 impl NativeRunner {
     pub(super) fn clear_patch_state(&mut self) -> Result<(), String> {
-        self.drain_all_layer_engine_notes()?;
         self.stop_for_config_load();
         self.clear_all_modulation_sources();
 
@@ -73,7 +72,6 @@ impl NativeRunner {
 
         self.transport.algorithm_step_pulses = DEFAULT_ALGORITHM_STEP_RED;
         self.transport.layer_algorithm_step_pulses = vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT];
-        self.reset_transport_position();
         self.sync_engine_runtime_config();
         self.sample_assign = None;
         self.sample_browser = None;

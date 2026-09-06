@@ -166,3 +166,36 @@ fn toggle_mode_action_switches_recording_without_clearing_sequence_or_phase() {
     assert_eq!(state.step_index, 1);
     assert_eq!(state.steps[0].len(), 1);
 }
+
+#[test]
+fn reset_transport_phase_restarts_playback_and_preserves_loop_state() {
+    let mut state = looper_init(serde_json::json!({
+        "mode": "play",
+        "lengthSteps": 4
+    }))
+    .unwrap();
+    let live = grid_index(1, 1);
+    let looped = grid_index(2, 2);
+    state.held_cells[live] = true;
+    state.playback_cells[looped] = true;
+    state.cells = combined_cells(&state.held_cells, &state.playback_cells);
+    state.step_index = 3;
+    state.steps[2].push(LooperEvent {
+        cell: looped,
+        kind: LooperEventKind::Press,
+    });
+    let steps = state.steps.clone();
+    let held_cells = state.held_cells.clone();
+
+    reset_transport_phase(&mut state);
+
+    assert_eq!(state.step_index, 0);
+    assert!(state.playback_cells.iter().all(|cell| !cell));
+    assert_eq!(state.cells, held_cells);
+    assert_eq!(state.trigger_types[looped], CellTriggerType::Deactivate);
+    assert_eq!(state.trigger_types[live], CellTriggerType::Stable);
+    assert_eq!(state.steps, steps);
+    assert_eq!(state.mode, "play");
+    assert_eq!(state.length_steps, 4);
+    assert_eq!(state.held_cells, held_cells);
+}
