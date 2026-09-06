@@ -11,9 +11,12 @@ use super::source_worker_transfer::{
 use super::SynthEngine;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
+#[cfg(any(test, feature = "test-support"))]
+pub(super) use super::source_worker_carrier_transfer_bus::split_bus_carriers;
+pub(super) use super::source_worker_carrier_transfer_bus::valid_bus_completion_owner;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub(super) use super::source_worker_carrier_transfer_bus::{
-    restore_bus_carriers_to_engine, split_bus_carriers, take_bus_carriers,
-    valid_bus_completion_owner,
+    restore_bus_carriers_to_engine, take_bus_carriers,
 };
 
 struct OwnerReturnData {

@@ -21,13 +21,13 @@ function New-OrangeLiveBenchmarkPayloadBundle {
     [Parameter(Mandatory)][int]$ReleaseTimeoutSeconds,
     [Parameter(Mandatory)][int]$RuntimeMaxSeconds,
     [Parameter(Mandatory)][ValidateSet("enabled", "disabled")][string]$WorkerTimingMode,
-    [Parameter(Mandatory)][ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode,
+    [Parameter(Mandatory)][ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode,
     [Parameter(Mandatory)][ValidateSet("runtime-candidate", "diagnostic-only")][string]$ExpectedArtifactKind,
     [Parameter(Mandatory)][ValidateSet("hardware-orange-pi-zero-2w", "hardware-orange-pi-zero-2w benchmark-voice-pools-128", "hardware-orange-pi-zero-2w benchmark-voice-pools-256", "hardware-orange-pi-zero-2w routing-tree-benchmark", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-256")][string]$ExpectedCargoFeature,
     [switch]$ContinueOnRecoveredMiss
   )
   if (@("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled." }
-  if (@("inline", "persistent_two_workers", "routing_tree_persistent") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline, persistent_two_workers, or routing_tree_persistent." }
+  if (@("inline", "routing_tree_persistent") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline or routing_tree_persistent." }
   if ($Selection.ExecutorMode -cne $ExecutorMode -or $Selection.WorkerTimingMode -cne $WorkerTimingMode) { throw "Live payload executor and worker timing do not match the selected contract." }
   $expectedLookahead = if ($ExecutorMode -eq "routing_tree_persistent") { $Selection.EngineBlockFrames } else { 0 }
   if ($Selection.LookaheadFrames -ne $expectedLookahead -or $Selection.EffectiveOutputLatencyFrames -ne ($Selection.OutputFrames + $Selection.LookaheadFrames)) { throw "Live payload selection geometry is inconsistent with the selected executor." }
@@ -219,15 +219,6 @@ validate_benchmark_worker_evidence() {
   local marker="$1" require_shutdown="${2:-false}" allow_recovered_miss="${3:-false}" worker_health
   [ "$(json_field executor_mode "$marker")" = __EXECUTOR_MODE__ ]
   case "$(json_field executor_mode "$marker")" in
-    persistent_two_workers)
-      [ "$(json_field worker_health "$marker")" = healthy ]
-      [ "$(json_field worker_thread_name_0 "$marker")" = oct-dsp-src-0 ]
-      [ "$(json_field worker_thread_name_1 "$marker")" = oct-dsp-src-1 ]
-      if [ "$require_shutdown" = true ]; then
-        [ "$(json_field joined_workers "$marker")" = 2 ]
-        [ "$(json_field retirement_error "$marker")" = null ]
-      fi
-      ;;
     inline)
       [ "$(json_field worker_health "$marker")" = disabled ]
       [ -z "$(json_field worker_thread_name_0 "$marker")" ]
@@ -262,10 +253,10 @@ validate_benchmark_worker_threads() {
     comm="$(cat "$task/comm")" || return 1
     case "$comm" in
       oct-dsp-src-0|oct-dsp-tree-0)
-        if { [ "__EXECUTOR_MODE__" = persistent_two_workers ] && [ "$comm" != oct-dsp-src-0 ]; } || { [ "__EXECUTOR_MODE__" = routing_tree_persistent ] && [ "$comm" != oct-dsp-tree-0 ]; } || [ "__EXECUTOR_MODE__" = inline ]; then return 1; fi
+        if { [ "__EXECUTOR_MODE__" = routing_tree_persistent ] && [ "$comm" != oct-dsp-tree-0 ]; } || [ "__EXECUTOR_MODE__" = inline ]; then return 1; fi
         worker_zero=$((worker_zero + 1));;
       oct-dsp-src-1|oct-dsp-tree-1)
-        if { [ "__EXECUTOR_MODE__" = persistent_two_workers ] && [ "$comm" != oct-dsp-src-1 ]; } || { [ "__EXECUTOR_MODE__" = routing_tree_persistent ] && [ "$comm" != oct-dsp-tree-1 ]; } || [ "__EXECUTOR_MODE__" = inline ]; then return 1; fi
+        if { [ "__EXECUTOR_MODE__" = routing_tree_persistent ] && [ "$comm" != oct-dsp-tree-1 ]; } || [ "__EXECUTOR_MODE__" = inline ]; then return 1; fi
         worker_one=$((worker_one + 1));;
       oct-dsp-src-*|oct-dsp-tree-*) return 1;;
       oct-src-reaper) reaper=$((reaper + 1));;

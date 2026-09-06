@@ -460,6 +460,9 @@ pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
 #[path = "render/boot_sweep_tests.rs"]
 mod boot_sweep_tests;
 #[cfg(test)]
+#[path = "render/footer_tests.rs"]
+mod footer_tests;
+#[cfg(test)]
 #[path = "render/hdmi_cache_tests.rs"]
 mod hdmi_cache_tests;
 #[cfg(test)]

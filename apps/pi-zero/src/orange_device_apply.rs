@@ -101,6 +101,7 @@ fn prepare_at(
     payload: &Value,
     boot_id: &str,
 ) -> Result<OrangeDeviceApplyTransaction, String> {
+    crate::usb_config::validate_pi_audio_outputs_payload(payload)?;
     validate_boot_id(boot_id)?;
     let default_path = default_path(store_dir);
     let prior_default_bytes = read_default_bytes(&default_path)?;

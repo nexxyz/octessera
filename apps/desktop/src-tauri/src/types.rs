@@ -1,9 +1,7 @@
 use playback_runtime::RunnerMessage;
-use realtime_engine::synth::{DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE};
+use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
-use rodio_engine_source::{
-    AudioLoadStatusSender, EngineEventReceiver, EngineSource, EngineSourceWorkerShutdownOwner,
-};
+use rodio_engine_source::{AudioLoadStatusSender, EngineEventReceiver, EngineSource};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -56,7 +54,6 @@ pub(crate) struct AudioRuntime {
     _stream: OutputStream,
     handle: OutputStreamHandle,
     sink: Option<Sink>,
-    shutdown_owner: Option<EngineSourceWorkerShutdownOwner>,
 }
 
 impl AudioRuntime {
@@ -67,7 +64,6 @@ impl AudioRuntime {
             _stream: stream,
             handle,
             sink: None,
-            shutdown_owner: None,
         })
     }
 
@@ -77,15 +73,8 @@ impl AudioRuntime {
         load_tx: AudioLoadStatusSender,
     ) -> Result<(), String> {
         self.stop();
-        let block_frames = EngineSource::resolve_block_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES);
-        let (source, shutdown_owner) = EngineSource::with_persistent_workers(
-            control_rx,
-            DEFAULT_AUDIO_SAMPLE_RATE,
-            block_frames,
-            Some(load_tx),
-        )
-        .map_err(|error| format!("audio worker setup failed: {error:?}"))?;
-        self.shutdown_owner = Some(shutdown_owner);
+        let source =
+            EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx));
         let sink = match Sink::try_new(&self.handle) {
             Ok(sink) => sink,
             Err(error) => {
@@ -104,11 +93,6 @@ impl AudioRuntime {
         if let Some(sink) = self.sink.take() {
             sink.stop();
             drop(sink);
-        }
-        if let Some(owner) = self.shutdown_owner.take() {
-            if let Err(error) = owner.try_shutdown() {
-                eprintln!("audio worker shutdown failed: {error:?}");
-            }
         }
     }
 }

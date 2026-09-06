@@ -1,9 +1,9 @@
 use super::*;
-use crate::orange_audio_benchmark::cli::{parse, WorkerTimingMode};
+use crate::orange_audio_benchmark::cli::{parse, BenchmarkExecutorMode, WorkerTimingMode};
 use crate::orange_audio_benchmark::stream;
 
 fn config() -> BenchmarkConfig {
-    parse(vec![
+    let mut config = parse(vec![
         "--benchmark-orange-audio".into(),
         "--scenario".into(),
         "synth_ramp_16".into(),
@@ -16,7 +16,10 @@ fn config() -> BenchmarkConfig {
         "--artifact-sha256".into(),
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
     ])
-    .unwrap()
+    .unwrap();
+    config.executor_mode = BenchmarkExecutorMode::PersistentTwoWorkers;
+    config.worker_timing_mode = WorkerTimingMode::Enabled;
+    config
 }
 
 fn worker_timing() -> BenchmarkWorkerTiming {
@@ -102,8 +105,8 @@ fn benchmark_result(
         expected_alsa_buffer_frames: 256,
         expected_alsa_period_frames: 64,
         internal_block_frames: 256,
-        lookahead_frames: 0,
-        effective_output_latency_frames: 256,
+        lookahead_frames: 256,
+        effective_output_latency_frames: 512,
         sample_format: "F32".into(),
         channels: 2,
         sample_rate: 44_100,
@@ -133,8 +136,8 @@ fn benchmark_result(
         terminal_error: None,
         executor_mode: stream::EXECUTOR_MODE.into(),
         worker_health: "healthy".into(),
-        worker_thread_name_0: stream::expected_worker_thread_names()[0].clone(),
-        worker_thread_name_1: stream::expected_worker_thread_names()[1].clone(),
+        worker_thread_name_0: stream::expected_routing_worker_thread_names()[0].clone(),
+        worker_thread_name_1: stream::expected_routing_worker_thread_names()[1].clone(),
         joined_workers: 2,
         retirement_error: None,
         worker_timing_mode,
@@ -145,6 +148,8 @@ fn benchmark_result(
 fn inline_benchmark_result() -> BenchmarkResult {
     let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
     result.executor_mode = "inline".into();
+    result.lookahead_frames = 0;
+    result.effective_output_latency_frames = 256;
     result.callback_scheduling_priority = Some(70);
     result.callback_scheduling_cpu = Some(1);
     result.persistent_output_counters = PersistentOutputCountersEvidence::default();
@@ -221,8 +226,8 @@ fn result_schema12_requires_worker_timing_and_rejects_unknown_fields() {
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     assert_eq!(value["schema_version"], 12);
-    assert_eq!(value["lookahead_frames"], 0);
-    assert_eq!(value["effective_output_latency_frames"], 256);
+    assert_eq!(value["lookahead_frames"], 256);
+    assert_eq!(value["effective_output_latency_frames"], 512);
     assert_eq!(value["callback_scheduling_cpu"], 1);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["worker_timing"]["workers"][1]["render_ns"], 11);

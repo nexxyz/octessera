@@ -186,6 +186,7 @@ pub(in crate::synth) fn process_fx_bus_slot(
     }
 }
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub(in crate::synth) fn process_fx_bus_slot_with_duck_source(
     params: &FxBusParams,
     state: &mut FxBusState,

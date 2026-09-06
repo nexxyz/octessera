@@ -204,6 +204,7 @@ impl PiPlatformService {
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn save_default_now(&self, payload: &serde_json::Value) -> Result<(), String> {
+        crate::usb_config::validate_pi_audio_outputs_payload(payload)?;
         let generation = self.store_write_barrier.current_generation();
         let _guard = self
             .store_lock

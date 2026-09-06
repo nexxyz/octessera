@@ -151,6 +151,7 @@ impl SynthEngine {
         }
     }
 
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
     pub(super) fn finish_persistent_block(
         &mut self,
         frames: usize,

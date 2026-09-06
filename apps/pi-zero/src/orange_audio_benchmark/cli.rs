@@ -200,7 +200,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     let mut scenario = None;
     let mut output_frames = None;
     let mut engine_block_frames = None;
-    let mut executor_mode = BenchmarkExecutorMode::PersistentTwoWorkers;
+    let mut executor_mode = BenchmarkExecutorMode::RoutingTreePersistent;
     let mut worker_timing_mode = WorkerTimingMode::Enabled;
     let mut warmup_seconds = DEFAULT_WARMUP_SECONDS;
     let mut measure_seconds = DEFAULT_MEASURE_SECONDS;
@@ -225,10 +225,15 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
             }
             "--executor" => {
                 let value = next_value(&mut iter, "executor")?;
-                executor_mode = BenchmarkExecutorMode::parse(&value).ok_or_else(|| {
-                    "executor must be inline, persistent_two_workers, or routing_tree_persistent"
-                        .to_string()
-                })?;
+                executor_mode = match value.as_str() {
+                    "inline" => BenchmarkExecutorMode::Inline,
+                    "routing_tree_persistent" => BenchmarkExecutorMode::RoutingTreePersistent,
+                    "persistent_two_workers" => return Err(
+                        "persistent_two_workers executor was removed; use routing_tree_persistent"
+                            .into(),
+                    ),
+                    _ => return Err("executor must be inline or routing_tree_persistent".into()),
+                };
             }
             "--worker-timing" => {
                 let value = next_value(&mut iter, "worker timing")?;

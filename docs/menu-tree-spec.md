@@ -28,9 +28,11 @@ Root (group)
 
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 
-The System section's `Audio / USB` group contains the independent Jack Audio,
-USB Audio, HDMI Audio, USB MIDI, Save / Reboot, Start SD2 Xfer, and Stop SD2
-Xfer rows. See the split-out tree for the stable order and restart semantics.
+The System section's `Audio / USB` group contains USB Audio, HDMI Audio, USB
+MIDI, Save / Reboot, Start SD2 Xfer, and Stop SD2 Xfer on Pi hardware; Jack is
+the always-on primary and its no-op row is omitted there. Desktop retains its
+editable Jack control. USB and HDMI audio mirror the canonical Jack mix and do
+not replace it; HDMI audio remains separate from HDMI video.
 
 On Orange-capability hosts, `System > Sound` shows `DSP Mode` in place of
 `Output Buffer`: `Inline / low latency` (default) or `Multicore / capacity`.

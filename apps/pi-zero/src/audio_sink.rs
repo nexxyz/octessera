@@ -28,8 +28,19 @@ impl AudioSink {
     }
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    pub(crate) fn startup(_outputs: AudioOutputSet) -> Vec<Self> {
+        vec![Self::Jack]
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     pub(crate) fn startup(outputs: AudioOutputSet) -> Vec<Self> {
-        outputs.dac().then_some(Self::Jack).into_iter().collect()
+        let mut sinks = vec![Self::Jack];
+        sinks.extend(
+            [Self::Usb, Self::Hdmi]
+                .into_iter()
+                .filter(|sink| Self::selected(outputs).contains(sink)),
+        );
+        sinks
     }
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -65,7 +76,7 @@ mod tests {
 
         assert_eq!(AudioSink::startup(jack), vec![AudioSink::Jack]);
         assert!(AudioSink::optional_recovery(jack).is_empty());
-        assert!(AudioSink::startup(usb).is_empty());
+        assert_eq!(AudioSink::startup(usb), vec![AudioSink::Jack]);
         assert_eq!(AudioSink::optional_recovery(usb), vec![AudioSink::Usb]);
         assert_eq!(AudioSink::startup(both), vec![AudioSink::Jack]);
         assert_eq!(AudioSink::optional_recovery(both), vec![AudioSink::Usb]);

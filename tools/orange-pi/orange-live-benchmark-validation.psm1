@@ -15,7 +15,7 @@ function Assert-OrangeLiveBenchmarkSelection {
     [Parameter(Mandatory)][int]$OutputFrames,
     [Parameter(Mandatory)][ValidateSet(32, 64, 128, 256)][int]$EngineBlockFrames,
     [Parameter(Mandatory)][int]$MeasureSeconds,
-    [ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode = "persistent_two_workers",
+    [ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode = "routing_tree_persistent",
     [string]$WorkerTimingMode = "",
     [bool]$AllowLongRepeat = $false
   )
@@ -74,7 +74,7 @@ function Assert-OrangeLiveBenchmarkSelection {
 }
 function Get-OrangeLiveMatrixPlan {
   param(
-    [ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode = "persistent_two_workers",
+    [ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode = "routing_tree_persistent",
     [string]$WorkerTimingMode = ""
   )
   $plan = @()

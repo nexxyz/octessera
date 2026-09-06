@@ -1,8 +1,8 @@
 use super::*;
 use crate::usb_config::UsbAudioOut;
 use playback_runtime::{
-    HostMessage, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeSetupPortalPhase,
-    RuntimeStoreResult,
+    AudioOutputSet, HostMessage, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeSetupPortalPhase, RuntimeStoreResult,
 };
 
 fn assert_sd2_store_error(response: &[HostMessage], message: &str) {
@@ -25,7 +25,7 @@ fn raspberry_sd2_start_rejects_active_usb_audio() {
         root.join("samples"),
         Arc::new(|_| {}),
         false,
-        UsbAudioOut::Usb,
+        AudioOutputSet::from_flags(false, true, false).unwrap(),
     );
     let request = RuntimePlatformRequest::new(
         RuntimePlatformEffect::UsbSdTransferStart,

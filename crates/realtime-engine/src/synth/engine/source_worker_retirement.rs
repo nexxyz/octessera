@@ -1,13 +1,24 @@
-use super::source_worker_lifecycle::SourceWorkerCloseState;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+use std::sync::atomic::AtomicBool;
 #[cfg(any(test, feature = "test-support"))]
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use std::sync::{Arc, Weak};
 
-pub struct SourceWorkerRetirement {
-    pub(super) close: Weak<SourceWorkerCloseState>,
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+pub(super) struct SourceWorkerCloseState {
+    pub(super) closed: AtomicBool,
     pub(super) generation: u64,
 }
 
+pub struct SourceWorkerRetirement {
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+    pub(super) close: Weak<SourceWorkerCloseState>,
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+    pub(super) generation: u64,
+}
+
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 impl SourceWorkerRetirement {
     pub(super) fn new(close: &Arc<SourceWorkerCloseState>) -> Self {
         Self {

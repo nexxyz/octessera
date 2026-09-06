@@ -37,6 +37,11 @@ function Assert-Contains {
   if ($Text.IndexOf($Value, [StringComparison]::Ordinal) -lt 0) { throw "Missing expected text: $Value" }
 }
 
+if ($driverSource -notmatch '\$arguments \+= @\("-Mode", "LiveAudioBenchmark", "-WorkerTimingMode", "disabled", "-ExecutorMode", "inline", "-Scenario", \$Cell\.scenario') { throw "Orange baseline live child arguments did not retain the inline executor and disabled worker timing." }
+Assert-Contains $driverSource 'Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate"'
+Assert-Contains $driverSource '-BuildSpec $buildSpec'
+if ($driverSource -match 'persistent_two_workers') { throw "Orange performance baseline retained the removed two-worker executor." }
+
 Assert-Contains $driverSource "/etc/octessera/build-metadata.env"
 if ($driverSource -match "/etc/octessera/board-profile\.env") { throw "Orange baseline passive identity regressed to the Raspberry board-profile path." }
 
@@ -155,7 +160,13 @@ Assert-Contains $baselinePrint "runtime-candidate-sha256.txt"
 Assert-Contains $driverSource "Get-OrangeSafetyFailureReason"
 Assert-Throws { & $runner -Mode ProfileBaseline -Scenario unknown_scenario -EngineBlockFrames 256 -ProfileMeasureFrames 256 -PrintOnly } "unknown profile ID"
 Assert-Throws { & $runner -Mode ProfileBaseline -Scenario synth_cross_slot_16 -EngineBlockFrames 128 -ProfileMeasureFrames 256 -PrintOnly } "profile geometry"
-if ((& $runner -Mode LiveAudioBenchmark -Scenario mixed_16_synth_32_sample -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 30 -Artifact $baselineArtifact -Metadata "$baselineArtifact.metadata.json" -AllowServiceInterruption -PrintOnly | Out-String) -notmatch "output=128 period=32 engine=32") { throw "Orange 128/32 baseline-live geometry was not retained." }
+$baselineLivePrint = & $runner -Mode LiveAudioBenchmark -Scenario mixed_16_synth_32_sample -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 30 -Artifact $baselineArtifact -Metadata "$baselineArtifact.metadata.json" -AllowServiceInterruption -ExecutorMode inline -WorkerTimingMode disabled -PrintOnly | Out-String
+Assert-Contains $baselineLivePrint "output=128 period=32 engine=32"
+Assert-Contains $baselineLivePrint "worker-timing=disabled executor=inline"
+Assert-Contains $baselineLivePrint "--worker-timing disabled"
+Assert-Contains $baselineLivePrint "--executor inline"
+Assert-Contains $baselineLivePrint '"artifact_kind":"runtime-candidate"'
+Assert-Contains $baselineLivePrint '"cargo_feature":"hardware-orange-pi-zero-2w"'
 if ($runnerSource -match "with-pi-ssh|run-pi-performance-baseline") { throw "Orange runner references Raspberry tooling." }
 if ($driverSource -match "with-pi-ssh|run-pi-timing-probes") { throw "Orange driver references Raspberry tooling." }
 

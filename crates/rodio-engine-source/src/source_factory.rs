@@ -1,6 +1,9 @@
 use super::*;
+#[cfg(any(test, feature = "routing-tree-executor"))]
+use crossbeam_channel::bounded;
 
 impl EngineSource {
+    #[cfg(test)]
     pub fn with_persistent_workers(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -16,6 +19,7 @@ impl EngineSource {
         )
     }
 
+    #[cfg(test)]
     pub fn with_persistent_workers_with_hook(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -33,6 +37,7 @@ impl EngineSource {
         )
     }
 
+    #[cfg(test)]
     pub fn with_persistent_workers_for_benchmark(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -55,6 +60,7 @@ impl EngineSource {
         )
     }
 
+    #[cfg(test)]
     pub fn with_persistent_workers_for_benchmark_with_hook(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -220,6 +226,7 @@ impl EngineSource {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn with_persistent_workers_with_engine(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -240,7 +247,7 @@ impl EngineSource {
         )
     }
 
-    #[cfg(feature = "source-worker-benchmark-timing")]
+    #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
     pub fn with_persistent_workers_for_benchmark_with_timing_probe(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -270,7 +277,7 @@ impl EngineSource {
         )
     }
 
-    #[cfg(feature = "source-worker-benchmark-timing")]
+    #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
     pub fn with_persistent_workers_for_benchmark_with_timing_probe_and_hook(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -304,6 +311,7 @@ impl EngineSource {
         )
     }
 
+    #[cfg(test)]
     fn finish_persistent_workers(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -324,6 +332,7 @@ impl EngineSource {
         )
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     fn finish_workers(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
@@ -360,6 +369,7 @@ impl EngineSource {
         Ok((source, shutdown_owner))
     }
 
+    #[cfg(test)]
     pub(crate) fn with_persistent_workers_with_engine_and_hook(
         control_rx: EngineEventReceiver,
         sample_rate: u32,

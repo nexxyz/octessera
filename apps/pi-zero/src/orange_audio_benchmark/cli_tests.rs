@@ -24,6 +24,14 @@ fn args_for(output_frames: u32, internal_frames: usize) -> Vec<String> {
         "--engine-block-frames",
         internal_frames.to_string(),
     );
+    if output_frames > 256 {
+        args.extend([
+            "--executor".into(),
+            "inline".into(),
+            "--worker-timing".into(),
+            "disabled".into(),
+        ]);
+    }
     args
 }
 
@@ -84,7 +92,7 @@ fn approved_cli_tuples_store_independent_geometry() {
     let config = parse(valid_args()).unwrap();
     assert_eq!(
         config.executor_mode,
-        BenchmarkExecutorMode::PersistentTwoWorkers
+        BenchmarkExecutorMode::RoutingTreePersistent
     );
     assert_eq!(config.worker_timing_mode, WorkerTimingMode::Enabled);
     assert_ne!(config.result_path, config.progress_path);
@@ -196,10 +204,6 @@ fn executor_modes_round_trip_exactly_and_require_disabled_inline_timing() {
     for (value, expected) in [
         ("inline", BenchmarkExecutorMode::Inline),
         (
-            "persistent_two_workers",
-            BenchmarkExecutorMode::PersistentTwoWorkers,
-        ),
-        (
             "routing_tree_persistent",
             BenchmarkExecutorMode::RoutingTreePersistent,
         ),
@@ -236,6 +240,12 @@ fn executor_modes_round_trip_exactly_and_require_disabled_inline_timing() {
         args.extend(["--executor".into(), value.into()]);
         assert!(parse(args).is_err(), "executor value should fail: {value}");
     }
+    let mut removed = valid_args();
+    removed.extend(["--executor".into(), "persistent_two_workers".into()]);
+    assert_eq!(
+        parse(removed).unwrap_err(),
+        "persistent_two_workers executor was removed; use routing_tree_persistent"
+    );
 }
 
 #[cfg(not(feature = "routing-tree-benchmark"))]

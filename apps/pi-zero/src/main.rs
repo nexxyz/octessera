@@ -227,6 +227,14 @@ fn main() {
 
     println!("octessera - Pi native runtime");
 
+    let store_dir = default_store_dir();
+    let usb_config = match usb_config::read_usb_runtime_config(&store_dir) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("USB runtime configuration is unavailable: {error}");
+            std::process::exit(2);
+        }
+    };
     let hardware = match init_hardware(handoff_mode == boot_oled_handoff::HandoffMode::Legacy) {
         Ok(devices) => devices,
         Err(fault) => hardware_fault::run_hardware_fault_mode(fault),
@@ -247,14 +255,6 @@ fn main() {
         _dac,
     } = hardware;
     let seesaw_io = seesaw_io::spawn_interrupt(trellis, neokey, input_interrupt);
-    let store_dir = default_store_dir();
-    let usb_config = match usb_config::read_usb_runtime_config(&store_dir) {
-        Ok(config) => config,
-        Err(error) => {
-            eprintln!("USB runtime configuration is unavailable: {error}");
-            std::process::exit(2);
-        }
-    };
     let audio = match init_audio(
         usb_config::audio_output_buffer_frames_from_default_config(&store_dir),
         usb_config.audio_outputs,

@@ -8,12 +8,10 @@ use super::source_worker_health::{
 use super::source_worker_lease::OwnerLease;
 #[cfg(test)]
 use super::source_worker_lifecycle::SourceWorkerLifecycle;
-use super::source_worker_lifecycle::{
-    CompletedEnvelope, OwnerEnvelope, SourceWorkerCloseState, SourceWorkerScratch,
-};
+use super::source_worker_lifecycle::{CompletedEnvelope, OwnerEnvelope, SourceWorkerScratch};
 use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
 use super::source_worker_protocol::{SourceWorkerMode, WorkStamp, WorkerCommand, WorkerPhase};
-use super::source_worker_retirement::SourceWorkerRetirement;
+use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use crossbeam_channel::{Receiver, Sender};

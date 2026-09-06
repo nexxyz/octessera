@@ -232,7 +232,7 @@ correctly flag a deliberately running `octessera.service`. The passive study
 does not make that claim: it reports the initial service state and leaves it
 alone.
 
-### Phase 1 actual-limit diagnostics
+### Product Capacity qualification
 
 Expanded pool builds use `-BenchmarkVoicePoolCapacity 128` or `256`. They build
 only `octessera-pi`, mark the sidecar `diagnostic-only`, and write to the
@@ -242,17 +242,14 @@ capacity-specific directories under `target/orange-pi-cross-diagnostics/`.
 ./tools/orange-pi/build-orange-cross.ps1 `
   -Binary octessera-pi `
   -Profile release `
+  -RoutingTreeBenchmark `
   -BenchmarkVoicePoolCapacity 128
 ```
 
-Dynamic controls are `capacity_synth_<N>`, `capacity_sample_<N>`, and
-`capacity_mixed_<S>_<P>`. Representative runs use `capacity_analogue_<u>`:
-`3u` synth voices, `u` sample voices, and proportionally scaled bus, global,
-and momentary FX up to the product limits. Each value must be positive and use
-no leading zeros. Analogue units 1–42 require the 128-pool artifact; units
-43–85 require the 256-pool artifact. Phase-1 runs use output 256, ALSA period
-64, and engine block 64. Use 30 seconds for a screen and 180 seconds for a
-qualification run:
+The current product Capacity qualification is the exact
+`capacity_analogue_16` routing run: output 256, ALSA period 64, internal 64,
+routing lookahead 64, and a diagnostic routing-tree artifact. Build the
+128-voice diagnostic pool and run the 120-second measurement:
 
 ```powershell
 ./tools/orange-pi/run-orange-capability-study.ps1 `
@@ -260,17 +257,23 @@ qualification run:
   -Scenario capacity_analogue_16 `
   -OutputFrames 256 `
   -EngineBlockFrames 64 `
-  -MeasureSeconds 30 `
-  -Artifact target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi `
-  -Metadata target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi.metadata.json `
-  -AllowServiceInterruption -PrintOnly
+  -MeasureSeconds 120 `
+  -ExecutorMode routing_tree_persistent `
+  -WorkerTimingMode enabled `
+  -Artifact target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi `
+  -Metadata target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi.metadata.json `
+  -AllowServiceInterruption
 ```
 
-Use the release profile and matching hash/source sidecar. Accept an analogue
-result only when the retained start/end voice and FX counts match the selected
-unit, preview voices remain zero, and voice steals and admission drops remain
-zero. This diagnostic workflow does not change shipped
+Use the release profile and matching hash/source sidecar. Accept the result only
+when the retained start/end voice and FX counts match unit 16, preview voices
+remain zero, and voice steals and admission drops remain zero. This diagnostic
+workflow does not change shipped
 `resources/platform-capabilities.json` or `config/defaults/`.
+
+The other `capacity_synth_<N>`, `capacity_sample_<N>`,
+`capacity_mixed_<S>_<P>`, and `capacity_analogue_<u>` selections remain
+diagnostic sweeps. They are not product Capacity qualification.
 
 The bounded live-candidate plan is reserved for Phase 2 and requires an
 explicit interruption acknowledgement:
@@ -301,18 +304,18 @@ measure duration, artifact, metadata sidecar, and service-interruption consent.
 The runner waits for readiness and fixed DAC ALSA geometry before publishing the
 identity-bound release file that lets the native process continue.
 
-Readiness, progress, and release evidence use schema 4, 4, and 2 respectively.
-Terminal results use schema 5 and are
+Readiness, progress, and release evidence use schema 5, 5, and 2 respectively.
+Terminal results use schema 12 and are
 independently recomputed by the host. Requested output buffer, negotiated ALSA
 period, and internal engine block are separate fields. CPAL callback batches are
 variable positive counts no larger than the requested buffer; render/audio-
 duration ratios use each callback's actual frame count, and callback-spacing
-lateness uses the fixed ALSA period. The benchmark reports
-`persistent_two_workers`, healthy worker status, exactly two joined workers, no
-retirement error, the two worker names `oct-dsp-src-0` and `oct-dsp-src-1`, and
-the combined reaper name `oct-src-reaper`.
-Schema-1/3 readiness/progress and schema-2/4 terminal results are
-rejected. Callback batch size changes are recorded as evidence, not treated as a period mismatch; zero or oversized
+lateness uses the fixed ALSA period. The dedicated routing-tree matrix reports
+`routing_tree_persistent`, enabled worker timing, healthy worker status, exactly
+two joined workers, no retirement error, the two worker names `oct-dsp-tree-0`
+and `oct-dsp-tree-1`, and the combined reaper name `oct-src-reaper`.
+Readiness/progress schemas other than 5 and terminal-result schemas other than
+12 are rejected. Callback batch size changes are recorded as evidence, not treated as a period mismatch; zero or oversized
 batches and invalid-frame counts remain terminal failures. Each retained result
 also exposes the aggregate render-duration ratio from total render nanoseconds,
 rendered frames, and sample rate; missing or zero aggregate evidence fails
@@ -327,6 +330,8 @@ Preview one cell without transport:
   -OutputFrames 256 `
   -EngineBlockFrames 256 `
   -MeasureSeconds 30 `
+  -ExecutorMode inline `
+  -WorkerTimingMode disabled `
   -Artifact target/orange-pi-cross/octessera-pi `
   -Metadata target/orange-pi-cross/octessera-pi.metadata.json `
   -AllowServiceInterruption -PrintOnly
@@ -334,9 +339,13 @@ Preview one cell without transport:
 
 The individual runner approves output/engine tuples 128/32, 256/64, 256/128,
 256/256, 512/128, and 1024/256. ALSA periods remain fixed by output at
-32/64/128/256 for 128/256/512/1024 output frames. The fixed matrix is A
-(256/128, all 11 scenarios) and B (512/128, all 11 scenarios). A
-120-second run is accepted only with the explicit
+32/64/128/256 for 128/256/512/1024 output frames. The frozen routing-tree
+comparison matrix is A (256/128, all 11 scenarios) plus the selected A120
+repeat; it uses the diagnostic-only routing-tree artifact and enabled worker
+timing. It is comparison evidence, not product Capacity qualification or a
+current default. The cross-board performance baseline instead uses its
+mixed-geometry cells with `inline`, disabled worker timing, and the production
+`runtime-candidate` artifact. A 120-second run is accepted only with the explicit
 `-AllowLongRepeat` switch; the matrix runner selects the worst passing A cell
 before requesting that repeat.
 

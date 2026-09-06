@@ -6,6 +6,9 @@ use super::cpal_audio_output::build_cpal_stream;
 use super::cpal_audio_output::build_orange_cpal_stream;
 use super::cpal_audio_output::AudioSourceExecutionMode;
 use super::cpal_audio_output::BuiltAudioStream;
+use super::cpal_audio_output::EngineSourceOptions;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use super::cpal_audio_output::OrangeAudioProfile;
 use super::{AudioSink, RecordingTapState};
 use crate::audio::default_pi_instruments;
 use crate::audio_priority::qualify_callback_scheduler;
@@ -14,7 +17,10 @@ use crate::audio_stream_health::AudioStreamHealth;
 use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
 #[cfg(test)]
 use rodio_engine_source::EngineEventReceiver;
-use rodio_engine_source::{event_queue, AudioLoadStatusSender, EngineEvent, EngineEventSender};
+use rodio_engine_source::{
+    event_queue, AudioLoadStatusSender, EngineEvent, EngineEventSender, PcmMirrorConsumer,
+    PcmMirrorProducers,
+};
 use std::time::Duration;
 
 pub(super) const CALLBACK_SCHEDULING_STARTUP_TIMEOUT: Duration = Duration::from_millis(250);
@@ -22,49 +28,107 @@ pub(super) const CALLBACK_SCHEDULING_STARTUP_TIMEOUT: Duration = Duration::from_
 const USB_AUDIO_STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
 
 pub(crate) struct OpenedAudioSink {
-    pub(crate) engine_tx: EngineEventSender,
+    pub(crate) engine_tx: Option<EngineEventSender>,
     pub(crate) _stream: Option<Box<BuiltAudioStream>>,
     pub(crate) health: AudioStreamHealth,
     #[cfg(test)]
     pub(crate) _test_engine_rx: Option<std::sync::Arc<std::sync::Mutex<EngineEventReceiver>>>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum AudioConstructionConfig {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    OutputBuffer(Option<u32>),
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    Orange(OrangeAudioProfile),
+}
+
+impl AudioConstructionConfig {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    pub(super) const fn raspberry(output_buffer_frames: Option<u32>) -> Self {
+        Self::OutputBuffer(output_buffer_frames)
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(super) const fn orange(profile: OrangeAudioProfile) -> Self {
+        Self::Orange(profile)
+    }
+}
+
 pub(super) type AudioSinkOpener = fn(
-    Option<u32>,
+    AudioConstructionConfig,
     AudioSink,
     Option<RecordingTapState>,
     Option<AudioLoadStatusSender>,
+    PcmMirrorProducers,
+    Option<PcmMirrorConsumer>,
 ) -> Result<OpenedAudioSink, RouteOpenError>;
 
-pub(super) fn source_execution_mode(sink: AudioSink) -> AudioSourceExecutionMode {
-    if cfg!(feature = "hardware-orange-pi-zero-2w") && sink == AudioSink::Jack {
-        AudioSourceExecutionMode::PersistentTwoWorkers
-    } else {
-        AudioSourceExecutionMode::Inline
+pub(super) fn source_execution_mode(
+    sink: AudioSink,
+    config: AudioConstructionConfig,
+) -> AudioSourceExecutionMode {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let _ = (sink, config);
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    if sink == AudioSink::Jack
+        && matches!(
+            config,
+            AudioConstructionConfig::Orange(OrangeAudioProfile {
+                optimization: playback_runtime::AudioOptimization::Capacity,
+                ..
+            })
+        )
+    {
+        return AudioSourceExecutionMode::RoutingTree;
     }
+    AudioSourceExecutionMode::Inline
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn open_audio_sink(
-    output_buffer_frames: Option<u32>,
+    config: AudioConstructionConfig,
     sink: AudioSink,
     recording_tap: Option<RecordingTapState>,
     _load_tx: Option<AudioLoadStatusSender>,
+    mirror_producers: PcmMirrorProducers,
+    mirror_consumer: Option<PcmMirrorConsumer>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
-    let (engine_tx, engine_rx) = event_queue();
+    let AudioConstructionConfig::OutputBuffer(output_buffer_frames) = config;
     let health = if sink == AudioSink::Jack {
         AudioStreamHealth::new(format!("{sink:?}"))
     } else {
         AudioStreamHealth::optional(format!("{sink:?}"))
     };
-    let built = build_cpal_stream(
-        engine_rx,
-        output_buffer_frames,
-        sink,
-        recording_tap,
-        health.clone(),
-        source_execution_mode(sink),
-    )?;
+    let (built, engine_tx) = if sink == AudioSink::Jack {
+        let (engine_tx, engine_rx) = event_queue();
+        let built = build_cpal_stream(
+            engine_rx,
+            output_buffer_frames,
+            sink,
+            EngineSourceOptions {
+                recording_tap,
+                load_tx: None,
+                mirror_producers,
+            },
+            health.clone(),
+            source_execution_mode(sink, config),
+        )?;
+        (built, Some(engine_tx))
+    } else {
+        let consumer = mirror_consumer.ok_or_else(|| {
+            RouteOpenError::Fault(format!("{sink:?} audio mirror is not configured"))
+        })?;
+        (
+            super::cpal_audio_output::build_cpal_mirror_stream(
+                output_buffer_frames,
+                sink,
+                consumer,
+                health.clone(),
+            )?,
+            None,
+        )
+    };
     if let Err(error) = built.play() {
         if let Err(status) = built.teardown() {
             return Err(super::cpal_audio_output::map_shutdown_error(status));
@@ -86,11 +150,13 @@ pub(super) fn open_audio_sink(
             )));
         }
     }
-    engine_tx
-        .send(EngineEvent::SetPreparedInstruments(
-            prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
-        ))
-        .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
+    if let Some(engine_tx) = engine_tx.as_ref() {
+        engine_tx
+            .send(EngineEvent::SetPreparedInstruments(
+                prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
+            ))
+            .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
+    }
     Ok(OpenedAudioSink {
         engine_tx,
         _stream: Some(Box::new(built)),
@@ -102,37 +168,69 @@ pub(super) fn open_audio_sink(
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(super) fn open_orange_audio_sink(
-    output_buffer_frames: Option<u32>,
+    config: AudioConstructionConfig,
     sink: AudioSink,
     recording_tap: Option<RecordingTapState>,
     load_tx: Option<AudioLoadStatusSender>,
+    mirror_producers: PcmMirrorProducers,
+    mirror_consumer: Option<PcmMirrorConsumer>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
     let health = match sink {
         AudioSink::Jack => AudioStreamHealth::new("Jack".into()),
         AudioSink::Usb => AudioStreamHealth::optional("UAC2Gadget".into()),
         AudioSink::Hdmi => AudioStreamHealth::optional("HDMI".into()),
     };
-    open_orange_audio_sink_with_health(output_buffer_frames, sink, health, recording_tap, load_tx)
+    open_orange_audio_sink_with_health(
+        config,
+        sink,
+        health,
+        recording_tap,
+        load_tx,
+        mirror_producers,
+        mirror_consumer,
+    )
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(super) fn open_orange_audio_sink_with_health(
-    output_buffer_frames: Option<u32>,
+    config: AudioConstructionConfig,
     sink: AudioSink,
     health: AudioStreamHealth,
     recording_tap: Option<RecordingTapState>,
     load_tx: Option<AudioLoadStatusSender>,
+    mirror_producers: PcmMirrorProducers,
+    mirror_consumer: Option<PcmMirrorConsumer>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
-    let (engine_tx, engine_rx) = event_queue();
-    let built = build_orange_cpal_stream(
-        engine_rx,
-        output_buffer_frames,
-        sink,
-        recording_tap,
-        health.clone(),
-        source_execution_mode(sink),
-        load_tx,
-    )?;
+    let AudioConstructionConfig::Orange(profile) = config;
+    let (built, engine_tx) = if sink == AudioSink::Jack {
+        let (engine_tx, engine_rx) = event_queue();
+        let built = build_orange_cpal_stream(
+            engine_rx,
+            profile,
+            sink,
+            EngineSourceOptions {
+                recording_tap,
+                load_tx,
+                mirror_producers,
+            },
+            health.clone(),
+            source_execution_mode(sink, AudioConstructionConfig::Orange(profile)),
+        )?;
+        (built, Some(engine_tx))
+    } else {
+        let consumer = mirror_consumer.ok_or_else(|| {
+            RouteOpenError::Fault(format!("{sink:?} audio mirror is not configured"))
+        })?;
+        (
+            super::cpal_audio_output::build_orange_cpal_mirror_stream(
+                profile,
+                sink,
+                consumer,
+                health.clone(),
+            )?,
+            None,
+        )
+    };
     if let Err(error) = built.play() {
         if let Err(status) = built.teardown() {
             return Err(super::cpal_audio_output::map_shutdown_error(status));
@@ -151,11 +249,13 @@ pub(super) fn open_orange_audio_sink_with_health(
         .map_err(RouteOpenError::Fault)?;
         built
     };
-    engine_tx
-        .send(EngineEvent::SetPreparedInstruments(
-            prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
-        ))
-        .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
+    if let Some(engine_tx) = engine_tx.as_ref() {
+        engine_tx
+            .send(EngineEvent::SetPreparedInstruments(
+                prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
+            ))
+            .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
+    }
     Ok(OpenedAudioSink {
         engine_tx,
         _stream: Some(Box::new(built)),

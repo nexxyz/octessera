@@ -32,38 +32,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     ),
                 ],
             ),
-            group(
-                "Audio / USB",
-                vec![
-                    bool_item("Jack Audio", "audioOutputs.dac", config.audio_outputs.dac()),
-                    bool_item("USB Audio", "audioOutputs.usb", config.audio_outputs.usb()),
-                    bool_item(
-                        "HDMI Audio",
-                        "audioOutputs.hdmi",
-                        config.audio_outputs.hdmi(),
-                    ),
-                    bool_item(
-                        "MIDI Out",
-                        "usb.midiOutEnabled",
-                        config.usb_midi_out_enabled,
-                    ),
-                    action_item(
-                        "Save / Reboot",
-                        "audio.applyReboot",
-                        NativeMenuAction::PlatformEffect("audio.applyReboot".into()),
-                    ),
-                    action_item(
-                        "Start SD2 Xfer",
-                        "usb.sdTransferStart",
-                        NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
-                    ),
-                    action_item(
-                        "Stop SD2 Xfer",
-                        "usb.sdTransferStop",
-                        NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
-                    ),
-                ],
-            ),
+            audio_usb_group(config),
             group(
                 "Sound",
                 vec![
@@ -306,6 +275,42 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
             ),
         ],
     )
+}
+
+fn audio_usb_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    let children = (!config.jack_audio_required)
+        .then(|| bool_item("Jack Audio", "audioOutputs.dac", config.audio_outputs.dac()))
+        .into_iter()
+        .chain([
+            bool_item("USB Audio", "audioOutputs.usb", config.audio_outputs.usb()),
+            bool_item(
+                "HDMI Audio",
+                "audioOutputs.hdmi",
+                config.audio_outputs.hdmi(),
+            ),
+            bool_item(
+                "MIDI Out",
+                "usb.midiOutEnabled",
+                config.usb_midi_out_enabled,
+            ),
+            action_item(
+                "Save / Reboot",
+                "audio.applyReboot",
+                NativeMenuAction::PlatformEffect("audio.applyReboot".into()),
+            ),
+            action_item(
+                "Start SD2 Xfer",
+                "usb.sdTransferStart",
+                NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
+            ),
+            action_item(
+                "Stop SD2 Xfer",
+                "usb.sdTransferStop",
+                NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
+            ),
+        ])
+        .collect();
+    group("Audio / USB", children)
 }
 
 fn hdmi_group(config: &NativeMenuConfig) -> NativeMenuItem {

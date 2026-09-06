@@ -55,10 +55,10 @@ logo+wordmark frame before its root-installed systemd service starts the sweep;
 the service uses the Pi SPI/GPIO adapter. Orange's selected initramfs writes one
 static RGB565 frame with its fixed Python closure before its root-installed
 Python OLED utility starts the H618 SPI/GPIO sweep.
-Orange readiness additionally applies the selected-route rules: every
-non-empty Jack/USB/HDMI set is valid, Jack is required only when selected,
-recognized disconnected USB or HDMI may wait, selected faults block readiness,
-and no route is a fallback for another. The source/build contract and physical
+Orange readiness additionally applies the selected-route rules: every valid Pi
+audio set includes always-on Jack, while USB and HDMI audio are optional
+mirrors of the Jack mix. Optional mirrors may be absent, waiting, or faulted
+without blocking or replacing Jack. HDMI audio is separate from HDMI video. The source/build contract and physical
 qualification are separate: constructor outputs and repository checks do not
 establish a physical result. The [current artifact record](../userdocs/release-records/v0.8.1.md)
 records artifact and automated evidence; physical FAT remains separate. Both
@@ -84,10 +84,11 @@ uses exactly `hw:CARD=octesseradac,DEV=0` with verified stereo support. The
 production image constructs the AHUB0 vendor dummy-codec route and exact
 `octessera-dac` playback card during image construction; it does not depend on a
 manual or experimental audio overlay.
-The native menu persists Jack Audio, USB Audio, and HDMI Audio independently;
-every non-empty output set is valid. Jack is fatal/required only when selected;
-recognized disconnected USB or HDMI routes may wait, selected route faults block
-readiness, and no route is used as a fallback. Simultaneous physical outputs
+The native menu persists the optional USB Audio and HDMI Audio choices
+independently; Pi omits the no-op Jack toggle because Jack is always on. Desktop
+retains its flexible Jack control. USB and HDMI mirror the canonical Jack mix;
+their absent, waiting, or faulted status is route-local and does not block
+readiness or replace Jack. Simultaneous physical outputs
 use independent unsynchronized clocks and can drift or echo; this phase does
 not provide sample alignment. The board adapters use
 `/sys/class/drm/card0-HDMI-A-1`; Raspberry code pins that card0 identity and
@@ -215,8 +216,8 @@ The metadata command is read-only. The active hardware test is
 staging, and electrical gates; it must not be run against an unverified device
 or wiring harness.
 
-The native runtime contract exposes Jack Audio, USB Audio, and HDMI Audio
-independently on the Orange profile under the selected-route rules above. The
+The native runtime keeps Jack Audio on while USB Audio and HDMI Audio remain
+independently selectable optional mirrors on the Orange profile. The
 smoke artifacts remain diagnostic-only. The production runtime routes internal
 synth/sample audio through the realtime engine and emits MIDI through the native
 host adapter. Orange Check, Apply, and Rollback use the root-owned broker and

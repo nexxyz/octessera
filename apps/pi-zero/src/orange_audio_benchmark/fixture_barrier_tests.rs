@@ -18,10 +18,7 @@ const SAMPLE_RATE: u32 = 44_100;
 
 #[test]
 fn fixture_profile_barriers_match_executor_lookahead_and_publish_next_profile() {
-    let modes = [
-        BenchmarkExecutorMode::Inline,
-        BenchmarkExecutorMode::PersistentTwoWorkers,
-    ];
+    let modes = [BenchmarkExecutorMode::Inline];
     for executor_mode in modes {
         assert_fixture_profile_barriers(executor_mode, 1);
     }
@@ -146,14 +143,7 @@ fn source_for_executor(
             None,
         ),
         BenchmarkExecutorMode::PersistentTwoWorkers => {
-            let (source, shutdown) = EngineSource::with_persistent_workers_for_benchmark(
-                receiver,
-                SAMPLE_RATE,
-                BLOCK_FRAMES,
-                None,
-            )
-            .expect("persistent source");
-            (source, Some(shutdown))
+            unreachable!("persistent_two_workers executor was removed")
         }
         #[cfg(feature = "routing-tree-benchmark")]
         BenchmarkExecutorMode::RoutingTreePersistent => {

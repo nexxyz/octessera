@@ -22,6 +22,7 @@ pub(crate) fn startup_fatal_code(operation: OrangeStartupOperation) -> StartupFa
 pub(crate) fn run(
     mut audio: AudioManager,
     usb_config: crate::usb_config::UsbRuntimeConfig,
+    audio_optimization: playback_runtime::AudioOptimization,
     midi_rx: Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     mut candidate_readiness: CandidateReadiness,
@@ -74,6 +75,7 @@ pub(crate) fn run(
         audio.service(),
         midi_handler,
         usb_config.midi_out_enabled,
+        audio_optimization,
         true,
     ) {
         Ok(prepared) => prepared,

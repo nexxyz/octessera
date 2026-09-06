@@ -11,12 +11,14 @@ pub(super) use super::source_worker_owner::{
 use super::source_worker_protocol::SourceWorkerRetirementError;
 #[cfg(test)]
 use super::source_worker_protocol::WorkerCommand;
-use super::source_worker_retirement::SourceWorkerRetirement;
+use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
 #[cfg(test)]
 use crossbeam_channel::bounded;
 use crossbeam_channel::{Receiver, Sender};
 use owner_routing::{route_completion, route_owner, worker_mask};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+#[cfg(any(test, feature = "test-support"))]
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -26,9 +28,6 @@ pub(super) mod worker;
 #[cfg(test)]
 use worker::ReverseCompletionState;
 use worker::SourceWorkerSlot;
-pub use worker::ROUTING_TREE_WORKER_THREAD_NAMES;
-pub use worker::SOURCE_WORKER_THREAD_NAMES;
-
 pub(super) const SOURCE_WORKER_COUNT: usize = 2;
 pub(super) const SOURCE_WORKER_CHANNEL_CAPACITY: usize = 1;
 pub(super) const SOURCE_WORKER_MAILBOX_CAPACITY: usize = 1;
@@ -37,11 +36,6 @@ static NEXT_SOURCE_WORKER_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 #[cfg(any(test, feature = "test-support"))]
 pub use super::source_worker_observer::SourceWorkerOwnerIdentity;
-
-pub(super) struct SourceWorkerCloseState {
-    pub(super) closed: AtomicBool,
-    pub(super) generation: u64,
-}
 
 pub struct SourceWorkerLifecycle {
     pub(super) workers: [SourceWorkerSlot; SOURCE_WORKER_COUNT],

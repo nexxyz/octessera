@@ -4,7 +4,7 @@ use rodio_engine_source::PersistentOutputCounters;
 use std::time::Duration;
 
 fn config() -> BenchmarkConfig {
-    parse(vec![
+    let mut config = parse(vec![
         "--benchmark-orange-audio".into(),
         "--scenario".into(),
         "synth_cross_slot_96_steal".into(),
@@ -12,12 +12,19 @@ fn config() -> BenchmarkConfig {
         "1024".into(),
         "--engine-block-frames".into(),
         "256".into(),
+        "--executor".into(),
+        "inline".into(),
+        "--worker-timing".into(),
+        "disabled".into(),
         "--release-gate".into(),
         "release.json".into(),
         "--artifact-sha256".into(),
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
     ])
-    .unwrap()
+    .unwrap();
+    config.executor_mode = BenchmarkExecutorMode::PersistentTwoWorkers;
+    config.worker_timing_mode = WorkerTimingMode::Enabled;
+    config
 }
 
 #[cfg(any(

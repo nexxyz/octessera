@@ -9,6 +9,7 @@ use super::source_worker_protocol::WorkStamp;
 use super::SynthEngine;
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 
+#[cfg(test)]
 pub(super) fn stage_bus_block(
     engine: &mut SynthEngine,
     owners: &mut [OwnerEnvelope; VOICE_PARTITION_COUNT],
@@ -280,6 +281,7 @@ pub(super) fn render_bus_block(
     Ok(executed_cost)
 }
 
+#[cfg(test)]
 pub(super) fn apply_bus_block(
     engine: &mut SynthEngine,
     owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT],
@@ -375,6 +377,7 @@ fn apply_bus_output(
     true
 }
 
+#[cfg(test)]
 fn duck_source(
     owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT],
     bus: usize,
@@ -388,6 +391,7 @@ fn duck_source(
         })
 }
 
+#[cfg(test)]
 fn carrier_ref(
     owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT],
     logical_bus_id: usize,
@@ -397,6 +401,7 @@ fn carrier_ref(
         .find_map(|owner| owner.bus_carriers[logical_bus_id].as_ref())
 }
 
+#[cfg(test)]
 fn carrier_mut(
     owners: &mut [OwnerEnvelope; VOICE_PARTITION_COUNT],
     logical_bus_id: usize,
@@ -406,6 +411,7 @@ fn carrier_mut(
         .find_map(|owner| owner.bus_carriers[logical_bus_id].as_mut())
 }
 
+#[cfg(test)]
 fn valid_carrier_layout(owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT]) -> bool {
     (0..BUS_COUNT).all(|logical_bus_id| {
         let carriers = owners
@@ -422,6 +428,7 @@ fn valid_carrier_layout(owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT]) -> bool
     })
 }
 
+#[cfg(test)]
 fn valid_carrier_residency(owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT]) -> bool {
     (0..BUS_COUNT).all(|logical_bus_id| {
         let Some(carrier) = carrier_ref(owners, logical_bus_id) else {

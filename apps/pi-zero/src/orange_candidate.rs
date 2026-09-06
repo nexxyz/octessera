@@ -16,7 +16,7 @@ use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
 use crate::seesaw_io::{self, SeesawIo};
-use crate::usb_config::read_usb_runtime_config;
+use crate::usb_config::{read_audio_optimization_from_default_config, read_usb_runtime_config};
 use octessera_hal::board_profiles::{SeesawInputMode, ORANGE_PI_ZERO_2W_DEVICES};
 use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351, OrangeEncoderGpio};
@@ -94,28 +94,35 @@ pub fn run() -> Result<(), OrangeRunError> {
             format!("Orange USB runtime configuration is unavailable: {error}"),
         )
     })?;
+    let audio_optimization =
+        read_audio_optimization_from_default_config(&store_dir).map_err(|error| {
+            startup_failure(
+                handoff_mode,
+                StartupFatalCode::StartupFailed,
+                format!("Orange DSP mode configuration is unavailable: {error}"),
+            )
+        })?;
+    let profile = crate::audio::orange_profile(audio_optimization);
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
         if let Some(message) = midi_realtime_message(&bytes) {
             let _ = midi_tx.send(message);
         }
     });
-    let mut audio = AudioManager::new_orange(
-        crate::usb_config::audio_output_buffer_frames_from_default_config(&store_dir),
-        usb_config.audio_outputs,
-    )
-    .map_err(|error| {
-        startup_failure(
-            handoff_mode,
-            handoff::startup_fatal_code(handoff::OrangeStartupOperation::Audio),
-            format!("Orange audio startup failed: {error}"),
-        )
-    })?;
+    let mut audio =
+        AudioManager::new_orange(profile, usb_config.audio_outputs).map_err(|error| {
+            startup_failure(
+                handoff_mode,
+                handoff::startup_fatal_code(handoff::OrangeStartupOperation::Audio),
+                format!("Orange audio startup failed: {error}"),
+            )
+        })?;
     let hdmi = crate::render::hdmi::HdmiFramebuffer::new();
     if handoff_mode == crate::boot_oled_handoff::HandoffMode::V1 {
         return handoff::run(
             audio,
             usb_config,
+            audio_optimization,
             midi_rx,
             midi_handler,
             candidate_readiness,
@@ -150,6 +157,7 @@ pub fn run() -> Result<(), OrangeRunError> {
         &audio_service,
         &mut audio,
         &mut candidate_readiness,
+        audio_optimization,
         OrangeRuntimeServices {
             midi_rx,
             midi_handler,
@@ -180,6 +188,7 @@ fn run_runtime(
     audio: &AudioService,
     audio_manager: &mut AudioManager,
     candidate_readiness: &mut CandidateReadiness,
+    audio_optimization: playback_runtime::AudioOptimization,
     services: OrangeRuntimeServices,
 ) -> Result<crate::orange_device_apply::OrangeShutdownResolution, OrangeRunError> {
     let OrangeRuntimeServices {
@@ -187,7 +196,13 @@ fn run_runtime(
         midi_handler,
         usb_midi_out_enabled,
     } = services;
-    let prepared = prepare_runtime(audio.clone(), midi_handler, usb_midi_out_enabled, true)?;
+    let prepared = prepare_runtime(
+        audio.clone(),
+        midi_handler,
+        usb_midi_out_enabled,
+        audio_optimization,
+        true,
+    )?;
     run_prepared_runtime(
         prepared,
         seesaw,

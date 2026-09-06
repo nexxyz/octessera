@@ -1,7 +1,9 @@
 #[cfg(feature = "routing-tree-benchmark")]
 use super::super::routing_tree_worker::RoutingTreeOutputBlock;
 use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use super::super::source_worker_lifecycle::SourceWorkerLifecycle;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use super::super::source_worker_load::SourceWorkerLoad;
 use super::super::source_worker_protocol::SourceWorkerMode;
 use super::SourceWorkerRuntime;
@@ -82,6 +84,7 @@ impl SourceWorkerRuntime {
         }
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(in super::super) fn new(
         lifecycle: &SourceWorkerLifecycle,
         sample_rate: u32,
@@ -111,6 +114,7 @@ impl SourceWorkerRuntime {
         )
     }
 
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
     fn new_with_mode(
         lifecycle: &SourceWorkerLifecycle,
         sample_rate: u32,

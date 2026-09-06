@@ -152,6 +152,66 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
 }
 
 #[test]
+pub(crate) fn audio_usb_rows_follow_explicit_jack_policy_without_shifting_keys() {
+    let mut desktop = config();
+    desktop.jack_audio_required = false;
+    let desktop_audio = audio_usb_group(&desktop);
+    assert_eq!(
+        desktop_audio,
+        vec![
+            "Jack Audio",
+            "USB Audio",
+            "HDMI Audio",
+            "MIDI Out",
+            "Save / Reboot",
+            "Start SD2 Xfer",
+            "Stop SD2 Xfer",
+        ]
+    );
+
+    let mut pi = config();
+    pi.jack_audio_required = true;
+    let pi_audio = audio_usb_group(&pi);
+    assert_eq!(
+        pi_audio,
+        vec![
+            "USB Audio",
+            "HDMI Audio",
+            "MIDI Out",
+            "Save / Reboot",
+            "Start SD2 Xfer",
+            "Stop SD2 Xfer",
+        ]
+    );
+
+    let mut menu = NativeMenuModel::new(pi);
+    assert!(!menu.focus_item_key("audioOutputs.dac"));
+    assert!(menu.focus_item_key("audioOutputs.usb"));
+    assert_eq!(menu.current_label(), Some("USB Audio"));
+}
+
+fn audio_usb_group(config: &NativeMenuConfig) -> Vec<String> {
+    let root = build_root(config.clone());
+    root.children
+        .iter()
+        .find(|item| item.label == "System")
+        .and_then(|system| {
+            system
+                .children
+                .iter()
+                .find(|item| item.label == "Audio / USB")
+        })
+        .map(|audio| {
+            audio
+                .children
+                .iter()
+                .map(|item| item.label.clone())
+                .collect()
+        })
+        .expect("Audio / USB group")
+}
+
+#[test]
 pub(crate) fn system_controls_row_is_help_action() {
     let mut menu = NativeMenuModel::new(config());
     for _ in 0..5 {

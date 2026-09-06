@@ -15,3 +15,25 @@ fn dsp_mode_help_covers_both_capability_values() {
     assert!(copy.contains("Inline / low latency"));
     assert!(copy.contains("Multicore / capacity"));
 }
+
+#[test]
+fn jack_help_target_matches_desktop_visibility_policy() {
+    let desktop_target = NativeMenuModel::new(config())
+        .help_targets()
+        .into_iter()
+        .find(|target| target.key == "key:audioOutputs.dac")
+        .expect("desktop Jack Audio help target");
+    assert_eq!(
+        crate::native_help::resolve_native_help_entry(&desktop_target)
+            .expect("desktop Jack Audio help entry")
+            .title,
+        "Jack Audio"
+    );
+
+    let mut pi_config = config();
+    pi_config.jack_audio_required = true;
+    assert!(!NativeMenuModel::new(pi_config)
+        .help_targets()
+        .into_iter()
+        .any(|target| target.key == "key:audioOutputs.dac"));
+}

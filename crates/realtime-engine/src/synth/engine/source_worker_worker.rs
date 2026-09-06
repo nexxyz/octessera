@@ -294,9 +294,6 @@ where
     thread::Builder::new().name(thread_name.into()).spawn(run)
 }
 
-pub const SOURCE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-src-0", "oct-dsp-src-1"];
-pub const ROUTING_TREE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-tree-0", "oct-dsp-tree-1"];
-
 impl SourceWorkerSlot {
     pub(super) fn shutdown_after_spawn_failure(mut self) {
         self.work_tx.take();

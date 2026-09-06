@@ -72,17 +72,11 @@ pub(crate) fn status(registry: &AudioRouteRegistry, sink: AudioSink) -> AudioRou
 
 #[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) fn readiness(
-    outputs: AudioOutputSet,
+    _outputs: AudioOutputSet,
     registry: &AudioRouteRegistry,
 ) -> Result<(), String> {
-    if outputs.dac() && status(registry, AudioSink::Jack) != AudioRouteStatus::Active {
+    if status(registry, AudioSink::Jack) != AudioRouteStatus::Active {
         return Err("selected Jack audio route is not active".into());
-    }
-    let selected = AudioSink::selected(outputs);
-    for sink in [AudioSink::Usb, AudioSink::Hdmi] {
-        if selected.contains(&sink) && status(registry, sink) == AudioRouteStatus::Faulted {
-            return Err(format!("selected {sink:?} audio route faulted"));
-        }
     }
     Ok(())
 }
@@ -134,15 +128,26 @@ mod tests {
     }
 
     #[test]
-    fn selected_optional_route_fault_is_fatal_to_readiness() {
+    fn selected_optional_route_fault_does_not_block_readiness() {
         let outputs = AudioOutputSet::from_flags(true, true, true).unwrap();
         let registry = new_registry(outputs);
         set_status(&registry, AudioSink::Jack, AudioRouteStatus::Active);
         for sink in [AudioSink::Usb, AudioSink::Hdmi] {
             set_status(&registry, sink, AudioRouteStatus::Faulted);
-            assert!(readiness(outputs, &registry).is_err());
+            assert!(readiness(outputs, &registry).is_ok());
             set_status(&registry, sink, AudioRouteStatus::Waiting);
         }
+    }
+
+    #[test]
+    fn jack_is_required_even_when_not_selected_as_a_user_output() {
+        let outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
+        let registry = new_registry(outputs);
+
+        assert_eq!(
+            readiness(outputs, &registry).unwrap_err(),
+            "selected Jack audio route is not active"
+        );
     }
 
     #[test]

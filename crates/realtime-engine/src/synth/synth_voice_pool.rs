@@ -25,10 +25,6 @@ impl SynthVoicePartition {
         &mut self.lanes
     }
 
-    pub(super) fn parity(&self) -> usize {
-        self.parity
-    }
-
     pub(super) fn active_count(&self) -> usize {
         self.lanes.iter().filter(|voice| voice.active).count()
     }
@@ -57,6 +53,9 @@ mod identity;
 #[cfg(feature = "routing-tree-benchmark")]
 #[path = "synth_voice_pool_routing.rs"]
 mod routing;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[path = "synth_voice_pool_worker.rs"]
+mod worker;
 
 impl SynthVoicePool {
     pub(super) fn new() -> Self {
@@ -91,24 +90,8 @@ impl SynthVoicePool {
         Ok(())
     }
 
-    pub(super) fn install_partition_after_vacancy_check(
-        &mut self,
-        parity: usize,
-        partition: Box<SynthVoicePartition>,
-    ) {
-        self.partitions[parity] = Some(partition);
-    }
-
     pub(super) fn has_home(&self) -> bool {
         self.partitions_home()
-    }
-
-    pub(super) fn partition_is_vacant(&self, parity: usize) -> bool {
-        matches!(self.partitions.get(parity), Some(None))
-    }
-
-    pub(super) fn partition_is_present(&self, parity: usize) -> bool {
-        matches!(self.partitions.get(parity), Some(Some(_)))
     }
 
     pub(super) fn lane(&self, lane: usize) -> Option<&Voice> {

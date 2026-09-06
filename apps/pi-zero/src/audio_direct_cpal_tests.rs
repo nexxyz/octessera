@@ -1,4 +1,6 @@
-use super::audio_output_open::source_execution_mode;
+use super::audio_output_open::{source_execution_mode, AudioConstructionConfig};
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use super::cpal_audio_output::OrangeAudioProfile;
 use super::cpal_audio_output::{build_engine_source, AudioSourceExecutionMode};
 use super::AudioSink;
 use crate::audio_priority::{
@@ -9,36 +11,54 @@ use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::event_queue;
 
 #[test]
-fn persistent_cpal_mode_starts_two_workers_before_stream_construction() {
+fn inline_cpal_mode_does_not_start_workers_before_stream_construction() {
     let (_engine_tx, engine_rx) = event_queue();
     let (source, shutdown_owner) = build_engine_source(
         engine_rx,
         48_000,
-        AudioSourceExecutionMode::PersistentTwoWorkers,
+        AudioSourceExecutionMode::Inline,
+        32,
         None,
+        [None, None],
     )
     .unwrap();
 
-    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
+    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Disabled);
     drop(source);
-    let shutdown = shutdown_owner
-        .expect("persistent mode must return a shutdown owner")
-        .shutdown();
-    assert_eq!(shutdown.joined_workers, 2);
-    assert_eq!(shutdown.retirement_error, None);
+    assert!(shutdown_owner.is_none());
 }
 
 #[test]
-fn cpal_uses_persistent_workers_only_for_orange_jack() {
-    let expected_jack_mode = if cfg!(feature = "hardware-orange-pi-zero-2w") {
-        AudioSourceExecutionMode::PersistentTwoWorkers
-    } else {
+fn cpal_uses_routing_tree_only_for_orange_capacity_jack() {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    let config = AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
+        playback_runtime::AudioOptimization::Capacity,
+    ));
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let config = AudioConstructionConfig::raspberry(None);
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    assert_eq!(
+        source_execution_mode(AudioSink::Jack, config),
+        AudioSourceExecutionMode::RoutingTree
+    );
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    assert_eq!(
+        source_execution_mode(AudioSink::Jack, config),
         AudioSourceExecutionMode::Inline
-    };
-    assert_eq!(source_execution_mode(AudioSink::Jack), expected_jack_mode);
+    );
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    assert_eq!(
+        source_execution_mode(
+            AudioSink::Jack,
+            AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
+                playback_runtime::AudioOptimization::Latency,
+            )),
+        ),
+        AudioSourceExecutionMode::Inline
+    );
     for sink in [AudioSink::Usb, AudioSink::Hdmi] {
         assert_eq!(
-            source_execution_mode(sink),
+            source_execution_mode(sink, config),
             AudioSourceExecutionMode::Inline
         );
     }

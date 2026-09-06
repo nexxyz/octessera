@@ -1,6 +1,7 @@
 use super::*;
 use crate::initial_audio_prep::{interpret_initial_audio_prep, InitialAudioPrepBoard};
 use crate::sample_browser::builtin_favourite_dirs;
+use playback_runtime::AudioOptimization;
 
 pub(crate) struct PreparedRuntime {
     pub(super) playback: PlaybackRuntime,
@@ -63,6 +64,7 @@ pub(crate) fn prepare_runtime(
     audio: AudioService,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     usb_midi_out_enabled: bool,
+    audio_optimization: AudioOptimization,
     skip_startup_splash: bool,
 ) -> Result<PreparedRuntime, String> {
     let mut playback = PlaybackRuntime::new(RuntimeConfig {
@@ -74,6 +76,9 @@ pub(crate) fn prepare_runtime(
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),
+        audio_optimization,
+        audio_optimization_capacity_available: true,
+        jack_audio_required: true,
         ..NativeRunnerConfig::default()
     })?;
     if skip_startup_splash {
@@ -216,7 +221,14 @@ mod tests {
     #[test]
     fn orange_startup_uses_canonical_builtin_sample_favourites() {
         let (audio, _, _) = crate::audio::test_service();
-        let mut prepared = prepare_runtime(audio, Arc::new(|_| {}), false, true).unwrap();
+        let mut prepared = prepare_runtime(
+            audio,
+            Arc::new(|_| {}),
+            false,
+            AudioOptimization::Latency,
+            true,
+        )
+        .unwrap();
 
         crate::sample_browser::assert_builtin_favourite_menu(&mut prepared.runner);
     }

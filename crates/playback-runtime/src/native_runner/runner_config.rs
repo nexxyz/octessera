@@ -22,6 +22,7 @@ pub struct NativeRunnerConfig {
     pub audio_output_buffer_frames: u32,
     pub audio_optimization: AudioOptimization,
     pub audio_optimization_capacity_available: bool,
+    pub jack_audio_required: bool,
     pub sample_builtin_favourite_dirs: Vec<String>,
 }
 
@@ -53,6 +54,7 @@ impl Default for NativeRunnerConfig {
             audio_output_buffer_frames: 256,
             audio_optimization: AudioOptimization::Latency,
             audio_optimization_capacity_available: false,
+            jack_audio_required: false,
             sample_builtin_favourite_dirs: Vec::new(),
         }
     }

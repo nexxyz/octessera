@@ -203,6 +203,7 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
     let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),
+        jack_audio_required: true,
         ..NativeRunnerConfig::default()
     })
     .expect("native runner should initialize");

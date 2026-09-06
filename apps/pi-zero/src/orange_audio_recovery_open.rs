@@ -14,11 +14,17 @@ impl OrangeRecoveryController {
         before_open();
         self.health.clear_recoverable_fault();
         let opened = match (self.opener)(
-            self.output_buffer_frames,
+            self.profile,
             self.sink,
             self.health.clone(),
-            self.recording_tap.clone(),
+            (self.mode == OrangeRecoveryMode::Required)
+                .then(|| self.recording_tap.clone())
+                .flatten(),
             load_tx,
+            self.mirror_producers.clone(),
+            self.mirror_producer
+                .as_ref()
+                .map(rodio_engine_source::PcmMirrorProducer::new_consumer),
         ) {
             Ok(opened) => opened,
             Err(error) => {
@@ -33,6 +39,9 @@ impl OrangeRecoveryController {
                 return self.failed_attempt(attempt);
             }
         };
+        for producer in self.mirror_producers.iter().flatten() {
+            producer.reactivate();
+        }
         OrangeRecoveryPhase::Stabilizing {
             opened,
             attempts: attempt,

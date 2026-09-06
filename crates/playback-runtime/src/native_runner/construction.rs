@@ -54,6 +54,7 @@ impl NativeRunner {
             dsp_config: seed.dsp_config,
             audio_optimization: seed.audio_optimization,
             audio_optimization_capacity_available: seed.audio_optimization_capacity_available,
+            jack_audio_required: config.jack_audio_required,
             note_behaviors: config.note_behaviors,
             transport: NativeTransportState::new(
                 seed.bpm,

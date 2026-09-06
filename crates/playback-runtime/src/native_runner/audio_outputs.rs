@@ -1,5 +1,7 @@
 use serde_json::{json, Map, Value};
 
+pub(crate) const JACK_AUDIO_REQUIRED_MESSAGE: &str = "Jack Audio is always on";
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AudioOutputSet {
     dac: bool,
@@ -71,6 +73,26 @@ impl AudioOutputSet {
             "usb": self.usb,
             "hdmi": self.hdmi,
         })
+    }
+}
+
+impl super::NativeRunner {
+    pub(super) fn audio_outputs_from_menu(&self) -> Option<Result<AudioOutputSet, &'static str>> {
+        let dac = if self.jack_audio_required {
+            true
+        } else {
+            self.menu.value_for_key("audioOutputs.dac")? == "true"
+        };
+        let usb = self.menu.value_for_key("audioOutputs.usb")? == "true";
+        let hdmi = self.menu.value_for_key("audioOutputs.hdmi")? == "true";
+        Some(AudioOutputSet::from_flags(dac, usb, hdmi))
+    }
+
+    pub(super) fn validate_audio_outputs(&self) -> Result<(), String> {
+        if self.jack_audio_required && !self.audio_outputs.dac() {
+            return Err(JACK_AUDIO_REQUIRED_MESSAGE.into());
+        }
+        Ok(())
     }
 }
 

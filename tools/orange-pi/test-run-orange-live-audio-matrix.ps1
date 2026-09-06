@@ -28,12 +28,12 @@ function Assert-Throws {
 }
 $scenarios = @(Get-OrangeLiveScenarioIds)
 $basePlan = @(Get-OrangeLiveMatrixPlan)
-if ($scenarios.Count -ne 11 -or $basePlan.Count -ne 22 -or $scenarios[0] -ne "synth_ramp_16" -or $scenarios[10] -ne "mixed_cross_slot_48_48_steal") {
+if ($scenarios.Count -ne 11 -or $basePlan.Count -ne 11 -or $scenarios[0] -ne "synth_ramp_16" -or $scenarios[10] -ne "mixed_cross_slot_48_48_steal") {
   throw "The approved live scenario or base matrix order changed."
 }
-if (@($basePlan | Where-Object { $_.MeasureSeconds -ne 30 }).Count -ne 0) { throw "The canonical live matrix contains a non-30-second cell." }
+if (@($basePlan | Where-Object { $_.OutputFrames -ne 256 -or $_.AlsaPeriodFrames -ne 64 -or $_.InternalFrames -ne 128 -or $_.LookaheadFrames -ne 128 -or $_.EffectiveOutputLatencyFrames -ne 384 -or $_.ExecutorMode -cne "routing_tree_persistent" -or $_.WorkerTimingMode -cne "enabled" }).Count -ne 0) { throw "The frozen routing comparison matrix geometry or executor changed." }; if (@($basePlan | Where-Object { $_.MeasureSeconds -ne 30 }).Count -ne 0) { throw "The canonical live matrix contains a non-30-second cell." }
 foreach ($tuple in @(@{ Output = 128; Engine = 32; Period = 32; Internal = 32 }, @{ Output = 256; Engine = 64; Period = 64; Internal = 64 }, @{ Output = 256; Engine = 128; Period = 64; Internal = 128 }, @{ Output = 256; Engine = 256; Period = 64; Internal = 256 }, @{ Output = 512; Engine = 128; Period = 128; Internal = 128 }, @{ Output = 1024; Engine = 256; Period = 256; Internal = 256 })) {
-  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames $tuple.Output -EngineBlockFrames $tuple.Engine -MeasureSeconds 30
+  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames $tuple.Output -EngineBlockFrames $tuple.Engine -MeasureSeconds 30 -ExecutorMode inline -WorkerTimingMode disabled
   if ($selection.AlsaPeriodFrames -ne $tuple.Period -or $selection.InternalFrames -ne $tuple.Internal -or $selection.EngineBlockFrames -ne $tuple.Engine) { throw "Approved geometry tuple was not retained independently." }
 }
 Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 32 -MeasureSeconds 30 }; Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 512 -EngineBlockFrames 256 -MeasureSeconds 30 }
@@ -99,7 +99,8 @@ try {
   $result | Add-Member -NotePropertyName callback_scheduling_policy -NotePropertyValue "SCHED_FIFO"
   $result | Add-Member -NotePropertyName callback_scheduling_priority -NotePropertyValue 70
   $result | Add-Member -NotePropertyName callback_scheduling_cpu -NotePropertyValue 1; $result.schema_version = 12; $result | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0; $result | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 256
-  $readiness | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
+  $result.executor_mode = "routing_tree_persistent"; $result.lookahead_frames = 256; $result.effective_output_latency_frames = 512; $result.worker_thread_name_0 = "oct-dsp-tree-0"; $result.worker_thread_name_1 = "oct-dsp-tree-1"; $readiness.executor_mode = "routing_tree_persistent"; $readiness.worker_thread_name_0 = "oct-dsp-tree-0"; $readiness.worker_thread_name_1 = "oct-dsp-tree-1"
+  $readiness | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 256; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $result | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   $release | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-release.json")
   Set-Content (Join-Path $evidenceRoot "benchmark-identity.txt") "unit=u.service`nmain_pid=123`ninvocation_id=invocation"
@@ -119,13 +120,13 @@ try {
       @{ Selection = (Assert-OrangeLiveBenchmarkSelection -Scenario "synth_cross_slot_96_steal" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 300); Allowed = 5; Rejected = 6 }
     )) {
     $callback.over_audio_duration_budget_count = $durationCase.Allowed; $result.detected_continuity_events = if ($durationCase.Selection.MeasureSeconds -eq 180) { 0 } else { 3 }
-    $result.status = "pass"
+    $result.status = "pass"; $result.lookahead_frames = $durationCase.Selection.LookaheadFrames; $result.effective_output_latency_frames = $durationCase.Selection.EffectiveOutputLatencyFrames
     if ((Get-OrangeLiveResultSummary -Result $result -Selection $durationCase.Selection).StatusClass -ne "pass") { throw "$($durationCase.Selection.MeasureSeconds) seconds allowed callback budget overruns did not satisfy the approved ceiling." }
     $callback.over_audio_duration_budget_count = $durationCase.Rejected
     $result.status = "fail"
     if ((Get-OrangeLiveResultSummary -Result $result -Selection $durationCase.Selection).StatusClass -ne "over_budget") { throw "$($durationCase.Selection.MeasureSeconds) seconds rejected callback budget overruns were not classified as over-budget." }
   }
-  $callback.over_audio_duration_budget_count = 0; $result.detected_continuity_events = 3; $result.status = "pass"
+  $callback.over_audio_duration_budget_count = 0; $result.detected_continuity_events = 3; $result.status = "pass"; $result.lookahead_frames = $selection.LookaheadFrames; $result.effective_output_latency_frames = $selection.EffectiveOutputLatencyFrames
   $manifestAggregate = ConvertFrom-Json -InputObject (ConvertTo-OrangeLiveManifestJson -Results @($passEvidence))
   if ([math]::Abs([double]$manifestAggregate[0].AggregateRenderAudioDurationRatio - 1.0) -gt 0.000001) { throw "Manifest did not retain the aggregate render-duration ratio." }
   Assert-OrangeLiveResult -Result $result -Selection $selection; $longSelection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 256 -MeasureSeconds 180; $longPolicyResult = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $longPolicyResult.measure_seconds = 180; $longPolicyResult.persistent_output_counters = [pscustomobject]@{ observable = $true; warmup = $zeroPersistentCounters; start = $zeroPersistentCounters; end = $zeroPersistentCounters; delta = $zeroPersistentCounters }; $longPolicyResult.detected_continuity_events = 0; Assert-OrangeLiveResult -Result $longPolicyResult -Selection $longSelection; $longPolicyResult.callback.cpal_device_error_count = 1; Assert-Throws { Assert-OrangeLiveResult -Result $longPolicyResult -Selection $longSelection }; $longPolicyResult.callback.cpal_device_error_count = 0; $longPolicyResult.detected_continuity_events = 3; if ((Get-OrangeLiveResultSummary -Result $longPolicyResult -Selection $longSelection).StatusClass -ne "infrastructure_failure") { throw "A passing 180-second result with continuity events was accepted." }
@@ -144,13 +145,13 @@ try {
   $callbackContinuity = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $callbackContinuity.callback.over_audio_duration_budget_count = 4; $callbackContinuity.detected_continuity_events = 4; Assert-OrangeLiveResult -Result $callbackContinuity -Selection $selection
   $invalidSchedulingCpu = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $invalidSchedulingCpu.callback_scheduling_cpu = 2; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingCpu -Selection $selection }; $invalidSchedulingCpu.callback_scheduling_cpu = $null; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingCpu -Selection $selection }
   $invalidSchedulingPriority = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $invalidSchedulingPriority.callback_scheduling_priority = 69; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingPriority -Selection $selection }; $invalidSchedulingPriority.callback_scheduling_priority = 70; $invalidSchedulingPriority.schema_version = 9; Assert-Throws { Assert-OrangeLiveResult -Result $invalidSchedulingPriority -Selection $selection }; $invalidResultCase = ConvertFrom-Json -InputObject (($result | ConvertTo-Json -Depth 8) -replace '"schema_version"', '"Schema_Version"'); Assert-Throws { Assert-OrangeLiveResult -Result $invalidResultCase -Selection $selection }
-  $inlineFailure = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $inlineFailure.status = "fail"; $inlineFailure.executor_mode = "inline"; $inlineFailure.worker_health = "disabled"; $inlineFailure.worker_thread_name_0 = ""; $inlineFailure.worker_thread_name_1 = ""; $inlineFailure.joined_workers = 0; $inlineFailure.worker_timing_mode = "disabled"; $inlineFailure.worker_timing = $null; $inlineFailure.callback_scheduling_cpu = 1; $inlineFailure.persistent_output_counters = [pscustomobject]@{ observable = $false; warmup = $zeroPersistentCounters; start = $zeroPersistentCounters; end = $zeroPersistentCounters; delta = $zeroPersistentCounters }; $inlineFailure.detected_continuity_events = 0
-  $readiness.executor_mode = "inline"; $readiness.worker_health = "disabled"; $readiness.worker_thread_name_0 = ""; $readiness.worker_thread_name_1 = ""; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
+  $inlineFailure = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8); $inlineFailure.status = "fail"; $inlineFailure.executor_mode = "inline"; $inlineFailure.lookahead_frames = 0; $inlineFailure.effective_output_latency_frames = 256; $inlineFailure.worker_health = "disabled"; $inlineFailure.worker_thread_name_0 = ""; $inlineFailure.worker_thread_name_1 = ""; $inlineFailure.joined_workers = 0; $inlineFailure.worker_timing_mode = "disabled"; $inlineFailure.worker_timing = $null; $inlineFailure.callback_scheduling_cpu = 1; $inlineFailure.persistent_output_counters = [pscustomobject]@{ observable = $false; warmup = $zeroPersistentCounters; start = $zeroPersistentCounters; end = $zeroPersistentCounters; delta = $zeroPersistentCounters }; $inlineFailure.detected_continuity_events = 0
+  $readiness.executor_mode = "inline"; $readiness.lookahead_frames = 0; $readiness.worker_health = "disabled"; $readiness.worker_thread_name_0 = ""; $readiness.worker_thread_name_1 = ""; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $inlineFailure | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=failed`nSubState=dead`nResult=exit-code`nMainPID=0`nExecMainCode=1`nExecMainStatus=1"; Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=measured_failure"
   if ((Get-OrangeLiveHostEvidence $evidenceRoot $inlineSelection ("a" * 64)).StatusClass -ne "measured_failure") { throw "Failed inline benchmark evidence was not classified as measured failure." }
   $inlineFailure.callback.worker_terminal = $true; $inlineFailure | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   if ((Get-OrangeLiveHostEvidence $evidenceRoot $inlineSelection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Terminal inline benchmark evidence was not classified as infrastructure failure." }
-  $readiness.executor_mode = "persistent_two_workers"; $readiness.worker_health = "healthy"; $readiness.worker_thread_name_0 = "oct-dsp-src-0"; $readiness.worker_thread_name_1 = "oct-dsp-src-1"; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
+  $readiness.executor_mode = "routing_tree_persistent"; $readiness.lookahead_frames = 256; $readiness.worker_health = "healthy"; $readiness.worker_thread_name_0 = "oct-dsp-tree-0"; $readiness.worker_thread_name_1 = "oct-dsp-tree-1"; $readiness | ConvertTo-Json | Set-Content (Join-Path $evidenceRoot "benchmark-readiness.json")
   $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json"); Set-Content (Join-Path $evidenceRoot "unit-final.txt") "ActiveState=inactive`nSubState=dead`nResult=success`nMainPID=0`nExecMainCode=1`nExecMainStatus=0"; Set-Content (Join-Path $evidenceRoot "study-result.txt") "interruption_started=true`nstatus_class=pass"
   $invalidTiming = ConvertFrom-Json -InputObject ($result | ConvertTo-Json -Depth 8)
   $invalidTiming.worker_timing.coordinator.first_parity = 1
@@ -158,21 +159,20 @@ try {
   $invalidTiming | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
   if ((Get-OrangeLiveHostEvidence $evidenceRoot $selection ("a" * 64)).StatusClass -ne "infrastructure_failure") { throw "Invalid worker timing evidence was not classified as infrastructure failure." }
   $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $evidenceRoot "benchmark-result.json")
-  $readiness.executor_mode = "inline"
+  $readiness.executor_mode = "inline"; $readiness.lookahead_frames = 0
   Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
   $readiness.worker_health = "disabled"; $readiness.worker_thread_name_0 = ""; $readiness.worker_thread_name_1 = ""
   Assert-OrangeLiveReadiness -Readiness $readiness -Selection $inlineSelection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64)
-  $readiness.executor_mode = "persistent_two_workers"
-  $readiness.worker_health = "healthy"; $readiness.worker_thread_name_0 = "oct-dsp-src-0"; $readiness.worker_thread_name_1 = "oct-dsp-src-1"
+  $readiness.executor_mode = "routing_tree_persistent"; $readiness.lookahead_frames = 256; $readiness.worker_health = "healthy"; $readiness.worker_thread_name_0 = "oct-dsp-tree-0"; $readiness.worker_thread_name_1 = "oct-dsp-tree-1"
   $readiness.worker_health = "deadline_miss"
   Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
   $readiness.worker_health = "healthy"
   $readiness.PSObject.Properties.Remove("worker_thread_name_1")
   Assert-Throws { Assert-OrangeLiveReadiness -Readiness $readiness -Selection $selection -ExpectedPid 123 -ExpectedInvocation "invocation" -ArtifactHash ("a" * 64) }
-  $readiness | Add-Member -NotePropertyName worker_thread_name_1 -NotePropertyValue "oct-dsp-src-1"
+  $readiness | Add-Member -NotePropertyName worker_thread_name_1 -NotePropertyValue "oct-dsp-tree-1"
   $result.executor_mode = "inline"
   Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
-  $result.executor_mode = "persistent_two_workers"
+  $result.executor_mode = "routing_tree_persistent"
   $result.worker_health = "worker_exited"
   Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
   $result.worker_health = "healthy"
@@ -184,7 +184,7 @@ try {
   $result.retirement_error = $null
   $result.PSObject.Properties.Remove("worker_thread_name_1")
   Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
-  $result | Add-Member -NotePropertyName worker_thread_name_1 -NotePropertyValue "oct-dsp-src-1"
+  $result | Add-Member -NotePropertyName worker_thread_name_1 -NotePropertyValue "oct-dsp-tree-1"
   $profileEnd.PSObject.Properties.Remove("cumulative_voice_admission_drops")
   Assert-Throws { Assert-OrangeLiveResult -Result $result -Selection $selection }
   $profileEnd | Add-Member -NotePropertyName cumulative_voice_admission_drops -NotePropertyValue "not-a-number"
@@ -293,7 +293,7 @@ Assert-Contains $canaryPrint "Orange live audio matrix PrintOnly CanaryOnly: no 
 Assert-Contains $canaryPrint "01: synth_ramp_16 output=256 internal=128 measure=30"
 Assert-Contains $canaryPrint "Matrix cells: 1 total (CanaryOnly)."
 if ($canaryPrint -match "02:|A120|Matrix cells: 29") { throw "CanaryOnly PrintOnly emitted more than one cell." }
-if ($matrixOutput -notmatch '(?s)(?=.*01: synth_ramp_16 output=256 internal=128 measure=30)(?=.*11: mixed_cross_slot_48_48_steal output=256 internal=128 measure=30)(?=.*12: A120 scenario=<highest passing A p99.9, then max> output=256 internal=128 measure=120 warmup=5)(?=.*13: synth_ramp_16 output=512 internal=128 measure=30)(?=.*23: mixed_cross_slot_48_48_steal output=512 internal=128 measure=30)(?=.*Matrix cells: 23 total)') { throw "Live matrix PrintOnly output omitted an approved cell or count." }
+if ($matrixOutput -notmatch '(?s)(?=.*01: synth_ramp_16 output=256 internal=128 measure=30)(?=.*11: mixed_cross_slot_48_48_steal output=256 internal=128 measure=30)(?=.*12: A120 scenario=<highest passing A p99.9, then max> output=256 internal=128 measure=120 warmup=5)(?=.*Matrix cells: 12 total)') { throw "Live matrix PrintOnly output omitted an approved cell or count." }
 $capabilitySource = Get-Content -LiteralPath $runner -Raw
 $localDirectoryMarker = $capabilitySource.IndexOf('New-Item -ItemType Directory -Force -Path $localRunDirectory | Out-Null', [StringComparison]::Ordinal)
 $stagingDirectoryMarker = $capabilitySource.IndexOf('Write-Output "Evidence staging directory: $localRunDirectory"', [StringComparison]::Ordinal)
@@ -413,8 +413,8 @@ if ($first -notmatch '(?s)(?=.*RuntimeMaxSec=185s)(?=.*RuntimeDirectoryPreserve=
 if ([regex]::Matches($first, 'systemd-run --unit="\$unit"').Count -ne 1) { throw "Live payload did not contain exactly one transient systemd-run launch." }
 if ($first -match "runtime-thermal-abort|70000|75000" -or $first -notmatch '(?s)(?=.*thermal-unreadable)(?=.*memory-unreadable)(?=.*thermal-missing)(?=.*runtime-memory-abort)(?=.*consecutive_samples)(?=.*cooling_device)(?=.*nonnegative_number)(?=.*cur_state)(?=.*max_state)(?=.*observed=false)(?=.*cooling-device-unreadable)') { throw "Live payload changed its thermal or cooling-state safety contract." }
 Assert-Contains $first "validate_benchmark_worker_threads"
-Assert-Contains $first "oct-dsp-src-0"
-Assert-Contains $first "oct-dsp-src-1"
+Assert-Contains $first "oct-dsp-tree-0"
+Assert-Contains $first "oct-dsp-tree-1"
 Assert-Contains $first "oct-src-reaper"
 if ($first -match "octessera-source-reaper") { throw "Live payload retained the prior overlong reaper name." }
 Assert-Contains $first 'systemctl stop "$unit"'
@@ -435,7 +435,7 @@ $inlineFirst = Invoke-PrintOnly $runner $inlineRunnerParameters
 $inlineStudyStart = $inlineFirst.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
 $inlineStudyEnd = $inlineFirst.IndexOf("Study payload transport:", $inlineStudyStart, [StringComparison]::Ordinal)
 $inlineStudyPayload = $inlineFirst.Substring($inlineStudyStart, $inlineStudyEnd - $inlineStudyStart)
-Assert-OrangeGeneratedWorkerTaskAudit -PersistentPayload $studyPayload -InlinePayload $inlineStudyPayload
+Assert-OrangeGeneratedWorkerTaskAudit -RoutingPayload $studyPayload -InlinePayload $inlineStudyPayload
 $captureStart = $studyPayload.IndexOf("capture_alsa_release() {", [StringComparison]::Ordinal)
 $captureEnd = $studyPayload.IndexOf("validate_benchmark_progress() {", $captureStart, [StringComparison]::Ordinal)
 if ($captureStart -lt 0 -or $captureEnd -lt 0) { throw "Generated capture_alsa_release fixture could not be extracted." }

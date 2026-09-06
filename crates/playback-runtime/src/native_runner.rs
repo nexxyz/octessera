@@ -198,6 +198,7 @@ use crate::{clean_preset_name, fresh_preset_name};
 pub use audio_optimization::AudioOptimization;
 pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
+pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
 pub use runner_config::NativeRunnerConfig;
 
 use binding_payload::*;
@@ -312,6 +313,7 @@ pub struct NativeRunner {
     dsp_config: DspRuntimeConfig,
     audio_optimization: AudioOptimization,
     audio_optimization_capacity_available: bool,
+    jack_audio_required: bool,
     note_behaviors: Vec<NoteBehavior>,
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,

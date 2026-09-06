@@ -3,6 +3,7 @@ use super::EngineSource;
 use super::EngineSourceMode;
 
 impl EngineSource {
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn refresh_persistent_profile_cache(&mut self) {
         let Self {
             engine,
