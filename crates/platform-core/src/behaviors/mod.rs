@@ -11,12 +11,15 @@ mod native_behavior_dispatch;
 mod native_behavior_render;
 mod native_behavior_serialize;
 mod native_behavior_tick;
+mod native_behavior_transport;
 mod native_impl;
 mod pattern_music;
 mod play;
 
 #[cfg(test)]
 mod liveness_probe_tests;
+#[cfg(test)]
+mod native_behavior_transport_tests;
 #[cfg(test)]
 mod palette_tests;
 #[cfg(test)]

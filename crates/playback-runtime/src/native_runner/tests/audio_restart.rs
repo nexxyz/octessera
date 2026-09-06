@@ -50,7 +50,7 @@ pub(crate) fn dsp_mode_replaces_output_buffer_on_capacity_platform() {
 }
 
 #[test]
-pub(crate) fn dsp_mode_edits_with_restart_toast_without_live_audio_command() {
+pub(crate) fn dsp_mode_edits_open_reboot_confirmation_without_live_audio_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         audio_optimization_capacity_available: true,
         ..NativeRunnerConfig::default()
@@ -58,17 +58,24 @@ pub(crate) fn dsp_mode_edits_with_restart_toast_without_live_audio_command() {
     .unwrap();
     assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     runner.menu.state.editing = true;
-    runner.menu.turn(1);
-    runner.apply_menu_state().unwrap();
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["sound"]["optimizeFor"],
         "capacity"
     );
-    assert_eq!(
-        runner.snapshot().unwrap()["display"]["toast"],
-        "Restart device to"
-    );
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["display"]["title"], "Confirm Audio");
+    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert!(lines.iter().any(|line| line == "> Cancel"));
+    assert!(lines.iter().any(|line| line == "  Save / Reboot"));
+    assert_eq!(snapshot["display"]["toast"], "");
+    assert!(!runner.pending.pending_audio_restart_prompt);
     assert!(!runner.outbox.has_audio_commands());
 }
 
@@ -86,16 +93,37 @@ pub(crate) fn back_from_changed_output_buffer_opens_reboot_confirmation() {
 }
 
 #[test]
-pub(crate) fn back_from_changed_dsp_mode_opens_reboot_confirmation() {
-    let mut runner = changed_dsp_mode_runner();
+pub(crate) fn back_from_immediate_dsp_confirmation_cancels_without_reprompting() {
+    let mut runner = dsp_mode_runner();
 
-    let messages = press_back(&mut runner);
+    let messages = change_dsp_mode(&mut runner);
     let snapshot = snapshot_from(&messages);
 
-    assert_eq!(snapshot["display"]["title"], "Confirm Reboot");
-    assert_eq!(snapshot["display"]["lines"][1], "> Cancel");
-    assert_eq!(snapshot["display"]["lines"][2], "  Confirm");
+    assert_eq!(snapshot["display"]["title"], "Confirm Audio");
+    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert!(lines.iter().any(|line| line == "> Cancel"));
+    assert!(lines.iter().any(|line| line == "  Save / Reboot"));
     assert_eq!(snapshot["display"]["toast"], "");
+    assert!(!runner.pending.pending_audio_restart_prompt);
+
+    let messages = press_back(&mut runner);
+    assert_eq!(snapshot_from(&messages)["display"]["toast"], "Cancelled");
+    assert!(runner.display.confirm_dialog.is_none());
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["sound"]["optimizeFor"],
+        "capacity"
+    );
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects } if !effects.is_empty()
+    )));
+
+    let messages = press_back(&mut runner);
+    assert!(runner.display.confirm_dialog.is_none());
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects } if !effects.is_empty()
+    )));
 }
 
 #[test]
@@ -146,6 +174,58 @@ pub(crate) fn output_buffer_reboot_confirmation_emits_reboot_and_shutdown_splash
     )));
 }
 
+#[test]
+pub(crate) fn immediate_dsp_apply_reboot_confirmation_emits_one_apply_effect() {
+    let mut runner = dsp_mode_runner();
+    let _ = change_dsp_mode(&mut runner);
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let apply_count = messages
+        .iter()
+        .filter_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => Some(
+                effects
+                    .iter()
+                    .filter(|effect| {
+                        matches!(
+                            effect,
+                            RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+                        )
+                    })
+                    .count(),
+            ),
+            _ => None,
+        })
+        .sum::<usize>();
+    assert_eq!(apply_count, 1);
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects
+                .iter()
+                .any(|effect| matches!(effect, RuntimePlatformEffect::Reboot))
+    )));
+    let payload = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => effects.iter().find_map(|effect| {
+                let RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } = effect else {
+                    return None;
+                };
+                Some(payload)
+            }),
+            _ => None,
+        })
+        .expect("audio apply reboot payload");
+    assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "capacity");
+}
+
 fn changed_output_buffer_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
@@ -155,7 +235,7 @@ fn changed_output_buffer_runner() -> NativeRunner {
     runner
 }
 
-fn changed_dsp_mode_runner() -> NativeRunner {
+fn dsp_mode_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         audio_optimization_capacity_available: true,
         ..NativeRunnerConfig::default()
@@ -163,9 +243,16 @@ fn changed_dsp_mode_runner() -> NativeRunner {
     .unwrap();
     assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     runner.menu.state.editing = true;
-    runner.menu.turn(1);
-    runner.apply_menu_state().unwrap();
     runner
+}
+
+fn change_dsp_mode(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap()
 }
 
 fn press_back(runner: &mut NativeRunner) -> Vec<RunnerMessage> {

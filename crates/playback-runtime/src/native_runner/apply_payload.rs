@@ -124,7 +124,7 @@ impl NativeRunner {
             self.commit_loaded_revision(source_revision);
             return Ok(());
         }
-        self.drain_all_layer_engine_notes()?;
+        self.drain_all_layer_engine_notes();
         candidate.pending_transpose_note_offs = self.pending_transpose_note_offs.clone();
         candidate.preserve_sample_availability_from(self);
         candidate.menu.rebuild(candidate.menu_config());

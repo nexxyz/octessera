@@ -93,3 +93,18 @@ fn auto_death_birth_then_cap_press_has_only_fresh_events() {
             && intent.kind == CellTriggerKind::Activate
     }));
 }
+
+#[test]
+fn transport_reset_preserves_twinkle_rng_and_world_state() {
+    let mut engine = twinkle_engine();
+    engine.tick(120.0).unwrap();
+    let before = engine.state().clone();
+
+    engine.reset_transport_phase();
+
+    assert_eq!(engine.state(), &before);
+    let NativeBehaviorState::Twinkle(state) = engine.state() else {
+        panic!("expected twinkle state");
+    };
+    assert!(state.rng_counter > 0);
+}

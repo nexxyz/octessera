@@ -189,7 +189,7 @@ impl NativeRunner {
             self.layer_behavior_rebuilds = self.layer_behavior_rebuilds.saturating_add(1);
         }
 
-        self.drain_layer_engine_notes(layer_index)?;
+        self.drain_layer_engine_notes(layer_index);
         self.clear_layer_replacement_state(layer_index);
         if layer_index == self.active_layer_index {
             self.engine = next_engine;
@@ -288,14 +288,13 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn drain_all_layer_engine_notes(&mut self) -> Result<(), String> {
+    pub(super) fn drain_all_layer_engine_notes(&mut self) {
         for layer_index in 0..self.layer_engines.len() {
-            self.drain_layer_engine_notes(layer_index)?;
+            self.drain_layer_engine_notes(layer_index);
         }
-        Ok(())
     }
 
-    fn drain_layer_engine_notes(&mut self, layer_index: usize) -> Result<(), String> {
+    fn drain_layer_engine_notes(&mut self, layer_index: usize) {
         let notes = if layer_index == self.active_layer_index {
             self.engine.drain_held_notes(usize::MAX)
         } else {
@@ -306,7 +305,7 @@ impl NativeRunner {
                 .unwrap_or_default()
         };
         if notes.is_empty() {
-            return Ok(());
+            return;
         }
         let instruments = self.instruments.clone();
         let sense = self.pulses_layers.get(layer_index).cloned();
@@ -325,7 +324,6 @@ impl NativeRunner {
             self.sparks_transpose_active_notes.get_mut(layer_index),
         );
         self.pending_transpose_note_offs.extend(routed);
-        Ok(())
     }
 
     fn clear_layer_replacement_state(&mut self, layer_index: usize) {

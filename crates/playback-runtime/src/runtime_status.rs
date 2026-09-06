@@ -45,6 +45,14 @@ impl PlaybackRuntime {
         message: &HostMessage,
         operation: Option<RuntimeOperation>,
     ) {
+        if matches!(
+            message,
+            HostMessage::MidiRealtimeStart
+                | HostMessage::MidiRealtimeStop
+                | HostMessage::TransportStop
+        ) {
+            self.pulse_remainder = 0.0;
+        }
         if let HostMessage::RuntimeResult { result } = message {
             self.apply_runtime_result(result, operation);
         }
@@ -190,6 +198,7 @@ impl PlaybackRuntime {
         host: &mut H,
     ) -> RuntimeIngest {
         let mut output = RuntimeIngest::default();
+        self.pulse_remainder = 0.0;
         match runner.send(HostMessage::TransportStop) {
             Ok(messages) => {
                 if let Ok(ingest) =

@@ -265,6 +265,7 @@ pub(crate) fn validate_user_data_config_payload(payload: &Value) -> Result<(), S
 }
 
 const DEFAULT_ALGORITHM_STEP_RED: u32 = 12;
+const TRIGGER_PROBABILITY_RNG_INITIAL_SEED: u64 = 0xC311_5A7E_2024_0001;
 const OLED_BODY_ROWS: usize = 7;
 #[cfg(not(test))]
 const OLED_STARTUP_SPLASH_MS: u64 = 1_500;

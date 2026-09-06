@@ -150,7 +150,7 @@ impl NativeRunner {
             audio_config_revision: 0,
             last_snapshot_audio_config_revision: None,
             last_published_runtime_config: None,
-            trigger_probability_rng: 0xC311_5A7E_2024_0001,
+            trigger_probability_rng: TRIGGER_PROBABILITY_RNG_INITIAL_SEED,
             pending: NativePendingState::default(),
             #[cfg(test)]
             behavior_state_serialization_calls: Cell::new(0),

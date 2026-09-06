@@ -38,6 +38,14 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 
 ## Audio and USB
 
+- Redesign restart-required setting changes as a two-stage flow. With Auto Save
+  off, offer `Save this setting`, `Save everything`, or `Cancel`; after a
+  successful save, offer `Reboot now` or `Continue`. With Auto Save on, save the
+  full configuration and go directly to the reboot decision. A setting-only
+  save must preserve every unrelated unsaved change.
+- Shorten the `System > Sound` row and value text for the 128x64 OLED. The
+  current labels are too long to scan comfortably. Ensure the Inline/Multicore
+  selector shows a stable row name instead of appearing as an unnamed value.
 - Add a restart-applied USB role selector for the Raspberry Pi OTG connection and
   the Orange Pi's one supported OTG port. Gadget mode owns USB Audio and USB MIDI
   input/output; host mode frees the port for devices such as keyboards, mice,

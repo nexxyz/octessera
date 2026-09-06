@@ -193,10 +193,7 @@ impl NativeRunner {
                 self.apply_or_schedule_menu_key(&key)?;
             }
             if prompt_for_audio_reboot {
-                self.pending.pending_audio_restart_prompt = false;
-                self.display.toast = None;
-                let action = NativeMenuAction::PlatformEffect("system.reboot".into());
-                self.display.confirm_dialog = self.confirmation_for_action(&action);
+                self.open_audio_restart_confirmation();
             }
         }
         self.messages_with_snapshot()
