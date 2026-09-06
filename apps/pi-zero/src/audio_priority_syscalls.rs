@@ -4,6 +4,21 @@ use super::{CpuMask, EffectiveScheduling, SchedulingFailure, SchedulingFailureSt
 pub(super) const SCHED_FIFO_POLICY: i32 = 1;
 pub(super) const CPU_MASK_WORDS: usize = 1;
 
+pub(super) fn configure_affinity_only(requested_cpu: usize) -> Result<CpuMask, SchedulingFailure> {
+    #[cfg(test)]
+    {
+        test::configure_affinity_only(requested_cpu)
+    }
+    #[cfg(all(not(test), target_os = "linux"))]
+    {
+        linux::configure_affinity_only(requested_cpu)
+    }
+    #[cfg(all(not(test), not(target_os = "linux")))]
+    {
+        Err(unsupported(requested_cpu, 0))
+    }
+}
+
 pub(super) fn configure_strict(
     requested_cpu: usize,
     requested_priority: i32,
@@ -19,23 +34,6 @@ pub(super) fn configure_strict(
     #[cfg(all(not(test), not(target_os = "linux")))]
     {
         Err(unsupported(requested_cpu, requested_priority))
-    }
-}
-
-pub(super) fn configure_legacy(
-    requested_priority: i32,
-) -> Result<EffectiveScheduling, SchedulingFailure> {
-    #[cfg(test)]
-    {
-        test::configure_legacy(requested_priority)
-    }
-    #[cfg(all(not(test), target_os = "linux"))]
-    {
-        linux::configure_legacy(requested_priority)
-    }
-    #[cfg(all(not(test), not(target_os = "linux")))]
-    {
-        Err(unsupported(usize::MAX, requested_priority))
     }
 }
 
@@ -61,6 +59,20 @@ mod linux {
         requested_cpu: usize,
         requested_priority: i32,
     ) -> Result<EffectiveScheduling, SchedulingFailure> {
+        let observed = configure_affinity(requested_cpu, requested_priority)?;
+        configure_sched(requested_cpu, requested_priority, observed)
+    }
+
+    pub(super) fn configure_affinity_only(
+        requested_cpu: usize,
+    ) -> Result<CpuMask, SchedulingFailure> {
+        configure_affinity(requested_cpu, 0)
+    }
+
+    fn configure_affinity(
+        requested_cpu: usize,
+        requested_priority: i32,
+    ) -> Result<CpuMask, SchedulingFailure> {
         let requested_mask = cpu_mask(requested_cpu);
         let mut observed_mask = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
         let thread = unsafe { libc::pthread_self() };
@@ -104,13 +116,7 @@ mod linux {
                 0,
             ));
         }
-        configure_sched(requested_cpu, requested_priority, observed)
-    }
-
-    pub(super) fn configure_legacy(
-        requested_priority: i32,
-    ) -> Result<EffectiveScheduling, SchedulingFailure> {
-        configure_sched(usize::MAX, requested_priority, CpuMask::empty())
+        Ok(observed)
     }
 
     fn configure_sched(
@@ -242,6 +248,16 @@ pub(super) fn format_failure(label: &str, failure: SchedulingFailure) -> String 
         format_cpu_mask(failure.observed_mask),
         failure.observed_policy,
         failure.observed_priority,
+    )
+}
+
+pub(super) fn format_affinity_failure(label: &str, failure: SchedulingFailure) -> String {
+    format!(
+        "{label} thread CPU affinity not qualified: stage={} errno={} requested_cpu={} observed_mask={}",
+        failure.stage.name(),
+        failure.errno,
+        failure.requested_cpu,
+        format_cpu_mask(failure.observed_mask),
     )
 }
 

@@ -120,7 +120,12 @@ fn open(
         &built.scheduler,
         super::audio_output_open::CALLBACK_SCHEDULING_STARTUP_TIMEOUT,
     ) {
-        eprintln!("{error}");
+        if let Err(status) = built.teardown() {
+            return Err(RouteOpenError::Fault(format!(
+                "{error}; audio worker teardown failed: {status:?}"
+            )));
+        }
+        return Err(RouteOpenError::Fault(error));
     }
     std::thread::sleep(STARTUP_FAULT_GRACE);
     match health.external_status() {

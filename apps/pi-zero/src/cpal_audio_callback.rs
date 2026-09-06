@@ -105,14 +105,10 @@ pub(super) fn fill_callback_with_scheduler<T>(
 ) where
     T: Sample + cpal::FromSample<f32>,
 {
-    if scheduler.is_strict() {
-        if !scheduler.configure_callback_thread() {
-            silence_output(data);
-            callback_health.mark_callback_terminal();
-            return;
-        }
-    } else {
-        scheduler.configure_callback_thread();
+    if !scheduler.configure_callback_thread() {
+        silence_output(data);
+        callback_health.mark_callback_terminal();
+        return;
     }
     fill_callback(
         data,
@@ -131,7 +127,10 @@ pub(super) fn fill_mirror_callback_with_scheduler<T>(
 ) where
     T: Sample + cpal::FromSample<f32>,
 {
-    scheduler.configure_callback_thread();
+    if !scheduler.configure_callback_thread() {
+        silence_output(data);
+        return;
+    }
     if !data.len().is_multiple_of(2) {
         silence_output(data);
         return;

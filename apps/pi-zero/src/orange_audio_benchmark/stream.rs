@@ -251,7 +251,7 @@ fn build_routing_tree_source(
 fn callback_scheduler_for_executor(
     _executor_mode: BenchmarkExecutorMode,
 ) -> CallbackSchedulingHandle {
-    CallbackSchedulingHandle::new_orange_jack()
+    CallbackSchedulingHandle::new_jack()
 }
 
 pub(super) fn worker_thread_names_for_executor(

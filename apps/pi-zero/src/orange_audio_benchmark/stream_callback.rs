@@ -58,7 +58,7 @@ where
             move |data: &mut [T], info: &cpal::OutputCallbackInfo| {
                 let body_started = Instant::now();
                 let scheduling_qualified = callback_scheduler.configure_callback_thread();
-                if callback_scheduler.is_strict() && !scheduling_qualified {
+                if !scheduling_qualified {
                     let zero = post_dsp_zero();
                     for sample in data {
                         *sample = zero;

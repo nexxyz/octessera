@@ -364,10 +364,9 @@ where
 }
 
 pub(super) fn callback_scheduler_for_sink(sink: AudioSink) -> CallbackSchedulingHandle {
-    if cfg!(feature = "hardware-orange-pi-zero-2w") && sink == AudioSink::Jack {
-        CallbackSchedulingHandle::new_orange_jack()
-    } else {
-        CallbackSchedulingHandle::new(crate::audio_priority::callback_priority())
+    match sink {
+        AudioSink::Jack => CallbackSchedulingHandle::new_jack(),
+        AudioSink::Usb | AudioSink::Hdmi => CallbackSchedulingHandle::new_mirror(),
     }
 }
 

@@ -132,6 +132,14 @@ use std::sync::Arc;
 use main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 use octessera_pi::board_profile;
 
+#[cfg(feature = "native-audio")]
+fn pin_normal_startup_thread() {
+    if let Err(error) = audio_priority::pin_main_thread_to_cpu0() {
+        eprintln!("Normal startup CPU affinity failed: {error}");
+        std::process::exit(2);
+    }
+}
+
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 fn main() {
     let utility_mode = match utility_mode::from_process() {
@@ -175,6 +183,8 @@ fn main() {
         }
         std::process::exit(exit_code(result.is_ok()));
     }
+    #[cfg(feature = "native-audio")]
+    pin_normal_startup_thread();
     if let Err(error) = orange_candidate::run() {
         eprintln!("Orange foreground candidate failed: {error}");
         std::process::exit(error.exit_code());
@@ -208,6 +218,10 @@ fn main() {
         utility_mode::UtilityMode::Normal => {}
     }
 
+    run_requested_utility();
+
+    #[cfg(feature = "native-audio")]
+    pin_normal_startup_thread();
     let _ = simple_logger::init();
 
     let handoff_mode = match boot_oled_handoff::mode_from_env() {
@@ -217,8 +231,6 @@ fn main() {
             std::process::exit(2);
         }
     };
-
-    run_requested_utility();
 
     if let Err(error) = board_profile::validate_runtime_profile() {
         eprintln!("{error}");

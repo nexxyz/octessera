@@ -125,11 +125,11 @@ switch line is unavailable because physical pin 8 / H618 PH0 is active UART0
 TX; its A/B lines remain available. This is a bring-up condition, not the
 production control-surface contract. Runtime readiness follows healthy required
 audio, initialized control-surface devices, and the first rendered snapshot.
-The service uses `LimitRTPRIO=70`; for DAC-only Jack qualification, the inline
-and persistent callbacks are fixed to CPU1. Persistent DSP workers are fixed to
-CPUs 2 and 3, all at verified `SCHED_FIFO` priority 70. USB/HDMI remain on
-legacy, unqualified handling and are disabled for reported measurements; full
-fanout is deferred. Its sole ambient and bounding capability is
+The service uses `LimitRTPRIO=70`. The normal main thread and its helper threads
+use CPU0 under `SCHED_OTHER`. The Jack callback uses CPU1 at verified
+`SCHED_FIFO` priority 70; USB/HDMI mirror callbacks use CPU0 at priority 60 and
+fail route-locally. Orange Capacity workers use CPUs 2 and 3 at priority 70.
+Its sole ambient and bounding capability is
 `CAP_SYS_TTY_CONFIG` for native VT leasing; it does not use `CAP_SYS_NICE` or
 other realtime capability elevation. Startup reports the
 named `DAC` or `UAC2` sink and rejects the qualified Jack stream when callback
