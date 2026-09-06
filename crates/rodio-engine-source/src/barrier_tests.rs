@@ -1,6 +1,6 @@
 use super::*;
 use std::sync::mpsc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 const BLOCK_FRAMES: usize = 128;
 const OUTPUT_SAMPLES: usize = BLOCK_FRAMES * 2;
@@ -14,10 +14,7 @@ fn inline_probe_marks_fence_two_refills() {
 
 #[test]
 fn persistent_probe_marks_fence_two_refills() {
-    let (tx, rx) = event_queue();
-    let (source, shutdown) =
-        EngineSource::with_persistent_workers_for_benchmark(rx, 44_100, BLOCK_FRAMES, None)
-            .unwrap();
+    let (tx, source, shutdown) = super::persistent_tests::persistent_source(BLOCK_FRAMES);
     assert_two_probe_marks_fence(tx, source, Some(shutdown));
 }
 
@@ -50,7 +47,7 @@ fn assert_two_probe_marks_fence(
     }
     source.next();
     assert_eq!(source.refill_generation_for_test(), 2);
-    assert!(second_rx.recv_timeout(Duration::from_secs(1)).is_ok());
+    assert!(second_rx.try_recv().is_ok());
 
     drop(source);
     if let Some(shutdown) = shutdown {
