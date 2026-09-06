@@ -25,6 +25,42 @@ fn constructor_runs_persistent_quantums() {
 }
 
 #[test]
+fn empty_control_steady_state_uses_no_control_gate() {
+    let (_tx, rx) = event_queue();
+    let (mut source, shutdown) =
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
+            .expect("routing-tree runtime");
+    assert!(source
+        .retired_backlog
+        .as_mut()
+        .expect("retired backlog")
+        .enqueue(RetiredAudioItem {
+            state: None,
+            event: Some(EngineEvent::MomentaryFxStop {
+                id: "empty-steady-state".into(),
+            }),
+            drop_probe: None,
+        }));
+
+    for _ in 0..(128 * 2 * 3) {
+        assert_eq!(source.next(), Some(0.0));
+    }
+
+    assert_eq!(source.routing_tree_control_gate_calls, 0);
+    assert_eq!(
+        source
+            .retired_backlog
+            .as_ref()
+            .expect("retired backlog")
+            .len,
+        0
+    );
+    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
+    drop(source);
+    assert_eq!(shutdown.shutdown().joined_workers, 2);
+}
+
+#[test]
 fn applies_controls_before_dispatching_next_quantum() {
     let (tx, rx) = event_queue();
     let instruments = InstrumentsConfig {

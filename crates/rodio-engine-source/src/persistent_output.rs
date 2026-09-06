@@ -244,14 +244,6 @@ impl EngineSource {
         if recovered {
             persistent_output.deadline_recovery();
         }
-        let mut controls = control_drain::ControlDrain::new(
-            control_rx,
-            retired_tx,
-            retired_backlog.as_mut().expect("retired backlog"),
-            retirement_disconnected,
-            #[cfg(test)]
-            retired_drop_probe.clone(),
-        );
         let effective_sample_clock = if recovered {
             engine.sample_clock()
         } else {
@@ -260,21 +252,47 @@ impl EngineSource {
         let mut drained = DrainedControlEvents::default();
         #[cfg(feature = "source-worker-benchmark-timing")]
         let engine_block_started_at = runtime.timing_block_start();
-        let disposition = engine.render_interleaved_block_with_source_runtime_ready_with_controls(
-            runtime,
-            *block_frames,
-            left_buf,
-            right_buf,
-            buf,
-            |engine| {
-                drained = controls.drain_routing_tree(engine, effective_sample_clock);
-                if engine.take_routing_tree_rejection() {
-                    Err(())
-                } else {
-                    Ok(())
-                }
-            },
-        );
+        let disposition = if control_rx.has_pending() {
+            #[cfg(all(test, feature = "routing-tree-executor"))]
+            {
+                self.routing_tree_control_gate_calls += 1;
+            }
+            let mut controls = control_drain::ControlDrain::new(
+                control_rx,
+                retired_tx,
+                retired_backlog.as_mut().expect("retired backlog"),
+                retirement_disconnected,
+                #[cfg(test)]
+                retired_drop_probe.clone(),
+            );
+            engine.render_interleaved_block_with_source_runtime_ready_with_controls(
+                runtime,
+                *block_frames,
+                left_buf,
+                right_buf,
+                buf,
+                |engine| {
+                    drained = controls.drain_routing_tree(engine, effective_sample_clock);
+                    if engine.take_routing_tree_rejection() {
+                        Err(())
+                    } else {
+                        Ok(())
+                    }
+                },
+            )
+        } else {
+            retired_backlog
+                .as_mut()
+                .expect("retired backlog")
+                .flush(retired_tx, retirement_disconnected);
+            engine.render_interleaved_block_with_source_runtime_ready(
+                runtime,
+                *block_frames,
+                left_buf,
+                right_buf,
+                buf,
+            )
+        };
         #[cfg(feature = "source-worker-benchmark-timing")]
         runtime.record_engine_block_total(engine_block_started_at);
         *cached_profile_snapshot = engine.profile_snapshot();
@@ -419,77 +437,5 @@ impl EngineSource {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cached_output_repeats_once_and_geometry_mismatch_stays_invalid() {
-        let mut cache = PreviousMasterQuantum::new();
-        let fresh = [
-            1.0_f32.to_bits(),
-            (-0.0_f32).to_bits(),
-            0x7fc0_1234,
-            4.0_f32.to_bits(),
-        ];
-        let fresh: Vec<f32> = fresh.into_iter().map(f32::from_bits).collect();
-        assert_eq!(cache.fresh(2, &fresh), PersistentOutputKind::Fresh);
-
-        let mut repeated = vec![9.0; 4];
-        assert_eq!(
-            cache.deadline_miss(44_100, 2, &mut repeated),
-            PersistentOutputKind::Repeated
-        );
-        assert_eq!(
-            repeated
-                .iter()
-                .map(|sample| sample.to_bits())
-                .collect::<Vec<_>>(),
-            fresh
-                .iter()
-                .map(|sample| sample.to_bits())
-                .collect::<Vec<_>>()
-        );
-
-        let mut pending = vec![9.0; 4];
-        assert_eq!(
-            cache.recovery_silence(&mut pending),
-            PersistentOutputKind::Dropped
-        );
-        assert!(pending.iter().all(|sample| sample.to_bits() == 0));
-
-        let mut mismatch = vec![9.0; 6];
-        assert_eq!(
-            cache.deadline_miss(44_100, 3, &mut mismatch),
-            PersistentOutputKind::Dropped
-        );
-        cache.deadline_recovery();
-        let mut no_stale_revival = vec![9.0; 4];
-        assert_eq!(
-            cache.deadline_miss(44_100, 2, &mut no_stale_revival),
-            PersistentOutputKind::Dropped
-        );
-    }
-
-    #[test]
-    fn counters_snapshot_contains_only_previous_master_quantum_totals() {
-        let mut cache = PreviousMasterQuantum::new();
-        let fresh = [1.0_f32, 0.0, 0.0, 1.0];
-        assert_eq!(cache.fresh(2, &fresh), PersistentOutputKind::Fresh);
-        let mut repeated = vec![0.0; 4];
-        assert_eq!(
-            cache.deadline_miss(44_100, 2, &mut repeated),
-            PersistentOutputKind::Repeated
-        );
-        let counters = cache.counters();
-        assert_eq!(
-            counters,
-            PersistentOutputCounters {
-                rendered_quantums: 1,
-                repeated_quantums: 1,
-                dropped_quantums: 0,
-                deadline_misses: 1,
-                deadline_recoveries: 0,
-            }
-        );
-    }
-}
+#[path = "persistent_output_tests.rs"]
+mod tests;
