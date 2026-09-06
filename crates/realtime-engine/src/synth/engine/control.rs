@@ -158,6 +158,7 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return;
         }
+        #[cfg(any(test, feature = "test-support"))]
         if self.persistent_bus_limit.is_some_and(|limit| {
             cfg.mixer
                 .as_ref()

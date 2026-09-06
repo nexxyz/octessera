@@ -1,13 +1,10 @@
-use super::cpal_audio_output::build_cpal_stream;
-use super::{AudioSink, RecordingTapState};
-use crate::audio_replay::ReplayCache;
+use super::audio_output_open::AudioConstructionConfig;
+use super::cpal_audio_output::build_cpal_mirror_stream;
+use super::AudioSink;
 use crate::audio_route::{set_status, AudioRouteRegistry, AudioRouteStatus, RouteOpenError};
-use crate::audio_sink_registry::{
-    attach_sink_atomic, has_sink, remove_sink_atomic, AudioAttachGate, SinkSender,
-};
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
-use rodio_engine_source::{event_queue, EngineEventSender};
-use std::sync::{Arc, Mutex, RwLock};
+use rodio_engine_source::PcmMirrorProducer;
+use std::sync::Arc;
 use std::time::Duration;
 
 const STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
@@ -37,16 +34,11 @@ impl Drop for OptionalRecoveryWorker {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn spawn(
-    output_buffer_frames: Option<u32>,
-    realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-    replay_events: Arc<Mutex<ReplayCache>>,
-    recording_tap: Arc<RwLock<Option<crate::recording::RecordingTap>>>,
+    construction: AudioConstructionConfig,
     route_registry: AudioRouteRegistry,
-    attach_gate: AudioAttachGate,
     sink: AudioSink,
-    uses_recording_tap: bool,
+    mirror_producer: PcmMirrorProducer,
 ) -> OptionalRecoveryWorker {
     let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let worker_stop = stop.clone();
@@ -59,31 +51,17 @@ pub(super) fn spawn(
             {
                 Some(AudioStreamStatus::Healthy) | None => {}
                 Some(AudioStreamStatus::Recovering) => {
-                    let _ = remove_sink_atomic(&attach_gate, &realtime_txs, sink);
                     managed = None;
                     set_status(&route_registry, sink, AudioRouteStatus::Waiting);
                 }
                 Some(AudioStreamStatus::Terminal) => {
-                    let _ = remove_sink_atomic(&attach_gate, &realtime_txs, sink);
                     set_status(&route_registry, sink, AudioRouteStatus::Faulted);
                     return;
                 }
             }
-            if !has_sink(&realtime_txs, sink) {
-                let tap = uses_recording_tap.then(|| recording_tap.clone());
-                match open(output_buffer_frames, sink, tap) {
-                    Ok((tx, stream)) => {
-                        if let Err(error) = attach_sink_atomic(
-                            &attach_gate,
-                            &realtime_txs,
-                            &replay_events,
-                            sink,
-                            tx,
-                        ) {
-                            set_status(&route_registry, sink, AudioRouteStatus::Faulted);
-                            eprintln!("{sink:?} audio attach failed: {error}");
-                            return;
-                        }
+            if managed.is_none() {
+                match open(construction, sink, mirror_producer.new_consumer()) {
+                    Ok(stream) => {
                         set_status(&route_registry, sink, AudioRouteStatus::Active);
                         stream.health.clear_external_fault();
                         managed = Some(stream);
@@ -118,19 +96,18 @@ fn sleep_until_retry_or_stop(stop: &std::sync::atomic::AtomicBool, duration: Dur
 }
 
 fn open(
-    output_buffer_frames: Option<u32>,
+    construction: AudioConstructionConfig,
     sink: AudioSink,
-    recording_tap: Option<RecordingTapState>,
-) -> Result<(EngineEventSender, ManagedStream), RouteOpenError> {
-    let (engine_tx, engine_rx) = event_queue();
+    consumer: rodio_engine_source::PcmMirrorConsumer,
+) -> Result<ManagedStream, RouteOpenError> {
     let health = AudioStreamHealth::optional(format!("{sink:?}"));
-    let built = build_cpal_stream(
-        engine_rx,
-        output_buffer_frames,
+    let built = build_cpal_mirror_stream(
+        match construction {
+            AudioConstructionConfig::OutputBuffer(frames) => frames,
+        },
         sink,
-        recording_tap,
+        consumer,
         health.clone(),
-        super::cpal_audio_output::AudioSourceExecutionMode::Inline,
     )?;
     if let Err(error) = built.play() {
         if let Err(status) = built.teardown() {
@@ -155,13 +132,10 @@ fn open(
             )))
         }
     }
-    Ok((
-        engine_tx,
-        ManagedStream {
-            _stream: built,
-            health,
-        },
-    ))
+    Ok(ManagedStream {
+        _stream: built,
+        health,
+    })
 }
 
 #[cfg(test)]

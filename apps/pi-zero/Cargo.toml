@@ -52,6 +52,11 @@ routing-tree-benchmark = [
     "realtime-engine/routing-tree-benchmark",
     "rodio-engine-source/routing-tree-benchmark",
 ]
+routing-tree-executor = [
+    "native-audio",
+    "realtime-engine/routing-tree-benchmark",
+    "rodio-engine-source/routing-tree-executor",
+]
 raspberry-runtime = [
     "external-midi",
 ]
@@ -68,6 +73,7 @@ hardware-orange-pi-zero-2w = [
     "octessera-hal/orange-pi-zero-2w",
     "external-midi",
     "source-worker-benchmark-timing",
+    "routing-tree-executor",
 ]
 
 [build-dependencies]
@@ -75,3 +81,4 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 
 [dev-dependencies]
 playback-runtime = { path = "../../crates/playback-runtime", features = ["test-support"] }
+realtime-engine = { path = "../../crates/realtime-engine", features = ["test-support"] }

@@ -1,4 +1,5 @@
 use super::audio_output_open::OpenedAudioSink;
+use super::cpal_audio_output::OrangeAudioProfile;
 use super::orange_audio_recovery::{
     OrangeRecoveryClock, OrangeRecoveryController, OrangeRecoveryDependencies, OrangeRecoveryOpener,
 };
@@ -15,7 +16,7 @@ use std::time::Instant;
 fn opener_with_calls() -> (OrangeRecoveryOpener, Arc<Mutex<usize>>) {
     let calls = Arc::new(Mutex::new(0));
     let call_count = calls.clone();
-    let opener: OrangeRecoveryOpener = Arc::new(move |_, _, _, _, _| {
+    let opener: OrangeRecoveryOpener = Arc::new(move |_, _, _, _, _, _, _| {
         *call_count.lock().unwrap() += 1;
         Err(RouteOpenError::Fault(
             "unexpected recovery opener call".into(),
@@ -33,7 +34,7 @@ fn opened(
     health: AudioStreamHealth,
 ) -> OpenedAudioSink {
     OpenedAudioSink {
-        engine_tx,
+        engine_tx: Some(engine_tx),
         _stream: None,
         health,
         _test_engine_rx: None,
@@ -52,11 +53,15 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
         true,
         opened(jack_tx, jack_health.clone()),
         OrangeRecoveryDependencies {
-            output_buffer_frames: None,
+            profile: OrangeAudioProfile::from_optimization(
+                playback_runtime::AudioOptimization::Capacity,
+            ),
             realtime_txs: jack_sinks.clone(),
             replay_events: Arc::new(Mutex::new(ReplayCache::default())),
             attach_gate: new_attach_gate(),
             recording_tap: None,
+            mirror_producer: None,
+            mirror_producers: [None, None],
             opener: jack_opener,
             clock: clock(),
         },
@@ -84,21 +89,28 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     );
     assert!(has_sink(&jack_sinks, AudioSink::Jack));
 
-    let (usb_tx, _usb_rx) = event_queue();
-    let usb_sinks = Arc::new(Mutex::new(Vec::new()));
-    register_sink(&usb_sinks, AudioSink::Usb, usb_tx.clone());
     let usb_health = AudioStreamHealth::optional("USB".into());
     let (usb_opener, usb_calls) = opener_with_calls();
+    let usb_mirror = rodio_engine_source::new_pcm_mirror();
     let mut usb_controller = OrangeRecoveryController::new_initial_with_dependencies(
         AudioSink::Usb,
         false,
-        opened(usb_tx, usb_health.clone()),
+        OpenedAudioSink {
+            engine_tx: None,
+            _stream: None,
+            health: usb_health.clone(),
+            _test_engine_rx: None,
+        },
         OrangeRecoveryDependencies {
-            output_buffer_frames: None,
-            realtime_txs: usb_sinks.clone(),
+            profile: OrangeAudioProfile::from_optimization(
+                playback_runtime::AudioOptimization::Capacity,
+            ),
+            realtime_txs: Arc::new(Mutex::new(Vec::new())),
             replay_events: Arc::new(Mutex::new(ReplayCache::default())),
             attach_gate: new_attach_gate(),
             recording_tap: None,
+            mirror_producer: Some(usb_mirror.producer),
+            mirror_producers: [None, None],
             opener: usb_opener,
             clock: clock(),
         },
@@ -114,7 +126,6 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     assert_eq!(usb_health.external_status(), AudioStreamStatus::Healthy);
     assert_eq!(usb_health.runtime_status(), AudioStreamStatus::Terminal);
     assert_eq!(usb_health.worker_health(), SourceWorkerHealth::WorkerExited);
-    assert!(has_sink(&usb_sinks, AudioSink::Usb));
 }
 
 #[test]
@@ -126,12 +137,12 @@ fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
     let initial = opened(initial_tx, health.clone());
     let seen_sender = Arc::new(Mutex::new(false));
     let seen_sender_for_opener = seen_sender.clone();
-    let opener: OrangeRecoveryOpener = Arc::new(move |_, _sink, health, _, sender| {
+    let opener: OrangeRecoveryOpener = Arc::new(move |_, _sink, health, _, sender, _, _| {
         *seen_sender_for_opener.lock().unwrap() = sender.is_some();
         sender.unwrap().try_send(load_status(0.7));
         let (engine_tx, engine_rx) = event_queue();
         Ok(OpenedAudioSink {
-            engine_tx,
+            engine_tx: Some(engine_tx),
             _stream: None,
             health,
             _test_engine_rx: Some(Arc::new(Mutex::new(engine_rx))),
@@ -143,11 +154,15 @@ fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
         true,
         initial,
         OrangeRecoveryDependencies {
-            output_buffer_frames: None,
+            profile: OrangeAudioProfile::from_optimization(
+                playback_runtime::AudioOptimization::Capacity,
+            ),
             realtime_txs: Arc::new(Mutex::new(Vec::new())),
             replay_events: Arc::new(Mutex::new(ReplayCache::default())),
             attach_gate: new_attach_gate(),
             recording_tap: None,
+            mirror_producer: None,
+            mirror_producers: [None, None],
             opener,
             clock,
         },
@@ -159,6 +174,45 @@ fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
 
     assert!(*seen_sender.lock().unwrap());
     assert_eq!(load_rx.try_recv().unwrap().worker_utilization, Some(0.7));
+}
+
+#[test]
+fn optional_initial_mirror_does_not_require_an_event_sink_registration() {
+    let health = AudioStreamHealth::optional("USB".into());
+    let (opener, calls) = opener_with_calls();
+    let pair = rodio_engine_source::new_pcm_mirror();
+    let initial = OpenedAudioSink {
+        engine_tx: None,
+        _stream: None,
+        health: health.clone(),
+        _test_engine_rx: None,
+    };
+    let mut controller = OrangeRecoveryController::new_initial_with_dependencies(
+        AudioSink::Usb,
+        false,
+        initial,
+        OrangeRecoveryDependencies {
+            profile: OrangeAudioProfile::from_optimization(
+                playback_runtime::AudioOptimization::Capacity,
+            ),
+            realtime_txs: Arc::new(Mutex::new(Vec::new())),
+            replay_events: Arc::new(Mutex::new(ReplayCache::default())),
+            attach_gate: new_attach_gate(),
+            recording_tap: None,
+            mirror_producer: Some(pair.producer),
+            mirror_producers: [None, None],
+            opener,
+            clock: clock(),
+        },
+    )
+    .unwrap();
+
+    controller.recover_if_due();
+
+    assert_eq!(controller.device_status(), AudioStreamStatus::Healthy);
+    assert_eq!(controller.runtime_status(), AudioStreamStatus::Healthy);
+    assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
+    assert_eq!(*calls.lock().unwrap(), 0);
 }
 
 fn load_status(worker_utilization: f32) -> realtime_engine::synth::AudioLoadStatus {

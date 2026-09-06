@@ -34,6 +34,7 @@ impl NativeRunner {
             return (false, false);
         };
         if !optimization.is_supported(self.audio_optimization_capacity_available) {
+            self.restore_audio_optimization_menu_value();
             self.show_toast("Audio optimization unavailable");
             return (true, false);
         }
@@ -43,5 +44,21 @@ impl NativeRunner {
             self.show_toast("Restart device to apply");
         }
         (true, changed)
+    }
+
+    pub(super) fn restore_audio_optimization_menu_value(&mut self) {
+        let value = match self.audio_optimization {
+            AudioOptimization::Latency => "latency",
+            AudioOptimization::Capacity => "capacity",
+        };
+        self.menu.set_enum_value_for_key("sound.optimizeFor", value);
+    }
+
+    pub(super) fn menu_jack_audio_disabled(&self) -> bool {
+        self.jack_audio_required
+            && self
+                .menu
+                .value_for_key("audioOutputs.dac")
+                .is_some_and(|value| value == "false")
     }
 }

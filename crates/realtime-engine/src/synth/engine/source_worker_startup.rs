@@ -1,23 +1,32 @@
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
+#[cfg(feature = "routing-tree-benchmark")]
+use super::super::source_worker_protocol::ROUTING_TREE_WORKER_THREAD_NAMES;
+#[cfg(any(test, feature = "test-support"))]
+use super::super::source_worker_protocol::SOURCE_WORKER_THREAD_NAMES;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use super::super::source_worker_protocol::{SourceWorkerSetupError, SourceWorkerStartHook};
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use super::worker::spawn_worker_named;
 #[cfg(test)]
 use super::worker::ReverseCompletionState;
-use super::{SourceWorkerCloseState, SourceWorkerLifecycle, SOURCE_WORKER_MAILBOX_CAPACITY};
+use super::SourceWorkerLifecycle;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+use super::{SourceWorkerCloseState, SOURCE_WORKER_MAILBOX_CAPACITY};
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use crossbeam_channel::bounded;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use std::sync::Arc;
 
 impl SourceWorkerLifecycle {
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn start_with_hold_and_hook(
         hold_before_receive: bool,
         start_hook: Option<SourceWorkerStartHook>,
     ) -> Result<Self, SourceWorkerSetupError> {
-        Self::start_with_worker_names(
-            hold_before_receive,
-            start_hook,
-            super::worker::SOURCE_WORKER_THREAD_NAMES,
-        )
+        Self::start_with_worker_names(hold_before_receive, start_hook, SOURCE_WORKER_THREAD_NAMES)
     }
 
     #[cfg(feature = "routing-tree-benchmark")]
@@ -28,10 +37,11 @@ impl SourceWorkerLifecycle {
         Self::start_with_worker_names(
             hold_before_receive,
             start_hook,
-            super::worker::ROUTING_TREE_WORKER_THREAD_NAMES,
+            ROUTING_TREE_WORKER_THREAD_NAMES,
         )
     }
 
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
     fn start_with_worker_names(
         hold_before_receive: bool,
         start_hook: Option<SourceWorkerStartHook>,
@@ -101,6 +111,7 @@ impl SourceWorkerLifecycle {
         })
     }
 
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
     pub(crate) fn prewarm(&mut self) -> Result<(), SourceWorkerSetupError> {
         if self.prewarmed {
             return Ok(());

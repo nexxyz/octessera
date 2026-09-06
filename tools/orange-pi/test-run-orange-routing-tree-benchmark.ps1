@@ -55,9 +55,7 @@ function New-RoutingResult {
 $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "routing_tree_persistent"
 if ($selection.ExecutorMode -cne "routing_tree_persistent" -or $selection.WorkerTimingMode -cne "enabled" -or $selection.LookaheadFrames -ne 128 -or $selection.EffectiveOutputLatencyFrames -ne 384) { throw "Routing-tree selection identity was not retained." }
 Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 512 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "routing_tree_persistent" }
-$persistentDefault = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "persistent_two_workers"
-$persistentDisabled = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "persistent_two_workers" -WorkerTimingMode "disabled"
-if ($persistentDefault.WorkerTimingMode -cne "enabled" -or $persistentDisabled.WorkerTimingMode -cne "disabled") { throw "Two-wave worker timing selection did not preserve default or explicit mode." }
+Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "persistent_two_workers" }
 Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "inline" -WorkerTimingMode "enabled" }
 Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "routing_tree_persistent" -WorkerTimingMode "disabled" }
 $routingWorkers = [pscustomobject]@{ executor_mode = "routing_tree_persistent"; worker_health = "healthy"; worker_thread_name_0 = "oct-dsp-tree-0"; worker_thread_name_1 = "oct-dsp-tree-1"; joined_workers = 2; retirement_error = $null }
@@ -67,9 +65,6 @@ $wrongWorkers.worker_thread_name_0 = "oct-dsp-src-0"
 Assert-Throws { Assert-OrangeWorkerEvidence -Evidence $wrongWorkers }
 $routingResult = New-RoutingResult $selection
 Assert-OrangeLiveResult -Result $routingResult -Selection $selection
-$disabledResult = ConvertFrom-Json -InputObject ($routingResult | ConvertTo-Json -Depth 8)
-$disabledResult.executor_mode = "persistent_two_workers"; $disabledResult.lookahead_frames = 0; $disabledResult.effective_output_latency_frames = 256; $disabledResult.worker_thread_name_0 = "oct-dsp-src-0"; $disabledResult.worker_thread_name_1 = "oct-dsp-src-1"; $disabledResult.worker_timing_mode = "disabled"; $disabledResult.worker_timing = $null
-Assert-OrangeLiveResult -Result $disabledResult -Selection $persistentDisabled
 $wrongRoutingTiming = ConvertFrom-Json -InputObject ($routingResult | ConvertTo-Json -Depth 8)
 $wrongRoutingTiming.worker_timing_mode = "disabled"; $wrongRoutingTiming.worker_timing = $null
 Assert-Throws { Assert-OrangeWorkerTimingEvidence -Result $wrongRoutingTiming }
@@ -102,23 +97,6 @@ Assert-Contains $validationSource 'schema_version -Path "schema_version"), 12'
 $studyStart = $routingPrint.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
 $studyEnd = $routingPrint.IndexOf("Study payload transport:", $studyStart, [StringComparison]::Ordinal)
 $routingPayload = $routingPrint.Substring($studyStart, $studyEnd - $studyStart)
-$ordinaryParameters = $runnerParameters.Clone(); $ordinaryParameters.ExecutorMode = "persistent_two_workers"
-$ordinaryPrint = Invoke-PrintOnly $runner $ordinaryParameters
-$ordinaryStart = $ordinaryPrint.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
-$ordinaryEnd = $ordinaryPrint.IndexOf("Study payload transport:", $ordinaryStart, [StringComparison]::Ordinal)
-$ordinaryPayload = $ordinaryPrint.Substring($ordinaryStart, $ordinaryEnd - $ordinaryStart)
-$disabledParameters = $runnerParameters.Clone(); $disabledParameters.ExecutorMode = "persistent_two_workers"; $disabledParameters.WorkerTimingMode = "disabled"
-$disabledPrint = Invoke-PrintOnly $runner $disabledParameters
-Assert-Contains $disabledPrint "worker-timing=disabled executor=persistent_two_workers lookahead=0 effective-latency=256"
-$disabledStart = $disabledPrint.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
-$disabledEnd = $disabledPrint.IndexOf("Study payload transport:", $disabledStart, [StringComparison]::Ordinal)
-$disabledPayload = $disabledPrint.Substring($disabledStart, $disabledEnd - $disabledStart)
-Assert-Contains $disabledPayload '--worker-timing disabled'
-Assert-Contains $disabledPayload 'worker_timing_mode "$result")" = disabled'
-$disabledPlan = @(Get-OrangeLiveMatrixPlan -ExecutorMode "persistent_two_workers" -WorkerTimingMode "disabled")
-if ($disabledPlan.Count -ne 22 -or @($disabledPlan | Where-Object { $_.WorkerTimingMode -ne "disabled" }).Count -ne 0) { throw "Explicit disabled two-wave timing was not retained through the matrix plan." }
-$disabledMatrixPrint = Invoke-PrintOnly $matrix @{ PrintOnly = $true; ExecutorMode = "persistent_two_workers"; WorkerTimingMode = "disabled" }
-Assert-Contains $disabledMatrixPrint "Matrix cells: 23 total (11 A + 1 selected A120 + 11 B)."
 $inlineParameters = $runnerParameters.Clone(); $inlineParameters.ExecutorMode = "inline"; $inlineParameters.WorkerTimingMode = "disabled"
 $inlinePrint = Invoke-PrintOnly $runner $inlineParameters
 $inlineStart = $inlinePrint.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
@@ -134,7 +112,7 @@ Assert-Contains $routingPayload "effective_output_latency_frames"
 Assert-Contains $routingPayload 'validate_benchmark_result()'
 Assert-Contains $routingPayload '[ "$(json_field schema_version "$result")" = 12 ]'
 Assert-Contains $routingPayload 'worker_timing_mode "$result")" = enabled'
-Assert-OrangeGeneratedWorkerTaskAudit -PersistentPayload $ordinaryPayload -InlinePayload $inlinePayload -RoutingPayload $routingPayload
+Assert-OrangeGeneratedWorkerTaskAudit -RoutingPayload $routingPayload -InlinePayload $inlinePayload
 
 $matrixPrint = Invoke-PrintOnly $matrix @{ PrintOnly = $true; ExecutorMode = "routing_tree_persistent" }
 if ($matrixPrint -match 'output=512|output=1024' -or $matrixPrint -notmatch '(?s)(?=.*01: synth_ramp_16)(?=.*11: mixed_cross_slot_48_48_steal)(?=.*12: A120)(?=.*Matrix cells: 12 total \(11 A \+ 1 selected A120\))') { throw "Routing-tree matrix did not retain exactly 11 A cells plus A120." }

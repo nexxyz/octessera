@@ -1,6 +1,6 @@
 use super::{
-    fill_callback, fill_callback_with_scheduler, mark_worker_terminal, AudioStreamHealth,
-    CallbackSource,
+    fill_callback, fill_callback_with_scheduler, fill_mirror_callback_with_scheduler,
+    mark_worker_terminal, AudioStreamHealth, CallbackSource, MirrorCallbackSource,
 };
 use crate::audio_priority::{
     install_blocked_test_scheduling, install_test_scheduling, CallbackSchedulingHandle, CpuMask,
@@ -8,7 +8,7 @@ use crate::audio_priority::{
 };
 use crate::audio_stream_health::AudioStreamStatus;
 use realtime_engine::synth::SourceWorkerHealth;
-use rodio_engine_source::event_queue;
+use rodio_engine_source::{event_queue, new_pcm_mirror};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 
@@ -291,6 +291,38 @@ fn strict_callback_setup_and_silence_do_not_allocate_or_deallocate() {
     });
 
     assert_eq!((allocations, deallocations), (0, 0));
+}
+
+#[test]
+fn mirror_callback_has_no_allocation_activity_after_warmup() {
+    let pair = new_pcm_mirror();
+    let producer = pair.producer;
+    let mut callback_source = MirrorCallbackSource::new(pair.consumer);
+    let scheduler = CallbackSchedulingHandle::new(0);
+    producer.publish(&[1.0, -1.0].repeat(128), 128);
+    let mut output = [0.0_f32; 16];
+
+    let (_, allocations, deallocations) = count_allocations_and_deallocations(|| {
+        fill_mirror_callback_with_scheduler(&mut output, &mut callback_source, &scheduler);
+    });
+
+    assert_eq!((allocations, deallocations), (0, 0));
+}
+
+#[test]
+fn mirror_callback_underrun_is_silent_and_restarts_after_target_priming() {
+    let pair = new_pcm_mirror();
+    let producer = pair.producer;
+    let mut callback_source = MirrorCallbackSource::new(pair.consumer);
+    let scheduler = CallbackSchedulingHandle::new(0);
+    let mut output = [1.0_f32; 8];
+
+    fill_mirror_callback_with_scheduler(&mut output, &mut callback_source, &scheduler);
+    assert!(output.iter().all(|sample| sample.to_bits() == 0));
+    producer.publish(&[4.0, -4.0].repeat(256), 256);
+    fill_mirror_callback_with_scheduler(&mut output, &mut callback_source, &scheduler);
+
+    assert_eq!(&output[..2], &[4.0, -4.0]);
 }
 
 #[test]

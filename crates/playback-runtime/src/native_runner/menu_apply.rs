@@ -8,6 +8,11 @@ impl NativeRunner {
         self.clear_deferred_menu_apply();
         let before = self.configuration_aggregate();
         let current_key = self.menu.current_key().map(str::to_string);
+        if self.menu_jack_audio_disabled() {
+            self.restore_audio_outputs_menu_values();
+            self.show_toast(super::JACK_AUDIO_REQUIRED_MESSAGE);
+            return Ok(());
+        }
         if current_key
             .as_deref()
             .is_some_and(|key| key.starts_with("audioOutputs."))

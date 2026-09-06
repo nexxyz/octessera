@@ -400,6 +400,9 @@ mod persistent_terminal_tests;
 #[path = "persistent_output_integration_tests.rs"]
 mod persistent_output_integration_tests;
 
+#[path = "pcm_mirror_integration_tests.rs"]
+mod pcm_mirror_integration_tests;
+
 #[path = "persistent_flash_tests.rs"]
 mod persistent_flash_tests;
 

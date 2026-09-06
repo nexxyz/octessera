@@ -47,7 +47,7 @@ function Assert-OrangeCapacityBenchmarkSelection {
     [Parameter(Mandatory)][int]$OutputFrames,
     [Parameter(Mandatory)][int]$EngineBlockFrames,
     [Parameter(Mandatory)][int]$MeasureSeconds,
-    [Parameter(Mandatory)][ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")][string]$ExecutorMode,
+    [Parameter(Mandatory)][ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode,
     [string]$WorkerTimingMode = "",
     [bool]$AllowLongRepeat = $false
   )

@@ -1,4 +1,6 @@
+use super::audio_output_open::AudioConstructionConfig;
 use super::audio_output_open::OpenedAudioSink;
+use super::cpal_audio_output::OrangeAudioProfile;
 use super::{AudioManager, AudioOpenPolicy, AudioSink};
 use crate::audio_route::new_registry;
 use crate::audio_sink_registry::new_attach_gate;
@@ -18,7 +20,9 @@ use std::time::{Duration, Instant};
 fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
     let outputs = playback_runtime::AudioOutputSet::jack();
     let mut manager = AudioManager::new_with_opener(
-        None,
+        AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
+            playback_runtime::AudioOptimization::Capacity,
+        )),
         vec![AudioSink::Jack],
         true,
         AudioOpenPolicy::Outputs(outputs),
@@ -30,7 +34,7 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
     let (mut playback, mut runner, mut host, root) = runtime_with_snapshot(manager.service());
 
     let (source_tx, source_rx) = event_queue();
-    let (mut source, shutdown) = EngineSource::with_persistent_workers(
+    let (mut source, shutdown) = EngineSource::with_routing_tree_persistent_workers(
         source_rx,
         48_000,
         128,
@@ -81,7 +85,9 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
 fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
     let outputs = playback_runtime::AudioOutputSet::jack();
     let mut manager = AudioManager::new_with_opener(
-        None,
+        AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
+            playback_runtime::AudioOptimization::Capacity,
+        )),
         vec![AudioSink::Jack],
         true,
         AudioOpenPolicy::Outputs(outputs),
@@ -202,14 +208,16 @@ fn runtime_with_snapshot(
 }
 
 fn test_opener(
-    _output_buffer_frames: Option<u32>,
+    _construction: AudioConstructionConfig,
     sink: AudioSink,
     _recording_tap: Option<super::RecordingTapState>,
     _load_tx: Option<AudioLoadStatusSender>,
+    _mirror_producers: rodio_engine_source::PcmMirrorProducers,
+    _mirror_consumer: Option<rodio_engine_source::PcmMirrorConsumer>,
 ) -> Result<OpenedAudioSink, crate::audio_route::RouteOpenError> {
     let (engine_tx, engine_rx) = event_queue();
     Ok(OpenedAudioSink {
-        engine_tx,
+        engine_tx: Some(engine_tx),
         _stream: None,
         health: AudioStreamHealth::new(format!("{sink:?}")),
         _test_engine_rx: Some(Arc::new(std::sync::Mutex::new(engine_rx))),

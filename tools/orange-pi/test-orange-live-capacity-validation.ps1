@@ -63,6 +63,8 @@ $u16Engine32Selection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_
 if ($u16Engine32Selection.OutputFrames -ne 128 -or $u16Engine32Selection.AlsaPeriodFrames -ne 32 -or $u16Engine32Selection.EngineBlockFrames -ne 32 -or $u16Engine32Selection.InternalFrames -ne 32 -or $u16Engine32Selection.LookaheadFrames -ne 0 -or $u16Engine32Selection.EffectiveOutputLatencyFrames -ne 128 -or $u16Engine32Selection.RequiredPoolStage -ne 128 -or $u16Engine32Selection.RequiredPoolCapacity -ne 72) { throw "Analogue U16 engine=32 capacity selection did not retain its exact geometry or pool stage." }
 $u16Measure120 = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_16" -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 120 -ExecutorMode "inline" -WorkerTimingMode "disabled"
 if ($u16Measure120.MeasureSeconds -ne 120 -or $u16Measure120.OutputFrames -ne 128 -or $u16Measure120.InternalFrames -ne 32) { throw "Analogue U16 120-second capacity selection did not retain its exact geometry." }
+$productCapacity = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_16" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 120 -ExecutorMode "routing_tree_persistent" -WorkerTimingMode "enabled"
+if ($productCapacity.OutputFrames -ne 256 -or $productCapacity.AlsaPeriodFrames -ne 64 -or $productCapacity.InternalFrames -ne 64 -or $productCapacity.LookaheadFrames -ne 64 -or $productCapacity.EffectiveOutputLatencyFrames -ne 320 -or $productCapacity.RequiredPoolStage -ne 128) { throw "Product Capacity selection did not retain output=256 period=64 internal=64 lookahead=64." }
 foreach ($parameters in @(
     @{ Scenario = "capacity_synth_16"; ExecutorMode = "inline"; WorkerTimingMode = "disabled" },
     @{ Scenario = "capacity_sample_16"; ExecutorMode = "inline"; WorkerTimingMode = "disabled" },
@@ -101,7 +103,7 @@ foreach ($case in @(
     @{ Scenario = "capacity_sample_256"; Synth = 0; Sample = 256; Required = 256 },
     @{ Scenario = "capacity_mixed_16_128"; Synth = 16; Sample = 128; Required = 128 }
   )) {
-  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario $case.Scenario -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30
+  $selection = Assert-OrangeLiveBenchmarkSelection -Scenario $case.Scenario -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 -ExecutorMode inline -WorkerTimingMode disabled
   if ($selection.SynthCount -ne $case.Synth -or $selection.SampleCount -ne $case.Sample -or $selection.RequiredPoolCapacity -ne $case.Required -or $selection.PSObject.Properties["RequiredPoolStage"]) { throw "Legacy capacity selection changed: $($case.Scenario)" }
 }
 foreach ($scenario in @("capacity_synth_0", "capacity_synth_01", "capacity_synth_257", "capacity_sample_999", "capacity_mixed_1_01", "capacity_mixed_1_257", "capacity_mixed_1_2_extra", "capacity_mixed_1")) {
@@ -134,7 +136,7 @@ $stage256 = New-DiagnosticFixture 256
 $routingCandidate = New-DiagnosticFixture 64 $true
 $routingStage128 = New-DiagnosticFixture 128 $true
 try {
-  $legacyPrint = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 180; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  $legacyPrint = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 180; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $legacyPrint "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_mixed_16_128 measure=180"
   Assert-Contains $legacyPrint "Live artifact identity: artifact_kind=diagnostic-only cargo_feature=hardware-orange-pi-zero-2w benchmark-voice-pools-128"
   Assert-Contains $legacyPrint "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=16 requested-sample=128 required-capacity=128"
@@ -145,10 +147,10 @@ try {
   $capacityGateIndex = $legacyPrint.IndexOf('"artifact_kind":"diagnostic-only"', [StringComparison]::Ordinal)
   $capacityStopIndex = $legacyPrint.IndexOf('systemctl stop "$service"', [StringComparison]::Ordinal)
   if ($capacityGateIndex -lt 0 -or $capacityStopIndex -lt 0 -or $capacityGateIndex -ge $capacityStopIndex) { throw "Dynamic remote identity validation was not before production interruption." }
-  $legacyPrintWithoutArtifact = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_synth_16"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = (Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-capacity-missing"); Metadata = (Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-capacity-missing.metadata.json"); AllowServiceInterruption = $true; PrintOnly = $true }
+  $legacyPrintWithoutArtifact = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_synth_16"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = (Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-capacity-missing"); Metadata = (Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-capacity-missing.metadata.json"); AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $legacyPrintWithoutArtifact "Live artifact identity: artifact_kind=diagnostic-only cargo_feature=hardware-orange-pi-zero-2w benchmark-voice-pools-128"
   Assert-Contains $legacyPrintWithoutArtifact "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=16 requested-sample=0 required-capacity=16"
-  $exact42 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_42"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  $exact42 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_42"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $exact42 "Live artifact identity: artifact_kind=diagnostic-only cargo_feature=hardware-orange-pi-zero-2w benchmark-voice-pools-128"
   Assert-Contains $exact42 "Diagnostic pool identity: benchmark-voice-pools-128 requested-synth=126 requested-sample=42 required-capacity=126 required-pool-stage=128"
   $u16Payload = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_24"; OutputFrames = 128; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
@@ -169,11 +171,11 @@ try {
     )) {
     Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = $invalid.Scenario; OutputFrames = 128; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = $invalid.ExecutorMode; WorkerTimingMode = $invalid.WorkerTimingMode; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
   }
-  $exact43 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_43"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage256.Binary; Metadata = $stage256.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  $exact43 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_43"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = $stage256.Binary; Metadata = $stage256.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $exact43 "Diagnostic pool identity: benchmark-voice-pools-256 requested-synth=129 requested-sample=43 required-capacity=129 required-pool-stage=256"
-  $exact85 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_85"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage256.Binary; Metadata = $stage256.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  $exact85 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_85"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = $stage256.Binary; Metadata = $stage256.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $exact85 "Diagnostic pool identity: benchmark-voice-pools-256 requested-synth=255 requested-sample=85 required-capacity=255 required-pool-stage=256"
-  $legacyCrossStage = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage256.Binary; Metadata = $stage256.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
+  $legacyCrossStage = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_mixed_16_128"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; ExecutorMode = "inline"; WorkerTimingMode = "disabled"; Artifact = $stage256.Binary; Metadata = $stage256.Metadata; AllowServiceInterruption = $true; PrintOnly = $true }
   Assert-Contains $legacyCrossStage "required-capacity=128"
   Assert-NotContains $legacyCrossStage "required-pool-stage="
   Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveAudioBenchmark"; Scenario = "capacity_analogue_43"; OutputFrames = 256; EngineBlockFrames = 64; MeasureSeconds = 30; Artifact = $stage128.Binary; Metadata = $stage128.Metadata; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
@@ -238,12 +240,12 @@ function New-AnalogueResult {
   return [pscustomobject]@{ schema_version = 11; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $Selection.Scenario; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 64; sample_format = "F32"; channels = 2; sample_rate = 44100; warmup_seconds = 5; measure_seconds = 30; scheduler_qualified = $true; callback_scheduling_policy = "SCHED_FIFO"; callback_scheduling_priority = 70; callback_scheduling_cpu = 1; post_dsp_zero = $true; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64); callback = $callback; persistent_output_counters = $persistent; detected_continuity_events = 3; profile_start = $profileStart; profile_end = $profileEnd; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null; executor_mode = "persistent_two_workers"; worker_health = "healthy"; worker_thread_name_0 = "oct-dsp-src-0"; worker_thread_name_1 = "oct-dsp-src-1"; joined_workers = 2; retirement_error = $null; worker_timing_mode = "enabled"; worker_timing = $workerTiming }
 }
 
-$analogueSelection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_24" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30
+$analogueSelection = Assert-OrangeLiveBenchmarkSelection -Scenario "capacity_analogue_24" -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 -ExecutorMode inline -WorkerTimingMode disabled
 $analogueResult = New-AnalogueResult $analogueSelection
 $analogueResult.schema_version = 12
 $analogueResult | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0
 $analogueResult | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 256
-Assert-OrangeLiveResult -Result $analogueResult -Selection $analogueSelection
+Assert-Throws { Assert-OrangeLiveResult -Result $analogueResult -Selection $analogueSelection }
 $zeroU16Counters = [pscustomobject]@{ rendered_quantums = 0; repeated_quantums = 0; dropped_quantums = 0; deadline_misses = 0; deadline_recoveries = 0 }
 $u16Result = New-AnalogueResult $u16Selection
 $u16Result.schema_version = 12; $u16Result.requested_output_buffer_frames = 128; $u16Result.expected_alsa_buffer_frames = 128; $u16Result.expected_alsa_period_frames = 32; $u16Result.internal_block_frames = 64; $u16Result.sample_format = "U16"; $u16Result.executor_mode = "inline"; $u16Result | Add-Member -NotePropertyName lookahead_frames -NotePropertyValue 0; $u16Result | Add-Member -NotePropertyName effective_output_latency_frames -NotePropertyValue 128; $u16Result.worker_health = "disabled"; $u16Result.worker_thread_name_0 = ""; $u16Result.worker_thread_name_1 = ""; $u16Result.joined_workers = 0; $u16Result.worker_timing_mode = "disabled"; $u16Result.worker_timing = $null; $u16Result.persistent_output_counters = [pscustomobject]@{ observable = $false; warmup = $zeroU16Counters; start = $zeroU16Counters; end = $zeroU16Counters; delta = $zeroU16Counters }; $u16Result.detected_continuity_events = 0

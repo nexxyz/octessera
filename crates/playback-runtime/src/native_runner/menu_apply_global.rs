@@ -114,32 +114,19 @@ impl NativeRunner {
 
     pub(super) fn apply_audio_outputs_menu_state(&mut self) -> bool {
         let mut changed = false;
-        let Some(dac) = self
-            .menu
-            .value_for_key("audioOutputs.dac")
-            .map(|v| v == "true")
-        else {
+        let Some(next) = self.audio_outputs_from_menu() else {
             return false;
         };
-        let Some(usb) = self
-            .menu
-            .value_for_key("audioOutputs.usb")
-            .map(|v| v == "true")
-        else {
-            return false;
-        };
-        let Some(hdmi) = self
-            .menu
-            .value_for_key("audioOutputs.hdmi")
-            .map(|v| v == "true")
-        else {
-            return false;
-        };
-        let Some(next) = super::AudioOutputSet::from_flags(dac, usb, hdmi).ok() else {
+        let Some(next) = next.ok() else {
             self.restore_audio_outputs_menu_values();
             self.show_toast("Keep one audio output on");
             return false;
         };
+        if self.jack_audio_required && !next.dac() {
+            self.restore_audio_outputs_menu_values();
+            self.show_toast(super::JACK_AUDIO_REQUIRED_MESSAGE);
+            return false;
+        }
         if self.audio_outputs != next {
             self.audio_outputs = next;
             changed = true;

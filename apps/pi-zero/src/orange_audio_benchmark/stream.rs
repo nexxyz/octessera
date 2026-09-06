@@ -21,7 +21,7 @@ use std::sync::Arc;
 mod callback;
 
 #[cfg(test)]
-pub const EXECUTOR_MODE: &str = "persistent_two_workers";
+pub const EXECUTOR_MODE: &str = "routing_tree_persistent";
 
 pub struct BenchmarkStream {
     lifecycle: AudioStreamLifecycle<Stream, EngineSourceWorkerShutdownOwner>,
@@ -196,9 +196,7 @@ fn build_source(
     }
     match executor_mode {
         BenchmarkExecutorMode::PersistentTwoWorkers => {
-            let (source, shutdown_owner) =
-                build_persistent_source(engine_rx, sample_rate, internal_frames, timing_probe)?;
-            Ok((source, Some(shutdown_owner)))
+            Err("persistent_two_workers executor was removed; use routing_tree_persistent".into())
         }
         BenchmarkExecutorMode::RoutingTreePersistent => {
             let (source, shutdown_owner) =
@@ -227,7 +225,7 @@ fn build_routing_tree_source(
                 crate::audio_priority::orange_worker_start_hook,
             )
         }
-        None => EngineSource::with_routing_tree_persistent_workers_for_benchmark_with_hook(
+        None => EngineSource::with_routing_tree_persistent_workers_with_hook(
             engine_rx,
             sample_rate,
             internal_frames,
@@ -248,48 +246,6 @@ fn build_routing_tree_source(
     _timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 ) -> Result<(EngineSource, EngineSourceWorkerShutdownOwner), String> {
     Err(super::cli::ROUTING_TREE_FEATURE_REQUIRED_ERROR.into())
-}
-
-fn build_persistent_source(
-    engine_rx: EngineEventReceiver,
-    sample_rate: u32,
-    internal_frames: usize,
-    timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
-) -> Result<(EngineSource, EngineSourceWorkerShutdownOwner), String> {
-    let result = match timing_probe {
-        Some(timing_probe) => {
-            EngineSource::with_persistent_workers_for_benchmark_with_timing_probe_and_hook(
-                engine_rx,
-                sample_rate,
-                internal_frames,
-                None,
-                timing_probe,
-                crate::audio_priority::orange_worker_start_hook,
-            )
-        }
-        None => EngineSource::with_persistent_workers_for_benchmark_with_hook(
-            engine_rx,
-            sample_rate,
-            internal_frames,
-            None,
-            crate::audio_priority::orange_worker_start_hook,
-        ),
-    };
-    result
-        .map_err(|error| format!("failed to start persistent Orange benchmark workers: {error:?}"))
-}
-
-#[cfg(test)]
-fn callback_priority_for_executor(executor_mode: BenchmarkExecutorMode) -> i32 {
-    match executor_mode {
-        BenchmarkExecutorMode::Inline => crate::audio_priority::ORANGE_WORKER_PRIORITY,
-        BenchmarkExecutorMode::PersistentTwoWorkers => {
-            crate::audio_priority::ORANGE_CALLBACK_PRIORITY
-        }
-        BenchmarkExecutorMode::RoutingTreePersistent => {
-            crate::audio_priority::ORANGE_CALLBACK_PRIORITY
-        }
-    }
 }
 
 fn callback_scheduler_for_executor(

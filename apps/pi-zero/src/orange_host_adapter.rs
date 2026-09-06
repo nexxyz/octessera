@@ -281,6 +281,10 @@ impl HostAdapter for OrangeHostAdapter {
                 RuntimeStoreResult::LoadDefaultResult { payload }
             }
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
+                if let Err(message) = crate::usb_config::validate_pi_audio_outputs_payload(payload)
+                {
+                    return Ok(vec![failure_message(request, message)]);
+                }
                 if self.platform_service.store_writes_blocked() {
                     return Ok(vec![failure_message(
                         request,

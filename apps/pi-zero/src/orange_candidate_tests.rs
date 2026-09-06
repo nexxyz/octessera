@@ -141,7 +141,14 @@ fn orange_prepare_runtime_preserves_audio_prep_for_startup_wait() {
             },
         })
         .unwrap();
-    let mut prepared = prepare_runtime(audio, Arc::new(|_| {}), false, true).unwrap();
+    let mut prepared = prepare_runtime(
+        audio,
+        Arc::new(|_| {}),
+        false,
+        playback_runtime::AudioOptimization::Latency,
+        true,
+    )
+    .unwrap();
 
     wait_for_initial_audio_prep(
         &mut prepared.playback,
@@ -224,7 +231,14 @@ fn orange_startup_accepts_the_native_runner_initial_audio_result_shape() {
 #[test]
 fn legacy_orange_preparation_starts_with_a_canonical_normal_snapshot() {
     let (audio, _, _) = crate::audio::test_service();
-    let prepared = prepare_runtime(audio, Arc::new(|_| {}), false, true).unwrap();
+    let prepared = prepare_runtime(
+        audio,
+        Arc::new(|_| {}),
+        false,
+        playback_runtime::AudioOptimization::Latency,
+        true,
+    )
+    .unwrap();
     let snapshot = prepared.playback.last_snapshot().unwrap();
 
     assert!(prepared.runner.is_canonical_menu_presentation());

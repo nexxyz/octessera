@@ -1,5 +1,6 @@
 use super::bus_chain_owner::BusChainCarrier;
 use super::source_worker_lifecycle::OwnerEnvelope;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use super::SynthEngine;
 
 pub(super) fn valid_bus_completion_owner(
@@ -36,6 +37,7 @@ pub(super) fn combine_bus_carriers(
     })
 }
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub(super) fn take_bus_carriers(
     engine: &mut SynthEngine,
 ) -> [Option<BusChainCarrier>; super::super::types::BUS_COUNT] {
@@ -53,6 +55,7 @@ pub(super) fn take_bus_carriers(
     carriers
 }
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub(super) fn restore_bus_carriers_to_engine(
     engine: &mut SynthEngine,
     carriers: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
@@ -64,6 +67,7 @@ pub(super) fn restore_bus_carriers_to_engine(
     }
 }
 
+#[cfg(any(test, feature = "test-support"))]
 pub(super) fn split_bus_carriers(
     carriers: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
 ) -> [[Option<BusChainCarrier>; super::super::types::BUS_COUNT];

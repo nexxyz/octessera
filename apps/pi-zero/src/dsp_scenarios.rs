@@ -57,6 +57,7 @@ pub const LIVE_SCENARIO_IDS: [&str; 11] = [
     "mixed_cross_slot_48_48_steal",
 ];
 
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(crate) fn is_dynamic_live_scenario_name(name: &str) -> bool {
     #[cfg(any(
         feature = "benchmark-voice-pools-128",

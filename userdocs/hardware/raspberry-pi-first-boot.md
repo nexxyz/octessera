@@ -72,9 +72,11 @@ delayed-start legibility/recovery mitigation, not a claim about resize state. A
 timeout alone does not invoke black/off failure cleanup; only a genuine writer
 error or termination signal does.
 
-For selected audio outputs, every non-empty set is valid. Jack is required only
-when selected; recognized disconnected USB or HDMI routes may wait; a selected
-route fault blocks readiness; and no route is a fallback. The live Raspberry
+Jack Audio is the always-on primary output on Raspberry Pi. USB Audio and HDMI
+Audio are optional PCM mirrors of the Jack mix; they do not replace Jack, and a
+missing or faulty optional route does not stop the primary Jack path. HDMI audio
+is separate from HDMI video, and simultaneous outputs use independent clocks;
+this contract does not promise sample synchronization. The live Raspberry
 connector identity is `/sys/class/drm/card0-HDMI-A-1/{status,edid}` on kernel
 `6.12.93+rpt-rpi-v8`. This is connector evidence only, not connected HDMI audio
 or audible qualification.

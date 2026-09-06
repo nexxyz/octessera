@@ -1,7 +1,9 @@
+#[cfg(test)]
 use crate::audio::AudioSink;
 
-pub(crate) fn recording_owner(outputs: playback_runtime::AudioOutputSet) -> Option<AudioSink> {
-    AudioSink::selected(outputs).into_iter().next()
+#[cfg(test)]
+pub(crate) fn recording_owner(_outputs: playback_runtime::AudioOutputSet) -> Option<AudioSink> {
+    Some(AudioSink::Jack)
 }
 
 #[cfg(test)]
@@ -12,11 +14,11 @@ mod tests {
         use crate::audio::AudioSink;
         let cases = [
             ((true, false, false), Some(AudioSink::Jack)),
-            ((false, true, false), Some(AudioSink::Usb)),
-            ((false, false, true), Some(AudioSink::Hdmi)),
+            ((false, true, false), Some(AudioSink::Jack)),
+            ((false, false, true), Some(AudioSink::Jack)),
             ((true, true, false), Some(AudioSink::Jack)),
             ((true, false, true), Some(AudioSink::Jack)),
-            ((false, true, true), Some(AudioSink::Usb)),
+            ((false, true, true), Some(AudioSink::Jack)),
             ((true, true, true), Some(AudioSink::Jack)),
         ];
         for ((dac, usb, hdmi), owner) in cases {
@@ -26,7 +28,7 @@ mod tests {
     }
 
     #[test]
-    fn usb_recording_tap_policy_keeps_single_callback_owner() {
+    fn jack_recording_tap_policy_keeps_single_callback_owner() {
         use super::recording_owner;
         use crate::audio::AudioSink;
 
@@ -34,7 +36,7 @@ mod tests {
             recording_owner(
                 playback_runtime::AudioOutputSet::from_flags(false, true, false).unwrap()
             ),
-            Some(AudioSink::Usb)
+            Some(AudioSink::Jack)
         );
         assert_eq!(
             recording_owner(

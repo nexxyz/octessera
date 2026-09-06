@@ -20,8 +20,8 @@ param(
   [ValidateSet(30, 120, 180, 300)]
   [int]$MeasureSeconds = 30,
   [string]$WorkerTimingMode = "",
-  [ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")]
-  [string]$ExecutorMode = "persistent_two_workers",
+  [ValidateSet("inline", "routing_tree_persistent")]
+  [string]$ExecutorMode = "routing_tree_persistent",
   [ValidateRange(1, 120)]
   [int]$ReleaseTimeoutSeconds = 120,
   [ValidateRange(5, 60)]

@@ -84,6 +84,7 @@ pub struct NativeMenuConfig {
     pub midi_clock_in_enabled: bool,
     pub midi_respond_to_start_stop: bool,
     pub audio_outputs: AudioOutputSet,
+    pub jack_audio_required: bool,
     pub audio_optimization: AudioOptimization,
     pub audio_optimization_capacity_available: bool,
     pub usb_midi_out_enabled: bool,

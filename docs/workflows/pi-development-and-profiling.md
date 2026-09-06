@@ -46,21 +46,26 @@ The fixed-target Orange capability runner is host tooling, not another SSH
 transport. Single-cell mode requires a reviewed artifact and metadata sidecar,
 explicit interruption consent, and one approved scenario/configuration. It
 checks readiness identity, exact DAC ALSA `buffer_size`/`period_size`, release
-identity, schema-2 callback geometry, thermal/memory safety, and restoration.
+identity, schema-12 callback/result geometry, thermal/memory safety, and
+restoration.
 
-Preview the deterministic 29-cell order without transport or board access:
+Preview the frozen routing-tree comparison matrix order without transport or board
+access:
 
 ```powershell
 ./tools/orange-pi/run-orange-live-audio-matrix.ps1 -PrintOnly
 ```
 
-The order is A (11 cells), the selected A 120-second repeat, B (11 cells), then
-C0, C2, and C3 (two cells each). Callback batches are variable positive counts
-no larger than the requested ALSA buffer; render ratios use each actual callback
-size, while spacing lateness uses the fixed ALSA period. Active execution
-requires `-AllowMatrixServiceInterruption` and per-cell consent. This is
-host-only Phase 2 validation; do not cross-build, deploy, or run it as a normal
-contributor check.
+The frozen comparison is A: output 256, ALSA period 64, internal 128, and
+routing lookahead 128 for 11 cells, followed by the selected A 120-second
+repeat. It uses `routing_tree_persistent`, enabled worker timing, and a
+diagnostic-only routing-tree artifact. This is comparison evidence, not the
+current product Capacity qualification or current default. Callback batches are
+variable positive counts no larger than the requested ALSA buffer; render ratios
+use each actual callback size, while spacing lateness uses the fixed ALSA period.
+Active execution requires `-AllowMatrixServiceInterruption` and per-cell
+consent. This is host-only validation; do not cross-build, deploy, or run it as
+a normal contributor check.
 
 ## Pi UI and audio profiling
 
@@ -121,6 +126,28 @@ proof. The current CPAL/ALSA path cannot count internally recovered `EPIPE`
 events, so a clean offline report is not zero-xrun evidence and cannot change
 capabilities. Inspect p99/p99.9 and outlier counts, not only p95.
 
+The mixed-geometry Orange performance baseline is separate from the routing-tree
+matrix. Its live child runs use the inline executor with worker timing disabled
+and the normal production `runtime-candidate` artifact. The current product
+Capacity qualification is a separate exact diagnostic run:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 `
+  -Mode LiveAudioBenchmark `
+  -Scenario capacity_analogue_16 `
+  -OutputFrames 256 `
+  -EngineBlockFrames 64 `
+  -MeasureSeconds 120 `
+  -ExecutorMode routing_tree_persistent `
+  -WorkerTimingMode enabled `
+  -Artifact target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi `
+  -Metadata target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi.metadata.json `
+  -AllowServiceInterruption
+```
+
+This selects output 256, period 64, internal 64, and routing lookahead 64. It
+uses a diagnostic-only routing artifact and does not change shipped defaults.
+
 After live probes, inspect recent logs:
 
 ```powershell
@@ -157,9 +184,11 @@ Schema-4 profile rows require numeric, non-negative admission-drop evidence; a
 qualified current scenario must reconcile its expected start/end counters and
 report zero drops unless that scenario explicitly declares otherwise.
 
-Orange's provisional capability geometry is output 256 → internal 128.
-Raspberry's Phase 1 geometry is output 256 → internal 128. These are evidence
-labels for the current branch defaults.
+The current Orange product Capacity qualification geometry is output 256 → ALSA
+period 64 → internal 64 with routing lookahead 64. The frozen routing comparison
+above remains output 256 → period 64 → internal 128 with lookahead 128. Neither
+comparison evidence nor the diagnostic Capacity artifact changes shipped
+defaults.
 
 Print the exact deterministic plan without transport:
 

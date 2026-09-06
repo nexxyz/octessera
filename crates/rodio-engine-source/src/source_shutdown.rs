@@ -3,6 +3,9 @@ use crossbeam_channel::TrySendError;
 
 impl Drop for EngineSource {
     fn drop(&mut self) {
+        for producer in self.mirror_producers.iter().flatten() {
+            producer.invalidate();
+        }
         self.handoff_shutdown();
     }
 }

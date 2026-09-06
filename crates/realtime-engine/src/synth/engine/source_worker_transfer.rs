@@ -1,9 +1,13 @@
 use super::super::types::INSTRUMENT_SLOT_COUNT;
+#[cfg(any(test, feature = "test-support"))]
 use super::source_worker::SourceWorkerRuntime;
 use super::source_worker_lease::OwnerLease;
-use super::source_worker_lifecycle::{
-    OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerLifecycle, SourceWorkerScratch,
-};
+#[cfg(any(test, feature = "test-support"))]
+use super::source_worker_lifecycle::OwnerEnvelope;
+#[cfg(any(test, feature = "test-support"))]
+use super::source_worker_lifecycle::SourceWorkerLifecycle;
+use super::source_worker_lifecycle::{SourceLanePartitionBundle, SourceWorkerScratch};
+#[cfg(any(test, feature = "test-support"))]
 use super::source_worker_protocol::{SourceWorkerSetupError, SourceWorkerStartHook};
 use super::SynthEngine;
 
@@ -116,6 +120,7 @@ pub(super) fn compact_source_pools(engine: &mut SynthEngine) {
     }
 }
 
+#[cfg(any(test, feature = "test-support"))]
 impl SourceWorkerLifecycle {
     pub fn start_prewarmed(
         engine: &mut SynthEngine,

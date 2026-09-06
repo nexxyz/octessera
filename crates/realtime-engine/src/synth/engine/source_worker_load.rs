@@ -11,8 +11,16 @@ pub const SOURCE_WORKER_MAX_COST_UNITS: u16 = ((super::super::types::SYNTH_VOICE
     + super::super::types::BUS_COUNT
         * super::super::types::BUS_SLOTS_PER_BUS
         * BUS_CHAIN_SLOT_COST_UNITS as usize) as u16;
-const EWMA_SCALE: u64 = 1_000_000;
-const EWMA_WINDOW_NS: u64 = 250_000_000;
+
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[path = "source_worker_load_observation.rs"]
+mod observation;
+#[cfg(test)]
+pub(in crate::synth::engine) use observation::{
+    ewma_coefficient_ppm, render_quantum_ns, EWMA_SCALE, EWMA_WINDOW_NS,
+};
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+pub(in crate::synth::engine) use observation::{SourceWorkerLoad, SourceWorkerLoadObservation};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SourceWorkerLoadSnapshot {
@@ -85,129 +93,6 @@ impl SourceWorkerLoadSnapshot {
                 ns_per_unit.saturating_mul(u64::from(baseline_units - active_cost_units)),
             )
         }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(super) struct SourceWorkerLoadObservation {
-    pub(super) dsp_duration_ns: u64,
-    pub(super) active_cost_units: u16,
-}
-
-pub(super) struct SourceWorkerLoad {
-    quantum_ns: u64,
-    ewma_coefficient_ppm: u32,
-    busy_ns_ewma: [u64; SOURCE_WORKER_COUNT],
-    ns_per_unit_ewma: [u64; SOURCE_WORKER_COUNT],
-    observed_active_cost_units: [u16; SOURCE_WORKER_COUNT],
-    has_useful_measurement: [bool; SOURCE_WORKER_COUNT],
-    observed: [bool; SOURCE_WORKER_COUNT],
-}
-
-impl SourceWorkerLoad {
-    pub(super) fn new(frames: usize, sample_rate: u32) -> Self {
-        let quantum_ns = render_quantum_ns(frames, sample_rate);
-        let seed_ns_per_unit = quantum_ns / u64::from(SOURCE_WORKER_MAX_COST_UNITS);
-        Self {
-            quantum_ns,
-            ewma_coefficient_ppm: ewma_coefficient_ppm(quantum_ns),
-            busy_ns_ewma: [0; SOURCE_WORKER_COUNT],
-            ns_per_unit_ewma: [seed_ns_per_unit; SOURCE_WORKER_COUNT],
-            observed_active_cost_units: [0; SOURCE_WORKER_COUNT],
-            has_useful_measurement: [false; SOURCE_WORKER_COUNT],
-            observed: [false; SOURCE_WORKER_COUNT],
-        }
-    }
-
-    pub(super) fn observe_pair(
-        &mut self,
-        observations: [SourceWorkerLoadObservation; SOURCE_WORKER_COUNT],
-    ) -> bool {
-        self.observe_pair_with_max_cost(observations, SOURCE_WORKER_MAX_COST_UNITS)
-    }
-
-    pub(super) fn observe_pair_with_max_cost(
-        &mut self,
-        observations: [SourceWorkerLoadObservation; SOURCE_WORKER_COUNT],
-        max_cost_units: u16,
-    ) -> bool {
-        if observations
-            .iter()
-            .any(|observation| observation.active_cost_units > max_cost_units)
-        {
-            return false;
-        }
-        for (worker, observation) in observations.into_iter().enumerate() {
-            self.busy_ns_ewma[worker] = ewma(
-                self.busy_ns_ewma[worker],
-                observation.dsp_duration_ns,
-                self.ewma_coefficient_ppm,
-            );
-            if observation.active_cost_units != 0 {
-                let sample_ns_per_unit = observation
-                    .dsp_duration_ns
-                    .saturating_div(u64::from(observation.active_cost_units));
-                self.ns_per_unit_ewma[worker] = ewma(
-                    self.ns_per_unit_ewma[worker],
-                    sample_ns_per_unit,
-                    self.ewma_coefficient_ppm,
-                );
-                self.has_useful_measurement[worker] = true;
-            }
-            self.observed_active_cost_units[worker] = observation.active_cost_units;
-            self.observed[worker] = true;
-        }
-        true
-    }
-
-    pub(super) fn snapshot(&self) -> SourceWorkerLoadSnapshot {
-        let utilization_ppm =
-            if self.quantum_ns == 0 || !self.observed.iter().all(|observed| *observed) {
-                None
-            } else {
-                let busy_ns = self.busy_ns_ewma.into_iter().max().unwrap_or(0);
-                Some(
-                    ((u128::from(busy_ns) * u128::from(EWMA_SCALE)) / u128::from(self.quantum_ns))
-                        .min(u128::from(u32::MAX)) as u32,
-                )
-            };
-        SourceWorkerLoadSnapshot {
-            quantum_ns: self.quantum_ns,
-            ewma_coefficient_ppm: self.ewma_coefficient_ppm,
-            busy_ns_ewma: self.busy_ns_ewma,
-            ns_per_unit_ewma: self.ns_per_unit_ewma,
-            observed_active_cost_units: self.observed_active_cost_units,
-            has_useful_measurement: self.has_useful_measurement,
-            utilization_ppm,
-            observed: self.observed,
-        }
-    }
-}
-
-pub(super) fn render_quantum_ns(frames: usize, sample_rate: u32) -> u64 {
-    if sample_rate == 0 {
-        return 0;
-    }
-    ((frames as u128 * 1_000_000_000_u128) / u128::from(sample_rate)).min(u128::from(u64::MAX))
-        as u64
-}
-
-fn ewma_coefficient_ppm(quantum_ns: u64) -> u32 {
-    ((quantum_ns.min(EWMA_WINDOW_NS) as u128 * u128::from(EWMA_SCALE)) / u128::from(EWMA_WINDOW_NS))
-        as u32
-}
-
-fn ewma(previous: u64, sample: u64, coefficient_ppm: u32) -> u64 {
-    if sample >= previous {
-        previous.saturating_add(
-            (((sample - previous) as u128 * u128::from(coefficient_ppm)) / u128::from(EWMA_SCALE))
-                as u64,
-        )
-    } else {
-        previous.saturating_sub(
-            (((previous - sample) as u128 * u128::from(coefficient_ppm)) / u128::from(EWMA_SCALE))
-                as u64,
-        )
     }
 }
 

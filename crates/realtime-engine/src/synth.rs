@@ -40,13 +40,15 @@ pub use engine::{
     prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
     PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SourceWorkerHealth,
-    SourceWorkerHealthSnapshot, SourceWorkerLifecycle, SourceWorkerLoadSnapshot, SourceWorkerMode,
+    SourceWorkerHealthSnapshot, SourceWorkerLoadSnapshot, SourceWorkerMode,
     SourceWorkerRenderDisposition, SourceWorkerRetirement, SourceWorkerRetirementError,
-    SourceWorkerRuntime, SourceWorkerSetupError, SourceWorkerShutdown, SourceWorkerStartHook,
-    SynthEngine, WorkStamp, WorkerPhase, BLOCK_SLOT_SCRATCH_FRAMES, BUS_CHAIN_SLOT_COST_UNITS,
-    SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT,
-    SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
+    SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine, WorkStamp, WorkerPhase,
+    BLOCK_SLOT_SCRATCH_FRAMES, BUS_CHAIN_SLOT_COST_UNITS, SOURCE_WORKER_MAX_COST_UNITS,
+    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT, SOURCE_WORKER_SAMPLE_COST_UNITS,
+    SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
 };
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};
 #[cfg(feature = "source-worker-benchmark-timing")]
 pub use source_worker_timing::{
     SourceWorkerCoordinatorTimingSnapshot, SourceWorkerCpuSampler, SourceWorkerTimingProbe,

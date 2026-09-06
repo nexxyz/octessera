@@ -23,7 +23,7 @@ function New-TimingResult {
   $coordinator = [pscustomobject]@{ sequence = 7; deadline_ns = 100; dispatch_to_deadline_start_ns = 10; dispatch_to_deadline_elapsed_ns = $null; in_flight_mask = 0; completed_mask = 3; first_parity = 0; dispatch_to_first_ns = 20; dispatch_to_both_ns = 25; reduction_ns = 4; coordinator_remainder_ns = 5; engine_block_total_ns = 40; callback_total_ns = 50; failed = $false; frozen = $true }
   [pscustomobject]@{
     worker_timing_mode = "enabled"
-    executor_mode = "persistent_two_workers"
+    executor_mode = "routing_tree_persistent"
     joined_workers = 2
     worker_timing = [pscustomobject]@{ workers = @($worker0, $worker1); coordinator = $coordinator; late_after_deadline_ns = $null; cpu_endpoint_changed = $false }
   }
@@ -73,6 +73,7 @@ Assert-OrangeWorkerTimingEvidence -Result $valid
 Assert-OrangeWorkerTimingEvidence -Result (New-DeadlineTimingResult)
 Assert-OrangeWorkerTimingEvidence -Result (New-HardwareObservationTimingResult)
 $disabled = Copy-TimingResult $valid
+$disabled.executor_mode = "inline"
 $disabled.worker_timing_mode = "disabled"
 $disabled.worker_timing = $null
 Assert-OrangeWorkerTimingEvidence -Result $disabled

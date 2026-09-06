@@ -29,9 +29,8 @@ System
 │   ├── Start Audio: (action)           ← Pi main-SD WAV of internal stereo output
 │   └── Stop: (action)                  ← finalize active recording
 ├── Audio / USB (group)
-│   ├── Jack Audio: [on | off]  default on             ← restart-applied
-│   ├── USB Audio: [on | off]  default off             ← restart-applied
-│   ├── HDMI Audio: [on | off]  default off            ← restart-applied
+│   ├── USB Audio: [on | off]  default off             ← optional Jack-mix mirror; restart-applied
+│   ├── HDMI Audio: [on | off]  default off            ← optional Jack-mix mirror; restart-applied; separate from HDMI video
 │   ├── MIDI Out: [on | off]  default off             ← USB gadget exposure preference
 │   ├── Save / Reboot: (action)         ← confirms with Cancel or Save / Reboot, saves payload, asks platform to apply and reboot
 │   ├── Start SD2 Xfer: (action)        ← confirms, stops playback, blocks input in transfer popup, rejects active USB audio, USB MIDI out, or recording on Pi, temporarily exposes OLED SD2 as USB storage; waits cancellably if no host is connected
@@ -42,7 +41,7 @@ System
 │   ├── Velocity Scale: [0..200] step 5 %   default 100
 │   ├── Velocity Curve: [linear | soft | hard]
 │   ├── Voice Limit: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
-│   ├── DSP Mode: [Inline / low latency | Multicore / capacity]  default Inline / low latency  ← Orange capacity capability only; replaces Output Buffer; restart required; preference preserved with output buffer; no voice/FX limit changes
+│   ├── DSP Mode: [Inline / low latency | Multicore / capacity]  default Inline / low latency  ← Orange capacity capability only; Jack always on in both; restart required; no voice/FX limit changes
 │   └── Output Buffer: [64 | 128 | 256 | 512 | 1024 | 2048] frames  default 256  ← platforms without Orange capacity capability; restart required
 ├── MIDI (group)
 │   ├── Enabled: [on | off]

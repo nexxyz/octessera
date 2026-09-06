@@ -191,10 +191,10 @@ DAC health, or physical display behavior.
 Only `raspberry-pi-zero-2w` and `orange-pi-zero-2w` are supported cross-build
 IDs. Raspberry selects `hardware-raspberry-pi-zero-2w`; Orange selects
 `hardware-orange-pi-zero-2w`. The Orange image uses the locked
-`octessera-runtime` account and `octessera.service`; every non-empty Jack/USB/
-HDMI output set is valid, Jack is required only when selected, recognized
-disconnected USB or HDMI may wait, selected route faults block readiness, and
-no route is a fallback. Full Armbian, kernel, device-tree, and image replacement
+`octessera-runtime` account and `octessera.service`; every valid Pi audio set
+includes always-on Jack. USB and HDMI are independently selectable optional
+mirrors of the Jack mix; their absent, waiting, or faulted status is route-local
+and never blocks or replaces Jack. HDMI audio remains separate from video. Full Armbian, kernel, device-tree, and image replacement
 remains manual; the standalone manual ZIP is not an OTA asset.
 
 The WSL Docker-only local Orange cross-build is documented in

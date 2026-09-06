@@ -40,12 +40,12 @@ is for setup and administration. Persistent data belongs to the runtime account:
 - `/var/lib/octessera/samples`
 
 The service supports the OLED, NeoTrellis, NeoKey, four encoders, persistent
-store, samples, MIDI, and the selected exact audio outputs. Every non-empty
-Jack/USB/HDMI output set is valid. Jack is required only when selected;
-recognized disconnected UAC2 and HDMI routes may wait and recover; selected
-route faults block readiness; and no route is a fallback. Simultaneous physical
-outputs use independent unsynchronized clocks and can drift or echo. The
-contract does not provide sample alignment.
+store, samples, MIDI, and the selected exact audio outputs. Jack Audio is the
+always-on primary output. USB Audio and HDMI Audio are optional PCM mirrors of
+the Jack mix; they do not replace it, and an optional route fault does not stop
+Jack. HDMI audio is separate from HDMI video. Simultaneous physical outputs use
+independent unsynchronized clocks and can drift or echo; the contract does not
+provide sample synchronization.
 
 Readiness follows selected-route status, initialized control-surface devices, and
 the first rendered runtime frame. FIFO priority 70 comes from

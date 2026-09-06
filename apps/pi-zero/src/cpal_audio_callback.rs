@@ -4,7 +4,7 @@ use crate::audio_priority::CallbackSchedulingHandle;
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::Sample;
 use realtime_engine::synth::SourceWorkerHealth;
-use rodio_engine_source::EngineSource;
+use rodio_engine_source::{EngineSource, PcmMirrorConsumer};
 use std::sync::mpsc;
 
 pub(crate) struct CallbackSource {
@@ -48,6 +48,20 @@ impl Drop for CallbackSource {
         if let Some(retired_tx) = self.retired_tx.take() {
             let _ = retired_tx.try_send(());
         }
+    }
+}
+
+pub(crate) struct MirrorCallbackSource {
+    consumer: PcmMirrorConsumer,
+}
+
+impl MirrorCallbackSource {
+    pub(crate) fn new(consumer: PcmMirrorConsumer) -> Self {
+        Self { consumer }
+    }
+
+    fn consumer_mut(&mut self) -> &mut PcmMirrorConsumer {
+        &mut self.consumer
     }
 }
 
@@ -110,6 +124,33 @@ pub(super) fn fill_callback_with_scheduler<T>(
     );
 }
 
+pub(super) fn fill_mirror_callback_with_scheduler<T>(
+    data: &mut [T],
+    callback_source: &mut MirrorCallbackSource,
+    scheduler: &CallbackSchedulingHandle,
+) where
+    T: Sample + cpal::FromSample<f32>,
+{
+    scheduler.configure_callback_thread();
+    if !data.len().is_multiple_of(2) {
+        silence_output(data);
+        return;
+    }
+    if !callback_source.consumer_mut().begin_callback() {
+        silence_output(data);
+        return;
+    }
+    let mut index = 0;
+    while index < data.len() {
+        let Some(value) = callback_source.consumer_mut().next_sample() else {
+            silence_output(&mut data[index..]);
+            return;
+        };
+        data[index] = T::from_sample(value);
+        index += 1;
+    }
+}
+
 pub(super) fn mark_worker_terminal<T>(
     data: &mut [T],
     callback_health: &AudioStreamHealth,
@@ -165,6 +206,9 @@ fn float_to_i16(value: f32) -> i16 {
     (value.clamp(-1.0, 1.0) * f32::from(i16::MAX)).round() as i16
 }
 
+#[cfg(test)]
+#[path = "cpal_audio_mirror_tests.rs"]
+mod mirror_tests;
 #[cfg(test)]
 #[path = "cpal_audio_output_tests.rs"]
 mod tests;

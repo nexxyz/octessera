@@ -1,4 +1,8 @@
+#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+use playback_runtime::AudioOptimization;
 use playback_runtime::AudioOutputSet;
+#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+use serde::Deserialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 
@@ -6,7 +10,6 @@ use std::path::Path;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum UsbAudioOut {
     Jack,
-    Usb,
     Both,
 }
 
@@ -15,7 +18,6 @@ impl UsbAudioOut {
     pub(crate) fn outputs(self) -> AudioOutputSet {
         match self {
             Self::Jack => AudioOutputSet::jack(),
-            Self::Usb => AudioOutputSet::from_flags(false, true, false).unwrap(),
             Self::Both => AudioOutputSet::from_flags(true, true, false).unwrap(),
         }
     }
@@ -88,6 +90,60 @@ pub(crate) fn read_usb_runtime_config(
     parse_usb_runtime_config(&payload)
 }
 
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) fn read_audio_optimization_from_default_config(
+    store_dir: &Path,
+) -> Result<AudioOptimization, UsbConfigError> {
+    let path = store_dir.join("default.json");
+    let path_display = path.display().to_string();
+    let payload = std::fs::read_to_string(&path).map_err(|error| UsbConfigError::Read {
+        path: path_display.clone(),
+        message: error.to_string(),
+    })?;
+    let payload = serde_json::from_str::<serde_json::Value>(&payload).map_err(|error| {
+        UsbConfigError::Parse {
+            path: path_display,
+            message: error.to_string(),
+        }
+    })?;
+    parse_audio_optimization(&payload)
+}
+
+#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn parse_audio_optimization(
+    payload: &serde_json::Value,
+) -> Result<AudioOptimization, UsbConfigError> {
+    let root = payload.get("runtimeConfig").unwrap_or(payload);
+    let Some(root) = root.as_object() else {
+        return Err(UsbConfigError::Invalid(
+            "runtimeConfig must be an object".into(),
+        ));
+    };
+    let Some(sound) = root.get("sound") else {
+        return Ok(AudioOptimization::Latency);
+    };
+    let sound = sound
+        .as_object()
+        .ok_or_else(|| UsbConfigError::Invalid("runtimeConfig.sound must be an object".into()))?;
+    let Some(value) = sound.get("optimizeFor") else {
+        return Ok(AudioOptimization::Latency);
+    };
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct TypedSound {
+        #[serde(default)]
+        optimize_for: AudioOptimization,
+    }
+    serde_json::from_value::<TypedSound>(serde_json::json!({ "optimizeFor": value }))
+        .map(|sound| sound.optimize_for)
+        .map_err(|_| {
+            UsbConfigError::Invalid(
+                "runtimeConfig.sound.optimizeFor must be `latency` or `capacity`".into(),
+            )
+        })
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn audio_output_buffer_frames_from_default_config(store_dir: &Path) -> Option<u32> {
     let payload = std::fs::read_to_string(store_dir.join("default.json")).ok()?;
     let payload: serde_json::Value = serde_json::from_str(&payload).ok()?;
@@ -120,11 +176,21 @@ pub(crate) fn parse_usb_runtime_config(
             "runtimeConfig.usb.audioOut is unsupported; use runtimeConfig.audioOutputs".into(),
         ));
     }
-    let audio_outputs = root
-        .get("audioOutputs")
+    let audio_outputs_value = root.get("audioOutputs");
+    if audio_outputs_value
+        .and_then(|value| value.get("dac"))
+        .and_then(serde_json::Value::as_bool)
+        == Some(false)
+    {
+        return Err(UsbConfigError::Invalid("Jack Audio is always on".into()));
+    }
+    let audio_outputs = audio_outputs_value
         .map(|value| AudioOutputSet::decode(value).map_err(UsbConfigError::Invalid))
         .transpose()?
         .unwrap_or_default();
+    if !audio_outputs.dac() {
+        return Err(UsbConfigError::Invalid("Jack Audio is always on".into()));
+    }
     let midi_out_enabled = match usb.and_then(|usb| usb.get("midiOutEnabled")) {
         None => false,
         Some(serde_json::Value::Bool(value)) => *value,
@@ -138,6 +204,27 @@ pub(crate) fn parse_usb_runtime_config(
         audio_outputs,
         midi_out_enabled,
     })
+}
+
+pub(crate) fn validate_pi_audio_outputs_payload(payload: &serde_json::Value) -> Result<(), String> {
+    let root = payload.get("runtimeConfig").unwrap_or(payload);
+    let Some(root) = root.as_object() else {
+        return Ok(());
+    };
+    let Some(audio_outputs) = root.get("audioOutputs") else {
+        return Ok(());
+    };
+    if audio_outputs
+        .get("dac")
+        .and_then(serde_json::Value::as_bool)
+        == Some(false)
+    {
+        return Err("Jack Audio is always on".into());
+    }
+    if !AudioOutputSet::decode(audio_outputs)?.dac() {
+        return Err("Jack Audio is always on".into());
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -170,18 +257,29 @@ mod tests {
     }
 
     #[test]
-    fn preserves_explicit_usb_policy_for_product_level_validation() {
+    fn rejects_missing_jack_at_the_pi_config_boundary() {
+        let error = parse_usb_runtime_config(&serde_json::json!({
+            "runtimeConfig": {
+                "audioOutputs": { "dac": false, "usb": true, "hdmi": false },
+                "usb": { "midiOutEnabled": false }
+            }
+        }))
+        .unwrap_err();
         assert_eq!(
-            parse_usb_runtime_config(&serde_json::json!({
-                "runtimeConfig": {
-                    "audioOutputs": { "dac": false, "usb": true, "hdmi": false },
-                    "usb": { "midiOutEnabled": false }
-                }
-            }))
-            .unwrap()
-            .audio_outputs,
-            AudioOutputSet::from_flags(false, true, false).unwrap()
+            error,
+            UsbConfigError::Invalid("Jack Audio is always on".into())
         );
+    }
+
+    #[test]
+    fn rejects_missing_jack_before_a_pi_config_write() {
+        let error = validate_pi_audio_outputs_payload(&serde_json::json!({
+            "runtimeConfig": {
+                "audioOutputs": { "dac": false, "usb": false, "hdmi": false }
+            }
+        }))
+        .unwrap_err();
+        assert_eq!(error, "Jack Audio is always on");
     }
 
     #[test]
@@ -190,10 +288,6 @@ mod tests {
             (
                 serde_json::json!({ "dac": true, "usb": false, "hdmi": false }),
                 UsbAudioOut::Jack,
-            ),
-            (
-                serde_json::json!({ "dac": false, "usb": true, "hdmi": false }),
-                UsbAudioOut::Usb,
             ),
             (
                 serde_json::json!({ "dac": true, "usb": true, "hdmi": false }),
@@ -288,7 +382,43 @@ mod tests {
     }
 
     #[test]
-    fn orange_startup_reads_persisted_audio_output_buffer_frames() {
+    fn missing_or_legacy_optimize_for_defaults_to_latency() {
+        for payload in [
+            serde_json::json!({}),
+            serde_json::json!({
+                "runtimeConfig": { "sound": {} }
+            }),
+        ] {
+            assert_eq!(
+                parse_audio_optimization(&payload).unwrap(),
+                AudioOptimization::Latency
+            );
+        }
+    }
+
+    #[test]
+    fn parses_typed_optimize_for_and_rejects_unknown_values() {
+        assert_eq!(
+            parse_audio_optimization(&serde_json::json!({
+                "runtimeConfig": { "sound": { "optimizeFor": "capacity" } }
+            }))
+            .unwrap(),
+            AudioOptimization::Capacity
+        );
+        assert_eq!(
+            parse_audio_optimization(&serde_json::json!({
+                "runtimeConfig": { "sound": { "optimizeFor": "balanced" } }
+            }))
+            .unwrap_err(),
+            UsbConfigError::Invalid(
+                "runtimeConfig.sound.optimizeFor must be `latency` or `capacity`".into()
+            )
+        );
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[test]
+    fn raspberry_startup_reads_persisted_audio_output_buffer_frames() {
         let store_dir = std::env::temp_dir().join(format!(
             "octessera-audio-buffer-config-{}-{}",
             std::process::id(),

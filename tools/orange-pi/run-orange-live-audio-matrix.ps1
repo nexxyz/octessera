@@ -7,8 +7,8 @@ param(
   [int]$ReleaseTimeoutSeconds = 120,
   [ValidateRange(5, 60)]
   [int]$StartupTimeoutSeconds = 20,
-  [ValidateSet("inline", "persistent_two_workers", "routing_tree_persistent")]
-  [string]$ExecutorMode = "persistent_two_workers",
+  [ValidateSet("inline", "routing_tree_persistent")]
+  [string]$ExecutorMode = "routing_tree_persistent",
   [string]$WorkerTimingMode = "",
   [string]$RunnerPath = "",
   [switch]$AllowMatrixServiceInterruption,

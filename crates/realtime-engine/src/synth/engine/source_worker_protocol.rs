@@ -1,5 +1,7 @@
 pub const SOURCE_WORKER_MODE_INLINE: u8 = 0;
 pub const SOURCE_WORKER_MODE_PERSISTENT: u8 = 2;
+pub const SOURCE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-src-0", "oct-dsp-src-1"];
+pub const ROUTING_TREE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-tree-0", "oct-dsp-tree-1"];
 #[cfg(feature = "routing-tree-benchmark")]
 pub const SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT: u8 = 3;
 
@@ -29,6 +31,7 @@ pub struct WorkStamp {
     pub base_sample_clock: u64,
 }
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub(super) use super::source_worker_owner::WorkerCommand;
 
 pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
@@ -62,6 +65,7 @@ pub enum SourceWorkerRetirementError {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub enum SourceWorkerSetupError {
     WorkerSchedulingUnavailable {
         parity: usize,

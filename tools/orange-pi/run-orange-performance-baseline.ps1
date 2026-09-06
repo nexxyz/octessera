@@ -171,7 +171,7 @@ function Invoke-OrangeCell {
   if ($Kind -eq "offline") {
     $arguments += @("-Mode", "ProfileBaseline", "-Scenario", $Cell.scenario, "-EngineBlockFrames", [string]$Cell.internal_frames, "-ProfileMeasureFrames", [string]$Cell.measure_frames)
   } else {
-    $arguments += @("-Mode", "LiveAudioBenchmark", "-WorkerTimingMode", "enabled", "-ExecutorMode", "persistent_two_workers", "-Scenario", $Cell.scenario, "-OutputFrames", [string]$Cell.output_frames, "-EngineBlockFrames", [string]$Cell.internal_frames, "-MeasureSeconds", [string]$Cell.measure_seconds)
+    $arguments += @("-Mode", "LiveAudioBenchmark", "-WorkerTimingMode", "disabled", "-ExecutorMode", "inline", "-Scenario", $Cell.scenario, "-OutputFrames", [string]$Cell.output_frames, "-EngineBlockFrames", [string]$Cell.internal_frames, "-MeasureSeconds", [string]$Cell.measure_seconds)
   }
   if ($Kind -eq "live" -and $Cell.measure_seconds -eq 120) { $arguments += "-AllowLongRepeat" }
   $process = Invoke-FreshPowerShell $arguments $stdout $stderr

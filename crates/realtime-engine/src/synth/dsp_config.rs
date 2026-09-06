@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 const PPM_PER_PERCENT: u32 = 10_000;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 const CLEAR_HYSTERESIS_PERCENT: u32 = 5;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 const CLEAR_DURATION_SECONDS: u64 = 5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -167,6 +170,7 @@ impl WorkerLoadWarningState {
         }
     }
 
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
     pub(super) fn observe(
         &mut self,
         utilization_ppm: u32,

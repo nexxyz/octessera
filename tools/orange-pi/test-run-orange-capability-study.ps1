@@ -311,7 +311,7 @@ $capacityTestPath = Join-Path $PSScriptRoot "test-orange-live-capacity-validatio
 $live300Parameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "mixed_ramp_16_48"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 300; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
 $live300 = Invoke-StudyPrintOnly -Parameters $live300Parameters
 Assert-NoPayloadPlaceholders $live300
-Assert-Contains $live300 "Live selection: A output=256 period=64 engine=128 internal=128 scenario=mixed_ramp_16_48 measure=300 warmup=5 worker-timing=enabled executor=persistent_two_workers"
+Assert-Contains $live300 "Live selection: A output=256 period=64 engine=128 internal=128 scenario=mixed_ramp_16_48 measure=300 warmup=5 worker-timing=enabled executor=routing_tree_persistent lookahead=128 effective-latency=384"
 Assert-Contains $live300 "RuntimeMaxSec=455s"
 Assert-Contains $live300 "with-orange-ssh.ps1"
 Assert-Contains $live300 "sensor_loop"
@@ -322,16 +322,11 @@ Assert-Contains $live300 'sleep 1'
 Assert-Contains $live300 '-le $((120 + 15))'
 Assert-Contains $live300 '-le 5'
 Assert-Contains $live300 '--worker-timing enabled'
-Assert-Contains $live300 '--executor persistent_two_workers'
-Assert-Contains $live300 '"artifact_kind":"runtime-candidate"'
-Assert-Contains $live300 '"cargo_feature":"hardware-orange-pi-zero-2w"'
-Assert-NotContains $live300 '"artifact_kind":"diagnostic-only"'
+Assert-Contains $live300 '--executor routing_tree_persistent'
+Assert-Contains $live300 '"artifact_kind":"diagnostic-only"'
+Assert-Contains $live300 '"cargo_feature":"hardware-orange-pi-zero-2w routing-tree-benchmark"'
+Assert-NotContains $live300 '"artifact_kind":"runtime-candidate"'
 
-$disabledTimingParameters = $live300Parameters.Clone()
-$disabledTimingParameters.WorkerTimingMode = "disabled"
-$disabledTiming = Invoke-StudyPrintOnly -Parameters $disabledTimingParameters
-Assert-Contains $disabledTiming "worker-timing=disabled executor=persistent_two_workers"
-Assert-Contains $disabledTiming "--worker-timing disabled"
 Assert-Throws {
   $invalidTimingParameters = $live300Parameters.Clone()
   $invalidTimingParameters.WorkerTimingMode = "invalid"
@@ -404,7 +399,9 @@ $recoveredMissU16Parameters = $recoveredMissRoutingParameters.Clone()
 $recoveredMissU16Parameters.Scenario = "capacity_analogue_16"
 $recoveredMissU16 = Invoke-StudyPrintOnly -Parameters $recoveredMissU16Parameters
 Assert-NoPayloadPlaceholders $recoveredMissU16
-Assert-Contains $recoveredMissU16 "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_16 measure=120"
+Assert-Contains $recoveredMissU16 "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_16 measure=120 warmup=5 worker-timing=enabled executor=routing_tree_persistent lookahead=64 effective-latency=320"
+Assert-Contains $recoveredMissU16 '"artifact_kind":"diagnostic-only"'
+Assert-Contains $recoveredMissU16 '"cargo_feature":"hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128"'
 Assert-Contains $recoveredMissU16 "--continue-on-recovered-miss"
 $invalidRecoveredMissParameters = $recoveredMissRoutingParameters.Clone()
 $invalidRecoveredMissParameters.Scenario = "capacity_analogue_31"

@@ -1,11 +1,11 @@
 use super::callback::{fill_callback_body, post_dsp_zero};
 #[cfg(feature = "routing-tree-benchmark")]
 use super::expected_routing_worker_thread_names;
+#[cfg(feature = "routing-tree-benchmark")]
+use super::SourceWorkerTimingProbe;
 use super::{
-    build_persistent_source, build_source, callback_priority_for_executor,
-    callback_scheduler_for_executor, expected_worker_thread_names, stream_geometry,
-    worker_thread_names_for_executor, BenchmarkExecutorMode, SourceWorkerTimingProbe,
-    EXECUTOR_MODE,
+    build_source, callback_scheduler_for_executor, stream_geometry,
+    worker_thread_names_for_executor, BenchmarkExecutorMode,
 };
 use crate::orange_audio_benchmark::cli::parse;
 #[cfg(any(
@@ -17,7 +17,7 @@ use crate::orange_audio_benchmark::metrics::CallbackMetrics;
 use crate::orange_audio_benchmark::phase::MeasurementControl;
 use crate::orange_audio_benchmark::probe::ProfileProbe;
 use realtime_engine::synth::SourceWorkerHealth;
-use rodio_engine_source::{event_queue, EngineEvent, EngineSource, SOURCE_REAPER_THREAD_NAME};
+use rodio_engine_source::{event_queue, EngineEvent, EngineSource};
 use std::sync::Arc;
 
 #[test]
@@ -63,10 +63,14 @@ fn stream_preflight_rejects_non_analogue_128_64_before_device_access() {
     config.expected_alsa_period_frames = 32;
     config.internal_frames = 64;
     config.worker_timing_mode = super::super::cli::WorkerTimingMode::Disabled;
-    for executor_mode in [
+    #[cfg(feature = "routing-tree-benchmark")]
+    let executor_modes = vec![
         BenchmarkExecutorMode::Inline,
-        BenchmarkExecutorMode::PersistentTwoWorkers,
-    ] {
+        BenchmarkExecutorMode::RoutingTreePersistent,
+    ];
+    #[cfg(not(feature = "routing-tree-benchmark"))]
+    let executor_modes = vec![BenchmarkExecutorMode::Inline];
+    for executor_mode in executor_modes {
         config.executor_mode = executor_mode;
         let (_sender, receiver) = event_queue();
         let error = match super::build(
@@ -123,45 +127,6 @@ fn inline_analogue_recorded_geometry_requires_exact_latency_evidence() {
             "mismatched recorded geometry should fail: period={period} lookahead={lookahead} effective={effective:?}"
         );
     }
-}
-
-#[test]
-fn benchmark_source_is_persistent_and_reports_worker_health() {
-    let (_engine_tx, engine_rx) = event_queue();
-    let (source, shutdown_owner) = build_persistent_source(
-        engine_rx,
-        44_100,
-        128,
-        Some(Arc::new(SourceWorkerTimingProbe::new(None))),
-    )
-    .unwrap();
-
-    assert_eq!(EXECUTOR_MODE, "persistent_two_workers");
-    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
-    assert_eq!(source.block_frames(), 128);
-    assert_eq!(source.source_worker_health().name(), "healthy");
-    assert_eq!(
-        expected_worker_thread_names(),
-        ["oct-dsp-src-0", "oct-dsp-src-1"]
-    );
-    assert_eq!(SOURCE_REAPER_THREAD_NAME, "oct-src-reaper");
-    assert!(SOURCE_REAPER_THREAD_NAME.len() <= 15);
-
-    drop(source);
-    let shutdown = shutdown_owner.shutdown();
-    assert_eq!(shutdown.joined_workers, 2);
-    assert_eq!(shutdown.retirement_error, None);
-}
-
-#[test]
-fn disabled_benchmark_source_is_persistent_without_timing_probe() {
-    let (_engine_tx, engine_rx) = event_queue();
-    let (source, shutdown_owner) = build_persistent_source(engine_rx, 44_100, 128, None).unwrap();
-
-    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
-    assert_eq!(source.block_frames(), 128);
-    drop(source);
-    assert_eq!(shutdown_owner.shutdown().joined_workers, 2);
 }
 
 #[cfg(not(feature = "routing-tree-benchmark"))]
@@ -291,7 +256,7 @@ fn inline_benchmark_source_matches_serial_oracle_without_workers() {
 fn invalid_stream_geometry_fails_build_for_both_executors() {
     for executor_mode in [
         BenchmarkExecutorMode::Inline,
-        BenchmarkExecutorMode::PersistentTwoWorkers,
+        BenchmarkExecutorMode::RoutingTreePersistent,
     ] {
         let mut config = parse(
             [
@@ -332,42 +297,19 @@ fn invalid_stream_geometry_fails_build_for_both_executors() {
 
 #[test]
 fn benchmark_executor_priorities_preserve_orange_scheduling_policy() {
-    assert_eq!(
-        callback_priority_for_executor(BenchmarkExecutorMode::Inline),
-        70
-    );
-    assert_eq!(
-        callback_priority_for_executor(BenchmarkExecutorMode::PersistentTwoWorkers),
-        70
-    );
+    assert_eq!(crate::audio_priority::ORANGE_WORKER_PRIORITY, 70);
+    assert_eq!(crate::audio_priority::ORANGE_CALLBACK_PRIORITY, 70);
 }
 
 #[test]
-fn both_benchmark_executors_use_strict_jack_scheduler() {
+fn benchmark_executors_use_strict_jack_scheduler() {
     let inline = callback_scheduler_for_executor(BenchmarkExecutorMode::Inline);
     assert!(inline.is_strict());
     assert_eq!(inline.requested_priority(), 70);
 
-    let persistent = callback_scheduler_for_executor(BenchmarkExecutorMode::PersistentTwoWorkers);
-    assert!(persistent.is_strict());
-    assert_eq!(persistent.requested_priority(), 70);
-}
-
-#[test]
-fn benchmark_source_uses_requested_frames() {
-    for block_frames in [64, 128, 256, 512, 1024, 2048] {
-        let (_engine_tx, engine_rx) = event_queue();
-        let (source, shutdown_owner) = build_persistent_source(
-            engine_rx,
-            44_100,
-            block_frames,
-            Some(Arc::new(SourceWorkerTimingProbe::new(None))),
-        )
-        .unwrap();
-        assert_eq!(source.block_frames(), block_frames);
-        drop(source);
-        assert_eq!(shutdown_owner.shutdown().joined_workers, 2);
-    }
+    let routing = callback_scheduler_for_executor(BenchmarkExecutorMode::RoutingTreePersistent);
+    assert!(routing.is_strict());
+    assert_eq!(routing.requested_priority(), 70);
 }
 
 #[test]

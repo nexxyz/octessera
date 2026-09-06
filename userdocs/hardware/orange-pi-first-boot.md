@@ -238,12 +238,14 @@ paths instead of trying to repair a user-controlled destination.
 The bundled sample acknowledgement and CC0 text are shipped with the image.
 
 The production image supports the OLED, NeoTrellis, NeoKey, four encoders,
-persistent store, samples, and selected exact audio routes. Every
-non-empty Jack/USB/HDMI output set is valid; Jack is required only when
-selected; recognized disconnected selected USB or HDMI routes may wait and
-recover; a selected route fault blocks readiness; and no route is a fallback.
-The selected Jack route is `hw:CARD=octesseradac,DEV=0`. USB Audio and USB MIDI
-are experimental/local bench validation only, not public first-release support.
+persistent store, samples, and selected exact audio routes. Jack Audio is the
+always-on primary output; USB Audio and HDMI Audio are optional PCM mirrors of
+the Jack mix and do not replace it. A missing or faulty optional route does not
+stop the Jack path. HDMI audio is separate from HDMI video, and simultaneous
+outputs use independent clocks; this contract does not promise sample
+synchronization. The selected Jack route is `hw:CARD=octesseradac,DEV=0`. USB
+Audio and USB MIDI are experimental/local bench validation only, not public
+first-release support.
 Defaults remain disabled. The current Linux Foundation VID/PID values are
 local-validation-only and are not a public product identity. A kernel capability
 check does not qualify the exact image or board; an authorized identity plus
@@ -281,7 +283,7 @@ Before closing the case:
   recovery path;
 - confirm expected I2C, `/dev/spidev1.0`, GPIO, and UDC devices using the Orange
   notes;
-- if Jack is selected, confirm `aplay -l` exposes
+- confirm `aplay -l` exposes the always-on Jack route
   `hw:CARD=octesseradac,DEV=0`;
 - treat the Orange USB gadget as experimental/local bench validation, and
   connect a host only after an authorized identity and the exact build's

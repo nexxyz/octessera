@@ -38,6 +38,11 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 
 ## Audio and USB
 
+- Add a restart-applied USB role selector for the Raspberry Pi OTG connection and
+  the Orange Pi's one supported OTG port. Gadget mode owns USB Audio and USB MIDI
+  input/output; host mode frees the port for devices such as keyboards, mice,
+  and USB MIDI controllers. Keep the roles mutually exclusive and explicit;
+  do not auto-switch from cable detection.
 - Evaluate PC-over-USB keyboard control for Orange Pi through the existing native
   device-input path. Preserve the simulator mappings for the main encoder and
   four NeoKeys. Use `E`/`R`/`T`, `F`/`G`/`H`, and `V`/`B`/`N` as candidate

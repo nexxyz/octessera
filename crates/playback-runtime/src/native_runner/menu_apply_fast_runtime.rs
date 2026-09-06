@@ -158,10 +158,20 @@ impl NativeRunner {
             return false;
         };
         let Ok(next) = next else {
+            let jack_audio_disabled = self.menu_jack_audio_disabled();
             self.restore_audio_outputs_menu_values();
-            self.show_toast("Keep one audio output on");
+            if jack_audio_disabled {
+                self.show_toast(super::JACK_AUDIO_REQUIRED_MESSAGE);
+            } else {
+                self.show_toast("Keep one audio output on");
+            }
             return true;
         };
+        if self.jack_audio_required && !next.dac() {
+            self.restore_audio_outputs_menu_values();
+            self.show_toast(super::JACK_AUDIO_REQUIRED_MESSAGE);
+            return true;
+        }
         if next == self.audio_outputs {
             return true;
         }
@@ -190,13 +200,6 @@ impl NativeRunner {
             self.show_toast("Audio: Save / Reboot");
         }
         true
-    }
-
-    fn audio_outputs_from_menu(&self) -> Option<Result<super::AudioOutputSet, &'static str>> {
-        let dac = self.menu.value_for_key("audioOutputs.dac")? == "true";
-        let usb = self.menu.value_for_key("audioOutputs.usb")? == "true";
-        let hdmi = self.menu.value_for_key("audioOutputs.hdmi")? == "true";
-        Some(super::AudioOutputSet::from_flags(dac, usb, hdmi))
     }
 
     pub(super) fn restore_audio_outputs_menu_values(&mut self) {

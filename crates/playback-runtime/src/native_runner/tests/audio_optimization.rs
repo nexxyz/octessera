@@ -3,6 +3,7 @@ use super::*;
 fn capacity_runner() -> NativeRunner {
     NativeRunner::new(NativeRunnerConfig {
         audio_optimization_capacity_available: true,
+        jack_audio_required: true,
         ..NativeRunnerConfig::default()
     })
     .unwrap()
@@ -134,4 +135,148 @@ fn audio_optimization_menu_hook_marks_the_existing_restart_prompt_without_audio_
         (true, false)
     );
     assert_eq!(unsupported.audio_optimization, AudioOptimization::Latency);
+}
+
+#[test]
+fn capacity_menu_selection_is_not_tied_to_jack_policy() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        audio_optimization_capacity_available: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.audio_outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.menu.value_for_key("sound.optimizeFor"),
+        Some("capacity".into())
+    );
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Restart device to apply"
+    );
+    assert!(runner.config_dirty);
+}
+
+#[test]
+fn jack_menu_is_hidden_when_jack_is_required() {
+    let mut runner = capacity_runner();
+    runner.audio_optimization = AudioOptimization::Capacity;
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu_config().jack_audio_required);
+    assert!(!runner.menu.focus_item_key("audioOutputs.dac"));
+    assert!(runner.menu.focus_item_key("audioOutputs.usb"));
+    assert_eq!(runner.menu.current_label(), Some("USB Audio"));
+    assert!(runner.audio_outputs.dac());
+}
+
+#[test]
+fn missing_jack_is_rejected_atomically_in_both_dsp_modes() {
+    for optimization in [AudioOptimization::Latency, AudioOptimization::Capacity] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig {
+            audio_optimization: optimization,
+            audio_optimization_capacity_available: true,
+            jack_audio_required: true,
+            ..NativeRunnerConfig::default()
+        })
+        .unwrap();
+        let before = runner.config_payload();
+        let mut payload = before.clone();
+        payload["runtimeConfig"]["audioOutputs"] = json!({
+            "dac": false,
+            "usb": true,
+            "hdmi": false,
+        });
+
+        let error = runner.apply_config_payload(payload).unwrap_err();
+
+        assert_eq!(error, "Jack Audio is always on");
+        assert_eq!(runner.config_payload(), before);
+        assert_eq!(runner.audio_optimization, optimization);
+        assert!(runner.audio_outputs.dac());
+    }
+}
+
+#[test]
+fn desktop_menu_keeps_jack_output_editable() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: false,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("audioOutputs.dac"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.audio_optimization, AudioOptimization::Latency);
+    assert_eq!(
+        runner.audio_outputs,
+        AudioOutputSet::from_flags(false, true, false).unwrap()
+    );
+}
+
+#[test]
+fn desktop_keeps_flexible_output_and_optimization_policy() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        audio_optimization_capacity_available: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["audioOutputs"] = json!({
+        "dac": false,
+        "usb": true,
+        "hdmi": false,
+    });
+    payload["runtimeConfig"]["sound"]["optimizeFor"] = json!("capacity");
+    runner.apply_config_payload(payload).unwrap();
+
+    assert_eq!(
+        runner.audio_outputs,
+        AudioOutputSet::from_flags(false, true, false).unwrap()
+    );
+    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+}
+
+#[test]
+fn pi_accepts_every_optional_output_subset_in_both_dsp_modes() {
+    for optimization in [AudioOptimization::Latency, AudioOptimization::Capacity] {
+        for (usb, hdmi) in [(false, false), (true, false), (false, true), (true, true)] {
+            let mut runner = NativeRunner::new(NativeRunnerConfig {
+                audio_optimization: optimization,
+                audio_optimization_capacity_available: true,
+                jack_audio_required: true,
+                ..NativeRunnerConfig::default()
+            })
+            .unwrap();
+            let mut payload = runner.config_payload();
+            payload["runtimeConfig"]["audioOutputs"] = json!({
+                "dac": true,
+                "usb": usb,
+                "hdmi": hdmi,
+            });
+            runner.apply_config_payload(payload).unwrap();
+            assert!(runner.audio_outputs.dac());
+            assert_eq!(runner.audio_outputs.usb(), usb);
+            assert_eq!(runner.audio_outputs.hdmi(), hdmi);
+        }
+    }
 }

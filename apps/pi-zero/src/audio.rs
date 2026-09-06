@@ -19,12 +19,16 @@ mod audio_error;
 mod audio_output;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use audio_output::OrangeAudioProfile;
 pub(crate) use audio_output::{AudioManager, AudioSink};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(crate) use audio_output::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
     AudioStreamShutdownReport, CallbackSource,
 };
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use playback_runtime::AudioOptimization;
 use playback_runtime::AudioOutputSet;
 use playback_runtime::{HostMessage, RuntimeAdapterError};
 use rodio_engine_source::EngineEvent;
@@ -70,6 +74,11 @@ pub enum AudioControlRequest {
         samples_dir: PathBuf,
     },
     Dynamic(Box<EngineEvent>),
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) fn orange_profile(optimization: AudioOptimization) -> OrangeAudioProfile {
+    OrangeAudioProfile::from_optimization(optimization)
 }
 
 impl AudioService {
@@ -147,9 +156,8 @@ impl AudioService {
             return Err("required Jack audio stream faulted".into());
         }
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        if self.audio_outputs.dac()
-            && route_status(&self.route_registry, AudioSink::Jack)
-                == crate::audio_route::AudioRouteStatus::Faulted
+        if route_status(&self.route_registry, AudioSink::Jack)
+            == crate::audio_route::AudioRouteStatus::Faulted
         {
             return Err("selected Jack audio route faulted".into());
         }
@@ -388,5 +396,24 @@ mod tests {
         assert!(service.is_recording().unwrap());
         service.prepare_restore().unwrap();
         assert!(!service.is_recording().unwrap());
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[test]
+    fn raspberry_optional_route_fault_does_not_block_jack_readiness() {
+        let mut service = test_service_for_sample_prep();
+        service.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+        crate::audio_route::set_status(
+            &service.route_registry,
+            AudioSink::Jack,
+            crate::audio_route::AudioRouteStatus::Active,
+        );
+        crate::audio_route::set_status(
+            &service.route_registry,
+            AudioSink::Usb,
+            crate::audio_route::AudioRouteStatus::Faulted,
+        );
+
+        assert!(service.ensure_route_readiness().is_ok());
     }
 }

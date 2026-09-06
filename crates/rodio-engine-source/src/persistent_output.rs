@@ -1,14 +1,18 @@
+#[cfg(any(test, feature = "routing-tree-executor"))]
 use super::control_drain;
 use super::telemetry::DrainedControlEvents;
+#[cfg(any(test, feature = "routing-tree-executor"))]
 use super::{EngineSource, MAX_BLOCK_FRAMES, MIN_BLOCK_FRAMES, OUTPUT_CHANNELS};
-use realtime_engine::synth::{
-    AudioLoadStatus, SourceWorkerRenderDisposition, BLOCK_SLOT_SCRATCH_FRAMES,
-};
+use realtime_engine::synth::AudioLoadStatus;
+#[cfg(any(test, feature = "routing-tree-executor"))]
+use realtime_engine::synth::{SourceWorkerRenderDisposition, BLOCK_SLOT_SCRATCH_FRAMES};
 use serde::{Deserialize, Serialize};
 
+#[cfg(any(test, feature = "routing-tree-executor"))]
 const _: () = assert!(BLOCK_SLOT_SCRATCH_FRAMES == super::MAX_BLOCK_FRAMES);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(any(test, feature = "routing-tree-executor"))]
 pub(super) enum PersistentOutputKind {
     Fresh,
     Repeated,
@@ -28,9 +32,13 @@ pub struct PersistentOutputCounters {
 }
 
 pub(super) struct PreviousMasterQuantum {
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) samples: [f32; BLOCK_SLOT_SCRATCH_FRAMES * OUTPUT_CHANNELS],
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) cached_frames: usize,
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) valid: bool,
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) repeat_used_for_current_recovery: bool,
     pub(super) rendered_quantums: u64,
     pub(super) repeated_quantums: u64,
@@ -43,9 +51,13 @@ pub(super) struct PreviousMasterQuantum {
 impl PreviousMasterQuantum {
     pub(super) fn new() -> Self {
         Self {
+            #[cfg(any(test, feature = "routing-tree-executor"))]
             samples: [0.0; BLOCK_SLOT_SCRATCH_FRAMES * OUTPUT_CHANNELS],
+            #[cfg(any(test, feature = "routing-tree-executor"))]
             cached_frames: 0,
+            #[cfg(any(test, feature = "routing-tree-executor"))]
             valid: false,
+            #[cfg(any(test, feature = "routing-tree-executor"))]
             repeat_used_for_current_recovery: false,
             rendered_quantums: 0,
             repeated_quantums: 0,
@@ -56,6 +68,7 @@ impl PreviousMasterQuantum {
         }
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn fresh(&mut self, frames: usize, output: &[f32]) -> PersistentOutputKind {
         let samples = frames.saturating_mul(OUTPUT_CHANNELS);
         if frames > BLOCK_SLOT_SCRATCH_FRAMES || output.len() < samples {
@@ -70,6 +83,7 @@ impl PreviousMasterQuantum {
         PersistentOutputKind::Fresh
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn deadline_miss(
         &mut self,
         sample_rate: u32,
@@ -98,17 +112,20 @@ impl PreviousMasterQuantum {
         }
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn recovery_silence(&mut self, output: &mut [f32]) -> PersistentOutputKind {
         output.fill(0.0);
         self.dropped_quantums = self.dropped_quantums.saturating_add(1);
         PersistentOutputKind::Dropped
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn fatal_silence(&mut self, output: &mut [f32]) -> PersistentOutputKind {
         output.fill(0.0);
         PersistentOutputKind::Fatal
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn deadline_recovery(&mut self) {
         self.deadline_recoveries = self.deadline_recoveries.saturating_add(1);
         self.repeat_used_for_current_recovery = false;
@@ -155,6 +172,7 @@ pub(super) struct RefillResult {
     pub(super) defer_status: bool,
 }
 
+#[cfg(any(test, feature = "routing-tree-executor"))]
 impl EngineSource {
     #[cfg(feature = "routing-tree-executor")]
     pub(super) fn refill_routing_tree_persistent(&mut self) -> RefillResult {
@@ -281,6 +299,7 @@ impl EngineSource {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn refill_persistent(&mut self) -> RefillResult {
         let Self {
             engine,

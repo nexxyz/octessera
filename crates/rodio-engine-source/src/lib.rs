@@ -1,6 +1,7 @@
 mod audio_quantum;
 mod control_drain;
 mod event;
+mod pcm_mirror;
 mod persistent_output;
 mod profile_cache;
 mod queue;
@@ -15,17 +16,27 @@ mod telemetry;
 use audio_quantum::audio_render_quantum_frames;
 #[cfg(test)]
 use audio_quantum::resolve_audio_render_quantum_frames;
-use crossbeam_channel::{bounded, Sender, TrySendError};
+use crossbeam_channel::{Sender, TrySendError};
 pub use event::EngineEvent;
+pub use pcm_mirror::{
+    new_pcm_mirror, PcmMirrorConsumer, PcmMirrorPair, PcmMirrorProducer, PcmMirrorProducers,
+    PCM_MIRROR_CAPACITY_FRAMES, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
+};
 pub use persistent_output::PersistentOutputCounters;
 use persistent_output::{PreviousMasterQuantum, RefillResult};
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
+#[cfg(test)]
+use realtime_engine::synth::SourceWorkerRuntime;
 #[cfg(feature = "source-worker-benchmark-timing")]
 use realtime_engine::synth::SourceWorkerTimingProbe;
+#[cfg(any(test, feature = "routing-tree-executor"))]
+use realtime_engine::synth::SynthProfileSnapshot;
 use realtime_engine::synth::{
-    RetiredAudioState, SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerRuntime,
-    SourceWorkerSetupError, SourceWorkerStartHook, SynthEngine, SynthProfileSnapshot,
-    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+    RetiredAudioState, SourceWorkerHealth, SynthEngine, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+};
+#[cfg(any(test, feature = "routing-tree-executor"))]
+use realtime_engine::synth::{
+    SourceWorkerLifecycle, SourceWorkerSetupError, SourceWorkerStartHook,
 };
 use retired_audio_backlog::RetiredAudioBacklog;
 pub use sample_decode::decode_sample_file;
@@ -77,6 +88,7 @@ pub struct EngineSource {
     control_rx: EngineEventReceiver,
     sample_rate: u32,
     block_frames: usize,
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     cached_profile_snapshot: SynthProfileSnapshot,
     buf: Vec<f32>,
     left_buf: Vec<f32>,
@@ -95,6 +107,7 @@ pub struct EngineSource {
     #[cfg(test)]
     refill_generation: u64,
     persistent_output: PreviousMasterQuantum,
+    mirror_producers: PcmMirrorProducers,
 }
 
 impl EngineSource {
@@ -139,6 +152,7 @@ impl EngineSource {
     pub fn profile_snapshot(&self) -> realtime_engine::synth::SynthProfileSnapshot {
         match self.worker_state.mode {
             EngineSourceMode::Inline => self.engine.profile_snapshot(),
+            #[cfg(test)]
             EngineSourceMode::Persistent => self.cached_profile_snapshot,
             #[cfg(feature = "routing-tree-executor")]
             EngineSourceMode::RoutingTreePersistent => self.cached_profile_snapshot,
@@ -216,6 +230,7 @@ impl EngineSource {
             control_rx,
             sample_rate,
             block_frames,
+            #[cfg(any(test, feature = "routing-tree-executor"))]
             cached_profile_snapshot: SynthProfileSnapshot::default(),
             buf: Vec::with_capacity(block_frames * OUTPUT_CHANNELS),
             left_buf: Vec::with_capacity(block_frames),
@@ -234,6 +249,7 @@ impl EngineSource {
             #[cfg(test)]
             refill_generation: 0,
             persistent_output: PreviousMasterQuantum::new(),
+            mirror_producers: [None, None],
         }
     }
 
@@ -255,16 +271,19 @@ impl EngineSource {
                     defer_status: false,
                 }
             }
+            #[cfg(test)]
             EngineSourceMode::Persistent => self.refill_persistent(),
             #[cfg(feature = "routing-tree-executor")]
             EngineSourceMode::RoutingTreePersistent => self.refill_routing_tree_persistent(),
         };
+        self.publish_mirrors();
         if !self.engine.pending_render_retired_is_empty()
             && self.retirement_storage_can_accept_item()
         {
             let retired = self.engine.take_pending_render_retired();
             self.retire_state(retired);
         }
+        #[cfg(any(test, feature = "routing-tree-executor"))]
         if self.worker_state.is_persistent() {
             self.refresh_persistent_profile_cache();
         }
@@ -311,6 +330,16 @@ impl EngineSource {
                 &mut self.right_buf,
                 &mut self.buf,
             );
+        }
+    }
+
+    pub fn set_pcm_mirror_producers(&mut self, producers: PcmMirrorProducers) {
+        self.mirror_producers = producers;
+    }
+
+    fn publish_mirrors(&self) {
+        for producer in self.mirror_producers.iter().flatten() {
+            producer.publish(&self.buf, self.block_frames);
         }
     }
 
