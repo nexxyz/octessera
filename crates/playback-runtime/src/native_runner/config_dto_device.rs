@@ -1,4 +1,6 @@
-use super::{AudioOutputsDto, AuxBindingDto, HdmiDto, MidiDto, RuntimeConfigDto, UsbDto};
+use super::{
+    AudioOptimization, AudioOutputsDto, AuxBindingDto, HdmiDto, MidiDto, RuntimeConfigDto, UsbDto,
+};
 use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -58,6 +60,8 @@ pub struct DeviceRuntimeConfigDto {
 pub struct DeviceSoundDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) audio_output_buffer_frames: Option<u32>,
+    #[serde(default)]
+    pub(super) optimize_for: AudioOptimization,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -90,12 +94,9 @@ impl DeviceRuntimeConfigDto {
             midi: runtime.midi.clone(),
             usb: runtime.usb.clone(),
             audio_outputs: runtime.audio_outputs.clone(),
-            sound: runtime.sound.as_ref().and_then(|sound| {
-                sound
-                    .audio_output_buffer_frames
-                    .map(|audio_output_buffer_frames| DeviceSoundDto {
-                        audio_output_buffer_frames: Some(audio_output_buffer_frames),
-                    })
+            sound: runtime.sound.as_ref().map(|sound| DeviceSoundDto {
+                audio_output_buffer_frames: sound.audio_output_buffer_frames,
+                optimize_for: sound.optimize_for,
             }),
             recording: runtime.recording.as_ref().map(|recording| RecordingDto {
                 max_minutes: recording.max_minutes,

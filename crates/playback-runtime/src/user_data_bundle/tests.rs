@@ -146,6 +146,7 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
         "hdmi": false
     });
     current["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(1024);
+    current["runtimeConfig"]["sound"]["optimizeFor"] = json!("capacity");
     current["runtimeConfig"]["displayBrightness"] = json!(42);
     current["runtimeConfig"]["sampleFavouriteDirs"] = json!(["/private/device/path"]);
     current["runtimeConfig"]["midi"]["outId"] = json!("device-specific-id");
@@ -156,6 +157,7 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
         current["runtimeConfig"]["audioOutputs"]
     );
     assert_eq!(delta.values["sound"]["audioOutputBufferFrames"], 1024);
+    assert_eq!(delta.values["sound"]["optimizeFor"], "capacity");
     assert_eq!(delta.values["displayBrightness"], 42);
     assert!(!delta.values.contains_key("sampleFavouriteDirs"));
     assert!(!delta.values.contains_key("midi"));
@@ -166,6 +168,7 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
         applied["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
         1024
     );
+    assert_eq!(applied["runtimeConfig"]["sound"]["optimizeFor"], "capacity");
     assert_eq!(applied["runtimeConfig"]["displayBrightness"], 42);
 }
 

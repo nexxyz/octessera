@@ -2,6 +2,7 @@ use super::*;
 use platform_core::AUX_ENCODER_COUNT;
 use platform_core::LAYER_COUNT;
 
+mod dsp_mode;
 mod duck_ranges;
 mod fixture_tests;
 mod fixtures;

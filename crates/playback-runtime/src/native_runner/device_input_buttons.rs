@@ -184,16 +184,16 @@ impl NativeRunner {
                 .editing
                 .then(|| self.menu.current_key().map(str::to_owned))
                 .flatten();
-            let prompt_for_audio_buffer_reboot = editing_key.as_deref()
-                == Some("sound.audioOutputBufferFrames")
-                && self.pending.pending_audio_output_buffer_reboot_prompt;
+            let prompt_for_audio_reboot = editing_key.as_deref().is_some_and(|key| {
+                matches!(key, "sound.audioOutputBufferFrames" | "sound.optimizeFor")
+            }) && self.pending.pending_audio_restart_prompt;
             self.reset_menu_scroll();
             self.menu.back();
             if let Some(key) = editing_key {
                 self.apply_or_schedule_menu_key(&key)?;
             }
-            if prompt_for_audio_buffer_reboot {
-                self.pending.pending_audio_output_buffer_reboot_prompt = false;
+            if prompt_for_audio_reboot {
+                self.pending.pending_audio_restart_prompt = false;
                 self.display.toast = None;
                 let action = NativeMenuAction::PlatformEffect("system.reboot".into());
                 self.display.confirm_dialog = self.confirmation_for_action(&action);

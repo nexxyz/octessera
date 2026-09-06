@@ -1,3 +1,4 @@
+pub(super) use super::AudioOptimization;
 use super::{Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION};
 use serde_json::Map;
 

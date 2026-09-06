@@ -42,7 +42,8 @@ System
 │   ├── Velocity Scale: [0..200] step 5 %   default 100
 │   ├── Velocity Curve: [linear | soft | hard]
 │   ├── Voice Limit: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
-│   └── Output Buffer: [64 | 128 | 256 | 512 | 1024 | 2048] frames  default 256  ← CPAL/ALSA buffer; render quantum capability default 128; restart required; OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES wins
+│   ├── DSP Mode: [Inline / low latency | Multicore / capacity]  default Inline / low latency  ← Orange capacity capability only; replaces Output Buffer; restart required; preference preserved with output buffer; no voice/FX limit changes
+│   └── Output Buffer: [64 | 128 | 256 | 512 | 1024 | 2048] frames  default 256  ← platforms without Orange capacity capability; restart required
 ├── MIDI (group)
 │   ├── Enabled: [on | off]
 │   ├── !Panic: (action)

@@ -1,6 +1,7 @@
 mod cli;
 mod finalization;
 mod fixture_profile;
+mod geometry;
 mod metrics;
 mod output_counters;
 mod phase;

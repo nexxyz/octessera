@@ -1,4 +1,4 @@
-use super::{InstrumentDto, LayerDto, MixerDto};
+use super::{AudioOptimization, InstrumentDto, LayerDto, MixerDto};
 use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -198,6 +198,8 @@ pub struct SoundDto {
     pub(super) voice_stealing_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) audio_output_buffer_frames: Option<u32>,
+    #[serde(default)]
+    pub(super) optimize_for: AudioOptimization,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -300,6 +302,7 @@ impl RuntimeConfigDto {
         }
         if let Some(sound) = object.get_mut("sound").and_then(Value::as_object_mut) {
             sound.remove("audioOutputBufferFrames");
+            sound.remove("optimizeFor");
         }
         Ok(value)
     }

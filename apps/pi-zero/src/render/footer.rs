@@ -6,7 +6,13 @@ use playback_runtime::oled_frame::{fit_line_ellipsis, TOAST_RECT};
 
 #[rustfmt::skip]
 pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
-    if snapshot
+    let missed_quantum = snapshot
+        .get("missedQuantumFlash")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if missed_quantum {
+        draw_missed_quantum_icon(frame, 117, 5, brightness);
+    } else if snapshot
         .get("highCpuSteady")
         .and_then(Value::as_bool)
         .unwrap_or(false)
@@ -70,6 +76,15 @@ fn draw_cpu_icon(frame: &mut [u8], x: usize, y: usize, color: u16) {
     fill_rect(frame, x + 3, y + 3, 2, 2, 0);
     fill_rect(frame, x, y + 2, 1, 1, color);
     fill_rect(frame, x, y + 5, 1, 1, color);
+}
+
+fn draw_missed_quantum_icon(frame: &mut [u8], x: usize, y: usize, brightness: f32) {
+    let white = rgb565(scale(palette::WHITE, brightness));
+    let black = rgb565(scale(palette::BLACK, brightness));
+    fill_rect(frame, x + 1, y + 1, 6, 6, black);
+    fill_rect(frame, x + 3, y + 3, 2, 2, white);
+    fill_rect(frame, x, y + 2, 1, 1, white);
+    fill_rect(frame, x, y + 5, 1, 1, white);
 }
 
 fn draw_save_icon(frame: &mut [u8], x: usize, y: usize, color: u16) {

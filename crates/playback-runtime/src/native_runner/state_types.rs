@@ -31,7 +31,7 @@ pub(super) struct NativePendingState {
     pub(super) pending_autosave_payload_due_at: Option<Instant>,
     pub(super) pending_aux_turn_toast: Option<PendingNativeToast>,
     pub(super) pending_menu_apply: Option<PendingMenuApply>,
-    pub(super) pending_audio_output_buffer_reboot_prompt: bool,
+    pub(super) pending_audio_restart_prompt: bool,
     pub(super) suppress_snapshot_response: bool,
 }
 

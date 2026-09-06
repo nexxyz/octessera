@@ -119,6 +119,24 @@ fn runtime_error_fallback_and_path_punctuation_are_visible_in_the_fixed_font() {
 }
 
 #[test]
+fn missed_quantum_flash_inverts_cpu_slot_over_high_cpu_and_preserves_save_icon() {
+    let mut high_cpu = base();
+    high_cpu.metrics = OledPresentationMetrics::from_status(Some(0.9), true, false, false);
+    let high_cpu_frame = render_oled_frame(&high_cpu);
+    assert_eq!(pixel(&high_cpu_frame, 118, 6), rgb565(palette::RED));
+
+    let mut missed = high_cpu;
+    missed.metrics.missed_quantum_flash = true;
+    missed.save_flash = OledSaveFlash::Flash;
+    let missed_frame = render_oled_frame(&missed);
+
+    assert_eq!(pixel(&missed_frame, 120, 8), palette::WHITE_RGB565);
+    assert_eq!(pixel(&missed_frame, 118, 6), palette::BLACK_RGB565);
+    assert_eq!(pixel(&missed_frame, 107, 5), palette::YELLOW_RGB565);
+    assert_ne!(missed_frame, high_cpu_frame);
+}
+
+#[test]
 fn runtime_error_dismissal_affordance_stays_inside_the_error_card() {
     let frame = render_oled_frame(&full_runtime_error());
     let text = rgb565(palette::GRAY);
