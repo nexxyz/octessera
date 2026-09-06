@@ -291,7 +291,11 @@ pub(crate) fn orange_cpu_sampler() -> u32 {
     #[cfg(target_os = "linux")]
     {
         let cpu = unsafe { libc::sched_getcpu() };
-        return if cpu >= 0 { cpu as u32 } else { u32::MAX };
+        if cpu >= 0 {
+            cpu as u32
+        } else {
+            u32::MAX
+        }
     }
     #[cfg(not(target_os = "linux"))]
     {

@@ -344,14 +344,16 @@ fn momentary_retirement_is_scoped_to_the_processed_target() {
         .momentary_fx
         .iter()
         .any(|fx| fx.target == MomentaryFxTarget::FxBus { index: 0 }));
-    for retired in &mut engine.pending_render_retired.displaced_momentary_fx {
-        *retired = None;
-    }
+    engine
+        .pending_render_retired
+        .displaced_momentary_fx
+        .fill(None);
     let _ = engine.process_momentary_fx_target(MomentaryFxTarget::FxBus { index: 0 }, 0.0, 0.0);
     assert!(engine.momentary_fx.is_empty());
-    for retired in &mut engine.pending_render_retired.displaced_momentary_fx {
-        *retired = None;
-    }
+    engine
+        .pending_render_retired
+        .displaced_momentary_fx
+        .fill(None);
     install_momentary(
         &mut engine,
         "global-again",

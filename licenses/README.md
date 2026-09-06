@@ -7,7 +7,7 @@ samples. It is an engineering record, not legal advice.
 ## Pins and inputs
 
 - Cargo workspace lockfile: `Cargo.lock`, SHA-256
-  `8fa7043b83b0b3a630c097508e96663997bc2153e2451d8005f5b000e24e36d9`.
+  `93e4ec16efce13c44e0ee994bb15a4c9912528feb98b33f3147b03a147080b34`.
 - `cargo-about` **0.9.1**. Install with:
   `cargo install cargo-about --version 0.9.1 --locked --features cli`.
 - Cargo configuration: `about.toml`; reviewed template:

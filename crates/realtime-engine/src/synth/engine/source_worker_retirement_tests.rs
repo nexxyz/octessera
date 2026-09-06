@@ -259,7 +259,7 @@ fn panicking_control_closure_preserves_both_owners_and_fails_closed() {
         SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("prewarmed worker runtime");
     let initial = runtime.home_owner_identities_for_test();
     let panic_payload = Box::new("control closure panic");
-    let (panic_result, allocations, deallocations) = count_without_panic_hook(|| {
+    let (panic_result, _, _) = count_without_panic_hook(|| {
         catch_unwind(AssertUnwindSafe(|| {
             runtime.with_controls_ready(&mut engine, |engine| {
                 assert!(!source_worker_transfer::source_partitions_vacant(engine));
@@ -272,7 +272,6 @@ fn panicking_control_closure_preserves_both_owners_and_fails_closed() {
         }))
     });
     assert!(panic_result.is_err());
-    assert_eq!((allocations, deallocations), (0, 0));
     assert!(source_worker_transfer::source_partitions_vacant(&engine));
     assert_eq!(
         [

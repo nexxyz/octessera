@@ -152,10 +152,10 @@ fn four_buses_with_three_slots_match_inline_reference_at_supported_quanta() {
         let mut right = Vec::new();
         let mut out = Vec::new();
         block.render_interleaved_block(frames, &mut left, &mut right, &mut out);
-        for pair in out.chunks_exact(2) {
+        for [left, right] in out.as_chunks::<2>().0 {
             let (expected_left, expected_right) = reference.next_stereo_sample();
-            assert_eq!(pair[0].to_bits(), expected_left.to_bits());
-            assert_eq!(pair[1].to_bits(), expected_right.to_bits());
+            assert_eq!(left.to_bits(), expected_left.to_bits());
+            assert_eq!(right.to_bits(), expected_right.to_bits());
         }
     }
 }
