@@ -139,16 +139,16 @@ impl Drop for EngineEventReceiver {
 }
 
 impl EngineEventReceiver {
+    #[cfg(feature = "routing-tree-executor")]
+    pub(crate) fn has_pending(&mut self) -> bool {
+        self.fill_heads();
+        self.fill_pending_emergency();
+        self.next_source().is_some()
+    }
+
     pub fn try_recv(&mut self) -> Result<EngineEvent, crossbeam_channel::TryRecvError> {
         self.fill_heads();
-        if self.pending_emergency.is_none() {
-            let sequence = self
-                .emergency_sequence
-                .swap(NO_EMERGENCY_SEQUENCE, Ordering::AcqRel);
-            if sequence != NO_EMERGENCY_SEQUENCE {
-                self.pending_emergency = Some(sequence);
-            }
-        }
+        self.fill_pending_emergency();
 
         let Some((source, sequence)) = self.next_source() else {
             if self.ordered_is_disconnected() && self.coalesced_is_disconnected() {
@@ -199,6 +199,17 @@ impl EngineEventReceiver {
                     self.coalesced_disconnected = true
                 }
                 Err(crossbeam_channel::TryRecvError::Empty) => {}
+            }
+        }
+    }
+
+    fn fill_pending_emergency(&mut self) {
+        if self.pending_emergency.is_none() {
+            let sequence = self
+                .emergency_sequence
+                .swap(NO_EMERGENCY_SEQUENCE, Ordering::AcqRel);
+            if sequence != NO_EMERGENCY_SEQUENCE {
+                self.pending_emergency = Some(sequence);
             }
         }
     }

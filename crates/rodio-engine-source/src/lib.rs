@@ -106,6 +106,8 @@ pub struct EngineSource {
     retired_drop_probe: Option<std::sync::mpsc::Sender<std::thread::ThreadId>>,
     #[cfg(test)]
     refill_generation: u64,
+    #[cfg(all(test, feature = "routing-tree-executor"))]
+    routing_tree_control_gate_calls: usize,
     persistent_output: PreviousMasterQuantum,
     mirror_producers: PcmMirrorProducers,
 }
@@ -248,6 +250,8 @@ impl EngineSource {
             retired_drop_probe: None,
             #[cfg(test)]
             refill_generation: 0,
+            #[cfg(all(test, feature = "routing-tree-executor"))]
+            routing_tree_control_gate_calls: 0,
             persistent_output: PreviousMasterQuantum::new(),
             mirror_producers: [None, None],
         }

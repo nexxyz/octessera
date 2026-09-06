@@ -115,6 +115,7 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
     assert!(profile.active_preview_sample_voices > 0);
     assert_eq!(profile.active_momentary_fx, 1);
     assert!(profile.active_bus_fx_slots > 0);
+    assert!(source.routing_tree_control_gate_calls > 0);
 
     tx.send(EngineEvent::SetPreparedAudioConfig(full_bank_config(
         1, 0.4,
