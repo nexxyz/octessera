@@ -6,7 +6,7 @@ use realtime_engine::synth::{
 use std::sync::Arc;
 use std::time::Duration;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 fn successful_start_hook(_: usize) -> Result<(), ()> {
     Ok(())
 }
@@ -73,7 +73,7 @@ fn persistent_engine_source_deadline_path_retains_terminal_totals_after_join() {
     assert!(joined.late_after_deadline_ns.is_some());
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_tree_timing_records_output_pipeline_stages() {
     let (_tx, rx) = event_queue();
@@ -123,7 +123,7 @@ fn routing_tree_timing_records_output_pipeline_stages() {
     assert_eq!(shutdown_owner.shutdown().joined_workers, 2);
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_tree_timing_failure_recovers_and_resumes_fresh_output() {
     let (control_tx, rx) = event_queue();
@@ -331,15 +331,15 @@ fn normal_persistent_constructors_do_not_attach_timing_probe() {
         )
     });
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     {
         assert_without_timing_probe(|| {
             let (_tx, rx) = event_queue();
-            EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+            EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
         });
         assert_without_timing_probe(|| {
             let (_tx, rx) = event_queue();
-            EngineSource::with_routing_tree_persistent_workers_for_benchmark_with_hook(
+            EngineSource::with_routing_tree_persistent_workers_with_hook(
                 rx,
                 44_100,
                 128,

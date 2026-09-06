@@ -27,10 +27,8 @@ fn threaded_routing_tree_matches_inline_for_duck_spread_tail_and_profile() {
     }
     let mut inline = EngineSource::new(inline_rx, 44_100);
     let (mut routing, routing_shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(
-            routing_rx, 44_100, 128, None,
-        )
-        .expect("routing-tree runtime");
+        EngineSource::with_routing_tree_persistent_workers(routing_rx, 44_100, 128, None)
+            .expect("routing-tree runtime");
 
     let first_inline = next_block(&mut inline, 128);
     let first_routing = next_block(&mut routing, 128);

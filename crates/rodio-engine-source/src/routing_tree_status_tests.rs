@@ -1,9 +1,9 @@
 use super::*;
 use realtime_engine::synth::{
-    default_synth_config, prepare_audio_config, prepare_instruments_config, AudioLoadStatus,
-    FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig,
-    MixerConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer, SampleSlotConfig,
-    SourceWorkerHealth, SynthProfileSnapshot, DEFAULT_PAN_POSITIONS,
+    default_synth_config, prepare_audio_config, prepare_fx_bus_slot, prepare_instruments_config,
+    AudioLoadStatus, FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig,
+    MasterFxConfig, MixerConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
+    SampleSlotConfig, SourceWorkerHealth, SynthProfileSnapshot, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -15,13 +15,9 @@ const RATE: u32 = 44_100;
 fn routing_tree_status_waits_for_fresh_profile_after_controls() {
     let (tx, rx) = event_queue();
     let (load_tx, load_rx) = audio_load_status_channel();
-    let (mut source, shutdown) = EngineSource::with_routing_tree_persistent_workers_for_benchmark(
-        rx,
-        44_100,
-        128,
-        Some(load_tx),
-    )
-    .expect("routing-tree runtime");
+    let (mut source, shutdown) =
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, Some(load_tx))
+            .expect("routing-tree runtime");
     let expired = expired_report();
     source.last_load_report = expired;
     tx.send(EngineEvent::SetPreparedAudioConfig(routing_status_config()))
@@ -124,16 +120,11 @@ fn routing_tree_status_does_not_publish_deferred_evidence_after_fatal() {
     let expired = expired_report();
     source.last_load_report = expired;
     tx.send(note_on(62)).unwrap();
-    tx.send(EngineEvent::PreparedMomentaryFxStart(
-        realtime_engine::synth::prepare_momentary_fx_start(
-            "local-filter".into(),
-            "filter_sweep".into(),
-            BTreeMap::new(),
-            MomentaryFxTarget::Instrument { index: 0 },
-            RATE,
-        )
-        .expect("local momentary FX"),
-    ))
+    tx.send(EngineEvent::SetPreparedFxBusSlot {
+        bus_index: 0,
+        slot_index: 0,
+        config: prepare_fx_bus_slot("reverb".into(), BTreeMap::new(), RATE),
+    })
     .unwrap();
     block(&mut source);
 
@@ -293,13 +284,9 @@ fn routing_source() -> (
         prepare_instruments_config(initial_routing_config(), RATE),
     ))
     .unwrap();
-    let (mut source, shutdown) = EngineSource::with_routing_tree_persistent_workers_for_benchmark(
-        rx,
-        RATE,
-        128,
-        Some(load_tx.clone()),
-    )
-    .expect("routing-tree runtime");
+    let (mut source, shutdown) =
+        EngineSource::with_routing_tree_persistent_workers(rx, RATE, 128, Some(load_tx.clone()))
+            .expect("routing-tree runtime");
     source.last_load_report = Instant::now();
     block(&mut source);
     block(&mut source);

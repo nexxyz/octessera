@@ -1,8 +1,8 @@
 use super::*;
 use realtime_engine::synth::{
-    default_synth_config, prepare_instruments_config, FxBusConfig, FxBusSlotConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MomentaryFxTarget, SourceWorkerHealth,
-    SynthEngine, DEFAULT_PAN_POSITIONS,
+    default_synth_config, prepare_audio_config, prepare_instruments_config, FxBusConfig,
+    FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MomentaryFxTarget,
+    SourceWorkerHealth, SynthEngine, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 
@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 fn constructor_runs_persistent_quantums() {
     let (_tx, rx) = event_queue();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
     assert!(matches!(
         source.worker_state.mode,
@@ -53,7 +53,7 @@ fn applies_controls_before_dispatching_next_quantum() {
     })
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
     let mut samples = Vec::with_capacity(128 * 2 * 2);
     for _ in 0..(128 * 2 * 2) {
@@ -94,7 +94,7 @@ fn routing_tree_note_events_start_at_next_quantum() {
     })
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
 
     let first: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
@@ -107,12 +107,19 @@ fn routing_tree_note_events_start_at_next_quantum() {
 }
 
 #[test]
-fn routing_tree_rejects_preview_without_entering_preview_state() {
+fn routing_tree_preview_runs_through_source_control_gate() {
     let (tx, rx) = event_queue();
+    tx.send(EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
+        direct_synth_instruments(),
+        None,
+        None,
+        44_100,
+    )))
+    .unwrap();
     tx.send(EngineEvent::PreviewSample {
         instrument_slot: 0,
         buffer: realtime_engine::synth::SampleBuffer {
-            samples: vec![0.5; 128].into(),
+            samples: vec![0.5; 4096].into(),
             channels: 1,
             sample_rate: 44_100,
         },
@@ -120,92 +127,52 @@ fn routing_tree_rejects_preview_without_entering_preview_state() {
     })
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
 
-    let _ = source.next();
-    assert_eq!(
-        source.source_worker_health(),
-        SourceWorkerHealth::CompletionFailed
-    );
-    assert_eq!(source.profile_snapshot().active_preview_sample_voices, 0);
-
-    drop(source);
-    assert_eq!(shutdown.shutdown().joined_workers, 2);
-}
-
-#[test]
-fn routing_tree_rejects_non_global_momentary_fx() {
-    let (tx, rx) = event_queue();
-    tx.send(EngineEvent::PreparedMomentaryFxStart(
-        realtime_engine::synth::prepare_momentary_fx_start(
-            "local".into(),
-            "filter_sweep".into(),
-            BTreeMap::new(),
-            MomentaryFxTarget::Instrument { index: 0 },
-            44_100,
-        )
-        .expect("momentary FX"),
-    ))
-    .unwrap();
-    let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
-            .expect("routing-tree runtime");
-
-    let _ = source.next();
-    assert_eq!(
-        source.source_worker_health(),
-        SourceWorkerHealth::CompletionFailed
-    );
-    assert_eq!(source.profile_snapshot().active_momentary_fx, 0);
-
-    drop(source);
-    assert_eq!(shutdown.shutdown().joined_workers, 2);
-}
-
-#[test]
-fn routing_tree_rejected_preview_and_local_momentary_payloads_retire_off_callback() {
-    let (tx, rx) = event_queue();
-    tx.send(EngineEvent::PreviewSample {
-        instrument_slot: 0,
-        buffer: realtime_engine::synth::SampleBuffer {
-            samples: vec![0.5; 128].into(),
-            channels: 1,
-            sample_rate: 44_100,
-        },
-        velocity: 100,
-    })
-    .unwrap();
-    tx.send(EngineEvent::PreparedMomentaryFxStart(
-        realtime_engine::synth::prepare_momentary_fx_start(
-            "local".into(),
-            "filter_sweep".into(),
-            BTreeMap::new(),
-            MomentaryFxTarget::Instrument { index: 0 },
-            44_100,
-        )
-        .expect("momentary FX"),
-    ))
-    .unwrap();
-    let (mut source, retired_rx) =
-        EngineSource::with_routing_tree_test_retirement_receiver(rx, 44_100, 128);
-
-    let (allocations, deallocations) = super::allocations_and_deallocations(|| {
+    for _ in 0..(128 * 2 * 2) {
         let _ = source.next();
-    });
-    assert_eq!((allocations, deallocations), (0, 0));
-
-    for _ in 0..2 {
-        let item = retired_rx.try_recv().expect("rejected payload retirement");
-        assert!(item.state.as_ref().is_some_and(|state| !state.is_empty()));
-        assert!(item.event.is_none());
     }
-    assert!(retired_rx.try_recv().is_err());
-    assert_eq!(
-        source.source_worker_health(),
-        SourceWorkerHealth::CompletionFailed
-    );
+    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
+    assert_eq!(source.profile_snapshot().active_preview_sample_voices, 1);
+
     drop(source);
+    assert_eq!(shutdown.shutdown().joined_workers, 2);
+}
+
+#[test]
+fn routing_tree_local_momentary_fx_runs_through_source_control_gate() {
+    let (tx, rx) = event_queue();
+    tx.send(EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
+        direct_synth_instruments(),
+        None,
+        None,
+        44_100,
+    )))
+    .unwrap();
+    tx.send(EngineEvent::PreparedMomentaryFxStart(
+        realtime_engine::synth::prepare_momentary_fx_start(
+            "local".into(),
+            "filter_sweep".into(),
+            BTreeMap::new(),
+            MomentaryFxTarget::Instrument { index: 0 },
+            44_100,
+        )
+        .expect("momentary FX"),
+    ))
+    .unwrap();
+    let (mut source, shutdown) =
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
+            .expect("routing-tree runtime");
+
+    for _ in 0..(128 * 2 * 2) {
+        let _ = source.next();
+    }
+    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
+    assert_eq!(source.profile_snapshot().active_momentary_fx, 1);
+
+    drop(source);
+    assert_eq!(shutdown.shutdown().joined_workers, 2);
 }
 
 #[test]
@@ -223,7 +190,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     })
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
 
     let first: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
@@ -314,7 +281,7 @@ fn routing_tree_profile_matches_inline_after_a_completed_quantum() {
     })
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
     let _ = (0..512).map(|_| source.next().unwrap()).collect::<Vec<_>>();
 
@@ -376,7 +343,7 @@ fn processes_bus_owned_by_worker() {
     })
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
     let mut samples = Vec::with_capacity(128 * 2 * 2);
     for _ in 0..(128 * 2 * 2) {

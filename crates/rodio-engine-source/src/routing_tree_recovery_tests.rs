@@ -44,7 +44,7 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
     })
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
 
     let mut warmup = Vec::new();
@@ -111,7 +111,7 @@ fn recovers_routing_tree_with_current_global_controls_and_next_quantum_notes() {
     ))
     .unwrap();
     let (mut source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
+        EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
     let probe = Arc::new(RoutingTreePipelineProbe::default());
     source
