@@ -43,9 +43,9 @@ fn inline_args_for(scenario: &str, output_frames: u32, internal_frames: usize) -
     feature = "benchmark-voice-pools-128",
     feature = "routing-tree-benchmark"
 ))]
-fn recovered_miss_args() -> Vec<String> {
+fn recovered_miss_args(scenario: &str) -> Vec<String> {
     let mut args = valid_args();
-    set_arg(&mut args, "--scenario", "capacity_analogue_32".into());
+    set_arg(&mut args, "--scenario", scenario.into());
     args.extend([
         "--measure-seconds".into(),
         "120".into(),
@@ -99,13 +99,27 @@ fn approved_cli_tuples_store_independent_geometry() {
 ))]
 #[test]
 fn continue_on_recovered_miss_accepts_only_the_routing_observation_cell() {
-    let config = parse(recovered_miss_args()).unwrap();
+    let config = parse(recovered_miss_args("capacity_analogue_32")).unwrap();
     assert!(config.continue_on_recovered_miss);
     preflight(&config).unwrap();
 
-    let mut invalid_measure = recovered_miss_args();
+    let mut invalid_measure = recovered_miss_args("capacity_analogue_32");
     invalid_measure.extend(["--measure-seconds".into(), "30".into()]);
-    assert!(parse(invalid_measure).is_err());
+    assert_eq!(
+        parse(invalid_measure).unwrap_err(),
+        "--continue-on-recovered-miss requires capacity_analogue_16 (u16) or capacity_analogue_32 (u32), routing_tree_persistent, measure=120, output=256, ALSA period=64, internal=64, and worker timing=enabled"
+    );
+}
+
+#[cfg(all(
+    feature = "benchmark-voice-pools-128",
+    feature = "routing-tree-benchmark"
+))]
+#[test]
+fn continue_on_recovered_miss_accepts_the_u16_routing_observation_cell() {
+    let config = parse(recovered_miss_args("capacity_analogue_16")).unwrap();
+    assert!(config.continue_on_recovered_miss);
+    preflight(&config).unwrap();
 }
 
 #[test]

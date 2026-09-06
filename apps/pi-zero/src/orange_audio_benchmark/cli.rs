@@ -362,7 +362,10 @@ fn validate_continue_on_recovered_miss(config: &BenchmarkConfig) -> Result<(), S
         return Ok(());
     }
     if config.measure_seconds == 120
-        && config.scenario == "capacity_analogue_32"
+        && matches!(
+            config.scenario.as_str(),
+            "capacity_analogue_16" | "capacity_analogue_32"
+        )
         && config.executor_mode == BenchmarkExecutorMode::RoutingTreePersistent
         && config.worker_timing_mode == WorkerTimingMode::Enabled
         && config.output_frames == 256
@@ -371,7 +374,7 @@ fn validate_continue_on_recovered_miss(config: &BenchmarkConfig) -> Result<(), S
     {
         return Ok(());
     }
-    Err("--continue-on-recovered-miss requires the capacity_analogue_32 routing_tree_persistent 120-second 256/64 observation cell with worker timing enabled".into())
+    Err("--continue-on-recovered-miss requires capacity_analogue_16 (u16) or capacity_analogue_32 (u32), routing_tree_persistent, measure=120, output=256, ALSA period=64, internal=64, and worker timing=enabled".into())
 }
 
 pub(crate) fn expected_lookahead_frames(
