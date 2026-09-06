@@ -408,7 +408,10 @@ fn stale_completion_latches_and_is_not_reduced() {
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     let mut rewritten = false;
     for _ in 0..100_000 {
-        if runtime.rewrite_completion_sequence_for_test(0) {
+        if runtime.completion_ready_for_test(0)
+            && runtime.completion_ready_for_test(1)
+            && runtime.rewrite_completion_sequence_for_test(0)
+        {
             rewritten = true;
             break;
         }
