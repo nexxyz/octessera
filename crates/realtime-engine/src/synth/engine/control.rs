@@ -30,7 +30,9 @@ impl SynthEngine {
         target: MomentaryFxTarget,
     ) {
         #[cfg(feature = "routing-tree-benchmark")]
-        if self.routing_tree_assignment.is_some() && target != MomentaryFxTarget::Global {
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
             self.reject_routing_tree_mutation_for_control();
             return;
         }
@@ -64,7 +66,9 @@ impl SynthEngine {
     pub fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         #[cfg(feature = "routing-tree-benchmark")]
-        if self.routing_tree_assignment.is_some() && !self.routing_tree_momentary_stop_allowed(id) {
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
             self.reject_routing_tree_mutation_for_control();
             return retired;
         }
@@ -95,7 +99,8 @@ impl SynthEngine {
 
     pub fn momentary_fx_update(&mut self, id: &str, params: &BTreeMap<String, Value>) {
         #[cfg(feature = "routing-tree-benchmark")]
-        if self.routing_tree_assignment.is_some() && !self.routing_tree_momentary_update_allowed(id)
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
         {
             self.reject_routing_tree_mutation_for_control();
             return;
@@ -146,6 +151,13 @@ impl SynthEngine {
     }
 
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return;
+        }
         if self.persistent_bus_limit.is_some_and(|limit| {
             cfg.mixer
                 .as_ref()
@@ -179,6 +191,7 @@ impl SynthEngine {
                 route: current.route,
             };
         }
+        next_render_plan.normalize_routes();
         #[cfg(feature = "routing-tree-benchmark")]
         if self.routing_tree_assignment.is_some()
             && !self.routing_tree_render_plan_allowed(&next_render_plan)
@@ -225,6 +238,10 @@ impl SynthEngine {
         self.master_activity_frames = 0;
         self.bus_mono_scratch.resize(self.bus_chains.len(), 0.0);
         drop(self.render_plan.install_complete(next_render_plan));
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() {
+            let _ = self.refresh_routing_tree_assignment();
+        }
     }
 
     fn apply_instrument_slots_config(&mut self, instruments: Vec<InstrumentSlotConfig>) {
@@ -237,6 +254,13 @@ impl SynthEngine {
     }
 
     pub fn set_instrument_slot(&mut self, index: usize, slot: InstrumentSlotConfig) {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return;
+        }
         if index >= INSTRUMENT_SLOT_COUNT {
             #[cfg(feature = "routing-tree-benchmark")]
             if self.routing_tree_assignment.is_some() {
@@ -249,6 +273,7 @@ impl SynthEngine {
         if self.routing_tree_assignment.is_some() {
             let mut next_render_plan = self.render_plan.clone();
             next_render_plan.install_instrument_slot(index, render_plan);
+            next_render_plan.normalize_routes();
             if !self.routing_tree_render_plan_allowed(&next_render_plan) {
                 self.reject_routing_tree_mutation_for_control();
                 return;
@@ -256,8 +281,19 @@ impl SynthEngine {
         }
         self.apply_instrument_slot_config(index, slot);
         self.refresh_slot_pan_gains();
+        let mut render_plan = render_plan;
+        render_plan.route = render_plan.route.map(|route| match route {
+            super::render_plan::RenderPlanRoute::Bus(bus) if bus >= self.bus_chains.len() => {
+                super::render_plan::RenderPlanRoute::Direct
+            }
+            route => route,
+        });
         self.render_plan.install_instrument_slot(index, render_plan);
         self.refresh_routed_bus_slot_count();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some() {
+            let _ = self.refresh_routing_tree_assignment();
+        }
     }
 
     fn apply_instrument_slot_config(&mut self, idx: usize, slot: InstrumentSlotConfig) {

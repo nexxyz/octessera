@@ -82,8 +82,15 @@ impl SynthEngine {
             self.record_voice_admission_drop();
             return;
         };
+        #[cfg(feature = "routing-tree-benchmark")]
+        let routing_control = self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_some();
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let routing_control = false;
         let required_worker = source_worker_placement::worker_for_slot(self, slot);
-        let lane = if self.source_worker_load.is_some() {
+        let lane = if routing_control {
+            legacy_lane
+        } else if self.source_worker_load.is_some() {
             let inactive_lanes = [
                 self.sample_voice_pool.first_inactive_lane_for_parity(0),
                 self.sample_voice_pool.first_inactive_lane_for_parity(1),
@@ -210,47 +217,115 @@ impl SynthEngine {
         &mut self,
         slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
     ) -> bool {
-        let mut active = false;
-        for voice in self.preview_sample_voices.iter_mut().flatten() {
-            let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
-            if frames == 0 || voice.pos >= frames as f32 {
-                voice.pos = frames as f32;
-                continue;
-            }
-            let frame = voice.pos.floor() as usize;
-            let frac = voice.pos - frame as f32;
-            let next_frame = (frame + 1).min(frames - 1);
-            let sample = mono_frame(&voice.buffer, frame) * (1.0 - frac)
-                + mono_frame(&voice.buffer, next_frame) * frac;
-            let bank = self.sample_banks.get(voice.slot);
-            let cutoff_hz = bank.map(|bank| bank.filter_cutoff_hz).unwrap_or(8000.0);
-            let resonance = bank.map(|bank| bank.filter_resonance).unwrap_or(20.0);
-            let filtered = sample_lowpass(
-                sample,
-                &mut voice.filt,
-                cutoff_hz,
-                resonance,
-                self.sample_rate,
-            );
-            slot_out[voice.slot] += filtered * voice.gain;
-            voice.pos += voice.step;
-            active = true;
+        let filters = std::array::from_fn(|slot| {
+            self.sample_banks
+                .get(slot)
+                .map(|bank| (bank.filter_cutoff_hz, bank.filter_resonance))
+                .unwrap_or((8000.0, 20.0))
+        });
+        let (completed, active) = render_preview_sample_voices_frame_into(
+            &mut self.preview_sample_voices,
+            &filters,
+            self.sample_rate,
+            1,
+            slot_out,
+        );
+        for voice in completed.into_iter().flatten() {
+            self.retire_render_preview(voice);
         }
-        for index in 0..self.preview_sample_voices.len() {
-            let complete = self.preview_sample_voices[index]
-                .as_ref()
-                .map(|voice| {
-                    let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
-                    frames == 0 || voice.pos >= frames as f32
-                })
-                .unwrap_or(false);
-            if complete {
-                let voice = self.preview_sample_voices[index]
-                    .take()
-                    .expect("completed preview slot must contain a voice");
-                self.retire_render_preview(voice);
-            }
-        }
-        active || self.preview_sample_voices.iter().any(Option::is_some)
+        active
     }
+}
+
+#[cfg(feature = "routing-tree-benchmark")]
+pub(super) fn render_preview_sample_voices_block_into(
+    voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+    filters: &[(f32, f32); INSTRUMENT_SLOT_COUNT],
+    sample_rate: u32,
+    frames: usize,
+    slot_out: &mut [Vec<f32>; INSTRUMENT_SLOT_COUNT],
+    active_frames: &mut [bool],
+) -> [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS] {
+    let mut frame = 0;
+    while frame < frames {
+        active_frames[frame] =
+            render_preview_sample_voices_frame(voices, filters, sample_rate, |slot, sample| {
+                slot_out[slot][frame] += sample
+            });
+        frame += 1;
+    }
+    let mut completed = std::array::from_fn(|_| None);
+    for index in 0..voices.len() {
+        let complete = voices[index]
+            .as_ref()
+            .map(|voice| {
+                let frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
+                frames == 0 || voice.pos >= frames as f32
+            })
+            .unwrap_or(false);
+        if complete {
+            completed[index] = voices[index].take();
+        }
+    }
+    completed
+}
+
+fn render_preview_sample_voices_frame(
+    voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+    filters: &[(f32, f32); INSTRUMENT_SLOT_COUNT],
+    sample_rate: u32,
+    mut write: impl FnMut(usize, f32),
+) -> bool {
+    let mut active = false;
+    for voice in voices.iter_mut().flatten() {
+        let voice_frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
+        if voice_frames == 0
+            || voice.pos >= voice_frames as f32
+            || voice.slot >= INSTRUMENT_SLOT_COUNT
+        {
+            voice.pos = voice_frames as f32;
+            continue;
+        }
+        let source_frame = voice.pos.floor() as usize;
+        let frac = voice.pos - source_frame as f32;
+        let next_frame = (source_frame + 1).min(voice_frames - 1);
+        let sample = mono_frame(&voice.buffer, source_frame) * (1.0 - frac)
+            + mono_frame(&voice.buffer, next_frame) * frac;
+        let (cutoff_hz, resonance) = filters[voice.slot];
+        let filtered = sample_lowpass(sample, &mut voice.filt, cutoff_hz, resonance, sample_rate);
+        write(voice.slot, filtered * voice.gain);
+        voice.pos += voice.step;
+        active = true;
+    }
+    active
+}
+
+pub(super) fn render_preview_sample_voices_frame_into(
+    voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+    filters: &[(f32, f32); INSTRUMENT_SLOT_COUNT],
+    sample_rate: u32,
+    frames: usize,
+    slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
+) -> ([Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS], bool) {
+    let mut active = false;
+    for _ in 0..frames {
+        active |=
+            render_preview_sample_voices_frame(voices, filters, sample_rate, |slot, sample| {
+                slot_out[slot] += sample
+            });
+    }
+    let mut completed = std::array::from_fn(|_| None);
+    for index in 0..voices.len() {
+        let complete = voices[index]
+            .as_ref()
+            .map(|voice| {
+                let frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
+                frames == 0 || voice.pos >= frames as f32
+            })
+            .unwrap_or(false);
+        if complete {
+            completed[index] = voices[index].take();
+        }
+    }
+    (completed, active || voices.iter().any(Option::is_some))
 }

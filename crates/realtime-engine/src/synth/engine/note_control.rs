@@ -7,6 +7,14 @@ use super::*;
 impl SynthEngine {
     pub fn set_sample_banks(&mut self, banks: Vec<SampleBankConfig>) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            retired.sample_banks = Some(banks);
+            self.reject_routing_tree_mutation_for_control();
+            return retired;
+        }
         if !self.sample_voice_pool.has_home() {
             retired.sample_banks = Some(banks);
             return retired;
@@ -26,6 +34,14 @@ impl SynthEngine {
         bank: SampleBankConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            retired.sample_bank = Some(bank);
+            self.reject_routing_tree_mutation_for_control();
+            return retired;
+        }
         if !self.sample_voice_pool.has_home() {
             retired.sample_bank = Some(bank);
             return retired;
@@ -48,7 +64,9 @@ impl SynthEngine {
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         #[cfg(feature = "routing-tree-benchmark")]
-        if self.routing_tree_assignment.is_some() {
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
             store_retired_preview_buffer(&mut retired.preview_sample_buffers, buffer);
             self.reject_routing_tree_mutation_for_control();
             return retired;
@@ -159,8 +177,15 @@ impl SynthEngine {
             self.record_voice_admission_drop();
             return;
         };
+        #[cfg(feature = "routing-tree-benchmark")]
+        let routing_control = self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_some();
+        #[cfg(not(feature = "routing-tree-benchmark"))]
+        let routing_control = false;
         let required_worker = source_worker_placement::worker_for_slot(self, slot);
-        let lane = if self.source_worker_load.is_some() {
+        let lane = if routing_control {
+            legacy_lane
+        } else if self.source_worker_load.is_some() {
             let inactive_lanes = [
                 self.synth_voice_pool.first_inactive_lane_for_parity(0),
                 self.synth_voice_pool.first_inactive_lane_for_parity(1),

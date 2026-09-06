@@ -54,6 +54,9 @@ pub(super) struct SynthVoicePool {
 
 #[path = "synth_voice_pool_identity.rs"]
 mod identity;
+#[cfg(feature = "routing-tree-benchmark")]
+#[path = "synth_voice_pool_routing.rs"]
+mod routing;
 
 impl SynthVoicePool {
     pub(super) fn new() -> Self {

@@ -1,5 +1,4 @@
 use super::super::routing_tree_worker::RoutingTreeWorkerContext;
-use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_health::SourceWorkerHealth;
 use super::super::source_worker_protocol::{
     SourceWorkerRenderDisposition, WorkerCommand, WorkerPhase,
@@ -31,14 +30,17 @@ impl SourceWorkerRuntime {
         primed
     }
 
-    pub(in crate::synth::engine) fn render_routing_tree_persistent_block(
+    pub(in crate::synth::engine) fn render_routing_tree_persistent_block<F>(
         &mut self,
         engine: &mut SynthEngine,
         frames: usize,
         left: &mut [f32],
         right: &mut [f32],
-        apply_controls: impl FnOnce(&mut SynthEngine) -> Result<(), ()>,
-    ) -> SourceWorkerRenderDisposition {
+        apply_controls: Option<F>,
+    ) -> SourceWorkerRenderDisposition
+    where
+        F: FnOnce(&mut SynthEngine) -> Result<(), ()>,
+    {
         if self.mode
             != super::super::source_worker_protocol::SourceWorkerMode::RoutingTreePersistent
         {
@@ -77,12 +79,16 @@ impl SourceWorkerRuntime {
         } else {
             engine.sample_clock.saturating_add(frames as u64)
         };
-        let Some(()) =
-            self.with_routing_tree_controls_ready(engine, dispatch_sample_clock, apply_controls)
-        else {
-            self.latch_completion_failure(0b11);
-            return SourceWorkerRenderDisposition::Fatal;
-        };
+        if let Some(apply_controls) = apply_controls {
+            let Some(()) = self.with_routing_tree_controls_ready(
+                engine,
+                dispatch_sample_clock,
+                apply_controls,
+            ) else {
+                self.latch_completion_failure(0b11);
+                return SourceWorkerRenderDisposition::Fatal;
+            };
+        }
         if !self.routing_output_ready {
             if !self.dispatch_routing_tree(engine, frames, dispatch_sample_clock) {
                 return self.routing_tree_failure_disposition();
@@ -331,7 +337,10 @@ impl SourceWorkerRuntime {
         if let (Some(load), [Some(first), Some(second)]) =
             (self.load.as_mut(), self.source_load_observations)
         {
-            if !load.observe_pair([first, second]) {
+            if !load.observe_pair_with_max_cost(
+                [first, second],
+                super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS,
+            ) {
                 self.latch_completion_failure(0b11);
                 self.source_load_observations = [None; SOURCE_WORKER_COUNT];
                 return None;
@@ -342,59 +351,6 @@ impl SourceWorkerRuntime {
         }
         self.source_load_observations = [None; SOURCE_WORKER_COUNT];
         Some(())
-    }
-
-    fn with_routing_tree_controls_ready<R>(
-        &mut self,
-        engine: &mut SynthEngine,
-        effective_sample_clock: u64,
-        apply: impl FnOnce(&mut SynthEngine) -> Result<R, ()>,
-    ) -> Option<R> {
-        if self.in_flight_mask != 0 || self.completed_mask != 0 || !self.home_is_ready() {
-            return None;
-        }
-        let mut first = self.lease_home(0)?;
-        let Some(mut second) = self.lease_home(1) else {
-            first.return_fault();
-            return None;
-        };
-        let Some(assignment) = engine.routing_tree_assignment() else {
-            first.return_fault();
-            second.return_fault();
-            return None;
-        };
-        let Some(context) = RoutingTreeWorkerContext::from_engine(engine, &assignment) else {
-            first.return_fault();
-            second.return_fault();
-            return None;
-        };
-        reassert_routing_tree_bus_assignments(&mut first, &mut second, &context);
-        let load = self.load_snapshot();
-        let result =
-            source_worker_carrier_transfer::with_both_source_owners_for_routing_tree_controls(
-                engine,
-                &mut first,
-                &mut second,
-                |engine, _, _| {
-                    engine.with_source_worker_load(load, |engine| {
-                        engine.with_routing_tree_source_event_sample_clock(
-                            effective_sample_clock,
-                            apply,
-                        )
-                    })
-                },
-            );
-        match result {
-            Ok(result) => {
-                first.return_home();
-                second.return_home();
-                Some(result)
-            }
-            Err(()) => {
-                self.latch_completion_failure(0b11);
-                None
-            }
-        }
     }
 
     fn routing_tree_failure_disposition(&mut self) -> SourceWorkerRenderDisposition {
@@ -461,7 +417,7 @@ fn routing_owner_pair_valid(
     })
 }
 
-fn reassert_routing_tree_bus_assignments(
+pub(super) fn reassert_routing_tree_bus_assignments(
     first: &mut OwnerLease,
     second: &mut OwnerLease,
     context: &RoutingTreeWorkerContext,

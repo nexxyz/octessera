@@ -237,7 +237,7 @@ pub(super) fn render_synth_voice_frame(
     ))
 }
 
-fn render_synth_voice_block(
+pub(super) fn render_synth_voice_block(
     voice: &mut Voice,
     slot_idx: usize,
     frames: usize,

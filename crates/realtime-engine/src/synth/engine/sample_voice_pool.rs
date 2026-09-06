@@ -14,6 +14,9 @@ mod identity;
 #[cfg(any(test, debug_assertions))]
 #[path = "sample_voice_pool_invariants.rs"]
 mod invariants;
+#[cfg(feature = "routing-tree-benchmark")]
+#[path = "sample_voice_pool_routing.rs"]
+mod routing;
 
 pub(super) struct SampleVoicePartition {
     parity: usize,

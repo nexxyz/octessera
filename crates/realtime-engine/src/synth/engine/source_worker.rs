@@ -304,6 +304,9 @@ mod residency_test_support;
 mod feature_support;
 
 #[cfg(feature = "routing-tree-benchmark")]
+#[path = "routing_tree_control_gate.rs"]
+mod routing_tree_control_gate;
+#[cfg(feature = "routing-tree-benchmark")]
 #[path = "routing_tree_pipeline.rs"]
 mod routing_tree_pipeline;
 

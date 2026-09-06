@@ -33,6 +33,7 @@ pub(super) struct BusChainBlockScratch {
     pub(super) resolved_duck: [Vec<f32>; BUS_SLOTS_PER_BUS],
     pub(super) mono_output: Vec<f32>,
     pub(super) auto_pan_pos: Vec<f32>,
+    pub(super) active: Vec<bool>,
     pub(super) processed_prefix: usize,
     pub(super) spread: f32,
     pub(super) executed: bool,
@@ -45,6 +46,7 @@ impl BusChainBlockScratch {
             resolved_duck: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
             mono_output: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
             auto_pan_pos: vec![f32::NAN; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
             processed_prefix: 0,
             spread: 0.0,
             executed: false,
@@ -61,6 +63,7 @@ impl BusChainBlockScratch {
         }
         self.mono_output[..frames].fill(0.0);
         self.auto_pan_pos[..frames].fill(f32::NAN);
+        self.active[..frames].fill(false);
         self.processed_prefix = 0;
         self.spread = 0.0;
         self.executed = false;
@@ -73,6 +76,7 @@ impl BusChainBlockScratch {
         }
         self.mono_output[..frames].fill(0.0);
         self.auto_pan_pos[..frames].fill(f32::NAN);
+        self.active[..frames].fill(false);
         self.processed_prefix = 0;
         self.spread = 0.0;
         self.executed = false;
@@ -230,7 +234,9 @@ impl BusChainOwner {
         let cost = self.cost_units();
         for frame in 0..frames {
             let input = scratch.input[frame];
-            if input.abs() <= 1.0e-5 && !self.is_active() {
+            let active = input.abs() > 1.0e-5 || self.is_active();
+            scratch.active[frame] = active;
+            if !active {
                 self.observe(input, 0.0, threshold, sample_rate);
                 self.observe_render_hold(false, false, hold_frames);
                 continue;
@@ -274,6 +280,7 @@ impl BusChainOwner {
             let input_present = input.abs() > 1.0e-5;
             let output_present = processed.abs() > 1.0e-5;
             self.observe_render_hold(input_present, output_present, hold_frames);
+            scratch.active[frame] = self.is_active();
         }
         scratch.processed_prefix = frames;
         Ok(if scratch.executed { cost } else { 0 })

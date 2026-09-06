@@ -217,9 +217,27 @@ impl RoutingTreeWork {
     }
 
     pub(super) fn active_cost_units(&self) -> u16 {
-        let synth_units = self.owner.partitions.synth.render_lane_count
-            * super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize;
-        let sample_units = self.owner.partitions.sample.render_lane_count
+        let (synth_count, sample_count, preview_count) = self
+            .owner
+            .routing_tree
+            .as_ref()
+            .and_then(|routing| {
+                routing.source_bank.as_ref().map(|bank| {
+                    (
+                        bank.synth.iter().filter(|voice| voice.active).count(),
+                        bank.sample.iter().filter(|voice| voice.active).count(),
+                        routing
+                            .preview_sample_voices
+                            .iter()
+                            .filter(|voice| voice.is_some())
+                            .count(),
+                    )
+                })
+            })
+            .unwrap_or((0, 0, 0));
+        let synth_units =
+            synth_count * super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize;
+        let sample_units = (sample_count + preview_count)
             * super::source_worker_load::SOURCE_WORKER_SAMPLE_COST_UNITS as usize;
         synth_units
             .saturating_add(sample_units)

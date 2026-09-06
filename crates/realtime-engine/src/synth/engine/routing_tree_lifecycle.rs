@@ -1,5 +1,6 @@
 use super::bus_chain_owner::BusChainCarrier;
 use super::routing_tree_executor::RoutingTreeAssignment;
+use super::routing_tree_state;
 use super::routing_tree_worker::RoutingTreeOwnerData;
 use super::source_worker_carrier_transfer;
 use super::source_worker_lifecycle::{
@@ -33,14 +34,23 @@ pub(super) fn start_prewarmed_with_hook(
         return Err(error);
     }
     let bus_carriers = source_worker_carrier_transfer::take_bus_carriers(engine);
+    let Some(source_bank) = routing_tree_state::take_source_bank(engine) else {
+        source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
+        lifecycle.mark_runtime_closed();
+        return Err(SourceWorkerSetupError::PartitionsUnavailable);
+    };
     let Some(home_partitions) = source_worker_transfer::take_source_partition_bundles(engine)
     else {
+        let mut source_bank = source_bank;
+        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::PartitionsUnavailable);
     };
     let Some((synth_scratch, sample_scratch)) = engine.take_inline_source_scratch() else {
+        let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
+        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::InlineSourceExecutorUnavailable);
@@ -48,7 +58,9 @@ pub(super) fn start_prewarmed_with_hook(
     let Some([first_scratch, second_scratch]) =
         SourceWorkerScratch::from_inline_scratch(synth_scratch, sample_scratch)
     else {
+        let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
+        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::InlineSourceExecutorUnavailable);
@@ -60,30 +72,59 @@ pub(super) fn start_prewarmed_with_hook(
         );
     }
     let Some(assignment) = engine.routing_tree_assignment() else {
+        let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
+        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
     };
+    let mut source_bank = source_bank;
+    let [first_bank, second_bank] = match source_bank.split_for_assignment(&assignment) {
+        Some(banks) => banks,
+        None => {
+            restore_partitions(engine, home_partitions);
+            let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
+            source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
+            lifecycle.mark_runtime_closed();
+            let _ = lifecycle.shutdown_after_runtime_drop();
+            return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
+        }
+    };
     let [first_carriers, second_carriers] = split_initial_carriers(bus_carriers, &assignment);
-    if !lifecycle.seed_home([
-        OwnerEnvelope {
-            runtime_generation: lifecycle.runtime_generation(),
-            parity: 0,
-            partitions: home_partitions.0,
-            scratch: first_scratch,
-            bus_carriers: first_carriers,
-            routing_tree: Some(RoutingTreeOwnerData::new()),
-        },
-        OwnerEnvelope {
-            runtime_generation: lifecycle.runtime_generation(),
-            parity: 1,
-            partitions: home_partitions.1,
-            scratch: second_scratch,
-            bus_carriers: second_carriers,
-            routing_tree: Some(RoutingTreeOwnerData::new()),
-        },
-    ]) {
+    let mut first_owner = OwnerEnvelope {
+        runtime_generation: lifecycle.runtime_generation(),
+        parity: 0,
+        partitions: home_partitions.0,
+        scratch: first_scratch,
+        bus_carriers: first_carriers,
+        routing_tree: Some(RoutingTreeOwnerData::new(first_bank)),
+    };
+    let mut second_owner = OwnerEnvelope {
+        runtime_generation: lifecycle.runtime_generation(),
+        parity: 1,
+        partitions: home_partitions.1,
+        scratch: second_scratch,
+        bus_carriers: second_carriers,
+        routing_tree: Some(RoutingTreeOwnerData::new(second_bank)),
+    };
+    let Some(routing_first) = first_owner.routing_tree.as_mut() else {
+        return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
+    };
+    let Some(routing_second) = second_owner.routing_tree.as_mut() else {
+        return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
+    };
+    if !routing_tree_state::move_engine_aux_to_owners(
+        engine,
+        &assignment,
+        routing_first,
+        routing_second,
+    ) {
+        lifecycle.mark_runtime_closed();
+        let _ = lifecycle.shutdown_after_runtime_drop();
+        return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
+    }
+    if !lifecycle.seed_home([first_owner, second_owner]) {
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::WorkerChannelsUnavailable);
     }

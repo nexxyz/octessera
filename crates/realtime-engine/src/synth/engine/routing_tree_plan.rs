@@ -30,7 +30,11 @@ impl RoutingTreePlan {
             nodes.active[bus_node(bus)] = true;
         }
         for (slot, instrument) in render_plan.instrument_slots.iter().enumerate() {
-            if !instrument.occupied {
+            let routed_to_configured_bus = matches!(
+                instrument.route,
+                RenderPlanRoute::Bus(bus) if bus < configured_bus_count
+            );
+            if !instrument.occupied && !routed_to_configured_bus {
                 continue;
             }
             nodes.active[slot] = true;

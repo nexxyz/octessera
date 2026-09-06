@@ -1,23 +1,36 @@
-use super::bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
-use super::render_plan::RenderPlanRoute;
-use super::render_routing::{render_bus_stereo_output, FxBusOutputSpreadState};
+use super::render_samples::render_preview_sample_voices_block_into;
+use super::retired_state::PREVIEW_AUDITION_SLOTS;
 use super::routing_tree_executor::RoutingTreeAssignment;
 use super::routing_tree_plan::RoutingTreePlan;
-use super::source_lane_renderer::{
-    render_sample_partition, render_synth_partition, SampleSourceContext, SynthSourceContext,
+use super::routing_tree_source_bank::RoutingTreeSourceBank;
+use super::routing_tree_source_renderer::{
+    render_routing_tree_sources, RoutingTreeSourceBlockScratch,
 };
+use super::source_lane_renderer::SynthSourceContext;
 use super::source_worker_lifecycle::OwnerEnvelope;
 use super::source_worker_protocol::WorkStamp;
+use super::support::{MomentaryFxState, PreviewSampleVoice};
 use super::SynthEngine;
 use crate::synth::dsp_config::BusIdleThreshold;
-use crate::synth::fx_params::DuckSource;
-use crate::synth::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
+use crate::synth::types::{
+    BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
+    SYNTH_VOICE_LANE_CAPACITY,
+};
 
 pub(super) const ROUTING_TREE_WORKER_COUNT: usize = 2;
+pub(super) const ROUTING_TREE_MAX_COST_UNITS: u16 = (SYNTH_VOICE_LANE_CAPACITY
+    * super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize
+    + (SAMPLE_VOICE_LANE_CAPACITY + PREVIEW_AUDITION_SLOTS)
+        * super::source_worker_load::SOURCE_WORKER_SAMPLE_COST_UNITS as usize
+    + BUS_COUNT * BUS_SLOTS_PER_BUS * super::bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS as usize)
+    as u16;
 
 pub(super) struct RoutingTreeWorkerScratch {
     pub(super) slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
     pub(super) bus_input: [Vec<f32>; BUS_COUNT],
+    pub(super) source: RoutingTreeSourceBlockScratch,
+    pub(super) preview_active: Vec<bool>,
+    pub(super) momentary_active: Vec<bool>,
 }
 
 impl RoutingTreeWorkerScratch {
@@ -25,6 +38,9 @@ impl RoutingTreeWorkerScratch {
         Self {
             slot_out: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
             bus_input: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
+            source: RoutingTreeSourceBlockScratch::new(),
+            preview_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            momentary_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
         }
     }
 
@@ -38,7 +54,9 @@ impl RoutingTreeWorkerScratch {
         for input in &mut self.bus_input {
             input[..frames].fill(0.0);
         }
-        true
+        self.preview_active[..frames].fill(false);
+        self.momentary_active[..frames].fill(false);
+        self.source.prepare(frames)
     }
 }
 
@@ -49,6 +67,8 @@ pub(super) struct RoutingTreeOutputBlock {
     pub(super) bus_active: Vec<bool>,
     pub(super) active_synth_voices: usize,
     pub(super) active_sample_voices: usize,
+    pub(super) active_preview_sample_voices: usize,
+    pub(super) active_momentary_fx: usize,
     pub(super) active_bus_fx_slots: usize,
 }
 
@@ -61,6 +81,8 @@ impl RoutingTreeOutputBlock {
             bus_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
             active_synth_voices: 0,
             active_sample_voices: 0,
+            active_preview_sample_voices: 0,
+            active_momentary_fx: 0,
             active_bus_fx_slots: 0,
         }
     }
@@ -75,6 +97,8 @@ impl RoutingTreeOutputBlock {
         self.bus_active[..frames].fill(false);
         self.active_synth_voices = 0;
         self.active_sample_voices = 0;
+        self.active_preview_sample_voices = 0;
+        self.active_momentary_fx = 0;
         self.active_bus_fx_slots = 0;
         true
     }
@@ -83,13 +107,25 @@ impl RoutingTreeOutputBlock {
 pub(super) struct RoutingTreeOwnerData {
     pub(super) scratch: RoutingTreeWorkerScratch,
     pub(super) output: RoutingTreeOutputBlock,
+    pub(super) source_bank: Option<Box<RoutingTreeSourceBank>>,
+    pub(super) preview_sample_voices: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+    pub(super) preview_sample_orders: [u64; PREVIEW_AUDITION_SLOTS],
+    pub(super) momentary_fx: Vec<MomentaryFxState>,
+    pub(super) retired_preview_samples: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+    pub(super) retired_momentary_fx: [Option<MomentaryFxState>; PREVIEW_AUDITION_SLOTS],
 }
 
 impl RoutingTreeOwnerData {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(source_bank: Box<RoutingTreeSourceBank>) -> Self {
         Self {
             scratch: RoutingTreeWorkerScratch::new(),
             output: RoutingTreeOutputBlock::new(),
+            source_bank: Some(source_bank),
+            preview_sample_voices: std::array::from_fn(|_| None),
+            preview_sample_orders: [0; PREVIEW_AUDITION_SLOTS],
+            momentary_fx: Vec::with_capacity(super::control::MAX_MOMENTARY_FX),
+            retired_preview_samples: std::array::from_fn(|_| None),
+            retired_momentary_fx: std::array::from_fn(|_| None),
         }
     }
 }
@@ -98,7 +134,7 @@ impl RoutingTreeOwnerData {
 pub(super) struct RoutingTreeWorkerContext {
     pub(super) slot_worker: [u8; INSTRUMENT_SLOT_COUNT],
     pub(super) bus_worker: [u8; BUS_COUNT],
-    pub(super) slot_route: [RenderPlanRoute; INSTRUMENT_SLOT_COUNT],
+    pub(super) slot_route: [super::render_plan::RenderPlanRoute; INSTRUMENT_SLOT_COUNT],
     pub(super) slot_volume: [f32; INSTRUMENT_SLOT_COUNT],
     pub(super) slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
     pub(super) bus_pan_pos: [usize; BUS_COUNT],
@@ -108,6 +144,7 @@ pub(super) struct RoutingTreeWorkerContext {
     pub(super) bus_count: usize,
     pub(super) sample_rate: u32,
     pub(super) synth_context: SynthSourceContext,
+    pub(super) sample_filter: [(f32, f32); INSTRUMENT_SLOT_COUNT],
     pub(super) bus_idle_threshold: BusIdleThreshold,
     pub(super) fx_activity_hold_frames: u32,
 }
@@ -154,6 +191,13 @@ impl RoutingTreeWorkerContext {
             bus_count,
             sample_rate: engine.sample_rate,
             synth_context: engine.synth_source_context(),
+            sample_filter: std::array::from_fn(|slot| {
+                engine
+                    .sample_banks
+                    .get(slot)
+                    .map(|bank| (bank.filter_cutoff_hz, bank.filter_resonance))
+                    .unwrap_or((8000.0, 20.0))
+            }),
             bus_idle_threshold: engine.dsp_config.bus_idle_threshold,
             fx_activity_hold_frames: engine.fx_activity_hold_frames,
         })
@@ -175,31 +219,10 @@ pub(super) fn render_owner(
     {
         return Err(());
     }
-    if owner.routing_tree.is_none() {
-        return Err(());
-    }
     for carrier in owner.bus_carriers.iter_mut().flatten() {
         if carrier.owner.is_some() && !carrier.scratch.prepare(stamp.frames) {
             return Err(());
         }
-    }
-    render_sample_partition(
-        &mut owner.partitions.sample,
-        stamp.frames,
-        SampleSourceContext {
-            sample_rate: context.sample_rate,
-        },
-        &mut owner.scratch.sample,
-    );
-    render_synth_partition(
-        &mut owner.partitions.synth,
-        stamp.frames,
-        stamp.base_sample_clock,
-        &context.synth_context,
-        &mut owner.scratch.synth,
-    );
-    if !valid_source_residency(owner, &context) {
-        return Err(());
     }
     let Some(mut routing) = owner.routing_tree.take() else {
         return Err(());
@@ -208,189 +231,101 @@ pub(super) fn render_owner(
     {
         Err(())
     } else {
-        reduce_sources(owner, &mut routing, stamp.frames);
-        stage_components(owner, &mut routing, &context, stamp.frames)
+        let Some(source_bank) = routing.source_bank.as_mut() else {
+            return Err(());
+        };
+        render_routing_tree_sources(
+            source_bank,
+            stamp.frames,
+            stamp.base_sample_clock,
+            &context.synth_context,
+            context.sample_rate,
+            &mut routing.scratch.source,
+        );
+        if !valid_source_residency(owner, &routing, &context) {
+            Err(())
+        } else {
+            let completed = render_preview_sample_voices_block_into(
+                &mut routing.preview_sample_voices,
+                &context.sample_filter,
+                context.sample_rate,
+                stamp.frames,
+                &mut routing.scratch.slot_out,
+                &mut routing.scratch.preview_active,
+            );
+            for voice in completed.into_iter().flatten() {
+                super::retired_state::store_retired_preview(
+                    &mut routing.retired_preview_samples,
+                    voice,
+                );
+            }
+            reduce_sources(&mut routing, stamp.frames);
+            super::routing_tree_component_renderer::stage_components(
+                owner,
+                &mut routing,
+                &context,
+                stamp.frames,
+            )
+        }
     };
     owner.routing_tree = Some(routing);
     result
 }
 
-fn valid_source_residency(owner: &OwnerEnvelope, context: &RoutingTreeWorkerContext) -> bool {
-    for source in [&owner.scratch.synth, &owner.scratch.sample] {
-        for (local_lane, slot) in source.slots.iter().copied().enumerate() {
-            if source.rendered_frames[local_lane] == 0
-                || slot == super::source_lane_renderer::INVALID_INSTRUMENT_SLOT
-            {
-                continue;
-            }
-            let slot = slot as usize;
-            if slot >= INSTRUMENT_SLOT_COUNT || context.slot_worker[slot] != owner.parity as u8 {
-                return false;
-            }
-        }
-    }
-    true
-}
-
-fn reduce_sources(owner: &OwnerEnvelope, routing: &mut RoutingTreeOwnerData, frames: usize) {
-    for source in [&owner.scratch.sample, &owner.scratch.synth] {
-        for local_lane in 0..source.slots.len() {
-            let slot = source.slots[local_lane];
-            if slot == super::source_lane_renderer::INVALID_INSTRUMENT_SLOT {
-                continue;
-            }
-            let slot = slot as usize;
-            if slot >= INSTRUMENT_SLOT_COUNT {
-                continue;
-            }
-            let rendered_frames = source.rendered_frames[local_lane].min(frames);
-            for frame in 0..rendered_frames {
-                routing.scratch.slot_out[slot][frame] += source.samples[local_lane][frame];
-            }
-        }
-    }
-}
-
-fn stage_components(
-    owner: &mut OwnerEnvelope,
-    routing: &mut RoutingTreeOwnerData,
+fn valid_source_residency(
+    owner: &OwnerEnvelope,
+    routing: &RoutingTreeOwnerData,
     context: &RoutingTreeWorkerContext,
-    frames: usize,
-) -> Result<u16, ()> {
-    let mut executed_cost = 0_u16;
-    for frame in 0..frames {
-        let mut raw_slots = [0.0_f32; INSTRUMENT_SLOT_COUNT];
-        let source_active = owner
-            .scratch
-            .sample
-            .rendered_frames
-            .iter()
-            .chain(owner.scratch.synth.rendered_frames.iter())
-            .any(|prefix| *prefix > frame);
-        for (slot, raw) in raw_slots.iter_mut().enumerate() {
-            *raw = routing.scratch.slot_out[slot][frame];
-            let worker = context.slot_worker[slot];
-            if worker == owner.parity as u8 {
-                let sample = *raw * context.slot_volume[slot];
-                match context.slot_route[slot] {
-                    RenderPlanRoute::Direct => {
-                        routing.output.left[frame] += sample * context.slot_pan_gains[slot].0;
-                        routing.output.right[frame] += sample * context.slot_pan_gains[slot].1;
-                    }
-                    RenderPlanRoute::Bus(bus) => {
-                        if bus >= context.bus_count || context.bus_worker[bus] != owner.parity as u8
-                        {
-                            return Err(());
-                        }
-                        routing.scratch.bus_input[bus][frame] += sample;
-                    }
-                }
-            } else if *raw != 0.0 && context.slot_worker[slot] != u8::MAX {
-                return Err(());
-            }
-        }
-        routing.output.source_active[frame] = source_active;
-        let bus_snapshot: [f32; BUS_COUNT] =
-            std::array::from_fn(|bus| routing.scratch.bus_input[bus][frame]);
-        for bus in 0..context.bus_count {
-            if context.bus_worker[bus] != owner.parity as u8 {
-                continue;
-            }
-            let Some(carrier) = owner.bus_carriers[bus].as_mut() else {
-                return Err(());
-            };
-            if carrier.owner.is_none() {
-                continue;
-            }
-            carrier.scratch.input[frame] = routing.scratch.bus_input[bus][frame];
-            for slot in 0..BUS_SLOTS_PER_BUS {
-                let source = match carrier.owner.as_ref().map(|chain| chain.slot_params[slot]) {
-                    Some(super::super::fx_params::FxBusParams::Duck { source, .. }) => source,
-                    _ => continue,
-                };
-                carrier.scratch.resolved_duck[slot][frame] = match source {
-                    DuckSource::Instrument(slot) if slot < INSTRUMENT_SLOT_COUNT => raw_slots[slot],
-                    DuckSource::Bus(source_bus) if source_bus < context.bus_count => {
-                        if context.bus_worker[source_bus] != owner.parity as u8 {
-                            return Err(());
-                        }
-                        bus_snapshot[source_bus]
-                    }
-                    _ => return Err(()),
-                };
-            }
-        }
-    }
-    for bus in 0..context.bus_count {
-        if context.bus_worker[bus] != owner.parity as u8 {
-            continue;
-        }
-        let Some(carrier) = owner.bus_carriers[bus].as_mut() else {
-            return Err(());
-        };
-        let Some(chain) = carrier.owner.as_mut() else {
-            continue;
-        };
-        if carrier.routing_tree_spread_state.is_none() {
-            carrier.routing_tree_spread_state =
-                Some(FxBusOutputSpreadState::new(context.sample_rate));
-        }
-        let bus_cost = chain
-            .process_block(
-                &mut carrier.scratch,
-                frames,
-                context.sample_rate,
-                context.bus_idle_threshold,
-                context.fx_activity_hold_frames,
-            )
-            .map_err(|_| ())?;
-        executed_cost = executed_cost.saturating_add(bus_cost);
-        let spread_state = carrier
-            .routing_tree_spread_state
-            .as_mut()
-            .expect("spread state");
-        for frame in 0..frames {
-            if !carrier.scratch.executed || frame >= carrier.scratch.processed_prefix {
-                continue;
-            }
-            let output = BusChainFrameOutput {
-                mono: carrier.scratch.mono_output[frame],
-                auto_pan_pos: (!carrier.scratch.auto_pan_pos[frame].is_nan())
-                    .then_some(carrier.scratch.auto_pan_pos[frame]),
-                spread: carrier.scratch.spread,
-            };
-            let (left, right) = render_bus_stereo_output(
-                output,
-                spread_state,
-                Some(context.bus_pan_pos[bus]),
-                context.pan_positions,
-                context.bus_pan_gains[bus],
-                context.bus_volume[bus],
-            );
-            routing.output.left[frame] += left;
-            routing.output.right[frame] += right;
-        }
-    }
-    routing.output.bus_active[..frames].fill(false);
-    for bus in 0..context.bus_count {
-        if context.bus_worker[bus] == owner.parity as u8 {
-            routing.output.bus_active[..frames]
-                .iter_mut()
-                .for_each(|active| {
-                    *active |= owner.bus_carriers[bus]
-                        .as_ref()
-                        .and_then(|carrier| carrier.owner.as_ref())
-                        .is_some_and(BusChainOwner::is_active);
-                });
-        }
-    }
-    routing.output.active_synth_voices = owner.partitions.synth.active_count();
-    routing.output.active_sample_voices = owner.partitions.sample.active_count();
-    routing.output.active_bus_fx_slots = owner
-        .bus_carriers
+) -> bool {
+    let Some(source) = routing.source_bank.as_ref() else {
+        return false;
+    };
+    source
+        .synth
         .iter()
-        .filter_map(|carrier| carrier.as_ref().and_then(|carrier| carrier.owner.as_ref()))
-        .map(|chain| chain.active_slot_count)
-        .sum();
-    Ok(executed_cost)
+        .filter(|voice| voice.active)
+        .all(|voice| {
+            let slot = voice.instrument_slot as usize;
+            slot < INSTRUMENT_SLOT_COUNT
+                && voice.canonical_lane.is_some()
+                && context.slot_worker[slot] == owner.parity as u8
+        })
+        && source
+            .sample
+            .iter()
+            .filter(|voice| voice.active)
+            .all(|voice| {
+                let slot = voice.instrument_slot as usize;
+                slot < INSTRUMENT_SLOT_COUNT
+                    && voice.canonical_lane.is_some()
+                    && context.slot_worker[slot] == owner.parity as u8
+            })
+}
+
+fn reduce_sources(routing: &mut RoutingTreeOwnerData, frames: usize) {
+    let Some(source) = routing.source_bank.as_ref() else {
+        return;
+    };
+    for lane in 0..source.sample.len() {
+        let slot = source.sample[lane].instrument_slot as usize;
+        if slot >= INSTRUMENT_SLOT_COUNT {
+            continue;
+        }
+        let rendered_frames = routing.scratch.source.sample_rendered_frames[lane].min(frames);
+        for frame in 0..rendered_frames {
+            routing.scratch.slot_out[slot][frame] +=
+                routing.scratch.source.sample_samples[lane][frame];
+        }
+    }
+    for lane in 0..source.synth.len() {
+        let slot = source.synth[lane].instrument_slot as usize;
+        if slot >= INSTRUMENT_SLOT_COUNT {
+            continue;
+        }
+        let rendered_frames = routing.scratch.source.synth_rendered_frames[lane].min(frames);
+        for frame in 0..rendered_frames {
+            routing.scratch.slot_out[slot][frame] +=
+                routing.scratch.source.synth_samples[lane][frame];
+        }
+    }
 }

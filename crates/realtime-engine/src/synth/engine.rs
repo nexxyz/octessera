@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 
 #[cfg(test)]
 mod admission_tests;
+mod block_slot_scratch;
 mod bus_chain_owner;
 #[cfg(test)]
 mod bus_chain_owner_tests;
@@ -45,6 +46,12 @@ mod render_voice;
 mod retired_state;
 #[cfg(feature = "routing-tree-benchmark")]
 mod routing_tree_admission;
+#[cfg(all(test, feature = "routing-tree-benchmark"))]
+mod routing_tree_completion_tests;
+#[cfg(feature = "routing-tree-benchmark")]
+mod routing_tree_component_renderer;
+#[cfg(all(test, feature = "routing-tree-benchmark"))]
+mod routing_tree_control_migration_tests;
 #[cfg(any(test, feature = "routing-tree-benchmark"))]
 mod routing_tree_executor;
 #[cfg(test)]
@@ -63,6 +70,14 @@ mod routing_tree_pipeline_tests;
 mod routing_tree_plan;
 #[cfg(test)]
 mod routing_tree_plan_tests;
+#[cfg(all(test, feature = "routing-tree-benchmark"))]
+mod routing_tree_retirement_tests;
+#[cfg(feature = "routing-tree-benchmark")]
+mod routing_tree_source_bank;
+#[cfg(feature = "routing-tree-benchmark")]
+mod routing_tree_source_renderer;
+#[cfg(feature = "routing-tree-benchmark")]
+mod routing_tree_state;
 #[cfg(test)]
 mod routing_tree_validation;
 #[cfg(feature = "routing-tree-benchmark")]
@@ -83,6 +98,7 @@ mod source_worker_bus_tests;
 #[cfg(test)]
 mod source_worker_carrier_tests;
 mod source_worker_carrier_transfer;
+mod source_worker_carrier_transfer_bus;
 #[cfg(test)]
 mod source_worker_carrier_transfer_tests;
 #[cfg(test)]
@@ -106,6 +122,7 @@ mod source_worker_placement_tests;
 mod source_worker_protocol;
 #[cfg(test)]
 mod source_worker_recovery_tests;
+mod source_worker_render;
 #[cfg(test)]
 mod source_worker_residency_tests;
 mod source_worker_retirement;
@@ -171,10 +188,10 @@ pub use source_worker_protocol::{
 pub use source_worker_retirement::SourceWorkerHoldControl;
 pub use source_worker_retirement::SourceWorkerRetirement;
 
+use block_slot_scratch::BlockSlotScratch;
 pub use bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
 use control::MAX_MOMENTARY_FX;
-use inline_source_executor::InlineSourceExecutor;
 use render_plan::RenderPlan;
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
@@ -268,54 +285,18 @@ pub(super) struct SlotFrameOutput {
 
 pub const BLOCK_SLOT_SCRATCH_FRAMES: usize = 2048;
 
-pub(super) struct BlockSlotScratch {
-    inline_source_executor: Option<InlineSourceExecutor>,
-    sample_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
-    synth_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
-    sample_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
-    synth_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
-    source_active: Vec<bool>,
-    bus_active: Vec<bool>,
-}
-
-impl BlockSlotScratch {
-    fn new() -> Self {
-        Self {
-            inline_source_executor: Some(InlineSourceExecutor::new()),
-            sample_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
-            synth_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
-            sample_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
-            synth_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
-            source_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
-            bus_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
-        }
-    }
-
-    fn prepare_output(&mut self, frames: usize) -> bool {
-        if frames > BLOCK_SLOT_SCRATCH_FRAMES {
-            return false;
-        }
-        for buffer in &mut self.sample_slot_out {
-            buffer[..frames].fill(0.0);
-        }
-        for buffer in &mut self.synth_slot_out {
-            buffer[..frames].fill(0.0);
-        }
-        for buffer in &mut self.sample_active {
-            buffer[..frames].fill(false);
-        }
-        for buffer in &mut self.synth_active {
-            buffer[..frames].fill(false);
-        }
-        self.source_active[..frames].fill(false);
-        self.bus_active[..frames].fill(false);
-        true
-    }
-}
-
 impl SynthEngine {
     fn voice_pools_home(&self) -> bool {
-        self.synth_voice_pool.has_home() && self.sample_voice_pool.has_home()
+        if !self.synth_voice_pool.has_home() || !self.sample_voice_pool.has_home() {
+            return false;
+        }
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            return false;
+        }
+        true
     }
 
     pub fn new(sample_rate: u32) -> Self {
