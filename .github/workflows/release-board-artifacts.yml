@@ -279,6 +279,10 @@ jobs:
           git -C pi-gen checkout --detach "$PIGEN_COMMIT"
           [[ "$(git -C pi-gen rev-parse HEAD)" == "$PIGEN_COMMIT" ]]
           cp -a tools/pi-image/stage3-octessera-kernel pi-gen/
+      - name: Stage Raspberry export-image userconf sanitization
+        run: |
+          set -euo pipefail
+          sudo cp -a tools/pi-image/export-image-octessera/02-sanitize-userconf pi-gen/export-image/
       - name: Stage Raspberry legal notices and copy disposable stage4
         run: |
           set -euo pipefail

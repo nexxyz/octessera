@@ -34,6 +34,7 @@ fi
 
 if [ "$(id -u)" -eq 0 ]; then
     reset_fixture
+    mkdir -p "$fixture/root/etc/ssh/sshd_config.d" "$fixture/root/etc/systemd/system/userconfig.service.d"
     mkdir -p \
         "$fixture/root/etc/profile.d" \
         "$fixture/root/etc/systemd/system/getty.target.wants" \
@@ -60,6 +61,17 @@ if [ "$(id -u)" -eq 0 ]; then
     for unit in serial0 ttyAMA0 ttyS0; do
         ln -s /dev/null "$fixture/root/etc/systemd/system/serial-getty@$unit.service"
     done
+    printf '%s\n' 'stale user rename configuration' > "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
+    ln -s ../userconfig.service "$fixture/root/etc/systemd/system/multi-user.target.wants/userconfig.service"
+    printf '%s\n' '[Service]' > "$fixture/root/etc/systemd/system/userconfig.service.d/local.conf"
+    ROOTFS_DIR="$fixture/root" bash "$script_dir/export-image-octessera/02-sanitize-userconf/00-run.sh"
+    test ! -e "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
+    test ! -L "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
+    test ! -e "$fixture/root/etc/systemd/system/multi-user.target.wants/userconfig.service"
+    test ! -L "$fixture/root/etc/systemd/system/multi-user.target.wants/userconfig.service"
+    test ! -e "$fixture/root/etc/systemd/system/userconfig.service.d"
+    test -L "$fixture/root/etc/systemd/system/userconfig.service"
+    test "$(readlink "$fixture/root/etc/systemd/system/userconfig.service")" = /dev/null
     test ! -e "$fixture/root/etc/systemd/system/multi-user.target.wants/bluetooth.service"
     test ! -e "$fixture/root/etc/systemd/system/multi-user.target.wants/hciuart.service"
     python3 "$script_dir/../legal/stage_notices.py" \
@@ -117,6 +129,20 @@ if [ "$(id -u)" -eq 0 ]; then
     printf '%s\n' 'console=tty1 root=/dev/mmcblk0p2' > "$fixture/boot/cmdline.txt"
     export OCTESSERA_BOOT_LAYER_CLASSIFICATION=constructor-required
     require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"
+    printf '%s\n' 'stale user rename configuration' > "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
+    expect_constructor_identity_failure 'Constructor identity accepted rename_user.conf.'
+    rm "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
+    ln -s /dev/null "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
+    expect_constructor_identity_failure 'Constructor identity accepted a symlinked rename_user.conf.'
+    rm "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
+    ln -s ../userconfig.service "$fixture/root/etc/systemd/system/multi-user.target.wants/userconfig.service"
+    expect_constructor_identity_failure 'Constructor identity accepted the userconfig enablement link.'
+    rm "$fixture/root/etc/systemd/system/multi-user.target.wants/userconfig.service"
+    rm "$fixture/root/etc/systemd/system/userconfig.service"
+    ln -s /etc/passwd "$fixture/root/etc/systemd/system/userconfig.service"
+    expect_constructor_identity_failure 'Constructor identity accepted a non-/dev/null userconfig mask.'
+    rm "$fixture/root/etc/systemd/system/userconfig.service"
+    ln -s /dev/null "$fixture/root/etc/systemd/system/userconfig.service"
     ln -s /dev/null "$fixture/root/etc/systemd/system/getty@tty1.service"
     if require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"; then
         echo 'Boot layout accepted a masked tty1 getty.' >&2

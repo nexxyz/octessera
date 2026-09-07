@@ -180,6 +180,15 @@ exit /b %ERRORLEVEL%
     throw "Explicit target parameter was not passed to the child transport."
   }
 
+  $interactiveOutput = @(& $scriptPath -Mode ssh -Target $explicitTarget 2>&1)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Interactive SSH wrapper invocation failed: $($interactiveOutput -join "`n")"
+  }
+  $interactiveRecord = Get-TransportRecord
+  if ((@($interactiveRecord.arguments) -join "`n") -cne (($expectedDefaultArguments[0..13] + $explicitTarget) -join "`n")) {
+    throw "Interactive SSH wrapper arguments did not contain only fixed options and the exact target."
+  }
+
   New-Item -ItemType Directory -Path $concurrentRecordDir, $concurrentBarrierDir -Force | Out-Null
   $env:OCTESSERA_PI_SSH_RECORD_DIR = $concurrentRecordDir
   $env:OCTESSERA_PI_SSH_BARRIER_DIR = $concurrentBarrierDir

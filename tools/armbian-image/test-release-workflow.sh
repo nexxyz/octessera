@@ -381,11 +381,16 @@ raspberry_config_setup="$(sed -n '/^      - name: Configure and run pi-gen$/,/^ 
 raspberry_config_block="$(sed -n '/cat > pi-gen\/config <<EOF$/,/^[[:space:]]*cd pi-gen$/p' "$boards")"
 raspberry_config_step="$(sed -n '/^      - name: Configure and run pi-gen$/,/^      - name: Select and verify the single Raspberry ZIP$/p' "$boards")"
 raspberry_stage_copy_step="$(sed -n '/^      - name: Stage Raspberry legal notices and copy disposable stage4$/,/^      - name: Configure and run pi-gen$/p' "$boards")"
+raspberry_export_hook_step="$(sed -n '/^      - name: Stage Raspberry export-image userconf sanitization$/,/^      - name:/p' "$boards")"
 raspberry_stage_copy_command="$(grep -F 'cp -a tools/pi-image/stage4-octessera pi-gen/' <<< "$raspberry_stage_copy_step" | sed 's/^[[:space:]]*//' || true)"
 [[ "$raspberry_stage_copy_command" == 'sudo cp -a tools/pi-image/stage4-octessera pi-gen/' ]] || {
     echo 'The disposable Raspberry stage4 copy must preserve root ownership with sudo cp -a.' >&2
     exit 1
 }
+assert_block_contains "$raspberry_export_hook_step" 'sudo cp -a tools/pi-image/export-image-octessera/02-sanitize-userconf pi-gen/export-image/'
+test -x "$root/tools/pi-image/export-image-octessera/02-sanitize-userconf/00-run.sh"
+assert_order "$boards" 'git -C pi-gen checkout --detach "$PIGEN_COMMIT"' 'sudo cp -a tools/pi-image/export-image-octessera/02-sanitize-userconf pi-gen/export-image/'
+assert_order "$boards" 'sudo cp -a tools/pi-image/export-image-octessera/02-sanitize-userconf pi-gen/export-image/' 'sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_KERNEL_PROVENANCE,OCTESSERA_REPOSITORY_ROOT ./build.sh'
 assert_block_contains "$raspberry_config_setup" 'export OCTESSERA_RELEASE_VERSION="${{ inputs.version }}" OCTESSERA_RELEASE_TAG="${{ inputs.tag }}" OCTESSERA_BOARD_PROFILE_ID="raspberry-pi-zero-2w"'
 assert_block_contains "$raspberry_config_block" 'OCTESSERA_RELEASE_VERSION=$OCTESSERA_RELEASE_VERSION'
 assert_block_contains "$raspberry_config_block" 'OCTESSERA_RELEASE_TAG=$OCTESSERA_RELEASE_TAG'
