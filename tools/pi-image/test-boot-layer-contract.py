@@ -88,6 +88,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
     deploy = (root / "tools/pi/deploy-pi.sh").read_text(encoding="utf-8")
     provision = (root / "tools/pi/provision/provision.sh").read_text(encoding="utf-8")
     setup = (root / "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh").read_text(encoding="utf-8")
+    export_hook = (root / "tools/pi-image/export-image-octessera/02-sanitize-userconf/00-run.sh").read_text(encoding="utf-8")
     boot_config = (root / "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh").read_text(encoding="utf-8")
     install_deps = (root / "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh").read_text(encoding="utf-8")
     for text in (install_deps, setup):
@@ -127,6 +128,18 @@ def validate(document: dict[str, Any], root: Path) -> None:
     for required in ("bluetooth.service", "hciuart.service", "ln -s /dev/null", "rpi_uart_release.py"):
         if required not in setup:
             raise ValueError(f"Raspberry constructor does not establish {required}")
+    for required in (
+        '"$ROOTFS_DIR/etc/ssh/sshd_config.d/rename_user.conf"',
+        '"$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/userconfig.service"',
+        '"$ROOTFS_DIR/etc/systemd/system/userconfig.service.d"',
+        'rm -rf "$userconfig_override"',
+        'ln -s /dev/null "$userconfig_service"',
+        'test "$(readlink "$userconfig_service")" = /dev/null',
+    ):
+        if required not in export_hook:
+            raise ValueError(f"Raspberry export hook does not remove or mask userconfig artifacts: {required}")
+    if re.search(r"password|portal", export_hook, re.IGNORECASE):
+        raise ValueError("Raspberry export hook contains a password or portal fallback")
     if "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" not in deploy or "IMAGE_ROOT/etc/profile.d/octessera-welcome.sh" not in provision:
         raise ValueError("Raspberry live parity does not use the canonical welcome source")
     if document["notice_bundle"] != {

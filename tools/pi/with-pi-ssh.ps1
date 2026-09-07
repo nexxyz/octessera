@@ -71,7 +71,10 @@ function Normalize-SshArguments {
     [string]$ExpectedTarget
   )
 
-  $values = @($Arguments)
+  $values = @()
+  if ($null -ne $Arguments) {
+    $values = @($Arguments)
+  }
   Assert-SafeOptionArguments $values "ssh"
   if ($values.Count -gt 0 -and (Test-TargetOperand $values[0])) {
     if ($values[0] -cne $ExpectedTarget) {

@@ -226,6 +226,9 @@ require_octessera_raspberry_identity() {
     local hushlogin
     local mask
     local enablement
+    local rename_user_conf="$image_root/etc/ssh/sshd_config.d/rename_user.conf"
+    local userconfig_enablement="$image_root/etc/systemd/system/multi-user.target.wants/userconfig.service"
+    local userconfig_service="$image_root/etc/systemd/system/userconfig.service"
     local tokens=()
     require_octessera_legal_notices "$image_root"
 
@@ -343,6 +346,18 @@ require_octessera_raspberry_identity() {
     done
     if [ -e "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ] || [ -L "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ]; then
         echo "constructor-required: removed Raspberry UART release utility remains" >&2
+        return 1
+    fi
+    if [ -e "$rename_user_conf" ] || [ -L "$rename_user_conf" ]; then
+        echo "constructor-required: Raspberry user-rename SSH configuration remains" >&2
+        return 1
+    fi
+    if [ -e "$userconfig_enablement" ] || [ -L "$userconfig_enablement" ]; then
+        echo "constructor-required: Raspberry userconfig enablement remains" >&2
+        return 1
+    fi
+    if [ ! -L "$userconfig_service" ] || [ "$(readlink "$userconfig_service")" != /dev/null ]; then
+        echo "constructor-required: Raspberry userconfig service is not masked to /dev/null" >&2
         return 1
     fi
 }
