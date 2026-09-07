@@ -77,7 +77,7 @@ require_octessera_boot_service_layout() {
         'Wants=octessera-boot-splash.service' \
         'After=octessera-boot-splash.service' \
         'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
-        'NoNewPrivileges=yes' \
+        'NoNewPrivileges=no' \
         'TTYPath=/dev/tty1' \
         'TTYReset=yes' \
         'SupplementaryGroups=tty' \

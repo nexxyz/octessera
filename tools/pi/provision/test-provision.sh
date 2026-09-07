@@ -207,6 +207,25 @@ assert_not_contains() {
   fi
 }
 
+assert_shutdown_policy() {
+  local label="$1" path="$2"
+  if [ "$(stat -c '%a' "$path")" != 440 ]; then
+    printf 'FAIL[%s]: %s mode is not 440\n' "$label" "$path" >&2
+    exit 1
+  fi
+  if ! printf '%s\n' \
+    '# Exact fixed-board power commands only.' \
+    'pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot' |
+    cmp -s - "$path"; then
+    printf 'FAIL[%s]: %s is not the exact Raspberry power policy\n' "$label" "$path" >&2
+    exit 1
+  fi
+  if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)' "$path"; then
+    printf 'FAIL[%s]: %s contains broad passwordless sudo\n' "$label" "$path" >&2
+    exit 1
+  fi
+}
+
 assert_log_contains() {
   local label="$1" log="$2" pattern="$3"
   if [ ! -f "$FAKE_STATE/$log" ] || ! grep -q -- "$pattern" "$FAKE_STATE/$log"; then
@@ -281,6 +300,9 @@ assert_mode "sc4" "$FIXTURE/etc/systemd/system/octessera.service" 644
 assert_file "sc4" "$FIXTURE/etc/systemd/system/octessera.service.d/audio-realtime.conf"
 assert_file "sc4" "$FIXTURE/etc/octessera/board-profile.env"
 assert_file "sc4" "$FIXTURE/etc/sudoers.d/octessera-shutdown"
+assert_shutdown_policy "sc4" "$FIXTURE/etc/sudoers.d/octessera-shutdown"
+assert_contains "sc4" "$FIXTURE/etc/systemd/system/octessera.service" '^NoNewPrivileges=no$'
+assert_not_contains "sc4" "$FIXTURE/etc/systemd/system/octessera.service" '^NoNewPrivileges=yes$'
 if grep -q $'\r' "$FIXTURE/etc/sudoers.d/octessera-shutdown"; then
   printf 'FAIL[sc4]: extensionless sudoers file contains CR bytes\n' >&2
   exit 1

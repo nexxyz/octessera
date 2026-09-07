@@ -15,20 +15,22 @@ Before each session:
 ./tools/pi/pi-preflight.ps1 -Target pi@192.168.0.211
 ```
 
-After flashing a fresh image, verify the app can reboot and shut down without broad passwordless sudo:
+After flashing a fresh image, inspect the installed Raspberry power policy. An interactive dry-run with extra arguments is not service-context proof:
 
 ```bash
-sudo test -f /etc/sudoers.d/octessera-shutdown
+sudo grep -qx 'NoNewPrivileges=no' /etc/systemd/system/octessera.service
+sudo stat -c '%u:%g:%a' /etc/sudoers.d/octessera-shutdown
+sudo grep -qx 'pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot' /etc/sudoers.d/octessera-shutdown
 sudo visudo -cf /etc/sudoers.d/octessera-shutdown
-sudo -n /usr/bin/systemctl reboot --dry-run
-sudo -n /usr/bin/systemctl poweroff --dry-run
 ```
 
 Expected:
 
-- `/etc/sudoers.d/octessera-shutdown` exists and parses cleanly.
-- The dry-run reboot and poweroff commands do not prompt for a password.
+- `/etc/sudoers.d/octessera-shutdown` is root-owned mode `0440` and parses cleanly.
+- The runtime unit explicitly uses `NoNewPrivileges=no` for its fixed power commands.
 - No broad `NOPASSWD: ALL` rule is required for octessera power controls.
+- This no-OLED suite inspects policy only; it cannot qualify menu-driven power.
+- On a fully assembled qualification Pi, enable the service and separately replay the exact physical `System > Reboot` and `System > Shutdown` actions. Record the effective service policy, `sudo -n -l`, restart counter, boot IDs, and previous-boot journals. Require clean power submission with no same-boot service restart; do not substitute shell dry-runs.
 
 Then confirm the app is stopped:
 

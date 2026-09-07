@@ -10,7 +10,7 @@ After=octessera-update-recovery.service
 [Service]
 Type=simple
 User=pi
-NoNewPrivileges=yes
+NoNewPrivileges=no
 TTYPath=/dev/tty1
 TTYReset=yes
 SupplementaryGroups=tty
