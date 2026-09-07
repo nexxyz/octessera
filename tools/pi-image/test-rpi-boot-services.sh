@@ -8,6 +8,8 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 service="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service"
 runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"
 template="$root/tools/pi/provision/files/etc/systemd/system/octessera.service.template"
+shutdown_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-shutdown"
+shutdown_policy='pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot'
 
 for required_line in \
     'Type=simple' \
@@ -52,7 +54,7 @@ for required_line in \
     'Wants=octessera-boot-splash.service' \
     'After=octessera-boot-splash.service' \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
-    'NoNewPrivileges=yes' \
+    'NoNewPrivileges=no' \
     'TTYPath=/dev/tty1' \
     'TTYReset=yes' \
     'SupplementaryGroups=tty' \
@@ -61,6 +63,11 @@ for required_line in \
     grep -qFx "$required_line" "$runtime"
     grep -qFx "$required_line" "$template"
 done
+printf '%s\n' '# Exact fixed-board power commands only.' "$shutdown_policy" | cmp -s - "$shutdown_sudoers"
+if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)' "$shutdown_sudoers"; then
+    echo 'Raspberry shutdown sudoers rule is broader than the exact power commands.' >&2
+    exit 1
+fi
 for required_line in \
     'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
     'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do

@@ -275,7 +275,16 @@ require_wifi_foundation() {
 require_raspberry_constructor_policy() {
     local root="$WORK_DIR/root"
     local locale="$root/etc/default/locale"
+    local shutdown_sudoers="$root/etc/sudoers.d/octessera-shutdown"
     require_no_unrestricted_sudoers
+    require_root_mode "$shutdown_sudoers" 440
+    if [ -L "$shutdown_sudoers" ] || ! printf '%s\n' \
+        '# Exact fixed-board power commands only.' \
+        'pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot' |
+        cmp -s - "$shutdown_sudoers"; then
+        echo "Sanitation check failed: Raspberry shutdown sudoers policy is not exact" >&2
+        exit 1
+    fi
     require_path "$locale" "constructor locale"
     require_root_mode "$locale" 644
     [ "$(cat "$locale")" = $'LANG=C.UTF-8\nLANGUAGE=en\nLC_MESSAGES=C.UTF-8' ] || { echo "Sanitation check failed: Raspberry default locale is not exact" >&2; exit 1; }
@@ -356,7 +365,7 @@ require_setup_layer() {
     grep -qFx 'ProtectSystem=yes' "$setup_unit" || { echo "Setup service system protection is not exact" >&2; exit 1; }
     if grep -qF 'ReadWritePaths=' "$setup_unit"; then echo "Setup service must not declare writable paths" >&2; exit 1; fi
     grep -qFx '# dnsmasq needs privilege-transition capabilities to drop from root while serving the setup AP.' "$setup_unit" || { echo "Setup service NNP exception rationale is missing" >&2; exit 1; }
-    grep -qFx 'NoNewPrivileges=yes' "$root/etc/systemd/system/octessera.service" || { echo "Raspberry runtime service lost its NNP boundary" >&2; exit 1; }
+    grep -qFx 'NoNewPrivileges=no' "$root/etc/systemd/system/octessera.service" || { echo "Raspberry runtime service must allow its fixed sudo power commands" >&2; exit 1; }
     grep -qFx 'ReadWritePaths=/run/octessera-setup-request/inbox' "$root/etc/systemd/system/octessera.service" || { echo "Raspberry request inbox access is not exact" >&2; exit 1; }
     grep -qF 'RuntimeMaxSec=670s' "$setup_unit" || { echo "Setup runtime timeout is not fixed" >&2; exit 1; }
     grep -qF 'TimeoutStopSec=10s' "$setup_unit" || { echo "Setup stop timeout is not fixed" >&2; exit 1; }

@@ -40,7 +40,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/hooks/octessera-boot-splash", "sha256": "088dabf06daff71e192aca28860dd3bcee910135ad13f356406609fd4272833d", "size": 1229},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "sha256": "f016d0be1aaeef4c0d60f745f149374837f975ddb4ab2bf87eefeca7a2c2b65e", "size": 1535},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service", "sha256": "120d44a26c390ec700cd4d0daab2d0e6a88fe9e5bdae56fa27f37e3e002f34ef", "size": 1020},
-    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service", "sha256": "3efd8376291690f3838aae799ed5990188159edc323c079d7c1d04e8d65e3192", "size": 1215},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service", "sha256": "ee441ce991e5093aa25460d2b3f7fbbdc590b0bca3a705713007829502c5b60e", "size": 1214},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf", "sha256": "8ae8a03c4a95d70dd2de829aa6e01b20187dcf1cbd7b92e5f7a07ce337a6186f", "size": 184},
     {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "620e6fc8a651e7f47317fb97871a6961a481899fa75d9f1dbe1b4b4aef580dcc", "size": 6403},
     {"path": "tools/pi-image/rpi_kernel_image_mount.py", "sha256": "e665a41335a1cb8998e8072829ddcb12eb21749acea94845ce1836d082d67df2", "size": 3678},
@@ -48,11 +48,11 @@
     {"path": "tools/pi-image/rpi_kernel_payload_proof.py", "sha256": "07aa3455ecc66259d114abf2c37d7fade32b05729e879b8d658d2b4af62731d8", "size": 3316},
     {"path": "tools/pi-image/rpi_kernel_stock_recovery.py", "sha256": "57344adbcc39bd067c77f2ee06822e9b9fb808d7ab9cf3a4ba4b755f7c505ac4", "size": 2406},
     {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "22d8ba31cf016c665f562d3fa7b9004e00c280984eef08d646f86862b1093d32", "size": 23278},
-    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "c08d4b43a7818ec883f42b123297342e7d61f1f6caf5d907ba632c234e202535", "size": 21242},
+    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "911478a12b96ff2cd48d0a91482d190eaf9a234f0602c925b89318918ab9ede6", "size": 21241},
     {"path": "tools/pi-image/verify-rpi-samples.py", "sha256": "050085e8a6832a9da114cc2b53902fe7cb3bd9d96bcc6b06c11fc46fe7aca9e4", "size": 3338},
     {"path": "tools/pi/provision/files/boot/config.txt.initramfs.append", "sha256": "c14d03356c1edcbf170d91c4eda896705fda0930ac8b61b9c631a5ebec89fe92", "size": 73},
     {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},
-    {"path": "tools/pi/provision/files/etc/systemd/system/octessera.service.template", "sha256": "5051da155fba12f0821dee7f1d8f3e2cfdfee054871c65ae318a054184d9e1bb", "size": 1125},
+    {"path": "tools/pi/provision/files/etc/systemd/system/octessera.service.template", "sha256": "9d57c139ca1f9bbdc2b566be88bf1d8b74bb3cb1072da18ac8e833aa4bd817f4", "size": 1124},
     {"path": "tools/pi/provision/provision.sh", "sha256": "5309db2d7d66abf221636d48b06b189b538d29ff2095a0999d0238105d00ea03", "size": 14552}
   ],
   "live_parity_inputs": [
