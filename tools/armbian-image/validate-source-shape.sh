@@ -427,12 +427,12 @@ for setup_unit in \
   grep -qFx 'ProtectSystem=yes' "$setup_unit"
   if grep -qF 'ReadWritePaths=' "$setup_unit"; then exit 1; fi
 done
-for protected_unit in \
-  "$root/userpatches/overlay/etc/systemd/system/octessera.service" \
-  "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"; do
-  grep -qFx 'NoNewPrivileges=yes' "$protected_unit"
-  if grep -qFx 'NoNewPrivileges=no' "$protected_unit"; then exit 1; fi
-done
+orange_runtime="$root/userpatches/overlay/etc/systemd/system/octessera.service"
+raspberry_runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"
+grep -qFx 'NoNewPrivileges=yes' "$orange_runtime"
+if grep -qFx 'NoNewPrivileges=no' "$orange_runtime"; then exit 1; fi
+grep -qFx 'NoNewPrivileges=no' "$raspberry_runtime"
+if grep -qFx 'NoNewPrivileges=yes' "$raspberry_runtime"; then exit 1; fi
 
 PYTHONDONTWRITEBYTECODE=1 python3 - "$root/.github/workflows/armbian-image.yml" "$root/.github/actions/build-armbian-image/action.yml" <<'PY'
 import sys

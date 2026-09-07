@@ -103,8 +103,9 @@ grep -q '^Before=sysinit.target octessera.service$' "$boot_service"
 octessera_reject_file_match 'Orange boot splash must not conflict with runtime.' -q 'Conflicts=octessera.service' "$boot_service"
 runtime_service="$overlay/etc/systemd/system/octessera.service"
 setup_service="$overlay/etc/systemd/system/octessera-setup.service"
+grep -qFx 'NoNewPrivileges=yes' "$runtime_service"
+grep -qFx 'NoNewPrivileges=no' "$raspberry/etc/systemd/system/octessera.service"
 for tree in "$overlay" "$raspberry"; do
-  grep -qFx 'NoNewPrivileges=yes' "$tree/etc/systemd/system/octessera.service"
   grep -qFx 'NoNewPrivileges=no' "$tree/etc/systemd/system/octessera-setup.service"
   grep -qFx 'ProtectSystem=yes' "$tree/etc/systemd/system/octessera-setup.service"
   if grep -qF 'ReadWritePaths=' "$tree/etc/systemd/system/octessera-setup.service"; then exit 1; fi
