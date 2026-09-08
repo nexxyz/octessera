@@ -1,4 +1,11 @@
-use super::{configure_strict, syscalls, DSP_WORKER_CPUS, DSP_WORKER_PRIORITY};
+use super::{configure_strict, syscalls};
+
+pub(crate) const DSP_WORKER_CPUS: [usize; 2] = [2, 3];
+pub(crate) const DSP_WORKER_PRIORITY: i32 = 70;
+#[cfg(test)]
+pub(crate) const ORANGE_WORKER_CPUS: [usize; 2] = DSP_WORKER_CPUS;
+#[cfg(test)]
+pub(crate) const ORANGE_WORKER_PRIORITY: i32 = DSP_WORKER_PRIORITY;
 
 pub(crate) fn benchmark_worker_start_hook(parity: usize) -> Result<(), ()> {
     let Some(&cpu) = DSP_WORKER_CPUS.get(parity) else {
