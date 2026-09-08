@@ -92,7 +92,10 @@ fn pre_stream_finalization_reports_invalid_geometry() {
     assert!(finalize(&config, &mut state).is_err());
     assert_eq!(
         state.errors,
-        vec!["unsupported Orange benchmark geometry tuple: output=128 internal=128"]
+        vec![format!(
+            "unsupported {} benchmark geometry tuple: output=128 internal=128",
+            super::super::super::platform::BENCHMARK_LABEL
+        )]
     );
     std::fs::remove_dir_all(root).unwrap();
 }

@@ -203,6 +203,13 @@ try {
   ) -join "`n"
   $systemSummary = Assert-RaspberrySystemEvidence $validSystemEvidence
   if ($systemSummary.StartupSampleCount -ne 1 -or $systemSummary.RuntimeSampleCount -ne 3 -or $systemSummary.MaximumTemperatureMillicelsius -ne 110000 -or $systemSummary.MaximumCurrentThrottlingMask -ne 14) { throw "Valid Raspberry system evidence was not summarized." }
+  $abortEvidence = @(
+    "raspberry_system_sample phase=startup thermal_max_millicelsius=80000 mem_available_kb=600000 throttled=0x0 current_throttled_mask=0 undervoltage=0",
+    "raspberry_system_sample phase=runtime thermal_max_millicelsius=90000 mem_available_kb=580000 throttled=0x1 current_throttled_mask=1 undervoltage=1",
+    "raspberry_system_abort phase=runtime reason=undervoltage"
+  ) -join "`n"
+  $abortSummary = Assert-RaspberrySystemEvidence $abortEvidence
+  if (-not $abortSummary.SafetyAbort) { throw "Expected Raspberry system abort was not retained as safety evidence." }
   Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Split("`n")[0]) } "missing runtime thermal evidence"
   Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("thermal_max_millicelsius=110000", "thermal_max_millicelsius=bad")) } "malformed thermal evidence"
   Assert-Rejected { Assert-RaspberrySystemEvidence ($validSystemEvidence.Replace("throttled=0x1000e", "throttled=malformed")) } "malformed throttling evidence"

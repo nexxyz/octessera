@@ -58,6 +58,17 @@ mod host_audio_prep;
 mod initial_audio_prep;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod input;
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    )
+))]
+mod live_audio_benchmark;
 mod main_paths;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod main_runtime_loop;
@@ -69,8 +80,6 @@ mod oled_frame_cache;
 mod oled_test;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_audio;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-mod orange_audio_benchmark;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_host_adapter;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -132,6 +141,42 @@ use std::sync::Arc;
 use main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 use octessera_pi::board_profile;
 
+#[cfg(not(all(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "routing-tree-benchmark",
+    feature = "benchmark-voice-pools-128",
+    not(feature = "legacy-hardware-rpi-zero-2w"),
+    not(feature = "legacy-hardware-pi")
+)))]
+fn raspberry_benchmark_requested() -> bool {
+    raspberry_benchmark_requested_from(std::env::args().skip(1))
+}
+
+#[cfg(all(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "routing-tree-benchmark",
+    feature = "benchmark-voice-pools-128",
+    not(feature = "legacy-hardware-rpi-zero-2w"),
+    not(feature = "legacy-hardware-pi")
+))]
+fn orange_benchmark_requested_from(mut args: impl Iterator<Item = String>) -> bool {
+    args.any(|arg| arg == "--benchmark-orange-audio")
+}
+
+#[cfg(any(
+    test,
+    not(all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    ))
+))]
+fn raspberry_benchmark_requested_from(mut args: impl Iterator<Item = String>) -> bool {
+    args.any(|arg| arg == "--benchmark-raspberry-audio")
+}
+
 #[cfg(feature = "native-audio")]
 fn pin_normal_startup_thread() {
     if let Err(error) = audio_priority::pin_main_thread_to_cpu0() {
@@ -142,6 +187,10 @@ fn pin_normal_startup_thread() {
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 fn main() {
+    if raspberry_benchmark_requested() {
+        eprintln!("--benchmark-raspberry-audio requires the Raspberry diagnostic benchmark build");
+        std::process::exit(2);
+    }
     let utility_mode = match utility_mode::from_process() {
         Ok(mode) => mode,
         Err(error) => {
@@ -169,17 +218,17 @@ fn main() {
         }
         utility_mode::UtilityMode::Normal => {}
     }
-    if dsp_profile::profile_requested() && orange_audio_benchmark::requested() {
-        eprintln!("--profile-dsp and --benchmark-orange-audio cannot be combined");
+    if dsp_profile::profile_requested() && live_audio_benchmark::requested() {
+        eprintln!("--profile-dsp and live audio benchmark cannot be combined");
         std::process::exit(2);
     }
     if dsp_profile::profile_requested() {
         std::process::exit(exit_code(dsp_profile::run_dsp_profile().is_ok()));
     }
-    if orange_audio_benchmark::requested() {
-        let result = orange_audio_benchmark::run();
+    if live_audio_benchmark::requested() {
+        let result = live_audio_benchmark::run();
         if let Err(error) = &result {
-            eprintln!("Orange audio benchmark failed: {error}");
+            eprintln!("Live audio benchmark failed: {error}");
         }
         std::process::exit(exit_code(result.is_ok()));
     }
@@ -193,6 +242,32 @@ fn main() {
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn main() {
+    #[cfg(all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    ))]
+    if orange_benchmark_requested_from(std::env::args().skip(1)) {
+        eprintln!("--benchmark-orange-audio requires the Orange diagnostic benchmark build");
+        std::process::exit(2);
+    }
+    #[cfg(not(all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    )))]
+    if raspberry_benchmark_requested()
+        || std::env::args()
+            .skip(1)
+            .any(|arg| arg == "--benchmark-orange-audio")
+    {
+        eprintln!("live audio benchmark arguments require their matching diagnostic build");
+        std::process::exit(2);
+    }
     let utility_mode = match utility_mode::from_process() {
         Ok(mode) => mode,
         Err(error) => {
@@ -216,6 +291,32 @@ fn main() {
             std::process::exit(exit_code(hardware_test::run_noise_only()))
         }
         utility_mode::UtilityMode::Normal => {}
+    }
+
+    #[cfg(all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    ))]
+    {
+        if dsp_profile::profile_requested() && live_audio_benchmark::requested() {
+            eprintln!("--profile-dsp and live audio benchmark cannot be combined");
+            std::process::exit(2);
+        }
+        if dsp_profile::profile_requested() {
+            std::process::exit(exit_code(dsp_profile::run_dsp_profile().is_ok()));
+        }
+        if live_audio_benchmark::requested() {
+            #[cfg(feature = "native-audio")]
+            pin_normal_startup_thread();
+            let result = live_audio_benchmark::run();
+            if let Err(error) = &result {
+                eprintln!("Live audio benchmark failed: {error}");
+            }
+            std::process::exit(exit_code(result.is_ok()));
+        }
     }
 
     run_requested_utility();
@@ -375,3 +476,7 @@ fn init_audio(
         Err(error) => Err(error),
     }
 }
+
+#[cfg(test)]
+#[path = "main_tests.rs"]
+mod tests;
