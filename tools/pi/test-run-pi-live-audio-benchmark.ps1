@@ -217,6 +217,26 @@ if ($cleanupSource -notmatch '(?s)set \+e.*sudo -n rm -rf -- /run/octessera/rasp
 if ($cleanupSource -match 'rm -rf[^\r\n]*\*') { throw "Raspberry cleanup uses wildcard deletion." }
 if ($runnerSource.Contains('$hostEvidence.StatusClass = "restoration_failure"')) { throw "Cleanup failure is incorrectly classified as restoration failure." }
 if ($runnerSource -match '\$hostEvidence = if \(Test-Path') { throw "Raspberry runner synthesizes missing host evidence." }
+$stopServiceIndex = $runnerSource.IndexOf('sudo -n systemctl stop "$service"', [StringComparison]::Ordinal)
+$runtimeDirectoryIndex = $runnerSource.IndexOf('sudo -n install -d -o pi -g pi -m 0755 /run/octessera', [StringComparison]::Ordinal)
+$benchmarkDirectoryIndex = $runnerSource.IndexOf('sudo -n install -d -o pi -g pi -m 0750 "$benchmark_root"', [StringComparison]::Ordinal)
+$systemdRunIndex = $runnerSource.IndexOf('sudo -n systemd-run --unit="$unit"', [StringComparison]::Ordinal)
+if ($stopServiceIndex -lt 0 -or $runtimeDirectoryIndex -lt 0 -or $benchmarkDirectoryIndex -lt 0 -or $systemdRunIndex -lt 0 -or $stopServiceIndex -ge $runtimeDirectoryIndex -or $runtimeDirectoryIndex -ge $benchmarkDirectoryIndex -or $benchmarkDirectoryIndex -ge $systemdRunIndex) { throw "Raspberry runtime directory recreation is not ordered after service stop and before systemd-run." }
+foreach ($required in @(
+  'sudo -n install -o pi -g pi -m 0640 -- "$candidate_readiness" "$candidate_copy"',
+  'reset-failed "$unit"',
+  'unit=octessera-raspberry-live-$runId.service'
+)) {
+  if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Raspberry runner is missing lifecycle ownership contract: $required" }
+}
+$onExitIndex = $runnerSource.IndexOf('on_exit() {', [StringComparison]::Ordinal)
+$captureStatusIndex = $runnerSource.IndexOf('sudo -n systemctl show "$unit" --no-pager --property=ActiveState --property=SubState', $onExitIndex, [StringComparison]::Ordinal)
+$captureJournalIndex = $runnerSource.IndexOf('sudo -n journalctl -u "$unit"', $onExitIndex, [StringComparison]::Ordinal)
+$evidenceCopyIndex = $runnerSource.IndexOf('[ -r "$readiness" ] && cp', $onExitIndex, [StringComparison]::Ordinal)
+$resetCallIndex = $runnerSource.IndexOf('  reset_transient_unit', $onExitIndex, [StringComparison]::Ordinal)
+$restoreIndex = $runnerSource.IndexOf('  if [ "$interruption_started" = true ]', $onExitIndex, [StringComparison]::Ordinal)
+if ($onExitIndex -lt 0 -or $captureStatusIndex -lt 0 -or $captureJournalIndex -lt 0 -or $evidenceCopyIndex -lt 0 -or $resetCallIndex -lt 0 -or $restoreIndex -lt 0 -or $captureStatusIndex -ge $captureJournalIndex -or $captureJournalIndex -ge $evidenceCopyIndex -or $evidenceCopyIndex -ge $resetCallIndex -or $resetCallIndex -ge $restoreIndex) { throw "Raspberry transient-unit evidence, reset, and restoration order changed." }
+if ($runnerSource -match 'reset-failed[^\r\n]*\*') { throw "Raspberry transient-unit reset used a wildcard." }
 
 $bash = Get-Command bash -ErrorAction SilentlyContinue
 $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue

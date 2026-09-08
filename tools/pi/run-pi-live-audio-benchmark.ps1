@@ -130,11 +130,19 @@ wait_for_terminal() {
   done
   return 66
 }
+reset_transient_unit() {
+  local load_state active_state
+  load_state="$(sudo -n systemctl show "$unit" --no-pager --property=LoadState --value 2>/dev/null || true)"
+  active_state="$(sudo -n systemctl show "$unit" --no-pager --property=ActiveState --value 2>/dev/null || true)"
+  if [ "$load_state" = loaded ] && [ "$active_state" = failed ]; then
+    sudo -n systemctl reset-failed "$unit" >/dev/null 2>&1 || true
+  fi
+}
 restore_service() {
   local active= enabled= deadline candidate_copy="$root/candidate-ready.json"
   stop_unit; sudo -n rm -f -- "$candidate_readiness" "$readiness" "$progress" "$result" "$release" || restore_status=1
   timeout --signal=TERM --kill-after=2 15s sudo -n systemctl start "$service" >/dev/null 2>&1 || restore_status=1
-  deadline=$(( $(date +%s) + 20 )); while [ "$(date +%s)" -lt "$deadline" ]; do active="$(sudo -n systemctl is-active "$service" 2>/dev/null || true)"; enabled="$(sudo -n systemctl is-enabled "$service" 2>/dev/null || true)"; restored_pid="$(sudo -n systemctl show "$service" --property=MainPID --value 2>/dev/null || printf 0)"; restored_invocation="$(sudo -n systemctl show "$service" --property=InvocationID --value 2>/dev/null || true)"; if [ "$active" = active ] && [ "$enabled" = enabled ] && positive_number "$restored_pid" && [ -n "$restored_invocation" ] && sudo -n test -r "$candidate_readiness" && sudo -n cp -- "$candidate_readiness" "$candidate_copy" && [ "$(json_field kind "$candidate_copy")" = octessera_candidate_readiness ] && [ "$(json_field status "$candidate_copy")" = ready ] && [ "$(json_field pid "$candidate_copy")" = "$restored_pid" ] && [ "$(json_field systemd_invocation_id "$candidate_copy")" = "$restored_invocation" ] && positive_number "$(json_field ready_at_unix_ms "$candidate_copy")"; then restoration_ready=true; break; fi; sleep 1; done
+  deadline=$(( $(date +%s) + 20 )); while [ "$(date +%s)" -lt "$deadline" ]; do active="$(sudo -n systemctl is-active "$service" 2>/dev/null || true)"; enabled="$(sudo -n systemctl is-enabled "$service" 2>/dev/null || true)"; restored_pid="$(sudo -n systemctl show "$service" --property=MainPID --value 2>/dev/null || printf 0)"; restored_invocation="$(sudo -n systemctl show "$service" --property=InvocationID --value 2>/dev/null || true)"; if [ "$active" = active ] && [ "$enabled" = enabled ] && positive_number "$restored_pid" && [ -n "$restored_invocation" ] && sudo -n test -r "$candidate_readiness" && sudo -n install -o pi -g pi -m 0640 -- "$candidate_readiness" "$candidate_copy" && [ "$(json_field kind "$candidate_copy")" = octessera_candidate_readiness ] && [ "$(json_field status "$candidate_copy")" = ready ] && [ "$(json_field pid "$candidate_copy")" = "$restored_pid" ] && [ "$(json_field systemd_invocation_id "$candidate_copy")" = "$restored_invocation" ] && positive_number "$(json_field ready_at_unix_ms "$candidate_copy")"; then restoration_ready=true; break; fi; sleep 1; done
   [ "$restoration_ready" = true ] || restore_status=1
   printf 'initial_active=%s\ninitial_enabled=%s\nfinal_active=%s\nfinal_enabled=%s\nfinal_pid=%s\nfinal_invocation_id=%s\nrestore_status=%s\n' "$initial_active" "$initial_enabled" "$active" "$enabled" "$restored_pid" "$restored_invocation" "$restore_status" > "$root/service-restored-state.txt"
 }
@@ -144,6 +152,7 @@ on_exit() {
   [ -n "${sampler_pid:-}" ] && kill -TERM "$sampler_pid" 2>/dev/null || true; [ -n "${sampler_pid:-}" ] && wait "$sampler_pid" 2>/dev/null || true
   stop_unit; sudo -n systemctl show "$unit" --no-pager --property=ActiveState --property=SubState --property=Result --property=ExecMainCode --property=ExecMainStatus --property=MainPID --property=InvocationID > "$root/unit-final.txt" 2>&1 || true; sudo -n journalctl -u "$unit" -n 200 --no-pager > "$root/unit-journal.txt" 2>&1 || true
   [ -r "$readiness" ] && cp -- "$readiness" "$root/benchmark-readiness-final.json"; [ -r "$progress" ] && cp -- "$progress" "$root/benchmark-progress-final.json"; [ -r "$result" ] && cp -- "$result" "$root/benchmark-result-final.json"; [ -r "$release" ] && cp -- "$release" "$root/benchmark-release.json"
+  reset_transient_unit
   if [ "$interruption_started" = true ]; then restore_service; else printf 'initial_active=%s\ninitial_enabled=%s\nfinal_active=%s\nfinal_enabled=%s\nrestore_status=0\n' "$initial_active" "$initial_enabled" "$initial_active" "$initial_enabled" > "$root/service-restored-state.txt"; fi
   local class=infrastructure_failure; [ "$status" -eq 20 ] && [ -r "$result" ] && [ "$(json_field status "$result")" = fail ] && class=measured_failure; [ "$status" -eq 0 ] && [ -r "$result" ] && [ "$(json_field status "$result")" = pass ] && class=pass; [ -e "$sensor_abort" ] && class=safety_failure; [ "$restore_status" -ne 0 ] && class=restoration_failure
   printf 'mode=LiveAudioBenchmark\nstatus_class=%s\nstatus=%s\ninterruption_started=%s\nrestore_status=%s\nsensor_abort=%s\n' "$class" "$status" "$interruption_started" "$restore_status" "$([ -e "$sensor_abort" ] && printf true || printf false)" > "$root/study-result.txt"
@@ -160,7 +169,10 @@ trap on_exit EXIT; trap 'exit 143' INT TERM
 capture_system_sample startup > "$sensor_series" 2>&1 || { printf 'reason=startup-sensor-gate\n' > "$sensor_abort"; exit 75; }
 chmod 0750 -- "$binary"; test -x "$binary"; test -r "$binary.metadata.json"; remote_sha="$(sha256sum -- "$binary" | awk 'NR == 1 {print $1}')"; printf '%s\n' "$remote_sha" > "$root/runtime-binary-sha256.txt"; [ "$remote_sha" = "$expected_sha" ]
 "$binary" --print-build-metadata > "$root/runtime-metadata.json"; grep -q '"artifact_kind":"diagnostic-only"' "$root/runtime-metadata.json"; grep -q '"cargo_feature":"hardware-raspberry-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128"' "$root/runtime-metadata.json"
-sudo -n install -d -o pi -g pi -m 0750 "$benchmark_root"; interruption_started=true; sudo -n systemctl stop "$service"
+interruption_started=true
+sudo -n systemctl stop "$service"
+sudo -n install -d -o pi -g pi -m 0755 /run/octessera
+sudo -n install -d -o pi -g pi -m 0750 "$benchmark_root"
 sudo -n systemd-run --unit="$unit" --service-type=exec --no-block --property=RuntimeMaxSec=__RUNTIME_MAX__s --property=TimeoutStopSec=5s --property=User=pi --property=Group=pi --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=read-only --property=PrivateTmp=no --property="ReadWritePaths=/run/octessera /tmp" --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w --setenv=OCTESSERA_PI_STORE_DIR=/home/pi/presets --setenv=OCTESSERA_OLED_BOOT_HANDOFF=v1 "$binary" --benchmark-raspberry-audio --executor __EXECUTOR__ --scenario __SCENARIO__ --output-frames 256 --engine-block-frames 128 --worker-timing __WORKER_TIMING__ --warmup-seconds 5 --measure-seconds __MEASURE_SECONDS__ --readiness "$readiness" --progress "$progress" --result "$result" --release-gate "$release" --release-timeout-seconds 120 --artifact-sha256 "$expected_sha"
 sensor_loop >> "$sensor_series" 2>&1 & sampler_pid=$!; wait_for_ready; capture_alsa_release; wait_for_terminal; exit $?
 '@
@@ -189,11 +201,23 @@ $payloadPath = Write-PayloadFile -Contents (New-RaspberryLivePayload -RemoteRoot
 $cleanupContents = @"
 set -eu
 set +e
+unit=octessera-raspberry-live-$runId.service
+unit_status=0
+unit_load_state=`$(sudo -n systemctl show "`$unit" --no-pager --property=LoadState --value 2>/dev/null || true)
+unit_active_state=`$(sudo -n systemctl show "`$unit" --no-pager --property=ActiveState --value 2>/dev/null || true)
+if [ "`$unit_active_state" = active ] || [ "`$unit_active_state" = activating ] || [ "`$unit_active_state" = deactivating ] || [ "`$unit_active_state" = failed ]; then
+  timeout --signal=TERM --kill-after=2 10s sudo -n systemctl stop "`$unit" >/dev/null 2>&1 || unit_status=1
+fi
+unit_load_state=`$(sudo -n systemctl show "`$unit" --no-pager --property=LoadState --value 2>/dev/null || true)
+unit_active_state=`$(sudo -n systemctl show "`$unit" --no-pager --property=ActiveState --value 2>/dev/null || true)
+if [ "`$unit_load_state" = loaded ] && [ "`$unit_active_state" = failed ]; then
+  timeout --signal=TERM --kill-after=2 10s sudo -n systemctl reset-failed "`$unit" >/dev/null 2>&1 || unit_status=1
+fi
 sudo -n rm -rf -- /run/octessera/raspberry-live-$runId
 privileged_status=`$?
 rm -rf -- $(Quote-ShValue $remoteRoot)
 unprivileged_status=`$?
-[ "`$privileged_status" -eq 0 ] && [ "`$unprivileged_status" -eq 0 ]
+[ "`$unit_status" -eq 0 ] && [ "`$privileged_status" -eq 0 ] && [ "`$unprivileged_status" -eq 0 ]
 "@
 $cleanupPath = Write-PayloadFile -Contents $cleanupContents -RunId $runId -Name "cleanup"
 $studyFailure = $null; $cleanupFailure = $null
