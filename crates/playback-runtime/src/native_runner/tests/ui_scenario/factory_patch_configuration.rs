@@ -80,7 +80,10 @@ pub(super) fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
     menu.expect_visible_value("On Inst", "I1");
     menu.back();
     menu.open_group("Note Mapping");
-    menu.expect_visible_value("Sca", "Pentatonic");
+    menu.open_group("Set");
+    menu.open_group("Pentatonic");
+    menu.activate_action("Major Pentatonic");
+    menu.expect_visible_value("Set", "Maj Pent");
     menu.expect_visible_value("Root", "D");
     menu.edit_number_by("Start Note", 2);
     menu.back();
@@ -111,7 +114,10 @@ pub(super) fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
     menu.edit_selected_enum_to("note_off");
     menu.back();
     menu.open_group("Note Mapping");
-    menu.expect_visible_value("Sca", "Pentatonic");
+    menu.open_group("Set");
+    menu.open_group("Pentatonic");
+    menu.activate_action("Major Pentatonic");
+    menu.expect_visible_value("Set", "Maj Pent");
     menu.expect_visible_value("Root", "D");
     menu.edit_number_by("Start Note", 2);
     menu.back_to_root();
