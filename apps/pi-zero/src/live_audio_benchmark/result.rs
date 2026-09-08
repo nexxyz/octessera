@@ -1,7 +1,10 @@
-use super::super::cli::{BenchmarkExecutorMode, RecordedGeometry, WorkerTimingMode};
+use super::super::cli::{
+    is_approved_continue_on_recovered_miss, BenchmarkExecutorMode, RecordedGeometry,
+    WorkerTimingMode,
+};
 use super::{
-    deserialize_result_schema_v12, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
-    CallbackMetricsSnapshot, PersistentOutputCountersEvidence,
+    deserialize_result_schema_v13, BenchmarkProfileSnapshot, BenchmarkWorkerTiming,
+    CallbackMetricsSnapshot, PersistentOutputCountersEvidence, PersistentOutputProvenanceEvidence,
 };
 use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -37,6 +40,7 @@ pub struct BenchmarkResult {
     pub artifact_sha256: String,
     pub callback: CallbackMetricsSnapshot,
     pub persistent_output_counters: PersistentOutputCountersEvidence,
+    pub persistent_output_provenance: PersistentOutputProvenanceEvidence,
     pub detected_continuity_events: u64,
     pub profile_start: BenchmarkProfileSnapshot,
     pub profile_end: BenchmarkProfileSnapshot,
@@ -44,6 +48,7 @@ pub struct BenchmarkResult {
     pub recovered_alsa_epipe_observable: bool,
     pub terminal_error: Option<String>,
     pub executor_mode: String,
+    pub continue_on_recovered_miss: bool,
     pub worker_health: String,
     pub worker_thread_name_0: String,
     pub worker_thread_name_1: String,
@@ -56,7 +61,7 @@ pub struct BenchmarkResult {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BenchmarkResultUnchecked {
-    #[serde(deserialize_with = "deserialize_result_schema_v12")]
+    #[serde(deserialize_with = "deserialize_result_schema_v13")]
     schema_version: u8,
     kind: String,
     status: String,
@@ -86,6 +91,7 @@ struct BenchmarkResultUnchecked {
     artifact_sha256: String,
     callback: CallbackMetricsSnapshot,
     persistent_output_counters: PersistentOutputCountersEvidence,
+    persistent_output_provenance: PersistentOutputProvenanceEvidence,
     detected_continuity_events: u64,
     profile_start: BenchmarkProfileSnapshot,
     profile_end: BenchmarkProfileSnapshot,
@@ -93,6 +99,7 @@ struct BenchmarkResultUnchecked {
     recovered_alsa_epipe_observable: bool,
     terminal_error: Option<String>,
     executor_mode: String,
+    continue_on_recovered_miss: bool,
     worker_health: String,
     worker_thread_name_0: String,
     worker_thread_name_1: String,
@@ -139,6 +146,7 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             artifact_sha256,
             callback,
             persistent_output_counters,
+            persistent_output_provenance,
             detected_continuity_events,
             profile_start,
             profile_end,
@@ -146,6 +154,7 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             recovered_alsa_epipe_observable,
             terminal_error,
             executor_mode,
+            continue_on_recovered_miss,
             worker_health,
             worker_thread_name_0,
             worker_thread_name_1,
@@ -184,6 +193,7 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             artifact_sha256,
             callback,
             persistent_output_counters,
+            persistent_output_provenance,
             detected_continuity_events,
             profile_start,
             profile_end,
@@ -191,6 +201,7 @@ impl<'de> Deserialize<'de> for BenchmarkResult {
             recovered_alsa_epipe_observable,
             terminal_error,
             executor_mode,
+            continue_on_recovered_miss,
             worker_health,
             worker_thread_name_0,
             worker_thread_name_1,
@@ -208,6 +219,19 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
     }
     let executor_mode = BenchmarkExecutorMode::parse(&result.executor_mode)
         .ok_or_else(|| "benchmark executor mode is missing or invalid".to_string())?;
+    let continuation_contract = cfg!(feature = "routing-tree-benchmark")
+        && is_approved_continue_on_recovered_miss(
+            result.scenario.as_str(),
+            executor_mode,
+            result.requested_output_buffer_frames,
+            result.expected_alsa_period_frames,
+            result.internal_block_frames,
+            result.measure_seconds,
+            result.worker_timing_mode,
+        );
+    if result.continue_on_recovered_miss && !continuation_contract {
+        return Err("continue-on-recovered-miss result identity is invalid".into());
+    }
     super::super::cli::validate_recorded_geometry(RecordedGeometry {
         scenario: result.scenario.as_str(),
         executor_mode,
@@ -245,6 +269,10 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
         return Err("benchmark lifecycle evidence is incomplete".into());
     }
     result.persistent_output_counters.validate(executor_mode)?;
+    result.persistent_output_provenance.validate(
+        cfg!(feature = "routing-tree-benchmark")
+            && executor_mode == BenchmarkExecutorMode::RoutingTreePersistent,
+    )?;
     if result.detected_continuity_events
         != result
             .persistent_output_counters
@@ -326,6 +354,9 @@ fn validate_result_evidence(result: &BenchmarkResultUnchecked) -> Result<(), Str
                 && !pre_stream_failure
                 && result.worker_health != "healthy"
                 && result.terminal_error.is_none()
+                && !(result.continue_on_recovered_miss
+                    && result.worker_health == "deadline_miss"
+                    && continuation_contract)
             {
                 return Err("terminal persistent worker health lacks failure evidence".into());
             }

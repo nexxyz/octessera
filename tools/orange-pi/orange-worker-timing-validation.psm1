@@ -38,7 +38,7 @@ function Get-OrangeWorkerTimingBoolean {
 }
 
 function Assert-OrangeWorkerTimingEvidence {
-  param([Parameter(Mandatory)][pscustomobject]$Result)
+  param([Parameter(Mandatory)][pscustomobject]$Result, [switch]$AllowRoutingDisabled)
   $modeProperty = $Result.PSObject.Properties["worker_timing_mode"]
   if ($null -eq $modeProperty -or $modeProperty.Value -isnot [string] -or @("enabled", "disabled") -cnotcontains [string]$modeProperty.Value) {
     throw "Live benchmark worker timing mode is missing or invalid."
@@ -46,7 +46,7 @@ function Assert-OrangeWorkerTimingEvidence {
   $executorProperty = $Result.PSObject.Properties["executor_mode"]
   if ($null -eq $executorProperty -or $executorProperty.Value -isnot [string] -or @("inline", "persistent_two_workers", "routing_tree_persistent") -cnotcontains [string]$executorProperty.Value) { throw "Live benchmark executor mode is missing or invalid." }
   if ($executorProperty.Value -ceq "inline" -and $modeProperty.Value -cne "disabled") { throw "Inline executor requires disabled worker timing." }
-  if ($executorProperty.Value -ceq "routing_tree_persistent" -and $modeProperty.Value -cne "enabled") { throw "Routing-tree persistent executor requires enabled worker timing." }
+  if ($executorProperty.Value -ceq "routing_tree_persistent" -and ($modeProperty.Value -cne "enabled" -and (-not $AllowRoutingDisabled -or $modeProperty.Value -cne "disabled"))) { throw "Routing-tree persistent executor has an invalid worker timing mode." }
   $timingProperty = $Result.PSObject.Properties["worker_timing"]
   if ($modeProperty.Value -ceq "disabled") {
     if ($null -eq $timingProperty -or $null -ne $timingProperty.Value) { throw "Disabled worker timing mode must have null worker timing evidence." }

@@ -29,6 +29,8 @@ function New-OrangeLiveBenchmarkPayloadBundle {
   if (@("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled." }
   if (@("inline", "routing_tree_persistent") -cnotcontains $ExecutorMode) { throw "ExecutorMode must be exactly inline or routing_tree_persistent." }
   if ($Selection.ExecutorMode -cne $ExecutorMode -or $Selection.WorkerTimingMode -cne $WorkerTimingMode) { throw "Live payload executor and worker timing do not match the selected contract." }
+  $selectionContinuation = if ($Selection.PSObject.Properties["ContinueOnRecoveredMiss"]) { [bool]$Selection.ContinueOnRecoveredMiss } else { $false }
+  if ($selectionContinuation -ne [bool]$ContinueOnRecoveredMiss) { throw "Live payload continuation identity does not match the selected contract." }
   $expectedLookahead = if ($ExecutorMode -eq "routing_tree_persistent") { $Selection.EngineBlockFrames } else { 0 }
   if ($Selection.LookaheadFrames -ne $expectedLookahead -or $Selection.EffectiveOutputLatencyFrames -ne ($Selection.OutputFrames + $Selection.LookaheadFrames)) { throw "Live payload selection geometry is inconsistent with the selected executor." }
   $isCapacityDiagnostic = $null -ne $Selection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$Selection.IsCapacityDiagnostic
@@ -327,15 +329,17 @@ validate_benchmark_progress() {
   validate_benchmark_worker_evidence "$progress" false __ALLOW_RECOVERED_MISS_PROGRESS__
 }
 validate_benchmark_result() {
-  [ -r "$result" ] && [ "$(json_field schema_version "$result")" = 12 ] && [ "$(json_field kind "$result")" = orange_audio_benchmark_result ]
+  [ -r "$result" ] && [ "$(json_field schema_version "$result")" = 13 ] && [ "$(json_field kind "$result")" = orange_audio_benchmark_result ]
   [ "$(json_field board_profile "$result")" = orange-pi-zero-2w ] && [ "$(json_field pid "$result")" = "$benchmark_pid" ]
   [ "$(json_field systemd_invocation_id "$result")" = "$benchmark_invocation" ] && [ "$(json_field artifact_sha256 "$result")" = "$expected_sha" ]
   [ "$(json_field scenario "$result")" = __SCENARIO__ ] && [ "$(json_field executor_mode "$result")" = __EXECUTOR_MODE__ ]
+  [ "$(json_field status "$result")" = pass ] || [ "$(json_field status "$result")" = fail ]
   [ "$(json_field lookahead_frames "$result")" = __LOOKAHEAD_FRAMES__ ] && [ "$(json_field effective_output_latency_frames "$result")" = __EFFECTIVE_OUTPUT_LATENCY_FRAMES__ ]
-  [ "$(json_field worker_timing_mode "$result")" = __WORKER_TIMING_MODE__ ]
+  [ "$(json_field worker_timing_mode "$result")" = __WORKER_TIMING_MODE__ ] && [ "$(json_field continue_on_recovered_miss "$result")" = __CONTINUE_ON_RECOVERED_MISS_VALUE__ ]
   [ "$(json_field requested_output_buffer_frames "$result")" = __OUTPUT_FRAMES__ ] && [ "$(json_field expected_alsa_buffer_frames "$result")" = __OUTPUT_FRAMES__ ]
   [ "$(json_field expected_alsa_period_frames "$result")" = __ALSA_PERIOD_FRAMES__ ] && [ "$(json_field internal_block_frames "$result")" = __INTERNAL_FRAMES__ ]
-  validate_benchmark_worker_evidence "$result" true
+  [ "$(json_field recovered_alsa_epipe_count "$result")" = null ] && [ "$(json_field recovered_alsa_epipe_observable "$result")" = false ]
+  validate_benchmark_worker_evidence "$result" true __ALLOW_RECOVERED_MISS_PROGRESS__
 }
 wait_for_benchmark_terminal() {
   local deadline=$(( $(date +%s) + __RUNTIME_MAX_SECONDS__ + 15 )) pid invocation phase mtime now result_status
@@ -435,7 +439,8 @@ exit "$study_status"
 '@
   $continueOnRecoveredMissArgument = if ($ContinueOnRecoveredMiss -and $ExecutorMode -ceq "routing_tree_persistent") { "--continue-on-recovered-miss" } else { "" }
   $allowRecoveredMissProgress = if ($ContinueOnRecoveredMiss -and $ExecutorMode -ceq "routing_tree_persistent") { "true" } else { "false" }
-  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds).Replace("__EXECUTOR_MODE__", $ExecutorMode).Replace("__LOOKAHEAD_FRAMES__", [string]$Selection.LookaheadFrames).Replace("__EFFECTIVE_OUTPUT_LATENCY_FRAMES__", [string]$Selection.EffectiveOutputLatencyFrames).Replace("__ARTIFACT_KIND__", $ExpectedArtifactKind).Replace("__CARGO_FEATURE__", $ExpectedCargoFeature).Replace("__CONTINUE_ON_RECOVERED_MISS__", $continueOnRecoveredMissArgument).Replace("__ALLOW_RECOVERED_MISS_PROGRESS__", $allowRecoveredMissProgress)
+  $continueOnRecoveredMissValue = if ($ContinueOnRecoveredMiss) { "true" } else { "false" }
+  $body = $body.Replace("__ROOT__", (Quote-LiveShValue $RemoteRoot)).Replace("__BENCHMARK_ROOT__", (Quote-LiveShValue $BenchmarkRoot)).Replace("__HEALTH__", (Quote-LiveShValue $HealthPath)).Replace("__HASH__", (Quote-LiveShValue $ArtifactHash)).Replace("__UNIT__", (Quote-LiveShValue $Unit)).Replace("__SERVICE__", (Quote-LiveShValue $Service)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__RELEASE_TIMEOUT_SECONDS__", [string]$ReleaseTimeoutSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$RuntimeMaxSeconds).Replace("__EXECUTOR_MODE__", $ExecutorMode).Replace("__LOOKAHEAD_FRAMES__", [string]$Selection.LookaheadFrames).Replace("__EFFECTIVE_OUTPUT_LATENCY_FRAMES__", [string]$Selection.EffectiveOutputLatencyFrames).Replace("__ARTIFACT_KIND__", $ExpectedArtifactKind).Replace("__CARGO_FEATURE__", $ExpectedCargoFeature).Replace("__CONTINUE_ON_RECOVERED_MISS__", $continueOnRecoveredMissArgument).Replace("__CONTINUE_ON_RECOVERED_MISS_VALUE__", $continueOnRecoveredMissValue).Replace("__ALLOW_RECOVERED_MISS_PROGRESS__", $allowRecoveredMissProgress)
   $body = $body.Replace("__WORKER_TIMING_MODE__", $WorkerTimingMode)
   $study = "set -eu`numask 077`nroot=$(Quote-LiveShValue $RemoteRoot)`nhealth=$(Quote-LiveShValue $HealthPath)`nunit=$(Quote-LiveShValue $Unit)`n$readinessHelpers`n$body"
   $prepare = "set -eu`numask 077`ntest ! -e $(Quote-LiveShValue $RemoteRoot)`nmkdir -m 0700 -- $(Quote-LiveShValue $RemoteRoot)`nsudo -n chgrp octessera-runtime $(Quote-LiveShValue $RemoteRoot)`nchmod 0710 $(Quote-LiveShValue $RemoteRoot)"

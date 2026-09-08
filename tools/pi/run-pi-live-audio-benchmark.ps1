@@ -9,6 +9,7 @@ param(
   [string]$Metadata = "",
   [string]$OutputDirectory = "",
   [switch]$AllowServiceInterruption,
+  [switch]$ObserveCompromises,
   [switch]$PrintOnly
 )
 
@@ -18,7 +19,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 . (Join-Path $PSScriptRoot "board-profile.ps1")
 Import-Module (Join-Path $PSScriptRoot "raspberry-live-benchmark-metadata.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "raspberry-live-benchmark-validation.psm1") -Force
-$selection = Assert-RaspberryLiveBenchmarkSelection -Units $Units -ExecutorMode $ExecutorMode -MeasureSeconds $MeasureSeconds
+$selection = Assert-RaspberryLiveBenchmarkSelection -Units $Units -ExecutorMode $ExecutorMode -MeasureSeconds $MeasureSeconds -ObserveCompromises:$ObserveCompromises
 $transport = Join-Path $PSScriptRoot "with-pi-ssh.ps1"
 if ([string]::IsNullOrWhiteSpace($Artifact)) { $Artifact = Join-Path $repoRoot "target\pi-cross-diagnostics\routing-tree-benchmark\benchmark-voice-pools-128\octessera-pi" }
 if ([string]::IsNullOrWhiteSpace($Metadata)) { $Metadata = "$Artifact.metadata.json" }
@@ -108,10 +109,10 @@ capture_alsa_release() {
   [ "$(unit_pid)" = "$pid" ] && [ "$(unit_invocation)" = "$invocation" ] || return 1
   buffer="$(sudo -n cat -- "$path" | sed -n 's/^[[:space:]]*buffer_size[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
   period="$(sudo -n cat -- "$path" | sed -n 's/^[[:space:]]*period_size[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
-  [ "$buffer" = 256 ] && [ "$period" = 64 ] || return 1
+  [ "$buffer" = __OUTPUT_FRAMES__ ] && [ "$period" = __ALSA_PERIOD_FRAMES__ ] || return 1
   sudo -n install -o pi -g pi -m 0640 -- "$path" "$root/alsa-hw-params.txt"
   printf 'path=%s\nbuffer_size=%s\nperiod_size=%s\n' "$path" "$buffer" "$period" > "$root/alsa-geometry.txt"
-  printf '{"schema_version":2,"kind":"raspberry_audio_benchmark_release","status":"released","board_profile":"raspberry-pi-zero-2w","pid":%s,"systemd_invocation_id":"%s","artifact_sha256":"%s","scenario":"__SCENARIO__","expected_alsa_buffer_frames":256,"observed_alsa_buffer_frames":%s,"expected_alsa_period_frames":64,"observed_alsa_period_frames":%s}\n' "$pid" "$invocation" "$expected_sha" "$buffer" "$period" > "$release"
+  printf '{"schema_version":2,"kind":"raspberry_audio_benchmark_release","status":"released","board_profile":"raspberry-pi-zero-2w","pid":%s,"systemd_invocation_id":"%s","artifact_sha256":"%s","scenario":"__SCENARIO__","expected_alsa_buffer_frames":__OUTPUT_FRAMES__,"observed_alsa_buffer_frames":%s,"expected_alsa_period_frames":__ALSA_PERIOD_FRAMES__,"observed_alsa_period_frames":%s}\n' "$pid" "$invocation" "$expected_sha" "$buffer" "$period" > "$release"
 }
 wait_for_terminal() {
   local deadline=$(( $(date +%s) + __RUNTIME_MAX__ )) pid now
@@ -174,16 +175,16 @@ interruption_started=true
 sudo -n systemctl stop "$service"
 sudo -n install -d -o pi -g pi -m 0755 /run/octessera
 sudo -n install -d -o pi -g pi -m 0750 "$benchmark_root"
-sudo -n systemd-run --unit="$unit" --service-type=exec --no-block --property=RuntimeMaxSec=__RUNTIME_MAX__s --property=TimeoutStopSec=5s --property=User=pi --property=Group=pi --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=read-only --property=PrivateTmp=no --property="ReadWritePaths=/run/octessera /tmp" --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w --setenv=OCTESSERA_PI_STORE_DIR=/home/pi/presets --setenv=OCTESSERA_OLED_BOOT_HANDOFF=v1 "$binary" --benchmark-raspberry-audio --executor __EXECUTOR__ --scenario __SCENARIO__ --output-frames 256 --engine-block-frames 128 --worker-timing __WORKER_TIMING__ --warmup-seconds 5 --measure-seconds __MEASURE_SECONDS__ --readiness "$readiness" --progress "$progress" --result "$result" --release-gate "$release" --release-timeout-seconds 120 --artifact-sha256 "$expected_sha"
+sudo -n systemd-run --unit="$unit" --service-type=exec --no-block --property=RuntimeMaxSec=__RUNTIME_MAX__s --property=TimeoutStopSec=5s --property=User=pi --property=Group=pi --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=read-only --property=PrivateTmp=no --property="ReadWritePaths=/run/octessera /tmp" --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w --setenv=OCTESSERA_PI_STORE_DIR=/home/pi/presets --setenv=OCTESSERA_OLED_BOOT_HANDOFF=v1 "$binary" --benchmark-raspberry-audio --executor __EXECUTOR__ --scenario __SCENARIO__ --output-frames __OUTPUT_FRAMES__ --engine-block-frames __INTERNAL_FRAMES__ --worker-timing __WORKER_TIMING__ __CONTINUE_ON_RECOVERED_MISS__ --warmup-seconds 5 --measure-seconds __MEASURE_SECONDS__ --readiness "$readiness" --progress "$progress" --result "$result" --release-gate "$release" --release-timeout-seconds 120 --artifact-sha256 "$expected_sha"
 sensor_loop >> "$sensor_series" 2>&1 & sampler_pid=$!; wait_for_ready; capture_alsa_release; wait_for_terminal; exit $?
 '@
-  return $body.Replace("__ROOT__", (Quote-ShValue $RemoteRoot)).Replace("__RUN_ID__", $RunId).Replace("__HASH__", (Quote-ShValue $ArtifactHash)).Replace("__RUNTIME_MAX__", [string]($Selection.MeasureSeconds + 180)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__EXECUTOR__", $Selection.NativeExecutorMode).Replace("__WORKER_TIMING__", $Selection.WorkerTimingMode).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds)
+  return $body.Replace("__ROOT__", (Quote-ShValue $RemoteRoot)).Replace("__RUN_ID__", $RunId).Replace("__HASH__", (Quote-ShValue $ArtifactHash)).Replace("__RUNTIME_MAX__", [string]($Selection.MeasureSeconds + 180)).Replace("__SCENARIO__", $Selection.Scenario).Replace("__EXECUTOR__", $Selection.NativeExecutorMode).Replace("__WORKER_TIMING__", $Selection.WorkerTimingMode).Replace("__CONTINUE_ON_RECOVERED_MISS__", $Selection.ContinueOnRecoveredMissArgument).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__MEASURE_SECONDS__", [string]$Selection.MeasureSeconds)
 }
 
 if ($PrintOnly) {
   $runLabel = if ($MeasureSeconds -eq 30) { "30-second screen" } elseif ($MeasureSeconds -eq 120) { "120-second repeat" } else { "$MeasureSeconds-second extended diagnostic" }
   Write-Output "Raspberry live audio benchmark PrintOnly: no transport is invoked."
-  Write-Output "Selection: U$Units scenario=$($selection.Scenario) executor=$($selection.ExecutorMode) output=256 period=64 internal=128 lookahead=$($selection.LookaheadFrames) measure=$MeasureSeconds label=$runLabel"
+  Write-Output "Selection: U$Units scenario=$($selection.Scenario) executor=$($selection.ExecutorMode) output=$($selection.OutputFrames) period=$($selection.AlsaPeriodFrames) internal=$($selection.InternalFrames) lookahead=$($selection.LookaheadFrames) worker-timing=$($selection.WorkerTimingMode) continue-on-recovered-miss=$($selection.ContinueOnRecoveredMiss) measure=$MeasureSeconds label=$runLabel"
   Write-Output "Artifact: $Artifact"
   Write-Output "Metadata: $Metadata"
   exit 0
@@ -234,9 +235,10 @@ try {
 }
 $hostEvidence = Get-RaspberryLiveHostEvidence -EvidenceDirectory $localRunDirectory -Selection $selection -ArtifactHash $artifactHash
 if ($null -ne $retrievalFailure -and $hostEvidence.StatusClass -cne "restoration_failure") { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = $retrievalFailure.Exception.Message }
-if ($null -ne $cleanupFailure -and $hostEvidence.StatusClass -ceq "pass") { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = "Raspberry live benchmark cleanup failed: $cleanupFailure" }
+if ($null -ne $cleanupFailure -and $hostEvidence.StatusClass -cne "restoration_failure") { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = "Raspberry live benchmark cleanup failed: $cleanupFailure" }
 $hostEvidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $localRunDirectory "host-evidence.json") -Encoding UTF8
 Write-Output "Evidence directory: $localRunDirectory"
-if ($hostEvidence.StatusClass -ne "pass") { throw "Raspberry live benchmark status class was $($hostEvidence.StatusClass): $($hostEvidence.Reason)" }
+if ($hostEvidence.StatusClass -ne "pass" -and -not ($ObserveCompromises -and $hostEvidence.StatusClass -eq "measured_failure" -and $MeasureSeconds -eq 120)) { throw "Raspberry live benchmark status class was $($hostEvidence.StatusClass): $($hostEvidence.Reason)" }
 $runLabel = if ($MeasureSeconds -eq 30) { "30-second screen" } elseif ($MeasureSeconds -eq 120) { "120-second repeat" } else { "$MeasureSeconds-second extended diagnostic" }
-Write-Output "Raspberry live audio benchmark passed: U$Units $ExecutorMode ($runLabel)"
+$evidenceSummary = "PracticalGrade=$($hostEvidence.PracticalGrade) RepeatIncidents=$($hostEvidence.RepeatIncidents) RepeatedPcmFrames=$($hostEvidence.RepeatedPcmFrames) SilentIncidents=$($hostEvidence.SilentIncidents) SilentPcmFrames=$($hostEvidence.SilentPcmFrames) AlsaRecoveryLogIncidents=$($hostEvidence.AlsaRecoveryLogIncidents)"
+if ($ObserveCompromises -and $hostEvidence.StatusClass -eq "measured_failure") { Write-Output "Raspberry live audio benchmark completed observation: U$Units $ExecutorMode ($runLabel) $evidenceSummary" } else { Write-Output "Raspberry live audio benchmark passed: U$Units $ExecutorMode ($runLabel) $evidenceSummary" }

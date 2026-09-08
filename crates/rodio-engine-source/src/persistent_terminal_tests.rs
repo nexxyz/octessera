@@ -62,7 +62,7 @@ fn assert_silence(samples: &[u32]) {
     assert!(samples.iter().all(|sample| *sample == 0));
 }
 
-fn gated_source(
+pub(super) fn gated_source(
     hold_workers: bool,
     panic_parity: Option<usize>,
     panic_before_envelope: bool,

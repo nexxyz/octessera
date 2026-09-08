@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub(crate) use super::geometry::{
-    expected_lookahead_frames, validate_recorded_geometry, validate_requested_geometry,
-    RecordedGeometry,
+    expected_lookahead_frames, is_analogue_capacity_scenario, validate_recorded_geometry,
+    validate_requested_geometry, RecordedGeometry,
 };
 
 pub const DEFAULT_WARMUP_SECONDS: u64 = 5;
@@ -385,20 +385,40 @@ fn validate_continue_on_recovered_miss(config: &BenchmarkConfig) -> Result<(), S
     if !config.continue_on_recovered_miss {
         return Ok(());
     }
-    if config.measure_seconds == 120
-        && matches!(
-            config.scenario.as_str(),
-            "capacity_analogue_16" | "capacity_analogue_32"
-        )
-        && config.executor_mode == BenchmarkExecutorMode::RoutingTreePersistent
-        && config.worker_timing_mode == WorkerTimingMode::Enabled
-        && config.output_frames == 256
-        && config.expected_alsa_period_frames == 64
-        && config.internal_frames == 64
-    {
+    if is_approved_continue_on_recovered_miss(
+        config.scenario.as_str(),
+        config.executor_mode,
+        config.output_frames,
+        config.expected_alsa_period_frames,
+        config.internal_frames,
+        config.measure_seconds,
+        config.worker_timing_mode,
+    ) {
         return Ok(());
     }
-    Err("--continue-on-recovered-miss requires capacity_analogue_16 (u16) or capacity_analogue_32 (u32), routing_tree_persistent, measure=120, output=256, ALSA period=64, internal=64, and worker timing=enabled".into())
+    Err(continue_error())
+}
+
+pub(crate) fn is_approved_continue_on_recovered_miss(
+    scenario: &str,
+    executor_mode: BenchmarkExecutorMode,
+    output_frames: u32,
+    expected_alsa_period_frames: u32,
+    internal_frames: usize,
+    measure_seconds: u64,
+    worker_timing_mode: WorkerTimingMode,
+) -> bool {
+    is_analogue_capacity_scenario(scenario)
+        && executor_mode == BenchmarkExecutorMode::RoutingTreePersistent
+        && output_frames == 256
+        && expected_alsa_period_frames == 64
+        && internal_frames == 64
+        && measure_seconds == 120
+        && worker_timing_mode == WorkerTimingMode::Disabled
+}
+
+fn continue_error() -> String {
+    "--continue-on-recovered-miss requires an analogue-capacity scenario, measure=120, approved diagnostic geometry, and worker timing disabled".into()
 }
 
 fn next_value(iter: &mut impl Iterator<Item = String>, name: &str) -> Result<String, String> {
