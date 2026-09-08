@@ -1,8 +1,9 @@
 # Pi DSP FX Profile
 
-This note records the current Pi-side basis for the bus FX warning budget.
+This note records historical generic-AArch64 evidence for the bus FX warning
+budget. It is not the current tuned basis for either fixed hardware board.
 
-## 2026-07-15: 3-slot FX bus profile
+## Historical generic-AArch64 evidence — 2026-07-15: 3-slot FX bus profile
 
 Target: Raspberry Pi running `octessera-pi` with `OCTESSERA_PI_PROFILE_MODE=fx-limits` and `--profile-dsp`.
 
@@ -27,7 +28,7 @@ Worst observed current-effect bus scenarios:
 
 The Pi reported `throttled=0x0`; temperature rose from 55.3 C to 58.0 C.
 
-Recommendation: set `busFxWarningSlotCount` to 12 for the current effect set. This is the full current bus capacity: 4 buses × 3 slots. Global FX slots do not count toward this budget. Revisit the budget if heavier future FX are added.
+Historical recommendation: set `busFxWarningSlotCount` to 12 for the effect set measured here. This is the full bus capacity in this profile: 4 buses × 3 slots. Global FX slots do not count toward this budget. Revisit the budget if heavier future FX are added.
 
 Synthetic over-cap rows were measured to see the scaling curve beyond the shipped 4-bus limit. They use up to 8 synthetic buses with 3 slots each. These are engine stress tests, not user-facing patch limits.
 
