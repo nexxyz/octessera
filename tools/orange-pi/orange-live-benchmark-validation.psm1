@@ -17,16 +17,19 @@ function Assert-OrangeLiveBenchmarkSelection {
     [Parameter(Mandatory)][int]$MeasureSeconds,
     [ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode = "routing_tree_persistent",
     [string]$WorkerTimingMode = "",
-    [bool]$AllowLongRepeat = $false
+    [bool]$AllowLongRepeat = $false,
+    [bool]$ContinueOnRecoveredMiss = $false
   )
   if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
-  $expectedWorkerTimingMode = if ($ExecutorMode -eq "inline") { "disabled" } else { "enabled" }; if ([string]::IsNullOrWhiteSpace($WorkerTimingMode)) { $WorkerTimingMode = $expectedWorkerTimingMode }
-  if (($ExecutorMode -eq "inline" -and $WorkerTimingMode -cne "disabled") -or ($ExecutorMode -eq "routing_tree_persistent" -and $WorkerTimingMode -cne "enabled")) { throw "Worker timing mode does not match the selected executor." }
-  if ($ExecutorMode -eq "routing_tree_persistent" -and $OutputFrames -gt 256) { throw "Routing-tree persistent executor requires output/device buffer frames no greater than 256." }
   $capacityScenario = ConvertFrom-OrangeCapacityScenario $Scenario
+  $expectedWorkerTimingMode = if ($ExecutorMode -eq "inline" -or ($null -ne $capacityScenario -and $capacityScenario.Kind -ceq "analogue")) { "disabled" } else { "enabled" }; if ([string]::IsNullOrWhiteSpace($WorkerTimingMode)) { $WorkerTimingMode = $expectedWorkerTimingMode }
+  $analogueCapacity = $null -ne $capacityScenario -and $capacityScenario.Kind -ceq "analogue"
+  if (($ExecutorMode -eq "inline" -and $WorkerTimingMode -cne "disabled") -or ($ExecutorMode -eq "routing_tree_persistent" -and (($analogueCapacity -and $WorkerTimingMode -cne "disabled") -or (-not $analogueCapacity -and $WorkerTimingMode -cne "enabled")))) { throw "Worker timing mode does not match the selected executor." }
+  if ($ExecutorMode -eq "routing_tree_persistent" -and $OutputFrames -gt 256) { throw "Routing-tree persistent executor requires output/device buffer frames no greater than 256." }
   if ($null -ne $capacityScenario) {
-    return Assert-OrangeCapacityBenchmarkSelection -Scenario $Scenario -CapacityScenario $capacityScenario -OutputFrames $OutputFrames -EngineBlockFrames $EngineBlockFrames -MeasureSeconds $MeasureSeconds -ExecutorMode $ExecutorMode -WorkerTimingMode $WorkerTimingMode -AllowLongRepeat:$AllowLongRepeat
+    return Assert-OrangeCapacityBenchmarkSelection -Scenario $Scenario -CapacityScenario $capacityScenario -OutputFrames $OutputFrames -EngineBlockFrames $EngineBlockFrames -MeasureSeconds $MeasureSeconds -ExecutorMode $ExecutorMode -WorkerTimingMode $WorkerTimingMode -AllowLongRepeat:$AllowLongRepeat -ContinueOnRecoveredMiss:$ContinueOnRecoveredMiss
   }
+  if ($ContinueOnRecoveredMiss) { throw "-ContinueOnRecoveredMiss requires a capacity_analogue_<u> scenario." }
   if ($script:OrangeLiveScenarioIds -notcontains $Scenario -and (Get-OrangeBaselineLiveScenarioIds) -notcontains $Scenario) {
     throw "LiveAudioBenchmark scenario is not an approved live baseline ID: $Scenario"
   }
@@ -68,6 +71,7 @@ function Assert-OrangeLiveBenchmarkSelection {
     LongRepeat = $MeasureSeconds -eq 120
     ExecutorMode = $ExecutorMode
     WorkerTimingMode = $WorkerTimingMode
+    ContinueOnRecoveredMiss = $false
     LookaheadFrames = $lookaheadFrames
     EffectiveOutputLatencyFrames = $OutputFrames + $lookaheadFrames
   }
@@ -266,22 +270,6 @@ function Read-OrangeLiveKeyValueFile {
   }
   return $values
 }
-function Assert-OrangeAdmissionDropEvidence {
-  param(
-    [Parameter(Mandatory)][pscustomobject]$Result,
-    [Parameter(Mandatory)][pscustomobject]$Selection
-  )
-  $expectedStart = Get-OrangeExpectedAdmissionDrops $Selection "expected_admission_drops_start"
-  $expectedEnd = Get-OrangeExpectedAdmissionDrops $Selection "expected_admission_drops_end"
-  if ($expectedEnd -lt $expectedStart) { throw "Live benchmark expected admission-drop end is below start." }
-  $startProperty = $Result.PSObject.Properties["profile_start"]
-  $endProperty = $Result.PSObject.Properties["profile_end"]
-  if ($null -eq $startProperty -or $null -eq $endProperty -or $null -eq $startProperty.Value -or $null -eq $endProperty.Value) { throw "Live benchmark profile admission-drop evidence is required." }
-  $start = Get-OrangeRequiredNonNegativeInteger $startProperty.Value "cumulative_voice_admission_drops" "profile_start"
-  $end = Get-OrangeRequiredNonNegativeInteger $endProperty.Value "cumulative_voice_admission_drops" "profile_end"
-  if ($start -ne $expectedStart -or $end -ne $expectedEnd -or $end - $start -ne $expectedEnd - $expectedStart) { throw "Live benchmark admission-drop evidence does not reconcile with expected start/end values." }
-}
-
 function Assert-OrangeLiveResult {
   param(
     [Parameter(Mandatory)][pscustomobject]$Result,
@@ -300,7 +288,7 @@ function Assert-OrangeLiveResult {
   if ($null -eq $schedulingCpu) { throw "Live benchmark callback CPU evidence is missing." }
   if ((Get-OrangeLiveStrictInteger -Value $schedulingCpu.Value -Path "callback_scheduling_cpu") -ne 1) { throw "Live benchmark callback CPU evidence is invalid." }
   $checks = @(
-    @((Get-OrangeLiveStrictInteger -Value $Result.schema_version -Path "schema_version"), 12),
+    @((Get-OrangeLiveStrictInteger -Value $Result.schema_version -Path "schema_version"), 13),
     @([string]$Result.kind, "orange_audio_benchmark_result"),
     @([string]$Result.board_profile, "orange-pi-zero-2w"),
     @([string]$Result.scenario, $Selection.Scenario),
@@ -327,11 +315,16 @@ function Assert-OrangeLiveResult {
     throw "Live benchmark result did not complete the required finalization contract."
   }
   if ([string]$Result.worker_timing_mode -cne $Selection.WorkerTimingMode) { throw "Live benchmark worker timing mode does not match the executor." }
+  $continuation = Get-OrangeLiveStrictBoolean -Value $Result.continue_on_recovered_miss -Path "continue_on_recovered_miss"
+  $expectedContinuation = if ($Selection.PSObject.Properties["ContinueOnRecoveredMiss"]) { [bool]$Selection.ContinueOnRecoveredMiss } else { $false }
+  if ($continuation -ne $expectedContinuation) { throw "Live benchmark continuation identity does not match the selected observation." }
   if ([string]$Result.status -ceq "pass" -and $executorProperty.Value -ne "inline" -and [string]$Result.worker_health -cne "healthy") { throw "A passing live benchmark must report healthy persistent workers." }
-  Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true -AllowTerminalHealth
-  Assert-OrangeWorkerTimingEvidence -Result $Result
+  Assert-OrangeWorkerEvidence -Evidence $Result -RequireShutdown:$true -AllowTerminalHealth:$continuation
+  if ([string]$Result.worker_health -ceq "deadline_miss" -and (-not $continuation -or [string]$Result.status -cne "fail" -or $null -ne $Result.terminal_error)) { throw "A deadline-miss result requires the exact recovered-miss observation contract." }
+  Assert-OrangeWorkerTimingEvidence -Result $Result -AllowRoutingDisabled:($Selection.PSObject.Properties["CapacityKind"] -and [string]$Selection.CapacityKind -ceq "analogue")
   $persistentOutputProperty = $Result.PSObject.Properties["persistent_output_counters"]
   $persistentOutput = if ($null -ne $persistentOutputProperty) { Assert-OrangeLivePersistentOutputEvidence -Evidence $persistentOutputProperty.Value -ExecutorMode $executorProperty.Value } else { throw "Live benchmark persistent output counter evidence is missing." }
+  Assert-OrangeLivePersistentOutputProvenance -Evidence $Result.persistent_output_provenance -ExecutorMode $executorProperty.Value | Out-Null
   $detectedContinuityEvents = Get-OrangeLiveStrictInteger -Value $Result.detected_continuity_events -Path "detected_continuity_events"
   $callbackOverruns = Get-OrangeLiveStrictInteger -Value $callback.over_audio_duration_budget_count -Path "callback.over_audio_duration_budget_count"
   $callbackDeviceErrors = Get-OrangeLiveStrictInteger -Value $callback.cpal_device_error_count -Path "callback.cpal_device_error_count"
@@ -375,6 +368,7 @@ function Get-OrangeLiveHostEvidence {
   $readinessPath = Join-Path $EvidenceDirectory "benchmark-readiness.json"
   $releasePath = Join-Path $EvidenceDirectory "benchmark-release.json"
   $result = $null
+  $resultValidated = $false
   $readiness = $null
   $aggregateRatio = $null
   $sensor = Get-OrangeLiveSensorEvidence (Join-Path $EvidenceDirectory "sensor-series.txt")
@@ -421,11 +415,10 @@ function Get-OrangeLiveHostEvidence {
         }
       }
       $summary = Get-OrangeLiveResultSummary -Result $result -Selection $Selection
+      $resultValidated = $true
       $statusClass = $summary.StatusClass
       $reason = "result identity and process status validated"
-    } catch {
-      $reason = $_.Exception.Message
-    }
+    } catch { $reason = $_.Exception.Message }
   }
   if ($study.interruption_started -eq "true" -and ($restored.restore_status -ne "0" -or $restored.final_active -ne "active" -or $restored.final_enabled -ne "enabled")) {
     $statusClass = "restoration_failure"
@@ -439,7 +432,7 @@ function Get-OrangeLiveHostEvidence {
   } elseif ($remoteStatusClass -eq "infrastructure_failure") {
     $statusClass = "infrastructure_failure"
     $reason = "remote study reported infrastructure failure"
-  } elseif (@("pass", "measured_failure") -notcontains $remoteStatusClass -and $null -ne $result) {
+  } elseif (@("pass", "measured_failure", "over_budget") -notcontains $remoteStatusClass -and $null -ne $result) {
     $statusClass = "infrastructure_failure"
     $reason = "remote study status class was missing or contradictory"
   }
@@ -453,7 +446,7 @@ function Get-OrangeLiveHostEvidence {
       $reason = if (-not $sensor.CoolingEvidenceValid) { "passing evidence contained incomplete or malformed cooling-device state" } elseif (-not $sensor.FrequencyEvidenceValid) { "passing evidence contained malformed frequency data" } else { "passing evidence did not retain startup/runtime sensor samples and extrema" }
     }
   }
-  return [pscustomobject]@{
+  $hostEvidence = [pscustomobject]@{
     StatusClass = $statusClass
     Reason = $reason
     Scenario = $Selection.Scenario
@@ -496,5 +489,10 @@ function Get-OrangeLiveHostEvidence {
     SensorSeriesPath = Join-Path $EvidenceDirectory "sensor-series.txt"
     UnitStatusPath = Join-Path $EvidenceDirectory "unit-final.txt"
   }
+  try {
+    $practical = Get-OrangeLivePracticalEvidence -EvidenceDirectory $EvidenceDirectory -Result $result -Validated:$resultValidated
+  } catch { if (@("pass", "measured_failure", "over_budget") -contains $hostEvidence.StatusClass) { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = $_.Exception.Message }; $practical = [pscustomobject]@{ RepeatIncidents = $null; RepeatedPcmFrames = $null; SilentIncidents = $null; SilentPcmFrames = $null; AlsaRecoveryLogIncidents = $null; AlsaRecoveryLogScope = "missing_required_file"; PracticalGrade = "Unavailable" } }
+  foreach ($property in $practical.PSObject.Properties) { $hostEvidence | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value }
+  return $hostEvidence
 }
 Export-ModuleMember -Function @("Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertFrom-OrangeCapacityScenario", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveSensorEvidence", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")

@@ -1,4 +1,5 @@
 use super::super::metrics::{CallbackMetrics, CallbackPrefix};
+use super::super::output_counters::PersistentOutputProvenanceEvidence;
 use super::super::phase::{
     same_measuring_generation, MeasurementControl, MeasurementPhase, PhaseCapture,
 };
@@ -11,6 +12,9 @@ use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerTimingProbe};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
+
+#[cfg(feature = "routing-tree-benchmark")]
+use rodio_engine_source::PersistentOutputProvenanceSnapshot;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct CallbackBodyStats {
@@ -26,6 +30,7 @@ pub(super) struct CallbackContext {
     pub(super) health: AudioStreamHealth,
     pub(super) worker_health: Arc<AtomicU8>,
     pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
+    pub(super) continue_on_recovered_miss: bool,
 }
 
 pub(super) fn build_typed<T>(
@@ -45,6 +50,7 @@ where
         health: callback_health,
         worker_health,
         timing_probe,
+        continue_on_recovered_miss,
     } = context;
     let mut previous_timestamp: Option<cpal::StreamInstant> = None;
     let mut previous_phase: Option<PhaseCapture> = None;
@@ -88,14 +94,34 @@ where
                     _ => None,
                 };
                 previous_timestamp = Some(timestamp);
+                #[cfg(feature = "routing-tree-benchmark")]
+                let entered_measuring = phase_capture.phase == MeasurementPhase::Measuring
+                    && previous_phase
+                        .is_none_or(|previous| !same_measuring_generation(previous, phase_capture));
                 previous_phase = Some(phase_capture);
+                #[cfg(feature = "routing-tree-benchmark")]
+                if entered_measuring {
+                    if let Some(source) = callback_source.source_mut() {
+                        source.rebase_persistent_output_provenance();
+                    }
+                }
+                #[cfg(feature = "routing-tree-benchmark")]
+                let provenance_before = persistent_output_provenance_snapshot(&mut callback_source);
                 let body = fill_persistent_callback_body(
                     data,
                     &mut callback_source,
                     &callback_health,
                     &callback_metrics,
                     &worker_health,
+                    continue_on_recovered_miss,
                 );
+                #[cfg(feature = "routing-tree-benchmark")]
+                let provenance = provenance_delta(
+                    provenance_before,
+                    persistent_output_provenance_snapshot(&mut callback_source),
+                );
+                #[cfg(not(feature = "routing-tree-benchmark"))]
+                let provenance = PersistentOutputProvenanceEvidence::default();
                 let frames = (data.len() / usize::from(channels)) as u32;
                 let measured = callback_metrics.record_prefix(CallbackPrefix {
                     entry_ns: phase_capture.entry_ns,
@@ -106,6 +132,9 @@ where
                     post_mute_nonzero: body.post_mute_nonzero,
                     spacing_ns: spacing,
                 });
+                if measured {
+                    callback_metrics.record_persistent_output_provenance(provenance);
+                }
                 if profile_probe.request_pending() {
                     if let Some(source) = callback_source.source_mut() {
                         profile_probe.publish(source.profile_snapshot());
@@ -164,6 +193,7 @@ fn fill_persistent_callback_body<T>(
     callback_health: &AudioStreamHealth,
     metrics: &CallbackMetrics,
     worker_health: &AtomicU8,
+    continue_on_recovered_miss: bool,
 ) -> CallbackBodyStats
 where
     T: cpal::Sample + cpal::FromSample<f32> + PartialEq,
@@ -176,17 +206,24 @@ where
     };
     let health = source.source_worker_health();
     worker_health.store(health as u8, Ordering::Release);
-    if health.is_terminal() {
+    if worker_health_requires_terminal(health, continue_on_recovered_miss) {
         mark_persistent_worker_terminal(data, callback_health, metrics, health);
         return CallbackBodyStats::default();
     }
     let stats = fill_callback_body(data, source);
     let health = source.source_worker_health();
     worker_health.store(health as u8, Ordering::Release);
-    if health.is_terminal() {
+    if worker_health_requires_terminal(health, continue_on_recovered_miss) {
         mark_persistent_worker_terminal(data, callback_health, metrics, health);
     }
     stats
+}
+
+pub(super) fn worker_health_requires_terminal(
+    health: SourceWorkerHealth,
+    continue_on_recovered_miss: bool,
+) -> bool {
+    health.is_terminal() || (health.is_recovering() && !continue_on_recovered_miss)
 }
 
 fn mark_persistent_worker_terminal<T>(
@@ -198,10 +235,43 @@ fn mark_persistent_worker_terminal<T>(
     T: cpal::Sample + cpal::FromSample<f32>,
 {
     callback_health.mark_worker_health(health);
+    callback_health.mark_callback_terminal();
     metrics.mark_worker_terminal();
     let zero = post_dsp_zero();
     for sample in data {
         *sample = zero;
+    }
+}
+
+#[cfg(feature = "routing-tree-benchmark")]
+fn persistent_output_provenance_snapshot(
+    callback_source: &mut CallbackSource,
+) -> PersistentOutputProvenanceSnapshot {
+    callback_source
+        .source_mut()
+        .map(|source| source.persistent_output_provenance_snapshot())
+        .unwrap_or_default()
+}
+
+#[cfg(feature = "routing-tree-benchmark")]
+fn provenance_delta(
+    before: PersistentOutputProvenanceSnapshot,
+    after: PersistentOutputProvenanceSnapshot,
+) -> PersistentOutputProvenanceEvidence {
+    PersistentOutputProvenanceEvidence {
+        observable: true,
+        repeated_quantum_incidents: after
+            .repeated_quantum_incidents
+            .saturating_sub(before.repeated_quantum_incidents),
+        repeated_pcm_frames: after
+            .repeated_pcm_frames
+            .saturating_sub(before.repeated_pcm_frames),
+        silent_quantum_incidents: after
+            .silent_quantum_incidents
+            .saturating_sub(before.silent_quantum_incidents),
+        silent_pcm_frames: after
+            .silent_pcm_frames
+            .saturating_sub(before.silent_pcm_frames),
     }
 }
 

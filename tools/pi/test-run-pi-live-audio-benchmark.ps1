@@ -35,13 +35,19 @@ function Invoke-PrintOnly {
 }
 
 $inline = Assert-RaspberryLiveBenchmarkSelection -Units 16 -ExecutorMode Inline -MeasureSeconds 30
-if ($inline.Scenario -cne "capacity_analogue_16" -or $inline.NativeExecutorMode -cne "inline" -or $inline.LookaheadFrames -ne 0) { throw "Inline Raspberry benchmark selection changed." }
+if ($inline.Scenario -cne "capacity_analogue_16" -or $inline.NativeExecutorMode -cne "inline" -or $inline.OutputFrames -ne 128 -or $inline.AlsaPeriodFrames -ne 32 -or $inline.InternalFrames -ne 32 -or $inline.LookaheadFrames -ne 0 -or $inline.WorkerTimingMode -cne "disabled" -or $inline.ContinueOnRecoveredMiss) { throw "Inline Raspberry benchmark selection changed." }
 $u8 = Assert-RaspberryLiveBenchmarkSelection -Units 8 -ExecutorMode Inline -MeasureSeconds 30
-if ($u8.Scenario -cne "capacity_analogue_8" -or $u8.NativeExecutorMode -cne "inline" -or $u8.OutputFrames -ne 256 -or $u8.AlsaPeriodFrames -ne 64 -or $u8.InternalFrames -ne 128 -or $u8.LookaheadFrames -ne 0 -or $u8.EffectiveOutputLatencyFrames -ne 256) { throw "U8 Raspberry benchmark selection or geometry changed." }
-$multicore = Assert-RaspberryLiveBenchmarkSelection -Units 32 -ExecutorMode Multicore -MeasureSeconds 120
-if ($multicore.Scenario -cne "capacity_analogue_32" -or $multicore.NativeExecutorMode -cne "routing_tree_persistent" -or $multicore.WorkerTimingMode -cne "enabled" -or $multicore.LookaheadFrames -ne 128) { throw "Multicore Raspberry benchmark selection changed." }
+if ($u8.Scenario -cne "capacity_analogue_8" -or $u8.NativeExecutorMode -cne "inline" -or $u8.OutputFrames -ne 128 -or $u8.AlsaPeriodFrames -ne 32 -or $u8.InternalFrames -ne 32 -or $u8.LookaheadFrames -ne 0 -or $u8.EffectiveOutputLatencyFrames -ne 128) { throw "U8 Raspberry benchmark selection or geometry changed." }
+$multicore = Assert-RaspberryLiveBenchmarkSelection -Units 32 -ExecutorMode Multicore -MeasureSeconds 120 -ObserveCompromises
+if ($multicore.Scenario -cne "capacity_analogue_32" -or $multicore.NativeExecutorMode -cne "routing_tree_persistent" -or $multicore.OutputFrames -ne 256 -or $multicore.AlsaPeriodFrames -ne 64 -or $multicore.InternalFrames -ne 64 -or $multicore.WorkerTimingMode -cne "disabled" -or $multicore.LookaheadFrames -ne 64 -or $multicore.EffectiveOutputLatencyFrames -ne 320 -or -not $multicore.ContinueOnRecoveredMiss -or $multicore.ContinueOnRecoveredMissArgument -cne "--continue-on-recovered-miss") { throw "Multicore Raspberry benchmark selection changed." }
+$multicoreStrict = Assert-RaspberryLiveBenchmarkSelection -Units 32 -ExecutorMode Multicore -MeasureSeconds 120
+if ($multicoreStrict.ContinueOnRecoveredMiss -or $multicoreStrict.WorkerTimingMode -cne "disabled") { throw "Strict Multicore Raspberry benchmark selection changed." }
+$inlineObservation = Assert-RaspberryLiveBenchmarkSelection -Units 16 -ExecutorMode Inline -MeasureSeconds 120 -ObserveCompromises
+if (-not $inlineObservation.ObserveCompromises -or $inlineObservation.ContinueOnRecoveredMiss -or $inlineObservation.WorkerTimingMode -cne "disabled") { throw "Inline Raspberry observation selection changed." }
+Assert-Throws { Assert-RaspberryLiveBenchmarkSelection -Units 16 -ExecutorMode Inline -MeasureSeconds 30 -ObserveCompromises } "observation mode duration gate"
 
 $testHash = "a" * 64
+if ((Get-RaspberryLivePracticalGrade -RepeatIncidents 1 -SilentIncidents 0 -AlsaRecoveryLogIncidents 0 -CpalStreamErrors 0 -CpalDeviceErrors 0) -cne "Stable" -or (Get-RaspberryLivePracticalGrade -RepeatIncidents 0 -SilentIncidents 2 -AlsaRecoveryLogIncidents 0 -CpalStreamErrors 0 -CpalDeviceErrors 0) -cne "Stretched" -or (Get-RaspberryLivePracticalGrade -RepeatIncidents 0 -SilentIncidents 0 -AlsaRecoveryLogIncidents 0 -CpalStreamErrors 5 -CpalDeviceErrors 0) -cne "Compromised") { throw "Raspberry practical grade thresholds changed." }
 function New-TestProfile {
   param([int]$Units = 16)
   [pscustomobject][ordered]@{
@@ -58,13 +64,15 @@ function New-TestProfile {
 $u8Profile = New-TestProfile 8
 if ($u8Profile.active_synth_voices -ne 24 -or $u8Profile.active_sample_voices -ne 8 -or $u8Profile.active_bus_fx_slots -ne 4 -or $u8Profile.active_global_fx_slots -ne 1 -or $u8Profile.active_momentary_fx -ne 2) { throw "U8 Raspberry benchmark workload changed." }
 function New-TestCounters {
+  param([Parameter(Mandatory)][pscustomobject]$Selection)
   $zero = [pscustomobject][ordered]@{ rendered_quantums = 0; repeated_quantums = 0; dropped_quantums = 0; deadline_misses = 0; deadline_recoveries = 0 }
-  [pscustomobject][ordered]@{ observable = $false; warmup = $zero; start = $zero; end = $zero; delta = $zero }
+  [pscustomobject][ordered]@{ observable = $Selection.ExecutorMode -ceq "Multicore"; warmup = $zero; start = $zero; end = $zero; delta = $zero }
 }
 function New-TestCallback {
-  param([uint64]$OverrunCount = 0)
+  param([Parameter(Mandatory)][pscustomobject]$Selection, [uint64]$OverrunCount = 0, [uint64]$CpalDeviceErrors = 0, [uint64]$CpalStreamErrors = 0)
+  $frames = $Selection.OutputFrames
   [pscustomobject][ordered]@{
-    lifetime_callback_count = 10; callback_count = 10; first_measured_callback_ns = 1; last_measured_callback_ns = 10; measured_elapsed_ns = 9; callback_frames_min = 256; callback_frames_max = 256; callback_frame_sample_count = 10; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0; lifetime_callback_frames_min = 256; lifetime_callback_frames_max = 256; lifetime_callback_frame_sample_count = 10; lifetime_callback_frame_size_change_count = 0; lifetime_invalid_callback_frame_count = 0; rendered_frames = 2560; render_audio_duration_ns = 100; render_audio_duration_ratio_p50 = 0; render_audio_duration_ratio_p95 = 0; render_audio_duration_ratio_p99 = 0; render_audio_duration_ratio_p99_9 = 0; render_audio_duration_ratio_max = 0; over_audio_duration_budget_count = $OverrunCount; callback_spacing_min_ns = 1; callback_spacing_max_ns = 1; callback_lateness_max_ns = 0; callback_timestamp_observed = $true; pre_mute_nonzero_samples = 10; pre_mute_peak = 1; post_mute_nonzero_samples = 0; cpal_device_error_count = 0; cpal_stream_error_count = 0; worker_terminal = $false; terminal_error = $false
+    lifetime_callback_count = 10; callback_count = 10; first_measured_callback_ns = 1; last_measured_callback_ns = 10; measured_elapsed_ns = 9; callback_frames_min = $frames; callback_frames_max = $frames; callback_frame_sample_count = 10; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0; lifetime_callback_frames_min = $frames; lifetime_callback_frames_max = $frames; lifetime_callback_frame_sample_count = 10; lifetime_callback_frame_size_change_count = 0; lifetime_invalid_callback_frame_count = 0; rendered_frames = 10 * $frames; render_audio_duration_ns = 100; render_audio_duration_ratio_p50 = 0; render_audio_duration_ratio_p95 = 0; render_audio_duration_ratio_p99 = 0; render_audio_duration_ratio_p99_9 = 0; render_audio_duration_ratio_max = 0; over_audio_duration_budget_count = $OverrunCount; callback_spacing_min_ns = 1; callback_spacing_max_ns = 1; callback_lateness_max_ns = 0; callback_timestamp_observed = $true; pre_mute_nonzero_samples = 10; pre_mute_peak = 1; post_mute_nonzero_samples = 0; cpal_device_error_count = $CpalDeviceErrors; cpal_stream_error_count = $CpalStreamErrors; worker_terminal = $false; terminal_error = $false
   }
 }
 function New-TestWorkerTiming {
@@ -84,17 +92,18 @@ if (-not (& $validationModule { param($Timing) Test-RaspberryLiveWorkerTimingCle
 $workerTiming.coordinator.frozen = $false
 if (& $validationModule { param($Timing) Test-RaspberryLiveWorkerTimingClean $Timing } $workerTiming) { throw "Unfrozen Raspberry worker timing evidence was accepted as clean." }
 function New-TestResult {
-  param([string]$Status = "pass", [uint64]$OverrunCount = 0)
+  param([string]$Status = "pass", [uint64]$OverrunCount = 0, [pscustomobject]$Selection = $inline, [uint64]$RepeatIncidents = 0, [uint64]$RepeatedPcmFrames = 0, [uint64]$SilentIncidents = 0, [uint64]$SilentPcmFrames = 0, [uint64]$CpalDeviceErrors = 0, [uint64]$CpalStreamErrors = 0)
+  $isMulticore = $Selection.ExecutorMode -ceq "Multicore"
   [pscustomobject][ordered]@{
-    schema_version = 12; kind = "raspberry_audio_benchmark_result"; status = $Status; board_profile = "raspberry-pi-zero-2w"; artifact_sha256 = $testHash; scenario = "capacity_analogue_16"; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 128; lookahead_frames = 0; effective_output_latency_frames = 256; sample_format = "F32"; pid = 1234; systemd_invocation_id = "invocation"; sample_rate = 44100; channels = 2; executor_mode = "inline"; worker_timing_mode = "disabled"; warmup_seconds = 5; measure_seconds = 30; scheduler_qualified = $true; callback_scheduling_policy = "SCHED_FIFO"; callback_scheduling_priority = 70; callback_scheduling_cpu = 1; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; post_dsp_zero = $true; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null; worker_health = "disabled"; worker_thread_name_0 = ""; worker_thread_name_1 = ""; joined_workers = 0; retirement_error = $null; worker_timing = $null; detected_continuity_events = 0; profile_start = New-TestProfile; profile_end = New-TestProfile; persistent_output_counters = New-TestCounters; callback = New-TestCallback $OverrunCount
+    schema_version = 13; kind = "raspberry_audio_benchmark_result"; status = $Status; board_profile = "raspberry-pi-zero-2w"; artifact_sha256 = $testHash; scenario = $Selection.Scenario; requested_output_buffer_frames = $Selection.OutputFrames; expected_alsa_buffer_frames = $Selection.OutputFrames; expected_alsa_period_frames = $Selection.AlsaPeriodFrames; internal_block_frames = $Selection.InternalFrames; lookahead_frames = $Selection.LookaheadFrames; effective_output_latency_frames = $Selection.EffectiveOutputLatencyFrames; sample_format = "F32"; pid = 1234; systemd_invocation_id = "invocation"; sample_rate = 44100; channels = 2; executor_mode = $Selection.NativeExecutorMode; worker_timing_mode = $Selection.WorkerTimingMode; warmup_seconds = 5; measure_seconds = $Selection.MeasureSeconds; scheduler_qualified = $true; callback_scheduling_policy = "SCHED_FIFO"; callback_scheduling_priority = 70; callback_scheduling_cpu = 1; measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; post_dsp_zero = $true; recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null; continue_on_recovered_miss = [bool]$Selection.ContinueOnRecoveredMiss; persistent_output_provenance = [pscustomobject][ordered]@{ observable = $isMulticore; repeated_quantum_incidents = $RepeatIncidents; repeated_pcm_frames = $RepeatedPcmFrames; silent_quantum_incidents = $SilentIncidents; silent_pcm_frames = $SilentPcmFrames }; worker_health = if ($isMulticore) { "healthy" } else { "disabled" }; worker_thread_name_0 = if ($isMulticore) { "oct-dsp-tree-0" } else { "" }; worker_thread_name_1 = if ($isMulticore) { "oct-dsp-tree-1" } else { "" }; joined_workers = if ($isMulticore) { 2 } else { 0 }; retirement_error = $null; worker_timing = $null; detected_continuity_events = $OverrunCount; profile_start = New-TestProfile $Selection.Units; profile_end = New-TestProfile $Selection.Units; persistent_output_counters = New-TestCounters $Selection; callback = New-TestCallback $Selection $OverrunCount $CpalDeviceErrors $CpalStreamErrors
   }
 }
 function Write-TestEvidence {
-  param([Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][pscustomobject]$Result, [Parameter(Mandatory)][string]$StudyStatus, [string]$RestoreStatus = "0")
+  param([Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][pscustomobject]$Result, [Parameter(Mandatory)][string]$StudyStatus, [string]$RestoreStatus = "0", [pscustomobject]$Selection = $inline, [string]$Journal = "")
   New-Item -ItemType Directory -Force -Path $Directory | Out-Null
   Set-Content (Join-Path $Directory "benchmark-identity.txt") "main_pid=1234`ninvocation_id=invocation" -Encoding UTF8
-  $readiness = [pscustomobject][ordered]@{ schema_version = 5; kind = "raspberry_audio_benchmark_readiness"; status = "ready"; board_profile = "raspberry-pi-zero-2w"; pid = 1234; systemd_invocation_id = "invocation"; artifact_sha256 = $testHash; scenario = "capacity_analogue_16"; requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 128; lookahead_frames = 0; sample_rate = 44100; channels = 2; sample_format = "F32"; scheduler_qualified = $true; post_dsp_zero = $true; executor_mode = "inline"; worker_health = "disabled"; worker_thread_name_0 = ""; worker_thread_name_1 = ""; callback_frames_min = 256; callback_frames_max = 256; callback_frame_sample_count = 10; invalid_callback_frame_count = 0 }
-  $release = [pscustomobject][ordered]@{ schema_version = 2; kind = "raspberry_audio_benchmark_release"; status = "released"; board_profile = "raspberry-pi-zero-2w"; pid = 1234; systemd_invocation_id = "invocation"; artifact_sha256 = $testHash; scenario = "capacity_analogue_16"; expected_alsa_buffer_frames = 256; observed_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; observed_alsa_period_frames = 64 }
+  $readiness = [pscustomobject][ordered]@{ schema_version = 5; kind = "raspberry_audio_benchmark_readiness"; status = "ready"; board_profile = "raspberry-pi-zero-2w"; pid = 1234; systemd_invocation_id = "invocation"; artifact_sha256 = $testHash; scenario = $Selection.Scenario; requested_output_buffer_frames = $Selection.OutputFrames; expected_alsa_buffer_frames = $Selection.OutputFrames; expected_alsa_period_frames = $Selection.AlsaPeriodFrames; internal_block_frames = $Selection.InternalFrames; lookahead_frames = $Selection.LookaheadFrames; sample_rate = 44100; channels = 2; sample_format = "F32"; scheduler_qualified = $true; post_dsp_zero = $true; executor_mode = $Selection.NativeExecutorMode; worker_health = if ($Selection.ExecutorMode -ceq "Multicore") { "healthy" } else { "disabled" }; worker_thread_name_0 = if ($Selection.ExecutorMode -ceq "Multicore") { "oct-dsp-tree-0" } else { "" }; worker_thread_name_1 = if ($Selection.ExecutorMode -ceq "Multicore") { "oct-dsp-tree-1" } else { "" }; callback_frames_min = $Selection.OutputFrames; callback_frames_max = $Selection.OutputFrames; callback_frame_sample_count = 10; invalid_callback_frame_count = 0 }
+  $release = [pscustomobject][ordered]@{ schema_version = 2; kind = "raspberry_audio_benchmark_release"; status = "released"; board_profile = "raspberry-pi-zero-2w"; pid = 1234; systemd_invocation_id = "invocation"; artifact_sha256 = $testHash; scenario = $Selection.Scenario; expected_alsa_buffer_frames = $Selection.OutputFrames; observed_alsa_buffer_frames = $Selection.OutputFrames; expected_alsa_period_frames = $Selection.AlsaPeriodFrames; observed_alsa_period_frames = $Selection.AlsaPeriodFrames }
   $candidate = [pscustomobject][ordered]@{ schema_version = 1; kind = "octessera_candidate_readiness"; status = "ready"; pid = 2345; systemd_invocation_id = "restored-invocation"; package_version = "0.8.2"; board_profile = "raspberry-pi-zero-2w"; ready_at_unix_ms = 1700000000000 }
   $restored = "final_active=active`nfinal_enabled=enabled`nfinal_pid=2345`nfinal_invocation_id=restored-invocation`nrestore_status=$RestoreStatus"
   $readiness | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $Directory "benchmark-readiness.json") -Encoding UTF8
@@ -104,18 +113,105 @@ function Write-TestEvidence {
   Set-Content (Join-Path $Directory "service-restored-state.txt") $restored -Encoding UTF8
   Set-Content (Join-Path $Directory "study-result.txt") "status_class=$StudyStatus`ninterruption_started=true" -Encoding UTF8
   Set-Content (Join-Path $Directory "sensor-series.txt") "raspberry_system_sample phase=startup thermal_max_millicelsius=42000 mem_available_kb=100000 throttled=0x0 current_throttled_mask=0 undervoltage=0`nraspberry_system_sample phase=runtime thermal_max_millicelsius=43000 mem_available_kb=99000 throttled=0x0 current_throttled_mask=0 undervoltage=0" -Encoding UTF8
-  Set-Content (Join-Path $Directory "alsa-hw-params.txt") "period_size: 64`nbuffer_size: 256" -Encoding UTF8
+  Set-Content (Join-Path $Directory "alsa-hw-params.txt") "period_size: $($Selection.AlsaPeriodFrames)`nbuffer_size: $($Selection.OutputFrames)" -Encoding UTF8
+  Set-Content (Join-Path $Directory "unit-journal.txt") $Journal -Encoding UTF8
 }
 
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-raspberry-validation-" + [guid]::NewGuid().ToString("N"))
 try {
-  $failedResult = New-TestResult -Status fail -OverrunCount 1
+  $failedResult = New-TestResult -Status fail -OverrunCount 5
   if (Test-RaspberryLiveBenchmarkClean $failedResult $inline) { throw "Non-clean Raspberry evidence was accepted as clean." }
   Assert-RaspberryLiveBenchmarkResult $failedResult $inline $testHash 1234 "invocation"
   $measuredRoot = Join-Path $testRoot "measured"
   Write-TestEvidence $measuredRoot $failedResult "measured_failure"
   $measured = Get-RaspberryLiveHostEvidence $measuredRoot $inline $testHash
-  if ($measured.StatusClass -cne "measured_failure") { throw "Structurally valid non-clean evidence was not measured_failure." }
+  if ($measured.StatusClass -cne "measured_failure" -or $measured.PracticalGrade -cne "Stable" -or $measured.RepeatIncidents -ne 0 -or $measured.SilentIncidents -ne 0 -or $measured.AlsaRecoveryLogIncidents -ne 0) { throw "Structurally valid non-clean evidence was not measured_failure with the expected practical evidence." }
+  $inlineObservationResult = New-TestResult -Status fail -Selection $inlineObservation -OverrunCount 5
+  $inlineObservationRoot = Join-Path $testRoot "inline-observation"
+  Write-TestEvidence $inlineObservationRoot $inlineObservationResult "measured_failure" "0" $inlineObservation
+  $inlineObservationEvidence = Get-TestHostEvidenceWithoutErrors $inlineObservationRoot $inlineObservation $testHash
+  if ($inlineObservationEvidence.StatusClass -cne "measured_failure" -or $inlineObservationEvidence.PracticalGrade -cne "Stable") { throw "Inline compromised observation did not remain completed measured evidence." }
+  $multicoreResult = New-TestResult -Status fail -Selection $multicore -RepeatIncidents 2 -RepeatedPcmFrames 128 -SilentIncidents 0 -SilentPcmFrames 0
+  Assert-RaspberryLiveBenchmarkResult $multicoreResult $multicore $testHash 1234 "invocation"
+  $numericEvidence = [pscustomobject]@{ value = 0 }
+  $invalidNumericIndex = 0
+  foreach ($invalidNumeric in @("5", [double]5.0, [decimal]5.5, -1, $true, $null)) {
+    $numericEvidence.value = $invalidNumeric
+    Assert-Throws { & $validationModule { param($Evidence) Assert-RaspberryLiveUnsignedFields $Evidence @("value") "numeric evidence" } $numericEvidence } "invalid unsigned numeric evidence $invalidNumericIndex"
+    $invalidNumericIndex++
+  }
+  $numericEvidence.value = [uint64]::MaxValue
+  & $validationModule { param($Evidence) Assert-RaspberryLiveUnsignedFields $Evidence @("value") "numeric evidence" } $numericEvidence
+  $numericEvidence.value = [decimal]([uint64]::MaxValue)
+  & $validationModule { param($Evidence) Assert-RaspberryLiveUnsignedFields $Evidence @("value") "numeric evidence" } $numericEvidence
+  $invalidSchema = $multicoreResult | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+  $invalidSchema.schema_version = 12
+  Assert-Throws { Assert-RaspberryLiveBenchmarkResult $invalidSchema $multicore $testHash 1234 "invocation" } "schema 13 result"
+  $invalidContinuation = $multicoreResult | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+  $invalidContinuation.continue_on_recovered_miss = $false
+  Assert-Throws { Assert-RaspberryLiveBenchmarkResult $invalidContinuation $multicore $testHash 1234 "invocation" } "continuation identity"
+  $invalidProvenance = $multicoreResult | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+  $invalidProvenance.persistent_output_provenance.observable = $false
+  Assert-Throws { Assert-RaspberryLiveBenchmarkResult $invalidProvenance $multicore $testHash 1234 "invocation" } "persistent output provenance observability"
+  foreach ($invalidPair in @(
+    @{ Incidents = 0; Frames = 1 },
+    @{ Incidents = 3; Frames = 2 }
+  )) {
+    $invalidPairResult = $multicoreResult | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $invalidPairResult.persistent_output_provenance.repeated_quantum_incidents = $invalidPair.Incidents
+    $invalidPairResult.persistent_output_provenance.repeated_pcm_frames = $invalidPair.Frames
+    Assert-Throws { Assert-RaspberryLiveBenchmarkResult $invalidPairResult $multicore $testHash 1234 "invocation" } "provenance incident/frame pair"
+  }
+  $invalidInlineProvenance = $failedResult | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+  $invalidInlineProvenance.persistent_output_provenance.repeated_quantum_incidents = 1
+  Assert-Throws { Assert-RaspberryLiveBenchmarkResult $invalidInlineProvenance $inline $testHash 1234 "invocation" } "unobservable inline provenance"
+  $invalidEpipe = $multicoreResult | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+  $invalidEpipe.recovered_alsa_epipe_observable = $true
+  Assert-Throws { Assert-RaspberryLiveBenchmarkResult $invalidEpipe $multicore $testHash 1234 "invocation" } "unobservable EPIPE claim"
+  $multicoreRoot = Join-Path $testRoot "multicore"
+  Write-TestEvidence $multicoreRoot $multicoreResult "measured_failure" "0" $multicore "snd_pcm_recover: underrun occurred`nALSA lib pcm.c:123:(_snd_pcm_recover_with_limit) underrun occurred"
+  $multicoreEvidence = Get-RaspberryLiveHostEvidence $multicoreRoot $multicore $testHash
+  if ($multicoreEvidence.StatusClass -cne "measured_failure" -or $multicoreEvidence.PracticalGrade -cne "Stretched" -or $multicoreEvidence.RepeatIncidents -ne 2 -or $multicoreEvidence.RepeatedPcmFrames -ne 128 -or $multicoreEvidence.AlsaRecoveryLogIncidents -ne 2) { throw "Multicore observation evidence or conservative ALSA log count changed." }
+  $deadlineResult = New-TestResult -Status fail -Selection $multicore
+  $deadlineResult.worker_health = "deadline_miss"
+  $deadlineRoot = Join-Path $testRoot "deadline-miss"
+  Write-TestEvidence $deadlineRoot $deadlineResult "measured_failure" "0" $multicore
+  $deadlineEvidence = Get-TestHostEvidenceWithoutErrors $deadlineRoot $multicore $testHash
+  if ($deadlineEvidence.StatusClass -cne "measured_failure") { throw "A continued Multicore deadline miss was not retained as completed measured evidence." }
+  $strictDeadlineResult = New-TestResult -Status fail -Selection $multicoreStrict
+  $strictDeadlineResult.worker_health = "deadline_miss"
+  $strictDeadlineRoot = Join-Path $testRoot "strict-deadline-miss"
+  Write-TestEvidence $strictDeadlineRoot $strictDeadlineResult "measured_failure" "0" $multicoreStrict
+  $strictDeadlineEvidence = Get-TestHostEvidenceWithoutErrors $strictDeadlineRoot $multicoreStrict $testHash
+  if ($strictDeadlineEvidence.StatusClass -cne "infrastructure_failure") { throw "A non-continued Multicore deadline miss was accepted as measured evidence." }
+  $terminalCases = @(
+    @{ Name = "terminal-callback"; Mutate = { param($Result) $Result.callback.worker_terminal = $true } },
+    @{ Name = "terminal-error"; Mutate = { param($Result) $Result.terminal_error = "worker terminated" } },
+    @{ Name = "terminal-worker"; Mutate = { param($Result) $Result.worker_health = "worker_exited" } },
+    @{ Name = "invalid-stream"; Mutate = { param($Result) $Result.stream_stopped = $false } }
+  )
+  foreach ($terminalCase in $terminalCases) {
+    $terminalResult = New-TestResult -Status fail -Selection $multicore
+    & $terminalCase.Mutate $terminalResult
+    $terminalRoot = Join-Path $testRoot $terminalCase.Name
+    Write-TestEvidence $terminalRoot $terminalResult "measured_failure" "0" $multicore
+    $terminalEvidence = Get-TestHostEvidenceWithoutErrors $terminalRoot $multicore $testHash
+    if ($terminalEvidence.StatusClass -cne "infrastructure_failure") { throw "Terminal or invalid lifecycle evidence was accepted as measured evidence: $($terminalCase.Name)." }
+  }
+  $gradeCases = @(
+    @{ Name = "stable"; Result = New-TestResult -Selection $multicore; StudyStatus = "pass"; Journal = ""; Expected = "Stable" },
+    @{ Name = "stretched"; Result = New-TestResult -Status fail -Selection $multicore -RepeatIncidents 2 -RepeatedPcmFrames 128 -CpalDeviceErrors 2; StudyStatus = "measured_failure"; Journal = "snd_pcm_recover: underrun occurred`nnot an ALSA recovery"; Expected = "Stretched" },
+    @{ Name = "compromised"; Result = New-TestResult -Status fail -Selection $multicore -SilentIncidents 5 -SilentPcmFrames 320 -CpalStreamErrors 5; StudyStatus = "measured_failure"; Journal = "snd_pcm_recover: underrun occurred`nALSA lib pcm.c:123:(_snd_pcm_recover_with_limit) underrun occurred`nALSA lib pcm.c:124:(_snd_pcm_recover_with_limit) underrun occurred`nALSA lib pcm.c:125:(_snd_pcm_recover_with_limit) underrun occurred`nALSA lib pcm.c:126:(_snd_pcm_recover_with_limit) underrun occurred"; Expected = "Compromised" }
+  )
+  foreach ($gradeCase in $gradeCases) {
+    $gradeRoot = Join-Path $testRoot $gradeCase.Name
+    if ($gradeCase.Name -ceq "stable" -and -not (Test-RaspberryLiveBenchmarkClean $gradeCase.Result $multicore)) { throw "Synthetic stable Multicore result was not clean." }
+    Write-TestEvidence $gradeRoot $gradeCase.Result $gradeCase.StudyStatus "0" $multicore $gradeCase.Journal
+    $gradeEvidence = Get-RaspberryLiveHostEvidence $gradeRoot $multicore $testHash
+    if ($gradeEvidence.PracticalGrade -cne $gradeCase.Expected) { throw "Raspberry practical grade changed for $($gradeCase.Name)." }
+  }
+  $compromisedObservation = Get-TestHostEvidenceWithoutErrors (Join-Path $testRoot "compromised") $multicore $testHash
+  if ($compromisedObservation.StatusClass -cne "measured_failure" -or $compromisedObservation.PracticalGrade -cne "Compromised") { throw "Compromised observation was not retained as completed measured evidence." }
   foreach ($studyStatus in @("measured_failure", "pass")) {
     $retainedRoot = Join-Path $testRoot ("retained-" + $studyStatus)
     $retainedResult = if ($studyStatus -ceq "measured_failure") { $failedResult } else { New-TestResult }
@@ -173,13 +269,13 @@ try {
   Write-TestEvidence $alsaMismatchRoot (New-TestResult) "pass"
   Set-Content (Join-Path $alsaMismatchRoot "alsa-hw-params.txt") "period_size: 32`nbuffer_size: 256" -Encoding UTF8
   $alsaMismatch = Get-TestHostEvidenceWithoutErrors $alsaMismatchRoot $inline $testHash
-  if ($alsaMismatch.StatusClass -cne "infrastructure_failure" -or $alsaMismatch.Reason -cne "Raspberry benchmark raw ALSA evidence did not contain exact buffer_size 256 and period_size 64 rows.") { throw "Raw ALSA evidence was not validated exactly." }
+  if ($alsaMismatch.StatusClass -cne "infrastructure_failure" -or $alsaMismatch.Reason -ne "Raspberry benchmark raw ALSA evidence did not contain exact buffer_size 128 and period_size 32 rows.") { throw "Raw ALSA evidence was not validated exactly." }
   $preSudoRoot = Join-Path $testRoot "pre-sudo"
   New-Item -ItemType Directory -Force -Path $preSudoRoot | Out-Null
   Set-Content (Join-Path $preSudoRoot "study-result.txt") "mode=LiveAudioBenchmark`nstatus_class=infrastructure_failure`ninterruption_started=false`nreason=operator-sudo-authorization-unavailable" -Encoding UTF8
   $preSudo = Get-TestHostEvidenceWithoutErrors $preSudoRoot $inline $testHash
   if ($preSudo.StatusClass -cne "infrastructure_failure" -or $preSudo.Reason -cne "operator-sudo-authorization-unavailable") { throw "Pre-interruption sudo failure was not returned with its recorded reason." }
-  foreach ($artifactName in @("study-result.txt", "service-restored-state.txt", "benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt", "alsa-hw-params.txt", "candidate-ready.json")) {
+  foreach ($artifactName in @("study-result.txt", "service-restored-state.txt", "benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt", "alsa-hw-params.txt", "unit-journal.txt", "candidate-ready.json")) {
     $missingArtifactRoot = Join-Path $testRoot ("missing-post-" + $artifactName.Replace(".", "-"))
     Write-TestEvidence $missingArtifactRoot (New-TestResult) "pass"
     Remove-Item -LiteralPath (Join-Path $missingArtifactRoot $artifactName)
@@ -213,12 +309,13 @@ try {
 }
 
 $printOnly = Invoke-PrintOnly @{ Units = 16; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
-if ($printOnly -notmatch "no transport is invoked" -or $printOnly -notmatch "U16 scenario=capacity_analogue_16 executor=Inline output=256 period=64 internal=128 lookahead=0 measure=30 label=30-second screen") { throw "Inline PrintOnly output changed." }
+if ($printOnly -notmatch "no transport is invoked" -or $printOnly -notmatch "U16 scenario=capacity_analogue_16 executor=Inline output=128 period=32 internal=32 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "Inline PrintOnly output changed." }
 $u8PrintOnly = Invoke-PrintOnly @{ Units = 8; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
-if ($u8PrintOnly -notmatch "U8 scenario=capacity_analogue_8 executor=Inline output=256 period=64 internal=128 lookahead=0 measure=30 label=30-second screen") { throw "U8 PrintOnly output changed." }
-$multicorePrintOnly = Invoke-PrintOnly @{ Units = 32; ExecutorMode = "Multicore"; MeasureSeconds = 120; PrintOnly = $true }
-if ($multicorePrintOnly -notmatch "U32 scenario=capacity_analogue_32 executor=Multicore output=256 period=64 internal=128 lookahead=128 measure=120 label=120-second repeat") { throw "Multicore PrintOnly output changed." }
+if ($u8PrintOnly -notmatch "U8 scenario=capacity_analogue_8 executor=Inline output=128 period=32 internal=32 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "U8 PrintOnly output changed." }
+$multicorePrintOnly = Invoke-PrintOnly @{ Units = 32; ExecutorMode = "Multicore"; MeasureSeconds = 120; ObserveCompromises = $true; PrintOnly = $true }
+if ($multicorePrintOnly -notmatch "U32 scenario=capacity_analogue_32 executor=Multicore output=256 period=64 internal=64 lookahead=64 worker-timing=disabled continue-on-recovered-miss=True measure=120 label=120-second repeat") { throw "Multicore PrintOnly output changed." }
 Assert-Throws { & $runner -Units 16 } "missing explicit interruption consent"
+if ($runnerSource.IndexOf("ObserveCompromises", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf("completed observation", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf('StatusClass -ne "pass" -and -not ($ObserveCompromises', [StringComparison]::Ordinal) -lt 0) { throw "Raspberry observation mode does not retain completed compromised runs." }
 
 foreach ($required in @(
   "with-pi-ssh.ps1",
@@ -233,6 +330,10 @@ foreach ($required in @(
 )) {
   if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Runner is missing required contract: $required" }
 }
+foreach ($required in @("__OUTPUT_FRAMES__", "__ALSA_PERIOD_FRAMES__", "__INTERNAL_FRAMES__", "__CONTINUE_ON_RECOVERED_MISS__")) {
+  if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Runner is missing executor-owned geometry or continuation contract: $required" }
+}
+if ($runnerSource -match '--output-frames 256|--engine-block-frames 128|\[ "\$buffer" = 256 \]|\[ "\$period" = 64 \]') { throw "Raspberry runner retains hard-coded benchmark geometry." }
 if ($runnerSource -match "with-orange-ssh|orange_audio_benchmark|fallback") { throw "Raspberry runner contains Orange or fallback behavior." }
 $preflightIndex = $runnerSource.IndexOf("if ! sudo -n -v >/dev/null 2>&1", [StringComparison]::Ordinal)
 $serviceReadIndex = $runnerSource.IndexOf('initial_active="$(sudo -n systemctl', [StringComparison]::Ordinal)
@@ -299,9 +400,18 @@ if ($terminalStart -lt 0 -or $terminalResultIndex -lt 0 -or $terminalPidIndex -l
 
 $bash = Get-Command bash -ErrorAction SilentlyContinue
 $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
+$payloadMatch = [regex]::Match($runnerSource, '(?s)\$body = @''(.*?)''@')
+if (-not $payloadMatch.Success) { throw "Raspberry runner payload was not found." }
+$payloadTemplate = $payloadMatch.Groups[1].Value
+function Resolve-TestPayload {
+  param([Parameter(Mandatory)][string]$Template, [Parameter(Mandatory)][pscustomobject]$Selection)
+  return $Template.Replace("__SCENARIO__", $Selection.Scenario).Replace("__EXECUTOR__", $Selection.NativeExecutorMode).Replace("__OUTPUT_FRAMES__", [string]$Selection.OutputFrames).Replace("__INTERNAL_FRAMES__", [string]$Selection.InternalFrames).Replace("__WORKER_TIMING__", $Selection.WorkerTimingMode).Replace("__CONTINUE_ON_RECOVERED_MISS__", $Selection.ContinueOnRecoveredMissArgument).Replace("__ALSA_PERIOD_FRAMES__", [string]$Selection.AlsaPeriodFrames)
+}
+$inlinePayload = Resolve-TestPayload $payloadTemplate $inline
+$multicorePayload = Resolve-TestPayload $payloadTemplate $multicore
+if ($inlinePayload -notmatch '--executor inline --scenario capacity_analogue_16 --output-frames 128 --engine-block-frames 32 --worker-timing disabled\s+--warmup-seconds' -or $inlinePayload -match '--continue-on-recovered-miss') { throw "Inline Raspberry command geometry or continuation changed." }
+if ($multicorePayload -notmatch '--executor routing_tree_persistent --scenario capacity_analogue_32 --output-frames 256 --engine-block-frames 64 --worker-timing disabled\s+--continue-on-recovered-miss --warmup-seconds') { throw "Multicore Raspberry command geometry or continuation changed." }
 if (($null -ne $bash -and [string]$bash.Source -notmatch "WindowsApps") -or $null -ne $wsl) {
-  $payloadMatch = [regex]::Match($runnerSource, '(?s)\$body = @''(.*?)''@')
-  if (-not $payloadMatch.Success) { throw "Raspberry runner payload was not found." }
   $payloadPath = [IO.Path]::GetTempFileName()
   try {
     [IO.File]::WriteAllText($payloadPath, $payloadMatch.Groups[1].Value)

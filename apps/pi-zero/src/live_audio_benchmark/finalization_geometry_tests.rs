@@ -47,7 +47,14 @@ fn pre_stream_finalization_accepts_inline_analogue_geometry() {
     assert_eq!(value["scenario"], "capacity_analogue_1");
     assert_eq!(value["requested_output_buffer_frames"], 128);
     assert_eq!(value["expected_alsa_period_frames"], 32);
-    assert_eq!(value["internal_block_frames"], 64);
+    assert_eq!(
+        value["internal_block_frames"],
+        if super::super::super::geometry::is_raspberry_diagnostic() {
+            32
+        } else {
+            64
+        }
+    );
     assert_eq!(value["lookahead_frames"], 0);
     assert_eq!(value["effective_output_latency_frames"], 128);
     assert!(serde_json::from_value::<BenchmarkResult>(value).is_ok());

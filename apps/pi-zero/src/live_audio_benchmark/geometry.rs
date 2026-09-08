@@ -1,5 +1,15 @@
 use super::cli::BenchmarkExecutorMode;
 
+pub(crate) const fn is_raspberry_diagnostic() -> bool {
+    cfg!(all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    ))
+}
+
 pub(crate) fn expected_lookahead_frames(
     executor_mode: BenchmarkExecutorMode,
     internal_frames: usize,
@@ -18,6 +28,20 @@ pub(crate) fn validate_requested_geometry(
 ) -> Result<(), String> {
     if executor_mode == BenchmarkExecutorMode::RoutingTreePersistent && output_frames > 256 {
         return Err("routing_tree_persistent executor requires output frames <= 256".into());
+    }
+    if is_raspberry_diagnostic() {
+        let approved = matches!(
+            (executor_mode, output_frames, internal_frames),
+            (BenchmarkExecutorMode::Inline, 128, 32)
+                | (BenchmarkExecutorMode::RoutingTreePersistent, 256, 64)
+        );
+        if !approved {
+            return Err(format!(
+                "unsupported {} benchmark geometry tuple: output={output_frames} internal={internal_frames}",
+                super::platform::BENCHMARK_LABEL
+            ));
+        }
+        return Ok(());
     }
     let approved = match (output_frames, internal_frames) {
         (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256) => true,
@@ -94,7 +118,7 @@ pub(crate) fn validate_recorded_geometry(geometry: RecordedGeometry<'_>) -> Resu
     feature = "benchmark-voice-pools-128",
     feature = "benchmark-voice-pools-256"
 ))]
-fn is_analogue_capacity_scenario(scenario: &str) -> bool {
+pub(crate) fn is_analogue_capacity_scenario(scenario: &str) -> bool {
     crate::dsp_profile::analogue_capacity_scenario::parse(scenario).is_some()
 }
 
@@ -102,7 +126,7 @@ fn is_analogue_capacity_scenario(scenario: &str) -> bool {
     feature = "benchmark-voice-pools-128",
     feature = "benchmark-voice-pools-256"
 )))]
-fn is_analogue_capacity_scenario(scenario: &str) -> bool {
+pub(crate) fn is_analogue_capacity_scenario(scenario: &str) -> bool {
     let _ = scenario;
     false
 }

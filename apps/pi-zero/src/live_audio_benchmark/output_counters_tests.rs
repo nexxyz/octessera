@@ -1,4 +1,6 @@
-use super::{PersistentOutputCounters, PersistentOutputCountersEvidence};
+use super::{
+    PersistentOutputCounters, PersistentOutputCountersEvidence, PersistentOutputProvenanceEvidence,
+};
 use crate::live_audio_benchmark::cli::BenchmarkExecutorMode;
 use std::sync::{Arc, Barrier};
 use std::thread;
@@ -121,6 +123,20 @@ fn inline_output_counter_evidence_is_exactly_zero_and_unobservable() {
     let mut invalid = evidence;
     invalid.end.rendered_quantums = 1;
     assert!(invalid.validate(BenchmarkExecutorMode::Inline).is_err());
+}
+
+#[test]
+fn output_provenance_requires_observability_for_nonzero_counts() {
+    let evidence = PersistentOutputProvenanceEvidence {
+        repeated_pcm_frames: 1,
+        ..Default::default()
+    };
+    assert!(evidence.validate(false).is_err());
+    let observable = PersistentOutputProvenanceEvidence {
+        observable: true,
+        ..evidence
+    };
+    assert!(observable.validate(true).is_ok());
 }
 
 #[test]
