@@ -17,14 +17,16 @@ mod deserialization;
 mod result;
 #[path = "worker_timing_validation.rs"]
 mod worker_timing_validation;
-pub use super::output_counters::PersistentOutputCountersEvidence;
+pub use super::output_counters::{
+    PersistentOutputCountersEvidence, PersistentOutputProvenanceEvidence,
+};
 pub use result::BenchmarkResult;
 
 const BENCHMARK_SCHEMA_VERSION: u8 = 5;
-const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 12;
+const BENCHMARK_RESULT_SCHEMA_VERSION: u8 = 13;
 const BENCHMARK_RELEASE_SCHEMA_VERSION: u8 = 2;
 
-fn deserialize_result_schema_v12<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_result_schema_v13<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {

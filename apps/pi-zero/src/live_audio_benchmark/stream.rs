@@ -131,6 +131,7 @@ pub fn build(
         health: health.clone(),
         worker_health: worker_health.clone(),
         timing_probe,
+        continue_on_recovered_miss: config.continue_on_recovered_miss,
     };
     let stream_result = match sample_format {
         SampleFormat::F32 => callback::build_typed::<f32>(
@@ -278,10 +279,15 @@ fn map_build_error(error: AudioStreamBuildError<String>) -> String {
 }
 
 fn stream_geometry(output_frames: u32, internal_frames: usize) -> Result<StreamGeometry, String> {
-    if !matches!(
-        (output_frames, internal_frames),
-        (128, 32) | (128, 64) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
-    ) {
+    let approved = if super::geometry::is_raspberry_diagnostic() {
+        matches!((output_frames, internal_frames), (128, 32) | (256, 64))
+    } else {
+        matches!(
+            (output_frames, internal_frames),
+            (128, 32) | (128, 64) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
+        )
+    };
+    if !approved {
         return Err(format!(
             "benchmark output/internal frame mapping is invalid: output={output_frames} internal={internal_frames}"
         ));

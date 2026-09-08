@@ -44,6 +44,7 @@ $metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
 $payloadModule = Join-Path $PSScriptRoot "orange-capability-study-payloads.psm1"
 $livePayloadModule = Join-Path $PSScriptRoot "orange-live-benchmark-payloads.psm1"
 $liveValidationModule = Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1"
+$liveOutcomeModule = Join-Path $PSScriptRoot "orange-live-study-outcome-validation.psm1"
 $baselineValidationModule = Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1"
 $defaultArtifact = Join-Path $PSScriptRoot "..\..\target\orange-pi-cross\octessera-pi"
 $defaultOutput = Join-Path $PSScriptRoot "..\..\target\orange-pi-study"
@@ -60,6 +61,7 @@ if ($activeMode -and -not $AllowServiceInterruption -and -not ($PrintOnly -and $
 Import-Module $metadataModule -Force
 Import-Module $payloadModule -Force
 Import-Module $liveValidationModule -Force
+Import-Module $liveOutcomeModule -Force
 Import-Module $baselineValidationModule -Force
 $liveSelection = $null
 $baselineSelection = $null
@@ -78,23 +80,11 @@ if ($Mode -eq "LiveAudioBenchmark") {
     -EngineBlockFrames $EngineBlockFrames `
     -MeasureSeconds $MeasureSeconds `
     -AllowLongRepeat:$AllowLongRepeat `
+    -ContinueOnRecoveredMiss:$ContinueOnRecoveredMiss `
     -ExecutorMode $ExecutorMode `
     -WorkerTimingMode $WorkerTimingMode
   $WorkerTimingMode = $liveSelection.WorkerTimingMode
 }
-if ($ContinueOnRecoveredMiss -and (
-    $null -eq $liveSelection -or
-    $liveSelection.Scenario -cnotin @("capacity_analogue_16", "capacity_analogue_32") -or
-    $liveSelection.ExecutorMode -cne "routing_tree_persistent" -or
-    $liveSelection.WorkerTimingMode -cne "enabled" -or
-    [int]$liveSelection.OutputFrames -ne 256 -or
-    [int]$liveSelection.AlsaPeriodFrames -ne 64 -or
-    [int]$liveSelection.InternalFrames -ne 64 -or
-    [int]$liveSelection.MeasureSeconds -ne 120
-  )) {
-  throw "-ContinueOnRecoveredMiss requires capacity_analogue_16 (u16) or capacity_analogue_32 (u32), routing_tree_persistent, measure=120, output=256, ALSA period=64, internal=64, and worker timing=enabled."
-}
-
 function Quote-PowerShellValue {
   param([Parameter(Mandatory)][string]$Value)
   return "'" + $Value.Replace("'", "''") + "'"
@@ -314,6 +304,8 @@ $preparePath = $null
 $studyPath = $null
 $cleanupPath = $null
 $resolvedEvidenceDirectory = $null
+$hostEvidence = $null
+$hostEvidenceFailure = $null
 
 try {
   $preparePath = Write-PayloadFile "prepare" $payloadBundle.Prepare $runId
@@ -409,8 +401,8 @@ try {
             -ArtifactHash $artifactHash
           $hostEvidencePath = Join-Path $resolvedEvidenceDirectory "host-evidence.json"
           $hostEvidence | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $hostEvidencePath -Encoding UTF8
-          if ($hostEvidence.StatusClass -ne "pass" -and $null -eq $studyFailure) {
-            $studyFailure = "Live benchmark status class was $($hostEvidence.StatusClass): $($hostEvidence.Reason)"
+          if ($hostEvidence.StatusClass -ne "pass") {
+            $hostEvidenceFailure = "Live benchmark status class was $($hostEvidence.StatusClass): $($hostEvidence.Reason)"
           }
         } catch {
           if ($null -eq $studyFailure) { $studyFailure = $_ }
@@ -433,6 +425,19 @@ try {
 
 if ($null -ne $recoveryFailure) {
   throw $recoveryFailure
+}
+if ($Mode -eq "LiveAudioBenchmark" -and $null -ne $hostEvidence) {
+  Assert-OrangeLiveStudyOutcome `
+    -Selection $liveSelection `
+    -HostStatusClass $hostEvidence.StatusClass `
+    -HostReason $hostEvidenceFailure `
+    -StudyFailure $studyFailure `
+    -RecoveryFailure $recoveryFailure `
+    -ContinueOnRecoveredMiss:$ContinueOnRecoveredMiss
+  if (@("measured_failure", "over_budget") -contains $hostEvidence.StatusClass) {
+    Write-Output "PracticalGrade=$($hostEvidence.PracticalGrade) RepeatIncidents=$($hostEvidence.RepeatIncidents) RepeatedPcmFrames=$($hostEvidence.RepeatedPcmFrames) SilentIncidents=$($hostEvidence.SilentIncidents) SilentPcmFrames=$($hostEvidence.SilentPcmFrames) AlsaRecoveryLogIncidents=$($hostEvidence.AlsaRecoveryLogIncidents)"
+  }
+  $studyFailure = $null
 }
 if ($null -ne $studyFailure) {
   throw $studyFailure

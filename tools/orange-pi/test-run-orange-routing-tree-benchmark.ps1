@@ -40,16 +40,17 @@ function New-RoutingResult {
   $callback = [pscustomobject]@{ callback_count = 441; first_measured_callback_ns = 1; last_measured_callback_ns = 442; measured_elapsed_ns = 441; callback_frames_min = 100; callback_frames_max = 100; callback_frame_sample_count = 441; invalid_callback_frame_count = 0; callback_timestamp_observed = $true; terminal_error = $false; worker_terminal = $false; over_audio_duration_budget_count = 0; cpal_device_error_count = 0; cpal_stream_error_count = 0; pre_mute_nonzero_samples = 10; post_mute_nonzero_samples = 0; rendered_frames = 44100; render_audio_duration_ns = 1000000000; render_audio_duration_ratio_p50 = 0.5; render_audio_duration_ratio_p95 = 0.6; render_audio_duration_ratio_p99 = 0.7; render_audio_duration_ratio_p99_9 = 0.8; render_audio_duration_ratio_max = 0.9 }
   $timing = [pscustomobject]@{ workers = @([pscustomobject]@{ sequence = 7; render_ns = 10; dispatch_to_finish_ns = 20; cpu_start = 2; cpu_end = 2; finished = $true }, [pscustomobject]@{ sequence = 7; render_ns = 11; dispatch_to_finish_ns = 25; cpu_start = 3; cpu_end = 3; finished = $true }); coordinator = [pscustomobject]@{ sequence = 7; deadline_ns = 100; dispatch_to_deadline_start_ns = 10; dispatch_to_deadline_elapsed_ns = $null; in_flight_mask = 0; completed_mask = 3; first_parity = 0; dispatch_to_first_ns = 20; dispatch_to_both_ns = 25; reduction_ns = 4; coordinator_remainder_ns = 5; engine_block_total_ns = 40; callback_total_ns = 50; failed = $false; frozen = $true }; late_after_deadline_ns = $null; cpu_endpoint_changed = $false }
   $persistent = [pscustomobject]@{ observable = $true; warmup = [pscustomobject]@{ rendered_quantums = 3; repeated_quantums = 1; dropped_quantums = 0; deadline_misses = 1; deadline_recoveries = 1 }; start = [pscustomobject]@{ rendered_quantums = 5; repeated_quantums = 1; dropped_quantums = 1; deadline_misses = 2; deadline_recoveries = 1 }; end = [pscustomobject]@{ rendered_quantums = 7; repeated_quantums = 2; dropped_quantums = 3; deadline_misses = 4; deadline_recoveries = 4 }; delta = [pscustomobject]@{ rendered_quantums = 2; repeated_quantums = 1; dropped_quantums = 2; deadline_misses = 2; deadline_recoveries = 3 } }
-  return [pscustomobject]@{
-    schema_version = 12; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $Selection.Scenario
+  $result = [pscustomobject]@{
+    schema_version = 13; kind = "orange_audio_benchmark_result"; status = "pass"; board_profile = "orange-pi-zero-2w"; scenario = $Selection.Scenario
     requested_output_buffer_frames = 256; expected_alsa_buffer_frames = 256; expected_alsa_period_frames = 64; internal_block_frames = 128
     sample_format = "F32"; channels = 2; sample_rate = 44100; warmup_seconds = 5; measure_seconds = 30
     scheduler_qualified = $true; callback_scheduling_policy = "SCHED_FIFO"; callback_scheduling_priority = 70; callback_scheduling_cpu = 1; post_dsp_zero = $true
     measurement_stop_acknowledged = $true; stream_stopped = $true; final_progress_write_succeeded = $true; pid = 123; systemd_invocation_id = "invocation"; artifact_sha256 = ("a" * 64)
-    callback = $callback; persistent_output_counters = $persistent; detected_continuity_events = 3; profile_start = $snapshot; profile_end = $snapshot
-    recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null; executor_mode = "routing_tree_persistent"
+    callback = $callback; persistent_output_counters = $persistent; persistent_output_provenance = [pscustomobject]@{ observable = $true; repeated_quantum_incidents = 0; repeated_pcm_frames = 0; silent_quantum_incidents = 0; silent_pcm_frames = 0 }; detected_continuity_events = 3; profile_start = $snapshot; profile_end = $snapshot
+    recovered_alsa_epipe_count = $null; recovered_alsa_epipe_observable = $false; terminal_error = $null; executor_mode = "routing_tree_persistent"; continue_on_recovered_miss = $false
     lookahead_frames = 128; effective_output_latency_frames = 384; worker_health = "healthy"; worker_thread_name_0 = "oct-dsp-tree-0"; worker_thread_name_1 = "oct-dsp-tree-1"; joined_workers = 2; retirement_error = $null; worker_timing_mode = "enabled"; worker_timing = $timing
   }
+  return $result
 }
 
 $selection = Assert-OrangeLiveBenchmarkSelection -Scenario "synth_ramp_16" -OutputFrames 256 -EngineBlockFrames 128 -MeasureSeconds 30 -ExecutorMode "routing_tree_persistent"
@@ -92,7 +93,7 @@ Assert-Contains $routingPrint '"artifact_kind":"diagnostic-only"'
 Assert-Contains $routingPrint '"cargo_feature":"hardware-orange-pi-zero-2w routing-tree-benchmark"'
 Assert-Contains $routingPrint 'json_field schema_version "$marker")" = 5'
 $validationSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1") -Raw
-Assert-Contains $validationSource 'schema_version -Path "schema_version"), 12'
+Assert-Contains $validationSource 'schema_version -Path "schema_version"), 13'
 
 $studyStart = $routingPrint.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
 $studyEnd = $routingPrint.IndexOf("Study payload transport:", $studyStart, [StringComparison]::Ordinal)
@@ -110,7 +111,7 @@ Assert-Contains $routingPayload "oct-dsp-tree-1"
 Assert-Contains $routingPayload "lookahead_frames"
 Assert-Contains $routingPayload "effective_output_latency_frames"
 Assert-Contains $routingPayload 'validate_benchmark_result()'
-Assert-Contains $routingPayload '[ "$(json_field schema_version "$result")" = 12 ]'
+Assert-Contains $routingPayload '[ "$(json_field schema_version "$result")" = 13 ]'
 Assert-Contains $routingPayload 'worker_timing_mode "$result")" = enabled'
 Assert-OrangeGeneratedWorkerTaskAudit -RoutingPayload $routingPayload -InlinePayload $inlinePayload
 

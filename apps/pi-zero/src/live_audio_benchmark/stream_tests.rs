@@ -1,4 +1,4 @@
-use super::callback::{fill_callback_body, post_dsp_zero};
+use super::callback::{fill_callback_body, post_dsp_zero, worker_health_requires_terminal};
 #[cfg(feature = "routing-tree-benchmark")]
 use super::expected_routing_worker_thread_names;
 #[cfg(feature = "routing-tree-benchmark")]
@@ -22,15 +22,20 @@ use std::sync::Arc;
 
 #[test]
 fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
-    for (output_frames, internal_frames) in [
-        (128, 32),
-        (128, 64),
-        (256, 64),
-        (256, 128),
-        (256, 256),
-        (512, 128),
-        (1024, 256),
-    ] {
+    let approved = if super::super::geometry::is_raspberry_diagnostic() {
+        vec![(128, 32), (256, 64)]
+    } else {
+        vec![
+            (128, 32),
+            (128, 64),
+            (256, 64),
+            (256, 128),
+            (256, 256),
+            (512, 128),
+            (1024, 256),
+        ]
+    };
+    for (output_frames, internal_frames) in approved {
         let geometry = stream_geometry(output_frames, internal_frames).unwrap();
         assert_eq!(geometry.output_frames, output_frames);
         assert_eq!(geometry.internal_frames, internal_frames);
@@ -100,7 +105,11 @@ fn stream_preflight_rejects_non_analogue_128_64_before_device_access() {
 ))]
 #[test]
 fn inline_analogue_recorded_geometry_requires_exact_latency_evidence() {
-    let valid = (32, 64, 0, Some(128));
+    let valid = if super::super::geometry::is_raspberry_diagnostic() {
+        (32, 32, 0, Some(128))
+    } else {
+        (32, 64, 0, Some(128))
+    };
     assert!(validate_recorded_geometry(RecordedGeometry {
         scenario: "capacity_analogue_1",
         executor_mode: BenchmarkExecutorMode::Inline,
@@ -122,13 +131,34 @@ fn inline_analogue_recorded_geometry_requires_exact_latency_evidence() {
                 requested_output_buffer_frames: 128,
                 expected_alsa_buffer_frames: 128,
                 expected_alsa_period_frames: period,
-                internal_block_frames: 64,
+                internal_block_frames: valid.1,
                 lookahead_frames: lookahead,
                 effective_output_latency_frames: effective,
             })
             .is_err(),
             "mismatched recorded geometry should fail: period={period} lookahead={lookahead} effective={effective:?}"
         );
+    }
+}
+
+#[test]
+fn recovered_deadline_misses_are_opt_in_but_fatal_workers_are_terminal() {
+    assert!(!worker_health_requires_terminal(
+        SourceWorkerHealth::DeadlineMiss,
+        true
+    ));
+    assert!(worker_health_requires_terminal(
+        SourceWorkerHealth::DeadlineMiss,
+        false
+    ));
+    for health in [
+        SourceWorkerHealth::DispatchFailed,
+        SourceWorkerHealth::CompletionFailed,
+        SourceWorkerHealth::WorkerExited,
+        SourceWorkerHealth::InvalidBlock,
+    ] {
+        assert!(worker_health_requires_terminal(health, true));
+        assert!(worker_health_requires_terminal(health, false));
     }
 }
 
@@ -350,5 +380,14 @@ fn callback_body_converts_and_mutes_u16_output() {
     let stats = fill_callback_body(&mut data, &mut source);
     assert_eq!(data, [32_768; 3]);
     assert_eq!(source.next(), None);
+    assert_eq!(stats.pre_mute_nonzero, 2);
+}
+
+#[test]
+fn callback_body_consumes_exhausted_source_as_silence() {
+    let mut data = [1.0_f32; 4];
+    let mut source = [0.25, -0.5].into_iter();
+    let stats = fill_callback_body(&mut data, &mut source);
+    assert_eq!(data, [0.0; 4]);
     assert_eq!(stats.pre_mute_nonzero, 2);
 }

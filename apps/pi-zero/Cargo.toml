@@ -52,6 +52,7 @@ routing-tree-benchmark = [
     "source-worker-benchmark-timing",
     "realtime-engine/routing-tree-benchmark",
     "rodio-engine-source/routing-tree-benchmark",
+    "rodio-engine-source/output-provenance",
 ]
 routing-tree-executor = [
     "native-audio",

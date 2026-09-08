@@ -3,6 +3,33 @@ use rodio_engine_source::PersistentOutputCounters;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{fence, AtomicU64, Ordering};
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PersistentOutputProvenanceEvidence {
+    pub observable: bool,
+    pub repeated_quantum_incidents: u64,
+    pub repeated_pcm_frames: u64,
+    pub silent_quantum_incidents: u64,
+    pub silent_pcm_frames: u64,
+}
+
+impl PersistentOutputProvenanceEvidence {
+    pub(crate) fn validate(&self, expected_observable: bool) -> Result<(), String> {
+        if self.observable != expected_observable {
+            return Err("persistent output provenance observability is invalid".into());
+        }
+        if !self.observable
+            && (self.repeated_quantum_incidents != 0
+                || self.repeated_pcm_frames != 0
+                || self.silent_quantum_incidents != 0
+                || self.silent_pcm_frames != 0)
+        {
+            return Err("unobservable persistent output provenance must be zero".into());
+        }
+        Ok(())
+    }
+}
+
 pub(crate) struct PersistentOutputCountersMirror {
     sequence: AtomicU64,
     rendered_quantums: AtomicU64,
@@ -10,6 +37,52 @@ pub(crate) struct PersistentOutputCountersMirror {
     dropped_quantums: AtomicU64,
     deadline_misses: AtomicU64,
     deadline_recoveries: AtomicU64,
+}
+
+pub(crate) struct PersistentOutputProvenanceMirror {
+    repeated_quantum_incidents: AtomicU64,
+    repeated_pcm_frames: AtomicU64,
+    silent_quantum_incidents: AtomicU64,
+    silent_pcm_frames: AtomicU64,
+}
+
+impl PersistentOutputProvenanceMirror {
+    pub(crate) fn new() -> Self {
+        Self {
+            repeated_quantum_incidents: AtomicU64::new(0),
+            repeated_pcm_frames: AtomicU64::new(0),
+            silent_quantum_incidents: AtomicU64::new(0),
+            silent_pcm_frames: AtomicU64::new(0),
+        }
+    }
+
+    pub(crate) fn record(&self, evidence: PersistentOutputProvenanceEvidence) {
+        self.repeated_quantum_incidents
+            .fetch_add(evidence.repeated_quantum_incidents, Ordering::Relaxed);
+        self.repeated_pcm_frames
+            .fetch_add(evidence.repeated_pcm_frames, Ordering::Relaxed);
+        self.silent_quantum_incidents
+            .fetch_add(evidence.silent_quantum_incidents, Ordering::Relaxed);
+        self.silent_pcm_frames
+            .fetch_add(evidence.silent_pcm_frames, Ordering::Relaxed);
+    }
+
+    pub(crate) fn snapshot(&self) -> PersistentOutputProvenanceEvidence {
+        PersistentOutputProvenanceEvidence {
+            observable: false,
+            repeated_quantum_incidents: self.repeated_quantum_incidents.load(Ordering::Relaxed),
+            repeated_pcm_frames: self.repeated_pcm_frames.load(Ordering::Relaxed),
+            silent_quantum_incidents: self.silent_quantum_incidents.load(Ordering::Relaxed),
+            silent_pcm_frames: self.silent_pcm_frames.load(Ordering::Relaxed),
+        }
+    }
+
+    pub(crate) fn reset(&self) {
+        self.repeated_quantum_incidents.store(0, Ordering::Relaxed);
+        self.repeated_pcm_frames.store(0, Ordering::Relaxed);
+        self.silent_quantum_incidents.store(0, Ordering::Relaxed);
+        self.silent_pcm_frames.store(0, Ordering::Relaxed);
+    }
 }
 
 impl PersistentOutputCountersMirror {

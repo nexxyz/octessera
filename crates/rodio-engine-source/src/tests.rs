@@ -400,6 +400,10 @@ mod persistent_terminal_tests;
 #[path = "persistent_output_integration_tests.rs"]
 mod persistent_output_integration_tests;
 
+#[cfg(feature = "output-provenance")]
+#[path = "persistent_output_rebase_tests.rs"]
+mod persistent_output_rebase_tests;
+
 #[path = "pcm_mirror_integration_tests.rs"]
 mod pcm_mirror_integration_tests;
 

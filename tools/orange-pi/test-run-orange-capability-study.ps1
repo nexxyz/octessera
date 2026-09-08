@@ -370,12 +370,12 @@ Assert-Throws {
 
 $recoveredMissRoutingParameters = @{
   Mode = "LiveAudioBenchmark"
-  Scenario = "capacity_analogue_32"
+  Scenario = "capacity_analogue_36"
   OutputFrames = 256
   EngineBlockFrames = 64
   MeasureSeconds = 120
   ExecutorMode = "routing_tree_persistent"
-  WorkerTimingMode = "enabled"
+  WorkerTimingMode = "disabled"
   Artifact = $missingArtifact
   AllowServiceInterruption = $true
   ContinueOnRecoveredMiss = $true
@@ -383,12 +383,12 @@ $recoveredMissRoutingParameters = @{
 }
 $recoveredMissRouting = Invoke-StudyPrintOnly -Parameters $recoveredMissRoutingParameters
 Assert-NoPayloadPlaceholders $recoveredMissRouting
-Assert-Contains $recoveredMissRouting "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_32 measure=120"
+Assert-Contains $recoveredMissRouting "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_36 measure=120"
 Assert-Contains $recoveredMissRouting "--continue-on-recovered-miss"
 Assert-Contains $recoveredMissRouting '--artifact-sha256 "$expected_sha" --continue-on-recovered-miss || launch_status=$?'
 Assert-Contains $recoveredMissRouting 'validate_benchmark_worker_evidence "$progress" false true'
 Assert-Contains $recoveredMissRouting 'validate_benchmark_worker_evidence "$marker"'
-Assert-Contains $recoveredMissRouting 'validate_benchmark_worker_evidence "$result" true'
+Assert-Contains $recoveredMissRouting 'validate_benchmark_worker_evidence "$result" true true'
 Assert-Contains $recoveredMissRouting '[ "$worker_health" = healthy ] || [ "$worker_health" = deadline_miss ]'
 $recoveredMissRoutingWithoutSwitchParameters = $recoveredMissRoutingParameters.Clone()
 $recoveredMissRoutingWithoutSwitchParameters.Remove("ContinueOnRecoveredMiss")
@@ -399,12 +399,12 @@ $recoveredMissU16Parameters = $recoveredMissRoutingParameters.Clone()
 $recoveredMissU16Parameters.Scenario = "capacity_analogue_16"
 $recoveredMissU16 = Invoke-StudyPrintOnly -Parameters $recoveredMissU16Parameters
 Assert-NoPayloadPlaceholders $recoveredMissU16
-Assert-Contains $recoveredMissU16 "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_16 measure=120 warmup=5 worker-timing=enabled executor=routing_tree_persistent lookahead=64 effective-latency=320"
+Assert-Contains $recoveredMissU16 "Live selection: diagnostic output=256 period=64 engine=64 internal=64 scenario=capacity_analogue_16 measure=120 warmup=5 worker-timing=disabled executor=routing_tree_persistent lookahead=64 effective-latency=320"
 Assert-Contains $recoveredMissU16 '"artifact_kind":"diagnostic-only"'
 Assert-Contains $recoveredMissU16 '"cargo_feature":"hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128"'
 Assert-Contains $recoveredMissU16 "--continue-on-recovered-miss"
 $invalidRecoveredMissParameters = $recoveredMissRoutingParameters.Clone()
-$invalidRecoveredMissParameters.Scenario = "capacity_analogue_31"
+$invalidRecoveredMissParameters.Scenario = "capacity_synth_16"
 Assert-Throws { Invoke-StudyPrintOnly -Parameters $invalidRecoveredMissParameters | Out-Null }
 
 foreach ($seconds in @(299, 3000)) {

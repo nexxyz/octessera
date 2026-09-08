@@ -1,4 +1,5 @@
 use super::*;
+use crate::live_audio_benchmark::geometry::is_raspberry_diagnostic;
 
 fn valid_args() -> Vec<String> {
     vec![
@@ -48,7 +49,10 @@ fn inline_args_for(scenario: &str, output_frames: u32, internal_frames: usize) -
 }
 
 #[cfg(all(
-    feature = "benchmark-voice-pools-128",
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ),
     feature = "routing-tree-benchmark"
 ))]
 fn recovered_miss_args(scenario: &str) -> Vec<String> {
@@ -59,6 +63,8 @@ fn recovered_miss_args(scenario: &str) -> Vec<String> {
         "120".into(),
         "--executor".into(),
         "routing_tree_persistent".into(),
+        "--worker-timing".into(),
+        "disabled".into(),
         "--continue-on-recovered-miss".into(),
     ]);
     args
@@ -76,18 +82,38 @@ fn remove_arg(args: &mut Vec<String>, name: &str) {
 
 #[test]
 fn approved_cli_tuples_store_independent_geometry() {
-    for (output, internal, period) in [
-        (128, 32, 32),
-        (256, 64, 64),
-        (256, 128, 64),
-        (256, 256, 64),
-        (512, 128, 128),
-        (1024, 256, 256),
-    ] {
-        let config = parse(args_for(output, internal)).unwrap();
-        assert_eq!(config.output_frames, output);
-        assert_eq!(config.expected_alsa_period_frames, period);
-        assert_eq!(config.internal_frames, internal);
+    if is_raspberry_diagnostic() {
+        let inline = parse(inline_args_for("capacity_analogue_1", 128, 32)).unwrap();
+        assert_eq!(inline.executor_mode, BenchmarkExecutorMode::Inline);
+        assert_eq!(inline.output_frames, 128);
+        assert_eq!(inline.expected_alsa_period_frames, 32);
+        assert_eq!(inline.internal_frames, 32);
+
+        let mut routing_args = valid_args();
+        routing_args.extend(["--executor".into(), "routing_tree_persistent".into()]);
+        let routing = parse(routing_args).unwrap();
+        assert_eq!(
+            routing.executor_mode,
+            BenchmarkExecutorMode::RoutingTreePersistent
+        );
+        assert_eq!(routing.output_frames, 256);
+        assert_eq!(routing.expected_alsa_period_frames, 64);
+        assert_eq!(routing.internal_frames, 64);
+    } else {
+        let tuples = vec![
+            (128, 32, 32),
+            (256, 64, 64),
+            (256, 128, 64),
+            (256, 256, 64),
+            (512, 128, 128),
+            (1024, 256, 256),
+        ];
+        for (output, internal, period) in tuples {
+            let config = parse(args_for(output, internal)).unwrap();
+            assert_eq!(config.output_frames, output);
+            assert_eq!(config.expected_alsa_period_frames, period);
+            assert_eq!(config.internal_frames, internal);
+        }
     }
     let config = parse(valid_args()).unwrap();
     assert_eq!(
@@ -102,32 +128,46 @@ fn approved_cli_tuples_store_independent_geometry() {
 }
 
 #[cfg(all(
-    feature = "benchmark-voice-pools-128",
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ),
     feature = "routing-tree-benchmark"
 ))]
 #[test]
 fn continue_on_recovered_miss_accepts_only_the_routing_observation_cell() {
-    let config = parse(recovered_miss_args("capacity_analogue_32")).unwrap();
-    assert!(config.continue_on_recovered_miss);
-    preflight(&config).unwrap();
+    let max_units = realtime_engine::synth::SAMPLE_VOICE_LANE_CAPACITY
+        .min(realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY / 3);
+    for units in 1..=max_units {
+        let config = parse(recovered_miss_args(&format!("capacity_analogue_{units}"))).unwrap();
+        assert!(config.continue_on_recovered_miss);
+        assert_eq!(config.worker_timing_mode, WorkerTimingMode::Disabled);
+        preflight(&config).unwrap();
+    }
 
-    let mut invalid_measure = recovered_miss_args("capacity_analogue_32");
+    let mut enabled_timing = recovered_miss_args("capacity_analogue_16");
+    set_arg(&mut enabled_timing, "--worker-timing", "enabled".into());
+    assert!(parse(enabled_timing).is_err());
+
+    let mut invalid_measure = recovered_miss_args("capacity_analogue_16");
     invalid_measure.extend(["--measure-seconds".into(), "30".into()]);
-    assert_eq!(
-        parse(invalid_measure).unwrap_err(),
-        "--continue-on-recovered-miss requires capacity_analogue_16 (u16) or capacity_analogue_32 (u32), routing_tree_persistent, measure=120, output=256, ALSA period=64, internal=64, and worker timing=enabled"
-    );
+    assert!(parse(invalid_measure).is_err());
 }
 
 #[cfg(all(
-    feature = "benchmark-voice-pools-128",
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ),
     feature = "routing-tree-benchmark"
 ))]
 #[test]
-fn continue_on_recovered_miss_accepts_the_u16_routing_observation_cell() {
-    let config = parse(recovered_miss_args("capacity_analogue_16")).unwrap();
-    assert!(config.continue_on_recovered_miss);
-    preflight(&config).unwrap();
+fn continue_on_recovered_miss_rejects_non_analogue_cells() {
+    let mut args = recovered_miss_args("synth_ramp_16");
+    assert!(parse(args.clone()).is_err());
+    args = recovered_miss_args("capacity_analogue_16");
+    args.extend(["--executor".into(), "persistent_two_workers".into()]);
+    assert!(parse(args).is_err());
 }
 
 #[test]
@@ -144,6 +184,34 @@ fn inline_128_64_requires_an_analogue_capacity_scenario() {
 #[cfg(any(
     feature = "benchmark-voice-pools-128",
     feature = "benchmark-voice-pools-256"
+))]
+#[test]
+fn continue_on_recovered_miss_rejects_inline_executor() {
+    let mut args = inline_args_for(
+        "capacity_analogue_1",
+        128,
+        if is_raspberry_diagnostic() { 32 } else { 64 },
+    );
+    args.extend([
+        "--measure-seconds".into(),
+        "120".into(),
+        "--continue-on-recovered-miss".into(),
+    ]);
+    assert!(parse(args).is_err());
+}
+
+#[cfg(all(
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ),
+    not(all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    ))
 ))]
 #[test]
 fn analogue_capacity_128_64_is_inline_only_and_preflight_validates_it() {
@@ -177,6 +245,40 @@ fn analogue_capacity_128_64_is_inline_only_and_preflight_validates_it() {
             parse(inline_args_for(scenario, 128, 64)).is_err(),
             "invalid analogue scenario should fail: {scenario}"
         );
+    }
+}
+
+#[cfg(all(
+    feature = "hardware-raspberry-pi-zero-2w",
+    feature = "routing-tree-benchmark",
+    feature = "benchmark-voice-pools-128",
+    not(feature = "legacy-hardware-rpi-zero-2w"),
+    not(feature = "legacy-hardware-pi")
+))]
+#[test]
+fn raspberry_analogue_capacity_geometry_is_exact_by_executor() {
+    let inline = parse(inline_args_for("capacity_analogue_16", 128, 32)).unwrap();
+    assert_eq!(inline.expected_alsa_period_frames, 32);
+    assert_eq!(inline.internal_frames, 32);
+
+    let routing = parse(recovered_miss_args("capacity_analogue_16")).unwrap();
+    assert_eq!(routing.expected_alsa_period_frames, 64);
+    assert_eq!(routing.internal_frames, 64);
+
+    for (executor, output, internal) in [
+        ("inline", 256, 64),
+        ("routing_tree_persistent", 128, 32),
+        ("routing_tree_persistent", 256, 128),
+    ] {
+        let mut args = valid_args();
+        set_arg(&mut args, "--scenario", "capacity_analogue_16".into());
+        set_arg(&mut args, "--output-frames", output.to_string());
+        set_arg(&mut args, "--engine-block-frames", internal.to_string());
+        args.extend(["--executor".into(), executor.into()]);
+        if executor == "inline" {
+            args.extend(["--worker-timing".into(), "disabled".into()]);
+        }
+        assert!(parse(args).is_err());
     }
 }
 
@@ -260,16 +362,6 @@ fn routing_tree_selection_fails_preflight_before_runtime_access() {
     assert_eq!(
         preflight(&config).unwrap_err(),
         "routing_tree_persistent executor requires a binary built with routing-tree-benchmark"
-    );
-}
-
-#[test]
-fn routing_tree_executor_rejects_output_buffers_above_256() {
-    let mut args = args_for(512, 128);
-    args.extend(["--executor".into(), "routing_tree_persistent".into()]);
-    assert_eq!(
-        parse(args).unwrap_err(),
-        "routing_tree_persistent executor requires output frames <= 256"
     );
 }
 
@@ -378,83 +470,20 @@ fn large_pool_scenario_names_round_trip_as_exact_strings() {
     }
 }
 
+#[cfg(feature = "benchmark-voice-pools-128")]
 #[test]
-fn mixed_boundary_cli_accepts_only_approved_geometry_and_duration() {
-    for (output, internal) in [
-        (128, 32),
-        (256, 64),
-        (256, 128),
-        (256, 256),
-        (512, 128),
-        (1024, 256),
-    ] {
-        for seconds in [30, 120, 180, 300] {
-            let mut args = args_for(output, internal);
-            set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
-            args.extend(["--measure-seconds".into(), seconds.to_string()]);
-            assert_eq!(parse(args).unwrap().measure_seconds, seconds);
-        }
-    }
-    for (output, internal) in [(128, 64), (256, 32), (512, 256), (1024, 128)] {
-        let mut args = args_for(output, internal);
-        set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
-        assert!(parse(args).is_err());
-    }
-    for seconds in [299, 3000] {
-        let mut args = valid_args();
-        set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
-        args.extend(["--measure-seconds".into(), seconds.to_string()]);
-        assert!(parse(args).is_err());
-    }
+fn analogue_capacity_load_reaches_u36_without_duplicate_note_generation() {
+    let scenario = crate::dsp_scenarios::live_scenario("capacity_analogue_36", 44_100, 600_000)
+        .expect("U36 analogue capacity scenario");
+    assert_eq!(scenario.expected.active_synth_voices, 108);
+    assert_eq!(scenario.expected.active_sample_voices, 36);
+    let note_on_count = scenario
+        .events
+        .iter()
+        .filter(|event| matches!(event, rodio_engine_source::EngineEvent::NoteOn { .. }))
+        .count();
+    assert_eq!(note_on_count, 144);
 }
 
-#[test]
-fn engine_block_frames_are_mandatory_and_unsupported_tuples_are_rejected() {
-    let mut missing = valid_args();
-    remove_arg(&mut missing, "--engine-block-frames");
-    assert_eq!(
-        parse(missing).unwrap_err(),
-        "--engine-block-frames is required"
-    );
-    let mut invalid_block = valid_args();
-    set_arg(&mut invalid_block, "--engine-block-frames", "512".into());
-    assert!(parse(invalid_block).is_err());
-    for (output, internal) in [(128, 64), (64, 32), (256, 32), (512, 256), (1024, 128)] {
-        assert!(parse(args_for(output, internal)).is_err());
-    }
-}
-
-#[test]
-fn invalid_scenario_duration_and_unmuted_are_rejected() {
-    assert!(parse(vec!["--benchmark-orange-audio".into()]).is_err());
-    let mut args = valid_args();
-    args[1] = "--unmuted".into();
-    assert!(parse(args).is_err());
-    let mut args = valid_args();
-    args.retain(|arg| arg != "--artifact-sha256" && arg.len() != 64);
-    assert!(parse(args).is_err());
-    let mut args = valid_args();
-    args.push("--measure-seconds".into());
-    args.push("300".into());
-    assert_eq!(parse(args).unwrap().measure_seconds, 300);
-    let mut args = valid_args();
-    args.push("--measure-seconds".into());
-    args.push("180".into());
-    assert_eq!(parse(args).unwrap().measure_seconds, 180);
-    for seconds in [31, 299, 3000] {
-        let mut args = valid_args();
-        args.push("--measure-seconds".into());
-        args.push(seconds.to_string());
-        assert!(
-            parse(args).is_err(),
-            "duration {seconds} should be rejected"
-        );
-    }
-    let mut args = valid_args();
-    set_arg(
-        &mut args,
-        "--artifact-sha256",
-        "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF".into(),
-    );
-    assert!(parse(args).is_err());
-}
+#[path = "cli_boundary_tests.rs"]
+mod boundary_tests;
