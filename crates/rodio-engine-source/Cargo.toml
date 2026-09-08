@@ -8,6 +8,7 @@ license-file.workspace = true
 path = "src/lib.rs"
 
 [features]
+output-provenance = ["routing-tree-executor"]
 source-worker-benchmark-timing = ["realtime-engine/source-worker-benchmark-timing"]
 routing-tree-executor = ["realtime-engine/routing-tree-benchmark"]
 routing-tree-benchmark = ["routing-tree-executor"]

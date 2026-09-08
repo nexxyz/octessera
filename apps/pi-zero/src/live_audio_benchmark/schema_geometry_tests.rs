@@ -8,7 +8,11 @@ fn inline_analogue_config() -> BenchmarkConfig {
     config.scenario = "capacity_analogue_1".into();
     config.output_frames = 128;
     config.expected_alsa_period_frames = 32;
-    config.internal_frames = 64;
+    config.internal_frames = if super::super::super::geometry::is_raspberry_diagnostic() {
+        32
+    } else {
+        64
+    };
     config.executor_mode = BenchmarkExecutorMode::Inline;
     config.worker_timing_mode = WorkerTimingMode::Disabled;
     config
@@ -62,7 +66,7 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
     result.requested_output_buffer_frames = 128;
     result.expected_alsa_buffer_frames = 128;
     result.expected_alsa_period_frames = 32;
-    result.internal_block_frames = 64;
+    result.internal_block_frames = config.internal_frames;
     result.lookahead_frames = 0;
     result.effective_output_latency_frames = 128;
     assert!(
@@ -93,25 +97,59 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
 }
 
 #[test]
-fn recorded_analogue_geometry_is_inline_only() {
-    for (executor_mode, lookahead_frames, effective_output_latency_frames) in [
-        (BenchmarkExecutorMode::PersistentTwoWorkers, 0, Some(128)),
-        (BenchmarkExecutorMode::RoutingTreePersistent, 64, Some(192)),
-    ] {
+fn recorded_analogue_geometry_matches_executor_contract() {
+    if super::super::super::geometry::is_raspberry_diagnostic() {
+        assert!(validate_recorded_geometry(RecordedGeometry {
+            scenario: "capacity_analogue_1",
+            executor_mode: BenchmarkExecutorMode::RoutingTreePersistent,
+            requested_output_buffer_frames: 256,
+            expected_alsa_buffer_frames: 256,
+            expected_alsa_period_frames: 64,
+            internal_block_frames: 64,
+            lookahead_frames: 64,
+            effective_output_latency_frames: Some(320),
+        })
+        .is_ok());
+        return;
+    }
+    let cases = [
+        (
+            BenchmarkExecutorMode::PersistentTwoWorkers,
+            128,
+            64,
+            0,
+            Some(128),
+        ),
+        (
+            BenchmarkExecutorMode::RoutingTreePersistent,
+            128,
+            64,
+            64,
+            Some(192),
+        ),
+    ];
+    for (
+        executor_mode,
+        output_frames,
+        internal_block_frames,
+        lookahead_frames,
+        effective_output_latency_frames,
+    ) in cases
+    {
         assert_eq!(
             validate_recorded_geometry(RecordedGeometry {
                 scenario: "capacity_analogue_1",
                 executor_mode,
-                requested_output_buffer_frames: 128,
-                expected_alsa_buffer_frames: 128,
-                expected_alsa_period_frames: 32,
-                internal_block_frames: 64,
+                requested_output_buffer_frames: output_frames,
+                expected_alsa_buffer_frames: output_frames,
+                expected_alsa_period_frames: if output_frames == 128 { 32 } else { 64 },
+                internal_block_frames,
                 lookahead_frames,
                 effective_output_latency_frames,
             })
             .unwrap_err(),
             format!(
-                "unsupported {} benchmark geometry tuple: output=128 internal=64",
+                "unsupported {} benchmark geometry tuple: output={output_frames} internal={internal_block_frames}",
                 super::super::super::platform::BENCHMARK_LABEL
             )
         );

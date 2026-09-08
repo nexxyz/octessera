@@ -1,8 +1,14 @@
-use super::output_counters::PersistentOutputCountersMirror;
+use super::output_counters::{
+    PersistentOutputCountersMirror, PersistentOutputProvenanceEvidence,
+    PersistentOutputProvenanceMirror,
+};
 use rodio_engine_source::PersistentOutputCounters;
-use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
+
+#[path = "metrics_snapshot.rs"]
+mod snapshot;
+pub use snapshot::CallbackMetricsSnapshot;
 
 const HISTOGRAM_BUCKETS: usize = 400;
 const HISTOGRAM_STEP: f64 = 0.01;
@@ -51,50 +57,13 @@ pub struct CallbackMetrics {
     pre_mute_nonzero_samples: AtomicU64,
     pre_mute_peak_bits: AtomicU32,
     post_mute_nonzero_samples: AtomicU64,
+    persistent_output_provenance: PersistentOutputProvenanceMirror,
     cpal_device_errors: AtomicU64,
     cpal_stream_errors: AtomicU64,
     worker_terminal: AtomicBool,
     terminal_error: AtomicBool,
     phase_boundary_generation: AtomicU64,
     phase_boundary_counters: PersistentOutputCountersMirror,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
-pub struct CallbackMetricsSnapshot {
-    pub lifetime_callback_count: u64,
-    pub callback_count: u64,
-    pub first_measured_callback_ns: u64,
-    pub last_measured_callback_ns: u64,
-    pub measured_elapsed_ns: u64,
-    pub callback_frames_min: u32,
-    pub callback_frames_max: u32,
-    pub callback_frame_sample_count: u64,
-    pub callback_frame_size_change_count: u64,
-    pub invalid_callback_frame_count: u64,
-    pub lifetime_callback_frames_min: u32,
-    pub lifetime_callback_frames_max: u32,
-    pub lifetime_callback_frame_sample_count: u64,
-    pub lifetime_callback_frame_size_change_count: u64,
-    pub lifetime_invalid_callback_frame_count: u64,
-    pub rendered_frames: u64,
-    pub render_audio_duration_ns: u64,
-    pub render_audio_duration_ratio_p50: f64,
-    pub render_audio_duration_ratio_p95: f64,
-    pub render_audio_duration_ratio_p99: f64,
-    pub render_audio_duration_ratio_p99_9: f64,
-    pub render_audio_duration_ratio_max: f64,
-    pub over_audio_duration_budget_count: u64,
-    pub callback_spacing_min_ns: u64,
-    pub callback_spacing_max_ns: u64,
-    pub callback_lateness_max_ns: u64,
-    pub callback_timestamp_observed: bool,
-    pub pre_mute_nonzero_samples: u64,
-    pub pre_mute_peak: f32,
-    pub post_mute_nonzero_samples: u64,
-    pub cpal_device_error_count: u64,
-    pub cpal_stream_error_count: u64,
-    pub worker_terminal: bool,
-    pub terminal_error: bool,
 }
 
 impl CallbackMetrics {
@@ -132,6 +101,7 @@ impl CallbackMetrics {
             pre_mute_nonzero_samples: AtomicU64::new(0),
             pre_mute_peak_bits: AtomicU32::new(0),
             post_mute_nonzero_samples: AtomicU64::new(0),
+            persistent_output_provenance: PersistentOutputProvenanceMirror::new(),
             cpal_device_errors: AtomicU64::new(0),
             cpal_stream_errors: AtomicU64::new(0),
             worker_terminal: AtomicBool::new(false),
@@ -206,6 +176,17 @@ impl CallbackMetrics {
         self.post_mute_nonzero_samples
             .fetch_add(prefix.post_mute_nonzero, Ordering::Relaxed);
         true
+    }
+
+    pub fn record_persistent_output_provenance(
+        &self,
+        evidence: PersistentOutputProvenanceEvidence,
+    ) {
+        self.persistent_output_provenance.record(evidence);
+    }
+
+    pub fn persistent_output_provenance(&self) -> PersistentOutputProvenanceEvidence {
+        self.persistent_output_provenance.snapshot()
     }
 
     fn record_geometry(&self, frames: u32) -> bool {
@@ -329,6 +310,7 @@ impl CallbackMetrics {
         self.pre_mute_nonzero_samples.store(0, Ordering::Relaxed);
         self.pre_mute_peak_bits.store(0, Ordering::Relaxed);
         self.post_mute_nonzero_samples.store(0, Ordering::Relaxed);
+        self.persistent_output_provenance.reset();
     }
 
     pub fn snapshot(&self) -> CallbackMetricsSnapshot {

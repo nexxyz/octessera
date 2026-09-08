@@ -49,19 +49,23 @@ function Assert-OrangeCapacityBenchmarkSelection {
     [Parameter(Mandatory)][int]$MeasureSeconds,
     [Parameter(Mandatory)][ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode,
     [string]$WorkerTimingMode = "",
-    [bool]$AllowLongRepeat = $false
+    [bool]$AllowLongRepeat = $false,
+    [bool]$ContinueOnRecoveredMiss = $false
   )
   if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
-  $expectedWorkerTimingMode = if ($ExecutorMode -eq "inline") { "disabled" } else { "enabled" }
+  $isAnalogue = $CapacityScenario.Kind -ceq "analogue"
+  $expectedWorkerTimingMode = if ($ExecutorMode -eq "inline" -or $isAnalogue) { "disabled" } else { "enabled" }
   if ([string]::IsNullOrWhiteSpace($WorkerTimingMode)) { $WorkerTimingMode = $expectedWorkerTimingMode }
   if ($ExecutorMode -eq "inline" -and $WorkerTimingMode -cne "disabled") { throw "Inline executor requires disabled worker timing." }
-  if ($ExecutorMode -eq "routing_tree_persistent" -and $WorkerTimingMode -cne "enabled") { throw "Routing-tree persistent executor requires enabled worker timing." }
-  $isAnalogueU16 = $CapacityScenario.Kind -ceq "analogue" -and $ExecutorMode -ceq "inline" -and $WorkerTimingMode -ceq "disabled"
+  if ($ExecutorMode -eq "routing_tree_persistent" -and (($isAnalogue -and $WorkerTimingMode -cne "disabled") -or (-not $isAnalogue -and $WorkerTimingMode -cne "enabled"))) { throw "Capacity worker timing mode does not match the selected executor." }
+  $isAnalogueInline = $isAnalogue -and $ExecutorMode -ceq "inline" -and $WorkerTimingMode -ceq "disabled"
+  $isAnalogueRouting = $isAnalogue -and $ExecutorMode -ceq "routing_tree_persistent" -and $WorkerTimingMode -ceq "disabled"
   if ($OutputFrames -eq 128) {
-    if (-not $isAnalogueU16 -or @(32, 64) -notcontains $EngineBlockFrames) { throw "Analogue U16 capacity scenarios require output=128 and engine=32 or 64." }
-  } elseif ($OutputFrames -ne 256 -or $EngineBlockFrames -ne 64) { throw "LiveAudioBenchmark capacity scenarios require output=256 and engine=64." }
+    if (-not $isAnalogueInline -or $EngineBlockFrames -ne 32) { throw "Inline analogue capacity scenarios require output=128, period=32, internal=32, and disabled worker timing." }
+  } elseif ($OutputFrames -ne 256 -or $EngineBlockFrames -ne 64) { throw "LiveAudioBenchmark capacity scenarios require output=256 and engine=64." } elseif ($isAnalogue -and -not $isAnalogueRouting) { throw "Routing analogue capacity scenarios require output=256, period=64, internal=64, and disabled worker timing." }
   if (@(30, 120, 180) -notcontains $MeasureSeconds) { throw "LiveAudioBenchmark capacity scenarios require a 30-, 120-, or 180-second measurement." }
   if ($AllowLongRepeat) { throw "-AllowLongRepeat is only valid for a 120-second A repeat." }
+  if ($ContinueOnRecoveredMiss -and (-not $isAnalogueRouting -or $MeasureSeconds -ne 120)) { throw "-ContinueOnRecoveredMiss requires a routing analogue capacity observation at output=256, period=64, internal=64, measure=120, with worker timing disabled." }
   $selection = [ordered]@{
     Scenario = $Scenario
     OutputFrames = $OutputFrames
@@ -74,6 +78,7 @@ function Assert-OrangeCapacityBenchmarkSelection {
     LongRepeat = $false
     ExecutorMode = $ExecutorMode
     WorkerTimingMode = $WorkerTimingMode
+    ContinueOnRecoveredMiss = $ContinueOnRecoveredMiss
     LookaheadFrames = if ($ExecutorMode -eq "routing_tree_persistent") { $EngineBlockFrames } else { 0 }
     EffectiveOutputLatencyFrames = if ($ExecutorMode -eq "routing_tree_persistent") { $OutputFrames + $EngineBlockFrames } else { $OutputFrames }
     IsCapacityDiagnostic = $true

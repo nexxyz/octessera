@@ -23,6 +23,8 @@ pub use pcm_mirror::{
     PCM_MIRROR_CAPACITY_FRAMES, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
 };
 pub use persistent_output::PersistentOutputCounters;
+#[cfg(feature = "output-provenance")]
+pub use persistent_output::PersistentOutputProvenanceSnapshot;
 use persistent_output::{PreviousMasterQuantum, RefillResult};
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 #[cfg(test)]

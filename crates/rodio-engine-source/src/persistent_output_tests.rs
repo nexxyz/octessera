@@ -31,20 +31,20 @@ fn cached_output_repeats_once_and_geometry_mismatch_stays_invalid() {
     let mut pending = vec![9.0; 4];
     assert_eq!(
         cache.recovery_silence(&mut pending),
-        PersistentOutputKind::Dropped
+        PersistentOutputKind::DroppedSilence
     );
     assert!(pending.iter().all(|sample| sample.to_bits() == 0));
 
     let mut mismatch = vec![9.0; 6];
     assert_eq!(
         cache.deadline_miss(44_100, 3, &mut mismatch),
-        PersistentOutputKind::Dropped
+        PersistentOutputKind::DroppedSilence
     );
     cache.deadline_recovery();
     let mut no_stale_revival = vec![9.0; 4];
     assert_eq!(
         cache.deadline_miss(44_100, 2, &mut no_stale_revival),
-        PersistentOutputKind::Dropped
+        PersistentOutputKind::DroppedSilence
     );
 }
 
@@ -69,4 +69,45 @@ fn counters_snapshot_contains_only_previous_master_quantum_totals() {
             deadline_recoveries: 0,
         }
     );
+}
+
+#[cfg(feature = "output-provenance")]
+#[test]
+fn provenance_counts_consumed_frames_by_refill_kind() {
+    let mut cache = PreviousMasterQuantum::new();
+    let fresh = [1.0_f32, 0.0, 0.0, 1.0];
+    assert_eq!(cache.fresh(2, &fresh), PersistentOutputKind::Fresh);
+    cache.consume_frame();
+    cache.consume_frame();
+    assert_eq!(cache.provenance_snapshot(), Default::default());
+
+    let mut repeated = vec![0.0; 4];
+    assert_eq!(
+        cache.deadline_miss(44_100, 2, &mut repeated),
+        PersistentOutputKind::Repeated
+    );
+    cache.consume_frame();
+    assert_eq!(cache.provenance_snapshot().repeated_quantum_incidents, 1);
+    assert_eq!(cache.provenance_snapshot().repeated_pcm_frames, 1);
+    cache.consume_frame();
+    assert_eq!(cache.provenance_snapshot().repeated_pcm_frames, 2);
+
+    let mut silence = vec![1.0; 4];
+    assert_eq!(
+        cache.recovery_silence(&mut silence),
+        PersistentOutputKind::DroppedSilence
+    );
+    cache.consume_frame();
+    cache.consume_frame();
+    assert_eq!(cache.provenance_snapshot().silent_quantum_incidents, 1);
+    assert_eq!(cache.provenance_snapshot().silent_pcm_frames, 2);
+
+    let mut fatal = vec![1.0; 2];
+    assert_eq!(
+        cache.fatal_silence(&mut fatal),
+        PersistentOutputKind::FatalSilence
+    );
+    cache.consume_frame();
+    assert_eq!(cache.provenance_snapshot().silent_quantum_incidents, 2);
+    assert_eq!(cache.provenance_snapshot().silent_pcm_frames, 3);
 }

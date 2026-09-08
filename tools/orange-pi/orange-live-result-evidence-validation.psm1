@@ -1,8 +1,10 @@
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Force
 
 $script:OrangePersistentOutputCounterFields = @("rendered_quantums", "repeated_quantums", "dropped_quantums", "deadline_misses", "deadline_recoveries")
+$script:OrangePersistentOutputProvenanceFields = @("observable", "repeated_quantum_incidents", "repeated_pcm_frames", "silent_quantum_incidents", "silent_pcm_frames")
 $script:OrangeLiveProfileSnapshotFields = @("active_synth_voices", "active_sample_voices", "active_preview_sample_voices", "active_momentary_fx", "active_bus_fx_slots", "active_global_fx_slots", "cumulative_voice_steals", "cumulative_voice_admission_drops")
-$script:OrangeLiveResultFields = @("schema_version", "kind", "status", "board_profile", "scenario", "requested_output_buffer_frames", "expected_alsa_buffer_frames", "expected_alsa_period_frames", "internal_block_frames", "sample_format", "channels", "sample_rate", "warmup_seconds", "measure_seconds", "scheduler_qualified", "callback_scheduling_policy", "callback_scheduling_priority", "callback_scheduling_cpu", "post_dsp_zero", "measurement_stop_acknowledged", "stream_stopped", "final_progress_write_succeeded", "pid", "systemd_invocation_id", "artifact_sha256", "callback", "persistent_output_counters", "detected_continuity_events", "profile_start", "profile_end", "recovered_alsa_epipe_count", "recovered_alsa_epipe_observable", "terminal_error", "executor_mode", "lookahead_frames", "effective_output_latency_frames", "worker_health", "worker_thread_name_0", "worker_thread_name_1", "joined_workers", "retirement_error", "worker_timing_mode", "worker_timing")
+$script:OrangeLiveResultFields = @("schema_version", "kind", "status", "board_profile", "scenario", "requested_output_buffer_frames", "expected_alsa_buffer_frames", "expected_alsa_period_frames", "internal_block_frames", "sample_format", "channels", "sample_rate", "warmup_seconds", "measure_seconds", "scheduler_qualified", "callback_scheduling_policy", "callback_scheduling_priority", "callback_scheduling_cpu", "post_dsp_zero", "measurement_stop_acknowledged", "stream_stopped", "final_progress_write_succeeded", "pid", "systemd_invocation_id", "artifact_sha256", "callback", "persistent_output_counters", "persistent_output_provenance", "detected_continuity_events", "profile_start", "profile_end", "recovered_alsa_epipe_count", "recovered_alsa_epipe_observable", "terminal_error", "executor_mode", "continue_on_recovered_miss", "lookahead_frames", "effective_output_latency_frames", "worker_health", "worker_thread_name_0", "worker_thread_name_1", "joined_workers", "retirement_error", "worker_timing_mode", "worker_timing")
 function Get-OrangeLiveStrictInteger {
   param(
     [AllowNull()][object]$Value,
@@ -136,6 +138,93 @@ function Assert-OrangeLivePersistentOutputEvidence {
     delta = $snapshots.delta
   }
 }
+function Assert-OrangeLivePersistentOutputProvenance {
+  param(
+    [AllowNull()][object]$Evidence,
+    [Parameter(Mandatory)][string]$ExecutorMode
+  )
+  if ($Evidence -isnot [pscustomobject]) { throw "Live benchmark persistent output provenance is missing or invalid." }
+  foreach ($property in $Evidence.PSObject.Properties) {
+    if ($script:OrangePersistentOutputProvenanceFields -cnotcontains $property.Name) { throw "Live benchmark persistent output provenance field is unknown: $($property.Name)" }
+  }
+  foreach ($name in $script:OrangePersistentOutputProvenanceFields) {
+    if ($null -eq $Evidence.PSObject.Properties[$name]) { throw "Live benchmark persistent output provenance field is missing: $name" }
+  }
+  $observable = Get-OrangeLiveStrictBoolean -Value $Evidence.observable -Path "persistent_output_provenance.observable"
+  if ($observable -ne ($ExecutorMode -ceq "routing_tree_persistent")) { throw "Live benchmark persistent output provenance observability does not match executor." }
+  $values = [ordered]@{ observable = $observable }
+  foreach ($name in @("repeated_quantum_incidents", "repeated_pcm_frames", "silent_quantum_incidents", "silent_pcm_frames")) {
+    $values[$name] = Get-OrangeLiveStrictInteger -Value $Evidence.$name -Path "persistent_output_provenance.$name"
+  }
+  foreach ($pair in @(@("repeated_quantum_incidents", "repeated_pcm_frames"), @("silent_quantum_incidents", "silent_pcm_frames"))) {
+    $incidents = $values[$pair[0]]
+    $frames = $values[$pair[1]]
+    if (($incidents -eq 0) -ne ($frames -eq 0) -or $incidents -gt $frames) { throw "Live benchmark persistent output provenance is inconsistent: $($pair[0]) and $($pair[1])" }
+  }
+  if (-not $observable -and ($values.repeated_quantum_incidents -ne 0 -or $values.repeated_pcm_frames -ne 0 -or $values.silent_quantum_incidents -ne 0 -or $values.silent_pcm_frames -ne 0)) {
+    throw "Inline persistent output provenance must report zero counters."
+  }
+  return [pscustomobject]$values
+}
+function Assert-OrangeAdmissionDropEvidence {
+  param(
+    [Parameter(Mandatory)][pscustomobject]$Result,
+    [Parameter(Mandatory)][pscustomobject]$Selection
+  )
+  $expectedStart = Get-OrangeExpectedAdmissionDrops $Selection "expected_admission_drops_start"
+  $expectedEnd = Get-OrangeExpectedAdmissionDrops $Selection "expected_admission_drops_end"
+  if ($expectedEnd -lt $expectedStart) { throw "Live benchmark expected admission-drop end is below start." }
+  $startProperty = $Result.PSObject.Properties["profile_start"]
+  $endProperty = $Result.PSObject.Properties["profile_end"]
+  if ($null -eq $startProperty -or $null -eq $endProperty -or $null -eq $startProperty.Value -or $null -eq $endProperty.Value) { throw "Live benchmark profile admission-drop evidence is required." }
+  $start = Get-OrangeRequiredNonNegativeInteger $startProperty.Value "cumulative_voice_admission_drops" "profile_start"
+  $end = Get-OrangeRequiredNonNegativeInteger $endProperty.Value "cumulative_voice_admission_drops" "profile_end"
+  if ($start -ne $expectedStart -or $end -ne $expectedEnd -or $end - $start -ne $expectedEnd - $expectedStart) { throw "Live benchmark admission-drop evidence does not reconcile with expected start/end values." }
+}
+function Get-OrangeLivePracticalGrade {
+  param(
+    [Parameter(Mandatory)][uint64]$RepeatIncidents,
+    [Parameter(Mandatory)][uint64]$SilentIncidents,
+    [Parameter(Mandatory)][uint64]$AlsaRecoveryLogIncidents,
+    [Parameter(Mandatory)][uint64]$CpalStreamErrors,
+    [Parameter(Mandatory)][uint64]$CpalDeviceErrors
+  )
+  $worst = [math]::Max([math]::Max([math]::Max($RepeatIncidents, $SilentIncidents), $AlsaRecoveryLogIncidents), [math]::Max($CpalStreamErrors, $CpalDeviceErrors))
+  if ($worst -le 1) { return "Stable" }
+  if ($worst -le 4) { return "Stretched" }
+  return "Compromised"
+}
+function Get-OrangeLiveAlsaRecoveryLogIncidents {
+  param([Parameter(Mandatory)][string]$EvidenceDirectory)
+  $path = Join-Path $EvidenceDirectory "unit-journal.txt"
+  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return [uint64]0 }
+  $count = 0
+  foreach ($line in Get-Content -LiteralPath $path) {
+    if ($line -match 'snd_pcm_recover[^\r\n]*underrun occurred') { $count++ }
+  }
+  return [uint64]$count
+}
+function Get-OrangeLivePracticalEvidence {
+  param(
+    [Parameter(Mandatory)][string]$EvidenceDirectory,
+    [AllowNull()][pscustomobject]$Result,
+    [bool]$Validated = $false
+  )
+  $journalPath = Join-Path $EvidenceDirectory "unit-journal.txt"
+  if ($Validated -and -not (Test-Path -LiteralPath $journalPath -PathType Leaf)) { throw "Validated live benchmark evidence is missing unit-journal.txt." }
+  $alsa = Get-OrangeLiveAlsaRecoveryLogIncidents -EvidenceDirectory $EvidenceDirectory
+  if (-not $Validated -or $null -eq $Result) {
+    return [pscustomobject]@{ RepeatIncidents = 0; RepeatedPcmFrames = 0; SilentIncidents = 0; SilentPcmFrames = 0; AlsaRecoveryLogIncidents = $alsa; AlsaRecoveryLogScope = "whole_run_unit_journal"; PracticalGrade = "Unavailable" }
+  }
+  $provenance = $Result.persistent_output_provenance
+  $repeat = [uint64]$provenance.repeated_quantum_incidents
+  $repeatFrames = [uint64]$provenance.repeated_pcm_frames
+  $silent = [uint64]$provenance.silent_quantum_incidents
+  $silentFrames = [uint64]$provenance.silent_pcm_frames
+  $cpalDeviceErrors = Get-OrangeLiveStrictInteger -Value $Result.callback.cpal_device_error_count -Path "callback.cpal_device_error_count"
+  $cpalStreamErrors = Get-OrangeLiveStrictInteger -Value $Result.callback.cpal_stream_error_count -Path "callback.cpal_stream_error_count"
+  return [pscustomobject]@{ RepeatIncidents = $repeat; RepeatedPcmFrames = $repeatFrames; SilentIncidents = $silent; SilentPcmFrames = $silentFrames; AlsaRecoveryLogIncidents = $alsa; AlsaRecoveryLogScope = "whole_run_unit_journal"; PracticalGrade = Get-OrangeLivePracticalGrade -RepeatIncidents $repeat -SilentIncidents $silent -AlsaRecoveryLogIncidents $alsa -CpalStreamErrors $cpalStreamErrors -CpalDeviceErrors $cpalDeviceErrors }
+}
 function Get-OrangeLiveAggregateRenderAudioDurationRatio {
   param([Parameter(Mandatory)][pscustomobject]$Result)
   $callback = $Result.PSObject.Properties["callback"]
@@ -154,4 +243,4 @@ function Get-OrangeLiveAggregateRenderAudioDurationRatio {
   if ([double]::IsNaN($ratio) -or [double]::IsInfinity($ratio) -or $ratio -le 0) { throw "Live benchmark aggregate render-duration ratio is invalid." }
   return $ratio
 }
-Export-ModuleMember -Function @("Assert-OrangeLiveExecutorGeometry", "Assert-OrangeLivePersistentOutputEvidence", "Assert-OrangeLiveProfileSnapshot", "Assert-OrangeLiveResultFieldNames", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveStrictInteger")
+Export-ModuleMember -Function @("Assert-OrangeAdmissionDropEvidence", "Assert-OrangeLiveExecutorGeometry", "Assert-OrangeLivePersistentOutputEvidence", "Assert-OrangeLivePersistentOutputProvenance", "Assert-OrangeLiveProfileSnapshot", "Assert-OrangeLiveResultFieldNames", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveAlsaRecoveryLogIncidents", "Get-OrangeLivePracticalEvidence", "Get-OrangeLivePracticalGrade", "Get-OrangeLiveStrictBoolean", "Get-OrangeLiveStrictInteger")

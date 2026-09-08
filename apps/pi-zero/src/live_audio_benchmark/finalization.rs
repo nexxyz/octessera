@@ -270,8 +270,11 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .profile_end
         .map(BenchmarkProfileSnapshot::from)
         .unwrap_or_default();
+    let mut persistent_output_provenance = state.metrics.persistent_output_provenance();
+    persistent_output_provenance.observable = cfg!(feature = "routing-tree-benchmark")
+        && config.executor_mode == BenchmarkExecutorMode::RoutingTreePersistent;
     let result = BenchmarkResult {
-        schema_version: 12,
+        schema_version: 13,
         kind: super::platform::BENCHMARK_RESULT_KIND.into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
@@ -308,6 +311,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         artifact_sha256: config.artifact_sha256.clone(),
         callback: final_metrics,
         persistent_output_counters: state.persistent_output_counters,
+        persistent_output_provenance,
         detected_continuity_events,
         profile_start,
         profile_end,
@@ -315,6 +319,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         recovered_alsa_epipe_observable: false,
         terminal_error: (!state.errors.is_empty()).then(|| state.errors.join("; ")),
         executor_mode: config.executor_mode.as_str().into(),
+        continue_on_recovered_miss: config.continue_on_recovered_miss,
         worker_timing_mode: config.worker_timing_mode,
         worker_health: state.worker_health.name().into(),
         worker_thread_name_0: state.worker_thread_names[0].clone(),

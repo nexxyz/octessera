@@ -1,4 +1,5 @@
 use super::CallbackMetrics;
+use crate::live_audio_benchmark::output_counters::PersistentOutputProvenanceEvidence;
 use rodio_engine_source::PersistentOutputCounters;
 use std::time::Duration;
 
@@ -106,5 +107,44 @@ fn phase_boundary_counters_are_mirrored_without_changing_callback_metrics() {
     assert_eq!(
         metrics.snapshot(),
         super::CallbackMetricsSnapshot::default()
+    );
+}
+
+#[test]
+fn measurement_provenance_is_cumulative_and_resets_after_warmup() {
+    let metrics = metrics();
+    metrics.record_persistent_output_provenance(PersistentOutputProvenanceEvidence {
+        repeated_quantum_incidents: 9,
+        repeated_pcm_frames: 64,
+        silent_quantum_incidents: 2,
+        silent_pcm_frames: 128,
+        ..Default::default()
+    });
+    metrics.enable_measurement();
+    metrics.record_prefix(super::CallbackPrefix {
+        entry_ns: 1,
+        measured: true,
+        frames: 64,
+        pre_mute_nonzero: 64,
+        pre_mute_peak: 0.5,
+        post_mute_nonzero: 0,
+        spacing_ns: None,
+    });
+    metrics.record_persistent_output_provenance(PersistentOutputProvenanceEvidence {
+        repeated_quantum_incidents: 1,
+        repeated_pcm_frames: 32,
+        silent_quantum_incidents: 1,
+        silent_pcm_frames: 64,
+        ..Default::default()
+    });
+    assert_eq!(
+        metrics.persistent_output_provenance(),
+        PersistentOutputProvenanceEvidence {
+            repeated_quantum_incidents: 1,
+            repeated_pcm_frames: 32,
+            silent_quantum_incidents: 1,
+            silent_pcm_frames: 64,
+            ..Default::default()
+        }
     );
 }

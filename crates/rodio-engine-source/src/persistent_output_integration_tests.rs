@@ -223,3 +223,64 @@ fn pending_recovery_status_publication_stays_edge_bounded() {
     drop(source);
     assert_eq!(shutdown.shutdown().joined_workers, 2);
 }
+
+#[cfg(feature = "output-provenance")]
+#[test]
+fn provenance_counts_a_split_repeated_block_once_and_by_stereo_frame() {
+    let (tx, mut source, shutdown) = super::persistent_tests::persistent_source(BLOCK_FRAMES);
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 60,
+        velocity: 100,
+        duration_ms: 10_000,
+    })
+    .unwrap();
+    for _ in 0..BLOCK_FRAMES * 2 {
+        source.next();
+    }
+    assert_eq!(
+        source.persistent_output_provenance_snapshot(),
+        Default::default()
+    );
+
+    runtime(&mut source).set_pause_for_parity_for_test(0, true);
+    runtime(&mut source).set_pause_for_parity_for_test(1, true);
+    runtime(&mut source).set_deadline_for_test(Duration::ZERO);
+    source.next();
+    assert_eq!(
+        source
+            .persistent_output_provenance_snapshot()
+            .repeated_quantum_incidents,
+        0
+    );
+    source.next();
+    let after_first_frame = source.persistent_output_provenance_snapshot();
+    assert_eq!(after_first_frame.repeated_quantum_incidents, 1);
+    assert_eq!(after_first_frame.repeated_pcm_frames, 1);
+
+    for _ in 0..BLOCK_FRAMES * 2 - 2 {
+        source.next();
+    }
+    let after_block = source.persistent_output_provenance_snapshot();
+    assert_eq!(after_block.repeated_quantum_incidents, 1);
+    assert_eq!(after_block.repeated_pcm_frames, BLOCK_FRAMES as u64);
+
+    source.next();
+    assert_eq!(
+        source
+            .persistent_output_provenance_snapshot()
+            .silent_quantum_incidents,
+        0
+    );
+    for _ in 0..BLOCK_FRAMES * 2 - 1 {
+        source.next();
+    }
+    let after_silence = source.persistent_output_provenance_snapshot();
+    assert_eq!(after_silence.silent_quantum_incidents, 1);
+    assert_eq!(after_silence.silent_pcm_frames, BLOCK_FRAMES as u64);
+
+    runtime(&mut source).set_pause_for_parity_for_test(0, false);
+    runtime(&mut source).set_pause_for_parity_for_test(1, false);
+    drop(source);
+    assert_eq!(shutdown.shutdown().joined_workers, 2);
+}

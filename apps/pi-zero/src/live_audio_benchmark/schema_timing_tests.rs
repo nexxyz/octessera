@@ -4,7 +4,7 @@ type SemanticCase = (&'static str, fn(&mut serde_json::Value));
 type TimingSemanticCase = (&'static str, fn(&mut BenchmarkWorkerTiming), &'static str);
 
 #[test]
-fn schema12_rejects_impossible_worker_timing_relationships() {
+fn schema13_rejects_impossible_worker_timing_relationships() {
     let cases: [SemanticCase; 40] = [
         ("missing deadline", |value| {
             value["worker_timing"]["coordinator"]["deadline_ns"] = serde_json::Value::Null;
@@ -178,7 +178,7 @@ fn schema12_rejects_impossible_worker_timing_relationships() {
 }
 
 #[test]
-fn schema12_rejects_routing_finish_and_observation_violations() {
+fn schema13_rejects_routing_finish_and_observation_violations() {
     let cases: [TimingSemanticCase; 6] = [
         (
             "first before collection start",
