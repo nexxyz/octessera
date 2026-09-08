@@ -86,7 +86,7 @@ capture_system_sample() {
   case "$hex" in ''|*[!0-9a-fA-F]*) printf 'raspberry_system_error phase=%s reason=throttling_malformed\n' "$phase"; return 1;; esac
   numeric="$(printf '%d' "0x$hex" 2>/dev/null || true)"; nonnegative_number "$numeric" || return 1
   mask=$((numeric & 15))
-  printf 'raspberry_system_sample phase=%s thermal_max_millicelsius=%s mem_available_kb=%s throttled=%s current_throttled_mask=%s undervoltage=%s\n' "$phase" "$maximum" "$mem" "$throttled" "$mask" "$((mask & 1))"
+  printf 'raspberry_system_sample phase=%s thermal_max_millicelsius=%s mem_available_kb=%s throttled=%s current_throttled_mask=%s undervoltage=%s\n' "$phase" "$maximum" "$mem" "0x$hex" "$mask" "$((mask & 1))"
   if [ "$((mask & 1))" -ne 0 ]; then printf 'raspberry_system_abort phase=%s reason=undervoltage\n' "$phase"; return 1; fi
 }
 sensor_loop() { while [ ! -e "$sensor_abort" ]; do capture_system_sample runtime >> "$sensor_series" 2>&1 || { printf 'reason=runtime-sensor-gate\n' > "$sensor_abort"; break; }; sleep 1; done; }
@@ -109,7 +109,7 @@ capture_alsa_release() {
   buffer="$(sudo -n cat -- "$path" | sed -n 's/^[[:space:]]*buffer_size[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
   period="$(sudo -n cat -- "$path" | sed -n 's/^[[:space:]]*period_size[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
   [ "$buffer" = 256 ] && [ "$period" = 64 ] || return 1
-  sudo -n cp -- "$path" "$root/alsa-hw-params.txt"
+  sudo -n install -o pi -g pi -m 0640 -- "$path" "$root/alsa-hw-params.txt"
   printf 'path=%s\nbuffer_size=%s\nperiod_size=%s\n' "$path" "$buffer" "$period" > "$root/alsa-geometry.txt"
   printf '{"schema_version":2,"kind":"raspberry_audio_benchmark_release","status":"released","board_profile":"raspberry-pi-zero-2w","pid":%s,"systemd_invocation_id":"%s","artifact_sha256":"%s","scenario":"__SCENARIO__","expected_alsa_buffer_frames":256,"observed_alsa_buffer_frames":%s,"expected_alsa_period_frames":64,"observed_alsa_period_frames":%s}\n' "$pid" "$invocation" "$expected_sha" "$buffer" "$period" > "$release"
 }
@@ -152,9 +152,10 @@ on_exit() {
   [ -n "${sampler_pid:-}" ] && kill -TERM "$sampler_pid" 2>/dev/null || true; [ -n "${sampler_pid:-}" ] && wait "$sampler_pid" 2>/dev/null || true
   stop_unit; sudo -n systemctl show "$unit" --no-pager --property=ActiveState --property=SubState --property=Result --property=ExecMainCode --property=ExecMainStatus --property=MainPID --property=InvocationID > "$root/unit-final.txt" 2>&1 || true; sudo -n journalctl -u "$unit" -n 200 --no-pager > "$root/unit-journal.txt" 2>&1 || true
   [ -r "$readiness" ] && cp -- "$readiness" "$root/benchmark-readiness-final.json"; [ -r "$progress" ] && cp -- "$progress" "$root/benchmark-progress-final.json"; [ -r "$result" ] && cp -- "$result" "$root/benchmark-result-final.json"; [ -r "$release" ] && cp -- "$release" "$root/benchmark-release.json"
+  local class=infrastructure_failure retained_result="$root/benchmark-result.json"; [ "$status" -eq 20 ] && [ -r "$retained_result" ] && [ "$(json_field status "$retained_result")" = fail ] && class=measured_failure; [ "$status" -eq 0 ] && [ -r "$retained_result" ] && [ "$(json_field status "$retained_result")" = pass ] && class=pass; [ -e "$sensor_abort" ] && class=safety_failure
   reset_transient_unit
   if [ "$interruption_started" = true ]; then restore_service; else printf 'initial_active=%s\ninitial_enabled=%s\nfinal_active=%s\nfinal_enabled=%s\nrestore_status=0\n' "$initial_active" "$initial_enabled" "$initial_active" "$initial_enabled" > "$root/service-restored-state.txt"; fi
-  local class=infrastructure_failure; [ "$status" -eq 20 ] && [ -r "$result" ] && [ "$(json_field status "$result")" = fail ] && class=measured_failure; [ "$status" -eq 0 ] && [ -r "$result" ] && [ "$(json_field status "$result")" = pass ] && class=pass; [ -e "$sensor_abort" ] && class=safety_failure; [ "$restore_status" -ne 0 ] && class=restoration_failure
+  [ "$restore_status" -ne 0 ] && class=restoration_failure
   printf 'mode=LiveAudioBenchmark\nstatus_class=%s\nstatus=%s\ninterruption_started=%s\nrestore_status=%s\nsensor_abort=%s\n' "$class" "$status" "$interruption_started" "$restore_status" "$([ -e "$sensor_abort" ] && printf true || printf false)" > "$root/study-result.txt"
   [ "$restore_status" -eq 0 ] || status=70; exit "$status"
 }
@@ -220,18 +221,19 @@ unprivileged_status=`$?
 [ "`$unit_status" -eq 0 ] && [ "`$privileged_status" -eq 0 ] && [ "`$unprivileged_status" -eq 0 ]
 "@
 $cleanupPath = Write-PayloadFile -Contents $cleanupContents -RunId $runId -Name "cleanup"
-$studyFailure = $null; $cleanupFailure = $null
+$studyFailure = $null; $retrievalFailure = $null; $cleanupFailure = $null
 try {
   & $transport "ssh-payload" -Target $Target -Key $Key $preparePath; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark prepare failed with exit code $LASTEXITCODE." }
   & $transport "scp" -Target $Target -Key $Key $Artifact "$Target`:$remoteRoot/octessera-pi"; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark artifact transfer failed with exit code $LASTEXITCODE." }
   & $transport "scp" -Target $Target -Key $Key $Metadata "$Target`:$remoteRoot/octessera-pi.metadata.json"; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark metadata transfer failed with exit code $LASTEXITCODE." }
   & $transport "ssh-payload" -Target $Target -Key $Key $payloadPath; if ($LASTEXITCODE -ne 0) { $studyFailure = "Raspberry live benchmark remote study exited with code $LASTEXITCODE." }
 } catch { $studyFailure = $_ } finally {
-  try { & $transport "scp" -Target $Target -Key $Key "-r" "$Target`:$remoteRoot/." $localRunDirectory; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark evidence retrieval failed with exit code $LASTEXITCODE." } } catch { if ($null -eq $studyFailure) { $studyFailure = $_ } }
+  try { & $transport "scp" -Target $Target -Key $Key "-r" "$Target`:$remoteRoot/." $localRunDirectory; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark evidence retrieval failed with exit code $LASTEXITCODE." } } catch { $retrievalFailure = $_ }
   try { & $transport "ssh-payload" -Target $Target -Key $Key $cleanupPath; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark cleanup failed with exit code $LASTEXITCODE." } } catch { $cleanupFailure = $_ }
   foreach ($path in @($preparePath, $payloadPath, $cleanupPath)) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
 }
 $hostEvidence = Get-RaspberryLiveHostEvidence -EvidenceDirectory $localRunDirectory -Selection $selection -ArtifactHash $artifactHash
+if ($null -ne $retrievalFailure -and $hostEvidence.StatusClass -cne "restoration_failure") { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = $retrievalFailure.Exception.Message }
 if ($null -ne $cleanupFailure -and $hostEvidence.StatusClass -ceq "pass") { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = "Raspberry live benchmark cleanup failed: $cleanupFailure" }
 $hostEvidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $localRunDirectory "host-evidence.json") -Encoding UTF8
 Write-Output "Evidence directory: $localRunDirectory"
