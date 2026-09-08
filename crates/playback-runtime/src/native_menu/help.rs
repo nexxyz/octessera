@@ -104,6 +104,10 @@ fn menu_action_help_target(action: &NativeMenuAction) -> (String, String) {
             format!("action:behavior_select:{behavior_id}"),
             "action".into(),
         ),
+        NativeMenuAction::SelectNoteSet { note_set_id, .. } => (
+            format!("action:note_set_select:{note_set_id}"),
+            "action".into(),
+        ),
         NativeMenuAction::NavigateBack => ("action:navigate_back".into(), "action".into()),
         NativeMenuAction::BehaviorAction(action_type) => (
             format!("action:behavior_action:{action_type}"),

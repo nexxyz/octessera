@@ -5,23 +5,16 @@ pub(crate) fn active_life_notes_stay_in_mapping_after_menu_changes_and_navigatio
     let mut runner = configured_life_runner();
 
     assert!(runner.menu.focus_item_key("layers.0.pulses.pitch.scale"));
-    runner.menu.state.editing = true;
-    let scale_change = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    main_press(&mut runner);
+    main_press(&mut runner);
+    main_turn(&mut runner, 1);
+    let scale_change = main_press(&mut runner);
     assert_notes_in_active_mapping(&runner, &scale_change);
 
     assert!(runner.menu.focus_item_key("layers.0.pulses.pitch.root"));
-    runner.menu.state.editing = true;
-    let root_change = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    main_press(&mut runner);
+    main_turn(&mut runner, 3);
+    let root_change = main_press(&mut runner);
     assert_notes_in_active_mapping(&runner, &root_change);
 
     runner.pulses_layers[0].lowest_note = 50;
@@ -37,25 +30,15 @@ pub(crate) fn active_life_notes_stay_in_mapping_after_menu_changes_and_navigatio
     assert!(runner
         .menu
         .focus_item_key("layers.0.worlds.behaviorConfig.randomCellsPerTick"));
-    runner.menu.state.editing = true;
-    let behavior_config_change = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    main_press(&mut runner);
+    main_turn(&mut runner, 2);
+    let behavior_config_change = main_press(&mut runner);
     assert_notes_in_active_mapping(&runner, &behavior_config_change);
 
     let after_config_tick = pulse(&mut runner);
     assert_notes_in_active_mapping(&runner, &after_config_tick);
 
-    runner.menu.state.editing = false;
-    let navigation = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    let navigation = main_turn(&mut runner, 1);
     assert!(musical_note_ons(&navigation).is_empty());
 }
 
@@ -63,7 +46,7 @@ fn configured_life_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.pulses_layers[0].state_notes_enabled = true;
     runner.pulses_layers[0].event_enabled = true;
-    runner.pulses_layers[0].scale = "minor".into();
+    runner.pulses_layers[0].scale = "natural_minor".into();
     runner.pulses_layers[0].root = "D".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
@@ -80,6 +63,24 @@ fn pulse(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
             pulses: 24,
             source: SyncSource::Internal,
             at_ppqn_pulse: None,
+            request_snapshot: None,
+        })
+        .unwrap()
+}
+
+fn main_press(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap()
+}
+
+fn main_turn(runner: &mut NativeRunner, delta: i8) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap()

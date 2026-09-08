@@ -73,7 +73,20 @@ Link
 │   │   ├── Low Note: [0..127] step 1          ← lower bound, displayed as note name + MIDI number, e.g. C2 (36)
 │   │   ├── High Note: [0..127] step 1         ← upper bound, displayed as note name + MIDI number, e.g. D5 (74)
 │   │   ├── Start Note: [0..127] step 1        ← nearest scale start index, displayed as note name + MIDI number, e.g. C4 (60)
-│   │   ├── Scale: [chromatic | major | natural_minor | dorian | mixolydian | major_pentatonic | minor_pentatonic | harmonic_minor]
+│   │   ├── Set: <compact> > (bindable enum; Main enters the foldered selector)
+│   │   │   ├── Scales (group)
+│   │   │   │   ├── `..` returns to the category list
+│   │   │   │   └── Chromatic | Major | Natural Minor | Harmonic Minor | Dorian | Mixolydian
+│   │   │   ├── Chord Tones (group)
+│   │   │   │   ├── `..` returns to the category list
+│   │   │   │   └── Major Triad | Minor Triad | Diminished Triad | Sus 2 | Sus 4 | Major 7 | Dominant 7 | Minor 7 | Major 9 | Dominant 9
+│   │   │   ├── Pentatonic (group)
+│   │   │   │   ├── `..` returns to the category list
+│   │   │   │   └── Major Pentatonic | Minor Pentatonic | Suspended Penta | Hirajoshi-like | In Sen-like | Iwato-like
+│   │   │   └── Symmetric (group)
+│   │   │       ├── `..` returns to the category list
+│   │   │       └── Whole Tone | Octatonic H-W | Octatonic W-H
+│   │   ├── Canonical flat Set IDs for binding/modulation: chromatic, major, natural_minor, harmonic_minor, dorian, mixolydian, major_triad, minor_triad, diminished_triad, suspended_second, suspended_fourth, major_seventh, dominant_seventh, minor_seventh, major_ninth, dominant_ninth, major_pentatonic, minor_pentatonic, suspended_pentatonic, hirajoshi_like, in_sen_like, iwato_like, whole_tone, octatonic_half_whole, octatonic_whole_half
 │   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]
 │   │   └── Out of Range: [clamp | wrap]
 │   ├── X Axis (group)

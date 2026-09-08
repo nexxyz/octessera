@@ -6,6 +6,7 @@ mod grid;
 mod interpretation;
 mod interpretation_scan;
 mod mapping;
+mod note_sets;
 pub mod palette;
 mod platform_capabilities;
 mod transforms;
@@ -33,6 +34,10 @@ pub use interpretation::{
 pub use mapping::{
     default_mapping_config, map_intents_to_musical_events, MappingConfig, MappingResult, RangeMode,
     TriggerAction, TriggerTarget,
+};
+pub use note_sets::{
+    expand_note_set, note_set_by_id, note_set_categories, note_set_ids, note_set_registry,
+    NoteSetCategory, NoteSetDefinition, NOTE_SET_CATEGORIES, NOTE_SET_REGISTRY, NOTE_SET_ROOTS,
 };
 pub use platform_capabilities::{
     PlatformCapabilities, AUDIO_OUTPUT_BUFFER_FRAMES, AUDIO_RENDER_QUANTUM_FRAMES,

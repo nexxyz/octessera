@@ -36,6 +36,20 @@ pub(super) fn format_item_lines(
         NativeMenuValue::Enum {
             options,
             selected: current,
+        } if !item.children.is_empty() => vec![format_menu_line(
+            &format!(
+                "{}: {} >",
+                item.label,
+                format_display_value(
+                    item.key.as_deref(),
+                    options.get(*current).cloned().unwrap_or_default(),
+                )
+            ),
+            selected,
+        )],
+        NativeMenuValue::Enum {
+            options,
+            selected: current,
         } => format_param_lines(
             &item.label,
             format_display_value(
@@ -90,6 +104,19 @@ pub(super) fn format_item_full_selected_line(
             };
             Some(format_menu_line(&label, true))
         }
+        NativeMenuValue::Enum { options, selected } if !item.children.is_empty() => {
+            Some(format_menu_line(
+                &format!(
+                    "{}: {} >",
+                    item.label,
+                    format_display_value(
+                        item.key.as_deref(),
+                        options.get(*selected).cloned().unwrap_or_default(),
+                    )
+                ),
+                true,
+            ))
+        }
         NativeMenuValue::Enum { options, selected } => Some(format_full_param_line(
             &item.label,
             &format_display_value(
@@ -140,6 +167,7 @@ pub(super) fn formatted_item_row_count(
         return 1;
     }
     let text_rows = match &item.value {
+        NativeMenuValue::Enum { .. } if !item.children.is_empty() => 1,
         NativeMenuValue::Enum { .. }
         | NativeMenuValue::Number { .. }
         | NativeMenuValue::Bool { .. }

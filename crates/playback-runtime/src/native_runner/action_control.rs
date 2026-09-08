@@ -123,6 +123,13 @@ impl NativeRunner {
                 self.select_layer_behavior(layer_index, &behavior_id)?;
                 Ok(None)
             }
+            NativeMenuAction::SelectNoteSet {
+                layer_index,
+                note_set_id,
+            } => {
+                self.select_note_set(layer_index, &note_set_id)?;
+                Ok(None)
+            }
             NativeMenuAction::NavigateBack => {
                 self.menu.back();
                 Ok(None)

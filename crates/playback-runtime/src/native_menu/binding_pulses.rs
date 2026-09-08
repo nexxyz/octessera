@@ -168,16 +168,7 @@ pub(super) fn pulses_binding_group(
                         None,
                         None,
                         None,
-                        vec![
-                            "chromatic",
-                            "major",
-                            "natural_minor",
-                            "dorian",
-                            "mixolydian",
-                            "major_pentatonic",
-                            "minor_pentatonic",
-                            "harmonic_minor",
-                        ],
+                        platform_core::note_set_ids().collect(),
                         target,
                     ),
                     binding_action(
@@ -187,9 +178,7 @@ pub(super) fn pulses_binding_group(
                         None,
                         None,
                         None,
-                        vec![
-                            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-                        ],
+                        platform_core::NOTE_SET_ROOTS.to_vec(),
                         target,
                     ),
                     binding_action(

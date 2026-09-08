@@ -1,5 +1,6 @@
 use super::*;
 use crate::interpretation::{CellTriggerIntent, CellTriggerKind};
+use crate::{expand_note_set, note_set_registry, NOTE_SET_ROOTS};
 
 #[test]
 fn maps_note_on_and_note_off() {
@@ -44,6 +45,108 @@ fn maps_note_on_and_note_off() {
         ]
     );
     assert_eq!(result.intents.len(), 1);
+}
+
+#[test]
+fn major_triad_mapping_uses_lower_note_on_an_exact_tie() {
+    let mut config = default_mapping_config();
+    config.base_midi_note = 60;
+    config.starting_midi_note = 62;
+    config.max_midi_note = 67;
+    config.scale = expand_note_set("major_triad", "C").unwrap();
+    let result = map_intents_to_musical_events(
+        &[CellTriggerIntent {
+            x: 0,
+            y: 0,
+            kind: CellTriggerKind::Activate,
+            degree: 0,
+        }],
+        &config,
+    );
+    assert!(matches!(
+        result.events.as_slice(),
+        [MusicalEvent::NoteOn { note: 60, .. }]
+    ));
+}
+
+#[test]
+fn c_major_triad_range_cases_are_exact() {
+    for (range_mode, max_midi_note, degrees, expected) in [
+        (
+            RangeMode::Wrap,
+            67,
+            &[0, 1, 2, 3, -1][..],
+            &[60, 64, 67, 60, 67][..],
+        ),
+        (
+            RangeMode::Clamp,
+            67,
+            &[0, 1, 2, 3, -1][..],
+            &[60, 64, 67, 67, 60][..],
+        ),
+        (
+            RangeMode::Wrap,
+            64,
+            &[0, 1, 2, -1][..],
+            &[60, 64, 60, 64][..],
+        ),
+    ] {
+        let mut config = default_mapping_config();
+        config.base_midi_note = 60;
+        config.starting_midi_note = 62;
+        config.max_midi_note = max_midi_note;
+        config.range_mode = range_mode;
+        config.scale = expand_note_set("major_triad", "C").unwrap();
+        let result = map_intents_to_musical_events(
+            &degrees
+                .iter()
+                .map(|degree| CellTriggerIntent {
+                    x: 0,
+                    y: 0,
+                    kind: CellTriggerKind::Activate,
+                    degree: *degree,
+                })
+                .collect::<Vec<_>>(),
+            &config,
+        );
+        let notes = result
+            .events
+            .into_iter()
+            .map(|event| match event {
+                MusicalEvent::NoteOn { note, .. } => i32::from(note),
+                _ => panic!("expected note on"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(notes, expected);
+    }
+}
+
+#[test]
+fn every_registered_set_and_root_maps_into_its_concrete_pitch_classes() {
+    for note_set in note_set_registry() {
+        for root in NOTE_SET_ROOTS {
+            let mut config = default_mapping_config();
+            config.base_midi_note = 24;
+            config.starting_midi_note = 60;
+            config.max_midi_note = 84;
+            config.scale = note_set.pitch_classes(root).unwrap();
+            for degree in -32..=32 {
+                let result = map_intents_to_musical_events(
+                    &[CellTriggerIntent {
+                        x: 0,
+                        y: 0,
+                        kind: CellTriggerKind::Activate,
+                        degree,
+                    }],
+                    &config,
+                );
+                let MusicalEvent::NoteOn { note, .. } = result.events[0] else {
+                    panic!("expected note on");
+                };
+                assert!(note_matches_scale(note, &validate_config(&config)));
+            }
+        }
+    }
 }
 
 #[test]

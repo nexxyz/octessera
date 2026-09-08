@@ -33,6 +33,7 @@ mod model_root;
 mod model_search;
 mod model_snapshot;
 mod model_values;
+mod note_mapping;
 mod options;
 mod pulses;
 mod pulses_axis;

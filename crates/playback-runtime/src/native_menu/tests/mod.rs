@@ -8,6 +8,7 @@ mod fixture_tests;
 mod fixtures;
 mod help;
 mod help_enum_tests;
+mod note_set_help;
 mod pulses;
 mod root;
 mod sparks;

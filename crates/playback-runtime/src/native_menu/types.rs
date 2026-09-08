@@ -10,6 +10,10 @@ pub enum NativeMenuAction {
         layer_index: usize,
         behavior_id: String,
     },
+    SelectNoteSet {
+        layer_index: usize,
+        note_set_id: String,
+    },
     NavigateBack,
     PlatformEffect(String),
     SetParamBinding {

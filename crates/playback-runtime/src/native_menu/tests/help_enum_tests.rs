@@ -91,6 +91,12 @@ fn assert_specific_enum_help(target: &EnumHelpTarget) {
         entry.key
     );
     let copy = format!("{} {}", entry.line1, entry.line2);
+    if target.target.key == "key:layers.*.pulses.pitch.scale" {
+        assert!(copy.contains("pitch classes"));
+        assert!(copy.contains("simultaneous chords or inversions"));
+        assert!(copy.contains("12-TET approximations"));
+        return;
+    }
     let missing = target
         .options
         .iter()
