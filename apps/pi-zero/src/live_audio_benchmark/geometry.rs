@@ -29,7 +29,8 @@ pub(crate) fn validate_requested_geometry(
     };
     if !approved {
         return Err(format!(
-            "unsupported Orange benchmark geometry tuple: output={output_frames} internal={internal_frames}"
+            "unsupported {} benchmark geometry tuple: output={output_frames} internal={internal_frames}",
+            super::platform::BENCHMARK_LABEL
         ));
     }
     Ok(())

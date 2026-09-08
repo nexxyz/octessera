@@ -219,7 +219,7 @@ fn validate_workers(
             (Some(start), Some(end)) if start == expected_cpu && end == expected_cpu => {}
             (Some(_), Some(_)) => {
                 return Err(format!(
-                    "worker {parity} CPU evidence does not match its fixed Orange CPU"
+                    "worker {parity} CPU evidence does not match its fixed benchmark CPU"
                 ));
             }
             (None, None) => {

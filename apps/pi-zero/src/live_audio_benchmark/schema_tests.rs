@@ -1,6 +1,6 @@
 use super::*;
-use crate::orange_audio_benchmark::cli::{parse, BenchmarkExecutorMode, WorkerTimingMode};
-use crate::orange_audio_benchmark::stream;
+use crate::live_audio_benchmark::cli::{parse, BenchmarkExecutorMode, WorkerTimingMode};
+use crate::live_audio_benchmark::stream;
 
 fn config() -> BenchmarkConfig {
     let mut config = parse(vec![
@@ -97,7 +97,7 @@ fn benchmark_result(
 ) -> BenchmarkResult {
     BenchmarkResult {
         schema_version: BENCHMARK_RESULT_SCHEMA_VERSION,
-        kind: "orange_audio_benchmark_result".into(),
+        kind: super::super::platform::BENCHMARK_RESULT_KIND.into(),
         status: "pass".into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
         scenario: "synth_ramp_16".into(),
@@ -361,8 +361,8 @@ fn schema12_executor_modes_require_exact_runtime_evidence() {
 #[test]
 fn schema12_accepts_pre_stream_failures_for_both_executors() {
     for executor_mode in [
-        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline,
-        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers,
+        crate::live_audio_benchmark::cli::BenchmarkExecutorMode::Inline,
+        crate::live_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers,
     ] {
         let mut result = inline_benchmark_result();
         result.executor_mode = executor_mode.as_str().into();
@@ -378,7 +378,7 @@ fn schema12_accepts_pre_stream_failures_for_both_executors() {
         result.final_progress_write_succeeded = false;
         result.terminal_error = Some("stream build failed".into());
         if executor_mode
-            == crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers
+            == crate::live_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers
         {
             result.worker_health = "disabled".into();
             result.worker_thread_name_0.clear();

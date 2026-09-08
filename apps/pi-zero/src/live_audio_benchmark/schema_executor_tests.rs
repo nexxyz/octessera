@@ -36,7 +36,7 @@ fn schema5_progress_and_readiness_reject_mismatched_executor_geometry() {
 #[test]
 fn progress_and_readiness_report_the_selected_executor() {
     let mut config = config();
-    config.executor_mode = crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline;
+    config.executor_mode = crate::live_audio_benchmark::cli::BenchmarkExecutorMode::Inline;
     config.worker_timing_mode = WorkerTimingMode::Disabled;
     let metrics = CallbackMetricsSnapshot::default();
     let progress = BenchmarkProgress::new(
@@ -71,7 +71,7 @@ fn progress_and_readiness_report_the_selected_executor() {
 fn schema12_routing_executor_reports_routing_geometry_and_worker_names() {
     let mut config = config();
     config.executor_mode =
-        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::RoutingTreePersistent;
+        crate::live_audio_benchmark::cli::BenchmarkExecutorMode::RoutingTreePersistent;
     config.internal_frames = 128;
     let metrics = CallbackMetricsSnapshot::default();
     let progress = BenchmarkProgress::new(

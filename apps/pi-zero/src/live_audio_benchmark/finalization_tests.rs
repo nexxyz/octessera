@@ -1,5 +1,5 @@
 use super::*;
-use crate::orange_audio_benchmark::cli::{parse, BenchmarkExecutorMode, WorkerTimingMode};
+use crate::live_audio_benchmark::cli::{parse, BenchmarkExecutorMode, WorkerTimingMode};
 use rodio_engine_source::PersistentOutputCounters;
 use std::time::Duration;
 
@@ -105,7 +105,7 @@ fn profile_validation_proves_max_fx_state() {
 
 #[test]
 fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
-    let config = crate::orange_audio_benchmark::cli::parse(vec![
+    let config = crate::live_audio_benchmark::cli::parse(vec![
         "--benchmark-orange-audio".into(),
         "--scenario".into(),
         "synth_cross_slot_96_steal".into(),
@@ -238,6 +238,7 @@ fn result_status_requires_clean_runtime_evidence() {
         joined_workers: 2,
         retirement_error: true,
         worker_timing_consistent: true,
+        persistent_output_counters_clean: true,
     };
     for (measure_seconds, allowed, rejected) in [(30, 0, 1), (120, 0, 1), (180, 0, 1), (300, 5, 6)]
     {
@@ -251,7 +252,21 @@ fn result_status_requires_clean_runtime_evidence() {
         };
         assert_eq!(
             result_status(&config, &allowed_metrics, 0, gates.clone()),
-            "pass"
+            if cfg!(all(
+                feature = "hardware-raspberry-pi-zero-2w",
+                feature = "routing-tree-benchmark",
+                feature = "benchmark-voice-pools-128",
+                not(feature = "legacy-hardware-rpi-zero-2w"),
+                not(feature = "legacy-hardware-pi")
+            )) {
+                if allowed == 0 {
+                    "pass"
+                } else {
+                    "fail"
+                }
+            } else {
+                "pass"
+            }
         );
 
         let rejected_metrics = CallbackMetricsSnapshot {
@@ -288,6 +303,7 @@ fn one_eighty_second_result_requires_zero_detected_continuity_events() {
         joined_workers: 2,
         retirement_error: true,
         worker_timing_consistent: true,
+        persistent_output_counters_clean: true,
     };
     assert_eq!(result_status(&config, &metrics, 0, gates.clone()), "pass");
     assert_eq!(result_status(&config, &metrics, 1, gates), "fail");
@@ -317,6 +333,7 @@ fn inline_result_status_requires_inline_worker_lifecycle_and_timing() {
         joined_workers: 0,
         retirement_error: true,
         worker_timing_consistent: true,
+        persistent_output_counters_clean: true,
     };
     assert_eq!(result_status(&config, &metrics, 0, clean.clone()), "pass");
 
@@ -364,6 +381,7 @@ fn routing_tree_result_status_requires_routing_worker_lifecycle() {
         joined_workers: 2,
         retirement_error: true,
         worker_timing_consistent: true,
+        persistent_output_counters_clean: true,
     };
     assert_eq!(result_status(&config, &metrics, 0, clean.clone()), "pass");
     let mut invalid = clean;
@@ -399,6 +417,7 @@ fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
             joined_workers: 2,
             retirement_error: true,
             worker_timing_consistent: true,
+            persistent_output_counters_clean: true,
         };
         assert_eq!(result_status(&config, &metrics, 0, gates), "fail");
     }
@@ -436,7 +455,7 @@ fn pre_stream_failure_serializes_worker_timing_for_both_modes() {
 
         let previous_invocation = std::env::var_os("INVOCATION_ID");
         std::env::remove_var("INVOCATION_ID");
-        let outcome = crate::orange_audio_benchmark::run_inner(&config);
+        let outcome = crate::live_audio_benchmark::run_inner(&config);
         match previous_invocation {
             Some(value) => std::env::set_var("INVOCATION_ID", value),
             None => std::env::remove_var("INVOCATION_ID"),

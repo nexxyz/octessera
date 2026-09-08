@@ -9,7 +9,7 @@ IMAGE="${IMAGE:-octessera-pi-cross:latest}"
 
 source ./tools/pi/board-profile.sh
 require_supported_pi_board_profile "$BOARD_PROFILE"
-CARGO_FEATURE="$(get_pi_board_cargo_feature "$BOARD_PROFILE")"
+CARGO_FEATURE="${CARGO_FEATURE:-$(get_pi_board_cargo_feature "$BOARD_PROFILE")}"
 
 BUILD_CONTEXT="$(mktemp -d)"
 trap 'rm -rf -- "$BUILD_CONTEXT"' EXIT

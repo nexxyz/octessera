@@ -8,7 +8,16 @@ use crate::audio_route::AudioRouteRegistry;
 use crate::audio_sink_registry::test_sink_sender;
 use crate::audio_sink_registry::{broadcast_event_atomic, AudioAttachGate, SinkSender};
 pub(crate) use crate::audio_stream_health::AudioStreamHealth;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    )
+))]
 pub(crate) use crate::audio_stream_health::AudioStreamStatus;
 use crate::recording::{RecorderService, RecordingTap};
 #[path = "audio_defaults.rs"]
@@ -22,7 +31,16 @@ use audio_error::audio_queue_error;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use audio_output::OrangeAudioProfile;
 pub(crate) use audio_output::{AudioManager, AudioSink};
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    )
+))]
 pub(crate) use audio_output::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
     AudioStreamShutdownReport, CallbackSource,

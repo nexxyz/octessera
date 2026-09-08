@@ -1,3 +1,4 @@
+use super::clean_policy;
 use super::cli::{BenchmarkConfig, BenchmarkExecutorMode, RecordedGeometry, WorkerTimingMode};
 use super::metrics::{CallbackMetrics, CallbackMetricsSnapshot};
 use super::phase::{MeasurementControl, MeasurementPhase};
@@ -89,7 +90,7 @@ impl RunState {
             callback_scheduling: None,
             worker_timing: (worker_timing_mode == WorkerTimingMode::Enabled).then(|| {
                 Arc::new(SourceWorkerTimingProbe::new(Some(
-                    crate::audio_priority::orange_cpu_sampler,
+                    crate::audio_priority::cpu_sampler,
                 )))
             }),
             persistent_output_counters: PersistentOutputCountersEvidence::for_executor(
@@ -255,6 +256,10 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
             joined_workers: state.joined_workers,
             retirement_error: state.retirement_error.is_none(),
             worker_timing_consistent: worker_timing_is_consistent(config, state),
+            persistent_output_counters_clean: clean_policy::persistent_output_counters_passes(
+                config,
+                &state.persistent_output_counters,
+            ),
         },
     );
     let profile_start = state
@@ -267,7 +272,7 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
         .unwrap_or_default();
     let result = BenchmarkResult {
         schema_version: 12,
-        kind: "orange_audio_benchmark_result".into(),
+        kind: super::platform::BENCHMARK_RESULT_KIND.into(),
         status: status.into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
         scenario: config.scenario.as_str().into(),
@@ -327,7 +332,10 @@ pub fn finalize(config: &BenchmarkConfig, state: &mut RunState) -> Result<(), St
     if status == "pass" {
         Ok(())
     } else {
-        Err("Orange benchmark terminal result failed its evidence gates".into())
+        Err(format!(
+            "{} benchmark terminal result failed its evidence gates",
+            super::platform::BENCHMARK_LABEL
+        ))
     }
 }
 
@@ -382,6 +390,7 @@ struct FinalizationGates {
     joined_workers: usize,
     retirement_error: bool,
     worker_timing_consistent: bool,
+    persistent_output_counters_clean: bool,
 }
 
 fn result_status(
@@ -398,7 +407,8 @@ fn result_status(
         && worker_lifecycle_passes(config, &gates)
         && worker_timing_passes(config, &gates)
         && gates.retirement_error
-        && result_passes(config, metrics, detected_continuity_events)
+        && gates.persistent_output_counters_clean
+        && clean_policy::result_passes(config, metrics, detected_continuity_events)
     {
         "pass"
     } else {
@@ -433,40 +443,6 @@ fn worker_timing_is_consistent(config: &BenchmarkConfig, state: &RunState) -> bo
     (config.executor_mode != super::cli::BenchmarkExecutorMode::Inline
         || config.worker_timing_mode == WorkerTimingMode::Disabled)
         && state.worker_timing.is_some() == (config.worker_timing_mode == WorkerTimingMode::Enabled)
-}
-
-fn result_passes(
-    config: &BenchmarkConfig,
-    metrics: &CallbackMetricsSnapshot,
-    detected_continuity_events: u64,
-) -> bool {
-    metrics.callback_count > 0
-        && metrics.callback_frames_min > 0
-        && metrics.callback_frames_max <= config.output_frames
-        && metrics.callback_frame_sample_count == metrics.callback_count
-        && metrics.invalid_callback_frame_count == 0
-        && callback_budget_passes(
-            config.measure_seconds,
-            metrics.over_audio_duration_budget_count,
-        )
-        && (config.measure_seconds != 180
-            || (detected_continuity_events == 0
-                && metrics.over_audio_duration_budget_count == 0
-                && metrics.cpal_device_error_count == 0
-                && metrics.cpal_stream_error_count == 0))
-        && metrics.pre_mute_nonzero_samples > 0
-        && metrics.post_mute_nonzero_samples == 0
-        && !metrics.worker_terminal
-        && !metrics.terminal_error
-}
-
-fn callback_budget_passes(measure_seconds: u64, overrun_count: u64) -> bool {
-    match measure_seconds {
-        30 | 120 => overrun_count == 0,
-        180 => overrun_count == 0,
-        300 => overrun_count <= 5,
-        _ => false,
-    }
 }
 
 fn write_final_progress(
