@@ -6,8 +6,12 @@ fn result_schema13_requires_worker_timing_and_rejects_unknown_fields() {
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     assert_eq!(value["schema_version"], 13);
-    assert_eq!(value["lookahead_frames"], 256);
-    assert_eq!(value["effective_output_latency_frames"], 512);
+    let raspberry = crate::live_audio_benchmark::geometry::is_raspberry_diagnostic();
+    assert_eq!(value["lookahead_frames"], if raspberry { 128 } else { 256 });
+    assert_eq!(
+        value["effective_output_latency_frames"],
+        if raspberry { 384 } else { 512 }
+    );
     assert_eq!(value["callback_scheduling_cpu"], 1);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["continue_on_recovered_miss"], false);
@@ -46,9 +50,14 @@ fn continuation_result() -> BenchmarkResult {
     result.requested_output_buffer_frames = 256;
     result.expected_alsa_buffer_frames = 256;
     result.expected_alsa_period_frames = 64;
-    result.internal_block_frames = 64;
-    result.lookahead_frames = 64;
-    result.effective_output_latency_frames = 320;
+    result.internal_block_frames =
+        if crate::live_audio_benchmark::geometry::is_raspberry_diagnostic() {
+            128
+        } else {
+            64
+        };
+    result.lookahead_frames = result.internal_block_frames;
+    result.effective_output_latency_frames = 256 + result.lookahead_frames;
     result.measure_seconds = 120;
     result.executor_mode = "routing_tree_persistent".into();
     result.continue_on_recovered_miss = true;
@@ -253,6 +262,13 @@ fn schema13_accepts_pre_stream_failures_for_both_executors() {
         result.stream_stopped = false;
         result.final_progress_write_succeeded = false;
         result.terminal_error = Some("stream build failed".into());
+        if executor_mode
+            == crate::live_audio_benchmark::cli::BenchmarkExecutorMode::RoutingTreePersistent
+        {
+            result.lookahead_frames = result.internal_block_frames;
+            result.effective_output_latency_frames =
+                result.requested_output_buffer_frames as usize + result.lookahead_frames;
+        }
         if executor_mode
             == crate::live_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers
         {

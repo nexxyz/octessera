@@ -412,7 +412,12 @@ pub(crate) fn is_approved_continue_on_recovered_miss(
         && executor_mode == BenchmarkExecutorMode::RoutingTreePersistent
         && output_frames == 256
         && expected_alsa_period_frames == 64
-        && internal_frames == 64
+        && internal_frames
+            == if super::geometry::is_raspberry_diagnostic() {
+                128
+            } else {
+                64
+            }
         && measure_seconds == 120
         && worker_timing_mode == WorkerTimingMode::Disabled
 }

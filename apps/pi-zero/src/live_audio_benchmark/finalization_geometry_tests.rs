@@ -3,6 +3,7 @@ use super::*;
 #[test]
 fn pre_stream_finalization_accepts_inline_analogue_geometry() {
     let mut config = analogue_inline_config();
+    let raspberry = super::super::super::geometry::is_raspberry_diagnostic();
     let root = std::env::temp_dir().join(format!(
         "octessera-analogue-finalization-{}-{}",
         std::process::id(),
@@ -28,8 +29,8 @@ fn pre_stream_finalization_accepts_inline_analogue_geometry() {
             expected_voice_admission_drops_end: 0,
         },
         44_100,
-        32,
-        128,
+        if raspberry { 64 } else { 32 },
+        if raspberry { 256 } else { 128 },
         BenchmarkExecutorMode::Inline,
         WorkerTimingMode::Disabled,
     );
@@ -45,18 +46,39 @@ fn pre_stream_finalization_accepts_inline_analogue_geometry() {
     assert_eq!(value["status"], "fail");
     assert!(value["terminal_error"].is_null());
     assert_eq!(value["scenario"], "capacity_analogue_1");
-    assert_eq!(value["requested_output_buffer_frames"], 128);
-    assert_eq!(value["expected_alsa_period_frames"], 32);
+    assert_eq!(
+        value["requested_output_buffer_frames"],
+        if super::super::super::geometry::is_raspberry_diagnostic() {
+            256
+        } else {
+            128
+        }
+    );
+    assert_eq!(
+        value["expected_alsa_period_frames"],
+        if super::super::super::geometry::is_raspberry_diagnostic() {
+            64
+        } else {
+            32
+        }
+    );
     assert_eq!(
         value["internal_block_frames"],
         if super::super::super::geometry::is_raspberry_diagnostic() {
-            32
+            128
         } else {
             64
         }
     );
     assert_eq!(value["lookahead_frames"], 0);
-    assert_eq!(value["effective_output_latency_frames"], 128);
+    assert_eq!(
+        value["effective_output_latency_frames"],
+        if super::super::super::geometry::is_raspberry_diagnostic() {
+            256
+        } else {
+            128
+        }
+    );
     assert!(serde_json::from_value::<BenchmarkResult>(value).is_ok());
     std::fs::remove_dir_all(root).unwrap();
 }
@@ -64,7 +86,8 @@ fn pre_stream_finalization_accepts_inline_analogue_geometry() {
 #[test]
 fn pre_stream_finalization_reports_invalid_geometry() {
     let mut config = analogue_inline_config();
-    config.internal_frames = 128;
+    let raspberry = super::super::super::geometry::is_raspberry_diagnostic();
+    config.internal_frames = if raspberry { 64 } else { 128 };
     let root = std::env::temp_dir().join(format!(
         "octessera-invalid-analogue-finalization-{}-{}",
         std::process::id(),
@@ -90,8 +113,8 @@ fn pre_stream_finalization_reports_invalid_geometry() {
             expected_voice_admission_drops_end: 0,
         },
         44_100,
-        32,
-        128,
+        if raspberry { 64 } else { 32 },
+        if raspberry { 256 } else { 128 },
         BenchmarkExecutorMode::Inline,
         WorkerTimingMode::Disabled,
     );
@@ -100,8 +123,18 @@ fn pre_stream_finalization_reports_invalid_geometry() {
     assert_eq!(
         state.errors,
         vec![format!(
-            "unsupported {} benchmark geometry tuple: output=128 internal=128",
-            super::super::super::platform::BENCHMARK_LABEL
+            "unsupported {} benchmark geometry tuple: output={} internal={}",
+            super::super::super::platform::BENCHMARK_LABEL,
+            if super::super::super::geometry::is_raspberry_diagnostic() {
+                256
+            } else {
+                128
+            },
+            if super::super::super::geometry::is_raspberry_diagnostic() {
+                64
+            } else {
+                128
+            }
         )]
     );
     std::fs::remove_dir_all(root).unwrap();
