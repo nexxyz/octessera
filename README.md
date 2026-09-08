@@ -106,7 +106,7 @@ the physical board, controls, display, DAC, power, or USB paths.
 Primary user docs:
 
 - [`userdocs/README.md`](userdocs/README.md): start here for build, bring-up, controls, printable sheets, and references.
-- [`userdocs/desktop-simulator.md`](userdocs/desktop-simulator.md): start a hardware-free desktop session and understand its limits.
+- [`userdocs/desktop-simulator.md`](userdocs/desktop-simulator.md): start a hardware-free desktop session to test out octessera before building.
 - [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
 - [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md): Raspberry wiring, bus allocation, logical input mapping, and Orange routing warning.
 - [`userdocs/hardware/raspberry-pi-first-boot.md`](userdocs/hardware/raspberry-pi-first-boot.md): Raspberry image, UART/SW3, OLED, and saved-settings behavior.
@@ -118,34 +118,18 @@ Primary user docs:
 - [`userdocs/behaviors-and-sparks.md`](userdocs/behaviors-and-sparks.md): behavior catalog and Play page reference.
 - [`userdocs/print/quick-reference.pdf`](userdocs/print/quick-reference.pdf): two-page printable controls, behaviors, Play, and signal-flow sheet.
 
-Canonical specs:
+Overall specs:
 
 - [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md): authoritative controls, menu structure, overlays, persistence, and display behavior.
 - [`docs/menu-tree-spec.md`](docs/menu-tree-spec.md): canonical menu tree.
 
-Contributor/reference docs:
-
-- [`docs/runtime-boundaries.md`](docs/runtime-boundaries.md): crate/host responsibilities and dependency boundaries.
-- [`docs/development-workflows.md`](docs/development-workflows.md): contributor workflow index and shared verification/source-of-truth commands.
-- [`docs/workflows/desktop-development.md`](docs/workflows/desktop-development.md): desktop simulator, builds, and hardware-free checks.
-- [`docs/workflows/pi-development-and-profiling.md`](docs/workflows/pi-development-and-profiling.md): Pi host builds and profiling.
-- [`docs/workflows/image-construction-and-proof.md`](docs/workflows/image-construction-and-proof.md): board image construction and proof.
-- [`docs/workflows/release-assembly.md`](docs/workflows/release-assembly.md): release asset and populated-draft contract.
-- [`docs/workflows/deployment.md`](docs/workflows/deployment.md): board deployment and hardware debug loops.
-- [`docs/engineering-quality-requirements.md`](docs/engineering-quality-requirements.md): current quality gates and definition of done.
-- [`docs/open-work.md`](docs/open-work.md): current actionable work only.
-
 ## Samples
 
-The bundled sample library contains 320 media files. The sampler-loadable default library contains 318 WAV files; two AIFF files remain outside the WAV-only browser/decoder. The portable desktop package and both production-image constructors stage the complete library. The technical [`samples/MANIFEST.tsv`](samples/MANIFEST.tsv) records each file's path, size, and SHA-256 digest. The canonical default patch uses sampler-loadable WAV paths, and user-supplied samples remain supported.
-
-The concise sample acknowledgement is [`samples/SOURCE.md`](samples/SOURCE.md); the pack's CC0 text is retained in [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
+The bundled sample library contains 320 sounds from the [stargate-sample-pack](https://github.com/stargatedaw/stargate-sample-pack).
 
 ## Hardware model attributions
 
-See [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md) for the standoff, module-footprint, Raspberry Pi CAD, KiCad, and hardware-reference notices.
-
-AI assistance was used during the creation of Octessera.
+See [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md) for the standoff, module-footprint, Raspberry Pi CAD, KiCad, and hardware-reference list.
 
 ## License
 
@@ -164,3 +148,5 @@ See [LICENSE](LICENSE) for full terms.
 - [`NOTICE`](NOTICE) — compact notice for standalone release archives.
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — reviewed known-material notices; not an exhaustive dependency inventory.
 - [`docs/release-licensing.md`](docs/release-licensing.md) — attribution and future public-image source/licensing review.
+
+AI assistance was used during the creation of Octessera.
