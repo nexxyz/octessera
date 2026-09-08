@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 
 function Assert-RaspberryLiveBenchmarkSelection {
   param(
-    [ValidateSet(12, 16, 24, 32)][int]$Units = 16,
+    [ValidateSet(8, 12, 16, 24, 32)][int]$Units = 16,
     [ValidateSet("Inline", "Multicore")][string]$ExecutorMode = "Inline",
     [ValidateSet(30, 120, 180, 300)][int]$MeasureSeconds = 30
   )

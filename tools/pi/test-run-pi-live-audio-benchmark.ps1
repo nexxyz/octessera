@@ -36,6 +36,8 @@ function Invoke-PrintOnly {
 
 $inline = Assert-RaspberryLiveBenchmarkSelection -Units 16 -ExecutorMode Inline -MeasureSeconds 30
 if ($inline.Scenario -cne "capacity_analogue_16" -or $inline.NativeExecutorMode -cne "inline" -or $inline.LookaheadFrames -ne 0) { throw "Inline Raspberry benchmark selection changed." }
+$u8 = Assert-RaspberryLiveBenchmarkSelection -Units 8 -ExecutorMode Inline -MeasureSeconds 30
+if ($u8.Scenario -cne "capacity_analogue_8" -or $u8.NativeExecutorMode -cne "inline" -or $u8.OutputFrames -ne 256 -or $u8.AlsaPeriodFrames -ne 64 -or $u8.InternalFrames -ne 128 -or $u8.LookaheadFrames -ne 0 -or $u8.EffectiveOutputLatencyFrames -ne 256) { throw "U8 Raspberry benchmark selection or geometry changed." }
 $multicore = Assert-RaspberryLiveBenchmarkSelection -Units 32 -ExecutorMode Multicore -MeasureSeconds 120
 if ($multicore.Scenario -cne "capacity_analogue_32" -or $multicore.NativeExecutorMode -cne "routing_tree_persistent" -or $multicore.WorkerTimingMode -cne "enabled" -or $multicore.LookaheadFrames -ne 128) { throw "Multicore Raspberry benchmark selection changed." }
 
@@ -46,13 +48,15 @@ function New-TestProfile {
     active_synth_voices = 3 * $Units
     active_sample_voices = $Units
     active_preview_sample_voices = 0
-    active_momentary_fx = 2
-    active_bus_fx_slots = 8
-    active_global_fx_slots = 2
+    active_momentary_fx = [math]::Min([math]::Ceiling($Units / 4), 2)
+    active_bus_fx_slots = [math]::Min([math]::Ceiling($Units / 2), 12)
+    active_global_fx_slots = [math]::Min([math]::Ceiling($Units / 8), 2)
     cumulative_voice_steals = 0
     cumulative_voice_admission_drops = 0
   }
 }
+$u8Profile = New-TestProfile 8
+if ($u8Profile.active_synth_voices -ne 24 -or $u8Profile.active_sample_voices -ne 8 -or $u8Profile.active_bus_fx_slots -ne 4 -or $u8Profile.active_global_fx_slots -ne 1 -or $u8Profile.active_momentary_fx -ne 2) { throw "U8 Raspberry benchmark workload changed." }
 function New-TestCounters {
   $zero = [pscustomobject][ordered]@{ rendered_quantums = 0; repeated_quantums = 0; dropped_quantums = 0; deadline_misses = 0; deadline_recoveries = 0 }
   [pscustomobject][ordered]@{ observable = $false; warmup = $zero; start = $zero; end = $zero; delta = $zero }
@@ -194,6 +198,8 @@ try {
 
 $printOnly = Invoke-PrintOnly @{ Units = 16; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
 if ($printOnly -notmatch "no transport is invoked" -or $printOnly -notmatch "U16 scenario=capacity_analogue_16 executor=Inline output=256 period=64 internal=128 lookahead=0 measure=30 label=30-second screen") { throw "Inline PrintOnly output changed." }
+$u8PrintOnly = Invoke-PrintOnly @{ Units = 8; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
+if ($u8PrintOnly -notmatch "U8 scenario=capacity_analogue_8 executor=Inline output=256 period=64 internal=128 lookahead=0 measure=30 label=30-second screen") { throw "U8 PrintOnly output changed." }
 $multicorePrintOnly = Invoke-PrintOnly @{ Units = 32; ExecutorMode = "Multicore"; MeasureSeconds = 120; PrintOnly = $true }
 if ($multicorePrintOnly -notmatch "U32 scenario=capacity_analogue_32 executor=Multicore output=256 period=64 internal=128 lookahead=128 measure=120 label=120-second repeat") { throw "Multicore PrintOnly output changed." }
 Assert-Throws { & $runner -Units 16 } "missing explicit interruption consent"
@@ -269,6 +275,11 @@ foreach ($required in @(
   if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Raspberry runner is missing retained evidence failure contract: $required" }
 }
 if ($runnerSource -match '(?s)\$null -ne \$retrievalFailure.*?\$hostEvidence\.StatusClass -ceq "restoration_failure"') { throw "Raspberry retrieval failure can override restoration failure." }
+$terminalStart = $runnerSource.IndexOf('wait_for_terminal() {', [StringComparison]::Ordinal)
+$terminalResultIndex = $runnerSource.IndexOf('if [ -r "$result" ] && ! sudo -n systemctl is-active --quiet "$unit"', $terminalStart, [StringComparison]::Ordinal)
+$terminalPidIndex = $runnerSource.IndexOf('pid="$(unit_pid)"', $terminalStart, [StringComparison]::Ordinal)
+$terminalInvocationIndex = $runnerSource.IndexOf('[ "$(unit_invocation)" = "$benchmark_invocation" ]', $terminalStart, [StringComparison]::Ordinal)
+if ($terminalStart -lt 0 -or $terminalResultIndex -lt 0 -or $terminalPidIndex -lt 0 -or $terminalInvocationIndex -lt 0 -or $terminalResultIndex -ge $terminalPidIndex -or $terminalPidIndex -ge $terminalInvocationIndex) { throw "Raspberry terminal result collection does not precede live identity checks." }
 
 $bash = Get-Command bash -ErrorAction SilentlyContinue
 $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
