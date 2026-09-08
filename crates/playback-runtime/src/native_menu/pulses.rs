@@ -1,7 +1,7 @@
+use super::note_mapping::note_mapping_group;
 use super::pulses_axis::{axis_group, AxisMenuConfig};
 use super::pulses_sections::{
-    arp_group, events_group, global_link_lfos_group, note_mapping_group, scanning_group,
-    trigger_probability_group,
+    arp_group, events_group, global_link_lfos_group, scanning_group, trigger_probability_group,
 };
 use super::{
     axis_binding_label, bool_item, group, parameter_picker_group, NativeLinkArpConfig,
@@ -100,7 +100,7 @@ pub(super) fn pulses_layer_group(
             scanning_group(&prefix, sense, &instrument_options),
             events_group(&prefix, sense, &instrument_options),
             trigger_probability_group(index, &prefix, sense),
-            note_mapping_group(&prefix, sense),
+            note_mapping_group(index, &prefix, sense),
             axis_group_with_param_mods(
                 index,
                 &format!("{prefix}.x"),

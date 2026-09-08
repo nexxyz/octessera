@@ -144,6 +144,7 @@ mod modulation_source;
 mod modulation_target;
 mod modulation_target_table;
 mod modulation_value;
+mod note_set_selection;
 mod outbox;
 mod overlays;
 mod overlays_fn;

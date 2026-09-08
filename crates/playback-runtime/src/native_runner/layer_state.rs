@@ -45,7 +45,8 @@ impl NativeRunner {
         } else {
             RangeMode::Wrap
         };
-        mapping.scale = scale_steps(&sense.scale, &sense.root);
+        mapping.scale = platform_core::expand_note_set(&sense.scale, &sense.root)
+            .expect("validated note set and root");
         mapping.activate = trigger_target(sense.activate_slot, &sense.activate_action, 96, 150);
         mapping.stable = trigger_target(sense.stable_slot, &sense.stable_action, 88, 130);
         mapping.deactivate =

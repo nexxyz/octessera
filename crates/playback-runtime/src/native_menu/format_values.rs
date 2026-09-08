@@ -26,7 +26,9 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
         return format_note_with_midi(raw.parse::<i32>().unwrap_or(60));
     }
     if key.ends_with("pitch.scale") {
-        return format_scale_name(&raw);
+        return platform_core::note_set_by_id(&raw)
+            .map(|note_set| note_set.compact_label.to_string())
+            .unwrap_or(raw);
     }
     if key.ends_with(".params.source") {
         return raw;
@@ -109,27 +111,9 @@ fn format_reverb_decay_seconds(value: f64) -> String {
     format!("{seconds:.1}s")
 }
 
-fn format_scale_name(value: &str) -> String {
-    match value {
-        "chromatic" => "Chromatic",
-        "major" => "Major",
-        "natural_minor" => "Natural Minor",
-        "dorian" => "Dorian",
-        "mixolydian" => "Mixolydian",
-        "major_pentatonic" => "Maj Pentatonic",
-        "minor_pentatonic" => "Min Pentatonic",
-        "harmonic_minor" => "Harm Minor",
-        _ => value,
-    }
-    .into()
-}
-
 fn format_note_with_midi(note: i32) -> String {
     let note = note.clamp(0, 127);
-    let names = [
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-    ];
-    let name = names[(note % 12) as usize];
+    let name = platform_core::NOTE_SET_ROOTS[(note % 12) as usize];
     let octave = note / 12 - 1;
     format!("{name}{octave} ({note})")
 }

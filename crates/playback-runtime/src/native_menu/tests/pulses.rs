@@ -45,8 +45,8 @@ pub(crate) fn pulses_spec_rows_include_probability_mapping_and_axis_controls() {
     let scale = note_mapping
         .children
         .iter()
-        .find(|item| item.label == "Scale")
-        .expect("scale row");
+        .find(|item| item.label == "Set")
+        .expect("note set row");
     assert!(
         matches!(&scale.value, NativeMenuValue::Enum { options, .. } if options.contains(&"harmonic_minor".to_string()) && options.contains(&"major_pentatonic".to_string()))
     );
@@ -169,7 +169,7 @@ pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
 }
 
 #[test]
-pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
+pub(crate) fn note_set_menu_uses_legacy_scale_ids_and_compact_display_labels() {
     let mut config = config();
     config.pulses_layers[0].scale = "major_pentatonic".into();
     let mut menu = NativeMenuModel::new(config);
@@ -181,10 +181,7 @@ pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
     assert!(options.contains(&"major_pentatonic".to_string()));
     assert!(options.contains(&"minor_pentatonic".to_string()));
     let snapshot = menu.snapshot();
-    assert!(snapshot
-        .lines
-        .iter()
-        .any(|line| line.contains("Maj Pentatonic")));
+    assert!(snapshot.lines.iter().any(|line| line.contains("Maj Pent")));
 }
 
 #[test]

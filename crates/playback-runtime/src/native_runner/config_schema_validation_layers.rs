@@ -6,7 +6,7 @@ use super::mapping_bindings::validate_mapping;
 use super::modulation::validate_layer_modulation;
 use super::Value;
 use crate::timing_units::NOTE_UNIT_OPTIONS;
-use platform_core::LAYER_COUNT;
+use platform_core::{note_set_ids, LAYER_COUNT, NOTE_SET_ROOTS};
 use serde_json::Map;
 
 pub(super) fn validate_layers(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -120,8 +120,9 @@ fn validate_pulses(pulses: &Map<String, Value>, path: &str) -> Result<(), String
         for key in ["lowestNote", "highestNote", "startingNote"] {
             unsigned_field(pitch, key, &format!("{path}.pitch"), 0, 127)?;
         }
-        enum_field(pitch, "scale", &format!("{path}.pitch"), SCALES)?;
-        enum_field(pitch, "root", &format!("{path}.pitch"), ROOTS)?;
+        let note_set_ids = note_set_ids().collect::<Vec<_>>();
+        enum_field(pitch, "scale", &format!("{path}.pitch"), &note_set_ids)?;
+        enum_field(pitch, "root", &format!("{path}.pitch"), NOTE_SET_ROOTS)?;
         enum_field(
             pitch,
             "outOfRange",
@@ -170,17 +171,4 @@ const ARP_MODES: &[&str] = &[
     "octave_spread",
     "chord_strike",
     "strum",
-];
-const SCALES: &[&str] = &[
-    "chromatic",
-    "major",
-    "natural_minor",
-    "dorian",
-    "mixolydian",
-    "major_pentatonic",
-    "minor_pentatonic",
-    "harmonic_minor",
-];
-const ROOTS: &[&str] = &[
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 ];

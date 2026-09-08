@@ -44,6 +44,8 @@ mod modulation_runtime;
 mod modulation_runtime_commands;
 mod modulation_runtime_fx;
 mod modulation_runtime_phase3;
+mod note_set_runtime;
+mod note_sets;
 mod portable_patch;
 mod portable_patch_samples;
 mod pulses_and_tones_menu;

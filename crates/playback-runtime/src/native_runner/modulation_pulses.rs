@@ -36,27 +36,8 @@ pub(super) fn apply_pulses_binding_value(
         "pitch.lowestNote" => apply_u8_value(&mut layer.lowest_note, value, 127),
         "pitch.highestNote" => apply_u8_value(&mut layer.highest_note, value, 127),
         "pitch.startingNote" => apply_u8_value(&mut layer.starting_note, value, 127),
-        "pitch.scale" => apply_string_value(
-            &mut layer.scale,
-            value,
-            &[
-                "chromatic",
-                "major",
-                "natural_minor",
-                "dorian",
-                "mixolydian",
-                "major_pentatonic",
-                "minor_pentatonic",
-                "harmonic_minor",
-            ],
-        ),
-        "pitch.root" => apply_string_value(
-            &mut layer.root,
-            value,
-            &[
-                "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-            ],
-        ),
+        "pitch.scale" => apply_note_set_value(&mut layer.scale, value),
+        "pitch.root" => apply_string_value(&mut layer.root, value, platform_core::NOTE_SET_ROOTS),
         "pitch.outOfRange" => {
             apply_string_value(&mut layer.out_of_range, value, &["clamp", "wrap"])
         }
@@ -90,6 +71,16 @@ pub(super) fn apply_pulses_binding_value(
         }
         _ => false,
     }
+}
+
+fn apply_note_set_value(target: &mut String, value: Value) -> bool {
+    let Some(value) = value.as_str() else {
+        return false;
+    };
+    if platform_core::note_set_by_id(value).is_none() {
+        return false;
+    }
+    apply_string_value(target, Value::String(value.into()), &[])
 }
 
 fn apply_scan_mode_value(target: &mut String, value: Value) -> bool {

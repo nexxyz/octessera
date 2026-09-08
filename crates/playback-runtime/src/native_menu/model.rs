@@ -247,6 +247,21 @@ impl NativeMenuModel {
                 self.state.cursor = child_cursor;
                 Some(NativeMenuPressResult::EnteredGroup)
             }
+            NativeMenuValue::Enum { .. } if !self.current_item().children.is_empty() => {
+                self.remember_current_group_cursor();
+                let child_memory_key = self.current_item_path();
+                let child_cursor = {
+                    let current = self.current_item();
+                    self.navigation_memory
+                        .get(&child_memory_key)
+                        .copied()
+                        .map(|cursor| valid_child_cursor(&current.children, cursor))
+                        .unwrap_or(0)
+                };
+                self.state.stack.push(self.state.cursor);
+                self.state.cursor = child_cursor;
+                Some(NativeMenuPressResult::EnteredGroup)
+            }
             NativeMenuValue::Action(action) => Some(NativeMenuPressResult::Action(action.clone())),
             NativeMenuValue::Enum { .. }
             | NativeMenuValue::Number { .. }
@@ -381,6 +396,7 @@ impl NativeMenuModel {
             (Some(_), NativeMenuValue::Text { .. }) => (None, None),
             (_, NativeMenuValue::Action(NativeMenuAction::SelectBehavior(_)))
             | (_, NativeMenuValue::Action(NativeMenuAction::SelectLayerBehavior { .. }))
+            | (_, NativeMenuValue::Action(NativeMenuAction::SelectNoteSet { .. }))
             | (_, NativeMenuValue::Action(NativeMenuAction::NavigateBack)) => (None, None),
             (_, NativeMenuValue::Action(action)) => (None, Some(action.clone())),
             _ => (None, None),

@@ -220,7 +220,7 @@ Overrides:
 - For `columns` with `Sections=2`, each lane is 4 columns wide; the scan ray moves bottom-to-top/top-to-bottom by row across each lane. Total steps: `gridHeight * sections`.
 - Stop/emergency reset scan index to origin.
 - `Restart Section` on Pitch Steps makes pitch stepping local to the lane for the matching scan orientation: X restart applies to column sections; Y restart applies to row sections.
-- Note mapping builds the concrete notes in `Low Note..High Note` that match `Scale` and `Root`, chooses the nearest scale note to `Start Note` as the zero-degree index, and applies X/Y pitch steps before clamp/wrap. `wrap` wraps within that concrete scale-note list, so wrapped notes must remain in scale.
+- Note mapping uses the bindable `Set` parent at `layers.N.pulses.pitch.scale`. Main enters its four folders (`Scales`, `Chord Tones`, `Pentatonic`, `Symmetric`); category Main opens a `..`-first leaf list, and Back/Main on `..` returns one level. The parent renders `Set: <compact> >` within 19 columns. The canonical flat binding/modulation list contains all 25 wire IDs. Sets constrain the concrete notes in `Low Note..High Note` that match the selected set and `Root`; they do not emit simultaneous chords or choose inversions. Hirajoshi-like, In Sen-like, and Iwato-like names are common Western 12-TET approximations with varying forms. Mapping chooses the nearest set note to `Start Note` with lower-note tie breaking and applies X/Y pitch steps before clamp/wrap. `wrap` wraps within that concrete note list, so wrapped notes remain in the selected set; Play transpose remains downstream.
 
 ## Auto-Save
 
