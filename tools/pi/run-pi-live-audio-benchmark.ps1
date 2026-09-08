@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [ValidateSet(12, 16, 24, 32)][int]$Units = 16,
+  [ValidateSet(8, 12, 16, 24, 32)][int]$Units = 16,
   [ValidateSet("Inline", "Multicore")][string]$ExecutorMode = "Inline",
   [ValidateSet(30, 120, 180, 300)][int]$MeasureSeconds = 30,
   [string]$Target = "pi@192.168.0.218",
@@ -117,13 +117,13 @@ wait_for_terminal() {
   local deadline=$(( $(date +%s) + __RUNTIME_MAX__ )) pid now
   while [ "$(date +%s)" -lt "$deadline" ]; do
     [ -e "$sensor_abort" ] && return 75
-    pid="$(unit_pid)"
-    [ "$pid" = 0 ] || [ "$pid" = "$benchmark_pid" ] || return 66
-    [ "$(unit_invocation)" = "$benchmark_invocation" ] || return 66
     if [ -r "$result" ] && ! sudo -n systemctl is-active --quiet "$unit"; then
       cp -- "$result" "$root/benchmark-result.json"; [ -r "$progress" ] && cp -- "$progress" "$root/benchmark-progress.json"
       [ "$(json_field status "$result")" = pass ] && return 0 || return 20
     fi
+    pid="$(unit_pid)"
+    [ "$pid" = 0 ] || [ "$pid" = "$benchmark_pid" ] || return 66
+    [ "$(unit_invocation)" = "$benchmark_invocation" ] || return 66
     [ -r "$progress" ] || return 66
     now="$(date +%s)"; [ $((now - $(stat -c %Y "$progress" 2>/dev/null || printf 0))) -le 10 ] || return 66
     sleep 1
