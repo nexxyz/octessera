@@ -1,5 +1,5 @@
 use super::*;
-use crate::orange_audio_benchmark::cli::{
+use crate::live_audio_benchmark::cli::{
     validate_recorded_geometry, BenchmarkExecutorMode, RecordedGeometry,
 };
 
@@ -110,7 +110,10 @@ fn recorded_analogue_geometry_is_inline_only() {
                 effective_output_latency_frames,
             })
             .unwrap_err(),
-            "unsupported Orange benchmark geometry tuple: output=128 internal=64"
+            format!(
+                "unsupported {} benchmark geometry tuple: output=128 internal=64",
+                super::super::super::platform::BENCHMARK_LABEL
+            )
         );
     }
 }

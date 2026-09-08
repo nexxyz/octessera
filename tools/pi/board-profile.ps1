@@ -252,10 +252,20 @@ function Assert-RaspberrySystemEvidence {
   $runtimeCount = 0
   $maximumTemperature = 0
   $maximumThrottlingMask = 0
+  $startupAbort = $false
+  $runtimeAbort = $false
+  $unsafeSample = $false
   foreach ($line in @($Text -split "`r?`n")) {
     if ([string]::IsNullOrWhiteSpace($line)) { continue }
-    if ($line.StartsWith("raspberry_system_error", [StringComparison]::Ordinal) -or $line.StartsWith("raspberry_system_abort", [StringComparison]::Ordinal)) {
-      throw "$Context reported invalid or unsafe native system state."
+    if ($line.StartsWith("raspberry_system_error", [StringComparison]::Ordinal)) {
+      throw "$Context reported invalid native system state."
+    }
+    if ($line.StartsWith("raspberry_system_abort", [StringComparison]::Ordinal)) {
+      if ($line -notmatch '^raspberry_system_abort phase=(startup|runtime) reason=undervoltage$') {
+        throw "$Context contains a malformed system-abort record."
+      }
+      if ($Matches[1] -ceq "startup") { $startupAbort = $true } else { $runtimeAbort = $true }
+      continue
     }
     if (-not $line.StartsWith("raspberry_system_sample", [StringComparison]::Ordinal)) { continue }
     if ($line -notmatch '^raspberry_system_sample phase=(startup|runtime) thermal_max_millicelsius=([0-9]+) mem_available_kb=([0-9]+) throttled=(0x[0-9A-Fa-f]+) current_throttled_mask=([0-9]+) undervoltage=(0|1)$') {
@@ -268,13 +278,14 @@ function Assert-RaspberrySystemEvidence {
     $undervoltage = [uint64]$Matches[6]
     try { $reportedMask = [Convert]::ToUInt64($throttled.Substring(2), 16) -band 15 } catch { throw "$Context contains a malformed throttling mask." }
     if ($reportedMask -ne $currentMask -or (($currentMask -band 1) -ne $undervoltage)) { throw "$Context contains inconsistent throttling evidence." }
-    if (($currentMask -band 1) -ne 0 -or $undervoltage -ne 0) { throw "$Context reported active undervoltage." }
+    if (($currentMask -band 1) -ne 0 -or $undervoltage -ne 0) { $unsafeSample = $true }
     if ($phase -ceq "startup") { $startupCount++ } else { $runtimeCount++ }
     if ($temperature -gt $maximumTemperature) { $maximumTemperature = $temperature }
     if ($currentMask -gt $maximumThrottlingMask) { $maximumThrottlingMask = $currentMask }
   }
-  if ($startupCount -lt 1 -or $runtimeCount -lt 1) { throw "$Context is missing startup or continuous runtime thermal evidence." }
-  return [pscustomobject]@{ StartupSampleCount = $startupCount; RuntimeSampleCount = $runtimeCount; MaximumTemperatureMillicelsius = $maximumTemperature; MaximumCurrentThrottlingMask = $maximumThrottlingMask }
+  if ($unsafeSample -and -not ($startupAbort -or $runtimeAbort)) { throw "$Context reported active undervoltage." }
+  if ($startupCount -lt 1 -or (-not ($startupAbort -or $runtimeAbort) -and $runtimeCount -lt 1) -or ($runtimeAbort -and $runtimeCount -lt 1)) { throw "$Context is missing startup or continuous runtime thermal evidence." }
+  return [pscustomobject]@{ StartupSampleCount = $startupCount; RuntimeSampleCount = $runtimeCount; MaximumTemperatureMillicelsius = $maximumTemperature; MaximumCurrentThrottlingMask = $maximumThrottlingMask; SafetyAbort = $startupAbort -or $runtimeAbort }
 }
 
 function Write-RaspberryBoardMetadata {

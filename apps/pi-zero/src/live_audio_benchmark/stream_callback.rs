@@ -128,7 +128,12 @@ where
             },
             None,
         )
-        .map_err(|error| format!("failed to build Orange benchmark stream: {error}"))
+        .map_err(|error| {
+            format!(
+                "failed to build {} benchmark stream: {error}",
+                super::super::platform::BENCHMARK_LABEL
+            )
+        })
 }
 
 pub(crate) fn fill_callback_body<T, I>(data: &mut [T], source: &mut I) -> CallbackBodyStats

@@ -8,9 +8,10 @@ pub(crate) use super::geometry::{
 
 pub const DEFAULT_WARMUP_SECONDS: u64 = 5;
 pub const DEFAULT_MEASURE_SECONDS: u64 = 30;
-pub const DEFAULT_RESULT_PATH: &str = "/run/octessera/orange-audio-benchmark-result.json";
-pub const DEFAULT_PROGRESS_PATH: &str = "/run/octessera/orange-audio-benchmark-progress.json";
-pub const DEFAULT_READINESS_PATH: &str = "/run/octessera/orange-audio-benchmark-readiness.json";
+pub const DEFAULT_RESULT_PATH: &str = super::platform::DEFAULT_RESULT_PATH;
+pub const DEFAULT_PROGRESS_PATH: &str = super::platform::DEFAULT_PROGRESS_PATH;
+pub const DEFAULT_READINESS_PATH: &str = super::platform::DEFAULT_READINESS_PATH;
+pub const BENCHMARK_ARGUMENT: &str = super::platform::BENCHMARK_ARGUMENT;
 pub const DEFAULT_RELEASE_TIMEOUT_SECONDS: u64 = 30;
 #[cfg(not(feature = "routing-tree-benchmark"))]
 pub(crate) const ROUTING_TREE_FEATURE_REQUIRED_ERROR: &str =
@@ -192,7 +193,7 @@ pub fn requested() -> bool {
 }
 
 pub fn requested_from_args(mut args: impl Iterator<Item = String>) -> bool {
-    args.any(|arg| arg == "--benchmark-orange-audio")
+    args.any(|arg| arg == BENCHMARK_ARGUMENT)
 }
 
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, String> {
@@ -214,9 +215,14 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     let mut iter = args.into_iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
+            value if value == BENCHMARK_ARGUMENT => benchmark = true,
+            #[cfg(test)]
             "--benchmark-orange-audio" => benchmark = true,
             "--unmuted" | "--no-mute" | "--disable-mute" => {
-                return Err("Orange audio benchmark is always post-DSP muted".into())
+                return Err(format!(
+                    "{} audio benchmark is always post-DSP muted",
+                    super::platform::BENCHMARK_LABEL
+                ))
             }
             "--scenario" => scenario = Some(next_value(&mut iter, "scenario")?),
             "--output-frames" => output_frames = Some(parse_value(&mut iter, "output frames")?),
@@ -257,11 +263,19 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
                 artifact_sha256 = Some(next_value(&mut iter, "artifact SHA-256")?)
             }
             "--continue-on-recovered-miss" => continue_on_recovered_miss = true,
-            value => return Err(format!("unknown Orange benchmark argument: {value}")),
+            value => {
+                return Err(format!(
+                    "unknown {} benchmark argument: {value}",
+                    super::platform::BENCHMARK_LABEL
+                ))
+            }
         }
     }
     if !benchmark {
-        return Err("--benchmark-orange-audio is required".into());
+        return Err(format!(
+            "{} is required",
+            super::platform::BENCHMARK_ARGUMENT
+        ));
     }
     if executor_mode == BenchmarkExecutorMode::Inline
         && worker_timing_mode == WorkerTimingMode::Enabled

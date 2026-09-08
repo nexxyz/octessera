@@ -7,7 +7,6 @@ use crate::audio::{
     AudioStreamShutdownReport, CallbackSource,
 };
 use crate::audio_priority::CallbackSchedulingHandle;
-use crate::orange_audio::select_orange_stream_config;
 use cpal::{BufferSize, SampleFormat, Stream};
 use realtime_engine::synth::{
     SourceWorkerHealth, SourceWorkerTimingProbe, ROUTING_TREE_WORKER_THREAD_NAMES,
@@ -96,10 +95,8 @@ pub fn build(
         return Err("inline executor requires disabled worker timing".into());
     }
     let geometry = stream_geometry(output_frames, internal_frames)?;
-    let device =
-        crate::orange_audio::select_orange_output_device().map_err(|error| error.to_string())?;
-    let (sample_format, mut stream_config) =
-        select_orange_stream_config(&device).map_err(|error| error.to_string())?;
+    let device = super::platform::select_output_device()?;
+    let (sample_format, mut stream_config) = super::platform::select_stream_config(&device)?;
     let sample_format_name = format!("{sample_format:?}");
     debug_assert_eq!(geometry.output_frames, output_frames);
     stream_config.buffer_size = BufferSize::Fixed(output_frames);
@@ -122,7 +119,7 @@ pub fn build(
         lookahead_frames,
         effective_output_latency_frames: None,
     })?;
-    let health = AudioStreamHealth::new("Orange benchmark".into());
+    let health = AudioStreamHealth::new(format!("{} benchmark", super::platform::BENCHMARK_LABEL));
     let worker_health = Arc::new(AtomicU8::new(source.source_worker_health() as u8));
     let (callback_source, retirement_waiter) = CallbackSource::new(source, true);
     let scheduler = callback_scheduler_for_executor(executor_mode);
@@ -160,7 +157,8 @@ pub fn build(
         format => {
             drop(callback_source);
             Err(format!(
-                "unsupported Orange benchmark sample format: {format:?}"
+                "unsupported {} benchmark sample format: {format:?}",
+                super::platform::BENCHMARK_LABEL
             ))
         }
     };
@@ -222,7 +220,7 @@ fn build_routing_tree_source(
                 internal_frames,
                 None,
                 timing_probe,
-                crate::audio_priority::orange_worker_start_hook,
+                crate::audio_priority::benchmark_worker_start_hook,
             )
         }
         None => EngineSource::with_routing_tree_persistent_workers_with_hook(
@@ -230,11 +228,14 @@ fn build_routing_tree_source(
             sample_rate,
             internal_frames,
             None,
-            crate::audio_priority::orange_worker_start_hook,
+            crate::audio_priority::benchmark_worker_start_hook,
         ),
     };
     result.map_err(|error| {
-        format!("failed to start routing-tree Orange benchmark workers: {error:?}")
+        format!(
+            "failed to start routing-tree {} benchmark workers: {error:?}",
+            super::platform::BENCHMARK_LABEL
+        )
     })
 }
 
@@ -268,7 +269,10 @@ fn map_build_error(error: AudioStreamBuildError<String>) -> String {
     match error {
         AudioStreamBuildError::Stream(error) => error,
         AudioStreamBuildError::Shutdown(error) => {
-            format!("Orange benchmark teardown failed during build: {error:?}")
+            format!(
+                "{} benchmark teardown failed during build: {error:?}",
+                super::platform::BENCHMARK_LABEL
+            )
         }
     }
 }

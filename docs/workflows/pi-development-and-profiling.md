@@ -67,6 +67,45 @@ Active execution requires `-AllowMatrixServiceInterruption` and per-cell
 consent. This is host-only validation; do not cross-build, deploy, or run it as
 a normal contributor check.
 
+## Raspberry multicore DSP diagnostic benchmark
+
+The Raspberry multicore study is diagnostic-only. It does not produce the
+normal `target/pi-cross/octessera-pi` artifact, change shipped defaults, or
+qualify a release. Build its isolated release artifact and metadata sidecar
+with the exact feature composition:
+
+```powershell
+./tools/pi/build-pi-cross.ps1 -BoardProfile raspberry-pi-zero-2w -Profile release -RaspberryLiveAudioBenchmark
+```
+
+Preview a run without contacting the board, then run one fixed capacity
+scenario only with explicit service-interruption consent. A 30-second run is a
+screen; it is not a product conclusion. If the screen is clean, the mandatory
+next run is the same cell for 120 seconds, labeled the 120-second repeat,
+before drawing any product conclusion:
+
+```powershell
+./tools/pi/run-pi-live-audio-benchmark.ps1 -PrintOnly
+./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Inline -AllowServiceInterruption
+./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Inline -MeasureSeconds 120 -AllowServiceInterruption
+./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Multicore -AllowServiceInterruption
+./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Multicore -MeasureSeconds 120 -AllowServiceInterruption
+```
+
+The runner uses output 256, ALSA period 64, internal block 128, and the exact
+`hw:CARD=sndrpihifiberry,DEV=0` PCM. Inline uses zero lookahead; Multicore uses
+128-frame routing lookahead and worker timing. It records callback geometry,
+worker identity/timing, profile counters, ALSA `hw_params`, one-second
+thermal/memory/throttling samples, and production-service restoration. A
+missing, malformed, unsafe, stale, or mismatched observation is an
+infrastructure or safety failure, not a pass. Any callback over-budget event,
+continuity event, deadline miss, repeated or dropped quantum, worker fault or
+recovery, stream/device error, or voice-admission drop makes the Raspberry
+cell non-clean at every duration. Use U16 first, then compare U32, U24, and U12
+only when the prior screen and its 120-second repeat are stable. For the
+campaign conclusion, select the highest clean candidate from those completed
+screen/repeat pairs.
+
 ## Pi UI and audio profiling
 
 Pi UI/render profiling is quiet by default. Enable summaries with either form:

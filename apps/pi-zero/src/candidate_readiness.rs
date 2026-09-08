@@ -9,6 +9,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const HEALTH_PATH_ENV: &str = "OCTESSERA_CANDIDATE_HEALTH_PATH";
 const INVOCATION_ID_ENV: &str = "INVOCATION_ID";
 const MAX_READY_TIME_MS: u128 = u64::MAX as u128;
+const CANDIDATE_READINESS_KIND: &str = "octessera_candidate_readiness";
+const CANDIDATE_READINESS_STATUS: &str = "ready";
 
 pub(crate) struct CandidateReadiness {
     path: Option<PathBuf>,
@@ -67,6 +69,8 @@ impl CandidateReadiness {
         }
         let payload = CandidateHealthPayload {
             schema_version: 1,
+            kind: CANDIDATE_READINESS_KIND.into(),
+            status: CANDIDATE_READINESS_STATUS.into(),
             pid,
             systemd_invocation_id: self.invocation_id.clone(),
             package_version: env!("CARGO_PKG_VERSION").into(),
@@ -92,6 +96,8 @@ impl Drop for CandidateReadiness {
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 struct CandidateHealthPayload {
     schema_version: u8,
+    kind: String,
+    status: String,
     pid: u32,
     systemd_invocation_id: String,
     package_version: String,
@@ -210,6 +216,8 @@ mod tests {
     fn payload_uses_frozen_schema_and_field_names() {
         let payload = CandidateHealthPayload {
             schema_version: 1,
+            kind: CANDIDATE_READINESS_KIND.into(),
+            status: CANDIDATE_READINESS_STATUS.into(),
             pid: 1234,
             systemd_invocation_id: "invocation-1".into(),
             package_version: env!("CARGO_PKG_VERSION").into(),
@@ -221,6 +229,8 @@ mod tests {
             serde_json::to_value(payload).unwrap(),
             serde_json::json!({
                 "schema_version": 1,
+                "kind": CANDIDATE_READINESS_KIND,
+                "status": CANDIDATE_READINESS_STATUS,
                 "pid": 1234,
                 "systemd_invocation_id": "invocation-1",
                 "package_version": env!("CARGO_PKG_VERSION"),

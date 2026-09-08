@@ -7,15 +7,15 @@ use super::{
     build_source, callback_scheduler_for_executor, stream_geometry,
     worker_thread_names_for_executor, BenchmarkExecutorMode,
 };
-use crate::orange_audio_benchmark::cli::parse;
+use crate::live_audio_benchmark::cli::parse;
 #[cfg(any(
     feature = "benchmark-voice-pools-128",
     feature = "benchmark-voice-pools-256"
 ))]
-use crate::orange_audio_benchmark::cli::{validate_recorded_geometry, RecordedGeometry};
-use crate::orange_audio_benchmark::metrics::CallbackMetrics;
-use crate::orange_audio_benchmark::phase::MeasurementControl;
-use crate::orange_audio_benchmark::probe::ProfileProbe;
+use crate::live_audio_benchmark::cli::{validate_recorded_geometry, RecordedGeometry};
+use crate::live_audio_benchmark::metrics::CallbackMetrics;
+use crate::live_audio_benchmark::phase::MeasurementControl;
+use crate::live_audio_benchmark::probe::ProfileProbe;
 use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::{event_queue, EngineEvent, EngineSource};
 use std::sync::Arc;
@@ -82,11 +82,14 @@ fn stream_preflight_rejects_non_analogue_128_64_before_device_access() {
             None,
         ) {
             Err(error) => error,
-            Ok(_) => panic!("invalid Orange benchmark geometry unexpectedly built"),
+            Ok(_) => panic!("invalid benchmark geometry unexpectedly built"),
         };
         assert_eq!(
             error,
-            "unsupported Orange benchmark geometry tuple: output=128 internal=64"
+            format!(
+                "unsupported {} benchmark geometry tuple: output=128 internal=64",
+                super::super::platform::BENCHMARK_LABEL
+            )
         );
     }
 }

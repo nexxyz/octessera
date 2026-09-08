@@ -69,18 +69,16 @@ pub fn validate_release_gate(
     let expected_buffer_frames = config.output_frames;
     let expected_period_frames = config.expected_alsa_period_frames;
     let expected_worker_names =
-        crate::orange_audio_benchmark::stream::worker_thread_names_for_executor(
-            config.executor_mode,
-        );
+        crate::live_audio_benchmark::stream::worker_thread_names_for_executor(config.executor_mode);
     let expected_worker_health = match config.executor_mode {
-        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::Inline => "disabled",
-        crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers
-        | crate::orange_audio_benchmark::cli::BenchmarkExecutorMode::RoutingTreePersistent => {
+        crate::live_audio_benchmark::cli::BenchmarkExecutorMode::Inline => "disabled",
+        crate::live_audio_benchmark::cli::BenchmarkExecutorMode::PersistentTwoWorkers
+        | crate::live_audio_benchmark::cli::BenchmarkExecutorMode::RoutingTreePersistent => {
             "healthy"
         }
     };
     if release.schema_version != 2
-        || release.kind != "orange_audio_benchmark_release"
+        || release.kind != super::platform::BENCHMARK_RELEASE_KIND
         || release.status != "released"
     {
         return Err("release gate schema or status is invalid".into());
@@ -98,7 +96,7 @@ pub fn validate_release_gate(
         || readiness.executor_mode != config.executor_mode.as_str()
         || readiness.internal_block_frames != config.internal_frames
         || readiness.lookahead_frames
-            != crate::orange_audio_benchmark::cli::expected_lookahead_frames(
+            != crate::live_audio_benchmark::cli::expected_lookahead_frames(
                 config.executor_mode,
                 config.internal_frames,
             )
@@ -118,10 +116,10 @@ pub fn validate_release_gate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orange_audio_benchmark::schema::readiness;
+    use crate::live_audio_benchmark::schema::readiness;
 
     fn config() -> BenchmarkConfig {
-        crate::orange_audio_benchmark::cli::parse(vec![
+        crate::live_audio_benchmark::cli::parse(vec![
             "--benchmark-orange-audio".into(),
             "--scenario".into(),
             "synth_ramp_16".into(),
@@ -146,7 +144,7 @@ mod tests {
             "F32",
             2,
             44_100,
-            &crate::orange_audio_benchmark::metrics::CallbackMetricsSnapshot {
+            &crate::live_audio_benchmark::metrics::CallbackMetricsSnapshot {
                 lifetime_callback_frames_min: 1,
                 lifetime_callback_frames_max: 64,
                 lifetime_callback_frame_sample_count: 3,
@@ -159,7 +157,7 @@ mod tests {
     fn valid_release(config: &BenchmarkConfig) -> BenchmarkReleaseGate {
         BenchmarkReleaseGate {
             schema_version: 2,
-            kind: "orange_audio_benchmark_release".into(),
+            kind: super::super::platform::BENCHMARK_RELEASE_KIND.into(),
             status: "released".into(),
             board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
             pid: std::process::id(),
