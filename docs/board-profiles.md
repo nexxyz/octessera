@@ -26,6 +26,12 @@ Octessera names are organized into five layers:
 - Names matching `legacy-hardware-*` are internal rejection markers, not
   user-facing aliases.
 
+## Shared AArch64 Rust target
+
+Both fixed hardware profiles use Cortex-A53 scheduling with the common-safe
+ISA. NEON and CRC are shared by both boards; AES and SHA2 are disabled because
+Raspberry Pi Zero 2 W does not expose those optional features.
+
 Both board profiles expose the same native `System > Configure WiFi` menu
 contract and typed setup-portal status flow. The confirmed `Open Portal` action
 writes the exact `start\n` marker at
