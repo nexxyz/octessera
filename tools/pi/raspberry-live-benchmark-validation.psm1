@@ -128,6 +128,14 @@ function Assert-RaspberryLiveSafetyEvidence {
   $sensor
 }
 
+function Assert-RaspberryLiveAlsaEvidence {
+  param([Parameter(Mandatory)][string]$EvidenceDirectory)
+  $path = Join-Path $EvidenceDirectory "alsa-hw-params.txt"
+  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Raspberry benchmark evidence is missing required file: alsa-hw-params.txt." }
+  $content = Get-Content -LiteralPath $path -Raw -ErrorAction Stop
+  if ($content -notmatch '(?m)^buffer_size\s*:\s*256\s*$' -or $content -notmatch '(?m)^period_size\s*:\s*64\s*$') { throw "Raspberry benchmark raw ALSA evidence did not contain exact buffer_size 256 and period_size 64 rows." }
+}
+
 function Assert-RaspberryLiveProfile {
   param([Parameter(Mandatory)][pscustomobject]$Profile, [Parameter(Mandatory)][int]$Units)
   foreach ($name in @("active_synth_voices", "active_sample_voices", "active_preview_sample_voices", "active_momentary_fx", "active_bus_fx_slots", "active_global_fx_slots", "cumulative_voice_steals", "cumulative_voice_admission_drops")) {
@@ -361,7 +369,7 @@ function Get-RaspberryLiveHostEvidence {
       $reason = "Raspberry benchmark safety gate aborted the study."
     }
     if ($status -eq "infrastructure_failure") {
-      Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt")
+      Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt", "alsa-hw-params.txt")
       $identity = Read-RaspberryLiveKeyValueFile (Join-Path $EvidenceDirectory "benchmark-identity.txt")
       $result = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-result.json") -Raw -ErrorAction Stop | ConvertFrom-Json
       $readiness = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-readiness.json") -Raw -ErrorAction Stop | ConvertFrom-Json
@@ -370,6 +378,7 @@ function Get-RaspberryLiveHostEvidence {
       Assert-RaspberryLiveBenchmarkRelease $release $Selection ([int]$identity.main_pid) ([string]$identity.invocation_id) $ArtifactHash
       Assert-RaspberryLiveBenchmarkResult $result $Selection $ArtifactHash ([int]$identity.main_pid) ([string]$identity.invocation_id)
       $sensor = Assert-RaspberrySystemEvidence (Get-Content -LiteralPath (Join-Path $EvidenceDirectory "sensor-series.txt") -Raw -ErrorAction Stop) "Raspberry live benchmark system evidence"
+      Assert-RaspberryLiveAlsaEvidence $EvidenceDirectory
       $restorationFailed = $restored.Count -eq 0 -or $restored.restore_status -ne "0" -or $restored.final_active -ne "active" -or $restored.final_enabled -ne "enabled"
       if ($restorationFailed) { throw "Raspberry benchmark service restoration failed." }
       $status = "restoration_failure"
