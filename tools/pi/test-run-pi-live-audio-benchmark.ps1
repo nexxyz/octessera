@@ -67,6 +67,22 @@ function New-TestCallback {
     lifetime_callback_count = 10; callback_count = 10; first_measured_callback_ns = 1; last_measured_callback_ns = 10; measured_elapsed_ns = 9; callback_frames_min = 256; callback_frames_max = 256; callback_frame_sample_count = 10; callback_frame_size_change_count = 0; invalid_callback_frame_count = 0; lifetime_callback_frames_min = 256; lifetime_callback_frames_max = 256; lifetime_callback_frame_sample_count = 10; lifetime_callback_frame_size_change_count = 0; lifetime_invalid_callback_frame_count = 0; rendered_frames = 2560; render_audio_duration_ns = 100; render_audio_duration_ratio_p50 = 0; render_audio_duration_ratio_p95 = 0; render_audio_duration_ratio_p99 = 0; render_audio_duration_ratio_p99_9 = 0; render_audio_duration_ratio_max = 0; over_audio_duration_budget_count = $OverrunCount; callback_spacing_min_ns = 1; callback_spacing_max_ns = 1; callback_lateness_max_ns = 0; callback_timestamp_observed = $true; pre_mute_nonzero_samples = 10; pre_mute_peak = 1; post_mute_nonzero_samples = 0; cpal_device_error_count = 0; cpal_stream_error_count = 0; worker_terminal = $false; terminal_error = $false
   }
 }
+function New-TestWorkerTiming {
+  [pscustomobject][ordered]@{
+    workers = @(
+      [pscustomobject][ordered]@{ sequence = 7; render_ns = 10; dispatch_to_finish_ns = 20; cpu_start = 2; cpu_end = 2; finished = $true },
+      [pscustomobject][ordered]@{ sequence = 7; render_ns = 11; dispatch_to_finish_ns = 25; cpu_start = 3; cpu_end = 3; finished = $true }
+    )
+    coordinator = [pscustomobject][ordered]@{ sequence = 7; deadline_ns = 100; dispatch_to_deadline_start_ns = 10; dispatch_to_deadline_elapsed_ns = $null; in_flight_mask = 0; completed_mask = 3; first_parity = 0; dispatch_to_first_ns = 20; dispatch_to_both_ns = 25; reduction_ns = 4; coordinator_remainder_ns = 5; engine_block_total_ns = 40; callback_total_ns = 50; failed = $false; frozen = $true }
+    late_after_deadline_ns = $null
+    cpu_endpoint_changed = $false
+  }
+}
+$workerTiming = New-TestWorkerTiming
+$validationModule = Get-Module raspberry-live-benchmark-validation
+if (-not (& $validationModule { param($Timing) Test-RaspberryLiveWorkerTimingClean $Timing } $workerTiming)) { throw "Frozen Raspberry worker timing evidence was not accepted as clean." }
+$workerTiming.coordinator.frozen = $false
+if (& $validationModule { param($Timing) Test-RaspberryLiveWorkerTimingClean $Timing } $workerTiming) { throw "Unfrozen Raspberry worker timing evidence was accepted as clean." }
 function New-TestResult {
   param([string]$Status = "pass", [uint64]$OverrunCount = 0)
   [pscustomobject][ordered]@{

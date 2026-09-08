@@ -243,7 +243,7 @@ function Assert-RaspberryLiveWorkerTiming {
 function Test-RaspberryLiveWorkerTimingClean {
   param([Parameter(Mandatory)][pscustomobject]$Timing)
   if ($null -ne $Timing.late_after_deadline_ns -or [bool]$Timing.cpu_endpoint_changed) { return $false }
-  if ($null -eq $Timing.coordinator.sequence -or [bool]$Timing.coordinator.failed -or [bool]$Timing.coordinator.frozen -or [int]$Timing.coordinator.completed_mask -ne 3) { return $false }
+  if ($null -eq $Timing.coordinator.sequence -or [bool]$Timing.coordinator.failed -or -not [bool]$Timing.coordinator.frozen -or [int]$Timing.coordinator.completed_mask -ne 3) { return $false }
   foreach ($index in 0..1) {
     $worker = $Timing.workers[$index]
     if (-not [bool]$worker.finished -or [int]$worker.cpu_start -ne (2 + $index) -or [int]$worker.cpu_end -ne (2 + $index) -or $null -eq $worker.dispatch_to_finish_ns) { return $false }
