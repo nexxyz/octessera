@@ -164,12 +164,11 @@ pub(crate) fn full_config_saves_preserve_local_and_sd_sample_paths() {
         };
         assert_saved_path(&runner.config_payload());
 
-        for action in ["default.save", "system.reboot", "usb.applyReboot"] {
+        for action in ["default.save", "system.reboot"] {
             let effect = runner.platform_effect_for_action(action).unwrap().unwrap();
             let payload = match effect {
                 RuntimePlatformEffect::StoreSaveDefault { payload, .. }
-                | RuntimePlatformEffect::StoreSaveRecovery { payload }
-                | RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => payload,
+                | RuntimePlatformEffect::StoreSaveRecovery { payload } => payload,
                 _ => panic!("unexpected full-save effect for {action}"),
             };
             assert_saved_path(&payload);

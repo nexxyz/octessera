@@ -35,9 +35,32 @@ pub(super) fn edit_key_by_turns(
 ) -> Vec<RunnerMessage> {
     assert!(runner.menu.focus_item_key(key), "missing {key}");
     let _ = press_main(runner);
+    settle_deferred_save(runner);
     let messages = turn_main(runner, delta);
+    settle_deferred_save(runner);
     let _ = press_main(runner);
+    settle_deferred_save(runner);
     messages
+}
+
+fn settle_deferred_save(runner: &mut NativeRunner) {
+    if let Some(revision) = runner.restart_settings.pending_write_revision() {
+        runner
+            .restart_settings
+            .register_request("happy-path-deferred", Some(revision));
+        runner
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                        ok: true,
+                        is_auto: Some(true),
+                    }),
+                    request_id: "happy-path-deferred".into(),
+                    revision: Some(revision),
+                },
+            })
+            .unwrap();
+    }
 }
 
 pub(super) fn edit_key_to_value(runner: &mut NativeRunner, key: &str, expected: &str, delta: i32) {
@@ -124,6 +147,7 @@ pub(super) fn pick_sample_for_selected_slot(runner: &mut NativeRunner) {
     )));
 
     let picked = press_main(runner);
+    settle_deferred_save(runner);
     assert!(picked
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));

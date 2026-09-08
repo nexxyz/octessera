@@ -11,9 +11,9 @@ fn dsp_mode_help_covers_both_capability_values() {
         .expect("DSP mode help target");
     let entry = crate::native_help::resolve_native_help_entry(&target).expect("DSP mode help");
     let copy = format!("{} {}", entry.line1, entry.line2);
-    assert_eq!(entry.title, "DSP Mode");
-    assert!(copy.contains("Inline / low latency"));
-    assert!(copy.contains("Multicore / capacity"));
+    assert_eq!(entry.title, "DSP");
+    assert!(copy.contains("Inline"));
+    assert!(copy.contains("Multicore"));
 }
 
 #[test]

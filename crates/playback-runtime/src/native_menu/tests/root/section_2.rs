@@ -22,7 +22,7 @@ pub(crate) fn static_navigation_memory_does_not_affect_focus_item_key() {
     menu.state.cursor = 2;
     menu.back();
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 
     assert!(menu.focus_item_key("masterVolume"));
     assert_eq!(menu.current_key(), Some("masterVolume"));

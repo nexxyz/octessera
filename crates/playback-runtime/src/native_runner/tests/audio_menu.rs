@@ -3,33 +3,6 @@ use super::*;
 mod fx;
 
 #[test]
-pub(crate) fn usb_apply_reboot_cancel_keeps_menu_without_effect() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("audio.applyReboot"));
-    let before_path = runner.menu.current_focus_path();
-
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let messages = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-
-    assert_eq!(runner.menu.current_focus_path(), before_path);
-    assert!(!messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }))
-    )));
-}
-
-#[test]
 pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("usb.sdTransferStart"));

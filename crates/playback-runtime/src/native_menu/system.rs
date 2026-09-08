@@ -53,7 +53,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         10,
                     ),
                     number_item(
-                        "Velocity Scale",
+                        "Vel Scale",
                         "sound.velocityScalePct",
                         i32::from(config.velocity_scale_pct),
                         0,
@@ -61,13 +61,13 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         5,
                     ),
                     enum_item(
-                        "Velocity Curve",
+                        "Vel Curve",
                         "sound.velocityCurve",
                         vec!["linear", "soft", "hard"],
                         selected_index(&["linear", "soft", "hard"], &config.velocity_curve),
                     ),
                     enum_item(
-                        "Voice Limit",
+                        "Voices",
                         "sound.voiceStealingMode",
                         vec![
                             "fixed12",
@@ -91,7 +91,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     ),
                     if config.audio_optimization_capacity_available {
                         enum_item(
-                            "DSP Mode",
+                            "DSP",
                             "sound.optimizeFor",
                             vec!["latency", "capacity"],
                             selected_index(
@@ -104,7 +104,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         )
                     } else {
                         enum_item(
-                            "Output Buffer",
+                            "Buf Frames",
                             "sound.audioOutputBufferFrames",
                             vec!["64", "128", "256", "512", "1024", "2048"],
                             selected_index(
@@ -292,11 +292,6 @@ fn audio_usb_group(config: &NativeMenuConfig) -> NativeMenuItem {
                 "MIDI Out",
                 "usb.midiOutEnabled",
                 config.usb_midi_out_enabled,
-            ),
-            action_item(
-                "Save / Reboot",
-                "audio.applyReboot",
-                NativeMenuAction::PlatformEffect("audio.applyReboot".into()),
             ),
             action_item(
                 "Start SD2 Xfer",

@@ -7,6 +7,8 @@ mod audio_optimization;
 mod audio_outputs_config;
 mod audio_outputs_menu;
 mod audio_restart;
+mod audio_restart_follow_up;
+mod audio_restart_persistence;
 mod aux_auto_map;
 mod basics;
 mod behavior_menu_defaults;

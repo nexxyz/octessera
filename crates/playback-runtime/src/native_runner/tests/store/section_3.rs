@@ -267,18 +267,15 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
 #[test]
 pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    for action in ["system.reboot", "usb.applyReboot"] {
-        let effect = runner.platform_effect_for_action(action).unwrap();
-        let payload = match effect {
-            Some(RuntimePlatformEffect::StoreSaveRecovery { payload })
-            | Some(RuntimePlatformEffect::ApplyDeviceConfigReboot { payload }) => payload,
-            _ => panic!("unexpected effect"),
-        };
-        assert_eq!(payload["kind"], "octessera.config");
-        assert_eq!(payload["schemaVersion"], 2);
-        assert!(!payload["runtimeConfig"]["usb"].is_null());
-        assert!(!payload["runtimeConfig"]["midi"].is_null());
-    }
+    let effect = runner.platform_effect_for_action("system.reboot").unwrap();
+    let payload = match effect {
+        Some(RuntimePlatformEffect::StoreSaveRecovery { payload }) => payload,
+        _ => panic!("unexpected effect"),
+    };
+    assert_eq!(payload["kind"], "octessera.config");
+    assert_eq!(payload["schemaVersion"], 2);
+    assert!(!payload["runtimeConfig"]["usb"].is_null());
+    assert!(!payload["runtimeConfig"]["midi"].is_null());
 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.config_dirty = true;

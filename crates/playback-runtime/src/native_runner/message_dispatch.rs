@@ -1,4 +1,4 @@
-use crate::protocol::{HostMessage, RunnerMessage};
+use crate::protocol::{HostMessage, RunnerMessage, RuntimePlatformRequest};
 use std::time::Instant;
 
 use super::{DeviceInput, NativeRunner};
@@ -29,6 +29,12 @@ impl NativeRunner {
 }
 
 impl super::CoreRunner for NativeRunner {
+    fn register_platform_request(&mut self, request: &RuntimePlatformRequest) {
+        if request.operation() == crate::RuntimeOperation::StoreSaveDefault {
+            self.register_default_write_request(&request.request_id, request.revision);
+        }
+    }
+
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
         let flush_time = Instant::now();
         let presented_error_input =

@@ -33,9 +33,12 @@ impl NativeRunner {
                 return;
             }
         }
+        if status.phase == RuntimeUserDataRestorePhase::Restoring {
+            self.abandon_pending_default_write();
+        }
         let rehydration_pending = status.phase == RuntimeUserDataRestorePhase::Succeeded;
         if status.phase == RuntimeUserDataRestorePhase::Failed {
-            self.retry_config_save_after_restore_failure();
+            self.abandon_pending_default_write();
         }
         self.display.user_data_restore = Some(NativeUserDataRestoreState {
             status,
@@ -87,7 +90,7 @@ impl NativeRunner {
             restore.rehydration_pending = false;
             restore.status.phase = RuntimeUserDataRestorePhase::Failed;
         }
-        self.retry_config_save_after_restore_failure();
+        self.abandon_pending_default_write();
     }
 }
 

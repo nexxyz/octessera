@@ -163,7 +163,6 @@ pub(crate) fn audio_usb_rows_follow_explicit_jack_policy_without_shifting_keys()
             "USB Audio",
             "HDMI Audio",
             "MIDI Out",
-            "Save / Reboot",
             "Start SD2 Xfer",
             "Stop SD2 Xfer",
         ]
@@ -178,7 +177,6 @@ pub(crate) fn audio_usb_rows_follow_explicit_jack_policy_without_shifting_keys()
             "USB Audio",
             "HDMI Audio",
             "MIDI Out",
-            "Save / Reboot",
             "Start SD2 Xfer",
             "Stop SD2 Xfer",
         ]
@@ -277,12 +275,12 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
 
     menu.turn(1);
     menu.turn(1);
-    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
     menu.back();
     assert_eq!(menu.current_label(), Some("Sound"));
 
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 }
 
 #[test]
@@ -298,7 +296,7 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
     menu.turn(1);
     menu.back();
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 
     menu.rebuild(config());
     menu.state.stack = vec![5];

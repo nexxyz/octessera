@@ -29,16 +29,17 @@ Root (group)
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 
 The System section's `Audio / USB` group contains USB Audio, HDMI Audio, USB
-MIDI, Save / Reboot, Start SD2 Xfer, and Stop SD2 Xfer on Pi hardware; Jack is
-the always-on primary and its no-op row is omitted there. Desktop retains its
-editable Jack control. USB and HDMI audio mirror the canonical Jack mix and do
-not replace it; HDMI audio remains separate from HDMI video.
+MIDI, Start SD2 Xfer, and Stop SD2 Xfer on Pi hardware; Jack is the always-on
+primary and its no-op row is omitted there. Desktop retains its editable Jack
+control. USB and HDMI audio mirror the canonical Jack mix and do not replace
+it; HDMI audio remains separate from HDMI video. Restart-sensitive edits use
+the native Save Setting flow shared with Sound.
 
-On Orange-capability hosts, `System > Sound` shows `DSP Mode` in place of
-`Output Buffer`: `Inline / low latency` (default) or `Multicore / capacity`.
-The choice applies through the existing restart confirmation, is preserved
-alongside output-buffer preferences, and does not alter voice or FX limits.
-Other platforms keep `Output Buffer` and do not expose capacity mode.
+`System > Sound` uses compact rows `Vel Scale`, `Vel Curve`, `Voices`, `DSP`,
+and `Buf Frames`. On Orange-capability hosts, `DSP` replaces `Buf Frames` and
+offers `Inline` (default) or `Multicore`; other platforms keep `Buf Frames`.
+The choice applies through the native Save Setting flow, is preserved alongside
+output-buffer preferences, and does not alter voice or FX limits.
 
 The System section's `DSP` group stores the native worker CPU warning and bus
 idle thresholds. Worker warning presentation and bus silence behavior are

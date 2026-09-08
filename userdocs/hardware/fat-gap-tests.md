@@ -38,7 +38,8 @@ the DAC/Jack sound in the end-to-end paths as USB evidence.
 2. If any gate or identity is missing, write `NOT RUN — unsafe or unauthorized`
    in the result matrix and do not connect the host.
 3. If authorized, enable USB Audio and/or USB MIDI in `System > Audio / USB`,
-   use `Save / Reboot`, and test each board separately.
+   use the native `Save Setting` flow, then choose `Reboot now` after the
+   successful save and test each board separately.
 4. On the host, capture `lsusb -v`, confirm the intended audio device, and send
    one MIDI note from the intended host application. Unplug/replug once and
    record whether enumeration and the intended function recover.

@@ -71,6 +71,7 @@ impl NativeRunner {
     fn copy_non_config_state_from(&mut self, source: &NativeRunner) {
         self.display = source.display.clone();
         self.pending = source.pending.clone();
+        self.restart_settings = source.restart_settings.clone();
         self.outbox = source.outbox.clone();
         self.midi_outputs = source.midi_outputs.clone();
         self.midi_inputs = source.midi_inputs.clone();

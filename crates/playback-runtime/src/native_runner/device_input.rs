@@ -204,6 +204,9 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
+        if self.restart_settings.is_saving() {
+            return self.messages_with_snapshot();
+        }
         match input {
             DeviceInput::EncoderTurn { delta, id } if id.as_deref().unwrap_or("main") == "main" => {
                 self.turn_confirm_dialog(delta);
@@ -214,11 +217,18 @@ impl NativeRunner {
                 }
             }
             DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true) => {
-                self.display.confirm_dialog = None;
-                self.display.toast = Some(NativeToast {
-                    message: "Cancelled".into(),
-                    offset: 0,
-                });
+                if self.restart_settings.is_restart_choice() {
+                    self.restart_settings.continue_after_save();
+                    self.display.confirm_dialog = None;
+                } else if self.restart_settings.is_save_choice() {
+                    self.cancel_restart_flow();
+                } else {
+                    self.display.confirm_dialog = None;
+                    self.display.toast = Some(NativeToast {
+                        message: "Cancelled".into(),
+                        offset: 0,
+                    });
+                }
             }
             _ => {}
         }

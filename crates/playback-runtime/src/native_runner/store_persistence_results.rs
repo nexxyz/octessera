@@ -16,6 +16,7 @@ impl NativeRunner {
                 payload: Some(payload),
             } => {
                 self.apply_config_payload(payload)?;
+                self.restart_settings.set_baseline(self.config_payload());
                 self.stop_for_config_load();
                 self.display.toast = Some(NativeToast {
                     message: "Default loaded".into(),

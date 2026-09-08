@@ -155,6 +155,8 @@ mod portable_patch_validation;
 mod pulses_config;
 mod pulses_payload;
 mod pulses_payload_apply;
+mod restart_settings;
+mod restart_settings_runtime;
 mod runner_config;
 mod runtime_config;
 mod runtime_io;
@@ -229,6 +231,7 @@ use patch_device_payload::*;
 use portable_patch_validation::*;
 use pulses_config::*;
 use pulses_payload::*;
+use restart_settings::RestartSettingsState;
 use sample_assignment_payload::*;
 use sample_paths::*;
 use sparks_trigger_gate::*;
@@ -396,6 +399,7 @@ pub struct NativeRunner {
     last_published_runtime_config: Option<RuntimeConfig>,
     trigger_probability_rng: u64,
     pending: NativePendingState,
+    restart_settings: RestartSettingsState,
     #[cfg(test)]
     behavior_state_serialization_calls: Cell<usize>,
     #[cfg(test)]

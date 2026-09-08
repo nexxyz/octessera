@@ -116,7 +116,7 @@ fn audio_optimization_survives_load_empty_and_patch_load() {
 }
 
 #[test]
-fn audio_optimization_menu_hook_marks_the_existing_restart_prompt_without_audio_commands() {
+fn audio_optimization_menu_value_changes_without_audio_commands() {
     let mut runner = capacity_runner();
     let revision = runner.audio_config_revision;
 
@@ -125,7 +125,6 @@ fn audio_optimization_menu_hook_marks_the_existing_restart_prompt_without_audio_
         (true, true)
     );
     assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
-    assert!(runner.pending.pending_audio_restart_prompt);
     assert_eq!(runner.audio_config_revision, revision);
     assert!(!runner.outbox.has_audio_commands());
 
@@ -147,7 +146,12 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
     runner.audio_outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("sound.optimizeFor"));
-    runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -162,12 +166,18 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
         Some("capacity".into())
     );
     let snapshot = snapshot_from(&messages);
-    assert_eq!(snapshot["display"]["title"], "Confirm Audio");
-    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert_ne!(snapshot["display"]["title"], "Save Setting");
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let committed_snapshot = snapshot_from(&messages);
+    assert_eq!(committed_snapshot["display"]["title"], "Save Setting");
+    let lines = committed_snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines.iter().any(|line| line == "> Cancel"));
-    assert!(lines.iter().any(|line| line == "  Save / Reboot"));
-    assert_eq!(snapshot["display"]["toast"], "");
-    assert!(!runner.pending.pending_audio_restart_prompt);
+    assert!(lines.iter().any(|line| line == "  Save this setting"));
     assert!(runner.config_dirty);
 }
 

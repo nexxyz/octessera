@@ -1,5 +1,6 @@
 use super::menu_apply_fast::value_changed;
-use super::{AudioOptimization, NativeMenuAction, NativeRunner};
+use super::restart_settings::RestartSetting;
+use super::{AudioOptimization, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn fast_audio_output_buffer_frames_menu_key(&mut self) -> bool {
@@ -11,9 +12,7 @@ impl NativeRunner {
             .map(super::normalize_audio_output_buffer_frames)
             .unwrap_or(256);
         if value_changed(&mut self.audio_output_buffer_frames, value) {
-            self.pending.pending_audio_restart_prompt = true;
-            self.mark_fast_autosave_dirty();
-            self.show_toast("Restart device to apply");
+            self.commit_restart_sensitive_setting(RestartSetting::AudioOutputBufferFrames);
         }
         true
     }
@@ -24,8 +23,7 @@ impl NativeRunner {
         };
         let (handled, changed) = self.apply_audio_optimization_menu_value(&value);
         if changed {
-            self.mark_fast_autosave_dirty();
-            self.open_audio_apply_reboot_confirmation();
+            self.commit_restart_sensitive_setting(RestartSetting::AudioOptimization);
         }
         handled
     }
@@ -40,10 +38,6 @@ impl NativeRunner {
             return (true, false);
         }
         let changed = value_changed(&mut self.audio_optimization, optimization);
-        if changed {
-            self.pending.pending_audio_restart_prompt = true;
-            self.show_toast("Restart device to apply");
-        }
         (true, changed)
     }
 
@@ -53,21 +47,6 @@ impl NativeRunner {
             AudioOptimization::Capacity => "capacity",
         };
         self.menu.set_enum_value_for_key("sound.optimizeFor", value);
-    }
-
-    pub(super) fn open_audio_restart_confirmation(&mut self) {
-        self.open_audio_confirmation("system.reboot");
-    }
-
-    pub(super) fn open_audio_apply_reboot_confirmation(&mut self) {
-        self.open_audio_confirmation("audio.applyReboot");
-    }
-
-    fn open_audio_confirmation(&mut self, action_type: &str) {
-        self.pending.pending_audio_restart_prompt = false;
-        self.display.toast = None;
-        let action = NativeMenuAction::PlatformEffect(action_type.into());
-        self.display.confirm_dialog = self.confirmation_for_action(&action);
     }
 
     pub(super) fn menu_jack_audio_disabled(&self) -> bool {

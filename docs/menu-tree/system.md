@@ -32,17 +32,16 @@ System
 │   ├── USB Audio: [on | off]  default off             ← optional Jack-mix mirror; restart-applied
 │   ├── HDMI Audio: [on | off]  default off            ← optional Jack-mix mirror; restart-applied; separate from HDMI video
 │   ├── MIDI Out: [on | off]  default off             ← USB gadget exposure preference
-│   ├── Save / Reboot: (action)         ← confirms with Cancel or Save / Reboot, saves payload, asks platform to apply and reboot
 │   ├── Start SD2 Xfer: (action)        ← confirms, stops playback, blocks input in transfer popup, rejects active USB audio, USB MIDI out, or recording on Pi, temporarily exposes OLED SD2 as USB storage; waits cancellably if no host is connected
 │   └── Stop SD2 Xfer: (action)         ← confirms host eject first, restores normal USB audio/MIDI gadget
 ├── Sound (group)                     ← merged: Audio + Sound controls
 │   ├── Master Vol: [0..100] step 1  default 73
 │   ├── Note Length: [30..2000] step 10 ms  default 120
-│   ├── Velocity Scale: [0..200] step 5 %   default 100
-│   ├── Velocity Curve: [linear | soft | hard]
-│   ├── Voice Limit: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
-│   ├── DSP Mode: [Inline / low latency | Multicore / capacity]  default Inline / low latency  ← Orange capacity capability only; Jack always on in both; restart required; no voice/FX limit changes
-│   └── Output Buffer: [64 | 128 | 256 | 512 | 1024 | 2048] frames  default 256  ← platforms without Orange capacity capability; restart required
+│   ├── Vel Scale: [0..200] step 5 %   default 100
+│   ├── Vel Curve: [linear | soft | hard]
+│   ├── Voices: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
+│   ├── DSP: [Inline | Multicore]  default Inline  ← Orange capacity capability only; restart-sensitive; no voice/FX limit changes
+│   └── Buf Frames: [64 | 128 | 256 | 512 | 1024 | 2048] frames  default 256  ← platforms without Orange capacity capability; restart-sensitive
 ├── MIDI (group)
 │   ├── Enabled: [on | off]
 │   ├── !Panic: (action)
