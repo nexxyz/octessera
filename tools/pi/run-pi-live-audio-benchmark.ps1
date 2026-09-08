@@ -149,6 +149,10 @@ on_exit() {
   printf 'mode=LiveAudioBenchmark\nstatus_class=%s\nstatus=%s\ninterruption_started=%s\nrestore_status=%s\nsensor_abort=%s\n' "$class" "$status" "$interruption_started" "$restore_status" "$([ -e "$sensor_abort" ] && printf true || printf false)" > "$root/study-result.txt"
   [ "$restore_status" -eq 0 ] || status=70; exit "$status"
 }
+if ! sudo -n -v >/dev/null 2>&1; then
+  printf 'mode=LiveAudioBenchmark\nstatus_class=infrastructure_failure\ninterruption_started=false\nreason=operator-sudo-authorization-unavailable\n' > "$root/study-result.txt"
+  exit 64
+fi
 initial_active="$(sudo -n systemctl is-active "$service" 2>/dev/null || true)"; initial_enabled="$(sudo -n systemctl is-enabled "$service" 2>/dev/null || true)"
 mkdir -p -- "$root"; printf 'active=%s\nenabled=%s\n' "$initial_active" "$initial_enabled" > "$root/service-initial-state.txt"
 [ "$initial_active" = active ] && [ "$initial_enabled" = enabled ] || { printf 'mode=LiveAudioBenchmark\nstatus_class=infrastructure_failure\ninterruption_started=false\nreason=production-service-not-active-enabled\n' > "$root/study-result.txt"; exit 64; }
@@ -182,7 +186,16 @@ $localRunDirectory = Join-Path $OutputDirectory "raspberry-live-$runId"
 New-Item -ItemType Directory -Force -Path $localRunDirectory | Out-Null
 $preparePath = Write-PayloadFile -Contents ("set -eu`ntest ! -e " + (Quote-ShValue $remoteRoot) + "`nmkdir -m 0700 -- " + (Quote-ShValue $remoteRoot)) -RunId $runId -Name "prepare"
 $payloadPath = Write-PayloadFile -Contents (New-RaspberryLivePayload -RemoteRoot $remoteRoot -RunId $runId -ArtifactHash $artifactHash -Selection $selection) -RunId $runId -Name "study"
-$cleanupPath = Write-PayloadFile -Contents ("set -eu`nsudo -n rm -rf -- /run/octessera/raspberry-live-$runId`nrm -rf -- " + (Quote-ShValue $remoteRoot)) -RunId $runId -Name "cleanup"
+$cleanupContents = @"
+set -eu
+set +e
+sudo -n rm -rf -- /run/octessera/raspberry-live-$runId
+privileged_status=`$?
+rm -rf -- $(Quote-ShValue $remoteRoot)
+unprivileged_status=`$?
+[ "`$privileged_status" -eq 0 ] && [ "`$unprivileged_status" -eq 0 ]
+"@
+$cleanupPath = Write-PayloadFile -Contents $cleanupContents -RunId $runId -Name "cleanup"
 $studyFailure = $null; $cleanupFailure = $null
 try {
   & $transport "ssh-payload" -Target $Target -Key $Key $preparePath; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark prepare failed with exit code $LASTEXITCODE." }
@@ -194,8 +207,8 @@ try {
   try { & $transport "ssh-payload" -Target $Target -Key $Key $cleanupPath; if ($LASTEXITCODE -ne 0) { throw "Raspberry live benchmark cleanup failed with exit code $LASTEXITCODE." } } catch { $cleanupFailure = $_ }
   foreach ($path in @($preparePath, $payloadPath, $cleanupPath)) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
 }
-$hostEvidence = if (Test-Path -LiteralPath (Join-Path $localRunDirectory "study-result.txt") -PathType Leaf) { Get-RaspberryLiveHostEvidence -EvidenceDirectory $localRunDirectory -Selection $selection -ArtifactHash $artifactHash } else { [pscustomobject][ordered]@{ StatusClass = "infrastructure_failure"; Reason = "Raspberry live benchmark evidence was not retrieved."; Scenario = $selection.Scenario; Units = $Units; ExecutorMode = $ExecutorMode; ArtifactSha256 = $artifactHash } }
-if ($null -ne $cleanupFailure) { $hostEvidence.StatusClass = "restoration_failure"; $hostEvidence.Reason = "Raspberry live benchmark cleanup failed: $cleanupFailure" }
+$hostEvidence = Get-RaspberryLiveHostEvidence -EvidenceDirectory $localRunDirectory -Selection $selection -ArtifactHash $artifactHash
+if ($null -ne $cleanupFailure -and $hostEvidence.StatusClass -ceq "pass") { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = "Raspberry live benchmark cleanup failed: $cleanupFailure" }
 $hostEvidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $localRunDirectory "host-evidence.json") -Encoding UTF8
 Write-Output "Evidence directory: $localRunDirectory"
 if ($hostEvidence.StatusClass -ne "pass") { throw "Raspberry live benchmark status class was $($hostEvidence.StatusClass): $($hostEvidence.Reason)" }
