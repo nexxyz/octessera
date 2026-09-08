@@ -1,4 +1,7 @@
-# Cargo configuration for cross-compilation to Pi Zero 2W 64-bit Linux
+# Shared fixed-hardware Rust targeting for Raspberry Pi Zero 2 W and Orange Pi Zero 2W.
+# Both are Cortex-A53 and support NEON/CRC, but Raspberry does not expose optional
+# AES/SHA2; use the common safe ISA while retaining A53 scheduling.
 
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
+rustflags = ["-C", "target-cpu=cortex-a53", "-C", "target-feature=-aes,-sha2"]

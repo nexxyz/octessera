@@ -124,6 +124,13 @@ for required in (
     BINARY_SHA256,
 ):
     assert required in container_text, required
+assert '(\n  cd "$source_root"\n  cargo build --locked --release --target "$target"\n)' in container_text
+target_build_lines = [
+    line.strip()
+    for line in container_text.splitlines()
+    if line.strip().startswith("cargo build") and '--target "$target"' in line
+]
+assert target_build_lines == ['cargo build --locked --release --target "$target"']
 for required in (
     "https://github.com/balena-os/wifi-connect.git",
     "5bd4c1bea548fb5714bedb18bbd12f088d5fa407",

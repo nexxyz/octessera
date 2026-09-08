@@ -48,7 +48,10 @@ export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 export PKG_CONFIG_ALLOW_CROSS=1
 export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
 export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-cargo build --locked --release --target "$target" --manifest-path "$source_root/Cargo.toml"
+(
+  cd "$source_root"
+  cargo build --locked --release --target "$target"
+)
 
 binary_source="$source_root/target/$target/release/wifi-connect"
 test -f "$binary_source"
