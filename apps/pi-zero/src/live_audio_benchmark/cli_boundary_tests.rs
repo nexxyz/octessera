@@ -13,7 +13,7 @@ fn routing_tree_executor_rejects_output_buffers_above_256() {
 #[test]
 fn mixed_boundary_cli_accepts_only_approved_geometry_and_duration() {
     let tuples = if is_raspberry_diagnostic() {
-        vec![(128, 32), (256, 64)]
+        vec![(256, 128)]
     } else {
         vec![
             (128, 32),

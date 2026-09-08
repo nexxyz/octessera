@@ -58,6 +58,15 @@ fn inline_args_for(scenario: &str, output_frames: u32, internal_frames: usize) -
 fn recovered_miss_args(scenario: &str) -> Vec<String> {
     let mut args = valid_args();
     set_arg(&mut args, "--scenario", scenario.into());
+    set_arg(
+        &mut args,
+        "--engine-block-frames",
+        if is_raspberry_diagnostic() {
+            "128".into()
+        } else {
+            "64".into()
+        },
+    );
     args.extend([
         "--measure-seconds".into(),
         "120".into(),
@@ -83,13 +92,14 @@ fn remove_arg(args: &mut Vec<String>, name: &str) {
 #[test]
 fn approved_cli_tuples_store_independent_geometry() {
     if is_raspberry_diagnostic() {
-        let inline = parse(inline_args_for("capacity_analogue_1", 128, 32)).unwrap();
+        let inline = parse(inline_args_for("capacity_analogue_1", 256, 128)).unwrap();
         assert_eq!(inline.executor_mode, BenchmarkExecutorMode::Inline);
-        assert_eq!(inline.output_frames, 128);
-        assert_eq!(inline.expected_alsa_period_frames, 32);
-        assert_eq!(inline.internal_frames, 32);
+        assert_eq!(inline.output_frames, 256);
+        assert_eq!(inline.expected_alsa_period_frames, 64);
+        assert_eq!(inline.internal_frames, 128);
 
         let mut routing_args = valid_args();
+        set_arg(&mut routing_args, "--engine-block-frames", "128".into());
         routing_args.extend(["--executor".into(), "routing_tree_persistent".into()]);
         let routing = parse(routing_args).unwrap();
         assert_eq!(
@@ -98,7 +108,7 @@ fn approved_cli_tuples_store_independent_geometry() {
         );
         assert_eq!(routing.output_frames, 256);
         assert_eq!(routing.expected_alsa_period_frames, 64);
-        assert_eq!(routing.internal_frames, 64);
+        assert_eq!(routing.internal_frames, 128);
     } else {
         let tuples = vec![
             (128, 32, 32),
@@ -189,8 +199,8 @@ fn inline_128_64_requires_an_analogue_capacity_scenario() {
 fn continue_on_recovered_miss_rejects_inline_executor() {
     let mut args = inline_args_for(
         "capacity_analogue_1",
-        128,
-        if is_raspberry_diagnostic() { 32 } else { 64 },
+        if is_raspberry_diagnostic() { 256 } else { 128 },
+        if is_raspberry_diagnostic() { 128 } else { 64 },
     );
     args.extend([
         "--measure-seconds".into(),
@@ -257,18 +267,18 @@ fn analogue_capacity_128_64_is_inline_only_and_preflight_validates_it() {
 ))]
 #[test]
 fn raspberry_analogue_capacity_geometry_is_exact_by_executor() {
-    let inline = parse(inline_args_for("capacity_analogue_16", 128, 32)).unwrap();
-    assert_eq!(inline.expected_alsa_period_frames, 32);
-    assert_eq!(inline.internal_frames, 32);
+    let inline = parse(inline_args_for("capacity_analogue_16", 256, 128)).unwrap();
+    assert_eq!(inline.expected_alsa_period_frames, 64);
+    assert_eq!(inline.internal_frames, 128);
 
     let routing = parse(recovered_miss_args("capacity_analogue_16")).unwrap();
     assert_eq!(routing.expected_alsa_period_frames, 64);
-    assert_eq!(routing.internal_frames, 64);
+    assert_eq!(routing.internal_frames, 128);
 
     for (executor, output, internal) in [
-        ("inline", 256, 64),
+        ("inline", 128, 32),
+        ("routing_tree_persistent", 256, 64),
         ("routing_tree_persistent", 128, 32),
-        ("routing_tree_persistent", 256, 128),
     ] {
         let mut args = valid_args();
         set_arg(&mut args, "--scenario", "capacity_analogue_16".into());

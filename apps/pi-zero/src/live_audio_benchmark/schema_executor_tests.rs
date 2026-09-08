@@ -13,7 +13,13 @@ fn schema5_progress_and_readiness_reject_mismatched_executor_geometry() {
         SourceWorkerHealth::Healthy,
     );
     let mut invalid_progress = serde_json::to_value(&progress).unwrap();
-    invalid_progress["lookahead_frames"] = 128.into();
+    invalid_progress["lookahead_frames"] =
+        (if super::super::super::geometry::is_raspberry_diagnostic() {
+            64
+        } else {
+            128
+        })
+        .into();
     assert!(serde_json::from_value::<BenchmarkProgress>(invalid_progress).is_err());
 
     let readiness = readiness(
@@ -39,9 +45,9 @@ fn progress_and_readiness_report_the_selected_executor() {
     config.executor_mode = crate::live_audio_benchmark::cli::BenchmarkExecutorMode::Inline;
     config.worker_timing_mode = WorkerTimingMode::Disabled;
     if super::super::super::geometry::is_raspberry_diagnostic() {
-        config.output_frames = 128;
-        config.expected_alsa_period_frames = 32;
-        config.internal_frames = 32;
+        config.output_frames = 256;
+        config.expected_alsa_period_frames = 64;
+        config.internal_frames = 128;
     }
     let metrics = CallbackMetricsSnapshot::default();
     let progress = BenchmarkProgress::new(
@@ -77,11 +83,7 @@ fn schema13_routing_executor_reports_routing_geometry_and_worker_names() {
     let mut config = config();
     config.executor_mode =
         crate::live_audio_benchmark::cli::BenchmarkExecutorMode::RoutingTreePersistent;
-    config.internal_frames = if super::super::super::geometry::is_raspberry_diagnostic() {
-        64
-    } else {
-        128
-    };
+    config.internal_frames = 128;
     let metrics = CallbackMetricsSnapshot::default();
     let progress = BenchmarkProgress::new(
         &config,

@@ -11,7 +11,7 @@ fn config() -> BenchmarkConfig {
         "--output-frames".into(),
         "256".into(),
         "--engine-block-frames".into(),
-        if raspberry { "64" } else { "256" }.into(),
+        if raspberry { "128" } else { "256" }.into(),
         "--release-gate".into(),
         "release.json".into(),
         "--artifact-sha256".into(),
@@ -96,9 +96,9 @@ fn benchmark_result(
         requested_output_buffer_frames: 256,
         expected_alsa_buffer_frames: 256,
         expected_alsa_period_frames: 64,
-        internal_block_frames: if raspberry { 64 } else { 256 },
-        lookahead_frames: if raspberry { 64 } else { 256 },
-        effective_output_latency_frames: if raspberry { 320 } else { 512 },
+        internal_block_frames: if raspberry { 128 } else { 256 },
+        lookahead_frames: if raspberry { 128 } else { 256 },
+        effective_output_latency_frames: if raspberry { 384 } else { 512 },
         sample_format: "F32".into(),
         channels: 2,
         sample_rate: 44_100,
@@ -146,18 +146,14 @@ fn inline_benchmark_result() -> BenchmarkResult {
     let mut result = benchmark_result(WorkerTimingMode::Disabled, None);
     result.executor_mode = "inline".into();
     if super::super::geometry::is_raspberry_diagnostic() {
-        result.requested_output_buffer_frames = 128;
-        result.expected_alsa_buffer_frames = 128;
-        result.expected_alsa_period_frames = 32;
-        result.internal_block_frames = 32;
-        result.effective_output_latency_frames = 128;
+        result.requested_output_buffer_frames = 256;
+        result.expected_alsa_buffer_frames = 256;
+        result.expected_alsa_period_frames = 64;
+        result.internal_block_frames = 128;
+        result.effective_output_latency_frames = 256;
     }
     result.lookahead_frames = 0;
-    result.effective_output_latency_frames = if super::super::geometry::is_raspberry_diagnostic() {
-        128
-    } else {
-        256
-    };
+    result.effective_output_latency_frames = 256;
     result.callback_scheduling_priority = Some(70);
     result.callback_scheduling_cpu = Some(1);
     result.persistent_output_counters = PersistentOutputCountersEvidence::default();
@@ -171,6 +167,7 @@ fn inline_benchmark_result() -> BenchmarkResult {
 
 #[test]
 fn schema5_artifacts_round_trip_and_schema1_is_rejected() {
+    let raspberry = super::super::geometry::is_raspberry_diagnostic();
     let config = config();
     let metrics = CallbackMetricsSnapshot::default();
     let progress = BenchmarkProgress::new(
@@ -183,8 +180,11 @@ fn schema5_artifacts_round_trip_and_schema1_is_rejected() {
     );
     assert_eq!(progress.requested_output_buffer_frames, 256);
     assert_eq!(progress.expected_alsa_period_frames, 64);
-    assert_eq!(progress.internal_block_frames, 256);
-    assert_eq!(progress.lookahead_frames, 0);
+    assert_eq!(
+        progress.internal_block_frames,
+        if raspberry { 128 } else { 256 }
+    );
+    assert_eq!(progress.lookahead_frames, if raspberry { 128 } else { 0 });
     let encoded = serde_json::to_string(&progress).unwrap();
     assert_eq!(
         serde_json::from_str::<BenchmarkProgress>(&encoded).unwrap(),
@@ -196,6 +196,7 @@ fn schema5_artifacts_round_trip_and_schema1_is_rejected() {
 
 #[test]
 fn readiness_uses_lifetime_variable_batch_geometry() {
+    let raspberry = super::super::geometry::is_raspberry_diagnostic();
     let config = config();
     let metrics = CallbackMetricsSnapshot {
         lifetime_callback_frames_min: 64,
@@ -216,8 +217,11 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
     assert_eq!(artifact.schema_version, BENCHMARK_SCHEMA_VERSION);
     assert_eq!(artifact.requested_output_buffer_frames, 256);
     assert_eq!(artifact.expected_alsa_period_frames, 64);
-    assert_eq!(artifact.internal_block_frames, 256);
-    assert_eq!(artifact.lookahead_frames, 0);
+    assert_eq!(
+        artifact.internal_block_frames,
+        if raspberry { 128 } else { 256 }
+    );
+    assert_eq!(artifact.lookahead_frames, if raspberry { 128 } else { 0 });
     assert_eq!(artifact.callback_frames_min, 64);
     assert_eq!(artifact.callback_frames_max, 256);
     let encoded = serde_json::to_string(&artifact).unwrap();

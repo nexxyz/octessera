@@ -280,7 +280,7 @@ fn map_build_error(error: AudioStreamBuildError<String>) -> String {
 
 fn stream_geometry(output_frames: u32, internal_frames: usize) -> Result<StreamGeometry, String> {
     let approved = if super::geometry::is_raspberry_diagnostic() {
-        matches!((output_frames, internal_frames), (128, 32) | (256, 64))
+        matches!((output_frames, internal_frames), (256, 128))
     } else {
         matches!(
             (output_frames, internal_frames),
