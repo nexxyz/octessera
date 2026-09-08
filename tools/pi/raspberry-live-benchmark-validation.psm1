@@ -29,7 +29,7 @@ function Read-RaspberryLiveKeyValueFile {
   param([Parameter(Mandatory)][string]$Path)
   $values = @{}
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $values }
-  foreach ($line in Get-Content -LiteralPath $Path) {
+  foreach ($line in Get-Content -LiteralPath $Path -ErrorAction Stop) {
     $parts = $line -split "=", 2
     if ($parts.Count -eq 2) { $values[$parts[0]] = $parts[1] }
   }
@@ -113,7 +113,7 @@ function Assert-RaspberryLiveCandidateReadiness {
 
 function Assert-RaspberryLiveRestoredCandidate {
   param([Parameter(Mandatory)][string]$EvidenceDirectory, [Parameter(Mandatory)][hashtable]$Restored)
-  $candidate = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "candidate-ready.json") -Raw | ConvertFrom-Json
+  $candidate = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "candidate-ready.json") -Raw -ErrorAction Stop | ConvertFrom-Json
   Assert-RaspberryLiveCandidateReadiness $candidate ([int]$Restored.final_pid) ([string]$Restored.final_invocation_id)
 }
 
@@ -123,7 +123,7 @@ function Assert-RaspberryLiveSafetyEvidence {
   if (-not (Test-Path -LiteralPath $sensorPath -PathType Leaf)) { throw "Raspberry live benchmark system evidence is missing." }
   $sensor = Assert-RaspberrySystemEvidence (Get-Content -LiteralPath $sensorPath -Raw -ErrorAction Stop) "Raspberry live benchmark system evidence"
   $sensorAbortPath = Join-Path $EvidenceDirectory "sensor-abort.txt"
-  $sensorAbort = if (Test-Path -LiteralPath $sensorAbortPath -PathType Leaf) { (Get-Content -LiteralPath $sensorAbortPath -Raw).Trim() } else { "" }
+  $sensorAbort = if (Test-Path -LiteralPath $sensorAbortPath -PathType Leaf) { (Get-Content -LiteralPath $sensorAbortPath -Raw -ErrorAction Stop).Trim() } else { "" }
   if (-not [bool]$sensor.SafetyAbort -and $sensorAbort -cne "reason=runtime-sensor-gate") { throw "Raspberry benchmark safety evidence did not contain an expected abort or runtime sensor gate." }
   $sensor
 }
@@ -317,6 +317,16 @@ function Test-RaspberryLiveBenchmarkClean {
   return $callbackClean -and $counterClean -and $profilesClean -and $lifecycleClean -and $workersClean
 }
 
+function Assert-RaspberryLiveEvidenceFiles {
+  param(
+    [Parameter(Mandatory)][string]$EvidenceDirectory,
+    [Parameter(Mandatory)][string[]]$Names
+  )
+  foreach ($name in $Names) {
+    if (-not (Test-Path -LiteralPath (Join-Path $EvidenceDirectory $name) -PathType Leaf)) { throw "Raspberry benchmark evidence is missing required file: $name." }
+  }
+}
+
 function Get-RaspberryLiveHostEvidence {
   param(
     [Parameter(Mandatory)][string]$EvidenceDirectory,
@@ -328,7 +338,13 @@ function Get-RaspberryLiveHostEvidence {
   $result = $null
   $sensor = $null
   try {
+    Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("study-result.txt")
     $study = Read-RaspberryLiveKeyValueFile (Join-Path $EvidenceDirectory "study-result.txt")
+    if ($study.status_class -ceq "infrastructure_failure" -and $study.interruption_started -ceq "false") {
+      if ([string]::IsNullOrWhiteSpace([string]$study.reason)) { throw "Raspberry benchmark pre-interruption infrastructure evidence did not record a reason." }
+      return [pscustomobject][ordered]@{ StatusClass = "infrastructure_failure"; Reason = [string]$study.reason; Scenario = $Selection.Scenario; Units = $Selection.Units; ExecutorMode = $Selection.ExecutorMode; OutputFrames = 256; AlsaPeriodFrames = 64; InternalFrames = 128; LookaheadFrames = $Selection.LookaheadFrames; ArtifactSha256 = $ArtifactHash; ResultPath = ""; ReadinessPath = ""; ReleasePath = ""; SensorSeriesPath = "" }
+    }
+    Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("service-restored-state.txt")
     $restored = Read-RaspberryLiveKeyValueFile (Join-Path $EvidenceDirectory "service-restored-state.txt")
     $restorationFailed = $restored.Count -gt 0 -and ($restored.restore_status -ne "0" -or $restored.final_active -ne "active" -or $restored.final_enabled -ne "enabled")
     if ($restorationFailed) {
@@ -336,24 +352,28 @@ function Get-RaspberryLiveHostEvidence {
       $reason = "Raspberry benchmark service restoration failed."
     } elseif ($restored.Count -gt 0 -and $study.status_class -ceq "safety_failure") {
       $status = "restoration_failure"
+      Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("candidate-ready.json")
       Assert-RaspberryLiveRestoredCandidate $EvidenceDirectory $restored
       $status = "infrastructure_failure"
+      Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("sensor-series.txt")
       $sensor = Assert-RaspberryLiveSafetyEvidence $EvidenceDirectory
       $status = "safety_failure"
       $reason = "Raspberry benchmark safety gate aborted the study."
     }
     if ($status -eq "infrastructure_failure") {
+      Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt")
       $identity = Read-RaspberryLiveKeyValueFile (Join-Path $EvidenceDirectory "benchmark-identity.txt")
-      $result = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-result.json") -Raw | ConvertFrom-Json
-      $readiness = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-readiness.json") -Raw | ConvertFrom-Json
-      $release = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-release.json") -Raw | ConvertFrom-Json
+      $result = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-result.json") -Raw -ErrorAction Stop | ConvertFrom-Json
+      $readiness = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-readiness.json") -Raw -ErrorAction Stop | ConvertFrom-Json
+      $release = Get-Content -LiteralPath (Join-Path $EvidenceDirectory "benchmark-release.json") -Raw -ErrorAction Stop | ConvertFrom-Json
       Assert-RaspberryLiveBenchmarkReadiness $readiness $Selection ([int]$identity.main_pid) ([string]$identity.invocation_id) $ArtifactHash
       Assert-RaspberryLiveBenchmarkRelease $release $Selection ([int]$identity.main_pid) ([string]$identity.invocation_id) $ArtifactHash
       Assert-RaspberryLiveBenchmarkResult $result $Selection $ArtifactHash ([int]$identity.main_pid) ([string]$identity.invocation_id)
-      $sensor = Assert-RaspberrySystemEvidence (Get-Content -LiteralPath (Join-Path $EvidenceDirectory "sensor-series.txt") -Raw) "Raspberry live benchmark system evidence"
+      $sensor = Assert-RaspberrySystemEvidence (Get-Content -LiteralPath (Join-Path $EvidenceDirectory "sensor-series.txt") -Raw -ErrorAction Stop) "Raspberry live benchmark system evidence"
       $restorationFailed = $restored.Count -eq 0 -or $restored.restore_status -ne "0" -or $restored.final_active -ne "active" -or $restored.final_enabled -ne "enabled"
       if ($restorationFailed) { throw "Raspberry benchmark service restoration failed." }
       $status = "restoration_failure"
+      Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("candidate-ready.json")
       Assert-RaspberryLiveRestoredCandidate $EvidenceDirectory $restored
       $status = "infrastructure_failure"
       if ($study.status_class -ceq "infrastructure_failure") { $status = "infrastructure_failure"; $reason = "Raspberry benchmark infrastructure evidence failed." }
