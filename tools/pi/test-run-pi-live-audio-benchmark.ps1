@@ -84,6 +84,7 @@ function Write-TestEvidence {
   Set-Content (Join-Path $Directory "service-restored-state.txt") $restored -Encoding UTF8
   Set-Content (Join-Path $Directory "study-result.txt") "status_class=$StudyStatus`ninterruption_started=true" -Encoding UTF8
   Set-Content (Join-Path $Directory "sensor-series.txt") "raspberry_system_sample phase=startup thermal_max_millicelsius=42000 mem_available_kb=100000 throttled=0x0 current_throttled_mask=0 undervoltage=0`nraspberry_system_sample phase=runtime thermal_max_millicelsius=43000 mem_available_kb=99000 throttled=0x0 current_throttled_mask=0 undervoltage=0" -Encoding UTF8
+  Set-Content (Join-Path $Directory "alsa-hw-params.txt") "period_size: 64`nbuffer_size: 256" -Encoding UTF8
 }
 
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-raspberry-validation-" + [guid]::NewGuid().ToString("N"))
@@ -95,6 +96,15 @@ try {
   Write-TestEvidence $measuredRoot $failedResult "measured_failure"
   $measured = Get-RaspberryLiveHostEvidence $measuredRoot $inline $testHash
   if ($measured.StatusClass -cne "measured_failure") { throw "Structurally valid non-clean evidence was not measured_failure." }
+  foreach ($studyStatus in @("measured_failure", "pass")) {
+    $retainedRoot = Join-Path $testRoot ("retained-" + $studyStatus)
+    $retainedResult = if ($studyStatus -ceq "measured_failure") { $failedResult } else { New-TestResult }
+    Write-TestEvidence $retainedRoot $retainedResult $studyStatus
+    Copy-Item -LiteralPath (Join-Path $retainedRoot "benchmark-result.json") -Destination (Join-Path $retainedRoot "runtime-result.json")
+    Remove-Item -LiteralPath (Join-Path $retainedRoot "runtime-result.json")
+    $retained = Get-RaspberryLiveHostEvidence $retainedRoot $inline $testHash
+    if ($retained.StatusClass -cne $studyStatus) { throw "Retained $studyStatus evidence changed after runtime result cleanup." }
+  }
   $preStreamRoot = Join-Path $testRoot "pre-stream"
   $preStreamResult = New-TestResult -Status fail
   $preStreamResult.callback.callback_count = 0
@@ -139,12 +149,17 @@ try {
   if (@($missingOutput | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count -ne 0) { throw "Missing sensor evidence emitted a raw PowerShell error." }
   $missing = @($missingOutput | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })[0]
   if ($missing.StatusClass -cne "infrastructure_failure" -or $missing.Reason -cne "Raspberry benchmark evidence is missing required file: sensor-series.txt.") { throw "Missing sensor evidence was not classified deterministically as infrastructure failure." }
+  $alsaMismatchRoot = Join-Path $testRoot "alsa-mismatch"
+  Write-TestEvidence $alsaMismatchRoot (New-TestResult) "pass"
+  Set-Content (Join-Path $alsaMismatchRoot "alsa-hw-params.txt") "period_size: 32`nbuffer_size: 256" -Encoding UTF8
+  $alsaMismatch = Get-TestHostEvidenceWithoutErrors $alsaMismatchRoot $inline $testHash
+  if ($alsaMismatch.StatusClass -cne "infrastructure_failure" -or $alsaMismatch.Reason -cne "Raspberry benchmark raw ALSA evidence did not contain exact buffer_size 256 and period_size 64 rows.") { throw "Raw ALSA evidence was not validated exactly." }
   $preSudoRoot = Join-Path $testRoot "pre-sudo"
   New-Item -ItemType Directory -Force -Path $preSudoRoot | Out-Null
   Set-Content (Join-Path $preSudoRoot "study-result.txt") "mode=LiveAudioBenchmark`nstatus_class=infrastructure_failure`ninterruption_started=false`nreason=operator-sudo-authorization-unavailable" -Encoding UTF8
   $preSudo = Get-TestHostEvidenceWithoutErrors $preSudoRoot $inline $testHash
   if ($preSudo.StatusClass -cne "infrastructure_failure" -or $preSudo.Reason -cne "operator-sudo-authorization-unavailable") { throw "Pre-interruption sudo failure was not returned with its recorded reason." }
-  foreach ($artifactName in @("study-result.txt", "service-restored-state.txt", "benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt", "candidate-ready.json")) {
+  foreach ($artifactName in @("study-result.txt", "service-restored-state.txt", "benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt", "alsa-hw-params.txt", "candidate-ready.json")) {
     $missingArtifactRoot = Join-Path $testRoot ("missing-post-" + $artifactName.Replace(".", "-"))
     Write-TestEvidence $missingArtifactRoot (New-TestResult) "pass"
     Remove-Item -LiteralPath (Join-Path $missingArtifactRoot $artifactName)
@@ -237,6 +252,23 @@ $resetCallIndex = $runnerSource.IndexOf('  reset_transient_unit', $onExitIndex, 
 $restoreIndex = $runnerSource.IndexOf('  if [ "$interruption_started" = true ]', $onExitIndex, [StringComparison]::Ordinal)
 if ($onExitIndex -lt 0 -or $captureStatusIndex -lt 0 -or $captureJournalIndex -lt 0 -or $evidenceCopyIndex -lt 0 -or $resetCallIndex -lt 0 -or $restoreIndex -lt 0 -or $captureStatusIndex -ge $captureJournalIndex -or $captureJournalIndex -ge $evidenceCopyIndex -or $evidenceCopyIndex -ge $resetCallIndex -or $resetCallIndex -ge $restoreIndex) { throw "Raspberry transient-unit evidence, reset, and restoration order changed." }
 if ($runnerSource -match 'reset-failed[^\r\n]*\*') { throw "Raspberry transient-unit reset used a wildcard." }
+if ($runnerSource.IndexOf('"0x$hex"', [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf('"$throttled" "$mask"', [StringComparison]::Ordinal) -ge 0) { throw "Raspberry sensor output does not retain the exact normalized throttled value." }
+if ($runnerSource.IndexOf('sudo -n install -o pi -g pi -m 0640 -- "$path" "$root/alsa-hw-params.txt"', [StringComparison]::Ordinal) -lt 0) { throw "Raspberry ALSA raw evidence is not installed with explicit ownership and mode." }
+$classificationIndex = $runnerSource.IndexOf('local class=infrastructure_failure', [StringComparison]::Ordinal)
+$restoreCallIndex = $runnerSource.IndexOf('if [ "$interruption_started" = true ]; then restore_service', [StringComparison]::Ordinal)
+$restorationOverrideIndex = $runnerSource.IndexOf('[ "$restore_status" -ne 0 ] && class=restoration_failure', [StringComparison]::Ordinal)
+if ($classificationIndex -lt 0 -or $restoreCallIndex -lt 0 -or $restorationOverrideIndex -lt 0 -or $classificationIndex -ge $restoreCallIndex -or $restoreCallIndex -ge $restorationOverrideIndex) { throw "Raspberry result classification is not retained before restoration and overridden afterward." }
+foreach ($required in @(
+  '[ "$status" -eq 20 ]',
+  '[ "$status" -eq 0 ]',
+  'retained_result="$root/benchmark-result.json"',
+  '$retrievalFailure = $null',
+  'catch { $retrievalFailure = $_ }',
+  '$hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = $retrievalFailure.Exception.Message'
+)) {
+  if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Raspberry runner is missing retained evidence failure contract: $required" }
+}
+if ($runnerSource -match '(?s)\$null -ne \$retrievalFailure.*?\$hostEvidence\.StatusClass -ceq "restoration_failure"') { throw "Raspberry retrieval failure can override restoration failure." }
 
 $bash = Get-Command bash -ErrorAction SilentlyContinue
 $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
