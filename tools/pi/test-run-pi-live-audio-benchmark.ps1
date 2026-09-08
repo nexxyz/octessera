@@ -13,6 +13,15 @@ function Assert-Throws {
   if (-not $threw) { throw "Expected failure did not occur: $Label" }
 }
 
+function Get-TestHostEvidenceWithoutErrors {
+  param([Parameter(Mandatory)][string]$EvidenceDirectory, [Parameter(Mandatory)][pscustomobject]$Selection, [Parameter(Mandatory)][string]$ArtifactHash)
+  $output = @(& { Get-RaspberryLiveHostEvidence -EvidenceDirectory $EvidenceDirectory -Selection $Selection -ArtifactHash $ArtifactHash } 2>&1)
+  if (@($output | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count -ne 0) { throw "Raspberry host evidence emitted a raw PowerShell error." }
+  $values = @($output | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+  if ($values.Count -ne 1) { throw "Raspberry host evidence did not return exactly one result." }
+  return $values[0]
+}
+
 function Invoke-PrintOnly {
   param([hashtable]$Parameters = @{})
   $arguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $runner)
@@ -73,7 +82,7 @@ function Write-TestEvidence {
   $Result | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $Directory "benchmark-result.json") -Encoding UTF8
   $candidate | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $Directory "candidate-ready.json") -Encoding UTF8
   Set-Content (Join-Path $Directory "service-restored-state.txt") $restored -Encoding UTF8
-  Set-Content (Join-Path $Directory "study-result.txt") "status_class=$StudyStatus" -Encoding UTF8
+  Set-Content (Join-Path $Directory "study-result.txt") "status_class=$StudyStatus`ninterruption_started=true" -Encoding UTF8
   Set-Content (Join-Path $Directory "sensor-series.txt") "raspberry_system_sample phase=startup thermal_max_millicelsius=42000 mem_available_kb=100000 throttled=0x0 current_throttled_mask=0 undervoltage=0`nraspberry_system_sample phase=runtime thermal_max_millicelsius=43000 mem_available_kb=99000 throttled=0x0 current_throttled_mask=0 undervoltage=0" -Encoding UTF8
 }
 
@@ -129,7 +138,20 @@ try {
   $missingOutput = @(& { Get-RaspberryLiveHostEvidence $missingRoot $inline $testHash } 2>&1)
   if (@($missingOutput | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count -ne 0) { throw "Missing sensor evidence emitted a raw PowerShell error." }
   $missing = @($missingOutput | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })[0]
-  if ($missing.StatusClass -cne "infrastructure_failure" -or $missing.Reason -cne "Raspberry live benchmark system evidence is missing.") { throw "Missing sensor evidence was not classified deterministically as infrastructure failure." }
+  if ($missing.StatusClass -cne "infrastructure_failure" -or $missing.Reason -cne "Raspberry benchmark evidence is missing required file: sensor-series.txt.") { throw "Missing sensor evidence was not classified deterministically as infrastructure failure." }
+  $preSudoRoot = Join-Path $testRoot "pre-sudo"
+  New-Item -ItemType Directory -Force -Path $preSudoRoot | Out-Null
+  Set-Content (Join-Path $preSudoRoot "study-result.txt") "mode=LiveAudioBenchmark`nstatus_class=infrastructure_failure`ninterruption_started=false`nreason=operator-sudo-authorization-unavailable" -Encoding UTF8
+  $preSudo = Get-TestHostEvidenceWithoutErrors $preSudoRoot $inline $testHash
+  if ($preSudo.StatusClass -cne "infrastructure_failure" -or $preSudo.Reason -cne "operator-sudo-authorization-unavailable") { throw "Pre-interruption sudo failure was not returned with its recorded reason." }
+  foreach ($artifactName in @("study-result.txt", "service-restored-state.txt", "benchmark-identity.txt", "benchmark-result.json", "benchmark-readiness.json", "benchmark-release.json", "sensor-series.txt", "candidate-ready.json")) {
+    $missingArtifactRoot = Join-Path $testRoot ("missing-post-" + $artifactName.Replace(".", "-"))
+    Write-TestEvidence $missingArtifactRoot (New-TestResult) "pass"
+    Remove-Item -LiteralPath (Join-Path $missingArtifactRoot $artifactName)
+    $missingArtifact = Get-TestHostEvidenceWithoutErrors $missingArtifactRoot $inline $testHash
+    $expectedStatus = if ($artifactName -ceq "candidate-ready.json") { "restoration_failure" } else { "infrastructure_failure" }
+    if ($missingArtifact.StatusClass -cne $expectedStatus -or $missingArtifact.Reason -cne "Raspberry benchmark evidence is missing required file: $artifactName.") { throw "Missing post-interruption artifact was not classified deterministically: $artifactName." }
+  }
   $combinedRoot = Join-Path $testRoot "combined-safety-restoration"
   Write-TestEvidence $combinedRoot $failedResult "safety_failure"
   Set-Content (Join-Path $combinedRoot "sensor-series.txt") "raspberry_system_sample phase=startup thermal_max_millicelsius=42000 mem_available_kb=100000 throttled=0x0 current_throttled_mask=0 undervoltage=0`nraspberry_system_sample phase=runtime thermal_max_millicelsius=43000 mem_available_kb=99000 throttled=0x1 current_throttled_mask=1 undervoltage=1`nraspberry_system_abort phase=runtime reason=undervoltage" -Encoding UTF8
@@ -175,6 +197,26 @@ foreach ($required in @(
   if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Runner is missing required contract: $required" }
 }
 if ($runnerSource -match "with-orange-ssh|orange_audio_benchmark|fallback") { throw "Raspberry runner contains Orange or fallback behavior." }
+$preflightIndex = $runnerSource.IndexOf("if ! sudo -n -v >/dev/null 2>&1", [StringComparison]::Ordinal)
+$serviceReadIndex = $runnerSource.IndexOf('initial_active="$(sudo -n systemctl', [StringComparison]::Ordinal)
+if ($preflightIndex -lt 0 -or $serviceReadIndex -lt 0 -or $preflightIndex -ge $serviceReadIndex) { throw "Raspberry runner does not preflight sudo before service-state reads." }
+foreach ($required in @(
+  "reason=operator-sudo-authorization-unavailable",
+  "interruption_started=false",
+  'privileged_status=`$?',
+  'unprivileged_status=`$?',
+  '[ "`$privileged_status" -eq 0 ] && [ "`$unprivileged_status" -eq 0 ]'
+)) {
+  if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Raspberry runner is missing required failure-path contract: $required" }
+}
+$cleanupStart = $runnerSource.IndexOf('$cleanupContents', [StringComparison]::Ordinal)
+$cleanupEnd = $runnerSource.IndexOf('$cleanupPath =', $cleanupStart, [StringComparison]::Ordinal)
+if ($cleanupStart -lt 0 -or $cleanupEnd -le $cleanupStart) { throw "Raspberry runner cleanup payload was not found." }
+$cleanupSource = $runnerSource.Substring($cleanupStart, $cleanupEnd - $cleanupStart)
+if ($cleanupSource -notmatch '(?s)set \+e.*sudo -n rm -rf -- /run/octessera/raspberry-live-\$runId.*rm -rf --.*privileged_status.*unprivileged_status') { throw "Raspberry cleanup does not attempt both exact roots after one failure." }
+if ($cleanupSource -match 'rm -rf[^\r\n]*\*') { throw "Raspberry cleanup uses wildcard deletion." }
+if ($runnerSource.Contains('$hostEvidence.StatusClass = "restoration_failure"')) { throw "Cleanup failure is incorrectly classified as restoration failure." }
+if ($runnerSource -match '\$hostEvidence = if \(Test-Path') { throw "Raspberry runner synthesizes missing host evidence." }
 
 $bash = Get-Command bash -ErrorAction SilentlyContinue
 $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
