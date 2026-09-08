@@ -23,7 +23,7 @@ use std::sync::Arc;
 #[test]
 fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
     let approved = if super::super::geometry::is_raspberry_diagnostic() {
-        vec![(128, 32), (256, 64)]
+        vec![(256, 128)]
     } else {
         vec![
             (128, 32),
@@ -106,30 +106,38 @@ fn stream_preflight_rejects_non_analogue_128_64_before_device_access() {
 #[test]
 fn inline_analogue_recorded_geometry_requires_exact_latency_evidence() {
     let valid = if super::super::geometry::is_raspberry_diagnostic() {
-        (32, 32, 0, Some(128))
+        (64, 128, 0, Some(256))
     } else {
         (32, 64, 0, Some(128))
+    };
+    let output_frames = if super::super::geometry::is_raspberry_diagnostic() {
+        256
+    } else {
+        128
     };
     assert!(validate_recorded_geometry(RecordedGeometry {
         scenario: "capacity_analogue_1",
         executor_mode: BenchmarkExecutorMode::Inline,
-        requested_output_buffer_frames: 128,
-        expected_alsa_buffer_frames: 128,
+        requested_output_buffer_frames: output_frames,
+        expected_alsa_buffer_frames: output_frames,
         expected_alsa_period_frames: valid.0,
         internal_block_frames: valid.1,
         lookahead_frames: valid.2,
         effective_output_latency_frames: valid.3,
     })
     .is_ok());
-    for (period, lookahead, effective) in
+    let invalid_cases = if super::super::geometry::is_raspberry_diagnostic() {
+        [(32, 0, Some(256)), (64, 64, Some(320)), (64, 0, Some(320))]
+    } else {
         [(64, 0, Some(128)), (32, 64, Some(192)), (32, 0, Some(192))]
-    {
+    };
+    for (period, lookahead, effective) in invalid_cases {
         assert!(
             validate_recorded_geometry(RecordedGeometry {
                 scenario: "capacity_analogue_1",
                 executor_mode: BenchmarkExecutorMode::Inline,
-                requested_output_buffer_frames: 128,
-                expected_alsa_buffer_frames: 128,
+                requested_output_buffer_frames: output_frames,
+                expected_alsa_buffer_frames: output_frames,
                 expected_alsa_period_frames: period,
                 internal_block_frames: valid.1,
                 lookahead_frames: lookahead,

@@ -32,8 +32,8 @@ pub(crate) fn validate_requested_geometry(
     if is_raspberry_diagnostic() {
         let approved = matches!(
             (executor_mode, output_frames, internal_frames),
-            (BenchmarkExecutorMode::Inline, 128, 32)
-                | (BenchmarkExecutorMode::RoutingTreePersistent, 256, 64)
+            (BenchmarkExecutorMode::Inline, 256, 128)
+                | (BenchmarkExecutorMode::RoutingTreePersistent, 256, 128)
         );
         if !approved {
             return Err(format!(

@@ -6,10 +6,14 @@ use crate::live_audio_benchmark::cli::{
 fn inline_analogue_config() -> BenchmarkConfig {
     let mut config = config();
     config.scenario = "capacity_analogue_1".into();
-    config.output_frames = 128;
-    config.expected_alsa_period_frames = 32;
+    config.output_frames = if super::super::super::geometry::is_raspberry_diagnostic() {
+        256
+    } else {
+        128
+    };
+    config.expected_alsa_period_frames = if config.output_frames == 256 { 64 } else { 32 };
     config.internal_frames = if super::super::super::geometry::is_raspberry_diagnostic() {
-        32
+        128
     } else {
         64
     };
@@ -30,7 +34,10 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
         &metrics,
         SourceWorkerHealth::Disabled,
     );
-    assert_eq!(progress.expected_alsa_period_frames, 32);
+    assert_eq!(
+        progress.expected_alsa_period_frames,
+        if config.output_frames == 256 { 64 } else { 32 }
+    );
     assert_eq!(progress.lookahead_frames, 0);
     assert_eq!(
         serde_json::from_value::<BenchmarkProgress>(serde_json::to_value(&progress).unwrap())
@@ -38,7 +45,11 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
         progress
     );
     let mut invalid_progress = serde_json::to_value(&progress).unwrap();
-    invalid_progress["scenario"] = "synth_ramp_16".into();
+    if super::super::super::geometry::is_raspberry_diagnostic() {
+        invalid_progress["internal_block_frames"] = 64.into();
+    } else {
+        invalid_progress["scenario"] = "synth_ramp_16".into();
+    }
     assert!(serde_json::from_value::<BenchmarkProgress>(invalid_progress).is_err());
 
     let readiness = readiness(
@@ -50,7 +61,10 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
         &metrics,
         SourceWorkerHealth::Disabled,
     );
-    assert_eq!(readiness.expected_alsa_period_frames, 32);
+    assert_eq!(
+        readiness.expected_alsa_period_frames,
+        if config.output_frames == 256 { 64 } else { 32 }
+    );
     assert_eq!(readiness.lookahead_frames, 0);
     assert_eq!(
         serde_json::from_value::<BenchmarkReadiness>(serde_json::to_value(&readiness).unwrap())
@@ -63,22 +77,32 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
 
     let mut result = inline_benchmark_result();
     result.scenario = config.scenario.clone();
-    result.requested_output_buffer_frames = 128;
-    result.expected_alsa_buffer_frames = 128;
-    result.expected_alsa_period_frames = 32;
+    result.requested_output_buffer_frames = config.output_frames;
+    result.expected_alsa_buffer_frames = config.output_frames;
+    result.expected_alsa_period_frames = config.expected_alsa_period_frames;
     result.internal_block_frames = config.internal_frames;
     result.lookahead_frames = 0;
-    result.effective_output_latency_frames = 128;
+    result.effective_output_latency_frames = config.output_frames as usize;
     assert!(
         serde_json::from_value::<BenchmarkResult>(serde_json::to_value(&result).unwrap()).is_ok()
     );
 
-    for (field, value) in [
-        ("scenario", serde_json::json!("synth_ramp_16")),
-        ("expected_alsa_period_frames", serde_json::json!(64)),
-        ("lookahead_frames", serde_json::json!(64)),
-        ("effective_output_latency_frames", serde_json::json!(192)),
-    ] {
+    let invalid_cases = if super::super::super::geometry::is_raspberry_diagnostic() {
+        vec![
+            ("expected_alsa_period_frames", serde_json::json!(32)),
+            ("lookahead_frames", serde_json::json!(64)),
+            ("effective_output_latency_frames", serde_json::json!(320)),
+            ("internal_block_frames", serde_json::json!(64)),
+        ]
+    } else {
+        vec![
+            ("scenario", serde_json::json!("synth_ramp_16")),
+            ("expected_alsa_period_frames", serde_json::json!(64)),
+            ("lookahead_frames", serde_json::json!(64)),
+            ("effective_output_latency_frames", serde_json::json!(192)),
+        ]
+    };
+    for (field, value) in invalid_cases {
         let mut invalid = serde_json::to_value(&result).unwrap();
         invalid[field] = value;
         assert!(
@@ -86,13 +110,15 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
             "tampered result field should fail: {field}"
         );
     }
-    for executor in ["persistent_two_workers", "routing_tree_persistent"] {
-        let mut invalid = serde_json::to_value(&result).unwrap();
-        invalid["executor_mode"] = executor.into();
-        assert!(
-            serde_json::from_value::<BenchmarkResult>(invalid).is_err(),
-            "analogue geometry should be rejected for {executor}"
-        );
+    if !super::super::super::geometry::is_raspberry_diagnostic() {
+        for executor in ["persistent_two_workers", "routing_tree_persistent"] {
+            let mut invalid = serde_json::to_value(&result).unwrap();
+            invalid["executor_mode"] = executor.into();
+            assert!(
+                serde_json::from_value::<BenchmarkResult>(invalid).is_err(),
+                "analogue geometry should be rejected for {executor}"
+            );
+        }
     }
 }
 
@@ -105,9 +131,9 @@ fn recorded_analogue_geometry_matches_executor_contract() {
             requested_output_buffer_frames: 256,
             expected_alsa_buffer_frames: 256,
             expected_alsa_period_frames: 64,
-            internal_block_frames: 64,
-            lookahead_frames: 64,
-            effective_output_latency_frames: Some(320),
+            internal_block_frames: 128,
+            lookahead_frames: 128,
+            effective_output_latency_frames: Some(384),
         })
         .is_ok());
         return;

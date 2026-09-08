@@ -35,15 +35,15 @@ function Invoke-PrintOnly {
 }
 
 $inline = Assert-RaspberryLiveBenchmarkSelection -Units 16 -ExecutorMode Inline -MeasureSeconds 30
-if ($inline.Scenario -cne "capacity_analogue_16" -or $inline.NativeExecutorMode -cne "inline" -or $inline.OutputFrames -ne 128 -or $inline.AlsaPeriodFrames -ne 32 -or $inline.InternalFrames -ne 32 -or $inline.LookaheadFrames -ne 0 -or $inline.WorkerTimingMode -cne "disabled" -or $inline.ContinueOnRecoveredMiss) { throw "Inline Raspberry benchmark selection changed." }
+if ($inline.Scenario -cne "capacity_analogue_16" -or $inline.NativeExecutorMode -cne "inline" -or $inline.OutputFrames -ne 256 -or $inline.AlsaPeriodFrames -ne 64 -or $inline.InternalFrames -ne 128 -or $inline.LookaheadFrames -ne 0 -or $inline.EffectiveOutputLatencyFrames -ne 256 -or $inline.WorkerTimingMode -cne "disabled" -or $inline.ContinueOnRecoveredMiss) { throw "Inline Raspberry benchmark selection changed." }
 $u8 = Assert-RaspberryLiveBenchmarkSelection -Units 8 -ExecutorMode Inline -MeasureSeconds 30
-if ($u8.Scenario -cne "capacity_analogue_8" -or $u8.NativeExecutorMode -cne "inline" -or $u8.OutputFrames -ne 128 -or $u8.AlsaPeriodFrames -ne 32 -or $u8.InternalFrames -ne 32 -or $u8.LookaheadFrames -ne 0 -or $u8.EffectiveOutputLatencyFrames -ne 128) { throw "U8 Raspberry benchmark selection or geometry changed." }
+if ($u8.Scenario -cne "capacity_analogue_8" -or $u8.NativeExecutorMode -cne "inline" -or $u8.OutputFrames -ne 256 -or $u8.AlsaPeriodFrames -ne 64 -or $u8.InternalFrames -ne 128 -or $u8.LookaheadFrames -ne 0 -or $u8.EffectiveOutputLatencyFrames -ne 256) { throw "U8 Raspberry benchmark selection or geometry changed." }
 $multicore = Assert-RaspberryLiveBenchmarkSelection -Units 32 -ExecutorMode Multicore -MeasureSeconds 120 -ObserveCompromises
-if ($multicore.Scenario -cne "capacity_analogue_32" -or $multicore.NativeExecutorMode -cne "routing_tree_persistent" -or $multicore.OutputFrames -ne 256 -or $multicore.AlsaPeriodFrames -ne 64 -or $multicore.InternalFrames -ne 64 -or $multicore.WorkerTimingMode -cne "disabled" -or $multicore.LookaheadFrames -ne 64 -or $multicore.EffectiveOutputLatencyFrames -ne 320 -or -not $multicore.ContinueOnRecoveredMiss -or $multicore.ContinueOnRecoveredMissArgument -cne "--continue-on-recovered-miss") { throw "Multicore Raspberry benchmark selection changed." }
+if ($multicore.Scenario -cne "capacity_analogue_32" -or $multicore.NativeExecutorMode -cne "routing_tree_persistent" -or $multicore.OutputFrames -ne 256 -or $multicore.AlsaPeriodFrames -ne 64 -or $multicore.InternalFrames -ne 128 -or $multicore.WorkerTimingMode -cne "disabled" -or $multicore.LookaheadFrames -ne 128 -or $multicore.EffectiveOutputLatencyFrames -ne 384 -or -not $multicore.ContinueOnRecoveredMiss -or $multicore.ContinueOnRecoveredMissArgument -cne "--continue-on-recovered-miss") { throw "Multicore Raspberry benchmark selection changed." }
 $multicoreStrict = Assert-RaspberryLiveBenchmarkSelection -Units 32 -ExecutorMode Multicore -MeasureSeconds 120
-if ($multicoreStrict.ContinueOnRecoveredMiss -or $multicoreStrict.WorkerTimingMode -cne "disabled") { throw "Strict Multicore Raspberry benchmark selection changed." }
+if ($multicoreStrict.OutputFrames -ne 256 -or $multicoreStrict.AlsaPeriodFrames -ne 64 -or $multicoreStrict.InternalFrames -ne 128 -or $multicoreStrict.LookaheadFrames -ne 128 -or $multicoreStrict.EffectiveOutputLatencyFrames -ne 384 -or $multicoreStrict.ContinueOnRecoveredMiss -or $multicoreStrict.WorkerTimingMode -cne "disabled") { throw "Strict Multicore Raspberry benchmark selection changed." }
 $inlineObservation = Assert-RaspberryLiveBenchmarkSelection -Units 16 -ExecutorMode Inline -MeasureSeconds 120 -ObserveCompromises
-if (-not $inlineObservation.ObserveCompromises -or $inlineObservation.ContinueOnRecoveredMiss -or $inlineObservation.WorkerTimingMode -cne "disabled") { throw "Inline Raspberry observation selection changed." }
+if (-not $inlineObservation.ObserveCompromises -or $inlineObservation.OutputFrames -ne 256 -or $inlineObservation.AlsaPeriodFrames -ne 64 -or $inlineObservation.InternalFrames -ne 128 -or $inlineObservation.LookaheadFrames -ne 0 -or $inlineObservation.EffectiveOutputLatencyFrames -ne 256 -or $inlineObservation.ContinueOnRecoveredMiss -or $inlineObservation.WorkerTimingMode -cne "disabled") { throw "Inline Raspberry observation selection changed." }
 Assert-Throws { Assert-RaspberryLiveBenchmarkSelection -Units 16 -ExecutorMode Inline -MeasureSeconds 30 -ObserveCompromises } "observation mode duration gate"
 
 $testHash = "a" * 64
@@ -269,7 +269,7 @@ try {
   Write-TestEvidence $alsaMismatchRoot (New-TestResult) "pass"
   Set-Content (Join-Path $alsaMismatchRoot "alsa-hw-params.txt") "period_size: 32`nbuffer_size: 256" -Encoding UTF8
   $alsaMismatch = Get-TestHostEvidenceWithoutErrors $alsaMismatchRoot $inline $testHash
-  if ($alsaMismatch.StatusClass -cne "infrastructure_failure" -or $alsaMismatch.Reason -ne "Raspberry benchmark raw ALSA evidence did not contain exact buffer_size 128 and period_size 32 rows.") { throw "Raw ALSA evidence was not validated exactly." }
+  if ($alsaMismatch.StatusClass -cne "infrastructure_failure" -or $alsaMismatch.Reason -ne "Raspberry benchmark raw ALSA evidence did not contain exact buffer_size 256 and period_size 64 rows.") { throw "Raw ALSA evidence was not validated exactly." }
   $preSudoRoot = Join-Path $testRoot "pre-sudo"
   New-Item -ItemType Directory -Force -Path $preSudoRoot | Out-Null
   Set-Content (Join-Path $preSudoRoot "study-result.txt") "mode=LiveAudioBenchmark`nstatus_class=infrastructure_failure`ninterruption_started=false`nreason=operator-sudo-authorization-unavailable" -Encoding UTF8
@@ -309,11 +309,11 @@ try {
 }
 
 $printOnly = Invoke-PrintOnly @{ Units = 16; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
-if ($printOnly -notmatch "no transport is invoked" -or $printOnly -notmatch "U16 scenario=capacity_analogue_16 executor=Inline output=128 period=32 internal=32 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "Inline PrintOnly output changed." }
+if ($printOnly -notmatch "no transport is invoked" -or $printOnly -notmatch "U16 scenario=capacity_analogue_16 executor=Inline output=256 period=64 internal=128 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "Inline PrintOnly output changed." }
 $u8PrintOnly = Invoke-PrintOnly @{ Units = 8; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
-if ($u8PrintOnly -notmatch "U8 scenario=capacity_analogue_8 executor=Inline output=128 period=32 internal=32 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "U8 PrintOnly output changed." }
+if ($u8PrintOnly -notmatch "U8 scenario=capacity_analogue_8 executor=Inline output=256 period=64 internal=128 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "U8 PrintOnly output changed." }
 $multicorePrintOnly = Invoke-PrintOnly @{ Units = 32; ExecutorMode = "Multicore"; MeasureSeconds = 120; ObserveCompromises = $true; PrintOnly = $true }
-if ($multicorePrintOnly -notmatch "U32 scenario=capacity_analogue_32 executor=Multicore output=256 period=64 internal=64 lookahead=64 worker-timing=disabled continue-on-recovered-miss=True measure=120 label=120-second repeat") { throw "Multicore PrintOnly output changed." }
+if ($multicorePrintOnly -notmatch "U32 scenario=capacity_analogue_32 executor=Multicore output=256 period=64 internal=128 lookahead=128 worker-timing=disabled continue-on-recovered-miss=True measure=120 label=120-second repeat") { throw "Multicore PrintOnly output changed." }
 Assert-Throws { & $runner -Units 16 } "missing explicit interruption consent"
 if ($runnerSource.IndexOf("ObserveCompromises", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf("completed observation", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf('StatusClass -ne "pass" -and -not ($ObserveCompromises', [StringComparison]::Ordinal) -lt 0) { throw "Raspberry observation mode does not retain completed compromised runs." }
 
@@ -409,8 +409,8 @@ function Resolve-TestPayload {
 }
 $inlinePayload = Resolve-TestPayload $payloadTemplate $inline
 $multicorePayload = Resolve-TestPayload $payloadTemplate $multicore
-if ($inlinePayload -notmatch '--executor inline --scenario capacity_analogue_16 --output-frames 128 --engine-block-frames 32 --worker-timing disabled\s+--warmup-seconds' -or $inlinePayload -match '--continue-on-recovered-miss') { throw "Inline Raspberry command geometry or continuation changed." }
-if ($multicorePayload -notmatch '--executor routing_tree_persistent --scenario capacity_analogue_32 --output-frames 256 --engine-block-frames 64 --worker-timing disabled\s+--continue-on-recovered-miss --warmup-seconds') { throw "Multicore Raspberry command geometry or continuation changed." }
+if ($inlinePayload -notmatch '--executor inline --scenario capacity_analogue_16 --output-frames 256 --engine-block-frames 128 --worker-timing disabled\s+--warmup-seconds' -or $inlinePayload -match '--continue-on-recovered-miss') { throw "Inline Raspberry command geometry or continuation changed." }
+if ($multicorePayload -notmatch '--executor routing_tree_persistent --scenario capacity_analogue_32 --output-frames 256 --engine-block-frames 128 --worker-timing disabled\s+--continue-on-recovered-miss --warmup-seconds') { throw "Multicore Raspberry command geometry or continuation changed." }
 if (($null -ne $bash -and [string]$bash.Source -notmatch "WindowsApps") -or $null -ne $wsl) {
   $payloadPath = [IO.Path]::GetTempFileName()
   try {

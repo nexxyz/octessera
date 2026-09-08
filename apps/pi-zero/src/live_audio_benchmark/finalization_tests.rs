@@ -10,9 +10,9 @@ fn config() -> BenchmarkConfig {
         "--scenario".into(),
         "synth_cross_slot_96_steal".into(),
         "--output-frames".into(),
-        if raspberry { "128" } else { "1024" }.into(),
+        if raspberry { "256" } else { "1024" }.into(),
         "--engine-block-frames".into(),
-        if raspberry { "32" } else { "256" }.into(),
+        if raspberry { "128" } else { "256" }.into(),
         "--executor".into(),
         "inline".into(),
         "--worker-timing".into(),
@@ -26,7 +26,7 @@ fn config() -> BenchmarkConfig {
     if raspberry {
         config.output_frames = 256;
         config.expected_alsa_period_frames = 64;
-        config.internal_frames = 64;
+        config.internal_frames = 128;
         config.executor_mode = BenchmarkExecutorMode::RoutingTreePersistent;
         config.worker_timing_mode = WorkerTimingMode::Enabled;
     } else {
@@ -38,11 +38,12 @@ fn config() -> BenchmarkConfig {
 
 #[cfg(feature = "routing-tree-benchmark")]
 fn continuation_config() -> BenchmarkConfig {
+    let raspberry = super::super::geometry::is_raspberry_diagnostic();
     let mut config = config();
     config.scenario = "capacity_analogue_16".into();
     config.output_frames = 256;
     config.expected_alsa_period_frames = 64;
-    config.internal_frames = 64;
+    config.internal_frames = if raspberry { 128 } else { 64 };
     config.executor_mode = BenchmarkExecutorMode::RoutingTreePersistent;
     config.worker_timing_mode = WorkerTimingMode::Disabled;
     config.measure_seconds = 120;
@@ -57,10 +58,14 @@ fn continuation_config() -> BenchmarkConfig {
 fn analogue_inline_config() -> BenchmarkConfig {
     let mut config = config();
     config.scenario = "capacity_analogue_1".into();
-    config.output_frames = 128;
-    config.expected_alsa_period_frames = 32;
+    config.output_frames = if super::super::geometry::is_raspberry_diagnostic() {
+        256
+    } else {
+        128
+    };
+    config.expected_alsa_period_frames = if config.output_frames == 256 { 64 } else { 32 };
     config.internal_frames = if super::super::geometry::is_raspberry_diagnostic() {
-        32
+        128
     } else {
         64
     };
@@ -140,7 +145,7 @@ fn candidate_spacing_uses_the_alsa_period_not_the_engine_block() {
         "--output-frames".into(),
         "256".into(),
         "--engine-block-frames".into(),
-        if raspberry { "64" } else { "256" }.into(),
+        if raspberry { "128" } else { "256" }.into(),
         "--release-gate".into(),
         "release.json".into(),
         "--artifact-sha256".into(),

@@ -11,10 +11,10 @@ function Assert-RaspberryLiveBenchmarkSelection {
   if ($ObserveCompromises -and $MeasureSeconds -ne 120) { throw "-ObserveCompromises is only valid for 120-second capacity cells." }
   $nativeExecutor = if ($ExecutorMode -ceq "Inline") { "inline" } else { "routing_tree_persistent" }
   $workerTiming = "disabled"
-  $outputFrames = if ($ExecutorMode -ceq "Inline") { 128 } else { 256 }
-  $alsaPeriodFrames = if ($ExecutorMode -ceq "Inline") { 32 } else { 64 }
-  $internalFrames = if ($ExecutorMode -ceq "Inline") { 32 } else { 64 }
-  $lookahead = if ($ExecutorMode -ceq "Inline") { 0 } else { 64 }
+  $outputFrames = 256
+  $alsaPeriodFrames = 64
+  $internalFrames = 128
+  $lookahead = if ($ExecutorMode -ceq "Inline") { 0 } else { 128 }
   $continueOnRecoveredMiss = $ObserveCompromises -and $ExecutorMode -ceq "Multicore"
   return [pscustomobject][ordered]@{
     Units = $Units

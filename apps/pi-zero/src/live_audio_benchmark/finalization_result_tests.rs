@@ -138,11 +138,7 @@ fn routing_tree_result_status_requires_routing_worker_lifecycle() {
     config.executor_mode = BenchmarkExecutorMode::RoutingTreePersistent;
     config.output_frames = 256;
     config.expected_alsa_period_frames = 64;
-    config.internal_frames = if crate::live_audio_benchmark::geometry::is_raspberry_diagnostic() {
-        64
-    } else {
-        128
-    };
+    config.internal_frames = 128;
     let metrics = CallbackMetricsSnapshot {
         callback_count: 1,
         callback_frames_min: 1,
