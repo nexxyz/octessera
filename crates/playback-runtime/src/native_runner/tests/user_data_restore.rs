@@ -26,6 +26,196 @@ fn has_platform_effect(messages: &[RunnerMessage], expected: RuntimePlatformEffe
     })
 }
 
+fn input(runner: &mut NativeRunner, value: Value) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: value,
+            request_snapshot: None,
+        })
+        .unwrap()
+}
+
+fn has_default_save(messages: &[RunnerMessage], mode: Option<&str>) -> bool {
+    messages.iter().any(|message| {
+        matches!(
+            message,
+            RunnerMessage::PlatformEffects { effects }
+                if effects.iter().any(|effect| matches!(
+                    effect,
+                    RuntimePlatformEffect::StoreSaveDefault { mode: effect_mode, .. }
+                        if effect_mode.as_deref() == mode
+                ))
+        )
+    })
+}
+
+fn identified_default_save(request_id: &str, revision: u64) -> HostMessage {
+    HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::Identified {
+            result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: None,
+            }),
+            request_id: request_id.into(),
+            revision: Some(revision),
+        },
+    }
+}
+
+fn pending_restart_runner() -> NativeRunner {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
+    assert!(runner.menu.focus_item_key("transport.bpm"));
+    let _ = input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    let _ = input(
+        &mut runner,
+        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+    );
+    runner.make_deferred_menu_apply_due_for_test();
+    let messages = runner.flush_deferred_menu_apply().unwrap();
+    assert!(has_default_save(&messages, Some("deferred")));
+    let revision = runner.restart_settings.pending_write_revision().unwrap();
+    runner.register_default_write_request("deferred-restore", Some(revision));
+
+    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    let _ = input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    let _ = input(
+        &mut runner,
+        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+    );
+    let _ = input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert!(runner.restart_settings.has_pending_write());
+    runner
+}
+
+#[test]
+pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
+    for outcome in ["failed", "missing", "invalid"] {
+        let mut runner = pending_restart_runner();
+        let bpm = runner.transport.bpm;
+        let buffer = runner.audio_output_buffer_frames;
+        assert!(runner
+            .send(HostMessage::RuntimeResult {
+                result: restore_status(RuntimeUserDataRestorePhase::Restoring),
+            })
+            .is_ok());
+        assert!(!runner.restart_settings.has_pending_write(), "{outcome}");
+        assert!(runner.pending.pending_save_revision.is_none(), "{outcome}");
+
+        let failure_messages = match outcome {
+            "failed" => runner
+                .send(HostMessage::RuntimeResult {
+                    result: restore_status(RuntimeUserDataRestorePhase::Failed),
+                })
+                .unwrap(),
+            "missing" | "invalid" => {
+                let succeeded = runner
+                    .send(HostMessage::RuntimeResult {
+                        result: restore_status(RuntimeUserDataRestorePhase::Succeeded),
+                    })
+                    .unwrap();
+                assert!(has_platform_effect(
+                    &succeeded,
+                    RuntimePlatformEffect::StoreLoadDefault
+                ));
+                let result = if outcome == "missing" {
+                    RuntimeStoreResult::LoadDefaultResult { payload: None }
+                } else {
+                    RuntimeStoreResult::LoadDefaultResult {
+                        payload: Some(json!({ "runtimeConfig": "invalid" })),
+                    }
+                };
+                let error = runner
+                    .send(HostMessage::RuntimeResult { result })
+                    .unwrap_err();
+                assert!(!error.is_empty());
+                Vec::new()
+            }
+            _ => unreachable!(),
+        };
+
+        if outcome == "failed" {
+            assert!(has_default_save(&failure_messages, Some("deferred")));
+            let recovery_revision = runner.restart_settings.pending_write_revision().unwrap();
+            runner.register_default_write_request("restore-retry", Some(recovery_revision));
+            let recovery = runner
+                .send(identified_default_save("restore-retry", recovery_revision))
+                .unwrap();
+            assert!(!has_default_save(&recovery, Some("restart-everything")));
+        }
+
+        assert!(!runner.restart_settings.has_pending_write(), "{outcome}");
+        assert!(runner.pending.pending_save_revision.is_none(), "{outcome}");
+        assert!(!runner.restore_rehydration_pending(), "{outcome}");
+        assert_eq!(runner.transport.bpm, bpm, "{outcome}");
+        assert_eq!(runner.audio_output_buffer_frames, buffer, "{outcome}");
+        if outcome != "failed" {
+            assert!(runner.config_dirty, "{outcome}");
+        }
+
+        let dismissed = input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+        assert!(runner.display.user_data_restore.is_none(), "{outcome}");
+        if has_default_save(&dismissed, Some("deferred")) {
+            let recovery_revision = runner.restart_settings.pending_write_revision().unwrap();
+            runner.register_default_write_request("restore-retry", Some(recovery_revision));
+            let recovery = runner
+                .send(identified_default_save("restore-retry", recovery_revision))
+                .unwrap();
+            assert!(!has_default_save(&recovery, Some("restart-everything")));
+        }
+        assert!(runner.menu.focus_item_key("default.save"));
+        let _ = input(
+            &mut runner,
+            json!({ "type": "encoder_press", "id": "main" }),
+        );
+        let _ = input(
+            &mut runner,
+            json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        );
+        let messages = input(
+            &mut runner,
+            json!({ "type": "encoder_press", "id": "main" }),
+        );
+        assert!(has_default_save(&messages, None), "{outcome}");
+        let revision = runner.restart_settings.pending_write_revision().unwrap();
+        runner.register_default_write_request("future-default", Some(revision));
+        let messages = runner
+            .send(identified_default_save("future-default", revision))
+            .unwrap();
+        assert!(
+            !has_default_save(&messages, Some("restart-everything")),
+            "{outcome}"
+        );
+
+        assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+        let _ = input(
+            &mut runner,
+            json!({ "type": "encoder_press", "id": "main" }),
+        );
+        let _ = input(
+            &mut runner,
+            json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        );
+        let messages = input(
+            &mut runner,
+            json!({ "type": "encoder_press", "id": "main" }),
+        );
+        assert!(
+            has_default_save(&messages, Some("restart-everything")),
+            "{outcome}"
+        );
+    }
+}
+
 #[test]
 pub(crate) fn restore_lifecycle_is_typed_blocking_and_bounded() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

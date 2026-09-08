@@ -90,6 +90,8 @@ impl Default for RuntimeConfig {
 
 pub trait CoreRunner {
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String>;
+
+    fn register_platform_request(&mut self, _request: &RuntimePlatformRequest) {}
 }
 
 pub trait HostAdapter {

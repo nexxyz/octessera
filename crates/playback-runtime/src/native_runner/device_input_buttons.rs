@@ -86,6 +86,15 @@ impl NativeRunner {
                     }
                     NativeMenuPressResult::EditingToggled { editing } => {
                         should_apply = !editing;
+                        if editing {
+                            if let Some(setting) = selected_group_key
+                                .as_deref()
+                                .and_then(super::restart_settings::RestartSetting::from_key)
+                            {
+                                self.restart_settings
+                                    .begin_edit(&self.config_payload(), setting);
+                            }
+                        }
                     }
                     NativeMenuPressResult::TextCursorAdvanced => {}
                 }
@@ -93,6 +102,7 @@ impl NativeRunner {
             if should_apply {
                 if let Some(key) = selected_group_key.as_deref() {
                     self.apply_or_schedule_menu_key(key)?;
+                    self.finish_restart_sensitive_edit(key);
                 } else {
                     return Err("cannot apply menu edit: current row has no key".into());
                 }
@@ -184,16 +194,11 @@ impl NativeRunner {
                 .editing
                 .then(|| self.menu.current_key().map(str::to_owned))
                 .flatten();
-            let prompt_for_audio_reboot = editing_key.as_deref().is_some_and(|key| {
-                matches!(key, "sound.audioOutputBufferFrames" | "sound.optimizeFor")
-            }) && self.pending.pending_audio_restart_prompt;
             self.reset_menu_scroll();
             self.menu.back();
             if let Some(key) = editing_key {
                 self.apply_or_schedule_menu_key(&key)?;
-            }
-            if prompt_for_audio_reboot {
-                self.open_audio_restart_confirmation();
+                self.finish_restart_sensitive_edit(&key);
             }
         }
         self.messages_with_snapshot()

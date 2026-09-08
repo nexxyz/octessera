@@ -152,6 +152,7 @@ impl NativeRunner {
             last_published_runtime_config: None,
             trigger_probability_rng: TRIGGER_PROBABILITY_RNG_INITIAL_SEED,
             pending: NativePendingState::default(),
+            restart_settings: RestartSettingsState::default(),
             #[cfg(test)]
             behavior_state_serialization_calls: Cell::new(0),
             #[cfg(test)]
@@ -174,6 +175,7 @@ impl NativeRunner {
             .engine
             .set_interpretation_profile(runner.interpretation_profile.clone());
         runner.menu.rebuild(runner.menu_config());
+        runner.restart_settings = RestartSettingsState::new(runner.config_payload());
         Ok(runner)
     }
 }

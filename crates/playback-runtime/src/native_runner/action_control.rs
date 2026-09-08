@@ -95,6 +95,12 @@ impl NativeRunner {
         action: NativeMenuAction,
         confirmed: bool,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
+        if matches!(&action, NativeMenuAction::PlatformEffect(action) if action == "default.load")
+            && self.restart_settings.has_pending_write()
+        {
+            self.show_toast("Save in progress");
+            return Ok(None);
+        }
         if !confirmed {
             if let Some(confirm) = self.confirmation_for_action(&action) {
                 self.display.confirm_dialog = Some(confirm);
@@ -122,7 +128,9 @@ impl NativeRunner {
                 Ok(None)
             }
             NativeMenuAction::PlatformEffect(action_type) => {
-                if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
+                if action_type.starts_with("restart.") {
+                    self.execute_restart_action(&action_type)
+                } else if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
                     self.preset_rename_source = Some(name.into());
                     self.preset_draft_name = name.into();
                     Ok(None)
@@ -156,29 +164,7 @@ impl NativeRunner {
                     self.clear_patch_state()?;
                     Ok(None)
                 } else if action_type == "system.reboot" || action_type == "system.shutdown" {
-                    self.display.oled_mode = super::NativeOledMode::Splash;
-                    self.display.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
-                    self.display.oled_splash_until = Some(
-                        std::time::Instant::now()
-                            + std::time::Duration::from_millis(
-                                super::OLED_SHUTDOWN_SPLASH_FAILSAFE_MS,
-                            ),
-                    );
-                    if action_type == "system.reboot" {
-                        self.show_toast("Rebooting");
-                    } else {
-                        self.show_toast("Shutting down");
-                    }
-                    self.outbox
-                        .push_platform_effect(if action_type == "system.reboot" {
-                            RuntimePlatformEffect::Reboot
-                        } else {
-                            RuntimePlatformEffect::Shutdown
-                        });
-                    self.platform_effect_for_action(&action_type)
-                } else if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
-                    self.show_toast("Audio: applying");
-                    self.platform_effect_for_action(&action_type)
+                    self.start_power_action(&action_type)
                 } else if action_type == "usb.sdTransferStart" {
                     self.transport.transport = RuntimeTransportState::Stopped;
                     self.reset_transport_position();
@@ -234,6 +220,30 @@ impl NativeRunner {
                 Ok(None)
             }
         }
+    }
+
+    pub(super) fn start_power_action(
+        &mut self,
+        action_type: &str,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
+        self.display.oled_mode = super::NativeOledMode::Splash;
+        self.display.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
+        self.display.oled_splash_until = Some(
+            std::time::Instant::now()
+                + std::time::Duration::from_millis(super::OLED_SHUTDOWN_SPLASH_FAILSAFE_MS),
+        );
+        if action_type == "system.reboot" {
+            self.show_toast("Rebooting");
+        } else {
+            self.show_toast("Shutting down");
+        }
+        self.outbox
+            .push_platform_effect(if action_type == "system.reboot" {
+                RuntimePlatformEffect::Reboot
+            } else {
+                RuntimePlatformEffect::Shutdown
+            });
+        self.platform_effect_for_action(action_type)
     }
 
     fn clone_instrument(&mut self, index: usize) {

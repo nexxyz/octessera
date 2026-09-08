@@ -369,7 +369,7 @@ pub(crate) fn current_schema_rejects_malformed_nested_fields() {
 }
 
 #[test]
-pub(crate) fn stale_save_ack_does_not_clear_newer_dirty_revision() {
+pub(crate) fn unmatched_identified_default_results_do_not_clear_dirty_revision() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.mark_config_dirty();
     let first_revision = runner.config_revision;
@@ -399,8 +399,8 @@ pub(crate) fn stale_save_ack_does_not_clear_newer_dirty_revision() {
             revision: Some(second_revision),
         })
         .unwrap();
-    assert!(!runner.config_dirty);
-    assert_eq!(runner.dirty_revision, None);
+    assert!(runner.config_dirty);
+    assert_eq!(runner.dirty_revision, Some(second_revision));
 }
 
 #[test]

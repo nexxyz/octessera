@@ -1,5 +1,6 @@
 use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 
+use super::restart_settings::DefaultSaveScope;
 use super::{
     clean_preset_name, native_factory_payload, portable_patch_payload_for_save, NativeRunner,
     NativeToast,
@@ -23,10 +24,21 @@ impl NativeRunner {
         let effect = match action {
             "preset.refresh" => Some(RuntimePlatformEffect::StoreListPresets),
             "default.load" => Some(RuntimePlatformEffect::StoreLoadDefault),
-            "default.save" => Some(RuntimePlatformEffect::StoreSaveDefault {
-                payload: self.config_payload(),
-                mode: None,
-            }),
+            "default.save" => {
+                if self.restart_settings.has_pending_write() {
+                    self.show_toast("Save in progress");
+                    return Ok(None);
+                }
+                let payload = self.config_payload();
+                if !self.register_default_write(payload.clone(), DefaultSaveScope::Ordinary) {
+                    self.show_toast("Save in progress");
+                    return Ok(None);
+                }
+                Some(RuntimePlatformEffect::StoreSaveDefault {
+                    payload,
+                    mode: None,
+                })
+            }
             "preset.saveAs" => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.preset_draft_name),
                 payload: portable_patch_payload_for_save(&self.config_payload())?,
@@ -58,11 +70,6 @@ impl NativeRunner {
             "system.shutdown" => Some(RuntimePlatformEffect::StoreSaveRecovery {
                 payload: self.config_payload(),
             }),
-            "audio.applyReboot" | "usb.applyReboot" => {
-                Some(RuntimePlatformEffect::ApplyDeviceConfigReboot {
-                    payload: self.config_payload(),
-                })
-            }
             "usb.sdTransferStart" => Some(RuntimePlatformEffect::UsbSdTransferStart),
             "usb.sdTransferStop" => Some(RuntimePlatformEffect::UsbSdTransferStop),
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
@@ -118,6 +125,13 @@ impl NativeRunner {
                 }
                 let operation = result.operation();
                 let succeeded = result.error_facts().is_none();
+                let pending_default_revision = self.pending_default_write_revision();
+                let restart_completion =
+                    if operation == crate::protocol::RuntimeOperation::StoreSaveDefault {
+                        self.apply_restart_default_save_result(&result, &request_id, revision)
+                    } else {
+                        None
+                    };
                 let is_save_operation = matches!(
                     &operation,
                     crate::protocol::RuntimeOperation::StoreSavePreset
@@ -132,11 +146,27 @@ impl NativeRunner {
                     }
                     return Err(error);
                 }
-                if !succeeded && is_save_operation {
+                if !succeeded
+                    && is_save_operation
+                    && restart_completion.is_none()
+                    && operation != crate::protocol::RuntimeOperation::StoreSaveDefault
+                    && pending_default_revision != revision
+                {
                     self.retry_config_save_after_restore_failure();
                 }
-                if succeeded && is_save_operation {
+                if succeeded
+                    && is_save_operation
+                    && restart_completion.is_none()
+                    && operation != crate::protocol::RuntimeOperation::StoreSaveDefault
+                    && pending_default_revision != revision
+                {
                     self.acknowledge_config_save(revision);
+                }
+                if let Some(completion) = restart_completion {
+                    if completion.succeeded && completion.scope != DefaultSaveScope::RestartSetting
+                    {
+                        self.acknowledge_config_save(revision);
+                    }
                 }
             }
             result => {

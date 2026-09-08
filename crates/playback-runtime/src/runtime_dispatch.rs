@@ -1,7 +1,7 @@
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorMetadata,
-    RuntimeOperation, RuntimeRecovery,
+    RuntimeOperation, RuntimeRecovery, RuntimeStoreResult,
 };
 
 impl PlaybackRuntime {
@@ -157,6 +157,9 @@ impl PlaybackRuntime {
                 RunnerMessage::PlatformEffects { effects } => {
                     for effect in effects {
                         let request = self.next_platform_request(effect);
+                        if let Some(runner) = runner.as_deref_mut() {
+                            runner.register_platform_request(&request);
+                        }
                         match host.handle_platform_effect(&request) {
                             Ok(messages) => {
                                 for follow_up in messages {
@@ -165,6 +168,7 @@ impl PlaybackRuntime {
                                 }
                             }
                             Err(error) => {
+                                let message = error.to_string();
                                 let error = self.adapter_error_metadata(
                                     error,
                                     request.error_domain(),
@@ -176,6 +180,17 @@ impl PlaybackRuntime {
                                 let recovery = error.recovery.clone();
                                 self.latch_error(error);
                                 self.apply_recovery(recovery, &mut runner, host, &mut output);
+                                if request.operation() == RuntimeOperation::StoreSaveDefault {
+                                    output.follow_ups.push(HostMessage::RuntimeResult {
+                                        result: RuntimeStoreResult::RuntimeFailure {
+                                            error: request.effect.failure_facts(message),
+                                        }
+                                        .with_identity(
+                                            request.request_id.clone(),
+                                            request.revision,
+                                        ),
+                                    });
+                                }
                                 self.append_presentations(&mut output);
                             }
                         }

@@ -77,9 +77,30 @@ impl NativeRunner {
     pub(super) fn confirm_dialog_selection(
         &mut self,
     ) -> Result<Option<super::RuntimePlatformEffect>, String> {
+        if self.restart_settings.is_saving() {
+            return Ok(None);
+        }
         let Some(confirm) = self.display.confirm_dialog.take() else {
             return Ok(None);
         };
+        if let crate::native_menu::NativeMenuAction::PlatformEffect(action) = &confirm.action {
+            if action == "restart.saveChoice" {
+                if confirm.cursor == 0 {
+                    self.cancel_restart_flow();
+                    return Ok(None);
+                }
+                let action = if confirm.options.len() == 3 && confirm.cursor == 1 {
+                    "restart.saveSetting"
+                } else {
+                    "restart.saveEverything"
+                };
+                return self.execute_restart_action(action);
+            }
+            if action == "restart.reboot" && confirm.cursor == 0 {
+                self.restart_settings.continue_after_save();
+                return Ok(None);
+            }
+        }
         if confirm.cursor == 0 {
             if let Some(message) = confirm.cancel_toast {
                 self.display.toast = Some(NativeToast { message, offset: 0 });

@@ -1,6 +1,7 @@
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState};
 
 use super::algorithm::LinkRoutingInput;
+use super::restart_settings::DefaultSaveScope;
 use super::{NativeOledMode, NativeRunner};
 
 impl NativeRunner {
@@ -55,11 +56,12 @@ impl NativeRunner {
                 .last_backup_save_at
                 .map(|last| last.elapsed() >= std::time::Duration::from_secs(300))
                 .unwrap_or(true);
-        let save_pending = self
-            .pending
-            .pending_save_revision
-            .zip(self.dirty_revision)
-            .is_some_and(|(pending, dirty)| pending == dirty);
+        let save_pending = self.restart_settings.has_pending_write()
+            || self
+                .pending
+                .pending_save_revision
+                .zip(self.dirty_revision)
+                .is_some_and(|(pending, dirty)| pending == dirty);
         let payload = if (self.auto_save_default
             && !restore_blocks_config_writes
             && self.config_dirty
@@ -74,21 +76,26 @@ impl NativeRunner {
         let save_default_effect = if self.auto_save_default
             && !restore_blocks_config_writes
             && self.config_dirty
+            && !self.restart_settings.is_editing()
             && !autosave_pending
             && !save_pending
         {
-            self.pending.pending_save_revision = Some(self.config_revision);
-            Some(RuntimePlatformEffect::StoreSaveDefault {
-                payload: payload.clone().expect("autosave payload"),
-                mode: Some("deferred".into()),
-            })
+            let autosave_payload = payload.clone().expect("autosave payload");
+            self.register_default_write(autosave_payload, DefaultSaveScope::Autosave)
+                .then(|| {
+                    self.pending.pending_save_revision = Some(self.config_revision);
+                    RuntimePlatformEffect::StoreSaveDefault {
+                        payload: payload.clone().expect("autosave payload"),
+                        mode: Some("deferred".into()),
+                    }
+                })
         } else {
             None
         };
         let backup_effect = if backup_due {
             self.last_backup_save_at = Some(std::time::Instant::now());
             Some(RuntimePlatformEffect::StoreSaveBackup {
-                payload: payload.expect("backup payload"),
+                payload: payload.clone().expect("backup payload"),
             })
         } else {
             None

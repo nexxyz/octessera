@@ -5,10 +5,13 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     };
     if key == "sound.optimizeFor" {
         return match raw.as_str() {
-            "latency" => "Inline / low latency".into(),
-            "capacity" => "Multicore / capacity".into(),
+            "latency" => "Inline".into(),
+            "capacity" => "Multicore".into(),
             _ => raw,
         };
+    }
+    if key == "sound.voiceStealingMode" && raw == "auto-balanced" {
+        return "auto-bal".into();
     }
     if key.ends_with("panPos") {
         return format_pan_position(raw.parse::<i32>().unwrap_or(16));

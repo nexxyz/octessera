@@ -66,7 +66,7 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.menu.current_label(), Some("Velocity Scale"));
+    assert_eq!(runner.menu.current_label(), Some("Vel Scale"));
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
@@ -99,7 +99,7 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.menu.current_label(), Some("Velocity Scale"));
+    assert_eq!(runner.menu.current_label(), Some("Vel Scale"));
 }
 
 #[test]

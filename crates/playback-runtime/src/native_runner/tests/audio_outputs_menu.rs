@@ -2,22 +2,38 @@ use super::*;
 use crate::oled_frame::TOAST_RECT;
 
 #[test]
-pub(crate) fn usb_menu_edits_payload_with_save_reboot_toast() {
+pub(crate) fn usb_menu_edits_payload_with_restart_dialog() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("audioOutputs.usb"));
-    runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
 
-    runner.menu.turn(1);
-    runner.apply_menu_state().unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["title"],
+        "/SYS/Audio / USB"
+    );
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["audioOutputs"],
         json!({ "dac": true, "usb": true, "hdmi": false })
     );
-    assert_eq!(
-        runner.snapshot().unwrap()["display"]["toast"],
-        "Audio: Save / Reb"
-    );
+    assert_eq!(snapshot_from(&messages)["display"]["title"], "Save Setting");
 }
 
 #[test]
@@ -203,56 +219,8 @@ pub(crate) fn required_jack_policy_device_input_replays_usb_and_hdmi_without_err
             assert!(runner.audio_outputs.dac());
             assert!(runner.config_dirty);
             assert_eq!(runner.config_revision, before_revision + 1);
-            assert!(runner.pending.pending_autosave_payload_due_at.is_some());
-            assert!(snapshot_from(&messages)["display"]["toast"]
-                .as_str()
-                .is_some_and(|toast| toast.contains("Save / Rebo")));
+            assert!(runner.pending.pending_autosave_payload_due_at.is_none());
+            assert_ne!(snapshot_from(&messages)["display"]["title"], "Save Setting");
         }
     }
-}
-
-#[test]
-pub(crate) fn usb_apply_reboot_is_confirmed_and_emits_payload() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.usb_midi_out_enabled = true;
-    assert!(runner.menu.focus_item_key("audio.applyReboot"));
-
-    let messages = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let snapshot = snapshot_from(&messages);
-    assert_eq!(snapshot["display"]["title"], "Confirm Audio");
-    let lines = snapshot["display"]["lines"].as_array().unwrap();
-    assert!(lines.iter().any(|line| line == "> Cancel"));
-    assert!(lines.iter().any(|line| line == "  Save / Reboot"));
-
-    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
-    let messages = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-
-    let effects = messages.iter().find_map(|message| match message {
-        RunnerMessage::PlatformEffects { effects } => Some(effects),
-        _ => None,
-    });
-    assert!(matches!(effects, Some(effects) if effects.len() == 1));
-    let Some(RuntimePlatformEffect::ApplyDeviceConfigReboot { payload }) = effects.unwrap().first()
-    else {
-        panic!("expected device config reboot effect");
-    };
-    assert_eq!(
-        payload["runtimeConfig"]["audioOutputs"],
-        json!({ "dac": true, "usb": true, "hdmi": false })
-    );
-    assert_eq!(
-        payload["runtimeConfig"]["usb"],
-        json!({ "midiOutEnabled": true })
-    );
 }

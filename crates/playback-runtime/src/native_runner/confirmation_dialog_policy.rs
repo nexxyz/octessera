@@ -68,8 +68,6 @@ impl NativeRunner {
             ("Confirm Reboot", "Reboot Octessera?".into())
         } else if action_type == "system.shutdown" {
             ("Confirm Shutdown", "Shut down Octessera?".into())
-        } else if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
-            ("Confirm Audio", "Save audio settings and reboot?".into())
         } else if action_type == "usb.sdTransferStart" {
             (
                 "Confirm SD2 Transfer",
@@ -110,11 +108,7 @@ impl NativeRunner {
             let preset = rest.split(':').nth(1).unwrap_or("preset");
             ("Confirm Synth", format!("Load synth preset {preset}?"))
         };
-        let options = if action_type == "audio.applyReboot" || action_type == "usb.applyReboot" {
-            vec!["Cancel".into(), "Save / Reboot".into()]
-        } else {
-            vec!["Cancel".into(), "Confirm".into()]
-        };
+        let options = vec!["Cancel".into(), "Confirm".into()];
         Some(NativeConfirmDialog {
             title: title.into(),
             lines: wrap_help_text(&detail, 28),
