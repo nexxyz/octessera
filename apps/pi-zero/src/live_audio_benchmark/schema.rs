@@ -301,7 +301,7 @@ impl BenchmarkProgress {
             super::stream::worker_thread_names_for_executor(config.executor_mode);
         Self {
             schema_version: BENCHMARK_SCHEMA_VERSION,
-            kind: "orange_audio_benchmark_progress".into(),
+            kind: super::platform::BENCHMARK_PROGRESS_KIND.into(),
             status: phase.into(),
             phase: phase.into(),
             elapsed_seconds,
@@ -357,7 +357,7 @@ pub fn readiness(
     let worker_thread_names = super::stream::worker_thread_names_for_executor(config.executor_mode);
     BenchmarkReadiness {
         schema_version: BENCHMARK_SCHEMA_VERSION,
-        kind: "orange_audio_benchmark_readiness".into(),
+        kind: super::platform::BENCHMARK_READINESS_KIND.into(),
         status: "ready".into(),
         board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
         pid: std::process::id(),

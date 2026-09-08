@@ -134,7 +134,10 @@ fn continue_on_recovered_miss_accepts_the_u16_routing_observation_cell() {
 fn inline_128_64_requires_an_analogue_capacity_scenario() {
     assert_eq!(
         parse(inline_args_for("synth_ramp_16", 128, 64)).unwrap_err(),
-        "unsupported Orange benchmark geometry tuple: output=128 internal=64"
+        format!(
+            "unsupported {} benchmark geometry tuple: output=128 internal=64",
+            super::super::platform::BENCHMARK_LABEL
+        )
     );
 }
 

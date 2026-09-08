@@ -1,3 +1,4 @@
+mod clean_policy;
 mod cli;
 mod finalization;
 mod fixture_profile;
@@ -5,6 +6,7 @@ mod geometry;
 mod metrics;
 mod output_counters;
 mod phase;
+mod platform;
 mod probe;
 mod release;
 mod schema;
@@ -96,7 +98,12 @@ fn execute_benchmark(
         .as_ref()
         .expect("stream was installed before playback")
         .play()
-        .map_err(|error| format!("failed to start Orange benchmark stream: {error}"))?;
+        .map_err(|error| {
+            format!(
+                "failed to start {} benchmark stream: {error}",
+                platform::BENCHMARK_LABEL
+            )
+        })?;
     ensure_stream_runtime_health(state)?;
     let callback_scheduling = {
         let stream = state
@@ -104,7 +111,7 @@ fn execute_benchmark(
             .as_ref()
             .expect("stream was installed before scheduler qualification");
         crate::audio_priority::qualify_callback_scheduler(
-            "Orange benchmark",
+            &format!("{} benchmark", platform::BENCHMARK_LABEL),
             &stream.scheduler,
             Duration::from_millis(250),
         )?

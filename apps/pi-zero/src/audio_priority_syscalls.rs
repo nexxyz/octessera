@@ -287,7 +287,7 @@ pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
 }
 
 #[cfg(feature = "source-worker-benchmark-timing")]
-pub(crate) fn orange_cpu_sampler() -> u32 {
+pub(crate) fn cpu_sampler() -> u32 {
     #[cfg(target_os = "linux")]
     {
         let cpu = unsafe { libc::sched_getcpu() };

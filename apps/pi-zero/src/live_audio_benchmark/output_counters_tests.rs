@@ -1,5 +1,5 @@
 use super::{PersistentOutputCounters, PersistentOutputCountersEvidence};
-use crate::orange_audio_benchmark::cli::BenchmarkExecutorMode;
+use crate::live_audio_benchmark::cli::BenchmarkExecutorMode;
 use std::sync::{Arc, Barrier};
 use std::thread;
 

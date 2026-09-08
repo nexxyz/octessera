@@ -49,6 +49,7 @@ benchmark-voice-pools-256 = [
 ]
 routing-tree-benchmark = [
     "native-audio",
+    "source-worker-benchmark-timing",
     "realtime-engine/routing-tree-benchmark",
     "rodio-engine-source/routing-tree-benchmark",
 ]

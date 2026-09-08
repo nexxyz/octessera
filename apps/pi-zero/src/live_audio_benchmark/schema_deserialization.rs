@@ -84,7 +84,7 @@ impl<'de> Deserialize<'de> for BenchmarkProgress {
         let value = BenchmarkProgressUnchecked::deserialize(deserializer)?;
         validate_schema::<D::Error>(value.schema_version, "benchmark")?;
         let executor_mode = parse_executor_mode(&value.executor_mode)?;
-        if value.kind != "orange_audio_benchmark_progress" {
+        if value.kind != super::super::platform::BENCHMARK_PROGRESS_KIND {
             return Err(D::Error::custom("benchmark progress kind is invalid"));
         }
         validate_geometry(RecordedGeometry {
@@ -152,7 +152,8 @@ impl<'de> Deserialize<'de> for BenchmarkReadiness {
         let value = BenchmarkReadinessUnchecked::deserialize(deserializer)?;
         validate_schema::<D::Error>(value.schema_version, "benchmark")?;
         let executor_mode = parse_executor_mode(&value.executor_mode)?;
-        if value.kind != "orange_audio_benchmark_readiness" || value.status != "ready" {
+        if value.kind != super::super::platform::BENCHMARK_READINESS_KIND || value.status != "ready"
+        {
             return Err(D::Error::custom(
                 "benchmark readiness kind or status is invalid",
             ));

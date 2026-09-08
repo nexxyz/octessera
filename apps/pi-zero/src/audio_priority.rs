@@ -12,8 +12,12 @@ use syscalls::{configure_affinity_only, configure_strict, CPU_MASK_WORDS};
 pub(crate) const PI_RUNTIME_CPU: usize = 0;
 pub(crate) const PI_JACK_CPU: usize = 1;
 pub(crate) const PI_MIRROR_CPU: usize = 0;
-pub(crate) const ORANGE_WORKER_CPUS: [usize; 2] = [2, 3];
-pub(crate) const ORANGE_WORKER_PRIORITY: i32 = 70;
+pub(crate) const DSP_WORKER_CPUS: [usize; 2] = [2, 3];
+pub(crate) const DSP_WORKER_PRIORITY: i32 = 70;
+#[cfg(test)]
+pub(crate) const ORANGE_WORKER_CPUS: [usize; 2] = DSP_WORKER_CPUS;
+#[cfg(test)]
+pub(crate) const ORANGE_WORKER_PRIORITY: i32 = DSP_WORKER_PRIORITY;
 pub(crate) const PI_JACK_CALLBACK_PRIORITY: i32 = 70;
 pub(crate) const PI_MIRROR_CALLBACK_PRIORITY: i32 = 60;
 
@@ -446,7 +450,21 @@ pub(crate) use syscalls::{
 };
 
 #[cfg(feature = "source-worker-benchmark-timing")]
-pub(crate) use syscalls::orange_cpu_sampler;
+pub(crate) use syscalls::cpu_sampler;
+#[cfg(any(
+    all(
+        feature = "hardware-orange-pi-zero-2w",
+        feature = "routing-tree-benchmark"
+    ),
+    all(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "routing-tree-benchmark",
+        feature = "benchmark-voice-pools-128",
+        not(feature = "legacy-hardware-rpi-zero-2w"),
+        not(feature = "legacy-hardware-pi")
+    )
+))]
+pub(crate) use worker_scheduling::benchmark_worker_start_hook;
 #[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) use worker_scheduling::orange_worker_start_hook;
 

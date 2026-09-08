@@ -5,6 +5,7 @@ param(
   [string]$Profile = "pi-dev",
   [string]$BoardProfile = "raspberry-pi-zero-2w",
   [string]$OutDir = "target/pi-cross",
+  [switch]$RaspberryLiveAudioBenchmark,
   [string]$Image = "octessera-pi-cross:latest",
   [string]$Sysroot = "",
   [string]$PkgConfigPath = ""
@@ -12,8 +13,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "board-profile.ps1")
+$benchmarkMetadataModule = Join-Path $PSScriptRoot "raspberry-live-benchmark-metadata.psm1"
+$isRaspberryLiveAudioBenchmark = $RaspberryLiveAudioBenchmark.IsPresent
+if ($isRaspberryLiveAudioBenchmark) {
+  Import-Module $benchmarkMetadataModule -Force
+  if ($BoardProfile -cne "raspberry-pi-zero-2w") { throw "Raspberry live audio benchmark builds require the Raspberry Pi Zero 2 W profile." }
+  if ($Profile -cne "release") { throw "Raspberry live audio benchmark builds require the release profile." }
+  if ($OutDir -ceq "target/pi-cross") { $OutDir = "target/pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128" }
+}
 $boardSpec = Get-PiBoardProfileSpec $BoardProfile
-$cargoFeature = $boardSpec.CargoFeature
+$cargoFeature = if ($isRaspberryLiveAudioBenchmark) {
+  Get-RaspberryLiveBenchmarkCargoFeature
+} else {
+  $boardSpec.CargoFeature
+}
 
 function Require-Command {
   param(
@@ -89,8 +102,9 @@ function Invoke-WslDockerBuild {
   $targetArg = $Target.Replace("'", "'\''")
   $boardProfileArg = $BoardProfile.Replace("'", "'\''")
   $imageArg = $Image.Replace("'", "'\''")
+  $featureArg = $cargoFeature.Replace("'", "'\''")
 
-  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' BOARD_PROFILE='$boardProfileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' bash ./tools/pi/build-pi-cross-wsl.sh"
+  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' BOARD_PROFILE='$boardProfileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' CARGO_FEATURE='$featureArg' bash ./tools/pi/build-pi-cross-wsl.sh"
   & wsl bash -lc "docker info >/dev/null 2>&1"
   if ($LASTEXITCODE -eq 0) {
     Invoke-CheckedCommand "WSL Docker Pi cross-build" { & wsl bash -lc $script }
@@ -126,7 +140,7 @@ function Invoke-DockerBuild {
         -e PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/ `
         -e PKG_CONFIG_ALLOW_CROSS=1 `
         $Image `
-        bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --no-default-features --features $cargoFeature; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
+        bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --no-default-features --features '$cargoFeature'; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
     }
   } finally {
     if ($contextCreated -and (Test-Path -LiteralPath $buildContext)) {
@@ -220,7 +234,9 @@ try {
   if (-not (Test-Path -LiteralPath $outputBinary)) {
     throw "Build finished but binary was not found at $outputBinary"
   }
-  if ($BoardProfile -ceq $RaspberryPiZero2WProfileId) {
+  if ($isRaspberryLiveAudioBenchmark) {
+    Write-RaspberryLiveBenchmarkMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -SourceCommit $sourceCommit -BinaryPath $outputBinary
+  } elseif ($BoardProfile -ceq $RaspberryPiZero2WProfileId) {
     Write-RaspberryBoardMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -SourceCommit $sourceCommit -BinaryPath $outputBinary
   } else {
     Write-PiBoardMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -BoardProfile $BoardProfile
