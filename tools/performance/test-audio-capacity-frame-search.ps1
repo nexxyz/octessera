@@ -377,6 +377,13 @@ try {
   Write-FrameSearchResultsMarkdown $state $resultsPath
   Assert-True ([IO.File]::ReadAllText($resultsPath).Contains("- Status: inconclusive")) "atomic Markdown overwrite"
   Assert-Equal @(Get-ChildItem -LiteralPath (Split-Path -Parent $resultsPath) -Filter "study-results.md.*-*" -File).Count 0 "atomic Markdown overwrite removes temporary files"
+  $childDirectory = Join-Path $tempRoot "child process"
+  New-Item -ItemType Directory -Force -Path $childDirectory | Out-Null
+  $childScript = Join-Path $childDirectory "echo-argument.ps1"
+  [IO.File]::WriteAllText($childScript, 'param([string]$Value) Write-Output "child=$Value"', (New-Object Text.UTF8Encoding($false)))
+  $child = Invoke-FrameSearchChildProcess $childScript @("-Value", "runner proof") (Join-Path $childDirectory "stdout.txt") (Join-Path $childDirectory "stderr.txt")
+  Assert-Equal ([int]$child.ExitCode) 0 "child runner exit"
+  Assert-True ($child.Stdout.Trim() -ceq "child=runner proof") "child runner invokes the script path and preserves arguments"
   Assert-FrameSearchResumeIdentity $loaded "test-study" $plan ("a" * 40) $artifactExpectations
   $changedPlan = [pscustomobject]@{ Path = $plan.Path; Sha256 = "b" * 64 }
   Assert-Throws { Assert-FrameSearchResumeIdentity $loaded "test-study" $changedPlan ("a" * 40) $artifactExpectations } "resume plan identity mismatch"
