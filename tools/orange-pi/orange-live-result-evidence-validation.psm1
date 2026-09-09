@@ -187,9 +187,20 @@ function Get-OrangeLivePracticalGrade {
     [Parameter(Mandatory)][uint64]$SilentIncidents,
     [Parameter(Mandatory)][uint64]$AlsaRecoveryLogIncidents,
     [Parameter(Mandatory)][uint64]$CpalStreamErrors,
-    [Parameter(Mandatory)][uint64]$CpalDeviceErrors
+    [Parameter(Mandatory)][uint64]$CpalDeviceErrors,
+    [int]$MeasureSeconds = 120
   )
   $worst = [math]::Max([math]::Max([math]::Max($RepeatIncidents, $SilentIncidents), $AlsaRecoveryLogIncidents), [math]::Max($CpalStreamErrors, $CpalDeviceErrors))
+  if ($MeasureSeconds -eq 600) {
+    if ($worst -le 9) { return "Stable" }
+    if ($worst -le 24) { return "Stretched" }
+    return "Compromised"
+  }
+  if ($MeasureSeconds -eq 180) {
+    if ($worst -le 2) { return "Stable" }
+    if ($worst -le 7) { return "Stretched" }
+    return "Compromised"
+  }
   if ($worst -le 1) { return "Stable" }
   if ($worst -le 4) { return "Stretched" }
   return "Compromised"
@@ -223,7 +234,7 @@ function Get-OrangeLivePracticalEvidence {
   $silentFrames = [uint64]$provenance.silent_pcm_frames
   $cpalDeviceErrors = Get-OrangeLiveStrictInteger -Value $Result.callback.cpal_device_error_count -Path "callback.cpal_device_error_count"
   $cpalStreamErrors = Get-OrangeLiveStrictInteger -Value $Result.callback.cpal_stream_error_count -Path "callback.cpal_stream_error_count"
-  return [pscustomobject]@{ RepeatIncidents = $repeat; RepeatedPcmFrames = $repeatFrames; SilentIncidents = $silent; SilentPcmFrames = $silentFrames; AlsaRecoveryLogIncidents = $alsa; AlsaRecoveryLogScope = "whole_run_unit_journal"; PracticalGrade = Get-OrangeLivePracticalGrade -RepeatIncidents $repeat -SilentIncidents $silent -AlsaRecoveryLogIncidents $alsa -CpalStreamErrors $cpalStreamErrors -CpalDeviceErrors $cpalDeviceErrors }
+  return [pscustomobject]@{ RepeatIncidents = $repeat; RepeatedPcmFrames = $repeatFrames; SilentIncidents = $silent; SilentPcmFrames = $silentFrames; AlsaRecoveryLogIncidents = $alsa; AlsaRecoveryLogScope = "whole_run_unit_journal"; PracticalGrade = Get-OrangeLivePracticalGrade -RepeatIncidents $repeat -SilentIncidents $silent -AlsaRecoveryLogIncidents $alsa -CpalStreamErrors $cpalStreamErrors -CpalDeviceErrors $cpalDeviceErrors -MeasureSeconds ([int]$Result.measure_seconds) }
 }
 function Get-OrangeLiveAggregateRenderAudioDurationRatio {
   param([Parameter(Mandatory)][pscustomobject]$Result)

@@ -17,7 +17,7 @@ param(
   [int]$EngineBlockFrames = 0,
   [ValidateSet(64, 128, 256)]
   [int]$ProfileMeasureFrames = 0,
-  [ValidateSet(30, 120, 180, 300)]
+  [ValidateSet(30, 120, 180, 300, 600)]
   [int]$MeasureSeconds = 30,
   [string]$WorkerTimingMode = "",
   [ValidateSet("inline", "routing_tree_persistent")]
@@ -30,6 +30,11 @@ param(
   [switch]$AllowServiceInterruption,
   [switch]$AllowLongRepeat,
   [switch]$ContinueOnRecoveredMiss,
+  [ValidateSet("OI32", "OI64", "OI256", "OM32", "OM64", "OM128")]
+  [string]$FrameSearchProfile = "",
+  [ValidateSet("Preliminary", "Soak")]
+  [string]$FrameSearchPhase = "",
+  [AllowNull()][object]$FrameSearchU = $null,
   [switch]$PrintOnly
 )
 
@@ -65,6 +70,20 @@ Import-Module $liveOutcomeModule -Force
 Import-Module $baselineValidationModule -Force
 $liveSelection = $null
 $baselineSelection = $null
+$frameSearchActive = $false
+if ($PSBoundParameters.ContainsKey("FrameSearchProfile") -or $PSBoundParameters.ContainsKey("FrameSearchPhase") -or $PSBoundParameters.ContainsKey("FrameSearchU")) {
+  if ($Mode -cne "LiveAudioBenchmark") { throw "Frame-search options require -Mode LiveAudioBenchmark." }
+  if ([string]::IsNullOrWhiteSpace($FrameSearchProfile) -or [string]::IsNullOrWhiteSpace($FrameSearchPhase) -or -not $PSBoundParameters.ContainsKey("FrameSearchU")) { throw "Frame-search profile, phase, and U must be supplied together." }
+  $liveSelection = Assert-OrangeFrameSearchSelection -FrameSearchProfile $FrameSearchProfile -FrameSearchPhase $FrameSearchPhase -FrameSearchU $FrameSearchU -Constraints $PSBoundParameters
+  $frameSearchActive = $true
+  $Scenario = $liveSelection.Scenario
+  $OutputFrames = $liveSelection.OutputFrames
+  $EngineBlockFrames = $liveSelection.EngineBlockFrames
+  $MeasureSeconds = $liveSelection.MeasureSeconds
+  $ExecutorMode = $liveSelection.ExecutorMode
+  $WorkerTimingMode = $liveSelection.WorkerTimingMode
+  $ContinueOnRecoveredMiss = [bool]$liveSelection.ContinueOnRecoveredMiss
+}
 if ($Mode -eq "ProfileBaseline") {
   $baselineSelection = Assert-OrangeProfileBaselineSelection `
     -Scenario $Scenario `
@@ -73,17 +92,19 @@ if ($Mode -eq "ProfileBaseline") {
 }
 if ($Mode -eq "LiveAudioBenchmark") {
   Import-Module $livePayloadModule -Force
-  if ($EngineBlockFrames -eq 0) { throw "LiveAudioBenchmark requires -EngineBlockFrames (64, 128, or 256)." }
-  $liveSelection = Assert-OrangeLiveBenchmarkSelection `
-    -Scenario $Scenario `
-    -OutputFrames $OutputFrames `
-    -EngineBlockFrames $EngineBlockFrames `
-    -MeasureSeconds $MeasureSeconds `
-    -AllowLongRepeat:$AllowLongRepeat `
-    -ContinueOnRecoveredMiss:$ContinueOnRecoveredMiss `
-    -ExecutorMode $ExecutorMode `
-    -WorkerTimingMode $WorkerTimingMode
-  $WorkerTimingMode = $liveSelection.WorkerTimingMode
+  if (-not $frameSearchActive) {
+    if ($EngineBlockFrames -eq 0) { throw "LiveAudioBenchmark requires -EngineBlockFrames (64, 128, or 256)." }
+    $liveSelection = Assert-OrangeLiveBenchmarkSelection `
+      -Scenario $Scenario `
+      -OutputFrames $OutputFrames `
+      -EngineBlockFrames $EngineBlockFrames `
+      -MeasureSeconds $MeasureSeconds `
+      -AllowLongRepeat:$AllowLongRepeat `
+      -ContinueOnRecoveredMiss:$ContinueOnRecoveredMiss `
+      -ExecutorMode $ExecutorMode `
+      -WorkerTimingMode $WorkerTimingMode
+    $WorkerTimingMode = $liveSelection.WorkerTimingMode
+  }
 }
 function Quote-PowerShellValue {
   param([Parameter(Mandatory)][string]$Value)
@@ -109,6 +130,7 @@ function Assert-StudyArtifact {
     [pscustomobject]$LiveSelection
   )
   $isCapacityDiagnostic = $null -ne $LiveSelection -and $null -ne $LiveSelection.PSObject.Properties["IsCapacityDiagnostic"] -and [bool]$LiveSelection.IsCapacityDiagnostic
+  $isFrameSearch = $null -ne $LiveSelection -and $null -ne $LiveSelection.PSObject.Properties["FrameSearchProfile"]
   $isRoutingExecutor = $null -ne $LiveSelection -and $LiveSelection.ExecutorMode -ceq "routing_tree_persistent"
   $buildSpec = if (-not $isCapacityDiagnostic -and -not $isRoutingExecutor) {
     [pscustomobject]@{
@@ -123,7 +145,17 @@ function Assert-StudyArtifact {
       throw "Diagnostic or routing scenarios require a diagnostic-only Orange artifact; runtime candidates are not accepted."
     }
     $cargoFeature = $metadataRecord.PSObject.Properties["cargo_feature"]
-    if ($isRoutingExecutor -and -not $isCapacityDiagnostic) {
+    if ($isFrameSearch) {
+      if ($null -eq $cargoFeature -or $cargoFeature.Value -cne $LiveSelection.DiagnosticArtifactFeature) {
+        throw "Frame-search scenarios require the exact diagnostic pool artifact for the selected executor."
+      }
+      $poolCapacity = 128
+      [pscustomobject]@{
+        Package = "octessera-pi"
+        Feature = [string]$cargoFeature.Value
+        ArtifactKind = "diagnostic-only"
+      }
+    } elseif ($isRoutingExecutor -and -not $isCapacityDiagnostic) {
       if ($null -eq $cargoFeature -or $cargoFeature.Value -cne "hardware-orange-pi-zero-2w routing-tree-benchmark") {
         throw "Routing-tree live scenarios require the exact routing-tree benchmark feature."
       }
@@ -325,6 +357,9 @@ try {
     Write-Output "Candidate health path: $healthPath"
     if ($Mode -eq "LiveAudioBenchmark") {
       Write-Output "Live selection: $($liveSelection.MatrixClass) output=$($liveSelection.OutputFrames) period=$($liveSelection.AlsaPeriodFrames) engine=$($liveSelection.EngineBlockFrames) internal=$($liveSelection.InternalFrames) scenario=$($liveSelection.Scenario) measure=$($liveSelection.MeasureSeconds) warmup=5 worker-timing=$($liveSelection.WorkerTimingMode) executor=$($liveSelection.ExecutorMode) lookahead=$($liveSelection.LookaheadFrames) effective-latency=$($liveSelection.EffectiveOutputLatencyFrames)"
+      if ($frameSearchActive) {
+        Write-Output "Frame-search: profile=$($liveSelection.FrameSearchProfile) phase=$($liveSelection.FrameSearchPhase) U=$($liveSelection.FrameSearchU) geometry=output=$($liveSelection.FrameSearchGeometry.OutputFrames),period=$($liveSelection.FrameSearchGeometry.AlsaPeriodFrames),internal=$($liveSelection.FrameSearchGeometry.InternalFrames),lookahead=$($liveSelection.FrameSearchGeometry.LookaheadFrames),effective=$($liveSelection.FrameSearchGeometry.EffectiveOutputLatencyFrames)"
+      }
       Write-Output "Live artifact identity: artifact_kind=$expectedArtifactKind cargo_feature=$expectedCargoFeature"
       if ($isCapacityDiagnostic) {
         $diagnosticPoolIdentity = if ($null -ne $artifactIdentity) { "benchmark-voice-pools-$($artifactIdentity.PoolCapacity)" } else { [regex]::Match($expectedCargoFeature, 'benchmark-voice-pools-(128|256)').Value }

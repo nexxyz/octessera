@@ -13,7 +13,7 @@ fn routing_tree_executor_rejects_output_buffers_above_256() {
 #[test]
 fn mixed_boundary_cli_accepts_only_approved_geometry_and_duration() {
     let tuples = if is_raspberry_diagnostic() {
-        vec![(256, 128)]
+        vec![(256, 64), (256, 128), (256, 256)]
     } else {
         vec![
             (128, 32),
@@ -25,14 +25,19 @@ fn mixed_boundary_cli_accepts_only_approved_geometry_and_duration() {
         ]
     };
     for (output, internal) in tuples {
-        for seconds in [30, 120, 180, 300] {
+        for seconds in [30, 120, 180, 300, 600] {
             let mut args = args_for(output, internal);
             set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
             args.extend(["--measure-seconds".into(), seconds.to_string()]);
             assert_eq!(parse(args).unwrap().measure_seconds, seconds);
         }
     }
-    for (output, internal) in [(128, 64), (256, 32), (512, 256), (1024, 128)] {
+    let rejected = if is_raspberry_diagnostic() {
+        vec![(128, 32), (128, 64), (256, 32)]
+    } else {
+        vec![(128, 64), (256, 32), (512, 256), (1024, 128)]
+    };
+    for (output, internal) in rejected {
         let mut args = args_for(output, internal);
         set_arg(&mut args, "--scenario", "mixed_ramp_16_48".into());
         assert!(parse(args).is_err());
@@ -78,7 +83,11 @@ fn invalid_scenario_duration_and_unmuted_are_rejected() {
     args.push("--measure-seconds".into());
     args.push("180".into());
     assert_eq!(parse(args).unwrap().measure_seconds, 180);
-    for seconds in [31, 299, 3000] {
+    let mut args = valid_args();
+    args.push("--measure-seconds".into());
+    args.push("600".into());
+    assert_eq!(parse(args).unwrap().measure_seconds, 600);
+    for seconds in [31, 299, 301, 599, 3000] {
         let mut args = valid_args();
         args.push("--measure-seconds".into());
         args.push(seconds.to_string());
