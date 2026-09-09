@@ -46,7 +46,7 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
     );
     let mut invalid_progress = serde_json::to_value(&progress).unwrap();
     if super::super::super::geometry::is_raspberry_diagnostic() {
-        invalid_progress["internal_block_frames"] = 64.into();
+        invalid_progress["internal_block_frames"] = 256.into();
     } else {
         invalid_progress["scenario"] = "synth_ramp_16".into();
     }
@@ -92,7 +92,7 @@ fn schema_accepts_inline_analogue_geometry_and_rejects_tampered_contracts() {
             ("expected_alsa_period_frames", serde_json::json!(32)),
             ("lookahead_frames", serde_json::json!(64)),
             ("effective_output_latency_frames", serde_json::json!(320)),
-            ("internal_block_frames", serde_json::json!(64)),
+            ("internal_block_frames", serde_json::json!(256)),
         ]
     } else {
         vec![

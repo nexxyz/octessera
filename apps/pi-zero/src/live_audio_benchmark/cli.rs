@@ -308,8 +308,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<BenchmarkConfig, 
     if warmup_seconds != DEFAULT_WARMUP_SECONDS {
         return Err("warmup seconds must be 5".into());
     }
-    if !matches!(measure_seconds, 30 | 120 | 180 | 300) {
-        return Err("measure seconds must be 30, 120, 180, or 300".into());
+    if !matches!(measure_seconds, 30 | 120 | 180 | 300 | 600) {
+        return Err("measure seconds must be 30, 120, 180, 300, or 600".into());
     }
     if !(1..=120).contains(&release_timeout_seconds) {
         return Err("release timeout seconds must be between 1 and 120".into());
@@ -408,22 +408,35 @@ pub(crate) fn is_approved_continue_on_recovered_miss(
     measure_seconds: u64,
     worker_timing_mode: WorkerTimingMode,
 ) -> bool {
-    is_analogue_capacity_scenario(scenario)
-        && executor_mode == BenchmarkExecutorMode::RoutingTreePersistent
-        && output_frames == 256
-        && expected_alsa_period_frames == 64
+    if !is_analogue_capacity_scenario(scenario)
+        || executor_mode != BenchmarkExecutorMode::RoutingTreePersistent
+        || worker_timing_mode != WorkerTimingMode::Disabled
+    {
+        return false;
+    }
+    let expected_period = match output_frames {
+        128 => 32,
+        256 => 64,
+        _ => return false,
+    };
+    if expected_alsa_period_frames != expected_period {
+        return false;
+    }
+    let approved_routing_tuple =
+        super::geometry::is_approved_routing_observation_tuple(output_frames, internal_frames);
+    let legacy_tuple = output_frames == 256
         && internal_frames
             == if super::geometry::is_raspberry_diagnostic() {
                 128
             } else {
                 64
-            }
-        && measure_seconds == 120
-        && worker_timing_mode == WorkerTimingMode::Disabled
+            };
+    (measure_seconds == 120 && legacy_tuple)
+        || matches!(measure_seconds, 180 | 600) && approved_routing_tuple
 }
 
 fn continue_error() -> String {
-    "--continue-on-recovered-miss requires an analogue-capacity scenario, measure=120, approved diagnostic geometry, and worker timing disabled".into()
+    "--continue-on-recovered-miss requires an analogue-capacity routing observation at an approved tuple, measure=120, 180, or 600, and worker timing disabled".into()
 }
 
 fn next_value(iter: &mut impl Iterator<Item = String>, name: &str) -> Result<String, String> {

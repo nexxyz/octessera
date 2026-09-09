@@ -32,7 +32,13 @@ fn schema5_progress_and_readiness_reject_mismatched_executor_geometry() {
         SourceWorkerHealth::Healthy,
     );
     let mut invalid_readiness = serde_json::to_value(&readiness).unwrap();
-    invalid_readiness["worker_thread_name_0"] = "oct-dsp-tree-0".into();
+    invalid_readiness["worker_thread_name_0"] =
+        if super::super::super::geometry::is_raspberry_diagnostic() {
+            "oct-dsp-src-0"
+        } else {
+            "oct-dsp-tree-0"
+        }
+        .into();
     assert!(serde_json::from_value::<BenchmarkReadiness>(invalid_readiness).is_err());
     let mut unknown_readiness = serde_json::to_value(&readiness).unwrap();
     unknown_readiness["unexpected"] = true.into();

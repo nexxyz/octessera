@@ -163,7 +163,8 @@ fn routing_tree_result_status_requires_routing_worker_lifecycle() {
     };
     assert_eq!(result_status(&config, &metrics, 0, clean.clone()), "pass");
     let mut invalid = clean;
-    invalid.worker_thread_names = worker_thread_names();
+    invalid.worker_thread_names =
+        crate::live_audio_benchmark::stream::expected_worker_thread_names();
     assert_eq!(result_status(&config, &metrics, 0, invalid), "fail");
 }
 
@@ -222,16 +223,15 @@ fn injected_deadline_or_panic_worker_health_fails_benchmark_finalization() {
 
 #[test]
 fn pre_stream_failure_serializes_worker_timing_for_both_modes() {
+    let persistent_executor = if crate::live_audio_benchmark::geometry::is_raspberry_diagnostic() {
+        BenchmarkExecutorMode::RoutingTreePersistent
+    } else {
+        BenchmarkExecutorMode::PersistentTwoWorkers
+    };
     for (executor_mode, worker_timing_mode) in [
         (BenchmarkExecutorMode::Inline, WorkerTimingMode::Disabled),
-        (
-            BenchmarkExecutorMode::PersistentTwoWorkers,
-            WorkerTimingMode::Enabled,
-        ),
-        (
-            BenchmarkExecutorMode::PersistentTwoWorkers,
-            WorkerTimingMode::Disabled,
-        ),
+        (persistent_executor, WorkerTimingMode::Enabled),
+        (persistent_executor, WorkerTimingMode::Disabled),
     ] {
         let mut config = config();
         config.executor_mode = executor_mode;

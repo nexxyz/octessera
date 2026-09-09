@@ -87,7 +87,7 @@ fn pre_stream_finalization_accepts_inline_analogue_geometry() {
 fn pre_stream_finalization_reports_invalid_geometry() {
     let mut config = analogue_inline_config();
     let raspberry = super::super::super::geometry::is_raspberry_diagnostic();
-    config.internal_frames = if raspberry { 64 } else { 128 };
+    config.internal_frames = if raspberry { 256 } else { 128 };
     let root = std::env::temp_dir().join(format!(
         "octessera-invalid-analogue-finalization-{}-{}",
         std::process::id(),
@@ -131,7 +131,7 @@ fn pre_stream_finalization_reports_invalid_geometry() {
                 128
             },
             if super::super::super::geometry::is_raspberry_diagnostic() {
-                64
+                256
             } else {
                 128
             }

@@ -259,7 +259,7 @@ routing lookahead 64, and a diagnostic routing-tree artifact. Build the
   -EngineBlockFrames 64 `
   -MeasureSeconds 120 `
   -ExecutorMode routing_tree_persistent `
-  -WorkerTimingMode enabled `
+  -WorkerTimingMode disabled `
   -Artifact target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi `
   -Metadata target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi.metadata.json `
   -AllowServiceInterruption
@@ -305,7 +305,7 @@ The runner waits for readiness and fixed DAC ALSA geometry before publishing the
 identity-bound release file that lets the native process continue.
 
 Readiness, progress, and release evidence use schema 5, 5, and 2 respectively.
-Terminal results use schema 12 and are
+Terminal results use schema 13 and are
 independently recomputed by the host. Requested output buffer, negotiated ALSA
 period, and internal engine block are separate fields. CPAL callback batches are
 variable positive counts no larger than the requested buffer; render/audio-
@@ -315,7 +315,7 @@ lateness uses the fixed ALSA period. The dedicated routing-tree matrix reports
 two joined workers, no retirement error, the two worker names `oct-dsp-tree-0`
 and `oct-dsp-tree-1`, and the combined reaper name `oct-src-reaper`.
 Readiness/progress schemas other than 5 and terminal-result schemas other than
-12 are rejected. Callback batch size changes are recorded as evidence, not treated as a period mismatch; zero or oversized
+13 are rejected. Callback batch size changes are recorded as evidence, not treated as a period mismatch; zero or oversized
 batches and invalid-frame counts remain terminal failures. Each retained result
 also exposes the aggregate render-duration ratio from total render nanoseconds,
 rendered frames, and sample rate; missing or zero aggregate evidence fails

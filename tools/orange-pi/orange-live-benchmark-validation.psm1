@@ -11,15 +11,19 @@ function Get-OrangeLiveScenarioIds {
 }
 function Assert-OrangeLiveBenchmarkSelection {
   param(
-    [Parameter(Mandatory)][string]$Scenario,
-    [Parameter(Mandatory)][int]$OutputFrames,
-    [Parameter(Mandatory)][ValidateSet(32, 64, 128, 256)][int]$EngineBlockFrames,
-    [Parameter(Mandatory)][int]$MeasureSeconds,
+    [string]$Scenario = "",
+    [int]$OutputFrames = 0,
+    [ValidateSet(0, 32, 64, 128, 256)][int]$EngineBlockFrames = 0,
+    [int]$MeasureSeconds = 0,
     [ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode = "routing_tree_persistent",
     [string]$WorkerTimingMode = "",
     [bool]$AllowLongRepeat = $false,
-    [bool]$ContinueOnRecoveredMiss = $false
+    [bool]$ContinueOnRecoveredMiss = $false,
+    [ValidateSet("OI32", "OI64", "OI256", "OM32", "OM64", "OM128")][string]$FrameSearchProfile = "",
+    [ValidateSet("Preliminary", "Soak")][string]$FrameSearchPhase = "",
+    [AllowNull()][object]$FrameSearchU = $null
   )
+  if ($PSBoundParameters.ContainsKey("FrameSearchProfile") -or $PSBoundParameters.ContainsKey("FrameSearchPhase") -or $PSBoundParameters.ContainsKey("FrameSearchU")) { if ([string]::IsNullOrWhiteSpace($FrameSearchProfile) -or [string]::IsNullOrWhiteSpace($FrameSearchPhase) -or -not $PSBoundParameters.ContainsKey("FrameSearchU")) { throw "Frame-search profile, phase, and U must be supplied together." }; return Assert-OrangeFrameSearchSelection -FrameSearchProfile $FrameSearchProfile -FrameSearchPhase $FrameSearchPhase -FrameSearchU $FrameSearchU -Constraints $PSBoundParameters }
   if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
   $capacityScenario = ConvertFrom-OrangeCapacityScenario $Scenario
   $expectedWorkerTimingMode = if ($ExecutorMode -eq "inline" -or ($null -ne $capacityScenario -and $capacityScenario.Kind -ceq "analogue")) { "disabled" } else { "enabled" }; if ([string]::IsNullOrWhiteSpace($WorkerTimingMode)) { $WorkerTimingMode = $expectedWorkerTimingMode }
@@ -160,7 +164,7 @@ function Get-OrangeLiveResultSummary {
   $measured = [uint64]$callback.callback_count -gt 0 -and -not $terminal -and -not [bool]$callback.terminal_error
   $muteProof = [uint64]$callback.pre_mute_nonzero_samples -gt 0 -and [uint64]$callback.post_mute_nonzero_samples -eq 0
   $complete = $measured -and $callbackErrors -eq 0
-  $maxCallbackBudgetOverruns = switch ($Selection.MeasureSeconds) { 30 { 0 }; 120 { 0 }; 180 { 0 }; 300 { 5 }; default { throw "Unsupported live benchmark duration: $($Selection.MeasureSeconds) seconds." } }
+  $maxCallbackBudgetOverruns = switch ($Selection.MeasureSeconds) { 30 { 0 }; 120 { 0 }; 180 { 0 }; 300 { 5 }; 600 { 9 }; default { throw "Unsupported live benchmark duration: $($Selection.MeasureSeconds) seconds." } }
   $statusClass = if (-not $measured) {
     "infrastructure_failure"
   } elseif ($callbackErrors -gt 0) {
@@ -356,21 +360,12 @@ function Get-OrangeLiveHostEvidence {
     [Parameter(Mandatory)][pscustomobject]$Selection,
     [Parameter(Mandatory)][string]$ArtifactHash
   )
-  $identity = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "benchmark-identity.txt")
-  $restored = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "service-restored-state.txt")
-  $study = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "study-result.txt")
+  $identity = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "benchmark-identity.txt"); $restored = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "service-restored-state.txt"); $study = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "study-result.txt")
   $remoteStatusClass = if ($study.ContainsKey("status_class")) { [string]$study.status_class } else { "" }
-  $unit = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-final.txt")
-  $unitStop = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-stop-evidence.txt")
-  $unitStopBefore = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-stop-before.txt")
-  $sensorAbortPath = Join-Path $EvidenceDirectory "sensor-abort.txt"
-  $resultPath = Join-Path $EvidenceDirectory "benchmark-result.json"
-  $readinessPath = Join-Path $EvidenceDirectory "benchmark-readiness.json"
-  $releasePath = Join-Path $EvidenceDirectory "benchmark-release.json"
-  $result = $null
-  $resultValidated = $false
-  $readiness = $null
-  $aggregateRatio = $null
+  $unit = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-final.txt"); $unitStop = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-stop-evidence.txt"); $unitStopBefore = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-stop-before.txt")
+  $sensorAbortPath = Join-Path $EvidenceDirectory "sensor-abort.txt"; $resultPath = Join-Path $EvidenceDirectory "benchmark-result.json"; $readinessPath = Join-Path $EvidenceDirectory "benchmark-readiness.json"; $releasePath = Join-Path $EvidenceDirectory "benchmark-release.json"
+  $result = $null; $resultValidated = $false
+  $readiness = $null; $aggregateRatio = $null
   $sensor = Get-OrangeLiveSensorEvidence (Join-Path $EvidenceDirectory "sensor-series.txt")
   $statusClass = "infrastructure_failure"
   $reason = "missing benchmark result or readiness evidence"
@@ -436,7 +431,8 @@ function Get-OrangeLiveHostEvidence {
     $statusClass = "infrastructure_failure"
     $reason = "remote study status class was missing or contradictory"
   }
-  if ($null -ne $result -and (($remoteStatusClass -eq "pass" -and [string]$result.status -ne "pass") -or ($remoteStatusClass -eq "measured_failure" -and [string]$result.status -eq "pass"))) {
+  $resultStatusValue = if ($null -ne $result -and $null -ne $result.PSObject.Properties["status"]) { [string]$result.status } else { "" }; $resultCallback = if ($null -ne $result -and $null -ne $result.PSObject.Properties["callback"]) { $result.callback } else { $null }
+  if ($null -ne $result -and (($remoteStatusClass -eq "pass" -and $resultStatusValue -ne "pass") -or ($remoteStatusClass -eq "measured_failure" -and $resultStatusValue -eq "pass"))) {
     $statusClass = "infrastructure_failure"
     $reason = "remote study status and retained benchmark result disagree"
   }
@@ -456,15 +452,15 @@ function Get-OrangeLiveHostEvidence {
     InternalFrames = $Selection.InternalFrames
     MeasureSeconds = $Selection.MeasureSeconds
     AggregateRenderAudioDurationRatio = $aggregateRatio
-    RatioP50 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p50 } else { 0.0 }
-    RatioP95 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p95 } else { 0.0 }
-    RatioP99 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p99 } else { 0.0 }
-    RatioP999 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p99_9 } else { 0.0 }
-    RatioMax = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_max } else { 0.0 }
-    OverBudget = if ($null -ne $result) { [uint64]$result.callback.over_audio_duration_budget_count } else { 0 }
-    CallbackErrors = if ($null -ne $result) { [uint64]$result.callback.cpal_device_error_count + [uint64]$result.callback.cpal_stream_error_count } else { 0 }
+    RatioP50 = if ($null -ne $resultCallback) { [double]$resultCallback.render_audio_duration_ratio_p50 } else { 0.0 }
+    RatioP95 = if ($null -ne $resultCallback) { [double]$resultCallback.render_audio_duration_ratio_p95 } else { 0.0 }
+    RatioP99 = if ($null -ne $resultCallback) { [double]$resultCallback.render_audio_duration_ratio_p99 } else { 0.0 }
+    RatioP999 = if ($null -ne $resultCallback) { [double]$resultCallback.render_audio_duration_ratio_p99_9 } else { 0.0 }
+    RatioMax = if ($null -ne $resultCallback) { [double]$resultCallback.render_audio_duration_ratio_max } else { 0.0 }
+    OverBudget = if ($null -ne $resultCallback) { [uint64]$resultCallback.over_audio_duration_budget_count } else { 0 }
+    CallbackErrors = if ($null -ne $resultCallback) { [uint64]$resultCallback.cpal_device_error_count + [uint64]$resultCallback.cpal_stream_error_count } else { 0 }
     ArtifactSha256 = $ArtifactHash
-    BenchmarkOutcome = if ($null -ne $result) { [string]$result.status } else { "" }
+    BenchmarkOutcome = $resultStatusValue
     StudyStatusClass = if ($study.ContainsKey("status_class")) { [string]$study.status_class } else { "" }
     SensorMaxThermalMillicelsius = $sensor.MaxThermalMillicelsius
     SensorMinMemAvailableKb = $sensor.MinMemAvailableKb
@@ -489,10 +485,13 @@ function Get-OrangeLiveHostEvidence {
     SensorSeriesPath = Join-Path $EvidenceDirectory "sensor-series.txt"
     UnitStatusPath = Join-Path $EvidenceDirectory "unit-final.txt"
   }
+  if ($null -ne $Selection.PSObject.Properties["FrameSearchProfile"]) {
+    $hostEvidence | Add-Member -NotePropertyName FrameSearchProfile -NotePropertyValue $Selection.FrameSearchProfile; $hostEvidence | Add-Member -NotePropertyName FrameSearchPhase -NotePropertyValue $Selection.FrameSearchPhase; $hostEvidence | Add-Member -NotePropertyName FrameSearchU -NotePropertyValue $Selection.FrameSearchU; $hostEvidence | Add-Member -NotePropertyName FrameSearchGeometry -NotePropertyValue $Selection.FrameSearchGeometry; $hostEvidence | Add-Member -NotePropertyName FrameSearchDiagnosticPool -NotePropertyValue $Selection.DiagnosticPoolIdentity; $hostEvidence | Add-Member -NotePropertyName FrameSearchArtifactFeature -NotePropertyValue $Selection.DiagnosticArtifactFeature
+  }
   try {
     $practical = Get-OrangeLivePracticalEvidence -EvidenceDirectory $EvidenceDirectory -Result $result -Validated:$resultValidated
   } catch { if (@("pass", "measured_failure", "over_budget") -contains $hostEvidence.StatusClass) { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = $_.Exception.Message }; $practical = [pscustomobject]@{ RepeatIncidents = $null; RepeatedPcmFrames = $null; SilentIncidents = $null; SilentPcmFrames = $null; AlsaRecoveryLogIncidents = $null; AlsaRecoveryLogScope = "missing_required_file"; PracticalGrade = "Unavailable" } }
   foreach ($property in $practical.PSObject.Properties) { $hostEvidence | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value }
   return $hostEvidence
 }
-Export-ModuleMember -Function @("Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertFrom-OrangeCapacityScenario", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveSensorEvidence", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")
+Export-ModuleMember -Function @("Assert-OrangeFrameSearchSelection", "Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertFrom-OrangeCapacityScenario", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveSensorEvidence", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")

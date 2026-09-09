@@ -277,7 +277,7 @@ fn raspberry_analogue_capacity_geometry_is_exact_by_executor() {
 
     for (executor, output, internal) in [
         ("inline", 128, 32),
-        ("routing_tree_persistent", 256, 64),
+        ("inline", 256, 256),
         ("routing_tree_persistent", 128, 32),
     ] {
         let mut args = valid_args();

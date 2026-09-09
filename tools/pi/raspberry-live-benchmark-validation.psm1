@@ -1,38 +1,6 @@
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "board-profile.ps1")
-
-function Assert-RaspberryLiveBenchmarkSelection {
-  param(
-    [ValidateSet(8, 12, 16, 24, 32)][int]$Units = 16,
-    [ValidateSet("Inline", "Multicore")][string]$ExecutorMode = "Inline",
-    [ValidateSet(30, 120, 180, 300)][int]$MeasureSeconds = 30,
-    [switch]$ObserveCompromises
-  )
-  if ($ObserveCompromises -and $MeasureSeconds -ne 120) { throw "-ObserveCompromises is only valid for 120-second capacity cells." }
-  $nativeExecutor = if ($ExecutorMode -ceq "Inline") { "inline" } else { "routing_tree_persistent" }
-  $workerTiming = "disabled"
-  $outputFrames = 256
-  $alsaPeriodFrames = 64
-  $internalFrames = 128
-  $lookahead = if ($ExecutorMode -ceq "Inline") { 0 } else { 128 }
-  $continueOnRecoveredMiss = $ObserveCompromises -and $ExecutorMode -ceq "Multicore"
-  return [pscustomobject][ordered]@{
-    Units = $Units
-    Scenario = "capacity_analogue_$Units"
-    ExecutorMode = $ExecutorMode
-    NativeExecutorMode = $nativeExecutor
-    WorkerTimingMode = $workerTiming
-    OutputFrames = $outputFrames
-    AlsaPeriodFrames = $alsaPeriodFrames
-    InternalFrames = $internalFrames
-    LookaheadFrames = $lookahead
-    EffectiveOutputLatencyFrames = $outputFrames + $lookahead
-    MeasureSeconds = $MeasureSeconds
-    ObserveCompromises = [bool]$ObserveCompromises
-    ContinueOnRecoveredMiss = [bool]$continueOnRecoveredMiss
-    ContinueOnRecoveredMissArgument = if ($continueOnRecoveredMiss) { "--continue-on-recovered-miss" } else { "" }
-  }
-}
+Import-Module (Join-Path $PSScriptRoot "raspberry-frame-search-validation.psm1") -Force
 
 function Read-RaspberryLiveKeyValueFile {
   param([Parameter(Mandatory)][string]$Path)
@@ -399,11 +367,14 @@ function Get-RaspberryLivePracticalGrade {
     [Parameter(Mandatory)][uint64]$SilentIncidents,
     [Parameter(Mandatory)][uint64]$AlsaRecoveryLogIncidents,
     [Parameter(Mandatory)][uint64]$CpalStreamErrors,
-    [Parameter(Mandatory)][uint64]$CpalDeviceErrors
+    [Parameter(Mandatory)][uint64]$CpalDeviceErrors,
+    [int]$MeasureSeconds = 120
   )
   $worst = [uint64](@($RepeatIncidents, $SilentIncidents, $AlsaRecoveryLogIncidents, $CpalStreamErrors, $CpalDeviceErrors) | Measure-Object -Maximum).Maximum
-  if ($worst -ge 5) { return "Compromised" }
-  if ($worst -ge 2) { return "Stretched" }
+  $compromisedThreshold = if ($MeasureSeconds -eq 600) { 25 } elseif ($MeasureSeconds -eq 180) { 8 } else { 5 }
+  $stretchedThreshold = if ($MeasureSeconds -eq 600) { 10 } elseif ($MeasureSeconds -eq 180) { 3 } else { 2 }
+  if ($worst -ge $compromisedThreshold) { return "Compromised" }
+  if ($worst -ge $stretchedThreshold) { return "Stretched" }
   return "Stable"
 }
 
@@ -428,7 +399,7 @@ function Get-RaspberryLiveHostEvidence {
     $study = Read-RaspberryLiveKeyValueFile (Join-Path $EvidenceDirectory "study-result.txt")
     if ($study.status_class -ceq "infrastructure_failure" -and $study.interruption_started -ceq "false") {
       if ([string]::IsNullOrWhiteSpace([string]$study.reason)) { throw "Raspberry benchmark pre-interruption infrastructure evidence did not record a reason." }
-      return [pscustomobject][ordered]@{ StatusClass = "infrastructure_failure"; Reason = [string]$study.reason; Scenario = $Selection.Scenario; Units = $Selection.Units; ExecutorMode = $Selection.ExecutorMode; OutputFrames = $Selection.OutputFrames; AlsaPeriodFrames = $Selection.AlsaPeriodFrames; InternalFrames = $Selection.InternalFrames; LookaheadFrames = $Selection.LookaheadFrames; ArtifactSha256 = $ArtifactHash; RepeatIncidents = $null; RepeatedPcmFrames = $null; SilentIncidents = $null; SilentPcmFrames = $null; AlsaRecoveryLogIncidents = $null; PracticalGrade = $null; ResultPath = ""; ReadinessPath = ""; ReleasePath = ""; SensorSeriesPath = "" }
+      return [pscustomobject][ordered]@{ StatusClass = "infrastructure_failure"; Reason = [string]$study.reason; Scenario = $Selection.Scenario; Units = $Selection.Units; ExecutorMode = $Selection.ExecutorMode; OutputFrames = $Selection.OutputFrames; AlsaPeriodFrames = $Selection.AlsaPeriodFrames; InternalFrames = $Selection.InternalFrames; LookaheadFrames = $Selection.LookaheadFrames; ArtifactSha256 = $ArtifactHash; FrameSearchProfile = $Selection.FrameSearchProfile; FrameSearchPhase = $Selection.FrameSearchPhase; FrameSearchU = $Selection.FrameSearchU; FrameSearchGeometry = $Selection.FrameSearchGeometry; GeometryIdentity = $Selection.GeometryIdentity; RepeatIncidents = $null; RepeatedPcmFrames = $null; SilentIncidents = $null; SilentPcmFrames = $null; AlsaRecoveryLogIncidents = $null; PracticalGrade = $null; ResultPath = ""; ReadinessPath = ""; ReleasePath = ""; SensorSeriesPath = "" }
     }
     Assert-RaspberryLiveEvidenceFiles $EvidenceDirectory @("service-restored-state.txt")
     $restored = Read-RaspberryLiveKeyValueFile (Join-Path $EvidenceDirectory "service-restored-state.txt")
@@ -463,7 +434,7 @@ function Get-RaspberryLiveHostEvidence {
       $silentIncidents = [uint64]$provenance.silent_quantum_incidents
       $silentPcmFrames = [uint64]$provenance.silent_pcm_frames
       $alsaRecoveryLogIncidents = Get-RaspberryLiveAlsaRecoveryLogIncidents $EvidenceDirectory
-      $practicalGrade = Get-RaspberryLivePracticalGrade -RepeatIncidents $repeatIncidents -SilentIncidents $silentIncidents -AlsaRecoveryLogIncidents $alsaRecoveryLogIncidents -CpalStreamErrors ([uint64]$result.callback.cpal_stream_error_count) -CpalDeviceErrors ([uint64]$result.callback.cpal_device_error_count)
+      $practicalGrade = Get-RaspberryLivePracticalGrade -RepeatIncidents $repeatIncidents -SilentIncidents $silentIncidents -AlsaRecoveryLogIncidents $alsaRecoveryLogIncidents -CpalStreamErrors ([uint64]$result.callback.cpal_stream_error_count) -CpalDeviceErrors ([uint64]$result.callback.cpal_device_error_count) -MeasureSeconds $Selection.MeasureSeconds
       $restorationFailed = $restored.Count -eq 0 -or $restored.restore_status -ne "0" -or $restored.final_active -ne "active" -or $restored.final_enabled -ne "enabled"
       if ($restorationFailed) { throw "Raspberry benchmark service restoration failed." }
       $status = "restoration_failure"
@@ -472,15 +443,15 @@ function Get-RaspberryLiveHostEvidence {
       $status = "infrastructure_failure"
       if ($study.status_class -ceq "infrastructure_failure") { $status = "infrastructure_failure"; $reason = "Raspberry benchmark infrastructure evidence failed." }
       elseif ($study.status_class -ceq "pass" -and [string]$result.status -ceq "pass" -and (Test-RaspberryLiveBenchmarkClean $result $Selection)) { $status = "pass" }
-      elseif ($study.status_class -ceq "measured_failure" -and [string]$result.status -ceq "fail" -and (Test-RaspberryLiveBenchmarkMeasurementComplete $result)) { $status = "measured_failure"; $reason = if ($Selection.ObserveCompromises) { "Raspberry benchmark completed observation with PracticalGrade=$practicalGrade; ALSA recovery count is a conservative whole-run unit journal count, not phase-exact EPIPE observability." } else { "Raspberry benchmark produced structurally valid non-clean measurement evidence." } }
+      elseif ($study.status_class -ceq "measured_failure" -and (-not $Selection.IsFrameSearch -or [string]$study.status -ceq "20") -and [string]$result.status -ceq "fail" -and (Test-RaspberryLiveBenchmarkMeasurementComplete $result)) { $status = "measured_failure"; $reason = if ($Selection.ObserveCompromises -or $Selection.IsFrameSearch) { "Raspberry benchmark completed observation with PracticalGrade=$practicalGrade; ALSA recovery count is a conservative whole-run unit journal count, not phase-exact EPIPE observability." } else { "Raspberry benchmark produced structurally valid non-clean measurement evidence." } }
       else { throw "Raspberry benchmark study and result status disagree." }
       if ($status -eq "pass") { $reason = "Raspberry benchmark identity, geometry, worker, callback, sensor, and restoration evidence validated; ALSA recovery count is a conservative whole-run unit journal count, not phase-exact EPIPE observability." }
     }
-    return [pscustomobject][ordered]@{ StatusClass = $status; Reason = $reason; Scenario = $Selection.Scenario; Units = $Selection.Units; ExecutorMode = $Selection.ExecutorMode; OutputFrames = $Selection.OutputFrames; AlsaPeriodFrames = $Selection.AlsaPeriodFrames; InternalFrames = $Selection.InternalFrames; LookaheadFrames = $Selection.LookaheadFrames; ArtifactSha256 = $ArtifactHash; RepeatIncidents = $repeatIncidents; RepeatedPcmFrames = $repeatedPcmFrames; SilentIncidents = $silentIncidents; SilentPcmFrames = $silentPcmFrames; AlsaRecoveryLogIncidents = $alsaRecoveryLogIncidents; PracticalGrade = $practicalGrade; ResultPath = Join-Path $EvidenceDirectory "benchmark-result.json"; ReadinessPath = Join-Path $EvidenceDirectory "benchmark-readiness.json"; ReleasePath = Join-Path $EvidenceDirectory "benchmark-release.json"; SensorSeriesPath = Join-Path $EvidenceDirectory "sensor-series.txt"; Sensor = $sensor }
+    return [pscustomobject][ordered]@{ StatusClass = $status; Reason = $reason; Scenario = $Selection.Scenario; Units = $Selection.Units; ExecutorMode = $Selection.ExecutorMode; OutputFrames = $Selection.OutputFrames; AlsaPeriodFrames = $Selection.AlsaPeriodFrames; InternalFrames = $Selection.InternalFrames; LookaheadFrames = $Selection.LookaheadFrames; ArtifactSha256 = $ArtifactHash; FrameSearchProfile = $Selection.FrameSearchProfile; FrameSearchPhase = $Selection.FrameSearchPhase; FrameSearchU = $Selection.FrameSearchU; FrameSearchGeometry = $Selection.FrameSearchGeometry; GeometryIdentity = $Selection.GeometryIdentity; RepeatIncidents = $repeatIncidents; RepeatedPcmFrames = $repeatedPcmFrames; SilentIncidents = $silentIncidents; SilentPcmFrames = $silentPcmFrames; AlsaRecoveryLogIncidents = $alsaRecoveryLogIncidents; PracticalGrade = $practicalGrade; ResultPath = Join-Path $EvidenceDirectory "benchmark-result.json"; ReadinessPath = Join-Path $EvidenceDirectory "benchmark-readiness.json"; ReleasePath = Join-Path $EvidenceDirectory "benchmark-release.json"; SensorSeriesPath = Join-Path $EvidenceDirectory "sensor-series.txt"; Sensor = $sensor }
   } catch {
     $reason = $_.Exception.Message
   }
-  return [pscustomobject][ordered]@{ StatusClass = $status; Reason = $reason; Scenario = $Selection.Scenario; Units = $Selection.Units; ExecutorMode = $Selection.ExecutorMode; OutputFrames = $Selection.OutputFrames; AlsaPeriodFrames = $Selection.AlsaPeriodFrames; InternalFrames = $Selection.InternalFrames; LookaheadFrames = $Selection.LookaheadFrames; ArtifactSha256 = $ArtifactHash; RepeatIncidents = $null; RepeatedPcmFrames = $null; SilentIncidents = $null; SilentPcmFrames = $null; AlsaRecoveryLogIncidents = $null; PracticalGrade = $null; ResultPath = ""; ReadinessPath = ""; ReleasePath = ""; SensorSeriesPath = "" }
+  return [pscustomobject][ordered]@{ StatusClass = $status; Reason = $reason; Scenario = $Selection.Scenario; Units = $Selection.Units; ExecutorMode = $Selection.ExecutorMode; OutputFrames = $Selection.OutputFrames; AlsaPeriodFrames = $Selection.AlsaPeriodFrames; InternalFrames = $Selection.InternalFrames; LookaheadFrames = $Selection.LookaheadFrames; ArtifactSha256 = $ArtifactHash; FrameSearchProfile = $Selection.FrameSearchProfile; FrameSearchPhase = $Selection.FrameSearchPhase; FrameSearchU = $Selection.FrameSearchU; FrameSearchGeometry = $Selection.FrameSearchGeometry; GeometryIdentity = $Selection.GeometryIdentity; RepeatIncidents = $null; RepeatedPcmFrames = $null; SilentIncidents = $null; SilentPcmFrames = $null; AlsaRecoveryLogIncidents = $null; PracticalGrade = $null; ResultPath = ""; ReadinessPath = ""; ReleasePath = ""; SensorSeriesPath = "" }
 }
 
-Export-ModuleMember -Function Assert-RaspberryLiveBenchmarkSelection, Assert-RaspberryLiveBenchmarkReadiness, Assert-RaspberryLiveBenchmarkRelease, Assert-RaspberryLiveCandidateReadiness, Assert-RaspberryLiveBenchmarkResult, Test-RaspberryLiveBenchmarkClean, Get-RaspberryLiveHostEvidence, Read-RaspberryLiveKeyValueFile, Get-RaspberryLivePracticalGrade, Get-RaspberryLiveAlsaRecoveryLogIncidents
+Export-ModuleMember -Function Assert-RaspberryLiveBenchmarkSelection, Assert-RaspberryFrameSearchSelection, Assert-RaspberryLiveBenchmarkReadiness, Assert-RaspberryLiveBenchmarkRelease, Assert-RaspberryLiveCandidateReadiness, Assert-RaspberryLiveBenchmarkResult, Test-RaspberryLiveBenchmarkClean, Get-RaspberryLiveHostEvidence, Read-RaspberryLiveKeyValueFile, Get-RaspberryLivePracticalGrade, Get-RaspberryLiveAlsaRecoveryLogIncidents
