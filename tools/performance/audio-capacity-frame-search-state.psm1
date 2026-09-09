@@ -197,7 +197,8 @@ function Invoke-FrameSearchChildProcess {
   param([Parameter(Mandatory)][string]$ScriptPath, [Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$StdoutPath, [Parameter(Mandatory)][string]$StderrPath)
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $StdoutPath), (Split-Path -Parent $StderrPath) | Out-Null
   $info = New-Object Diagnostics.ProcessStartInfo
-  $info.FileName = Join-Path $PSHOME "powershell.exe"; $info.Arguments = (($Arguments | ForEach-Object { Quote-FrameSearchProcessArgument $_ }) -join " "); $info.UseShellExecute = $false; $info.CreateNoWindow = $true; $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
+  $processArguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $ScriptPath) + $Arguments
+  $info.FileName = Join-Path $PSHOME "powershell.exe"; $info.Arguments = (($processArguments | ForEach-Object { Quote-FrameSearchProcessArgument $_ }) -join " "); $info.UseShellExecute = $false; $info.CreateNoWindow = $true; $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
   $process = New-Object Diagnostics.Process; $process.StartInfo = $info
   if (-not $process.Start()) { throw "Unable to start frame-search child runner." }
   $processId = $process.Id
