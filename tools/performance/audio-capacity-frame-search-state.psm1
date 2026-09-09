@@ -77,11 +77,12 @@ function Write-FrameSearchAtomicJson {
   $directory = Split-Path -Parent $Path
   New-Item -ItemType Directory -Force -Path $directory | Out-Null
   $temporary = "$Path.tmp-$PID-$([guid]::NewGuid().ToString('N'))"
+  $backup = "$Path.bak-$PID-$([guid]::NewGuid().ToString('N'))"
   $encoding = New-Object Text.UTF8Encoding($false)
   try {
     [IO.File]::WriteAllText($temporary, (($Value | ConvertTo-Json -Depth 30) + "`n"), $encoding)
-    if (Test-Path -LiteralPath $Path -PathType Leaf) { [IO.File]::Replace($temporary, $Path, $null) } else { Move-Item -LiteralPath $temporary -Destination $Path }
-  } finally { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $Path -PathType Leaf) { [IO.File]::Replace($temporary, $Path, $backup, $true) } else { Move-Item -LiteralPath $temporary -Destination $Path }
+  } finally { Remove-Item -LiteralPath $temporary, $backup -Force -ErrorAction SilentlyContinue }
 }
 
 function Read-FrameSearchState {
@@ -232,8 +233,8 @@ function Write-FrameSearchResultsMarkdown {
   foreach ($soak in @($State.soaks)) { $lines += "| $($soak.Board) | $($soak.Mode) | $($soak.Profile) | $($soak.U) | $($soak.Grade) | $($soak.Worst) | $($soak.Geometry) | $($soak.EvidenceDirectory) |" }
   $lines += @("", "## Multicore gain", "", "| Board | Inline U | Multicore U | Delta U | Gain % | Synth delta3x | Sample delta1x |", "|---|---:|---:|---:|---:|---:|---:|")
   foreach ($gain in @($State.gains)) { $lines += "| $($gain.Board) | $($gain.InlineU) | $($gain.MulticoreU) | $($gain.DeltaU) | $([math]::Round($gain.GainPercent, 2)) | $($gain.SynthDelta3x) | $($gain.SampleDelta1x) |" }
-  $directory = Split-Path -Parent $Path; New-Item -ItemType Directory -Force -Path $directory | Out-Null; $temporary = "$Path.tmp-$PID-$([guid]::NewGuid().ToString('N'))"
-  try { [IO.File]::WriteAllText($temporary, (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false))); if (Test-Path -LiteralPath $Path -PathType Leaf) { [IO.File]::Replace($temporary, $Path, $null) } else { Move-Item -LiteralPath $temporary -Destination $Path } } finally { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
+  $directory = Split-Path -Parent $Path; New-Item -ItemType Directory -Force -Path $directory | Out-Null; $temporary = "$Path.tmp-$PID-$([guid]::NewGuid().ToString('N'))"; $backup = "$Path.bak-$PID-$([guid]::NewGuid().ToString('N'))"
+  try { [IO.File]::WriteAllText($temporary, (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false))); if (Test-Path -LiteralPath $Path -PathType Leaf) { [IO.File]::Replace($temporary, $Path, $backup, $true) } else { Move-Item -LiteralPath $temporary -Destination $Path } } finally { Remove-Item -LiteralPath $temporary, $backup -Force -ErrorAction SilentlyContinue }
 }
 
 Export-ModuleMember -Function Get-FrameSearchRunnerVersion, Get-FrameSearchStateSchema, Get-FrameSearchRepoCommit, Get-FrameSearchArtifactDefinitions, Get-FrameSearchArtifactSet, Assert-FrameSearchArtifactIdentity, Write-FrameSearchAtomicJson, Read-FrameSearchState, Enter-FrameSearchStudyLock, Exit-FrameSearchStudyLock, Clear-FrameSearchPublicationState, New-FrameSearchState, Assert-FrameSearchResumeIdentity, Reconcile-FrameSearchState, Test-FrameSearchReserveWindow, Get-FrameSearchPendingAdaptiveRuns, Write-FrameSearchSentinel, New-FrameSearchDetachedCommand, Invoke-FrameSearchChildProcess, Assert-FrameSearchChildExit, Write-FrameSearchResultsMarkdown
