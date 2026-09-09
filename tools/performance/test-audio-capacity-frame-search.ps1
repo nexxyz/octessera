@@ -366,7 +366,17 @@ try {
   $state = New-FrameSearchState "test-study" $plan ("a" * 40) $artifactExpectations ([datetime]::UtcNow) 20
   $statePath = Join-Path $tempRoot "state\study-state.json"
   Write-FrameSearchAtomicJson $statePath $state
+  $state.status = "completed"
+  Write-FrameSearchAtomicJson $statePath $state
   $loaded = Read-FrameSearchState $statePath
+  Assert-Equal ([string]$loaded.status) "completed" "atomic state overwrite"
+  Assert-Equal @(Get-ChildItem -LiteralPath (Split-Path -Parent $statePath) -Filter "study-state.json.*-*" -File).Count 0 "atomic state overwrite removes temporary files"
+  $resultsPath = Join-Path $tempRoot "state\study-results.md"
+  Write-FrameSearchResultsMarkdown $state $resultsPath
+  $state.status = "inconclusive"
+  Write-FrameSearchResultsMarkdown $state $resultsPath
+  Assert-True ([IO.File]::ReadAllText($resultsPath).Contains("- Status: inconclusive")) "atomic Markdown overwrite"
+  Assert-Equal @(Get-ChildItem -LiteralPath (Split-Path -Parent $resultsPath) -Filter "study-results.md.*-*" -File).Count 0 "atomic Markdown overwrite removes temporary files"
   Assert-FrameSearchResumeIdentity $loaded "test-study" $plan ("a" * 40) $artifactExpectations
   $changedPlan = [pscustomobject]@{ Path = $plan.Path; Sha256 = "b" * 64 }
   Assert-Throws { Assert-FrameSearchResumeIdentity $loaded "test-study" $changedPlan ("a" * 40) $artifactExpectations } "resume plan identity mismatch"
