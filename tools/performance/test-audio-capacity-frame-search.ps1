@@ -86,6 +86,7 @@ function New-TestOrangeRecoveredDeadlineResult {
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $planPath = Join-Path $repoRoot "docs\internal\pi-audio-capacity-frame-search.md"
 $runnerPath = Join-Path $repoRoot "tools\performance\run-audio-capacity-frame-search.ps1"
+$runnerSource = [IO.File]::ReadAllText($runnerPath, (New-Object Text.UTF8Encoding($false, $true)))
 $plan = Read-FrameSearchPlan $planPath
 Assert-Equal $plan.CandidateProfiles.Count 12 "candidate profile count"
 Assert-Equal $plan.SeedQueue.Count 42 "approved seed cell count"
@@ -95,6 +96,10 @@ Assert-Equal @($plan.SeedQueue | Where-Object { $_.Wave -ceq "W1" }).Count 12 "W
 Assert-Equal @($plan.SeedQueue | Where-Object { $_.Wave -ceq "W2" }).Count 6 "W2 count"
 Assert-Equal @($plan.SeedQueue | Where-Object { $_.Wave -ceq "W3" }).Count 12 "W3 count"
 Assert-Equal @($plan.SeedQueue | Where-Object { $_.Wave -ceq "W4" }).Count 12 "W4 count"
+Assert-True ($runnerSource.Contains('$pairs = @(Get-FrameSearchPairObservations @($State.runs))')) "empty first-wave observations remain an array"
+$reserveFinalizationIndex = $runnerSource.LastIndexOf('if ($State.adaptive_reserve_reached) {', [StringComparison]::Ordinal)
+$finalAnalysisIndex = $runnerSource.IndexOf('$finalAnalyses = @(', [StringComparison]::Ordinal)
+Assert-True ($reserveFinalizationIndex -ge 0 -and $reserveFinalizationIndex -lt $finalAnalysisIndex) "reserve finalization precedes empty retained-profile analysis"
 
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-frame-search-test-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null

@@ -120,7 +120,7 @@ function Invoke-FrameSearchRun {
 
 function Mark-FrameSearchSeedSkips {
   param([Parameter(Mandatory)][object]$State, [Parameter(Mandatory)][object[]]$Rows, [Parameter(Mandatory)][string]$Wave, [Parameter(Mandatory)][string]$StatePath, [Parameter(Mandatory)][string]$ResultsPath)
-  $pairs = Get-FrameSearchPairObservations @($State.runs)
+  $pairs = @(Get-FrameSearchPairObservations @($State.runs))
   foreach ($row in $Rows) {
     if (@($State.runs | Where-Object { $_.Cell -ceq $row.Cell }).Count -gt 0) { continue }
     $reason = Get-FrameSearchSeedSkipReason $row @($State.runs) $pairs
@@ -261,6 +261,13 @@ function Invoke-FrameSearchCampaign {
       $adaptiveWave++
     }
   }
+  if ($State.adaptive_reserve_reached) {
+    foreach ($run in @($State.runs | Where-Object { $_.Wave -like "A*" -and $_.Status -eq "pending" })) { $run.Status = "skipped"; $run.SkipReason = "wall-clock reserve reached before adaptive physical run"; $State.decisions += ,([pscustomobject][ordered]@{ Kind = "skip"; Profile = $run.Profile; Reason = "$($run.Cell): wall-clock reserve reached before adaptive physical run" }) }
+    $State.status = "inconclusive"; Clear-FrameSearchPublicationState $State | Out-Null
+    $State.decisions += ,([pscustomobject][ordered]@{ Kind = "inconclusive"; Profile = ""; Reason = "wall-clock reserve reached before adaptive campaign completion" })
+    Save-FrameSearchState $State $StatePath $ResultsPath
+    return
+  }
   $pairs = Get-FrameSearchPairObservations @($State.runs)
   $blockedCells = @($State.runs | Where-Object { $_.Status -eq "skipped" } | ForEach-Object { $_.Cell }) + @($State.deferred_rows | ForEach-Object { $_.Cell })
   $retainedProfiles = @($State.analyses | ForEach-Object { $_.Profile })
@@ -270,13 +277,6 @@ function Invoke-FrameSearchCampaign {
     if ($null -ne $match -and $analysis.BudgetBlocked) { $match.BudgetBlocked = $true; $match.Resolution = "inconclusive"; $match.UnresolvedReasons += "required probes were suppressed by the adaptive budget" }
   }
   $State.analyses = @($finalAnalyses)
-  if ($State.adaptive_reserve_reached) {
-    foreach ($run in @($State.runs | Where-Object { $_.Wave -like "A*" -and $_.Status -eq "pending" })) { $run.Status = "skipped"; $run.SkipReason = "wall-clock reserve reached before adaptive physical run"; $State.decisions += ,([pscustomobject][ordered]@{ Kind = "skip"; Profile = $run.Profile; Reason = "$($run.Cell): wall-clock reserve reached before adaptive physical run" }) }
-    $State.status = "inconclusive"; Clear-FrameSearchPublicationState $State | Out-Null
-    $State.decisions += ,([pscustomobject][ordered]@{ Kind = "inconclusive"; Profile = ""; Reason = "wall-clock reserve reached before adaptive campaign completion" })
-    Save-FrameSearchState $State $StatePath $ResultsPath
-    return
-  }
   $readiness = Get-FrameSearchCampaignReadiness $State.analyses $State.deferred_rows
   if (-not $readiness.Ready) {
     $State.status = if (@($State.runs | Where-Object { $_.Status -eq "recovery_required" }).Count -gt 0) { "recovery_required" } else { "inconclusive" }
