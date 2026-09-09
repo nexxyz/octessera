@@ -307,6 +307,10 @@ Assert-Throws { Assert-OrangeLiveBenchmarkSelection -Scenario "mixed_ramp_16_48"
 
 $capacityTestPath = Join-Path $PSScriptRoot "test-orange-live-capacity-validation.ps1"
 & $capacityTestPath
+$outcomeTestPath = Join-Path $PSScriptRoot "test-orange-live-study-outcome-validation.ps1"
+& $outcomeTestPath
+$frameSearchTestPath = Join-Path $PSScriptRoot "test-orange-live-frame-search-validation.ps1"
+& $frameSearchTestPath
 
 $live300Parameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "mixed_ramp_16_48"; OutputFrames = 256; EngineBlockFrames = 128; MeasureSeconds = 300; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
 $live300 = Invoke-StudyPrintOnly -Parameters $live300Parameters

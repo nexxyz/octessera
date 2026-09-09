@@ -6,12 +6,8 @@ fn result_schema13_requires_worker_timing_and_rejects_unknown_fields() {
     let encoded = serde_json::to_string(&result).unwrap();
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     assert_eq!(value["schema_version"], 13);
-    let raspberry = crate::live_audio_benchmark::geometry::is_raspberry_diagnostic();
-    assert_eq!(value["lookahead_frames"], if raspberry { 128 } else { 256 });
-    assert_eq!(
-        value["effective_output_latency_frames"],
-        if raspberry { 384 } else { 512 }
-    );
+    assert_eq!(value["lookahead_frames"], 128);
+    assert_eq!(value["effective_output_latency_frames"], 384);
     assert_eq!(value["callback_scheduling_cpu"], 1);
     assert_eq!(value["worker_timing_mode"], "enabled");
     assert_eq!(value["continue_on_recovered_miss"], false);

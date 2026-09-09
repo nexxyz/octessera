@@ -428,4 +428,7 @@ if (($null -ne $bash -and [string]$bash.Source -notmatch "WindowsApps") -or $nul
   }
 }
 
+$frameSearchTestPath = Join-Path $PSScriptRoot "test-run-pi-frame-search.ps1"
+& $frameSearchTestPath
+
 Write-Output "Raspberry live audio benchmark selection, metadata, consent, isolation, safety, and runner tests passed"

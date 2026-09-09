@@ -109,6 +109,7 @@ fn callback_budget_passes(measure_seconds: u64, overrun_count: u64) -> bool {
     match measure_seconds {
         30 | 120 | 180 => overrun_count == 0,
         300 => overrun_count <= 5,
+        600 => overrun_count <= 9,
         _ => false,
     }
 }

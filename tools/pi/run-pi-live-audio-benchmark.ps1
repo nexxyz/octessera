@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
-  [ValidateSet(8, 12, 16, 24, 32)][int]$Units = 16,
-  [ValidateSet("Inline", "Multicore")][string]$ExecutorMode = "Inline",
-  [ValidateSet(30, 120, 180, 300)][int]$MeasureSeconds = 30,
+  [string]$Units = "16",
+  [ValidateSet("Inline", "Multicore", "")][string]$ExecutorMode = "",
+  [string]$MeasureSeconds = "30",
   [string]$Target = "pi@192.168.0.218",
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$Artifact = "",
@@ -10,6 +10,8 @@ param(
   [string]$OutputDirectory = "",
   [switch]$AllowServiceInterruption,
   [switch]$ObserveCompromises,
+  [ValidateSet("RI64", "RI128", "RI512", "RM64", "RM128", "RM256")][string]$FrameSearchProfile = "",
+  [ValidateSet("Preliminary", "Soak")][string]$FrameSearchPhase = "",
   [switch]$PrintOnly
 )
 
@@ -19,7 +21,15 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 . (Join-Path $PSScriptRoot "board-profile.ps1")
 Import-Module (Join-Path $PSScriptRoot "raspberry-live-benchmark-metadata.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "raspberry-live-benchmark-validation.psm1") -Force
-$selection = Assert-RaspberryLiveBenchmarkSelection -Units $Units -ExecutorMode $ExecutorMode -MeasureSeconds $MeasureSeconds -ObserveCompromises:$ObserveCompromises
+function ConvertTo-RaspberryLiveCliInteger {
+  param([Parameter(Mandatory)][string]$Value, [Parameter(Mandatory)][string]$Name)
+  if ($Value -notmatch '^(0|[1-9][0-9]*)$') { throw "$Name must be a canonical integer." }
+  try { return [int]$Value } catch { throw "$Name is outside the supported integer range." }
+}
+$parsedUnits = ConvertTo-RaspberryLiveCliInteger $Units "Units"
+$parsedMeasureSeconds = ConvertTo-RaspberryLiveCliInteger $MeasureSeconds "MeasureSeconds"
+if (-not [string]::IsNullOrWhiteSpace($FrameSearchProfile) -and -not $PSBoundParameters.ContainsKey("MeasureSeconds")) { $parsedMeasureSeconds = if ($FrameSearchPhase -ieq "Preliminary") { 180 } else { 600 } }
+$selection = Assert-RaspberryLiveBenchmarkSelection -Units $parsedUnits -ExecutorMode $ExecutorMode -MeasureSeconds $parsedMeasureSeconds -ObserveCompromises:$ObserveCompromises -FrameSearchProfile $FrameSearchProfile -FrameSearchPhase $FrameSearchPhase
 $transport = Join-Path $PSScriptRoot "with-pi-ssh.ps1"
 if ([string]::IsNullOrWhiteSpace($Artifact)) { $Artifact = Join-Path $repoRoot "target\pi-cross-diagnostics\routing-tree-benchmark\benchmark-voice-pools-128\octessera-pi" }
 if ([string]::IsNullOrWhiteSpace($Metadata)) { $Metadata = "$Artifact.metadata.json" }
@@ -182,9 +192,10 @@ sensor_loop >> "$sensor_series" 2>&1 & sampler_pid=$!; wait_for_ready; capture_a
 }
 
 if ($PrintOnly) {
-  $runLabel = if ($MeasureSeconds -eq 30) { "30-second screen" } elseif ($MeasureSeconds -eq 120) { "120-second repeat" } else { "$MeasureSeconds-second extended diagnostic" }
+  $runLabel = if ($selection.IsFrameSearch) { "$($selection.MeasureSeconds)-second $($selection.FrameSearchPhase.ToLowerInvariant())" } elseif ($selection.MeasureSeconds -eq 30) { "30-second screen" } elseif ($selection.MeasureSeconds -eq 120) { "120-second repeat" } else { "$($selection.MeasureSeconds)-second extended diagnostic" }
   Write-Output "Raspberry live audio benchmark PrintOnly: no transport is invoked."
-  Write-Output "Selection: U$Units scenario=$($selection.Scenario) executor=$($selection.ExecutorMode) output=$($selection.OutputFrames) period=$($selection.AlsaPeriodFrames) internal=$($selection.InternalFrames) lookahead=$($selection.LookaheadFrames) worker-timing=$($selection.WorkerTimingMode) continue-on-recovered-miss=$($selection.ContinueOnRecoveredMiss) measure=$MeasureSeconds label=$runLabel"
+  if ($selection.IsFrameSearch) { Write-Output "Frame-search: profile=$($selection.FrameSearchProfile) phase=$($selection.FrameSearchPhase) U=$($selection.FrameSearchU) geometry=$($selection.GeometryIdentity)"; Write-Output "Selection: U$($selection.Units) profile=$($selection.FrameSearchProfile) phase=$($selection.FrameSearchPhase) scenario=$($selection.Scenario) executor=$($selection.ExecutorMode) output=$($selection.OutputFrames) period=$($selection.AlsaPeriodFrames) internal=$($selection.InternalFrames) lookahead=$($selection.LookaheadFrames) effective=$($selection.EffectiveOutputLatencyFrames) worker-timing=$($selection.WorkerTimingMode) continue-on-recovered-miss=$($selection.ContinueOnRecoveredMiss) measure=$($selection.MeasureSeconds) label=$runLabel" }
+  else { Write-Output "Selection: U$Units scenario=$($selection.Scenario) executor=$($selection.ExecutorMode) output=$($selection.OutputFrames) period=$($selection.AlsaPeriodFrames) internal=$($selection.InternalFrames) lookahead=$($selection.LookaheadFrames) worker-timing=$($selection.WorkerTimingMode) continue-on-recovered-miss=$($selection.ContinueOnRecoveredMiss) measure=$($selection.MeasureSeconds) label=$runLabel" }
   Write-Output "Artifact: $Artifact"
   Write-Output "Metadata: $Metadata"
   exit 0
@@ -238,7 +249,7 @@ if ($null -ne $retrievalFailure -and $hostEvidence.StatusClass -cne "restoration
 if ($null -ne $cleanupFailure -and $hostEvidence.StatusClass -cne "restoration_failure") { $hostEvidence.StatusClass = "infrastructure_failure"; $hostEvidence.Reason = "Raspberry live benchmark cleanup failed: $cleanupFailure" }
 $hostEvidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $localRunDirectory "host-evidence.json") -Encoding UTF8
 Write-Output "Evidence directory: $localRunDirectory"
-if ($hostEvidence.StatusClass -ne "pass" -and -not ($ObserveCompromises -and $hostEvidence.StatusClass -eq "measured_failure" -and $MeasureSeconds -eq 120)) { throw "Raspberry live benchmark status class was $($hostEvidence.StatusClass): $($hostEvidence.Reason)" }
-$runLabel = if ($MeasureSeconds -eq 30) { "30-second screen" } elseif ($MeasureSeconds -eq 120) { "120-second repeat" } else { "$MeasureSeconds-second extended diagnostic" }
+if ($hostEvidence.StatusClass -ne "pass" -and -not ($ObserveCompromises -and $hostEvidence.StatusClass -eq "measured_failure" -and $selection.MeasureSeconds -eq 120 -or $selection.IsFrameSearch -and $hostEvidence.StatusClass -eq "measured_failure")) { throw "Raspberry live benchmark status class was $($hostEvidence.StatusClass): $($hostEvidence.Reason)" }
+$runLabel = if ($selection.IsFrameSearch) { "$($selection.MeasureSeconds)-second $($selection.FrameSearchPhase.ToLowerInvariant())" } elseif ($selection.MeasureSeconds -eq 30) { "30-second screen" } elseif ($selection.MeasureSeconds -eq 120) { "120-second repeat" } else { "$($selection.MeasureSeconds)-second extended diagnostic" }
 $evidenceSummary = "PracticalGrade=$($hostEvidence.PracticalGrade) RepeatIncidents=$($hostEvidence.RepeatIncidents) RepeatedPcmFrames=$($hostEvidence.RepeatedPcmFrames) SilentIncidents=$($hostEvidence.SilentIncidents) SilentPcmFrames=$($hostEvidence.SilentPcmFrames) AlsaRecoveryLogIncidents=$($hostEvidence.AlsaRecoveryLogIncidents)"
-if ($ObserveCompromises -and $hostEvidence.StatusClass -eq "measured_failure") { Write-Output "Raspberry live audio benchmark completed observation: U$Units $ExecutorMode ($runLabel) $evidenceSummary" } else { Write-Output "Raspberry live audio benchmark passed: U$Units $ExecutorMode ($runLabel) $evidenceSummary" }
+if (($ObserveCompromises -or $selection.IsFrameSearch) -and $hostEvidence.StatusClass -eq "measured_failure") { Write-Output "Raspberry live audio benchmark completed observation: U$($selection.Units) $($selection.ExecutorMode) ($runLabel) $evidenceSummary" } else { Write-Output "Raspberry live audio benchmark passed: U$($selection.Units) $($selection.ExecutorMode) ($runLabel) $evidenceSummary" }

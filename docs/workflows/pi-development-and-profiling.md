@@ -46,7 +46,7 @@ The fixed-target Orange capability runner is host tooling, not another SSH
 transport. Single-cell mode requires a reviewed artifact and metadata sidecar,
 explicit interruption consent, and one approved scenario/configuration. It
 checks readiness identity, exact DAC ALSA `buffer_size`/`period_size`, release
-identity, schema-12 callback/result geometry, thermal/memory safety, and
+identity, schema-13 callback/result geometry, thermal/memory safety, and
 restoration.
 
 Preview the frozen routing-tree comparison matrix order without transport or board
@@ -67,44 +67,43 @@ Active execution requires `-AllowMatrixServiceInterruption` and per-cell
 consent. This is host-only validation; do not cross-build, deploy, or run it as
 a normal contributor check.
 
-## Raspberry multicore DSP diagnostic benchmark
+## Completed schema-13 practical continuity campaign
 
-The Raspberry multicore study is diagnostic-only. It does not produce the
-normal `target/pi-cross/octessera-pi` artifact, change shipped defaults, or
-qualify a release. Build its isolated release artifact and metadata sidecar
-with the exact feature composition:
+The full result table and interpretation are in
+[`../internal/pi-dsp-voice-profile.md`](../internal/pi-dsp-voice-profile.md).
+The campaign was diagnostic-only: it did not change shipped defaults or
+qualify a release. All rows were 120 seconds at 44.1 kHz, I16 stereo, with
+`SCHED_FIFO` priority 70 on CPU 1 and no safety abort. Native strict
+`status`, callback-duration over-budget counts, and practical continuity grade
+are separate results. For production-like ranking, use worker timing disabled;
+enabled worker timing is explanatory evidence only.
+
+Build the exact diagnostic artifacts separately. The Orange Inline and routing
+artifacts must not share a path:
 
 ```powershell
+# Orange Inline diagnostic
+./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release -BenchmarkVoicePoolCapacity 128
+# target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi
+# target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi.metadata.json
+
+# Orange routing diagnostic
+./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release -RoutingTreeBenchmark -BenchmarkVoicePoolCapacity 128
+# target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi
+# target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi.metadata.json
+
+# Raspberry routing diagnostic
 ./tools/pi/build-pi-cross.ps1 -BoardProfile raspberry-pi-zero-2w -Profile release -RaspberryLiveAudioBenchmark
+# target/pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi
 ```
 
-Preview a run without contacting the board, then run one fixed capacity
-scenario only with explicit service-interruption consent. A 30-second run is a
-screen; it is not a product conclusion. If the screen is clean, the mandatory
-next run is the same cell for 120 seconds, labeled the 120-second repeat,
-before drawing any product conclusion:
-
-```powershell
-./tools/pi/run-pi-live-audio-benchmark.ps1 -PrintOnly
-./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Inline -AllowServiceInterruption
-./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Inline -MeasureSeconds 120 -AllowServiceInterruption
-./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Multicore -AllowServiceInterruption
-./tools/pi/run-pi-live-audio-benchmark.ps1 -Units 16 -ExecutorMode Multicore -MeasureSeconds 120 -AllowServiceInterruption
-```
-
-The runner uses output 256, ALSA period 64, internal block 128, and the exact
-`hw:CARD=sndrpihifiberry,DEV=0` PCM. Inline uses zero lookahead; Multicore uses
-128-frame routing lookahead and worker timing. It records callback geometry,
-worker identity/timing, profile counters, ALSA `hw_params`, one-second
-thermal/memory/throttling samples, and production-service restoration. A
-missing, malformed, unsafe, stale, or mismatched observation is an
-infrastructure or safety failure, not a pass. Any callback over-budget event,
-continuity event, deadline miss, repeated or dropped quantum, worker fault or
-recovery, stream/device error, or voice-admission drop makes the Raspberry
-cell non-clean at every duration. Use U16 first, then compare U32, U24, and U12
-only when the prior screen and its 120-second repeat are stable. For the
-campaign conclusion, select the highest clean candidate from those completed
-screen/repeat pairs.
+Use the exact campaign geometry when running a cell. Orange Inline uses
+128/32/32 with zero lookahead; Orange routing uses 256/64/64 with 64-frame
+lookahead and `-WorkerTimingMode disabled`. Add
+`-ContinueOnRecoveredMiss` to completed 120-second Orange routing observations
+so a non-clean but structurally valid result is retained. Raspberry uses
+256/64/128, zero lookahead for Inline and 128-frame lookahead for Multicore;
+`-ObserveCompromises` retains completed 120-second observations.
 
 ## Pi UI and audio profiling
 
@@ -167,25 +166,8 @@ capabilities. Inspect p99/p99.9 and outlier counts, not only p95.
 
 The mixed-geometry Orange performance baseline is separate from the routing-tree
 matrix. Its live child runs use the inline executor with worker timing disabled
-and the normal production `runtime-candidate` artifact. The current product
-Capacity qualification is a separate exact diagnostic run:
-
-```powershell
-./tools/orange-pi/run-orange-capability-study.ps1 `
-  -Mode LiveAudioBenchmark `
-  -Scenario capacity_analogue_16 `
-  -OutputFrames 256 `
-  -EngineBlockFrames 64 `
-  -MeasureSeconds 120 `
-  -ExecutorMode routing_tree_persistent `
-  -WorkerTimingMode enabled `
-  -Artifact target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi `
-  -Metadata target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi.metadata.json `
-  -AllowServiceInterruption
-```
-
-This selects output 256, period 64, internal 64, and routing lookahead 64. It
-uses a diagnostic-only routing artifact and does not change shipped defaults.
+and the normal production `runtime-candidate` artifact. The completed
+schema-13 diagnostic paths and exact live geometry are documented above.
 
 After live probes, inspect recent logs:
 
