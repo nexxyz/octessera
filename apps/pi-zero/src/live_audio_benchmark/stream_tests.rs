@@ -23,7 +23,7 @@ use std::sync::Arc;
 #[test]
 fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
     let approved = if super::super::geometry::is_raspberry_diagnostic() {
-        vec![(256, 128)]
+        vec![(256, 64), (256, 128), (512, 128)]
     } else {
         vec![
             (128, 32),
@@ -35,13 +35,14 @@ fn stream_geometry_keeps_output_buffer_and_internal_block_distinct() {
             (1024, 256),
         ]
     };
+    let executor_mode = BenchmarkExecutorMode::Inline;
     for (output_frames, internal_frames) in approved {
-        let geometry = stream_geometry(output_frames, internal_frames).unwrap();
+        let geometry = stream_geometry(executor_mode, output_frames, internal_frames).unwrap();
         assert_eq!(geometry.output_frames, output_frames);
         assert_eq!(geometry.internal_frames, internal_frames);
     }
-    assert!(stream_geometry(512, 256).is_err());
-    assert!(stream_geometry(64, 32).is_err());
+    assert!(stream_geometry(executor_mode, 512, 256).is_err());
+    assert!(stream_geometry(executor_mode, 64, 32).is_err());
 }
 
 #[test]

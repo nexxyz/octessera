@@ -126,7 +126,7 @@ mod tests {
             "--output-frames".into(),
             "256".into(),
             "--engine-block-frames".into(),
-            "256".into(),
+            "128".into(),
             "--artifact-sha256".into(),
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
             "--release-gate".into(),
@@ -176,11 +176,11 @@ mod tests {
         let config = config();
         assert_eq!(config.output_frames, 256);
         assert_eq!(config.expected_alsa_period_frames, 64);
-        assert_eq!(config.internal_frames, 256);
+        assert_eq!(config.internal_frames, 128);
         let readiness = readiness_for(&config);
         assert_eq!(readiness.expected_alsa_buffer_frames, 256);
         assert_eq!(readiness.expected_alsa_period_frames, 64);
-        assert_eq!(readiness.internal_block_frames, 256);
+        assert_eq!(readiness.internal_block_frames, 128);
         let release = valid_release(&config);
         validate_release_gate(&release, &config, &readiness, "invocation").unwrap();
         let mut stale = release;

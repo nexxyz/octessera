@@ -11,7 +11,7 @@ fn config() -> BenchmarkConfig {
         "--output-frames".into(),
         "256".into(),
         "--engine-block-frames".into(),
-        if raspberry { "128" } else { "256" }.into(),
+        "128".into(),
         "--release-gate".into(),
         "release.json".into(),
         "--artifact-sha256".into(),
@@ -86,7 +86,6 @@ fn benchmark_result(
     worker_timing_mode: WorkerTimingMode,
     worker_timing: Option<BenchmarkWorkerTiming>,
 ) -> BenchmarkResult {
-    let raspberry = super::super::geometry::is_raspberry_diagnostic();
     BenchmarkResult {
         schema_version: BENCHMARK_RESULT_SCHEMA_VERSION,
         kind: super::super::platform::BENCHMARK_RESULT_KIND.into(),
@@ -96,9 +95,9 @@ fn benchmark_result(
         requested_output_buffer_frames: 256,
         expected_alsa_buffer_frames: 256,
         expected_alsa_period_frames: 64,
-        internal_block_frames: if raspberry { 128 } else { 256 },
-        lookahead_frames: if raspberry { 128 } else { 256 },
-        effective_output_latency_frames: if raspberry { 384 } else { 512 },
+        internal_block_frames: 128,
+        lookahead_frames: 128,
+        effective_output_latency_frames: 384,
         sample_format: "F32".into(),
         channels: 2,
         sample_rate: 44_100,
@@ -151,6 +150,8 @@ fn inline_benchmark_result() -> BenchmarkResult {
         result.expected_alsa_period_frames = 64;
         result.internal_block_frames = 128;
         result.effective_output_latency_frames = 256;
+    } else {
+        result.internal_block_frames = 64;
     }
     result.lookahead_frames = 0;
     result.effective_output_latency_frames = 256;
@@ -180,10 +181,7 @@ fn schema5_artifacts_round_trip_and_schema1_is_rejected() {
     );
     assert_eq!(progress.requested_output_buffer_frames, 256);
     assert_eq!(progress.expected_alsa_period_frames, 64);
-    assert_eq!(
-        progress.internal_block_frames,
-        if raspberry { 128 } else { 256 }
-    );
+    assert_eq!(progress.internal_block_frames, 128);
     assert_eq!(progress.lookahead_frames, if raspberry { 128 } else { 0 });
     let encoded = serde_json::to_string(&progress).unwrap();
     assert_eq!(
@@ -217,10 +215,7 @@ fn readiness_uses_lifetime_variable_batch_geometry() {
     assert_eq!(artifact.schema_version, BENCHMARK_SCHEMA_VERSION);
     assert_eq!(artifact.requested_output_buffer_frames, 256);
     assert_eq!(artifact.expected_alsa_period_frames, 64);
-    assert_eq!(
-        artifact.internal_block_frames,
-        if raspberry { 128 } else { 256 }
-    );
+    assert_eq!(artifact.internal_block_frames, 128);
     assert_eq!(artifact.lookahead_frames, if raspberry { 128 } else { 0 });
     assert_eq!(artifact.callback_frames_min, 64);
     assert_eq!(artifact.callback_frames_max, 256);

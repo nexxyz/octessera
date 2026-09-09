@@ -29,28 +29,12 @@ pub(crate) fn validate_requested_geometry(
     if executor_mode == BenchmarkExecutorMode::RoutingTreePersistent && output_frames > 256 {
         return Err("routing_tree_persistent executor requires output frames <= 256".into());
     }
-    if is_raspberry_diagnostic() {
-        let approved = matches!(
-            (executor_mode, output_frames, internal_frames),
-            (BenchmarkExecutorMode::Inline, 256, 128)
-                | (BenchmarkExecutorMode::RoutingTreePersistent, 256, 128)
-        );
-        if !approved {
-            return Err(format!(
-                "unsupported {} benchmark geometry tuple: output={output_frames} internal={internal_frames}",
-                super::platform::BENCHMARK_LABEL
-            ));
-        }
-        return Ok(());
-    }
-    let approved = match (output_frames, internal_frames) {
-        (128, 32) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256) => true,
-        (128, 64) => {
-            executor_mode == BenchmarkExecutorMode::Inline
-                && is_analogue_capacity_scenario(scenario)
-        }
-        _ => false,
-    };
+    let generic_inline_analogue_tuple = !is_raspberry_diagnostic()
+        && executor_mode == BenchmarkExecutorMode::Inline
+        && output_frames == 128
+        && internal_frames == 64;
+    let approved = is_approved_geometry_tuple(executor_mode, output_frames, internal_frames)
+        && (!generic_inline_analogue_tuple || is_analogue_capacity_scenario(scenario));
     if !approved {
         return Err(format!(
             "unsupported {} benchmark geometry tuple: output={output_frames} internal={internal_frames}",
@@ -58,6 +42,53 @@ pub(crate) fn validate_requested_geometry(
         ));
     }
     Ok(())
+}
+
+pub(crate) fn is_approved_geometry_tuple(
+    executor_mode: BenchmarkExecutorMode,
+    output_frames: u32,
+    internal_frames: usize,
+) -> bool {
+    if executor_mode == BenchmarkExecutorMode::RoutingTreePersistent && output_frames > 256 {
+        return false;
+    }
+    if is_raspberry_diagnostic() {
+        return matches!(
+            (executor_mode, output_frames, internal_frames),
+            (BenchmarkExecutorMode::Inline, 256, 64)
+                | (BenchmarkExecutorMode::Inline, 256, 128)
+                | (BenchmarkExecutorMode::Inline, 512, 128)
+                | (BenchmarkExecutorMode::RoutingTreePersistent, 256, 64)
+                | (BenchmarkExecutorMode::RoutingTreePersistent, 256, 128)
+                | (BenchmarkExecutorMode::RoutingTreePersistent, 256, 256)
+        );
+    }
+    matches!(
+        (executor_mode, output_frames, internal_frames),
+        (BenchmarkExecutorMode::Inline, 128, 64)
+            | (_, 128, 32)
+            | (_, 256, 64)
+            | (_, 256, 128)
+            | (_, 256, 256)
+            | (_, 512, 128)
+            | (_, 1024, 256)
+    )
+}
+
+pub(crate) fn is_approved_routing_observation_tuple(
+    output_frames: u32,
+    internal_frames: usize,
+) -> bool {
+    if is_raspberry_diagnostic() {
+        return matches!(
+            (output_frames, internal_frames),
+            (256, 64) | (256, 128) | (256, 256)
+        );
+    }
+    matches!(
+        (output_frames, internal_frames),
+        (128, 32) | (256, 64) | (256, 128)
+    )
 }
 
 pub(crate) struct RecordedGeometry<'a> {

@@ -56,7 +56,7 @@ fn raspberry_callback_events_fail_the_clean_policy_at_each_duration() {
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
     ])
     .unwrap();
-    for measure_seconds in [30, 120, 180, 300] {
+    for measure_seconds in [30, 120, 180, 300, 600] {
         assert!(!result_passes(
             &crate::live_audio_benchmark::cli::BenchmarkConfig {
                 measure_seconds,

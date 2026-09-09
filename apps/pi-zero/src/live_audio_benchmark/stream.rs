@@ -94,7 +94,7 @@ pub fn build(
     if executor_mode == BenchmarkExecutorMode::Inline && timing_probe.is_some() {
         return Err("inline executor requires disabled worker timing".into());
     }
-    let geometry = stream_geometry(output_frames, internal_frames)?;
+    let geometry = stream_geometry(executor_mode, output_frames, internal_frames)?;
     let device = super::platform::select_output_device()?;
     let (sample_format, mut stream_config) = super::platform::select_stream_config(&device)?;
     let sample_format_name = format!("{sample_format:?}");
@@ -278,16 +278,12 @@ fn map_build_error(error: AudioStreamBuildError<String>) -> String {
     }
 }
 
-fn stream_geometry(output_frames: u32, internal_frames: usize) -> Result<StreamGeometry, String> {
-    let approved = if super::geometry::is_raspberry_diagnostic() {
-        matches!((output_frames, internal_frames), (256, 128))
-    } else {
-        matches!(
-            (output_frames, internal_frames),
-            (128, 32) | (128, 64) | (256, 64) | (256, 128) | (256, 256) | (512, 128) | (1024, 256)
-        )
-    };
-    if !approved {
+fn stream_geometry(
+    executor_mode: BenchmarkExecutorMode,
+    output_frames: u32,
+    internal_frames: usize,
+) -> Result<StreamGeometry, String> {
+    if !super::geometry::is_approved_geometry_tuple(executor_mode, output_frames, internal_frames) {
         return Err(format!(
             "benchmark output/internal frame mapping is invalid: output={output_frames} internal={internal_frames}"
         ));
