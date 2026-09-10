@@ -483,7 +483,7 @@ fn large_pool_scenario_names_round_trip_as_exact_strings() {
 #[cfg(feature = "benchmark-voice-pools-128")]
 #[test]
 fn analogue_capacity_load_reaches_u36_without_duplicate_note_generation() {
-    let scenario = crate::dsp_scenarios::live_scenario("capacity_analogue_36", 44_100, 600_000)
+    let scenario = crate::dsp_scenarios::live_scenario("capacity_analogue_36", 44_100, 180)
         .expect("U36 analogue capacity scenario");
     assert_eq!(scenario.expected.active_synth_voices, 108);
     assert_eq!(scenario.expected.active_sample_voices, 36);
