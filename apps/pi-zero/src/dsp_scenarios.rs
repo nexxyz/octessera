@@ -42,6 +42,23 @@ pub const LIVE_SAMPLE_LIFETIME_SECONDS: u32 = LIVE_SAMPLE_SETUP_ALLOWANCE_SECOND
     + LIVE_SAMPLE_MAX_MEASURE_SECONDS
     + LIVE_SAMPLE_SHUTDOWN_MARGIN_SECONDS;
 
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256",
+    feature = "hardware-orange-pi-zero-2w",
+    test
+))]
+pub(crate) fn live_fixture_timing(measure_seconds: u64) -> (u32, u32) {
+    if measure_seconds != 600 {
+        return (600_000, LIVE_SAMPLE_LIFETIME_SECONDS);
+    }
+    let lifetime_seconds = u64::from(LIVE_SAMPLE_SETUP_ALLOWANCE_SECONDS)
+        + u64::from(LIVE_SAMPLE_WARMUP_SECONDS)
+        + measure_seconds
+        + u64::from(LIVE_SAMPLE_SHUTDOWN_MARGIN_SECONDS);
+    ((lifetime_seconds * 1_000) as u32, lifetime_seconds as u32)
+}
+
 #[cfg(test)]
 pub const LIVE_SCENARIO_IDS: [&str; 11] = [
     "synth_ramp_16",
@@ -147,14 +164,14 @@ pub struct LiveScenarioSpec {
 pub fn live_scenario(
     name: &str,
     sample_rate: u32,
-    note_duration_ms: u32,
+    measure_seconds: u64,
 ) -> Option<LiveScenarioSpec> {
     #[cfg(any(
         feature = "benchmark-voice-pools-128",
         feature = "benchmark-voice-pools-256"
     ))]
     if let Some(scenario) =
-        crate::dsp_profile::analogue_capacity_scenario::build(name, sample_rate, note_duration_ms)
+        crate::dsp_profile::analogue_capacity_scenario::build(name, sample_rate, measure_seconds)
     {
         return Some(scenario);
     }
@@ -163,10 +180,11 @@ pub fn live_scenario(
         feature = "benchmark-voice-pools-256"
     ))]
     if let Some(scenario) =
-        crate::dsp_profile::capacity_scenarios::build(name, sample_rate, note_duration_ms)
+        crate::dsp_profile::capacity_scenarios::build(name, sample_rate, measure_seconds)
     {
         return Some(scenario);
     }
+    let (note_duration_ms, sample_lifetime_seconds) = live_fixture_timing(measure_seconds);
     let expected = expected_live_state(name)?;
     let scenarios = if BASELINE_LIVE_SCENARIO_IDS.contains(&name) {
         profile_scenarios(sample_rate, ProfileMode::Baseline)
@@ -189,7 +207,7 @@ pub fn live_scenario(
                 rodio_engine_source::EngineEvent::SetPreparedAudioConfig(config.with_sample_banks(
                     Some(crate::dsp_profile::samples::long_sample_banks(
                         sample_rate,
-                        LIVE_SAMPLE_LIFETIME_SECONDS,
+                        sample_lifetime_seconds,
                     )),
                 ))
             }

@@ -41,14 +41,17 @@ pub fn run() -> Result<(), String> {
 
 fn run_inner(config: &BenchmarkConfig) -> Result<(), String> {
     cli::preflight(config)?;
-    let scenario =
-        crate::dsp_scenarios::live_scenario(config.scenario.as_str(), SAMPLE_RATE, 600_000)
-            .ok_or_else(|| {
-                format!(
-                    "unknown live benchmark scenario: {}",
-                    config.scenario.as_str()
-                )
-            })?;
+    let scenario = crate::dsp_scenarios::live_scenario(
+        config.scenario.as_str(),
+        SAMPLE_RATE,
+        config.measure_seconds,
+    )
+    .ok_or_else(|| {
+        format!(
+            "unknown live benchmark scenario: {}",
+            config.scenario.as_str()
+        )
+    })?;
     let mut state = RunState::new(
         scenario.expected,
         SAMPLE_RATE,

@@ -212,7 +212,7 @@ fn expected_state(
 
 fn assert_applied(units: usize, expected: ExpectedLiveState) {
     let name = format!("capacity_analogue_{units}");
-    let scenario = build(&name, 44_100, 600_000).expect("capacity scenario");
+    let scenario = build(&name, 44_100, 180).expect("capacity scenario");
     assert_eq!(scenario.expected, expected);
     let (actual, output) = apply_through_source(&scenario);
     assert_snapshot_matches(expected, actual);
