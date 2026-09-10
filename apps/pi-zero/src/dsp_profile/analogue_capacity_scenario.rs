@@ -1,4 +1,4 @@
-use crate::dsp_scenarios::{ExpectedLiveState, LiveScenarioSpec, LIVE_SAMPLE_LIFETIME_SECONDS};
+use crate::dsp_scenarios::{live_fixture_timing, ExpectedLiveState, LiveScenarioSpec};
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_momentary_fx_start, FxBusConfig,
     FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
@@ -28,9 +28,10 @@ pub(crate) fn parse(name: &str) -> Option<usize> {
 pub(crate) fn build(
     name: &str,
     sample_rate: u32,
-    note_duration_ms: u32,
+    measure_seconds: u64,
 ) -> Option<LiveScenarioSpec> {
     let units = parse(name)?;
+    let (note_duration_ms, sample_lifetime_seconds) = live_fixture_timing(measure_seconds);
     let synth_slots = synth_slots(units);
     let sample_slots = sample_slots(units);
     let instruments = instruments(units);
@@ -38,7 +39,7 @@ pub(crate) fn build(
         instruments,
         Some(crate::dsp_profile::samples::long_sample_banks(
             sample_rate,
-            LIVE_SAMPLE_LIFETIME_SECONDS,
+            sample_lifetime_seconds,
         )),
         Some(VoiceStealingMode::None),
         sample_rate,
