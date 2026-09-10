@@ -21,7 +21,7 @@ fn live_scenario_order_is_the_approved_historical_matrix() {
     let scenarios: Vec<_> = LIVE_SCENARIO_IDS
         .iter()
         .map(|name| {
-            assert!(live_scenario(name, 44_100, 600_000).is_some());
+            assert!(live_scenario(name, 44_100, 180).is_some());
             *name
         })
         .collect();
@@ -32,9 +32,9 @@ fn live_scenario_order_is_the_approved_historical_matrix() {
 fn baseline_live_vocabulary_is_separate_and_idle_stays_offline_only() {
     assert_eq!(BASELINE_LIVE_SCENARIO_IDS.len(), 14);
     for name in BASELINE_LIVE_SCENARIO_IDS {
-        assert!(live_scenario(name, 44_100, 600_000).is_some(), "{name}");
+        assert!(live_scenario(name, 44_100, 180).is_some(), "{name}");
     }
-    assert!(live_scenario("baseline_idle", 44_100, 600_000).is_none());
+    assert!(live_scenario("baseline_idle", 44_100, 180).is_none());
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn default_capacity_live_fixtures_prove_slot_feasibility_and_zero_drops() {
         ),
     ];
     for (name, expected_slots, expected_synth, expected_sample) in fixtures {
-        let scenario = live_scenario(name, 44_100, 600_000).unwrap();
+        let scenario = live_scenario(name, 44_100, 180).unwrap();
         assert_eq!(
             scenario.expected.active_synth_voices, expected_synth,
             "{name}"
@@ -134,7 +134,7 @@ fn default_capacity_live_fixtures_prove_slot_feasibility_and_zero_drops() {
 )))]
 #[test]
 fn normal_build_rejects_analogue_capacity_scenarios() {
-    assert!(live_scenario("capacity_analogue_1", 44_100, 600_000).is_none());
+    assert!(live_scenario("capacity_analogue_1", 44_100, 180).is_none());
 }
 
 #[cfg(any(
@@ -145,7 +145,7 @@ fn normal_build_rejects_analogue_capacity_scenarios() {
 fn analogue_capacity_names_resolve_through_canonical_live_dispatch() {
     for units in [8, 16, 24] {
         let name = format!("capacity_analogue_{units}");
-        let scenario = live_scenario(&name, 44_100, 600_000).expect("analogue scenario");
+        let scenario = live_scenario(&name, 44_100, 180).expect("analogue scenario");
         assert_eq!(
             expected_live_state(&name),
             Some(scenario.expected),
@@ -154,9 +154,47 @@ fn analogue_capacity_names_resolve_through_canonical_live_dispatch() {
     }
 }
 
+#[cfg(any(
+    feature = "benchmark-voice-pools-128",
+    feature = "benchmark-voice-pools-256"
+))]
+#[test]
+fn analogue_fixture_timing_matches_approved_measurement_windows() {
+    for measure_seconds in [30, 120, 180, 300] {
+        assert_eq!(live_fixture_timing(measure_seconds), (600_000, 330));
+    }
+    assert_eq!(live_fixture_timing(600), (630_000, 630));
+
+    for (measure_seconds, expected_duration_ms, expected_lifetime_seconds) in
+        [(180_u64, 600_000_u32, 330_usize), (600, 630_000, 630)]
+    {
+        let scenario = live_scenario("capacity_analogue_8", 44_100, measure_seconds)
+            .expect("analogue scenario");
+        for event in &scenario.events {
+            if let rodio_engine_source::EngineEvent::NoteOn { duration_ms, .. } = event {
+                assert_eq!(*duration_ms, expected_duration_ms);
+            }
+        }
+        let config = scenario
+            .events
+            .iter()
+            .find_map(|event| match event {
+                rodio_engine_source::EngineEvent::SetPreparedAudioConfig(config) => Some(config),
+                _ => None,
+            })
+            .expect("analogue audio config");
+        let samples = &config.sample_banks().unwrap()[0].slots[0]
+            .buffer
+            .as_ref()
+            .unwrap()
+            .samples;
+        assert_eq!(samples.len(), 44_100 * (expected_lifetime_seconds + 1));
+    }
+}
+
 #[test]
 fn mixed_boundary_live_state_is_exact_and_uses_one_long_sample_backing() {
-    let scenario = live_scenario("mixed_ramp_16_48", 44_100, 600_000).unwrap();
+    let scenario = live_scenario("mixed_ramp_16_48", 44_100, 180).unwrap();
     let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
     let retired_audio_states =
         crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
@@ -192,7 +230,7 @@ fn mixed_boundary_live_state_is_exact_and_uses_one_long_sample_backing() {
 
 #[test]
 fn live_notes_are_longer_than_the_125_second_qualification_run() {
-    let scenario = live_scenario("sample_ramp_64", 44_100, 600_000).unwrap();
+    let scenario = live_scenario("sample_ramp_64", 44_100, 180).unwrap();
     assert!(scenario.events.iter().any(|event| matches!(
         event,
         rodio_engine_source::EngineEvent::NoteOn { duration_ms, .. } if *duration_ms >= 125_000
@@ -202,7 +240,7 @@ fn live_notes_are_longer_than_the_125_second_qualification_run() {
 #[test]
 fn expected_live_states_match_native_fixture_application() {
     for name in LIVE_SCENARIO_IDS {
-        let scenario = live_scenario(name, 44_100, 600_000).unwrap();
+        let scenario = live_scenario(name, 44_100, 180).unwrap();
         let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
         let retired_audio_states =
             crate::dsp_profile::telemetry::apply_events(&mut engine, &scenario.events);
@@ -255,7 +293,7 @@ fn baseline_max_fx_expected_state_reaches_native_limits() {
     let scenario = live_scenario(
         "fixed_8_synth_8_sample_12_bus_2_global_2_momentary",
         44_100,
-        600_000,
+        180,
     )
     .unwrap();
     let mut engine = realtime_engine::synth::SynthEngine::new(44_100);
@@ -273,7 +311,7 @@ fn baseline_max_fx_expected_state_reaches_native_limits() {
 #[test]
 fn sample_voices_remain_exact_through_worst_case_elapsed_duration() {
     for name in LIVE_SCENARIO_IDS {
-        let scenario = live_scenario(name, 44_100, 600_000).unwrap();
+        let scenario = live_scenario(name, 44_100, 180).unwrap();
         if scenario.expected.active_sample_voices == 0 {
             continue;
         }
@@ -300,8 +338,8 @@ fn sample_voices_remain_exact_through_worst_case_elapsed_duration() {
 
 #[test]
 fn fresh_source_isolation_replaces_default_configuration() {
-    let synth = live_scenario("synth_ramp_16", 44_100, 600_000).unwrap();
-    let sample = live_scenario("sample_ramp_64", 44_100, 600_000).unwrap();
+    let synth = live_scenario("synth_ramp_16", 44_100, 180).unwrap();
+    let sample = live_scenario("sample_ramp_64", 44_100, 180).unwrap();
     let synth_snapshot = source_snapshot(&synth.events);
     let sample_snapshot = source_snapshot(&sample.events);
     assert_eq!(synth_snapshot.active_synth_voices, 16);

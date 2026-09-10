@@ -1,4 +1,4 @@
-use crate::dsp_scenarios::{ExpectedLiveState, LiveScenarioSpec, LIVE_SAMPLE_LIFETIME_SECONDS};
+use crate::dsp_scenarios::{live_fixture_timing, ExpectedLiveState, LiveScenarioSpec};
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_momentary_fx_start, FxBusConfig,
     FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
@@ -38,17 +38,15 @@ pub(crate) fn parse(name: &str) -> Option<CapacityScenario> {
 pub(crate) fn build(
     name: &str,
     sample_rate: u32,
-    note_duration_ms: u32,
+    measure_seconds: u64,
 ) -> Option<LiveScenarioSpec> {
     let scenario = parse(name)?;
+    let (note_duration_ms, sample_lifetime_seconds) = live_fixture_timing(measure_seconds);
     let sample_banks = match scenario {
         CapacityScenario::Synth(_) => None,
-        CapacityScenario::Sample(_) | CapacityScenario::Mixed { .. } => {
-            Some(crate::dsp_profile::samples::long_sample_banks(
-                sample_rate,
-                LIVE_SAMPLE_LIFETIME_SECONDS,
-            ))
-        }
+        CapacityScenario::Sample(_) | CapacityScenario::Mixed { .. } => Some(
+            crate::dsp_profile::samples::long_sample_banks(sample_rate, sample_lifetime_seconds),
+        ),
     };
     let (synth_counts, sample_counts, instruments) = match scenario {
         CapacityScenario::Synth(count) => (
@@ -326,14 +324,14 @@ mod tests {
     #[test]
     fn prepared_sample_banks_are_absent_for_synth_and_shared_for_sample_and_mixed() {
         let capacity = SYNTH_VOICE_LANE_CAPACITY;
-        let synth = build(&format!("capacity_synth_{capacity}"), 44_100, 600_000).unwrap();
+        let synth = build(&format!("capacity_synth_{capacity}"), 44_100, 180).unwrap();
         assert!(prepared_config(&synth).sample_banks().is_none());
 
         for name in [
             format!("capacity_sample_{capacity}"),
             format!("capacity_mixed_{capacity}_{capacity}"),
         ] {
-            let scenario = build(&name, 44_100, 600_000).unwrap();
+            let scenario = build(&name, 44_100, 180).unwrap();
             let banks = prepared_config(&scenario).sample_banks().unwrap();
             assert_eq!(banks.len(), INSTRUMENT_SLOT_COUNT);
             let first = &banks[0].slots[0].buffer.as_ref().unwrap().samples;
@@ -359,7 +357,7 @@ mod tests {
                 [capacity / 8; INSTRUMENT_SLOT_COUNT],
             ),
         ] {
-            let scenario = build(&name, 44_100, 600_000).unwrap();
+            let scenario = build(&name, 44_100, 180).unwrap();
             let observed_slots = note_on_slots(&scenario.events);
             assert_eq!(observed_slots, expected_slots);
             let mut engine = SynthEngine::new(44_100);
@@ -372,20 +370,15 @@ mod tests {
             drop(retired);
         }
 
-        assert!(build(&format!("capacity_synth_{}", capacity + 1), 44_100, 600_000).is_none());
-        assert!(build(
-            &format!("capacity_sample_{}", capacity + 1),
-            44_100,
-            600_000
-        )
-        .is_none());
+        assert!(build(&format!("capacity_synth_{}", capacity + 1), 44_100, 180).is_none());
+        assert!(build(&format!("capacity_sample_{}", capacity + 1), 44_100, 180).is_none());
     }
 
     #[test]
     fn mixed_limit_scenario_uses_default_like_topology_and_exact_distribution() {
         let capacity = SYNTH_VOICE_LANE_CAPACITY;
         let name = format!("capacity_mixed_{capacity}_{capacity}");
-        let scenario = build(&name, 44_100, 600_000).unwrap();
+        let scenario = build(&name, 44_100, 180).unwrap();
         let quotient = capacity / 6;
         let remainder = capacity % 6;
         let mut expected_slots = [0; INSTRUMENT_SLOT_COUNT];
