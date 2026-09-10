@@ -8,7 +8,25 @@ Raspberry Pi Zero 2 W evidence only.
 Historical executor fields remain readable in benchmark evidence, but active
 selection exposes only Inline and routing-tree execution.
 
-## Schema-13 practical continuity campaign
+## 2026-09-10 qualification and product decision
+
+The local generated final frame-search evidence is under
+`target/audio-capacity-frame-search/winner-qualification-c72d79e9/` and uses
+source commit `c72d79e903bf1fc5fdf6292bf117729a98795267`. Both Pi boards ship
+with Inline as the default. Raspberry remains Inline-only. Orange Capacity is
+the optional OM128 routing profile: output 256 / ALSA period 64 / internal 128 /
+lookahead 128, with the U42 soak as the retained qualification point.
+
+OI256 was the capacity-first study winner, but OI32 is retained as the Orange
+low-latency product choice: it keeps effective latency near 2.9 ms rather than
+doubling it for only one additional U. Raspberry Multicore remains
+evidence-only; RM256 is its qualified evidence profile, not a shipped mode.
+The adopted limits shared by shipped modes remain 12 Bus FX slots, 2 Global FX
+slots, 2 simultaneous momentary FX, 16 synth voices, and 64 sample voices.
+The qualification evidence is pre-mute callback consumption; it does not prove
+literal DAC/analogue output or zero ALSA xruns.
+
+## Historical schema-13 practical continuity campaign
 
 The completed campaign used schema-13 result evidence. All runs used source
 commit `218b3e7eb7854447d436d7e1df0b4ddabea50ebe`, a 120-second measurement,
@@ -71,7 +89,7 @@ schema-13 result `status`; `CB over` is callback-duration over-budget count.
 
 Orange remained at 1.416 GHz with cooling state 0 throughout this campaign.
 
-### Interpretation and product decision
+### Historical interpretation
 
 The Raspberry Inline rows are practically Stable through U12 and Stretched at
 U16 because the whole-run ALSA journal count reaches 3. The Raspberry
@@ -86,18 +104,19 @@ for those two Orange rows because their callback and native lifecycle counters
 were clean; the practical continuity grade still rules them out for product
 capacity. The U32/U36 results do not justify raising the product limit.
 
-- Keep Orange Capacity at U16 and keep the existing Inline limits. Do not raise
-  Capacity to U32 or U36.
-- Keep Raspberry on the product Inline executor and current limits. Do not
-  expose Multicore based on this inconsistent diagnostic result.
-- No product defaults changed.
+- The historical decision kept Orange Capacity at U16 and kept the existing
+  Inline limits. It did not raise Capacity to U32 or U36.
+- The historical decision kept Raspberry on the product Inline executor and
+  current limits. It did not expose Multicore based on that inconsistent
+  diagnostic result.
+- No product defaults changed in that historical campaign.
 
-## Orange frame mapping and evidence boundary
+## Historical Orange frame mapping and evidence boundary
 
-Orange Inline uses a 128-frame production CPAL output buffer, ALSA period 32,
-and internal block 32. Capacity uses output 256, ALSA period 64, internal 64,
-and routing lookahead 64. Its current product qualification uses the diagnostic
-`capacity_analogue_16` routing-tree run and does not change production defaults.
+Orange Inline used a 128-frame production CPAL output buffer, ALSA period 32,
+and internal block 32. The historical Capacity mapping used output 256, ALSA
+period 64, internal 64, and routing lookahead 64. Its historical qualification
+used the diagnostic `capacity_analogue_16` routing-tree run.
 
 The Orange runner's offline rows consume a configured measurement chunk and
 report that chunk separately from `internal_block_frames`. The chunk controls
@@ -113,7 +132,7 @@ non-print runs require `-AllowServiceInterruption`.
 
 ## Orange live benchmark procedure
 
-Preview the current product Capacity command without contacting a board:
+Preview the historical product Capacity command without contacting a board:
 
 ```powershell
 ./tools/orange-pi/run-orange-capability-study.ps1 -Mode LiveAudioBenchmark `
@@ -128,9 +147,9 @@ Preview the current product Capacity command without contacting a board:
 
 The frozen routing comparison matrix is A: output 256, period 64, internal 128,
 lookahead 128, and 11 scenarios, followed by the selected A120 repeat. It is
-comparison evidence only; it is not the current product Capacity qualification
-or current default. The current Capacity run above is the product qualification
-command.
+comparison evidence only; it was not the historical product Capacity
+qualification or current default. The current OM128/U42 qualification is
+recorded at the top of this note.
 
 Readiness, progress, and result evidence use the current schema contract, while
 the tooling retains historical executor and schema parsing for old evidence.

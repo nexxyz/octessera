@@ -98,12 +98,13 @@ artifacts must not share a path:
 ```
 
 Use the exact campaign geometry when running a cell. Orange Inline uses
-128/32/32 with zero lookahead; Orange routing uses 256/64/64 with 64-frame
-lookahead and `-WorkerTimingMode disabled`. Add
+128/32/32 with zero lookahead; the current Orange Capacity profile is OM128,
+using 256/64/128 with 128-frame lookahead and `-WorkerTimingMode disabled`. Add
 `-ContinueOnRecoveredMiss` to completed 120-second Orange routing observations
 so a non-clean but structurally valid result is retained. Raspberry uses
-256/64/128, zero lookahead for Inline and 128-frame lookahead for Multicore;
-`-ObserveCompromises` retains completed 120-second observations.
+256/64/128 with zero lookahead for Inline. RM256 is qualified evidence-only at
+256/64/256 with 256-frame lookahead; it is not a shipped mode. `-ObserveCompromises`
+retains completed 120-second observations.
 
 ## Pi UI and audio profiling
 
@@ -205,11 +206,11 @@ Schema-4 profile rows require numeric, non-negative admission-drop evidence; a
 qualified current scenario must reconcile its expected start/end counters and
 report zero drops unless that scenario explicitly declares otherwise.
 
-The current Orange product Capacity qualification geometry is output 256 → ALSA
-period 64 → internal 64 with routing lookahead 64. The frozen routing comparison
-above remains output 256 → period 64 → internal 128 with lookahead 128. Neither
-comparison evidence nor the diagnostic Capacity artifact changes shipped
-defaults.
+The current Orange product Capacity qualification is OM128: output 256 → ALSA
+period 64 → internal 128 with routing lookahead 128. The frozen routing
+comparison above remains diagnostic comparison evidence, and RM256 remains
+qualified evidence-only. Neither comparison evidence nor the diagnostic
+Capacity artifact changes shipped voice-policy maxima.
 
 Print the exact deterministic plan without transport:
 

@@ -81,6 +81,25 @@ pass.
 - [Setup portal](hardware/setup-portal.md) — open or reopen board setup.
 - [Printable quick reference](#printable-quick-reference)
 
+### Audio modes and practical limits
+
+Both boards use Inline by default, and Raspberry stays Inline-only. On Orange,
+`System > Sound > DSP > Multicore` selects the higher-capacity mode after a
+restart, trading Inline's ~2.9 ms effective latency for ~8.7 ms.
+
+The adopted limits shared by shipped modes are 12 Bus FX slots, 2 Global FX
+slots, 2 simultaneous momentary FX, 16 synth voices, and 64 sample voices.
+Engineering stress numbers are headroom evidence, not usable patch limits:
+
+| Product mode | Stress evidence (synth + sample voices) |
+|---|---:|
+| Raspberry Inline | 48 + 16 |
+| Orange Inline | 72 + 24 (two 180-second runs) |
+| Orange Capacity | 126 + 42 (600-second soak) |
+
+These figures are there to explain the room under the hood, not to turn the
+instrument into a spreadsheet with sharp edges.
+
 ## Shared six-step build journey
 
 The PCB and control surface are one handmade instrument; do not substitute a
