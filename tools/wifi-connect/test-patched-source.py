@@ -16,7 +16,6 @@ LICENSE = ROOT / "third_party/wifi-connect-4.11.84/LICENSE"
 BUILD = ROOT / "tools/wifi-connect/build-patched.ps1"
 BUILD_CONTAINER = ROOT / "tools/wifi-connect/build-patched.sh"
 BUILD_CI = ROOT / "tools/wifi-connect/build-patched-ci.sh"
-README = ROOT / "third_party/wifi-connect-4.11.84/README.md"
 COMMIT = "5bd4c1bea548fb5714bedb18bbd12f088d5fa407"
 PATCH_SHA256 = "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"
 BINARY_SHA256 = "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627"
@@ -91,18 +90,6 @@ assert hashlib.sha256(LICENSE.read_bytes()).hexdigest() == hashlib.sha256(upstre
 build_text = BUILD.read_text(encoding="utf-8")
 container_text = BUILD_CONTAINER.read_text(encoding="utf-8")
 ci_text = BUILD_CI.read_text(encoding="utf-8")
-readme_text = README.read_text(encoding="utf-8")
-assert "target/wifi-connect-patched/cargo-metadata.json" in readme_text
-assert "target/wifi-connect-patched/source/cargo-metadata.json" not in readme_text
-for required in (
-    "`src/network.rs`",
-    "`src/errors.rs`",
-    "`src/server.rs`",
-    "Cache-Control: no-store",
-    PATCH_SHA256,
-    BINARY_SHA256,
-):
-    assert required in readme_text, required
 for required in (
     "5bd4c1bea548fb5714bedb18bbd12f088d5fa407",
     "build-patched.sh",

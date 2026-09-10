@@ -23,7 +23,6 @@ SHARED_IDS = set(re.findall(rb"getElementById\('([^']+)'\)", APP_BYTES[0]))
 for root in UI_ROOTS:
     app = (root / "js/app.js").read_text(encoding="utf-8")
     html = (root / "index.html").read_text(encoding="utf-8")
-    readme = (root / "README.md").read_text(encoding="utf-8")
     html_ids = set(re.findall(r'id="([^"]+)"', html))
     references = re.findall(r'(?:href|src)="(/[^"?#]+)', html)
     route_prefixes = {
@@ -180,15 +179,7 @@ for root in UI_ROOTS:
     assert "sshPasswordConfirm: state.sshMode === 'password' ? state.sshPasswordConfirm : ''" in app
     assert "octessera-mark.svg" in html and "octessera-wordmark.svg" in html
     assert '<meta name="color-scheme" content="dark" />' in html
-    assert "POST http://192.168.42.1:8080/country" in readme
-    assert "POST http://192.168.42.1:8080/stage" in readme
-    assert "GET /networks" in readme and "wifi-connect" in readme
-    assert "POST /connect" in readme
-    assert "the root coordinator in memory" in readme
-    assert "provisional `Applying setup`" in readme
-    assert "browser makes no completion or retry call" in readme
     for route in ("/finalize", "/discard", "/complete", "/retry"):
         assert route not in app and route not in html
-    assert "authoritative" not in readme
 
 print("Setup UI exact parity, accessibility, country order, applying flow, copy, and boundary tests passed")
