@@ -13,9 +13,10 @@ The fixed production path is Armbian Debian 13/Trixie for the exact board ID
 `octessera-0.7.5-orange-pi-zero-2w.img.xz`, with a matching SHA-256 and
 provenance set. Its build metadata contains `OCTESSERA_IMAGE_MODE=production`
 and its runtime metadata declares `artifact_kind=production-runtime`,
-`runtime_ready=true`, and `orange-pi-zero-2w`.
-This is the retained v0.7.5 artifact contract; v0.8.1 constructor evidence is
-source-bound and still awaits physical FAT for its exact release artifact.
+`runtime_ready=true`, and `orange-pi-zero-2w`. This retained v0.7.5 artifact
+contract is historical only: it is not a current release candidate or a
+supported respin parent. The v0.8.1 constructor evidence is source-bound and
+still awaits physical FAT for its exact release artifact.
 
 Production stages the exact hash-bound three-file runtime bundle:
 `octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`. The separate
@@ -302,7 +303,7 @@ channels, exact bidirectional MIDI traffic, and exact ConfigFS
 `interface_string`, actual MIDI interface descriptor, and Windows
 `DEVPKEY_Device_BusReportedDeviceDesc` identity `Octessera MIDI`. Windows names
 the UAC2 endpoint `Octessera Audio`, not the combined composite product
-`Octessera Audio + MIDI`. Repeat on the exact final v0.8.2 constructor image and
+`Octessera Audio + MIDI`. Repeat on the exact release constructor image and
 complete physical connector naming, VBUS/CC/no-backfeed electrical, physical
 reconnect and host suspend/resume, SD2 mass-storage start/eject/stop recovery,
 and authorized public VID/PID gates before claiming public USB support or
