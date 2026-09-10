@@ -3,6 +3,14 @@
 > **Approved for diagnostic execution.** The table is the human-owned input to
 > the frame-search harness. It does not change product defaults by itself.
 
+> **Phase 1 qualification complete (2026-09-10).** Local generated evidence is
+> under `target/audio-capacity-frame-search/winner-qualification-c72d79e9/`.
+> Orange Capacity is promoted to OM128 at U42 soak (`256/64/128/128`). Inline
+> remains the shipped default on both boards; Raspberry Multicore and OI256
+> remain evidence-only. The evidence is pre-mute callback consumption, not
+> literal DAC proof. Candidate-role labels and seed rows below describe the
+> historical launch plan and are intentionally unchanged.
+
 The campaign chooses one canonical frame constellation for Raspberry Inline,
 Raspberry Multicore, Orange Inline, and Orange Multicore. It locates the
 Stable→Stretched and Stretched→Compromised U borders and quantifies Multicore
