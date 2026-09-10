@@ -38,16 +38,6 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 
 ## Audio and USB
 
-- Add a restart-applied USB role selector for the Raspberry Pi OTG connection and
-  the Orange Pi's one supported OTG port. Gadget mode owns USB Audio and USB MIDI
-  input/output; host mode frees the port for devices such as keyboards, mice,
-  and USB MIDI controllers. Keep the roles mutually exclusive and explicit;
-  do not auto-switch from cable detection.
-- Evaluate PC-over-USB keyboard control for Orange Pi through the existing native
-  device-input path. Preserve the simulator mappings for the main encoder and
-  four NeoKeys. Use `E`/`R`/`T`, `F`/`G`/`H`, and `V`/`B`/`N` as candidate
-  left/right/click mappings for auxiliary encoders 1, 2, and 3. Do not add a
-  separate runtime behavior path.
 - Validate audio startup status, sample preview and assignment feedback, Play FX
   assignment, MIDI panic/status, and user-visible audio errors.
 - Qualify each selected Jack and HDMI route beyond source and bench checks,
@@ -56,7 +46,7 @@ quick run](../userdocs/hardware/fat-quick-run.md).
   evidence.
 - Qualify sample preview, loaded sample banks, and runtime audio-configuration
   synchronization through the Pi host adapter.
-- Repeat the named USB identity and traffic checks on the exact final v0.8.2
+- Repeat the named USB identity and traffic checks on the exact release
   constructor image, including USB0/UDC, ConfigFS `interface_string`, the
   actual MIDI interface descriptor and exact Windows
   `DEVPKEY_Device_BusReportedDeviceDesc` value `Octessera MIDI`, the
