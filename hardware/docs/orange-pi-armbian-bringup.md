@@ -216,7 +216,7 @@ result.
 
 The remaining authorized gates are:
 
-- Repeat the named identity and functional checks on the exact final v0.8.2
+- Repeat the named identity and functional checks on the exact release
   constructor image.
 - Complete physical connector mapping, VBUS/CC/no-backfeed electrical
   qualification, physical reconnect and host suspend/resume, SD2 mass-storage
