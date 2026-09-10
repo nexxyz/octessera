@@ -92,8 +92,8 @@ impl OrangeAudioProfile {
                 optimization,
                 output_buffer_frames: 256,
                 expected_alsa_period_frames: 64,
-                internal_block_frames: 64,
-                lookahead_frames: 64,
+                internal_block_frames: 128,
+                lookahead_frames: 128,
             },
         }
     }

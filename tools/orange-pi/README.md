@@ -246,34 +246,34 @@ capacity-specific directories under `target/orange-pi-cross-diagnostics/`.
   -BenchmarkVoicePoolCapacity 128
 ```
 
-The current product Capacity qualification is the exact
-`capacity_analogue_16` routing run: output 256, ALSA period 64, internal 64,
-routing lookahead 64, and a diagnostic routing-tree artifact. Build the
-128-voice diagnostic pool and run the 120-second measurement:
+The current product Capacity qualification is the exact OM128/U42 soak:
+output 256, ALSA period 64, internal 128, routing lookahead 128, and a
+diagnostic routing-tree artifact. Build the 128-voice diagnostic pool and run
+the 600-second measurement:
 
 ```powershell
 ./tools/orange-pi/run-orange-capability-study.ps1 `
   -Mode LiveAudioBenchmark `
-  -Scenario capacity_analogue_16 `
-  -OutputFrames 256 `
-  -EngineBlockFrames 64 `
-  -MeasureSeconds 120 `
-  -ExecutorMode routing_tree_persistent `
-  -WorkerTimingMode disabled `
+  -FrameSearchProfile OM128 `
+  -FrameSearchPhase Soak `
+  -FrameSearchU 42 `
   -Artifact target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi `
   -Metadata target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi.metadata.json `
   -AllowServiceInterruption
 ```
 
 Use the release profile and matching hash/source sidecar. Accept the result only
-when the retained start/end voice and FX counts match unit 16, preview voices
+when the retained start/end voice and FX counts match unit 42, preview voices
 remain zero, and voice steals and admission drops remain zero. This diagnostic
-workflow does not change shipped
-`resources/platform-capabilities.json` or `config/defaults/`.
+workflow is pre-mute callback-consumption evidence; it does not prove literal
+DAC/analogue output or zero ALSA xruns. It does not change shipped
+`resources/platform-capabilities.json`, `config/defaults/`, or voice-policy
+maxima.
 
 The other `capacity_synth_<N>`, `capacity_sample_<N>`,
-`capacity_mixed_<S>_<P>`, and `capacity_analogue_<u>` selections remain
-diagnostic sweeps. They are not product Capacity qualification.
+`capacity_mixed_<S>_<P>`, and `capacity_analogue_<u>` selections other than the
+OM128/U42 frame-search selection above remain diagnostic sweeps. They are not
+product Capacity qualification.
 
 The bounded live-candidate plan is reserved for Phase 2 and requires an
 explicit interruption acknowledgement:

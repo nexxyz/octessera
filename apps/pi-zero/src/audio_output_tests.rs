@@ -177,8 +177,8 @@ fn orange_dsp_profiles_select_the_authoritative_audio_geometry() {
     );
     assert_eq!(capacity.output_buffer_frames, 256);
     assert_eq!(capacity.expected_alsa_period_frames, 64);
-    assert_eq!(capacity.internal_block_frames, 64);
-    assert_eq!(capacity.lookahead_frames, 64);
+    assert_eq!(capacity.internal_block_frames, 128);
+    assert_eq!(capacity.lookahead_frames, 128);
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
