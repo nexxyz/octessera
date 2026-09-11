@@ -112,6 +112,7 @@ def _owned_directory_paths(inventory: Inventory, contract: dict[str, Any], direc
             expected.add(item["target"])
     if not output:
         expected.update(marker for marker in contract["stale_runtime_markers"] if marker.startswith(prefix) and marker in inventory)
+        expected.update(path for path in _implicit_directory_paths(contract) if path.startswith(prefix) and any(item["preimage"]["kind"] == "exact" and item["target"].startswith(path + "/") for item in contract["entries"]))
     if output:
         expected.update(path for path in _implicit_directory_paths(contract) if path.startswith(prefix))
     return expected

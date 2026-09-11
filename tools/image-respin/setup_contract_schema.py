@@ -13,7 +13,6 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FILE_SPEC_KEYS = {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"}
 SETUP_UI_DIRECTORY = "usr/local/share/octessera-setup-ui"
 SETUP_UI_FILES = {"js/app.js", "index.html", "css/styles.css", "README.md", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
-SETUP_UI_NEW_FILES = {"js/app.js", "css/styles.css", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
 SETUP_UI_STALE_ROOT_FILES = {"usr/local/share/octessera-setup-ui/app.js", "usr/local/share/octessera-setup-ui/styles.css", "usr/local/share/octessera-setup-ui/octessera-mark.svg", "usr/local/share/octessera-setup-ui/octessera-wordmark.svg"}
 ORANGE_RUNTIME_DIRECTORIES = {"var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"}
 ORANGE_RUNTIME_ROOT = "var/lib/octessera"
@@ -137,11 +136,16 @@ def _validate_ui_preimages(value: list[dict[str, Any]], board: str) -> None:
         if board == "raspberry-pi-zero-2w":
             if preimage != {"kind": "absent"}:
                 raise SetupContractSchemaError(f"Raspberry setup UI preimage is not absent: {entry['target']}")
-        elif entry["target"][len(prefix):] in SETUP_UI_NEW_FILES:
-            if preimage != {"kind": "absent"}:
-                raise SetupContractSchemaError(f"Orange setup UI new-path preimage is not absent: {entry['target']}")
-        elif preimage != {"kind": "exact", "type": "file", "mode": 420, "uid": 1001, "gid": 1001, "symlink": False, "xattrs": {}, "capability": None, "sha256": preimage.get("sha256")}:
-            raise SetupContractSchemaError(f"Orange setup UI preimage ownership is not exact: {entry['target']}")
+        elif preimage != {"kind": "exact", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None, "sha256": preimage.get("sha256")}:
+            raise SetupContractSchemaError(f"Orange setup UI preimage is not exact: {entry['target']}")
+
+
+def _validate_orange_entry_preimages(value: list[dict[str, Any]]) -> None:
+    for entry in value:
+        preimage = entry["preimage"]
+        expected = {"kind": "exact", "type": "file", "mode": entry["mode"], "uid": entry["uid"], "gid": entry["gid"], "symlink": False, "xattrs": entry["xattrs"], "capability": entry["capability"], "sha256": preimage.get("sha256")}
+        if entry["type"] != "file" or preimage != expected:
+            raise SetupContractSchemaError(f"Orange setup entry preimage is not exact: {entry['target']}")
 
 
 def _directories(value: Any, board: str) -> None:
@@ -166,7 +170,7 @@ def _directories(value: Any, board: str) -> None:
             if board == "raspberry-pi-zero-2w":
                 if preimage != {"kind": "absent"}:
                     raise SetupContractSchemaError("Raspberry setup directory preimage is not exact")
-            elif preimage != {"kind": "exact", "type": "directory", "mode": 493, "uid": 1001, "gid": 1001, "symlink": False, "xattrs": {}, "capability": None}:
+            elif preimage != {"kind": "exact", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None}:
                 raise SetupContractSchemaError("Orange setup directory preimage is not exact")
         elif preimage != {"kind": "absent"}:
             raise SetupContractSchemaError(f"{directory['target']} preimage is not exact")
@@ -218,6 +222,16 @@ def _symlinks(value: Any, board: str) -> None:
             raise SetupContractSchemaError("Raspberry parent sudoers removal is not exact")
     elif parent_sudoers:
         raise SetupContractSchemaError("Orange setup contract must not remove the Raspberry parent sudoers grant")
+    if board == "orange-pi-zero-2w":
+        enabled = [item for item in value if item["classification"] == "enabled-request-path"]
+        expected_enabled = {"classification": "enabled-request-path", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup-request.path", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": True, "xattrs": {}, "capability": None, "link_target": "../octessera-setup-request.path", "preimage": {"kind": "exact", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": True, "xattrs": {}, "capability": None, "link_target": "../octessera-setup-request.path"}, "postimage": "required"}
+        if enabled != [expected_enabled]:
+            raise SetupContractSchemaError("Orange request-path symlink preimage is not exact")
+        disabled = [item for item in value if item["classification"] == "setup-service-disabled"]
+        if disabled != [{"classification": "setup-service-disabled", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup.service", "type": "absent", "preimage": {"kind": "absent"}, "postimage": "absent"}]:
+            raise SetupContractSchemaError("Orange setup-service symlink preimage is not exact")
+        if any(item["preimage"] != {"kind": "absent"} for item in stale_ui):
+            raise SetupContractSchemaError("Orange stale UI root preimages are not absent")
 
 
 def validate_setup_contract(contract: Any) -> None:
@@ -228,14 +242,16 @@ def validate_setup_contract(contract: Any) -> None:
     if top["source_root"] not in {"userpatches/overlay", "tools/pi-image/stage4-octessera/files/root"}:
         raise SetupContractSchemaError("source_root is not an approved setup asset root")
     preimage_source = _keys(top["preimage_source"], {"kind", "commit", "proof"}, "preimage_source")
-    if preimage_source["kind"] not in {"pinned-commit-staging", "release-absence-proof"} or not isinstance(preimage_source["commit"], str) or re.fullmatch(r"[0-9a-f]{40}", preimage_source["commit"]) is None or not isinstance(preimage_source["proof"], str) or not preimage_source["proof"].strip():
+    if preimage_source["kind"] not in {"constructor-source", "release-absence-proof"} or not isinstance(preimage_source["commit"], str) or re.fullmatch(r"[0-9a-f]{40}", preimage_source["commit"]) is None or not isinstance(preimage_source["proof"], str) or not preimage_source["proof"].strip():
         raise SetupContractSchemaError("preimage_source is invalid")
-    expected_kind = "release-absence-proof" if top["board_profile"] == "raspberry-pi-zero-2w" else "pinned-commit-staging"
+    expected_kind = "release-absence-proof" if top["board_profile"] == "raspberry-pi-zero-2w" else "constructor-source"
     if preimage_source["kind"] != expected_kind:
         raise SetupContractSchemaError("preimage_source kind is not exact for the board")
     _source_inputs(top["source_inputs"])
     _directories(top["directories"], top["board_profile"])
     _entries(top["entries"], "entries")
+    if top["board_profile"] == "orange-pi-zero-2w":
+        _validate_orange_entry_preimages(top["entries"])
     _validate_ui_preimages(top["entries"], top["board_profile"])
     _symlinks(top["symlinks"], top["board_profile"])
     if not isinstance(top["preserved_paths"], list) or not top["preserved_paths"]:
