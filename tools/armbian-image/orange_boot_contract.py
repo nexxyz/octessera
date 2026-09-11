@@ -389,7 +389,13 @@ def verify_runtime(root: Path, mode: str, construction: dict[str, Any], reposito
     require(contract == {"schema_version": 1, "image_kind": mode, "runtime_enabled_default": mode == "production"}, "final image contract is not exact")
     if mode == "diagnostic":
         runtime_uid, runtime_gid = runtime_account(root, require)
-        require_owner_mode(root / "var/lib/octessera/samples", runtime_uid, runtime_gid, 0o755, require)
+        runtime_root = root / "var/lib/octessera"
+        require(runtime_root.is_dir() and not runtime_root.is_symlink(), "Orange runtime root directory is missing or symlinked")
+        require_owner_mode(runtime_root, 0, 0, 0o755, require)
+        for relative in ("var/lib/octessera/samples", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"):
+            path = root / relative
+            require(path.is_dir() and not path.is_symlink(), f"Orange runtime directory is missing or symlinked: {relative}")
+            require_owner_mode(path, runtime_uid, runtime_gid, 0o755, require)
         for path in (root / "usr/local/bin/octessera-pi", root / "etc/systemd/system/octessera.service", root / "opt/octessera/current", root / "opt/octessera/releases"):
             require(not path.exists() and not path.is_symlink(), f"diagnostic image contains production runtime path: {path.relative_to(root)}")
         return {"runtime_service_mode": "disabled"}
@@ -411,8 +417,13 @@ def verify_runtime(root: Path, mode: str, construction: dict[str, Any], reposito
     require_owner_mode(release_root, 0, 0, 0o555, require)
     require_owner_mode(runtime_metadata_path, 0, 0, 0o444, require)
     require_owner_mode(sums, 0, 0, 0o444, require)
-    require_owner_mode(root / "var/lib/octessera/presets", runtime_uid, runtime_gid, 0o755, require)
-    require_owner_mode(root / "var/lib/octessera/samples", runtime_uid, runtime_gid, 0o755, require)
+    runtime_root = root / "var/lib/octessera"
+    require(runtime_root.is_dir() and not runtime_root.is_symlink(), "Orange runtime root directory is missing or symlinked")
+    require_owner_mode(runtime_root, 0, 0, 0o755, require)
+    for relative in ("var/lib/octessera/presets", "var/lib/octessera/samples", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"):
+        path = root / relative
+        require(path.is_dir() and not path.is_symlink(), f"Orange runtime directory is missing or symlinked: {relative}")
+        require_owner_mode(path, runtime_uid, runtime_gid, 0o755, require)
     require_runtime_udev_rule(root, require)
     require((root / "opt/octessera/current").is_symlink() and (root / "opt/octessera/current").readlink().as_posix() == f"/opt/octessera/releases/{version}", "production current runtime symlink is wrong")
     require((root / "usr/local/bin/octessera-pi").is_symlink() and (root / "usr/local/bin/octessera-pi").readlink().as_posix() == "/opt/octessera/current/octessera-pi", "production executable symlink is wrong")

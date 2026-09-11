@@ -183,9 +183,9 @@ octessera_configure_runtime_account() {
       reject_runtime_sudoers_file "$sudoers_file" || return 1
     done < <(find -P /etc/sudoers.d -type f -print0)
   fi
-  install -d -m 0755 -o octessera-runtime -g octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples
-  chown octessera-runtime:octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples
-  chmod 0755 /var/lib/octessera/presets /var/lib/octessera/samples
+  install -d -m 0755 -o octessera-runtime -g octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings
+  chown octessera-runtime:octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings
+  chmod 0755 /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings
 }
 
 octessera_load_image_contract() {

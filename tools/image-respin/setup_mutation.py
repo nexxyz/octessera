@@ -7,7 +7,7 @@ import os
 import stat
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 try:
     from .inventory import Inventory, InventoryError, build_inventory, inventory_digest, remove_path, virtual_symlink_target
@@ -401,6 +401,17 @@ def _validate_output(root: Path, before: Inventory, after: Inventory, contract: 
     return changed
 
 
+def _validate_final_output(root: Path, inventory: Inventory, contract: dict[str, Any]) -> dict[str, Any]:
+    runtime_root = inventory.get("var/lib/octessera")
+    if contract["board_profile"] == "orange-pi-zero-2w" and runtime_root is None:
+        raise MutationError("setup proof runtime root is missing")
+    if contract["board_profile"] == "orange-pi-zero-2w":
+        check_spec(cast(dict[str, Any], runtime_root), {"type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None}, "var/lib/octessera")
+    _validate_output(root, inventory, inventory, contract, {})
+    prerequisites = _validate_prerequisites(root, inventory, contract)
+    return {"board_profile": contract["board_profile"], "preimage_source": contract["preimage_source"], "prerequisites": prerequisites, "preimage_digest": inventory_digest(inventory)}
+
+
 def _provenance(board: str, source: object, contract_digest: str, parent: dict[str, Any], source_inputs: list[dict[str, Any]], before: Inventory, after: Inventory, changed: list[str], tool_digest: str) -> dict[str, Any]:
     source_identity = canonical_source_identity(source)
     parent_identity = json.loads(json.dumps(parent, sort_keys=True))
@@ -415,7 +426,13 @@ def mutate_setup(root: Path, board_profile: str, source_identity: object, *, con
     try:
         before = build_inventory(root)
         source_inputs = validate_sources(contract, Path(__file__).resolve().parents[2])
-        parent = _validate_parent(root, before, contract)
+        try:
+            parent = _validate_final_output(root, before, contract)
+        except MutationError:
+            parent = _validate_parent(root, before, contract)
+        else:
+            provenance = _provenance(board_profile, source_identity, contract_digest, parent, list(source_inputs.values()), before, before, [], tool_digest or setup_tool_code_digest())
+            return SetupMutationResult(board_profile, contract_digest, list(source_inputs.values()), inventory_digest(before), inventory_digest(before), [], parent, provenance)
     except (InventoryError, SetupContractError, UnicodeError) as exc:
         raise MutationError(str(exc)) from exc
     mutable = [item["target"] for item in contract["directories"]] + list(_implicit_directory_paths(contract)) + [item["target"] for item in contract["entries"]] + [item["target"] for item in contract["symlinks"]] + contract["stale_runtime_markers"]

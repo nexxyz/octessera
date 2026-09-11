@@ -34,7 +34,7 @@ spi_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-spi1-
 input_routing_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts"
 audio_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts"
 octessera_validate_orange_runtime_assets "$overlay_dir" || exit 1
-install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples /var/lib/octessera/presets
+install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples /var/lib/octessera/presets /var/lib/octessera/recordings /var/lib/octessera/screen-recordings
 rm -f /var/lib/octessera/setup-complete /var/lib/octessera/setup-force /var/lib/octessera/setup-finalize-failed
 rm -f /run/octessera/setup-portal.request /run/octessera-setup-request/inbox/start /run/octessera-setup-status/current.json
 rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-status /run/octessera-setup-queue /run/octessera-setup-request

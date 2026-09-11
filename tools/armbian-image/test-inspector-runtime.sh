@@ -19,23 +19,33 @@ assert_runtime_owned_mode_status() {
 }
 target="$fake_image"
 export DEBUGFS_CASE=runtime-owner-valid
-assert_runtime_owned_mode_status 0 var/lib/octessera/presets 990:990 755
-assert_runtime_owned_mode_status 0 var/lib/octessera/presets 990:990 0755
+for directory in presets samples recordings screen-recordings; do
+  assert_runtime_owned_mode_status 0 "var/lib/octessera/$directory" 990:990 755
+  assert_runtime_owned_mode_status 0 "var/lib/octessera/$directory" 990:990 0755
+done
 export DEBUGFS_CASE=runtime-owner-wrong-owner
-assert_runtime_owned_mode_status 1 var/lib/octessera/presets 990:990 755
+assert_runtime_owned_mode_status 1 var/lib/octessera/recordings 990:990 755
 export DEBUGFS_CASE=runtime-owner-wrong-mode
-assert_runtime_owned_mode_status 1 var/lib/octessera/presets 990:990 755
+assert_runtime_owned_mode_status 1 var/lib/octessera/screen-recordings 990:990 755
 runtime_directory="$work/runtime-owned"
-mkdir -p "$runtime_directory/var/lib/octessera/presets"
-chmod 0755 "$runtime_directory/var/lib/octessera/presets"
-directory_owner="$(stat -c '%u:%g' "$runtime_directory/var/lib/octessera/presets")"
+mkdir -p "$runtime_directory/var/lib/octessera" \
+  "$runtime_directory/var/lib/octessera/presets" \
+  "$runtime_directory/var/lib/octessera/recordings" \
+  "$runtime_directory/var/lib/octessera/screen-recordings"
+chmod 0755 "$runtime_directory/var/lib/octessera/presets" "$runtime_directory/var/lib/octessera/recordings" "$runtime_directory/var/lib/octessera/screen-recordings"
+directory_owner="$(stat -c '%u:%g' "$runtime_directory/var/lib/octessera/recordings")"
 target="$runtime_directory"
+stat_path() { octessera_stat_path "$target" "$1"; }
+assert_status 0 octessera_require_real_directory var/lib/octessera
+for directory in presets recordings screen-recordings; do
+  assert_status 0 octessera_require_real_directory "var/lib/octessera/$directory"
+  assert_runtime_owned_mode_status 0 "var/lib/octessera/$directory" "$directory_owner" 755
+done
 assert_runtime_owned_mode_status 0 var/lib/octessera/presets "$directory_owner" 755
 chmod 0700 "$runtime_directory/var/lib/octessera/presets"
 assert_runtime_owned_mode_status 1 var/lib/octessera/presets "$directory_owner" 755
 assert_runtime_owned_mode_status 1 var/lib/octessera/presets "$directory_owner" 07555
 target="$fake_image"
-stat_path() { octessera_stat_path "$target" "$1"; }
 export DEBUGFS_CASE=variable-whitespace
 assert_status 0 octessera_require_real_directory opt/octessera
 assert_status 0 octessera_require_runtime_entry_set opt/octessera/releases/1.2.3
@@ -69,11 +79,16 @@ reject_path() { runtime_rejected_paths+=("$1"); }
 octessera_require_orange_boot_service() { :; }
 octessera_require_orange_shutdown_service() { :; }
 octessera_require_orange_suspend_service() { :; }
-octessera_require_real_directory() { :; }
-octessera_require_owned_mode() { :; }
+inspected_real_directories=()
+inspected_owned_directories=()
+octessera_require_real_directory() { inspected_real_directories+=("$1"); }
+octessera_require_owned_mode() { inspected_owned_directories+=("$1"); }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_IMAGE_CONTRACT_SHA256='"$runtime_contract_hash"$'\nOCTESSERA_RUNTIME_VERSION=none\nOCTESSERA_RUNTIME_BINARY_SHA256=none\nOCTESSERA_RUNTIME_MANIFEST_SHA256=none\nOCTESSERA_RUNTIME_METADATA_SHA256=none'
 octessera_inspect_runtime_mode "$profile_metadata" diagnostic
 [[ "${runtime_rejected_paths[*]}" == 'etc/systemd/system/octessera.service etc/systemd/system/multi-user.target.wants/octessera.service usr/local/bin/octessera-pi opt/octessera/current opt/octessera/releases' ]] || { echo 'Diagnostic inspector did not reject every runtime path.' >&2; exit 1; }
+for directory in var/lib/octessera var/lib/octessera/samples var/lib/octessera/recordings var/lib/octessera/screen-recordings; do
+  [[ " ${inspected_real_directories[*]} " == *" $directory "* && " ${inspected_owned_directories[*]} " == *" $directory "* ]] || { echo "Diagnostic inspector did not inspect $directory." >&2; exit 1; }
+done
 
 runtime_binary_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 runtime_manifest_hash=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
@@ -84,6 +99,8 @@ printf '%s\n' 'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=
 printf '%s\n' 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"' > "$runtime_root/etc/udev/rules.d/10-wifi-power-save.rules"
 ln -s /dev/null "$runtime_root/etc/udev/rules.d/09-disabled.rules"
 target="$runtime_root"
+inspected_real_directories=()
+inspected_owned_directories=()
 login_defs_fixture=$'TTYPERM 0620\nUID_MIN 1000'
 hosts_fixture=$'127.0.0.1 localhost\n127.0.1.1 octessera-opi local-alias # orangepizero2w stays in comments\n::1 localhost ip6-localhost ip6-loopback octessera-opi # orangepizero2w stays in comments\n'
 hostname_hash="$(printf '%s\n' 'octessera-opi' | sha256sum | awk '{ print $1 }')"
@@ -107,9 +124,7 @@ stat_path() {
 octessera_require_image_contract() { [[ "$1" == production ]]; }
 octessera_require_absent_path() { :; }
 octessera_require_runtime_entry_set() { :; }
-octessera_require_real_directory() { :; }
 octessera_require_runtime_elf() { :; }
-octessera_require_owned_mode() { :; }
 read_file() {
   case "$1" in
     etc/shadow) printf '%s\n' 'octessera-runtime:!:19000:0:99999:7:::' ;;
@@ -139,6 +154,9 @@ octessera_require_image_symlink() { runtime_links+=("$1=$2"); }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION=1.2.3\nOCTESSERA_RUNTIME_BINARY_SHA256='"$runtime_binary_hash"$'\nOCTESSERA_RUNTIME_MANIFEST_SHA256='"$runtime_manifest_hash"$'\nOCTESSERA_RUNTIME_METADATA_SHA256='"$runtime_metadata_hash"
 octessera_inspect_runtime_mode "$profile_metadata" production
 [[ "${runtime_links[*]}" == 'etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket=../octessera-device-apply-reboot.socket etc/systemd/system/sockets.target.wants/octessera-update.socket=../octessera-update.socket opt/octessera/current=/opt/octessera/releases/1.2.3 usr/local/bin/octessera-pi=/opt/octessera/current/octessera-pi etc/systemd/system/multi-user.target.wants/octessera.service=../octessera.service' ]] || { echo 'Production inspector did not require the exact symlink chain.' >&2; exit 1; }
+for directory in var/lib/octessera var/lib/octessera/presets var/lib/octessera/samples var/lib/octessera/recordings var/lib/octessera/screen-recordings; do
+  [[ " ${inspected_real_directories[*]} " == *" $directory "* && " ${inspected_owned_directories[*]} " == *" $directory "* ]] || { echo "Production inspector did not inspect $directory." >&2; exit 1; }
+done
 hostname_hash="$hostname_no_newline_hash"
 if ( octessera_inspect_runtime_mode "$profile_metadata" production ); then
   echo 'Production inspector accepted /etc/hostname without a trailing newline.' >&2

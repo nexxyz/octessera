@@ -59,8 +59,8 @@ def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, proven
     write(production / "opt/octessera/update-state.json", json.dumps({"schema_version": 2, "phase": "committed", "current": version, "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": updater_manifest, "asset": None}) + "\n")
     os.chown(production / "opt/octessera/update-state.json", 0, 0)  # type: ignore[attr-defined]
     os.chmod(production / "opt/octessera/update-state.json", 0o644)
-    (production / "var/lib/octessera/presets").mkdir(parents=True)
-    (production / "var/lib/octessera/samples").mkdir(parents=True, exist_ok=True)
+    for relative in ("presets", "samples", "recordings", "screen-recordings"):
+        (production / "var/lib/octessera" / relative).mkdir(parents=True, exist_ok=True)
     write(production / "etc/systemd/system/octessera.service", "[Unit]\nStartLimitIntervalSec=30s\nStartLimitBurst=3\nRequires=octessera-device-apply-reboot.socket\nRequires=octessera-provision-musical-default.service\nRequires=octessera-update-recovery.service\nAfter=octessera-device-apply-reboot.socket\n[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nTTYPath=/dev/tty1\nSupplementaryGroups=audio i2c spi gpio tty video\nNoNewPrivileges=yes\nAmbientCapabilities=CAP_SYS_TTY_CONFIG\nCapabilityBoundingSet=CAP_SYS_TTY_CONFIG\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\nRestart=on-failure\nRestartPreventExitStatus=78\nRestartSec=5s\n")
     write(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"spidev1.0\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"gpiochip1\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
     write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
@@ -79,10 +79,31 @@ def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, proven
             subprocess.run(["sudo", "-n", "chown", "-R", "root:root", str(release_dir)], check=True)
             subprocess.run(["sudo", "-n", "chmod", "0555", str(release_dir), str(release_dir / "octessera-pi")], check=True)
             subprocess.run(["sudo", "-n", "chmod", "0444", str(release_dir / "octessera-runtime.json"), str(release_dir / "SHA256SUMS"), str(release_dir / "update-manifest.json")], check=True)
-            subprocess.run(["sudo", "-n", "chown", "-R", "990:990", str(production / "var/lib/octessera")], check=True)
+            runtime_root = production / "var/lib/octessera"
+            subprocess.run(["sudo", "-n", "chown", "0:0", str(runtime_root)], check=True)
+            subprocess.run(["sudo", "-n", "chmod", "0755", str(runtime_root)], check=True)
+            for relative in ("presets", "samples", "recordings", "screen-recordings"):
+                path = runtime_root / relative
+                subprocess.run(["sudo", "-n", "chown", "990:990", str(path)], check=True)
+                subprocess.run(["sudo", "-n", "chmod", "0755", str(path)], check=True)
             subprocess.run(["sudo", "-n", "chown", "0:0", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
             subprocess.run(["sudo", "-n", "chmod", "0644", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
             run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), True)
+            for name, mutate in (
+                ("missing-recordings", lambda root: (root / "var/lib/octessera/recordings").rmdir()),
+                ("missing-screen-recordings", lambda root: (root / "var/lib/octessera/screen-recordings").rmdir()),
+                ("symlinked-recordings", lambda root: ((root / "var/lib/octessera/recordings").rmdir(), (root / "var/lib/octessera/recordings").symlink_to("samples"))),
+                ("wrong-recordings-owner", lambda root: subprocess.run(["sudo", "-n", "chown", "991:990", str(root / "var/lib/octessera/recordings")], check=True)),
+                ("wrong-screen-recordings-group", lambda root: subprocess.run(["sudo", "-n", "chown", "990:991", str(root / "var/lib/octessera/screen-recordings")], check=True)),
+                ("wrong-screen-recordings-mode", lambda root: subprocess.run(["sudo", "-n", "chmod", "0700", str(root / "var/lib/octessera/screen-recordings")], check=True)),
+                ("wrong-runtime-root-owner", lambda root: subprocess.run(["sudo", "-n", "chown", "991:0", str(root / "var/lib/octessera")], check=True)),
+                ("wrong-runtime-root-mode", lambda root: subprocess.run(["sudo", "-n", "chmod", "0700", str(root / "var/lib/octessera")], check=True)),
+                ("symlinked-runtime-root", lambda root: (shutil.rmtree(root / "var/lib/octessera"), (root / "var/lib/octessera").symlink_to(".."))),
+            ):
+                negative = work / name
+                copy_fixture_root(production, negative)
+                mutate(negative)
+                run_proof(verifier_args(negative, image, dtb, evidence, provenance, "production", True), False)
             for name, mutate, reason in (
                 ("onboarding-marker", lambda root: write(root / "root/.not_logged_in_yet", b"first login\n"), "Orange Armbian onboarding marker remains"),
                 ("missing-firstrun-service", lambda root: (root / FIRSTRUN_SERVICE_RELATIVE).unlink(), "Orange Armbian firstrun service is missing or symlinked"),
