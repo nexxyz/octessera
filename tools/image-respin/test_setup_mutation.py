@@ -22,7 +22,7 @@ from setup_proof import prove_setup_root
 ROOT = Path(__file__).resolve().parents[2]
 RPI = "raspberry-pi-zero-2w"
 ORANGE = "orange-pi-zero-2w"
-PINNED = "4eec2b7edf6619fa22c709d4a589237a5748de78"
+CONSTRUCTOR_SOURCE = "f7db4257171ebaa80ad59a68e8f8d8ce311f81cc"
 
 
 def _write(path: Path, value: bytes | str, mode: int = 0o644) -> None:
@@ -66,9 +66,14 @@ def _setup_preimages(root: Path, contract: dict) -> None:
         _owner(root / item["target"], preimage["uid"], preimage["gid"])
     for item in contract["symlinks"]:
         preimage = item["preimage"]
-        if item["classification"] == "stale-ui-root-asset" and preimage["kind"] == "exact":
-            _write(root / item["target"], _orange_preimage(item["target"]), preimage["mode"])
-            _owner(root / item["target"], preimage["uid"], preimage["gid"])
+        if preimage["kind"] != "exact":
+            continue
+        path = root / item["target"]
+        if preimage["type"] == "symlink":
+            path.symlink_to(preimage["link_target"])
+        else:
+            _write(path, _orange_preimage(item["target"]), preimage["mode"])
+        _owner(path, preimage["uid"], preimage["gid"])
 
 
 def _rpi_parent_sudoers_preimage(root: Path, contract: dict) -> None:
@@ -98,7 +103,7 @@ def _prerequisites(root: Path, board: str) -> None:
 
 
 def _orange_preimage(path: str) -> bytes:
-    return subprocess.check_output(["git", "-c", f"safe.directory={ROOT.as_posix()}", "show", f"{PINNED}:userpatches/overlay/{path}"], cwd=ROOT)
+    return subprocess.check_output(["git", "-c", f"safe.directory={ROOT.as_posix()}", "show", f"{CONSTRUCTOR_SOURCE}:userpatches/overlay/{path}"], cwd=ROOT)
 
 
 def _fixture(board: str, work: Path) -> Path:
@@ -119,7 +124,8 @@ def _fixture(board: str, work: Path) -> Path:
     if board == ORANGE:
         _setup_preimages(root, contract)
         disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
-        (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
+        if disabled["preimage"]["kind"] == "exact":
+            (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
         _write(root / "etc/ssh/sshd_config.d/10-octessera-setup.conf", b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n", 0o664)
         policy = load_policy(ROOT)
         _write(root / "boot/Image", b"kernel")
@@ -162,20 +168,23 @@ class SetupMutationTests(unittest.TestCase):
                 proof = prove_setup_root(root, board)
                 self.assertEqual(proof["contract_sha256"], result.contract_digest)
                 contract, _ = load_contract(contract_for_board(board))
+                if board == ORANGE:
+                    self.assertEqual(result.provenance["parent"]["identity"]["preimage_source"], {"kind": "constructor-source", "commit": CONSTRUCTOR_SOURCE, "proof": "measured from the exact v0.8.1 current parent constructed from this source"})
                 directory = root / "usr/local/share/octessera-setup-ui"
                 self.assertTrue(directory.is_dir())
                 self.assertEqual((directory.stat().st_mode & 0o777, directory.stat().st_uid, directory.stat().st_gid), (0o755, 0, 0))
-                self.assertIn("usr/local/share/octessera-setup-ui", result.changed_paths)
                 self.assertIn("usr/local/share/octessera-setup-ui", proof["verified_paths"])
                 self.assertEqual(result.provenance["setup_layer"]["contract_digest"], result.contract_digest)
                 self.assertEqual(len(result.provenance["setup_layer"]["source_inputs"]), len(contract["source_inputs"]))
                 self.assertRegex(result.provenance["finalizer"]["tool_code_digest"], r"^[0-9a-f]{64}$")
-                self.assertIn("etc/octessera/setup-profile", result.changed_paths)
                 if board == RPI:
+                    self.assertIn("usr/local/share/octessera-setup-ui", result.changed_paths)
+                    self.assertIn("etc/octessera/setup-profile", result.changed_paths)
                     self.assertIn("etc/sudoers.d/010_pi-nopasswd", result.changed_paths)
                     self.assertFalse((root / "etc/sudoers.d/010_pi-nopasswd").exists())
                     self.assertIn("etc/sudoers.d/010_pi-nopasswd", proof["verified_paths"])
                 else:
+                    self.assertEqual(set(result.changed_paths), {"usr/local/lib/octessera/setup_config.py", "usr/local/share/octessera-setup-ui/README.md", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings", "var/lib/octessera/setup-complete"})
                     self.assertNotIn("etc/sudoers.d/010_pi-nopasswd", result.changed_paths)
                 if board == ORANGE:
                     runtime_root = root / "var/lib/octessera"
@@ -222,8 +231,18 @@ class SetupMutationTests(unittest.TestCase):
                     with self.assertRaises(ConstructorRequired):
                         mutate_setup(root, ORANGE, "a" * 40)
                     self.assertEqual(inventory_digest(build_inventory(root)), before)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(ORANGE, Path(temporary))
+            path = root / "var/lib/octessera/recordings"
+            path.mkdir()
+            os.chmod(path, 0o755)
+            _owner(path, 986, 986)
+            before = inventory_digest(build_inventory(root))
+            with self.assertRaises(ConstructorRequired):
+                mutate_setup(root, ORANGE, "a" * 40)
+            self.assertEqual(inventory_digest(build_inventory(root)), before)
 
-    def test_orange_requires_exact_pinned_preimages_and_raspberry_requires_absence(self) -> None:
+    def test_orange_requires_exact_constructor_preimages_and_raspberry_requires_absence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(ORANGE, Path(temporary))
             _write(root / "etc/systemd/system/octessera-setup.service", b"not-the-pinned-preimage", 0o644)
@@ -247,9 +266,16 @@ class SetupMutationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(ORANGE, Path(temporary))
             directory = root / "usr/local/share/octessera-setup-ui"
-            _owner(directory, 0, 0)
+            _owner(directory, 1001, 1001)
             with self.assertRaises(ConstructorRequired):
                 mutate_setup(root, ORANGE, "a" * 40)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(ORANGE, Path(temporary))
+            _owner(root / "usr/local/share/octessera-setup-ui/README.md", 1001, 1001)
+            before = inventory_digest(build_inventory(root))
+            with self.assertRaises(ConstructorRequired):
+                mutate_setup(root, ORANGE, "a" * 40)
+            self.assertEqual(before, inventory_digest(build_inventory(root)))
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(ORANGE, Path(temporary))
             _write(root / "usr/local/share/octessera-setup-ui/undeclared", b"unexpected")
@@ -340,9 +366,9 @@ class SetupMutationTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 mutate_setup(root, ORANGE, "a" * 40, mutation_hook=interrupted_orange)
             self.assertEqual(before, inventory_digest(build_inventory(root)))
-            self.assertTrue((root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service").is_symlink())
+            self.assertFalse((root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service").exists() or (root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service").is_symlink())
             directory = root / "usr/local/share/octessera-setup-ui"
-            self.assertEqual((directory.stat().st_uid, directory.stat().st_gid), (1001, 1001))
+            self.assertEqual((directory.stat().st_uid, directory.stat().st_gid), (0, 0))
             for item in load_contract(contract_for_board(ORANGE))[0]["entries"]:
                 if item["target"].startswith("usr/local/share/octessera-setup-ui/"):
                     path = root / item["target"]
@@ -350,7 +376,7 @@ class SetupMutationTests(unittest.TestCase):
                         self.assertFalse(path.exists())
                     else:
                         metadata = path.stat()
-                        self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 1001, 1001))
+                        self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 0, 0))
 
         with tempfile.TemporaryDirectory() as temporary:
             root = _fixture(RPI, Path(temporary))

@@ -18,7 +18,7 @@ import disk_setup_respin
 from disk_packaging import file_digest
 from test_disk_respin import ORANGE, _context, _orange_policy, _parent_binding, _run, _resource_sets
 from test_runtime_mutation import _bundle, _fixture
-from test_setup_mutation import _parents, _prerequisites, _setup_preimages
+from test_setup_mutation import _owner, _parents, _prerequisites, _setup_preimages
 from setup_contract import contract_for_board, load_contract
 
 
@@ -73,14 +73,20 @@ class DiskSetupRespinTests(unittest.TestCase):
             root, bundle = _fixture(work / "runtime", board)
             runtime_root = root / "var/lib/octessera"
             runtime_root.mkdir(parents=True, exist_ok=True)
-            os.chown(runtime_root, 0, 0)  # type: ignore[attr-defined]
+            _owner(runtime_root, 0, 0)
             os.chmod(runtime_root, 0o755)
+            for relative in ("presets", "samples"):
+                path = runtime_root / relative
+                path.mkdir()
+                _owner(path, 986, 986)
+                os.chmod(path, 0o755)
             contract, _ = load_contract(contract_for_board(board))
             _parents(root, contract)
             _prerequisites(root, board)
             _setup_preimages(root, contract)
             disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
-            (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
+            if disabled["preimage"]["kind"] == "exact":
+                (root / disabled["target"]).symlink_to(disabled["preimage"]["link_target"])
             path = root / "etc/ssh/sshd_config.d/10-octessera-setup.conf"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")
@@ -101,6 +107,9 @@ class DiskSetupRespinTests(unittest.TestCase):
             runtime_provenance = result["runtime_mutation"]["provenance"]
             self.assertNotIn("notice", runtime_provenance)
             self.assertNotIn("notice", result["setup_mutation"])
+            setup_provenance = result["setup_mutation"]["provenance"]
+            self.assertEqual(set(setup_provenance["changed_paths"]), {"usr/local/lib/octessera/setup_config.py", "usr/local/share/octessera-setup-ui/README.md", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"})
+            self.assertEqual(setup_provenance["parent"]["identity"]["preimage_source"]["commit"], "f7db4257171ebaa80ad59a68e8f8d8ce311f81cc")
             self.assertEqual(file_digest(source), source_before)
             self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")
             derived_image = work / "derived.img"
