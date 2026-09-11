@@ -50,6 +50,9 @@ impl NativeRunner {
             RuntimeStoreResult::DeviceUpdateStatus { message, .. } => {
                 self.display.toast = Some(NativeToast { message, offset: 0 });
             }
+            RuntimeStoreResult::RecordingStatus { message, .. } => {
+                self.display.toast = Some(NativeToast { message, offset: 0 });
+            }
             RuntimeStoreResult::RuntimeFailure { error }
                 if error.operation == crate::RuntimeOperation::SystemInfo =>
             {

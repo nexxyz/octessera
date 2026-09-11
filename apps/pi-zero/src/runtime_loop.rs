@@ -30,11 +30,13 @@ pub fn process_runtime_output(
     output: playback_runtime::RuntimeIngest,
 ) -> Result<(), String> {
     ingest_oled_messages(adapter, &output.messages);
+    adapter.submit_accepted_oled_frame()?;
     let fault = adapter
         .oled_frame_fault()
         .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
     let fault_output = playback.report_oled_cache_fault(fault);
     ingest_oled_messages(adapter, &fault_output.messages);
+    adapter.submit_accepted_oled_frame()?;
     if adapter.shutdown_pending() {
         return Ok(());
     }
@@ -49,6 +51,16 @@ pub fn process_runtime_output(
             break;
         }
         dispatch_runtime_message(playback, runner, adapter, follow_up)?;
+    }
+    if !adapter.shutdown_pending() {
+        if let Some(result) = adapter.poll_recording_status() {
+            dispatch_runtime_message(
+                playback,
+                runner,
+                adapter,
+                HostMessage::RuntimeResult { result },
+            )?;
+        }
     }
     Ok(())
 }

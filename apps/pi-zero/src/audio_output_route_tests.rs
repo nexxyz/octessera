@@ -1,5 +1,5 @@
 use super::audio_output_open::{AudioConstructionConfig, OpenedAudioSink};
-use super::cpal_audio_output::OrangeAudioProfile;
+use super::audio_profile::OrangeAudioProfile;
 use super::{AudioManager, AudioOpenPolicy, AudioSink};
 use crate::audio_route::{self, AudioRouteStatus, RouteOpenError};
 use crate::audio_sink_registry::new_attach_gate;

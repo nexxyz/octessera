@@ -28,22 +28,31 @@ Root (group)
 
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 
-The System section's `Audio / USB` group contains USB Audio, HDMI Audio, USB
-MIDI, Start SD2 Xfer, and Stop SD2 Xfer on Pi hardware; Jack is the always-on
-primary and its no-op row is omitted there. Desktop retains its editable Jack
-control. USB and HDMI audio mirror the canonical Jack mix and do not replace
-it; HDMI audio remains separate from HDMI video. Restart-sensitive edits use
-the native Save Setting flow shared with Sound.
+The System section puts the direct Save Current and dynamic Load Preset shortcut group, followed
+by Master Vol, Panic, Sys. Info, and Basic Help. Recording, Notes, MIDI, Audio, UI, Saves,
+Setup, Reset, Reboot, and Shutdown follow in that order. USB and HDMI Video are
+board-only groups and are omitted on desktop.
 
-`System > Sound` uses compact rows `Vel Scale`, `Vel Curve`, `Voices`, `DSP`,
-and `Buf Frames`. On Orange-capability hosts, `DSP` replaces `Buf Frames` and
-offers `Inline` (default) or `Multicore`; other platforms keep `Buf Frames`.
-The choice applies through the native Save Setting flow, is preserved alongside
-output-buffer preferences, and does not alter voice or FX limits.
+The root Load Preset group contains a `(none)` refresh action and one confirmed action
+for each named preset. The same named list remains available under
+`System > Saves > Library > Load`.
 
-The System section's `DSP` group stores the native worker CPU warning and bus
-idle thresholds. Worker warning presentation and bus silence behavior are
-separate runtime phases.
+`System > Notes` owns `Note Length`, `Vel Scale`, and `Vel Curve` with their
+existing keys and semantics. `System > Audio` owns the supported USB and HDMI
+audio mirrors, `Perf. Mode`, `Polyphony`, and `Engine`. `Perf. Mode` is visible
+on Raspberry and Orange and displays compact `Lat | Cap` labels for the full
+`Latency | Capacity` choices; desktop hides it and
+all Jack/USB/HDMI/SD2 device controls. `Polyphony` keeps the existing
+`sound.voiceStealingMode` values `fixed12`, `fixed16`, `auto-soft`,
+`auto-balanced`, `auto-hard`, and `none`. `Engine` contains CPU Warn % and Bus
+Idle with their existing keys and values, plus Buf Frames where the
+performance-mode capability is unavailable.
+
+USB contains USB MIDI and SD2 transfer controls. HDMI Video contains the
+existing Mode, Bars per cycle, and Grid Lines controls. USB and HDMI audio
+mirror the canonical Jack mix and do not replace it; HDMI audio remains
+separate from HDMI video. Restart-sensitive edits use the native Save Setting
+flow shared with Audio.
 
 Aggregate audio-load and voice-steal status is separate from the red persistent-
 worker CPU icon. The icon is at `(117,5)` and requires valid persistent
@@ -56,10 +65,20 @@ silent. `missedQuantumFlash` stays true for five emitted seconds, clears on the
 exact emitted-frame crossing, and resets on a later miss. The existing OLED
 presentation structure and coordinates are unchanged.
 
-The System section's `HDMI` group displays `Terminal` for the stored/runtime
+The System section's `HDMI Video` group displays `Terminal` for the stored/runtime
 value `none`; its `Bars per cycle` row is conditional on `cycle-behaviors`.
 See the split-out tree for the framebuffer ownership and snapshot semantics.
 
-Within `System`, `Configure WiFi` and `Backup / Restore` are actions between `Info` and `Basic Help`. `Configure WiFi` uses stable key `system.configureWifi`. After confirmation, native runtime stops and resets playback, sends MIDI panic/note cleanup, never auto-resumes, and emits the typed setup portal effect. The setup modal reports `starting`, `portal_ready` with the four-character code and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `failed`, `timed_out`, or desktop `unsupported`. Browser Applying is provisional and an AP disconnect is expected; the OLED result is authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a default route, DNS, or ICMP. Success and timeout cards auto-hide, failure remains dismissible, and a new `Open Portal` action retries. Configure WiFi does not start or advertise Backup / Restore.
+Within `System > Setup`, Configure WiFi, Backup / Restore, Updates, and
+Hardware Test retain their existing action keys. `Configure WiFi` uses stable
+key `system.configureWifi`. After confirmation, native runtime stops and resets
+playback, sends MIDI panic/note cleanup, never auto-resumes, and emits the typed
+setup portal effect. The setup modal reports `starting`, `portal_ready` with
+the four-character code and `192.168.42.1` for 10 minutes, `finalizing`,
+`succeeded`, `failed`, `timed_out`, or desktop `unsupported`.
 
-`System > Backup / Restore` is a direct, unconfirmed action with stable key `system.backupRestore`. On Pi it opens the existing authenticated service on `http://<regular-ip>:8081` using a generated 10-character code and a 15-minute lifetime. It selects a usable regular `wlan0` IPv4 address; no address means typed unavailable with no bind or retry. Reopening keeps the same URL, code, and remaining lifetime. The OLED shows the IP, port, code, expiry, and `> Stop service`; Back hides the card while the service continues, and Stop closes it and revokes the code. Expiry and authentication revocation close it automatically. Desktop is unsupported, and the action is separate from rolling `System > Saves > Default > Backups`.
+`System > Setup > Backup / Restore` is a direct, unconfirmed action with stable
+key `system.backupRestore`. On Pi it opens the existing authenticated service
+on `http://<regular-ip>:8081` using a generated 10-character code and a
+15-minute lifetime. Desktop is unsupported, and the action is separate from
+rolling `System > Saves > Default > Backups`.

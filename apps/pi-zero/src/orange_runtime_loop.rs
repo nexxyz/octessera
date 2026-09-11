@@ -318,11 +318,13 @@ pub(crate) fn process_runtime_output(
     output: playback_runtime::RuntimeIngest,
 ) -> Result<(), String> {
     ingest_oled_messages(host, &output.messages);
+    host.submit_accepted_oled_frame()?;
     let fault = host
         .oled_frame_fault()
         .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
     let fault_output = playback.report_oled_cache_fault(fault);
     ingest_oled_messages(host, &fault_output.messages);
+    host.submit_accepted_oled_frame()?;
     for follow_up in fault_output.follow_ups {
         if host.shutdown_pending() {
             break;
@@ -334,6 +336,16 @@ pub(crate) fn process_runtime_output(
             break;
         }
         dispatch(playback, runner, host, follow_up)?;
+    }
+    if !host.shutdown_pending() {
+        if let Some(result) = host.poll_recording_status() {
+            dispatch(
+                playback,
+                runner,
+                host,
+                HostMessage::RuntimeResult { result },
+            )?;
+        }
     }
     Ok(())
 }

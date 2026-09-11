@@ -139,7 +139,7 @@ remains installed and available, while `dnsmasq.service`,
 `systemd-networkd-wait-online.service`, and `NetworkManager-wait-online.service`
 are disabled. The setup service is disabled, and only
 `octessera-setup-request.path` is enabled. Networking and SSH are deliberate
-opt-in actions from `System > Configure WiFi > Open Portal`; the image does not
+opt-in actions from `System > Setup > Configure WiFi > Open Portal`; the image does not
 start a hotspot or SSH automatically.
 
 The production image's SPI1 OLED+SD2 overlay is board-specific:

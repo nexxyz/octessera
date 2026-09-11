@@ -103,7 +103,7 @@ fn open(
     let health = AudioStreamHealth::optional(format!("{sink:?}"));
     let built = build_cpal_mirror_stream(
         match construction {
-            AudioConstructionConfig::OutputBuffer(frames) => frames,
+            AudioConstructionConfig::Raspberry(profile) => profile.output_buffer_frames,
         },
         sink,
         consumer,

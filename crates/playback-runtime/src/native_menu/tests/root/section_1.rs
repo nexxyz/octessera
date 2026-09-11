@@ -116,70 +116,177 @@ pub(crate) fn navigation_skips_separator_rows_when_turning() {
 }
 
 #[test]
-pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
-    let mut menu = NativeMenuModel::new(config());
-    for _ in 0..5 {
-        menu.turn(1);
+pub(crate) fn system_tree_has_exact_order_and_platform_visibility() {
+    let desktop = config();
+    assert_eq!(
+        system_labels(&desktop),
+        vec![
+            "Save Current",
+            "Load Preset",
+            "Master Vol",
+            "Panic",
+            "Sys. Info",
+            "Basic Help",
+            "Recording",
+            "Notes",
+            "MIDI",
+            "Audio",
+            "UI",
+            "Saves",
+            "Setup",
+            "Reset",
+            "Reboot",
+            "Shutdown",
+        ]
+    );
+    assert_eq!(
+        group_labels(&desktop, "Recording"),
+        vec!["Max Time", "Start Audio", "St. Audio+OLED", "Stop",]
+    );
+    assert_eq!(group_labels(&desktop, "Load Preset"), vec!["(none)"]);
+    assert_eq!(
+        group_labels(&desktop, "Notes"),
+        vec!["Note Length", "Vel Scale", "Vel Curve"]
+    );
+    assert_eq!(group_labels(&desktop, "Audio"), vec!["Polyphony", "Engine"]);
+    assert_eq!(
+        group_labels(&desktop, "Audio > Engine"),
+        vec!["CPU Warn %", "Bus Idle", "Buf Frames"]
+    );
+    assert_eq!(
+        group_labels(&desktop, "Setup"),
+        vec![
+            "Configure WiFi",
+            "Backup / Restore",
+            "Updates",
+            "Hardware Test",
+        ]
+    );
+    assert_eq!(
+        group_labels(&desktop, "Reset"),
+        vec!["Load Empty", "Load Factory"]
+    );
+
+    let mut board = config();
+    board.jack_audio_required = true;
+    board.audio_optimization_capacity_available = true;
+    assert_eq!(
+        system_labels(&board),
+        vec![
+            "Save Current",
+            "Load Preset",
+            "Master Vol",
+            "Panic",
+            "Sys. Info",
+            "Basic Help",
+            "Recording",
+            "Notes",
+            "MIDI",
+            "Audio",
+            "USB",
+            "UI",
+            "HDMI Video",
+            "Saves",
+            "Setup",
+            "Reset",
+            "Reboot",
+            "Shutdown",
+        ]
+    );
+    assert_eq!(
+        group_labels(&board, "Audio"),
+        vec![
+            "USB Audio",
+            "HDMI Audio",
+            "Perf. Mode",
+            "Polyphony",
+            "Engine",
+        ]
+    );
+    assert_eq!(
+        group_labels(&board, "USB"),
+        vec!["MIDI Out", "Start SD2 Xfer", "Stop SD2 Xfer"]
+    );
+    assert_eq!(
+        group_labels(&board, "HDMI Video"),
+        vec!["Mode", "Grid Lines"]
+    );
+
+    let menu = NativeMenuModel::new(board);
+    assert!(matches!(
+        menu.item_for_key("preset.load").map(|item| item.value),
+        Some(NativeMenuValue::Group)
+    ));
+    assert!(matches!(
+        menu.item_for_key("preset.load.none").map(|item| item.value),
+        Some(NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect)))
+            if effect == "preset.refresh"
+    ));
+    for key in [
+        "preset.saveCurrent",
+        "midi.panic",
+        "system.info",
+        "system.controlsHelp",
+        "system.reboot",
+        "system.shutdown",
+    ] {
+        assert!(
+            matches!(
+                menu.item_for_key(key).map(|item| item.value),
+                Some(NativeMenuValue::Action(NativeMenuAction::PlatformEffect(_)))
+            ),
+            "{key} should be a direct action"
+        );
     }
-    let _ = menu.press();
-    let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "/System");
-    assert_eq!(
-        snapshot.lines,
-        vec![
-            "> Saves >",
-            "  Recording >",
-            "  Audio / USB >",
-            "  Sound >",
-            "  MIDI >",
-            "  UI >",
-            "  Updates >",
-        ]
-    );
-    assert_eq!(
-        snapshot.colors,
-        vec![
-            platform_core::palette::GRAY_RGB565,
-            platform_core::palette::GRAY_RGB565,
-            platform_core::palette::GRAY_RGB565,
-            platform_core::palette::GRAY_RGB565,
-            platform_core::palette::GRAY_RGB565,
-            platform_core::palette::GRAY_RGB565,
-            platform_core::palette::GRAY_RGB565
-        ]
-    );
-    assert_eq!(snapshot.selected_row, Some(0));
+
+    let mut named = config();
+    named.preset_names = vec!["Alpha".into(), "Beta".into()];
+    assert_eq!(group_labels(&named, "Load Preset"), vec!["Alpha", "Beta"]);
+    let named_menu = NativeMenuModel::new(named);
+    assert!(matches!(
+        named_menu
+            .item_for_key("preset.load.Alpha")
+            .map(|item| item.value),
+        Some(NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect)))
+            if effect == "preset.load:Alpha"
+    ));
 }
 
 #[test]
-pub(crate) fn audio_usb_rows_follow_explicit_jack_policy_without_shifting_keys() {
-    let mut desktop = config();
-    desktop.jack_audio_required = false;
-    let desktop_audio = audio_usb_group(&desktop);
-    assert_eq!(
-        desktop_audio,
-        vec![
-            "Jack Audio",
-            "USB Audio",
-            "HDMI Audio",
-            "MIDI Out",
-            "Start SD2 Xfer",
-            "Stop SD2 Xfer",
-        ]
-    );
+pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
+    let desktop = config();
+    assert_eq!(group_labels(&desktop, "Audio"), vec!["Polyphony", "Engine"]);
+    assert!(!system_labels(&desktop).iter().any(|label| label == "USB"));
+    assert!(!system_labels(&desktop)
+        .iter()
+        .any(|label| label == "HDMI Video"));
+    assert!(!NativeMenuModel::new(desktop)
+        .help_targets()
+        .iter()
+        .any(|target| {
+            target.key == "key:audioOutputs.dac"
+                || target.key == "key:audioOutputs.usb"
+                || target.key == "key:audioOutputs.hdmi"
+                || target.key == "key:usb.midiOutEnabled"
+                || target.key == "key:hdmi.mode"
+        }));
 
     let mut pi = config();
     pi.jack_audio_required = true;
-    let pi_audio = audio_usb_group(&pi);
+    pi.audio_optimization_capacity_available = true;
     assert_eq!(
-        pi_audio,
+        group_labels(&pi, "Audio"),
         vec![
             "USB Audio",
             "HDMI Audio",
-            "MIDI Out",
-            "Start SD2 Xfer",
-            "Stop SD2 Xfer",
+            "Perf. Mode",
+            "Polyphony",
+            "Engine",
         ]
+    );
+    assert_eq!(
+        group_labels(&pi, "USB"),
+        vec!["MIDI Out", "Start SD2 Xfer", "Stop SD2 Xfer"]
     );
 
     let mut menu = NativeMenuModel::new(pi);
@@ -188,25 +295,35 @@ pub(crate) fn audio_usb_rows_follow_explicit_jack_policy_without_shifting_keys()
     assert_eq!(menu.current_label(), Some("USB Audio"));
 }
 
-fn audio_usb_group(config: &NativeMenuConfig) -> Vec<String> {
+fn system_labels(config: &NativeMenuConfig) -> Vec<String> {
     let root = build_root(config.clone());
     root.children
         .iter()
         .find(|item| item.label == "System")
-        .and_then(|system| {
+        .map(|system| {
             system
-                .children
-                .iter()
-                .find(|item| item.label == "Audio / USB")
-        })
-        .map(|audio| {
-            audio
                 .children
                 .iter()
                 .map(|item| item.label.clone())
                 .collect()
         })
-        .expect("Audio / USB group")
+        .expect("System group")
+}
+
+fn group_labels(config: &NativeMenuConfig, path: &str) -> Vec<String> {
+    let mut item = build_root(config.clone())
+        .children
+        .into_iter()
+        .find(|child| child.label == "System")
+        .expect("System group");
+    for label in path.split(" > ") {
+        item = item
+            .children
+            .into_iter()
+            .find(|child| child.label == label)
+            .unwrap_or_else(|| panic!("missing menu group {path}"));
+    }
+    item.children.into_iter().map(|child| child.label).collect()
 }
 
 #[test]
@@ -233,7 +350,7 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
 
     assert!(menu.focus_item_key("system.clearAll"));
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "/SYS/Saves");
+    assert_eq!(snapshot.path, "/SYS/Reset");
     assert!(snapshot.lines.iter().any(|line| line == ">!Load Empty"));
 
     assert!(menu.focus_item_key("system.reboot"));
@@ -263,21 +380,17 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
 #[test]
 pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
     let mut menu = NativeMenuModel::new(config());
-    for _ in 0..5 {
-        menu.turn(1);
-    }
-    let _ = menu.press();
-    menu.state.cursor = 3;
+    menu.state.stack = vec![5];
+    menu.state.cursor = 7;
     let _ = menu.press();
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], "> Master Vol 100");
+    assert_eq!(snapshot.lines[selected_row], "> Note Length 150ms");
 
-    menu.turn(1);
     menu.turn(1);
     assert_eq!(menu.current_label(), Some("Vel Scale"));
     menu.back();
-    assert_eq!(menu.current_label(), Some("Sound"));
+    assert_eq!(menu.current_label(), Some("Notes"));
 
     let _ = menu.press();
     assert_eq!(menu.current_label(), Some("Vel Scale"));
@@ -286,13 +399,9 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
 #[test]
 pub(crate) fn static_navigation_memory_clears_on_rebuild() {
     let mut menu = NativeMenuModel::new(config());
-    for _ in 0..5 {
-        menu.turn(1);
-    }
+    menu.state.stack = vec![5];
+    menu.state.cursor = 7;
     let _ = menu.press();
-    menu.state.cursor = 3;
-    let _ = menu.press();
-    menu.turn(1);
     menu.turn(1);
     menu.back();
     let _ = menu.press();
@@ -300,32 +409,29 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
 
     menu.rebuild(config());
     menu.state.stack = vec![5];
-    menu.state.cursor = 3;
+    menu.state.cursor = 7;
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Master Vol"));
+    assert_eq!(menu.current_label(), Some("Note Length"));
 }
 
 #[test]
 pub(crate) fn static_navigation_memory_back_while_editing_stays_in_group() {
     let mut menu = NativeMenuModel::new(config());
-    for _ in 0..5 {
-        menu.turn(1);
-    }
-    let _ = menu.press();
-    menu.state.cursor = 3;
+    menu.state.stack = vec![5];
+    menu.state.cursor = 7;
     let _ = menu.press();
     menu.turn(1);
-    assert_eq!(menu.current_label(), Some("Note Length"));
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 
     let _ = menu.press();
     assert!(menu.state.editing);
     menu.back();
     assert!(!menu.state.editing);
-    assert_eq!(menu.snapshot().path, "/SYS/Sound");
-    assert_eq!(menu.current_label(), Some("Note Length"));
+    assert_eq!(menu.snapshot().path, "/SYS/Notes");
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 
     menu.back();
-    assert_eq!(menu.current_label(), Some("Sound"));
+    assert_eq!(menu.current_label(), Some("Notes"));
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Note Length"));
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 }

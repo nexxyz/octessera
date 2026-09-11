@@ -134,7 +134,7 @@ created an AP, joined a network, served a captive page, applied credentials, or
 preserved secrets. Run the complete flow on both fixed board paths when doing a
 shared setup qualification:
 
-- at the instrument, choose `System > Configure WiFi > Open Portal`;
+- at the instrument, choose `System > Setup > Configure WiFi > Open Portal`;
 - join the setup AP and load the captive page;
 - apply Wi-Fi, hostname, SSH mode, and login settings;
 - wait for the OLED terminal result before reconnecting;

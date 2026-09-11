@@ -201,7 +201,7 @@ fn pending_deferred_write_survives_restart_edit_and_starts_one_restart_save() {
     turn(&mut runner, 1);
     let _ = press(&mut runner);
     let snapshot = runner.snapshot().unwrap();
-    assert_eq!(snapshot["display"]["title"], "/SYS/Sound");
+    assert_eq!(snapshot["display"]["title"], "/SYS/Audio/Engine");
     assert!(runner.display.confirm_dialog.is_none());
     runner.make_deferred_menu_apply_due_for_test();
     let deferred = runner.flush_deferred_menu_apply().unwrap();
@@ -301,7 +301,11 @@ fn restart_results_require_the_unique_identified_transaction() {
 
 #[test]
 fn invalid_audio_baseline_omits_setting_only_save() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     runner.restart_settings.persisted_default["runtimeConfig"]["audioOutputs"] = json!({
         "dac": "invalid",
         "usb": false,

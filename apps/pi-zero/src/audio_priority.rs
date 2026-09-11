@@ -18,13 +18,7 @@ pub(crate) const PI_MIRROR_CALLBACK_PRIORITY: i32 = 60;
 #[cfg(any(
     test,
     feature = "hardware-orange-pi-zero-2w",
-    all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
-    )
+    feature = "hardware-raspberry-pi-zero-2w"
 ))]
 #[path = "dsp_worker_scheduling.rs"]
 mod dsp_worker_scheduling;
@@ -468,8 +462,12 @@ pub(crate) use syscalls::{
     )
 ))]
 pub(crate) use dsp_worker_scheduling::benchmark_worker_start_hook;
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) use dsp_worker_scheduling::orange_worker_start_hook;
+#[cfg(any(
+    test,
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+pub(crate) use dsp_worker_scheduling::pi_worker_start_hook;
 #[cfg(test)]
 pub(crate) use dsp_worker_scheduling::{ORANGE_WORKER_CPUS, ORANGE_WORKER_PRIORITY};
 #[cfg(feature = "source-worker-benchmark-timing")]

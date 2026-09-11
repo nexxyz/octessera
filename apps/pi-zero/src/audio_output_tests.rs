@@ -1,14 +1,9 @@
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use super::cpal_audio_output::resolve_output_buffer_frames;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use platform_core::AUDIO_OUTPUT_BUFFER_FRAMES;
-
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::audio_replay::ReplayCache;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::audio_sink_registry::{has_sink, register_sink};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use crate::recording::RecorderService;
+use media_recording::RecorderService;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use rodio_engine_source::{event_queue, EngineEvent, EngineEventReceiver};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -26,42 +21,6 @@ static ORANGE_TAP_ABSENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 static ORANGE_LOAD_TX_COUNT: AtomicUsize = AtomicUsize::new(0);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 static ORANGE_LOAD_TX_ABSENT_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-#[test]
-fn raspberry_direct_cpal_default_buffer_remains_256_frames() {
-    let default_frames = AUDIO_OUTPUT_BUFFER_FRAMES as u32;
-    assert_eq!(
-        resolve_output_buffer_frames(None, None, default_frames),
-        default_frames
-    );
-    assert_eq!(
-        resolve_output_buffer_frames(None, Some(512), default_frames),
-        512
-    );
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-#[test]
-fn output_buffer_override_is_parsed_and_clamped() {
-    let default_frames = AUDIO_OUTPUT_BUFFER_FRAMES as u32;
-    assert_eq!(
-        resolve_output_buffer_frames(Some("1024"), None, default_frames),
-        1024
-    );
-    assert_eq!(
-        resolve_output_buffer_frames(Some("invalid"), Some(512), default_frames),
-        512
-    );
-    assert_eq!(
-        resolve_output_buffer_frames(Some("1"), None, default_frames),
-        32
-    );
-    assert_eq!(
-        resolve_output_buffer_frames(Some("4096"), None, default_frames),
-        2048
-    );
-}
 
 #[test]
 fn scheduler_labels_preserve_sink_identity() {
@@ -155,16 +114,51 @@ fn raspberry_cpal_errors_preserve_route_classification() {
 #[test]
 fn raspberry_audio_manager_rejects_missing_jack_before_device_access() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(false, true, false).unwrap();
-    match super::AudioManager::new(None, outputs) {
+    match super::AudioManager::new(playback_runtime::AudioOptimization::Latency, outputs) {
         Err(error) => assert_eq!(error, "Jack Audio is always on"),
         Ok(_) => panic!("missing Jack should be rejected"),
     }
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[test]
+fn raspberry_dsp_profiles_select_the_authoritative_audio_geometry() {
+    let latency = super::audio_profile::RaspberryAudioProfile::from_optimization(
+        playback_runtime::AudioOptimization::Latency,
+    );
+    assert_eq!(latency.output_buffer_frames, 256);
+    assert_eq!(latency.expected_alsa_period_frames, 64);
+    assert_eq!(latency.internal_block_frames, 128);
+    assert_eq!(latency.lookahead_frames, 0);
+
+    let capacity = super::audio_profile::RaspberryAudioProfile::from_optimization(
+        playback_runtime::AudioOptimization::Capacity,
+    );
+    assert_eq!(capacity.output_buffer_frames, 256);
+    assert_eq!(capacity.expected_alsa_period_frames, 64);
+    assert_eq!(capacity.internal_block_frames, 256);
+    assert_eq!(capacity.lookahead_frames, 256);
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[test]
+fn raspberry_timing_probe_profile_applies_only_requested_geometry_overrides() {
+    let profile =
+        super::audio_profile::RaspberryAudioProfile::from_timing_probe(Some(512), Some(64));
+    assert_eq!(profile.output_buffer_frames, 512);
+    assert_eq!(profile.internal_block_frames, 64);
+    assert_eq!(profile.lookahead_frames, 0);
+
+    let clamped =
+        super::audio_profile::RaspberryAudioProfile::from_timing_probe(Some(1), Some(4096));
+    assert_eq!(clamped.output_buffer_frames, 32);
+    assert_eq!(clamped.internal_block_frames, 2_048);
+}
+
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
 fn orange_dsp_profiles_select_the_authoritative_audio_geometry() {
-    let latency = super::cpal_audio_output::OrangeAudioProfile::from_optimization(
+    let latency = super::audio_profile::OrangeAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Latency,
     );
     assert_eq!(latency.output_buffer_frames, 128);
@@ -172,7 +166,7 @@ fn orange_dsp_profiles_select_the_authoritative_audio_geometry() {
     assert_eq!(latency.internal_block_frames, 32);
     assert_eq!(latency.lookahead_frames, 0);
 
-    let capacity = super::cpal_audio_output::OrangeAudioProfile::from_optimization(
+    let capacity = super::audio_profile::OrangeAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Capacity,
     );
     assert_eq!(capacity.output_buffer_frames, 256);
@@ -185,7 +179,7 @@ fn orange_dsp_profiles_select_the_authoritative_audio_geometry() {
 #[test]
 fn orange_audio_manager_rejects_missing_jack_before_device_access() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(false, true, false).unwrap();
-    let profile = super::cpal_audio_output::OrangeAudioProfile::from_optimization(
+    let profile = super::audio_profile::OrangeAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Latency,
     );
     match super::AudioManager::new_orange(profile, outputs) {
@@ -259,7 +253,7 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
     let mut controller = super::orange_audio_recovery::OrangeRecoveryController::
         new_optional_missing_with_dependencies(
             super::AudioSink::Usb,
-            super::cpal_audio_output::OrangeAudioProfile::from_optimization(
+            super::audio_profile::OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Latency,
             ),
             sinks.clone(),
@@ -315,7 +309,7 @@ fn orange_optional_terminal_open_failure_is_attempted_once() {
     let mut controller = super::orange_audio_recovery::OrangeRecoveryController::
         new_optional_missing_with_dependencies(
             super::AudioSink::Usb,
-            super::cpal_audio_output::OrangeAudioProfile::from_optimization(
+            super::audio_profile::OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Latency,
             ),
             Arc::new(Mutex::new(Vec::new())),
@@ -350,7 +344,7 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
     let attach_gate = crate::audio_sink_registry::new_attach_gate();
     let mut controller = super::orange_audio_recovery::OrangeRecoveryController::new_required(
         initial,
-        super::cpal_audio_output::OrangeAudioProfile::from_optimization(
+        super::audio_profile::OrangeAudioProfile::from_optimization(
             playback_runtime::AudioOptimization::Latency,
         ),
         sinks.clone(),
@@ -379,7 +373,7 @@ fn orange_multiple_selected_routes_open_one_recording_tap_owner() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(true, true, true).unwrap();
     let manager = super::AudioManager::new_with_opener(
         super::audio_output_open::AudioConstructionConfig::orange(
-            super::cpal_audio_output::OrangeAudioProfile::from_optimization(
+            super::audio_profile::OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Capacity,
             ),
         ),
@@ -417,14 +411,14 @@ fn orange_multiple_routes_record_samples_once_from_the_selected_owner() {
 
     for sink in super::AudioSink::selected(outputs) {
         if owner == sink {
-            let mut chunk = crate::recording::RecordingChunk::new();
-            for sample in [0_i16, i16::MAX, i16::MIN, -1] {
-                assert!(chunk.push(sample));
-            }
+            let mut chunk = tap.new_chunk();
+            assert!(chunk.push_frame(0, i16::MAX));
+            assert!(chunk.push_frame(i16::MIN, -1));
             tap.push_chunk(chunk);
         }
     }
-    recorder.stop_audio();
+    let outcome = recorder.stop_audio().unwrap().unwrap();
+    assert_eq!(outcome.frames_written, 2);
 
     let path = std::fs::read_dir(&directory)
         .unwrap()

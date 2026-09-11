@@ -193,6 +193,7 @@ test("runtime error metadata serializes with stable typed identity and recovery"
     "midi",
     "sample",
     "audio",
+    "recording",
     "serialization",
   ]);
   assert.deepEqual(RUNTIME_ERROR_CODES, [
@@ -206,6 +207,7 @@ test("runtime error metadata serializes with stable typed identity and recovery"
   ]);
   assert.ok(RUNTIME_OPERATIONS.includes(error.operation));
   assert.ok(RUNTIME_OPERATIONS.includes("device_update"));
+  assert.ok(RUNTIME_OPERATIONS.includes("recording"));
   assert.ok(RUNTIME_OPERATIONS.includes("setup_portal"));
   assert.ok(RUNTIME_RECOVERIES.includes(error.recovery));
 });

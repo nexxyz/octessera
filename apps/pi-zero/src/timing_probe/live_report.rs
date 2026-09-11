@@ -98,9 +98,11 @@ pub(super) fn slow_sends(sends: &[LiveSendRecord]) -> Vec<SlowSendReport> {
 pub(super) fn print_live_summary(reports: &[LiveTimingProbeReport]) {
     for report in reports {
         eprintln!(
-            "{:?} {}ms live-audio events={} interval_p95={:.0}us wake_late_p95={:.0}us loop_p95={:.0}us audio_send_p95={:.0}us send_p95={:.0}us batch_max={:.0}",
+            "{:?} {}ms live-audio output={} internal={} events={} interval_p95={:.0}us wake_late_p95={:.0}us loop_p95={:.0}us audio_send_p95={:.0}us send_p95={:.0}us batch_max={:.0}",
             report.scenario,
             report.duration_ms,
+            report.output_buffer_frames,
+            report.internal_block_frames,
             report.events,
             report.event_intervals_us.p95,
             report.wake_late_us.p95,

@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn cursor_only_navigation_does_not_apply_menu_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
+    assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
     runner.display.ui.master_volume = 12;
 
     let messages = runner
@@ -42,7 +42,7 @@ pub(crate) fn cursor_only_navigation_does_not_apply_group_browsing_side_effects(
 pub(crate) fn entering_group_does_not_apply_group_side_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 4;
+    runner.menu.state.cursor = 8;
     runner.transport.sync_source = SyncSource::External;
 
     let messages = runner
@@ -52,7 +52,7 @@ pub(crate) fn entering_group_does_not_apply_group_side_effects() {
         })
         .unwrap();
 
-    assert_eq!(runner.menu.state.stack, vec![5, 4]);
+    assert_eq!(runner.menu.state.stack, vec![5, 8]);
     assert_eq!(runner.transport.sync_source, SyncSource::External);
     assert_eq!(
         snapshot_from(&messages)["settings"]["midi"]["syncMode"],
@@ -186,25 +186,7 @@ pub(crate) fn behavior_config_enum_param_edits_via_menu() {
 #[test]
 pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    for _ in 0..5 {
-        let _ = runner.send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
-            request_snapshot: None,
-        });
-    }
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
-        request_snapshot: None,
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
+    assert!(runner.menu.focus_item_key("midiEnabled"));
 
     assert!(!runner.midi_enabled);
 

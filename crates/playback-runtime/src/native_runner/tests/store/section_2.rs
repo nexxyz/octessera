@@ -11,8 +11,7 @@ pub(crate) fn save_current_uses_loaded_preset_name() {
             },
         })
         .unwrap();
-    runner.menu.state.stack = vec![5, 0, 0];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("preset.saveCurrent"));
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -38,8 +37,7 @@ pub(crate) fn save_current_uses_loaded_preset_name() {
 pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    runner.menu.state.stack = vec![5, 0, 0];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("preset.saveCurrent"));
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -118,8 +116,7 @@ pub(crate) fn preset_save_as_uses_text_draft_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.preset_draft_name = "Jam A".into();
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![5, 0, 0, 0];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("preset.saveAs.save"));
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -164,8 +161,7 @@ pub(crate) fn preset_save_as_uses_fresh_timestamp_draft_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let draft_name = runner.preset_draft_name.clone();
     assert!(is_timestamp_preset_name(&draft_name));
-    runner.menu.state.stack = vec![5, 0, 0, 0];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("preset.saveAs.save"));
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -204,8 +200,7 @@ pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.preset_names = vec!["Alpha".into()];
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![5, 0, 0, 3];
-    runner.menu.state.cursor = 0;
+    assert!(runner.menu.focus_item_key("preset.renamePick.Alpha"));
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -218,8 +213,7 @@ pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
     assert_eq!(runner.preset_draft_name, "Alpha");
     runner.preset_draft_name = "Alpha A".into();
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![5, 0, 0, 3];
-    runner.menu.state.cursor = 2;
+    assert!(runner.menu.focus_item_key("preset.rename.apply"));
 
     let opened = runner
         .send(HostMessage::DeviceInput {

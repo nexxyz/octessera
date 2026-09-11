@@ -152,6 +152,12 @@ pub enum RuntimeStoreResult {
         #[serde(default)]
         message: String,
     },
+    RecordingStatus {
+        #[serde(default)]
+        ok: bool,
+        #[serde(default)]
+        message: String,
+    },
     SystemInfoResult {
         info: RuntimeSystemInfo,
     },
@@ -221,6 +227,7 @@ impl RuntimeStoreResult {
             }
             Self::SamplePreviewError { .. } => RuntimeOperation::SamplePreview,
             Self::DeviceUpdateStatus { .. } => RuntimeOperation::DeviceUpdate,
+            Self::RecordingStatus { .. } => RuntimeOperation::Recording,
             Self::SystemInfoResult { .. } | Self::SystemInfoError { .. } => {
                 RuntimeOperation::SystemInfo
             }
@@ -262,6 +269,9 @@ impl RuntimeStoreResult {
             Self::SamplePreviewError { message } => (RuntimeErrorDomain::Sample, message.clone()),
             Self::DeviceUpdateStatus { ok: false, message } => {
                 (RuntimeErrorDomain::Runtime, message.clone())
+            }
+            Self::RecordingStatus { ok: false, message } => {
+                (RuntimeErrorDomain::Recording, message.clone())
             }
             Self::SystemInfoError { error } => {
                 return Some(RuntimeErrorFacts::new(

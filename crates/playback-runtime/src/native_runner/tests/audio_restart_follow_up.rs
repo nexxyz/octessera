@@ -452,7 +452,13 @@ fn assert_focused_sound_row_fits(runner: &mut NativeRunner, key: &str) {
         "missing focused value for {key}"
     );
     let snapshot = runner.snapshot().unwrap();
-    assert_eq!(snapshot["display"]["title"], "/SYS/Sound");
+    let expected_title = match key {
+        "masterVolume" => "/System",
+        "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.velocityCurve" => "/SYS/Notes",
+        "sound.audioOutputBufferFrames" => "/SYS/Audio/Engine",
+        _ => "/SYS/Audio",
+    };
+    assert_eq!(snapshot["display"]["title"], expected_title);
     for line in snapshot["display"]["lines"].as_array().unwrap() {
         assert!(
             line.as_str().unwrap().chars().count() <= 19,

@@ -5,13 +5,20 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     };
     if key == "sound.optimizeFor" {
         return match raw.as_str() {
-            "latency" => "Inline".into(),
-            "capacity" => "Multicore".into(),
+            "latency" => "Lat".into(),
+            "capacity" => "Cap".into(),
             _ => raw,
         };
     }
-    if key == "sound.voiceStealingMode" && raw == "auto-balanced" {
-        return "auto-bal".into();
+    if key == "sound.voiceStealingMode" {
+        return match raw.as_str() {
+            "fixed12" => "12".into(),
+            "fixed16" => "16".into(),
+            "auto-soft" => "soft".into(),
+            "auto-balanced" => "bal".into(),
+            "auto-hard" => "hard".into(),
+            _ => raw,
+        };
     }
     if key.ends_with("panPos") {
         return format_pan_position(raw.parse::<i32>().unwrap_or(16));

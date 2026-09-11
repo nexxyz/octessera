@@ -108,6 +108,18 @@ impl OrangeHostAdapter {
         self.oled_frame_cache.fault()
     }
 
+    pub(crate) fn submit_accepted_oled_frame(&self) -> Result<(), String> {
+        let Some(frame) = self.oled_frame_cache.accepted_frame() else {
+            return Ok(());
+        };
+        self.audio
+            .submit_accepted_oled_frame(frame.revision(), frame.pixels())
+    }
+
+    pub(crate) fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
+        self.audio.poll_recording_status()
+    }
+
     pub(crate) fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut results = self.platform_service.drain_results(max_results);
         if results.len() < max_results {
@@ -206,8 +218,24 @@ impl OrangeHostAdapter {
         if let Err(error) = self.recovery_save_ready() {
             return Ok(vec![failure_message(request, error)]);
         }
+        let recording_result = self.stop_recording_for_transition(request)?;
         self.shutdown_request = Some(shutdown_request);
-        Ok(Vec::new())
+        Ok(recording_result
+            .into_iter()
+            .map(|result| HostMessage::RuntimeResult { result })
+            .collect())
+    }
+
+    fn stop_recording_for_transition(
+        &self,
+        request: &RuntimePlatformRequest,
+    ) -> Result<Option<RuntimeStoreResult>, RuntimeAdapterError> {
+        self.audio
+            .stop_recording_with_outcome()
+            .map(|outcome| {
+                outcome.map(|outcome| crate::audio_recording::recording_status(outcome.status))
+            })
+            .map_err(|error| RuntimeAdapterError::from_facts(request.failure_facts(error)))
     }
 
     fn start_usb_sd_transfer(
@@ -332,12 +360,16 @@ impl HostAdapter for OrangeHostAdapter {
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 self.pending_default_save.cancel();
                 self.pending_default_save_generation = None;
+                let recording_result = self.stop_recording_for_transition(request)?;
                 let transaction = self
                     .platform_service
                     .prepare_orange_device_apply(payload)
                     .map_err(RuntimeAdapterError::operation_failed)?;
                 self.shutdown_request = Some(OrangeShutdownRequest::ApplyDeviceConfig(transaction));
-                return Ok(Vec::new());
+                return Ok(recording_result
+                    .into_iter()
+                    .map(|result| HostMessage::RuntimeResult { result })
+                    .collect());
             }
             RuntimePlatformEffect::Reboot => {
                 return self.request_power(request, OrangeShutdownRequest::Reboot);
@@ -358,9 +390,21 @@ impl HostAdapter for OrangeHostAdapter {
                 self.audio.start_recording(*max_minutes)?;
                 return Ok(Vec::new());
             }
-            RuntimePlatformEffect::RecordingStop => {
-                self.audio.stop_recording()?;
+            RuntimePlatformEffect::RecordingStartAudioOled { max_minutes } => {
+                let seed = self
+                    .oled_frame_cache
+                    .accepted_frame()
+                    .map(|frame| (frame.revision(), frame.pixels().to_vec()));
+                self.audio
+                    .start_recording_audio_oled_with_seed(*max_minutes, seed)?;
                 return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::RecordingStop => {
+                return Ok(self
+                    .stop_recording_for_transition(request)?
+                    .into_iter()
+                    .map(|result| HostMessage::RuntimeResult { result })
+                    .collect());
             }
             RuntimePlatformEffect::UsbSdTransferStart => {
                 return self.start_usb_sd_transfer(request);

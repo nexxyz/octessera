@@ -1,6 +1,6 @@
 use super::audio_output_open::open_orange_audio_sink_with_health;
 use super::audio_output_open::OpenedAudioSink;
-use super::cpal_audio_output::OrangeAudioProfile;
+use super::audio_profile::OrangeAudioProfile;
 use super::{AudioSink, OrangeDacStatus, RecordingTapState};
 use crate::audio_replay::ReplayCache;
 use crate::audio_route::RouteOpenError;

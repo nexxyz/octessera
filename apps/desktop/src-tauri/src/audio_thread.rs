@@ -1,3 +1,4 @@
+use crate::recording::RecordingTapState;
 use crate::types::{AudioRuntime, MomentaryFxTargetPayload, QueuedAudioEvent};
 use playback_runtime::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
@@ -43,6 +44,7 @@ pub(crate) fn spawn_audio_engine_thread(
     load_tx: AudioLoadStatusSender,
     failure_tx: std::sync::mpsc::Sender<RuntimeAdapterError>,
     no_audio: bool,
+    recording_tap: RecordingTapState,
 ) {
     if no_audio {
         drop(trigger_rx);
@@ -56,7 +58,7 @@ pub(crate) fn spawn_audio_engine_thread(
         let mut active_request_id = None;
         let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
             let (engine_tx, engine_rx) = event_queue();
-            let mut audio = AudioRuntime::new()?;
+            let mut audio = AudioRuntime::new(recording_tap)?;
             audio.start_engine(engine_rx, load_tx)?;
 
             while let Ok(event) = trigger_rx.recv() {

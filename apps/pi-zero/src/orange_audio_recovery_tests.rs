@@ -1,5 +1,5 @@
 use super::audio_output_open::OpenedAudioSink;
-use super::cpal_audio_output::OrangeAudioProfile;
+use super::audio_profile::OrangeAudioProfile;
 use super::orange_audio_recovery::{
     OrangeRecoveryClock, OrangeRecoveryController, OrangeRecoveryDependencies, OrangeRecoveryOpener,
 };

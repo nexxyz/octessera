@@ -75,6 +75,9 @@ impl NativeRunner {
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
                 max_minutes: self.recording_max_minutes,
             }),
+            "recording.startAudioOled" => Some(RuntimePlatformEffect::RecordingStartAudioOled {
+                max_minutes: self.recording_max_minutes,
+            }),
             "recording.stop" => Some(RuntimePlatformEffect::RecordingStop),
             "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
             "system.info" => Some(RuntimePlatformEffect::SystemInfoRequest),
@@ -235,6 +238,7 @@ impl NativeRunner {
             }
             result @ (RuntimeStoreResult::StoreError { .. }
             | RuntimeStoreResult::DeviceUpdateStatus { .. }
+            | RuntimeStoreResult::RecordingStatus { .. }
             | RuntimeStoreResult::UsbSdTransferStatus { .. }
             | RuntimeStoreResult::RuntimeFailure { .. }) => {
                 self.apply_error_presentation_result(result)
@@ -249,6 +253,7 @@ impl NativeRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::native_runner::NativeRuntimeErrorPresentation;
     use crate::NativeRunnerConfig;
 
     #[test]
@@ -268,6 +273,39 @@ mod tests {
                 .as_ref()
                 .map(|toast| toast.message.as_str()),
             Some("helper failed")
+        );
+    }
+
+    #[test]
+    fn recording_status_is_presented_without_clearing_an_existing_error() {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner.display.runtime_error_presentation = Some(NativeRuntimeErrorPresentation {
+            title: "update failed".into(),
+            lines: vec!["update failed".into()],
+        });
+
+        runner
+            .apply_store_result(RuntimeStoreResult::RecordingStatus {
+                ok: false,
+                message: "Recording incomplete".into(),
+            })
+            .unwrap();
+
+        assert_eq!(
+            runner
+                .display
+                .toast
+                .as_ref()
+                .map(|toast| toast.message.as_str()),
+            Some("Recording incomplete")
+        );
+        assert_eq!(
+            runner
+                .display
+                .runtime_error_presentation
+                .as_ref()
+                .map(|error| error.title.as_str()),
+            Some("update failed")
         );
     }
 }

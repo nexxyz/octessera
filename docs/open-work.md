@@ -20,10 +20,10 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 
 ## Setup and data continuity
 
-- Qualify `System > Configure WiFi > Open Portal` on both boards, including AP
+- Qualify `System > Setup > Configure WiFi > Open Portal` on both boards, including AP
   join, captive-page submission, credential and hostname application, reconnect,
   timeout/failure reporting, status hygiene, and the user-window behavior.
-- Qualify standalone `System > Backup / Restore` on both boards, including URL
+- Qualify standalone `System > Setup > Backup / Restore` on both boards, including URL
   and code lifetime, reopen, Back/Stop, expiry, authentication revocation,
   restore confirmation, and input blocking.
 
@@ -56,6 +56,36 @@ quick run](../userdocs/hardware/fat-quick-run.md).
   VBUS/CC/no-backfeed electrical qualification, physical replug and host
   suspend/resume, SD2 mass-storage start/eject/stop recovery, and authorized
   public VID/PID qualification before claiming public USB support.
+
+## Recording
+
+- On Raspberry and Orange, qualify WAV and Audio+OLED AVI recording in both
+  `System > Audio > Perf. Mode` choices, `Latency` and `Capacity`, under
+  representative synth, sampler, and FX load. Treat Raspberry Capacity as
+  production requalification evidence, not an already-qualified claim.
+- Confirm the exact writable roots: Raspberry `/home/pi/recordings` and
+  `/home/pi/screen-recordings`; Orange `/var/lib/octessera/recordings` and
+  `/var/lib/octessera/screen-recordings`. Record the mounted storage and free
+  space used for each run.
+- Exercise explicit `Stop`, a short `Max Time` auto-stop, and the file-size
+  ceiling where the Audio+OLED take reaches it. Confirm the final WAV/AVI is
+  readable and the active `.partial.*` is gone after successful finalization.
+- While a take is active, exercise the native Reboot and Shutdown actions on
+  separate runs. Confirm the recording finalizes before the board leaves the
+  menu, then confirm the next boot does not leave an orphaned recorder or
+  partial file.
+- Where a controlled stress fixture can safely drop audio or accepted OLED
+  timeline data, verify `.incomplete.wav`/`.incomplete.avi` handling and keep
+  the evidence. Do not pull power or storage merely to manufacture a failure;
+  mark deliberate incomplete handling `NOT RUN` when it cannot be induced
+  safely.
+- Run `ffprobe` on every retained WAV and AVI, then open representative files
+  in VLC, mpv, `ffplay`, or Audacity/a DAW as appropriate. Confirm WAV audio and
+  AVI MJPEG plus PCM streams, 44.1 kHz stereo audio, 128x128 video, and 10 fps.
+- Listen through the full representative takes for discontinuities, missing
+  audio, audible glitches, or A/V drift. Save the recording result, player or
+  `ffprobe` output, and relevant `journalctl -u octessera.service` or desktop
+  runtime logs under the board's recording evidence directory.
 
 ## Post-FAT action
 

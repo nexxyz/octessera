@@ -21,12 +21,12 @@ cleanup.
 For setup, the browser submission is provisional; the OLED terminal result is
 authoritative. Success requires NetworkManager connected with a usable `wlan0`
 IPv4 address, not Internet access, a default route, DNS, or ICMP. After success,
-use `System > Info` for the `wlan0` IP; no reboot is required. `System > Updates`
+use `System > Sys. Info` for the `wlan0` IP; no reboot is required. `System > Setup > Updates`
 is runtime-only Check/Apply/Rollback when Internet is available, not a full
 OS/image, kernel, or device-tree update path.
 
 These end-to-end setup steps keep the setup AP qualification separate. Use the
-standalone `System > Backup / Restore` action in the gap stage for data transfer.
+standalone `System > Setup > Backup / Restore` action in the gap stage for data transfer.
 
 ## Raspberry end-to-end
 
@@ -59,7 +59,7 @@ if ($LASTEXITCODE -ne 0) { throw "Could not capture Raspberry production service
 1. Flash the exact Raspberry asset with Raspberry Pi Imager. Insert the card and
    power only through the enclosure USB-C input.
 2. Watch the OLED from power-on through the normal menu. At the instrument,
-   choose `System > Configure WiFi` and confirm `Open Portal`.
+   choose `System > Setup > Configure WiFi` and confirm `Open Portal`.
 3. Join `Octessera Setup` or `Octessera Setup <4-char suffix>`, open
    `http://192.168.42.1`, and apply a test Wi-Fi network, hostname, and SSH key
    if needed. Wait for the OLED result, then reconnect on the new network and
@@ -128,7 +128,7 @@ This is a production-service-active status capture; do not stop or restart
 1. Flash the exact Orange production image with the selected image flasher. Do
    not use the diagnostic image or a Raspberry asset.
 2. Watch the OLED from power-on through the normal menu. At the instrument,
-   choose `System > Configure WiFi` and confirm `Open Portal`.
+   choose `System > Setup > Configure WiFi` and confirm `Open Portal`.
 3. Wait for `Octessera Setup` or `Octessera Setup <4-char suffix>`, join the
    setup hotspot, open `http://192.168.42.1`, and apply a test Wi-Fi network and
    SSH password so the attended diagnostic can authenticate `sudo`. Wait for the

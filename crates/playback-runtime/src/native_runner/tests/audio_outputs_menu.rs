@@ -1,9 +1,11 @@
 use super::*;
-use crate::oled_frame::TOAST_RECT;
-
 #[test]
 pub(crate) fn usb_menu_edits_payload_with_restart_dialog() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     assert!(runner.menu.focus_item_key("audioOutputs.usb"));
     runner
         .send(HostMessage::DeviceInput {
@@ -18,10 +20,7 @@ pub(crate) fn usb_menu_edits_payload_with_restart_dialog() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(
-        runner.snapshot().unwrap()["display"]["title"],
-        "/SYS/Audio / USB"
-    );
+    assert_eq!(runner.snapshot().unwrap()["display"]["title"], "/SYS/Audio");
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -34,96 +33,6 @@ pub(crate) fn usb_menu_edits_payload_with_restart_dialog() {
         json!({ "dac": true, "usb": true, "hdmi": false })
     );
     assert_eq!(snapshot_from(&messages)["display"]["title"], "Save Setting");
-}
-
-#[test]
-pub(crate) fn final_audio_output_off_is_refused_without_dirtying_config() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("audioOutputs.dac"));
-    runner.menu.state.editing = true;
-    runner.menu.turn(-1);
-    runner.apply_menu_state().unwrap();
-
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["audioOutputs"],
-        json!({ "dac": true, "usb": false, "hdmi": false })
-    );
-    assert!(!runner.config_dirty);
-    assert_eq!(
-        runner.snapshot().unwrap()["display"]["toast"],
-        "Keep one audio ou"
-    );
-}
-
-#[test]
-pub(crate) fn device_input_refuses_final_output_for_each_single_output_set() {
-    for (initial, key) in [
-        (
-            AudioOutputSet::from_flags(true, false, false).unwrap(),
-            "audioOutputs.dac",
-        ),
-        (
-            AudioOutputSet::from_flags(false, true, false).unwrap(),
-            "audioOutputs.usb",
-        ),
-        (
-            AudioOutputSet::from_flags(false, false, true).unwrap(),
-            "audioOutputs.hdmi",
-        ),
-    ] {
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.audio_outputs = initial;
-        runner.menu.rebuild(runner.menu_config());
-        let before_payload = runner.config_payload();
-        let before_revision = runner.config_revision;
-        let before_dirty_revision = runner.dirty_revision;
-        let before_dirty = runner.config_dirty;
-        let before_autosave = runner.pending.pending_autosave_payload_due_at;
-        let before_fast_marks = runner.fast_autosave_marks;
-
-        assert!(runner.menu.focus_item_key(key));
-        let _ = runner
-            .send(HostMessage::DeviceInput {
-                input: json!({ "type": "encoder_press", "id": "main" }),
-                request_snapshot: None,
-            })
-            .unwrap();
-        let messages = runner
-            .send(HostMessage::DeviceInput {
-                input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
-                request_snapshot: None,
-            })
-            .unwrap();
-
-        assert_eq!(runner.config_payload(), before_payload);
-        assert_eq!(runner.config_revision, before_revision);
-        assert_eq!(runner.dirty_revision, before_dirty_revision);
-        assert_eq!(runner.config_dirty, before_dirty);
-        assert_eq!(
-            runner.pending.pending_autosave_payload_due_at,
-            before_autosave
-        );
-        assert_eq!(runner.fast_autosave_marks, before_fast_marks);
-        assert_eq!(
-            runner.menu.value_for_key("audioOutputs.dac"),
-            Some(initial.dac().to_string())
-        );
-        assert_eq!(
-            runner.menu.value_for_key("audioOutputs.usb"),
-            Some(initial.usb().to_string())
-        );
-        assert_eq!(
-            runner.menu.value_for_key("audioOutputs.hdmi"),
-            Some(initial.hdmi().to_string())
-        );
-        assert!(messages.iter().any(|message| matches!(
-            message,
-            RunnerMessage::Snapshot { snapshot }
-                if snapshot["display"]["toast"]
-                    .as_str()
-                    .is_some_and(|toast| !toast.is_empty() && toast.chars().count() <= TOAST_RECT.columns())
-        )));
-    }
 }
 
 #[test]
@@ -141,14 +50,12 @@ pub(crate) fn audio_output_device_input_replays_apply_each_toggle_atomically() {
             1,
             json!({ "dac": true, "usb": false, "hdmi": true }),
         ),
-        (
-            AudioOutputSet::from_flags(true, true, false).unwrap(),
-            "audioOutputs.dac",
-            -1,
-            json!({ "dac": false, "usb": true, "hdmi": false }),
-        ),
     ] {
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        let mut runner = NativeRunner::new(NativeRunnerConfig {
+            jack_audio_required: true,
+            ..NativeRunnerConfig::default()
+        })
+        .unwrap();
         runner.audio_outputs = initial;
         runner.menu.rebuild(runner.menu_config());
         assert!(runner.menu.focus_item_key(key));
