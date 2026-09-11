@@ -125,7 +125,8 @@ fn push_frames(service: &AudioService, count: usize) {
 fn solid_frame(color: u16) -> Vec<u8> {
     let bytes = color.to_be_bytes();
     let mut pixels = vec![0; OLED_FRAME_BYTES];
-    for pixel in pixels.chunks_exact_mut(2) {
+    let (pixel_pairs, _) = pixels.as_chunks_mut::<2>();
+    for pixel in pixel_pairs {
         pixel.copy_from_slice(&bytes);
     }
     pixels

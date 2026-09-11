@@ -85,7 +85,7 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
 
     let index = find_chunks(&bytes, *b"idx1").next().unwrap();
     assert_eq!(index.payload.len(), movi_chunks.len() * 16);
-    for (entry, chunk) in index.payload.chunks_exact(16).zip(&movi_chunks) {
+    for (entry, chunk) in index.payload.as_chunks::<16>().0.iter().zip(&movi_chunks) {
         assert_eq!(&entry[..4], &chunk.id);
         assert_eq!(
             read_u32(entry, 8),
@@ -362,7 +362,7 @@ fn chunk_with_frames(offset: u64, frames: usize) -> RecordingChunk {
 fn solid_frame(revision: u64, audio_frame: u64, color: u16) -> OledFrame {
     let bytes = color.to_be_bytes();
     let mut pixels = [0_u8; OLED_FRAME_BYTES];
-    for pair in pixels.chunks_exact_mut(2) {
+    for pair in pixels.as_chunks_mut::<2>().0 {
         pair.copy_from_slice(&bytes);
     }
     OledFrame::new(revision, audio_frame, pixels)

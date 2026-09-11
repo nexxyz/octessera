@@ -28,11 +28,15 @@ fn final_engine_samples_are_tapped_once_as_stereo_i16() {
     assert_eq!(outcome.status, RecordingStatus::Complete);
     let bytes = fs::read(outcome.path).unwrap();
     let recorded: Vec<i16> = bytes[44..]
-        .chunks_exact(2)
-        .map(|sample| i16::from_le_bytes([sample[0], sample[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|sample| i16::from_le_bytes(*sample))
         .collect();
     let expected: Vec<i16> = output
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .flat_map(|frame| [float_to_i16(frame[0]), float_to_i16(frame[1])])
         .collect();
     assert_eq!(recorded, expected);
@@ -176,7 +180,7 @@ fn remove_temp_dir(path: PathBuf) {
 fn solid_frame(color: u16) -> Vec<u8> {
     let bytes = color.to_be_bytes();
     let mut pixels = vec![0; OLED_FRAME_BYTES];
-    for pixel in pixels.chunks_exact_mut(2) {
+    for pixel in pixels.as_chunks_mut::<2>().0 {
         pixel.copy_from_slice(&bytes);
     }
     pixels
