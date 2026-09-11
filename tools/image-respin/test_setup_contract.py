@@ -17,11 +17,11 @@ from setup_contract import contract_for_board, load_contract, setup_source_paths
 
 ROOT = Path(__file__).resolve().parents[2]
 BOARDS = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
+ORANGE_PARENT_SOURCE = "f7db4257171ebaa80ad59a68e8f8d8ce311f81cc"
 ORANGE_UI_ROOT = "userpatches/overlay/usr/local/share/octessera-setup-ui/"
 ORANGE_UI_FILES = ("js/app.js", "index.html", "css/styles.css", "README.md", "img/octessera-mark.svg", "img/octessera-wordmark.svg")
 ORANGE_RUNTIME_DIRECTORIES = {"var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"}
 STALE_UI_ROOT_FILES = {"usr/local/share/octessera-setup-ui/app.js", "usr/local/share/octessera-setup-ui/styles.css", "usr/local/share/octessera-setup-ui/octessera-mark.svg", "usr/local/share/octessera-setup-ui/octessera-wordmark.svg"}
-ORANGE_SETUP_SERVICE_TARGET = "/etc/systemd/system/octessera-setup.service"
 TRUSTED_FIXTURE_IDENTITIES = {
     "tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/config.txt": (1847, "1018cf257f0b22c1dde87770d0433d0e3e2f442461db33f847307d427642fd9e"),
     "tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/cmdline.txt": (154, "284c0fe29f0f60cff7e0b9c370756f083148a6274e8cb445dcc5294e0a88bcd4"),
@@ -42,13 +42,16 @@ class SetupContractTests(unittest.TestCase):
                 self.assertEqual(contract["directories"][0]["postimage"], "required")
                 self.assertEqual(contract["directories"][0]["preimage"]["kind"], "absent" if board == "raspberry-pi-zero-2w" else "exact")
                 if board == "orange-pi-zero-2w":
+                    self.assertEqual(contract["preimage_source"]["kind"], "constructor-source")
+                    self.assertEqual(contract["preimage_source"]["commit"], ORANGE_PARENT_SOURCE)
                     self.assertTrue({item["target"] for item in contract["directories"][1:]} == ORANGE_RUNTIME_DIRECTORIES)
                     self.assertTrue(all(item["uid"] == 986 and item["gid"] == 986 and item["preimage"] == {"kind": "absent"} for item in contract["directories"][1:]))
                     parent = next(item for item in contract["preserved_paths"] if item["target"] == "var/lib/octessera")
                     self.assertEqual(parent["preimage"], {"kind": "exact", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None})
-                    self.assertEqual(set(contract["directories"][0]["preimage"]) - {"kind"}, {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"})
+                    self.assertEqual(contract["directories"][0]["preimage"], {"kind": "exact", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None})
+                    self.assertTrue(all(item["preimage"]["kind"] == "exact" and item["preimage"]["uid"] == 0 and item["preimage"]["gid"] == 0 for item in contract["entries"] if item["target"].startswith("usr/local/share/octessera-setup-ui/")))
                     disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
-                    self.assertEqual((disabled["type"], disabled["preimage"]["link_target"], disabled["postimage"]), ("absent", ORANGE_SETUP_SERVICE_TARGET, "absent"))
+                    self.assertEqual((disabled["type"], disabled["preimage"], disabled["postimage"]), ("absent", {"kind": "absent"}, "absent"))
                 self.assertFalse(any(contract["recipe"][key] for key in ("account_mutation", "package_mutation", "network_mutation", "boot_mutation", "firmware_mutation")))
                 self.assertEqual(contract["prerequisites"]["packages"], ["openssh-server", "network-manager", "dnsmasq", "python3-minimal", "iw", "iproute2", "coreutils", "util-linux"])
                 self.assertEqual(contract["prerequisites"]["executables"], ["usr/local/bin/wifi-connect", "usr/bin/python3", "usr/sbin/iw", "usr/bin/nmcli", "usr/sbin/ip", "usr/bin/ss"])
@@ -94,6 +97,12 @@ class SetupContractTests(unittest.TestCase):
             validate_sources(loaded, ROOT)
         pinned = subprocess.check_output(["git", "-c", f"safe.directory={ROOT.as_posix()}", "show", "4eec2b7edf6619fa22c709d4a589237a5748de78:userpatches/overlay/usr/local/sbin/octessera-setup-sidecar"], cwd=ROOT)
         self.assertEqual(len(pinned), 9323)
+        orange, _ = load_contract(contract_for_board("orange-pi-zero-2w"))
+        altered = json.loads(json.dumps(orange))
+        altered["entries"][0]["preimage"] = {"kind": "absent"}
+        path.write_text(json.dumps(altered), encoding="utf-8")
+        with self.assertRaises(ValueError):
+            load_contract(path)
 
     def test_parent_sudoers_removal_is_raspberry_only_and_exact(self) -> None:
         orange, _ = load_contract(contract_for_board("orange-pi-zero-2w"))
