@@ -15,6 +15,10 @@ SETUP_UI_DIRECTORY = "usr/local/share/octessera-setup-ui"
 SETUP_UI_FILES = {"js/app.js", "index.html", "css/styles.css", "README.md", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
 SETUP_UI_NEW_FILES = {"js/app.js", "css/styles.css", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
 SETUP_UI_STALE_ROOT_FILES = {"usr/local/share/octessera-setup-ui/app.js", "usr/local/share/octessera-setup-ui/styles.css", "usr/local/share/octessera-setup-ui/octessera-mark.svg", "usr/local/share/octessera-setup-ui/octessera-wordmark.svg"}
+ORANGE_RUNTIME_DIRECTORIES = {"var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"}
+ORANGE_RUNTIME_ROOT = "var/lib/octessera"
+ORANGE_RUNTIME_UID = 986
+ORANGE_RUNTIME_GID = 986
 RASPBERRY_PARENT_SUDOERS_TARGET = "etc/sudoers.d/010_pi-nopasswd"
 RASPBERRY_PARENT_SUDOERS_SHA256 = "aa7549b5a2544e53652d7c844af396ca05044e41b05f56372162dc8b0cf3f089"
 
@@ -141,24 +145,35 @@ def _validate_ui_preimages(value: list[dict[str, Any]], board: str) -> None:
 
 
 def _directories(value: Any, board: str) -> None:
-    if not isinstance(value, list) or len(value) != 1:
-        raise SetupContractSchemaError("directories is not the exact singleton section")
-    directory = _keys(value[0], {"target", "type", "mode", "uid", "gid", "symlink", "xattrs", "capability", "preimage", "postimage"}, "directories[0]")
-    _path(directory["target"], "directories[0].target")
-    if directory["target"] != SETUP_UI_DIRECTORY:
-        raise SetupContractSchemaError("directories contains an unexpected path")
-    _metadata({key: directory[key] for key in FILE_SPEC_KEYS}, "directories[0]", allow_type={"directory"})
-    if directory["type"] != "directory" or directory["mode"] != 493 or directory["uid"] != 0 or directory["gid"] != 0 or directory["symlink"] or directory["xattrs"] or directory["capability"] is not None:
-        raise SetupContractSchemaError("directories[0] output metadata is not exact")
-    preimage = directory["preimage"]
-    _preimage(preimage, "directories[0].preimage")
-    if board == "raspberry-pi-zero-2w":
-        if preimage != {"kind": "absent"}:
-            raise SetupContractSchemaError("Raspberry setup directory preimage is not exact")
-    elif preimage != {"kind": "exact", "type": "directory", "mode": 493, "uid": 1001, "gid": 1001, "symlink": False, "xattrs": {}, "capability": None}:
-        raise SetupContractSchemaError("Orange setup directory preimage is not exact")
-    if directory["postimage"] != "required":
-        raise SetupContractSchemaError("directories[0].postimage is invalid")
+    if not isinstance(value, list) or not value:
+        raise SetupContractSchemaError("directories is invalid")
+    expected_targets = {SETUP_UI_DIRECTORY} if board == "raspberry-pi-zero-2w" else {SETUP_UI_DIRECTORY, *ORANGE_RUNTIME_DIRECTORIES}
+    targets: set[str] = set()
+    for index, item in enumerate(value):
+        directory = _keys(item, {"target", "type", "mode", "uid", "gid", "symlink", "xattrs", "capability", "preimage", "postimage"}, f"directories[{index}]")
+        _path(directory["target"], f"directories[{index}].target")
+        if directory["target"] not in expected_targets or directory["target"] in targets:
+            raise SetupContractSchemaError("directories contains an unexpected or duplicate path")
+        targets.add(directory["target"])
+        _metadata({key: directory[key] for key in FILE_SPEC_KEYS}, f"directories[{index}]", allow_type={"directory"})
+        expected_uid = 0 if directory["target"] == SETUP_UI_DIRECTORY else ORANGE_RUNTIME_UID
+        expected_gid = 0 if directory["target"] == SETUP_UI_DIRECTORY else ORANGE_RUNTIME_GID
+        if directory["type"] != "directory" or directory["mode"] != 493 or directory["uid"] != expected_uid or directory["gid"] != expected_gid or directory["symlink"] or directory["xattrs"] or directory["capability"] is not None:
+            raise SetupContractSchemaError(f"directories[{index}] output metadata is not exact")
+        preimage = directory["preimage"]
+        _preimage(preimage, f"directories[{index}].preimage")
+        if directory["target"] == SETUP_UI_DIRECTORY:
+            if board == "raspberry-pi-zero-2w":
+                if preimage != {"kind": "absent"}:
+                    raise SetupContractSchemaError("Raspberry setup directory preimage is not exact")
+            elif preimage != {"kind": "exact", "type": "directory", "mode": 493, "uid": 1001, "gid": 1001, "symlink": False, "xattrs": {}, "capability": None}:
+                raise SetupContractSchemaError("Orange setup directory preimage is not exact")
+        elif preimage != {"kind": "absent"}:
+            raise SetupContractSchemaError(f"{directory['target']} preimage is not exact")
+        if directory["postimage"] != "required":
+            raise SetupContractSchemaError(f"directories[{index}].postimage is invalid")
+    if targets != expected_targets:
+        raise SetupContractSchemaError("directories does not contain the exact path set")
 
 
 def _symlinks(value: Any, board: str) -> None:
@@ -231,6 +246,11 @@ def validate_setup_contract(contract: Any) -> None:
         _preimage(value["preimage"], f"preserved_paths[{index}].preimage")
         if value["postimage"] not in {"preserve", "absent"}:
             raise SetupContractSchemaError("preserved path postimage is invalid")
+    if top["board_profile"] == "orange-pi-zero-2w":
+        runtime_roots = [item for item in top["preserved_paths"] if item["target"] == ORANGE_RUNTIME_ROOT]
+        expected_root = {"classification": "runtime-library-root", "target": ORANGE_RUNTIME_ROOT, "preimage": {"kind": "exact", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None}, "postimage": "preserve"}
+        if runtime_roots != [expected_root]:
+            raise SetupContractSchemaError("Orange runtime root preservation is not exact")
     if not isinstance(top["stale_runtime_markers"], list) or not top["stale_runtime_markers"] or len(set(top["stale_runtime_markers"])) != len(top["stale_runtime_markers"]):
         raise SetupContractSchemaError("stale_runtime_markers is invalid")
     for marker in top["stale_runtime_markers"]:

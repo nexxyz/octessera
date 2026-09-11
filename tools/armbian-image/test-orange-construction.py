@@ -99,6 +99,7 @@ for path in sorted(SOURCE_BOUND_PROOF_SOURCES):
 
 construction_inputs = {item["path"]: item for item in contract["exact_inputs"]}
 assert construction_inputs["tools/armbian-image/orange_first_boot_contract.py"]["mode"] == 420
+assert construction_inputs["userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"]["mode"] == 420
 assert "CONFIG_SND_SOC_PCM5102A" not in (ROOT / "userpatches/extensions/octessera_audio.sh").read_text(encoding="utf-8")
 assert all(any(item["path"] == path for item in contract["managed_outputs"]) for path in (
     "usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
@@ -166,6 +167,7 @@ for line in (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8"
     if any(path in line for path in ("/etc/motd", "/etc/issue", "/usr/share/doc", "/usr/share/common-licenses", "/usr/share/doc/base-files/copyright")) and "/usr/share/doc/octessera" not in line:
         raise AssertionError("Orange constructor mutates a parent legal path")
 customize = (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8")
+image_mode = (ROOT / "userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh").read_text(encoding="utf-8")
 runtime_assets = (ROOT / "userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh").read_text(encoding="utf-8")
 setup_config = (ROOT / "userpatches/overlay/usr/local/lib/octessera/setup_config.py").read_text(encoding="utf-8")
 assert 'source "$orange_runtime_assets_helper"' in customize
@@ -220,6 +222,10 @@ assert "sha256sum -c -" in customize
 assert "github.com/balena-os/wifi-connect/releases" not in customize
 assert "notice_tree=\"$overlay_dir/usr/share/doc/octessera\"" in customize and "tools/legal/stage_notices.py" in customize and "/usr/share/doc/octessera" in customize
 assert "install_orange_musical_assets \"$overlay_dir\" \"\"" in customize
+assert "/var/lib/octessera/recordings /var/lib/octessera/screen-recordings" in customize
+assert "install -d -m 0755 -o octessera-runtime -g octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings" in image_mode
+assert "chown octessera-runtime:octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings" in image_mode
+assert "chmod 0755 /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings" in image_mode
 assert "install_overlay_file usr/local/sbin/octessera-sd-card /usr/local/sbin/octessera-sd-card 0755" in runtime_assets
 assert "install_overlay_file usr/local/lib/octessera/octessera-sd-card-lib.sh /usr/local/lib/octessera/octessera-sd-card-lib.sh 0644" in runtime_assets
 assert "systemctl enable octessera-orange-sd-card.service" in runtime_assets
