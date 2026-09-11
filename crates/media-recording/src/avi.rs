@@ -253,8 +253,9 @@ impl Timeline {
 
 fn encode_jpeg(pixels: &[u8; OLED_FRAME_BYTES]) -> Result<Vec<u8>, String> {
     let mut rgb = vec![0_u8; (OLED_WIDTH * OLED_HEIGHT * 3) as usize];
-    for (index, pixel) in pixels.chunks_exact(2).enumerate() {
-        let value = u16::from_be_bytes([pixel[0], pixel[1]]);
+    let (pixels, _) = pixels.as_chunks::<2>();
+    for (index, pixel) in pixels.iter().enumerate() {
+        let value = u16::from_be_bytes(*pixel);
         let red = u8::try_from((u32::from(value >> 11) * 255 + 15) / 31).unwrap_or(u8::MAX);
         let green =
             u8::try_from((u32::from((value >> 5) & 0x3f) * 255 + 31) / 63).unwrap_or(u8::MAX);

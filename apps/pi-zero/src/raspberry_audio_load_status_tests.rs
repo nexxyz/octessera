@@ -67,7 +67,10 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
         .unwrap();
 
     let snapshot = playback.last_snapshot().expect("runtime snapshot");
-    assert_eq!(snapshot["workerUtilization"], 0.9);
+    assert_eq!(
+        snapshot["workerUtilization"].as_f64(),
+        Some(f64::from(0.9_f32))
+    );
     assert_eq!(snapshot["highCpuSteady"], true);
     assert_eq!(snapshot["missedQuantumFlash"], true);
     let _ = std::fs::remove_dir_all(root);
