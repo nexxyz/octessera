@@ -70,24 +70,7 @@ pub(crate) fn rolling_backups_false_suppresses_backup_effects() {
 pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
-    for _ in 0..5 {
-        let _ = runner.send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-            request_snapshot: None,
-        });
-    }
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
-        request_snapshot: None,
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
+    assert!(runner.menu.focus_item_key("masterVolume"));
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
         request_snapshot: None,

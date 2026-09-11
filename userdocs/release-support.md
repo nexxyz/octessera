@@ -40,7 +40,7 @@ and ZIP contracts remain in [Release assembly](../docs/workflows/release-assembl
 Those names describe packaging; they do not turn an artifact into a supported
 hardware release.
 
-Backup / Restore is a Pi-only standalone `System > Backup / Restore` action.
+Backup / Restore is a Pi-only standalone `System > Setup > Backup / Restore` action.
 Board-side export, reflash, media restore, and physical confirmation still need
 the corresponding manual FAT evidence; this feature does not qualify an image
 or board release by itself.

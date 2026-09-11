@@ -8,7 +8,7 @@ use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
-use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
+use playback_runtime::{AudioOptimization, HostMessage, NativeRunner, PlaybackRuntime};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -47,6 +47,9 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) usb_midi_out_enabled: bool,
     pub(crate) audio_outputs: playback_runtime::AudioOutputSet,
+    pub(crate) audio_optimization: AudioOptimization,
+    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    pub(crate) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
     pub(crate) midi_rx: mpsc::Receiver<MidiMessage>,
     pub(crate) input_rx: mpsc::Receiver<HostMessage>,
     pub(crate) encoder_rx: mpsc::Receiver<HardwareEvent>,
@@ -80,7 +83,11 @@ fn run_scheduler(
         mut runner,
         mut adapter,
         candidate_readiness: _,
+        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        audio_load_rx,
     } = prepared;
+    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    let audio_load_rx = audio_load_rx;
     let audio = adapter.audio_service();
     let mut state = SchedulerState::new(initial_rendered_revision);
     let profile_enabled = state.profile_enabled();
@@ -100,6 +107,18 @@ fn run_scheduler(
             &render_worker,
         ) {
             break;
+        }
+        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        if let Some(load_rx) = audio_load_rx.as_ref() {
+            let output = crate::audio::drain_audio_load_status(load_rx, &mut playback, false);
+            if let Err(error) = crate::runtime_loop::process_runtime_output(
+                &mut playback,
+                &mut runner,
+                &mut adapter,
+                output,
+            ) {
+                eprintln!("pi audio load-status output processing failed: {error}");
+            }
         }
         let audio_fault = audio.as_ref().and_then(|audio| {
             audio

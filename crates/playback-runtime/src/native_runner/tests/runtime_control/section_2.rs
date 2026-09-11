@@ -142,8 +142,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
 #[test]
 pub(crate) fn system_sound_menu_updates_global_sound_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -153,7 +152,7 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
         .unwrap();
     assert_eq!(runner.global_sound.note_length_ms, 150);
 
-    runner.menu.state.cursor = 2;
+    assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -163,7 +162,7 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
         .unwrap();
     assert_eq!(runner.global_sound.velocity_scale_pct, 80);
 
-    runner.menu.state.cursor = 3;
+    assert!(runner.menu.focus_item_key("sound.velocityCurve"));
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {

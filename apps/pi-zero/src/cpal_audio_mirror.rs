@@ -14,11 +14,11 @@ use cpal::{SampleFormat, StreamConfig};
 use rodio_engine_source::PcmMirrorConsumer;
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use super::{output_buffer_size, select_output_device};
+use super::select_output_device;
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn build_cpal_mirror_stream(
-    output_buffer_frames: Option<u32>,
+    output_buffer_frames: u32,
     sink: AudioSink,
     consumer: PcmMirrorConsumer,
     stream_health: AudioStreamHealth,
@@ -31,7 +31,7 @@ pub(crate) fn build_cpal_mirror_stream(
     let mut config: StreamConfig = supported.config();
     config.channels = 2;
     config.sample_rate = cpal::SampleRate(super::DEFAULT_AUDIO_SAMPLE_RATE);
-    config.buffer_size = output_buffer_size(output_buffer_frames);
+    config.buffer_size = cpal::BufferSize::Fixed(output_buffer_frames);
     match supported.sample_format() {
         SampleFormat::F32 => {
             build_mirror_stream::<f32>(&device, &config, consumer, sink, stream_health)
@@ -50,7 +50,7 @@ pub(crate) fn build_cpal_mirror_stream(
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(crate) fn build_orange_cpal_mirror_stream(
-    profile: super::OrangeAudioProfile,
+    profile: super::super::audio_profile::OrangeAudioProfile,
     sink: AudioSink,
     consumer: PcmMirrorConsumer,
     stream_health: AudioStreamHealth,

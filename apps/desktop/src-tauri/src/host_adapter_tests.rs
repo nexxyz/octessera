@@ -1,5 +1,6 @@
 use super::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use crate::audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepState};
+use crate::recording::DesktopRecording;
 use crate::sample_decode_cache::SampleDecodeCache;
 use crate::types::QueuedAudioEvent;
 use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest};
@@ -21,6 +22,14 @@ fn temp_store_dir(name: &str) -> PathBuf {
 }
 
 fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEvent>) {
+    test_adapter_with_recording_dir(
+        std::env::temp_dir().join(format!("octessera-recording-test-{}", std::process::id())),
+    )
+}
+
+fn test_adapter_with_recording_dir(
+    recording_dir: PathBuf,
+) -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEvent>) {
     let (tx, rx) = mpsc::channel();
     let (platform_service_tx, _) = mpsc::sync_channel(32);
     let synth_slots = Arc::new(Mutex::new(
@@ -42,6 +51,7 @@ fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEven
             trigger_tx: tx,
             audio_control,
             sample_decode_cache,
+            recording: DesktopRecording::new(recording_dir),
         },
         midi_out: Arc::new(Mutex::new(None)),
         midi_in: Arc::new(Mutex::new(None)),
@@ -64,5 +74,7 @@ fn platform_request(effect: RuntimePlatformEffect) -> RuntimePlatformRequest {
 mod audio;
 #[path = "host_adapter_platform_tests.rs"]
 mod platform;
+#[path = "host_adapter_recording_tests.rs"]
+mod recording;
 #[path = "host_adapter_store_tests.rs"]
 mod store;

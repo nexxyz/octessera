@@ -181,17 +181,24 @@ fn fill_output<T>(
     let recorded = recording_tap_guard
         .as_ref()
         .and_then(|tap| (**tap).as_ref());
-    let mut recording_chunk = recorded
-        .as_ref()
-        .map(|_| crate::recording::RecordingChunk::new());
-    for sample in data {
-        let value = source.next().unwrap_or(0.0);
-        if let (Some(tap), Some(chunk)) = (recorded.as_ref(), recording_chunk.as_mut()) {
-            if !chunk.push(float_to_i16(value)) {
-                tap.push_chunk(chunk.take());
-                let _ = chunk.push(float_to_i16(value));
+    let mut recording_chunk = recorded.map(|tap| tap.new_chunk());
+    let mut frames = data.chunks_exact_mut(2);
+    for frame in &mut frames {
+        let left = source.next().unwrap_or(0.0);
+        let right = source.next().unwrap_or(0.0);
+        if let (Some(tap), Some(chunk)) = (recorded, recording_chunk.as_mut()) {
+            if !chunk.push_frame(float_to_i16(left), float_to_i16(right)) {
+                let full = std::mem::replace(chunk, media_recording::RecordingChunk::new(0));
+                tap.push_chunk(full);
+                *chunk = tap.new_chunk();
+                let _ = chunk.push_frame(float_to_i16(left), float_to_i16(right));
             }
         }
+        frame[0] = T::from_sample(left);
+        frame[1] = T::from_sample(right);
+    }
+    for sample in frames.into_remainder() {
+        let value = source.next().unwrap_or(0.0);
         *sample = T::from_sample(value);
     }
     if let (Some(tap), Some(chunk)) = (recorded.as_ref(), recording_chunk) {

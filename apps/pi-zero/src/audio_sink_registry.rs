@@ -14,12 +14,12 @@ pub(crate) struct SinkSender {
     tx: EngineEventSender,
 }
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(test)]
 pub(crate) fn test_sink_sender(tx: EngineEventSender) -> SinkSender {
     test_sink_sender_for(AudioSink::Jack, tx)
 }
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(test)]
 pub(crate) fn test_sink_sender_for(sink: AudioSink, tx: EngineEventSender) -> SinkSender {
     SinkSender { sink, tx }
 }

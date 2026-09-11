@@ -79,13 +79,16 @@ pass.
 - [Enclosure and print notes](hardware/enclosure.md) — board-specific openings
   and the current v21 test-fit model.
 - [Setup portal](hardware/setup-portal.md) — open or reopen board setup.
+- [Recording audio and OLED](recording.md) — capture the final mix or a small
+  audio-plus-OLED AVI without losing track of where the files went.
 - [Printable quick reference](#printable-quick-reference)
 
 ### Audio modes and practical limits
 
-Both boards use Inline by default, and Raspberry stays Inline-only. On Orange,
-`System > Sound > DSP > Multicore` selects the higher-capacity mode after a
-restart, trading Inline's ~2.9 ms effective latency for ~8.7 ms.
+Both boards default to `Latency`. Use `System > Audio > Perf. Mode` to choose
+the compact `Lat` or `Cap` setting after a restart. Orange Capacity is the
+current optional higher-capacity profile; Raspberry Capacity is wired from
+retained evidence but still needs live production-binary requalification.
 
 The adopted limits shared by shipped modes are 12 Bus FX slots, 2 Global FX
 slots, 2 simultaneous momentary FX, 16 synth voices, and 64 sample voices.
@@ -161,7 +164,7 @@ the selected board's boot card is SD1. On Orange, SD2 is header pin 26 / H618
 PH9 (SPI1 CS1, mux `0x4`) beside the OLED's CS0. Physical coexistence is still
 unqualified. Octessera mounts SD2 at `SD card` and creates `octessera/samples`
 plus `octessera/saves`; put WAV samples under
-`octessera/samples`. If you use `System > Audio / USB > Start SD2 Xfer`, eject
+`octessera/samples`. If you use `System > USB > Start SD2 Xfer`, eject
 the drive on the host before pressing Back or Main to stop transfer. If no host
 is connected yet, Octessera waits until one appears and you can still cancel
 from the popup.

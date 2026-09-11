@@ -10,6 +10,7 @@ pub enum RuntimeErrorDomain {
     Sample,
     Audio,
     Serialization,
+    Recording,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +55,7 @@ pub enum RuntimeOperation {
     SampleList,
     SamplePreview,
     DeviceUpdate,
+    Recording,
     SystemInfo,
     SetupPortal,
     UserDataTransfer,

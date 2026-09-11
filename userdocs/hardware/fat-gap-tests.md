@@ -37,7 +37,7 @@ the DAC/Jack sound in the end-to-end paths as USB evidence.
    control.
 2. If any gate or identity is missing, write `NOT RUN — unsafe or unauthorized`
    in the result matrix and do not connect the host.
-3. If authorized, enable USB Audio and/or USB MIDI in `System > Audio / USB`,
+3. If authorized, enable USB Audio in `System > Audio` and/or USB MIDI in `System > USB`,
    use the native `Save Setting` flow, then choose `Reboot now` after the
    successful save and test each board separately.
 4. On the host, capture `lsusb -v`, confirm the intended audio device, and send
@@ -87,7 +87,7 @@ covers lifecycle teardown, power submission, and return/recovery only.
 verified off-board storage, and at least 25 minutes remaining. This slot covers
 one board; a full two-board result needs a separate 25-minute slot for the other
 board. Otherwise mark the entire row `NOT RUN — mandatory FAT follow-up`; do not
-squeeze in an uncontrolled reflash. Use the standalone `System > Backup / Restore`
+squeeze in an uncontrolled reflash. Use the standalone `System > Setup > Backup / Restore`
 action on Pi; desktop is unsupported. See [Data Backup and Restore](../data-backup-restore.md)
 for the complete transfer contract. This is separate from the setup-portal FAT.
 
@@ -101,7 +101,7 @@ for the complete transfer contract. This is separate from the setup-portal FAT.
 
 ### Operator action
 
-1. On the source board, choose `System > Backup / Restore`. Read the regular IP,
+1. On the source board, choose `System > Setup > Backup / Restore`. Read the regular IP,
    port, and 10-character code from the OLED Ready card, then export a data-only
    archive. Export media-inclusive data too when custom samples or recordings
    are part of the claim. Use the displayed values:
@@ -119,7 +119,7 @@ for the complete transfer contract. This is separate from the setup-portal FAT.
    action is unavailable without binding or retrying.
 3. Verify both archive hashes off-board. Flash the matching image to the
    controlled spare card, complete first boot and regular network setup, then
-   choose `System > Backup / Restore` again for the new displayed URL and code.
+   choose `System > Setup > Backup / Restore` again for the new displayed URL and code.
 4. Upload one archive using the [documented restore command](../data-backup-restore.md#pre-flash-and-restore-flow).
    Press Main to apply only after validation says confirmation is required; use
    Back for the cancel case if time allows. Wait for the terminal result.

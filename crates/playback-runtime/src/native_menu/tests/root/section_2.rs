@@ -1,11 +1,27 @@
 use super::*;
 
 #[test]
+pub(crate) fn root_load_preset_back_returns_to_shortcut_row() {
+    let mut cfg = config();
+    cfg.preset_names = vec!["One".into(), "Two".into()];
+    let mut menu = NativeMenuModel::new(cfg);
+
+    assert!(menu.focus_item_key("preset.load"));
+    assert!(matches!(
+        menu.press(),
+        Some(NativeMenuPressResult::EnteredGroup)
+    ));
+    assert_eq!(menu.current_label(), Some("One"));
+    menu.back();
+    assert_eq!(menu.current_label(), Some("Load Preset"));
+}
+
+#[test]
 pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
     let mut cfg = config();
     cfg.preset_names = vec!["One".into(), "Two".into()];
     let mut menu = NativeMenuModel::new(cfg);
-    menu.state.stack = vec![5, 0, 0, 2];
+    menu.state.stack = vec![5, 11, 0, 2];
     menu.state.cursor = 1;
     assert_eq!(menu.current_label(), Some("Two"));
     menu.back();
@@ -18,8 +34,8 @@ pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
 #[test]
 pub(crate) fn static_navigation_memory_does_not_affect_focus_item_key() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 3];
-    menu.state.cursor = 2;
+    menu.state.stack = vec![5, 7];
+    menu.state.cursor = 1;
     menu.back();
     let _ = menu.press();
     assert_eq!(menu.current_label(), Some("Vel Scale"));

@@ -6,6 +6,7 @@ mod desktop_platform_service;
 mod host_adapter;
 mod midi;
 mod persistence;
+mod recording;
 mod runtime_worker;
 mod sample_decode_cache;
 mod samples;
@@ -49,17 +50,35 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             let app_handle = app.handle().clone();
-            let startup_result = samples::initialize_samples_root(app).and_then(|()| {
-                store_startup::ensure_store_dir(app).map_err(|error| error.to_string())
-            });
-            let store_dir =
+            let startup_result = samples::initialize_samples_root(app)
+                .and_then(|()| {
+                    store_startup::ensure_store_dir(app).map_err(|error| error.to_string())
+                })
+                .and_then(|store_dir| {
+                    recording::resolve_recordings_dir(app).and_then(|recording_dir| {
+                        recording::resolve_screen_recordings_dir(app).map(|screen_recording_dir| {
+                            (store_dir, recording_dir, screen_recording_dir)
+                        })
+                    })
+                });
+            let (store_dir, recording_dir, screen_recording_dir) =
                 match startup_failure::decide_startup(startup_result, |title, message| {
                     startup_failure::present_native_startup_error(app, title, message);
                 }) {
-                    startup_failure::StartupDecision::Continue(store_dir) => store_dir,
+                    startup_failure::StartupDecision::Continue(paths) => paths,
                     startup_failure::StartupDecision::FailurePresented => return Ok(()),
                 };
-            spawn_audio_engine_thread(trigger_rx, load_tx, audio_failure_tx, no_audio);
+            let recording = recording::DesktopRecording::with_screen_directory(
+                recording_dir,
+                screen_recording_dir,
+            );
+            spawn_audio_engine_thread(
+                trigger_rx,
+                load_tx,
+                audio_failure_tx,
+                no_audio,
+                recording.tap_state(),
+            );
             let platform_service = spawn_desktop_platform_service();
             let (audio_control, audio_prep_result_rx) = spawn_desktop_audio_control(
                 trigger_tx.clone(),
@@ -81,6 +100,7 @@ pub fn run() {
                         trigger_tx: trigger_tx.clone(),
                         audio_control,
                         sample_decode_cache,
+                        recording: recording.clone(),
                     },
                     midi_out.clone(),
                     midi_in.clone(),

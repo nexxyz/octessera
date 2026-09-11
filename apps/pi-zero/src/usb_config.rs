@@ -1,7 +1,7 @@
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, feature = "native-audio"))]
 use playback_runtime::AudioOptimization;
 use playback_runtime::AudioOutputSet;
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, feature = "native-audio"))]
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
@@ -90,7 +90,7 @@ pub(crate) fn read_usb_runtime_config(
     parse_usb_runtime_config(&payload)
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(feature = "native-audio")]
 pub(crate) fn read_audio_optimization_from_default_config(
     store_dir: &Path,
 ) -> Result<AudioOptimization, UsbConfigError> {
@@ -109,7 +109,7 @@ pub(crate) fn read_audio_optimization_from_default_config(
     parse_audio_optimization(&payload)
 }
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, feature = "native-audio"))]
 pub(crate) fn parse_audio_optimization(
     payload: &serde_json::Value,
 ) -> Result<AudioOptimization, UsbConfigError> {
@@ -143,7 +143,7 @@ pub(crate) fn parse_audio_optimization(
         })
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) fn audio_output_buffer_frames_from_default_config(store_dir: &Path) -> Option<u32> {
     let payload = std::fs::read_to_string(store_dir.join("default.json")).ok()?;
     let payload: serde_json::Value = serde_json::from_str(&payload).ok()?;
@@ -226,6 +226,10 @@ pub(crate) fn validate_pi_audio_outputs_payload(payload: &serde_json::Value) -> 
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "usb_config_audio_optimization_tests.rs"]
+mod audio_optimization_tests;
 
 #[cfg(test)]
 mod tests {
@@ -414,31 +418,6 @@ mod tests {
                 "runtimeConfig.sound.optimizeFor must be `latency` or `capacity`".into()
             )
         );
-    }
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    #[test]
-    fn raspberry_startup_reads_persisted_audio_output_buffer_frames() {
-        let store_dir = std::env::temp_dir().join(format!(
-            "octessera-audio-buffer-config-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&store_dir).unwrap();
-        std::fs::write(
-            store_dir.join("default.json"),
-            r#"{"runtimeConfig":{"sound":{"audioOutputBufferFrames":1024}}}"#,
-        )
-        .unwrap();
-
-        assert_eq!(
-            audio_output_buffer_frames_from_default_config(&store_dir),
-            Some(1024)
-        );
-        let _ = std::fs::remove_dir_all(store_dir);
     }
 
     #[test]

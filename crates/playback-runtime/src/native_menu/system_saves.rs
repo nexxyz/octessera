@@ -1,4 +1,14 @@
-use super::{action_item, bool_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
+use super::{
+    action_item, bool_item, group, keyed_group, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+};
+
+pub(super) fn load_preset_group(names: &[String]) -> NativeMenuItem {
+    keyed_group(
+        "Load Preset",
+        "preset.load",
+        preset_action_children("preset.load", names),
+    )
+}
 
 pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
     group(
@@ -55,25 +65,16 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     bool_item("Backups", "rollingBackups", config.rolling_backups),
                 ],
             ),
-            group(
-                "Factory",
-                vec![action_item(
-                    "Load Factory",
-                    "factory.load",
-                    NativeMenuAction::PlatformEffect("factory.load".into()),
-                )],
-            ),
-            action_item(
-                "Load Empty",
-                "system.clearAll",
-                NativeMenuAction::PlatformEffect("system.clearAll".into()),
-            ),
         ],
     )
 }
 
 fn preset_action_group(label: &str, action_prefix: &str, names: &[String]) -> NativeMenuItem {
-    let children = if names.is_empty() {
+    group(label, preset_action_children(action_prefix, names))
+}
+
+fn preset_action_children(action_prefix: &str, names: &[String]) -> Vec<NativeMenuItem> {
+    if names.is_empty() {
         vec![action_item(
             "(none)",
             format!("{action_prefix}.none"),
@@ -90,8 +91,7 @@ fn preset_action_group(label: &str, action_prefix: &str, names: &[String]) -> Na
                 )
             })
             .collect()
-    };
-    group(label, children)
+    }
 }
 
 fn preset_rename_group(config: &NativeMenuConfig) -> NativeMenuItem {

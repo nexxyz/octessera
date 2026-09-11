@@ -5,6 +5,7 @@ members = [
     "crates/playback-runtime",
     "crates/realtime-engine",
     "crates/rodio-engine-source",
+    "crates/media-recording",
     "crates/hal",
     "apps/desktop/src-tauri",
     "apps/pi-zero"

@@ -1,6 +1,8 @@
 use super::audio_output_open::{source_execution_mode, AudioConstructionConfig};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use super::cpal_audio_output::OrangeAudioProfile;
+use super::audio_profile::OrangeAudioProfile;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use super::audio_profile::RaspberryAudioProfile;
 use super::cpal_audio_output::{build_engine_source, AudioSourceExecutionMode};
 use super::AudioSink;
 use crate::audio_priority::{
@@ -28,13 +30,15 @@ fn inline_cpal_mode_does_not_start_workers_before_stream_construction() {
 }
 
 #[test]
-fn cpal_uses_routing_tree_only_for_orange_capacity_jack() {
+fn cpal_uses_routing_tree_only_for_capacity_jack() {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     let config = AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Capacity,
     ));
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let config = AudioConstructionConfig::raspberry(None);
+    let config = AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(
+        playback_runtime::AudioOptimization::Latency,
+    ));
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     assert_eq!(
         source_execution_mode(AudioSink::Jack, config),
@@ -54,6 +58,25 @@ fn cpal_uses_routing_tree_only_for_orange_capacity_jack() {
             )),
         ),
         AudioSourceExecutionMode::Inline
+    );
+    for sink in [AudioSink::Usb, AudioSink::Hdmi] {
+        assert_eq!(
+            source_execution_mode(sink, config),
+            AudioSourceExecutionMode::Inline
+        );
+    }
+}
+
+#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+#[test]
+fn raspberry_capacity_uses_routing_tree_only_for_jack() {
+    let config = AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(
+        playback_runtime::AudioOptimization::Capacity,
+    ));
+
+    assert_eq!(
+        source_execution_mode(AudioSink::Jack, config),
+        AudioSourceExecutionMode::RoutingTree
     );
     for sink in [AudioSink::Usb, AudioSink::Hdmi] {
         assert_eq!(

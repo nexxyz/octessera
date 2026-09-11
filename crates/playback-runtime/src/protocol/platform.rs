@@ -40,6 +40,10 @@ pub enum RuntimePlatformEffect {
         #[serde(rename = "maxMinutes")]
         max_minutes: u16,
     },
+    RecordingStartAudioOled {
+        #[serde(rename = "maxMinutes")]
+        max_minutes: u16,
+    },
     RecordingStop,
     MidiListOutputsRequest,
     MidiListInputsRequest,
@@ -89,9 +93,10 @@ impl RuntimePlatformEffect {
                 RuntimeOperation::MidiStatus
             }
             Self::SampleListRequest { .. } => RuntimeOperation::SampleList,
-            Self::AudioCommand { .. } | Self::RecordingStartAudio { .. } | Self::RecordingStop => {
-                RuntimeOperation::AudioCommand
-            }
+            Self::AudioCommand { .. } => RuntimeOperation::AudioCommand,
+            Self::RecordingStartAudio { .. }
+            | Self::RecordingStartAudioOled { .. }
+            | Self::RecordingStop => RuntimeOperation::Recording,
             Self::UpdateCheck | Self::UpdateApply | Self::Rollback => {
                 RuntimeOperation::DeviceUpdate
             }
@@ -135,9 +140,10 @@ impl RuntimePlatformEffect {
             | Self::MidiSelectInput { .. }
             | Self::MidiPanic => RuntimeErrorDomain::Midi,
             Self::SampleListRequest { .. } => RuntimeErrorDomain::Sample,
-            Self::AudioCommand { .. } | Self::RecordingStartAudio { .. } | Self::RecordingStop => {
-                RuntimeErrorDomain::Audio
-            }
+            Self::AudioCommand { .. } => RuntimeErrorDomain::Audio,
+            Self::RecordingStartAudio { .. }
+            | Self::RecordingStartAudioOled { .. }
+            | Self::RecordingStop => RuntimeErrorDomain::Recording,
             Self::StoreListPresets
             | Self::StoreLoadPreset { .. }
             | Self::StoreSavePreset { .. }

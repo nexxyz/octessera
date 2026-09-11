@@ -23,7 +23,11 @@ pub(crate) fn benchmark_worker_start_hook(parity: usize) -> Result<(), ()> {
     }
 }
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn orange_worker_start_hook(parity: usize) -> Result<(), ()> {
+#[cfg(any(
+    test,
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+pub(crate) fn pi_worker_start_hook(parity: usize) -> Result<(), ()> {
     benchmark_worker_start_hook(parity)
 }

@@ -12,6 +12,8 @@ pub(super) struct LiveTimingProbeReport {
     pub(super) scenario: playback_runtime::TimingProbeScenario,
     pub(super) duration_ms: u64,
     pub(super) force_snapshots: bool,
+    pub(super) output_buffer_frames: u32,
+    pub(super) internal_block_frames: usize,
     pub(super) events: usize,
     pub(super) event_intervals_us: LiveSummary,
     pub(super) primary_stream: Option<LiveStreamReport>,
