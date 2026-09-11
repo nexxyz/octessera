@@ -5,7 +5,7 @@ use playback_runtime::{
 };
 use std::fs;
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -140,6 +140,7 @@ fn request_at(
     )
     .unwrap();
     stream.write_all(body).unwrap();
+    stream.shutdown(Shutdown::Write).unwrap();
     let mut response = Vec::new();
     stream.read_to_end(&mut response).unwrap();
     let header_end = response

@@ -5,7 +5,7 @@ use crate::{NativeRunner, NativeRunnerConfig, RuntimeStoreResult};
 use serde_json::{json, Value};
 
 const FACTORY_PATCH_SEQUENCE: &[&str] = &[
-    "System > Saves > Load Empty > Confirm Load Empty",
+    "System > Reset > Load Empty > Confirm Load Empty",
     "Layer 1 double-line cross grid paint",
     "Layer 2 row-pattern grid paint",
     "Build L1 Life 16th no random spawn",
@@ -107,9 +107,7 @@ fn save_visible_preset_as_test_json(device: &mut DeviceDriver) {
 fn load_visible_preset(device: &mut DeviceDriver, name: &str) {
     let mut menu = VisibleMenuDriver::new(device);
     menu.open_group("System");
-    menu.open_group("Saves");
-    menu.open_group("Library");
-    menu.open_group("Load");
+    menu.open_group("Load Preset");
     menu.activate_action(name);
     menu.confirm("Confirm Load");
     menu.back_to_root();

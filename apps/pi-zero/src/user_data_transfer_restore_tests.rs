@@ -6,7 +6,7 @@ use playback_runtime::{
 };
 use std::fs;
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -71,6 +71,7 @@ fn restore_request(
     )
     .unwrap();
     stream.write_all(body).unwrap();
+    stream.shutdown(Shutdown::Write).unwrap();
     let mut response = Vec::new();
     stream.read_to_end(&mut response).unwrap();
     let header_end = response
@@ -124,6 +125,7 @@ fn upload_requires_limits_and_physical_cancel_before_mutation() {
             crate::user_data_archive::max_archive_bytes() + 1
         )
         .unwrap();
+        stream.shutdown(Shutdown::Write).unwrap();
         let mut response = Vec::new();
         stream.read_to_end(&mut response).unwrap();
         let header_end = response

@@ -5,7 +5,7 @@ use crate::SampleEntry;
 pub(super) fn clear_all_from_visible_ui(device: &mut DeviceDriver) {
     let mut menu = VisibleMenuDriver::new(device);
     menu.open_group("System");
-    menu.open_group("Saves");
+    menu.open_group_exact("Reset");
     menu.activate_action("Load Empty");
     menu.confirm("Confirm Load Empty");
     menu.back_to_root();

@@ -26,7 +26,7 @@ The test driver chooses rows by visible OLED labels. It fails with a trace and t
 ### 1. Clear to blank patch
 
 1. Open `System`.
-2. Open `Saves`.
+2. Open `Reset`.
 3. Select `Load Empty`.
 3. Confirm `Confirm Load Empty`.
 4. Return to root.
