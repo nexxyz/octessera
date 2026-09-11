@@ -10,10 +10,10 @@
     "machine_output_checked": false,
     "limitation": "cargo-about 0.9.1 is advisory here: custom first-party license-file metadata and policy review are not represented by its accepted identifiers, so the checked inventory is rendered from Cargo.lock, manifests, and the exact reviewed policy instead."
   },
-  "cargo_lock_sha256": "93e4ec16efce13c44e0ee994bb15a4c9912528feb98b33f3147b03a147080b34",
-  "package_count": 523,
+  "cargo_lock_sha256": "37e9b20dcdffc43f173c326777a003a2c392341bee493c1effb158f716bfe947",
+  "package_count": 525,
   "license_classes": {
-    "permissive": 511,
+    "permissive": 513,
     "file-level-copyleft": 10,
     "reviewed-license-alternative": 2,
     "custom-or-unknown": 0
@@ -18056,6 +18056,90 @@
         "status": "verified-from-crate-archive",
         "sha256": "b7b1c575a34f00b0831462bb58414172c33362731a8eac176c9c7f54a53f79cb"
       }
+    },
+    {
+      "name": "zune-core",
+      "version": "0.5.3",
+      "license": "MIT OR Apache-2.0 OR Zlib",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT",
+        "Zlib"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "d56377fd46368984a170bc5aac5567e52ca5da874caa60bea39fcbca78fb658b",
+      "license_files": [
+        {
+          "source_file": "LICENSE-APACHE",
+          "document_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "bytes": 11357
+        },
+        {
+          "source_file": "LICENSE-MIT",
+          "document_sha256": "d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745",
+          "bytes": 1073
+        },
+        {
+          "source_file": "LICENSE-ZLIB",
+          "document_sha256": "d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c",
+          "bytes": 859
+        }
+      ],
+      "manifest_sha256": "c17da79ddd25919908712cdd9a9e7e0273d53bda0b5be554a08270431a325b28",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/etemesi254/zune-image",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "7710e35fa223b8b7875d420552be4b03a0f2d97025afae7af0fa9aa8e40d0d36"
+      }
+    },
+    {
+      "name": "zune-jpeg",
+      "version": "0.5.15",
+      "license": "MIT OR Apache-2.0 OR Zlib",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT",
+        "Zlib"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "27bc9d5b815bc103f142aa054f561d9187d191692ec7c2d1e2b4737f8dbd7296",
+      "license_files": [
+        {
+          "source_file": "LICENSE-APACHE",
+          "document_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "bytes": 11357
+        },
+        {
+          "source_file": "LICENSE-MIT",
+          "document_sha256": "d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745",
+          "bytes": 1073
+        },
+        {
+          "source_file": "LICENSE-ZLIB",
+          "document_sha256": "d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c",
+          "bytes": 859
+        }
+      ],
+      "manifest_sha256": "0ff579eaf0dbe4cb0529bc3e5256cd25eff1ae146289f40a4f77442171b5995b",
+      "manifest_authors": [
+        "caleb <etemesicaleb@gmail.com>"
+      ],
+      "manifest_repository": "https://github.com/etemesi254/zune-image/tree/dev/crates/zune-jpeg",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "9555f890483261fe2ddf33349f0d2e200169d1c16f99cd42093b1154ffe98af1"
+      }
     }
   ],
   "manifest_license_no_file": [
@@ -18136,60 +18220,67 @@
   "source_availability_review_count": 74,
   "workspace_license": [
     {
+      "name": "media-recording",
+      "version": "0.8.2",
+      "manifest_license_file": "../../LICENSE",
+      "resolved_license_file": "LICENSE",
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
+    },
+    {
       "name": "octessera-desktop",
       "version": "0.8.2",
       "manifest_license_file": "../../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "octessera-hal",
       "version": "0.8.2",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "octessera-pi",
       "version": "0.8.2",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "platform-capabilities-build",
       "version": "0.8.2",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "platform-core",
       "version": "0.8.2",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "playback-runtime",
       "version": "0.8.2",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "realtime-engine",
       "version": "0.8.2",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "rodio-engine-source",
       "version": "0.8.2",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
-      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     }
   ],
   "workspace_license_metadata_missing": [],

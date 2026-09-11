@@ -19,6 +19,7 @@ WORKSPACE_PACKAGE_NAMES = {
     "playback-runtime",
     "realtime-engine",
     "rodio-engine-source",
+    "media-recording",
     "octessera-hal",
     "octessera-pi",
     "octessera-desktop",
