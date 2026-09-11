@@ -13,6 +13,7 @@ name = "octessera-pi-hdmi-bench"
 path = "src/bin/hdmi_bench.rs"
 
 [dependencies]
+media-recording = { path = "../../crates/media-recording" }
 octessera-hal = { path = "../../crates/hal" }
 platform-core = { path = "../../crates/platform-core" }
 playback-runtime = { path = "../../crates/playback-runtime" }
@@ -63,7 +64,11 @@ raspberry-runtime = [
     "external-midi",
 ]
 external-midi = ["native-audio", "dep:midir"]
-hardware-raspberry-pi-zero-2w = ["octessera-hal/raspberry-pi-zero-2w", "raspberry-runtime"]
+hardware-raspberry-pi-zero-2w = [
+    "octessera-hal/raspberry-pi-zero-2w",
+    "raspberry-runtime",
+    "routing-tree-executor",
+]
 hardware-rpi-zero-2w = [
     "hardware-raspberry-pi-zero-2w",
     "legacy-hardware-rpi-zero-2w",

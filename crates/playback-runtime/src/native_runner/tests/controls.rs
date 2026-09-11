@@ -52,8 +52,7 @@ pub(crate) fn controls_help_popup_turns_without_effects() {
 #[test]
 pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
-    runner.menu.state.cursor = 2;
+    assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
@@ -74,8 +73,7 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
         })
         .unwrap();
 
-    runner.menu.state.stack = vec![5, 3];
-    runner.menu.state.cursor = 2;
+    assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     runner.display.ui.combined_modifier_held = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -92,7 +90,7 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
         .unwrap();
 
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 3;
+    runner.menu.state.cursor = 7;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

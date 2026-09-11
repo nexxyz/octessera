@@ -164,6 +164,9 @@ export type RuntimePlatformEffect =
   | { type: "midi_select_output"; id: string | null }
   | { type: "midi_select_input"; id: string | null }
   | { type: "midi_panic" }
+  | { type: "recording_start_audio"; maxMinutes: number }
+  | { type: "recording_start_audio_oled"; maxMinutes: number }
+  | { type: "recording_stop" }
   | { type: "reboot" }
   | { type: "shutdown" }
   | { type: "hardware_test" }
@@ -248,6 +251,7 @@ export type RuntimeStoreResult =
     }
   | { type: "sample_preview_error"; message: string }
   | { type: "device_update_status"; ok: boolean; message: string }
+  | { type: "recording_status"; ok: boolean; message: string }
   | { type: "system_info_result"; info: RuntimeSystemInfo }
   | { type: "system_info_error"; error: RuntimeSystemInfoError }
   | RuntimeSetupPortalStatus

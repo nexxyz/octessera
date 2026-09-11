@@ -1,9 +1,17 @@
 use super::*;
 use crate::native_menu::NativeMenuValue;
 
+fn hdmi_runner() -> NativeRunner {
+    NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap()
+}
+
 #[test]
 fn hdmi_menu_displays_terminal_while_config_and_snapshot_remain_none() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = hdmi_runner();
     let item = runner.menu.item_for_key("hdmi.mode").unwrap();
     assert_eq!(
         item.value,
@@ -66,7 +74,7 @@ fn hdmi_snapshot_defaults_to_none_black_grid() {
 
 #[test]
 fn hdmi_config_payload_clamps_and_persists_menu_values() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = hdmi_runner();
     assert!(runner.menu.focus_item_key("hdmi.mode"));
     assert!(runner.menu.turn_key("hdmi.mode", 4));
     assert!(runner.apply_menu_key_fast("hdmi.mode"));
@@ -85,7 +93,7 @@ fn hdmi_config_payload_clamps_and_persists_menu_values() {
 
 #[test]
 fn hdmi_menu_can_return_to_none() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = hdmi_runner();
 
     assert!(runner.menu.focus_item_key("hdmi.mode"));
     assert!(runner.menu.turn_key("hdmi.mode", 1));
@@ -109,7 +117,7 @@ fn hdmi_menu_can_return_to_none() {
 
 #[test]
 fn hdmi_full_menu_apply_normalizes_terminal() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = hdmi_runner();
     assert!(runner.menu.focus_item_key("hdmi.mode"));
     assert!(runner.menu.turn_key("hdmi.mode", 1));
     assert!(runner.apply_menu_key_fast("hdmi.mode"));
@@ -125,7 +133,7 @@ fn hdmi_full_menu_apply_normalizes_terminal() {
 
 #[test]
 fn hdmi_raw_none_payload_remains_accepted_and_displays_terminal() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = hdmi_runner();
     runner
         .apply_config_payload(json!({
             "runtimeConfig": { "hdmi": { "mode": "live-grid" } }
@@ -162,7 +170,7 @@ fn hdmi_bars_per_cycle_is_only_present_in_cycle_behaviors() {
         (3, "active-behavior"),
         (4, "cycle-behaviors"),
     ] {
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        let mut runner = hdmi_runner();
         assert!(runner.menu.focus_item_key("hdmi.mode"));
         if delta != 0 {
             assert!(runner.menu.turn_key("hdmi.mode", delta));

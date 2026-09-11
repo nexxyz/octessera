@@ -6,21 +6,31 @@ measurement dated 2026-07-15 and every table in the Raspberry section is
 Raspberry Pi Zero 2 W evidence only.
 
 Historical executor fields remain readable in benchmark evidence, but active
-selection exposes only Inline and routing-tree execution.
+selection exposes only Inline and routing-tree execution. `System > Audio >
+Perf. Mode` is now visible on Raspberry and Orange, displays compact `Lat` and
+`Cap` labels, and defaults to Latency. Raspberry Latency is the fixed Inline
+production profile; Raspberry Capacity is the fixed routing-tree Jack profile;
+live production-binary requalification remains required. Orange Capacity remains the optional
+OM128 routing profile with its current U42 qualification boundary.
 
 ## 2026-09-10 qualification and product decision
 
 The local generated final frame-search evidence is under
 `target/audio-capacity-frame-search/winner-qualification-c72d79e9/` and uses
 source commit `c72d79e903bf1fc5fdf6292bf117729a98795267`. Both Pi boards ship
-with Inline as the default. Raspberry remains Inline-only. Orange Capacity is
-the optional OM128 routing profile: output 256 / ALSA period 64 / internal 128 /
-lookahead 128, with the U42 soak as the retained qualification point.
+with Latency as the default. Raspberry Latency remains Inline; Raspberry
+Capacity uses the retained RM256 routing profile: output 256 / ALSA period 64 /
+internal 256 / lookahead 256. Orange Capacity remains the optional OM128
+routing profile: output 256 / ALSA period 64 / internal 128 / lookahead 128,
+with the U42 soak as the retained qualification point. Raspberry production
+wiring is added from retained evidence, but live production-binary
+requalification remains required and is not claimed here.
 
 OI256 was the capacity-first study winner, but OI32 is retained as the Orange
 low-latency product choice: it keeps effective latency near 2.9 ms rather than
-doubling it for only one additional U. Raspberry Multicore remains
-evidence-only; RM256 is its qualified evidence profile, not a shipped mode.
+doubling it for only one additional U. RM256 remains the Raspberry Capacity
+evidence profile; it is now wired to the production Capacity mode, but that
+production binary is not yet requalified.
 The adopted limits shared by shipped modes remain 12 Bus FX slots, 2 Global FX
 slots, 2 simultaneous momentary FX, 16 synth voices, and 64 sample voices.
 The qualification evidence is pre-mute callback consumption; it does not prove
@@ -107,8 +117,9 @@ capacity. The U32/U36 results do not justify raising the product limit.
 - The historical decision kept Orange Capacity at U16 and kept the existing
   Inline limits. It did not raise Capacity to U32 or U36.
 - The historical decision kept Raspberry on the product Inline executor and
-  current limits. It did not expose Multicore based on that inconsistent
-  diagnostic result.
+  current limits. Phase 1 now wires the retained RM256 result as Raspberry
+  Capacity; this does not retroactively change the historical diagnostic grade
+  or claim live production-binary requalification.
 - No product defaults changed in that historical campaign.
 
 ## Historical Orange frame mapping and evidence boundary
@@ -207,10 +218,13 @@ The following 256-frame rows are also Raspberry Pi Zero 2 W measurements only:
 | `mixed_cross_slot_48_48_steal` | 2 | 0.711 | 0.714 | 0.803 | 48/48 |
 | `mixed_cross_slot_48_48_steal` | 3 | 0.713 | 0.731 | 0.798 | 48/48 |
 
-Raspberry's Phase 1 behavior uses a 256-frame runtime output buffer and a
-128-frame internal render quantum. The Orange result above is Orange-specific.
-`OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES` and
-`OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES` remain profiling overrides.
+Raspberry Latency uses a 256-frame runtime output buffer and a 128-frame
+internal render quantum. Raspberry Capacity uses the retained RM256 geometry:
+256-frame output, 256-frame internal render quantum, and routing-tree Jack
+execution. The Orange result above is Orange-specific. The timing-probe-only
+Raspberry constructor applies `OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES` and
+`OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES` and records the resulting actual
+geometry; normal production startup ignores those diagnostic overrides.
 
 `docs/internal/pi-audio-buffer-experiment.md` records the Raspberry
 128-frame internal/output experiment. It retained the 256-frame output, the

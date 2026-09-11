@@ -9,7 +9,9 @@ impl AudioManager {
             recovery.recover_if_due_with(
                 || {
                     if !*reset_pending {
-                        while load_rx.try_recv().is_ok() {}
+                        if let Some(load_rx) = load_rx.as_ref() {
+                            while load_rx.try_recv().is_ok() {}
+                        }
                         *reset_pending = true;
                     }
                 },

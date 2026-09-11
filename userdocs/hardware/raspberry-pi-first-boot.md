@@ -42,7 +42,7 @@ inactive, GPIO14 remains an input for reliable `SW3` operation.
 The freshly flashed image boots offline without waiting for a network. NetworkManager
 remains available, but the standalone DNS and wait-online units stay disabled and no
 hotspot or SSH service starts by itself. To configure networking and SSH, choose
-`System > Configure WiFi > Open Portal`; do not expect a fresh production image to
+`System > Setup > Configure WiFi > Open Portal`; do not expect a fresh production image to
 start an automatic hotspot.
 
 Normal first boot does not wait six minutes. Upstream filesystem resize is ordered
@@ -108,10 +108,10 @@ apply/reboot action before changing the host-visible USB composition.
 The browser's Applying screen is provisional; an AP disconnect is expected while
 settings apply. Wait for the OLED result. The AP remains available for 10 minutes
 after readiness. Success needs only a usable global `wlan0` IPv4 address, and the
-address is shown in `System > Info` afterward. Success and timeout cards auto-hide;
+address is shown in `System > Sys. Info` afterward. Success and timeout cards auto-hide;
 failure remains dismissible, and another attempt needs a new `Open Portal` action.
 
-When Internet is available, `System > Updates` only checks, applies, or rolls back
+When Internet is available, `System > Setup > Updates` only checks, applies, or rolls back
 the Octessera runtime. It does not update the Armbian OS/image, kernel, device
 tree, or other full-image assets; those remain manual image operations.
 

@@ -4,8 +4,7 @@ use crate::oled_frame::TOAST_RECT;
 #[test]
 pub(crate) fn system_sound_master_volume_edit_via_menu() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
-    runner.menu.state.cursor = 0;
+    assert!(runner.menu.focus_item_key("masterVolume"));
 
     let edit = runner
         .send(HostMessage::DeviceInput {
@@ -28,14 +27,13 @@ pub(crate) fn system_sound_master_volume_edit_via_menu() {
         })
         .unwrap();
     assert_eq!(snapshot_from(&exit)["display"]["editing"], false);
-    assert_eq!(snapshot_from(&exit)["display"]["title"], "/SYS/Sound");
+    assert_eq!(snapshot_from(&exit)["display"]["title"], "/System");
 }
 
 #[test]
 pub(crate) fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
-    runner.menu.state.cursor = 0;
+    assert!(runner.menu.focus_item_key("masterVolume"));
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -76,8 +74,7 @@ pub(crate) fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
 #[test]
 pub(crate) fn fn_aux_binds_selected_action_and_aux_press_executes_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 4];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("midi.panic"));
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -116,13 +113,7 @@ pub(crate) fn fn_aux_binds_selected_action_and_aux_press_executes_it() {
 #[test]
 pub(crate) fn edit_marker_uses_compact_star_prefix() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    for _ in 0..5 {
-        let _ = runner.send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-            request_snapshot: None,
-        });
-    }
+    assert!(runner.menu.focus_item_key("masterVolume"));
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
         request_snapshot: None,
@@ -153,15 +144,10 @@ pub(crate) fn edit_marker_uses_compact_star_prefix() {
 #[test]
 pub(crate) fn midi_sync_mode_edits_through_menu() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 4];
-    runner.menu.state.cursor = 4;
+    assert!(runner.menu.focus_item_key("midiSyncMode"));
 
     assert_eq!(runner.transport.sync_source, SyncSource::Internal);
 
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
         request_snapshot: None,
@@ -183,8 +169,7 @@ pub(crate) fn midi_sync_mode_edits_through_menu() {
 #[test]
 pub(crate) fn system_menu_refresh_list_emits_store_list_effect() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 0, 0];
-    runner.menu.state.cursor = 5;
+    assert!(runner.menu.focus_item_key("preset.refresh"));
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -203,8 +188,7 @@ pub(crate) fn system_menu_refresh_list_emits_store_list_effect() {
 #[test]
 pub(crate) fn system_menu_midi_panic_emits_panic_effect() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 4];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("midi.panic"));
 
     let opened = runner
         .send(HostMessage::DeviceInput {

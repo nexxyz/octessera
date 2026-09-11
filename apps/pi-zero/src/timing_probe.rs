@@ -59,10 +59,16 @@ pub(crate) fn run() -> bool {
 fn run_live_audio_probe(
     options: &TimingProbeOptions,
 ) -> Result<Vec<LiveTimingProbeReport>, String> {
+    let overrides = timing_probe_overrides()?;
     let mut reports = Vec::new();
     for scenario in &options.scenarios {
         for duration in &options.durations {
-            reports.push(run_live_one(*scenario, *duration, options.snapshots)?);
+            reports.push(run_live_one(
+                *scenario,
+                *duration,
+                options.snapshots,
+                overrides,
+            )?);
         }
     }
     Ok(reports)
@@ -72,8 +78,13 @@ fn run_live_one(
     scenario: TimingProbeScenario,
     duration: Duration,
     snapshots: bool,
+    overrides: TimingProbeOverrides,
 ) -> Result<LiveTimingProbeReport, String> {
-    let audio = AudioManager::new(None, playback_runtime::AudioOutputSet::jack())?;
+    let (audio, geometry) = AudioManager::new_timing_probe(
+        overrides.output_buffer_frames,
+        overrides.internal_block_frames,
+        playback_runtime::AudioOutputSet::jack(),
+    )?;
     let store_dir = default_store_dir();
     let samples_dir = default_samples_dir();
     ensure_runtime_dirs(&store_dir, &samples_dir);
@@ -171,6 +182,8 @@ fn run_live_one(
         scenario,
         duration_ms: duration.as_millis() as u64,
         force_snapshots: snapshots,
+        output_buffer_frames: geometry.output_buffer_frames,
+        internal_block_frames: geometry.internal_block_frames,
         events: host.events.len(),
         event_intervals_us: summarize(&intervals),
         primary_stream: primary_stream_report(&host.events),
@@ -186,6 +199,31 @@ fn run_live_one(
         midi_messages: host.midi_messages,
         playing_statuses,
     })
+}
+
+#[derive(Clone, Copy)]
+struct TimingProbeOverrides {
+    output_buffer_frames: Option<u32>,
+    internal_block_frames: Option<usize>,
+}
+
+fn timing_probe_overrides() -> Result<TimingProbeOverrides, String> {
+    Ok(TimingProbeOverrides {
+        output_buffer_frames: read_frame_override("OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES")?,
+        internal_block_frames: read_frame_override("OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES")?
+            .map(|value| value as usize),
+    })
+}
+
+fn read_frame_override(name: &str) -> Result<Option<u32>, String> {
+    match std::env::var(name) {
+        Ok(value) => value
+            .parse::<u32>()
+            .map(Some)
+            .map_err(|_| format!("{name} must be an unsigned frame count")),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(format!("cannot read {name}: {error}")),
+    }
 }
 
 fn initialize_live_host_state(

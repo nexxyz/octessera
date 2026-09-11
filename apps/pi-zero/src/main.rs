@@ -91,8 +91,6 @@ mod orange_reboot;
 mod persistence;
 mod platform_service;
 mod power_lifecycle;
-#[cfg(feature = "native-audio")]
-mod recording;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -348,6 +346,14 @@ fn main() {
             std::process::exit(2);
         }
     };
+    let audio_optimization =
+        match usb_config::read_audio_optimization_from_default_config(&store_dir) {
+            Ok(optimization) => optimization,
+            Err(error) => {
+                eprintln!("Audio optimization configuration is unavailable: {error}");
+                std::process::exit(2);
+            }
+        };
     let hardware = match init_hardware(handoff_mode == boot_oled_handoff::HandoffMode::Legacy) {
         Ok(devices) => devices,
         Err(fault) => hardware_fault::run_hardware_fault_mode(fault),
@@ -368,16 +374,19 @@ fn main() {
         _dac,
     } = hardware;
     let seesaw_io = seesaw_io::spawn_interrupt(trellis, neokey, input_interrupt);
-    let audio = match init_audio(
-        usb_config::audio_output_buffer_frames_from_default_config(&store_dir),
-        usb_config.audio_outputs,
-    ) {
+    let audio = match init_audio(audio_optimization, usb_config.audio_outputs) {
         Ok(audio) => audio,
         Err(error) => {
             eprintln!("Audio init failed: {error}");
             std::process::exit(2);
         }
     };
+    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    let mut audio = audio;
+    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    let audio_load_rx = audio
+        .as_mut()
+        .and_then(AudioManager::take_load_status_receiver);
 
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
@@ -395,6 +404,9 @@ fn main() {
         midi_handler,
         usb_midi_out_enabled: usb_config.midi_out_enabled,
         audio_outputs: usb_config.audio_outputs,
+        audio_optimization,
+        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        audio_load_rx,
         midi_rx,
         input_rx: seesaw_io.input_rx,
         encoder_rx: event_rx,
@@ -464,10 +476,10 @@ fn exit_code(success: bool) -> i32 {
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn init_audio(
-    output_buffer_frames: Option<u32>,
+    audio_optimization: playback_runtime::AudioOptimization,
     audio_outputs: playback_runtime::AudioOutputSet,
 ) -> Result<Option<AudioManager>, String> {
-    match AudioManager::new(output_buffer_frames, audio_outputs) {
+    match AudioManager::new(audio_optimization, audio_outputs) {
         Ok(audio) => {
             audio.service().ensure_route_readiness()?;
             println!("Audio ready");

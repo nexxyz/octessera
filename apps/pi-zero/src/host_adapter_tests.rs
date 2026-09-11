@@ -95,6 +95,48 @@ fn raspberry_sd2_start_rejects_active_recording() {
 }
 
 #[test]
+fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
+    let root = std::env::temp_dir().join(format!("octessera-pi-audio-oled-{}", std::process::id()));
+    let audio = crate::audio::test_service_with_prep_worker();
+    let mut adapter = PiPlaybackHostAdapter::new(
+        Some(audio.clone()),
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        UsbAudioOut::Jack,
+    );
+    let oled = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::RecordingStartAudioOled { max_minutes: 1 },
+        "audio-oled-start".into(),
+        None,
+    );
+    adapter.handle_platform_effect(&oled).unwrap();
+    let active = adapter
+        .handle_platform_effect(&RuntimePlatformRequest::new(
+            RuntimePlatformEffect::RecordingStartAudio { max_minutes: 1 },
+            "audio-start".into(),
+            None,
+        ))
+        .unwrap_err();
+    assert!(active.to_string().contains("already active"));
+    let response = adapter
+        .handle_platform_effect(&RuntimePlatformRequest::new(
+            RuntimePlatformEffect::RecordingStop,
+            "audio-oled-stop".into(),
+            None,
+        ))
+        .unwrap();
+    assert!(matches!(
+        response.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus { ok: true, .. }
+        }]
+    ));
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn preset_path_rejects_unsafe_names() {
     let store_dir = PathBuf::from("store");
     let _adapter = PiPlaybackHostAdapter::new(

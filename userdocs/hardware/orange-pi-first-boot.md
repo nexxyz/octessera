@@ -99,7 +99,7 @@ removes `/root/.not_logged_in_yet`, so Armbian's interactive first-login wizard
 is suppressed. Its `armbian-firstrun.service` remains enabled with
 `OPENSSHD_REGENERATE_HOST_KEYS=true`, and `armbian-resize-filesystem.service`
 remains enabled for first-boot filesystem growth. To configure networking and
-SSH, choose `System > Configure WiFi > Open Portal`; do not expect a fresh
+SSH, choose `System > Setup > Configure WiFi > Open Portal`; do not expect a fresh
 production image to start an automatic hotspot. A warm reboot is not a guarantee
 that Wi-Fi association returns.
 
@@ -129,7 +129,7 @@ the service journal; the detailed reason remains there:
 1. Flash the Octessera Orange Pi Armbian production image to a microSD card.
 2. Put the card in the Orange Pi and power it on.
 3. Wait for the normal Octessera runtime startup.
-4. On the instrument, choose `System > Configure WiFi` and confirm `Open Portal`.
+4. On the instrument, choose `System > Setup > Configure WiFi` and confirm `Open Portal`.
    This deliberate action writes the one setup marker; the enabled path unit
    starts the root setup service.
 5. Wait for `Octessera Setup` or `Octessera Setup xxxx`.
@@ -151,11 +151,11 @@ The AP remains available for 10 minutes after it is ready. The browser's Applyin
 screen is provisional: an AP disconnect is expected and is not a success or
 failure result. Wait for the OLED terminal result; it is authoritative. Success
 requires a usable global `wlan0` IPv4 address. It does not require Internet
-access, a default route, DNS, or ICMP. After success, choose `System > Info` to
+access, a default route, DNS, or ICMP. After success, choose `System > Sys. Info` to
 see the IP. No reboot is required. Success and timeout cards auto-hide; failure
 remains dismissible, and another attempt needs a new `Open Portal` action.
 
-When Internet is available, `System > Updates` only checks, applies, or rolls back
+When Internet is available, `System > Setup > Updates` only checks, applies, or rolls back
 the Octessera runtime. It does not update the Armbian OS/image, kernel, device
 tree, or other full-image assets; those remain manual image operations.
 
@@ -174,11 +174,11 @@ the setup portal owns password, key, and no-SSH choices.
 
 ### If setup does not appear
 
-- Confirm the normal runtime has started, then choose `System > Configure WiFi`
+- Confirm the normal runtime has started, then choose `System > Setup > Configure WiFi`
   and confirm `Open Portal` again.
 - If the hotspot disappeared while the browser was applying settings, wait for
   the OLED result. An AP disconnect is expected during the network switch. If
-  setup failed or timed out, choose `System > Configure WiFi` and confirm
+  setup failed or timed out, choose `System > Setup > Configure WiFi` and confirm
   `Open Portal` again for one new attempt.
 - Check that the phone or laptop is not clinging to another Wi-Fi network.
 - Try `http://192.168.42.1/` directly.
@@ -189,7 +189,7 @@ the setup portal owns password, key, and no-SSH choices.
   journalctl -u octessera-setup.service --no-pager
   ```
 
-For setup from the instrument menu later, choose `System > Configure WiFi` and
+For setup from the instrument menu later, choose `System > Setup > Configure WiFi` and
 use [Open or reopen the full setup portal](setup-portal.md). Its apply behavior
 is the same for both boards.
 

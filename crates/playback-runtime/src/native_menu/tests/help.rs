@@ -49,6 +49,7 @@ pub(crate) fn configure_wifi_uses_a_stable_resolvable_action_help_key() {
 #[test]
 pub(crate) fn hdmi_help_covers_terminal_and_bars_per_cycle_copy() {
     let mut config = config();
+    config.jack_audio_required = true;
     config.hdmi_mode = "cycle-behaviors".into();
     let menu = NativeMenuModel::new(config);
 
@@ -363,7 +364,7 @@ pub(crate) fn affected_behavior_help_targets_keep_one_accurate_row() {
 #[test]
 pub(crate) fn binding_picker_leaves_use_bound_parameter_help_targets() {
     let target = NativeMenuHelpTarget {
-        path: "Menu > Play > XY > X Target > System > Sound > Note Length".into(),
+        path: "Menu > Play > XY > X Target > System > Notes > Note Length".into(),
         key: "key:sound.noteLengthMs".into(),
         kind: "number".into(),
         label: "Note Length".into(),

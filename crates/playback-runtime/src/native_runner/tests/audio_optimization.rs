@@ -221,29 +221,20 @@ fn missing_jack_is_rejected_atomically_in_both_dsp_modes() {
 }
 
 #[test]
-fn desktop_menu_keeps_jack_output_editable() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        jack_audio_required: false,
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
-    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.menu.rebuild(runner.menu_config());
-    assert!(runner.menu.focus_item_key("audioOutputs.dac"));
-    runner.menu.state.editing = true;
+fn desktop_menu_hides_device_audio_controls() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-
-    assert_eq!(runner.audio_optimization, AudioOptimization::Latency);
-    assert_eq!(
-        runner.audio_outputs,
-        AudioOutputSet::from_flags(false, true, false).unwrap()
-    );
+    for key in [
+        "audioOutputs.dac",
+        "audioOutputs.usb",
+        "audioOutputs.hdmi",
+        "usb.midiOutEnabled",
+        "usb.sdTransferStart",
+        "usb.sdTransferStop",
+        "hdmi.mode",
+    ] {
+        assert!(!runner.menu.focus_item_key(key), "desktop exposes {key}");
+    }
 }
 
 #[test]

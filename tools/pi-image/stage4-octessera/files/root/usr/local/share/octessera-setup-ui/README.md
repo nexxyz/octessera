@@ -65,6 +65,6 @@ Send form-urlencoded fields:
 - Show the provisional `Applying setup` screen after `/stage` succeeds and
   before `/connect`. A response only means that wifi-connect accepted the
   request. The AP may disconnect while settings apply; watch the OLED for the
-  result and find the address in `System > Info` after success.
+  result and find the address in `System > Sys. Info` after success.
 - The browser makes no completion or retry call. Keep form state in memory only.
 - Do not rely on external services or storage.

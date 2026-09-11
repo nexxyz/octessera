@@ -1,0 +1,11 @@
+[package]
+name = "media-recording"
+version = "0.8.2"
+edition = "2021"
+license-file.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["jpeg"] }

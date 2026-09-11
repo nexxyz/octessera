@@ -93,9 +93,22 @@ impl PiPlaybackHostAdapter {
     }
 
     pub(crate) fn save_recovery_for_power(&mut self) -> Result<(), String> {
-        self.recovery_save_status
+        let recovery = self
+            .recovery_save_status
             .take()
-            .unwrap_or_else(|| Err("recovery save did not complete".into()))
+            .unwrap_or_else(|| Err("recovery save did not complete".into()));
+        let recording = self
+            .audio
+            .as_ref()
+            .map_or(Ok(()), AudioService::stop_recording);
+        match (recovery, recording) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(recovery), Ok(())) => Err(recovery),
+            (Ok(()), Err(recording)) => Err(format!("recording stop failed: {recording}")),
+            (Err(recovery), Err(recording)) => {
+                Err(format!("{recovery}; recording stop failed: {recording}"))
+            }
+        }
     }
 
     fn recovery_save_ready(&self) -> Result<(), String> {
@@ -186,8 +199,27 @@ impl PiPlaybackHostAdapter {
         if let Err(error) = self.recovery_save_ready() {
             return Ok(vec![identified_failure(request, error)]);
         }
+        let recording_result = self.stop_recording_for_transition(request)?;
         self.power_request = Some(power_request);
-        Ok(Vec::new())
+        Ok(recording_result
+            .into_iter()
+            .map(|result| HostMessage::RuntimeResult { result })
+            .collect())
+    }
+
+    fn stop_recording_for_transition(
+        &self,
+        request: &RuntimePlatformRequest,
+    ) -> Result<Option<RuntimeStoreResult>, RuntimeAdapterError> {
+        let Some(audio) = &self.audio else {
+            return Ok(None);
+        };
+        audio
+            .stop_recording_with_outcome()
+            .map(|outcome| {
+                outcome.map(|outcome| crate::audio_recording::recording_status(outcome.status))
+            })
+            .map_err(|error| RuntimeAdapterError::from_facts(request.failure_facts(error)))
     }
 
     fn start_usb_sd_transfer(
@@ -273,13 +305,22 @@ impl HostAdapter for PiPlaybackHostAdapter {
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 self.pending_default_save.cancel();
                 self.pending_default_save_generation = None;
+                let recording_result = self.stop_recording_for_transition(request)?;
                 if let Err(message) = self.platform_service.save_default_now(payload) {
-                    return Ok(vec![store_error(format!(
+                    let mut messages = recording_result
+                        .into_iter()
+                        .map(|result| HostMessage::RuntimeResult { result })
+                        .collect::<Vec<_>>();
+                    messages.push(store_error(format!(
                         "device/audio apply save failed: {message}"
-                    ))]);
+                    )));
+                    return Ok(messages);
                 }
                 self.power_request = Some(PiPowerRequest::ApplyDeviceConfigReboot);
-                return Ok(Vec::new());
+                return Ok(recording_result
+                    .into_iter()
+                    .map(|result| HostMessage::RuntimeResult { result })
+                    .collect());
             }
             RuntimePlatformEffect::RecordingStartAudio { max_minutes } => {
                 if let Some(audio) = &self.audio {
@@ -287,11 +328,22 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 }
                 return Ok(Vec::new());
             }
-            RuntimePlatformEffect::RecordingStop => {
+            RuntimePlatformEffect::RecordingStartAudioOled { max_minutes } => {
+                let seed = self
+                    .oled_frame_cache
+                    .accepted_frame()
+                    .map(|frame| (frame.revision(), frame.pixels().to_vec()));
                 if let Some(audio) = &self.audio {
-                    audio.stop_recording()?;
+                    audio.start_recording_audio_oled_with_seed(*max_minutes, seed)?;
                 }
                 return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::RecordingStop => {
+                return Ok(self
+                    .stop_recording_for_transition(request)?
+                    .into_iter()
+                    .map(|result| HostMessage::RuntimeResult { result })
+                    .collect());
             }
             RuntimePlatformEffect::UsbSdTransferStart => {
                 return self.start_usb_sd_transfer(request);
@@ -424,6 +476,9 @@ fn identified_failure(request: &RuntimePlatformRequest, message: String) -> Host
 #[cfg(test)]
 #[path = "host_adapter_deferred_default_save_tests.rs"]
 mod deferred_default_save_tests;
+#[cfg(test)]
+#[path = "host_adapter_power_tests.rs"]
+mod power_tests;
 #[cfg(test)]
 #[path = "host_adapter_tests.rs"]
 mod tests;

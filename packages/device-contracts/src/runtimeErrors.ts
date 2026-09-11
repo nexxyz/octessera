@@ -1,4 +1,12 @@
-export const RUNTIME_ERROR_DOMAINS = ["runtime", "storage", "midi", "sample", "audio", "serialization"] as const;
+export const RUNTIME_ERROR_DOMAINS = [
+  "runtime",
+  "storage",
+  "midi",
+  "sample",
+  "audio",
+  "recording",
+  "serialization",
+] as const;
 export type RuntimeErrorDomain = (typeof RUNTIME_ERROR_DOMAINS)[number];
 
 export const RUNTIME_ERROR_CODES = [
@@ -40,6 +48,7 @@ export const RUNTIME_OPERATIONS = [
   "sample_list",
   "sample_preview",
   "device_update",
+  "recording",
   "system_info",
   "setup_portal",
   "user_data_transfer"

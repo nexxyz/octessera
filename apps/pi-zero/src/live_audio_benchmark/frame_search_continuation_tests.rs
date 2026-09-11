@@ -1,4 +1,18 @@
+#[cfg(all(
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ),
+    feature = "routing-tree-benchmark"
+))]
 use super::super::cli::is_approved_continue_on_recovered_miss;
+#[cfg(all(
+    any(
+        feature = "benchmark-voice-pools-128",
+        feature = "benchmark-voice-pools-256"
+    ),
+    feature = "routing-tree-benchmark"
+))]
 use super::*;
 
 #[cfg(all(

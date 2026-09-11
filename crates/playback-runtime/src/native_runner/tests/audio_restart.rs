@@ -21,7 +21,11 @@ fn changed_buffer_runner(auto_save_default: bool) -> NativeRunner {
 }
 
 fn dirty_bpm_hdmi_buffer_runner() -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     runner.auto_save_default = false;
 
     assert!(runner.menu.focus_item_key("transport.bpm"));
@@ -149,7 +153,7 @@ fn restart_sensitive_edit_opens_save_setting_dialog() {
     let runner = changed_buffer_runner(false);
     let snapshot = runner.snapshot().unwrap();
 
-    assert_eq!(snapshot["display"]["title"], "/SYS/Sound");
+    assert_eq!(snapshot["display"]["title"], "/SYS/Audio/Engine");
     let mut runner = runner;
     let messages = commit_with_main(&mut runner);
     let snapshot = snapshot_from(&messages);
@@ -190,7 +194,10 @@ fn repeated_restart_setting_turns_wait_for_main_commit() {
                 request_snapshot: None,
             })
             .unwrap();
-        assert_eq!(snapshot_from(&messages)["display"]["title"], "/SYS/Sound");
+        assert_eq!(
+            snapshot_from(&messages)["display"]["title"],
+            "/SYS/Audio/Engine"
+        );
         assert!(runner.display.confirm_dialog.is_none());
     }
     assert_eq!(runner.audio_output_buffer_frames, 1024);

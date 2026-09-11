@@ -4,7 +4,11 @@ mod fx;
 
 #[test]
 pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
 
     let messages = runner
@@ -45,7 +49,11 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
 
 #[test]
 pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
 
@@ -85,7 +93,11 @@ pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
 
 #[test]
 pub(crate) fn usb_sd_transfer_modal_closes_by_back_or_main_without_resuming() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
 
@@ -156,6 +168,22 @@ pub(crate) fn recording_actions_emit_platform_effects() {
     assert_eq!(
         effect,
         Some(&RuntimePlatformEffect::RecordingStartAudio { max_minutes: 7 })
+    );
+
+    assert!(runner.menu.focus_item_key("recording.startAudioOled"));
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let effect = messages.iter().find_map(|message| match message {
+        RunnerMessage::PlatformEffects { effects } => effects.first(),
+        _ => None,
+    });
+    assert_eq!(
+        effect,
+        Some(&RuntimePlatformEffect::RecordingStartAudioOled { max_minutes: 7 })
     );
 
     assert!(runner.menu.focus_item_key("recording.stop"));

@@ -3,8 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn system_menu_save_default_emits_native_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 0, 1];
-    runner.menu.state.cursor = 0;
+    assert!(runner.menu.focus_item_key("default.save"));
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -242,8 +241,7 @@ pub(crate) fn midi_output_menu_selects_dynamic_port() {
             },
         })
         .unwrap();
-    runner.menu.state.stack = vec![5, 4, 2];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("midi.output.out1"));
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -262,8 +260,8 @@ pub(crate) fn midi_output_menu_selects_dynamic_port() {
 #[test]
 pub(crate) fn entering_midi_port_groups_requests_port_lists() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 4];
-    runner.menu.state.cursor = 2;
+    runner.menu.state.stack = vec![5, 8];
+    runner.menu.state.cursor = 1;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -278,8 +276,8 @@ pub(crate) fn entering_midi_port_groups_requests_port_lists() {
             if effects == &vec![RuntimePlatformEffect::MidiListOutputsRequest]
     )));
 
-    runner.menu.state.stack = vec![5, 4];
-    runner.menu.state.cursor = 3;
+    runner.menu.state.stack = vec![5, 8];
+    runner.menu.state.cursor = 2;
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -304,8 +302,7 @@ pub(crate) fn preset_load_menu_selects_dynamic_preset() {
             },
         })
         .unwrap();
-    runner.menu.state.stack = vec![5, 0, 0, 2];
-    runner.menu.state.cursor = 1;
+    assert!(runner.menu.focus_item_key("preset.load.Alpha"));
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -320,5 +317,50 @@ pub(crate) fn preset_load_menu_selects_dynamic_preset() {
         message,
         RunnerMessage::PlatformEffects { effects }
             if effects == &vec![RuntimePlatformEffect::StoreLoadPreset { name: "Alpha".into() }]
+    )));
+
+    let mut nested_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = nested_runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::ListPresetsResult {
+                names: vec!["Alpha".into()],
+            },
+        })
+        .unwrap();
+    nested_runner.menu.state.stack = vec![5, 11, 0, 2];
+    nested_runner.menu.state.cursor = 1;
+
+    let opened = nested_runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Load");
+    let messages = confirm_current_dialog(&mut nested_runner);
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::StoreLoadPreset { name: "Alpha".into() }]
+    )));
+}
+
+#[test]
+pub(crate) fn empty_root_load_preset_refreshes_the_list() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("preset.load.none"));
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::StoreListPresets]
     )));
 }

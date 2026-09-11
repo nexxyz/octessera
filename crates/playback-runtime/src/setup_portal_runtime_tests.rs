@@ -50,6 +50,24 @@ fn navigate_to_configure_wifi(
         json!({ "type": "encoder_press", "id": "main" }),
     );
     for _ in 0..32 {
+        if runner.test_current_menu_label().as_deref() == Some("Setup") {
+            break;
+        }
+        send_input(
+            runtime,
+            runner,
+            host,
+            json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+        );
+    }
+    assert_eq!(runner.test_current_menu_label().as_deref(), Some("Setup"));
+    send_input(
+        runtime,
+        runner,
+        host,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    for _ in 0..32 {
         if runner.test_current_menu_label().as_deref() == Some("Configure WiFi") {
             break;
         }

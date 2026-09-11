@@ -82,6 +82,9 @@ export const RUNTIME_PLATFORM_EFFECT_FIXTURES = [
   { type: "midi_select_output", id: "out-1" },
   { type: "midi_select_input", id: null },
   { type: "midi_panic" },
+  { type: "recording_start_audio", maxMinutes: 5 },
+  { type: "recording_start_audio_oled", maxMinutes: 5 },
+  { type: "recording_stop" },
   { type: "reboot" },
   { type: "shutdown" },
   { type: "hardware_test" },
@@ -186,6 +189,15 @@ export const RUNTIME_STORE_RESULT_FIXTURES = [
     },
   },
   {
+    type: "runtime_failure",
+    error: {
+      domain: "recording",
+      code: "operation_failed",
+      operation: "recording",
+      message: "Recording incomplete",
+    },
+  },
+  {
     type: "identified",
     result: { type: "list_presets_result", names: ["Factory"] },
     requestId: "platform-1",
@@ -228,6 +240,7 @@ export const RUNTIME_STORE_RESULT_FIXTURES = [
   },
   { type: "sample_preview_error", message: "unsupported format" },
   { type: "device_update_status", ok: false, message: "opaque helper output" },
+  { type: "recording_status", ok: false, message: "Recording incomplete" },
   {
     type: "system_info_result",
     info: {

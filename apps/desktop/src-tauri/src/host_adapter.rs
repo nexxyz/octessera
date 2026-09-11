@@ -1,5 +1,7 @@
 mod audio_config_apply;
 mod host_adapter_audio;
+#[path = "host_adapter_recording.rs"]
+mod host_adapter_recording;
 mod host_adapter_store;
 
 use crate::audio_prep_service::DesktopAudioControl;
@@ -7,6 +9,7 @@ use crate::desktop_platform_service::{
     admit_platform_service_request, DesktopPlatformServiceKind, DesktopPlatformServiceRequest,
 };
 use crate::midi;
+use crate::recording::DesktopRecording;
 use crate::sample_decode_cache::SampleDecodeCache;
 use crate::types::{QueuedAudioEvent, QueuedNote};
 use midir::MidiInputConnection;
@@ -44,6 +47,7 @@ pub(crate) struct DesktopHostAudioState {
     pub(crate) trigger_tx: Sender<QueuedAudioEvent>,
     pub(crate) audio_control: DesktopAudioControl,
     pub(crate) sample_decode_cache: SampleDecodeCache,
+    pub(crate) recording: DesktopRecording,
 }
 
 impl DesktopPlaybackHostAdapter {
@@ -241,15 +245,24 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
+                let recording_result =
+                    host_adapter_recording::finalize_for_shutdown(&self.audio.recording, request)?;
                 self.save_default_result(request, payload, Some("overwrite"))?;
                 self.shutdown_requested = true;
-                Ok(vec![])
+                Ok(recording_result
+                    .into_iter()
+                    .map(|result| HostMessage::RuntimeResult { result })
+                    .collect())
             }
             RuntimePlatformEffect::RecordingStartAudio { .. }
-            | RuntimePlatformEffect::RecordingStop => {
-                println!("SD audio recording is unsupported on desktop host");
-                Ok(vec![])
-            }
+            | RuntimePlatformEffect::RecordingStartAudioOled { .. }
+            | RuntimePlatformEffect::RecordingStop => Ok(host_adapter_recording::handle_effect(
+                &self.audio.recording,
+                request,
+            )?
+            .into_iter()
+            .map(|result| HostMessage::RuntimeResult { result })
+            .collect()),
             RuntimePlatformEffect::UsbSdTransferStart
             | RuntimePlatformEffect::UsbSdTransferStop => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::StoreError {
@@ -354,8 +367,13 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown => {
+                let recording_result =
+                    host_adapter_recording::finalize_for_shutdown(&self.audio.recording, request)?;
                 self.shutdown_requested = true;
-                Ok(vec![])
+                Ok(recording_result
+                    .into_iter()
+                    .map(|result| HostMessage::RuntimeResult { result })
+                    .collect())
             }
             RuntimePlatformEffect::HardwareTest => Ok(vec![]),
             RuntimePlatformEffect::UpdateCheck => Ok(vec![HostMessage::RuntimeResult {
