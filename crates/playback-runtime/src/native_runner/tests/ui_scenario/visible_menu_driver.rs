@@ -14,6 +14,11 @@ impl<'a> VisibleMenuDriver<'a> {
         self.device.press_main();
     }
 
+    pub(super) fn open_group_exact(&mut self, label: &str) {
+        self.select_visible_exact(label);
+        self.device.press_main();
+    }
+
     pub(super) fn open_group_unless_visible(&mut self, group_label: &str, visible_marker: &str) {
         if self.any_line_contains(visible_marker) {
             return;
@@ -158,6 +163,21 @@ impl<'a> VisibleMenuDriver<'a> {
             .fail(&format!("could not select visible row `{label}`"));
     }
 
+    fn select_visible_exact(&mut self, label: &str) {
+        self.ensure_not_editing(label);
+        for search_delta in [1, -1] {
+            for _ in 0..96 {
+                if self.selected_line_matches_exact(label) {
+                    return;
+                }
+                let delta = self.direction_toward_exact(label).unwrap_or(search_delta);
+                self.device.turn_main(delta);
+            }
+        }
+        self.device
+            .fail(&format!("could not select visible row `{label}`"));
+    }
+
     fn ensure_not_editing(&mut self, label: &str) {
         for _ in 0..3 {
             if self.device.snapshot()["display"]["editing"] != true {
@@ -174,6 +194,12 @@ impl<'a> VisibleMenuDriver<'a> {
         self.lines()
             .iter()
             .any(|line| line.starts_with('>') && contains_label(&clean_line(line), label))
+    }
+
+    fn selected_line_matches_exact(&self, label: &str) -> bool {
+        self.lines()
+            .iter()
+            .any(|line| line.starts_with('>') && row_label(line) == label)
     }
 
     fn any_line_contains(&self, label: &str) -> bool {
@@ -195,6 +221,17 @@ impl<'a> VisibleMenuDriver<'a> {
         }
     }
 
+    fn direction_toward_exact(&self, label: &str) -> Option<i32> {
+        let lines = self.lines();
+        let selected = lines.iter().position(|line| line.starts_with('>'));
+        let target = lines.iter().position(|line| row_label(line) == label);
+        match (selected, target) {
+            (Some(selected), Some(target)) if target < selected => Some(-1),
+            (Some(_), Some(_)) => Some(1),
+            _ => None,
+        }
+    }
+
     fn lines(&self) -> Vec<String> {
         self.device.snapshot()["display"]["lines"]
             .as_array()
@@ -207,6 +244,11 @@ impl<'a> VisibleMenuDriver<'a> {
 
 fn clean_line(line: &str) -> String {
     line.trim_start_matches(['>', ' ', '!']).trim().to_string()
+}
+
+fn row_label(line: &str) -> String {
+    let cleaned = clean_line(line);
+    cleaned.strip_suffix(" >").unwrap_or(&cleaned).to_string()
 }
 
 fn contains_label(line: &str, label: &str) -> bool {
