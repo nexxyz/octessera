@@ -98,7 +98,14 @@ def write(path: Path, content: bytes | str) -> None:
 def copy_fixture_root(source: Path, destination: Path) -> None:
     shutil.copytree(source, destination, symlinks=True)
     os.chown(destination / "home/octessera/.hushlogin", 1000, 1000)  # type: ignore[attr-defined]
-    os.chown(destination / "var/lib/octessera/samples", 990, 990)  # type: ignore[attr-defined]
+    runtime_root = destination / "var/lib/octessera"
+    os.chown(runtime_root, 0, 0)  # type: ignore[attr-defined]
+    os.chmod(runtime_root, 0o755)
+    for relative in ("samples", "recordings", "screen-recordings"):
+        path = destination / "var/lib/octessera" / relative
+        if path.is_dir() and not path.is_symlink():
+            os.chown(path, 990, 990)  # type: ignore[attr-defined]
+            os.chmod(path, 0o755)
 
 
 def make_uboot_initramfs(payload: bytes) -> bytes:
@@ -313,8 +320,15 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     write(final_root / "etc/update-motd.d/20-vendor-status", b"vendor\n")
     write(final_root / "etc/shadow", "octessera:!:1:0:99999:7:::\noctessera-runtime:!:1:0:99999:7:::\n")
     write(final_root / "etc/group", "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\nspi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\nvideo:x:44:octessera-runtime\n")
-    (final_root / "var/lib/octessera/samples").mkdir(parents=True, exist_ok=True)
-    os.chown(final_root / "var/lib/octessera/samples", 990, 990)  # type: ignore[attr-defined]
+    runtime_root = final_root / "var/lib/octessera"
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    os.chown(runtime_root, 0, 0)  # type: ignore[attr-defined]
+    os.chmod(runtime_root, 0o755)
+    for relative in ("samples", "recordings", "screen-recordings"):
+        path = final_root / "var/lib/octessera" / relative
+        path.mkdir(parents=True, exist_ok=True)
+        os.chown(path, 990, 990)  # type: ignore[attr-defined]
+        os.chmod(path, 0o755)
     write(final_root / "var/lib/dpkg/status", f"Package: {IMAGE_NAME}\nStatus: install ok installed\nVersion: {REVISION}\nArchitecture: arm64\n\n" f"Package: {DTB_NAME}\nStatus: install ok installed\nVersion: {REVISION}\nArchitecture: arm64\n")
     evidence_path = work / "evidence.env"
     evidence_values = {

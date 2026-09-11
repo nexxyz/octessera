@@ -85,8 +85,8 @@ def _prerequisites(root: Path, board: str) -> None:
         passwd = "root:x:0:0:root:/root:/bin/bash\npi:x:1000:1000:Pi:/home/pi:/bin/bash\n"
         group = "root:x:0:\npi:x:1000:\n"
     else:
-        passwd = "root:x:0:0:root:/root:/bin/bash\noctessera:x:1000:1000:Octessera:/home/octessera:/bin/bash\noctessera-runtime:x:995:995:Runtime:/nonexistent:/usr/sbin/nologin\n"
-        group = "root:x:0:\noctessera:x:1000:\noctessera-runtime:x:995:\n"
+        passwd = "root:x:0:0:root:/root:/bin/bash\noctessera:x:1000:1000:Octessera:/home/octessera:/bin/bash\noctessera-runtime:x:986:986:Runtime:/nonexistent:/usr/sbin/nologin\n"
+        group = "root:x:0:\noctessera:x:1000:\noctessera-runtime:x:986:\n"
     _write(root / "etc/passwd", passwd)
     _write(root / "etc/group", group)
     _write(root / "usr/local/bin/wifi-connect", b"wifi-connect", 0o755)
@@ -107,6 +107,11 @@ def _fixture(board: str, work: Path) -> Path:
     contract, _ = load_contract(contract_for_board(board))
     _parents(root, contract)
     _prerequisites(root, board)
+    if board == ORANGE:
+        runtime_root = root / "var/lib/octessera"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        os.chmod(runtime_root, 0o755)
+        _owner(runtime_root, 0, 0)
     if board == RPI:
         _rpi_parent_sudoers_preimage(root, contract)
     _write(root / "usr/share/doc/base-files/copyright", b"vendor copyright\n")
@@ -172,6 +177,14 @@ class SetupMutationTests(unittest.TestCase):
                     self.assertIn("etc/sudoers.d/010_pi-nopasswd", proof["verified_paths"])
                 else:
                     self.assertNotIn("etc/sudoers.d/010_pi-nopasswd", result.changed_paths)
+                if board == ORANGE:
+                    runtime_root = root / "var/lib/octessera"
+                    self.assertEqual((runtime_root.stat().st_mode & 0o777, runtime_root.stat().st_uid, runtime_root.stat().st_gid), (0o755, 0, 0))
+                    for relative in ("recordings", "screen-recordings"):
+                        path = runtime_root / relative
+                        self.assertEqual((path.stat().st_mode & 0o777, path.stat().st_uid, path.stat().st_gid), (0o755, 986, 986))
+                        self.assertIn(f"var/lib/octessera/{relative}", result.changed_paths)
+                        self.assertIn(f"var/lib/octessera/{relative}", proof["verified_paths"])
                 enabled = root / "etc/systemd/system/multi-user.target.wants/octessera-setup-request.path"
                 self.assertEqual(enabled.readlink().as_posix(), "../octessera-setup-request.path")
                 service = root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service"
@@ -181,6 +194,34 @@ class SetupMutationTests(unittest.TestCase):
                         if item["target"].startswith("usr/local/share/octessera-setup-ui/"):
                             metadata = (root / item["target"]).stat()
                             self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 0, 0))
+
+    def test_orange_setup_reapplication_is_a_noop(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(ORANGE, Path(temporary))
+            first = mutate_setup(root, ORANGE, "a" * 40)
+            before = inventory_digest(build_inventory(root))
+            second = mutate_setup(root, ORANGE, "a" * 40)
+            self.assertEqual(second.pre_inventory_digest, before)
+            self.assertEqual(second.post_inventory_digest, before)
+            self.assertEqual(second.changed_paths, [])
+            self.assertEqual(inventory_digest(build_inventory(root)), before)
+            self.assertEqual(second.contract_digest, first.contract_digest)
+
+    def test_orange_recording_directory_preimages_fail_closed(self) -> None:
+        cases = {
+            "wrong-owner": lambda path: (path.mkdir(), os.chmod(path, 0o755), _owner(path, 1001, 986)),
+            "wrong-mode": lambda path: (path.mkdir(), os.chmod(path, 0o700), _owner(path, 986, 986)),
+            "symlink": lambda path: path.symlink_to(".."),
+        }
+        for relative in ("recordings", "screen-recordings"):
+            for case, mutation in cases.items():
+                with self.subTest(relative=relative, case=case), tempfile.TemporaryDirectory() as temporary:
+                    root = _fixture(ORANGE, Path(temporary))
+                    mutation(root / f"var/lib/octessera/{relative}")
+                    before = inventory_digest(build_inventory(root))
+                    with self.assertRaises(ConstructorRequired):
+                        mutate_setup(root, ORANGE, "a" * 40)
+                    self.assertEqual(inventory_digest(build_inventory(root)), before)
 
     def test_orange_requires_exact_pinned_preimages_and_raspberry_requires_absence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

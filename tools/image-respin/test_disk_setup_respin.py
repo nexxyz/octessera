@@ -71,6 +71,10 @@ class DiskSetupRespinTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             work = Path(temporary)
             root, bundle = _fixture(work / "runtime", board)
+            runtime_root = root / "var/lib/octessera"
+            runtime_root.mkdir(parents=True, exist_ok=True)
+            os.chown(runtime_root, 0, 0)  # type: ignore[attr-defined]
+            os.chmod(runtime_root, 0o755)
             contract, _ = load_contract(contract_for_board(board))
             _parents(root, contract)
             _prerequisites(root, board)
@@ -99,6 +103,19 @@ class DiskSetupRespinTests(unittest.TestCase):
             self.assertNotIn("notice", result["setup_mutation"])
             self.assertEqual(file_digest(source), source_before)
             self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")
+            derived_image = work / "derived.img"
+            with lzma.open(output, "rb") as stream:
+                derived_image.write_bytes(stream.read())
+            with disk_mount.mounted_runtime(derived_image, board) as mounted:
+                mounted_root = mounted.root_mount
+                self.assertIsNotNone(mounted_root)
+                if mounted_root is None:
+                    raise AssertionError("derived image root was not mounted")
+                for relative in ("recordings", "screen-recordings"):
+                    path = mounted_root / "var/lib/octessera" / relative
+                    metadata = path.lstat()
+                    self.assertTrue(path.is_dir() and not path.is_symlink())
+                    self.assertEqual((metadata.st_uid, metadata.st_gid, metadata.st_mode & 0o777), (986, 986, 0o755))
 
 
 if __name__ == "__main__":

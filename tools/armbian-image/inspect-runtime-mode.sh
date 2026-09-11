@@ -18,9 +18,15 @@ octessera_inspect_runtime_mode() {
   case "$image_mode:$runtime_default" in
     diagnostic:false)
       octessera_require_image_contract diagnostic
+      octessera_require_real_directory var/lib/octessera
+      octessera_require_owned_mode var/lib/octessera 0:0 755
       octessera_require_real_directory var/lib/octessera/samples
+      octessera_require_real_directory var/lib/octessera/recordings
+      octessera_require_real_directory var/lib/octessera/screen-recordings
       runtime_owner="$(octessera_runtime_owner_from_passwd "$(read_file etc/passwd)")"
       octessera_require_owned_mode var/lib/octessera/samples "$runtime_owner" 755
+      octessera_require_owned_mode var/lib/octessera/recordings "$runtime_owner" 755
+      octessera_require_owned_mode var/lib/octessera/screen-recordings "$runtime_owner" 755
       for path in etc/systemd/system/octessera.service etc/systemd/system/multi-user.target.wants/octessera.service usr/local/bin/octessera-pi opt/octessera/current opt/octessera/releases; do reject_path "$path"; done
       [[ "$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_VERSION)" == none ]]
       [[ "$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_BINARY_SHA256)" == none ]]
@@ -73,10 +79,16 @@ octessera_inspect_runtime_mode() {
       group_content="$(read_file etc/group)"
       runtime_owner="$(octessera_require_runtime_account "$passwd_content" "$group_content")"
       for runtime_group in audio i2c spi gpio video; do printf '%s\n' "$group_content" | awk -F: -v wanted="$runtime_group" '$1 == wanted && ("," $4 ",") ~ /,octessera-runtime,/' | grep -q . || { echo "Production image is missing octessera-runtime membership in group: $runtime_group." >&2; exit 1; }; done
+      octessera_require_real_directory var/lib/octessera
+      octessera_require_owned_mode var/lib/octessera 0:0 755
       octessera_require_real_directory var/lib/octessera/presets
       octessera_require_real_directory var/lib/octessera/samples
+      octessera_require_real_directory var/lib/octessera/recordings
+      octessera_require_real_directory var/lib/octessera/screen-recordings
       octessera_require_owned_mode var/lib/octessera/presets "$runtime_owner" 755
       octessera_require_owned_mode var/lib/octessera/samples "$runtime_owner" 755
+      octessera_require_owned_mode var/lib/octessera/recordings "$runtime_owner" 755
+      octessera_require_owned_mode var/lib/octessera/screen-recordings "$runtime_owner" 755
       octessera_require_runtime_udev_rule
       require_root_mode etc/systemd/system/octessera.service 644
       require_root_mode etc/systemd/system/multi-user.target.wants/octessera.service 777
