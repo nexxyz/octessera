@@ -101,10 +101,12 @@ Use the exact campaign geometry when running a cell. Orange Inline uses
 128/32/32 with zero lookahead; the current Orange Capacity profile is OM128,
 using 256/64/128 with 128-frame lookahead and `-WorkerTimingMode disabled`. Add
 `-ContinueOnRecoveredMiss` to completed 120-second Orange routing observations
-so a non-clean but structurally valid result is retained. Raspberry uses
-256/64/128 with zero lookahead for Inline. RM256 is qualified evidence-only at
-256/64/256 with 256-frame lookahead; it is not a shipped mode. `-ObserveCompromises`
-retains completed 120-second observations.
+so a non-clean but structurally valid result is retained. Raspberry Latency uses
+256/64/128 with zero lookahead and remains Inline. Raspberry Capacity uses the
+retained RM256 geometry, 256/64/256 with 256-frame lookahead, through the
+production routing-tree path. This wiring comes from retained evidence; live
+production-binary requalification remains required and is not claimed here.
+`-ObserveCompromises` retains completed 120-second observations.
 
 ## Pi UI and audio profiling
 
@@ -207,10 +209,10 @@ qualified current scenario must reconcile its expected start/end counters and
 report zero drops unless that scenario explicitly declares otherwise.
 
 The current Orange product Capacity qualification is OM128: output 256 → ALSA
-period 64 → internal 128 with routing lookahead 128. The frozen routing
-comparison above remains diagnostic comparison evidence, and RM256 remains
-qualified evidence-only. Neither comparison evidence nor the diagnostic
-Capacity artifact changes shipped voice-policy maxima.
+period 64 → internal 128 with routing lookahead 128. Raspberry Capacity uses
+retained RM256 evidence for production wiring, but live production-binary
+requalification remains required. Neither comparison evidence nor the
+diagnostic Capacity artifact changes shipped voice-policy maxima.
 
 Print the exact deterministic plan without transport:
 

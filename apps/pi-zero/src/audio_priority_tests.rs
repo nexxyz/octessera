@@ -78,7 +78,7 @@ fn strict_setup_verifies_affinity_before_fifo() {
 fn worker_hook_uses_the_fixed_parity_cpu_map() {
     for (parity, cpu) in ORANGE_WORKER_CPUS.into_iter().enumerate() {
         let guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(cpu));
-        assert!(orange_worker_start_hook(parity).is_ok());
+        assert!(pi_worker_start_hook(parity).is_ok());
         assert_eq!(
             guard.trace_for_cpu(cpu),
             vec![

@@ -149,6 +149,7 @@ fn preset_effect_help_key(effect: &str) -> Option<String> {
     match effect {
         "preset.saveAs" => Some("action:preset_save".into()),
         "preset.saveCurrent" => Some("action:preset_save_current".into()),
+        "preset.load" => Some("action:preset_load".into()),
         "preset.refresh" => Some("action:refresh_presets".into()),
         "preset.renameApply" => Some("action:preset_rename_apply".into()),
         value if value.starts_with("preset.load:") => Some("action:preset_load:*".into()),

@@ -12,6 +12,25 @@ fn recording_protocol_json_uses_public_field_names() {
     );
 
     assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::RecordingStartAudioOled { max_minutes: 5 })
+            .unwrap(),
+        json!({ "type": "recording_start_audio_oled", "maxMinutes": 5 })
+    );
+    let effect = RuntimePlatformEffect::RecordingStartAudioOled { max_minutes: 5 };
+    assert_eq!(effect.operation(), RuntimeOperation::Recording);
+    assert_eq!(effect.error_domain(), RuntimeErrorDomain::Recording);
+
+    let status = RuntimeStoreResult::RecordingStatus {
+        ok: true,
+        message: "Recording saved".into(),
+    };
+    assert_eq!(status.operation(), RuntimeOperation::Recording);
+    assert_eq!(
+        serde_json::to_value(status).unwrap(),
+        json!({ "type": "recording_status", "ok": true, "message": "Recording saved" })
+    );
+
+    assert_eq!(
         serde_json::to_value(RuntimePlatformEffect::UsbSdTransferStart).unwrap(),
         json!({ "type": "usb_sd_transfer_start" })
     );
@@ -34,6 +53,16 @@ fn recording_protocol_json_uses_public_field_names() {
         serde_json::to_value(RuntimePlatformEffect::RecordingStop).unwrap(),
         json!({ "type": "recording_stop" })
     );
+}
+
+#[test]
+fn audio_command_platform_effect_uses_the_audio_command_operation() {
+    let effect = RuntimePlatformEffect::AudioCommand {
+        command: RuntimeAudioCommand::SetMasterVolume { volume_pct: 80.0 },
+    };
+
+    assert_eq!(effect.operation(), RuntimeOperation::AudioCommand);
+    assert_eq!(effect.error_domain(), RuntimeErrorDomain::Audio);
 }
 
 #[test]

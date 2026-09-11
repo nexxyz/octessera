@@ -14,6 +14,8 @@ use std::time::{Duration, Instant};
 struct AudioDrainProbeReport {
     duration_ms: u64,
     interval_ms: u64,
+    output_buffer_frames: u32,
+    internal_block_frames: usize,
     marks: usize,
     drain_latency_us: LiveSummary,
 }
@@ -86,8 +88,10 @@ pub(super) fn run_audio_drain_probe(options: &TimingProbeOptions) -> bool {
     match run_audio_drain_one(duration) {
         Ok(report) => {
             eprintln!(
-                "AudioDrain {}ms marks={} p99={:.0}us p999={:.0}us p9999={:.0}us max={:.0}us >5ms={} >10ms={} >20ms={}",
+                "AudioDrain {}ms output={} internal={} marks={} p99={:.0}us p999={:.0}us p9999={:.0}us max={:.0}us >5ms={} >10ms={} >20ms={}",
                 report.duration_ms,
+                report.output_buffer_frames,
+                report.internal_block_frames,
                 report.marks,
                 report.drain_latency_us.p99,
                 report.drain_latency_us.p999,
@@ -114,7 +118,12 @@ pub(super) fn run_audio_drain_probe(options: &TimingProbeOptions) -> bool {
 }
 
 fn run_audio_drain_one(duration: Duration) -> Result<AudioDrainProbeReport, String> {
-    let audio = AudioManager::new(None, playback_runtime::AudioOutputSet::jack())?;
+    let overrides = super::timing_probe_overrides()?;
+    let (audio, geometry) = AudioManager::new_timing_probe(
+        overrides.output_buffer_frames,
+        overrides.internal_block_frames,
+        playback_runtime::AudioOutputSet::jack(),
+    )?;
     let service = audio.service();
     let interval = audio_drain_interval();
     let (report_tx, report_rx) = std::sync::mpsc::sync_channel::<u128>(1);
@@ -140,6 +149,8 @@ fn run_audio_drain_one(duration: Duration) -> Result<AudioDrainProbeReport, Stri
     Ok(AudioDrainProbeReport {
         duration_ms: duration.as_millis() as u64,
         interval_ms: interval.as_millis() as u64,
+        output_buffer_frames: geometry.output_buffer_frames,
+        internal_block_frames: geometry.internal_block_frames,
         marks: latencies.len(),
         drain_latency_us: summarize(&latencies),
     })

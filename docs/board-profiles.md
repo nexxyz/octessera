@@ -32,7 +32,7 @@ Both fixed hardware profiles use Cortex-A53 scheduling with the common-safe
 ISA. NEON and CRC are shared by both boards; AES and SHA2 are disabled because
 Raspberry Pi Zero 2 W does not expose those optional features.
 
-Both board profiles expose the same native `System > Configure WiFi` menu
+Both board profiles expose the same native `System > Setup > Configure WiFi` menu
 contract and typed setup-portal status flow. The confirmed `Open Portal` action
 writes the exact `start\n` marker at
 `/run/octessera-setup-request/inbox/start`; one root service then coordinates the
@@ -43,7 +43,7 @@ and parent-image preconditions differ: Raspberry uses the Pi image path and `pi`
 account, while Orange uses the Armbian path with separate `octessera` setup and
 `octessera-runtime` service accounts. Physical setup-portal qualification on
 both boards is a FAT activity.
-The same System menu exposes standalone `Backup / Restore`; Pi uses the regular
+The same System > Setup menu exposes standalone `Backup / Restore`; Pi uses the regular
 `wlan0` IPv4 service on port 8081, while desktop is unsupported.
 
 ## Shared OLED boot handoff and qualification

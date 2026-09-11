@@ -1,3 +1,7 @@
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use super::audio_profile::OrangeAudioProfile;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use super::audio_profile::RaspberryAudioProfile;
 use super::audio_stream_lifecycle::{AudioStreamShutdownError, AudioStreamShutdownReport};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use super::cpal_audio_output::build_cpal_stream;
@@ -6,8 +10,6 @@ use super::cpal_audio_output::build_orange_cpal_stream;
 use super::cpal_audio_output::AudioSourceExecutionMode;
 use super::cpal_audio_output::BuiltAudioStream;
 use super::cpal_audio_output::EngineSourceOptions;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use super::cpal_audio_output::OrangeAudioProfile;
 use super::{AudioSink, RecordingTapState};
 use crate::audio::default_pi_instruments;
 use crate::audio_priority::qualify_callback_scheduler;
@@ -37,21 +39,50 @@ pub(crate) struct OpenedAudioSink {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum AudioConstructionConfig {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    OutputBuffer(Option<u32>),
+    Raspberry(RaspberryAudioProfile),
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     Orange(OrangeAudioProfile),
 }
 
 impl AudioConstructionConfig {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    pub(super) const fn raspberry(output_buffer_frames: Option<u32>) -> Self {
-        Self::OutputBuffer(output_buffer_frames)
+    pub(super) const fn raspberry(profile: RaspberryAudioProfile) -> Self {
+        Self::Raspberry(profile)
     }
 
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     pub(super) const fn orange(profile: OrangeAudioProfile) -> Self {
         Self::Orange(profile)
     }
+
+    #[cfg(any(
+        feature = "hardware-orange-pi-zero-2w",
+        feature = "hardware-raspberry-pi-zero-2w"
+    ))]
+    pub(super) fn load_status_enabled(self) -> bool {
+        match self {
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            Self::Raspberry(profile) => {
+                profile.optimization == playback_runtime::AudioOptimization::Capacity
+            }
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            Self::Orange(profile) => {
+                profile.optimization == playback_runtime::AudioOptimization::Capacity
+            }
+        }
+    }
+}
+
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+pub(super) fn load_status_sender_for_sink(
+    config: AudioConstructionConfig,
+    sink: AudioSink,
+    load_tx: &AudioLoadStatusSender,
+) -> Option<AudioLoadStatusSender> {
+    (sink == AudioSink::Jack && config.load_status_enabled()).then(|| load_tx.clone())
 }
 
 pub(super) type AudioSinkOpener = fn(
@@ -68,7 +99,18 @@ pub(super) fn source_execution_mode(
     config: AudioConstructionConfig,
 ) -> AudioSourceExecutionMode {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let _ = (sink, config);
+    if sink == AudioSink::Jack
+        && matches!(
+            config,
+            AudioConstructionConfig::Raspberry(RaspberryAudioProfile {
+                optimization: playback_runtime::AudioOptimization::Capacity,
+                ..
+            })
+        )
+    {
+        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        return AudioSourceExecutionMode::RoutingTree;
+    }
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     if sink == AudioSink::Jack
         && matches!(
@@ -89,11 +131,11 @@ pub(super) fn open_audio_sink(
     config: AudioConstructionConfig,
     sink: AudioSink,
     recording_tap: Option<RecordingTapState>,
-    _load_tx: Option<AudioLoadStatusSender>,
+    load_tx: Option<AudioLoadStatusSender>,
     mirror_producers: PcmMirrorProducers,
     mirror_consumer: Option<PcmMirrorConsumer>,
 ) -> Result<OpenedAudioSink, RouteOpenError> {
-    let AudioConstructionConfig::OutputBuffer(output_buffer_frames) = config;
+    let AudioConstructionConfig::Raspberry(profile) = config;
     let health = if sink == AudioSink::Jack {
         AudioStreamHealth::new(format!("{sink:?}"))
     } else {
@@ -103,11 +145,11 @@ pub(super) fn open_audio_sink(
         let (engine_tx, engine_rx) = event_queue();
         let built = build_cpal_stream(
             engine_rx,
-            output_buffer_frames,
+            profile,
             sink,
             EngineSourceOptions {
                 recording_tap,
-                load_tx: None,
+                load_tx,
                 mirror_producers,
             },
             health.clone(),
@@ -120,7 +162,7 @@ pub(super) fn open_audio_sink(
         })?;
         (
             super::cpal_audio_output::build_cpal_mirror_stream(
-                output_buffer_frames,
+                profile.output_buffer_frames,
                 sink,
                 consumer,
                 health.clone(),
@@ -289,6 +331,10 @@ fn qualify_jack_or_teardown<T>(
 
 pub(super) fn recordings_dir() -> std::path::PathBuf {
     crate::main_paths::default_recordings_dir()
+}
+
+pub(super) fn screen_recordings_dir() -> std::path::PathBuf {
+    crate::main_paths::default_screen_recordings_dir()
 }
 
 #[cfg(test)]

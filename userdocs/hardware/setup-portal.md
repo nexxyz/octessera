@@ -12,7 +12,7 @@ power](safety-and-power.md).
 
 1. Stop playback before you begin. If it is still playing, Octessera stops and
    resets it when you confirm the action, then clears held notes and MIDI.
-2. Choose `System > Configure WiFi` and confirm `Open Portal`.
+2. Choose `System > Setup > Configure WiFi` and confirm `Open Portal`.
 3. Join `Octessera Setup <4-char suffix>` from your phone or laptop.
 4. Browse to `http://192.168.42.1`.
 5. Choose the country, a scanned or manual SSID, Wi-Fi password or open network,
@@ -27,14 +27,14 @@ failure result. The OLED is authoritative.
 
 Success requires a usable global `wlan0` IPv4 address. It does not require
 Internet access, a default route, DNS, or ICMP. After success, choose
-`System > Info` to see the IP; no reboot is needed.
+`System > Sys. Info` to see the IP; no reboot is needed.
 
 On the OLED, success and timeout cards hide automatically. A failure card stays
-dismissible. To try again, close it and choose `System > Configure WiFi > Open
+dismissible. To try again, close it and choose `System > Setup > Configure WiFi > Open
 Portal` again. This action is for network and access setup only; it does not
 start or advertise Data Backup/Restore.
 
-When Internet is available, `System > Updates` only checks, applies, or rolls back
+When Internet is available, `System > Setup > Updates` only checks, applies, or rolls back
 the Octessera runtime. It does not update the Armbian OS/image, kernel, device
 tree, or other full-image assets; those remain manual image operations.
 

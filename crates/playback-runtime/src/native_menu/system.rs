@@ -1,293 +1,305 @@
-use super::system_saves::saves_group;
+use super::system_saves::{load_preset_group, saves_group};
 use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
     NativeMenuAction, NativeMenuConfig, NativeMenuItem,
 };
 
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
-    group(
-        "System",
-        vec![
-            saves_group(config),
-            group(
-                "Recording",
-                vec![
-                    number_item(
-                        "Max Time",
-                        "recording.maxMinutes",
-                        i32::from(config.recording_max_minutes),
-                        1,
-                        120,
-                        1,
-                    ),
-                    action_item(
-                        "Start Audio",
-                        "recording.startAudio",
-                        NativeMenuAction::PlatformEffect("recording.startAudio".into()),
-                    ),
-                    action_item(
-                        "Stop",
-                        "recording.stop",
-                        NativeMenuAction::PlatformEffect("recording.stop".into()),
-                    ),
-                ],
-            ),
-            audio_usb_group(config),
-            group(
-                "Sound",
-                vec![
-                    number_item(
-                        "Master Vol",
-                        "masterVolume",
-                        i32::from(config.master_volume),
-                        0,
-                        100,
-                        1,
-                    ),
-                    number_item(
-                        "Note Length",
-                        "sound.noteLengthMs",
-                        i32::from(config.note_length_ms),
-                        30,
-                        2000,
-                        10,
-                    ),
-                    number_item(
-                        "Vel Scale",
-                        "sound.velocityScalePct",
-                        i32::from(config.velocity_scale_pct),
-                        0,
-                        200,
-                        5,
-                    ),
-                    enum_item(
-                        "Vel Curve",
-                        "sound.velocityCurve",
-                        vec!["linear", "soft", "hard"],
-                        selected_index(&["linear", "soft", "hard"], &config.velocity_curve),
-                    ),
-                    enum_item(
-                        "Voices",
-                        "sound.voiceStealingMode",
-                        vec![
-                            "fixed12",
-                            "fixed16",
-                            "auto-soft",
-                            "auto-balanced",
-                            "auto-hard",
-                            "none",
-                        ],
-                        selected_index(
-                            &[
-                                "fixed12",
-                                "fixed16",
-                                "auto-soft",
-                                "auto-balanced",
-                                "auto-hard",
-                                "none",
-                            ],
-                            &config.voice_stealing_mode,
+    let mut children = vec![
+        action_item(
+            "Save Current",
+            "preset.saveCurrent",
+            NativeMenuAction::PlatformEffect("preset.saveCurrent".into()),
+        ),
+        load_preset_group(&config.preset_names),
+        number_item(
+            "Master Vol",
+            "masterVolume",
+            i32::from(config.master_volume),
+            0,
+            100,
+            1,
+        ),
+        action_item(
+            "Panic",
+            "midi.panic",
+            NativeMenuAction::PlatformEffect("midi.panic".into()),
+        ),
+        action_item(
+            "Sys. Info",
+            "system.info",
+            NativeMenuAction::PlatformEffect("system.info".into()),
+        ),
+        action_item(
+            "Basic Help",
+            "system.controlsHelp",
+            NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
+        ),
+        group(
+            "Recording",
+            vec![
+                number_item(
+                    "Max Time",
+                    "recording.maxMinutes",
+                    i32::from(config.recording_max_minutes),
+                    1,
+                    120,
+                    1,
+                ),
+                action_item(
+                    "Start Audio",
+                    "recording.startAudio",
+                    NativeMenuAction::PlatformEffect("recording.startAudio".into()),
+                ),
+                action_item(
+                    "St. Audio+OLED",
+                    "recording.startAudioOled",
+                    NativeMenuAction::PlatformEffect("recording.startAudioOled".into()),
+                ),
+                action_item(
+                    "Stop",
+                    "recording.stop",
+                    NativeMenuAction::PlatformEffect("recording.stop".into()),
+                ),
+            ],
+        ),
+        group(
+            "Notes",
+            vec![
+                number_item(
+                    "Note Length",
+                    "sound.noteLengthMs",
+                    i32::from(config.note_length_ms),
+                    30,
+                    2000,
+                    10,
+                ),
+                number_item(
+                    "Vel Scale",
+                    "sound.velocityScalePct",
+                    i32::from(config.velocity_scale_pct),
+                    0,
+                    200,
+                    5,
+                ),
+                enum_item(
+                    "Vel Curve",
+                    "sound.velocityCurve",
+                    vec!["linear", "soft", "hard"],
+                    selected_index(&["linear", "soft", "hard"], &config.velocity_curve),
+                ),
+            ],
+        ),
+        group(
+            "MIDI",
+            vec![
+                bool_item("Enabled", "midiEnabled", config.midi_enabled),
+                midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
+                midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
+                group(
+                    "Sync / Clock",
+                    vec![
+                        enum_item_from_strings(
+                            "Sync",
+                            "midiSyncMode",
+                            vec!["internal".into(), "external".into()],
+                            sync_index,
                         ),
-                    ),
-                    if config.audio_optimization_capacity_available {
-                        enum_item(
-                            "DSP",
-                            "sound.optimizeFor",
-                            vec!["latency", "capacity"],
-                            selected_index(
-                                &["latency", "capacity"],
-                                match config.audio_optimization {
-                                    crate::native_runner::AudioOptimization::Latency => "latency",
-                                    crate::native_runner::AudioOptimization::Capacity => "capacity",
-                                },
-                            ),
-                        )
-                    } else {
-                        enum_item(
-                            "Buf Frames",
-                            "sound.audioOutputBufferFrames",
-                            vec!["64", "128", "256", "512", "1024", "2048"],
-                            selected_index(
-                                &["64", "128", "256", "512", "1024", "2048"],
-                                &config.audio_output_buffer_frames.to_string(),
-                            ),
-                        )
-                    },
-                ],
-            ),
-            group(
-                "MIDI",
-                vec![
-                    bool_item("Enabled", "midiEnabled", config.midi_enabled),
-                    action_item(
-                        "Panic",
-                        "midi.panic",
-                        NativeMenuAction::PlatformEffect("midi.panic".into()),
-                    ),
-                    midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
-                    midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
-                    group(
-                        "Sync / Clock",
-                        vec![
-                            enum_item_from_strings(
-                                "Sync",
-                                "midiSyncMode",
-                                vec!["internal".into(), "external".into()],
-                                sync_index,
-                            ),
-                            bool_item(
-                                "Clock Out",
-                                "midi.clockOutEnabled",
-                                config.midi_clock_out_enabled,
-                            ),
-                            bool_item(
-                                "Clock In",
-                                "midi.clockInEnabled",
-                                config.midi_clock_in_enabled,
-                            ),
-                            bool_item(
-                                "Follow S/S",
-                                "midi.respondToStartStop",
-                                config.midi_respond_to_start_stop,
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-            group(
-                "UI",
-                vec![
-                    bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
-                    bool_item("Auto Map", "auxAutoMapEnabled", config.aux_auto_map_enabled),
-                    enum_item(
-                        "Number Style",
-                        "numericDisplayMode",
-                        vec!["bar", "numbers", "bar+numbers"],
-                        selected_index(
-                            &["bar", "numbers", "bar+numbers"],
-                            &config.numeric_display_mode,
+                        bool_item(
+                            "Clock Out",
+                            "midi.clockOutEnabled",
+                            config.midi_clock_out_enabled,
                         ),
-                    ),
-                    number_item(
-                        "Dim Timer",
-                        "dimTimerSeconds",
-                        i32::from(config.dim_timer_seconds),
-                        0,
-                        600,
-                        10,
-                    ),
-                    number_item(
-                        "OLED Sleep",
-                        "screenSleepSeconds",
-                        i32::from(config.screen_sleep_seconds),
-                        0,
-                        600,
-                        10,
-                    ),
-                    number_item(
-                        "OLED Bright",
-                        "displayBrightness",
-                        i32::from(config.display_brightness),
-                        10,
-                        100,
-                        5,
-                    ),
-                    number_item(
-                        "Grid Bright",
-                        "gridBrightness",
-                        i32::from(config.grid_brightness),
-                        10,
-                        100,
-                        5,
-                    ),
-                    number_item(
-                        "Button Bright",
-                        "buttonBrightness",
-                        i32::from(config.button_brightness),
-                        10,
-                        100,
-                        5,
-                    ),
-                ],
-            ),
-            updates_group(),
-            hdmi_group(config),
-            group(
-                "DSP",
-                vec![
-                    enum_item(
-                        "CPU Warn %",
-                        "dsp.workerWarningThreshold",
-                        vec!["70", "75", "80", "85", "90", "95"],
-                        selected_index(
-                            &["70", "75", "80", "85", "90", "95"],
-                            config.dsp_config.worker_warning_threshold.id(),
+                        bool_item(
+                            "Clock In",
+                            "midi.clockInEnabled",
+                            config.midi_clock_in_enabled,
                         ),
-                    ),
-                    enum_item(
-                        "Bus Idle",
-                        "dsp.busIdleThreshold",
-                        vec!["exact", "-140", "-120", "-100", "-80"],
-                        selected_index(
-                            &["exact", "-140", "-120", "-100", "-80"],
-                            config.dsp_config.bus_idle_threshold.id(),
+                        bool_item(
+                            "Follow S/S",
+                            "midi.respondToStartStop",
+                            config.midi_respond_to_start_stop,
                         ),
+                    ],
+                ),
+            ],
+        ),
+        audio_group(config),
+        group(
+            "UI",
+            vec![
+                bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
+                bool_item("Auto Map", "auxAutoMapEnabled", config.aux_auto_map_enabled),
+                enum_item(
+                    "Number Style",
+                    "numericDisplayMode",
+                    vec!["bar", "numbers", "bar+numbers"],
+                    selected_index(
+                        &["bar", "numbers", "bar+numbers"],
+                        &config.numeric_display_mode,
                     ),
-                ],
-            ),
-            group(
-                "Diagnostics",
-                vec![action_item(
-                    "Hardware Test",
-                    "system.hardwareTest",
-                    NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
-                )],
-            ),
-            action_item(
-                "Info",
-                "system.info",
-                NativeMenuAction::PlatformEffect("system.info".into()),
-            ),
-            action_item(
-                "Configure WiFi",
-                "system.configureWifi",
-                NativeMenuAction::PlatformEffect("system.configureWifi".into()),
-            ),
-            action_item(
-                "Backup / Restore",
-                "system.backupRestore",
-                NativeMenuAction::PlatformEffect("system.backupRestore".into()),
-            ),
-            action_item(
-                "Basic Help",
-                "system.controlsHelp",
-                NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
-            ),
-            action_item(
-                "Reboot",
-                "system.reboot",
-                NativeMenuAction::PlatformEffect("system.reboot".into()),
-            ),
-            action_item(
-                "Shutdown",
-                "system.shutdown",
-                NativeMenuAction::PlatformEffect("system.shutdown".into()),
-            ),
-        ],
-    )
+                ),
+                number_item(
+                    "Dim Timer",
+                    "dimTimerSeconds",
+                    i32::from(config.dim_timer_seconds),
+                    0,
+                    600,
+                    10,
+                ),
+                number_item(
+                    "OLED Sleep",
+                    "screenSleepSeconds",
+                    i32::from(config.screen_sleep_seconds),
+                    0,
+                    600,
+                    10,
+                ),
+                number_item(
+                    "OLED Bright",
+                    "displayBrightness",
+                    i32::from(config.display_brightness),
+                    10,
+                    100,
+                    5,
+                ),
+                number_item(
+                    "Grid Bright",
+                    "gridBrightness",
+                    i32::from(config.grid_brightness),
+                    10,
+                    100,
+                    5,
+                ),
+                number_item(
+                    "Button Bright",
+                    "buttonBrightness",
+                    i32::from(config.button_brightness),
+                    10,
+                    100,
+                    5,
+                ),
+            ],
+        ),
+    ];
+    if config.jack_audio_required {
+        let audio_index = children
+            .iter()
+            .position(|item| item.label == "Audio")
+            .expect("Audio group is present");
+        children.insert(audio_index + 1, usb_group(config));
+        let ui_index = children
+            .iter()
+            .position(|item| item.label == "UI")
+            .expect("UI group is present");
+        children.insert(ui_index + 1, hdmi_video_group(config));
+    }
+    children.extend([
+        saves_group(config),
+        setup_group(),
+        reset_group(),
+        action_item(
+            "Reboot",
+            "system.reboot",
+            NativeMenuAction::PlatformEffect("system.reboot".into()),
+        ),
+        action_item(
+            "Shutdown",
+            "system.shutdown",
+            NativeMenuAction::PlatformEffect("system.shutdown".into()),
+        ),
+    ]);
+    group("System", children)
 }
 
-fn audio_usb_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    let children = (!config.jack_audio_required)
-        .then(|| bool_item("Jack Audio", "audioOutputs.dac", config.audio_outputs.dac()))
-        .into_iter()
-        .chain([
+fn audio_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    let mut children = Vec::new();
+    if config.jack_audio_required {
+        children.extend([
             bool_item("USB Audio", "audioOutputs.usb", config.audio_outputs.usb()),
             bool_item(
                 "HDMI Audio",
                 "audioOutputs.hdmi",
                 config.audio_outputs.hdmi(),
             ),
+        ]);
+    }
+    if config.audio_optimization_capacity_available {
+        children.push(enum_item(
+            "Perf. Mode",
+            "sound.optimizeFor",
+            vec!["latency", "capacity"],
+            selected_index(
+                &["latency", "capacity"],
+                match config.audio_optimization {
+                    crate::native_runner::AudioOptimization::Latency => "latency",
+                    crate::native_runner::AudioOptimization::Capacity => "capacity",
+                },
+            ),
+        ));
+    }
+    children.push(enum_item(
+        "Polyphony",
+        "sound.voiceStealingMode",
+        vec![
+            "fixed12",
+            "fixed16",
+            "auto-soft",
+            "auto-balanced",
+            "auto-hard",
+            "none",
+        ],
+        selected_index(
+            &[
+                "fixed12",
+                "fixed16",
+                "auto-soft",
+                "auto-balanced",
+                "auto-hard",
+                "none",
+            ],
+            &config.voice_stealing_mode,
+        ),
+    ));
+    let mut engine_children = vec![
+        enum_item(
+            "CPU Warn %",
+            "dsp.workerWarningThreshold",
+            vec!["70", "75", "80", "85", "90", "95"],
+            selected_index(
+                &["70", "75", "80", "85", "90", "95"],
+                config.dsp_config.worker_warning_threshold.id(),
+            ),
+        ),
+        enum_item(
+            "Bus Idle",
+            "dsp.busIdleThreshold",
+            vec!["exact", "-140", "-120", "-100", "-80"],
+            selected_index(
+                &["exact", "-140", "-120", "-100", "-80"],
+                config.dsp_config.bus_idle_threshold.id(),
+            ),
+        ),
+    ];
+    if !config.audio_optimization_capacity_available {
+        engine_children.push(enum_item(
+            "Buf Frames",
+            "sound.audioOutputBufferFrames",
+            vec!["64", "128", "256", "512", "1024", "2048"],
+            selected_index(
+                &["64", "128", "256", "512", "1024", "2048"],
+                &config.audio_output_buffer_frames.to_string(),
+            ),
+        ));
+    }
+    children.push(group("Engine", engine_children));
+    group("Audio", children)
+}
+
+fn usb_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    group(
+        "USB",
+        vec![
             bool_item(
                 "MIDI Out",
                 "usb.midiOutEnabled",
@@ -303,12 +315,11 @@ fn audio_usb_group(config: &NativeMenuConfig) -> NativeMenuItem {
                 "usb.sdTransferStop",
                 NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
             ),
-        ])
-        .collect();
-    group("Audio / USB", children)
+        ],
+    )
 }
 
-fn hdmi_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mode_values = [
         "none",
         "live-grid",
@@ -343,7 +354,49 @@ fn hdmi_group(config: &NativeMenuConfig) -> NativeMenuItem {
         "hdmi.showGridlines",
         config.hdmi_show_gridlines,
     ));
-    group("HDMI", children)
+    group("HDMI Video", children)
+}
+
+fn setup_group() -> NativeMenuItem {
+    group(
+        "Setup",
+        vec![
+            action_item(
+                "Configure WiFi",
+                "system.configureWifi",
+                NativeMenuAction::PlatformEffect("system.configureWifi".into()),
+            ),
+            action_item(
+                "Backup / Restore",
+                "system.backupRestore",
+                NativeMenuAction::PlatformEffect("system.backupRestore".into()),
+            ),
+            updates_group(),
+            action_item(
+                "Hardware Test",
+                "system.hardwareTest",
+                NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
+            ),
+        ],
+    )
+}
+
+fn reset_group() -> NativeMenuItem {
+    group(
+        "Reset",
+        vec![
+            action_item(
+                "Load Empty",
+                "system.clearAll",
+                NativeMenuAction::PlatformEffect("system.clearAll".into()),
+            ),
+            action_item(
+                "Load Factory",
+                "factory.load",
+                NativeMenuAction::PlatformEffect("factory.load".into()),
+            ),
+        ],
+    )
 }
 
 fn updates_group() -> NativeMenuItem {

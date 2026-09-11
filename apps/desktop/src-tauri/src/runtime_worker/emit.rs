@@ -3,8 +3,8 @@ use super::{
     RUNTIME_MESSAGES_EVENT,
 };
 use playback_runtime::{
-    RunnerMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeIngest,
-    RuntimeOperation,
+    HostMessage, RunnerMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeIngest, RuntimeOperation,
 };
 use std::time::Duration;
 #[cfg(debug_assertions)]
@@ -55,6 +55,7 @@ impl RuntimeWorker {
 
     pub(super) fn emit_runtime_output(&mut self, output: RuntimeIngest) -> Result<(), String> {
         self.observe_accepted_snapshot_revision();
+        self.adapter.submit_accepted_oled_frame(&self.playback)?;
         if let Err(error) = self.emit_runner_messages(output.messages) {
             self.handle_emission_error(error);
             return Ok(());
@@ -62,6 +63,16 @@ impl RuntimeWorker {
         for follow_up in output.follow_ups {
             let output = self.playback.dispatch(
                 playback_runtime::RuntimeDispatchInput::HostMessage(follow_up),
+                &mut self.runner,
+                &mut self.adapter,
+            )?;
+            self.emit_runtime_output(output)?;
+        }
+        if let Some(result) = self.adapter.poll_recording_status() {
+            let output = self.playback.dispatch(
+                playback_runtime::RuntimeDispatchInput::HostMessage(HostMessage::RuntimeResult {
+                    result,
+                }),
                 &mut self.runner,
                 &mut self.adapter,
             )?;

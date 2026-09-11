@@ -1,3 +1,7 @@
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use super::audio_profile::OrangeAudioProfile;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use super::audio_profile::RaspberryAudioProfile;
 use super::audio_stream_lifecycle::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
     AudioStreamShutdownReport, PlayableAudioStream,
@@ -11,12 +15,6 @@ use crate::audio_stream_health::AudioStreamHealth;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use platform_core::AUDIO_OUTPUT_BUFFER_FRAMES;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use playback_runtime::AudioOptimization;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use realtime_engine::synth::DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio_engine_source::{
     AudioLoadStatusSender, EngineEventReceiver, EngineSource, EngineSourceWorkerShutdownOwner,
@@ -29,13 +27,6 @@ mod cpal_audio_mirror;
 pub(super) use cpal_audio_mirror::build_cpal_mirror_stream;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(super) use cpal_audio_mirror::build_orange_cpal_mirror_stream;
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const DEFAULT_OUTPUT_BUFFER_FRAMES: u32 = AUDIO_OUTPUT_BUFFER_FRAMES as u32;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const MIN_OUTPUT_BUFFER_FRAMES: u32 = 32;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const MAX_OUTPUT_BUFFER_FRAMES: u32 = 2048;
 
 impl PlayableAudioStream for Stream {
     type Error = cpal::PlayStreamError;
@@ -63,40 +54,11 @@ impl BuiltAudioStream {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum AudioSourceExecutionMode {
     Inline,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(any(
+        feature = "hardware-orange-pi-zero-2w",
+        feature = "hardware-raspberry-pi-zero-2w"
+    ))]
     RoutingTree,
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct OrangeAudioProfile {
-    pub(super) optimization: AudioOptimization,
-    pub(super) output_buffer_frames: u32,
-    pub(super) expected_alsa_period_frames: u32,
-    pub(super) internal_block_frames: usize,
-    pub(super) lookahead_frames: usize,
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-impl OrangeAudioProfile {
-    pub(crate) fn from_optimization(optimization: AudioOptimization) -> Self {
-        match optimization {
-            AudioOptimization::Latency => Self {
-                optimization,
-                output_buffer_frames: 128,
-                expected_alsa_period_frames: 32,
-                internal_block_frames: 32,
-                lookahead_frames: 0,
-            },
-            AudioOptimization::Capacity => Self {
-                optimization,
-                output_buffer_frames: 256,
-                expected_alsa_period_frames: 64,
-                internal_block_frames: 128,
-                lookahead_frames: 128,
-            },
-        }
-    }
 }
 
 struct StreamBuildOptions {
@@ -127,14 +89,17 @@ pub(super) fn build_engine_source(
             EngineSource::with_block_frames(engine_rx, sample_rate, block_frames),
             None,
         )),
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(any(
+            feature = "hardware-orange-pi-zero-2w",
+            feature = "hardware-raspberry-pi-zero-2w"
+        ))]
         AudioSourceExecutionMode::RoutingTree => {
             let result = EngineSource::with_routing_tree_persistent_workers_with_hook(
                 engine_rx,
                 sample_rate,
                 block_frames,
                 _load_tx,
-                crate::audio_priority::orange_worker_start_hook,
+                crate::audio_priority::pi_worker_start_hook,
             );
             result
                 .map(|(source, owner)| (source, Some(owner)))
@@ -172,7 +137,7 @@ pub(super) fn probe_cpal_sink(sink: AudioSink) -> Result<(), RouteOpenError> {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn build_cpal_stream(
     engine_rx: EngineEventReceiver,
-    output_buffer_frames: Option<u32>,
+    profile: RaspberryAudioProfile,
     sink: AudioSink,
     source_options: EngineSourceOptions,
     stream_health: AudioStreamHealth,
@@ -186,7 +151,7 @@ pub(super) fn build_cpal_stream(
     let mut config: StreamConfig = supported.config();
     config.channels = 2;
     config.sample_rate = cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE);
-    config.buffer_size = output_buffer_size(output_buffer_frames);
+    config.buffer_size = BufferSize::Fixed(profile.output_buffer_frames);
     let options = StreamBuildOptions {
         sink,
         execution_mode,
@@ -201,21 +166,21 @@ pub(super) fn build_cpal_stream(
             &config,
             engine_rx,
             options,
-            EngineSource::resolve_block_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES),
+            profile.internal_block_frames,
         ),
         SampleFormat::I16 => build_stream_with_mode::<i16>(
             &device,
             &config,
             engine_rx,
             options,
-            EngineSource::resolve_block_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES),
+            profile.internal_block_frames,
         ),
         SampleFormat::U16 => build_stream_with_mode::<u16>(
             &device,
             &config,
             engine_rx,
             options,
-            EngineSource::resolve_block_frames(DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES),
+            profile.internal_block_frames,
         ),
         format => Err(RouteOpenError::Unsupported(format!(
             "unsupported audio sample format: {format:?}"
@@ -453,28 +418,4 @@ pub(super) fn map_play_stream_error(error: cpal::PlayStreamError) -> RouteOpenEr
 
 pub(super) fn map_shutdown_error(status: AudioStreamShutdownError) -> RouteOpenError {
     RouteOpenError::Fault(format!("audio worker teardown failed: {status:?}"))
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn output_buffer_size(configured_frames: Option<u32>) -> BufferSize {
-    BufferSize::Fixed(resolve_output_buffer_frames(
-        std::env::var("OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES")
-            .ok()
-            .as_deref(),
-        configured_frames,
-        DEFAULT_OUTPUT_BUFFER_FRAMES,
-    ))
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(super) fn resolve_output_buffer_frames(
-    env_value: Option<&str>,
-    configured_frames: Option<u32>,
-    default_frames: u32,
-) -> u32 {
-    env_value
-        .and_then(|value| value.parse::<u32>().ok())
-        .or(configured_frames)
-        .unwrap_or(default_frames)
-        .clamp(MIN_OUTPUT_BUFFER_FRAMES, MAX_OUTPUT_BUFFER_FRAMES)
 }

@@ -10,7 +10,8 @@ use crate::runtime_loop::initialize_host_state;
 use crate::sample_browser::builtin_favourite_dirs;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
+    AudioOptimization, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
+    RuntimeConfig, SyncSource,
 };
 use std::sync::mpsc;
 use std::thread::JoinHandle;
@@ -27,6 +28,8 @@ pub(crate) struct PreparedRuntime {
     pub(super) runner: NativeRunner,
     pub(super) adapter: PiPlaybackHostAdapter,
     pub(super) candidate_readiness: CandidateReadiness,
+    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    pub(super) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
 }
 
 pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, String> {
@@ -37,13 +40,16 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         midi_handler,
         usb_midi_out_enabled,
         audio_outputs,
+        audio_optimization,
+        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        audio_load_rx,
         midi_rx,
         input_rx,
         encoder_rx,
         early_boot_splash,
     } = config;
     ensure_samples_dir(&samples_dir)?;
-    let (mut playback, mut runner) = init_runtime();
+    let (mut playback, mut runner) = init_runtime(audio_optimization);
     if early_boot_splash {
         runner.skip_startup_splash();
     }
@@ -81,6 +87,8 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         runner,
         adapter,
         candidate_readiness: CandidateReadiness::from_env(),
+        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        audio_load_rx,
     })
 }
 
@@ -193,7 +201,7 @@ impl PreparedRuntime {
     }
 }
 
-fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
+fn init_runtime(audio_optimization: AudioOptimization) -> (PlaybackRuntime, NativeRunner) {
     let playback = PlaybackRuntime::new(RuntimeConfig {
         bpm: 120.0,
         sync_source: SyncSource::Internal,
@@ -203,6 +211,8 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
     let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),
+        audio_optimization,
+        audio_optimization_capacity_available: true,
         jack_audio_required: true,
         ..NativeRunnerConfig::default()
     })
@@ -237,7 +247,7 @@ mod tests {
             false,
             playback_runtime::AudioOutputSet::jack(),
         );
-        let (mut playback, mut runner) = init_runtime();
+        let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency);
         let marker = root.join("candidate-ready.json");
         let mut readiness = CandidateReadiness::new(Some(marker.clone()), "pi-prep".into());
         std::thread::spawn(move || {
@@ -284,7 +294,7 @@ mod tests {
             false,
             playback_runtime::AudioOutputSet::jack(),
         );
-        let (mut playback, mut runner) = init_runtime();
+        let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency);
         let marker = root.join("candidate-ready.json");
         let readiness = CandidateReadiness::new(Some(marker.clone()), "pi-prep-failure".into());
         result_tx
@@ -332,7 +342,7 @@ mod tests {
             false,
             playback_runtime::AudioOutputSet::jack(),
         );
-        let (playback, runner) = init_runtime();
+        let (playback, runner) = init_runtime(AudioOptimization::Latency);
         let (_, midi_rx) = mpsc::channel::<MidiMessage>();
         let (_, input_rx) = mpsc::channel::<HostMessage>();
         let (_, encoder_rx) = mpsc::channel::<HardwareEvent>();
@@ -348,6 +358,8 @@ mod tests {
                 Some(marker.clone()),
                 "pi-route-readiness".into(),
             ),
+            #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+            audio_load_rx: None,
         };
 
         let error = prepared.mark_candidate_ready().unwrap_err();
@@ -359,9 +371,25 @@ mod tests {
 
     #[test]
     fn pi_startup_uses_canonical_builtin_sample_favourites() {
-        let (_, mut runner) = init_runtime();
+        let (_, mut runner) = init_runtime(AudioOptimization::Latency);
 
         crate::sample_browser::assert_builtin_favourite_menu(&mut runner);
+    }
+
+    #[test]
+    fn pi_native_runner_uses_persisted_audio_mode_and_exposes_capacity() {
+        let (_, runner) = init_runtime(AudioOptimization::Capacity);
+        let payload = runner.test_config_payload();
+
+        assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "capacity");
+    }
+
+    #[test]
+    fn pi_native_runner_preserves_latency_as_the_default_mode() {
+        let (_, runner) = init_runtime(AudioOptimization::Latency);
+        let payload = runner.test_config_payload();
+
+        assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "latency");
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::recording::{RecordingEngineSource, RecordingTapState};
 use playback_runtime::RunnerMessage;
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
@@ -54,16 +55,18 @@ pub(crate) struct AudioRuntime {
     _stream: OutputStream,
     handle: OutputStreamHandle,
     sink: Option<Sink>,
+    recording_tap: RecordingTapState,
 }
 
 impl AudioRuntime {
-    pub(crate) fn new() -> Result<Self, String> {
+    pub(crate) fn new(recording_tap: RecordingTapState) -> Result<Self, String> {
         let (stream, handle) =
             OutputStream::try_default().map_err(|e| format!("audio init failed: {e}"))?;
         Ok(Self {
             _stream: stream,
             handle,
             sink: None,
+            recording_tap,
         })
     }
 
@@ -73,8 +76,10 @@ impl AudioRuntime {
         load_tx: AudioLoadStatusSender,
     ) -> Result<(), String> {
         self.stop();
-        let source =
-            EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx));
+        let source = RecordingEngineSource::new(
+            EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx)),
+            self.recording_tap.clone(),
+        );
         let sink = match Sink::try_new(&self.handle) {
             Ok(sink) => sink,
             Err(error) => {

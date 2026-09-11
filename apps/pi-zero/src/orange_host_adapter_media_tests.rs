@@ -124,14 +124,20 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
     audio
         .test_push_recording_samples(&[0, i16::MAX, i16::MIN, -1])
         .unwrap();
-    assert!(adapter
-        .handle_platform_effect(&request(
-            RuntimePlatformEffect::RecordingStop,
-            "recording-stop",
-        ))
-        .unwrap()
-        .is_empty());
+    assert!(matches!(
+        adapter
+            .handle_platform_effect(&request(
+                RuntimePlatformEffect::RecordingStop,
+                "recording-stop",
+            ))
+            .unwrap()
+            .as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus { ok: true, .. }
+        }]
+    ));
     assert!(!audio.is_recording().unwrap());
+    assert!(audio.poll_recording_status().is_none());
 
     let path = std::fs::read_dir(&recordings)
         .unwrap()

@@ -294,6 +294,47 @@ fn strict_callback_setup_and_silence_do_not_allocate_or_deallocate() {
 }
 
 #[test]
+fn recording_callback_ingress_does_not_allocate_after_setup() {
+    let directory = std::env::temp_dir().join(format!(
+        "octessera-recording-callback-{}",
+        std::process::id()
+    ));
+    let mut recorder = media_recording::RecorderService::new(directory.clone());
+    let tap = recorder.start_audio(1).unwrap();
+    let tap_state = std::sync::Arc::new(std::sync::RwLock::new(Some(tap)));
+    let (_engine_tx, engine_rx) = event_queue();
+    let (mut callback_source, _retirement_waiter) = CallbackSource::new(
+        super::EngineSource::with_block_frames(engine_rx, 48_000, 128),
+        false,
+    );
+    let health = AudioStreamHealth::new("Jack".into());
+    let mut reported = false;
+    let mut output = [1.0_f32; 8];
+    fill_callback(
+        &mut output,
+        &mut callback_source,
+        Some(&tap_state),
+        &health,
+        false,
+        &mut reported,
+    );
+    let (_, allocations, deallocations) = count_allocations_and_deallocations(|| {
+        fill_callback(
+            &mut output,
+            &mut callback_source,
+            Some(&tap_state),
+            &health,
+            false,
+            &mut reported,
+        );
+    });
+    assert_eq!((allocations, deallocations), (0, 0));
+    drop(tap_state);
+    recorder.stop_audio().unwrap();
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
 fn mirror_callback_has_no_allocation_activity_after_warmup() {
     let _guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(0));
     let pair = new_pcm_mirror();
