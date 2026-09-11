@@ -182,8 +182,8 @@ fn fill_output<T>(
         .as_ref()
         .and_then(|tap| (**tap).as_ref());
     let mut recording_chunk = recorded.map(|tap| tap.new_chunk());
-    let mut frames = data.chunks_exact_mut(2);
-    for frame in &mut frames {
+    let (frames, remainder) = data.as_chunks_mut::<2>();
+    for frame in frames {
         let left = source.next().unwrap_or(0.0);
         let right = source.next().unwrap_or(0.0);
         if let (Some(tap), Some(chunk)) = (recorded, recording_chunk.as_mut()) {
@@ -197,7 +197,7 @@ fn fill_output<T>(
         frame[0] = T::from_sample(left);
         frame[1] = T::from_sample(right);
     }
-    for sample in frames.into_remainder() {
+    for sample in remainder {
         let value = source.next().unwrap_or(0.0);
         *sample = T::from_sample(value);
     }
