@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BOARDS = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 ORANGE_UI_ROOT = "userpatches/overlay/usr/local/share/octessera-setup-ui/"
 ORANGE_UI_FILES = ("js/app.js", "index.html", "css/styles.css", "README.md", "img/octessera-mark.svg", "img/octessera-wordmark.svg")
+ORANGE_RUNTIME_DIRECTORIES = {"var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"}
 STALE_UI_ROOT_FILES = {"usr/local/share/octessera-setup-ui/app.js", "usr/local/share/octessera-setup-ui/styles.css", "usr/local/share/octessera-setup-ui/octessera-mark.svg", "usr/local/share/octessera-setup-ui/octessera-wordmark.svg"}
 ORANGE_SETUP_SERVICE_TARGET = "/etc/systemd/system/octessera-setup.service"
 TRUSTED_FIXTURE_IDENTITIES = {
@@ -36,10 +37,15 @@ class SetupContractTests(unittest.TestCase):
                 self.assertEqual(contract["contract_kind"], "setup-layer")
                 self.assertEqual(len(digest), 64)
                 self.assertEqual(len(validate_sources(contract, ROOT)), len(contract["source_inputs"]))
-                self.assertEqual([item["target"] for item in contract["directories"]], ["usr/local/share/octessera-setup-ui"])
+                expected_directories = ["usr/local/share/octessera-setup-ui"] if board == "raspberry-pi-zero-2w" else ["usr/local/share/octessera-setup-ui", *sorted(ORANGE_RUNTIME_DIRECTORIES)]
+                self.assertEqual([item["target"] for item in contract["directories"]], expected_directories)
                 self.assertEqual(contract["directories"][0]["postimage"], "required")
                 self.assertEqual(contract["directories"][0]["preimage"]["kind"], "absent" if board == "raspberry-pi-zero-2w" else "exact")
                 if board == "orange-pi-zero-2w":
+                    self.assertTrue({item["target"] for item in contract["directories"][1:]} == ORANGE_RUNTIME_DIRECTORIES)
+                    self.assertTrue(all(item["uid"] == 986 and item["gid"] == 986 and item["preimage"] == {"kind": "absent"} for item in contract["directories"][1:]))
+                    parent = next(item for item in contract["preserved_paths"] if item["target"] == "var/lib/octessera")
+                    self.assertEqual(parent["preimage"], {"kind": "exact", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": False, "xattrs": {}, "capability": None})
                     self.assertEqual(set(contract["directories"][0]["preimage"]) - {"kind"}, {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"})
                     disabled = next(item for item in contract["symlinks"] if item["classification"] == "setup-service-disabled")
                     self.assertEqual((disabled["type"], disabled["preimage"]["link_target"], disabled["postimage"]), ("absent", ORANGE_SETUP_SERVICE_TARGET, "absent"))
