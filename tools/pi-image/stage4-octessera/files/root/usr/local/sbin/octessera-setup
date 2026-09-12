@@ -238,6 +238,8 @@ class Coordinator:
 
     def launch(self):
         self.portal_suffix = self.interface_suffix()
+        if self.command(["nmcli", "radio", "wifi", "on"]).returncode != 0:
+            raise SetupFailure("operation_failed")
         self.process = self.process_factory(
             ["/usr/local/bin/wifi-connect", "--portal-ssid", f"Octessera Setup {self.portal_suffix}", "--portal-interface", INTERFACE, "--portal-gateway", setup_http.AP_ADDRESS, "--portal-listening-port", "80", "--ui-directory", "/usr/local/share/octessera-setup-ui"],
             stdin=subprocess.DEVNULL,

@@ -108,7 +108,7 @@ class DiskSetupRespinTests(unittest.TestCase):
             self.assertNotIn("notice", runtime_provenance)
             self.assertNotIn("notice", result["setup_mutation"])
             setup_provenance = result["setup_mutation"]["provenance"]
-            self.assertEqual(set(setup_provenance["changed_paths"]), {"usr/local/lib/octessera/setup_config.py", "usr/local/share/octessera-setup-ui/README.md", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"})
+            self.assertEqual(set(setup_provenance["changed_paths"]), {"usr/local/lib/octessera/setup_config.py", "usr/local/sbin/octessera-setup", "usr/local/share/octessera-setup-ui/README.md", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings"})
             self.assertEqual(setup_provenance["parent"]["identity"]["preimage_source"]["commit"], "f7db4257171ebaa80ad59a68e8f8d8ce311f81cc")
             self.assertEqual(file_digest(source), source_before)
             self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")

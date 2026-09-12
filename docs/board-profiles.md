@@ -36,7 +36,8 @@ Both board profiles expose the same native `System > Setup > Configure WiFi` men
 contract and typed setup-portal status flow. The confirmed `Open Portal` action
 writes the exact `start\n` marker at
 `/run/octessera-setup-request/inbox/start`; one root service then coordinates the
-portal and publishes `/run/octessera-setup-status/current.json`. The pinned
+portal, enables Wi-Fi on demand before launching the AP, and publishes
+`/run/octessera-setup-status/current.json`. The pinned
 patched wifi-connect owns AP, DHCP, HTTP, and network switching. Fresh images do
 not start an automatic hotspot. Their fixed accounts, image provisioning paths,
 and parent-image preconditions differ: Raspberry uses the Pi image path and `pi`

@@ -12,7 +12,8 @@ power](safety-and-power.md).
 
 1. Stop playback before you begin. If it is still playing, Octessera stops and
    resets it when you confirm the action, then clears held notes and MIDI.
-2. Choose `System > Setup > Configure WiFi` and confirm `Open Portal`.
+2. Choose `System > Setup > Configure WiFi` and confirm `Open Portal`. This
+   enables Wi-Fi on demand before the setup AP launches.
 3. Join `Octessera Setup <4-char suffix>` from your phone or laptop.
 4. Browse to `http://192.168.42.1`.
 5. Choose the country, a scanned or manual SSID, Wi-Fi password or open network,

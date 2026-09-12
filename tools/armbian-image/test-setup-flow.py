@@ -68,18 +68,42 @@ for index, path in enumerate(COORDINATORS):
     assert '"/usr/local/share/octessera-setup-ui"' in source
     assert source.index("service_started_at = time.monotonic()") < source.index("profile = setup_config.load_profile()")
     profile = {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "root"}
-    commands = []
-    command_result = lambda args, timeout=None: commands.append(tuple(args)) or SimpleNamespace(returncode=0, stdout="")
+    flow_events = []
+    command_result = lambda args, timeout=None: flow_events.append(("command", tuple(args))) or SimpleNamespace(returncode=0, stdout="")
     instance = coordinator.Coordinator(profile, command=command_result, clock=lambda: 0.0, sleeper=lambda _seconds: None)
     instance.interface_suffix = lambda: "abcd"
     process = Process()
     launched = []
-    instance.process_factory = lambda args, **kwargs: launched.append((args, kwargs)) or process
+    instance.process_factory = lambda args, **kwargs: flow_events.append(("launch", args)) or launched.append((args, kwargs)) or process
     instance.launch()
+    assert flow_events[0] == ("command", ("nmcli", "radio", "wifi", "on"))
+    assert flow_events[1][0] == "launch"
     assert len(launched) == 1
     assert launched[0][0][0] == "/usr/local/bin/wifi-connect"
     assert "Octessera Setup abcd" in launched[0][0]
     assert "/usr/local/share/octessera-setup-ui" in launched[0][0]
+
+    failure_commands = []
+    failure_launches = []
+    failure_status = []
+    fake_server = SimpleNamespace(serve_forever=lambda: None, shutdown=lambda: None, server_close=lambda: None)
+    original_setup_server = coordinator.setup_http.SetupHTTPServer
+    coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+    try:
+        failure_instance = coordinator.Coordinator(
+            profile,
+            command=lambda args, timeout=None: failure_commands.append(tuple(args)) or SimpleNamespace(returncode=1, stdout=""),
+            process_factory=lambda args, **kwargs: failure_launches.append(args),
+        )
+        failure_instance.interface_suffix = lambda: "abcd"
+        failure_instance.publish = lambda phase, **kwargs: failure_status.append((phase, kwargs))
+        failure_instance.cleanup = lambda _deadline: None
+        assert failure_instance.run(0.0) == 0
+    finally:
+        coordinator.setup_http.SetupHTTPServer = original_setup_server
+    assert failure_commands == [("nmcli", "radio", "wifi", "on")]
+    assert failure_launches == []
+    assert failure_status[-1] == ("failed", {"error_code": "operation_failed", "terminal": True})
 
     instance.process = process
     instance.portal_ready = lambda: True
