@@ -58,6 +58,10 @@ impl NativeRunner {
             .map(|value| value == "true")
         {
             changed |= self.midi_enabled != midi_enabled;
+            if self.midi_enabled && !midi_enabled {
+                self.drain_all_layer_engine_notes();
+                self.drain_all_sparks_transpose_notes();
+            }
             self.midi_enabled = midi_enabled;
         }
         if let Some(clock_out_enabled) = self

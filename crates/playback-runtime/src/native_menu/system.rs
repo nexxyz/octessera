@@ -90,40 +90,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ),
             ],
         ),
-        group(
-            "MIDI",
-            vec![
-                bool_item("Enabled", "midiEnabled", config.midi_enabled),
-                midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
-                midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
-                group(
-                    "Sync / Clock",
-                    vec![
-                        enum_item_from_strings(
-                            "Sync",
-                            "midiSyncMode",
-                            vec!["internal".into(), "external".into()],
-                            sync_index,
-                        ),
-                        bool_item(
-                            "Clock Out",
-                            "midi.clockOutEnabled",
-                            config.midi_clock_out_enabled,
-                        ),
-                        bool_item(
-                            "Clock In",
-                            "midi.clockInEnabled",
-                            config.midi_clock_in_enabled,
-                        ),
-                        bool_item(
-                            "Follow S/S",
-                            "midi.respondToStartStop",
-                            config.midi_respond_to_start_stop,
-                        ),
-                    ],
-                ),
-            ],
-        ),
+        midi_group(config, sync_index),
         audio_group(config),
         group(
             "UI",
@@ -187,7 +154,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
             .iter()
             .position(|item| item.label == "Audio")
             .expect("Audio group is present");
-        children.insert(audio_index + 1, usb_group(config));
+        children.insert(audio_index + 1, sd_card_2_group());
         let ui_index = children
             .iter()
             .position(|item| item.label == "UI")
@@ -296,22 +263,59 @@ fn audio_group(config: &NativeMenuConfig) -> NativeMenuItem {
     group("Audio", children)
 }
 
-fn usb_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn midi_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
+    let mut children = vec![bool_item("Enabled", "midiEnabled", config.midi_enabled)];
+    if config.jack_audio_required {
+        children.push(bool_item(
+            "USB MIDI",
+            "usb.midiOutEnabled",
+            config.usb_midi_out_enabled,
+        ));
+    }
+    children.extend([
+        midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
+        midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
+        group(
+            "Sync / Clock",
+            vec![
+                enum_item_from_strings(
+                    "Sync",
+                    "midiSyncMode",
+                    vec!["internal".into(), "external".into()],
+                    sync_index,
+                ),
+                bool_item(
+                    "Clock Out",
+                    "midi.clockOutEnabled",
+                    config.midi_clock_out_enabled,
+                ),
+                bool_item(
+                    "Clock In",
+                    "midi.clockInEnabled",
+                    config.midi_clock_in_enabled,
+                ),
+                bool_item(
+                    "Follow S/S",
+                    "midi.respondToStartStop",
+                    config.midi_respond_to_start_stop,
+                ),
+            ],
+        ),
+    ]);
+    group("MIDI", children)
+}
+
+fn sd_card_2_group() -> NativeMenuItem {
     group(
-        "USB",
+        "SD Card 2",
         vec![
-            bool_item(
-                "MIDI Out",
-                "usb.midiOutEnabled",
-                config.usb_midi_out_enabled,
-            ),
             action_item(
-                "Start SD2 Xfer",
+                "Start Transfer",
                 "usb.sdTransferStart",
                 NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
             ),
             action_item(
-                "Stop SD2 Xfer",
+                "Stop Transfer",
                 "usb.sdTransferStop",
                 NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
             ),

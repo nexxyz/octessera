@@ -31,7 +31,7 @@ probability, transpose, and Play FX behavior.
 | *Play* / *Space* | **Transport** | Play or pause. |
 | *Play* / *Space* | **Sample browser preview** | In sample browser menus, preview the highlighted sample. |
 | *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms a one-shot resync at the next 96-PPQN (one-bar) boundary instead of stopping the external clock; playback and the grid continue, then the transport origin resets and the arm clears. |
-| *Fn* + *Play* | **Reset stop** | Stop, reset the transport position, and send MIDI panic. |
+| *Fn* + *Play* | **Reset stop** | Stop, reset the transport position, and silence Octessera-owned notes. |
 | *Fn* + turn main encoder right | **Single step** | While paused or stopped, advance one generation/tick. Turning left is a no-op. |
 | *Shift* + *Fn* + *Play* | **Reserved** | No action for now. A tiny patch of silence in the shortcut garden. |
 | *Shift* + *Back* | **Clear active layer** | Re-initialize the active layer. Very useful. Also very easy to press on purpose only. |

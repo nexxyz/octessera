@@ -362,7 +362,7 @@ pub(crate) fn fn_play_reset_stops_before_sample_preview() {
 
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
     assert_eq!(runner.transport.tick, 0);
-    assert!(messages.iter().any(|message| matches!(
+    assert!(messages.iter().all(|message| !matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
             if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic))

@@ -10,32 +10,31 @@ No open FAT result is closed by this documentation pass. Until a release record
 marks an exact row **FAT-passed**, keep that row **UNQUALIFIED** or leave it out
 of public support claims.
 
-The source manifests are consistently 0.8.3 (`corepack pnpm run release:check-version`
-passes). The unpublished v0.8.2 draft and its exact images exist, but Raspberry
-first-boot Wi-Fi setup failed FAT, so v0.8.2 is disqualified. Version v0.8.3 is
-the replacement candidate pending exact-image two-board FAT; it has no release
-artifact or FAT record yet. The [v0.8.1 release record](release-records/v0.8.1.md)
-and v0.8.1 draft are unpublished historical evidence from older source. Neither
-the v0.8.1 nor v0.8.2 draft may be published as the current source release. The
-v0.8.1 record names its exact draft, checksums, and
-automated evidence. The v0.7.5 release remains immutable historical material;
-it is not an active parent or respin source. The historical v0.8.1 Orange
-constructor parent passed its bounded physical promotion scope. A manual
-current-parent runtime respin path exists, but no real runtime respin run is
-evidenced yet. The remaining Orange hardware gates are still open. Raspberry
-physical qualification remains open, and a Raspberry current-parent respin is
-unavailable. Run `33037951901` is only the [Orange strict diagnostic-image
-build](https://github.com/nexxyz/octessera/actions/runs/33037951901); run
-`33045139129` is the [full release run for both production images and the 14
-uploaded assets](https://github.com/nexxyz/octessera/actions/runs/33045139129).
+The source manifests are consistently 0.8.4 (`corepack pnpm run release:check-version`
+passes). v0.8.3 is the public immutable alpha pre-release from source
+`0a029afa`, with 14 custom assets. The exact Raspberry image was observed
+passing first boot, setup portal, normal WLAN/SSH, native diagnostic, controls,
+DAC audio, and a live USB Audio/MIDI check. These are observed alpha checks, not
+full Raspberry physical qualification, which remains open. Orange physical FAT,
+USB reconnect, Backup / Restore, and full closeout were not run. Known v0.8.3
+issues are USB MIDI setting ambiguity/persistence observation and broad
+Stop/panic behavior. USB Audio/MIDI remain experimental. Version v0.8.4 is an
+in-development follow-up; publication and respin eligibility are not promised
+yet. The unpublished v0.8.2 draft remains disqualified after failed Raspberry
+first-boot Wi-Fi FAT. The [v0.8.1 release record](release-records/v0.8.1.md)
+and v0.8.1 draft are historical evidence from older source. The v0.7.5 release
+remains immutable historical material; it is not an active parent or respin
+source. The historical v0.8.1 Orange constructor parent passed its bounded
+physical promotion scope, but no real runtime respin run is evidenced. A
+Raspberry current-parent respin is unavailable.
 
 ## Support matrix
 
 | Platform | Asset type and intended use | Source/build evidence (not FAT) | Manual FAT status | Known limitations |
 |---|---|---|---|---|
 | Desktop | Windows installer or portable ZIP; Ubuntu DEB or AppImage for the hardware-free simulator. | Desktop package build, simulator tests, and package/legal checks in the [desktop workflow](../docs/workflows/desktop-development.md#hardware-free-verification-matrix). | **UNQUALIFIED — exact package launch record is still required.** | macOS distribution is paused. An unsigned Windows build may show the normal Windows warning. Desktop cannot qualify GPIO, OLED, DAC, power, or USB gadget behavior. Desktop Configure WiFi and Backup / Restore are unsupported. |
-| Raspberry Pi Zero 2 W | The exact versioned Raspberry image ZIP and its Imager manifest for a fresh install; the profile-qualified device ZIP only where its updater path is explicitly recorded. | Historical v0.8.1 Raspberry constructor/source-bound evidence, including retained mounted-image and kernel proof for the exact draft, plus Raspberry profile, native cross-build, image-contract, sample, and sanitization checks in the [image workflow](../docs/workflows/image-construction-and-proof.md#source-bound-constructor-procedure). No exact v0.8.3 release artifact or FAT record exists, and no Raspberry current-parent respin is available. | **UNQUALIFIED — physical qualification remains open and a current-parent respin is unavailable; exact image, PCB, power path, controls, and audio FAT remain open.** | Raspberry full-image update remains manual. USB Audio/MIDI is experimental local-bench validation only. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
-| Orange Pi Zero 2W | The exact versioned production Armbian image for full image installation, plus the profile-qualified runtime-only updater ZIP `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`. The standalone manual runtime ZIP remains manual and is not an OTA asset. | Historical v0.8.1 Orange constructor evidence: its constructor parent passed its bounded physical promotion scope, and a manual current-parent runtime-only respin path exists, but no real respin run is evidenced. No exact v0.8.3 release artifact or FAT record exists. | **UNQUALIFIED — historical constructor-parent promotion passed; current publication and full Orange hardware remain open.** | Runtime-only Check/Apply/Rollback use the guarded updater; full Armbian, kernel, device-tree, and image replacement remains manual. USB Audio/MIDI is experimental local-bench validation only. HDMI, USB, SD2, remaining soak/recovery, and other exact-image hardware gates remain open. Profile or asset mismatches fail closed without a Raspberry, manual-ZIP, or image fallback. |
+| Raspberry Pi Zero 2 W | The exact versioned Raspberry image ZIP and its Imager manifest for a fresh install; the profile-qualified device ZIP only where its updater path is explicitly recorded. | Public immutable v0.8.3 alpha from source `0a029afa`; observed checks covered first boot, setup portal, normal WLAN/SSH, native diagnostic, controls, DAC audio, and a live USB Audio/MIDI exercise. Full physical qualification remains open, and no Raspberry current-parent respin is available. | **UNQUALIFIED — full physical qualification remains open; exact image, PCB, power path, controls, and audio FAT remain open.** | Raspberry full-image update remains manual. USB Audio/MIDI is experimental local-bench validation only. Simultaneous physical outputs use unsynchronized clocks and may drift or echo. The current enclosure has been built and validated on the available unit, but remains a v21 test-fit design rather than a production-final mechanical product. |
+| Orange Pi Zero 2W | The exact versioned production Armbian image for full image installation, plus the profile-qualified runtime-only updater ZIP `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`. The standalone manual runtime ZIP remains manual and is not an OTA asset. | Public immutable v0.8.3 alpha from source `0a029afa`, with 14 custom assets. Orange physical FAT, USB reconnect, Backup / Restore, and full closeout were not run. Historical v0.8.1 constructor evidence remains separate. | **UNQUALIFIED — Orange physical FAT and full closeout were not run; current publication and respin eligibility remain open.** | Runtime-only Check/Apply/Rollback use the guarded updater; full Armbian, kernel, device-tree, and image replacement remains manual. USB Audio/MIDI is experimental local-bench validation only. HDMI, USB, SD2, remaining soak/recovery, and other exact-image hardware gates remain open. Profile or asset mismatches fail closed without a Raspberry, manual-ZIP, or image fallback. |
 
 The exact asset names, current fourteen-file custom release count, checksum files,
 and ZIP contracts remain in [Release assembly](../docs/workflows/release-assembly.md#custom-release-assets).

@@ -22,8 +22,13 @@ fn panic_clears_pending_notes_and_sends_all_notes_off() {
 
     runtime.panic(&mut host).unwrap();
 
-    assert_eq!(host.midi_messages.first(), Some(&vec![0xFC]));
-    assert_eq!(host.midi_messages.len(), 33);
+    let expected = std::iter::once(vec![0xFC])
+        .chain(
+            (0..16_u8)
+                .flat_map(|channel| [vec![0xB0 | channel, 120, 0], vec![0xB0 | channel, 123, 0]]),
+        )
+        .collect::<Vec<_>>();
+    assert_eq!(host.midi_messages, expected);
     assert_eq!(host.silence_calls, 0);
 }
 
