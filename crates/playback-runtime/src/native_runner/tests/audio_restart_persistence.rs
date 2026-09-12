@@ -13,11 +13,11 @@ fn input(runner: &mut NativeRunner, value: Value) -> Vec<RunnerMessage> {
         .unwrap()
 }
 
-fn press(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+pub(super) fn press(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     input(runner, json!({ "type": "encoder_press", "id": "main" }))
 }
 
-fn turn(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {
+pub(super) fn turn(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {
     input(
         runner,
         json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
@@ -28,7 +28,7 @@ fn back(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     input(runner, json!({ "type": "button_a", "pressed": true }))
 }
 
-fn enter_edit(runner: &mut NativeRunner, key: &str) {
+pub(super) fn enter_edit(runner: &mut NativeRunner, key: &str) {
     assert!(runner.menu.focus_item_key(key));
     press(runner);
 }

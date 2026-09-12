@@ -325,7 +325,7 @@ impl NativeRunner {
             if self.display.ui.combined_modifier_held {
                 return self.messages_with_snapshot();
             } else if self.display.ui.fn_held {
-                return self.reset_stop_with_midi_panic();
+                return self.reset_stop();
             } else if let Some(effect) = self.preview_selected_sample()? {
                 return self.messages_with_effects(vec![effect]);
             } else if self.display.ui.shift_held
@@ -333,7 +333,7 @@ impl NativeRunner {
             {
                 self.transport.pending_resync = true;
             } else if self.display.ui.shift_held {
-                return self.reset_stop_with_midi_panic();
+                return self.reset_stop();
             } else {
                 if self.transport.transport == RuntimeTransportState::Stopped {
                     self.reset_transport_position();
@@ -346,17 +346,18 @@ impl NativeRunner {
                         RuntimeTransportState::Playing
                     };
                 if was_playing && self.transport.transport == RuntimeTransportState::Paused {
-                    return self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic]);
+                    self.drain_all_layer_engine_notes();
+                    self.drain_all_sparks_transpose_notes();
                 }
             }
         }
         self.messages_with_snapshot()
     }
 
-    fn reset_stop_with_midi_panic(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    fn reset_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.transport.transport = RuntimeTransportState::Stopped;
         self.reset_transport_position();
-        self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic])
+        self.messages_with_snapshot()
     }
 
     fn handle_usb_sd_transfer_modal_input(

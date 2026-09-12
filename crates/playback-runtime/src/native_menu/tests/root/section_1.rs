@@ -148,6 +148,10 @@ pub(crate) fn system_tree_has_exact_order_and_platform_visibility() {
         group_labels(&desktop, "Notes"),
         vec!["Note Length", "Vel Scale", "Vel Curve"]
     );
+    assert_eq!(
+        group_labels(&desktop, "MIDI"),
+        vec!["Enabled", "MIDI Out", "MIDI In", "Sync / Clock"]
+    );
     assert_eq!(group_labels(&desktop, "Audio"), vec!["Polyphony", "Engine"]);
     assert_eq!(
         group_labels(&desktop, "Audio > Engine"),
@@ -183,7 +187,7 @@ pub(crate) fn system_tree_has_exact_order_and_platform_visibility() {
             "Notes",
             "MIDI",
             "Audio",
-            "USB",
+            "SD Card 2",
             "UI",
             "HDMI Video",
             "Saves",
@@ -204,8 +208,12 @@ pub(crate) fn system_tree_has_exact_order_and_platform_visibility() {
         ]
     );
     assert_eq!(
-        group_labels(&board, "USB"),
-        vec!["MIDI Out", "Start SD2 Xfer", "Stop SD2 Xfer"]
+        group_labels(&board, "MIDI"),
+        vec!["Enabled", "USB MIDI", "MIDI Out", "MIDI In", "Sync / Clock"]
+    );
+    assert_eq!(
+        group_labels(&board, "SD Card 2"),
+        vec!["Start Transfer", "Stop Transfer"]
     );
     assert_eq!(
         group_labels(&board, "HDMI Video"),
@@ -285,8 +293,12 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
         ]
     );
     assert_eq!(
-        group_labels(&pi, "USB"),
-        vec!["MIDI Out", "Start SD2 Xfer", "Stop SD2 Xfer"]
+        group_labels(&pi, "MIDI"),
+        vec!["Enabled", "USB MIDI", "MIDI Out", "MIDI In", "Sync / Clock"]
+    );
+    assert_eq!(
+        group_labels(&pi, "SD Card 2"),
+        vec!["Start Transfer", "Stop Transfer"]
     );
 
     let mut menu = NativeMenuModel::new(pi);

@@ -1,7 +1,7 @@
 use super::{HostAdapter, PlaybackRuntime, ScheduledMidiMessage};
 use crate::protocol::{
-    RuntimeAdapterError, RuntimeErrorDomain, RuntimeOperation, RuntimeStatus, RuntimeStatusState,
-    RuntimeTransportState, SyncSource,
+    RuntimeAdapterError, RuntimeErrorDomain, RuntimeOperation, RuntimeRecovery, RuntimeStatus,
+    RuntimeStatusState, RuntimeTransportState, SyncSource,
 };
 use platform_core::MusicalEvent;
 
@@ -119,10 +119,41 @@ impl PlaybackRuntime {
         }
         let previous = self.last_good_status.replace(status.clone());
         self.refresh_presentations();
-        if !self.config.midi_out_enabled || status.sync_source != SyncSource::Internal {
-            return Ok(());
+        let needs_note_cleanup = transport_requires_note_cleanup(previous.as_ref(), &status);
+        let silence_error = needs_note_cleanup
+            .then(|| host.silence_internal_audio())
+            .transpose()
+            .err()
+            .map(|error| RuntimeAdapterError::from_facts(error.facts));
+        if let Some(error) = silence_error {
+            self.latch_error(error.into_metadata(
+                RuntimeErrorDomain::Audio,
+                RuntimeOperation::AudioCommand,
+                RuntimeRecovery::RetainLastGood,
+                None,
+                None,
+            ));
         }
-        self.send_transport_midi(previous, &status, host)
+        let transport_error =
+            if self.config.midi_out_enabled && status.sync_source == SyncSource::Internal {
+                self.send_transport_midi(previous, &status, host).err()
+            } else {
+                None
+            };
+        let cleanup_error = if needs_note_cleanup {
+            if self.config.midi_out_enabled {
+                self.flush_scheduled_midi_now(host).err()
+            } else {
+                self.clear_scheduled_midi();
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(error) = transport_error.or(cleanup_error) {
+            return Err(error);
+        }
+        Ok(())
     }
 
     fn send_transport_midi<H: HostAdapter>(
@@ -198,6 +229,10 @@ impl PlaybackRuntime {
         &mut self,
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
+        if !self.config.midi_out_enabled {
+            self.clear_scheduled_midi();
+            return Ok(());
+        }
         if self.scheduled_note_offs_dirty {
             self.scheduled_note_offs
                 .make_contiguous()
@@ -209,11 +244,53 @@ impl PlaybackRuntime {
             .front()
             .is_some_and(|message| message.due_at_ms <= self.now_ms)
         {
-            let message = self.scheduled_note_offs.pop_front().expect("front checked");
-            self.send_midi_message(&message.bytes, RuntimeOperation::MidiMessage, host)?;
+            let bytes = self
+                .scheduled_note_offs
+                .front()
+                .map(|message| message.bytes.clone())
+                .expect("front checked");
+            self.send_midi_message(&bytes, RuntimeOperation::MidiMessage, host)?;
+            self.scheduled_note_offs.pop_front();
         }
         Ok(())
     }
+
+    pub(super) fn flush_scheduled_midi_now<H: HostAdapter>(
+        &mut self,
+        host: &mut H,
+    ) -> Result<(), RuntimeAdapterError> {
+        if !self.config.midi_out_enabled {
+            self.clear_scheduled_midi();
+            return Ok(());
+        }
+        while let Some(bytes) = self
+            .scheduled_note_offs
+            .front()
+            .map(|message| message.bytes.clone())
+        {
+            self.send_midi_message(&bytes, RuntimeOperation::MidiMessage, host)?;
+            self.scheduled_note_offs.pop_front();
+        }
+        self.scheduled_note_offs_dirty = false;
+        Ok(())
+    }
+
+    pub(super) fn clear_scheduled_midi(&mut self) {
+        self.scheduled_note_offs.clear();
+        self.scheduled_note_offs_dirty = false;
+    }
+}
+
+pub(super) fn transport_requires_note_cleanup(
+    previous: Option<&RuntimeStatus>,
+    status: &RuntimeStatus,
+) -> bool {
+    previous.is_some_and(|previous| {
+        (previous.transport == RuntimeTransportState::Playing
+            && status.transport != RuntimeTransportState::Playing)
+            || (previous.transport == RuntimeTransportState::Paused
+                && status.transport == RuntimeTransportState::Stopped)
+    })
 }
 
 fn transport_status_resets_origin(

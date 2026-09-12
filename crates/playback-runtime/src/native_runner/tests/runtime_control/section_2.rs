@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn shift_space_emergency_stops_internal_and_external_arms_resync() {
+pub(crate) fn shift_space_stops_internal_and_external_arms_resync() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.current_ppqn_pulse = 48;
@@ -16,7 +16,7 @@ pub(crate) fn shift_space_emergency_stops_internal_and_external_arms_resync() {
         .unwrap();
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
     assert_eq!(runner.transport.current_ppqn_pulse, 0);
-    assert!(stopped.iter().any(|message| matches!(
+    assert!(stopped.iter().all(|message| !matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
             if effects == &vec![RuntimePlatformEffect::MidiPanic]

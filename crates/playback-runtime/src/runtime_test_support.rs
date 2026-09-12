@@ -131,13 +131,14 @@ impl CoreRunner for FakeRunner {
 }
 
 #[derive(Default)]
-pub(super) struct FakeHost {
+pub(crate) struct FakeHost {
     pub midi_messages: Vec<Vec<u8>>,
     pub musical_events: Vec<MusicalEvent>,
     pub audio_commands: Vec<RuntimeAudioCommand>,
     pub effects: Vec<RuntimePlatformEffect>,
     pub silence_calls: usize,
     pub fail_internal_silence: bool,
+    pub fail_midi_message: bool,
     pub setup_portal_result: Option<RuntimeStoreResult>,
     pub setup_portal_results_sent: Vec<RuntimeStoreResult>,
 }
@@ -180,6 +181,11 @@ impl HostAdapter for FakeHost {
     }
 
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+        if self.fail_midi_message {
+            return Err(RuntimeAdapterError::operation_failed(
+                "MIDI message send failed".into(),
+            ));
+        }
         self.midi_messages.push(bytes.to_vec());
         Ok(())
     }

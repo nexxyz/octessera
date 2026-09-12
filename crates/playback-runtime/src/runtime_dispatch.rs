@@ -289,7 +289,30 @@ impl PlaybackRuntime {
                     }
                 }
                 RunnerMessage::RuntimeConfigChanged { config } => {
+                    let disable_error =
+                        if self.config().midi_out_enabled && !config.midi_out_enabled {
+                            self.flush_scheduled_midi_now(host).err()
+                        } else {
+                            None
+                        };
+                    if disable_error.is_some() {
+                        self.clear_scheduled_midi();
+                    }
                     self.set_config(config);
+                    if let Some(error) = disable_error {
+                        let error = self.adapter_error_metadata(
+                            error,
+                            RuntimeErrorDomain::Midi,
+                            RuntimeOperation::MidiMessage,
+                            RuntimeRecovery::RetainLastGood,
+                            None,
+                            None,
+                        );
+                        let recovery = error.recovery.clone();
+                        self.latch_error(error);
+                        self.apply_recovery(recovery, &mut runner, host, &mut output);
+                        self.append_presentations(&mut output);
+                    }
                 }
             }
         }

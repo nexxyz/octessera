@@ -30,8 +30,8 @@ Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Pl
 
 The System section puts the direct Save Current and dynamic Load Preset shortcut group, followed
 by Master Vol, Panic, Sys. Info, and Basic Help. Recording, Notes, MIDI, Audio, UI, Saves,
-Setup, Reset, Reboot, and Shutdown follow in that order. USB and HDMI Video are
-board-only groups and are omitted on desktop.
+Setup, Reset, Reboot, and Shutdown follow in that order. SD Card 2 and HDMI Video are
+board-only groups and are omitted on desktop; USB MIDI is a board-only child of MIDI.
 
 The root Load Preset group contains a `(none)` refresh action and one confirmed action
 for each named preset. The same named list remains available under
@@ -48,11 +48,15 @@ all Jack/USB/HDMI/SD2 device controls. `Polyphony` keeps the existing
 Idle with their existing keys and values, plus Buf Frames where the
 performance-mode capability is unavailable.
 
-USB contains USB MIDI and SD2 transfer controls. HDMI Video contains the
-existing Mode, Bars per cycle, and Grid Lines controls. USB and HDMI audio
-mirror the canonical Jack mix and do not replace it; HDMI audio remains
-separate from HDMI video. Restart-sensitive edits use the native Save Setting
-flow shared with Audio.
+`System > MIDI` contains Enabled, board-only USB MIDI, MIDI Out, MIDI In, and Sync / Clock in
+that order. Enabled is the runtime MIDI gate and selects no port or device. USB MIDI enables
+the bidirectional class device after restart, auto-routes outbound gadget MIDI, and leaves
+inbound selection under MIDI In. `System > SD Card 2` contains Start Transfer and Stop Transfer;
+it exposes the second card to a USB host only while conflicting USB audio, MIDI, and recording
+are inactive. HDMI Video contains the existing Mode, Bars per cycle, and Grid Lines controls.
+USB and HDMI audio mirror the canonical Jack mix and do not replace it; HDMI audio remains
+separate from HDMI video. Restart-sensitive edits use the native Save Setting flow shared with
+Audio.
 
 Aggregate audio-load and voice-steal status is separate from the red persistent-
 worker CPU icon. The icon is at `(117,5)` and requires valid persistent

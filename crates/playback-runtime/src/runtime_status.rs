@@ -186,7 +186,7 @@ impl PlaybackRuntime {
             if let Some(runner) = runner.take() {
                 output.merge(self.best_effort_stop_and_silence(runner, host));
             } else {
-                self.best_effort_host_silence(host, output);
+                self.best_effort_host_silence(host, output, true);
                 output.follow_ups.push(HostMessage::TransportStop);
             }
         }
@@ -199,8 +199,18 @@ impl PlaybackRuntime {
     ) -> RuntimeIngest {
         let mut output = RuntimeIngest::default();
         self.pulse_remainder = 0.0;
+        let mut internal_silence_attempted = false;
         match runner.send(HostMessage::TransportStop) {
             Ok(messages) => {
+                internal_silence_attempted = self.last_good_status.as_ref().is_some_and(|previous| {
+                    messages.iter().any(|message| {
+                        matches!(
+                            message,
+                            RunnerMessage::RuntimeStatus { status }
+                                if super::midi::transport_requires_note_cleanup(Some(previous), status)
+                        )
+                    })
+                });
                 if let Ok(ingest) =
                     self.ingest_core_messages_with_runner(messages, Some(runner), host)
                 {
@@ -214,7 +224,7 @@ impl PlaybackRuntime {
                 message,
             )),
         }
-        self.best_effort_host_silence(host, &mut output);
+        self.best_effort_host_silence(host, &mut output, !internal_silence_attempted);
         if let Some(status) = self.last_good_status.as_mut() {
             status.transport = crate::RuntimeTransportState::Stopped;
         }
@@ -227,15 +237,18 @@ impl PlaybackRuntime {
         &mut self,
         host: &mut H,
         output: &mut RuntimeIngest,
+        silence_internal_audio: bool,
     ) {
-        if let Err(error) = host.silence_internal_audio() {
-            self.latch_error(error.into_metadata(
-                RuntimeErrorDomain::Audio,
-                RuntimeOperation::AudioCommand,
-                RuntimeRecovery::StopAndSilence,
-                None,
-                None,
-            ));
+        if silence_internal_audio {
+            if let Err(error) = host.silence_internal_audio() {
+                self.latch_error(error.into_metadata(
+                    RuntimeErrorDomain::Audio,
+                    RuntimeOperation::AudioCommand,
+                    RuntimeRecovery::StopAndSilence,
+                    None,
+                    None,
+                ));
+            }
         }
         if let Err(error) = host.panic_external_midi() {
             self.latch_error(error.into_metadata(

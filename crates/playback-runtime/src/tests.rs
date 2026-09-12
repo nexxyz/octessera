@@ -15,8 +15,10 @@ mod presented_runtime_error;
 #[path = "setup_portal_runtime_tests.rs"]
 mod setup_portal;
 #[path = "runtime_test_support.rs"]
-mod support;
+pub(crate) mod support;
 #[path = "runtime_transport_tests.rs"]
 mod transport;
 #[path = "runtime_transport_origin_tests.rs"]
 mod transport_origin;
+#[path = "runtime_transport_safety_tests.rs"]
+mod transport_safety;

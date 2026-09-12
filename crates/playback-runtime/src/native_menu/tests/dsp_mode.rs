@@ -43,3 +43,63 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
         "USB Audio"
     );
 }
+
+#[test]
+fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
+    let mut config = config();
+    config.jack_audio_required = true;
+    let menu = NativeMenuModel::new(config);
+
+    let enabled = menu
+        .help_targets()
+        .into_iter()
+        .find(|target| target.key == "key:midiEnabled")
+        .expect("global MIDI enabled help target");
+    assert_eq!(enabled.path, "Menu > System > MIDI > Enabled");
+    let enabled_entry = crate::native_help::resolve_native_help_entry(&enabled)
+        .expect("global MIDI enabled help entry");
+    let enabled_copy = format!("{} {}", enabled_entry.line1, enabled_entry.line2).to_lowercase();
+    assert!(enabled_copy.contains("runtime midi gate"));
+    assert!(enabled_copy.contains("no port or device"));
+
+    let usb_midi = menu
+        .help_targets()
+        .into_iter()
+        .find(|target| target.key == "key:usb.midiOutEnabled")
+        .expect("USB MIDI help target");
+    assert_eq!(usb_midi.path, "Menu > System > MIDI > USB MIDI");
+    let usb_midi_entry =
+        crate::native_help::resolve_native_help_entry(&usb_midi).expect("USB MIDI help entry");
+    let usb_midi_copy = format!("{} {}", usb_midi_entry.line1, usb_midi_entry.line2).to_lowercase();
+    for phrase in [
+        "bidirectional usb midi",
+        "after restart",
+        "outbound gadget midi",
+        "inbound device selection",
+        "midi in",
+    ] {
+        assert!(
+            usb_midi_copy.contains(phrase),
+            "USB MIDI help omitted {phrase}"
+        );
+    }
+
+    let sd2 = menu
+        .help_targets()
+        .into_iter()
+        .find(|target| target.path == "Menu > System > SD Card 2")
+        .expect("SD Card 2 help target");
+    let sd2_entry =
+        crate::native_help::resolve_native_help_entry(&sd2).expect("SD Card 2 help entry");
+    let sd2_copy = format!("{} {}", sd2_entry.line1, sd2_entry.line2).to_lowercase();
+    for phrase in [
+        "second card",
+        "usb host",
+        "usb audio",
+        "midi",
+        "recording",
+        "inactive",
+    ] {
+        assert!(sd2_copy.contains(phrase), "SD Card 2 help omitted {phrase}");
+    }
+}

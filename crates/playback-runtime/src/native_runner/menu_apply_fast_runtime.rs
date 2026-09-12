@@ -11,9 +11,7 @@ impl NativeRunner {
             "transport.bpm" => Some(self.fast_bpm_menu_key()),
             "transport.swingPct" => Some(self.fast_swing_menu_key()),
             "midiSyncMode" => Some(self.fast_sync_source_menu_key()),
-            "midiEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.midi_enabled, value)
-            })),
+            "midiEnabled" => Some(self.fast_midi_enabled_menu_key()),
             "midi.clockOutEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_clock_out_enabled, value)
             })),
@@ -199,6 +197,24 @@ impl NativeRunner {
         };
         if value_changed(&mut self.usb_midi_out_enabled, value) {
             self.commit_restart_sensitive_setting(RestartSetting::UsbMidiOut);
+        }
+        true
+    }
+
+    fn fast_midi_enabled_menu_key(&mut self) -> bool {
+        let Some(value) = self
+            .menu
+            .value_for_key("midiEnabled")
+            .map(|value| value == "true")
+        else {
+            return false;
+        };
+        if bool_changed(&mut self.midi_enabled, value) {
+            if !value {
+                self.drain_all_layer_engine_notes();
+                self.drain_all_sparks_transpose_notes();
+            }
+            self.mark_fast_autosave_dirty();
         }
         true
     }

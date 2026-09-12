@@ -422,7 +422,7 @@ impl PlaybackRuntime {
                 None,
             );
             self.latch_error(metadata);
-            self.best_effort_host_silence(host, &mut output);
+            self.best_effort_host_silence(host, &mut output, true);
             output.follow_ups.push(HostMessage::TransportStop);
             self.append_presentations(&mut output);
         }
