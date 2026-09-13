@@ -194,24 +194,16 @@ assert "|| true" not in "\n".join(
 )
 assert 'if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then\n  rm -f /root/.not_logged_in_yet' in customize
 assert setup_config.count('invoke(["systemctl", "enable", "--now", "ssh.service"])') == 1
-assert (
-    '    if mode in ("key", "password"):\n'
-    '        invoke(["ssh-keygen", "-A"])\n'
-    '    if mode in ("key", "password"):\n'
-    '        for unit in profile["ssh_units"]:\n'
-    '            invoke(["systemctl", "unmask", unit])\n'
-    '        invoke(["systemctl", "enable", "--now", "ssh.service"])\n'
-    '    _write_atomic(MARKER_PATH, "complete\\n", 0o644)'
-) in setup_config
-assert '    invoke(["systemctl", "disable", "--now", "ssh.socket"])\n    invoke(["systemctl", "disable", "--now", "ssh.service"])\n    for unit in profile["ssh_units"]:\n        invoke(["systemctl", "mask", unit])' in setup_config
+assert 'def disable_ssh(profile, invoke):\n    invoke(["systemctl", "disable", "--now", "ssh.socket"])' in setup_config
+assert 'def rollback_ssh(profile):\n' in setup_config
 finalize_start = setup_config.index("def finalize")
-socket_stop = setup_config.index('    invoke(["systemctl", "disable", "--now", "ssh.socket"])', finalize_start)
-service_stop = setup_config.index('    invoke(["systemctl", "disable", "--now", "ssh.service"])', finalize_start)
-mask_units = setup_config.index('    for unit in profile["ssh_units"]:\n        invoke(["systemctl", "mask", unit])', service_stop)
-deny_policy = setup_config.index('    set_password_auth(False, profile)', finalize_start)
+marker_remove = setup_config.index('    remove_marker()', finalize_start)
+quiesce = setup_config.index('        disable_ssh(profile, invoke)', finalize_start)
+deny_policy = setup_config.index('        set_password_auth(False, profile)', finalize_start)
 marker = setup_config.index('    _write_atomic(MARKER_PATH, "complete\\n", 0o644)', finalize_start)
 activation = setup_config.index('        invoke(["systemctl", "enable", "--now", "ssh.service"])', finalize_start)
-assert socket_stop < service_stop < mask_units < deny_policy < activation < marker
+rollback = setup_config.index('        rollback_ssh(profile)', finalize_start)
+assert marker_remove < quiesce < deny_policy < activation < marker < rollback
 assert 'invoke(["systemctl", "reload", "ssh.service"])' not in setup_config
 assert "wifi_connect_artifact_dir=\"$overlay_dir/usr/local/share/octessera/wifi-connect\"" in customize
 assert "wifi_connect_expected_sha256=4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627" in customize

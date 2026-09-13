@@ -12,6 +12,40 @@ const SCAN_FAILED = 'Could not scan nearby Wi-Fi networks. Enter the SSID manual
 const APPLYING_PENDING = 'Setup is being applied. Watch the OLED for the final result.';
 const APPLYING_REJECTED = (status) => `The device rejected the Wi-Fi request (HTTP ${status}).`;
 const DISCONNECT_GUIDANCE = 'The portal connection may have dropped while setup applies. This can be expected. Watch the OLED for the final result. After success, find the address in System > Info.';
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 128;
+const PASSWORD_WHITESPACE_RANGES = [
+  [0x0009, 0x000d],
+  [0x0020, 0x0020],
+  [0x0085, 0x0085],
+  [0x00a0, 0x00a0],
+  [0x1680, 0x1680],
+  [0x2000, 0x200a],
+  [0x2028, 0x2029],
+  [0x202f, 0x202f],
+  [0x205f, 0x205f],
+  [0x3000, 0x3000],
+];
+const PASSWORD_CONTROL_RANGES = [
+  [0x0000, 0x001f],
+  [0x007f, 0x009f],
+  [0x00ad, 0x00ad],
+  [0x061c, 0x061c],
+  [0x180e, 0x180e],
+  [0x200b, 0x200f],
+  [0x202a, 0x202e],
+  [0x2060, 0x206f],
+  [0xfeff, 0xfeff],
+];
+
+const passwordCodePointInRanges = (codePoint, ranges) => ranges.some(([start, end]) => codePoint >= start && codePoint <= end);
+
+const passwordWhitespaceOnly = (value) => {
+  const codePoints = Array.from(value);
+  return codePoints.length > 0 && codePoints.every((character) => passwordCodePointInRanges(character.codePointAt(0), PASSWORD_WHITESPACE_RANGES));
+};
+
+const passwordHasControl = (value) => Array.from(value).some((character) => passwordCodePointInRanges(character.codePointAt(0), PASSWORD_CONTROL_RANGES));
 
 const state = {
   networks: [],
@@ -21,10 +55,10 @@ const state = {
   wifiPassphrase: '',
   wifiCountry: 'US',
   openNetwork: false,
+  accountPassword: '',
+  accountPasswordConfirm: '',
   sshMode: 'key',
   sshPublicKey: '',
-  sshPassword: '',
-  sshPasswordConfirm: '',
 };
 
 const els = {
@@ -38,11 +72,12 @@ const els = {
   wifiPassphrase: document.getElementById('wifiPassphrase'),
   wifiCountry: document.getElementById('wifiCountry'),
   openNetwork: document.getElementById('openNetwork'),
+  accountPassword: document.getElementById('accountPassword'),
+  accountPasswordConfirm: document.getElementById('accountPasswordConfirm'),
   sshKeyFields: document.getElementById('sshKeyFields'),
-  sshPasswordFields: document.getElementById('sshPasswordFields'),
   sshPublicKey: document.getElementById('sshPublicKey'),
-  sshPassword: document.getElementById('sshPassword'),
-  sshPasswordConfirm: document.getElementById('sshPasswordConfirm'),
+  passwordAccessHint: document.getElementById('passwordAccessHint'),
+  noneAccessHint: document.getElementById('noneAccessHint'),
   hostname: document.getElementById('hostname'),
   applyingPanel: document.getElementById('applyingPanel'),
   applyingStatus: document.getElementById('applyingStatus'),
@@ -147,9 +182,9 @@ const syncStateFromInputs = () => {
   state.wifiPassphrase = els.wifiPassphrase.value;
   state.wifiCountry = els.wifiCountry.value.trim().toUpperCase();
   state.openNetwork = els.openNetwork.checked;
+  state.accountPassword = els.accountPassword.value;
+  state.accountPasswordConfirm = els.accountPasswordConfirm.value;
   state.sshPublicKey = els.sshPublicKey.value.trim();
-  state.sshPassword = els.sshPassword.value;
-  state.sshPasswordConfirm = els.sshPasswordConfirm.value;
   state.sshMode = document.querySelector('input[name="sshMode"]:checked')?.value ?? 'none';
 };
 
@@ -176,14 +211,23 @@ const render = () => {
   renderNetworks();
   renderSshChoices();
   els.sshKeyFields.hidden = state.sshMode !== 'key';
-  els.sshPasswordFields.hidden = state.sshMode !== 'password';
+  els.sshPublicKey.disabled = state.sshMode !== 'key';
+  els.passwordAccessHint.hidden = state.sshMode !== 'password';
+  els.noneAccessHint.hidden = state.sshMode !== 'none';
 };
 
 const validateSsh = () => {
   if (state.sshMode === 'key' && !state.sshPublicKey) return { field: els.sshPublicKey, message: 'Paste an SSH public key or choose another SSH mode.' };
-  if (state.sshMode !== 'password') return undefined;
-  if (state.sshPassword.length < 8) return { field: els.sshPassword, message: 'SSH passwords need at least 8 characters.' };
-  if (state.sshPassword !== state.sshPasswordConfirm) return { field: els.sshPasswordConfirm, message: 'SSH password confirmation does not match.' };
+  return undefined;
+};
+
+const validateAccountPassword = () => {
+  const length = Array.from(state.accountPassword).length;
+  if (length < PASSWORD_MIN_LENGTH) return { field: els.accountPassword, message: 'Choose a local device password with at least 8 characters.' };
+  if (length > PASSWORD_MAX_LENGTH) return { field: els.accountPassword, message: 'Choose a local device password with no more than 128 characters.' };
+  if (passwordWhitespaceOnly(state.accountPassword)) return { field: els.accountPassword, message: 'Choose a local device password that is not only whitespace.' };
+  if (passwordHasControl(state.accountPassword)) return { field: els.accountPassword, message: 'Local device password cannot contain control characters.' };
+  if (state.accountPassword !== state.accountPasswordConfirm) return { field: els.accountPasswordConfirm, message: 'Local device password confirmation does not match.' };
   return undefined;
 };
 
@@ -198,14 +242,16 @@ const validationError = () => {
   if (requiresWifiPassword() && !state.wifiPassphrase) {
     return { field: els.wifiPassphrase, message: 'This network needs a Wi-Fi password.' };
   }
+  const accountPasswordError = validateAccountPassword();
+  if (accountPasswordError) return accountPasswordError;
   return validateSsh();
 };
 
 const stagePayload = () => ({
   sshMode: state.sshMode,
   sshPublicKey: state.sshMode === 'key' ? state.sshPublicKey : '',
-  sshPassword: state.sshMode === 'password' ? state.sshPassword : '',
-  sshPasswordConfirm: state.sshMode === 'password' ? state.sshPasswordConfirm : '',
+  accountPassword: state.accountPassword,
+  accountPasswordConfirm: state.accountPasswordConfirm,
   hostname: els.hostname.value.trim(),
   wifiCountry: state.wifiCountry,
 });

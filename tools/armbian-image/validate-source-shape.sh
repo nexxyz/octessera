@@ -105,6 +105,7 @@ required_files=(
   "$root/tools/armbian-image/test-setup-state.py"
   "$root/tools/armbian-image/test-setup-readiness.py"
   "$root/tools/armbian-image/test-setup-ui.py"
+  "$root/tools/armbian-image/test-setup-ui-validation.mjs"
   "$root/tools/orange-pi/input-routing-provision.sh"
   "$root/tools/orange-pi/orange-pi-usb-gadget.sh"
   "$root/tools/orange-pi/test-orange-pi-usb-gadget.sh"
@@ -446,8 +447,9 @@ PY
 
 if command -v node >/dev/null 2>&1; then
   node --check "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js"
+  node --test "$root/tools/armbian-image/test-setup-ui-validation.mjs"
 else
-  echo 'Node.js unavailable; setup UI syntax check skipped.' >&2
+  echo 'Node.js unavailable; setup UI syntax and validation checks skipped.' >&2
 fi
 
 if command -v actionlint >/dev/null 2>&1; then

@@ -17,9 +17,14 @@ power](safety-and-power.md).
 3. Join `Octessera Setup <4-char suffix>` from your phone or laptop.
 4. Browse to `http://192.168.42.1`.
 5. Choose the country, a scanned or manual SSID, Wi-Fi password or open network,
-   SSH key/password/none, and an optional hostname, then press `Apply setup`.
-   SSH mode configures the board account: `pi` on Raspberry and `octessera` on
-   Orange.
+   a local device password, SSH key/password/none, and an optional hostname,
+   then press `Apply setup`.
+
+The portal always sets the local board account password: `pi` on Raspberry and
+`octessera` on Orange. Root login remains unavailable. SSH key mode is key-only
+and keeps password login disabled. SSH password mode uses the same local device
+password. No-SSH mode keeps remote access disabled while leaving the local
+console and attended sudo password available.
 
 The AP stays available for 10 minutes after it is ready. Do not power off the
 instrument while the OLED says it is applying settings. The browser's Applying

@@ -184,7 +184,7 @@ class SetupMutationTests(unittest.TestCase):
                     self.assertFalse((root / "etc/sudoers.d/010_pi-nopasswd").exists())
                     self.assertIn("etc/sudoers.d/010_pi-nopasswd", proof["verified_paths"])
                 else:
-                    self.assertEqual(set(result.changed_paths), {"usr/local/lib/octessera/setup_config.py", "usr/local/sbin/octessera-setup", "usr/local/share/octessera-setup-ui/README.md", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings", "var/lib/octessera/setup-complete"})
+                    self.assertEqual(set(result.changed_paths), {"usr/local/lib/octessera/setup_config.py", "usr/local/sbin/octessera-setup", "usr/local/share/octessera-setup-ui/README.md", "usr/local/share/octessera-setup-ui/index.html", "usr/local/share/octessera-setup-ui/js/app.js", "var/lib/octessera/recordings", "var/lib/octessera/screen-recordings", "var/lib/octessera/setup-complete"})
                     self.assertNotIn("etc/sudoers.d/010_pi-nopasswd", result.changed_paths)
                 if board == ORANGE:
                     runtime_root = root / "var/lib/octessera"

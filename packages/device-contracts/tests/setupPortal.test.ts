@@ -217,6 +217,10 @@ test("setup portal status fixtures cover the typed lifecycle and identity bounda
       "passphrase",
       "secret",
       "credential",
+      "accountPassword",
+      "accountPasswordConfirm",
+      "sshPassword",
+      "sshPasswordConfirm",
       "output",
     ]) {
       assert.equal(serialized.includes(secretField), false);
@@ -259,6 +263,18 @@ test("setup portal status fixtures cover the typed lifecycle and identity bounda
     {
       ...RUNTIME_SETUP_PORTAL_STATUS_FIXTURES[4],
       output: "secret-bearing helper output",
+    },
+    {
+      ...RUNTIME_SETUP_PORTAL_STATUS_FIXTURES[4],
+      accountPassword: "secret-bearing account password",
+    },
+    {
+      ...RUNTIME_SETUP_PORTAL_STATUS_FIXTURES[4],
+      accountPasswordConfirm: "secret-bearing confirmation",
+    },
+    {
+      ...RUNTIME_SETUP_PORTAL_STATUS_FIXTURES[4],
+      sshPassword: "legacy secret field",
     },
   ];
   for (const status of malformed)

@@ -58,6 +58,24 @@
             </label>
           </div>
 
+          <div class="field-subsection" aria-labelledby="localPasswordTitle">
+            <div class="field-header">
+              <span id="localPasswordTitle">Local device password</span>
+            </div>
+            <p class="muted">This password is used at the device’s local console and for attended sudo commands. It is required even when SSH is disabled.</p>
+            <div class="grid-2">
+              <label class="field">
+                <span>Password</span>
+                <input id="accountPassword" type="password" autocomplete="new-password" minlength="8" aria-describedby="accountPasswordHint" placeholder="At least 8 characters" />
+              </label>
+              <label class="field">
+                <span>Confirm password</span>
+                <input id="accountPasswordConfirm" type="password" autocomplete="new-password" minlength="8" aria-describedby="accountPasswordHint" placeholder="Repeat the password" />
+              </label>
+            </div>
+            <p id="accountPasswordHint" class="muted password-hint">Use at least 8 characters.</p>
+          </div>
+
           <div class="field">
             <span>SSH access</span>
             <div class="choice-group" role="radiogroup" aria-label="SSH mode">
@@ -83,21 +101,11 @@
                 <span>Public key</span>
                 <textarea id="sshPublicKey" rows="5" spellcheck="false" placeholder="ssh-ed25519 AAAA..."></textarea>
               </label>
+              <p class="muted">SSH key access only; password login stays disabled.</p>
             </div>
 
-            <div id="sshPasswordFields" class="field-subsection" hidden>
-              <div class="grid-2">
-                <label class="field">
-                  <span>Password</span>
-                  <input id="sshPassword" type="password" autocomplete="new-password" minlength="8" aria-describedby="sshPasswordHint" placeholder="At least 8 characters" />
-                </label>
-                <label class="field">
-                  <span>Confirm password</span>
-                  <input id="sshPasswordConfirm" type="password" autocomplete="new-password" minlength="8" aria-describedby="sshPasswordHint" placeholder="Repeat the password" />
-                </label>
-              </div>
-              <p id="sshPasswordHint" class="muted password-hint">Use at least 8 characters.</p>
-            </div>
+            <p id="passwordAccessHint" class="muted" hidden>SSH password access uses the local device password above.</p>
+            <p id="noneAccessHint" class="muted" hidden>Remote access stays disabled while the local device password remains available.</p>
           </div>
 
           <label class="field">
