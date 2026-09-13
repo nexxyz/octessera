@@ -7,6 +7,7 @@ param(
   [string]$Mode = "RuntimeOnly",
   [string]$Durations = "5s",
   [string]$Scenarios = "idle,pulses-stress",
+  [string]$WakeIntervalsMs = "1",
   [int]$AudioRenderQuantumFrames = 0,
   [int]$ProfileMeasureFrames = 0,
   [int]$AudioOutputBufferFrames = 0,
@@ -94,14 +95,19 @@ switch ($Mode) {
       "--timing-probe",
       "--timing-probe-runtime-only",
       "--timing-probe-durations", (Quote-ShValue $Durations),
-      "--timing-probe-scenarios", (Quote-ShValue $Scenarios)
+      "--timing-probe-scenarios", (Quote-ShValue $Scenarios),
+      "--timing-probe-wake-intervals-ms", (Quote-ShValue $WakeIntervalsMs)
     )
+    if ($Snapshots) {
+      $args += "--timing-probe-snapshots"
+    }
   }
   "Live" {
     $args = @(
       "--timing-probe",
       "--timing-probe-durations", (Quote-ShValue $Durations),
-      "--timing-probe-scenarios", (Quote-ShValue $Scenarios)
+      "--timing-probe-scenarios", (Quote-ShValue $Scenarios),
+      "--timing-probe-wake-intervals-ms", (Quote-ShValue $WakeIntervalsMs)
     )
     if ($Snapshots) {
       $args += "--timing-probe-snapshots"

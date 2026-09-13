@@ -34,8 +34,9 @@ pub use runtime::{
     RuntimeOledCacheFault, RuntimePresentationMetrics,
 };
 pub use timing_probe::{
-    parse_timing_probe_durations, parse_timing_probe_scenarios, print_timing_probe_summary,
-    run_timing_probe, TimingProbeOptions, TimingProbeReport, TimingProbeScenario,
+    parse_timing_probe_durations, parse_timing_probe_scenarios,
+    parse_timing_probe_wake_intervals_ms, print_timing_probe_summary, run_timing_probe,
+    TimingProbeCountSummary, TimingProbeOptions, TimingProbeReport, TimingProbeScenario,
 };
 pub use user_data_bundle::apply_user_data_patch_and_preferences;
 pub use user_data_bundle::{

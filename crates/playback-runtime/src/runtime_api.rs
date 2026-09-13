@@ -1,6 +1,5 @@
 use super::{
     CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
-    PPQN,
 };
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorCode,
@@ -15,7 +14,7 @@ impl PlaybackRuntime {
     pub fn new(config: RuntimeConfig) -> Self {
         Self {
             config,
-            pulse_remainder: 0.0,
+            pulse_phase: super::pulse_phase::PulsePhase::default(),
             now_ms: 0,
             last_good_status: None,
             presented_status: None,
@@ -255,10 +254,7 @@ impl PlaybackRuntime {
             return Ok(RuntimeIngest::default());
         }
 
-        let pulses_per_second = (self.config.bpm * PPQN) / 60.0;
-        self.pulse_remainder += pulses_per_second * elapsed.as_secs_f64();
-        let pulses = self.pulse_remainder.floor() as u32;
-        self.pulse_remainder -= pulses as f64;
+        let pulses = self.pulse_phase.advance(elapsed, self.config.bpm);
         if pulses == 0 {
             if self.request_next_snapshot {
                 self.request_next_snapshot = false;

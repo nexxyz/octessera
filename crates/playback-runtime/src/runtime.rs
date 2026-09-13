@@ -15,6 +15,8 @@ mod dispatch;
 mod midi;
 #[path = "runtime_oled.rs"]
 mod oled;
+#[path = "runtime_pulse_phase.rs"]
+mod pulse_phase;
 #[path = "runtime_status.rs"]
 mod status;
 
@@ -121,7 +123,7 @@ pub trait HostAdapter {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlaybackRuntime {
     config: RuntimeConfig,
-    pulse_remainder: f64,
+    pulse_phase: pulse_phase::PulsePhase,
     now_ms: u64,
     last_good_status: Option<RuntimeStatus>,
     presented_status: Option<RuntimeStatus>,
@@ -135,6 +137,12 @@ pub struct PlaybackRuntime {
     request_next_snapshot: bool,
     next_request_id: u64,
     oled: oled::RuntimeOled,
+}
+
+impl PlaybackRuntime {
+    pub(super) fn reset_pulse_phase(&mut self) {
+        self.pulse_phase.reset();
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

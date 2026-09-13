@@ -51,7 +51,7 @@ impl PlaybackRuntime {
                 | HostMessage::MidiRealtimeStop
                 | HostMessage::TransportStop
         ) {
-            self.pulse_remainder = 0.0;
+            self.reset_pulse_phase();
         }
         if let HostMessage::RuntimeResult { result } = message {
             self.apply_runtime_result(result, operation);
@@ -198,7 +198,7 @@ impl PlaybackRuntime {
         host: &mut H,
     ) -> RuntimeIngest {
         let mut output = RuntimeIngest::default();
-        self.pulse_remainder = 0.0;
+        self.reset_pulse_phase();
         let mut internal_silence_attempted = false;
         match runner.send(HostMessage::TransportStop) {
             Ok(messages) => {

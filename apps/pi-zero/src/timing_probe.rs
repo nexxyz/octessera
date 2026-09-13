@@ -9,14 +9,16 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+mod cadence;
 mod live_probe;
 mod live_report;
 mod probe_options;
 
+use cadence::{apply_scenario, observe_advance, LiveCadence};
 use live_probe::{LiveProbeHost, LiveProbeRunner, LiveSummary, LiveTimingProbeReport};
 use live_report::{
-    intervals_u128, primary_stream_report, print_live_summary, slow_sends, summarize,
-    summarize_usize,
+    intervals_u128, primary_stream_report, print_live_summary, slow_sends,
+    summarize_advance_correlations, summarize_counts, summarize_us,
 };
 pub(crate) use probe_options::requested;
 use probe_options::{
@@ -63,12 +65,15 @@ fn run_live_audio_probe(
     let mut reports = Vec::new();
     for scenario in &options.scenarios {
         for duration in &options.durations {
-            reports.push(run_live_one(
-                *scenario,
-                *duration,
-                options.snapshots,
-                overrides,
-            )?);
+            for wake_interval_ms in &options.wake_intervals_ms {
+                reports.push(run_live_one(
+                    *scenario,
+                    *duration,
+                    *wake_interval_ms,
+                    options.snapshots,
+                    overrides,
+                )?);
+            }
         }
     }
     Ok(reports)
@@ -77,9 +82,13 @@ fn run_live_audio_probe(
 fn run_live_one(
     scenario: TimingProbeScenario,
     duration: Duration,
+    wake_interval_ms: u64,
     snapshots: bool,
     overrides: TimingProbeOverrides,
 ) -> Result<LiveTimingProbeReport, String> {
+    if wake_interval_ms == 0 {
+        return Err("wake interval must be positive".into());
+    }
     let (audio, geometry) = AudioManager::new_timing_probe(
         overrides.output_buffer_frames,
         overrides.internal_block_frames,
@@ -98,7 +107,7 @@ fn run_live_one(
             false,
             playback_runtime::AudioOutputSet::jack(),
         ),
-        started_at: Instant::now(),
+        event_started_at: Instant::now(),
         events: Vec::new(),
         audio_send_us: Vec::new(),
         audio_commands: 0,
@@ -120,6 +129,9 @@ fn run_live_one(
         send_us: Vec::new(),
         sends: Vec::new(),
         batches: Vec::new(),
+        advance_correlations: Vec::new(),
+        playing_statuses: 0,
+        measure_transport: false,
     };
     initialize_live_host_state(&mut playback, &mut runner, &mut host)?;
     send_runtime_message(
@@ -130,8 +142,8 @@ fn run_live_one(
     )?;
     std::thread::sleep(Duration::from_millis(2_000));
 
-    let started_at = Instant::now();
-    host.started_at = started_at;
+    let event_started_at = Instant::now();
+    host.event_started_at = event_started_at;
     host.events.clear();
     host.audio_send_us.clear();
     host.audio_commands = 0;
@@ -140,37 +152,57 @@ fn run_live_one(
     runner.send_us.clear();
     runner.sends.clear();
     runner.batches.clear();
-    let mut last_tick = started_at;
+    runner.advance_correlations.clear();
+    runner.playing_statuses = 0;
+    apply_scenario(
+        scenario,
+        0,
+        0,
+        snapshots,
+        &mut playback,
+        &mut runner,
+        &mut host,
+    )?;
+    runner.playing_statuses = 0;
+    runner.measure_transport = true;
+    let duration_ms = duration.as_millis() as u64;
+    let measured_duration_ms = duration_ms - duration_ms % wake_interval_ms;
+    let mut cadence = LiveCadence::new();
     let mut wake_late_us = Vec::new();
     let mut advance_us = Vec::new();
     let mut loop_us = Vec::new();
-    let mut playing_statuses = 0_u64;
-    for ms in 0..duration.as_millis() as u64 {
-        let target = started_at + Duration::from_millis(ms);
+    let mut previous_ms = 0;
+    for endpoint_ms in cadence::wake_endpoints(measured_duration_ms, wake_interval_ms) {
+        let target = cadence.target(endpoint_ms);
         let now = Instant::now();
         if now < target {
             std::thread::sleep(target.duration_since(now));
         }
         wake_late_us.push(Instant::now().saturating_duration_since(target).as_micros() as f64);
         let loop_started = Instant::now();
-        apply_live_scenario(
+        apply_scenario(
             scenario,
-            ms,
+            endpoint_ms,
+            previous_ms,
             snapshots,
             &mut playback,
             &mut runner,
             &mut host,
         )?;
-        let now = Instant::now();
-        let elapsed = now.duration_since(last_tick);
-        last_tick = now;
+        let elapsed = cadence.elapsed_until(Instant::now());
         let advance_started = Instant::now();
+        let sends_before = runner.sends.len();
+        let batches_before = runner.batches.len();
         let output = playback.advance_duration_with_output(elapsed, &mut runner, &mut host)?;
+        runner.advance_correlations.push(observe_advance(
+            &runner.sends[sends_before..],
+            &runner.batches[batches_before..],
+        ));
         process_live_output(&mut playback, &mut runner, &mut host, output)?;
         advance_us.push(advance_started.elapsed().as_micros() as f64);
-        playing_statuses = playing_statuses.saturating_add(0);
         flush_live_deferred(&mut playback, &mut runner, &mut host)?;
         loop_us.push(loop_started.elapsed().as_micros() as f64);
+        previous_ms = endpoint_ms;
     }
     let event_times = host
         .events
@@ -178,26 +210,33 @@ fn run_live_one(
         .map(|event| event.at_us)
         .collect::<Vec<_>>();
     let intervals = intervals_u128(&event_times);
+    let correlation = summarize_advance_correlations(&runner.advance_correlations);
     Ok(LiveTimingProbeReport {
         scenario,
-        duration_ms: duration.as_millis() as u64,
+        duration_ms,
+        measured_duration_ms,
+        wake_interval_ms,
         force_snapshots: snapshots,
         output_buffer_frames: geometry.output_buffer_frames,
         internal_block_frames: geometry.internal_block_frames,
         events: host.events.len(),
-        event_intervals_us: summarize(&intervals),
+        event_intervals_us: summarize_us(&intervals),
         primary_stream: primary_stream_report(&host.events),
-        wake_late_us: summarize(&wake_late_us),
-        advance_us: summarize(&advance_us),
-        loop_us: summarize(&loop_us),
-        audio_send_us: summarize(&host.audio_send_us),
-        runner_send_us: summarize(&runner.send_us),
+        event_producing_advances: correlation.event_producing_advances,
+        multi_pulse_advances: correlation.multi_pulse_advances,
+        multi_pulse_event_producing_advances: correlation.multi_pulse_event_producing_advances,
+        pulses_on_event_producing_advances: correlation.pulses_on_event_producing_advances,
+        wake_late_us: summarize_us(&wake_late_us),
+        advance_us: summarize_us(&advance_us),
+        loop_us: summarize_us(&loop_us),
+        audio_send_us: summarize_us(&host.audio_send_us),
+        runner_send_us: summarize_us(&runner.send_us),
         slow_sends: slow_sends(&runner.sends),
-        event_batches: summarize_usize(&runner.batches),
+        event_batches: summarize_counts(&runner.batches),
         audio_commands: host.audio_commands,
         platform_effects: host.platform_effects,
         midi_messages: host.midi_messages,
-        playing_statuses,
+        playing_statuses: runner.playing_statuses,
     })
 }
 
@@ -243,60 +282,6 @@ fn initialize_live_host_state(
         host,
     )?;
     process_live_output(playback, runner, host, output)
-}
-
-fn apply_live_scenario(
-    scenario: TimingProbeScenario,
-    ms: u64,
-    snapshots: bool,
-    playback: &mut PlaybackRuntime,
-    runner: &mut LiveProbeRunner,
-    host: &mut LiveProbeHost,
-) -> Result<(), String> {
-    match scenario {
-        TimingProbeScenario::Idle => Ok(()),
-        TimingProbeScenario::PulsesStress if ms == 0 => send_device_input(
-            playback,
-            runner,
-            host,
-            json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-            snapshots,
-        ),
-        TimingProbeScenario::PulsesStress if ms % 250 == 20 => send_device_input(
-            playback,
-            runner,
-            host,
-            json!({ "type": "encoder_press", "id": "main" }),
-            snapshots,
-        ),
-        TimingProbeScenario::PulsesStress if ms % 250 == 120 => send_device_input(
-            playback,
-            runner,
-            host,
-            json!({ "type": "button_a", "pressed": true }),
-            snapshots,
-        ),
-        TimingProbeScenario::StopStart if ms > 0 && ms.is_multiple_of(1000) => {
-            send_runtime_message(playback, runner, host, HostMessage::MidiRealtimeStop)
-        }
-        TimingProbeScenario::StopStart if ms > 0 && ms % 1000 == 100 => {
-            send_runtime_message(playback, runner, host, HostMessage::MidiRealtimeStart)
-        }
-        TimingProbeScenario::EncoderStress if ms.is_multiple_of(40) => send_device_input(
-            playback,
-            runner,
-            host,
-            json!({ "type": "encoder_turn", "delta": if (ms / 40).is_multiple_of(2) { 1 } else { -1 }, "id": "main" }),
-            snapshots,
-        ),
-        TimingProbeScenario::MuteStress if ms.is_multiple_of(500) => {
-            send_fn_play(playback, runner, host)
-        }
-        TimingProbeScenario::SparksPageStress if ms.is_multiple_of(250) => {
-            send_sparks_page_input(playback, runner, host, ((ms / 250) % 5) as usize)
-        }
-        _ => Ok(()),
-    }
 }
 
 fn send_sparks_page_input(

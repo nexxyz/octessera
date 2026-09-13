@@ -1,6 +1,7 @@
 use super::support::{set_runtime_playing, FakeHost, FakeRunner};
 use crate::{
-    HostMessage, PlaybackRuntime, RunnerMessage, RuntimeConfig, RuntimeStatus, RuntimeStatusState,
+    CoreRunner, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
+    RunnerMessage, RuntimeConfig, RuntimePlatformRequest, RuntimeStatus, RuntimeStatusState,
     RuntimeTransportState, SyncSource,
 };
 
@@ -208,4 +209,136 @@ fn fragmented_internal_clock_does_not_drift_over_ten_minutes() {
 
     assert_eq!(elapsed, expected_duration);
     assert_eq!(summed_internal_pulses(&runner.seen), expected_pulses);
+}
+
+#[test]
+fn set_config_changes_rate_without_discarding_internal_phase() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+        bpm: 93.5,
+        midi_out_enabled: false,
+        ..RuntimeConfig::default()
+    });
+    let mut runner = FakeRunner::default();
+    let mut host = FakeHost::default();
+    set_runtime_playing(&mut runtime, &mut host);
+
+    runtime
+        .advance_duration(
+            std::time::Duration::from_millis(137),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    runtime.set_config(RuntimeConfig {
+        bpm: 120.0,
+        midi_out_enabled: false,
+        ..RuntimeConfig::default()
+    });
+    runtime
+        .advance_duration(
+            std::time::Duration::from_millis(2_301),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert_eq!(summed_internal_pulses(&runner.seen), 115);
+
+    runtime
+        .advance_duration(std::time::Duration::from_millis(10), &mut runner, &mut host)
+        .unwrap();
+    assert_eq!(summed_internal_pulses(&runner.seen), 116);
+}
+
+#[test]
+fn external_sync_does_not_advance_internal_phase() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+        sync_source: SyncSource::External,
+        midi_out_enabled: false,
+        ..RuntimeConfig::default()
+    });
+    let mut runner = FakeRunner::default();
+    let mut host = FakeHost::default();
+    runtime
+        .ingest_runner_messages(
+            vec![status(
+                RuntimeTransportState::Playing,
+                0,
+                SyncSource::External,
+            )],
+            &mut host,
+        )
+        .unwrap();
+    runtime
+        .advance_duration(std::time::Duration::from_secs(1), &mut runner, &mut host)
+        .unwrap();
+    assert_eq!(summed_internal_pulses(&runner.seen), 0);
+
+    runtime.set_config(RuntimeConfig {
+        sync_source: SyncSource::Internal,
+        midi_out_enabled: false,
+        ..RuntimeConfig::default()
+    });
+    runtime
+        .advance_duration(std::time::Duration::from_millis(11), &mut runner, &mut host)
+        .unwrap();
+    assert_eq!(summed_internal_pulses(&runner.seen), 0);
+}
+
+struct RecordingNativeRunner {
+    inner: NativeRunner,
+    pulses: u64,
+}
+
+impl CoreRunner for RecordingNativeRunner {
+    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        if let HostMessage::TransportPulseStep { pulses, .. } = message {
+            self.pulses += u64::from(pulses);
+        }
+        self.inner.send(message)
+    }
+
+    fn register_platform_request(&mut self, request: &RuntimePlatformRequest) {
+        self.inner.register_platform_request(request);
+    }
+}
+
+fn run_native_partition(interval_ms: u64) -> (u64, Vec<MusicalEvent>) {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+        bpm: 120.0,
+        midi_out_enabled: false,
+        ..RuntimeConfig::default()
+    });
+    let mut runner = RecordingNativeRunner {
+        inner: NativeRunner::new(NativeRunnerConfig::default()).unwrap(),
+        pulses: 0,
+    };
+    let mut host = FakeHost::default();
+    runtime
+        .dispatch_host_message(HostMessage::MidiRealtimeStart, &mut runner, &mut host)
+        .unwrap();
+    for _ in 0..(6_000 / interval_ms) {
+        runtime
+            .advance_duration(
+                std::time::Duration::from_millis(interval_ms),
+                &mut runner,
+                &mut host,
+            )
+            .unwrap();
+    }
+    (runner.pulses, host.musical_events)
+}
+
+#[test]
+fn six_second_native_runner_matrix_has_equal_pulses_and_event_sequences() {
+    let intervals = [2, 4, 6, 8, 10, 12];
+    let results = intervals
+        .into_iter()
+        .map(run_native_partition)
+        .collect::<Vec<_>>();
+    let expected_events = &results[0].1;
+
+    assert_eq!(results.len(), 6);
+    assert!(!expected_events.is_empty());
+    assert!(results.iter().all(|(pulses, _)| *pulses == 288));
+    assert!(results.iter().all(|(_, events)| events == expected_events));
 }
