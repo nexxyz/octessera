@@ -23,6 +23,7 @@ SHARED_IDS = set(re.findall(rb"getElementById\('([^']+)'\)", APP_BYTES[0]))
 for root in UI_ROOTS:
     app = (root / "js/app.js").read_text(encoding="utf-8")
     html = (root / "index.html").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
     html_ids = set(re.findall(r'id="([^"]+)"', html))
     references = re.findall(r'(?:href|src)="(/[^"?#]+)', html)
     route_prefixes = {
@@ -55,6 +56,24 @@ for root in UI_ROOTS:
     assert [text for _value, _checked, text in ssh_choices] == ["SSH key", "SSH password", "No SSH setup"]
     assert '<label class="choice ssh-choice is-selected">' in html
     assert "data-ssh-mode" not in html
+    assert html.count('id="accountPassword"') == 1
+    assert html.count('id="accountPasswordConfirm"') == 1
+    assert 'aria-describedby="accountPasswordHint"' in html
+    assert html.count('autocomplete="new-password"') == 2
+    assert "Local device password" in html
+    assert "This password is used at the device’s local console and for attended sudo commands." in html
+    assert "It is required even when SSH is disabled." in html
+    assert "SSH key access only; password login stays disabled." in html
+    assert "SSH password access uses the local device password above." in html
+    assert "Remote access stays disabled while the local device password remains available." in html
+    assert "sshPassword" not in html + app + readme
+    assert '"accountPassword": "Example-only-123!"' in readme
+    assert '"accountPasswordConfirm": "Example-only-123!"' in readme
+    assert "do not reuse it" in readme
+    local_password = html.index('id="localPasswordTitle"')
+    ssh_access = html.index("SSH access")
+    assert local_password < ssh_access
+    assert "hidden" not in html[local_password:ssh_access]
     assert html.count('class="network-radio-mark" aria-hidden="true"') >= 3
     styles = (root / "css/styles.css").read_text(encoding="utf-8")
     assert "progress-track" not in html + app and "--progress" not in html + app + styles
@@ -126,9 +145,28 @@ for root in UI_ROOTS:
     for text in ("Locked", "Open", "Strong", "Fair", "Weak", " signal"):
         assert text in app
     assert "minlength=\"8\"" in html
-    assert "state.sshPassword.length < 8" in app
-    assert "SSH passwords need at least 8 characters." in app
+    assert "const PASSWORD_MIN_LENGTH = 8;" in app
+    assert "const PASSWORD_MAX_LENGTH = 128;" in app
+    assert "const PASSWORD_WHITESPACE_RANGES = [" in app
+    assert "[0x0085, 0x0085]" in app
+    assert "const PASSWORD_CONTROL_RANGES = [" in app
+    assert "[0xfeff, 0xfeff]" in app
+    assert "const length = Array.from(state.accountPassword).length;" in app
+    assert "const passwordWhitespaceOnly = (value) =>" in app
+    assert "const passwordHasControl = (value) =>" in app
+    assert "passwordWhitespaceOnly(state.accountPassword)" in app
+    assert "passwordHasControl(state.accountPassword)" in app
+    assert "state.accountPassword.trim()" not in app
+    assert "Choose a local device password with at least 8 characters." in app
+    assert "Choose a local device password with no more than 128 characters." in app
+    assert "Choose a local device password that is not only whitespace." in app
+    assert "Local device password cannot contain control characters." in app
+    assert "Local device password confirmation does not match." in app
+    assert "const validateAccountPassword = () =>" in app
+    assert app.index("const accountPasswordError = validateAccountPassword();") < app.index("return validateSsh();")
+    assert "els.sshPublicKey.disabled = state.sshMode !== 'key';" in app
     assert "12 characters" not in app and "minlength=\"12\"" not in html
+    assert 'maxlength="128"' not in html
     assert ".focus()" in app and "invalid.field" in app
     order = [
         html.index('id="wifiCountry"'),
@@ -175,8 +213,12 @@ for root in UI_ROOTS:
     assert "Apply setup" in html
     assert "sshMode: state.sshMode," in app
     assert "sshPublicKey: state.sshMode === 'key' ? state.sshPublicKey : ''" in app
-    assert "sshPassword: state.sshMode === 'password' ? state.sshPassword : ''" in app
-    assert "sshPasswordConfirm: state.sshMode === 'password' ? state.sshPasswordConfirm : ''" in app
+    assert "accountPassword: state.accountPassword," in app
+    assert "accountPasswordConfirm: state.accountPasswordConfirm," in app
+    payload_start = app.index("const stagePayload = () => ({")
+    payload_end = app.index("const connectPayload", payload_start)
+    payload_fields = set(re.findall(r"^  ([a-zA-Z]+):", app[payload_start:payload_end], re.MULTILINE))
+    assert payload_fields == {"sshMode", "sshPublicKey", "accountPassword", "accountPasswordConfirm", "hostname", "wifiCountry"}
     assert "octessera-mark.svg" in html and "octessera-wordmark.svg" in html
     assert '<meta name="color-scheme" content="dark" />' in html
     for route in ("/finalize", "/discard", "/complete", "/retry"):

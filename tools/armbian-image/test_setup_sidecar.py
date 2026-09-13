@@ -25,19 +25,19 @@ def load(path, name):
     return module
 
 
-def payload(mode="none", password=""):
+def payload(mode="none", password="eight888"):
     return {
         "sshMode": mode,
         "sshPublicKey": PUBLIC_KEY if mode == "key" else "",
-        "sshPassword": password if mode == "password" else "",
-        "sshPasswordConfirm": password if mode == "password" else "",
+        "accountPassword": password,
+        "accountPasswordConfirm": password,
         "hostname": "octessera-box",
         "wifiCountry": "US",
     }
 
 
 class SSHFake:
-    def __init__(self, units, policy_path, marker_path, fail_event=None):
+    def __init__(self, units, policy_path, marker_path, fail_event=None, marker_exists=False):
         self.units = frozenset(units)
         self.policy_path = policy_path
         self.marker_path = marker_path
@@ -53,6 +53,9 @@ class SSHFake:
         self.marker_replaced = False
         self.marker_failure_phase = None
         self.marker_persisted = False
+        self.marker_exists = marker_exists
+        self.marker_removed = False
+        self.failure_triggered = False
 
     @property
     def quiesced(self):
@@ -77,15 +80,24 @@ class SSHFake:
         if self.protected_event(event):
             assert self.quiesced, f"SSH mutation before quiescence: {event}"
         self.events.append(event)
-        if event == self.fail_event:
+        if event == self.fail_event and not self.failure_triggered:
+            self.failure_triggered = True
             self.failed_after_quiescence = self.quiescence_reached
+            if event[0] == "command" and event[1] == ("systemctl", "enable", "--now", "ssh.service"):
+                self.service_active = True
+                self.activation_events.append(event[1])
             if event[0] == "write" and event[1] == self.marker_path:
                 self.marker_failure_phase = "pre-replace"
             self.events.append(("failure", event))
             raise RuntimeError("transition failed")
+        if event[0] == "remove-marker":
+            self.marker_removed = self.marker_removed or self.marker_exists
+            self.marker_exists = False
+            self.marker_persisted = False
         if event[0] == "write" and event[1] == self.marker_path:
             self.marker_replaced = True
             self.marker_persisted = True
+            self.marker_exists = True
 
     def run(self, args, input_text=None, timeout=None):
         command = tuple(args)
@@ -104,12 +116,12 @@ class SSHFake:
         self.quiescence_reached = self.quiescence_reached or self.quiesced
 
 
-def observe_finalize(config, profile_name, mode, fail_event=None, deadline=None):
+def observe_finalize(config, profile_name, mode, fail_event=None, deadline=None, marker_exists=False):
     events = []
     timeouts = []
     profile = config.PROFILES[profile_name]
-    fake = SSHFake(profile["ssh_units"], config.SSH_POLICY_PATH, config.MARKER_PATH, fail_event)
-    originals = {name: getattr(config, name) for name in ("run", "_write_atomic", "remove_key", "configure_key", "persist_country")}
+    fake = SSHFake(profile["ssh_units"], config.SSH_POLICY_PATH, config.MARKER_PATH, fail_event, marker_exists)
+    originals = {name: getattr(config, name) for name in ("run", "_write_atomic", "remove_key", "configure_key", "persist_country", "remove_marker")}
 
     def write(path, content, *args, **kwargs):
         fake.record(("write", path, content))
@@ -123,6 +135,9 @@ def observe_finalize(config, profile_name, mode, fail_event=None, deadline=None)
     def country(value):
         fake.record(("country", value))
 
+    def marker():
+        fake.record(("remove-marker",))
+
     def run(args, input_text=None, timeout=None):
         timeouts.append(timeout)
         fake.run(args, input_text, timeout)
@@ -132,6 +147,7 @@ def observe_finalize(config, profile_name, mode, fail_event=None, deadline=None)
     config.remove_key = remove
     config.configure_key = configure
     config.persist_country = country
+    config.remove_marker = marker
     data = payload(mode, "eight888") if mode == "password" else payload(mode)
     data["hostname"] = ""
     error = None
@@ -276,29 +292,20 @@ def assert_failed_finalize(events, fake):
     failure_indices = [index for index, event in enumerate(events) if event[0] == "failure"]
     assert len(failure_indices) == 1
     failure_index = failure_indices[0]
-    if fake.marker_attempted:
-        assert fake.marker_failure_phase == "pre-replace"
-        assert not fake.marker_replaced
-        assert not fake.marker_persisted
-        assert events[failure_index + 1 :] == []
-        if fake.activation_events:
-            assert fake.service_active and not fake.socket_active
-            assert not fake.masked
-        else:
-            assert not fake.listener_active
-        return
-    assert not fake.marker_attempted
-    assert fake.marker_failure_phase is None
+    cleanup = events[failure_index + 1 :]
+    assert not fake.marker_exists
     assert not fake.marker_replaced
     assert not fake.marker_persisted
-    if not fake.failed_after_quiescence:
-        assert not any(fake.protected_event(event) for event in events)
-        return
+    if fake.marker_attempted:
+        assert fake.marker_failure_phase == "pre-replace"
+    else:
+        assert fake.marker_failure_phase is None
     assert not fake.listener_active
-    assert not fake.activation_events
+    assert fake.masked == fake.units
+    assert ("remove-marker",) in cleanup
     assert not any(
         event[0] == "command" and event[1] == ("systemctl", "enable", "--now", "ssh.service")
-        for event in events[failure_index + 1 :]
+        for event in cleanup
     )
 
 
@@ -309,13 +316,18 @@ for index, path in enumerate(CONFIGS):
     assert_hostname_coherence(config)
     assert config.validate_stage(payload())["sshMode"] == "none"
     assert config.validate_stage(payload("key"))["sshKey"] == PUBLIC_KEY
-    assert config.validate_stage(payload("password", "eight888"))["password"] == "eight888"
+    assert config.validate_stage(payload("password"))["accountPassword"] == "eight888"
     assert config.validate_country_payload({"wifiCountry": "us"}) == "US"
     for invalid in (
         {**payload(), "unexpected": "value"},
-        {**payload("password", "short"), "sshPasswordConfirm": "short"},
-        {**payload("password", "eight888"), "sshPasswordConfirm": "different"},
-        {**payload("key"), "sshPassword": "x"},
+        {key: value for key, value in payload().items() if key != "accountPassword"},
+        {key: value for key, value in payload().items() if key != "accountPasswordConfirm"},
+        {**payload(), "accountPassword": "short", "accountPasswordConfirm": "short"},
+        {**payload(), "accountPassword": "x" * 129, "accountPasswordConfirm": "x" * 129},
+        {**payload(), "accountPassword": "        ", "accountPasswordConfirm": "        "},
+        {**payload(), "accountPassword": "line\nbreak", "accountPasswordConfirm": "line\nbreak"},
+        {**payload(), "accountPasswordConfirm": "different"},
+        {**payload(), "sshPassword": "x"},
         {**payload(), "wifiCountry": "USA"},
     ):
         try:
@@ -325,8 +337,39 @@ for index, path in enumerate(CONFIGS):
         else:
             raise AssertionError(f"invalid setup payload accepted: {invalid}")
     assert config.valid_password("eight888")
+    assert config.valid_password("pässw😀rd")
+    assert config.valid_password("😀" * 8)
+    assert config.valid_password("😀" * 128)
     assert not config.valid_password("seven77")
+    assert not config.valid_password("        ")
+    assert not config.valid_password("\u0085" * 8)
+    assert not config.valid_password("\ufeff" * 8)
+    assert not config.valid_password("x" * 129)
+    assert not config.valid_password("😀" * 129)
     assert not config.valid_password("line\nbreak")
+    assert config.PASSWORD_WHITESPACE_RANGES == (
+        (0x0009, 0x000D),
+        (0x0020, 0x0020),
+        (0x0085, 0x0085),
+        (0x00A0, 0x00A0),
+        (0x1680, 0x1680),
+        (0x2000, 0x200A),
+        (0x2028, 0x2029),
+        (0x202F, 0x202F),
+        (0x205F, 0x205F),
+        (0x3000, 0x3000),
+    )
+    assert config.PASSWORD_CONTROL_RANGES == (
+        (0x0000, 0x001F),
+        (0x007F, 0x009F),
+        (0x00AD, 0x00AD),
+        (0x061C, 0x061C),
+        (0x180E, 0x180E),
+        (0x200B, 0x200F),
+        (0x202A, 0x202E),
+        (0x2060, 0x206F),
+        (0xFEFF, 0xFEFF),
+    )
     assert config.PROFILES["orange-pi-zero-2w"]["user"] == "octessera"
     assert config.PROFILES["raspberry-pi-zero-2w"]["user"] == "pi"
 
@@ -340,14 +383,18 @@ for index, path in enumerate(CONFIGS):
         *[("command", ("systemctl", "mask", unit), None) for unit in expected_units],
     ]
     marker_event = ("write", config.MARKER_PATH, "complete\n")
+    deny_policy_content = f"PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\nAllowUsers {profile['user']}\n"
+    allow_policy_content = f"PermitRootLogin no\nPasswordAuthentication yes\nKbdInteractiveAuthentication no\nAllowUsers {profile['user']}\n"
 
     for mode, expected in (
         (
             "key",
             [
+                ("remove-marker",),
                 ("country", "US"),
                 *quiesce_events,
-                ("write", config.SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers {profile['user']}\n"),
+                ("write", config.SSH_POLICY_PATH, deny_policy_content),
+                ("command", ("chpasswd",), f"{profile['user']}:eight888\n"),
                 ("configure-key", profile["user"], PUBLIC_KEY),
                 ("command", ("ssh-keygen", "-A"), None),
                 *[("command", ("systemctl", "unmask", unit), None) for unit in expected_units],
@@ -358,12 +405,13 @@ for index, path in enumerate(CONFIGS):
         (
             "password",
             [
+                ("remove-marker",),
                 ("country", "US"),
                 *quiesce_events,
-                ("write", config.SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers {profile['user']}\n"),
-                ("remove-key", profile["user"]),
+                ("write", config.SSH_POLICY_PATH, deny_policy_content),
                 ("command", ("chpasswd",), f"{profile['user']}:eight888\n"),
-                ("write", config.SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication yes\nAllowUsers {profile['user']}\n"),
+                ("remove-key", profile["user"]),
+                ("write", config.SSH_POLICY_PATH, allow_policy_content),
                 ("command", ("ssh-keygen", "-A"), None),
                 *[("command", ("systemctl", "unmask", unit), None) for unit in expected_units],
                 ("command", ("systemctl", "enable", "--now", "ssh.service"), None),
@@ -373,11 +421,12 @@ for index, path in enumerate(CONFIGS):
         (
             "none",
             [
+                ("remove-marker",),
                 ("country", "US"),
                 *quiesce_events,
-                ("write", config.SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers {profile['user']}\n"),
+                ("write", config.SSH_POLICY_PATH, deny_policy_content),
+                ("command", ("chpasswd",), f"{profile['user']}:eight888\n"),
                 ("remove-key", profile["user"]),
-                ("command", ("passwd", "-l", profile["user"]), None),
                 marker_event,
             ],
         ),
@@ -389,26 +438,40 @@ for index, path in enumerate(CONFIGS):
         assert fake.marker_attempted and fake.marker_replaced and fake.marker_persisted
         assert timeouts and all(timeout is None for timeout in timeouts)
         assert "eight888" not in repr([event for event in events if event[0] == "write"])
+        assert all("eight888" not in repr(event[1]) for event in events if event[0] == "command")
         if mode == "none":
             assert not fake.listener_active and fake.masked == set(expected_units)
         else:
             assert fake.service_active and not fake.socket_active
             assert fake.activation_events == [("systemctl", "enable", "--now", "ssh.service")]
 
+    events, _, error, fake = observe_finalize(config, profile_name, "key", marker_exists=True)
+    assert error is None and events[0] == ("remove-marker",) and fake.marker_removed and fake.marker_persisted
+
+    enable_event = ("command", ("systemctl", "enable", "--now", "ssh.service"), None)
+    events, _, error, fake = observe_finalize(config, profile_name, "key", fail_event=enable_event)
+    assert isinstance(error, RuntimeError)
+    assert fake.activation_events == [("systemctl", "enable", "--now", "ssh.service")]
+    assert_failed_finalize(events, fake)
+
+    events, _, error, fake = observe_finalize(config, profile_name, "key", fail_event=marker_event)
+    assert isinstance(error, RuntimeError)
+    assert_failed_finalize(events, fake)
+
     events, timeouts, error, _ = observe_finalize(config, profile_name, "password", deadline=100.0)
     assert error is None
     assert timeouts and all(timeout == 60.0 for timeout in timeouts)
 
-    deny_policy = ("write", config.SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers {profile['user']}\n")
-    allow_policy = ("write", config.SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication yes\nAllowUsers {profile['user']}\n")
+    deny_policy = ("write", config.SSH_POLICY_PATH, deny_policy_content)
+    allow_policy = ("write", config.SSH_POLICY_PATH, allow_policy_content)
     failure_cases = [(mode, event) for mode in ("key", "password", "none") for event in quiesce_events]
     failure_cases.extend(("key", event) for event in (deny_policy, ("configure-key", profile["user"], PUBLIC_KEY), ("command", ("ssh-keygen", "-A"), None), marker_event))
     failure_cases.extend(("key", ("command", ("systemctl", "unmask", unit), None)) for unit in expected_units)
     failure_cases.append(("key", ("command", ("systemctl", "enable", "--now", "ssh.service"), None)))
-    failure_cases.extend(("password", event) for event in (deny_policy, ("remove-key", profile["user"]), ("command", ("chpasswd",), f"{profile['user']}:eight888\n"), allow_policy, ("command", ("ssh-keygen", "-A"), None), marker_event))
+    failure_cases.extend(("password", event) for event in (deny_policy, ("command", ("chpasswd",), f"{profile['user']}:eight888\n"), ("remove-key", profile["user"]), allow_policy, ("command", ("ssh-keygen", "-A"), None), marker_event))
     failure_cases.extend(("password", ("command", ("systemctl", "unmask", unit), None)) for unit in expected_units)
     failure_cases.append(("password", ("command", ("systemctl", "enable", "--now", "ssh.service"), None)))
-    failure_cases.extend(("none", event) for event in (deny_policy, ("remove-key", profile["user"]), ("command", ("passwd", "-l", profile["user"]), None), marker_event))
+    failure_cases.extend(("none", event) for event in (deny_policy, ("command", ("chpasswd",), f"{profile['user']}:eight888\n"), ("remove-key", profile["user"]), marker_event))
     for mode, fail_event in failure_cases:
         events, _, error, fake = observe_finalize(config, profile_name, mode, fail_event=fail_event)
         assert isinstance(error, RuntimeError)

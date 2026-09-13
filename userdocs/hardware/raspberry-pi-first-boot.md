@@ -45,6 +45,11 @@ hotspot or SSH service starts by itself. To configure networking and SSH, choose
 `System > Setup > Configure WiFi > Open Portal`; do not expect a fresh production image to
 start an automatic hotspot.
 
+The portal always sets the local `pi` account password, even when SSH is disabled.
+Root login remains unavailable. Key mode is key-only, password mode uses that same
+local password for SSH, and no-SSH mode leaves the local console and attended sudo
+password available.
+
 Normal first boot does not wait six minutes. Upstream filesystem resize is ordered
 before runtime. The six-minute figure is only the upstream maximum timeout, not a
 planned user-visible duration; the animated splash covers the boot work.

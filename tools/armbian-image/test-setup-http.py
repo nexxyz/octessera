@@ -16,7 +16,22 @@ COORDINATORS = (
     ROOT / "userpatches/overlay/usr/local/sbin/octessera-setup",
     ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup",
 )
-PAYLOAD = {"sshMode": "none", "sshPublicKey": "", "sshPassword": "", "sshPasswordConfirm": "", "hostname": "", "wifiCountry": "US"}
+PUBLIC_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+PAYLOAD = {"sshMode": "none", "sshPublicKey": "", "accountPassword": "eight888", "accountPasswordConfirm": "eight888", "hostname": "", "wifiCountry": "US"}
+VALID_MODE_PAYLOADS = (
+    {**PAYLOAD, "sshMode": "key", "sshPublicKey": PUBLIC_KEY},
+    {**PAYLOAD, "sshMode": "password"},
+    PAYLOAD,
+)
+INVALID_PASSWORD_PAYLOADS = (
+    {key: value for key, value in PAYLOAD.items() if key != "accountPassword"},
+    {key: value for key, value in PAYLOAD.items() if key != "accountPasswordConfirm"},
+    {**PAYLOAD, "accountPassword": "short", "accountPasswordConfirm": "short"},
+    {**PAYLOAD, "accountPassword": "x" * 129, "accountPasswordConfirm": "x" * 129},
+    {**PAYLOAD, "accountPassword": "        ", "accountPasswordConfirm": "        "},
+    {**PAYLOAD, "accountPassword": "line\nbreak", "accountPasswordConfirm": "line\nbreak"},
+    {**PAYLOAD, "accountPasswordConfirm": "different"},
+)
 
 
 def load(path, name):
@@ -66,9 +81,36 @@ for index, path in enumerate(COORDINATORS):
     thread.start()
     try:
         port = server.server_address[1]
+        for mode_payload in VALID_MODE_PAYLOADS:
+            mode_country_calls = []
+            coordinator_module.setup_config.apply_country = lambda country: mode_country_calls.append(country)
+            mode_instance = coordinator_module.Coordinator(
+                {"status_group": "root", "request_owner": "root", "user": "pi"},
+                clock=lambda: clock_value[0],
+            )
+            mode_server = http_module.SetupHTTPServer(("127.0.0.1", 0), mode_instance)
+            mode_thread = threading.Thread(target=mode_server.serve_forever, daemon=True)
+            mode_thread.start()
+            try:
+                status, body = request(mode_server.server_address[1], mode_payload)
+                assert status == 200 and body == b'{"ok":true}'
+                assert mode_instance.staged["sshMode"] == mode_payload["sshMode"]
+                assert mode_instance.staged["accountPassword"] == "eight888"
+                assert ("sshKey" in mode_instance.staged) == (mode_payload["sshMode"] == "key")
+                assert mode_country_calls == ["US"]
+            finally:
+                mode_server.shutdown()
+                mode_server.server_close()
+                mode_thread.join(timeout=3)
+        coordinator_module.setup_config.apply_country = lambda country: country_calls.append(country)
+        for invalid in INVALID_PASSWORD_PAYLOADS:
+            status, body = request(port, invalid)
+            assert status == 400 and body == b'{"error":"invalid_input"}'
+            assert instance.staged is None and country_calls == []
         status, body = request(port, PAYLOAD)
         assert status == 200 and body == b'{"ok":true}'
-        assert instance.staged["sshMode"] == "none" and country_calls == ["US"]
+        assert set(instance.staged) == {"sshMode", "accountPassword", "hostname", "country"}
+        assert instance.staged["accountPassword"] == "eight888" and country_calls == ["US"]
         staged = dict(instance.staged)
         staged_at = instance.staged_at
         clock_value[0] = 20.0
@@ -90,7 +132,7 @@ for index, path in enumerate(COORDINATORS):
         assert status == 403
         status, _ = request(port, PAYLOAD, {"Host": "127.0.0.2"})
         assert status == 403
-        status, body = request(port, {**PAYLOAD, "sshMode": "password", "sshPassword": "eight888", "sshPasswordConfirm": "eight888"})
+        status, body = request(port, {**PAYLOAD, "sshMode": "password", "sshPassword": "eight888"})
         assert status == 400
         assert "eight888" not in body.decode("utf-8")
 

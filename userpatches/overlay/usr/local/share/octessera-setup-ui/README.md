@@ -7,7 +7,8 @@ Static UI for the one-page branded dark Wi-Fi setup portal.
 - Country code
 - Scanned or manual SSID
 - Wi-Fi password or open network
-- SSH key, SSH password, or none; passwords require at least 8 characters
+- Local device password and confirmation; it is required even when SSH is disabled
+- SSH key, SSH password, or none
 - Optional hostname
 - Apply
 
@@ -17,8 +18,9 @@ Static UI for the one-page branded dark Wi-Fi setup portal.
   wifi-connect. It owns the setup AP, DHCP, HTTP portal, and network switch.
 - `POST http://192.168.42.1:8080/country` applies the two-letter country code to
   the running radio.
-- `POST http://192.168.42.1:8080/stage` validates the country, SSH, and hostname
-  fields and passes them to the root coordinator in memory.
+- `POST http://192.168.42.1:8080/stage` validates the country, local device
+  password, SSH, and hostname fields and passes them to the root coordinator in
+  memory.
 
 ## `/stage` request body
 
@@ -28,14 +30,22 @@ Send JSON to `http://192.168.42.1:8080/stage` with these exact fields:
 {
   "sshMode": "none",
   "sshPublicKey": "",
-  "sshPassword": "",
-  "sshPasswordConfirm": "",
+  "accountPassword": "Example-only-123!",
+  "accountPasswordConfirm": "Example-only-123!",
   "hostname": "",
   "wifiCountry": "US"
 }
 ```
 
+The example password is fictional; do not reuse it.
+
 `sshMode` must be one of `none`, `key`, or `password`.
+
+The local device password is set for the board account even when `sshMode` is
+`none`. Key mode installs the public key and keeps SSH password login disabled.
+Password mode enables SSH password login using the same local device password.
+None mode keeps SSH disabled while leaving the local console and attended sudo
+password available.
 
 ## `/country` request body
 

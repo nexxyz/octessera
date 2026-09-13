@@ -15,7 +15,32 @@ MARKER_PATH = "/var/lib/octessera/setup-complete"
 HOSTNAME_PATH = "/etc/hostname"
 HOSTS_PATH = "/etc/hosts"
 SSH_POLICY_PATH = "/etc/ssh/sshd_config.d/10-octessera-setup.conf"
-ALLOWED_FIELDS = frozenset(("sshMode", "sshPublicKey", "sshPassword", "sshPasswordConfirm", "hostname", "wifiCountry"))
+ALLOWED_FIELDS = frozenset(("sshMode", "sshPublicKey", "accountPassword", "accountPasswordConfirm", "hostname", "wifiCountry"))
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 128
+PASSWORD_WHITESPACE_RANGES = (
+    (0x0009, 0x000D),
+    (0x0020, 0x0020),
+    (0x0085, 0x0085),
+    (0x00A0, 0x00A0),
+    (0x1680, 0x1680),
+    (0x2000, 0x200A),
+    (0x2028, 0x2029),
+    (0x202F, 0x202F),
+    (0x205F, 0x205F),
+    (0x3000, 0x3000),
+)
+PASSWORD_CONTROL_RANGES = (
+    (0x0000, 0x001F),
+    (0x007F, 0x009F),
+    (0x00AD, 0x00AD),
+    (0x061C, 0x061C),
+    (0x180E, 0x180E),
+    (0x200B, 0x200F),
+    (0x202A, 0x202E),
+    (0x2060, 0x206F),
+    (0xFEFF, 0xFEFF),
+)
 KEY_TYPES = frozenset(("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521"))
 KEY_LINE = re.compile(r"^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) ([A-Za-z0-9+/]+={0,2})(?: ([ -~]{1,256}))?$")
 HOSTNAME_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
@@ -27,7 +52,7 @@ PROFILES = {
 
 
 def _has_control(value):
-    return any(ord(character) < 32 or ord(character) == 127 for character in value)
+    return any(ord(character) < 0x20 or ord(character) == 0x7F for character in value)
 
 
 def valid_hostname(value):
@@ -60,7 +85,19 @@ def valid_public_key(value):
 
 
 def valid_password(value):
-    return isinstance(value, str) and 8 <= len(value) <= 128 and bool(value.strip()) and not _has_control(value)
+    return isinstance(value, str) and PASSWORD_MIN_LENGTH <= len(value) <= PASSWORD_MAX_LENGTH and not _password_whitespace_only(value) and not _password_has_control(value)
+
+
+def _password_codepoint_in_ranges(codepoint, ranges):
+    return any(start <= codepoint <= end for start, end in ranges)
+
+
+def _password_whitespace_only(value):
+    return bool(value) and all(_password_codepoint_in_ranges(ord(character), PASSWORD_WHITESPACE_RANGES) for character in value)
+
+
+def _password_has_control(value):
+    return any(_password_codepoint_in_ranges(ord(character), PASSWORD_CONTROL_RANGES) for character in value)
 
 
 def validate_country_payload(data):
@@ -80,21 +117,19 @@ def validate_stage(data):
     mode = data["sshMode"]
     hostname = data["hostname"].strip()
     country = data["wifiCountry"].strip().upper()
+    password = data["accountPassword"]
     if mode not in ("none", "key", "password") or _has_control(data["hostname"]):
         raise ValueError("invalid stage")
     if not valid_hostname(hostname) or not valid_country(country):
         raise ValueError("invalid stage")
-    result = {"sshMode": mode, "hostname": hostname, "country": country}
+    if data["accountPasswordConfirm"] != password or not valid_password(password):
+        raise ValueError("invalid stage")
+    result = {"sshMode": mode, "accountPassword": password, "hostname": hostname, "country": country}
     if mode == "key":
-        if not valid_public_key(data["sshPublicKey"]) or data["sshPassword"] or data["sshPasswordConfirm"]:
+        if not valid_public_key(data["sshPublicKey"]):
             raise ValueError("invalid stage")
         result["sshKey"] = data["sshPublicKey"]
-    elif mode == "password":
-        password = data["sshPassword"]
-        if data["sshPublicKey"] or data["sshPasswordConfirm"] != password or not valid_password(password):
-            raise ValueError("invalid stage")
-        result["password"] = password
-    elif any(data[field] for field in ("sshPublicKey", "sshPassword", "sshPasswordConfirm")):
+    elif data["sshPublicKey"]:
         raise ValueError("invalid stage")
     return result
 
@@ -161,6 +196,13 @@ def _write_atomic(path, content, mode, owner=0, group=0):
             pass
 
 
+def remove_marker():
+    try:
+        os.unlink(MARKER_PATH)
+    except FileNotFoundError:
+        pass
+
+
 def configure_key(key, profile):
     import pwd
 
@@ -192,7 +234,28 @@ def remove_key(profile):
 
 def set_password_auth(enabled, profile):
     value = "yes" if enabled else "no"
-    _write_atomic(SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication {value}\nAllowUsers {profile['user']}\n", 0o644)
+    _write_atomic(SSH_POLICY_PATH, f"PermitRootLogin no\nPasswordAuthentication {value}\nKbdInteractiveAuthentication no\nAllowUsers {profile['user']}\n", 0o644)
+
+
+def disable_ssh(profile, invoke):
+    invoke(["systemctl", "disable", "--now", "ssh.socket"])
+    invoke(["systemctl", "disable", "--now", "ssh.service"])
+    for unit in profile["ssh_units"]:
+        invoke(["systemctl", "mask", unit])
+
+
+def rollback_ssh(profile):
+    def invoke(args):
+        try:
+            run(args)
+        except Exception:
+            pass
+
+    disable_ssh(profile, invoke)
+    try:
+        set_password_auth(False, profile)
+    except Exception:
+        pass
 
 
 def apply_hostname(hostname, invoke):
@@ -254,32 +317,37 @@ def finalize(data, profile, deadline=None, clock=time.monotonic):
     data = validate_stage({
         "sshMode": data["sshMode"],
         "sshPublicKey": data.get("sshKey", ""),
-        "sshPassword": data.get("password", ""),
-        "sshPasswordConfirm": data.get("password", ""),
+        "accountPassword": data["accountPassword"],
+        "accountPasswordConfirm": data["accountPassword"],
         "hostname": data["hostname"],
         "wifiCountry": data["country"],
     })
-    apply_hostname(data["hostname"], invoke)
-    persist_country(data["country"])
-    mode = data["sshMode"]
-    invoke(["systemctl", "disable", "--now", "ssh.socket"])
-    invoke(["systemctl", "disable", "--now", "ssh.service"])
-    for unit in profile["ssh_units"]:
-        invoke(["systemctl", "mask", unit])
-    set_password_auth(False, profile)
-    if mode == "key":
-        configure_key(data["sshKey"], profile)
-    elif mode == "password":
-        remove_key(profile)
-        invoke(["chpasswd"], f"{profile['user']}:{data['password']}\n")
-        set_password_auth(True, profile)
-    else:
-        remove_key(profile)
-        invoke(["passwd", "-l", profile["user"]])
-    if mode in ("key", "password"):
-        invoke(["ssh-keygen", "-A"])
-    if mode in ("key", "password"):
-        for unit in profile["ssh_units"]:
-            invoke(["systemctl", "unmask", unit])
-        invoke(["systemctl", "enable", "--now", "ssh.service"])
-    _write_atomic(MARKER_PATH, "complete\n", 0o644)
+    remove_marker()
+    try:
+        apply_hostname(data["hostname"], invoke)
+        persist_country(data["country"])
+        mode = data["sshMode"]
+        disable_ssh(profile, invoke)
+        set_password_auth(False, profile)
+        invoke(["chpasswd"], f"{profile['user']}:{data['accountPassword']}\n")
+        if mode == "key":
+            configure_key(data["sshKey"], profile)
+        elif mode == "password":
+            remove_key(profile)
+            set_password_auth(True, profile)
+        else:
+            remove_key(profile)
+        if mode in ("key", "password"):
+            invoke(["ssh-keygen", "-A"])
+        if mode in ("key", "password"):
+            for unit in profile["ssh_units"]:
+                invoke(["systemctl", "unmask", unit])
+            invoke(["systemctl", "enable", "--now", "ssh.service"])
+        _write_atomic(MARKER_PATH, "complete\n", 0o644)
+    except Exception:
+        rollback_ssh(profile)
+        try:
+            remove_marker()
+        except Exception:
+            pass
+        raise
