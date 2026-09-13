@@ -126,11 +126,14 @@ hardware audio timing proof. `tools/pi/run-pi-timing-probes.ps1` is
 Raspberry-only; never point it at Orange.
 
 ```powershell
-# Safe default: runtime-only, does not stop the service or open live audio.
-./tools/pi/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,pulses-stress
+# Shared native deterministic logical wake matrix; each scenario/duration gets six reports.
+cargo run -p playback-runtime --bin playback_timing_probe -- --durations 6s --scenarios idle --wake-intervals-ms 2,4,6,8,10,12
+
+# Safe default: Pi runtime-only, leaves the service and live audio untouched while measuring realtime runtime cadence.
+./tools/pi/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,pulses-stress -WakeIntervalsMs 2,4,6,8,10,12 -Snapshots
 
 # Optional live-audio probe.
-./tools/pi/run-pi-timing-probes.ps1 -Mode Live -Durations 10m -Scenarios idle
+./tools/pi/run-pi-timing-probes.ps1 -Mode Live -Durations 10m -Scenarios idle -WakeIntervalsMs 2,4,6,8,10,12
 
 # Optional audio-source drain latency probe.
 ./tools/pi/run-pi-timing-probes.ps1 -Mode AudioDrain -Durations 10m
@@ -141,6 +144,21 @@ Raspberry-only; never point it at Orange.
 # Explicit high-headroom frame comparison settings.
 ./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -AudioRenderQuantumFrames 256
 ```
+
+The local shared binary defaults to a deterministic logical matrix: it advances
+at each requested endpoint without sleeping. Pi RuntimeOnly preserves its
+established realtime scheduling while leaving the service and live audio
+untouched; Pi Live also targets each requested wake cadence and opens live
+audio. Both Pi modes pass the actual wall-time elapsed interval to the shared
+runtime. Reports identify `wake_interval_ms` and measured duration, and include
+event-producing advances, multi-pulse advances, multi-pulse event-producing
+advances, and pulse summaries for event-producing advances. Stress actions use
+chronological boundary crossing rather than wake-grid alignment, so the
+40/100/250/500/1000 ms actions are emitted once in boundary order with
+boundary-derived state even when a wake skips over their exact timestamps.
+These metrics diagnose pre-audio trigger cadence and event batching; they do not
+replace `AudioDrain`, which remains the queue/control-drain measurement and can
+be run as a separate paired probe.
 
 The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it
 afterward. Runtime-only leaves it running. Use `-PrintOnly` to inspect the

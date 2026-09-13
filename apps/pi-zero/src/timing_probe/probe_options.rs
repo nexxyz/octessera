@@ -1,9 +1,10 @@
-use super::{summarize, LiveSummary};
+use super::{summarize_us, LiveSummary};
 use crate::audio::AudioManager;
 use crate::main_paths::default_store_dir;
 use playback_runtime::{
-    parse_timing_probe_durations, parse_timing_probe_scenarios, print_timing_probe_summary,
-    run_timing_probe, TimingProbeOptions,
+    parse_timing_probe_durations, parse_timing_probe_scenarios,
+    parse_timing_probe_wake_intervals_ms, print_timing_probe_summary, run_timing_probe,
+    TimingProbeOptions,
 };
 use rodio_engine_source::EngineEvent;
 use serde::Serialize;
@@ -37,6 +38,9 @@ pub(super) fn options_from_env_and_args() -> Result<TimingProbeOptions, String> 
     if let Ok(value) = std::env::var("OCTESSERA_PI_TIMING_PROBE_SCENARIOS") {
         options.scenarios = parse_timing_probe_scenarios(&value)?;
     }
+    if let Ok(value) = std::env::var("OCTESSERA_PI_TIMING_PROBE_WAKE_INTERVALS_MS") {
+        options.wake_intervals_ms = parse_timing_probe_wake_intervals_ms(&value)?;
+    }
     if let Ok(value) = std::env::var("OCTESSERA_PI_TIMING_PROBE_CONFIG") {
         options.config = Some(value);
     }
@@ -49,6 +53,10 @@ pub(super) fn options_from_env_and_args() -> Result<TimingProbeOptions, String> 
             }
             "--timing-probe-scenario" | "--timing-probe-scenarios" => {
                 options.scenarios = parse_timing_probe_scenarios(&next(&mut iter, &arg)?)?
+            }
+            "--timing-probe-wake-intervals-ms" => {
+                options.wake_intervals_ms =
+                    parse_timing_probe_wake_intervals_ms(&next(&mut iter, &arg)?)?
             }
             "--timing-probe-config" => options.config = Some(next(&mut iter, &arg)?),
             "--timing-probe-no-config" => options.config = None,
@@ -152,7 +160,7 @@ fn run_audio_drain_one(duration: Duration) -> Result<AudioDrainProbeReport, Stri
         output_buffer_frames: geometry.output_buffer_frames,
         internal_block_frames: geometry.internal_block_frames,
         marks: latencies.len(),
-        drain_latency_us: summarize(&latencies),
+        drain_latency_us: summarize_us(&latencies),
     })
 }
 

@@ -100,7 +100,7 @@ impl PlaybackRuntime {
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
         if transport_status_resets_origin(self.last_good_status.as_ref(), &status) {
-            self.pulse_remainder = 0.0;
+            self.reset_pulse_phase();
         }
         if let Some(error) = status.error.clone() {
             if self.last_good_status.is_none() {

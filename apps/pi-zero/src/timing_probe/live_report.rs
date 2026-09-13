@@ -1,6 +1,7 @@
+use super::cadence::AdvanceCorrelation;
 use super::live_probe::{
-    LiveEventRecord, LiveSendRecord, LiveStreamReport, LiveSummary, LiveTimingProbeReport,
-    SlowSendReport,
+    LiveCountSummary, LiveEventRecord, LiveSendRecord, LiveStreamReport, LiveSummary,
+    LiveTimingProbeReport, SlowSendReport,
 };
 
 pub(super) fn intervals_u128(times: &[u128]) -> Vec<f64> {
@@ -36,11 +37,11 @@ fn stream_report(events: &[LiveEventRecord], key: String) -> Option<LiveStreamRe
     Some(LiveStreamReport {
         key,
         events: times.len(),
-        intervals_us: summarize(&intervals),
-        first_window_interval_us: summarize(
+        intervals_us: summarize_us(&intervals),
+        first_window_interval_us: summarize_us(
             &intervals.iter().take(window).copied().collect::<Vec<_>>(),
         ),
-        last_window_interval_us: summarize(
+        last_window_interval_us: summarize_us(
             &intervals
                 .iter()
                 .rev()
@@ -51,11 +52,38 @@ fn stream_report(events: &[LiveEventRecord], key: String) -> Option<LiveStreamRe
     })
 }
 
-pub(super) fn summarize_usize(values: &[usize]) -> LiveSummary {
-    summarize(&values.iter().map(|value| *value as f64).collect::<Vec<_>>())
+pub(super) fn summarize_counts(values: &[usize]) -> LiveCountSummary {
+    summarize_count_values(&values.iter().map(|value| *value as f64).collect::<Vec<_>>())
 }
 
-pub(super) fn summarize(values: &[f64]) -> LiveSummary {
+#[derive(Default)]
+pub(super) struct AdvanceCorrelationSummary {
+    pub(super) event_producing_advances: usize,
+    pub(super) multi_pulse_advances: usize,
+    pub(super) multi_pulse_event_producing_advances: usize,
+    pub(super) pulses_on_event_producing_advances: LiveCountSummary,
+}
+
+pub(super) fn summarize_advance_correlations(
+    values: &[AdvanceCorrelation],
+) -> AdvanceCorrelationSummary {
+    let event_producing_pulses = values
+        .iter()
+        .filter(|value| value.event_producing)
+        .map(|value| value.pulses as f64)
+        .collect::<Vec<_>>();
+    AdvanceCorrelationSummary {
+        event_producing_advances: event_producing_pulses.len(),
+        multi_pulse_advances: values.iter().filter(|value| value.pulses > 1).count(),
+        multi_pulse_event_producing_advances: values
+            .iter()
+            .filter(|value| value.event_producing && value.pulses > 1)
+            .count(),
+        pulses_on_event_producing_advances: summarize_count_values(&event_producing_pulses),
+    }
+}
+
+pub(super) fn summarize_us(values: &[f64]) -> LiveSummary {
     if values.is_empty() {
         return LiveSummary::default();
     }
@@ -74,6 +102,24 @@ pub(super) fn summarize(values: &[f64]) -> LiveSummary {
         over_5ms: values.iter().filter(|value| **value > 5_000.0).count(),
         over_10ms: values.iter().filter(|value| **value > 10_000.0).count(),
         over_20ms: values.iter().filter(|value| **value > 20_000.0).count(),
+    }
+}
+
+fn summarize_count_values(values: &[f64]) -> LiveCountSummary {
+    if values.is_empty() {
+        return LiveCountSummary::default();
+    }
+    let mut sorted = values.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    LiveCountSummary {
+        count: values.len(),
+        min: sorted[0],
+        max: *sorted.last().unwrap(),
+        mean: values.iter().sum::<f64>() / values.len() as f64,
+        p95: percentile(&sorted, 9500),
+        p99: percentile(&sorted, 9900),
+        p999: percentile(&sorted, 9990),
+        p9999: percentile(&sorted, 9999),
     }
 }
 
@@ -98,12 +144,18 @@ pub(super) fn slow_sends(sends: &[LiveSendRecord]) -> Vec<SlowSendReport> {
 pub(super) fn print_live_summary(reports: &[LiveTimingProbeReport]) {
     for report in reports {
         eprintln!(
-            "{:?} {}ms live-audio output={} internal={} events={} interval_p95={:.0}us wake_late_p95={:.0}us loop_p95={:.0}us audio_send_p95={:.0}us send_p95={:.0}us batch_max={:.0}",
+            "{:?} {}ms measured={}ms wake={}ms live-audio output={} internal={} events={} event_advances={} multi_pulse_advances={} multi_pulse_event_advances={} event_pulses_mean={:.2} interval_p95={:.0}us wake_late_p95={:.0}us loop_p95={:.0}us audio_send_p95={:.0}us send_p95={:.0}us batch_max={:.0}",
             report.scenario,
             report.duration_ms,
+            report.measured_duration_ms,
+            report.wake_interval_ms,
             report.output_buffer_frames,
             report.internal_block_frames,
             report.events,
+            report.event_producing_advances,
+            report.multi_pulse_advances,
+            report.multi_pulse_event_producing_advances,
+            report.pulses_on_event_producing_advances.mean,
             report.event_intervals_us.p95,
             report.wake_late_us.p95,
             report.loop_us.p95,
@@ -147,5 +199,43 @@ pub(super) fn print_live_summary(reports: &[LiveTimingProbeReport]) {
         for send in &report.slow_sends {
             eprintln!("  slow_send={} {:.0}us", send.label, send.duration_us);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{summarize_advance_correlations, summarize_us, LiveCountSummary};
+    use crate::timing_probe::cadence::AdvanceCorrelation;
+
+    #[test]
+    fn time_summary_thresholds_use_microseconds() {
+        let summary = summarize_us(&[500.0, 1_500.0, 5_500.0, 10_500.0, 20_500.0]);
+
+        assert_eq!(summary.over_1ms, 4);
+        assert_eq!(summary.over_5ms, 3);
+        assert_eq!(summary.over_10ms, 2);
+        assert_eq!(summary.over_20ms, 1);
+    }
+
+    #[test]
+    fn pulse_count_summary_json_has_no_time_unit_fields() {
+        let summary = summarize_advance_correlations(&[AdvanceCorrelation {
+            pulses: 2,
+            event_producing: true,
+        }]);
+        let object = serde_json::to_value(summary.pulses_on_event_producing_advances)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .clone();
+
+        assert_eq!(object.len(), 8);
+        for key in ["count", "min", "max", "mean", "p95", "p99", "p999", "p9999"] {
+            assert!(object.contains_key(key), "missing {key}");
+        }
+        for key in ["over_1ms", "over_5ms", "over_10ms", "over_20ms"] {
+            assert!(!object.contains_key(key), "unexpected {key}");
+        }
+        let _: LiveCountSummary = summary.pulses_on_event_producing_advances;
     }
 }

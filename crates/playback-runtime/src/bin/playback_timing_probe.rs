@@ -1,6 +1,7 @@
 use playback_runtime::{
-    parse_timing_probe_durations, parse_timing_probe_scenarios, print_timing_probe_summary,
-    run_timing_probe, TimingProbeOptions,
+    parse_timing_probe_durations, parse_timing_probe_scenarios,
+    parse_timing_probe_wake_intervals_ms, print_timing_probe_summary, run_timing_probe,
+    TimingProbeOptions,
 };
 use std::env;
 use std::fs;
@@ -26,6 +27,9 @@ fn main() -> Result<(), String> {
 
 fn parse_args() -> Result<Args, String> {
     let mut args = Args::default();
+    if let Ok(value) = env::var("OCTESSERA_TIMING_PROBE_WAKE_INTERVALS_MS") {
+        args.options.wake_intervals_ms = parse_timing_probe_wake_intervals_ms(&value)?;
+    }
     let mut iter = env::args().skip(1);
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -35,6 +39,10 @@ fn parse_args() -> Result<Args, String> {
             }
             "--scenario" | "--scenarios" => {
                 args.options.scenarios = parse_timing_probe_scenarios(&next(&mut iter, &arg)?)?
+            }
+            "--wake-intervals-ms" => {
+                args.options.wake_intervals_ms =
+                    parse_timing_probe_wake_intervals_ms(&next(&mut iter, &arg)?)?
             }
             "--output" => args.output = Some(next(&mut iter, &arg)?),
             "--config" => args.options.config = Some(next(&mut iter, &arg)?),
@@ -52,5 +60,5 @@ fn next(iter: &mut impl Iterator<Item = String>, name: &str) -> Result<String, S
 }
 
 fn help() -> String {
-    "usage: cargo run -p playback-runtime --bin playback_timing_probe -- [--config config/default.json] [--durations 5s,15s,1m] [--scenarios idle,pulses-stress,stop-start,encoder] [--realtime] [--snapshots] [--output path]".to_string()
+    "usage: cargo run -p playback-runtime --bin playback_timing_probe -- [--config config/default.json] [--durations 5s,15s,1m] [--scenarios idle,pulses-stress,stop-start,encoder] [--wake-intervals-ms 1,2,4] [--realtime] [--snapshots] [--output path]".to_string()
 }
