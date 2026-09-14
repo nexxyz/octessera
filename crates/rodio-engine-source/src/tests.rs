@@ -317,7 +317,6 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
     .unwrap();
     let momentary_update = BTreeMap::from([("sweepOutMs".into(), json!(1.0))]);
     let (report_tx, report_rx) = mpsc::sync_channel(1);
-    let report_waiter = std::thread::spawn(move || report_rx.recv().unwrap());
     let probe_event = EngineEvent::ProbeMark {
         sent_at: Instant::now(),
         report_tx,
@@ -373,7 +372,7 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
 
     assert_eq!(allocation_count, 0);
     assert_eq!(deallocation_count, 0);
-    let _ = report_waiter.join().unwrap();
+    let _ = report_rx.recv().unwrap();
 }
 
 #[path = "retirement_tests.rs"]
