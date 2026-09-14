@@ -51,6 +51,7 @@ mod note_sets;
 mod portable_patch;
 mod portable_patch_samples;
 mod pulses_and_tones_menu;
+mod restart_dialog_snapshots;
 mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;

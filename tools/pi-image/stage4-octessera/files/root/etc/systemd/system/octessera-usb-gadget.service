@@ -8,6 +8,7 @@ DefaultDependencies=no
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+ExecCondition=/usr/local/sbin/octessera-usb-role is-gadget
 ExecStart=/usr/local/sbin/octessera-usb-gadget setup
 ExecStop=/usr/local/sbin/octessera-usb-gadget teardown
 

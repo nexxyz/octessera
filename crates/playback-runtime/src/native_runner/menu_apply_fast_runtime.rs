@@ -25,6 +25,7 @@ impl NativeRunner {
                 Some(self.fast_audio_outputs_menu_key())
             }
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
+            "usb.dataRole" => Some(self.fast_usb_data_role_menu_key()),
             "recording.maxMinutes" => Some(self.fast_recording_max_minutes_menu_key()),
             "dsp.workerWarningThreshold" | "dsp.busIdleThreshold" => {
                 Some(self.fast_dsp_config_menu_key())
@@ -183,20 +184,6 @@ impl NativeRunner {
             if let Some(setting) = self.menu.current_key().and_then(RestartSetting::from_key) {
                 self.commit_restart_sensitive_setting(setting);
             }
-        }
-        true
-    }
-
-    fn fast_usb_midi_out_menu_key(&mut self) -> bool {
-        let Some(value) = self
-            .menu
-            .value_for_key("usb.midiOutEnabled")
-            .map(|value| value == "true")
-        else {
-            return false;
-        };
-        if value_changed(&mut self.usb_midi_out_enabled, value) {
-            self.commit_restart_sensitive_setting(RestartSetting::UsbMidiOut);
         }
         true
     }

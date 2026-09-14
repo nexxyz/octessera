@@ -55,7 +55,7 @@ pub(super) fn handle_job(
             name,
         },
         PlatformJobKind::SaveDefault { payload, is_auto } => {
-            match crate::usb_config::validate_pi_audio_outputs_payload(&payload)
+            match crate::usb_config_validation::validate_pi_audio_outputs_payload(&payload)
                 .and_then(|()| save_json(&store_dir.join("default.json"), &payload))
             {
                 Ok(()) => RuntimeStoreResult::SaveDefaultResult { ok: true, is_auto },

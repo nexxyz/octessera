@@ -40,6 +40,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         midi_handler,
         usb_midi_out_enabled,
         audio_outputs,
+        usb_data_role,
         audio_optimization,
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx,
@@ -53,13 +54,14 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
     if early_boot_splash {
         runner.skip_startup_splash();
     }
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
         audio,
         store_dir,
         samples_dir,
         midi_handler,
         usb_midi_out_enabled,
         audio_outputs,
+        usb_data_role,
     );
     initialize_host_state(&mut playback, &mut runner, &mut adapter)?;
     let message = HostMessage::TransportPulseStep {
@@ -214,6 +216,7 @@ fn init_runtime(audio_optimization: AudioOptimization) -> (PlaybackRuntime, Nati
         audio_optimization,
         audio_optimization_capacity_available: true,
         jack_audio_required: true,
+        usb_data_role_available: true,
         ..NativeRunnerConfig::default()
     })
     .expect("native runner should initialize");

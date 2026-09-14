@@ -66,6 +66,27 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         |payload| payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!("yes"),
     );
     assert_validation_error(
+        "USB data role",
+        "runtimeConfig.usb.dataRole has unknown value `invalid`",
+        |payload| payload["runtimeConfig"]["usb"]["dataRole"] = json!("invalid"),
+    );
+    assert_validation_error(
+        "Host USB audio",
+        "runtimeConfig.audioOutputs.usb must be false when runtimeConfig.usb.dataRole is host",
+        |payload| {
+            payload["runtimeConfig"]["usb"]["dataRole"] = json!("host");
+            payload["runtimeConfig"]["audioOutputs"]["usb"] = json!(true);
+        },
+    );
+    assert_validation_error(
+        "Host USB MIDI",
+        "runtimeConfig.usb.midiOutEnabled must be false when runtimeConfig.usb.dataRole is host",
+        |payload| {
+            payload["runtimeConfig"]["usb"]["dataRole"] = json!("host");
+            payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(true);
+        },
+    );
+    assert_validation_error(
         "audio outputs",
         "runtimeConfig.audioOutputs must contain exactly boolean dac, usb, and hdmi fields",
         |payload| payload["runtimeConfig"]["audioOutputs"] = json!({"dac": true}),

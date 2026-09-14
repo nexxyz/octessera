@@ -109,6 +109,7 @@ mod menu_apply_fast_layers;
 mod menu_apply_fast_pulses;
 mod menu_apply_fast_runtime;
 mod menu_apply_fast_structural;
+mod menu_apply_fast_usb;
 mod menu_apply_fast_values;
 mod menu_apply_fx_state;
 #[cfg(test)]
@@ -191,6 +192,7 @@ mod toast_state;
 mod toast_text;
 mod trigger_probability;
 mod trigger_probability_payload;
+mod usb_data_role;
 mod user_data_restore_results;
 mod user_data_restore_state;
 mod user_data_transfer_results;
@@ -203,6 +205,7 @@ pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
 pub use runner_config::NativeRunnerConfig;
+pub use usb_data_role::UsbDataRole;
 
 use binding_payload::*;
 use binding_specs::*;
@@ -319,6 +322,7 @@ pub struct NativeRunner {
     audio_optimization: AudioOptimization,
     audio_optimization_capacity_available: bool,
     jack_audio_required: bool,
+    usb_data_role_available: bool,
     note_behaviors: Vec<NoteBehavior>,
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
@@ -344,6 +348,7 @@ pub struct NativeRunner {
     midi_clock_in_enabled: bool,
     midi_respond_to_start_stop: bool,
     audio_outputs: AudioOutputSet,
+    usb_data_role: UsbDataRole,
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
     sparks_mode: String,

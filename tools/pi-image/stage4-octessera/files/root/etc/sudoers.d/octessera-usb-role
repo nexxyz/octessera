@@ -1,0 +1,2 @@
+# Exact Raspberry USB data-role commands only.
+pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-role host, /usr/local/sbin/octessera-usb-role gadget

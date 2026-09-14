@@ -140,6 +140,8 @@ impl NativeRunner {
             jack_audio_required: self.jack_audio_required,
             audio_optimization: self.audio_optimization,
             audio_optimization_capacity_available: self.audio_optimization_capacity_available,
+            usb_data_role: self.usb_data_role,
+            usb_data_role_available: self.usb_data_role_available,
             usb_midi_out_enabled: self.usb_midi_out_enabled,
             recording_max_minutes: self.recording_max_minutes,
             hdmi_mode: self.display.hdmi.mode.clone(),
@@ -274,6 +276,7 @@ impl NativeRunner {
                     "respondToStartStop": self.midi_respond_to_start_stop
                 },
                 "usb": {
+                    "dataRole": self.usb_data_role.as_str(),
                     "midiOutEnabled": self.usb_midi_out_enabled
                 },
                 "audioOutputs": self.audio_outputs.as_value(),

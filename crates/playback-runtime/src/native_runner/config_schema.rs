@@ -45,6 +45,9 @@ pub(super) fn prepare_config_payload(
     }
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
+        normalize_missing_usb_data_role(&mut input, true);
+    } else {
+        normalize_missing_usb_data_role(&mut input, false);
     }
     let migration_report = if version.is_legacy() {
         migrate_legacy_modulation(&mut input, current)?
@@ -93,6 +96,9 @@ pub(super) fn prepare_patch_payload(
     }
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
+        normalize_missing_usb_data_role(&mut input, true);
+    } else {
+        normalize_missing_usb_data_role(&mut input, false);
     }
     strip_device_audio_fields(&mut input);
     let migration_report = if version.is_legacy() {
@@ -140,6 +146,9 @@ pub(super) fn prepare_device_payload(
     validate_canonical_lfo_bank_shape(&input)?;
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
+        normalize_missing_usb_data_role(&mut input, true);
+    } else {
+        normalize_missing_usb_data_role(&mut input, false);
     }
     let migration_report = if version.is_legacy() {
         migrate_legacy_modulation(&mut input, current)?
@@ -350,6 +359,35 @@ fn migrate_legacy_runtime_root(payload: &mut Value) {
     runtime.remove("mappingConfig");
     runtime.remove("system");
     object.insert("runtimeConfig".into(), Value::Object(runtime));
+}
+
+fn normalize_missing_usb_data_role(payload: &mut Value, legacy: bool) {
+    let runtime = if payload.get("runtimeConfig").is_some() {
+        payload.get_mut("runtimeConfig")
+    } else {
+        Some(payload)
+    };
+    let Some(runtime) = runtime.and_then(Value::as_object_mut) else {
+        return;
+    };
+    let has_usb_flags = runtime
+        .get("usb")
+        .and_then(Value::as_object)
+        .is_some_and(|usb| usb.contains_key("midiOutEnabled"))
+        || runtime
+            .get("audioOutputs")
+            .and_then(Value::as_object)
+            .is_some_and(|outputs| outputs.contains_key("usb"));
+    if !legacy && !has_usb_flags {
+        return;
+    }
+    let usb = runtime
+        .entry("usb")
+        .or_insert_with(|| Value::Object(Default::default()));
+    if let Some(usb) = usb.as_object_mut() {
+        usb.entry("dataRole")
+            .or_insert_with(|| Value::String("gadget".into()));
+    }
 }
 
 fn merge_values(base: &Value, overlay: &Value) -> Value {

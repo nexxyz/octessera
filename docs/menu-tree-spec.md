@@ -29,9 +29,11 @@ Root (group)
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 
 The System section puts the direct Save Current and dynamic Load Preset shortcut group, followed
-by Master Vol, Panic, Sys. Info, and Basic Help. Recording, Notes, MIDI, Audio, UI, Saves,
-Setup, Reset, Reboot, and Shutdown follow in that order. SD Card 2 and HDMI Video are
-board-only groups and are omitted on desktop; USB MIDI is a board-only child of MIDI.
+by Master Vol, Panic, Sys. Info, and Basic Help. Recording, Notes, MIDI, Audio, USB Role, SD Card 2,
+UI, Saves, Setup, Reset, Reboot, and Shutdown follow in that order. USB Role is
+Raspberry-capability-only.
+SD Card 2 and HDMI Video are board-only groups and are omitted on desktop; USB MIDI is a board-only
+child of MIDI and is hidden in USB Host mode.
 
 The root Load Preset group contains a `(none)` refresh action and one confirmed action
 for each named preset. The same named list remains available under
@@ -49,11 +51,14 @@ Idle with their existing keys and values, plus Buf Frames where the
 performance-mode capability is unavailable.
 
 `System > MIDI` contains Enabled, board-only USB MIDI, MIDI Out, MIDI In, and Sync / Clock in
-that order. Enabled is the runtime MIDI gate and selects no port or device. USB MIDI enables
-the bidirectional class device after restart, auto-routes outbound gadget MIDI, and leaves
-inbound selection under MIDI In. `System > SD Card 2` contains Start Transfer and Stop Transfer;
-it exposes the second card to a USB host only while conflicting USB audio, MIDI, and recording
-are inactive. HDMI Video contains the existing Mode, Bars per cycle, and Grid Lines controls.
+that order. Enabled is the runtime MIDI gate and selects no port or device. USB MIDI is visible
+only in Gadget mode, enables the bidirectional class device after restart, auto-routes outbound
+gadget MIDI, and leaves inbound selection under MIDI In. `System > USB Role` is Raspberry-only;
+Host hides and disables USB Audio, USB MIDI, and SD Card 2 Start Transfer, while HDMI Audio and
+Stop Transfer remain available for cleanup. Gadget does not restore previously disabled outputs. `System > SD
+Card 2` contains Start Transfer and Stop Transfer; it exposes the second card to a USB host only
+while conflicting USB audio, MIDI, and recording are inactive. HDMI Video contains the existing
+Mode, Bars per cycle, and Grid Lines controls.
 USB and HDMI audio mirror the canonical Jack mix and do not replace it; HDMI audio remains
 separate from HDMI video. Restart-sensitive edits use the native Save Setting flow shared with
 Audio.

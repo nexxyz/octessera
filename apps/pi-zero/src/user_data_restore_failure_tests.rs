@@ -431,3 +431,29 @@ fn restore_rehydrates_migrated_patch_preferences_and_split_aux_ownership() {
         json!({ "dac": false, "usb": true, "hdmi": false });
     assert_eq!(default, expected_default);
 }
+
+#[test]
+fn restore_preserves_target_host_role_and_keeps_backup_role_free() {
+    let fixture = Fixture::new("host-role");
+    let mut host = user_data_archive::canonical_defaults();
+    host["runtimeConfig"]["audioOutputs"]["usb"] = json!(false);
+    host["runtimeConfig"]["usb"]["dataRole"] = json!("host");
+    host["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(false);
+    let bytes = serde_json::to_vec(&host).unwrap();
+    fs::write(fixture.store.join("default.json"), &bytes).unwrap();
+    fs::write(fixture.store.join("current.json"), bytes).unwrap();
+
+    fixture.restore("host-role", false).unwrap();
+
+    for name in ["default.json", "current.json"] {
+        let payload: Value =
+            serde_json::from_slice(&fs::read(fixture.store.join(name)).unwrap()).unwrap();
+        assert_eq!(payload["runtimeConfig"]["usb"]["dataRole"], "host");
+        assert_eq!(payload["runtimeConfig"]["audioOutputs"]["usb"], false);
+        assert_eq!(payload["runtimeConfig"]["usb"]["midiOutEnabled"], false);
+    }
+    let backup = fs::read(fixture.root.join("octessera-pre-restore-host-role.oct")).unwrap();
+    assert!(!backup
+        .windows(b"dataRole".len())
+        .any(|window| window == b"dataRole"));
+}

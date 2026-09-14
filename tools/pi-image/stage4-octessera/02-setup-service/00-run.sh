@@ -113,6 +113,9 @@ install -D -m 0644 \
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-usb-gadget" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-usb-gadget"
+install -D -o root -g root -m 0755 \
+    "$STAGE_FILES/root/usr/local/sbin/octessera-usb-role" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-usb-role"
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/usr/local/lib/octessera/device_config.py" \
     "$ROOTFS_DIR/usr/local/lib/octessera/device_config.py"
@@ -260,6 +263,9 @@ install -D -m 0440 \
 install -D -m 0440 \
     "$STAGE_FILES/root/etc/sudoers.d/octessera-usb-storage" \
     "$ROOTFS_DIR/etc/sudoers.d/octessera-usb-storage"
+install -D -o root -g root -m 0440 \
+    "$STAGE_FILES/root/etc/sudoers.d/octessera-usb-role" \
+    "$ROOTFS_DIR/etc/sudoers.d/octessera-usb-role"
 install -D -m 0440 \
     "$STAGE_FILES/root/etc/sudoers.d/octessera-update" \
     "$ROOTFS_DIR/etc/sudoers.d/octessera-update"

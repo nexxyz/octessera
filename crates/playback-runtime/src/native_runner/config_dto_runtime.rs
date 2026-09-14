@@ -1,4 +1,5 @@
 use super::{AudioOptimization, InstrumentDto, LayerDto, MixerDto};
+use crate::native_runner::UsbDataRole;
 use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -240,6 +241,8 @@ pub struct MidiDto {
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct UsbDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) data_role: Option<UsbDataRole>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi_out_enabled: Option<bool>,
 }

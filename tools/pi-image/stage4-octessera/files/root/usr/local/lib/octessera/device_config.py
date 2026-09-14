@@ -41,6 +41,9 @@ def parse_config(payload):
     if "midiOutEnabled" in usb and type(usb["midiOutEnabled"]) is not bool:
         raise ConfigError("usb.midiOutEnabled must be boolean")
     midi = usb.get("midiOutEnabled", False)
+    data_role = usb.get("dataRole", "gadget")
+    if data_role not in ("gadget", "host"):
+        raise ConfigError("usb.dataRole must be gadget or host")
 
     if "audioOut" in usb:
         raise ConfigError("runtimeConfig.usb.audioOut is unsupported; use runtimeConfig.audioOutputs")
@@ -57,6 +60,8 @@ def parse_config(payload):
     dac = outputs["dac"]
     usb_audio = outputs["usb"]
     hdmi = outputs["hdmi"]
+    if data_role == "host" and (usb_audio or midi):
+        raise ConfigError("host USB data role requires USB audio and MIDI output to be disabled")
 
     return {
         "dac": dac,
@@ -66,7 +71,21 @@ def parse_config(payload):
     }
 
 
+def parse_data_role(payload):
+    parse_config(payload)
+    usb = payload["runtimeConfig"].get("usb") or {}
+    return usb.get("dataRole", "gadget")
+
+
 def load_config(path):
+    return parse_config(_load_payload(path))
+
+
+def load_data_role(path):
+    return parse_data_role(_load_payload(path))
+
+
+def _load_payload(path):
     metadata = os.lstat(path)
     if not stat.S_ISREG(metadata.st_mode):
         raise ConfigError("config must be a regular file")
@@ -84,15 +103,19 @@ def load_config(path):
         )
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ConfigError(f"invalid JSON: {error}") from error
-    return parse_config(payload)
+    return payload
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--data-role", action="store_true")
     parser.add_argument("path")
     args = parser.parse_args()
-    state = load_config(args.path)
-    print(int(state["usb"]), int(state["midi"]))
+    if args.data_role:
+        print(load_data_role(args.path))
+    else:
+        state = load_config(args.path)
+        print(int(state["usb"]), int(state["midi"]))
 
 
 if __name__ == "__main__":

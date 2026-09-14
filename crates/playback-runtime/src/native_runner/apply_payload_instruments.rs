@@ -4,7 +4,8 @@ use super::apply_payload_instrument_values::*;
 use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::{
-    velocity_curve_from_id, AudioOptimization, AudioOutputSet, NativeRunner, SyncSource, Value,
+    velocity_curve_from_id, AudioOptimization, AudioOutputSet, NativeRunner, SyncSource,
+    UsbDataRole, Value,
 };
 
 impl NativeRunner {
@@ -247,6 +248,14 @@ impl NativeRunner {
             if let Ok(audio_outputs) = AudioOutputSet::decode(audio_outputs) {
                 self.audio_outputs = audio_outputs;
             }
+        }
+        if let Some(role) = runtime
+            .get("usb")
+            .and_then(|usb| usb.get("dataRole"))
+            .and_then(Value::as_str)
+            .and_then(UsbDataRole::from_menu_value)
+        {
+            self.usb_data_role = role;
         }
         if let Some(enabled) = runtime
             .get("usb")

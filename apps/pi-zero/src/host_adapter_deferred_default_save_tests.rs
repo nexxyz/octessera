@@ -121,16 +121,21 @@ fn load_immediate_save_and_usb_apply_cancel_deferred_work() {
         .handle_platform_effect(&deferred("usb", 5, deferred_payload))
         .unwrap()
         .is_empty());
-    assert!(adapter
-        .handle_platform_effect(&request(
-            RuntimePlatformEffect::ApplyDeviceConfigReboot {
-                payload: json!({"usb": true})
-            },
-            "usb-now",
-            6,
-        ))
-        .unwrap()
-        .is_empty());
+    assert!(matches!(
+        adapter
+            .handle_platform_effect(&request(
+                RuntimePlatformEffect::ApplyDeviceConfigReboot {
+                    payload: json!({"usb": true})
+                },
+                "usb-now",
+                6,
+            ))
+            .unwrap()
+            .as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::StoreError { .. }
+        }]
+    ));
     assert!(!adapter.pending_default_save.is_pending());
     cleanup(root);
 }

@@ -110,6 +110,16 @@ The Raspberry gadget reads the saved default from
 `/home/pi/presets/default.json`. Save device settings and use the confirmed
 apply/reboot action before changing the host-visible USB composition.
 
+The `usb.dataRole` value is `gadget` by default. `host` requires USB Audio and
+USB MIDI output to be disabled; it disables gadget Audio/MIDI and new SD2
+transfers after reboot. The apply path saves the checked configuration, changes one boot
+overlay line, and schedules the existing reboot lifecycle. It does not switch
+the port live. Unplug the computer before applying, keep power on `PWR IN`, and
+use an ID-grounded OTG adapter for Host mode; a powered hub is preferred only
+when its upstream path is non-backfeeding. Full construction or Pi provisioning
+is required to install the role helper; fast deployment and runtime updates do
+not change the boot role.
+
 The browser's Applying screen is provisional; an AP disconnect is expected while
 settings apply. Wait for the OLED result. The AP remains available for 10 minutes
 after readiness. Success needs only a usable global `wlan0` IPv4 address, and the

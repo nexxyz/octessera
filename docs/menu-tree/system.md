@@ -35,13 +35,14 @@ System
 │   │   └── Follow S/S: [on | off]
 ├── Audio (group)
 │   ├── USB Audio: [on | off]  default off             ← Pi only; optional Jack-mix mirror; restart-applied
-│   ├── HDMI Audio: [on | off]  default off            ← Pi only; optional Jack-mix mirror; restart-applied
+│   ├── HDMI Audio: [on | off]  default off            ← Pi only; optional Jack-mix mirror; visible in Host; restart-applied
 │   ├── Perf. Mode: [Lat | Cap]  default Lat  ← full choices Latency/Capacity; Raspberry and Orange; restart-sensitive
 │   ├── Polyphony: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
 │   └── Engine (group)
 │       ├── CPU Warn %: [70 | 75 | 80 | 85 | 90 | 95]  default 85
 │       ├── Bus Idle: [exact | -140 | -120 | -100 | -80]  default -120
 │       └── Buf Frames: [64 | 128 | 256 | 512 | 1024 | 2048]  ← shown where Perf. Mode is unavailable; restart-sensitive
+├── USB Role: [Gadget | Host]            ← Raspberry capability only; restart-sensitive
 ├── SD Card 2 (group)                  ← board-only
 │   ├── Start Transfer: (action)
 │   └── Stop Transfer: (action)
@@ -88,9 +89,9 @@ System
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```
 
-`Setup` combines the existing Wi-Fi, Backup / Restore, Updates, and Hardware Test actions without changing their action keys. `Check` is unconfirmed; `Apply` and `Rollback` retain their existing confirmation and updater behavior. `Reset > Load Empty` and `Reset > Load Factory` retain their existing confirmation and native reset behavior. Desktop omits the board-only USB MIDI, SD Card 2, and HDMI Video groups and all Jack/USB/HDMI/SD2 device controls. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown stay at the bottom of System. `Stop/Sync: Sh+Space` follows the transport mode: internal sync stops/resets, silences internal audio, and performs bounded held-note cleanup without broad MIDI panic, while external sync arms resync. `Fn+Space` is reset-stop with the same bounded cleanup.
+`Setup` combines the existing Wi-Fi, Backup / Restore, Updates, and Hardware Test actions without changing their action keys. `Check` is unconfirmed; `Apply` and `Rollback` retain their existing confirmation and updater behavior. `Reset > Load Empty` and `Reset > Load Factory` retain their existing confirmation and native reset behavior. Desktop and Orange omit the Raspberry-only USB Role row; desktop also omits the board-only USB MIDI, SD Card 2, and HDMI Video groups and all Jack/USB/HDMI/SD2 device controls. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown stay at the bottom of System. `Stop/Sync: Sh+Space` follows the transport mode: internal sync stops/resets, silences internal audio, and performs bounded held-note cleanup without broad MIDI panic, while external sync arms resync. `Fn+Space` is reset-stop with the same bounded cleanup.
 
-`System > MIDI > Enabled` is the runtime MIDI gate and selects no port or device. `USB MIDI` enables the bidirectional USB MIDI class device after restart, auto-routes outbound gadget MIDI, and leaves inbound selection under `MIDI In`. `System > SD Card 2` exposes the second card to a USB host; conflicting USB audio, MIDI, and recording must be inactive. Start Transfer and Stop Transfer retain their existing confirmation, transfer, eject, and cancel semantics.
+`System > MIDI > Enabled` is the runtime MIDI gate and selects no port or device. `USB MIDI` is visible only in Gadget mode, enables the bidirectional USB MIDI class device after restart, auto-routes outbound gadget MIDI, and leaves inbound selection under `MIDI In`. `System > USB Role` is Raspberry-only; Host hides and disables USB Audio, USB MIDI, and SD Card 2 Start Transfer, while HDMI Audio and Stop Transfer remain available for cleanup. Gadget does not restore previously disabled outputs. `System > SD Card 2` exposes the second card to a USB host; conflicting USB audio, MIDI, and recording must be inactive. Start Transfer and Stop Transfer retain their existing confirmation, transfer, eject, and cancel semantics.
 
 `System > Sys. Info` opens a native loading popup and requests asynchronously identified, sanitized OS/version, Octessera version, primary IP/MAC when available, hostname, and explicit board profile information. The desktop UI only renders the resulting native snapshot.
 

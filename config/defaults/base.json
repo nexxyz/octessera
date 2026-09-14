@@ -3572,6 +3572,7 @@
       "swingPct": 0
     },
     "usb": {
+      "dataRole": "gadget",
       "midiOutEnabled": false
     },
     "velocityCurve": "linear",

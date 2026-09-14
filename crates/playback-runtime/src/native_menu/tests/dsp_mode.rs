@@ -25,11 +25,13 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
             || target.key == "key:audioOutputs.usb"
             || target.key == "key:audioOutputs.hdmi"
             || target.key == "key:usb.midiOutEnabled"
+            || target.key == "key:usb.dataRole"
             || target.key == "key:hdmi.mode"
     }));
 
     let mut pi_config = config();
     pi_config.jack_audio_required = true;
+    pi_config.usb_data_role_available = true;
     let pi_targets = NativeMenuModel::new(pi_config);
     let usb_target = pi_targets
         .help_targets()
@@ -41,6 +43,23 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
             .expect("Pi USB Audio help entry")
             .title,
         "USB Audio"
+    );
+    let role_target = pi_targets
+        .help_targets()
+        .into_iter()
+        .find(|target| target.key == "key:usb.dataRole")
+        .expect("Raspberry USB Role help target");
+    let role_entry = crate::native_help::resolve_native_help_entry(&role_target)
+        .expect("Raspberry USB Role help entry");
+    assert_eq!(role_entry.path, "System > USB Role");
+    assert_eq!(role_entry.title, "USB Role");
+    assert_eq!(
+        role_entry.line1,
+        "Selects Raspberry USB role. Gadget allows USB Audio, USB MIDI, and SD2 transfer; Host disables all three."
+    );
+    assert_eq!(
+        role_entry.line2,
+        "Unplug computer USB before rebooting to Host."
     );
 }
 

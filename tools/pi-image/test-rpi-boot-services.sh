@@ -7,6 +7,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$root/tools/armbian-image/validation-assertions.sh"
 service="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service"
 runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"
+gadget_runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-gadget.service"
+usb_role_helper="$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role"
+usb_role_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role"
 template="$root/tools/pi/provision/files/etc/systemd/system/octessera.service.template"
 shutdown_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-shutdown"
 shutdown_policy='pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot'
@@ -49,6 +52,15 @@ octessera_reject_file_match 'Raspberry boot service must not be oneshot.' -q '^T
 octessera_reject_file_match 'Raspberry boot service must not use a one-shot ExecStart.' -q '^ExecStart=-' "$service"
 octessera_reject_file_match 'Raspberry boot service must not conflict with runtime.' -q '^Conflicts=' "$service"
 octessera_reject_file_match 'Raspberry runtime must not use the removed early boot splash flag.' -q 'OCTESSERA_EARLY_BOOT_SPLASH' "$runtime" "$template"
+grep -qFx 'ExecCondition=/usr/local/sbin/octessera-usb-role is-gadget' "$gadget_runtime"
+[[ "$(awk '/^\[/{section=$0} /^ExecCondition=/{print section}' "$gadget_runtime")" == '[Service]' ]]
+[[ "$(grep -Ec '^ExecCondition=' "$gadget_runtime")" == 1 ]]
+test -f "$usb_role_helper"
+printf '%s\n' '# Exact Raspberry USB data-role commands only.' 'pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-role host, /usr/local/sbin/octessera-usb-role gadget' | cmp -s - "$usb_role_sudoers"
+if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)' "$usb_role_sudoers"; then
+    echo 'Raspberry USB role sudoers rule is broader than the exact role commands.' >&2
+    exit 1
+fi
 
 for required_line in \
     'Wants=octessera-boot-splash.service' \

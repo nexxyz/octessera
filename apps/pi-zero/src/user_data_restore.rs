@@ -1,6 +1,6 @@
 use crate::persistence::atomic_write_json;
 use crate::user_data_archive::{self, StagedRestore};
-use playback_runtime::apply_user_data_patch_and_preferences;
+use playback_runtime::{apply_user_data_patch_and_preferences, UsbDataRole};
 use serde_json::Value;
 use std::fs::{self, File};
 use std::io;
@@ -41,16 +41,19 @@ pub(crate) fn restore(
     )?;
 
     let canonical = user_data_archive::canonical_defaults();
-    let current = apply_user_data_patch_and_preferences(
+    let target_role = target_usb_role(store_dir, &canonical)?;
+    let mut current = apply_user_data_patch_and_preferences(
         &canonical,
         &staged.bundle.current_state.patch,
         &staged.bundle.preferences,
     )?;
-    let default = apply_user_data_patch_and_preferences(
+    let mut default = apply_user_data_patch_and_preferences(
         &canonical,
         &staged.bundle.default_state.patch,
         &staged.bundle.preferences,
     )?;
+    preserve_target_usb_role(&mut current, target_role)?;
+    preserve_target_usb_role(&mut default, target_role)?;
     let new_store = parent.join(format!(".octessera-store-new-{session}"));
     let new_samples = parent.join(format!(".octessera-samples-new-{session}"));
     let old_store = parent.join(format!(".octessera-store-old-{session}"));
@@ -115,6 +118,39 @@ pub(crate) fn restore(
         transaction::replace_trees(&trees)
     })();
     result
+}
+
+fn target_usb_role(store_dir: &Path, canonical: &Value) -> Result<UsbDataRole, String> {
+    let payload = crate::platform_service::load_json(&store_dir.join("default.json"))?
+        .unwrap_or_else(|| canonical.clone());
+    crate::usb_config::parse_usb_runtime_config(&payload)
+        .map(|config| config.data_role)
+        .map_err(|error| error.to_string())
+}
+
+fn preserve_target_usb_role(payload: &mut Value, role: UsbDataRole) -> Result<(), String> {
+    let runtime = payload
+        .get_mut("runtimeConfig")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "restored runtime configuration is missing runtimeConfig".to_string())?;
+    if role == UsbDataRole::Host {
+        let outputs = runtime
+            .entry("audioOutputs")
+            .or_insert_with(|| Value::Object(Default::default()))
+            .as_object_mut()
+            .ok_or_else(|| "restored runtimeConfig.audioOutputs is not an object".to_string())?;
+        outputs.insert("usb".into(), Value::Bool(false));
+    }
+    let usb = runtime
+        .entry("usb")
+        .or_insert_with(|| Value::Object(Default::default()))
+        .as_object_mut()
+        .ok_or_else(|| "restored runtimeConfig.usb is not an object".to_string())?;
+    usb.insert("dataRole".into(), Value::String(role.as_str().into()));
+    if role == UsbDataRole::Host {
+        usb.insert("midiOutEnabled".into(), Value::Bool(false));
+    }
+    Ok(())
 }
 
 fn write_pre_restore_backup(

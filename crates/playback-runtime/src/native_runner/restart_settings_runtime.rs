@@ -3,6 +3,7 @@ use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use serde_json::Value;
 
 use super::restart_settings::{DefaultSaveScope, DefaultWriteCompletion, RestartSetting};
+use super::UsbDataRole;
 use super::{validate_config_payload, NativeConfirmDialog, NativeRunner, NativeToast};
 
 impl NativeRunner {
@@ -35,7 +36,7 @@ impl NativeRunner {
         } else {
             self.restart_settings
                 .open_save_choice(setting, setting_payload.clone());
-            self.display.confirm_dialog = Some(save_choice_dialog(setting_payload.is_some()));
+            self.display.confirm_dialog = Some(self.save_choice_dialog());
         }
     }
 
@@ -119,7 +120,7 @@ impl NativeRunner {
                 if completion.scope == DefaultSaveScope::RestartSetting {
                     self.reconcile_dirty_with_persisted_default();
                 }
-                self.display.confirm_dialog = Some(restart_choice_dialog());
+                self.display.confirm_dialog = Some(restart_choice_dialog(completion.host_role));
             } else {
                 self.display.confirm_dialog = None;
                 self.display.toast = Some(NativeToast {
@@ -214,7 +215,7 @@ impl NativeRunner {
         let payload = self.setting_payload_for_restart(&self.config_payload(), setting);
         self.restart_settings
             .update_save_choice_setting_payload(payload.clone());
-        self.display.confirm_dialog = Some(save_choice_dialog(payload.is_some()));
+        self.display.confirm_dialog = Some(self.save_choice_dialog());
     }
 
     fn save_choice_dialog(&self) -> NativeConfirmDialog {
@@ -222,11 +223,12 @@ impl NativeRunner {
             self.restart_settings
                 .save_choice_setting_payload()
                 .is_some(),
+            self.usb_data_role == UsbDataRole::Host,
         )
     }
 }
 
-fn save_choice_dialog(can_save_setting: bool) -> NativeConfirmDialog {
+fn save_choice_dialog(can_save_setting: bool, host_role: bool) -> NativeConfirmDialog {
     let mut options = vec!["Cancel".into()];
     if can_save_setting {
         options.push("Save this setting".into());
@@ -234,7 +236,16 @@ fn save_choice_dialog(can_save_setting: bool) -> NativeConfirmDialog {
     options.push("Save everything".into());
     NativeConfirmDialog {
         title: "Save Setting".into(),
-        lines: vec!["Restart required.".into()],
+        lines: if host_role {
+            vec![
+                "Restart required.".into(),
+                "Before Host reboot:".into(),
+                "Unplug computer USB.".into(),
+                "Audio/MIDI/SD2 off.".into(),
+            ]
+        } else {
+            vec!["Restart required.".into()]
+        },
         options,
         cursor: 0,
         action: NativeMenuAction::PlatformEffect("restart.saveChoice".into()),
@@ -255,10 +266,20 @@ fn saving_dialog() -> NativeConfirmDialog {
     }
 }
 
-fn restart_choice_dialog() -> NativeConfirmDialog {
+fn restart_choice_dialog(host_role: bool) -> NativeConfirmDialog {
     NativeConfirmDialog {
         title: "Restart?".into(),
-        lines: vec!["Saved. Reboot to".into(), "apply?".into()],
+        lines: if host_role {
+            vec![
+                "Saved. Reboot to".into(),
+                "apply?".into(),
+                "Unplug computer USB".into(),
+                "before Host reboot.".into(),
+                "Audio/MIDI/SD2 off.".into(),
+            ]
+        } else {
+            vec!["Saved. Reboot to".into(), "apply?".into()]
+        },
         options: vec!["Continue".into(), "Reboot now".into()],
         cursor: 0,
         action: NativeMenuAction::PlatformEffect("restart.reboot".into()),

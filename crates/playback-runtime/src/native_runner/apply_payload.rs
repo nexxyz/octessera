@@ -53,6 +53,7 @@ impl NativeRunner {
             .application_view(&prepared.apply_payload)?;
         candidate.apply_config_payload_unchecked(apply_device, &application_envelope)?;
         candidate.validate_audio_outputs()?;
+        candidate.validate_usb_data_role()?;
         for (candidate_lfo, source_lfo) in candidate.link_lfos.iter_mut().zip(&self.link_lfos) {
             let preserve_phase = candidate_lfo.enabled
                 && source_lfo.enabled
@@ -87,6 +88,7 @@ impl NativeRunner {
         self.trigger_probability_rng = source.trigger_probability_rng;
         self.audio_optimization_capacity_available = source.audio_optimization_capacity_available;
         self.jack_audio_required = source.jack_audio_required;
+        self.usb_data_role_available = source.usb_data_role_available;
     }
 
     fn copy_live_runtime_state_from(&mut self, source: &NativeRunner) {

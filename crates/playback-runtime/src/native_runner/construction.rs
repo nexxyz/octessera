@@ -55,6 +55,7 @@ impl NativeRunner {
             audio_optimization: seed.audio_optimization,
             audio_optimization_capacity_available: seed.audio_optimization_capacity_available,
             jack_audio_required: config.jack_audio_required,
+            usb_data_role_available: seed.usb_data_role_available,
             note_behaviors: config.note_behaviors,
             transport: NativeTransportState::new(
                 seed.bpm,
@@ -72,6 +73,7 @@ impl NativeRunner {
             display: NativeDisplayState::new(seed.ui, seed.now, seed.hdmi),
             midi_enabled: seed.midi_enabled,
             audio_outputs: seed.audio_outputs,
+            usb_data_role: seed.usb_data_role,
             usb_midi_out_enabled: seed.usb_midi_out_enabled,
             recording_max_minutes: seed.recording_max_minutes,
             preset_names: seed.preset_names,

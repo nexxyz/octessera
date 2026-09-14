@@ -3,8 +3,10 @@ use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
     NativeMenuAction, NativeMenuConfig, NativeMenuItem,
 };
+use crate::native_runner::UsbDataRole;
 
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
+    let host_role = config.usb_data_role_available && config.usb_data_role.is_host();
     let mut children = vec![
         action_item(
             "Save Current",
@@ -90,8 +92,8 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ),
             ],
         ),
-        midi_group(config, sync_index),
-        audio_group(config),
+        midi_group(config, sync_index, host_role),
+        audio_group(config, host_role),
         group(
             "UI",
             vec![
@@ -149,12 +151,16 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
             ],
         ),
     ];
+    let audio_index = children
+        .iter()
+        .position(|item| item.label == "Audio")
+        .expect("Audio group is present");
+    if config.usb_data_role_available {
+        children.insert(audio_index + 1, usb_data_role_item(config));
+    }
     if config.jack_audio_required {
-        let audio_index = children
-            .iter()
-            .position(|item| item.label == "Audio")
-            .expect("Audio group is present");
-        children.insert(audio_index + 1, sd_card_2_group());
+        let sd_card_index = audio_index + 1 + usize::from(config.usb_data_role_available);
+        children.insert(sd_card_index, sd_card_2_group(host_role));
         let ui_index = children
             .iter()
             .position(|item| item.label == "UI")
@@ -179,17 +185,21 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
     group("System", children)
 }
 
-fn audio_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
     let mut children = Vec::new();
     if config.jack_audio_required {
-        children.extend([
-            bool_item("USB Audio", "audioOutputs.usb", config.audio_outputs.usb()),
-            bool_item(
-                "HDMI Audio",
-                "audioOutputs.hdmi",
-                config.audio_outputs.hdmi(),
-            ),
-        ]);
+        if !host_role {
+            children.push(bool_item(
+                "USB Audio",
+                "audioOutputs.usb",
+                config.audio_outputs.usb(),
+            ));
+        }
+        children.push(bool_item(
+            "HDMI Audio",
+            "audioOutputs.hdmi",
+            config.audio_outputs.hdmi(),
+        ));
     }
     if config.audio_optimization_capacity_available {
         children.push(enum_item(
@@ -263,9 +273,9 @@ fn audio_group(config: &NativeMenuConfig) -> NativeMenuItem {
     group("Audio", children)
 }
 
-fn midi_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
+fn midi_group(config: &NativeMenuConfig, sync_index: usize, host_role: bool) -> NativeMenuItem {
     let mut children = vec![bool_item("Enabled", "midiEnabled", config.midi_enabled)];
-    if config.jack_audio_required {
+    if config.jack_audio_required && !host_role {
         children.push(bool_item(
             "USB MIDI",
             "usb.midiOutEnabled",
@@ -305,22 +315,30 @@ fn midi_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
     group("MIDI", children)
 }
 
-fn sd_card_2_group() -> NativeMenuItem {
-    group(
-        "SD Card 2",
-        vec![
-            action_item(
-                "Start Transfer",
-                "usb.sdTransferStart",
-                NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
-            ),
-            action_item(
-                "Stop Transfer",
-                "usb.sdTransferStop",
-                NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
-            ),
-        ],
+fn usb_data_role_item(config: &NativeMenuConfig) -> NativeMenuItem {
+    enum_item_from_strings(
+        "USB Role",
+        "usb.dataRole",
+        vec!["Gadget".into(), "Host".into()],
+        usize::from(config.usb_data_role == UsbDataRole::Host),
     )
+}
+
+fn sd_card_2_group(host_role: bool) -> NativeMenuItem {
+    let mut children = Vec::new();
+    if !host_role {
+        children.push(action_item(
+            "Start Transfer",
+            "usb.sdTransferStart",
+            NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
+        ));
+    }
+    children.push(action_item(
+        "Stop Transfer",
+        "usb.sdTransferStop",
+        NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
+    ));
+    group("SD Card 2", children)
 }
 
 fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {

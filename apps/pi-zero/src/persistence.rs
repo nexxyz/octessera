@@ -38,7 +38,6 @@ pub(crate) fn atomic_write_json(path: &Path, payload: &serde_json::Value) -> Res
     result
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(crate) fn atomic_write_bytes(path: &Path, content: &[u8], mode: u32) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -61,7 +60,8 @@ pub(crate) fn atomic_write_bytes(path: &Path, content: &[u8], mode: u32) -> Resu
         file.sync_all().map_err(|e| e.to_string())?;
         drop(file);
         replace_file(&tmp, path)?;
-        sync_parent(path)
+        let _ = sync_parent(path);
+        Ok(())
     })();
     if result.is_err() {
         let _ = fs::remove_file(&tmp);
@@ -69,7 +69,7 @@ pub(crate) fn atomic_write_bytes(path: &Path, content: &[u8], mode: u32) -> Resu
     result
 }
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+#[cfg(unix)]
 fn sync_parent(path: &Path) -> Result<(), String> {
     let Some(parent) = path.parent() else {
         return Err("atomic write path has no parent directory".into());
@@ -79,19 +79,19 @@ fn sync_parent(path: &Path) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", not(unix)))]
+#[cfg(not(unix))]
 fn sync_parent(_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+#[cfg(unix)]
 fn set_mode(file: &File, mode: u32) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     file.set_permissions(std::fs::Permissions::from_mode(mode))
         .map_err(|error| error.to_string())
 }
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", not(unix)))]
+#[cfg(not(unix))]
 fn set_mode(_file: &File, _mode: u32) -> Result<(), String> {
     Ok(())
 }

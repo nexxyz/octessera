@@ -39,8 +39,36 @@ pub(super) fn validate_usb(runtime: &Map<String, Value>) -> Result<(), String> {
     let Some(usb) = object_field(runtime, "usb", "runtimeConfig")? else {
         return Ok(());
     };
+    enum_field(usb, "dataRole", "runtimeConfig.usb", &["gadget", "host"])?;
     if usb.contains_key("midiOutEnabled") {
         bool_field(usb, "midiOutEnabled", "runtimeConfig.usb")?;
+    }
+    if usb
+        .get("dataRole")
+        .and_then(Value::as_str)
+        .is_some_and(|role| role == "host")
+    {
+        if usb
+            .get("midiOutEnabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            return Err(
+                "runtimeConfig.usb.midiOutEnabled must be false when runtimeConfig.usb.dataRole is host"
+                    .into(),
+            );
+        }
+        if runtime
+            .get("audioOutputs")
+            .and_then(|outputs| outputs.get("usb"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            return Err(
+                "runtimeConfig.audioOutputs.usb must be false when runtimeConfig.usb.dataRole is host"
+                    .into(),
+            );
+        }
     }
     Ok(())
 }

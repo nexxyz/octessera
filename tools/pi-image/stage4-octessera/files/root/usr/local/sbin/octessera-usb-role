@@ -1,0 +1,195 @@
+#!/bin/sh
+set -eu
+
+BOOT_ROOT=${OCTESSERA_USB_ROLE_BOOT_ROOT:-}
+
+config_path() {
+    preferred="$BOOT_ROOT/boot/firmware/config.txt"
+    fallback="$BOOT_ROOT/boot/config.txt"
+    if [ -e "$preferred" ] || [ -L "$preferred" ]; then
+        printf '%s\n' "$preferred"
+    elif [ -e "$fallback" ] || [ -L "$fallback" ]; then
+        printf '%s\n' "$fallback"
+    else
+        printf '%s\n' 'Raspberry boot config is missing' >&2
+        return 255
+    fi
+}
+
+case "${1:-}" in
+    host|gadget|is-gadget)
+        role_action=$1
+        ;;
+    *)
+        printf '%s\n' "usage: $0 host|gadget|is-gadget" >&2
+        exit 2
+        ;;
+esac
+
+config_path=$(config_path)
+exec python3 - "$config_path" "$role_action" <<'PY'
+import os
+import re
+import stat
+import sys
+import tempfile
+
+
+CONFIG_PATH = sys.argv[1]
+ACTION = sys.argv[2]
+STORAGE_STATE = os.environ.get(
+    "OCTESSERA_USB_STORAGE_STATE", "/run/octessera-usb-storage.state"
+)
+ROLE_LINES = {
+    b"dtoverlay=dwc2,dr_mode=peripheral": "gadget",
+    b"dtoverlay=dwc2,dr_mode=host": "host",
+}
+DW_C2_DIRECTIVE = re.compile(rb"^dtoverlay\s*=\s*dwc2(?:,|$)")
+
+
+def fail(message: str, status: int = 255) -> None:
+    print(f"octessera-usb-role: {message}", file=sys.stderr)
+    raise SystemExit(status)
+
+
+def validate_storage_state() -> None:
+    try:
+        metadata = os.lstat(STORAGE_STATE)
+    except FileNotFoundError:
+        return
+    except OSError as error:
+        fail(f"cannot inspect {STORAGE_STATE}: {error}", 1)
+    if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+        fail("USB SD2 storage state must be a regular, unlinked file", 1)
+    if metadata.st_uid != 0 or metadata.st_gid != 0:
+        fail("USB SD2 storage state must be root-owned", 1)
+    try:
+        with open(STORAGE_STATE, "rb") as handle:
+            fields = handle.read().splitlines()
+    except OSError as error:
+        fail(f"cannot read {STORAGE_STATE}: {error}", 1)
+    values = {}
+    for line in fields:
+        if line.startswith(b"DEV=") and "DEV" not in values:
+            values["DEV"] = line[4:]
+        elif line in (b"WAS_MOUNTED=0", b"WAS_MOUNTED=1") and "WAS_MOUNTED" not in values:
+            values["WAS_MOUNTED"] = line[-1:]
+        else:
+            fail("USB SD2 storage state is malformed", 1)
+    device = values.get("DEV", b"")
+    if not device:
+        fail("USB SD2 storage state is missing its device", 1)
+    try:
+        device_metadata = os.stat(os.fsdecode(device))
+    except OSError as error:
+        fail(f"USB SD2 storage state device is unavailable: {error}", 1)
+    if not stat.S_ISBLK(device_metadata.st_mode) or "WAS_MOUNTED" not in values:
+        fail("USB SD2 storage state is malformed", 1)
+
+
+try:
+    metadata = os.lstat(CONFIG_PATH)
+except OSError as error:
+    fail(f"cannot inspect {CONFIG_PATH}: {error}")
+if not stat.S_ISREG(metadata.st_mode):
+    fail("boot config must be a regular file")
+if metadata.st_nlink != 1:
+    fail("boot config must not be hard-linked")
+if metadata.st_uid != 0 or metadata.st_gid != 0:
+    fail("boot config must be root-owned")
+mode = stat.S_IMODE(metadata.st_mode)
+if not mode & 0o400 or mode & 0o022 or metadata.st_mode & (stat.S_ISUID | stat.S_ISGID | stat.S_ISVTX):
+    fail("boot config has unsafe metadata")
+
+try:
+    with open(CONFIG_PATH, "rb") as handle:
+        content = handle.read()
+except OSError as error:
+    fail(f"cannot read {CONFIG_PATH}: {error}")
+
+lines = content.splitlines(keepends=True)
+candidates = []
+all_sections = []
+section = None
+for index, line in enumerate(lines):
+    body = line.rstrip(b"\r\n")
+    stripped = body.strip()
+    if stripped == b"[all]":
+        all_sections.append(index)
+        section = "all"
+        continue
+    if stripped.startswith(b"[") and stripped.endswith(b"]"):
+        section = None
+        continue
+    if stripped.startswith(b"#") or not stripped:
+        continue
+    if DW_C2_DIRECTIVE.match(stripped):
+        if section == "all" and body == stripped and stripped in ROLE_LINES:
+            candidates.append((index, body, stripped))
+        else:
+            fail("boot config contains a competing or malformed dwc2 directive")
+if len(all_sections) != 1:
+    fail("boot config must contain exactly one managed [all] block")
+if len(candidates) != 1:
+    fail("boot config must contain exactly one managed USB role line in [all]")
+index, body, role_line = candidates[0]
+if body != role_line or role_line not in ROLE_LINES:
+    fail("boot config contains a malformed managed USB role line")
+current_role = ROLE_LINES[role_line]
+
+if ACTION == "is-gadget":
+    raise SystemExit(0 if current_role == "gadget" else 1)
+if os.geteuid() != 0:
+    fail("role changes require root", 1)
+desired_role = ACTION
+if desired_role == "host":
+    validate_storage_state()
+    if os.path.exists(STORAGE_STATE) or os.path.islink(STORAGE_STATE):
+        fail("cannot apply host role while USB SD2 transfer is active", 1)
+if desired_role == current_role:
+    raise SystemExit(0)
+
+old_line = lines[index]
+ending = old_line[len(body):]
+lines[index] = f"dtoverlay=dwc2,dr_mode={'peripheral' if desired_role == 'gadget' else 'host'}".encode() + ending
+parent = os.path.dirname(CONFIG_PATH) or "."
+temporary = None
+try:
+    descriptor, temporary = tempfile.mkstemp(prefix=".octessera-usb-role.", dir=parent)
+    os.fchmod(descriptor, mode)
+    os.fchown(descriptor, metadata.st_uid, metadata.st_gid)
+    with os.fdopen(descriptor, "wb") as handle:
+        descriptor = None
+        handle.write(b"".join(lines))
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, CONFIG_PATH)
+    temporary = None
+except OSError as error:
+    fail(f"cannot atomically update {CONFIG_PATH}: {error}", 1)
+finally:
+    if descriptor is not None:
+        os.close(descriptor)
+    if temporary is not None:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+
+directory = None
+try:
+    directory = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+except OSError as error:
+    print(f"octessera-usb-role: directory sync open after commit failed: {error}", file=sys.stderr)
+if directory is not None:
+    try:
+        try:
+            os.fsync(directory)
+        except OSError as error:
+            print(f"octessera-usb-role: directory sync after commit failed: {error}", file=sys.stderr)
+    finally:
+        try:
+            os.close(directory)
+        except OSError as error:
+            print(f"octessera-usb-role: directory sync close after commit failed: {error}", file=sys.stderr)
+PY

@@ -60,6 +60,21 @@ for arg in "$@"; do
       ;;
   esac
 done
+case "${1:-}" in
+  */usr/local/sbin/octessera-usb-role)
+    role="$2"
+    role_line=host
+    [ "$role" = gadget ] && role_line=peripheral
+    config="$SYSROOT/boot/firmware/config.txt"
+    if grep -Eq '^[[:space:]]*dtoverlay=dwc2,dr_mode=(peripheral|host)[[:space:]]*$' "$config"; then
+      sed -i -E 's#^[[:space:]]*dtoverlay=dwc2,dr_mode=(peripheral|host)[[:space:]]*$#dtoverlay=dwc2,dr_mode='"$role_line"'#' "$config"
+    else
+      printf '%s\n' "dtoverlay=dwc2,dr_mode=$role_line" >> "$config"
+    fi
+    echo "usb-role $*" >> "$FAKE_STATE/usb-role.log"
+    exit 0
+    ;;
+esac
 exec "$@"
 EOF
 
@@ -295,6 +310,12 @@ expect_rc "sc4" 75
 expect_err_match "sc4" "Boot configuration changed"
 assert_file "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-gadget"
 assert_mode "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-gadget" 755
+assert_file "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-role"
+assert_mode "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-role" 755
+assert_file "sc4" "$FIXTURE/usr/local/lib/octessera/device_config.py"
+assert_mode "sc4" "$FIXTURE/usr/local/lib/octessera/device_config.py" 644
+assert_file "sc4" "$FIXTURE/etc/sudoers.d/octessera-usb-role"
+assert_mode "sc4" "$FIXTURE/etc/sudoers.d/octessera-usb-role" 440
 assert_file "sc4" "$FIXTURE/etc/systemd/system/octessera.service"
 assert_mode "sc4" "$FIXTURE/etc/systemd/system/octessera.service" 644
 assert_file "sc4" "$FIXTURE/etc/systemd/system/octessera.service.d/audio-realtime.conf"
@@ -308,9 +329,13 @@ if grep -q $'\r' "$FIXTURE/etc/sudoers.d/octessera-shutdown"; then
   exit 1
 fi
 assert_log_contains "sc4" "visudo.log" "octessera-shutdown"
+assert_log_contains "sc4" "visudo.log" "octessera-usb-role"
+assert_log_contains "sc4" "usb-role.log" "gadget"
 assert_contains "sc4" "$FIXTURE/etc/octessera/board-profile.env" "OCTESSERA_BOARD_PROFILE_ID=raspberry-pi-zero-2w"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^dtoverlay=disable-bt$"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^enable_uart=0$"
+assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^\[all\]$"
+[[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=(peripheral|host)$' "$FIXTURE/boot/firmware/config.txt")" == 1 ]]
 assert_not_contains "sc4" "$FIXTURE/boot/firmware/cmdline.txt" "serial0"
 assert_not_contains "sc4" "$FIXTURE/boot/firmware/cmdline.txt" "ttyAMA0"
 assert_not_contains "sc4" "$FIXTURE/boot/firmware/cmdline.txt" "ttyS0"
@@ -335,7 +360,23 @@ assert_log_contains "sc5" "systemctl.log" "enable octessera.service"
 assert_log_contains "sc5" "systemctl.log" "daemon-reload"
 pass "idempotent second run exits 0"
 
-# 6. Explicit initramfs handling installs the current static hook inputs before refreshing the image.
+# 6. A persisted Host configuration is reconciled without reverting to gadget.
+new_fixture
+mkdir -p "$FIXTURE/home/pi/presets"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
+printf '%s\n' 'dtoverlay=dwc2,dr_mode=host' >> "$FIXTURE/boot/firmware/config.txt"
+run_provision default
+expect_rc "sc-host" 75
+assert_log_contains "sc-host" "usb-role.log" "host"
+assert_not_contains "sc-host" "$FIXTURE/boot/firmware/config.txt" "dr_mode=peripheral"
+assert_contains "sc-host" "$FIXTURE/boot/firmware/config.txt" "^\[all\]$"
+[[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=host$' "$FIXTURE/boot/firmware/config.txt")" == 1 ]]
+run_provision default
+expect_rc "sc-host-repeat" 0
+assert_not_contains "sc-host-repeat" "$FIXTURE/boot/firmware/config.txt" "dr_mode=peripheral"
+pass "persisted host role is preserved during provisioning"
+
+# 7. Explicit initramfs handling installs the current static hook inputs before refreshing the image.
 new_fixture
 run_provision explicit
 expect_rc "sc6" 75

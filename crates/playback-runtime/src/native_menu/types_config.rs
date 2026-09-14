@@ -1,4 +1,4 @@
-use crate::native_runner::{AudioOptimization, AudioOutputSet};
+use crate::native_runner::{AudioOptimization, AudioOutputSet, UsbDataRole};
 use crate::protocol::SyncSource;
 use realtime_engine::synth::DspRuntimeConfig;
 
@@ -87,6 +87,8 @@ pub struct NativeMenuConfig {
     pub jack_audio_required: bool,
     pub audio_optimization: AudioOptimization,
     pub audio_optimization_capacity_available: bool,
+    pub usb_data_role: UsbDataRole,
+    pub usb_data_role_available: bool,
     pub usb_midi_out_enabled: bool,
     pub recording_max_minutes: u16,
     pub hdmi_mode: String,
