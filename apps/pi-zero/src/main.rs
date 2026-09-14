@@ -92,6 +92,8 @@ mod persistence;
 mod platform_service;
 mod power_lifecycle;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod rpi_device_apply;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod runtime_loop;
@@ -113,6 +115,8 @@ mod ui_profile;
 mod update_menu_fixture_tests;
 #[cfg(feature = "native-audio")]
 mod usb_config;
+#[cfg(feature = "native-audio")]
+mod usb_config_validation;
 mod user_data_archive;
 mod user_data_restore;
 mod user_data_transfer;
@@ -404,6 +408,7 @@ fn main() {
         midi_handler,
         usb_midi_out_enabled: usb_config.midi_out_enabled,
         audio_outputs: usb_config.audio_outputs,
+        usb_data_role: usb_config.data_role,
         audio_optimization,
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx,

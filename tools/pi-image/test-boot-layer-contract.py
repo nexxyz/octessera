@@ -74,11 +74,18 @@ def validate(document: dict[str, Any], root: Path) -> None:
     composer_sources = [source for source in source_inputs if source["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget"]
     if len(composer_sources) != 1:
         raise ValueError("Raspberry USB gadget composer source identity is not unique")
+    for path in (
+        "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role",
+        "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-gadget.service",
+        "tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role",
+    ):
+        if len([source for source in source_inputs if source["path"] == path]) != 1:
+            raise ValueError(f"Raspberry USB role source identity is not unique: {path}")
 
     live_inputs = document["live_parity_inputs"]
     if live_inputs != [
         {"path": "tools/pi/deploy-pi.sh", "sha256": "54ea212f4fefa218315d3a9a9e982e3cfcc311cea832be339e8733ce6b1179ce", "size": 17245},
-        {"path": "tools/pi/provision/provision.sh", "sha256": "5309db2d7d66abf221636d48b06b189b538d29ff2095a0999d0238105d00ea03", "size": 14552},
+        {"path": "tools/pi/provision/provision.sh", "sha256": "86a971826a864ba0bd266c2dbba3496d54be7d8d820db08a247a7a2cfb475455", "size": 15993},
     ]:
         raise ValueError("Raspberry live parity input identities are not exact")
     for source in live_inputs:
@@ -184,6 +191,13 @@ def validate(document: dict[str, Any], root: Path) -> None:
         raise ValueError("Raspberry default managed output is not exact")
     if {"classification": "usb-gadget-composer", "path": "usr/local/sbin/octessera-usb-gadget", "type": "file", "mode": 493, "uid": 0, "gid": 0} not in outputs:
         raise ValueError("Raspberry USB gadget composer managed output is not exact")
+    for expected in (
+        {"classification": "usb-role-helper", "path": "usr/local/sbin/octessera-usb-role", "type": "file", "mode": 493, "uid": 0, "gid": 0},
+        {"classification": "usb-gadget-service", "path": "etc/systemd/system/octessera-usb-gadget.service", "type": "file", "mode": 420, "uid": 0, "gid": 0},
+        {"classification": "usb-role-sudoers", "path": "etc/sudoers.d/octessera-usb-role", "type": "file", "mode": 288, "uid": 0, "gid": 0},
+    ):
+        if expected not in outputs:
+            raise ValueError(f"Raspberry USB role managed output is not exact: {expected['path']}")
 
     selected = document["selected_initramfs"]
     if set(selected) != {

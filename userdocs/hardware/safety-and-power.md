@@ -47,6 +47,21 @@ path is unclear. See the [pinout and connections](pinout-and-connections.md),
 [Orange bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md), and
 [board qualification page](board-qualification.md).
 
+## Raspberry USB data-role changes
+
+- A Raspberry USB data-role change is next-boot only. Apply the setting and wait
+  for the OLED to report the reboot result; never try to switch the role live.
+- Before applying, unplug the computer's USB data cable. Keep the instrument
+  powered through the PCB `PWR IN`/enclosure USB-C breakout; do not power the Pi
+  through its micro-USB power connector.
+- For Host mode, use an ID-grounded OTG adapter. A powered hub is preferred only
+  when its upstream path is known to be non-backfeeding. Never connect two power
+  sources and hope the cable sorts it out.
+- Host mode disables gadget USB Audio, USB MIDI, and new SD2 transfers. If a
+  stale SD2 transfer state remains, Stop Transfer is the cleanup path: it
+  remounts the card when required and leaves the gadget absent. Gadget mode
+  restores those image-side paths after reboot.
+
 ## Orientation and enclosure handling
 
 - Check the NeoKey and NeoTrellis connector orientation before power. `INT`

@@ -47,6 +47,7 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) usb_midi_out_enabled: bool,
     pub(crate) audio_outputs: playback_runtime::AudioOutputSet,
+    pub(crate) usb_data_role: playback_runtime::UsbDataRole,
     pub(crate) audio_optimization: AudioOptimization,
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     pub(crate) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,

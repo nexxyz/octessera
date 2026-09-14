@@ -52,6 +52,30 @@ def test_helper(path, index):
             else:
                 raise AssertionError(payload)
 
+        role_cases = (
+            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}}, "gadget"),
+            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"dataRole": "gadget"}}, "gadget"),
+            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"dataRole": "host"}}, "host"),
+        )
+        for runtime, expected in role_cases:
+            config.write_text(json.dumps({"runtimeConfig": runtime}), encoding="utf-8")
+            assert helper.load_data_role(config) == expected
+            result = subprocess.run([sys.executable, str(path), str(config)], capture_output=True, text=True, check=True)
+            assert result.stdout.strip() == "0 0"
+
+        for runtime in (
+            {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"dataRole": "host"}},
+            {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"dataRole": "host", "midiOutEnabled": True}},
+            {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"dataRole": "sideways"}},
+        ):
+            config.write_text(json.dumps({"runtimeConfig": runtime}), encoding="utf-8")
+            try:
+                helper.load_data_role(config)
+            except helper.ConfigError:
+                pass
+            else:
+                raise AssertionError(runtime)
+
         config.write_text('{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"audioOutputs":{"dac":true,"usb":false,"hdmi":false}}}', encoding="utf-8")
         try:
             helper.load_config(config)

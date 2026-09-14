@@ -53,6 +53,13 @@ paths. The Linux Foundation VID/PID values used by the local composers are not a
 public product identity. Do not advertise USB support until an authorized
 identity and the electrical/manual FAT gates are recorded for the exact image.
 
+For Raspberry role qualification, record both next-boot transitions with the
+computer unplugged before apply: Gadget must restore the Audio/MIDI gadget and
+SD2 path, while Host must skip gadget setup and report SD2 unavailable. Use the
+fixed `PWR IN` supply path and an ID-grounded OTG adapter; a powered hub is
+acceptable only when its upstream path is verified non-backfeeding. Source,
+ConfigFS-fake, and image checks do not prove these physical results.
+
 For both boards, setup-portal and boot-handoff source contracts must not be read
 as proof that a freshly flashed card has been qualified. Record the board
 revision, image identity, PCB/harness revision, and bench observations when you

@@ -60,6 +60,12 @@ pub(crate) use platform_service_store::{
 pub(crate) use system_info::{regular_wlan0_ipv4, RegularWlan0Ipv4};
 const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
+pub(crate) const USB_STORAGE_STATE_PATH: &str = "/run/octessera-usb-storage.state";
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+type UsbRoleApplier = crate::rpi_device_apply::UsbRoleApplier;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+type UsbRoleApplier = ();
 
 pub struct PiPlatformService {
     store_dir: PathBuf,
@@ -94,6 +100,35 @@ impl PiPlatformService {
         samples_dir: PathBuf,
         update_executor: Arc<dyn device_update::UpdateExecutor>,
     ) -> Self {
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        {
+            Self::new_with_executor_and_role_applier(
+                store_dir,
+                samples_dir,
+                update_executor,
+                production_usb_role_applier(),
+                PathBuf::from(USB_STORAGE_STATE_PATH),
+            )
+        }
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        {
+            Self::new_with_executor_and_role_applier(
+                store_dir,
+                samples_dir,
+                update_executor,
+                (),
+                PathBuf::from(USB_STORAGE_STATE_PATH),
+            )
+        }
+    }
+
+    fn new_with_executor_and_role_applier(
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        update_executor: Arc<dyn device_update::UpdateExecutor>,
+        role_applier: UsbRoleApplier,
+        storage_state: PathBuf,
+    ) -> Self {
         let setup_portal = SetupPortalService::production();
         let store_lock = Arc::new(Mutex::new(()));
         let user_data_transfer = UserDataTransferService::production(
@@ -110,7 +145,30 @@ impl PiPlatformService {
             user_data_transfer,
             store_lock,
             store_write_barrier,
-            update_executor,
+            platform_service_worker::PlatformWorkerConfig {
+                update_executor,
+                role_applier,
+                storage_state,
+            },
+        )
+    }
+
+    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    pub(crate) fn new_with_role_applier(
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        role_applier: UsbRoleApplier,
+    ) -> Self {
+        let storage_state = store_dir
+            .parent()
+            .unwrap_or(Path::new("."))
+            .join("storage.state");
+        Self::new_with_executor_and_role_applier(
+            store_dir,
+            samples_dir,
+            device_update::production_executor(),
+            role_applier,
+            storage_state,
         )
     }
 
@@ -121,7 +179,7 @@ impl PiPlatformService {
         user_data_transfer: UserDataTransferService,
         store_lock: Arc<Mutex<()>>,
         store_write_barrier: StoreWriteBarrier,
-        update_executor: Arc<dyn device_update::UpdateExecutor>,
+        worker_config: platform_service_worker::PlatformWorkerConfig,
     ) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
         let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
@@ -140,7 +198,7 @@ impl PiPlatformService {
             result_lane.clone(),
             store_lock.clone(),
             store_write_barrier.clone(),
-            update_executor,
+            worker_config,
         );
         Self {
             store_dir,
@@ -182,7 +240,11 @@ impl PiPlatformService {
             user_data_transfer,
             store_lock,
             store_write_barrier,
-            device_update::production_executor(),
+            platform_service_worker::PlatformWorkerConfig {
+                update_executor: device_update::production_executor(),
+                role_applier: production_usb_role_applier(),
+                storage_state: PathBuf::from(USB_STORAGE_STATE_PATH),
+            },
         )
     }
 
@@ -203,15 +265,19 @@ impl PiPlatformService {
     }
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    pub fn save_default_now(&self, payload: &serde_json::Value) -> Result<(), String> {
-        crate::usb_config::validate_pi_audio_outputs_payload(payload)?;
+    pub(crate) fn apply_device_config(&self, payload: &serde_json::Value) -> Result<(), String> {
         let generation = self.store_write_barrier.current_generation();
         let _guard = self
             .store_lock
             .lock()
             .map_err(|_| "pi store is unavailable".to_string())?;
-        self.ensure_store_write_allowed(generation)?;
-        save_json(&self.store_dir.join("default.json"), payload)
+        if self.store_write_barrier.is_blocked() {
+            return Err("restore is awaiting restored-state acknowledgement".into());
+        }
+        if generation != self.store_write_barrier.current_generation() {
+            return Err("store write was superseded by restore".into());
+        }
+        crate::rpi_device_apply::apply_locked(&self.store_dir, payload)
     }
 
     pub fn enqueue(&self, mut job: PlatformJob) -> Result<(), String> {
@@ -269,18 +335,15 @@ impl PiPlatformService {
     pub(crate) fn invalidate_store_writes_for_test(&self) {
         self.store_write_barrier.invalidate();
     }
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    fn ensure_store_write_allowed(&self, generation: u64) -> Result<(), String> {
-        if self.store_write_barrier.is_blocked() {
-            return Err("restore is awaiting restored-state acknowledgement".into());
-        }
-        if generation != self.store_write_barrier.current_generation() {
-            return Err("store write was superseded by restore".into());
-        }
-        Ok(())
-    }
 }
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn production_usb_role_applier() -> UsbRoleApplier {
+    Arc::new(crate::rpi_device_apply::apply_usb_role)
+}
+
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+fn production_usb_role_applier() -> UsbRoleApplier {}
 
 impl Drop for PiPlatformService {
     fn drop(&mut self) {

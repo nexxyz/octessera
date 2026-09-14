@@ -19,7 +19,8 @@ impl PiPlaybackHostAdapter {
         payload: &serde_json::Value,
         mode: Option<&str>,
     ) -> Result<Option<RuntimeStoreResult>, String> {
-        if let Err(message) = crate::usb_config::validate_pi_audio_outputs_payload(payload) {
+        if let Err(message) = crate::usb_config_validation::validate_raspberry_usb_payload(payload)
+        {
             return Ok(Some(RuntimeStoreResult::RuntimeFailure {
                 error: request.failure_facts(message),
             }));

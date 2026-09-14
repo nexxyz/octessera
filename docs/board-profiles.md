@@ -104,6 +104,17 @@ not connected HDMI audio or audible qualification.
 MIDI uses the native host adapter, including USB MIDI when the configured gadget
 port is present.
 
+### Raspberry USB data role
+
+On Raspberry, `usb.dataRole` selects the next-boot USB data role. `gadget` is
+the default and enables the image-side Audio/MIDI gadget and SD2 transfer path;
+`host` disables those paths and requires USB Audio and USB MIDI output to be
+off. Applying a role is a serialized save, checked exact `[all]` boot-config
+mutation, and reboot transaction; an active authoritative SD2 transfer rejects
+Host before the default is written. It is not a live USB switch. Full image
+construction or Pi provisioning installs the role helper and boot contract.
+Runtime updates and fast binary deployment do not change boot configuration.
+
 The Orange image-side USB gadget reads the persisted default at
 `/var/lib/octessera/presets/default.json`. `audioOutputs.usb` enables the fixed
 44.1 kHz stereo UAC2 function and `usb.midiOutEnabled` enables the fixed MIDI

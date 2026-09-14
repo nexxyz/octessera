@@ -23,6 +23,7 @@ pub struct NativeRunnerConfig {
     pub audio_optimization: AudioOptimization,
     pub audio_optimization_capacity_available: bool,
     pub jack_audio_required: bool,
+    pub usb_data_role_available: bool,
     pub sample_builtin_favourite_dirs: Vec<String>,
 }
 
@@ -55,6 +56,7 @@ impl Default for NativeRunnerConfig {
             audio_optimization: AudioOptimization::Latency,
             audio_optimization_capacity_available: false,
             jack_audio_required: false,
+            usb_data_role_available: false,
             sample_builtin_favourite_dirs: Vec::new(),
         }
     }

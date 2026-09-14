@@ -1,6 +1,6 @@
 #[cfg(any(test, feature = "native-audio"))]
 use playback_runtime::AudioOptimization;
-use playback_runtime::AudioOutputSet;
+use playback_runtime::{AudioOutputSet, UsbDataRole};
 #[cfg(any(test, feature = "native-audio"))]
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
@@ -34,6 +34,7 @@ impl From<UsbAudioOut> for AudioOutputSet {
 pub(crate) struct UsbRuntimeConfig {
     pub(crate) audio_outputs: AudioOutputSet,
     pub(crate) midi_out_enabled: bool,
+    pub(crate) data_role: UsbDataRole,
 }
 
 impl Default for UsbRuntimeConfig {
@@ -41,6 +42,7 @@ impl Default for UsbRuntimeConfig {
         Self {
             audio_outputs: AudioOutputSet::jack(),
             midi_out_enabled: false,
+            data_role: UsbDataRole::Gadget,
         }
     }
 }
@@ -200,36 +202,41 @@ pub(crate) fn parse_usb_runtime_config(
             ))
         }
     };
+    let data_role = match usb.and_then(|usb| usb.get("dataRole")) {
+        None => UsbDataRole::Gadget,
+        Some(serde_json::Value::String(value)) => match value.as_str() {
+            "gadget" => UsbDataRole::Gadget,
+            "host" => UsbDataRole::Host,
+            _ => {
+                return Err(UsbConfigError::Invalid(
+                    "runtimeConfig.usb.dataRole must be `gadget` or `host`".into(),
+                ))
+            }
+        },
+        Some(_) => {
+            return Err(UsbConfigError::Invalid(
+                "runtimeConfig.usb.dataRole must be `gadget` or `host`".into(),
+            ))
+        }
+    };
+    if data_role == UsbDataRole::Host && (audio_outputs.usb() || midi_out_enabled) {
+        return Err(UsbConfigError::Invalid(
+            "host USB data role requires USB audio and MIDI output to be disabled".into(),
+        ));
+    }
     Ok(UsbRuntimeConfig {
         audio_outputs,
         midi_out_enabled,
+        data_role,
     })
-}
-
-pub(crate) fn validate_pi_audio_outputs_payload(payload: &serde_json::Value) -> Result<(), String> {
-    let root = payload.get("runtimeConfig").unwrap_or(payload);
-    let Some(root) = root.as_object() else {
-        return Ok(());
-    };
-    let Some(audio_outputs) = root.get("audioOutputs") else {
-        return Ok(());
-    };
-    if audio_outputs
-        .get("dac")
-        .and_then(serde_json::Value::as_bool)
-        == Some(false)
-    {
-        return Err("Jack Audio is always on".into());
-    }
-    if !AudioOutputSet::decode(audio_outputs)?.dac() {
-        return Err("Jack Audio is always on".into());
-    }
-    Ok(())
 }
 
 #[cfg(test)]
 #[path = "usb_config_audio_optimization_tests.rs"]
 mod audio_optimization_tests;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[path = "usb_config_role_tests.rs"]
+mod role_tests;
 
 #[cfg(test)]
 mod tests {
@@ -256,6 +263,7 @@ mod tests {
             UsbRuntimeConfig {
                 audio_outputs: AudioOutputSet::from_flags(true, true, false).unwrap(),
                 midi_out_enabled: true,
+                data_role: UsbDataRole::Gadget,
             }
         );
     }
@@ -277,12 +285,13 @@ mod tests {
 
     #[test]
     fn rejects_missing_jack_before_a_pi_config_write() {
-        let error = validate_pi_audio_outputs_payload(&serde_json::json!({
-            "runtimeConfig": {
-                "audioOutputs": { "dac": false, "usb": false, "hdmi": false }
-            }
-        }))
-        .unwrap_err();
+        let error =
+            crate::usb_config_validation::validate_pi_audio_outputs_payload(&serde_json::json!({
+                "runtimeConfig": {
+                    "audioOutputs": { "dac": false, "usb": false, "hdmi": false }
+                }
+            }))
+            .unwrap_err();
         assert_eq!(error, "Jack Audio is always on");
     }
 

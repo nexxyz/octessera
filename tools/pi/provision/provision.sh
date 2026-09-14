@@ -120,10 +120,14 @@ test -f "$CMDLINE"
 BOOT_STATE_BEFORE=$(sha256sum "$BOOT_CONFIG" "$CMDLINE")
 sudo systemctl stop "$SERVICE" >/dev/null 2>&1 || true
 
+if ! grep -qxF '[all]' "$BOOT_CONFIG"; then
+    printf '\n%s\n' '[all]' | sudo tee -a "$BOOT_CONFIG" >/dev/null
+fi
+
 while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
         ''|'#'*) continue ;;
-        dtoverlay=disable-bt|enable_uart=0) continue ;;
+        dtoverlay=disable-bt|dtoverlay=dwc2,dr_mode=peripheral|enable_uart=0|\[all\]) continue ;;
     esac
     ensure_boot_config_line "$line"
 done < "$PROVISION_ROOT/boot/config.txt.append"
@@ -138,6 +142,8 @@ sudo rm -f \
     "$(target_path /etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service)"
 
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-gadget" /usr/local/sbin/octessera-usb-gadget
+install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-role" /usr/local/sbin/octessera-usb-role
+install_file 0644 "$IMAGE_ROOT/usr/local/lib/octessera/device_config.py" /usr/local/lib/octessera/device_config.py
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update" /usr/local/sbin/octessera-update
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update-guard" /usr/local/sbin/octessera-update-guard
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update-recovery" /usr/local/sbin/octessera-update-recovery
@@ -152,6 +158,7 @@ install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-update-recovery.serv
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-usb-gadget.service" /etc/systemd/system/octessera-usb-gadget.service
 install_file 0644 "$IMAGE_ROOT/etc/modules-load.d/octessera-usb-gadget.conf" /etc/modules-load.d/octessera-usb-gadget.conf
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-usb-storage" /etc/sudoers.d/octessera-usb-storage
+install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-usb-role" /etc/sudoers.d/octessera-usb-role
 sudo install -d -m 0755 "$SERVICE_TARGET.d"
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera.service.d/audio-realtime.conf" "/etc/systemd/system/$SERVICE.d/audio-realtime.conf"
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-boot-splash.service" /etc/systemd/system/octessera-boot-splash.service
@@ -220,13 +227,15 @@ sudo sed -i 's/\r$//' \
 
 sudo visudo -cf "$(target_path /etc/sudoers.d/octessera-shutdown)" >/dev/null
 sudo visudo -cf "$(target_path /etc/sudoers.d/octessera-usb-storage)" >/dev/null
+sudo visudo -cf "$(target_path /etc/sudoers.d/octessera-usb-role)" >/dev/null
 sudo visudo -cf "$(target_path /etc/sudoers.d/octessera-update)" >/dev/null
 
 if [ "$UPDATE_INITRAMFS" = "1" ]; then
     if ! grep -qxF "# octessera required boot settings" "$BOOT_CONFIG" && ! grep -qxF "# Octessera required boot settings" "$BOOT_CONFIG"; then
         printf '\n' | sudo tee -a "$BOOT_CONFIG" >/dev/null
         # shellcheck disable=SC2024
-        sudo tee -a "$BOOT_CONFIG" < "$PROVISION_ROOT/boot/config.txt.initramfs.append" >/dev/null
+        sed '/^\[all\]$/d' "$PROVISION_ROOT/boot/config.txt.initramfs.append" |
+            sudo tee -a "$BOOT_CONFIG" >/dev/null
     fi
     ensure_boot_config_line "dtparam=spi=on"
     ensure_boot_config_line "auto_initramfs=1"
@@ -248,7 +257,26 @@ else
     echo "Skipping initramfs update; pass -UpdateInitramfs when an OS or boot change requires a rebuild."
 fi
 
+sudo sed -i -E '/^[[:space:]]*dtoverlay=dwc2,dr_mode=(peripheral|host)[[:space:]]*$/d' "$BOOT_CONFIG"
+all_sections=$(grep -Ec '^\[all\]$' "$BOOT_CONFIG")
+if [ "$all_sections" -ne 1 ]; then
+    echo "Raspberry boot config must contain exactly one [all] block; found $all_sections." >&2
+    exit 1
+fi
+sudo sed -i '/^\[all\]$/a dtoverlay=dwc2,dr_mode=peripheral' "$BOOT_CONFIG"
+
 ensure_raspberry_uart_inactive
+
+desired_usb_role=gadget
+device_config=$(target_path /home/pi/presets/default.json)
+if [ -e "$device_config" ] || [ -L "$device_config" ]; then
+    desired_usb_role=$(python3 "$IMAGE_ROOT/usr/local/lib/octessera/device_config.py" --data-role "$device_config")
+fi
+if [ -n "$SYSROOT" ]; then
+    OCTESSERA_USB_ROLE_BOOT_ROOT="$SYSROOT" sudo "$(target_path /usr/local/sbin/octessera-usb-role)" "$desired_usb_role"
+else
+    sudo /usr/local/sbin/octessera-usb-role "$desired_usb_role"
+fi
 
 sudo install -d -m 0750 "$(target_path /etc/sudoers.d)"
 sudo systemctl restart systemd-journald

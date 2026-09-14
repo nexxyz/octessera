@@ -220,6 +220,41 @@ pub(crate) fn system_tree_has_exact_order_and_platform_visibility() {
         vec!["Mode", "Grid Lines"]
     );
 
+    let mut raspberry = config();
+    raspberry.jack_audio_required = true;
+    raspberry.audio_optimization_capacity_available = true;
+    raspberry.usb_data_role_available = true;
+    let labels = system_labels(&raspberry);
+    assert_eq!(
+        labels.iter().position(|label| label == "USB Role"),
+        Some(labels.iter().position(|label| label == "Audio").unwrap() + 1)
+    );
+    assert_eq!(
+        group_labels(&raspberry, "SD Card 2"),
+        vec!["Start Transfer", "Stop Transfer"]
+    );
+
+    raspberry.usb_data_role = crate::native_runner::UsbDataRole::Host;
+    assert_eq!(
+        group_labels(&raspberry, "Audio"),
+        vec!["HDMI Audio", "Perf. Mode", "Polyphony", "Engine"]
+    );
+    assert_eq!(
+        group_labels(&raspberry, "MIDI"),
+        vec!["Enabled", "MIDI Out", "MIDI In", "Sync / Clock"]
+    );
+    assert_eq!(group_labels(&raspberry, "SD Card 2"), vec!["Stop Transfer"]);
+    let role = NativeMenuModel::new(raspberry)
+        .item_for_key("usb.dataRole")
+        .expect("USB Role row");
+    assert_eq!(
+        role.value,
+        NativeMenuValue::Enum {
+            options: vec!["Gadget".into(), "Host".into()],
+            selected: 1,
+        }
+    );
+
     let menu = NativeMenuModel::new(board);
     assert!(matches!(
         menu.item_for_key("preset.load").map(|item| item.value),
@@ -307,7 +342,7 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
     assert_eq!(menu.current_label(), Some("USB Audio"));
 }
 
-fn system_labels(config: &NativeMenuConfig) -> Vec<String> {
+pub(super) fn system_labels(config: &NativeMenuConfig) -> Vec<String> {
     let root = build_root(config.clone());
     root.children
         .iter()
@@ -322,7 +357,7 @@ fn system_labels(config: &NativeMenuConfig) -> Vec<String> {
         .expect("System group")
 }
 
-fn group_labels(config: &NativeMenuConfig, path: &str) -> Vec<String> {
+pub(super) fn group_labels(config: &NativeMenuConfig, path: &str) -> Vec<String> {
     let mut item = build_root(config.clone())
         .children
         .into_iter()

@@ -26,6 +26,13 @@ first_udc() {
 read_device_config() {
   python3 "$DEVICE_CONFIG_VALIDATOR" "$CONFIG"
 }
+read_device_role() {
+  python3 "$DEVICE_CONFIG_VALIDATOR" --data-role "$CONFIG"
+}
+require_gadget_role() {
+  role=$(read_device_role) || { log "invalid persisted device config"; return 1; }
+  [ "$role" = gadget ] || { log "USB gadget actions are unavailable while USB data role is host"; return 1; }
+}
 serial_number() {
   if [ -r /etc/machine-id ]; then
     printf 'octessera-%s\n' "$(cut -c1-16 /etc/machine-id)"
@@ -160,6 +167,7 @@ bind_udc_unlocked() {
 
 setup_unlocked() (
   set -eu
+  require_gadget_role || exit 1
   modprobe dwc2 >/dev/null 2>&1 || true
   modprobe libcomposite >/dev/null 2>&1 || true
   mountpoint -q "$CONFIGFS_ROOT" || mount -t configfs none "$CONFIGFS_ROOT" || true
@@ -299,13 +307,21 @@ write_storage_state() {
 }
 
 read_storage_state() {
-  [ -f "$STORAGE_STATE" ] || return 1
+  [ -f "$STORAGE_STATE" ] || { log "$STORAGE_STATE is missing"; return 1; }
+  [ ! -L "$STORAGE_STATE" ] || { log "$STORAGE_STATE must not be a symlink"; return 1; }
   [ "$(stat -c %u "$STORAGE_STATE")" = 0 ] || { log "$STORAGE_STATE must be root-owned"; return 1; }
-  # shellcheck disable=SC1090
-  . "$STORAGE_STATE"
-  [ -n "${DEV:-}" ] || return 1
+  DEV=
+  WAS_MOUNTED=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      DEV=*) [ -z "$DEV" ] || return 1; DEV=${line#DEV=} ;;
+      WAS_MOUNTED=0|WAS_MOUNTED=1) [ -z "$WAS_MOUNTED" ] || return 1; WAS_MOUNTED=${line#WAS_MOUNTED=} ;;
+      *) return 1 ;;
+    esac
+  done < "$STORAGE_STATE"
+  [ -n "$DEV" ] || return 1
+  [ -n "$WAS_MOUNTED" ] || return 1
   [ -b "$DEV" ] || { log "stored transfer device is not block storage: $DEV"; return 1; }
-  [ "${WAS_MOUNTED:-0}" = 1 ] || WAS_MOUNTED=0
 }
 
 remount_storage_if_needed() {
@@ -352,6 +368,12 @@ storage_create_unlocked() (
 )
 
 storage_start_unlocked() {
+  require_gadget_role || return 1
+  if [ -e "$STORAGE_STATE" ] || [ -L "$STORAGE_STATE" ]; then
+    read_storage_state || { log "storage-start found malformed active storage state"; return 1; }
+    log "storage-start refused because SD2 transfer is already active"
+    return 1
+  fi
   modprobe dwc2 >/dev/null 2>&1 || true
   modprobe libcomposite >/dev/null 2>&1 || true
   modprobe usb_f_mass_storage >/dev/null 2>&1 || true
@@ -393,25 +415,29 @@ storage_start_unlocked() {
 }
 
 storage_stop_unlocked() {
-  state_available=0
-  if read_storage_state; then
-    state_available=1
-  fi
+  read_storage_state || { log "storage-stop requires a valid active storage state"; return 1; }
   if ! storage_teardown_only_unlocked; then
     log "storage stopped; storage gadget disconnect failed"
     exit 1
   fi
-  if [ "$state_available" = 1 ]; then
-    remount_storage_if_needed || {
-      log "storage stopped; remount of $SD_MOUNT failed"
-      exit 1
-    }
-  fi
-  rm -f "$STORAGE_STATE" "$STORAGE_STATE.tmp"
-  setup_unlocked || {
-    log "storage stopped; restored normal gadget setup failed"
+  remount_storage_if_needed || {
+    log "storage stopped; remount of $SD_MOUNT failed"
     exit 1
   }
+  rm -f "$STORAGE_STATE" "$STORAGE_STATE.tmp"
+  role=$(read_device_role) || { log "storage stopped; persisted device config is invalid"; exit 1; }
+  if [ "$role" = gadget ]; then
+    setup_unlocked || {
+      log "storage stopped; restored normal gadget setup failed"
+      exit 1
+    }
+  else
+    teardown_unlocked || {
+      log "storage stopped; host role gadget cleanup failed"
+      exit 1
+    }
+    log "storage stopped; USB data role is host"
+  fi
 }
 
 with_lifecycle_lock() {

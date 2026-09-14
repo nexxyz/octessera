@@ -154,6 +154,8 @@ pub(crate) fn config() -> NativeMenuConfig {
         jack_audio_required: false,
         audio_optimization: crate::native_runner::AudioOptimization::Latency,
         audio_optimization_capacity_available: false,
+        usb_data_role: crate::native_runner::UsbDataRole::Gadget,
+        usb_data_role_available: false,
         usb_midi_out_enabled: false,
         hdmi_mode: "none".into(),
         hdmi_show_gridlines: false,

@@ -1,5 +1,12 @@
 use super::*;
+use std::path::Path;
 use std::thread;
+
+pub(super) struct PlatformWorkerConfig {
+    pub(super) update_executor: Arc<dyn device_update::UpdateExecutor>,
+    pub(super) role_applier: super::UsbRoleApplier,
+    pub(super) storage_state: PathBuf,
+}
 
 pub(super) fn spawn(
     store_dir: PathBuf,
@@ -8,7 +15,7 @@ pub(super) fn spawn(
     results: Arc<PlatformResultLane>,
     store_lock: Arc<Mutex<()>>,
     store_write_barrier: StoreWriteBarrier,
-    update_executor: Arc<dyn device_update::UpdateExecutor>,
+    worker_config: PlatformWorkerConfig,
 ) {
     thread::spawn(move || {
         run(
@@ -18,7 +25,7 @@ pub(super) fn spawn(
             results,
             store_lock,
             store_write_barrier,
-            update_executor,
+            worker_config,
         )
     });
 }
@@ -30,7 +37,7 @@ fn run(
     results: Arc<PlatformResultLane>,
     store_lock: Arc<Mutex<()>>,
     store_write_barrier: StoreWriteBarrier,
-    update_executor: Arc<dyn device_update::UpdateExecutor>,
+    worker_config: PlatformWorkerConfig,
 ) {
     while let Ok(job) = jobs.recv() {
         #[cfg(test)]
@@ -65,11 +72,13 @@ fn run(
                     if let Some(result) = superseded_store_write(&job, &store_write_barrier) {
                         result
                     } else {
-                        platform_service_executor::handle_job(
+                        handle_job(
                             &store_dir,
                             &samples_dir,
                             job,
-                            update_executor.as_ref(),
+                            worker_config.update_executor.as_ref(),
+                            &worker_config.role_applier,
+                            &worker_config.storage_state,
                         )
                     }
                 }
@@ -82,7 +91,7 @@ fn run(
                 &store_dir,
                 &samples_dir,
                 job,
-                update_executor.as_ref(),
+                worker_config.update_executor.as_ref(),
             )
         };
         if results
@@ -92,6 +101,37 @@ fn run(
             break;
         }
     }
+}
+
+fn handle_job(
+    store_dir: &Path,
+    samples_dir: &Path,
+    job: PlatformJob,
+    update_executor: &dyn device_update::UpdateExecutor,
+    role_applier: &super::UsbRoleApplier,
+    storage_state: &Path,
+) -> RuntimeStoreResult {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    let _ = (role_applier, storage_state);
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    if let PlatformJobKind::SaveDefault { payload, is_auto } = &job.kind {
+        if let Some(result) = crate::rpi_device_apply::save_default_if_role_changed(
+            store_dir,
+            payload,
+            *is_auto,
+            storage_state,
+            role_applier.as_ref(),
+        ) {
+            let result = match result {
+                RuntimeStoreResult::StoreError { message } => RuntimeStoreResult::RuntimeFailure {
+                    error: job.request.failure_facts(message),
+                },
+                result => result,
+            };
+            return result.with_identity(job.request.request_id.clone(), job.request.revision);
+        }
+    }
+    platform_service_executor::handle_job(store_dir, samples_dir, job, update_executor)
 }
 
 fn job_requires_store_lock(kind: &PlatformJobKind) -> bool {

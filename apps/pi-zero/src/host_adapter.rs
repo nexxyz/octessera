@@ -17,7 +17,7 @@ use crate::platform_service::{
 use playback_runtime::{
     AudioOutputSet, DeferredDefaultSave, HostAdapter, HostMessage,
     MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
+    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult, UsbDataRole,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
@@ -33,6 +33,7 @@ pub struct PiPlaybackHostAdapter {
     midi: MidiHost,
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
+    usb_data_role: UsbDataRole,
     power_request: Option<PiPowerRequest>,
     recovery_save_status: Option<Result<(), String>>,
     pub(crate) oled_frame_cache: OledFrameCache,
@@ -226,6 +227,9 @@ impl PiPlaybackHostAdapter {
         &mut self,
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        if self.usb_data_role == UsbDataRole::Host {
+            return Ok(vec![crate::rpi_device_apply::unavailable(request)]);
+        }
         if let Some(reason) =
             usb_sd_transfer_output_block_reason(self.audio_outputs.usb(), self.usb_midi_out_enabled)
         {
@@ -306,7 +310,9 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 self.pending_default_save.cancel();
                 self.pending_default_save_generation = None;
                 let recording_result = self.stop_recording_for_transition(request)?;
-                if let Err(message) = self.platform_service.save_default_now(payload) {
+                if let Err(message) =
+                    crate::rpi_device_apply::apply(&self.platform_service, payload)
+                {
                     let mut messages = recording_result
                         .into_iter()
                         .map(|result| HostMessage::RuntimeResult { result })
@@ -482,3 +488,6 @@ mod power_tests;
 #[cfg(test)]
 #[path = "host_adapter_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "host_adapter_usb_role_tests.rs"]
+mod usb_role_tests;

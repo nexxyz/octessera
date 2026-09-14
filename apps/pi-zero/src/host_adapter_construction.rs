@@ -3,6 +3,27 @@ use super::*;
 use crate::usb_config::UsbAudioOut;
 
 impl PiPlaybackHostAdapter {
+    pub(crate) fn new_with_data_role<T: Into<AudioOutputSet>>(
+        audio: Option<AudioService>,
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
+        usb_midi_out_enabled: bool,
+        audio_outputs: T,
+        usb_data_role: UsbDataRole,
+    ) -> Self {
+        let platform_service = PiPlatformService::new(store_dir, samples_dir.clone());
+        Self::with_platform_service_and_role(
+            audio,
+            samples_dir,
+            midi_in_handler,
+            usb_midi_out_enabled,
+            audio_outputs.into(),
+            platform_service,
+            usb_data_role,
+        )
+    }
+
     pub(super) fn with_platform_service(
         audio: Option<AudioService>,
         samples_dir: PathBuf,
@@ -10,6 +31,26 @@ impl PiPlaybackHostAdapter {
         usb_midi_out_enabled: bool,
         audio_outputs: AudioOutputSet,
         platform_service: PiPlatformService,
+    ) -> Self {
+        Self::with_platform_service_and_role(
+            audio,
+            samples_dir,
+            midi_in_handler,
+            usb_midi_out_enabled,
+            audio_outputs,
+            platform_service,
+            UsbDataRole::Gadget,
+        )
+    }
+
+    pub(super) fn with_platform_service_and_role(
+        audio: Option<AudioService>,
+        samples_dir: PathBuf,
+        midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
+        usb_midi_out_enabled: bool,
+        audio_outputs: AudioOutputSet,
+        platform_service: PiPlatformService,
+        usb_data_role: UsbDataRole,
     ) -> Self {
         let restore_audio = audio.clone();
         platform_service.set_restore_preflight(Arc::new(move || {
@@ -27,6 +68,7 @@ impl PiPlaybackHostAdapter {
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             usb_midi_out_enabled,
             audio_outputs,
+            usb_data_role,
             power_request: None,
             recovery_save_status: None,
             oled_frame_cache: OledFrameCache::default(),

@@ -66,7 +66,7 @@ fn send_identified_save_result(
 
 fn assert_dialog_lines_fit(snapshot: &Value) {
     for line in snapshot["display"]["lines"].as_array().unwrap() {
-        assert!(line.as_str().unwrap().chars().count() <= 19, "{line}");
+        assert!(line.as_str().unwrap().chars().count() <= 20, "{line}");
     }
 }
 

@@ -60,6 +60,14 @@ audio/MIDI behavior, port role, VBUS/CC behavior, or no-backfeed safety.
 
 Follow [safety and power](safety-and-power.md#usb-host-connections) for the host-cable choice and no-backfeed checks.
 
+The Raspberry `usb.dataRole` setting changes the data port on the next boot:
+`gadget` is the default; `host` disables gadget Audio/MIDI and new SD2 transfers
+and requires USB Audio and USB MIDI output to be off. Unplug the computer before
+applying the setting, keep power on `PWR IN`, and use an ID-grounded OTG adapter
+for Host mode. A powered hub is preferred only if its upstream path is
+non-backfeeding. The role helper is installed by the full constructor or Pi
+provisioning; fast deployment and runtime updates do not change boot config.
+
 ## Bus Allocation
 
 ### I2C bus 1

@@ -1,11 +1,14 @@
 use serde_json::{json, Value};
 
+use super::UsbDataRole;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum RestartSetting {
     AudioOutputDac,
     AudioOutputUsb,
     AudioOutputHdmi,
     UsbMidiOut,
+    UsbDataRole,
     AudioOutputBufferFrames,
     AudioOptimization,
 }
@@ -17,6 +20,7 @@ impl RestartSetting {
             "audioOutputs.usb" => Some(Self::AudioOutputUsb),
             "audioOutputs.hdmi" => Some(Self::AudioOutputHdmi),
             "usb.midiOutEnabled" => Some(Self::UsbMidiOut),
+            "usb.dataRole" => Some(Self::UsbDataRole),
             "sound.audioOutputBufferFrames" => Some(Self::AudioOutputBufferFrames),
             "sound.optimizeFor" => Some(Self::AudioOptimization),
             _ => None,
@@ -36,6 +40,7 @@ impl RestartSetting {
             Self::AudioOutputUsb => ("audioOutputs", "usb"),
             Self::AudioOutputHdmi => ("audioOutputs", "hdmi"),
             Self::UsbMidiOut => ("usb", "midiOutEnabled"),
+            Self::UsbDataRole => ("usb", "dataRole"),
             Self::AudioOutputBufferFrames => ("sound", "audioOutputBufferFrames"),
             Self::AudioOptimization => ("sound", "optimizeFor"),
         }
@@ -95,9 +100,10 @@ pub(super) struct DefaultWriteCompletion {
     pub(super) scope: DefaultSaveScope,
     pub(super) restart_flow: bool,
     pub(super) succeeded: bool,
+    pub(super) host_role: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(super) struct RestartSettingsState {
     pub(super) persisted_default: Value,
     pending_write: Option<DefaultWrite>,
@@ -143,6 +149,9 @@ impl RestartSettingsState {
         setting: RestartSetting,
         revision: u64,
     ) -> Option<Value> {
+        if setting == RestartSetting::UsbDataRole {
+            return self.usb_data_role_setting_payload(current, revision);
+        }
         let (parent, leaf) = setting.path();
         let value = current
             .get("runtimeConfig")
@@ -153,6 +162,25 @@ impl RestartSettingsState {
         let runtime = payload.get_mut("runtimeConfig")?.as_object_mut()?;
         let group = runtime.get_mut(parent)?.as_object_mut()?;
         group.insert(leaf.into(), value);
+        payload
+            .as_object_mut()?
+            .insert("revision".into(), json!(revision));
+        Some(payload)
+    }
+
+    fn usb_data_role_setting_payload(&self, current: &Value, revision: u64) -> Option<Value> {
+        let current_runtime = current.get("runtimeConfig")?;
+        let mut payload = self.persisted_default.clone();
+        let runtime = payload.get_mut("runtimeConfig")?.as_object_mut()?;
+        for (parent, leaf) in [
+            ("usb", "dataRole"),
+            ("usb", "midiOutEnabled"),
+            ("audioOutputs", "usb"),
+        ] {
+            let value = current_runtime.get(parent)?.get(leaf)?.clone();
+            let group = runtime.get_mut(parent)?.as_object_mut()?;
+            group.insert(leaf.into(), value);
+        }
         payload
             .as_object_mut()?
             .insert("revision".into(), json!(revision));
@@ -317,6 +345,7 @@ impl RestartSettingsState {
         }
         let write = self.pending_write.take()?;
         let restart_flow = write.scope.is_restart() && self.is_saving();
+        let host_role = payload_is_host(&write.payload);
         if succeeded {
             self.persisted_default = write.payload;
         }
@@ -331,6 +360,7 @@ impl RestartSettingsState {
             scope: write.scope,
             restart_flow,
             succeeded,
+            host_role,
         })
     }
 }
@@ -341,4 +371,13 @@ fn setting_value(payload: &Value, setting: RestartSetting) -> Option<&Value> {
         .get("runtimeConfig")
         .and_then(|runtime| runtime.get(parent))
         .and_then(|group| group.get(leaf))
+}
+
+fn payload_is_host(payload: &Value) -> bool {
+    payload
+        .get("runtimeConfig")
+        .and_then(|runtime| runtime.get("usb"))
+        .and_then(|usb| usb.get("dataRole"))
+        .and_then(Value::as_str)
+        .is_some_and(|role| role == UsbDataRole::Host.as_str())
 }
