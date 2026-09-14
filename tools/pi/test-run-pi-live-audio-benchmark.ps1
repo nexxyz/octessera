@@ -296,16 +296,35 @@ try {
 }
 
 $binaryPath = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-binary-" + [guid]::NewGuid().ToString("N"))
+$manifestRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-cargo-manifest-" + [guid]::NewGuid().ToString("N"))
 try {
   [IO.File]::WriteAllText($binaryPath, "diagnostic binary")
+  New-Item -ItemType Directory -Force -Path $manifestRoot | Out-Null
+  $metadataModule = Get-Module raspberry-live-benchmark-metadata
+  foreach ($manifestCase in @(
+    @{ Name = "missing-version"; Contents = "[package]`nname = `"octessera-pi`"`n" },
+    @{ Name = "ambiguous-version"; Contents = "[package]`nversion = `"1.2.3`"`nversion = `"1.2.4`"`n" },
+    @{ Name = "malformed-version"; Contents = "[package]`nversion = `"1.2`"`n" }
+  )) {
+    $manifestPath = Join-Path $manifestRoot "$($manifestCase.Name).toml"
+    [IO.File]::WriteAllText($manifestPath, $manifestCase.Contents)
+    Assert-Throws { & $metadataModule { param($Path) Get-RaspberryLiveBenchmarkPackageVersionFromManifest -Path $Path } $manifestPath } $manifestCase.Name
+  }
   $sourceCommit = "0123456789abcdef0123456789abcdef01234567"
+  $canonicalPackageVersion = Get-RaspberryLiveBenchmarkPackageVersion
+  if ($canonicalPackageVersion -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-|\+|$)') { throw "Canonical Raspberry Cargo package version was not semver." }
   $metadata = New-RaspberryLiveBenchmarkMetadata -SourceCommit $sourceCommit -BinaryPath $binaryPath
+  if ($metadata.package_version -cne $canonicalPackageVersion) { throw "Raspberry metadata did not derive its package version from Cargo." }
   Assert-RaspberryLiveBenchmarkMetadata -Metadata $metadata -SourceCommit $sourceCommit -BinaryPath $binaryPath | Out-Null
   if ($metadata.artifact_kind -cne "diagnostic-only" -or $metadata.cargo_feature -cne (Get-RaspberryLiveBenchmarkCargoFeature)) { throw "Diagnostic metadata contract changed." }
+  $metadata.package_version = if ($canonicalPackageVersion -cne "0.0.0") { "0.0.0" } else { "0.0.1" }
+  Assert-Throws { Assert-RaspberryLiveBenchmarkMetadata -Metadata $metadata -SourceCommit $sourceCommit -BinaryPath $binaryPath } "stale Cargo package version metadata"
+  $metadata.package_version = $canonicalPackageVersion
   $metadata.artifact_kind = "release"
   Assert-Throws { Assert-RaspberryLiveBenchmarkMetadata -Metadata $metadata -SourceCommit $sourceCommit -BinaryPath $binaryPath } "non-diagnostic artifact metadata"
 } finally {
   Remove-Item -LiteralPath $binaryPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $manifestRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $printOnly = Invoke-PrintOnly @{ Units = 16; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
@@ -414,7 +433,7 @@ if ($multicorePayload -notmatch '--executor routing_tree_persistent --scenario c
 if (($null -ne $bash -and [string]$bash.Source -notmatch "WindowsApps") -or $null -ne $wsl) {
   $payloadPath = [IO.Path]::GetTempFileName()
   try {
-    [IO.File]::WriteAllText($payloadPath, $payloadMatch.Groups[1].Value)
+    [IO.File]::WriteAllText($payloadPath, $payloadMatch.Groups[1].Value.Replace("`r`n", "`n").Replace("`r", "`n"))
     if ($null -ne $bash -and [string]$bash.Source -notmatch "WindowsApps") {
       & bash -n $payloadPath
     } else {

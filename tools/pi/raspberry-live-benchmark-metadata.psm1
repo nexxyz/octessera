@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 
 $script:RaspberryLiveBenchmarkCargoFeature = "hardware-raspberry-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128"
+$script:RaspberryLiveBenchmarkSemverPattern = '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+([0-9A-Za-z-]+)(\.[0-9A-Za-z-]+)*)?$'
 $script:RaspberryLiveBenchmarkFields = @(
   "schema_version",
   "board_profile",
@@ -18,6 +19,45 @@ function Get-RaspberryLiveBenchmarkCargoFeature {
   return $script:RaspberryLiveBenchmarkCargoFeature
 }
 
+function Get-RaspberryLiveBenchmarkPackageVersionFromManifest {
+  param([Parameter(Mandatory)][string]$Path)
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    throw "Raspberry live benchmark Cargo manifest was not found: $Path"
+  }
+  $packageTableCount = 0
+  $packageVersionAssignments = @()
+  $section = ""
+  foreach ($line in [IO.File]::ReadAllLines($Path)) {
+    if ($line -cmatch '^\s*\[([^\]]+)\]\s*(?:#.*)?$') {
+      $section = $Matches[1].Trim()
+      if ($section -ceq "package") { $packageTableCount++ }
+      continue
+    }
+    if ($section -ceq "package" -and $line -cmatch '^\s*version\s*=') {
+      $packageVersionAssignments += $line
+    }
+  }
+  if ($packageTableCount -eq 0) { throw "Raspberry live benchmark Cargo manifest is missing the [package] table." }
+  if ($packageTableCount -ne 1) { throw "Raspberry live benchmark Cargo manifest has an ambiguous [package] table." }
+  if ($packageVersionAssignments.Count -eq 0) { throw "Raspberry live benchmark Cargo manifest is missing [package] version." }
+  if ($packageVersionAssignments.Count -ne 1) { throw "Raspberry live benchmark Cargo manifest has an ambiguous [package] version." }
+  $assignment = $packageVersionAssignments[0]
+  if ($assignment -cnotmatch '^\s*version\s*=\s*(?:"([^"]*)"|''([^'']*)'')\s*(?:#.*)?$') {
+    throw "Raspberry live benchmark Cargo [package] version is malformed."
+  }
+  $version = if ($null -ne $Matches[1]) { $Matches[1] } else { $Matches[2] }
+  if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch $script:RaspberryLiveBenchmarkSemverPattern) {
+    throw "Raspberry live benchmark Cargo [package] version is malformed."
+  }
+  return $version
+}
+
+function Get-RaspberryLiveBenchmarkPackageVersion {
+  $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+  $manifestPath = Join-Path $repoRoot "apps\pi-zero\Cargo.toml"
+  return Get-RaspberryLiveBenchmarkPackageVersionFromManifest -Path $manifestPath
+}
+
 function Get-RaspberryLiveBenchmarkBinarySha256 {
   param([Parameter(Mandatory)][string]$Path)
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
@@ -30,13 +70,16 @@ function New-RaspberryLiveBenchmarkMetadata {
   param(
     [Parameter(Mandatory)][string]$SourceCommit,
     [Parameter(Mandatory)][string]$BinaryPath,
-    [string]$PackageVersion = "0.8.2"
+    [string]$PackageVersion = ""
   )
   if ($SourceCommit -notmatch '^[0-9a-f]{40}$') {
     throw "Raspberry live benchmark source_commit must be a full lowercase commit identity."
   }
+  $canonicalPackageVersion = Get-RaspberryLiveBenchmarkPackageVersion
   if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
-    throw "Raspberry live benchmark package_version must not be empty."
+    $PackageVersion = $canonicalPackageVersion
+  } elseif ($PackageVersion -notmatch $script:RaspberryLiveBenchmarkSemverPattern) {
+    throw "Raspberry live benchmark package_version must be valid semver."
   }
   return [pscustomobject][ordered]@{
     schema_version = 1
@@ -69,6 +112,10 @@ function Assert-RaspberryLiveBenchmarkMetadata {
   if ($Metadata.source_commit -cne $SourceCommit -or $Metadata.source_commit -notmatch '^[0-9a-f]{40}$') {
     throw "Raspberry live benchmark metadata source_commit does not match the requested repository HEAD."
   }
+  $canonicalPackageVersion = Get-RaspberryLiveBenchmarkPackageVersion
+  if ($Metadata.package_version -isnot [string] -or $Metadata.package_version -cne $canonicalPackageVersion) {
+    throw "Raspberry live benchmark metadata package_version does not match the current Cargo package version."
+  }
   $hash = Get-RaspberryLiveBenchmarkBinarySha256 $BinaryPath
   if ($Metadata.binary_sha256 -cne $hash) {
     throw "Raspberry live benchmark metadata binary_sha256 does not match the selected artifact."
@@ -94,4 +141,4 @@ function Write-RaspberryLiveBenchmarkMetadata {
   $metadata | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
-Export-ModuleMember -Function Get-RaspberryLiveBenchmarkCargoFeature, Get-RaspberryLiveBenchmarkBinarySha256, New-RaspberryLiveBenchmarkMetadata, Assert-RaspberryLiveBenchmarkMetadata, Read-RaspberryLiveBenchmarkMetadata, Write-RaspberryLiveBenchmarkMetadata
+Export-ModuleMember -Function Get-RaspberryLiveBenchmarkCargoFeature, Get-RaspberryLiveBenchmarkPackageVersion, Get-RaspberryLiveBenchmarkBinarySha256, New-RaspberryLiveBenchmarkMetadata, Assert-RaspberryLiveBenchmarkMetadata, Read-RaspberryLiveBenchmarkMetadata, Write-RaspberryLiveBenchmarkMetadata
