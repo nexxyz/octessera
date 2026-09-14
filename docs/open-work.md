@@ -23,6 +23,8 @@ quick run](../userdocs/hardware/fat-quick-run.md).
 - Qualify `System > Setup > Configure WiFi > Open Portal` on both boards, including AP
   join, captive-page submission, credential and hostname application, reconnect,
   timeout/failure reporting, status hygiene, and the user-window behavior.
+- Recheck Wi-Fi scanning after setup on an already connected board. One Raspberry
+  run listed only the current network; confirm rescans still show other nearby APs.
 - Qualify standalone `System > Setup > Backup / Restore` on both boards, including URL
   and code lifetime, reopen, Back/Stop, expiry, authentication revocation,
   restore confirmation, and input blocking.
