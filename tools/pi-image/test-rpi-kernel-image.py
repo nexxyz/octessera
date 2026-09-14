@@ -237,6 +237,16 @@ def _main() -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, path)
             os.chmod(path, 0o755 if "initramfs" in str(path) or path.name == "octessera-usb-gadget" else 0o644)
+        for path, mode in (
+            (image / "usr/local/sbin/octessera-usb-role", 0o755),
+            (image / "etc/systemd/system/octessera-usb-gadget.service", 0o644),
+            (image / "etc/sudoers.d/octessera-usb-role", 0o440),
+        ):
+            source = HERE / "stage4-octessera/files/root" / path.relative_to(image)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, path)
+            os.chmod(path, mode)
+            os.chown(path, 0, 0)  # type: ignore[attr-defined]
         for source, path, mode in (
             (HERE.parents[1] / "tools/storage/octessera-sd-card", image / "usr/local/sbin/octessera-sd-card", 0o755),
             (HERE.parents[1] / "tools/storage/octessera-sd-card-lib.sh", image / "usr/local/lib/octessera/octessera-sd-card-lib.sh", 0o644),
