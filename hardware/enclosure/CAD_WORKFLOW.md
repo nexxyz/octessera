@@ -135,9 +135,11 @@ Top enclosure artifact filenames include the full board name. Use `rpi` for Rasp
 
 - `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`: Raspberry Pi Zero 2 W CAD exchange artifact.
 - `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`: Raspberry Pi Zero 2 W printable/check-fit mesh.
+- `../../release-artifacts/enclosure/3mf-single-material/case_top_two_level_cadquery_raspberry-pi-zero-2w.3mf`: Raspberry Pi Zero 2 W single-material top.
 - `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`: Raspberry Pi Zero 2 W multicolor top with flush markings on extruder 2.
 - `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_orange-pi-zero-2w.step`: Orange Pi Zero 2W CAD exchange artifact.
 - `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`: Orange Pi Zero 2W printable/check-fit mesh.
+- `../../release-artifacts/enclosure/3mf-single-material/case_top_two_level_cadquery_orange-pi-zero-2w.3mf`: Orange Pi Zero 2W single-material top.
 - `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_orange-pi-zero-2w_multicolor.3mf`: Orange Pi Zero 2W multicolor top.
 
 STEP, STL, and 3MF files are generated artifacts. Edit the CadQuery source, not
@@ -190,8 +192,13 @@ replaceable closed-cell foam strips own XY retention.
 The deep tub uses a centered logo and floor orientation guide. The shallow lid
 rotates the canonical logo and wordmark solids together by 180 degrees. Deboss
 and multicolor depth are both `0.40 mm`. STEP stays in assembly coordinates;
-STL and 3MF are exterior-down. Single-material 3MF files belong in
-`3mf-single-material/`; true multicolor packages belong in `3mf-multicolor/`.
+STL and 3MF are exterior-down. The STEP, STL, single-material 3MF, and
+multicolor 3MF folders each contain 18 parts. The multicolor set has 12
+authored two-material designs plus six one-material support parts. Board-specific
+single-material tops coexist with branded multicolor tops. Single-material 3MF
+files belong in `3mf-single-material/`. The six support packages are identical
+copies in both 3MF folders; the other `3mf-multicolor/` entries are authored
+two-material packages.
 All protective-case artifact and embedded part names use the
 `protective_case_checkfit_` prefix.
 

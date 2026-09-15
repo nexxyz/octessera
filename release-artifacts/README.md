@@ -4,10 +4,10 @@ This directory contains generated deliverables for builders and end users, not
 source-of-truth project files. The committed fabrication tree is:
 
 - `pcb/gerber/` — Gerbers, drill files, the KiCad job file, and `gerber.zip`.
-- `enclosure/stl/` — printable STL exports.
-- `enclosure/step/` — CAD STEP exports.
-- `enclosure/3mf-multicolor/` — multicolor-print top and cap exports.
-- `enclosure/3mf-single-material/` — single-material 3MF exports.
+- `enclosure/stl/` — 18 printable STL exports.
+- `enclosure/step/` — 18 CAD STEP exports.
+- `enclosure/3mf-multicolor/` — 18 printable 3MFs: 12 authored two-material designs plus six one-material support parts.
+- `enclosure/3mf-single-material/` — 18 printable single-material 3MFs.
 
 Protective-case files use the `protective_case_checkfit_` prefix. They are
 prototype fit-check artifacts, not drop-rated or transport-qualified products.
@@ -46,5 +46,5 @@ Top enclosure artifact filenames include the full board name. The shorthand `rpi
 
 | Board | Top enclosure artifacts |
 | --- | --- |
-| Raspberry Pi Zero 2 W (`rpi`) | `case_top_two_level_cadquery_raspberry-pi-zero-2w.{step,stl}`; `case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf` |
-| Orange Pi Zero 2W (`opi`) | `case_top_two_level_cadquery_orange-pi-zero-2w.{step,stl}`; `case_top_two_level_orange-pi-zero-2w_multicolor.3mf` |
+| Raspberry Pi Zero 2 W (`rpi`) | `case_top_two_level_cadquery_raspberry-pi-zero-2w.{step,stl,3mf}`; `case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf` |
+| Orange Pi Zero 2W (`opi`) | `case_top_two_level_cadquery_orange-pi-zero-2w.{step,stl,3mf}`; `case_top_two_level_orange-pi-zero-2w_multicolor.3mf` |
