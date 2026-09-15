@@ -12,7 +12,7 @@ behaviors make a useful first tour:
 
 | Behavior | First thing to try |
 |---|---|
-| `life` | Seed a few cells and listen to birth, survival, and death move through the grid. |
+| `life` | Seed a few cells and listen to birth, survival, and death move through the grid. Glider injection is part of `life`; use Glider Interval, Spawn Step, and Spawn Glider to shape it. |
 | `sequencer` | Set a manual rhythm, then add probability if it feels too square. |
 | `keys` | Press cells for momentary finger-drumming; release them to stop. |
 | `raindrops` | Start with a sparse cell and let drops and ripples bloom outward. |
@@ -40,7 +40,7 @@ behaviors make a useful first tour:
 | `contour` | Musical | Melody-like cells following rise, fall, arch, and valley shapes. |
 | `cadence` | Musical | Harmonic movement with repeated tension and resolution points. |
 | `phrase` | Musical | A phrase-shaped pattern with opening, development, rest, and return. |
-| `life` | Cellular | Conway-style cells that birth, survive, and die. It also owns glider injection through Glider Interval, Spawn Step, and Spawn Glider; there is no separate `glider` behavior ID. |
+| `life` | Cellular | Conway-style cells that birth, survive, and die. It also includes glider injection through Glider Interval, Spawn Step, and Spawn Glider. |
 | `brain` | Cellular | Brian's Brain style states. It tends to leave trails and pulses rather than simply living/dying. |
 | `cyclic` | Cellular | Multi-state wave fronts chase each other around the grid. Bright, discrete, and a little arcade-creature-ish. |
 | `forest_fire` | Cellular | Trees grow, catch from neighboring flames, and occasionally get zapped by lightning. Grid presses plant and ignite a cell. |
@@ -71,8 +71,6 @@ behaviors make a useful first tour:
 | `fractal_explorer` | Geometry | A drifting Mandelbrot/Julia explorer that zooms through regions and turns detail changes into accents. |
 | `maze_growth` | Geometry | Tiny maze corridors carve, walkers wander them, and old passages sometimes crumble back to wall. |
 
-The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `cyclic`, `forest_fire`, `predator_prey`, `ant`, `bounce`, `bubbles`, `gravity`, `boids`, `lava_lamp`, `orbit`, `sand_ripples`, `fractal_explorer`, `maze_growth`, `shapes`, `ink`, `ising`, `kuramoto`, `lightning`, `raindrops`, `reaction_diffusion`, `rivers`, `wave`, `coral`, `cracks`, `crystal_growth`, `dla`, `physarum`, `vines`, `weave`, `polyrhythm`, `breaks`, `fills`, `clave`, `groove`, `euclid`, `ostinato`, `motif`, `canon`, `chords`, `contour`, `cadence`, and `phrase`.
-
 ## Trigger types
 
 | Trigger | Meaning |
@@ -83,7 +81,8 @@ The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `b
 | `scanned` | The scan layer finds an active cell while scanning is enabled. |
 | `scanned empty` | The scan layer visits an inactive cell while scanning is enabled. |
 
-These triggers feed Link, probability, note mapping, instruments, FX routing, and output. That is the bridge from cell state to sound.
+These triggers connect grid activity to Link, probability, note mapping,
+instruments, effects, and output. That is how cell state becomes sound.
 
 ## Play pages
 
@@ -102,7 +101,7 @@ Hold **Fn** and use the right grid column to choose a Play page.
 
 ## Play FX details
 
-Play FX are momentary. Pressing a mapped grid cell starts the effect. Releasing it stops the effect. Octessera limits them to keep the audio engine within its configured budget:
+Play FX are momentary. Pressing a mapped grid cell starts the effect. Releasing it stops the effect. Octessera limits them to keep effects manageable:
 
 - At most two momentary FX are active at once.
 - Only one active cell of the same FX type is allowed.

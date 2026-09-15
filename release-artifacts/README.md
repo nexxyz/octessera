@@ -1,45 +1,28 @@
 # Release Artifacts
 
 This directory contains generated deliverables for builders and end users, not
-source-of-truth project files. The currently committed fabrication tree is:
+source-of-truth project files. The committed fabrication tree is:
 
 - `pcb/gerber/` — Gerbers, drill files, the KiCad job file, and `gerber.zip`.
 - `enclosure/stl/` — printable STL exports.
 - `enclosure/step/` — CAD STEP exports.
 - `enclosure/3mf-multicolor/` — multicolor-print exports.
 
-Generated release surfaces such as `desktop/`, `pi/`, `v<version>/`, evidence,
-and checksums are not a second source tree. Do not commit temporary CI imports
-or extracted images. Regenerate committed fabrication exports from the source
-tree before publishing.
+Generated release surfaces such as `desktop/`, `pi/`, `v<version>/`, and
+checksums are not a second source tree. Regenerate committed fabrication
+exports from the source tree.
 
 ## Legal and source companions
 
-Release artifacts should link or ship the applicable [`NOTICE`](../NOTICE),
+Release artifacts link or ship the applicable [`NOTICE`](../NOTICE),
 [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md),
 [`samples/SOURCE.md`](../samples/SOURCE.md),
 [`samples/MANIFEST.tsv`](../samples/MANIFEST.tsv), and
-[`hardware/ATTRIBUTIONS.md`](../hardware/ATTRIBUTIONS.md). The release policy
-is [`docs/release-licensing.md`](../docs/release-licensing.md).
+[`hardware/ATTRIBUTIONS.md`](../hardware/ATTRIBUTIONS.md).
 
 The sample acknowledgement and CC0 text are maintained with the project.
-Octessera source, configuration, and image patches are in the repository.
-Applicable source duties need review before any future public image release;
-these records make no legal-compliance claim. The release workflow
-checks the Windows portable notice bundle and puts the generated legal bundle in
-the release evidence ZIP. Board device ZIPs carry exact root-level `LICENSE` and
-`NOTICE` files.
-
-## GitHub release surface
-
-The committed release procedure and exact current fourteen-file custom release
-contract live in [`docs/workflows/release-assembly.md`](../docs/workflows/release-assembly.md).
-The [workflow index](../docs/development-workflows.md) links that procedure with
-the other contributor lanes. macOS distribution remains paused until it can be
-properly signed and notarized, so it is not a published asset. The [release
-support matrix and owner checklist](../userdocs/release-support.md) define the
-evidence needed before an exact asset/platform is called supported. A populated draft
-is not a public release; a human must explicitly publish it.
+Octessera source, configuration, and image patches remain in the repository.
+Board device ZIPs carry root-level `LICENSE` and `NOTICE` files.
 
 ## Artifact-surface naming
 
@@ -52,11 +35,6 @@ canonical `raspberry-pi-zero-2w` or `orange-pi-zero-2w` profile name.
 `octessera-pi` is the compatibility runtime filename used by both board variants;
 it is not a board identity. Use the profile-qualified artifact name and metadata to
 identify the target board.
-
-USB Audio and USB MIDI are not public first-release support claims. The current
-Linux Foundation VID/PID values are local-validation-only, not a public product
-identity, and defaults remain disabled. Do not invent IDs or use an artifact's
-presence as evidence of USB or physical qualification.
 
 ## Enclosure board naming
 

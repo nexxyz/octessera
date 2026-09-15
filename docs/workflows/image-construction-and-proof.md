@@ -1,15 +1,15 @@
-# Image construction and proof
+# Image construction and checks
 
 The two fixed board image paths are separate: Raspberry uses pi-gen and Orange
-uses Armbian. A source check, cross-build, or parent respin is not an image or
-physical qualification result. Full image construction is a necessary slow path
-and should remain release-only except for an explicitly authorized proof run.
+uses Armbian. Their source-bound constructor contracts are separate from
+runtime-only respins and hardware testing.
 
 ## Armbian workflow
 
 `.github/workflows/armbian-image.yml` builds through `armbian/build`.
-Validation-only runs may inspect the default ref; every qualification image
-requires a reviewed full 40-character Armbian commit SHA. Local checks are:
+Validation-only runs may inspect the default ref; every image intended for
+hardware validation requires a pinned full 40-character Armbian commit SHA.
+Local checks are:
 
 ```bash
 bash -n userpatches/customize-image.sh tools/armbian-image/validate.sh
@@ -27,7 +27,7 @@ gh workflow run armbian-image.yml -f run_build=false -f artifact_mode=public-gen
 gh workflow run armbian-image.yml -f 'public_inputs={"public_preset_configuration_url":"https://example.invalid/preset.conf"}'
 ```
 
-The reviewed Orange validation shape is:
+The Orange validation shape is:
 
 ```bash
 gh workflow run armbian-image.yml \
@@ -54,7 +54,7 @@ gh workflow run armbian-image.yml \
   -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
   -f run_build=true \
   -f artifact_mode=public-generic \
-  -f armbian_build_ref=<reviewed-40-character-armbian-commit>
+  -f armbian_build_ref=<40-character-armbian-commit>
 ```
 
 Do not pass secrets as workflow inputs. Private first-run payloads belong to
@@ -62,12 +62,11 @@ the protected environment and its repository/environment secrets.
 
 Public generic builds may use board/release/kernel/UI/compression/extensions and
 one bounded public JSON input. Do not pass raw Wi-Fi, user, SSH, or private
-first-run values. Personalized builds use
-`artifact_mode=private-personalized` from trusted `main` or tags, protected
-approval for `armbian-image-personalized`, and repository/environment secrets.
-Private artifacts are short-lived and never release assets.
+first-run values. Personalized builds use `artifact_mode=private-personalized`
+and repository/environment secrets. Personalized artifacts are not release
+assets.
 
-Before pushing workflow or `userpatches/` changes, also run:
+For workflow or `userpatches/` changes, run:
 
 ```bash
 bash tools/armbian-image/validate.sh
@@ -84,54 +83,50 @@ tools/armbian-image/inspect-built-image.sh --verification-profile full-construct
 ```
 
 Use `full-constructor` for source-built images. Orange runtime-only respins use
-the `validated-parent` proof mode and the exact current parent record; their boot
-integrity comes from the separate boot-neutral proof.
+the `validated-parent` mode and the exact current parent record; their boot
+integrity comes from the separate boot-neutral check.
 
 ## Source-bound constructor procedure
 
-For a constructor refresh, construct each board from its source-bound boot-layer
-contract, not from the Orange current-parent respin lane:
+Construct each board from its source-bound boot-layer contract, not from the
+Orange current-parent respin lane:
 
 1. Freeze current source inputs and hashes in
    `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and
    `orange-pi-zero-2w.json`; cross-build the matching native binary first.
-2. Run the reviewed Raspberry pi-gen and Orange Armbian constructors. Stage the
+2. Run the Raspberry pi-gen and Orange Armbian constructors. Stage the
    canonical welcome, preserve declared hushlogin behavior, encode Raspberry's
    inactive-UART state, and install each board's declared runtime/initramfs
    inputs. Regenerate selected initramfs images only in the constructor.
-3. Run mounted-image proof before board deployment. Raspberry must show the
+3. Run mounted-image checks before board deployment. Raspberry must show the
    selected initramfs, enabled early writer, welcome, exact hushlogin,
    inactive-UART and serial-console state, and expected service masks. Orange
    must show the welcome, root-installed renderer/lifecycle/assets, fixed
    SPI/GPIO dependencies, static initramfs frame/Python closure, and one
    `/run/octessera-boot` owner with no second writer.
-4. Preserve image, source hashes, selected boot outputs, and proof logs. Only
-   then perform the physical loop in [`../open-work.md`](../open-work.md).
+4. Preserve the image and its source/build metadata. Then use the
+   [deployment workflow](deployment.md) and the board-specific bring-up
+   procedure for hardware testing.
 
-## Manual nonpublishing respin
+## Runtime-only respin boundary
 
-For a manual runtime-only refresh, dispatch the nonpublishing workflow from the
-reviewed `main` branch:
+Dispatch the Orange runtime-only workflow for a boot-neutral refresh:
 
 ```bash
 gh workflow run respin-board-image.yml --ref main
 ```
 
-This artifact is nonpublishing and short-lived. GitHub resolves the branch when
-the event is created and pins that `github.sha` for checkout and the
-requested-build record. Kernel,
-device-tree, initramfs, or base-OS changes still require the full constructor
-workflow.
+This path does not change the kernel, device tree, initramfs, or base OS. Those
+changes require the full constructor workflow.
 
-## Board image artifact dispatch
+## Board image dispatch
 
-`release-board-artifacts.yml` can be called by the release workflow or dispatched
-directly with the required `tag`, `version`, and exact `source_sha` inputs. It
-builds both complete production images. The nonpublishing respin workflow is
-Orange-only; Raspberry has no current parent record and fails closed before
-acquisition.
+`release-board-artifacts.yml` accepts the required `tag`, `version`, and exact
+`source_sha` inputs and builds both complete production images. Use the
+constructor workflow for Raspberry image changes; the runtime-only path is
+Orange-only.
 
-## Phase 5 OLED boot layer
+## OLED boot layer checks
 
 Run these source and contract checks before an image build:
 
@@ -148,32 +143,32 @@ bash tools/armbian-image/test-orange-storage-lifecycle.sh
 python3 tools/armbian-image/test-orange-storage-control.py
 ```
 
-The handoff checks prove the exclusive `/run/octessera-boot` lock, strict
-status/stop files, release/adoption sequence, failure recovery, and no-clobber
-behavior. Raspberry checks one static selected-initramfs frame; Orange checks
-one static RGB565 frame and its Python closure. Unix-only lock coverage needs
-Linux or WSL on Windows. These are source-contract checks, not live visual
-qualification. The contract is
+The handoff checks enforce the exclusive `/run/octessera-boot` lock, strict
+status/stop files, failure recovery, and no-clobber behavior. Raspberry checks
+one static selected-initramfs frame; Orange checks
+one static RGB565 frame and its Python closure. Unix-only lock tests need Linux
+or WSL on Windows. These are source-contract checks; run hardware tests
+separately. The contract is
 `resources/oled/boot-sweep-v1.json`; retain its 30-frame, 1,200,000,000 ns,
 25-fps and panel-orientation requirements.
 
 The clean logo+wordmark frame follows the sweep; continuous loops hold it for a
 responsive 2,000,000,000 ns rest. The selected initramfs writers leave the
 final systemd sweep and handoff unchanged. The conservative 16 MHz wire budget
-is 491.625 ms for 30 frames (40.96875%), below the 80% limit; 58 frames pass
-that limit and 59 fail it.
+is 491.625 ms for 30 frames (40.96875%), below the 80% limit.
 
 HDMI source checks cover Linux `/dev/tty1` Terminal ownership, the native grid VT
 lease, no connector force or display server, and nonfatal retry when `/dev/fb0` is
 missing. The splash observes the OLED handoff until `first_menu_rendered` and
 reclaims a fatal startup frame when native startup fails. Orange/Raspberry HDMI and
-OLED connector, framebuffer, VT, and ownership behavior still require physical
-qualification; these checks do not provide hardware proof.
+OLED connector, framebuffer, VT, and ownership behavior still require hardware
+testing; these checks do not replace it.
 
 The native instrument-menu lifecycle is separate: PlaybackRuntime emits the
 exact sleep/shutdown/reboot toasts, and the board runtime force-acknowledges the
 final snapshot before preserving OLED state, zeroing LEDs, detaching, and
-submitting ordinary power. Do not use arbitrary `systemctl` commands as proof.
+submitting ordinary power. Do not substitute arbitrary `systemctl` commands for
+these checks.
 
 Build both native binaries without deploying them as a constructor substitute:
 
@@ -182,9 +177,9 @@ Build both native binaries without deploying them as a constructor substitute:
 ./tools/pi/build-pi-cross.ps1 -BoardProfile orange-pi-zero-2w -Backend wsl-docker -OutDir target/orange-pi-cross-phase5
 ```
 
-Each output needs its adjacent metadata sidecar with the matching profile. This
-does not prove initramfs contents, services, mounted-image layout, OLED handoff,
-DAC health, or physical display behavior.
+Each output needs its adjacent metadata sidecar with the matching profile.
+Inspect initramfs contents, services, mounted-image layout, OLED handoff, DAC
+health, and physical display behavior separately.
 
 ## Orange production and diagnostic image modes
 
@@ -212,9 +207,10 @@ stdout, and releases PH0/PH1 without changing SSH. It refuses any board other
 than `orangepizero2w`, resolves the boot-selected DTB, and records non-secret
 SPI/input overlay hashes in `/etc/octessera/build-metadata.env`. The parser
 rejects duplicate assignments/tokens, commented assignments, and malformed
-lists. Do not enable an overlay on another board or kernel without a new review.
+lists. Do not enable an overlay on another board or kernel without a matching
+contract update.
 
-## Setup portal and mutation proof
+## Setup portal and mutation boundaries
 
 The Raspberry setup source is
 `tools/pi-image/stage4-octessera/files/root`; the Orange source is
@@ -251,10 +247,8 @@ node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 Root-required mutation and disk fixtures run in CI as
 `sudo python3 tools/image-respin/test_setup_mutation.py` and
 `sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
-The current-parent exercise is a nonpublishing Orange runtime-only path, not a
-physical qualification path. The reviewed Orange current parent is an exact
-respin input, not a replacement for constructor-image qualification or physical
-FAT.
+The current-parent exercise is the Orange runtime-only path for boot-neutral
+updates. It does not replace a constructor image or a hardware test.
 
 For full production image, kernel, setup-portal, sample, sanitization, and
 runtime-bundle contracts, see the [Orange production reference](../../hardware/docs/orange-pi-production-reference.md).

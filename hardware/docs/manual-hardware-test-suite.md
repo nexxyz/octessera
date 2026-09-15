@@ -15,7 +15,8 @@ Before each session:
 ./tools/pi/pi-preflight.ps1 -Target pi@192.168.0.211
 ```
 
-After flashing a fresh image, inspect the installed Raspberry power policy. An interactive dry-run with extra arguments is not service-context proof:
+Inspect the installed Raspberry power policy. An interactive dry-run with extra
+arguments does not check service context:
 
 ```bash
 sudo grep -qx 'NoNewPrivileges=no' /etc/systemd/system/octessera.service
@@ -29,8 +30,11 @@ Expected:
 - `/etc/sudoers.d/octessera-shutdown` is root-owned mode `0440` and parses cleanly.
 - The runtime unit explicitly uses `NoNewPrivileges=no` for its fixed power commands.
 - No broad `NOPASSWD: ALL` rule is required for octessera power controls.
-- This no-OLED suite inspects policy only; it cannot qualify menu-driven power.
-- On a fully assembled qualification Pi, enable the service and separately replay the exact physical `System > Reboot` and `System > Shutdown` actions. Record the effective service policy, `sudo -n -l`, restart counter, boot IDs, and previous-boot journals. Require clean power submission with no same-boot service restart; do not substitute shell dry-runs.
+- On a fully assembled Pi, enable the service and separately replay the exact
+  physical `System > Reboot` and `System > Shutdown` actions. Check the
+  effective service policy, `sudo -n -l`, restart counter, boot IDs, and
+  previous-boot journals. Require clean power submission with no same-boot
+  service restart; do not substitute shell dry-runs.
 
 Then confirm the app is stopped:
 
@@ -63,7 +67,7 @@ Stop if the clean scan does not match. Fix wiring before running active tests.
 
 ## 2. NeoTrellis LED Sweep
 
-Goal: prove all 64 grid LEDs can be addressed and confirm physical coordinate orientation.
+Goal: check all 64 grid LEDs and physical coordinate orientation.
 
 Test behavior to run from code for up to 90 seconds, or until the operator presses Enter:
 
@@ -80,7 +84,7 @@ Test behavior to run from code for up to 90 seconds, or until the operator press
    - `(0,7)` cyan
    - `(7,7)` white
 
-Operator records:
+Check:
 
 - Whether all LEDs light.
 - Whether colors match.
@@ -89,7 +93,7 @@ Operator records:
 
 ## 3. NeoTrellis Button Events
 
-Goal: prove all 64 grid buttons generate press and release events.
+Goal: check that all 64 grid buttons generate press and release events.
 
 Test behavior to run from code for up to 90 seconds, or until the operator presses Enter:
 
@@ -113,7 +117,7 @@ Expected:
 
 ## 4. NeoKey LED And Button Test
 
-Goal: prove four keys and four LEDs work without OLED feedback.
+Goal: check four keys and four LEDs without OLED feedback.
 
 Test behavior to run from code:
 
@@ -136,7 +140,7 @@ Expected logical mapping:
 | 2 | Shift / `button_shift` |
 | 3 | Fn / `button_fn` |
 
-Operator records:
+Check:
 
 - Physical left-to-right order.
 - Any LED color-order mismatch.
@@ -146,7 +150,7 @@ Operator records:
 
 ## 5. Encoder Turn And Click Test
 
-Goal: prove all encoder A/B pins and push switches work.
+Goal: check all encoder A/B pins and push switches.
 
 Test behavior to run from code:
 
@@ -170,7 +174,7 @@ Manual pass per encoder:
 3. Turn quickly for several detents.
 4. Press and release the push switch.
 
-Record:
+Check:
 
 - Direction polarity.
 - Bounce or duplicate clicks.
@@ -179,16 +183,14 @@ Record:
 
 ## 6. Audio Output Test
 
-### Raspberry HDMI connector identity check: read-only
+### Raspberry HDMI connector check: read-only
 
-The live Raspberry Pi Zero 2 W observation uses kernel
-`6.12.93+rpt-rpi-v8` and the exact connector paths
+Use the fixed connector paths
 `/sys/class/drm/card0-HDMI-A-1/{status,edid}`. Check those paths directly; do
 not enumerate DRM connectors or substitute `card1`:
 
 ```bash
 set -eu
-test "$(uname -r)" = "6.12.93+rpt-rpi-v8"
 connector=/sys/class/drm/card0-HDMI-A-1
 test -f "$connector/status"
 test -f "$connector/edid"
@@ -196,19 +198,16 @@ status=$(tr -d '\r\n' < "$connector/status")
 edid_bytes=$(wc -c < "$connector/edid")
 printf 'HDMI connector: %s\nstatus: %s\nEDID bytes: %s\n' "$connector" "$status" "$edid_bytes"
 if [ "$status" = connected ] && [ "$edid_bytes" -gt 0 ]; then
-    echo "connector and EDID observation passed"
+    echo "connector and EDID present"
 elif [ "$status" = disconnected ]; then
-    echo "connector is present but waiting/disconnected; record this qualification state"
+    echo "connector present without an active display"
 elif [ "$status" = connected ] && [ "$edid_bytes" -eq 0 ]; then
-    echo "connector is present but waiting/disconnected; record this qualification state"
+    echo "connector present without EDID"
 else
     echo "unexpected HDMI connector state" >&2
     exit 1
 fi
 ```
-
-This proves the fixed connector/EDID seam only. It does not qualify connected
-HDMI audio, an ALSA PCM, or audible output.
 
 The test harness asks the operator to connect speakers or headphones and set a safe volume before playing the direct ALSA tone:
 
@@ -230,7 +229,7 @@ Then run a runtime audio smoke test:
 
 ## 7. Integrated Runtime Smoke Test
 
-Use after individual hardware tests pass.
+Use for an integrated runtime check after the individual hardware tests.
 
 1. Start `octessera.service` manually.
 2. Watch logs:
@@ -261,10 +260,10 @@ Expected:
 
 ## Interactive Hardware Test Command
 
-This is the explicit Raspberry-only interactive owner. It actuates LEDs, scans
-physical inputs, and plays a test tone under operator control. It is not the
-safe profile diagnostic; use `--fat-diagnostic --board-profile
-<raspberry-pi-zero-2w>` for passive evidence collection.
+This is the Raspberry-only interactive hardware command. It actuates LEDs, scans
+physical inputs, and plays a test tone under operator control. For the passive
+diagnostic command, use `--fat-diagnostic --board-profile
+<raspberry-pi-zero-2w>`.
 
 Run the no-OLED interactive hardware-test mode directly over SSH:
 
@@ -274,8 +273,9 @@ sudo systemctl stop octessera.service
 /usr/local/bin/octessera-pi --hardware-test
 ```
 
-The mode initializes NeoTrellis, NeoKey, DAC, and encoders without requiring an OLED. It then runs the LED checks, logs grid/key/encoder events to stdout, and launches the ALSA test tone.
-It prints a final `SUMMARY` with warning and failure counts.
+The mode initializes NeoTrellis, NeoKey, DAC, and encoders without requiring an
+OLED. It runs the LED checks, logs grid/key/encoder events to stdout, launches
+the ALSA test tone, and prints a final `SUMMARY`.
 
 Do not combine `--hardware-test` or `--hardware-noise-test` with
 `--diagnostic` or `--fat-diagnostic`. The command exits before hardware access
@@ -298,7 +298,7 @@ sudo systemctl stop octessera.service
 ```
 
 For unattended no-touch-only launch, set `OCTESSERA_PI_HARDWARE_NOISE_TEST=1`.
-The noise-only mode also prints a final `SUMMARY`. Warnings indicate raw noise that is below the runtime confirmation threshold; failures indicate confirmed input, read failures, or encoder/grid idle events.
+The noise-only mode also prints a final `SUMMARY`.
 
 Use skip flags to isolate one hardware family while another is disconnected or suspect:
 

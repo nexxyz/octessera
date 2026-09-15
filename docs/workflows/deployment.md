@@ -84,7 +84,7 @@ gh workflow run armbian-image.yml \
   -f armbian_build_ref=main
 ```
 
-Change `run_build=true` only with a reviewed full 40-character Armbian commit
+Change `run_build=true` only with a pinned full 40-character Armbian commit
 SHA. Public builds stay secret-free; first-boot setup handles Wi-Fi and SSH on
 the device. See [`image-construction-and-proof.md`](image-construction-and-proof.md)
 for the full image gates.
@@ -93,7 +93,7 @@ for the full image gates.
 
 Use the real hardware loop for Pi-only behavior, input latency, OLED rendering,
 LEDs, encoders, menu timing, sample playback, and audio stutter. Automated
-checks cannot prove tactile timing or display readability.
+checks do not cover tactile timing or display readability.
 
 1. For a new Pi, OS/configuration change, or boot-splash change, provision first,
    then cross-build and deploy from the PC:
@@ -103,15 +103,8 @@ checks cannot prove tactile timing or display readability.
    ./tools/pi/build-pi-cross.ps1
    ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.218 -LocalBinary target/pi-cross/octessera-pi -NoTail
    ```
-2. Request a focused hardware observation with the control path, expected
-   result, and failure signature.
-3. Pull service logs and profile summaries when the observation is unclear;
+2. Pull service logs and profile summaries when the behavior is unclear;
    disable `OCTESSERA_PI_UI_PROFILE=1` after profiling.
-4. Inspect `pi-ui-profile` and `menu-key-profile` output before broad refactors.
-5. Fix the source path. Do not add fallbacks for broken Octessera wiring.
-6. Prefer keyed fast paths over broad `apply_menu_state()` and keep autosave
+3. Fix the source path. Do not add fallbacks for broken Octessera wiring.
+4. Prefer keyed fast paths over broad `apply_menu_state()` and keep autosave
    serialization off rapid input paths.
-7. Run targeted Rust checks before redeploying when possible, then repeat the
-   observation.
-8. Before a stable hardware milestone, use QA/oracle review for risky changes
-   and run the pre-push hook.

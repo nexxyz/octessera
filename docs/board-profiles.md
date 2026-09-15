@@ -42,12 +42,12 @@ patched wifi-connect owns AP, DHCP, HTTP, and network switching. Fresh images do
 not start an automatic hotspot. Their fixed accounts, image provisioning paths,
 and parent-image preconditions differ: Raspberry uses the Pi image path and `pi`
 account, while Orange uses the Armbian path with separate `octessera` setup and
-`octessera-runtime` service accounts. Physical setup-portal qualification on
-both boards is a FAT activity.
+`octessera-runtime` service accounts. Board-side setup-portal behavior belongs
+to the respective hardware adapter.
 The same System > Setup menu exposes standalone `Backup / Restore`; Pi uses the regular
 `wlan0` IPv4 service on port 8081, while desktop is unsupported.
 
-## Shared OLED boot handoff and qualification
+## Shared OLED boot handoff and validation
 
 The OLED boot handoff is also one parity contract. Both boards use the same
 mirrored four-band sweep defined by `resources/oled/boot-sweep-v1.json`, the
@@ -65,21 +65,20 @@ Python OLED utility starts the H618 SPI/GPIO sweep.
 Orange readiness additionally applies the selected-route rules: every valid Pi
 audio set includes always-on Jack, while USB and HDMI audio are optional
 mirrors of the Jack mix. Optional mirrors may be absent, waiting, or faulted
-without blocking or replacing Jack. HDMI audio is separate from HDMI video. The source/build contract and physical
-qualification are separate: constructor outputs and repository checks do not
-establish a physical result. The [current artifact record](../userdocs/release-records/v0.8.1.md)
-records artifact and automated evidence; physical FAT remains separate. Both
-boards may remain blank before their initramfs writer runs; systemd then owns the
-only OLED animator. Reboot retains the clean shutdown logo+wordmark.
+without blocking or replacing Jack. HDMI audio is separate from HDMI video. The
+source/build contract and hardware checks are separate: constructor outputs and
+repository checks describe the image but do not replace a hardware test. Both
+boards may remain blank before their initramfs writer runs; systemd then owns
+the only OLED animator. Reboot retains the clean shutdown logo+wordmark.
 
-### HDMI and physical display qualification
+### HDMI and physical display checks
 
 `Terminal` leaves `/dev/tty1` with Linux; native grid mode owns a native VT lease
 around `/dev/fb0`, without connector forcing or a display server. Missing `fb0` is
 nonfatal and retried. The splash observes handoff until `first_menu_rendered`, then
 reclaims OLED presentation for a native fatal status when startup fails. Orange/
-Raspberry HDMI connector, framebuffer, VT, and OLED behavior are physical FAT
-checks; this source contract is not hardware proof.
+Raspberry HDMI connector, framebuffer, VT, and OLED behavior are hardware
+checks; this source contract does not replace them.
 
 The board-specific HALs own their physical pin and device descriptors. The HAL
 also exposes the `orange-pi-zero-2w` profile descriptor and its diagnostic
@@ -100,7 +99,7 @@ use independent unsynchronized clocks and can drift or echo; this phase does
 not provide sample alignment. The board adapters use
 `/sys/class/drm/card0-HDMI-A-1`; Raspberry code pins that card0 identity and
 does not scan or fall back to card1. This establishes connector identity only,
-not connected HDMI audio or audible qualification.
+not connected HDMI audio or audible output.
 MIDI uses the native host adapter, including USB MIDI when the configured gadget
 port is present.
 
@@ -120,7 +119,8 @@ The Orange image-side USB gadget reads the persisted default at
 44.1 kHz stereo UAC2 function and `usb.midiOutEnabled` enables the fixed MIDI
 function. The valid compositions are no gadget, MIDI only, UAC2 only, and
 combined; HDMI and Jack do not change gadget composition. USB Audio and USB
-MIDI require an authorized identity and electrical/manual FAT before support.
+MIDI require an authorized identity and electrical/manual hardware checks before
+support.
 Linux Foundation VID/PID values are for local validation only, not a public
 product identity.
 The confirmed device apply lane uses one narrow root-owned socket rather than a
@@ -134,7 +134,7 @@ Both return `accepted\n` only after the fixed command succeeds and return
 `rejected\n` for malformed, unknown, extra-byte, or definitively failed
 requests.
 
-The Orange control surface requires the exact validated NeoTrellis wiring and
+The Orange control surface requires the exact NeoTrellis wiring and
 addresses. There is no alternate Trellis bus, address, or hardware fallback.
 
 The production image applies the input-routing overlay before the service
@@ -150,12 +150,12 @@ fail route-locally. Orange Capacity workers use CPUs 2 and 3 at priority 70.
 Its sole ambient and bounding capability is
 `CAP_SYS_TTY_CONFIG` for native VT leasing; it does not use `CAP_SYS_NICE` or
 other realtime capability elevation. Startup reports the
-named `DAC` or `UAC2` sink and rejects the qualified Jack stream when callback
-promotion is not verified.
+named `DAC` or `UAC2` sink and rejects the Jack stream when callback promotion
+is not verified.
 Its typed bus descriptors record `/dev/i2c-2` at `5002400.i2c` and
 `/dev/spidev1.0` at `5011000.spi`; its encoder descriptor records H618
 `300b000.pinctrl` offsets rather than Raspberry GPIO fields. The Orange OLED
-default is 16 MHz; the HAL retains the validated 1/2/4/8/12/16 MHz override
+default is 16 MHz; the HAL retains the supported 1/2/4/8/12/16 MHz override
 ladder. All four Orange encoder descriptors reverse literal board A/B direction
 at the Orange event boundary. AUX2 A/B (227/269) remain requestable with UART0
 active, while its switch (224) is requested only after UART0 is disabled by the
@@ -231,7 +231,7 @@ sequence into separate commands.
 
 The metadata command is read-only. The active hardware test is
 `sudo -n /tmp/orange-oled-smoke --confirm-active-test` after the separate passive,
-staging, and electrical gates; it must not be run against an unverified device
+staging, and electrical checks; it must not be run against an unverified device
 or wiring harness.
 
 The native runtime keeps Jack Audio on while USB Audio and HDMI Audio remain

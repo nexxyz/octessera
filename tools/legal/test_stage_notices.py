@@ -94,7 +94,6 @@ class NoticeStagerTests(unittest.TestCase):
                 "LICENSE",
                 "NOTICE",
                 "THIRD_PARTY_NOTICES.md",
-                "docs/release-licensing.md",
                 "hardware/ATTRIBUTIONS.md",
                 "samples/SOURCE.md",
                 "samples/MANIFEST.tsv",
