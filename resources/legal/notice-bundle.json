@@ -6,7 +6,7 @@
     {"source": "LICENSE", "destination": "LICENSE", "sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a", "size": 1181},
     {"source": "NOTICE", "destination": "NOTICE", "sha256": "024166bd3bbdec8088dddcc440f829db43af1f8d0d372dd2a267494b534e7494", "size": 793},
     {"source": "THIRD_PARTY_NOTICES.md", "destination": "THIRD_PARTY_NOTICES.md", "sha256": "044fe05abfc34f28a70228087b1aa7b8c43f71c4c4c2493f5a2c720e95057292", "size": 2151},
-    {"source": "hardware/ATTRIBUTIONS.md", "destination": "hardware/ATTRIBUTIONS.md", "sha256": "a6718a509a7ba2a5bb3ee06912abb69782e19f8ff15ab1e061b8742386feffe0", "size": 3675},
+    {"source": "hardware/ATTRIBUTIONS.md", "destination": "hardware/ATTRIBUTIONS.md", "sha256": "73ba3ebe0f787f9c6683c2b91dcc85b7eaebed29e7499b7346029705263ea67e", "size": 4253},
     {"source": "samples/MANIFEST.tsv", "destination": "samples/MANIFEST.tsv", "sha256": "1f058d1cf61984bc396ebf05716dd8d866780332f9727d80a21fbfd230eb0b9b", "size": 35245},
     {"source": "samples/upstream/LICENSE", "destination": "samples/upstream/LICENSE", "sha256": "7a22e076b0e1d701c3204a9f86b5827aa0d124eca0876b968000e1b31d3e3f3a", "size": 6832},
     {"source": "samples/SOURCE.md", "destination": "samples/SOURCE.md", "sha256": "e31cdbed2b6c0dee478ee79bd889a64b73f76e9f8e54b24f6b49d05faddf3061", "size": 155},
