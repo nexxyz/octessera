@@ -65,6 +65,44 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertIn("export_top_variant", text)
         self.assertIn('if __name__ == "__main__":', text)
 
+    def test_single_material_generator_covers_printable_stl_matrix(self) -> None:
+        text = source("generate_single_material_3mf_from_stl.py")
+        tree = ast.parse(text)
+        glob_patterns = {
+            node.args[0].value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "glob"
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        }
+        self.assertEqual(
+            glob_patterns,
+            {"case_*.stl", "friction_insert_*.stl", "standoff_*.stl", "mx_keycap_*.stl", "encoder_cap_*.stl"},
+        )
+        self.assertNotIn("SKIPPED_STEMS", text)
+        self.assertIn("OBSOLETE_STEMS", text)
+        support_stems = next(
+            node.value
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "MULTICOLOR_SUPPORT_STEMS" for target in node.targets)
+        )
+        self.assertEqual(
+            ast.literal_eval(support_stems),
+            {
+                "case_bottom_plate_cadquery",
+                "friction_insert_expanding_plug_flat_sides",
+                "friction_insert_spreading_pin_headed",
+                "standoff_pillar_9_5mm",
+                "standoff_pillar_10mm",
+                "standoff_top_pin_thin_base",
+            },
+        )
+        self.assertIn("shutil.copyfile(out_path, MULTICOLOR_ROOT / out_path.name)", text)
+
     def test_port_policy_uses_reusable_geometry_modules(self) -> None:
         policy = source("top_wall_port_cutouts.py")
         geometry = "\n".join(

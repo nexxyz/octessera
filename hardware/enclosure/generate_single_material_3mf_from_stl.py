@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import struct
 import zipfile
 from collections import Counter
@@ -10,11 +11,16 @@ ROOT = Path(__file__).resolve().parent
 ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 STL_ROOT = ARTIFACT_ROOT / "stl"
 THREEMF_ROOT = ARTIFACT_ROOT / "3mf-single-material"
-SKIPPED_STEMS = {
-    "case_top_two_level_cadquery_raspberry-pi-zero-2w",
-    "case_top_two_level_cadquery_orange-pi-zero-2w",
-}
+MULTICOLOR_ROOT = ARTIFACT_ROOT / "3mf-multicolor"
 OBSOLETE_STEMS = {"standoff_pillar_9mm"}
+MULTICOLOR_SUPPORT_STEMS = {
+    "case_bottom_plate_cadquery",
+    "friction_insert_expanding_plug_flat_sides",
+    "friction_insert_spreading_pin_headed",
+    "standoff_pillar_9_5mm",
+    "standoff_pillar_10mm",
+    "standoff_top_pin_thin_base",
+}
 
 
 def read_binary_stl_triangles(path: Path) -> list[tuple[tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]]]:
@@ -130,21 +136,27 @@ def write_3mf(stl_path: Path) -> None:
 ''',
         )
         package.writestr("3D/3dmodel.model", model_xml(stl_path))
+    if stl_path.stem in MULTICOLOR_SUPPORT_STEMS:
+        MULTICOLOR_ROOT.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(out_path, MULTICOLOR_ROOT / out_path.name)
     print(f"wrote {out_path}")
 
 
 def main() -> None:
-    for stem in OBSOLETE_STEMS:
-        old_path = THREEMF_ROOT / f"{stem}.3mf"
-        if old_path.exists():
-            old_path.unlink()
+    for output_root in (THREEMF_ROOT, MULTICOLOR_ROOT):
+        for stem in OBSOLETE_STEMS:
+            old_path = output_root / f"{stem}.3mf"
+            if old_path.exists():
+                old_path.unlink()
     stl_paths = (
         sorted(STL_ROOT.glob("case_*.stl"))
         + sorted(STL_ROOT.glob("friction_insert_*.stl"))
         + sorted(STL_ROOT.glob("standoff_*.stl"))
+        + sorted(STL_ROOT.glob("mx_keycap_*.stl"))
+        + sorted(STL_ROOT.glob("encoder_cap_*.stl"))
     )
     for stl_path in stl_paths:
-        if stl_path.stem not in SKIPPED_STEMS and stl_path.stem not in OBSOLETE_STEMS:
+        if stl_path.stem not in OBSOLETE_STEMS:
             write_3mf(stl_path)
 
 
