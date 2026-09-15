@@ -15,10 +15,6 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent
 PARAMS = ROOT / "protective_case_params.json"
 SOURCE_PARAMS = ROOT / "enclosure_params.json"
-FACE_DOWN_TRANSPORT_TRANSLATION = (4.8, 144.2, 42.0)
-FACE_DOWN_TRANSPORT_XY_CENTER = (127.8, 74.2)
-
-
 @dataclass(frozen=True)
 class CornerRestraint:
     name: str
@@ -128,44 +124,39 @@ def hinge_centers(params: dict) -> tuple[float, ...]:
     return tuple(translate_x + sign * box["width"] / 4.0 for sign in (-1.0, 1.0))
 
 
-def device_origin(params: dict) -> tuple[float, float]:
-    return tuple(params["device"]["measured_origin"])
-
-
 def local_to_case(source_params: dict, point: list[float]) -> tuple[float, float]:
     _, case_depth = source_params["case_size_v21"]
     offset_x, offset_y = source_params["offset_v21"]
     return offset_x + point[0], case_depth - (offset_y + point[1])
 
 
-def face_down_transport_transform(model: cq.Workplane) -> cq.Workplane:
-    face_down = model.rotate((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), 180.0).translate(FACE_DOWN_TRANSPORT_TRANSLATION)
-    center_x, center_y = FACE_DOWN_TRANSPORT_XY_CENTER
-    return face_down.rotate((center_x, center_y, 0.0), (center_x, center_y, 1.0), 180.0)
+def face_down_reference_transform(model: cq.Workplane, params: dict) -> cq.Workplane:
+    transform = params["device"]["face_down_transform"]
+    rotated = model.rotate(
+        (0.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        transform["rotate_y_degrees"],
+    )
+    return rotated.translate(tuple(transform["translate"]))
 
 
-def face_down_transport_xy(point: tuple[float, float]) -> tuple[float, float]:
-    center_x, center_y = FACE_DOWN_TRANSPORT_XY_CENTER
-    return 2.0 * center_x - point[0], 2.0 * center_y - point[1]
+def face_down_reference_xy(point: tuple[float, float], params: dict) -> tuple[float, float]:
+    transform = params["device"]["face_down_transform"]
+    if transform["rotate_y_degrees"] != 180.0:
+        raise ValueError("face-down XY mapping requires a 180-degree Y rotation")
+    translate_x, translate_y, _ = transform["translate"]
+    return translate_x - point[0], translate_y + point[1]
 
 
-def face_down_transport_feature_xy(
-    source_params: dict, point: list[float], x_offset: float = 0.0, y_offset: float = 0.0
+def face_down_reference_feature_xy(
+    source_params: dict,
+    point: list[float],
+    params: dict,
+    x_offset: float = 0.0,
+    y_offset: float = 0.0,
 ) -> tuple[float, float]:
     face_up_x, face_up_y = local_to_case(source_params, point)
-    return face_down_transport_xy((
-        FACE_DOWN_TRANSPORT_TRANSLATION[0] + face_up_x + x_offset,
-        FACE_DOWN_TRANSPORT_TRANSLATION[1] - (face_up_y + y_offset),
-    ))
-
-
-def v21_to_protective(point: tuple[float, float], params: dict) -> tuple[float, float]:
-    origin_x, origin_y = device_origin(params)
-    return origin_x + point[0], origin_y + point[1]
-
-
-def local_to_protective(source_params: dict, point: list[float], params: dict) -> tuple[float, float]:
-    return v21_to_protective(local_to_case(source_params, point), params)
+    return face_down_reference_xy((face_up_x + x_offset, face_up_y + y_offset), params)
 
 
 def build_device_insertion(params: dict, check_fit: bool = False, base_z: float | None = None) -> cq.Workplane:

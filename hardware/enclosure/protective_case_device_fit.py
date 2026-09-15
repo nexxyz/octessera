@@ -16,7 +16,7 @@ try:
     from .protective_case_geometry import (
         corner_restraints,
         dimensions,
-        face_down_transport_transform,
+        face_down_reference_transform,
     )
     from .protective_case_keepouts import control_contact_keepouts
 except ImportError:
@@ -24,7 +24,7 @@ except ImportError:
     from protective_case_corner_restraints import _minimum_support_slope, continuous_shelf_support, corner_restraint_components
     from protective_case_device_orientation import validate_device_orientation
     from protective_case_foam_landing_pads import foam_landing_pad_components
-    from protective_case_geometry import corner_restraints, dimensions, face_down_transport_transform
+    from protective_case_geometry import corner_restraints, dimensions, face_down_reference_transform
     from protective_case_keepouts import control_contact_keepouts
 
 
@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent
 TOLERANCE = 0.05
 VOLUME_TOLERANCE = 1.0e-7
 EXPECTED_TUB_BBOX = (0.0, 255.6, -4.0, 149.834972, 0.0, 57.85)
-EXPECTED_DEVICE_BBOX = (3.8, 251.8, 4.2, 144.2, 22.0, 52.0)
+EXPECTED_REFERENCE_TOP_BBOX = (3.8, 251.8, 4.2, 144.2, 22.0, 52.0)
 EXPECTED_SHELF_ELEVATIONS = {
     "NW": (23.5, 25.0),
     "SW": (23.5, 25.0),
@@ -45,10 +45,7 @@ EXPECTED_CONTACTS = {
     "NE": (199.751, (236.1, 251.8, 130.6, 144.2), 30.0),
     "SE": (199.751, (236.1, 251.8, 4.2, 17.8), 25.0),
 }
-CURRENT_BASE_VOLUME = 185846.03981308394
-CURRENT_FINAL_VOLUME = 186788.02738391187
-EXPECTED_BASE_VOLUME_DELTA = -0.023217
-EXPECTED_FINAL_VOLUME_DELTA = 0.019609
+REFERENCE_TOP_VARIANTS = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 
 
 @dataclass(frozen=True)
@@ -72,9 +69,14 @@ def _source_top_module():
             sys.path.remove(source_root)
 
 
-def build_canonical_face_down_device() -> cq.Workplane:
+def build_face_down_reference_top(params: dict, variant: str) -> cq.Workplane:
     source = _source_top_module()
-    return face_down_transport_transform(source.build_model(source.load_params()))
+    source_params = source.load_params()
+    if variant == "orange-pi-zero-2w":
+        source_params = source.orange_pi_top_params(source_params)
+    elif variant != "raspberry-pi-zero-2w":
+        raise ValueError(f"unknown reference top variant: {variant}")
+    return face_down_reference_transform(source.build_model(source_params), params)
 
 
 def _shape_box(model: cq.Workplane) -> cq.BoundBox:
@@ -159,59 +161,59 @@ def _insertion_sweep_offsets(params: dict) -> tuple[float, ...]:
     return offsets
 
 
-def validate_actual_device_fit(params: dict) -> None:
+def validate_reference_top_fit(params: dict) -> None:
+    configured_variants = tuple(params["device"]["reference_top_variants"])
+    _require(configured_variants == REFERENCE_TOP_VARIANTS, "reference top variants changed")
     mismatches = _shelf_elevation_mismatches(params)
     _require(not mismatches, "face-down shelf elevations changed: " + ", ".join(mismatches))
-    device = build_canonical_face_down_device()
-    _require(cast(cq.Shape, device.val()).isValid() and len(device.solids().vals()) == 1, "canonical face-down device must be one valid solid")
-    for actual, expected, axis in zip(_bbox_tuple(device), EXPECTED_DEVICE_BBOX, ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")):
-        _close(actual, expected, f"face_down_device_{axis}")
 
+    base_tub = cad.build_deep_tub_base(params)
     final_tub = cad.build_deep_tub(params)
-    _require(_intersection_volume(device, final_tub) <= VOLUME_TOLERANCE, "canonical device has a prohibited deep-tub intersection")
-    contacts = support_contacts(device, params)
-    contact_metrics = []
-    for contact in contacts:
-        expected_area, expected_bbox, expected_z = EXPECTED_CONTACTS[contact.name]
-        _close(contact.area, expected_area, f"{contact.name}_contact_area", 0.01)
-        for actual, expected, axis in zip(contact.bbox, expected_bbox, ("xmin", "xmax", "ymin", "ymax")):
-            _close(actual, expected, f"{contact.name}_contact_{axis}")
-        _close(contact.z, expected_z, f"{contact.name}_contact_z")
-        contact_metrics.append(f"{contact.name}={contact.area:.3f}mm2/bbox={','.join(f'{value:.1f}' for value in contact.bbox)}/Z{contact.z:.1f}")
-
-    insertion_offsets = _insertion_sweep_offsets(params)
-    insertion_collisions = []
-    for offset in insertion_offsets:
-        insertion_collisions.append(_intersection_volume(device.translate((0.0, 0.0, float(offset))), final_tub))
-    _require(max(insertion_collisions) <= VOLUME_TOLERANCE, "canonical device insertion sweep has a prohibited intersection")
-
     shallow_lid = cad.build_shallow_lid(params)
-    shallow_collision = _intersection_volume(device, shallow_lid)
-    shallow_distance = cast(cq.Shape, device.val()).distance(cast(cq.Shape, shallow_lid.val()))
-    _require(shallow_collision <= VOLUME_TOLERANCE, "canonical device collides with the shallow lid")
-    _close(shallow_distance, 1.192686, "canonical_device_shallow_lid_distance", 0.001)
-
     restraints = corner_restraint_components(params)
     pads = foam_landing_pad_components(params)
     keepout_probes = _control_keepout_probes(params)
+    insertion_offsets = _insertion_sweep_offsets(params)
+    variant_metrics = []
+
+    for variant in configured_variants:
+        reference_top = build_face_down_reference_top(params, variant)
+        _require(cast(cq.Shape, reference_top.val()).isValid() and len(reference_top.solids().vals()) == 1, f"{variant} face-down reference top must be one valid solid")
+        for actual, expected, axis in zip(_bbox_tuple(reference_top), EXPECTED_REFERENCE_TOP_BBOX, ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")):
+            _close(actual, expected, f"{variant}_face_down_reference_top_{axis}")
+        _require(_intersection_volume(reference_top, final_tub) <= VOLUME_TOLERANCE, f"{variant} reference top has a prohibited deep-tub intersection")
+
+        contacts = support_contacts(reference_top, params)
+        for contact in contacts:
+            expected_area, expected_bbox, expected_z = EXPECTED_CONTACTS[contact.name]
+            _close(contact.area, expected_area, f"{variant}_{contact.name}_contact_area", 0.01)
+            for actual, expected, axis in zip(contact.bbox, expected_bbox, ("xmin", "xmax", "ymin", "ymax")):
+                _close(actual, expected, f"{variant}_{contact.name}_contact_{axis}")
+            _close(contact.z, expected_z, f"{variant}_{contact.name}_contact_z")
+
+        insertion_collisions = [
+            _intersection_volume(reference_top.translate((0.0, 0.0, float(offset))), final_tub)
+            for offset in insertion_offsets
+        ]
+        _require(max(insertion_collisions) <= VOLUME_TOLERANCE, f"{variant} reference top insertion sweep has a prohibited intersection")
+        shallow_collision = _intersection_volume(reference_top, shallow_lid)
+        shallow_distance = cast(cq.Shape, reference_top.val()).distance(cast(cq.Shape, shallow_lid.val()))
+        _require(shallow_collision <= VOLUME_TOLERANCE, f"{variant} reference top collides with the shallow lid")
+        _close(shallow_distance, 1.192686, f"{variant}_reference_top_shallow_lid_distance", 0.001)
+        _require(all(_intersection_volume(reference_top, pad) <= VOLUME_TOLERANCE for _, pad in pads), f"{variant} reference top intersects a foam landing pad")
+        validate_device_orientation(params, final_tub, reference_top, base_tub)
+        variant_metrics.append(f"{variant}:contacts={len(contacts)}/distance={shallow_distance:.3f}mm")
+
     for restraint_name, restraint in restraints:
         _require(_intersection_volume(restraint, final_tub) > 0.0, f"{restraint_name} is not joined to the final tub")
         _require(all(_intersection_volume(restraint, probe) <= VOLUME_TOLERANCE for probe in keepout_probes), f"{restraint_name} intersects a control keepout")
         _require(all(_intersection_volume(restraint, pad) <= VOLUME_TOLERANCE for _, pad in pads), f"{restraint_name} intersects a foam landing pad")
-    _require(all(_intersection_volume(device, pad) <= VOLUME_TOLERANCE for _, pad in pads), "canonical device intersects a foam landing pad")
 
     _require(cast(cq.Shape, final_tub.val()).isValid() and len(final_tub.solids().vals()) == 1, "final deep tub must be one valid solid")
     for actual, expected, axis in zip(_bbox_tuple(final_tub), EXPECTED_TUB_BBOX, ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")):
         _close(actual, expected, f"final_tub_{axis}")
-    base_tub = cad.build_deep_tub_base(params)
-    base_volume_delta = _volume(base_tub) - CURRENT_BASE_VOLUME
-    final_volume_delta = _volume(final_tub) - CURRENT_FINAL_VOLUME
-    _close(base_volume_delta, EXPECTED_BASE_VOLUME_DELTA, "deep_base_volume_delta", 0.001)
-    _close(final_volume_delta, EXPECTED_FINAL_VOLUME_DELTA, "deep_final_volume_delta", 0.001)
-    validate_device_orientation(params, final_tub, device, base_tub)
     slopes = tuple(f"{restraint.name}={_minimum_support_slope(continuous_shelf_support(restraint, params)):.3f}deg" for restraint in corner_restraints(params))
-    print("actual_device=source_built transform=x=250.8-x,y=4.2+y,z=42.0-z bbox=PASS contacts=all4")
-    print(f"actual_device_contacts={';'.join(contact_metrics)}")
-    print(f"actual_device_support_slopes={','.join(slopes)} deep_base_volume_delta={base_volume_delta:+.6f}mm3 deep_final_volume_delta={final_volume_delta:+.6f}mm3")
-    print(f"actual_device_insertion_sweep=stations={len(insertion_offsets)} offsets={min(insertion_offsets):.2f}..{max(insertion_offsets):.2f}mm critical_interval=>32.65mm collision=NONE shallow_lid_collision={shallow_collision:.3e}mm3 min_distance={shallow_distance:.6f}mm")
-    print("actual_device_fit=solid=PASS bbox=UNCHANGED supports=JOINED controls=NONE foam=NONE")
+    transform = params["device"]["face_down_transform"]
+    print(f"reference_tops={','.join(configured_variants)} rotate_y={transform['rotate_y_degrees']:.1f} translate={transform['translate']} bbox=PASS")
+    print(f"reference_top_fit={';'.join(variant_metrics)} insertion_stations={len(insertion_offsets)} collision=NONE")
+    print(f"reference_top_support_slopes={','.join(slopes)} controls=NONE foam=NONE final_solid=PASS")

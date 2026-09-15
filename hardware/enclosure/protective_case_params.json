@@ -7,7 +7,7 @@
       "https://www.thingiverse.com/thing:6842165"
     ],
     "license": "CC BY-SA, version unspecified by controlling source",
-    "project_changes": "Octessera adds continuous corner shelf supports, device keepout validation, branding, a full-height rounded normalized mating interface, and reversed transport-case latch ownership; the copied source is minimally adapted only to skip the horizontal chamfer when chamfer_xy is zero, while default dimensions, hinge, Clip, and source regressions remain unchanged."
+    "project_changes": "Octessera adds continuous corner shelf supports, device keepout validation, branding, a full-height rounded normalized mating interface, and reversed protective-case latch ownership; the copied source is minimally adapted only to skip the horizontal chamfer when chamfer_xy is zero, while default dimensions, hinge, Clip, and source regressions remain unchanged."
   },
   "parametric_box": {
     "width": 255.6,
@@ -51,7 +51,11 @@
       "height": 45.0
     },
     "center": [127.8, 74.2],
-    "measured_origin": [4.8, 4.2],
+    "reference_top_variants": ["raspberry-pi-zero-2w", "orange-pi-zero-2w"],
+    "face_down_transform": {
+      "rotate_y_degrees": 180.0,
+      "translate": [250.8, 4.2, 42.0]
+    },
     "xy_retention": {
       "method": "adhesive_foam_strips",
       "thickness_range": [1.0, 2.0],
@@ -209,7 +213,7 @@
   },
   "corner_restraints": {
     "support_lower_z": 2.0,
-    "shelf_overlap": 0.02,
+    "shelf_overlap": 0.10,
     "shelf_plan_radius": 1.0,
     "shelf_top_edge_radius": 0.6,
     "support_contact_length_min": 3.0,
@@ -282,13 +286,13 @@
   },
   "print_bed_xy": [260.0, 260.0],
   "artifacts": [
-    "release-artifacts/enclosure/step/transport_case_deep_tub_debossed_logo.step",
-    "release-artifacts/enclosure/stl/transport_case_deep_tub_debossed_logo.stl",
-    "release-artifacts/enclosure/3mf/transport_case_deep_tub_debossed_logo.3mf",
-    "release-artifacts/enclosure/3mf-multicolor/transport_case_deep_tub_multicolor_logo.3mf",
-    "release-artifacts/enclosure/step/transport_case_shallow_lid_debossed_branding.step",
-    "release-artifacts/enclosure/stl/transport_case_shallow_lid_debossed_branding.stl",
-    "release-artifacts/enclosure/3mf/transport_case_shallow_lid_debossed_branding.3mf",
-    "release-artifacts/enclosure/3mf-multicolor/transport_case_shallow_lid_multicolor_branding.3mf"
+    "release-artifacts/enclosure/step/protective_case_checkfit_deep_tub_debossed_logo.step",
+    "release-artifacts/enclosure/stl/protective_case_checkfit_deep_tub_debossed_logo.stl",
+    "release-artifacts/enclosure/3mf-single-material/protective_case_checkfit_deep_tub_debossed_logo.3mf",
+    "release-artifacts/enclosure/3mf-multicolor/protective_case_checkfit_deep_tub_multicolor_logo.3mf",
+    "release-artifacts/enclosure/step/protective_case_checkfit_shallow_lid_debossed_branding.step",
+    "release-artifacts/enclosure/stl/protective_case_checkfit_shallow_lid_debossed_branding.stl",
+    "release-artifacts/enclosure/3mf-single-material/protective_case_checkfit_shallow_lid_debossed_branding.3mf",
+    "release-artifacts/enclosure/3mf-multicolor/protective_case_checkfit_shallow_lid_multicolor_branding.3mf"
   ]
 }

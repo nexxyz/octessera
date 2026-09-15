@@ -234,19 +234,19 @@ def _validate_clearances(params: dict) -> None:
             )
 
 
-def _canonical_device(params: dict) -> cq.Workplane:
+def _reference_top(params: dict) -> cq.Workplane:
     try:
-        from .protective_case_device_fit import build_canonical_face_down_device
+        from .protective_case_device_fit import build_face_down_reference_top
     except ImportError:
-        from protective_case_device_fit import build_canonical_face_down_device
-    return build_canonical_face_down_device()
+        from protective_case_device_fit import build_face_down_reference_top
+    return build_face_down_reference_top(params, params["device"]["reference_top_variants"][0])
 
 
 def _validate_sweep(
     params: dict,
     corrected_deep: cq.Workplane,
     corrected_shallow: cq.Workplane,
-    canonical_device: cq.Workplane,
+    reference_top: cq.Workplane,
 ) -> None:
     deep_profiles = latch_profile_components(params, "deep")
     shallow_profiles = latch_profile_components(params, "shallow")
@@ -283,28 +283,28 @@ def _validate_sweep(
     final_deep = add_bottom_latches(params, corrected_deep, "deep")
     final_shallow = add_bottom_latches(params, corrected_shallow, "shallow")
     assembly_collisions = []
-    lid_device_collisions = []
+    lid_reference_top_collisions = []
     no_latch_collisions = []
     for angle in range(181):
         moving_no_latch = corrected_shallow.rotate((0.0, axis_y, axis_z), (1.0, axis_y, axis_z), angle)
         moving_lid = final_shallow.rotate((0.0, axis_y, axis_z), (1.0, axis_y, axis_z), angle)
         no_latch_collisions.append(_intersection_volume(moving_no_latch, corrected_deep))
         assembly_collisions.append(_intersection_volume(moving_lid, final_deep))
-        lid_device_collisions.append(_intersection_volume(moving_lid, canonical_device))
+        lid_reference_top_collisions.append(_intersection_volume(moving_lid, reference_top))
     _require(all(collision <= VOLUME_TOLERANCE for collision in no_latch_collisions), "corrected shell sweep has a collision")
     _require(assembly_collisions[0] <= VOLUME_TOLERANCE, "final latch owners collide at closed 0 degrees")
     _require(abs(assembly_collisions[1] - 16.690446) <= TOLERANCE, "final latch owner one-degree engagement changed")
     _require(all(collision <= VOLUME_TOLERANCE for collision in assembly_collisions[2:]), "final latch owner sweep has a collision after 2 degrees")
-    _require(all(collision <= VOLUME_TOLERANCE for collision in lid_device_collisions), "moving final lid collides with canonical device")
+    _require(all(collision <= VOLUME_TOLERANCE for collision in lid_reference_top_collisions), "moving final lid collides with the reference top")
     print(f"bottom_latches=centers={latch_centers(params)} shallow_actuator=522.288830mm3 deep_catch=80.593856mm3 bridge_overlap=0.10mm collision_band=0.01..1.45deg max=39.169681mm3@0.55deg one_degree=16.690446mm3 release=1.46deg PASS")
-    print(f"bottom_latch_assembly_sweep=corrected_shell_max={max(no_latch_collisions):.6f}mm3 final_owners=0:{assembly_collisions[0]:.6f}mm3/1:{assembly_collisions[1]:.6f}mm3/2..180:max={max(assembly_collisions[2:]):.6f}mm3 lid_device_0..180:max={max(lid_device_collisions):.6f}mm3 PASS")
+    print(f"bottom_latch_assembly_sweep=corrected_shell_max={max(no_latch_collisions):.6f}mm3 final_owners=0:{assembly_collisions[0]:.6f}mm3/1:{assembly_collisions[1]:.6f}mm3/2..180:max={max(assembly_collisions[2:]):.6f}mm3 lid_reference_top_0..180:max={max(lid_reference_top_collisions):.6f}mm3 PASS")
 
 
 def validate_bottom_latches(
     params: dict,
     corrected_deep: cq.Workplane,
     corrected_shallow: cq.Workplane,
-    canonical_device: cq.Workplane | None = None,
+    reference_top: cq.Workplane | None = None,
 ) -> None:
     _require(seam_z(params) == SEAM_Z, "latch seam changed")
     _require(latch_centers(params) == (72.8, 182.8), "latch centers changed")
@@ -312,4 +312,4 @@ def validate_bottom_latches(
     _validate_profiles(params)
     _validate_bridges(params, corrected_deep, corrected_shallow)
     _validate_clearances(params)
-    _validate_sweep(params, corrected_deep, corrected_shallow, _canonical_device(params) if canonical_device is None else canonical_device)
+    _validate_sweep(params, corrected_deep, corrected_shallow, _reference_top(params) if reference_top is None else reference_top)

@@ -86,7 +86,7 @@ def _deep_tub_logo(params: dict, z0: float, height: float) -> list[tuple[str, cq
     branding = branding_dimensions(params)
     return [
         (
-            "transport_case_deep_tub_logo",
+            "protective_case_checkfit_deep_tub_logo",
             mirror_for_negative_z_exterior_view(
                 logo_marking_placed(
                     branding.deep_tub_logo_target_size,
@@ -103,7 +103,7 @@ def _deep_tub_logo(params: dict, z0: float, height: float) -> list[tuple[str, cq
 def _shallow_lid_lockup(params: dict, z0: float, height: float) -> list[tuple[str, cq.Workplane]]:
     branding = branding_dimensions(params)
     return [
-        (f"transport_case_shallow_lid_{name.removeprefix('octessera_')}", part)
+        (f"protective_case_checkfit_shallow_lid_{name.removeprefix('octessera_')}", part)
         for name, part in rotate_lockup_group(_lockup_parts(params, z0, height), branding.combined_center, branding.shallow_lid_lockup_rotation_degrees)
     ]
 
@@ -115,7 +115,7 @@ def build_deep_tub_flush_branding_parts(params: dict) -> list[tuple[str, cq.Work
 
 def build_deep_tub_multicolor_branding_parts(params: dict) -> list[tuple[str, cq.Workplane]]:
     return build_deep_tub_flush_branding_parts(params) + [
-        ("transport_case_deep_tub_device_orientation_guide", fused_device_orientation_guide_inlay(params))
+        ("protective_case_checkfit_deep_tub_device_orientation_guide", fused_device_orientation_guide_inlay(params))
     ]
 
 

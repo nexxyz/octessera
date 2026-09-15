@@ -24,7 +24,7 @@ try:
     from .protective_case_branding_validation import validate_branding
     from .protective_case_bottom_latches import validate_bottom_latches, validate_source_box_clip_ownership
     from .protective_case_corner_restraints import validate_corner_restraints
-    from .protective_case_device_fit import validate_actual_device_fit
+    from .protective_case_device_fit import validate_reference_top_fit
     from .protective_case_foam_landing_pads import add_foam_landing_pads, validate_foam_landing_pads
     from .protective_case_mating_interface import apply_deep_mating_interface, apply_shallow_mating_interface, transformed_hinge_profile, validate_hinge_profile_preservation, validate_mating_interface
     from .protective_case_geometry import (
@@ -46,7 +46,7 @@ except ImportError:
     from protective_case_branding_validation import validate_branding
     from protective_case_bottom_latches import validate_bottom_latches, validate_source_box_clip_ownership
     from protective_case_corner_restraints import validate_corner_restraints
-    from protective_case_device_fit import validate_actual_device_fit
+    from protective_case_device_fit import validate_reference_top_fit
     from protective_case_foam_landing_pads import add_foam_landing_pads, validate_foam_landing_pads
     from protective_case_mating_interface import apply_deep_mating_interface, apply_shallow_mating_interface, transformed_hinge_profile, validate_hinge_profile_preservation, validate_mating_interface
     from protective_case_geometry import artifact_paths, build_device_insertion, corner_restraints, dimensions, hinge_axis, hinge_centers, load_parameters, normalize_source_half, parametric_box_measures
@@ -140,7 +140,7 @@ def validate_parameter_relationships(params: dict) -> None:
     restraint_spec = params["corner_restraints"]
     require(
         restraint_spec["support_lower_z"] == 2.0
-        and restraint_spec["shelf_overlap"] == 0.02
+        and restraint_spec["shelf_overlap"] == 0.10
         and restraint_spec["shelf_plan_radius"] == 1.0
         and restraint_spec["shelf_top_edge_radius"] == 0.6
         and restraint_spec["support_contact_length_min"] == 3.0
@@ -150,6 +150,12 @@ def validate_parameter_relationships(params: dict) -> None:
     require(params["device"]["envelope"] == {"width": 248.0, "depth": 140.0, "radius": 8.0, "height": 45.0}, "device envelope changed")
     require(params["device"]["check_fit"] == {"width": 249.0, "depth": 141.0, "radius": 8.0, "height": 45.0}, "device check-fit changed")
     device = params["device"]
+    require(
+        device["reference_top_variants"] == ["raspberry-pi-zero-2w", "orange-pi-zero-2w"]
+        and device["face_down_transform"] == {"rotate_y_degrees": 180.0, "translate": [250.8, 4.2, 42.0]},
+        "reference top variants or face-down transform changed",
+    )
+    require("measured_origin" not in device, "legacy measured device origin must remain absent")
     require(
         device["xy_retention"]
         == {
@@ -404,7 +410,7 @@ def validate_artifact_paths(params: dict, check_files: bool = False) -> None:
     debossed_3mf_paths = [path for path in three_mf_paths if "debossed" in path.name]
     multicolor_3mf_paths = [path for path in three_mf_paths if "multicolor" in path.name]
     require(len(three_mf_paths) == 4 and len(debossed_3mf_paths) == 2 and len(multicolor_3mf_paths) == 2, "expected two debossed and two multicolor 3MF artifacts")
-    require(all(path.relative_to(repo_root).parent.as_posix() == "release-artifacts/enclosure/3mf" for path in debossed_3mf_paths), "debossed 3MF artifacts must use the single-material directory")
+    require(all(path.relative_to(repo_root).parent.as_posix() == "release-artifacts/enclosure/3mf-single-material" for path in debossed_3mf_paths), "debossed 3MF artifacts must use the single-material directory")
     require(all(path.relative_to(repo_root).parent.as_posix() == "release-artifacts/enclosure/3mf-multicolor" for path in multicolor_3mf_paths), "multicolor 3MF artifacts must use the multicolor directory")
     if not check_files:
         print("artifact_contract=8 exact_paths=SOURCE_ONLY 3mf=debossed2/multicolor2")
@@ -470,7 +476,7 @@ def main() -> None:
     validate_mating_interface(params, deep, shallow, corrected_deep, corrected_shallow)
     validate_branding(params)
     validate_bed_fit(params)
-    validate_actual_device_fit(params)
+    validate_reference_top_fit(params)
     validate_artifact_paths(params, check_files=args.check_artifacts)
     print("PASS")
 

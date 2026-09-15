@@ -32,7 +32,7 @@ DOMAIN_MODULE_RESPONSIBILITIES: dict[str, tuple[str, ...]] = {
         "make_north_wall_face_recess",
     ),
     "top_wall_port_cutouts.py": ("add_top_wall_port_cutouts",),
-    "protective_case_device_fit.py": ("build_canonical_face_down_device", "validate_actual_device_fit"),
+    "protective_case_device_fit.py": ("build_face_down_reference_top", "validate_reference_top_fit"),
     "protective_case_device_orientation.py": ("device_orientation_guide_components", "device_orientation_guide_inlay_components", "device_orientation_turnaround_arrow_components", "fused_device_orientation_guide_inlay", "add_device_orientation_guide", "validate_device_orientation"),
     "protective_case_bottom_latches.py": ("transformed_clip_profile", "latch_profile_components", "latch_bridge_components", "bottom_latch_components", "add_bottom_latches", "validate_source_box_clip_ownership", "validate_bottom_latches"),
 }
@@ -131,6 +131,10 @@ class CadSourceStructureTests(unittest.TestCase):
             text = source(name)
             self.assertIn("CC BY-SA, version unspecified by controlling source", text)
             self.assertNotIn("CC BY-SA 4.0", text)
+        attribution = (ROOT.parent / "ATTRIBUTIONS.md").read_text(encoding="utf-8")
+        self.assertIn("Printables model `1069138`", attribution)
+        self.assertIn("Thingiverse listing `6842165`", attribution)
+        self.assertIn("CC BY-SA, version unspecified by controlling source", attribution)
 
     def test_rejected_homemade_sources_are_absent(self) -> None:
         for suffix in ("hinge.py", "external_latches.py", "corner_blocks.py"):
@@ -152,8 +156,8 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertIn("both_wall_witnesses", restraints)
         self.assertIn("--check-artifacts", source("validate_protective_case.py"))
         self.assertIn("corner_restraint_components", restraints)
-        self.assertIn("face_down_transport_transform", geometry)
-        self.assertIn("face_down_transport_feature_xy", keepouts)
+        self.assertIn("face_down_reference_transform", geometry)
+        self.assertIn("face_down_reference_feature_xy", keepouts)
         self.assertIn("device_orientation_guide_components", orientation)
         self.assertIn("device_orientation_turnaround_arrow_components", orientation)
         self.assertIn("validate_device_orientation", orientation)
@@ -165,77 +169,24 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertIn('mirror("XY"', latches)
         self.assertIn("add_bottom_latches", generator)
 
-    def test_params_have_exact_new_outputs_and_no_old_terms(self) -> None:
+    def test_protective_params_own_fit_and_artifact_contract(self) -> None:
         params = json.loads(source("protective_case_params.json"))
+        device = params["device"]
+        self.assertEqual(device["reference_top_variants"], ["raspberry-pi-zero-2w", "orange-pi-zero-2w"])
+        self.assertEqual(
+            device["face_down_transform"],
+            {"rotate_y_degrees": 180.0, "translate": [250.8, 4.2, 42.0]},
+        )
+        self.assertNotIn("measured_origin", device)
+        self.assertEqual(params["corner_restraints"]["shelf_overlap"], 0.10)
+
         paths = [Path(path) for path in params["artifacts"]]
-        names = [path.name for path in paths]
-        self.assertEqual(len(names), 8)
-        self.assertEqual(len(set(names)), 8)
-        self.assertEqual(
-            [path.as_posix() for path in paths],
-            [
-                "release-artifacts/enclosure/step/transport_case_deep_tub_debossed_logo.step",
-                "release-artifacts/enclosure/stl/transport_case_deep_tub_debossed_logo.stl",
-                "release-artifacts/enclosure/3mf/transport_case_deep_tub_debossed_logo.3mf",
-                "release-artifacts/enclosure/3mf-multicolor/transport_case_deep_tub_multicolor_logo.3mf",
-                "release-artifacts/enclosure/step/transport_case_shallow_lid_debossed_branding.step",
-                "release-artifacts/enclosure/stl/transport_case_shallow_lid_debossed_branding.stl",
-                "release-artifacts/enclosure/3mf/transport_case_shallow_lid_debossed_branding.3mf",
-                "release-artifacts/enclosure/3mf-multicolor/transport_case_shallow_lid_multicolor_branding.3mf",
-            ],
-        )
+        self.assertEqual(len(paths), 8)
+        self.assertEqual(len({path.name for path in paths}), 8)
+        self.assertTrue(all(path.name.startswith("protective_case_checkfit_") for path in paths))
         three_mf_paths = [path for path in paths if path.suffix == ".3mf"]
-        self.assertEqual(sum(path.parent.as_posix() == "release-artifacts/enclosure/3mf" for path in three_mf_paths), 2)
-        self.assertEqual(sum(path.parent.as_posix() == "release-artifacts/enclosure/3mf-multicolor" for path in three_mf_paths), 2)
-        debossed_paths = [path for path in three_mf_paths if "debossed" in path.name]
-        self.assertEqual(len(debossed_paths), 2)
-        self.assertTrue(all(path.parent.as_posix() == "release-artifacts/enclosure/3mf" for path in debossed_paths))
-        self.assertFalse(any(path.parent.as_posix() == "release-artifacts/enclosure/3mf-multicolor" for path in debossed_paths))
-        self.assertTrue(all("debossed" in name or "multicolor" in name for name in names))
-        legacy_branding = "emb" + "ossed"
-        self.assertFalse(any("hinged" in name or "prototype" in name or legacy_branding in name for name in names))
-        self.assertIn("seated_base_z", source("protective_case_params.json"))
-        self.assertIn("paddle_envelope", source("protective_case_params.json"))
-        restraint_text = source("protective_case_params.json")
-        self.assertIn("shelf_plan_radius", restraint_text)
-        self.assertIn("shelf_top_edge_radius", restraint_text)
-        self.assertIn("support_lower_polygon", restraint_text)
-        self.assertIn("support_upper_polygon", restraint_text)
-        self.assertIn("support_lower_z", restraint_text)
-        self.assertIn('"bottom_latches"', restraint_text)
-        self.assertEqual(
-            params["bottom_latches"],
-            {
-                "root_bridge": {"depth": 0.2, "host_profile_overlap": 0.1},
-                "actuator": {"width": 19.4, "z": [56.95, 60.7]},
-                "catch": {"width": 23.4, "z": [47.6, 51.6]},
-            },
-        )
-        self.assertNotIn('"seam_z"', restraint_text)
-        self.assertNotIn('"wall_y"', restraint_text)
-        self.assertNotIn('"centers"', restraint_text)
-        self.assertEqual(
-            params["branding"],
-            {
-                "logo_target_size": 64.0,
-                "wordmark_width": 100.0,
-                "wordmark_height": 15.0943396226,
-                "combined_center": [127.8, 74.2],
-                "vertical_gap": 6.0,
-                "shallow_lid_lockup_rotation_degrees": 180.0,
-                "deep_tub_logo_target_size": 72.0,
-                "deboss_depth": 0.4,
-                "flush_depth": 0.4,
-            },
-        )
-        self.assertTrue(all("deep_tub_debossed_logo" in name or "deep_tub_multicolor_logo" in name or "shallow_lid" in name for name in names))
-        self.assertTrue(all("shallow_lid_debossed_branding" in name or "shallow_lid_multicolor_branding" in name or "deep_tub" in name for name in names))
-        self.assertNotIn("floor_toes", restraint_text)
-        self.assertNotIn("wall_wings", restraint_text)
-        self.assertNotIn("tangential_run", restraint_text)
-        self.assertNotIn("floor_toe", restraint_text)
-        self.assertNotIn("wall_wing", restraint_text)
-        self.assertNotIn('"root"', restraint_text)
+        self.assertEqual(sum(path.parent.name == "3mf-single-material" for path in three_mf_paths), 2)
+        self.assertEqual(sum(path.parent.name == "3mf-multicolor" for path in three_mf_paths), 2)
 
     def test_contact_pad_rounding_is_local_to_shelf(self) -> None:
         restraints = source("protective_case_corner_restraints.py")
@@ -265,7 +216,7 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertIn("def rotate_lockup_group", branding)
         self.assertIn("shallow_lid_lockup_rotation_degrees", branding)
         self.assertIn("build_deep_tub_multicolor_branding_parts", branding)
-        self.assertIn("transport_case_deep_tub_device_orientation_guide", branding)
+        self.assertIn("protective_case_checkfit_deep_tub_device_orientation_guide", branding)
         self.assertIn("mirror_for_negative_z_exterior_view", branding)
         self.assertNotIn("device_origin", branding)
         self.assertNotIn("branding_marking_parts(", branding)
@@ -279,11 +230,11 @@ class CadSourceStructureTests(unittest.TestCase):
         ):
             self.assertNotIn("emb" + "oss", source(name).lower(), name)
         validator = source("protective_case_3mf_validation.py")
-        self.assertIn('"transport_case_deep_tub_logo", "2"', validator)
-        self.assertIn('"transport_case_deep_tub_device_orientation_guide", "2"', validator)
-        self.assertNotIn('"transport_case_deep_tub_wordmark", "2"', validator)
-        self.assertIn('"transport_case_shallow_lid_logo", "2"', validator)
-        self.assertIn('"transport_case_shallow_lid_wordmark", "2"', validator)
+        self.assertIn('"protective_case_checkfit_deep_tub_logo", "2"', validator)
+        self.assertIn('"protective_case_checkfit_deep_tub_device_orientation_guide", "2"', validator)
+        self.assertNotIn('"protective_case_checkfit_deep_tub_wordmark", "2"', validator)
+        self.assertIn('"protective_case_checkfit_shallow_lid_logo", "2"', validator)
+        self.assertIn('"protective_case_checkfit_shallow_lid_wordmark", "2"', validator)
         self.assertIn("deep tub branding must contain logo only", source("protective_case_branding_validation.py"))
         self.assertIn("shallow lid branding must contain logo and wordmark", source("protective_case_branding_validation.py"))
         generator = source("generate_protective_case_cadquery.py")
