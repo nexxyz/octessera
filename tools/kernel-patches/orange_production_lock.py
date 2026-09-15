@@ -18,7 +18,7 @@ EXPECTED_SOURCE_LOCK_PATH = "userpatches/config/sources/git_sources.json"
 EXPECTED_SOURCE_LOCK_SHA256 = "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30"
 EXPECTED_CONFIG_BASE_PATH = "config/kernel/linux-sunxi64-current.config"
 EXPECTED_CONFIG_BASE_SHA256 = "03a427fed857cc598ef95c5c8a2dccb43bb515d513df1eff9c010e6aa56ab155"
-EXPECTED_PACKAGED_CONFIG_SHA256 = "922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc"
+EXPECTED_PACKAGED_CONFIG_NORMALIZED_SHA256 = "a4e55501c096d1fe6c8b1370bcf9a5c6281354cb978b18c5d2a32019d807ba63"
 EXPECTED_ORANGE_PACKAGES = (
     "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
     "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb",
@@ -80,6 +80,6 @@ def validate_production_manifest(manifest: dict[str, Any], root: Path) -> None:
     if (
         config_base.get("path") != EXPECTED_CONFIG_BASE_PATH
         or config_base.get("sha256") != EXPECTED_CONFIG_BASE_SHA256
-        or armbian.get("packaged_config_sha256") != EXPECTED_PACKAGED_CONFIG_SHA256
+        or armbian.get("packaged_config_normalized_sha256") != EXPECTED_PACKAGED_CONFIG_NORMALIZED_SHA256
     ):
         raise ValueError("manifest Orange config identity is not approved")

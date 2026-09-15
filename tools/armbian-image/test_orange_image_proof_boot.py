@@ -20,8 +20,8 @@ from test_orange_image_proof_support import (
 )
 
 
-def run_boot_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path) -> None:
-    args = verifier_args(root, image, dtb, evidence, provenance)
+def run_boot_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path, manifest: Path) -> None:
+    args = verifier_args(root, image, dtb, evidence, provenance, manifest=manifest)
     socket_link = root / "etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
     original_socket_target = socket_link.readlink()
     for target, expected in (

@@ -93,7 +93,7 @@ print(armbian["package_revision"])
 print(armbian["kernel_release"])
 print(armbian["required_dtb"])
 print(armbian["required_module"])
-print(armbian["packaged_config_sha256"])
+print(armbian["packaged_config_normalized_sha256"])
 print(armbian["native_artifact_suffix"])
 PY
 )
@@ -107,18 +107,18 @@ expected_kernel_release="${contract_values[5]}"
 expected_kernel_version="${expected_kernel_release%%-*}"
 expected_dtb="${contract_values[6]}"
 expected_module="${contract_values[7]}"
-manifest_packaged_config_sha256="${contract_values[8]}"
+manifest_packaged_config_normalized_sha256="${contract_values[8]}"
 expected_artifact_suffix="${contract_values[9]}"
-[[ "$manifest_packaged_config_sha256" =~ ^[[:xdigit:]]{64}$ ]] || { echo "Manifest packaged config SHA-256 is invalid." >&2; exit 1; }
+[[ "$manifest_packaged_config_normalized_sha256" =~ ^[[:xdigit:]]{64}$ ]] || { echo "Manifest packaged normalized config SHA-256 is invalid." >&2; exit 1; }
 [[ "$expected_artifact_suffix" =~ ^[A-Za-z0-9][A-Za-z0-9+._-]*$ ]] || { echo "Manifest native package artifact suffix is invalid." >&2; exit 1; }
 if [[ -n "$expected_config_sha256" ]]; then
   [[ "$expected_config_sha256" =~ ^[[:xdigit:]]{64}$ ]] || { echo "Expected config SHA-256 is invalid." >&2; exit 2; }
-  if [[ "${expected_config_sha256,,}" != "${manifest_packaged_config_sha256,,}" && "${OCTESSERA_ORANGE_TEST_MODE:-}" != 1 ]]; then
-    echo "Expected config SHA-256 must equal the manifest packaged config SHA-256." >&2
+  if [[ "${expected_config_sha256,,}" != "${manifest_packaged_config_normalized_sha256,,}" ]]; then
+    echo "Expected config SHA-256 must equal the manifest packaged normalized config SHA-256." >&2
     exit 2
   fi
 else
-  expected_config_sha256="$manifest_packaged_config_sha256"
+  expected_config_sha256="$manifest_packaged_config_normalized_sha256"
 fi
 expected_image_name="${expected_image_filename%%_*}"
 expected_dtb_name="${expected_dtb_filename%%_*}"
@@ -208,8 +208,27 @@ config="${configs[0]}"
 expected_config="$image_root/boot/config-$expected_kernel_release"
 [[ "$config" == "$expected_config" ]] || { echo "Unexpected packaged kernel config: $(basename -- "$config")" >&2; exit 1; }
 config_sha256="$(sha256sum -- "$config" | awk '{print $1}')"
-if [[ -n "$expected_config_sha256" && "${config_sha256,,}" != "${expected_config_sha256,,}" ]]; then
-  echo "Packaged kernel config SHA-256 mismatch: $config_sha256" >&2
+normalized_config="$work/config.normalized"
+if ! python3 - "$root" "$config" "$normalized_config" <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(sys.argv[1]) / "tools/armbian-image"))
+from orange_kernel_config import normalize_kernel_config
+
+try:
+    normalized = normalize_kernel_config(Path(sys.argv[2]).read_bytes())
+except ValueError as error:
+    print(f"Invalid packaged kernel config RUSTC_VERSION contract: {error}", file=sys.stderr)
+    raise SystemExit(1)
+Path(sys.argv[3]).write_bytes(normalized)
+PY
+then
+  exit 1
+fi
+normalized_config_sha256="$(sha256sum -- "$normalized_config" | awk '{print $1}')"
+if [[ -n "$expected_config_sha256" && "${normalized_config_sha256,,}" != "${expected_config_sha256,,}" ]]; then
+  echo "Packaged normalized kernel config SHA-256 mismatch: $normalized_config_sha256" >&2
   exit 1
 fi
 
@@ -336,8 +355,9 @@ if [[ -n "$evidence_output" ]]; then
     "audio_dts_path=$audio_dts_relative" \
     "audio_dts_sha256=$audio_dts_sha256_expected" \
     "audio_dtbo_forbidden=$audio_dtbo_name" \
-    "packaged_config_expected_sha256=$manifest_packaged_config_sha256" \
+    "packaged_config_expected_sha256=$manifest_packaged_config_normalized_sha256" \
     "final_config_sha256=$config_sha256" \
+    "normalized_config_sha256=$normalized_config_sha256" \
     "module_relative_path=$module_relative_path" \
     "module_compressed_sha256=$module_compressed_sha256" \
     "module_decompressed_sha256=$module_decompressed_sha256" \

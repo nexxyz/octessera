@@ -25,9 +25,31 @@ cleanup() {
 }
 trap cleanup EXIT
 
-good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_MMC=y\nCONFIG_MMC_BLOCK=y\nCONFIG_MMC_SPI=m\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SOUND=y\nCONFIG_SND=y\nCONFIG_SND_SOC=y\nCONFIG_REGMAP_MMIO=y\nCONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y\nCONFIG_SND_SOC_SUNXI_AHUB=y\nCONFIG_SND_SOC_SUNXI_AHUB_DAM=y\nCONFIG_SND_SOC_SUNXI_MACH=y\nCONFIG_NVMEM_SUNXI_SID=y\nCONFIG_SYNTHETIC_FIXTURE=y'
+good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_RUSTC_VERSION=108500\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_MMC=y\nCONFIG_MMC_BLOCK=y\nCONFIG_MMC_SPI=m\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SOUND=y\nCONFIG_SND=y\nCONFIG_SND_SOC=y\nCONFIG_REGMAP_MMIO=y\nCONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y\nCONFIG_SND_SOC_SUNXI_AHUB=y\nCONFIG_SND_SOC_SUNXI_AHUB_DAM=y\nCONFIG_SND_SOC_SUNXI_MACH=y\nCONFIG_NVMEM_SUNXI_SID=y\nCONFIG_SYNTHETIC_FIXTURE=y'
 good_config_sha256="$(printf '%s\n' "$good_config" | sha256sum | awk '{print $1}')"
+good_normalized_config_sha256="$(python3 - "$root" "$good_config" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(sys.argv[1]) / "tools/armbian-image"))
+from orange_boot_contract import normalize_kernel_config
+
+print(hashlib.sha256(normalize_kernel_config(sys.argv[2].encode() + b"\n")).hexdigest())
+PY
+)"
 source_config_sha256="$(python3 -c 'import json; print(json.load(open("tools/kernel-patches/orange-midi-interface-manifest.json"))["build_frameworks"]["armbian"]["config_base"]["sha256"])')"
+fixture_manifest="$work/fixture-manifest.json"
+python3 - "$root/tools/kernel-patches/orange-midi-interface-manifest.json" "$fixture_manifest" "$good_normalized_config_sha256" <<'PY'
+import json
+import sys
+
+source, destination, normalized_hash = sys.argv[1:]
+manifest = json.loads(open(source, encoding="utf-8").read())
+manifest["build_frameworks"]["armbian"]["packaged_config_normalized_sha256"] = normalized_hash
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(manifest, handle)
+PY
 
 make_module() {
   local output="$1"
@@ -171,8 +193,10 @@ dtb_package() { printf '%s\n' "$work/$1-packages/linux-dtb-current-sunxi64_26.11
 run_validator() {
   local name="$1"
   local expected_hash="${2:-}"
+  local manifest_path="${3:-}"
   local -a args=("$(image_package "$name")" "$(dtb_package "$name")")
   [[ -n "$expected_hash" ]] && args+=(--expected-config-sha256 "$expected_hash")
+  [[ -n "$manifest_path" ]] && args+=(--manifest "$manifest_path")
   if [[ -n "$expected_hash" ]]; then
     OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "${args[@]}" >/dev/null
   else
@@ -182,11 +206,7 @@ run_validator() {
 
 reject_validator() {
   local name="$1"
-  local config_path
-  local expected_hash
-  config_path="$(find "$work/$name-image/boot" -maxdepth 1 -type f -name 'config-*' -print -quit)"
-  expected_hash="$(sha256sum -- "$config_path" | awk '{print $1}')"
-  if run_validator "$name" "$expected_hash" >"$work/$name.out" 2>&1; then
+  if run_validator "$name" "$good_normalized_config_sha256" "$fixture_manifest" >"$work/$name.out" 2>&1; then
     echo "Orange kernel package validator accepted $name." >&2
     exit 1
   fi
@@ -194,7 +214,7 @@ reject_validator() {
 
 reject_hash_validator() {
   local name="$1"
-  if run_validator "$name" "$good_config_sha256" >"$work/$name.out" 2>&1; then
+  if run_validator "$name" "$good_normalized_config_sha256" "$fixture_manifest" >"$work/$name.out" 2>&1; then
     echo "Orange kernel package validator accepted $name." >&2
     exit 1
   fi
@@ -219,9 +239,9 @@ import sys
 source, wrong, missing = sys.argv[1:]
 manifest = json.loads(open(source, encoding="utf-8").read())
 wrong_manifest = copy.deepcopy(manifest)
-wrong_manifest["build_frameworks"]["armbian"]["packaged_config_sha256"] = "0" * 64
+wrong_manifest["build_frameworks"]["armbian"]["packaged_config_normalized_sha256"] = "0" * 64
 missing_manifest = copy.deepcopy(manifest)
-del missing_manifest["build_frameworks"]["armbian"]["packaged_config_sha256"]
+del missing_manifest["build_frameworks"]["armbian"]["packaged_config_normalized_sha256"]
 for path, value in ((wrong, wrong_manifest), (missing, missing_manifest)):
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(value, handle)
@@ -234,11 +254,17 @@ if OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb
   echo 'Orange package validator accepted a manifest without a packaged config hash.' >&2
   exit 1
 fi
-run_validator good "$good_config_sha256"
-if run_validator good "$source_config_sha256" >/dev/null 2>&1; then
-  echo 'Orange package validation accepted the source config hash as the final config hash.' >&2
+run_validator good "$good_normalized_config_sha256" "$fixture_manifest"
+if run_validator good "$good_config_sha256" >/dev/null 2>&1; then
+  echo 'Orange package validation accepted the raw config hash as the normalized config hash.' >&2
   exit 1
 fi
+if run_validator good "$source_config_sha256" >/dev/null 2>&1; then
+  echo 'Orange package validation accepted the source config hash as the normalized config hash.' >&2
+  exit 1
+fi
+make_pair numeric-rustc "$(printf '%s\n' "$good_config" | sed 's/^CONFIG_RUSTC_VERSION=108500$/CONFIG_RUSTC_VERSION=108501/')"
+run_validator numeric-rustc "$good_normalized_config_sha256" "$fixture_manifest"
 mkdir -p "$work/good-dtb/boot/dtb-6.18.46-current-sunxi64/overlay"
 : > "$work/good-dtb/boot/dtb-6.18.46-current-sunxi64/overlay/octessera-ahub0-pcm5102.dtbo"
 dpkg-deb --build "$work/good-dtb" "$(dtb_package good)" >/dev/null
@@ -246,9 +272,9 @@ reject_validator good
 rm -f "$work/good-dtb/boot/dtb-6.18.46-current-sunxi64/overlay/octessera-ahub0-pcm5102.dtbo"
 make_pair good "$good_config"
 make_pair compressed-gzip "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good compressed-gzip
-run_validator compressed-gzip "$good_config_sha256"
+run_validator compressed-gzip "$good_normalized_config_sha256" "$fixture_manifest"
 make_pair compressed-xz "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good compressed-xz
-run_validator compressed-xz "$good_config_sha256"
+run_validator compressed-xz "$good_normalized_config_sha256" "$fixture_manifest"
 
 mkdir -p "$work/discovery"
 cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
@@ -297,6 +323,12 @@ make_pair bad-config-hash "$good_config"
 printf '%s\n' "$good_config" CONFIG_EXTRA=y > "$work/bad-config-hash-image/boot/config-6.18.46-current-sunxi64"
 dpkg-deb --build "$work/bad-config-hash-image" "$(image_package bad-config-hash)" >/dev/null
 reject_hash_validator bad-config-hash
+make_pair missing-rustc "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_RUSTC_VERSION=108500')"
+reject_validator missing-rustc
+make_pair duplicate-rustc "$good_config"$'\nCONFIG_RUSTC_VERSION=108501'
+reject_validator duplicate-rustc
+make_pair malformed-rustc "$(printf '%s\n' "$good_config" | sed 's/^CONFIG_RUSTC_VERSION=108500$/CONFIG_RUSTC_VERSION=not-a-number/')"
+reject_validator malformed-rustc
 make_pair bad-config-line $'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_SND_SEQUENCER=y\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m'
 reject_validator bad-config-line
 make_pair missing-spi-sun6i "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_SPI_SUN6I=y')"
@@ -318,7 +350,7 @@ reject_validator bad-marker
 make_pair duplicate-vermagic "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain $'6.18.46-current-sunxi64 SMP\nvermagic=6.18.46-current-sunxi64 SMP' interface_string
 reject_validator duplicate-vermagic
 make_pair noisy-interface "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" noisy-interface
-run_validator noisy-interface "$good_config_sha256"
+run_validator noisy-interface "$good_normalized_config_sha256" "$fixture_manifest"
 make_pair missing-interface-options "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" missing-options
 reject_validator missing-interface-options
 make_pair missing-interface-runtime "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" missing-runtime
@@ -340,12 +372,13 @@ handoff="$work/handoff"
 mkdir -p "$handoff"
 cp -- "$(image_package good)" "$handoff/linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb"
 cp -- "$(dtb_package good)" "$handoff/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb"
-OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --expected-config-sha256 "$good_config_sha256" --evidence-output "$evidence" >/dev/null
-grep -q '^packaged_config_expected_sha256=922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc$' "$evidence"
+OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --manifest "$fixture_manifest" --expected-config-sha256 "$good_normalized_config_sha256" --evidence-output "$evidence" >/dev/null
+grep -q "^packaged_config_expected_sha256=$good_normalized_config_sha256$" "$evidence"
 grep -q "^final_config_sha256=$good_config_sha256$" "$evidence"
+grep -q "^normalized_config_sha256=$good_normalized_config_sha256$" "$evidence"
 GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" \
 ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e \
-  OCTESSERA_ORANGE_TEST_MODE=1 bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$provenance" "$evidence" "" "$good_config_sha256" "$handoff" >/dev/null
+  OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$provenance" "$evidence" "" "$good_normalized_config_sha256" "$handoff" >/dev/null
 grep -q '^image_package_sha256=' "$provenance"
 grep -q '^dtb_package_sha256=' "$provenance"
 grep -q '^audio_dts_path=userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts$' "$provenance"
@@ -357,9 +390,10 @@ grep -q '^dtb_package_native=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6
 grep -q '^artifact_suffix=6.18.46-S1f99-D7115-P6bf8-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a$' "$provenance"
 grep -q '^octessera_checkout_head=' "$provenance"
 grep -q '^kernel_config_final_sha256=' "$provenance"
-grep -q '^kernel_config_expected_packaged_sha256=922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc$' "$provenance"
+grep -q "^kernel_config_expected_packaged_sha256=$good_normalized_config_sha256$" "$provenance"
 grep -q "^kernel_config_final_sha256=$good_config_sha256$" "$provenance"
-grep -q '^kernel_config_sha256_match=false$' "$provenance"
+grep -q "^kernel_config_normalized_sha256=$good_normalized_config_sha256$" "$provenance"
+grep -q '^kernel_config_sha256_match=true$' "$provenance"
 grep -q '^image_dtb_sha256=' "$provenance"
 grep -q '^evidence_sha256=' "$provenance"
 grep -q '^usb_f_midi_interface_string_marker=interface_string$' "$provenance"
@@ -386,16 +420,16 @@ for removed_field in kernel_source_remote_url kernel_source_checkout_path kernel
   octessera_reject_file_match "Orange provenance emitted removed field: $removed_field" -q "^${removed_field}=" "$provenance"
 done
 sed 's/^module_decompressed_sha256=.*/module_decompressed_sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$evidence" > "$work/tampered-evidence.env"
-if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-provenance.txt" "$work/tampered-evidence.env" "" "$good_config_sha256" >/dev/null 2>&1; then
+if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-provenance.txt" "$work/tampered-evidence.env" "" "$good_normalized_config_sha256" >/dev/null 2>&1; then
   echo 'Orange provenance accepted tampered module hashes.' >&2
   exit 1
 fi
-if GITHUB_SOURCE_SHA=0123456789012345678901234567890123456789 ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/wrong-checkout-provenance.txt" "$evidence" "" "$good_config_sha256" >/dev/null 2>&1; then
+if GITHUB_SOURCE_SHA=0123456789012345678901234567890123456789 ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/wrong-checkout-provenance.txt" "$evidence" "" "$good_normalized_config_sha256" >/dev/null 2>&1; then
   echo 'Orange provenance accepted a mismatched Octessera checkout.' >&2
   exit 1
 fi
 sed 's/^image_package_sha256=.*/image_package_sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$evidence" > "$work/tampered-package-evidence.env"
-if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-package-provenance.txt" "$work/tampered-package-evidence.env" "" "$good_config_sha256" >/dev/null 2>&1; then
+if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-package-provenance.txt" "$work/tampered-package-evidence.env" "" "$good_normalized_config_sha256" >/dev/null 2>&1; then
   echo 'Orange provenance accepted tampered package hashes.' >&2
   exit 1
 fi
