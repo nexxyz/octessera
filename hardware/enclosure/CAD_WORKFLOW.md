@@ -151,11 +151,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/revert_to
 
 ## Protective-case check-fit source
 
-The protective case adapts **Simple and Light Parametric BOX - CadQuery** by
+Octessera adapts and modifies **Simple and Light Parametric BOX - CadQuery** by
 Andy Wings / `@WingsWorld_2406962`. The retained source is
 `upstream/andy_wings_parametric_box.py`; its source links and modification notes
-are in `upstream/README.md`. Its license is **CC BY-SA, version unspecified by
-controlling source**.
+are in `upstream/README.md`. Its license is **[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)**.
 
 `protective_case_params.json` owns the case dimensions, source normalization,
 face-down reference-top transform, corner restraints, mating interface, foam

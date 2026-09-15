@@ -126,15 +126,23 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertIn("if m.text:", text)
         self.assertIn("positions_x", text)
 
-    def test_upstream_attribution_is_generic_cc_by_sa(self) -> None:
+    def test_upstream_attribution_is_cc_by_sa_4_0(self) -> None:
         for name in ("upstream/README.md", "upstream/andy_wings_parametric_box.py"):
             text = source(name)
-            self.assertIn("CC BY-SA, version unspecified by controlling source", text)
-            self.assertNotIn("CC BY-SA 4.0", text)
+            self.assertIn("CC BY-SA 4.0", text)
+            self.assertIn("https://www.printables.com/model/1069138-simple-and-light-parametric-box-cadquery", text)
+            self.assertIn("https://creativecommons.org/licenses/by-sa/4.0/", text)
         attribution = (ROOT.parent / "ATTRIBUTIONS.md").read_text(encoding="utf-8")
         self.assertIn("Printables model `1069138`", attribution)
         self.assertIn("Thingiverse listing `6842165`", attribution)
-        self.assertIn("CC BY-SA, version unspecified by controlling source", attribution)
+        self.assertIn("CC BY-SA 4.0", attribution)
+        self.assertIn("https://creativecommons.org/licenses/by-sa/4.0/", attribution)
+        params = json.loads(source("protective_case_params.json"))
+        self.assertEqual(params["provenance"]["license"], "CC BY-SA 4.0")
+        self.assertIn(
+            "https://creativecommons.org/licenses/by-sa/4.0/",
+            params["provenance"]["source_urls"],
+        )
 
     def test_rejected_homemade_sources_are_absent(self) -> None:
         for suffix in ("hinge.py", "external_latches.py", "corner_blocks.py"):
