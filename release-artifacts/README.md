@@ -6,7 +6,8 @@ source-of-truth project files. The committed fabrication tree is:
 - `pcb/gerber/` — Gerbers, drill files, the KiCad job file, and `gerber.zip`.
 - `enclosure/stl/` — printable STL exports.
 - `enclosure/step/` — CAD STEP exports.
-- `enclosure/3mf-multicolor/` — multicolor-print exports.
+- `enclosure/3mf-multicolor/` — multicolor-print top and cap exports.
+- `enclosure/3mf-single-material/` — single-material 3MF exports.
 
 Generated release surfaces such as `desktop/`, `pi/`, `v<version>/`, and
 checksums are not a second source tree. Regenerate committed fabrication
