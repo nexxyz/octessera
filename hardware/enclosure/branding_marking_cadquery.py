@@ -88,6 +88,18 @@ def transform(point: Point, source: tuple[float, float, float, float], scale: fl
     return Point(x0 + (point.x - min_x) * scale, top_y - (point.y - min_y) * scale)
 
 
+def transform_sized(
+    point: Point,
+    source: tuple[float, float, float, float],
+    x_scale: float,
+    y_scale: float,
+    x0: float,
+    top_y: float,
+) -> Point:
+    min_x, min_y, _, _ = source
+    return Point(x0 + (point.x - min_x) * x_scale, top_y - (point.y - min_y) * y_scale)
+
+
 def segment_marking(start: Point, end: Point, width: float, z0: float, height: float) -> cq.Workplane:
     dx = end.x - start.x
     dy = end.y - start.y
@@ -113,14 +125,18 @@ def fused(parts: list[cq.Workplane]) -> cq.Workplane:
     return result.clean()
 
 
-def wordmark_marking(z0: float, height: float) -> cq.Workplane:
-    polygons = parse_wordmark_polygons()
-    word_points = [point for polygon in polygons for point in polygon]
-    word_source = bounds(word_points)
-    word_scale = WORDMARK_WIDTH / (word_source[2] - word_source[0])
-    wordmark_x = WEST_TO_OLED_CENTER_X - WORDMARK_WIDTH / 2.0
+def wordmark_solid(
+    polygons: list[list[Point]],
+    word_source: tuple[float, float, float, float],
+    x_scale: float,
+    y_scale: float,
+    x0: float,
+    top_y: float,
+    z0: float,
+    extrusion_height: float,
+) -> cq.Workplane:
     transformed = [
-        [transform(point, word_source, word_scale, wordmark_x, WORDMARK_TOP_Y) for point in polygon]
+        [transform_sized(point, word_source, x_scale, y_scale, x0, top_y) for point in polygon]
         for polygon in polygons
     ]
     positives: list[cq.Workplane] = []
@@ -133,7 +149,7 @@ def wordmark_marking(z0: float, height: float) -> cq.Workplane:
             for other_index, other in enumerate(transformed)
             if other_index != index and bounds_contains(polygon_bounds[other_index], polygon_bounds[index]) and point_in_polygon(center, other)
         )
-        solid = cq.Workplane("XY").polyline([(point.x, point.y) for point in polygon]).close().extrude(height).translate((0, 0, z0))
+        solid = cq.Workplane("XY").polyline([(point.x, point.y) for point in polygon]).close().extrude(extrusion_height).translate((0, 0, z0))
         if depth % 2 == 0:
             positives.append(solid)
         else:
@@ -147,6 +163,101 @@ def wordmark_marking(z0: float, height: float) -> cq.Workplane:
     return result.clean()
 
 
+def wordmark_marking_placed(
+    width: float,
+    height: float,
+    center: Point,
+    z0: float,
+    extrusion_height: float = 0.65,
+) -> cq.Workplane:
+    polygons = parse_wordmark_polygons()
+    word_points = [point for polygon in polygons for point in polygon]
+    word_source = bounds(word_points)
+    x_scale = width / (word_source[2] - word_source[0])
+    y_scale = height / (word_source[3] - word_source[1])
+    return wordmark_solid(
+        polygons,
+        word_source,
+        x_scale,
+        y_scale,
+        center.x - width / 2.0,
+        center.y + height / 2.0,
+        z0,
+        extrusion_height,
+    )
+
+
+def wordmark_marking(z0: float, height: float) -> cq.Workplane:
+    polygons = parse_wordmark_polygons()
+    word_points = [point for polygon in polygons for point in polygon]
+    word_source = bounds(word_points)
+    word_scale = WORDMARK_WIDTH / (word_source[2] - word_source[0])
+    wordmark_x = WEST_TO_OLED_CENTER_X - WORDMARK_WIDTH / 2.0
+    return wordmark_solid(
+        polygons,
+        word_source,
+        word_scale,
+        word_scale,
+        wordmark_x,
+        WORDMARK_TOP_Y,
+        z0,
+        height,
+    )
+
+
+def logo_solid(
+    mark_paths: list[list[Point]],
+    mark_circles: list[Circle],
+    mark_source: tuple[float, float, float, float],
+    mark_scale: float,
+    mark_x: float,
+    mark_top_y: float,
+    z0: float,
+    extrusion_height: float,
+) -> cq.Workplane:
+    parts: list[cq.Workplane] = []
+    for path in mark_paths:
+        transformed = [transform(point, mark_source, mark_scale, mark_x, mark_top_y) for point in path]
+        for start, end in zip(transformed, transformed[1:]):
+            parts.append(segment_marking(start, end, 6.5 * mark_scale, z0, extrusion_height))
+    for circle in mark_circles:
+        center = transform(circle.center, mark_source, mark_scale, mark_x, mark_top_y)
+        parts.append(cq.Workplane("XY").circle(circle.radius * mark_scale).extrude(extrusion_height).translate((center.x, center.y, z0)))
+    return fused(parts)
+
+
+def logo_marking_placed(
+    target_size: float,
+    center: Point,
+    z0: float,
+    extrusion_height: float = 0.65,
+) -> cq.Workplane:
+    mark_paths, mark_circles = parse_mark()
+    mark_points = [point for path in mark_paths for point in path]
+    mark_points += [
+        point
+        for circle in mark_circles
+        for point in (
+            Point(circle.center.x - circle.radius, circle.center.y - circle.radius),
+            Point(circle.center.x + circle.radius, circle.center.y + circle.radius),
+        )
+    ]
+    mark_source = bounds(mark_points)
+    mark_scale = target_size / max(mark_source[2] - mark_source[0], mark_source[3] - mark_source[1])
+    visible_width = (mark_source[2] - mark_source[0]) * mark_scale
+    visible_height = (mark_source[3] - mark_source[1]) * mark_scale
+    return logo_solid(
+        mark_paths,
+        mark_circles,
+        mark_source,
+        mark_scale,
+        center.x - visible_width / 2.0,
+        center.y + visible_height / 2.0,
+        z0,
+        extrusion_height,
+    )
+
+
 def logo_marking(z0: float, height: float = 0.65) -> cq.Workplane:
     mark_x = WEST_TO_OLED_CENTER_X - MARK_SIZE / 2.0
     mark_paths, mark_circles = parse_mark()
@@ -154,15 +265,25 @@ def logo_marking(z0: float, height: float = 0.65) -> cq.Workplane:
     mark_points += [point for circle in mark_circles for point in [Point(circle.center.x - circle.radius, circle.center.y - circle.radius), Point(circle.center.x + circle.radius, circle.center.y + circle.radius)]]
     mark_source = bounds(mark_points)
     mark_scale = MARK_SIZE / max(mark_source[2] - mark_source[0], mark_source[3] - mark_source[1])
-    parts: list[cq.Workplane] = []
-    for path in mark_paths:
-        transformed = [transform(point, mark_source, mark_scale, mark_x, MARK_TOP_Y) for point in path]
-        for start, end in zip(transformed, transformed[1:]):
-            parts.append(segment_marking(start, end, 6.5 * mark_scale, z0, height))
-    for circle in mark_circles:
-        center = transform(circle.center, mark_source, mark_scale, mark_x, MARK_TOP_Y)
-        parts.append(cq.Workplane("XY").circle(circle.radius * mark_scale).extrude(height).translate((center.x, center.y, z0)))
-    return fused(parts)
+    return logo_solid(mark_paths, mark_circles, mark_source, mark_scale, mark_x, MARK_TOP_Y, z0, height)
+
+
+def branding_marking_parts_placed(
+    mark_target_size: float,
+    mark_center: Point,
+    wordmark_width: float,
+    wordmark_height: float,
+    wordmark_center: Point,
+    z0: float,
+    extrusion_height: float = 0.65,
+) -> list[tuple[str, cq.Workplane]]:
+    return [
+        ("octessera_logo", logo_marking_placed(mark_target_size, mark_center, z0, extrusion_height)),
+        (
+            "octessera_wordmark",
+            wordmark_marking_placed(wordmark_width, wordmark_height, wordmark_center, z0, extrusion_height),
+        ),
+    ]
 
 
 def branding_marking_parts(z0: float, height: float = 0.65) -> list[tuple[str, cq.Workplane]]:
