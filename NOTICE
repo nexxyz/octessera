@@ -7,7 +7,6 @@ dependency inventory and does not claim legal compliance.
 - Reviewed known-material notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 - Bundled samples: [`samples/SOURCE.md`](samples/SOURCE.md), [`samples/MANIFEST.tsv`](samples/MANIFEST.tsv), and [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
 - Hardware references and attribution: [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md).
-- Attribution and future release source/licensing review: [`docs/release-licensing.md`](docs/release-licensing.md).
 
 Keep this notice and the applicable component notices with any standalone
 artifact. Generated Cargo and pnpm dependency inventories are maintained

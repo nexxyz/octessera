@@ -1,8 +1,8 @@
 # Desktop development
 
 The desktop app is a hardware-free simulator and a Tauri host adapter. It
-renders native snapshots, captures input, and does not qualify GPIO, OLED, DAC,
-power, or USB behavior.
+renders native snapshots, captures input, and does not execute GPIO, OLED, DAC,
+power, or USB hardware behavior.
 
 ## Start the simulator
 
@@ -12,8 +12,8 @@ corepack pnpm --filter @octessera/desktop tauri:dev
 
 ## Hardware-free verification matrix
 
-These checks validate source, desktop, and host-build behavior only. None is
-board qualification.
+These checks validate source, desktop, and host-build behavior only. None runs
+on board hardware.
 
 | Check | Command | Confirms | Does not confirm |
 | --- | --- | --- | --- |
@@ -23,14 +23,13 @@ board qualification.
 | Desktop format | `corepack pnpm --filter @octessera/desktop format:check` | Desktop Prettier checks pass | Runtime behavior or hardware integration |
 | Desktop tests | `corepack pnpm --filter @octessera/desktop test` | Simulator/runtime-facing test cases pass | Board timing, GPIO, DAC, or USB behavior |
 | Native host tests | `cargo test -p platform-core -p playback-runtime -p realtime-engine` | Native behavior and rendering logic pass on the host | A particular board, enclosure, power supply, or assembled control surface |
-| Pi default host tests | `cargo test -p octessera-pi` | Default Pi host-stub tests pass without board hardware | Boot images, peripheral wiring, or physical qualification |
-| Raspberry-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-raspberry-pi-zero-2w` | Canonical Raspberry code and board-neutral host tests pass | Raspberry boot, GPIO, OLED, audio-device, or physical qualification behavior |
-| Orange-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w` | Canonical Orange code and board-neutral host tests pass | Orange boot, GPIO, OLED, audio-device, or physical qualification behavior |
-| Pi host-stub build | `cargo build -p octessera-pi` | The Pi application builds without hardware | Boot images, peripheral wiring, or physical qualification |
+| Pi default host tests | `cargo test -p octessera-pi` | Default Pi host-stub tests pass without board hardware | Boot images, peripheral wiring, or hardware behavior |
+| Raspberry-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-raspberry-pi-zero-2w` | Canonical Raspberry code and board-neutral host tests pass | Raspberry boot, GPIO, OLED, audio-device, or hardware behavior |
+| Orange-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w` | Canonical Orange code and board-neutral host tests pass | Orange boot, GPIO, OLED, audio-device, or hardware behavior |
+| Pi host-stub build | `cargo build -p octessera-pi` | The Pi application builds without hardware | Boot images, peripheral wiring, or hardware behavior |
 
-Keep those limits visible in reports. The desktop lint and format rows run real
-ESLint and Prettier checks; root recursive commands also visit packages whose
-scripts are no-ops.
+The desktop lint and format rows run real ESLint and Prettier checks; root
+recursive commands also visit packages whose scripts are no-ops.
 
 ## Desktop builds
 
@@ -49,7 +48,7 @@ corepack pnpm --filter @octessera/desktop tauri:build:exe
 The portable executable is copied to `apps/desktop/dist-desktop/octessera.exe`.
 The Tauri bundle uses its configured `bundle.resources` entry for the legal
 resource tree. Release checks inspect that configured resource contract and the
-portable notice ZIP; they do not extract an installer to prove it.
+portable notice ZIP without extracting an installer.
 
 On Windows, use the cached wrapper while iterating:
 
@@ -81,5 +80,3 @@ cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
 ```
 
 The documented input recipe is [`../factory-patch-ui-scenario.md`](../factory-patch-ui-scenario.md).
-The pre-push hook runs this scenario. CI runs it for parity-sensitive native
-inputs and records an explicit successful skip for other pull requests.

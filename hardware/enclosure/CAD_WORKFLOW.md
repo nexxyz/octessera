@@ -1,6 +1,6 @@
 # Enclosure CAD workflow
 
-The enclosure CAD is under construction. Use the CadQuery generator as the source of truth for the current two-level faceplate.
+Use the CadQuery generator as the source of truth for the two-level faceplate.
 
 ## Source ownership
 
@@ -22,10 +22,10 @@ making ownership explicit:
 - `top_wall_port_cutouts.py` owns the fixed v21 board/port layout policy and
   applies those reusable solids without changing their coordinates.
 
-Fit-critical case, PCB, and port spans remain sourced from the checked-in v21
-parameters in `enclosure_params.json`. The fixed OLED microSD opening policy
-remains in `top_wall_port_cutouts.py`; this cohesion cleanup changes module
-ownership only, not measured or checked-in layout values.
+Fit-critical case, PCB, and port spans are sourced from the checked-in v21
+parameters in `enclosure_params.json`. The fixed OLED microSD opening policy is
+owned by `top_wall_port_cutouts.py`; do not change measured or checked-in layout
+values without an intentional hardware-layout change.
 
 ## Edit loop
 
@@ -39,41 +39,24 @@ ownership only, not measured or checked-in layout values.
    python hardware/enclosure/generate_two_level_enclosure_cadquery.py
    ```
 
-   On Windows, prefer the async wrapper when running from automation so the orchestrator is not held open by CadQuery export:
+   On Windows, use the checked wrapper, or use the async wrapper for a detached
+   export:
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_top_artifacts_async.ps1
    powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/top_artifacts_async_status.ps1
    ```
 
-   The status command should eventually report `state=succeeded` and show both sentinels in the log tail.
-
-   Automation rule: do not chain CAD generation, cleanup, and `git status` in one shell command. Launch CAD asynchronously, check it with `top_artifacts_async_status.ps1`, and use the checked Git status wrapper as a separate quick command:
-
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File tools/git/status_checked.ps1
-   ```
-
-   Expected sentinel:
-
-   ```text
-   __GIT_STATUS_DONE__
-   ```
-
-   The blocking checked wrapper is still available for manual terminal use:
+   The async status command reads the worker log and reports the final state and
+   generation sentinels. The blocking checked wrapper is available for manual
+   terminal use:
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_top_artifacts_checked.ps1
    ```
 
-   It runs generation and validation as child processes and prints completion
+   It runs generation and checks as child processes and prints completion
    sentinels after each step.
-
-   Automation rule: after the final expected sentinel for the chosen wrapper
-   appears, do not hang. Either continue the next explicit planned task or
-   report the validation summary. Do not silently wait, poll, inspect generated
-   STEP/STL/3MF contents, or run extra diffs/status commands unless that was
-   explicitly requested.
 
 For branded top changes, prefer the async wrapper that also regenerates the flush multicolor 3MF:
 
@@ -82,9 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_
 powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/branded_top_artifacts_async_status.ps1
 ```
 
-Report the PID/log path immediately and do not poll or wait unless explicitly
-asked. The async worker runs the checked wrapper; the log remains the validation
-source of truth.
+The async worker runs the checked wrapper and writes the generation log.
 
 The blocking checked wrapper is still available for manual terminal use:
 
@@ -100,11 +81,9 @@ __BRANDED_TOP_ARTIFACTS_DONE__
 ```
 
 For this branded wrapper, `__BRANDED_TOP_ARTIFACTS_DONE__` is the final
-automation sentinel. The preceding `valid=...`, `solids=...`, `body_valid=...`,
-`body_solids=...`, and `extruder2=...` lines are the expected verification
-summary.
+sentinel.
 
-3. Run the roof-wall validation:
+3. Run the roof-wall checks:
 
    ```sh
    python hardware/enclosure/validate_wave_roof.py
@@ -129,7 +108,7 @@ Use this checklist before changing generated solids, Z transitions, or board-adj
 
 ## Bottom plate plan
 
-The first bottom artifact is only a flat drill/alignment plate. It is not the final enclosure tray.
+The bottom artifact is a flat drill/alignment plate, not the final enclosure tray.
 
 - Source: `generate_bottom_plate_cadquery.py`.
 - Exports: `../../release-artifacts/enclosure/step/case_bottom_plate_cadquery.step` and `../../release-artifacts/enclosure/stl/case_bottom_plate_cadquery.stl`.
@@ -141,14 +120,14 @@ The first bottom artifact is only a flat drill/alignment plate. It is not the fi
 
 ## Required roof checks
 
-`validate_wave_roof.py` checks the failure mode that caused slicer artifacts:
+`validate_wave_roof.py` checks the roof-wall geometry:
 
 - the brown-edge wall must be vertical from the faceplate bottom to tier 1;
 - the wall must have a finite bottom footprint;
 - the generated model must be one valid solid;
 - the parametric slot guides must parse from `wave_guidance.py`.
 
-Do not accept a roof-wall change until this script passes.
+Run this script for every roof-wall change.
 
 ## Generated artifacts
 
@@ -161,26 +140,11 @@ Top enclosure artifact filenames include the full board name. Use `rpi` for Rasp
 - `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`: Orange Pi Zero 2W printable/check-fit mesh.
 - `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_orange-pi-zero-2w_multicolor.3mf`: Orange Pi Zero 2W multicolor top.
 
-STEP, STL, and 3MF files are generated artifacts. Do not review their full text
-diffs or contents in automation.
-
-The non-multicolor top 3MF is obsolete. Do not regenerate or restore the old unbranded top 3MF.
-
-Before committing enclosure source and artifacts, check:
-
-- source-only `git diff --check` passes; do not include generated STEP/STL/3MF files in whitespace checks;
-- no `hardware/enclosure/__pycache__/` is staged;
-- no local Windows absolute paths were introduced.
+STEP, STL, and 3MF files are generated artifacts. Edit the CadQuery source, not
+the exported files.
 
 To revert generated top artifacts from automation, prefer the checked wrapper:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/revert_top_artifacts_checked.ps1
-```
-
-Expected sentinels:
-
-```text
-__ENCLOSURE_TOP_ARTIFACT_CHECKOUT_DONE__
-__GIT_STATUS_DONE__
 ```

@@ -97,8 +97,3 @@ Expected result: transport stops, MIDI panic/note safety runs, all layers and in
 8. `Fn+Grid 7,5`: activate XY page; press an XY grid cell; clock once; assert a synth parameter command reaches audio.
 9. `Fn+Grid 7,2`: activate FX page; press and release mapped FX cells; assert momentary FX start/stop commands are captured.
 10. `Aux1 Turn +1`; assert the sampler bank cutoff command reaches audio.
-
-## Bugs this scenario caught
-
-- Runtime XY modulation updated native config but did not queue live audio commands for synth/sample filter targets.
-- Aux turns for sampler filter cutoff used a broad instrument update instead of the single sample-bank parameter fast path.

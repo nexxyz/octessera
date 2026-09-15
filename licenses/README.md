@@ -1,18 +1,15 @@
 # Dependency license inventory
 
 This directory contains generated dependency license text and inventories. It
-complements, and does not replace, the notices for non-code assets such as
-samples. It is an engineering record, not legal advice.
+complements the notices for non-code assets such as samples.
 
 ## Pins and inputs
 
-- Cargo workspace lockfile: `Cargo.lock`, SHA-256
-  `2a5281730f51ab6a884872423c7de9f53e7ccaf0ad4954a35959df97b19049e4`.
 - `cargo-about` **0.9.1**. Install with:
   `cargo install cargo-about --version 0.9.1 --locked --features cli`.
-- Cargo configuration: `about.toml`; reviewed template:
+- Cargo configuration: `about.toml`; template:
   `tools/legal/cargo_about.hbs`.
-- Hand-reviewed exact policy: `licenses/cargo/reviewed-dependency-policy.json`.
+- License policy: `licenses/cargo/reviewed-dependency-policy.json`.
 - Pinned SPDX references: MPL-2.0 SHA-256
   `66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172` and
   Apache-2.0 SHA-256
@@ -20,8 +17,6 @@ samples. It is an engineering record, not legal advice.
   MIT, BSD-3-Clause, Zlib, and LLVM-exception references are pinned in the
   same directory and verified by the generator.
 - pnpm: **9.12.0**, pinned by the root `package.json` `packageManager` field.
-- pnpm lockfile: `pnpm-lock.yaml`, SHA-256
-  `f3f796dfca32246fa747360c417018104adb04dbf4ad2a6c873de532c7b7cd47`.
 - Production package discovery command:
   `corepack pnpm licenses list --prod --json`.
 
@@ -46,16 +41,8 @@ representation with the checked files. It also runs locked offline Cargo
 metadata, the pinned pnpm license command, lockfile/package-content checks,
 symlink and path checks, and both SHA manifests.
 
-The Cargo `SOURCE_INDEX.json` is informational. It records the exact lockfile
-package identities, target-profile context, source URLs, checksums, and the
-MPL/manifest-no-file flags used to identify packages requiring source-availability
-review before public binary release. It makes no completeness claim and does
-not require local `.crate` archives.
-
-When a local Cargo registry source lacks Cargo's `.cargo-checksum.json` sidecar,
-generation derives the equivalent checksum payload from the exact cached
-`.crate` bytes and validates the unpacked files against it. The archive itself
-is not copied into this repository.
+The Cargo `SOURCE_INDEX.json` records exact lockfile package identities,
+target-profile context, source URLs, checksums, and package source/license flags.
 
 Cargo generation resolves `cargo metadata --locked --offline --all-features` so
 the inventory covers every package identity present in `Cargo.lock`, including
@@ -70,33 +57,15 @@ python -m py_compile tools/legal/dependency_license_generate.py tools/legal/pnpm
 python -m unittest tools/legal/test_dependency_license.py
 ```
 
-Normal CI runs the lightweight `python -m unittest discover -s tools/legal
--p 'test_*.py'` suite. The generated dependency inventory verifier and its
-`cargo-about` audit remain pre-release/manual checks; CI does not install
-`cargo-about` for the unit tests.
-
-The Cargo command below is a policy audit, not a way to hide unresolved
-licenses:
+The Cargo inventory render command is:
 
 ```text
 cargo about generate --workspace --all-features --frozen --fail --format json -o licenses/cargo/cargo-about-review.json
 ```
 
-The Cargo output is `cargo-lock-overinclusive`: it covers every lockfile
-identity and is not a claim that all 525 packages ship in every target profile.
-`SOURCE_INDEX.json` records release target source obligations separately.
-`cargo-about` remains advisory; the exact policy checker, not its allowlist,
-authorizes the ten MPL records and two r-efi Apache alternatives.
-
-## Review status
-
-The Cargo inventory records 513 permissive packages, ten reviewed MPL packages,
-and two reviewed r-efi alternatives. It records 69
-`manifest-license-no-file` packages as informational and 74 packages requiring
-source-availability review before public binary release. All nine first-party
-crates inherit the root `LICENSE`; that custom license is validated but
-excluded from the third-party index. There are zero custom/unknown packages
-and zero unresolved policy decisions.
+The generated Cargo inventory covers every lockfile identity resolved by the
+workspace metadata command above. `SOURCE_INDEX.json` records the corresponding
+source references.
 
 The locally vendored `third_party/cpal-0.15.3` is included explicitly. It is
 marked `modified-local-vendoring`, never as an unmodified upstream package, and

@@ -72,10 +72,8 @@ on the physical panel and ending at a bottom-row origin of `-48`. Frames 0 and
 25 fps with absolute deadlines, wraps directly from frame 29 to frame 0, and
 inserts no extra pause or cumulative-sleep drift.
 
-This is implemented in the current source for Raspberry and Orange, but the
-boot-layer inputs are constructor-required. Do not describe the sweep as
-shipped or physically qualified until new constructor images have been built
-and the mounted-image and hardware checks are complete.
+The sweep is implemented for Raspberry and Orange. Its boot-layer inputs are
+constructor-required.
 
 ## Enclosure branding
 
@@ -97,8 +95,6 @@ Expected outputs:
 - `release-artifacts/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`
 - ignored review images under `hardware/enclosure/review/`
 
-Do not restore the old unbranded top 3MF; the top 3MF should be multicolor only.
-
 ## PCB branding
 
 The PCB silkscreen branding lives in `hardware/pcb/octessera.kicad_pcb` on `F.SilkS`.
@@ -111,14 +107,3 @@ After editing generated PCB graphic primitives, check:
 - UUIDs are unique;
 - no local absolute paths are introduced;
 - `by nexxyz` remains present if the layout still uses the byline.
-
-## Cleanup checklist
-
-Before committing branding or hardware artifact changes, check:
-
-- no local Windows absolute paths in tracked project files;
-- KiCad libraries live under `hardware/pcb/kicad-libs/`;
-- review images are under ignored `hardware/enclosure/review/`, not `release-artifacts/`;
-- the old unbranded top 3MF is absent;
-- generated Python `__pycache__/` directories are not staged;
-- `git diff --check` passes.

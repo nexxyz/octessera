@@ -1,97 +1,46 @@
 # Safety and power
 
-Use this page before first power-on, before connecting a host cable, and before
-closing the enclosure. It is the short owner for the repeated power and fit
-rules; the assembly, pinout, and board pages still carry their action-point
-warnings.
+Read this page before first power-on, before connecting a host cable, and before
+closing the enclosure.
 
 ## Power input
 
 - Power the instrument through the enclosure USB-C power opening and its
   breakout. The breakout feeds the shared `+5V` rail.
-- Use the enclosure USB-C breakout as the intended power input. Do not use
-  another board power port unless the current selected-board wiring or bring-up
-  instructions explicitly authorize it.
+- Use a dedicated regulated 5V/4A supply intended for Raspberry Pi 4-class
+  systems. The documented GeeekPi 20W 5V/4A supply is suitable.
 - On Raspberry, do not power the Pi through its micro-USB power connector. The
-  enclosure covers that connector and it is not an intended input.
-- The normal canonical device power setup is a dedicated regulated 5V/4A supply
-  intended for Raspberry Pi 4-class systems. The documented GeeekPi 20W 5V/4A
-  example is acceptable.
-- `D1` `SA5.0A` is the required canonical PCB/BOM 5V TVS diode. It protects the
-  shared `+5V` rail from transients; it is not VBUS or reverse-current isolation.
+  enclosure covers it and it is not an intended input.
+- `D1` `SA5.0A` is the 5V TVS diode for the shared rail. It protects against
+  transients; it does not isolate VBUS or reverse current.
 
-The two boards do not share port assumptions. Raspberry uses the fixed Pi
-profile and wiring table. Orange uses a reviewed, board-specific Armbian
-procedure for its power, USB-role, and pinmux checks; that procedure does not
-prove that a selected build passed those gates. Do not translate Raspberry pin
-numbers or connector roles to Orange by physical position.
+For technical wiring details, use the [pin and bus reference](../../hardware/docs/pinout-and-connections.md).
 
-## USB host connections
+## USB data
 
-**USB Audio and USB MIDI are experimental local-bench paths, not public first-
-release support.** Use them only with an authorized identity and after the exact
-image and assembled board pass the electrical and manual FAT gates. The current
-Linux Foundation VID/PID values are local-validation-only and are not a public
-product identity; do not invent or publish replacement IDs. Defaults remain
-disabled.
-
-For this fixed-device bench path, use a USB-A host port or USB-A hub port with
-USB-A-to-USB-C for Orange USB0, or USB-A-to-Micro-USB for the Raspberry gadget
-port. Avoid USB-C-to-USB-C/PD. Ordinary A-to-C and A-to-Micro-USB cables carry
-host VBUS; the connector choice does not provide isolation. Use the selected
-build's host-data port only after that exact build passes its port-role, VBUS/CC,
-and no-backfeed gates.
-
-Before connecting a host, stop if the port role, VBUS/CC behavior, or no-backfeed
-path is unclear. See the [pinout and connections](pinout-and-connections.md),
-[Orange bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md), and
-[board qualification page](board-qualification.md).
-
-## Raspberry USB data-role changes
-
-- A Raspberry USB data-role change is next-boot only. Apply the setting and wait
-  for the OLED to report the reboot result; never try to switch the role live.
-- Before applying, unplug the computer's USB data cable. Keep the instrument
-  powered through the PCB `PWR IN`/enclosure USB-C breakout; do not power the Pi
-  through its micro-USB power connector.
-- For Host mode, use an ID-grounded OTG adapter. A powered hub is preferred only
-  when its upstream path is known to be non-backfeeding. Never connect two power
-  sources and hope the cable sorts it out.
-- Host mode disables gadget USB Audio, USB MIDI, and new SD2 transfers. If a
-  stale SD2 transfer state remains, Stop Transfer is the cleanup path: it
-  remounts the card when required and leaves the gadget absent. Gadget mode
-  restores those image-side paths after reboot.
+For optional USB data connections, follow [USB roles](usb-roles.md) for the
+role, cable, port, power, and no-backfeed instructions. Keep the instrument
+powered through the enclosure breakout while a data cable is connected.
 
 ## Orientation and enclosure handling
 
 - Check the NeoKey and NeoTrellis connector orientation before power. `INT`
   should be on the south side.
-- Remove the selected board's microSD card and the OLED microSD card before
+- Remove the selected board's boot microSD card and the OLED microSD card before
   putting the boards into the enclosure. They can catch on the case and break.
 - Do not force a module, connector, top, pin, or screw. Stop and find the
   interference.
 
 ## Stop conditions
 
-Stop the build or test and record what happened if:
+Disconnect power and stop if:
 
-- the OLED is blank, flickering, unstable, or has more than one writer;
-- a diagnostic reports an actual hardware error;
+- the OLED is blank, flickering, or unstable;
 - power is unstable, a board browns out, a host connection back-feeds power, or
   the board or breakout heats unexpectedly;
-- a board pin, port role, or connector orientation is uncertain; or
+- a connection or connector orientation is uncertain; or
 - the enclosure does not sit flat without force.
 
 Continue with [troubleshooting](../troubleshooting.md), the [assembly
-manual](assembly-manual.md), [enclosure notes](enclosure.md), or the [Raspberry
-first-boot page](raspberry-pi-first-boot.md) or [Orange first-boot
-page](orange-pi-first-boot.md) only after the unresolved gate is understood.
-
-## Next links
-
-- [Assembly manual](assembly-manual.md)
-- [Raspberry first boot](raspberry-pi-first-boot.md)
-- [Orange first boot](orange-pi-first-boot.md)
-- [Pinout and connections](pinout-and-connections.md)
-- [Board qualification and status](board-qualification.md)
-- [Troubleshooting](../troubleshooting.md)
+manual](assembly-manual.md), or [flash and first boot](flash-and-first-boot.md)
+after the problem is understood.

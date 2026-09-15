@@ -1,12 +1,13 @@
 # Controls cheat sheet
 
-This is the map I wish I had taped next to the prototype while I was still learning where everything lived.
+This is the map to keep beside the instrument while you learn where everything
+lives.
 
-Octessera has regular controls, and then it has places where the controls temporarily become something else: Play pages, grid assignment modes, sample assignment, and context help. When in doubt, watch the OLED. It is small, but it tries to tell you what you are currently touching.
+Octessera has regular controls and temporary modes: Play pages, grid assignment
+modes, sample assignment, and context help. When in doubt, watch the OLED. It
+shows what the controls are acting on.
 
-The visible performance area is **Play**, with **Play FX** for momentary
-effects. **Sparks** is an older internal/native identifier and remains in the
-filename and source contracts; it is not a current visible mode label.
+The performance area is **Play**, with **Play FX** for momentary effects.
 
 ## Learn these five controls first
 
@@ -43,27 +44,14 @@ worlds, settings, and the recorded loop. Pause/Continue resumes the exact phase.
 
 ## Context help
 
-Context help belongs to the native runtime, not to a desktop-only shortcut
-layer. To use it, move *Main* to the menu row you want, hold *Shift* and *Fn*,
-then click *Main*. The OLED opens the help for that focused row. Turn *Main* to
+To use context help, move *Main* to the menu row you want, hold *Shift* and
+*Fn*, then click *Main*. The OLED opens help for that row. Turn *Main* to
 scroll and click *Main* to close it; *Back* also leaves the help display.
 
-Help is resolved for the current menu, parameter, action, selector, or overlay
-target. If the row changes, leave the help display and invoke the chord again;
-do not assume that a nearby row has the same meaning. The same input semantics
-apply on the hardware and in the simulator, while the native runtime owns the
-help text and popup state.
-
-Canonical sources:
-
-- [Menu and controls specification](../docs/menu-and-controls-spec.md) — exact
-  shortcut, overlay, priority, and display semantics.
-- [Menu tree specification](../docs/menu-tree-spec.md) — menu structure and
-  action labels.
-- [Native help text source](../resources/menu-help-texts.tsv) — per-target help
-  copy used by the runtime.
-- [Native help resolver](../crates/playback-runtime/src/native_help.rs) — native
-  resolution and coverage implementation.
+Help follows the current menu, parameter, action, selector, or mode. If the row
+changes, leave the help display and invoke the chord again; a nearby row may
+mean something different. The same shortcuts work on the hardware and in the
+simulator.
 
 ## Grid navigation shortcuts
 
@@ -99,9 +87,8 @@ How to read OLED markers:
 
 ![Cell-to-audio flowchart](print/cell-to-audio-flow.svg)
 
-Flowchart source: [`print/cell-to-audio-flow.svg`](print/cell-to-audio-flow.svg).
-
-Scanning is optional. If a layer is not scanning, it can still emit state-note events such as `activate` or direct grid events from `keys` and `looper`.
+Scanning is optional. If a layer is not scanning, it can still emit events such
+as `activate` or direct grid events from `keys` and `looper`.
 
 ## Special modes
 

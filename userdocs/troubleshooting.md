@@ -1,49 +1,22 @@
 # Troubleshooting
 
-Use the symptom below to choose the first safe action and the owner page. Keep
-the board accessible while a physical issue is unresolved.
+Find the symptom that matches what you see, then follow the linked page.
+Power down before opening the case, moving wiring, or reseating a connector.
 
-## Symptom router
-
-| Symptom | First safe action | Continue with |
+| Symptom | First action | Next page |
 |---|---|---|
-| OLED is blank, flickering, unstable, or shows two writers | Stop the test. Do not treat it as normal boot behavior. | [Raspberry first boot](hardware/raspberry-pi-first-boot.md), [Orange first boot](hardware/orange-pi-first-boot.md), [board qualification](hardware/board-qualification.md) |
-| Setup hotspot or page does not appear | Keep the board powered only while following the setup retry path; do not interrupt an apply in progress. | [Setup portal](hardware/setup-portal.md), [Orange first boot](hardware/orange-pi-first-boot.md#if-setup-does-not-appear) |
-| Setup applied partly or the hotspot vanished | Wait for the final result, reconnect with the new network or credentials, and start a new portal action for a retry. | [Setup portal](hardware/setup-portal.md#oled-modal-behaviour), [Orange security note](hardware/orange-pi-first-boot.md#security-note) |
-| No sound from a board | Stop before changing wiring. Check the selected exact route, output connection, and board bring-up status. | [Board qualification](hardware/board-qualification.md), [matching first-boot page](README.md#1-choose-a-board) |
-| USB audio or MIDI is missing | Treat the path as experimental/local bench validation, not public support. Use the fixed USB-A host path only after the port-role, VBUS/CC, and no-backfeed gates in [safety and power](hardware/safety-and-power.md#usb-host-connections) pass. | [Safety and power](hardware/safety-and-power.md#usb-host-connections), [release support](release-support.md#usb-policy), [pinout and connections](hardware/pinout-and-connections.md#usb-audio-and-midi) |
-| Controls or grid respond incorrectly | Check the OLED for an overlay or Play page, then leave it with Back or navigate with Fn. Do not translate Raspberry pins to Orange. | [Controls cheat sheet](controls-cheat-sheet.md), [pinout and connections](hardware/pinout-and-connections.md), [board qualification](hardware/board-qualification.md) |
-| Brownout, reboot, heat, or power instability | Power down. Return to the enclosure USB-C input and check the dedicated regulated 5V/4A supply and the safety page's brownout, no-backfeed, and heat stop conditions. | [Safety and power](hardware/safety-and-power.md), [assembly manual](hardware/assembly-manual.md#bench-bring-up-before-enclosure), [enclosure notes](hardware/enclosure.md#power-rule) |
-| Orange `syslog` or `kern.log` fills with repeated `sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin` | Power down and inspect the HDMI plug and cable; then verify the exact Orange rsyslog drop-in. | [Orange production reference](../hardware/docs/orange-pi-production-reference.md#hdmi-plug-event-log-mitigation) |
-| A sample is missing | Confirm which path you are using: the desktop package and both image constructors stage the 320-file sample library, of which 318 WAV files are sampler-loadable; two AIFF files remain outside the WAV-only browser/decoder. User samples remain supported. | [Desktop simulator](desktop-simulator.md#make-a-first-sound), [samples and OLED SD storage](README.md#samples-and-oled-sd-storage), [Raspberry first boot](hardware/raspberry-pi-first-boot.md), [Orange samples](hardware/orange-pi-first-boot.md#samples-and-output-paths) |
-| The case does not fit or a port is blocked | Stop. Remove both microSD cards before fitting and find the interference instead of forcing the case. | [Enclosure notes](hardware/enclosure.md), [assembly enclosure steps](hardware/assembly-manual.md#enclosure-assembly) |
-| Desktop simulator has no sound | Select the host's available audio output and start with a synth; the persisted audio toggles do not change the host's default endpoint. | [Desktop simulator](desktop-simulator.md#make-a-first-sound), [desktop limitations](desktop-simulator.md#what-this-path-can-and-cannot-tell-you) |
+| OLED is blank, flickering, unstable, or shows two writers | Power down and check the display connections. | [Flash and first boot](hardware/flash-and-first-boot.md) |
+| Setup hotspot or page does not appear | Keep the device powered while following the setup steps; do not interrupt an apply in progress. | [Flash and first boot](hardware/flash-and-first-boot.md) |
+| Setup finished but the hotspot disappeared | Reconnect using the new network or credentials, then start a new setup action if needed. | [Flash and first boot](hardware/flash-and-first-boot.md) |
+| No sound from the device | Check the selected instrument, layer level, output route, and cable. Start with a synth. | [Controls](controls-cheat-sheet.md), [behaviors](behaviors-and-sparks.md) |
+| USB audio or MIDI is missing | Check the port role, cable direction, power arrangement, and no-backfeed rule. | [USB roles](hardware/usb-roles.md), [safety and power](hardware/safety-and-power.md#usb-data) |
+| Controls or grid respond unexpectedly | Look at the OLED for a Play page or other mode, then press **Back** or navigate with **Fn**. | [Controls cheat sheet](controls-cheat-sheet.md) |
+| Brownout, reboot, heat, or power instability | Power down and check the regulated supply, input, cables, and ventilation. | [Safety and power](hardware/safety-and-power.md), [assembly manual](hardware/assembly-manual.md) |
+| A sample is missing | Check the file path and format. The sampler uses WAV files; user samples can be added through the sample browser or board sample paths. | [Desktop simulator](desktop-simulator.md), [Flash and first boot](hardware/flash-and-first-boot.md) |
+| The case does not fit or a port is blocked | Do not force it. Remove the microSD cards and check the fit and cable routing. | [Assembly manual](hardware/assembly-manual.md), [enclosure notes](hardware/enclosure.md) |
+| Desktop simulator has no sound | Choose the computer's available audio output, choose a synth, and press **Space**. | [Desktop simulator](desktop-simulator.md#make-a-first-sound) |
 
-## When the page does not identify the fault
-
-Stop at the first unclear physical gate. Record the board model, image, power
-path, cable, and what the OLED or host showed. Then return to [board
-qualification](hardware/board-qualification.md) and the relevant owner page
-instead of trying a Raspberry procedure on Orange or a software workaround for
-an electrical fault.
-
-## Orange HDMI plug-event flood
-
-A loose or intermittent HDMI plug caused a proven H618 plug-event storm that
-filled Armbian's 50 MB RAM log. New Orange images drop only the exact repeated
-kernel message before rsyslog writes `syslog` or `kern.log`; this is text-log
-duplication mitigation, not a repair for a physical connector or cable fault.
-
-From a console, use read-only checks:
-
-```sh
-sudo stat -c '%U:%G %a' /etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf
-sudo cat /etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf
-sudo rsyslogd -N1 -f /etc/rsyslog.conf
-sudo journalctl -k --no-pager
-```
-
-Journald's bounded diagnostic copy remains available. Do not respond by changing
-global kernel logging, journald limits, or the RAM-log size. Power down before
-reseating the HDMI plug or replacing the cable; if the exact event continues,
-record the physical connector result and the preserved kernel journal.
+If none of these matches, stop before changing wiring and return to the
+[flash and first-boot guide](hardware/flash-and-first-boot.md), [USB roles](hardware/usb-roles.md),
+or [safety and power](hardware/safety-and-power.md) page that best fits the
+problem.

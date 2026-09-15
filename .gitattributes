@@ -33,7 +33,6 @@ userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before
 /LICENSE text eol=lf
 /NOTICE text eol=lf
 /THIRD_PARTY_NOTICES.md text eol=lf
-/docs/release-licensing.md text eol=lf
 /hardware/ATTRIBUTIONS.md text eol=lf
 /samples/upstream/LICENSE text eol=lf
 /licenses/** text eol=lf

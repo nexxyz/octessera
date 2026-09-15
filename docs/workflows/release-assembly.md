@@ -1,9 +1,7 @@
 # Release assembly
 
-Explicit GitHub releases are built only by
-`.github/workflows/release-artifacts.yml`. Tag pushes and intermediate CI builds
-must not publish release assets. Stop at a populated draft; publication is a
-separate human decision described in the [release support matrix](../../userdocs/release-support.md).
+The release artifact entrypoint is `.github/workflows/release-artifacts.yml`.
+It builds the custom GitHub release files listed below.
 
 ## Custom release assets
 
@@ -31,33 +29,9 @@ manual ZIP contains `octessera-pi`, `octessera-runtime.json`, `SHA256SUMS`,
 asset. The Orange runtime-updater ZIP contains exactly
 `octessera-pi`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`.
 
-macOS distribution is paused until it can be signed and notarized. GitHub's
-automatic source archives are not custom assets and are not in
-`SHA256SUMS.txt`. The final gate checks the portable notice proof, ZIP contents
-and modes, image/kernel evidence, runtime identity, sample/default coverage,
-and root names/checksums.
-
-## Owner handoff
-
-1. Bump versions in Rust manifests, `package.json` files, and
-   `apps/desktop/src-tauri/tauri.conf.json`; run `corepack pnpm install`.
-2. Run local validation and rebuild the portable desktop executable when
-   desktop-visible behavior changed.
-3. Commit and push release-prep changes.
-4. Create a unique empty draft release such as `v0.5.0`.
-5. Run `Release Artifacts` manually with that tag. The workflow checks the tag
-   semver against package metadata.
-6. Stop at the populated draft. Use the [release support checklist](../../userdocs/release-support.md)
-   to verify names/count, checksums, manifests, ZIP contents, samples,
-   desktop launch, per-board FAT, source duties, and limitations. Do not
-   announce or publish until a human explicitly makes that decision.
-
-For every board-image draft, retain the source/build proof and any required
-mounted-image or kernel proof with the exact artifact. Physical acceptance
-follows the [two-board FAT quick run](../../userdocs/hardware/fat-quick-run.md).
-The Orange current-parent respin lane is nonpublishing and boot-neutral, not a
-qualification path; keep it separate from the full-constructor release path until
-FAT closes. Raspberry image replacement remains constructor-only.
+GitHub's automatic source archives are not custom assets and are not in
+`SHA256SUMS.txt`. The release workflow generates the release-evidence archive
+as one of the custom files above.
 
 ## Image staging and update boundaries
 
@@ -71,12 +45,11 @@ sudo python3 tools/legal/stage_notices.py \
   --destination-root tools/pi-image/stage4-octessera/files/root
 ```
 
-Remove the generated `usr/share/doc/octessera/` tree after the local run;
-workflows stage it only in a disposable checkout. Orange staging follows the
-same manifest-driven `OCTESSERA_REPOSITORY_ROOT` pattern. Both fixed image paths
-install the inactive Wi-Fi foundation, a root-owned Wi-Fi-only wrapper fixed to
-`wlan0` and `192.168.42.1`; it is deliberately disabled and does not serialize
-credentials or add runtime behavior.
+The generated `usr/share/doc/octessera/` tree is disposable. Orange staging
+follows the same manifest-driven `OCTESSERA_REPOSITORY_ROOT` pattern. Both fixed
+image paths install the inactive Wi-Fi foundation, a root-owned Wi-Fi-only
+wrapper fixed to `wlan0` and `192.168.42.1`; it is deliberately disabled and
+does not serialize credentials or add runtime behavior.
 
 Release images must contain no Wi-Fi credentials, SSH keys, GitHub tokens, host
 logs, or local user secrets. SSH is disabled by default.
@@ -92,6 +65,9 @@ manual; missing or mismatched profile, asset, manifest, checksum, or health
 precondition fails closed. Orange never consumes Raspberry assets or falls back
 to the manual ZIP or full-image path.
 
-Before a future public board-image release, review source duties for pinned
-upstream inputs and Octessera source, patches, configuration, and build scripts
-in [`../release-licensing.md`](../release-licensing.md).
+Image release materials must account for source duties covering pinned upstream
+inputs and Octessera source, patches, configuration, and build scripts. Keep
+[`NOTICE`](../../NOTICE),
+[`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md),
+[`hardware/ATTRIBUTIONS.md`](../../hardware/ATTRIBUTIONS.md), and
+[`samples/SOURCE.md`](../../samples/SOURCE.md) with the release materials.

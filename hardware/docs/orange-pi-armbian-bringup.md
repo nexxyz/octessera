@@ -1,13 +1,11 @@
 # Orange Pi Zero 2W Armbian bring-up
 
-This is the ordered Orange Pi Zero 2W bring-up and qualification procedure for
+This is the ordered Orange Pi Zero 2W bring-up procedure for
 the established Armbian production path. Use it at the workbench. The detailed
 production image, service, storage, audio, USB, and updater contracts live in
 the [Orange production reference](orange-pi-production-reference.md); image
-construction and proof commands live in
+construction commands live in
 [`docs/workflows/image-construction-and-proof.md`](../../docs/workflows/image-construction-and-proof.md).
-Historical diagnostic qualification remains in
-[`orange-pi-selection-and-qualification-history.md`](orange-pi-selection-and-qualification-history.md).
 
 This is a hardware gate. Do not copy Raspberry Pi constants, overlays, or
 `rppal` GPIO assumptions into Orange Pi support until these checks pass on the
@@ -19,13 +17,11 @@ recovery paths are not interchangeable.
 - Board: Orange Pi Zero 2W, 2 GB RAM.
 - Production image: Armbian Debian 13/Trixie for Orange Pi Zero 2W.
 - Wiring goal: the same Octessera PCB and harness as the Raspberry Pi Zero 2 W
-  build, with Orange-specific pin and port proof.
+  build, with Orange-specific pin and port mapping.
 - Exact profile: `orange-pi-zero-2w`; exact Armbian board ID: `orangepizero2w`.
 
-Record the image URL, image date, kernel version, board name, board revision,
-PCB/harness revision, artifact SHA-256, and all command output during bring-up.
-Read [`docs/board-profiles.md`](../../docs/board-profiles.md) before treating a
-profile-qualified artifact as the selected board.
+Read [`docs/board-profiles.md`](../../docs/board-profiles.md) for the board
+profile and artifact naming contract.
 
 ## Safety gates before connecting the Octessera PCB
 
@@ -66,25 +62,25 @@ then verify the board revision, schematic, Armbian device tree, and live pinmux.
   node, and live pinmux.
 - Physical pins 16/36 appear GPIO-capable for OLED D/C and reset; confirm lines
   and polarity.
-- Physical pins 12/35/40 are not proven Pi-style I2S/PCM pins. I2S is blocked
-  until schematic, DTS, and Armbian overlay checks prove those pins.
+- Physical pins 12/35/40 are not established as Pi-style I2S/PCM pins. I2S is blocked
+  until schematic, DTS, and Armbian overlay checks establish those pins.
 - Physical pin 10 is UART0 RX and pin 8 is UART0 TX in the desk pinout. The
   approved input-routing overlay must disable UART0 and release PH0/PH1 before
-  NeoTrellis interrupt and SW3 switch qualification.
+  NeoTrellis interrupt and SW3 switch checks.
 - USB-C port role, VBUS/CC/ID behavior, UDC, and no-backfeed behavior are not
-  proven by the desk documents. Stop before gadget binding if they are unclear.
+  established by the desk documents. Stop before gadget binding if they are unclear.
 
 ### Direct encoder mapping
 
 H618 offsets use the established `port base + pin` mapping (`PC12 = 76`,
 `PI14 = 270`). Do not use Raspberry BCM numbering.
 
-| Encoder | A physical / H618 / offset | B physical / H618 / offset | Switch physical / H618 / offset | Candidate status |
+| Encoder | A physical / H618 / offset | B physical / H618 / offset | Switch physical / H618 / offset | Implementation |
 | --- | --- | --- | --- | --- |
-| SW1 main | 29 / PI0 / 256 | 31 / PI15 / 271 | 32 / PI11 / 267 | implemented; hardware qualification pending |
-| SW2 aux1 | 33 / PI12 / 268 | 22 / PI6 / 262 | 11 / PH2 / 226 | implemented; hardware qualification pending |
+| SW1 main | 29 / PI0 / 256 | 31 / PI15 / 271 | 32 / PI11 / 267 | available |
+| SW2 aux1 | 33 / PI12 / 268 | 22 / PI6 / 262 | 11 / PH2 / 226 | available |
 | SW3 aux2 | 13 / PH3 / 227 | 7 / PI13 / 269 | 8 / PH0 / 224 | A/B implemented; switch waits for UART0-disabled routing |
-| SW4 aux3 | 37 / PI16 / 272 | 18 / PH4 / 228 | 15 / PI5 / 261 | implemented; hardware qualification pending |
+| SW4 aux3 | 37 / PI16 / 272 | 18 / PH4 / 228 | 15 / PI5 / 261 | available |
 
 The Orange event boundary reverses all four literal board A/B directions; the
 Raspberry path remains `rppal`-based. AUX2 A/B may be requested while UART0 is
@@ -97,11 +93,10 @@ is 45 ms.
 
 Use the exact Orange production or diagnostic mode described in the
 [production reference](orange-pi-production-reference.md). Do not use a
-Raspberry image, a runtime-only updater ZIP as a full image, or the historical
-`runtime-candidate` path as production qualification. For image construction,
-kernel, sample, setup, and sanitation gates, follow the linked image workflow.
+Raspberry image or a runtime-only updater ZIP as a full image. Follow the
+linked image workflow for image construction and its source checks.
 
-Before any board change, capture basic Armbian facts:
+Before any board change, inspect the basic Armbian state:
 
 ```sh
 cat /etc/os-release
@@ -124,27 +119,23 @@ BCM numbering. The reviewed SPI1 OLED+SD2 source is
 `userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-oled-sd2.dts`;
 do not substitute the stock `spidev1_0` overlay. SD2 chip select is header
 pin 26; H618 PH9 is SPI1 CS1 with mux `0x4`, while the OLED is SPI1 CS0.
-Physical OLED/microSD coexistence remains explicitly unqualified at this
-stage and requires live-kernel and electrical proof.
+Before using the shared OLED/microSD wiring, verify its coexistence with the
+live kernel and the electrical setup.
 
 ### 2. Verify setup and SSH
 
-The software/static setup layer is source-bound, but it does not prove a board
-created an AP, joined a network, served a captive page, applied credentials, or
-preserved secrets. Run the complete flow on both fixed board paths when doing a
-shared setup qualification:
+To exercise the setup portal on either fixed board path:
 
 - at the instrument, choose `System > Setup > Configure WiFi > Open Portal`;
 - join the setup AP and load the captive page;
 - apply Wi-Fi, hostname, SSH mode, and login settings;
 - wait for the OLED terminal result before reconnecting;
 - observe the 10-minute user window after portal readiness and its timeout;
-- inspect AP traffic, HTTP responses, the single current status file at
+- inspect AP traffic, HTTP responses, the current status file at
   `/run/octessera-setup-status/current.json`, logs, and artifacts for secret
   leakage.
 
-The browser submission is provisional. An AP disconnect while settings apply is
-expected, and is not a success or failure result. Success requires only a usable
+An AP disconnect while settings apply is expected. Setup requires a usable
 global `wlan0` IPv4 address; it does not require Internet access, a default
 route, DNS, or ICMP.
 
@@ -154,18 +145,17 @@ Once SSH is reachable, run the read-only Windows probe:
 .\tools\orange-pi\run-opi-bringup.ps1 -Target orangepi@192.168.x.x
 ```
 
-The qualification-critical owner proof requires passwordless `sudo -n` or a
-root SSH session. Add `-WithSudoChecks` only after SSH/recovery is stable. The
-probe never binds a gadget; use the separate composer only for an explicitly
-authorized USB test.
+The owner check requires passwordless `sudo -n` or a root SSH session. Add
+`-WithSudoChecks` only after SSH/recovery is stable. The probe never binds a
+gadget; use the separate composer for USB tests.
 
-### 3. Qualify passive peripherals
+### 3. Check passive peripherals
 
-Before active transfers, GPIO requests, audio, or gadget binding:
+Before active transfers, GPIO requests, audio, or gadget binding, check:
 
 - confirm the live DT/pinmux for I2C, SPI1/CS0, OLED D/C/reset, I2S, USB role,
   and UDC;
-- record device nodes, GPIO ownership, `aplay -l`, and `/sys/class/udc`;
+- device nodes, GPIO ownership, `aplay -l`, and `/sys/class/udc`;
 - scan I2C for the NeoTrellis/NeoKey devices on the correct physical bus;
 - run a minimal OLED transfer and confirm MOSI, SCLK, CS, DC, and reset pins;
 - use `gpioinfo` and edge events for encoders, buttons, NeoKey, and NeoTrellis;
@@ -173,25 +163,25 @@ Before active transfers, GPIO requests, audio, or gadget binding:
 - expose the expected I2S card, use `hw:CARD=octesseradac,DEV=0` at 44.1 kHz,
   and run a short playback plus underrun check.
 
-The production image constructs the already-qualified AHUB0 dummy-codec route
+The production image constructs the AHUB0 dummy-codec route
 on APB0/DMA3/TDM0 and names the playback card exactly `octessera-dac`
 (`octesseradac` in ALSA). It installs and composes the canonical overlay during
 image construction; this is not an experimental or manual overlay procedure.
 
-An HDMI/default ALSA sound is not an I2S pass. I2S remains blocked until the
-DAC pins and live audio card are proven.
+An HDMI/default ALSA sound does not establish the I2S route. Use the DAC pins
+and live audio card when checking that route.
 
-### 4. Qualify USB gadget behavior
+### 4. Check USB gadget behavior
 
-Before binding, record which USB-C port is OTG/data, the power topology, VBUS,
+Before binding, verify which USB-C port is OTG/data, the power topology, VBUS,
 CC and role handling, and host sleep/replug behavior. An empty
 `/sys/class/udc`, an unproven role, backfeed, brownout, pre-bound controller,
-or failed teardown is a failed Orange validation. Do not use Raspberry `dwc2`
-assumptions or bind a pre-existing gadget.
+or failed teardown is a stop condition. Do not use Raspberry `dwc2` assumptions
+or bind a pre-existing gadget.
 
 The official hardware name for the gadget-capable MUSB/peripheral controller is
-USB0. Record the physical connector naming unambiguously; do not infer it from
-user numbering.
+USB0. Use unambiguous physical connector names; do not infer them from user
+numbering.
 
 Run the fake-configfs contract check first:
 
@@ -199,7 +189,7 @@ Run the fake-configfs contract check first:
 bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
 
-For host acceptance, record `lsusb -v`, the UAC2 endpoint `Octessera Audio`, the
+For host checks, inspect `lsusb -v`, the UAC2 endpoint `Octessera Audio`, the
 combined composite product `Octessera Audio + MIDI`, and Windows
 `DEVPKEY_Device_BusReportedDeviceDesc`. The setup gate is writable ConfigFS
 `interface_string`; the actual MIDI interface descriptor, bus-reported value,
@@ -207,52 +197,48 @@ and MIDI Services endpoints must equal `Octessera MIDI`. Verify high-speed
 combined UAC2+MIDI, 44.1 kHz stereo capture of a board-generated 1 kHz tone on
 both channels, and exact MIDI traffic in both directions. See the [Orange
 production reference](orange-pi-production-reference.md#usb-identity-boundary)
-for current qualification status.
+for the fixed USB identity contract.
 
-The Orange SD2 source/image contract now includes the fixed
+The Orange SD2 source/image contract includes the fixed
 `/run/octessera-orange-storage-control/storage.sock` seam and label-safe
-`OCTESSERA_SD` lifecycle. Do not treat the fake-configfs tests as a hardware
-result.
+`OCTESSERA_SD` lifecycle.
 
-The remaining authorized gates are:
+For USB hardware testing:
 
-- Repeat the named identity and functional checks on the exact release
-  constructor image.
-- Complete physical connector mapping, VBUS/CC/no-backfeed electrical
-  qualification, physical reconnect and host suspend/resume, SD2 mass-storage
-  start/eject/stop recovery, and authorized public VID/PID qualification.
+- Use the exact release constructor image for the named identity and functional
+  checks.
+- Verify physical connector mapping, VBUS/CC/no-backfeed electrical behavior,
+  physical reconnect and host suspend/resume, SD2 mass-storage
+  start/eject/stop recovery, and the configured VID/PID values.
 
-USB Audio and USB MIDI are experimental local bench-validation paths, not public
-USB support claims. Before connecting a host to an instrument powered
-from the enclosure USB-C input, follow the [safety and power
-guidance](../../userdocs/hardware/safety-and-power.md#usb-host-connections) for
+Before connecting a host to an instrument powered from the enclosure USB-C
+input, follow the [safety and power
+guidance](../../userdocs/hardware/safety-and-power.md) for
 the fixed USB-A host path. Ordinary host cables carry VBUS; avoid
 USB-C-to-USB-C/PD and do not treat the connector choice as isolation. This is
 the no-backfeed safety gate.
 
-### 5. Run the safe runtime evidence command
+### 5. Run the runtime diagnostic command
 
-After image identity, passive devices, and recovery are recorded, run the
-non-destructive fixed-board diagnostic separately:
+Run the non-destructive fixed-board diagnostic:
 
 ```sh
 /usr/local/bin/octessera-pi --fat-diagnostic \
   --board-profile orange-pi-zero-2w \
-  --evidence-dir "/tmp/octessera-fat-diagnostic-orange-<fresh-run-id>"
+  --evidence-dir "/tmp/octessera-fat-diagnostic-orange"
 ```
 
-This collects identity, readiness, service, storage, audio-route, USB-state,
-and sanitized evidence without binding USB, playing audio, or actuating the
-control surface. `--hardware-test` and `--hardware-noise-test` are Raspberry
-interactive modes and are rejected on Orange.
+The diagnostic reports identity, readiness, service, storage, audio-route, and
+USB state without binding USB, playing audio, or actuating the control surface.
+`--hardware-test` and `--hardware-noise-test` are Raspberry interactive modes
+and are rejected on Orange.
 
-### 6. Record or stop
+### 6. Fault handling
 
-Record the exact image/kernel/DT identity, source and artifact hashes, command
-outputs, board/PCB revisions, measurements, logs, and operator observations.
-Stop and preserve evidence if any mapping, power, recovery, UDC, I2S, GPIO,
-OLED, control-surface, thermal, or service gate fails. Do not reorder a failed
-gate or call a source/build check physical FAT.
+Stop before use when any mapping, power, recovery, UDC, I2S, GPIO, OLED,
+control-surface, thermal, or service check fails. Fix the source, image, wiring,
+or device before continuing.
 
 The production runtime's selected-route readiness, service account, storage,
-updater, and power boundaries are normative in the [technical reference](orange-pi-production-reference.md).
+updater, and power boundaries are defined in the [technical
+reference](orange-pi-production-reference.md).

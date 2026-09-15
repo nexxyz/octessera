@@ -1,191 +1,75 @@
-# octessera user docs
+# Octessera user manual
 
 Octessera is a collection of small algorithmic musical world-bubbles. Set up a
 few systems, nudge them, anchor them with a little sequencing, and play the
 result together with the machine.
 
-## Release and build status
+## 1. Try the simulator
 
-The [current release page](https://github.com/nexxyz/octessera/releases) owns
-current versions, platform assets, formats, and checksums. Check it for the
-desktop and board assets available for the release you selected; names and
-formats may change. macOS distribution is paused until a signed and notarized
-path is available; do not treat an old macOS asset as current.
+Start with the [desktop simulator](desktop-simulator.md) if you want to make a
+sound before building anything. It needs no PCB, board, OLED, or soldering iron.
 
-The [v0.8.1 release record](release-records/v0.8.1.md) records the exact draft
-artifact hashes and automated evidence. It does not claim physical qualification
-or publication.
+## 2. Build the device
 
-Read the [release support matrix](release-support.md) before treating a download
-as supported. Only an exact artifact and platform with a recorded manual FAT
-result qualify; source/build checks alone do not.
+Choose a Raspberry Pi Zero 2 W or Orange Pi Zero 2W. Use the matching board
+image and enclosure top.
 
-Octessera documents two fixed compute-board paths: Raspberry Pi Zero 2 W and
-Orange Pi Zero 2W. They share the native runtime, but their images, pinouts,
-ports, and adapters are board-specific. Source and build checks are useful
-evidence, not physical-board qualification.
+[Build and assembly manual](hardware/assembly-manual.md) · [Safety and
+power](hardware/safety-and-power.md)
 
-The available v21 enclosure builds have been built and validated, but v21 is
-still a test-fit design rather than a production-final enclosure. Cost depends
-on the current BOM, suppliers, shipping, taxes, and printing. There is no fixed
-price promise.
+## 3. Flash and set it up
 
-## Start by what you want to do
+[Flash and first-boot guide](hardware/flash-and-first-boot.md) — matching image,
+flashing, first boot, and network setup.
 
-### I want to play now
+[USB roles](hardware/usb-roles.md) — host-computer connections.
 
-Use the [hardware-free desktop simulator](desktop-simulator.md). Start with the
-current [release page](https://github.com/nexxyz/octessera/releases), make a
-first sound, and learn the controls without a PCB or board.
+## 4. Make music
 
-### I am building the instrument
+1. In **Build**, choose `life`, `brain`, or `raindrops` for a layer.
+2. Draw a few cells on the grid.
+3. In **Shape**, choose a **synth**.
+4. Press **Play** or **Space**.
+5. Use **Play Mix** to adjust the layer's level, then explore the other Play
+   pages.
 
-Choose one of the two fixed board paths, then follow the [shared six-step build
-journey](#shared-six-step-build-journey):
+[Controls cheat sheet](controls-cheat-sheet.md) · [Behaviors and Play
+pages](behaviors-and-sparks.md) · [Recording](recording.md)
 
-- [Raspberry Pi Zero 2 W first boot](hardware/raspberry-pi-first-boot.md)
-- [Orange Pi Zero 2W first boot](hardware/orange-pi-first-boot.md)
-- [Build and assembly manual](hardware/assembly-manual.md)
+## Reference
 
-### I already built or flashed it
+### Practical performance
 
-Start with [troubleshooting](troubleshooting.md), then use the matching
-[Raspberry first-boot page](hardware/raspberry-pi-first-boot.md) or [Orange
-first-boot page](hardware/orange-pi-first-boot.md), [setup portal
-guide](hardware/setup-portal.md), or [board qualification and
-status](hardware/board-qualification.md). For a reflash, read [Data Backup and
-Restore](data-backup-restore.md) before erasing the source card. For a strict
-two-board acceptance run, use the [FAT orchestrator](hardware/fat-quick-run.md).
-Its linked [software coverage](hardware/fat-software-coverage.md), [diagnostic
-harness](hardware/fat-diagnostic-harness.md), [board end-to-end
-paths](hardware/fat-board-end-to-end.md), and [gap tests](hardware/fat-gap-tests.md)
-keep automated evidence, operator observations, and closeout accounting in
-their proper lanes. Keep the boards accessible until the open electrical checks
-pass.
+Use these as planning targets for dense patches:
 
-### I want to learn the instrument
+| Mode | Synth voices | Sample voices | Bus FX | Global FX |
+|---|---:|---:|---:|---:|
+| Raspberry Latency | 16 | 16 | 8 | 2 |
+| Raspberry Capacity | 32 | 32 | 8 | 2 |
+| Orange Latency | 24 | 24 | 8 | 2 |
+| Orange Capacity | 64 | 32 | 12 | 2 |
 
-- [Controls cheat sheet](controls-cheat-sheet.md) — learn the five controls that
-  get you moving, then keep the exact shortcut and overlay tables handy.
-- [Behaviors and Play pages](behaviors-and-sparks.md) — start with a small patch,
-  browse the behavior catalog, and perform with Play.
+Voice counts are totals across all instrument slots, not per-instrument limits.
+Adaptive voice stealing may reduce the active synth count as load rises. These
+are practical targets rather than guarantees; behaviors, samples, and effects
+all change the available headroom.
 
-### I need a reference
+- [Controls cheat sheet](controls-cheat-sheet.md)
+- [Behaviors and Play pages](behaviors-and-sparks.md)
+- [Recording audio and OLED](recording.md)
+- [Safety and power](hardware/safety-and-power.md)
+- [USB roles](hardware/usb-roles.md)
+- [Data backup and restore](data-backup-restore.md)
+- [Troubleshooting](troubleshooting.md)
+- [Printable quick reference](print/quick-reference.pdf)
 
-- [Safety and power](hardware/safety-and-power.md) — the short owner page for
-  power input, USB backfeed, orientation, and enclosure handling.
-- [Pinout and connections](hardware/pinout-and-connections.md) — Raspberry
-  wiring and the Orange routing warning.
-- [Enclosure and print notes](hardware/enclosure.md) — board-specific openings
-  and the current v21 test-fit model.
-- [Setup portal](hardware/setup-portal.md) — open or reopen board setup.
-- [Recording audio and OLED](recording.md) — capture the final mix or a small
-  audio-plus-OLED AVI without losing track of where the files went.
-- [Printable quick reference](#printable-quick-reference)
+### Samples
 
-### Audio modes and practical limits
+The default library has 320 media files: 318 WAV files available to the
+sampler, plus two AIFF files outside the WAV-only browser. You can add your own
+samples through the desktop sample browser or the board sample paths.
 
-Both boards default to `Latency`. Use `System > Audio > Perf. Mode` to choose
-the compact `Lat` or `Cap` setting after a restart. Orange Capacity is the
-current optional higher-capacity profile; Raspberry Capacity is wired from
-retained evidence but still needs live production-binary requalification.
-
-The adopted limits shared by shipped modes are 12 Bus FX slots, 2 Global FX
-slots, 2 simultaneous momentary FX, 16 synth voices, and 64 sample voices.
-Engineering stress numbers are headroom evidence, not usable patch limits:
-
-| Product mode | Stress evidence (synth + sample voices) |
-|---|---:|
-| Raspberry Inline | 48 + 16 |
-| Orange Inline | 72 + 24 (two 180-second runs) |
-| Orange Capacity | 126 + 42 (600-second soak) |
-
-These figures are there to explain the room under the hood, not to turn the
-instrument into a spreadsheet with sharp edges.
-
-## Shared six-step build journey
-
-The PCB and control surface are one handmade instrument; do not substitute a
-board image, pin table, port role, or physical check from the other board.
-
-### 1. Choose a board
-
-- **Raspberry Pi Zero 2 W** — use the [Raspberry first-boot path](hardware/raspberry-pi-first-boot.md).
-- **Orange Pi Zero 2W** — use the [Orange first-boot path](hardware/orange-pi-first-boot.md) and its Armbian checks.
-- Read [board qualification and status](hardware/board-qualification.md) before calling a clean build a qualified instrument.
-
-### 2. Parts and assembly
-
-Use the [assembly manual](hardware/assembly-manual.md#bom) and [board-specific
-pinout references](hardware/pinout-and-connections.md#board-profile-first) while
-ordering parts, soldering, and checking the open assembly. Read [safety and
-power](hardware/safety-and-power.md) before connecting power or a host cable.
-
-### 3. Flash the selected board
-
-Flash the matching image from the [current release page](https://github.com/nexxyz/octessera/releases).
-The [assembly manual's flash step](hardware/assembly-manual.md#flash-the-selected-board-image)
-links to both first-boot workflows and their image/checksum instructions.
-
-### 4. Bench bring-up
-
-Bring the device up while the boards are still accessible. Use the [Raspberry
-first-boot page](hardware/raspberry-pi-first-boot.md), or the [Orange final
-bench bring-up checklist](hardware/orange-pi-first-boot.md#oled-usb-and-final-bench-checks).
-Stop at an unresolved physical gate; a successful source check is not permission
-to close the case.
-
-### 5. Enclosure
-
-After the open electrical checks pass, use the [enclosure and print
-notes](hardware/enclosure.md) and the fit sequence in the [assembly
-manual](hardware/assembly-manual.md#enclosure-assembly). Remove the selected
-board's microSD card and the OLED microSD card before putting the boards in the
-case.
-
-### 6. Final checks
-
-Run the [final checks](hardware/assembly-manual.md#final-checks): power, display,
-audio, every control, and access to the ports. If anything is unclear, use the
-[symptom router](troubleshooting.md) before continuing.
-
-## Samples and OLED SD storage
-
-The bundled library has 320 media files. The sampler-loadable default library
-contains 318 WAV files; two AIFF files remain outside the WAV-only
-browser/decoder. The portable desktop package and both production images stage
-the complete 320-file library. Its technical [manifest](../samples/MANIFEST.tsv)
-records each file's path, size, and SHA-256 digest. You can add your own samples
-through the desktop host/sample browser or the board sample paths. First boot
-only seeds a missing default and does not replace user samples.
-
-For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2;
-the selected board's boot card is SD1. On Orange, SD2 is header pin 26 / H618
-PH9 (SPI1 CS1, mux `0x4`) beside the OLED's CS0. Physical coexistence is still
-unqualified. Octessera mounts SD2 at `SD card` and creates `octessera/samples`
-plus `octessera/saves`; put WAV samples under
-`octessera/samples`. If you use `System > SD Card 2 > Start Transfer`, eject
-the drive on the host before pressing Back or Main to stop transfer. If no host
-is connected yet, Octessera waits until one appears and you can still cancel
-from the popup.
-
-## Printable quick reference
-
-- [Two-page controls, behaviors, Play, and signal-flow PDF](print/quick-reference.pdf)
-- [Printable sources](print/) — HTML, CSS, and the signal-flow SVG.
-
-## Canonical references
-
-The friendly pages above are for people at the workbench. Exact runtime
-contracts live in the source references:
-
-- [Menu and controls spec](../docs/menu-and-controls-spec.md)
-- [Menu tree spec](../docs/menu-tree-spec.md)
-- [Behavior source](../crates/platform-core/src/behaviors/)
-- [Project license](../LICENSE)
-- [Bundled sample acknowledgement](../samples/SOURCE.md)
-- [Sample integrity manifest](../samples/MANIFEST.tsv)
-- [Hardware attributions](../hardware/ATTRIBUTIONS.md)
-
-If a friendly page and a canonical specification disagree, the specification
-wins and the friendly page needs updating.
+For the optional OLED microSD card, label it `OCTESSERA_SD`. This is SD2; the
+selected board's boot card is SD1. Put WAV files under `octessera/samples`. If
+you use **System > SD Card 2 > Start Transfer**, eject the host drive before
+pressing **Back** or **Main** to stop the transfer.

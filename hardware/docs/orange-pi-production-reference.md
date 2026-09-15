@@ -4,26 +4,24 @@ This is the technical reference for the Orange Pi Zero 2W production Armbian
 image, service, storage, audio, and updater contracts. Use the ordered
 [Orange bring-up procedure](orange-pi-armbian-bringup.md) for a board session;
 use [`docs/workflows/image-construction-and-proof.md`](../../docs/workflows/image-construction-and-proof.md)
-for construction and proof commands.
+for image construction commands.
 
 ## Artifact and image-mode contract
 
 The fixed production path is Armbian Debian 13/Trixie for the exact board ID
-`orangepizero2w`. The documented immutable v0.7.5 production artifact is
-`octessera-0.7.5-orange-pi-zero-2w.img.xz`, with a matching SHA-256 and
-provenance set. Its build metadata contains `OCTESSERA_IMAGE_MODE=production`
-and its runtime metadata declares `artifact_kind=production-runtime`,
-`runtime_ready=true`, and `orange-pi-zero-2w`. This retained v0.7.5 artifact
-contract is historical only: it is not a current release candidate or a
-supported respin parent. The v0.8.1 constructor evidence is source-bound and
-still awaits physical FAT for its exact release artifact.
+`orangepizero2w`. A production image uses a version-qualified
+`octessera-<version>-orange-pi-zero-2w.img.xz` name with matching SHA-256 and
+provenance files. Its build metadata contains
+`OCTESSERA_IMAGE_MODE=production` and its runtime metadata declares
+`artifact_kind=production-runtime`, `runtime_ready=true`, and
+`orange-pi-zero-2w`.
 
 Production stages the exact hash-bound three-file runtime bundle:
 `octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`. The separate
 diagnostic artifact is the canonical `orange-oled-smoke` ELF with its adjacent
 schema-2 `orange-oled-smoke.metadata.json` sidecar and lowercase
 `binary_sha256`. Keep those names together. `orange-seesaw-smoke` uses the same
-sidecar contract and is limited to the proven reset/HW-ID check on `/dev/i2c-2`.
+sidecar contract and is limited to the reset/HW-ID check on `/dev/i2c-2`.
 
 Diagnostic mode is explicit as `OCTESSERA_IMAGE_MODE=diagnostic`; it has no
 production runtime bundle and does not contain or enable `octessera.service`.
@@ -48,32 +46,29 @@ Jack. HDMI audio is separate from HDMI video. Simultaneous physical outputs use
 independent unsynchronized clocks and can drift or echo; the contract does not
 provide sample synchronization.
 
-Readiness follows selected-route status, initialized control-surface devices, and
+Readiness follows selected-route state, initialized control-surface devices, and
 the first rendered runtime frame. FIFO priority 70 comes from
 `LimitRTPRIO=70`; `CAP_SYS_TTY_CONFIG` is the sole ambient and bounding capability
 for native VT leasing. The service does not use `CAP_SYS_NICE` or other realtime
-capability elevation. The observed Orange HDMI connector path
-is `/sys/class/drm/card0-HDMI-A-1`. A separate live Raspberry observation found
-the same card0 status/EDID paths on kernel `6.12.93+rpt-rpi-v8`; Raspberry pins
-card0 and does not fall back to card1. These are connector identity observations,
-not connected HDMI audio or audible qualification.
+capability elevation. The Orange HDMI connector path is
+`/sys/class/drm/card0-HDMI-A-1`; HDMI audio is selected independently from HDMI
+video.
 
 Normal SIGINT cleanup joins workers after the shutdown frame, black
 Trellis/NeoKey frames, and OLED-off operation.
 
 ## HDMI plug-event log mitigation
 
-A loose or intermittent HDMI plug was proven to make the fixed H618 controller
-repeat `sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin` until Armbian's 50 MB RAM log
-filled. Newly constructed Orange images install
+A loose or intermittent HDMI plug can make the fixed H618 controller repeat
+`sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin` until Armbian's 50 MB RAM log fills.
+Orange images install
 `/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf` with root ownership and
 mode `0644`. Its exact `$msg` match stops only that rsyslog file-writing copy,
 before the default file rules; other HDMI and kernel messages remain visible.
 Journald keeps its bounded diagnostic copy.
 
-This prevents duplicate text-log space consumption. It does not repair a loose
-connector, cable, or physical HDMI fault. Inspect and reseat the hardware with
-the board powered down, then use `rsyslogd -N1 -f /etc/rsyslog.conf` and
+This prevents duplicate text-log space consumption. Inspect and reseat the
+hardware with the board powered down, then use `rsyslogd -N1 -f /etc/rsyslog.conf` and
 `journalctl -k --no-pager` for read-only checks.
 
 ## Runtime-only updater contract
@@ -99,8 +94,7 @@ sending exactly `reboot\n` or `poweroff\n` to the root-owned
 `/run/octessera-device-apply/reboot.sock`. The root-owned device-apply service
 validates saved config only for reboot, invokes only the matching fixed
 `/usr/bin/systemctl` command, and returns exact `accepted\n` or `rejected\n`
-bytes. There is no sudo fallback, command discovery, or live hardware
-qualification claim in this source/bring-up contract.
+bytes. There is no sudo fallback or command discovery.
 
 ## Setup portal and production inputs
 
@@ -156,13 +150,13 @@ one `rohm,dh2228fv` OLED device capped at 16 MHz, and creates an
 select, card-detect, broken-card-detect, or non-removable properties. Image customization resolves the
 boot-selected DTB and records non-secret DTS/DTBO hashes in
 `/etc/octessera/build-metadata.env`; DTBO and boot-environment writes are
-atomic. Before any OLED transfer, prove the live SPI1 node and pinmux and keep
+atomic. Before any OLED transfer, verify the live SPI1 node and pinmux and keep
 a recovery path for `/boot/armbianEnv.txt`.
 
 On the fixed PCB, SD2 chip select is header pin 26. H618 PH9 is the local
-SPI1 CS1 pin and uses mux `0x4`; the OLED remains SPI1 CS0. Physical
-coexistence of the OLED and microSD wiring is intentionally unqualified in
-this source/image stage and still needs electrical and live-kernel proof.
+SPI1 CS1 pin and uses mux `0x4`; the OLED remains SPI1 CS0. Verify the physical
+coexistence of the OLED and microSD wiring with the live kernel and electrical
+setup before use.
 
 The production DAC is owned by the Octessera AHUB audio overlay and is enabled
 only by the mandatory `octessera_audio` Armbian extension. The boot composition
@@ -202,7 +196,7 @@ sudo octessera-armbian-diagnostics
 cat /etc/octessera/build-metadata.env
 ```
 
-## Kernel and audio proof boundary
+## Kernel and audio checks
 
 The `octessera_midi` extension requests only `CONFIG_SND_SEQUENCER=m`,
 `CONFIG_SND_RAWMIDI=m`, and `CONFIG_SND_USB_AUDIO=m`, and forces
@@ -210,7 +204,7 @@ The `octessera_midi` extension requests only `CONFIG_SND_SEQUENCER=m`,
 `kernel.sched_rt_period_us=1000000`, and `kernel.sched_rt_runtime_us=950000`.
 The installed module-load file contains only `snd_seq` and `snd_seq_midi`.
 
-After deploying the newly generated image and rebooting once:
+On the installed image:
 
 ```sh
 uname -r
@@ -221,11 +215,10 @@ test -c /dev/snd/seq
 aconnect -l
 ```
 
-The matching kernel package and Armbian image must be newly generated; do not
-qualify MIDI from a runtime rebuild or `modprobe` on an old image. The live gate
-must reject an enabled or modular RT group scheduler and verify the global
-throttle and cgroup mode. A FIFO callback result is a live image/process check,
-not a replacement for those kernel assertions.
+Run these checks against the matching kernel package and Armbian image. The live
+checks reject an enabled or modular RT group scheduler and verify the global
+throttle and cgroup mode. A FIFO callback result does not replace those kernel
+assertions.
 
 The exact live kernel assertions are:
 
@@ -238,7 +231,7 @@ test "$(sysctl -n kernel.sched_rt_period_us)" = 1000000
 test "$(sysctl -n kernel.sched_rt_runtime_us)" = 950000
 ```
 
-For a foreground callback check, leave the default priority unset and inspect
+For a foreground callback, leave the default priority unset and inspect
 the running process from a second shell:
 
 ```sh
@@ -250,10 +243,6 @@ ps -L -p "$pid" -o cls=,rtprio= | awk '$1 == "FF" && $2 == 70 { found = 1 } END 
 ! grep -q 'audio callback RT promotion not qualified' /tmp/octessera-fifo.log
 ```
 
-Stop if `CONFIG_RT_GROUP_SCHED` is enabled, either throttle value changes,
-cgroup v2 is absent, FIFO 70 is not reached, or the runtime reports an
-unqualified DAC/UAC2 callback promotion.
-
 ## USB identity boundary
 
 The Orange combined configfs service accepts only the verified UDC
@@ -263,8 +252,8 @@ binds the UDC last, and exposes no mass storage during normal operation.
 SD2 transfer is a separate fixed root-owned storage-control action using the
 same UDC and lifecycle lock. It unmounts the label-safe `OCTESSERA_SD` card
 before binding a writable/removable mass-storage LUN and restores the normal
-UAC2/MIDI gadget after host eject and stop. Source and fake-configfs contracts
-are present. Teardown unbinds first, removes configuration links and functions,
+UAC2/MIDI gadget after host eject and stop. The fake-configfs composer follows
+the same lifecycle. Teardown unbinds first, removes configuration links and functions,
 then removes the gadget tree.
 
 The installed service can be inspected without binding a new gadget:
@@ -280,31 +269,16 @@ Its product strings are `Octessera Audio + MIDI` for `combined`,
 teardown share one exclusive lifecycle lock; a concurrent operation fails before
 changing the gadget.
 
-The standalone composer uses the same contract for fake-configfs qualification:
+The standalone composer uses the same contract for fake-configfs tests:
 
 ```sh
 bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
 
-MIDI and combined modes require the patched qualified kernel's writable
+MIDI and combined modes require the patched production kernel's writable
 `interface_string`. The composer writes exactly 14 bytes of `Octessera MIDI`
 without a trailing LF, verifies byte-for-byte readback, and only then creates
 the MIDI link and binds the UDC. Missing, write, readback, and bind failures
-roll back the partial gadget. The Linux Foundation VID/PID values are for local
-validation only, not a public USB identity; defaults remain disabled. The legacy
-Windows MEDIA `FriendlyName` may remain `MIDI function` and is diagnostic-only,
-not an acceptance field.
-
-Qualification status: The non-final installed board's live DT reports
-`usb@5100000/dr_mode=peripheral` and its USB0/controller 0 path uses the fixed
-UDC `musb-hdrc.4.auto`. It passed high-speed combined UAC2+MIDI, 44.1 kHz
-stereo board-to-Windows capture with a board-generated 1 kHz tone on both
-channels, exact bidirectional MIDI traffic, and exact ConfigFS
-`interface_string`, actual MIDI interface descriptor, and Windows
-`DEVPKEY_Device_BusReportedDeviceDesc` identity `Octessera MIDI`. Windows names
-the UAC2 endpoint `Octessera Audio`, not the combined composite product
-`Octessera Audio + MIDI`. Repeat on the exact release constructor image and
-complete physical connector naming, VBUS/CC/no-backfeed electrical, physical
-reconnect and host suspend/resume, SD2 mass-storage start/eject/stop recovery,
-and authorized public VID/PID gates before claiming public USB support or
-closing qualification.
+roll back the partial gadget. The Linux Foundation VID/PID values are
+local-validation values and defaults remain disabled. The legacy Windows MEDIA
+`FriendlyName` may remain `MIDI function`.

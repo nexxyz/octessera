@@ -1,134 +1,70 @@
 # Enclosure
 
-This is the enclosure and mechanical reference for the Octessera hardware target.
+Complete [flash and first boot](flash-and-first-boot.md) while the assembly is
+open, then fit the enclosure. Read [safety and power](safety-and-power.md)
+before fitting or powering the case.
 
-Use it with [`assembly-manual.md`](assembly-manual.md) for build order and [`pinout-and-connections.md`](pinout-and-connections.md) for wiring. Read [`safety-and-power.md`](safety-and-power.md) before fitting or powering the assembly. For the user-facing docs home, start at [`../README.md`](../README.md).
+Remove the selected board's boot microSD card and the OLED microSD card before
+putting the device in the enclosure. They can catch on the case and break.
 
-This is the part where the instrument becomes an object you can pick up. Print
-carefully, test-fit patiently, and remove the selected board's microSD card and
-the OLED microSD card before putting the device in the enclosure. They can catch
-on the case and break.
+## Print choices
 
-## Current Status
+The enclosure is `247 x 140 mm`. The main PCB rail is `3.2 mm` high and the
+NeoTrellis rail is `8.0 mm` high. Choose the top that matches the selected board:
 
-The enclosure is under construction. The current parameter data in
-`enclosure_params.json` is the `v21` set. The generated two-level faceplate is
-an active design and test-fit model, not production-final and not a production
-enclosure release.
+- Raspberry Pi Zero 2 W: `case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`
+  or `case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`
+- Orange Pi Zero 2W: `case_top_two_level_cadquery_orange-pi-zero-2w.stl` or
+  `case_top_two_level_orange-pi-zero-2w_multicolor.3mf`
 
-- Case size: `247 x 140 mm`
-- Main PCB rail height: `3.2 mm`
-- NeoTrellis rail height: `8.0 mm`
+The bottom is `case_bottom_plate_cadquery.stl`. The printed encoder caps,
+keycaps, standoffs, top pins, heat-set inserts, screws, and rubber feet are
+listed in the [assembly manual](assembly-manual.md#3d-printed-and-mechanical-parts).
+Test-fit printed parts before printing the full set; the fits are snug.
 
-## Two-Level CadQuery Model
+## Access and safety
 
-Generate the current two-level model with CadQuery/OpenCascade:
+The matching top provides openings for power, audio, storage, video, and the
+board's other connectors. Before closing the case, check that the selected
+board's openings line up with the top. The OLED microSD remains inside the case.
 
-```sh
-python hardware/enclosure/generate_two_level_enclosure_cadquery.py
-```
+Power through the enclosure USB-C breakout. Do not use the Raspberry Pi's
+covered micro-USB power connector. For optional USB connections, follow [USB
+roles](usb-roles.md).
 
-After changing the roof or parametric wave guidance, run the validation script:
+## Fit and assembly
 
-```sh
-python hardware/enclosure/validate_wave_roof.py
-```
+The case captures the boards with rails, standoffs, and top pins rather than
+screws through active hardware areas.
 
-It writes:
+- The main PCB is located by tight rails and nubs.
+- Lid capture ribs limit upward movement at the board edges.
+- The NeoTrellis cluster is located by perimeter rails. Its left rail is broken
+  for the `J1` connector path.
+- NeoTrellis vertical retention uses the top faceplate, top pins, and edge
+  capture ribs, not screws through the button field.
 
-- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`
-- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`
-- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_orange-pi-zero-2w.step`
-- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`
+1. Place the bottom enclosure on the bench.
+2. Put the PCB and NeoTrellis array onto the taller pillars.
+3. Add the 18 separate standoff pillars:
+   - use 8 of the 9.5mm pillars for the OLED and audio/DAC board;
+   - use the 10 10mm pillars for the selected compute board, power breakout,
+     and NeoKey;
+   - use no separate pillars for the NeoTrellis array; its eight pins enter the
+     integrated bottom pillars.
+4. Press in all 26 top pins: 18 into the separate standoffs and 8 into the
+   NeoTrellis integrated pillars. If a pin is loose, gently squeeze its ball
+   with pliers or replace it rather than crushing it.
+5. Place one silicone 4x4 keypad on each NeoTrellis board. Make the pads sit
+   flat and line up with the 8x8 opening.
+6. Optionally install the 8 M3 heat-set inserts into the underside of the top.
+7. Lower the top from the left/west side first so the connectors pass through
+   their openings, then lower the right/east side. Do not force it.
+8. Install the four encoder knobs and check that they slide on with friction but
+   can still be removed without force.
+9. Turn the device over carefully. Optionally install the 8 bottom screws and
+   add rubber feet or screw-hole covers.
 
-Top enclosure artifact filenames include the full board name. In artifact shorthand, `rpi` means Raspberry Pi Zero 2 W and `opi` means Orange Pi Zero 2W; prefer full board names when space permits.
-
-The matching multicolor top 3MF files are `case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf` for Raspberry Pi Zero 2 W and `case_top_two_level_orange-pi-zero-2w_multicolor.3mf` for Orange Pi Zero 2W.
-
-The script requires the enclosure Python dependencies:
-
-```sh
-python -m pip install -r hardware/enclosure/requirements.txt
-```
-
-This model keeps OLED and encoders on the lower deck, raises the NeoKeys and
-8x8 NeoTrellis field, and uses a parametric raised roof/shoulder over the Pi area.
-See [`../../hardware/enclosure/CAD_WORKFLOW.md`](../../hardware/enclosure/CAD_WORKFLOW.md) for the edit and validation loop. For branded top artifacts, prefer:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_branded_top_artifacts_checked.ps1
-```
-
-Branding source and cleanup rules are documented in [`../../hardware/docs/branding-assets.md`](../../hardware/docs/branding-assets.md).
-
-The STEP file is the preferred generated artifact. The active v21 model does not
-yet recreate the full underside lip, catch rims, board capture ribs, or bottom
-mating interface. Do not call it production-final until the underside interface,
-board capture, connector clearance, slicer output, and measured component
-height stack have been validated.
-
-## External Access
-
-The Raspberry Pi top exposes these ports:
-
-- Left side: audio 3.5mm
-- Left side: USB-C power
-- Left side: Pi microSD
-- Bottom side: Pi mini-HDMI
-- Bottom side: Pi USB data, reserved for experimental/local bench validation;
-  public USB Audio/MIDI support is not claimed
-
-The Raspberry Pi's second micro-USB port exists, but it is power-only and intentionally covered. Do not use it; power comes through the enclosure USB-C breakout.
-
-The Orange Pi Zero 2W top exposes the same enclosure power, audio, and storage openings, plus both south-edge USB-C ports:
-
-- West/left USB-C, marked with one dot: USB 1 for USB devices
-- East/right USB-C, marked with two dots: USB 2 for experimental/local bench
-  validation only; public USB Audio/MIDI support is not claimed
-
-The OLED microSD is not exposed as a case-edge port in the current `v21` entry.
-
-## Power Rule
-
-The concise owner for these rules is [safety and power](safety-and-power.md).
-
-- Power the device through the enclosure USB-C power opening.
-- Do not power the Raspberry Pi through its own micro-USB power connector.
-- The Pi micro-USB power connector is intentionally covered by the enclosure and is not meant to be used.
-- For host data, follow [safety and power](safety-and-power.md#usb-host-connections) for the fixed USB-A path. Host VBUS is expected; no connector choice provides isolation.
-
-## Mechanical Strategy
-
-The current enclosure captures the boards without running screws through active hardware areas.
-
-- Case screws do not pass through the PCBs or component fields.
-- Heat-set insert bosses are integrated into the outer locator rail regions. Screws and inserts are recommended for a robust portable build, but the printed dowel/standoff and top-pin system is intended to be strong enough to hold the enclosure together without them.
-- The main PCB is located laterally by tight rails and nubs.
-- Lid capture ribs limit upward movement at safe board-edge regions.
-- The NeoTrellis cluster is located by perimeter rails.
-- The NeoTrellis left rail is broken for the `J1` / connector path clearance.
-- NeoTrellis vertical retention is handled by the top faceplate, top pins, and edge capture ribs, not by screws through the button field.
-- If a printed top pin is a little too loose, gently squeeze the ball at the end with pliers to make it grip tighter. Use gentle pressure; replace a pin rather than crushing it.
-
-## Printing Notes
-
-Current enclosure notes from the parameter source:
-
-- No OLED top-edge / top-plate hole above the display
-- Case height reduced to `140 mm`; width remains `247 mm`
-- The checked-in release artifact is the current generated faceplate mesh:
-  `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`.
-
-## Source of Truth
-
-- Parameters: [`../../hardware/enclosure/enclosure_params.json`](../../hardware/enclosure/enclosure_params.json)
-- Enclosure layout image: [`../../hardware/enclosure/layout.png`](../../hardware/enclosure/layout.png)
-- Wave/slot guidance: [`../../hardware/enclosure/wave_guidance.py`](../../hardware/enclosure/wave_guidance.py)
-- Parametric generator: [`../../hardware/enclosure/generate_two_level_enclosure_cadquery.py`](../../hardware/enclosure/generate_two_level_enclosure_cadquery.py)
-- Generator domain modules: wave/roof [`../../hardware/enclosure/top_wave_geometry.py`](../../hardware/enclosure/top_wave_geometry.py), body assembly [`../../hardware/enclosure/top_body_assembly.py`](../../hardware/enclosure/top_body_assembly.py), branding/variants [`../../hardware/enclosure/top_branding_variants.py`](../../hardware/enclosure/top_branding_variants.py), and export [`../../hardware/enclosure/top_enclosure_export.py`](../../hardware/enclosure/top_enclosure_export.py)
-- Port geometry and fixed layout policy: [`../../hardware/enclosure/top_wall_port_geometry.py`](../../hardware/enclosure/top_wall_port_geometry.py), [`../../hardware/enclosure/top_wall_port_indent_geometry.py`](../../hardware/enclosure/top_wall_port_indent_geometry.py), [`../../hardware/enclosure/top_wall_port_recess_geometry.py`](../../hardware/enclosure/top_wall_port_recess_geometry.py), and [`../../hardware/enclosure/top_wall_port_cutouts.py`](../../hardware/enclosure/top_wall_port_cutouts.py)
-- Standoff pillar generator: [`../../hardware/enclosure/generate_standoff_pillars.py`](../../hardware/enclosure/generate_standoff_pillars.py)
-- Standoff top-pin generator: [`../../hardware/enclosure/generate_standoff_top_pins.py`](../../hardware/enclosure/generate_standoff_top_pins.py)
-- CAD workflow and checks: [`../../hardware/enclosure/CAD_WORKFLOW.md`](../../hardware/enclosure/CAD_WORKFLOW.md)
-- Branded top artifact wrapper: [`../../hardware/enclosure/generate_branded_top_artifacts_checked.ps1`](../../hardware/enclosure/generate_branded_top_artifacts_checked.ps1)
-- Roof-wall validation: [`../../hardware/enclosure/validate_wave_roof.py`](../../hardware/enclosure/validate_wave_roof.py)
+The printed dowel/standoff and top-pin system can hold the case without screws.
+Tighten screws gently. If the top does not sit flat, find the interference
+instead of forcing it closed.

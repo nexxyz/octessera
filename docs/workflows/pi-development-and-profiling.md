@@ -40,74 +40,6 @@ smoke binaries and a local Orange `octessera-pi` development binary. It does
 not produce a production image or its `production-runtime` bundle, and no
 artifact is run against the board by this helper.
 
-## Orange live audio benchmark tooling
-
-The fixed-target Orange capability runner is host tooling, not another SSH
-transport. Single-cell mode requires a reviewed artifact and metadata sidecar,
-explicit interruption consent, and one approved scenario/configuration. It
-checks readiness identity, exact DAC ALSA `buffer_size`/`period_size`, release
-identity, schema-13 callback/result geometry, thermal/memory safety, and
-restoration.
-
-Preview the frozen routing-tree comparison matrix order without transport or board
-access:
-
-```powershell
-./tools/orange-pi/run-orange-live-audio-matrix.ps1 -PrintOnly
-```
-
-The frozen comparison is A: output 256, ALSA period 64, internal 128, and
-routing lookahead 128 for 11 cells, followed by the selected A 120-second
-repeat. It uses `routing_tree_persistent`, enabled worker timing, and a
-diagnostic-only routing-tree artifact. This is comparison evidence, not the
-current product Capacity qualification or current default. Callback batches are
-variable positive counts no larger than the requested ALSA buffer; render ratios
-use each actual callback size, while spacing lateness uses the fixed ALSA period.
-Active execution requires `-AllowMatrixServiceInterruption` and per-cell
-consent. This is host-only validation; do not cross-build, deploy, or run it as
-a normal contributor check.
-
-## Completed schema-13 practical continuity campaign
-
-The full result table and interpretation are in
-[`../internal/pi-dsp-voice-profile.md`](../internal/pi-dsp-voice-profile.md).
-The campaign was diagnostic-only: it did not change shipped defaults or
-qualify a release. All rows were 120 seconds at 44.1 kHz, I16 stereo, with
-`SCHED_FIFO` priority 70 on CPU 1 and no safety abort. Native strict
-`status`, callback-duration over-budget counts, and practical continuity grade
-are separate results. For production-like ranking, use worker timing disabled;
-enabled worker timing is explanatory evidence only.
-
-Build the exact diagnostic artifacts separately. The Orange Inline and routing
-artifacts must not share a path:
-
-```powershell
-# Orange Inline diagnostic
-./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release -BenchmarkVoicePoolCapacity 128
-# target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi
-# target/orange-pi-cross-diagnostics/benchmark-voice-pools-128/octessera-pi.metadata.json
-
-# Orange routing diagnostic
-./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release -RoutingTreeBenchmark -BenchmarkVoicePoolCapacity 128
-# target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi
-# target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi.metadata.json
-
-# Raspberry routing diagnostic
-./tools/pi/build-pi-cross.ps1 -BoardProfile raspberry-pi-zero-2w -Profile release -RaspberryLiveAudioBenchmark
-# target/pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-128/octessera-pi
-```
-
-Use the exact campaign geometry when running a cell. Orange Inline uses
-128/32/32 with zero lookahead; the current Orange Capacity profile is OM128,
-using 256/64/128 with 128-frame lookahead and `-WorkerTimingMode disabled`. Add
-`-ContinueOnRecoveredMiss` to completed 120-second Orange routing observations
-so a non-clean but structurally valid result is retained. Raspberry Latency uses
-256/64/128 with zero lookahead and remains Inline. Raspberry Capacity uses the
-retained RM256 geometry, 256/64/256 with 256-frame lookahead, through the
-production routing-tree path. This wiring comes from retained evidence; live
-production-binary requalification remains required and is not claimed here.
-`-ObserveCompromises` retains completed 120-second observations.
-
 ## Pi UI and audio profiling
 
 Pi UI/render profiling is quiet by default. Enable summaries with either form:
@@ -121,74 +53,39 @@ Summaries include loop cadence, runtime tick lateness/advance, render overruns,
 snapshot/config sync, hardware polling, and LED/NeoKey/OLED phase timings.
 
 Use Pi-side probes for rhythmic timing, trigger latency, audio-drain latency,
-and DSP budget questions. PC/runtime-only probes are plausibility checks, not
-hardware audio timing proof. `tools/pi/run-pi-timing-probes.ps1` is
+and DSP budget questions. PC/runtime-only probes do not measure hardware audio
+timing. `tools/pi/run-pi-timing-probes.ps1` is
 Raspberry-only; never point it at Orange.
 
 ```powershell
-# Shared native deterministic logical wake matrix; each scenario/duration gets six reports.
+# Shared native logical wake probe.
 cargo run -p playback-runtime --bin playback_timing_probe -- --durations 6s --scenarios idle --wake-intervals-ms 2,4,6,8,10,12
 
-# Safe default: Pi runtime-only, leaves the service and live audio untouched while measuring realtime runtime cadence.
+# Runtime-only probe; leaves service and live audio untouched.
 ./tools/pi/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,pulses-stress -WakeIntervalsMs 2,4,6,8,10,12 -Snapshots
 
-# Optional live-audio probe.
-./tools/pi/run-pi-timing-probes.ps1 -Mode Live -Durations 10m -Scenarios idle -WakeIntervalsMs 2,4,6,8,10,12
+# Live-audio probe.
+./tools/pi/run-pi-timing-probes.ps1 -Mode Live -AllowServiceInterruption -Durations 10m -Scenarios idle -WakeIntervalsMs 2,4,6,8,10,12
 
-# Optional audio-source drain latency probe.
-./tools/pi/run-pi-timing-probes.ps1 -Mode AudioDrain -Durations 10m
+# Audio-source drain latency probe.
+./tools/pi/run-pi-timing-probes.ps1 -Mode AudioDrain -AllowServiceInterruption -Durations 10m
 
-# Focused FX budget profile.
-./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits
+# FX budget profile.
+./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -AllowServiceInterruption
 
-# Explicit high-headroom frame comparison settings.
-./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -AudioRenderQuantumFrames 256
+# Alternate render quantum.
+./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -AllowServiceInterruption -AudioRenderQuantumFrames 256
 ```
 
-The local shared binary defaults to a deterministic logical matrix: it advances
-at each requested endpoint without sleeping. Pi RuntimeOnly preserves its
-established realtime scheduling while leaving the service and live audio
-untouched; Pi Live also targets each requested wake cadence and opens live
-audio. Both Pi modes pass the actual wall-time elapsed interval to the shared
-runtime. Reports identify `wake_interval_ms` and measured duration, and include
-event-producing advances, multi-pulse advances, multi-pulse event-producing
-advances, and pulse summaries for event-producing advances. Stress actions use
-chronological boundary crossing rather than wake-grid alignment, so the
-40/100/250/500/1000 ms actions are emitted once in boundary order with
-boundary-derived state even when a wake skips over their exact timestamps.
-These metrics diagnose pre-audio trigger cadence and event batching; they do not
-replace `AudioDrain`, which remains the queue/control-drain measurement and can
-be run as a separate paired probe.
+The shared binary uses a deterministic logical matrix and the Pi RuntimeOnly
+mode leaves the service and live audio untouched. Pi Live opens live audio.
+Both Pi modes pass the actual elapsed interval to the shared runtime. These
+metrics diagnose trigger cadence and event batching; use `AudioDrain` separately
+for queue/control-drain measurements.
 
 The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it
-afterward. Runtime-only leaves it running. Use `-PrintOnly` to inspect the
-remote command first.
-
-Orange command generation and offline comparisons use:
-
-```powershell
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode PassiveBaseline -PrintOnly
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp64 -AllowServiceInterruption -PrintOnly
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp256 -AllowServiceInterruption -PrintOnly
-```
-
-DSP modes require explicit acknowledgement even with `-PrintOnly`; non-print
-runs stop the production service:
-
-```powershell
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp64 -AllowServiceInterruption
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp256 -AllowServiceInterruption
-```
-
-The Orange offline DSP profile finds computational knees; it is not live-xrun
-proof. The current CPAL/ALSA path cannot count internally recovered `EPIPE`
-events, so a clean offline report is not zero-xrun evidence and cannot change
-capabilities. Inspect p99/p99.9 and outlier counts, not only p95.
-
-The mixed-geometry Orange performance baseline is separate from the routing-tree
-matrix. Its live child runs use the inline executor with worker timing disabled
-and the normal production `runtime-candidate` artifact. The completed
-schema-13 diagnostic paths and exact live geometry are documented above.
+afterward; those modes require `-AllowServiceInterruption`. Runtime-only leaves
+it running. Use `-PrintOnly` to inspect the remote command first.
 
 After live probes, inspect recent logs:
 
@@ -196,82 +93,7 @@ After live probes, inspect recent logs:
 ./tools/pi/with-pi-ssh.ps1 ssh pi@192.168.0.218 "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'audio callback RT promotion not qualified|audio stream error|underrun|POLLERR' || true"
 ```
 
-Offer a live probe when the report is subjective or audio-path-specific; do not
-run long live probes for unrelated changes.
-
-## Cross-board performance baseline
-
-The baseline is deliberately two-layer evidence, not a normalized score. The
-native profile layer compares the same 44.1 kHz scenarios with a two-second
-warmup, 4096 measured observations, and three fresh processes per cell. It
-contains the common reference, Orange-effective-default, and block
-cohorts in [`tools/performance/cross-board-baseline.json`](../../tools/performance/cross-board-baseline.json).
-
-The board-live layer retains each board's own proof. Orange reports strict ALSA
-callback geometry and one-second thermal/load/memory sampling. Raspberry runs
-fresh `Live` and `AudioDrain` probes at output 128, 256, and 512 for 30 seconds
-each, with a 128-frame internal render quantum; its Orange-only callback
-fields are unavailable and remain `null`. Raspberry also retains one-second
-native thermal and throttling samples; every measurement requires valid startup
-and runtime samples and no active undervoltage. Temperature and current
-frequency-cap, throttled, and soft-limit bits are measured variables, not
-admission limits; thermal and throttling effects belong in baseline
-interpretation, while Raspberry firmware owns safe thermal management.
-Missing or malformed system evidence is fatal. The p99.9
-population is the measured observations for one native profile repetition or
-the measured callbacks for one Orange live repetition. Do not combine board
-populations or turn them into a single score.
-
-Schema-4 profile rows require numeric, non-negative admission-drop evidence; a
-qualified current scenario must reconcile its expected start/end counters and
-report zero drops unless that scenario explicitly declares otherwise.
-
-The current Orange product Capacity qualification is OM128: output 256 → ALSA
-period 64 → internal 128 with routing lookahead 128. Raspberry Capacity uses
-retained RM256 evidence for production wiring, but live production-binary
-requalification remains required. Neither comparison evidence nor the
-diagnostic Capacity artifact changes shipped voice-policy maxima.
-
-Print the exact deterministic plan without transport:
-
-```powershell
-./tools/orange-pi/run-orange-performance-baseline.ps1 -PrintOnly
-./tools/pi/run-pi-performance-baseline.ps1 -PrintOnly
-```
-
-Run the bounded Orange canary (passive identity, one offline cell, and one
-live default cell) before the full Orange study:
-
-```powershell
-./tools/orange-pi/run-orange-performance-baseline.ps1 -CanaryOnly -AllowServiceInterruption -Artifact target/orange-pi-cross/octessera-pi -Metadata target/orange-pi-cross/octessera-pi.metadata.json
-```
-
-Run the full Orange plan only with the exact release artifact and sidecar:
-
-```powershell
-./tools/orange-pi/run-orange-performance-baseline.ps1 -Phase Full -AllowServiceInterruption -Artifact target/orange-pi-cross/octessera-pi -Metadata target/orange-pi-cross/octessera-pi.metadata.json
-```
-
-The Raspberry adapter has the same print/canary/full shape and uses the fixed
-Pi SSH transport, a local artifact candidate, and board metadata. Each live cell
-runs three fresh processes in round-robin order for both `Live` and `AudioDrain`;
-stdout, stderr, JSON summaries, and service-restoration evidence are retained:
-
-```powershell
-./tools/pi/run-pi-performance-baseline.ps1 -PrintOnly
-./tools/pi/run-pi-performance-baseline.ps1 -CanaryOnly -AllowServiceInterruption -Artifact target/pi-cross/octessera-pi -Binary /usr/local/bin/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json
-./tools/pi/run-pi-performance-baseline.ps1 -Phase Full -AllowServiceInterruption -Artifact target/pi-cross/octessera-pi -Binary /usr/local/bin/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json
-```
-
-Every full native cohort cell runs in repetition order, with a fresh runner
-process for each cell; it does not run all repeats of one cell back-to-back.
-Measured over-budget cells are retained and the next cell continues. Identity,
-geometry, infrastructure, process, invalid evidence, service-restoration, and
-electrical failures remain fatal. Both board adapters retain one-second thermal
-and throttling telemetry without a project temperature ceiling. Safe thermal
-management is part of measured behavior; platform firmware and the kernel own
-thermal protection. Active runs also require a clean worktree, full repository
-`HEAD`, and a cross-build metadata `source_commit` equal to that `HEAD`; the
-local and remote artifact SHA-256 values must match. Neither adapter changes
-governors or shipped defaults. The current ALSA/CPAL path cannot observe
-recovered `EPIPE` events, so these tools must not claim zero ALSA xruns.
+Use `-PrintOnly` before any live or service-changing probe. Runtime-only mode
+leaves the service running; live, audio-drain, and DSP modes stop the service
+and restart it afterward. These probes measure timing and audio-path behavior;
+they do not replace board bring-up or image checks.

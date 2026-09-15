@@ -456,7 +456,7 @@ jobs:
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Lint workflows and every embedded shell script
         run: |
-          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml .github/workflows/orange-ahub-kernel.yml .github/workflows/orange-rolling-pin-bootstrap.yml
+          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml .github/workflows/orange-rolling-pin-bootstrap.yml
       - name: Compile all image respin Python files
         run: python3 -m py_compile tools/image-respin/*.py
       - name: Run disk and runtime image respin tests as root
