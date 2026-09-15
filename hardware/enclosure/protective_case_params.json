@@ -1,0 +1,294 @@
+{
+  "prototype_status": "bounded protective-case check-fit prototype; upstream shell and hinge are retained, physical fit and print qualification remain provisional",
+  "provenance": {
+    "source_model": "hardware/enclosure/upstream/andy_wings_parametric_box.py adapted from Andy Wings / @WingsWorld_2406962 model 1069138",
+    "source_urls": [
+      "https://www.printables.com/model/1069138-simple-and-light-parametric-box-cadquery",
+      "https://www.thingiverse.com/thing:6842165"
+    ],
+    "license": "CC BY-SA, version unspecified by controlling source",
+    "project_changes": "Octessera adds continuous corner shelf supports, device keepout validation, branding, a full-height rounded normalized mating interface, and reversed transport-case latch ownership; the copied source is minimally adapted only to skip the horizontal chamfer when chamfer_xy is zero, while default dimensions, hinge, Clip, and source regressions remain unchanged."
+  },
+  "parametric_box": {
+    "width": 255.6,
+    "depth": 148.4,
+    "height": 64.85,
+    "thickness": 2.2,
+    "clearance": 0.25,
+    "top_height": 54.85,
+    "chamfer_z": 8.0,
+    "chamfer_xy": 0.0,
+    "text": "",
+    "hinge": {
+      "thickness": 1.5,
+      "kunkle_size": 6.0,
+      "number_of_kunkles": 5,
+      "clearance": 0.5,
+      "leaf_width": 6.0,
+      "leaf_height": 2.0,
+      "pivot_radius": 0.875
+    },
+    "clip": {
+      "length": 10.0,
+      "positions_x": [-55.0, 55.0]
+    }
+  },
+  "normalization": {
+    "rotate_x_degrees": 180.0,
+    "translate": [127.8, -2.2, 32.425]
+  },
+  "device": {
+    "envelope": {
+      "width": 248.0,
+      "depth": 140.0,
+      "radius": 8.0,
+      "height": 45.0
+    },
+    "check_fit": {
+      "width": 249.0,
+      "depth": 141.0,
+      "radius": 8.0,
+      "height": 45.0
+    },
+    "center": [127.8, 74.2],
+    "measured_origin": [4.8, 4.2],
+    "xy_retention": {
+      "method": "adhesive_foam_strips",
+      "thickness_range": [1.0, 2.0],
+      "nominal_thickness_by_wall": {"west": 1.5, "east": 1.5, "south": 2.0, "north": 2.0},
+      "straight_inner_wall_spans": ["west", "east", "south", "north"],
+      "strips_per_span": 1,
+      "material": "soft_closed_cell_adhesive_foam",
+      "stacking": false,
+      "integrated_hard_locators": false
+    },
+    "control_keepout_expansion": [0.6, 1.0]
+  },
+  "foam_landing_pads": {
+    "center_z": 32.0,
+    "embedded_profile": {
+      "tangent_width": 24.0,
+      "vertical_height": 12.0,
+      "corner_radius": 2.0
+    },
+    "flat_profile": {
+      "tangent_width": 22.0,
+      "vertical_height": 10.0,
+      "corner_radius": 1.0
+    },
+    "wall_overlap": 0.4,
+    "cavity_proud": 0.4,
+    "walls": {
+      "west": {"embedded_plane": 1.8, "flat_plane": 2.6},
+      "east": {"embedded_plane": 253.8, "flat_plane": 253.0},
+      "south": {"embedded_plane": 1.8, "flat_plane": 2.6},
+      "north": {"embedded_plane": 146.6, "flat_plane": 145.8}
+    },
+    "patch": {
+      "tangent_width": 20.0,
+      "vertical_height": 10.0,
+      "corner_radius": 1.0
+    }
+  },
+  "mating_interface": {
+    "main_cavity": {
+      "width": 251.2,
+      "depth": 144.0,
+      "radius": 9.5,
+      "center": [127.8, 74.2],
+      "deep_z": [2.2, 54.65],
+      "shallow_z": [54.85, 62.65]
+    },
+    "opening": {
+      "width": 250.0,
+      "depth": 142.0,
+      "radius": 8.5,
+      "center": [127.8, 74.2],
+      "cut_z": [52.55, 54.85]
+    },
+    "tongue": {
+      "thickness": 1.3,
+      "z": [52.65, 54.85],
+      "corner_tangent_relief": 1.0,
+      "south_hinge_relief_margin": 1.0
+    },
+    "receiver": {
+      "xy_clearance": 0.25,
+      "cut_z": [52.55, 54.65]
+    },
+    "lip_corner_relief": {
+      "z": [52.55, 54.85]
+    }
+  },
+  "bottom_latches": {
+    "root_bridge": {
+      "depth": 0.2,
+      "host_profile_overlap": 0.1
+    },
+    "actuator": {
+      "width": 19.4,
+      "z": [56.95, 60.7]
+    },
+    "catch": {
+      "width": 23.4,
+      "z": [47.6, 51.6]
+    }
+  },
+  "insertion": {
+    "entry_base_z": 54.85,
+    "seated_base_z": 7.5,
+    "descent_sample_z": [
+      54.85,
+      53.85,
+      52.85,
+      51.85,
+      50.85,
+      49.85,
+      48.85,
+      47.85,
+      46.85,
+      45.85,
+      44.85,
+      43.85,
+      42.85,
+      41.85,
+      40.85,
+      39.85,
+      38.85,
+      37.85,
+      36.85,
+      35.85,
+      34.85,
+      33.85,
+      32.85,
+      31.85,
+      30.85,
+      29.85,
+      28.85,
+      27.85,
+      26.85,
+      25.85,
+      24.85,
+      23.85,
+      22.85,
+      21.85,
+      20.85,
+      19.85,
+      18.85,
+      17.85,
+      16.85,
+      15.85,
+      14.85,
+      13.85,
+      12.85,
+      11.85,
+      10.85,
+      9.85,
+      8.85,
+      7.85,
+      7.5
+    ]
+  },
+  "wall_planes": {
+    "west_x": 2.2,
+    "east_x": 253.4,
+    "south_y": 2.2,
+    "north_y": 146.2
+  },
+  "hinge_pins": {
+    "piece_count": 2,
+    "piece_length": 34.5,
+    "end_exposure": 2.0,
+    "nominal_diameter": 1.75,
+    "paddle_envelope": {
+      "axial_length": 2.0,
+      "vertical_span": 4.0,
+      "outward_depth": 2.0,
+      "inward_allowance": 0.4
+    }
+  },
+  "corner_restraints": {
+    "support_lower_z": 2.0,
+    "shelf_overlap": 0.02,
+    "shelf_plan_radius": 1.0,
+    "shelf_top_edge_radius": 0.6,
+    "support_contact_length_min": 3.0,
+    "wall_intersection_volume_min": 30.0,
+    "records": [
+      {
+        "name": "NW",
+        "shelf_polygon": [[1.62, 139.22], [1.62, 134.30], [15.60, 134.30], [15.60, 146.78], [9.18, 146.78]],
+        "shelf_tabs": {
+          "west": [1.62, 2.80, 134.30, 139.22],
+          "north": [9.18, 15.60, 145.60, 146.78]
+        },
+        "support_lower_polygon": [[2.02, 139.32], [2.02, 136.40], [11.00, 136.40], [12.00, 137.40], [12.00, 146.38], [9.08, 146.38]],
+        "support_upper_polygon": [[1.62, 139.22], [1.62, 134.30], [14.60, 134.30], [15.60, 135.30], [15.60, 146.78], [9.18, 146.78]],
+        "device_corner": [15.60, 134.30],
+        "nominal_shelf_base_z": 23.50,
+        "contact_z": 25.0
+      },
+      {
+        "name": "SW",
+        "shelf_polygon": [[1.62, 9.18], [1.62, 14.10], [15.60, 14.10], [15.60, 1.62], [9.18, 1.62]],
+        "shelf_tabs": {
+          "west": [1.62, 2.80, 9.18, 14.10],
+          "south": [9.18, 15.60, 1.62, 2.80]
+        },
+        "support_lower_polygon": [[2.02, 9.08], [2.02, 12.00], [11.00, 12.00], [12.00, 11.00], [12.00, 2.02], [9.08, 2.02]],
+        "support_upper_polygon": [[1.62, 9.18], [1.62, 14.10], [14.60, 14.10], [15.60, 13.10], [15.60, 1.62], [9.18, 1.62]],
+        "device_corner": [15.60, 14.10],
+        "nominal_shelf_base_z": 23.50,
+        "contact_z": 25.0
+      },
+      {
+        "name": "NE",
+        "shelf_polygon": [[253.98, 139.22], [253.98, 130.00], [235.50, 130.00], [235.50, 146.78], [246.42, 146.78]],
+        "shelf_tabs": {
+          "east": [252.80, 253.98, 130.00, 139.22],
+          "north": [235.50, 246.42, 145.60, 146.78]
+        },
+        "support_lower_polygon": [[253.58, 139.32], [253.58, 136.40], [244.60, 136.40], [243.60, 137.40], [243.60, 146.38], [246.52, 146.38]],
+        "support_upper_polygon": [[253.98, 139.22], [253.98, 130.00], [236.50, 130.00], [235.50, 131.00], [235.50, 146.78], [246.42, 146.78]],
+        "device_corner": [235.50, 130.00],
+        "nominal_shelf_base_z": 28.50,
+        "contact_z": 30.0
+      },
+      {
+        "name": "SE",
+        "shelf_polygon": [[253.98, 9.18], [253.98, 18.40], [235.50, 18.40], [235.50, 1.62], [246.42, 1.62]],
+        "shelf_tabs": {
+          "east": [252.80, 253.98, 9.18, 18.40],
+          "south": [235.50, 246.42, 1.62, 2.80]
+        },
+        "support_lower_polygon": [[253.58, 9.08], [253.58, 12.00], [244.60, 12.00], [243.60, 11.00], [243.60, 2.02], [246.52, 2.02]],
+        "support_upper_polygon": [[253.98, 9.18], [253.98, 18.40], [236.50, 18.40], [235.50, 17.40], [235.50, 1.62], [246.42, 1.62]],
+        "device_corner": [235.50, 18.40],
+        "nominal_shelf_base_z": 23.50,
+        "contact_z": 25.0
+      }
+    ]
+  },
+  "branding": {
+    "logo_target_size": 64.0,
+    "wordmark_width": 100.0,
+    "wordmark_height": 15.0943396226,
+    "combined_center": [127.8, 74.2],
+    "vertical_gap": 6.0,
+    "shallow_lid_lockup_rotation_degrees": 180.0,
+    "deep_tub_logo_target_size": 72.0,
+    "deboss_depth": 0.4,
+    "flush_depth": 0.4
+  },
+  "print_bed_xy": [260.0, 260.0],
+  "artifacts": [
+    "release-artifacts/enclosure/step/transport_case_deep_tub_debossed_logo.step",
+    "release-artifacts/enclosure/stl/transport_case_deep_tub_debossed_logo.stl",
+    "release-artifacts/enclosure/3mf/transport_case_deep_tub_debossed_logo.3mf",
+    "release-artifacts/enclosure/3mf-multicolor/transport_case_deep_tub_multicolor_logo.3mf",
+    "release-artifacts/enclosure/step/transport_case_shallow_lid_debossed_branding.step",
+    "release-artifacts/enclosure/stl/transport_case_shallow_lid_debossed_branding.stl",
+    "release-artifacts/enclosure/3mf/transport_case_shallow_lid_debossed_branding.3mf",
+    "release-artifacts/enclosure/3mf-multicolor/transport_case_shallow_lid_multicolor_branding.3mf"
+  ]
+}

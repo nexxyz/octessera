@@ -11,9 +11,12 @@ from typing import cast
 
 import cadquery as cq
 
-import generate_two_level_enclosure_cadquery as enclosure
-import generate_encoder_caps_cadquery as enc
-import generate_mx_keycaps_cadquery as mx
+try:
+    from . import generate_encoder_caps_cadquery as enc
+    from . import generate_mx_keycaps_cadquery as mx
+except ImportError:
+    import generate_encoder_caps_cadquery as enc
+    import generate_mx_keycaps_cadquery as mx
 
 
 ROOT = Path(__file__).resolve().parent
@@ -21,6 +24,14 @@ ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 THREEMF_ROOT = ARTIFACT_ROOT / "3mf-multicolor"
 TOLERANCE = 0.04
 FLUSH_DEPTH = 0.65
+
+
+def load_enclosure_module():
+    try:
+        from . import generate_two_level_enclosure_cadquery as enclosure
+    except ImportError:
+        import generate_two_level_enclosure_cadquery as enclosure
+    return enclosure
 
 
 @dataclass(frozen=True)
@@ -279,6 +290,7 @@ def enclosure_top_variant(params: dict) -> tuple[cq.Workplane, cq.Workplane]:
 
 
 def enclosure_top_part_variant(params: dict) -> tuple[cq.Workplane, list[ModelPart]]:
+    enclosure = load_enclosure_module()
     body = enclosure.build_body_model(params)
     model_bottom_z = shape_value(body).BoundingBox().zmin
     top_branding = enclosure.build_flush_top_branding_marking()
@@ -294,6 +306,7 @@ def enclosure_top_part_variant(params: dict) -> tuple[cq.Workplane, list[ModelPa
 
 
 def write_case_top() -> None:
+    enclosure = load_enclosure_module()
     params = json.loads(enclosure.PARAMS.read_text())
     for variant_params, case_filename in [
         (params, "case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf"),
