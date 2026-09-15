@@ -1,4 +1,6 @@
 use super::*;
+use serde_json::json;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 pub(super) fn dynamic_engine() -> SynthEngine {
@@ -57,6 +59,66 @@ pub(super) fn full_mixed_engine() -> SynthEngine {
     }
     let _ = engine.set_sample_banks(banks);
     engine.set_voice_stealing_mode(VoiceStealingMode::None);
+    engine
+}
+
+pub(super) fn duck_post_engine(instrument_source: &str, bus_source: &str) -> SynthEngine {
+    let duck = |source: &str| FxBusSlotConfig::Config {
+        kind: "duck".into(),
+        params: BTreeMap::from([
+            ("source".into(), json!(source)),
+            ("sourceTap".into(), json!("post")),
+        ]),
+    };
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(InstrumentsConfig {
+        instruments: vec![
+            InstrumentSlotConfig {
+                kind: "synth".into(),
+                synth: default_synth_config(),
+                mixer: Some(InstrumentMixerConfig {
+                    route: "fx_bus_1".into(),
+                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume: 100.0,
+                }),
+            },
+            InstrumentSlotConfig {
+                kind: "synth".into(),
+                synth: default_synth_config(),
+                mixer: Some(InstrumentMixerConfig {
+                    route: "direct".into(),
+                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume: 25.0,
+                }),
+            },
+            InstrumentSlotConfig {
+                kind: "synth".into(),
+                synth: default_synth_config(),
+                mixer: Some(InstrumentMixerConfig {
+                    route: "fx_bus_2".into(),
+                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume: 50.0,
+                }),
+            },
+        ],
+        mixer: Some(MixerConfig {
+            buses: vec![
+                FxBusConfig {
+                    slots: vec![duck(instrument_source), duck(bus_source)],
+                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume_pct: 100.0,
+                },
+                FxBusConfig {
+                    slots: vec![FxBusSlotConfig::Kind("delay".into())],
+                    pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume_pct: 70.0,
+                },
+            ],
+            master: None,
+        }),
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    });
     engine
 }
 

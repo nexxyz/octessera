@@ -1,10 +1,9 @@
 use super::super::dsp_config::{BusIdleThreshold, DspRuntimeConfig};
 use super::super::fx::{fx_bus_state_from_params, process_fx_bus_slot, FxBusState};
-use super::super::fx_params::{DuckSource, FilterLfoKind, FxBusParams};
+use super::super::fx_params::{DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams};
 use super::super::types::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MixerConfig, BUS_SLOTS_PER_BUS, DEFAULT_PAN_POSITIONS,
-    INSTRUMENT_SLOT_COUNT,
 };
 use super::*;
 
@@ -52,6 +51,7 @@ fn every_persistent_fx_owner_path_is_bit_exact_to_the_slot_kernel() {
         },
         FxBusParams::Duck {
             source: DuckSource::Bus(0),
+            source_tap: DuckSourceTap::Pre,
             threshold: 0.1,
             amount: 0.6,
             attack_ms: 5.0,
@@ -94,9 +94,6 @@ fn every_persistent_fx_owner_path_is_bit_exact_to_the_slot_kernel() {
             mix: 0.8,
         },
     ];
-    let slot_out = [0.75; INSTRUMENT_SLOT_COUNT];
-    let bus_snapshot = [0.5, 0.25];
-
     for param in params {
         let mut legacy_state = fx_bus_state_from_params(&param, 48_000);
         let mut owner = BusChainOwner::new(
@@ -110,14 +107,7 @@ fn every_persistent_fx_owner_path_is_bit_exact_to_the_slot_kernel() {
             [1, 0, 0],
         );
         for input in [0.5, 0.25] {
-            let expected = process_fx_bus_slot(
-                &param,
-                &mut legacy_state,
-                input,
-                &slot_out,
-                &bus_snapshot,
-                48_000,
-            );
+            let expected = process_fx_bus_slot(&param, &mut legacy_state, input, 0.5, 48_000);
             let expected_auto_pan = match &legacy_state {
                 FxBusState::AutoPan { pos, .. } => Some(pos.to_bits()),
                 _ => None,
@@ -126,7 +116,7 @@ fn every_persistent_fx_owner_path_is_bit_exact_to_the_slot_kernel() {
                 FxBusParams::Delay { mix, spread, .. } => spread * mix,
                 _ => 0.0,
             };
-            let actual = owner.process(input, &slot_out, &bus_snapshot, 48_000);
+            let actual = owner.process(input, &[0.5, 0.0, 0.0], 48_000);
             assert_eq!(actual.mono.to_bits(), expected.to_bits());
             assert_eq!(actual.auto_pan_pos.map(f32::to_bits), expected_auto_pan);
             assert_eq!(actual.spread.to_bits(), expected_spread.to_bits());
@@ -182,12 +172,12 @@ fn profiler_keeps_dynamic_bus_capacity_above_generated_product_shape() {
 fn duck_reads_pre_chain_inputs_independently_of_bus_processing_order() {
     let params = FxBusParams::Duck {
         source: DuckSource::Bus(1),
+        source_tap: DuckSourceTap::Pre,
         threshold: 0.1,
         amount: 0.8,
         attack_ms: 1.0,
         release_ms: 10.0,
     };
-    let slot_out = [0.8; INSTRUMENT_SLOT_COUNT];
     let snapshot = [0.4, 0.8];
     let mut first = BusChainOwner::new(
         0,
@@ -210,20 +200,12 @@ fn duck_reads_pre_chain_inputs_independently_of_bus_processing_order() {
         [1, 0, 0],
     );
     let forward = [
-        first
-            .process(snapshot[0], &slot_out, &snapshot, 48_000)
-            .mono,
-        second
-            .process(snapshot[1], &slot_out, &snapshot, 48_000)
-            .mono,
+        first.process(snapshot[0], &[0.0, 0.8, 0.0], 48_000).mono,
+        second.process(snapshot[1], &[0.0, 0.8, 0.0], 48_000).mono,
     ];
     let reverse = [
-        second
-            .process(snapshot[1], &slot_out, &snapshot, 48_000)
-            .mono,
-        first
-            .process(snapshot[0], &slot_out, &snapshot, 48_000)
-            .mono,
+        second.process(snapshot[1], &[0.0, 0.8, 0.0], 48_000).mono,
+        first.process(snapshot[0], &[0.0, 0.8, 0.0], 48_000).mono,
     ];
     assert_eq!(forward[0].to_bits(), reverse[1].to_bits());
     assert_eq!(forward[1].to_bits(), reverse[0].to_bits());
@@ -327,8 +309,6 @@ fn parking_does_not_advance_or_reset_state_for_delay_reverb_glitch_or_vinyl() {
             mix: 0.8,
         },
     ];
-    let slot_out = [0.2; INSTRUMENT_SLOT_COUNT];
-    let snapshot = [0.2];
     for param in params {
         let state = fx_bus_state_from_params(&param, 48_000);
         let mut parked = BusChainOwner::new(
@@ -344,14 +324,14 @@ fn parking_does_not_advance_or_reset_state_for_delay_reverb_glitch_or_vinyl() {
             [1, 0, 0],
         );
         parked.assigned_worker = Some(1);
-        let _ = parked.process(0.8, &slot_out, &snapshot, 48_000);
-        let _ = active.process(0.8, &slot_out, &snapshot, 48_000);
+        let _ = parked.process(0.8, &[0.0; BUS_SLOTS_PER_BUS], 48_000);
+        let _ = active.process(0.8, &[0.0; BUS_SLOTS_PER_BUS], 48_000);
         for _ in 0..(48_000 * 250 / 1000) {
             parked.observe(0.0, 0.0, BusIdleThreshold::Exact, 48_000);
         }
         assert_eq!(parked.assigned_worker, None);
-        let parked_output = parked.process(0.2, &slot_out, &snapshot, 48_000).mono;
-        let active_output = active.process(0.2, &slot_out, &snapshot, 48_000).mono;
+        let parked_output = parked.process(0.2, &[0.0; BUS_SLOTS_PER_BUS], 48_000).mono;
+        let active_output = active.process(0.2, &[0.0; BUS_SLOTS_PER_BUS], 48_000).mono;
         assert_eq!(parked_output.to_bits(), active_output.to_bits());
     }
 }

@@ -1,10 +1,11 @@
 use super::bus_chain_owner::BusChainFrameOutput;
+use super::duck_source::resolve_duck_source;
 use super::render_momentary_fx::process_momentary_fx_states;
 use super::render_plan::RenderPlanRoute;
 use super::render_routing::{render_bus_stereo_output, FxBusOutputSpreadState};
 use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use super::source_worker_lifecycle::OwnerEnvelope;
-use crate::synth::fx_params::DuckSource;
+use crate::synth::fx_params::FxBusParams;
 use crate::synth::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
 
 pub(super) fn stage_components(
@@ -75,20 +76,37 @@ pub(super) fn stage_components(
             }
             carrier.scratch.input[frame] = routing.scratch.bus_input[bus][frame];
             for slot in 0..BUS_SLOTS_PER_BUS {
-                let source = match carrier.owner.as_ref().map(|chain| chain.slot_params[slot]) {
-                    Some(super::super::fx_params::FxBusParams::Duck { source, .. }) => source,
-                    _ => continue,
+                let Some(params) = carrier.owner.as_ref().map(|chain| chain.slot_params[slot])
+                else {
+                    continue;
                 };
-                carrier.scratch.resolved_duck[slot][frame] = match source {
-                    DuckSource::Instrument(slot) if slot < INSTRUMENT_SLOT_COUNT => raw_slots[slot],
-                    DuckSource::Bus(source_bus) if source_bus < context.bus_count => {
-                        if context.bus_worker[source_bus] != owner.parity as u8 {
-                            return Err(());
-                        }
-                        bus_snapshot[source_bus]
+                if let FxBusParams::Duck {
+                    source: super::super::fx_params::DuckSource::Bus(source_bus),
+                    ..
+                } = params
+                {
+                    if source_bus >= context.bus_count
+                        || context.bus_worker[source_bus] != owner.parity as u8
+                    {
+                        return Err(());
                     }
-                    _ => return Err(()),
-                };
+                }
+                if let FxBusParams::Duck {
+                    source: super::super::fx_params::DuckSource::Instrument(source_slot),
+                    ..
+                } = params
+                {
+                    if source_slot >= INSTRUMENT_SLOT_COUNT {
+                        return Err(());
+                    }
+                }
+                carrier.scratch.resolved_duck[slot][frame] = resolve_duck_source(
+                    params,
+                    &raw_slots,
+                    &context.slot_volume,
+                    &bus_snapshot,
+                    &context.bus_volume,
+                );
             }
         }
     }

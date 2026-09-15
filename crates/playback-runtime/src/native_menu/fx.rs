@@ -210,6 +210,7 @@ pub(super) fn default_fx_bus_config() -> NativeFxBusConfig {
             "attackMs": 8,
             "releaseMs": 160,
             "source": "I2",
+            "sourceTap": "pre",
             "threshold": 0.08
         }),
         slot3_type: "none".into(),

@@ -20,6 +20,7 @@ mod bus_chain_owner_tests;
 mod control;
 #[cfg(test)]
 mod control_tests;
+mod duck_source;
 mod dynamic_control;
 mod inline_source_executor;
 #[cfg(test)]

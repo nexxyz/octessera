@@ -127,6 +127,15 @@ fn duck_param_items(
                 .position(|option| option == &fx_param_string(params, "source", "I1"))
                 .unwrap_or(0),
         ),
+        enum_item_from_strings(
+            "Source Tap",
+            format!("{prefix}.sourceTap"),
+            vec!["pre".into(), "post".into()],
+            match fx_param_string(params, "sourceTap", "pre").as_str() {
+                "post" => 1,
+                _ => 0,
+            },
+        ),
         fx_number_item(
             "Threshold",
             prefix,

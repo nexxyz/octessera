@@ -97,6 +97,84 @@ fn duck_staging_resolves_instrument_self_cross_and_is_order_independent() {
 }
 
 #[test]
+fn duck_post_staging_applies_only_instrument_and_source_bus_volumes() {
+    let instrument_duck = FxBusSlotConfig::Config {
+        kind: "duck".into(),
+        params: BTreeMap::from([
+            ("source".into(), json!("I1")),
+            ("sourceTap".into(), json!("post")),
+        ]),
+    };
+    let bus_duck = FxBusSlotConfig::Config {
+        kind: "duck".into(),
+        params: BTreeMap::from([
+            ("source".into(), json!("B2")),
+            ("sourceTap".into(), json!("post")),
+        ]),
+    };
+    let mut config = super::bus_config(
+        vec![
+            vec![instrument_duck, bus_duck, configured_delay_with_spread()],
+            vec![configured_delay_with_spread()],
+        ],
+        "fx_bus_1",
+    );
+    config.instruments[0]
+        .mixer
+        .as_mut()
+        .expect("target instrument mixer")
+        .volume = 25.0;
+    config.instruments.push(InstrumentSlotConfig {
+        kind: "synth".into(),
+        synth: default_synth_config(),
+        mixer: Some(InstrumentMixerConfig {
+            route: "fx_bus_2".into(),
+            pan_pos: 0,
+            volume: 50.0,
+        }),
+    });
+    config.mixer.as_mut().expect("mixer").buses[0].pan_pos = 0;
+    config.mixer.as_mut().expect("mixer").buses[1].pan_pos = 0;
+    config.mixer.as_mut().expect("mixer").buses[1].volume_pct = 70.0;
+
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(config);
+    super::install_momentary(
+        &mut engine,
+        "source-bus",
+        "freeze",
+        MomentaryFxTarget::FxBus { index: 1 },
+        BTreeMap::new(),
+    );
+    let mut slot_out = slot_out(128, 0.7);
+    for (frame, sample) in slot_out[1].iter_mut().enumerate() {
+        *sample = 0.5 * (frame as f32 * 0.11).cos();
+    }
+    let (lifecycle, runtime) =
+        SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("persistent runtime");
+    let mut owners = runtime.take_home_owners_for_test().expect("owner pair");
+    assert!(stage_bus_block(&mut engine, &mut owners, &slot_out, 128));
+    let target = owners
+        .iter()
+        .find_map(|owner| owner.bus_carriers[0].as_ref())
+        .expect("target bus carrier");
+    for (frame, instrument_sample) in slot_out[0].iter().enumerate() {
+        let instrument = instrument_sample * 0.25;
+        let bus = slot_out[1][frame] * 0.5 * 0.7;
+        assert_eq!(
+            target.scratch.resolved_duck[0][frame].to_bits(),
+            instrument.to_bits()
+        );
+        assert_eq!(
+            target.scratch.resolved_duck[1][frame].to_bits(),
+            bus.to_bits()
+        );
+    }
+    runtime.return_home_owners_for_test(owners);
+    assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
+}
+
+#[test]
 fn delay_reverb_glitch_and_vinyl_tails_match_across_blocks() {
     for kind in ["delay", "reverb", "glitch", "vinyl"] {
         let config = one_bus(vec![

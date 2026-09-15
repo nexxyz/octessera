@@ -40,6 +40,13 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     if key.ends_with(".params.source") {
         return raw;
     }
+    if key.ends_with(".params.sourceTap") {
+        return match raw.as_str() {
+            "pre" => "Pre".into(),
+            "post" => "Post".into(),
+            _ => raw,
+        };
+    }
     if key.contains(".params.") {
         return format_fx_param_display(key, raw.parse::<i32>().unwrap_or(0));
     }

@@ -3343,6 +3343,7 @@
               "attackMs": 8,
               "releaseMs": 160,
               "source": "I2",
+              "sourceTap": "pre",
               "threshold": 0.08
             },
             "type": "duck"
@@ -3363,6 +3364,7 @@
               "attackMs": 8,
               "releaseMs": 160,
               "source": "I1",
+              "sourceTap": "pre",
               "threshold": 0.08
             },
             "type": "duck"

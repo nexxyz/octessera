@@ -17,12 +17,14 @@ fn compiles_mixing_fx_params_with_expected_defaults_and_clamps() {
         )) {
             FxBusParams::Duck {
                 source,
+                source_tap,
                 threshold,
                 amount,
                 attack_ms,
                 release_ms,
             } => {
                 assert!(matches!(source, DuckSource::Bus(1)));
+                assert_eq!(source_tap, DuckSourceTap::Pre);
                 assert_close(threshold, threshold_value);
                 assert_close(amount, amount_value / 100.0);
                 assert_close(attack_ms, attack_value);
@@ -31,6 +33,33 @@ fn compiles_mixing_fx_params_with_expected_defaults_and_clamps() {
             _ => panic!("expected duck params"),
         }
     }
+
+    assert!(matches!(
+        compile_fx_bus_params(&fx_config(
+            "duck",
+            BTreeMap::from([
+                ("source".to_string(), json!("I1")),
+                ("sourceTap".to_string(), json!("pre")),
+            ]),
+        )),
+        FxBusParams::Duck {
+            source_tap: DuckSourceTap::Pre,
+            ..
+        }
+    ));
+    assert!(matches!(
+        compile_fx_bus_params(&fx_config(
+            "duck",
+            BTreeMap::from([
+                ("source".to_string(), json!("I1")),
+                ("sourceTap".to_string(), json!("post")),
+            ]),
+        )),
+        FxBusParams::Duck {
+            source_tap: DuckSourceTap::Post,
+            ..
+        }
+    ));
 
     match compile_fx_bus_params(&fx_config(
         "saturator",
@@ -177,4 +206,18 @@ fn compiles_mixing_fx_params_with_expected_defaults_and_clamps() {
         compile_fx_bus_params(&FxBusSlotConfig::Kind("unknown".to_string())),
         FxBusParams::None
     ));
+}
+
+#[test]
+fn duck_source_parser_preserves_existing_zero_and_malformed_fallbacks() {
+    for (source, expected) in [
+        ("I0", DuckSource::Instrument(0)),
+        ("I999", DuckSource::Instrument(998)),
+        ("B0", DuckSource::Instrument(0)),
+        ("B999", DuckSource::Bus(998)),
+        ("wat", DuckSource::Instrument(0)),
+        ("", DuckSource::Instrument(0)),
+    ] {
+        assert_eq!(parse_duck_source(source), expected, "source {source}");
+    }
 }

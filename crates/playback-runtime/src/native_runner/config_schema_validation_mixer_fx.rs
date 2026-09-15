@@ -85,6 +85,11 @@ fn validate_fx_slot_value(
                 if slot_type != "duck" || !valid_duck_source(value.as_str()) {
                     return Err(format!("{value_path} has an invalid source"));
                 }
+            } else if key == "sourceTap" {
+                if slot_type != "duck" {
+                    return Err(format!("{value_path} is not valid for {slot_type}"));
+                }
+                enum_value(value, &value_path, &["pre", "post"])?;
             } else if key == "timeMode" {
                 if slot_type != "delay" {
                     return Err(format!("{value_path} is not valid for {slot_type}"));

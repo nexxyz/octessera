@@ -71,6 +71,17 @@ fn threaded_parity_config() -> InstrumentsConfig {
         kind: "duck".into(),
         params: [
             ("source".into(), json!("I2")),
+            ("sourceTap".into(), json!("post")),
+            ("amountPct".into(), json!(80.0)),
+        ]
+        .into_iter()
+        .collect::<BTreeMap<_, _>>(),
+    };
+    let bus_duck = FxBusSlotConfig::Config {
+        kind: "duck".into(),
+        params: [
+            ("source".into(), json!("B2")),
+            ("sourceTap".into(), json!("post")),
             ("amountPct".into(), json!(80.0)),
         ]
         .into_iter()
@@ -118,7 +129,11 @@ fn threaded_parity_config() -> InstrumentsConfig {
         mixer: Some(MixerConfig {
             buses: vec![
                 FxBusConfig {
-                    slots: vec![instrument_duck, FxBusSlotConfig::Kind("reverb".into())],
+                    slots: vec![
+                        instrument_duck,
+                        bus_duck,
+                        FxBusSlotConfig::Kind("reverb".into()),
+                    ],
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume_pct: 100.0,
                 },
@@ -136,7 +151,7 @@ fn threaded_parity_config() -> InstrumentsConfig {
                         FxBusSlotConfig::Kind("reverb".into()),
                     ],
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
-                    volume_pct: 100.0,
+                    volume_pct: 70.0,
                 },
                 FxBusConfig {
                     slots: vec![FxBusSlotConfig::Kind("reverb".into())],

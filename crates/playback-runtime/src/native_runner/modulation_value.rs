@@ -79,7 +79,7 @@ pub(super) fn apply_fx_slot_type_value(
 
 pub(super) fn apply_fx_param_binding_value(params: &mut Value, key: &str, value: Value) -> bool {
     let mut map = params.as_object().cloned().unwrap_or_default();
-    let next = if key == "source" {
+    let next = if matches!(key, "source" | "sourceTap") {
         value.as_str().map(|value| json!(value))
     } else {
         value

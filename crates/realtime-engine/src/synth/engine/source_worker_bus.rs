@@ -4,6 +4,9 @@ use super::super::types::{
     MomentaryFxTarget, BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT, VOICE_PARTITION_COUNT,
 };
 use super::bus_chain_owner::{BusChainCarrier, BusChainFrameOutput, BusChainOwner};
+#[cfg(test)]
+use super::duck_source::resolve_duck_source;
+use super::duck_source::resolve_duck_source_value;
 use super::source_worker_lifecycle::OwnerEnvelope;
 use super::source_worker_protocol::WorkStamp;
 use super::SynthEngine;
@@ -52,26 +55,40 @@ pub(super) fn stage_bus_block(
             carrier.scratch.input[frame] += sample;
         }
     }
-    for bus in 0..BUS_COUNT {
-        for slot in 0..BUS_SLOTS_PER_BUS {
-            let Some(source) = duck_source(owners, bus, slot) else {
-                continue;
-            };
-            for frame in 0..frames {
-                let source_value = match source {
-                    DuckSource::Instrument(index) => slot_out
-                        .get(index)
-                        .and_then(|output| output.get(frame))
-                        .copied()
-                        .unwrap_or(0.0),
-                    DuckSource::Bus(index) => carrier_ref(owners, index)
-                        .map(|carrier| carrier.scratch.input[frame])
-                        .unwrap_or(0.0),
+    for frame in 0..frames {
+        let instrument_out = std::array::from_fn(|slot| {
+            slot_out
+                .get(slot)
+                .and_then(|output| output.get(frame))
+                .copied()
+                .unwrap_or(0.0)
+        });
+        let bus_input: [f32; BUS_COUNT] = std::array::from_fn(|bus| {
+            carrier_ref(owners, bus)
+                .map(|carrier| carrier.scratch.input[frame])
+                .unwrap_or(0.0)
+        });
+        for bus in 0..BUS_COUNT {
+            for slot in 0..BUS_SLOTS_PER_BUS {
+                let Some(params) = carrier_ref(owners, bus)
+                    .and_then(|carrier| carrier.owner.as_ref())
+                    .map(|owner| owner.slot_params[slot])
+                else {
+                    continue;
                 };
+                if !matches!(params, FxBusParams::Duck { .. }) {
+                    continue;
+                }
                 let Some(carrier) = carrier_mut(owners, bus) else {
                     return false;
                 };
-                carrier.scratch.resolved_duck[slot][frame] = source_value;
+                carrier.scratch.resolved_duck[slot][frame] = resolve_duck_source(
+                    params,
+                    &instrument_out,
+                    &engine.slot_volume,
+                    &bus_input,
+                    &engine.bus_volume,
+                );
             }
         }
     }
@@ -119,27 +136,29 @@ pub(super) fn stage_source_block(
         }
         for bus in 0..engine.bus_pan_pos.len() {
             for slot in 0..BUS_SLOTS_PER_BUS {
-                if matches!(
-                    bus_duck_source(engine, bus, slot),
-                    Some(DuckSource::Instrument(_))
-                ) {
-                    let source = match bus_duck_source(engine, bus, slot) {
-                        Some(DuckSource::Instrument(index)) => {
-                            slot_out.get(index).copied().unwrap_or(0.0)
-                        }
-                        _ => 0.0,
-                    };
-                    let Some(carrier) = carriers.get_mut(bus).and_then(Option::as_mut) else {
-                        return false;
-                    };
-                    carrier.scratch.resolved_duck[slot][frame] = source;
-                }
+                let Some((DuckSource::Instrument(index), source_tap)) =
+                    bus_duck_source(engine, bus, slot)
+                else {
+                    continue;
+                };
+                let source = slot_out.get(index).copied().unwrap_or(0.0);
+                let Some(carrier) = carriers.get_mut(bus).and_then(Option::as_mut) else {
+                    return false;
+                };
+                carrier.scratch.resolved_duck[slot][frame] = resolve_duck_source_value(
+                    DuckSource::Instrument(index),
+                    source_tap,
+                    source,
+                    engine.slot_volume.get(index).copied().unwrap_or(1.0),
+                    0.0,
+                    1.0,
+                );
             }
         }
     }
     for bus in 0..engine.bus_pan_pos.len() {
         for slot in 0..BUS_SLOTS_PER_BUS {
-            if let Some(DuckSource::Bus(index)) = bus_duck_source(engine, bus, slot) {
+            if let Some((DuckSource::Bus(index), source_tap)) = bus_duck_source(engine, bus, slot) {
                 for frame in 0..frames {
                     let source = carriers
                         .get(index)
@@ -149,7 +168,15 @@ pub(super) fn stage_source_block(
                     let Some(carrier) = carriers.get_mut(bus).and_then(Option::as_mut) else {
                         return false;
                     };
-                    carrier.scratch.resolved_duck[slot][frame] = source;
+                    let source_volume = engine.bus_volume.get(index).copied().unwrap_or(1.0);
+                    carrier.scratch.resolved_duck[slot][frame] = resolve_duck_source_value(
+                        DuckSource::Bus(index),
+                        source_tap,
+                        0.0,
+                        1.0,
+                        source,
+                        source_volume,
+                    );
                 }
             }
         }
@@ -192,13 +219,19 @@ fn stage_carrier_frame(
     true
 }
 
-fn bus_duck_source(engine: &SynthEngine, bus: usize, slot: usize) -> Option<DuckSource> {
+fn bus_duck_source(
+    engine: &SynthEngine,
+    bus: usize,
+    slot: usize,
+) -> Option<(DuckSource, super::super::fx_params::DuckSourceTap)> {
     engine
         .bus_chains
         .iter()
         .find(|owner| owner.logical_bus_id == bus)
         .and_then(|owner| match owner.slot_params[slot] {
-            FxBusParams::Duck { source, .. } => Some(source),
+            FxBusParams::Duck {
+                source, source_tap, ..
+            } => Some((source, source_tap)),
             _ => None,
         })
 }
@@ -375,20 +408,6 @@ fn apply_bus_output(
         .filter(|owner| owner.is_active())
         .count();
     true
-}
-
-#[cfg(test)]
-fn duck_source(
-    owners: &[OwnerEnvelope; VOICE_PARTITION_COUNT],
-    bus: usize,
-    slot: usize,
-) -> Option<DuckSource> {
-    carrier_ref(owners, bus)
-        .and_then(|carrier| carrier.owner.as_ref())
-        .and_then(|owner| match owner.slot_params[slot] {
-            FxBusParams::Duck { source, .. } => Some(source),
-            _ => None,
-        })
 }
 
 #[cfg(test)]
