@@ -271,6 +271,7 @@ fn expected_factory_patch_fixture() -> Value {
                         "type": "duck",
                         "params": {
                             "source": "I2",
+                            "sourceTap": "pre",
                             "threshold": 0.08,
                             "amountPct": 60,
                             "attackMs": 8,
