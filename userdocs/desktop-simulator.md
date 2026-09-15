@@ -18,8 +18,9 @@ and learn the controls.
 2. Draw a few cells on the grid.
 3. Open **Shape** and choose a **synth** for the layer.
 4. Press **Space** to start playback.
-5. Open **Play Mix** to change a layer's level. Use **Back** or the normal
-   navigation controls to leave it.
+5. Open **Play Pan**. Each grid row represents an instrument. On your synth's
+   row, press toward the left, center, or right to move its sound across the
+   stereo field. Use **Back** or the normal navigation controls to leave it.
 
 Start with a **synth** for the simplest first sound. A sampler is also
 available with the default library's 318 WAV files; two AIFF files sit outside

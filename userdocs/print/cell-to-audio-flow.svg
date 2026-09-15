@@ -19,6 +19,8 @@
     .label { fill: #000; font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; }
   </style>
 
+  <rect width="1600" height="900" fill="#fff"/>
+
   <g id="nodes">
     <circle class="box" cx="256" cy="230" r="40"/>
     <text class="txt title" x="256" y="237" text-anchor="middle">Start</text>

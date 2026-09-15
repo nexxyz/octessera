@@ -33,10 +33,10 @@ probability, transpose, and Play FX behavior.
 | *Play* / *Space* | **Sample browser preview** | In sample browser menus, preview the highlighted sample. |
 | *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms a one-shot resync at the next 96-PPQN (one-bar) boundary instead of stopping the external clock; playback and the grid continue, then the transport origin resets and the arm clears. |
 | *Fn* + *Play* | **Reset stop** | Stop, reset the transport position, and silence Octessera-owned notes. |
-| *Fn* + turn main encoder right | **Single step** | While paused or stopped, advance one generation/tick. Turning left is a no-op. |
+| *Fn* + turn main encoder right | **Single step** | While paused or stopped, advance one step/tick. Turning left is a no-op. |
 | *Shift* + *Fn* + *Play* | **Reserved** | No action for now. A tiny patch of silence in the shortcut garden. |
 | *Shift* + *Back* | **Clear active layer** | Re-initialize the active layer. Very useful. Also very easy to press on purpose only. |
-| *Shift* + *Fn* + *click main encoder* | **Context help** | Hold *Shift* + *Fn*, then click a menu option with *Main* to open help for that row. |
+| *Shift* + *Fn* + *click main encoder* | **Context help** | Hold *Shift* + *Fn*, then click a menu item with *Main* to open help for that item. |
 
 Stop, accepted MIDI Start, and resync reset the transport origin, scan, autonomous
 Build cadence, Pattern phase, and Looper playback position. They keep evolved
@@ -44,14 +44,14 @@ worlds, settings, and the recorded loop. Pause/Continue resumes the exact phase.
 
 ## Context help
 
-To use context help, move *Main* to the menu row you want, hold *Shift* and
-*Fn*, then click *Main*. The OLED opens help for that row. Turn *Main* to
+To use context help, highlight the menu item you want with *Main*, hold *Shift*
+and *Fn*, then click *Main*. The OLED opens help for that item. Turn *Main* to
 scroll and click *Main* to close it; *Back* also leaves the help display.
 
-Help follows the current menu, parameter, action, selector, or mode. If the row
-changes, leave the help display and invoke the chord again; a nearby row may
-mean something different. The same shortcuts work on the hardware and in the
-simulator.
+Help is specific to the selected menu item, whether it is a parameter, action,
+selector, or mode. To read help for another item, close help, highlight that
+item, and use the shortcut again. The same shortcuts work on the hardware and
+in the simulator.
 
 ## Grid navigation shortcuts
 
@@ -72,7 +72,7 @@ Each *Aux encoder* has two possible bindings:
 - **Turn binding**: turning the encoder changes a value.
 - **Click binding**: clicking the encoder triggers an action.
 
-You can bind aux controls yourself with *Fn* + *aux encoder click* while a bindable menu row is focused.
+You can bind aux controls yourself with *Fn* + *aux encoder click* while a bindable menu item is selected.
 
 How to read OLED markers:
 
@@ -80,7 +80,7 @@ How to read OLED markers:
 |---|---|
 | `1-Cutoff` | *Aux 1* turn is bound or auto-mapped to Cutoff. |
 | `1!Assign` | *Aux 1* click is bound or auto-mapped to Assign. |
-| `1-/1!` style rows | That aux has both a turn binding and a click binding in this context. |
+| `1-` and `1!` on one item | That aux has both a turn binding and a click binding in this context. |
 | `not active` toast | The binding still exists, but the target is hidden or inactive right now. |
 
 ## Cell-to-audio flow
@@ -106,5 +106,5 @@ as `activate` or direct grid events from `keys` and `looper`.
 ## Tiny survival notes
 
 - The OLED is the truth. If the grid behaves in an unexpected way, you are probably in an overlay or Play page. Take a look at the OLED, and back out using *Back* or navigate away using *Fn*.
-- Help is *Shift* + *Fn* + *click main encoder*. I made it a chord so it is hard to hit by accident.
+- Help is *Shift* + *Fn* + *click main encoder*. I made it a button combination so it is hard to hit by accident.
 - If a behavior gets too busy, try probability before you delete the pattern. Let it breathe.

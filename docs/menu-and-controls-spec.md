@@ -133,7 +133,7 @@ Value editing semantics:
 - Recording roots are fixed by host adapter: desktop uses the Tauri Audio/Music directory under `Octessera/recordings` for WAV and `Octessera/screen-recordings` for Audio+OLED; Raspberry uses `/home/pi/recordings` and `/home/pi/screen-recordings`; Orange uses `/var/lib/octessera/recordings` and `/var/lib/octessera/screen-recordings`. A reserved `.partial.*` file becomes `.wav`/`.avi` after successful finalization, or `.incomplete.wav`/`.incomplete.avi` after gaps, ingress overflow, or accepted-OLED material loss; failed workers retain the partial file and existing takes are never replaced.
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
 - Breadcrumbs use full labels for the current submenu and short labels for ancestors, e.g. `/S/FX/Bus 1` and, one level deeper, `/S/FX/B1/Slot 1`. Top-level ancestors use `Build`/`B`, `Link`/`L`, `Shape`/`S`, `Play`/`P`; layer ancestors use `Layer N`/`LN`; FX bus ancestors use `Bus N`/`BN`. Overlong breadcrumbs are front-ellipsized with `...` so the current location remains visible. Section color follows the canonical section path, not the truncated display text.
-- Rows that lead to a submenu or selector render with a trailing `>` marker. `Build > Layer > Behavior: <id>` is a synthetic browser-style selector, not an editable enum. It groups behavior rows under `[Human]`, `[Rhythm]`, `[Musical]`, then alphabetically under `[Cellular]`, `[Fields]`, `[Geometry]`, `[Growth]`, and `[Motion]`, uses `..` rows for parent navigation, and writes the selected native behavior ID to that layer's persisted `behaviorId` field. Human includes direct play plus `weave`; Rhythm includes `polyrhythm`, `breaks`, `fills`, `clave`, `groove`, and `euclid`; Musical includes `ostinato`, `motif`, `canon`, `chords`, `contour`, `cadence`, and `phrase`. Selecting a behavior uses a targeted native Build refresh for that layer and does not rebuild the full menu tree. `arp` is not a native Build behavior; arpeggiation lives under `Link > L* > Arp`. `glider` is no longer a behavior ID; its glider injection controls are part of `life`. `forest_fire` is the canonical Forest Fire behavior ID, with no `forest` alias. `bubbles` belongs to Motion; its current, drift, and buoyancy rows use eighth-cell units per tick, and `Add Bubble` spawns one bottom-origin rising bubble immediately.
+- Menu items that lead to a submenu or selector render with a trailing `>` marker. `Build > Layer > Behavior: <id>` is a synthetic browser-style selector, not an editable enum. It groups behavior items under `[Human]`, `[Rhythm]`, `[Musical]`, then alphabetically under `[Cellular]`, `[Fields]`, `[Geometry]`, `[Growth]`, and `[Motion]`, uses `..` items for parent navigation, and writes the selected native behavior ID to that layer's persisted `behaviorId` field. Human includes direct play plus `weave`; Rhythm includes `polyrhythm`, `breaks`, `fills`, `clave`, `groove`, and `euclid`; Musical includes `ostinato`, `motif`, `canon`, `chords`, `contour`, `cadence`, and `phrase`. Selecting a behavior uses a targeted native Build refresh for that layer and does not rebuild the full menu tree. `arp` is not a native Build behavior; arpeggiation lives under `Link > L* > Arp`. `glider` is no longer a behavior ID; its glider injection controls are part of `life`. `forest_fire` is the canonical Forest Fire behavior ID, with no `forest` alias. `bubbles` belongs to Motion; its current, drift, and buoyancy items use eighth-cell units per tick, and `Add Bubble` spawns one bottom-origin rising bubble immediately.
 - Forest Fire renders trees and burning cells as visible, but event interpretation follows the behavior's trigger types: tree-to-fire and manual ignition emit activate triggers, burned-out cells emit deactivate triggers, visible non-burning trees are stable, and unrelated empty cells emit no event.
 - `crystal_growth` is the canonical Crystal Growth behavior ID, with no `crystal` or `crystals` alias. It belongs to Growth before `dla`. `cross` grows through cardinal neighbors only; `diagonal` grows through diagonal neighbors only; `snowflake` grows through cardinal neighbors plus parity-selected diagonals: even `(x + y)` uses NW/SE, odd uses NE/SW. Grid press seeds or refreshes the exact lower-left world-space cell without toggling it off or changing its phase; scheduled/action seeding chooses deterministic cells.
 - `lightning` is the canonical Lightning behavior ID, with no aliases. It belongs to Fields before `raindrops`. Target edges use lower-left world space: north is `y=max`, south is `y=0`, east is `x=max`, and west is `x=0`; automatic strikes seed from the opposite edge. On the connection tick, all visible lightning cells emit activate once, then remain stable during decay and deactivate when cleared.
@@ -210,7 +210,7 @@ Overrides:
 - In `Play`, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` act as page-select rows: main encoder press selects and activates the page without entering an empty submenu. `FX` and `XY` remain normal enterable menu groups because they expose configuration rows.
 - When Ghost Cells is on, inactive layers' active cells render as very dim green behind the active layer. Active layer cells and sample assignment overlays take priority.
 - Active context changes use OLED toast/status feedback, for example `Layer: L3 rain` or `Play: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.
-- Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Enter`). Startup uses the same chord wording: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.
+- Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Enter`). Startup uses the same button combination: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.
 
 ## Sectioned Scanning
 
@@ -228,7 +228,7 @@ Overrides:
 - Location: System > Saves > Default > Backups
 - When enabled: native menu edits and aux-bound value changes emit deferred `store_save_default` effects; fast audio-facing edits update state/audio immediately and coalesce `ConfigPayload` generation for about 150ms so storage writes the latest settled value instead of saving every intermediate encoder step
 - Disabled by default
-- Toggling Auto Save on triggers an immediate save when you exit that menu row
+- Toggling Auto Save on triggers an immediate save when you exit that menu item
 - Explicit Save Default is always immediate and cancels any pending deferred default save
 - Backups are enabled by default. When any persistent config changes, runtime may emit `store_save_backup` at most once every five minutes; hosts keep the latest 20 `bak-{timestamp}.json` files.
 - Confirmed shutdown/reboot emits `store_save_recovery`; Pi writes the latest recovery payload synchronously before setting the power request.
@@ -252,7 +252,7 @@ Overrides:
 - Aux toasts use compact labels such as `Trn-1`, `Clk-1`, `S+Trn-1`, and `S+Clk-1`.
 - `Auto Map` lives under `System > UI`. When enabled, context-sensitive auto mappings fill unbound aux slots for the active menu context; custom aux bindings keep precedence when present.
 - Auto-map does not fill shifted aux slots; shifted aux bindings are custom-only and persist as `runtimeConfig.shiftAuxBindings`, mirroring `runtimeConfig.auxBindings`.
-- In supported contexts, focused menu rows show auto-map indicators like `1-Cutoff` and `1!Assign`, preserving selection markers on focused rows such as `> 1!Assign`.
+- In supported contexts, focused menu items show auto-map indicators like `1-Cutoff` and `1!Assign`, preserving selection markers on focused items such as `> 1!Assign`.
 - If no slot is bound, toast shows labels like `Trn-1: No binding` or `S+Clk-1: No binding`
 - Turn toasts show current value, e.g. `Trn-1: Spawn Count: 3`
 - Shared route currently implemented:
@@ -288,7 +288,7 @@ Overrides:
 
 - Toast messages are rendered on a single OLED bottom line with the physical 17-column visible window.
 - Messages longer than the physical 17-column toast width scroll horizontally by one native offset per display snapshot attempt; the host supplies the 33ms attempt cadence while scrolling is active. Short messages do not schedule scrolling.
-- Selected long menu rows use the same display-attempt pacing, advancing one character every four attempts with a three-space cycle gap; short selected rows do not schedule scrolling.
+- Selected long menu items use the same display-attempt pacing, advancing one character every four attempts with a three-space cycle gap; short selected items do not schedule scrolling.
 - Native toast offsets reset when a toast is replaced; there is no `startedAtMs` wall-clock scrolling contract.
 
 ## Config Persistence (ConfigPayload)
@@ -334,7 +334,7 @@ Behavior engines provide:
 - input and tick transitions
 - render model for the grid
 - serialization/deserialization for saved state
-- optional behavior config menu rows
+- optional behavior config menu items
 - optional immediate input-transition interpretation
 - optional grid interaction mode such as paint or momentary
 
