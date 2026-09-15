@@ -95,6 +95,19 @@ Expected outputs:
 - `release-artifacts/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`
 - ignored review images under `hardware/enclosure/review/`
 
+## Protective-case branding
+
+The protective case reuses `assets/octessera-mark.svg` and
+`assets/octessera-wordmark.svg` through
+`hardware/enclosure/branding_marking_cadquery.py`. The deep tub uses a centered
+logo and floor orientation guide. The shallow lid rotates the logo and wordmark
+together by 180 degrees. Debossed and multicolor markings are `0.40 mm` deep;
+multicolor markings use extruder 2 over the body on extruder 1.
+
+STEP remains in assembly coordinates. STL and 3MF exports are exterior-down.
+Protective-case outputs remain check-fit prototypes until slicer and physical
+print review.
+
 ## PCB branding
 
 The PCB silkscreen branding lives in `hardware/pcb/octessera.kicad_pcb` on `F.SilkS`.

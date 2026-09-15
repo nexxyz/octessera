@@ -4,16 +4,14 @@ from dataclasses import dataclass
 
 try:
     from .protective_case_geometry import (
-        FACE_DOWN_TRANSPORT_TRANSLATION,
-        face_down_transport_feature_xy,
-        face_down_transport_xy,
+        face_down_reference_feature_xy,
+        face_down_reference_xy,
         load_source_parameters,
     )
 except ImportError:
     from protective_case_geometry import (
-        FACE_DOWN_TRANSPORT_TRANSLATION,
-        face_down_transport_feature_xy,
-        face_down_transport_xy,
+        face_down_reference_feature_xy,
+        face_down_reference_xy,
         load_source_parameters,
     )
 
@@ -58,9 +56,10 @@ def control_contact_keepouts(params: dict) -> tuple[ContactKeepout, ...]:
     source_features = source["features_local"]
     expansion_x, expansion_y = params["device"]["control_keepout_expansion"]
     keepouts = []
-    screen_x, screen_y = face_down_transport_feature_xy(
+    screen_x, screen_y = face_down_reference_feature_xy(
         source,
         source_features["oled_screen_center"],
+        params,
         OLED_SCREEN_CUTOUT_X_SHIFT,
         OLED_SCREEN_CUTOUT_Y_SHIFT,
     )
@@ -81,7 +80,7 @@ def control_contact_keepouts(params: dict) -> tuple[ContactKeepout, ...]:
         )
     )
     for name, point in source_features["encoders"].items():
-        x, y = face_down_transport_feature_xy(source, point)
+        x, y = face_down_reference_feature_xy(source, point, params)
         radius = source["encoder_crater_flat_d"][name] / 2.0 + source["encoder_crater_slope_w"]
         keepouts.append(
             ContactKeepout(
@@ -90,9 +89,10 @@ def control_contact_keepouts(params: dict) -> tuple[ContactKeepout, ...]:
             )
         )
     key_centers = tuple(
-        face_down_transport_feature_xy(
+        face_down_reference_feature_xy(
             source,
             point,
+            params,
             NEOKEY_PANEL_X_OFFSET,
             NEOKEY_PANEL_Y_OFFSET,
         )
@@ -112,11 +112,12 @@ def control_contact_keepouts(params: dict) -> tuple[ContactKeepout, ...]:
     pitch = source["neotrellis_pitch"]
     opening = source["neotrellis_button_cutout"]
     trellis_centers = tuple(
-        face_down_transport_xy(
+        face_down_reference_xy(
             (
-                FACE_DOWN_TRANSPORT_TRANSLATION[0] + NEOTRELLIS_CASE_ORIGIN[0] + column * pitch,
-                FACE_DOWN_TRANSPORT_TRANSLATION[1] - (NEOTRELLIS_CASE_ORIGIN[1] + row * pitch),
-            )
+                NEOTRELLIS_CASE_ORIGIN[0] + column * pitch,
+                NEOTRELLIS_CASE_ORIGIN[1] + row * pitch,
+            ),
+            params,
         )
         for row in range(8)
         for column in range(8)

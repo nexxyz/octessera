@@ -4,6 +4,9 @@ Complete [flash and first boot](flash-and-first-boot.md) while the assembly is
 open, then fit the enclosure. Read [safety and power](safety-and-power.md)
 before fitting or powering the case.
 
+A separate [protective-case check-fit prototype](protective-case.md) is available
+for the completed instrument. It is not drop-rated or transport-qualified.
+
 Remove the selected board's boot microSD card and the OLED microSD card before
 putting the device in the enclosure. They can catch on the case and break.
 

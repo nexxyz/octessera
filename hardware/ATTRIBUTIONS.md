@@ -11,6 +11,18 @@ licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 Octessera modified it into parametric dimensions with Octessera-specific pins
 and sockets, and exported the resulting enclosure artifacts.
 
+## Protective-case parametric box
+
+The protective-case check-fit source adapts **Simple and Light Parametric BOX -
+CadQuery** by Andy Wings / `@WingsWorld_2406962`:
+
+- Printables model `1069138`: https://www.printables.com/model/1069138-simple-and-light-parametric-box-cadquery
+- Thingiverse listing `6842165`: https://www.thingiverse.com/thing:6842165
+- License: CC BY-SA, version unspecified by controlling source
+
+Octessera retains the source shell, hinge, and Clip profile algorithms and adds
+project-specific mating, latch, restraint, foam-pad, branding, and export logic.
+
 ## Adafruit modules and converted footprints
 
 The PCB references these Adafruit products. The product pages are the official

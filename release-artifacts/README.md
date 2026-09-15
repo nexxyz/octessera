@@ -9,6 +9,9 @@ source-of-truth project files. The committed fabrication tree is:
 - `enclosure/3mf-multicolor/` — multicolor-print top and cap exports.
 - `enclosure/3mf-single-material/` — single-material 3MF exports.
 
+Protective-case files use the `protective_case_checkfit_` prefix. They are
+prototype fit-check artifacts, not drop-rated or transport-qualified products.
+
 Generated release surfaces such as `desktop/`, `pi/`, `v<version>/`, and
 checksums are not a second source tree. Regenerate committed fabrication
 exports from the source tree.

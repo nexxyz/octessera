@@ -11,12 +11,11 @@ try:
     from .protective_case_corner_restraints import corner_restraint_components
     from .protective_case_foam_landing_pads import _bbox_distance, _source_hardware_components, foam_landing_pad_components
     from .protective_case_geometry import (
-        FACE_DOWN_TRANSPORT_TRANSLATION,
         build_device_insertion,
         corner_restraints,
         dimensions,
-        face_down_transport_xy,
-        face_down_transport_feature_xy,
+        face_down_reference_xy,
+        face_down_reference_feature_xy,
         load_source_parameters,
         wall_planes,
     )
@@ -25,7 +24,7 @@ except ImportError:
     from protective_case_bottom_latches import bottom_latch_components
     from protective_case_corner_restraints import corner_restraint_components
     from protective_case_foam_landing_pads import _bbox_distance, _source_hardware_components, foam_landing_pad_components
-    from protective_case_geometry import FACE_DOWN_TRANSPORT_TRANSLATION, build_device_insertion, corner_restraints, dimensions, face_down_transport_feature_xy, face_down_transport_xy, load_source_parameters, wall_planes
+    from protective_case_geometry import build_device_insertion, corner_restraints, dimensions, face_down_reference_feature_xy, face_down_reference_xy, load_source_parameters, wall_planes
     from protective_case_mating_interface import deep_receiver_components, main_cavity_prism
 
 
@@ -60,7 +59,7 @@ CONTROL_SIDE_FOAM_CLEARANCE = 27.222194187
 CONTROL_SIDE_DEEP_CATCH_BRIDGE_CLEARANCE = 87.854942406
 CONTROL_SIDE_HINGE_CLEARANCE = 83.001945739
 CONTROL_SIDE_RECEIVER_CLEARANCE = 51.529388491
-CONTROL_SIDE_CANONICAL_CLEARANCE = 27.4
+CONTROL_SIDE_REFERENCE_TOP_CLEARANCE = 27.4
 CONTROL_SIDE_NOMINAL_CLEARANCE = 4.9
 TURNAROUND_FLOOR_ATTACHMENT_VOLUME = 0.449862846
 
@@ -91,12 +90,13 @@ def _scale_point(point: tuple[float, float], center: tuple[float, float]) -> tup
     )
 
 
-def _trellis_case_center(source: dict, row: int, column: int) -> tuple[float, float]:
-    return face_down_transport_xy(
+def _trellis_case_center(source: dict, params: dict, row: int, column: int) -> tuple[float, float]:
+    return face_down_reference_xy(
         (
-            FACE_DOWN_TRANSPORT_TRANSLATION[0] + TRELLIS_CASE_ORIGIN[0] + column * source["neotrellis_pitch"],
-            FACE_DOWN_TRANSPORT_TRANSLATION[1] - (TRELLIS_CASE_ORIGIN[1] + row * source["neotrellis_pitch"]),
-        )
+            TRELLIS_CASE_ORIGIN[0] + column * source["neotrellis_pitch"],
+            TRELLIS_CASE_ORIGIN[1] + row * source["neotrellis_pitch"],
+        ),
+        params,
     )
 
 
@@ -106,9 +106,10 @@ def orientation_guide_layout(params: dict) -> OrientationGuideLayout:
     envelope = params["device"]["envelope"]
     outer = RoundedOutline(center, envelope["width"] * GUIDE_SCALE, envelope["depth"] * GUIDE_SCALE, envelope["radius"] * GUIDE_SCALE)
     screen_center = _scale_point(
-        face_down_transport_feature_xy(
+        face_down_reference_feature_xy(
             source,
             source["features_local"]["oled_screen_center"],
+            params,
             -0.5,
             -0.3,
         ),
@@ -118,7 +119,7 @@ def orientation_guide_layout(params: dict) -> OrientationGuideLayout:
     screen = RoundedOutline(screen_center, screen_width * GUIDE_SCALE, screen_height * GUIDE_SCALE, source["screen_cutout_r"] * GUIDE_SCALE)
     encoders = tuple(
         (
-            _scale_point(face_down_transport_feature_xy(source, point), center),
+            _scale_point(face_down_reference_feature_xy(source, point, params), center),
             (source["encoder_crater_flat_d"][name] / 2.0 + source["encoder_crater_slope_w"]) * GUIDE_SCALE,
         )
         for name, point in source["features_local"]["encoders"].items()
@@ -128,7 +129,7 @@ def orientation_guide_layout(params: dict) -> OrientationGuideLayout:
     neokeys = tuple(
         RoundedOutline(
             _scale_point(
-                face_down_transport_feature_xy(source, point, -0.25, -1.0),
+                face_down_reference_feature_xy(source, point, params, -0.25, -1.0),
                 center,
             ),
             neokey_size[0],
@@ -141,7 +142,7 @@ def orientation_guide_layout(params: dict) -> OrientationGuideLayout:
         (
             row,
             column,
-            _scale_point(_trellis_case_center(source, row, column), center),
+            _scale_point(_trellis_case_center(source, params, row, column), center),
         )
         for row in range(8)
         for column in range(8)
@@ -364,7 +365,7 @@ def _check_outline(name: str, component: cq.Workplane, outline: RoundedOutline) 
 def validate_device_orientation(
     params: dict,
     final_tub: cq.Workplane,
-    canonical_device: cq.Workplane,
+    reference_top: cq.Workplane,
     base_tub: cq.Workplane | None = None,
 ) -> None:
     layout = orientation_guide_layout(params)
@@ -454,7 +455,7 @@ def validate_device_orientation(
     source_hardware = _source_hardware_components(params)
     latch_hardware = tuple(component for _, component in bottom_latch_components(params, "deep"))
     receivers = tuple(receiver for _, receiver in deep_receiver_components(params))
-    collisions = restraints + tuple(pad for _, pad in pads) + source_hardware + latch_hardware + receivers + (canonical_device,)
+    collisions = restraints + tuple(pad for _, pad in pads) + source_hardware + latch_hardware + receivers + (reference_top,)
     _require(all(_intersection_volume(guide, collision) <= VOLUME_TOLERANCE for collision in collisions), "orientation guide has a prohibited collision")
     grid = tuple(component for _, component in components[:74])
     arrow_shapes = tuple(component for _, component in arrows)
@@ -462,21 +463,21 @@ def validate_device_orientation(
     _require(all(_intersection_volume(arrow, collision) <= VOLUME_TOLERANCE for arrow in arrow_shapes for collision in collisions), "turnaround arrow has a prohibited collision")
     nominal = build_device_insertion(params)
     nominal_clearance = _minimum_component_distance(arrow_shapes, (nominal,))
-    canonical_clearance = _minimum_component_distance(arrow_shapes, (canonical_device,))
+    reference_top_clearance = _minimum_component_distance(arrow_shapes, (reference_top,))
     control_side_support_clearance = _minimum_component_distance(arrow_shapes, restraints)
     control_side_foam_clearance = _minimum_component_distance(arrow_shapes, tuple(pad for _, pad in pads))
     hinge_clearance = _minimum_component_distance(arrow_shapes, source_hardware)
     deep_catch_bridge_clearance = _minimum_component_distance(arrow_shapes, latch_hardware)
     receiver_clearance = _minimum_component_distance(arrow_shapes, receivers)
-    guide_device_clearance = _minimum_component_distance(grid, (canonical_device,))
+    guide_reference_top_clearance = _minimum_component_distance(grid, (reference_top,))
     control_side_wall_margin = wall_planes(params)["east_x"] - max(_shape_box(arrow).xmax for arrow in arrow_shapes)
     _require(nominal_clearance >= CONTROL_SIDE_NOMINAL_CLEARANCE - TOLERANCE, f"orientation guide nominal clearance is too small: {nominal_clearance:.6f}")
-    _require(guide_device_clearance >= 19.4 - TOLERANCE, f"orientation guide canonical clearance is too small: {guide_device_clearance:.6f}")
-    _require(canonical_clearance >= CONTROL_SIDE_CANONICAL_CLEARANCE - TOLERANCE, f"turnaround arrow canonical clearance is too small: {canonical_clearance:.6f}")
+    _require(guide_reference_top_clearance >= 19.4 - TOLERANCE, f"orientation guide reference-top clearance is too small: {guide_reference_top_clearance:.6f}")
+    _require(reference_top_clearance >= CONTROL_SIDE_REFERENCE_TOP_CLEARANCE - TOLERANCE, f"turnaround arrow reference-top clearance is too small: {reference_top_clearance:.6f}")
     _require(control_side_support_clearance >= CONTROL_SIDE_SUPPORT_CLEARANCE - TOLERANCE, f"turnaround arrow control-side support clearance is too small: {control_side_support_clearance:.6f}")
     _require(control_side_foam_clearance >= CONTROL_SIDE_FOAM_CLEARANCE - TOLERANCE, f"turnaround arrow control-side foam clearance is too small: {control_side_foam_clearance:.6f}")
     _require(hinge_clearance >= CONTROL_SIDE_HINGE_CLEARANCE - TOLERANCE, f"turnaround arrow hinge clearance is too small: {hinge_clearance:.6f}")
     _require(abs(deep_catch_bridge_clearance - CONTROL_SIDE_DEEP_CATCH_BRIDGE_CLEARANCE) <= TOLERANCE, f"deep catch and bridge clearance changed: {deep_catch_bridge_clearance:.6f}")
     _require(receiver_clearance >= CONTROL_SIDE_RECEIVER_CLEARANCE - TOLERANCE, f"turnaround arrow receiver clearance is too small: {receiver_clearance:.6f}")
     _require(abs(control_side_wall_margin - CONTROL_SIDE_WALL_MARGIN) <= 0.01, f"turnaround arrow control-side wall margin changed: {control_side_wall_margin:.9f}")
-    print(f"device_orientation_guide=components=76 grid_cells=64 turnaround_arrows=2 stroke={GUIDE_STROKE:.1f}mm z={GUIDE_Z_MIN:.2f}..{GUIDE_Z_MAX:.2f} turnaround_bbox=X{TURNAROUND_EXPECTED_BBOX[0]:.9f}..{TURNAROUND_EXPECTED_BBOX[1]:.9f}/Y{TURNAROUND_EXPECTED_BBOX[2]:.1f}..{TURNAROUND_EXPECTED_BBOX[3]:.1f} guide_gap={control_side_gap:.9f}mm nominal_clearance={nominal_clearance:.9f}mm guide_clearance={guide_device_clearance:.3f}mm arrow_clearance={canonical_clearance:.9f}mm support_clearance={control_side_support_clearance:.9f}mm foam_clearance={control_side_foam_clearance:.9f}mm hinge_clearance={hinge_clearance:.9f}mm deep_catch_bridge_clearance={deep_catch_bridge_clearance:.9f}mm receiver_clearance={receiver_clearance:.9f}mm control_side_wall_margin={control_side_wall_margin:.9f}mm floor_attachment={TURNAROUND_FLOOR_ATTACHMENT_VOLUME:.6f}mm3 collision=NONE")
+    print(f"device_orientation_guide=components=76 grid_cells=64 turnaround_arrows=2 stroke={GUIDE_STROKE:.1f}mm z={GUIDE_Z_MIN:.2f}..{GUIDE_Z_MAX:.2f} turnaround_bbox=X{TURNAROUND_EXPECTED_BBOX[0]:.9f}..{TURNAROUND_EXPECTED_BBOX[1]:.9f}/Y{TURNAROUND_EXPECTED_BBOX[2]:.1f}..{TURNAROUND_EXPECTED_BBOX[3]:.1f} guide_gap={control_side_gap:.9f}mm nominal_clearance={nominal_clearance:.9f}mm guide_clearance={guide_reference_top_clearance:.3f}mm arrow_clearance={reference_top_clearance:.9f}mm support_clearance={control_side_support_clearance:.9f}mm foam_clearance={control_side_foam_clearance:.9f}mm hinge_clearance={hinge_clearance:.9f}mm deep_catch_bridge_clearance={deep_catch_bridge_clearance:.9f}mm receiver_clearance={receiver_clearance:.9f}mm control_side_wall_margin={control_side_wall_margin:.9f}mm floor_attachment={TURNAROUND_FLOOR_ATTACHMENT_VOLUME:.6f}mm3 collision=NONE")

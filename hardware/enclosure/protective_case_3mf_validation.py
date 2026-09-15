@@ -117,7 +117,7 @@ def validate_model_parts(path: Path, expected: dict[int, tuple[str, str]]) -> No
 
 def validate_deep_tub_debossed_package(path: Path, expected_bbox: BBox, expected_mesh_bboxes: dict[int, BBox]) -> None:
     validate_3mf_package(path, expected_bbox, expected_mesh_bboxes)
-    validate_model_parts(path, {1: ("transport_case_deep_tub_debossed_logo", "1")})
+    validate_model_parts(path, {1: ("protective_case_checkfit_deep_tub_debossed_logo", "1")})
 
 
 def validate_deep_tub_multicolor_package(path: Path, expected_bbox: BBox, expected_mesh_bboxes: dict[int, BBox]) -> None:
@@ -125,16 +125,16 @@ def validate_deep_tub_multicolor_package(path: Path, expected_bbox: BBox, expect
     validate_model_parts(
         path,
         {
-            1: ("transport_case_deep_tub_body", "1"),
-            2: ("transport_case_deep_tub_logo", "2"),
-            3: ("transport_case_deep_tub_device_orientation_guide", "2"),
+            1: ("protective_case_checkfit_deep_tub_body", "1"),
+            2: ("protective_case_checkfit_deep_tub_logo", "2"),
+            3: ("protective_case_checkfit_deep_tub_device_orientation_guide", "2"),
         },
     )
 
 
 def validate_shallow_lid_debossed_package(path: Path, expected_bbox: BBox, expected_mesh_bboxes: dict[int, BBox]) -> None:
     validate_3mf_package(path, expected_bbox, expected_mesh_bboxes)
-    validate_model_parts(path, {1: ("transport_case_shallow_lid_debossed_branding", "1")})
+    validate_model_parts(path, {1: ("protective_case_checkfit_shallow_lid_debossed_branding", "1")})
 
 
 def validate_shallow_lid_multicolor_package(path: Path, expected_bbox: BBox, expected_mesh_bboxes: dict[int, BBox]) -> None:
@@ -142,8 +142,8 @@ def validate_shallow_lid_multicolor_package(path: Path, expected_bbox: BBox, exp
     validate_model_parts(
         path,
         {
-            1: ("transport_case_shallow_lid_body", "1"),
-            2: ("transport_case_shallow_lid_logo", "2"),
-            3: ("transport_case_shallow_lid_wordmark", "2"),
+            1: ("protective_case_checkfit_shallow_lid_body", "1"),
+            2: ("protective_case_checkfit_shallow_lid_logo", "2"),
+            3: ("protective_case_checkfit_shallow_lid_wordmark", "2"),
         },
     )

@@ -148,3 +148,77 @@ To revert generated top artifacts from automation, prefer the checked wrapper:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/revert_top_artifacts_checked.ps1
 ```
+
+## Protective-case check-fit source
+
+The protective case adapts **Simple and Light Parametric BOX - CadQuery** by
+Andy Wings / `@WingsWorld_2406962`. The retained source is
+`upstream/andy_wings_parametric_box.py`; its source links and modification notes
+are in `upstream/README.md`. Its license is **CC BY-SA, version unspecified by
+controlling source**.
+
+`protective_case_params.json` owns the case dimensions, source normalization,
+face-down reference-top transform, corner restraints, mating interface, foam
+pads, latch dimensions, branding dimensions, and eight output paths. The main
+owners are:
+
+- `generate_protective_case_cadquery.py`: composition and export;
+- `protective_case_geometry.py`: shared parameters and transforms;
+- `protective_case_device_fit.py`: Raspberry/Orange reference-top fit checks;
+- `protective_case_mating_interface.py`: tongue and receiver geometry;
+- `protective_case_corner_restraints.py`: wall-connected shelf supports;
+- `protective_case_bottom_latches.py`: mirrored upstream Clip profiles;
+- `protective_case_foam_landing_pads.py`: wall pad solids;
+- `protective_case_device_orientation.py`: tub-floor orientation guide;
+- `protective_case_branding.py`: debossed and multicolor markings;
+- `validate_protective_case.py`: source and exported-package validation.
+
+The source box is `255.6 x 148.4 x 64.85 mm` with `2.2 mm` walls. The deep
+source half becomes the tub and the shallow half becomes the lid. Project code
+retains the upstream shell, hinge, and Clip profiles while adding the normalized
+mating interface, reversed latch ownership, restraints, pads, and branding.
+
+The instrument placement is CAD-derived, not physically measured. The
+parameter-owned transform rotates the checked-in top 180 degrees around Y, then
+translates it by `[250.8, 4.2, 42.0] mm`. Fit validation builds both fixed top
+variants: `raspberry-pi-zero-2w` and `orange-pi-zero-2w`.
+
+Each ruled shelf support ends at `nominal_shelf_base_z`; the shelf begins
+`0.10 mm` below it. This positive-volume overlap is required for a watertight
+union. Do not replace it with a face-touching boolean. The shelves own Z support;
+replaceable closed-cell foam strips own XY retention.
+
+The deep tub uses a centered logo and floor orientation guide. The shallow lid
+rotates the canonical logo and wordmark solids together by 180 degrees. Deboss
+and multicolor depth are both `0.40 mm`. STEP stays in assembly coordinates;
+STL and 3MF are exterior-down. Single-material 3MF files belong in
+`3mf-single-material/`; true multicolor packages belong in `3mf-multicolor/`.
+All protective-case artifact and embedded part names use the
+`protective_case_checkfit_` prefix.
+
+Run source checks before generation:
+
+```powershell
+python -B -m unittest discover -s hardware/enclosure -p "test_protective_case*.py"
+python -B -m unittest discover -s hardware/enclosure -p "test_cad_source_structure.py"
+python hardware/enclosure/validate_protective_case.py
+node tools/quality/quality-audit.mjs
+```
+
+Generate the eight artifacts through the detached checked route:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_protective_case_artifacts_async.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/protective_case_artifacts_async_status.ps1
+```
+
+The worker log must contain:
+
+```text
+__PROTECTIVE_CASE_GENERATION_DONE__
+__PROTECTIVE_CASE_VALIDATION_DONE__
+```
+
+This remains a check-fit prototype. Inspect a slicer section through the shelf
+join and physically test the disconnected instrument, openings, foam, mating
+interface, hinges, pins, latches, and branding before use.

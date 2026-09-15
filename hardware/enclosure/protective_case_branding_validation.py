@@ -64,7 +64,7 @@ def symmetric_difference_volume(first: cq.Workplane, second: cq.Workplane) -> fl
 
 
 def validate_deep_multicolor_geometry(params: dict, body: cq.Workplane, parts: list[tuple[str, cq.Workplane]]) -> None:
-    expected_names = ["transport_case_deep_tub_logo", "transport_case_deep_tub_device_orientation_guide"]
+    expected_names = ["protective_case_checkfit_deep_tub_logo", "protective_case_checkfit_deep_tub_device_orientation_guide"]
     require([name for name, _ in parts] == expected_names, "deep multicolor parts must contain logo and orientation guide")
     logo, guide = (part for _, part in parts)
     expected_guide = fused_device_orientation_guide_inlay(params)
@@ -134,7 +134,7 @@ def validate_branding(params: dict) -> None:
     reported_boxes = {}
     for name, actual_parts, expected_parts, body, z_min, z_max in face_sets:
         owner_name = "deep_tub" if name.startswith("deep_") else "shallow_lid"
-        expected_names = [f"transport_case_{owner_name}_{mark_name.removeprefix('octessera_')}" for mark_name, _ in expected_parts]
+        expected_names = [f"protective_case_checkfit_{owner_name}_{mark_name.removeprefix('octessera_')}" for mark_name, _ in expected_parts]
         require([part_name for part_name, _ in actual_parts] == expected_names, f"{name} branding names changed")
         body_box = shape_box(body)
         for (actual_name, actual), (_, expected) in zip(actual_parts, expected_parts):
@@ -148,7 +148,7 @@ def validate_branding(params: dict) -> None:
             require(body_box.xmin - TOLERANCE <= actual_box.xmin <= actual_box.xmax <= body_box.xmax + TOLERANCE, f"{name} {actual_name} exceeds body X footprint")
             require(body_box.ymin - TOLERANCE <= actual_box.ymin <= actual_box.ymax <= body_box.ymax + TOLERANCE, f"{name} {actual_name} exceeds body Y footprint")
             require(body_box.zmin - TOLERANCE <= actual_box.zmin <= actual_box.zmax <= body_box.zmax + TOLERANCE, f"{name} {actual_name} exceeds body Z footprint")
-            reported_boxes[f"{name}_{actual_name.removeprefix('transport_case_')}"] = actual_box
+            reported_boxes[f"{name}_{actual_name.removeprefix('protective_case_checkfit_')}"] = actual_box
         if len(actual_parts) == 2:
             require(intersection_volume(actual_parts[0][1], actual_parts[1][1]) <= VOLUME_TOLERANCE, f"{name} logo and wordmark overlap")
 

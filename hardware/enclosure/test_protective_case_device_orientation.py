@@ -9,7 +9,7 @@ import cadquery as cq
 try:
     from . import generate_protective_case_cadquery as cad
     from . import protective_case_device_orientation as orientation
-    from .protective_case_device_fit import build_canonical_face_down_device
+    from .protective_case_device_fit import build_face_down_reference_top
     from .protective_case_branding_validation import symmetric_difference_volume
     from .protective_case_device_orientation import (
         GUIDE_CENTER,
@@ -38,7 +38,7 @@ try:
 except ImportError:
     import generate_protective_case_cadquery as cad
     import protective_case_device_orientation as orientation
-    from protective_case_device_fit import build_canonical_face_down_device
+    from protective_case_device_fit import build_face_down_reference_top
     from protective_case_branding_validation import symmetric_difference_volume
     from protective_case_device_orientation import GUIDE_CENTER, GUIDE_EXPECTED_BBOX, GUIDE_SCALE, GUIDE_STROKE, GUIDE_Z_MAX, GUIDE_Z_MIN, TURNAROUND_ARROW_FLAT_TIP, TURNAROUND_ARROW_LENGTH, TURNAROUND_ARROW_OVERLAP, TURNAROUND_ARROW_WIDTH, TURNAROUND_ARCS, TURNAROUND_CENTER, TURNAROUND_CENTERLINE_RADIUS, TURNAROUND_EXPECTED_BBOX, TURNAROUND_FLOOR_ATTACHMENT_VOLUME, TURNAROUND_SOURCE_CENTER, device_orientation_guide_components, device_orientation_guide_inlay_components, device_orientation_turnaround_arrow_components, orientation_guide_layout, validate_device_orientation
     from protective_case_geometry import load_parameters
@@ -52,7 +52,7 @@ class ProtectiveCaseDeviceOrientationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.params = load_parameters()
-        cls.device = build_canonical_face_down_device()
+        cls.device = build_face_down_reference_top(cls.params, "raspberry-pi-zero-2w")
         cls.base_tub = cad.build_deep_tub_base(cls.params)
         cls.final_tub = cad.build_deep_tub(cls.params)
 
@@ -138,13 +138,13 @@ class ProtectiveCaseDeviceOrientationTests(unittest.TestCase):
         self.assertTrue(all(center[0] > GUIDE_CENTER[0] for center, _ in layout.encoders))
 
     def test_west_arrow_mutation_is_rejected_as_opposite_control_side(self) -> None:
-        west_center = orientation.face_down_transport_xy(TURNAROUND_SOURCE_CENTER)
+        west_center = orientation.face_down_reference_xy(TURNAROUND_SOURCE_CENTER, self.params)
         with patch.object(orientation, "TURNAROUND_CENTER", west_center):
             with self.assertRaisesRegex(ValueError, "screen/encoder control side"):
                 orientation.validate_device_orientation(self.params, self.final_tub, self.device, self.base_tub)
 
     def test_turnaround_move_preserves_body_bbox_and_first_layer(self) -> None:
-        west_center = orientation.face_down_transport_xy(TURNAROUND_SOURCE_CENTER)
+        west_center = orientation.face_down_reference_xy(TURNAROUND_SOURCE_CENTER, self.params)
         with patch.object(orientation, "TURNAROUND_CENTER", west_center):
             previous_tub = cad.build_deep_tub(self.params)
             previous_arrows = orientation.device_orientation_turnaround_arrow_components(self.params)

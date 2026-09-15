@@ -107,13 +107,16 @@ def shelf_contact_component(restraint: CornerRestraint, params: dict) -> cq.Work
 def continuous_shelf_support(restraint: CornerRestraint, params: dict) -> cq.Workplane:
     spec = params["corner_restraints"]
     lower_z = spec["support_lower_z"]
-    upper_z = restraint.nominal_shelf_base_z - spec["shelf_overlap"]
+    shelf_z_min = restraint.nominal_shelf_base_z - spec["shelf_overlap"]
     return (
         cq.Workplane("XY")
         .workplane(offset=lower_z)
         .polyline(list(restraint.support_lower_polygon))
         .close()
-        .workplane(offset=upper_z - lower_z)
+        .workplane(offset=shelf_z_min - lower_z)
+        .polyline(list(restraint.support_upper_polygon))
+        .close()
+        .workplane(offset=spec["shelf_overlap"])
         .polyline(list(restraint.support_upper_polygon))
         .close()
         .loft(combine=True, ruled=True)
@@ -324,7 +327,13 @@ def validate_corner_restraints(
         shelf = shelf_contact_component(restraint, params)
         _valid_single(pad, f"{name} shelf pad")
         _valid_shell_solid(shelf, f"{name} shelf")
+        support_shelf_join = _intersection_volume(support, shelf)
+        if support_shelf_join <= VOLUME_TOLERANCE:
+            raise ValueError(f"{name} support and shelf have no positive-volume overlap")
         pad_box = cast(cq.Shape, pad.val()).BoundingBox()
+        support_box = cast(cq.Shape, support.val()).BoundingBox()
+        if abs(support_box.zmax - pad_box.zmin - specs["shelf_overlap"]) > 0.01:
+            raise ValueError(f"{name} support/shelf overlap does not match shelf_overlap")
         pad_z_min = restraint.nominal_shelf_base_z - specs["shelf_overlap"]
         pad_bounds = (min(point[0] for point in restraint.shelf_polygon), max(point[0] for point in restraint.shelf_polygon), min(point[1] for point in restraint.shelf_polygon), max(point[1] for point in restraint.shelf_polygon))
         for actual, expected, label in (
