@@ -4,8 +4,10 @@ from types import SimpleNamespace as Measures
 import cadquery as cq
 
 # Adapted from “Simple and Light Parametric BOX – CadQuery” by Andy Wings /
-# @WingsWorld_2406962. CC BY-SA, version unspecified by controlling source.
-# Octessera changes: reusable construction, configurable clip placement,
+# @WingsWorld_2406962.
+# Source: https://www.printables.com/model/1069138-simple-and-light-parametric-box-cadquery
+# License: CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+# Octessera adapted and modified it with reusable construction, configurable clip placement,
 # conditional horizontal chamfer, and guarded default export.
 
 # ===== (1) Measures =====

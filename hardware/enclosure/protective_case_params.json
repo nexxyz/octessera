@@ -4,9 +4,10 @@
     "source_model": "hardware/enclosure/upstream/andy_wings_parametric_box.py adapted from Andy Wings / @WingsWorld_2406962 model 1069138",
     "source_urls": [
       "https://www.printables.com/model/1069138-simple-and-light-parametric-box-cadquery",
-      "https://www.thingiverse.com/thing:6842165"
+      "https://www.thingiverse.com/thing:6842165",
+      "https://creativecommons.org/licenses/by-sa/4.0/"
     ],
-    "license": "CC BY-SA, version unspecified by controlling source",
+    "license": "CC BY-SA 4.0",
     "project_changes": "Octessera adds continuous corner shelf supports, device keepout validation, branding, a full-height rounded normalized mating interface, and reversed protective-case latch ownership; the copied source is minimally adapted only to skip the horizontal chamfer when chamfer_xy is zero, while default dimensions, hinge, Clip, and source regressions remain unchanged."
   },
   "parametric_box": {
