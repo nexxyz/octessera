@@ -7,8 +7,8 @@ from typing import Callable
 from test_orange_image_proof_support import REPOSITORY, copy_fixture_root, root_args, run_proof, verifier_args, write
 
 
-def run_security_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path) -> None:
-    args = verifier_args(root, image, dtb, evidence, provenance)
+def run_security_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path, manifest: Path) -> None:
+    args = verifier_args(root, image, dtb, evidence, provenance, manifest=manifest)
     validator = REPOSITORY / "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
 
     def reject_terminal_fixture(name: str, mutate: Callable[[Path], object]) -> None:

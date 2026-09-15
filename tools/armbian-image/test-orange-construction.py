@@ -15,6 +15,7 @@ SETUP_CONTRACT_PATH = ROOT / "resources/image-mutations/orange-pi-zero-2w-setup.
 SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/verify-orange-image.py",
     "tools/armbian-image/orange_boot_contract.py",
+    "tools/armbian-image/orange_kernel_config.py",
     "tools/armbian-image/orange_first_boot_contract.py",
     "tools/armbian-image/orange_boot_inventory.py",
     "tools/armbian-image/orange_boot_selection.py",

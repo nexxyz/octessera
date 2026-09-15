@@ -16,6 +16,9 @@ handoff_directory="${7:-}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 validator="$root/tools/armbian-image/validate-orange-kernel-package.sh"
 manifest="$root/tools/kernel-patches/orange-midi-interface-manifest.json"
+if [[ "${OCTESSERA_ORANGE_TEST_MODE:-}" == 1 && -n "${OCTESSERA_ORANGE_TEST_MANIFEST:-}" ]]; then
+  manifest="$OCTESSERA_ORANGE_TEST_MANIFEST"
+fi
 
 [[ -f "$manifest" ]] || { echo "Missing Orange kernel package manifest: $manifest" >&2; exit 1; }
 [[ -f "$evidence_file" ]] || { echo "Missing Orange kernel package evidence: $evidence_file" >&2; exit 1; }
@@ -30,6 +33,9 @@ actual_evidence="$work/evidence.env"
 validator_args=("$validator" "$image_package" "$dtb_package" --evidence-output "$actual_evidence")
 if [[ -n "$expected_config_sha256" ]]; then
   validator_args+=(--expected-config-sha256 "$expected_config_sha256")
+fi
+if [[ "$manifest" != "$root/tools/kernel-patches/orange-midi-interface-manifest.json" ]]; then
+  validator_args+=(--manifest "$manifest")
 fi
 bash "${validator_args[@]}" >/dev/null
 cmp -- "$actual_evidence" "$evidence_file" || {
@@ -149,6 +155,7 @@ required_evidence = {
     "audio_dtbo_forbidden",
     "packaged_config_expected_sha256",
     "final_config_sha256",
+    "normalized_config_sha256",
     "module_relative_path",
     "module_compressed_sha256",
     "module_decompressed_sha256",
@@ -194,12 +201,12 @@ if evidence["dtb_package_sha256"] != sha256(dtb_package):
     raise SystemExit("Orange DTB package SHA-256 does not match evidence")
 if evidence["dtb_byte_equal"] != "true":
     raise SystemExit("Orange image and DTB package equality evidence is missing")
-expected_packaged_config_sha256 = armbian.get("packaged_config_sha256")
-if not isinstance(expected_packaged_config_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_packaged_config_sha256):
-    raise SystemExit("Orange manifest packaged config SHA-256 is missing or invalid")
-if evidence["packaged_config_expected_sha256"] != expected_packaged_config_sha256:
+expected_packaged_config_normalized_sha256 = armbian.get("packaged_config_normalized_sha256")
+if not isinstance(expected_packaged_config_normalized_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_packaged_config_normalized_sha256):
+    raise SystemExit("Orange manifest packaged normalized config SHA-256 is missing or invalid")
+if evidence["packaged_config_expected_sha256"] != expected_packaged_config_normalized_sha256:
     raise SystemExit("Orange evidence packaged config expectation does not match the manifest")
-for key in ("image_dtb_sha256", "dtb_package_dtb_sha256", "final_config_sha256", "module_compressed_sha256", "module_decompressed_sha256"):
+for key in ("image_dtb_sha256", "dtb_package_dtb_sha256", "final_config_sha256", "normalized_config_sha256", "module_compressed_sha256", "module_decompressed_sha256"):
     if not re.fullmatch(r"[0-9a-f]{64}", evidence[key]):
         raise SystemExit(f"Orange evidence hash is invalid: {key}")
 if evidence["module_vermagic"] != expected_release and not evidence["module_vermagic"].startswith(expected_release + " "):
@@ -210,9 +217,9 @@ if evidence["module_interface_options_marker"] != "f_midi_opts_attr_interface_st
     raise SystemExit("Orange usb_f_midi options interface marker is missing")
 if evidence["module_interface_runtime_marker"] != "midi_interface_string":
     raise SystemExit("Orange usb_f_midi runtime interface marker is missing")
-config_hash_match = evidence["final_config_sha256"] == expected_packaged_config_sha256
-if not config_hash_match and os.environ.get("OCTESSERA_ORANGE_TEST_MODE") != "1":
-    raise SystemExit("Orange packaged final config SHA-256 does not match the manifest")
+config_hash_match = evidence["normalized_config_sha256"] == expected_packaged_config_normalized_sha256
+if not config_hash_match:
+    raise SystemExit("Orange packaged normalized config SHA-256 does not match the manifest")
 
 patch_root = root / "userpatches/kernel/archive/sunxi-6.18"
 patch_one = patch_root / "zzzz-0001-usb-gadget-f-midi-configfs-interface-string.patch"
@@ -301,8 +308,9 @@ lines = [
     f"audio_dtbo_forbidden={evidence['audio_dtbo_forbidden']}",
     f"kernel_config_path={armbian['config_base']['path']}",
     f"kernel_config_source_sha256={armbian['config_base']['sha256']}",
-    f"kernel_config_expected_packaged_sha256={expected_packaged_config_sha256}",
+    f"kernel_config_expected_packaged_sha256={expected_packaged_config_normalized_sha256}",
     f"kernel_config_final_sha256={evidence['final_config_sha256']}",
+    f"kernel_config_normalized_sha256={evidence['normalized_config_sha256']}",
     f"kernel_config_sha256_match={str(config_hash_match).lower()}",
     f"image_dtb_sha256={evidence['image_dtb_sha256']}",
     f"dtb_package_dtb_sha256={evidence['dtb_package_dtb_sha256']}",

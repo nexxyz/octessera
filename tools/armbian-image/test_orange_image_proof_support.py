@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from orange_boot_contract import verify_runtime
+from orange_boot_contract import normalize_kernel_config, verify_runtime
 from stage_notices import stage_notices  # type: ignore[import-not-found]
 
 TOOLS = Path(__file__).resolve().parent
@@ -65,6 +65,26 @@ else
     echo "SSH host keys unchanged"
 fi
 """
+
+
+def assert_kernel_config_normalization() -> None:
+    config = b"CONFIG_BEFORE=y\nCONFIG_RUSTC_VERSION=108500\nCONFIG_AFTER=m\n"
+    normalized = b"CONFIG_BEFORE=y\nCONFIG_RUSTC_VERSION=<normalized>\nCONFIG_AFTER=m\n"
+    assert normalize_kernel_config(config) == normalized
+    assert normalize_kernel_config(config.replace(b"108500", b"108501")) == normalized
+    other = config.replace(b"CONFIG_AFTER=m", b"CONFIG_AFTER=y")
+    assert hashlib.sha256(normalize_kernel_config(other)).hexdigest() != hashlib.sha256(normalized).hexdigest()
+    for invalid in (
+        b"CONFIG_BEFORE=y\nCONFIG_AFTER=m\n",
+        config + b"CONFIG_RUSTC_VERSION=108501\n",
+        config.replace(b"CONFIG_RUSTC_VERSION=108500", b"CONFIG_RUSTC_VERSION=unknown"),
+    ):
+        try:
+            normalize_kernel_config(invalid)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid CONFIG_RUSTC_VERSION fixture was accepted")
 RESIZE_SERVICE = """# Armbian resize filesystem service
 # Resizes partition and filesystem on first/second boot
 # This service may block the boot process for up to 3 minutes
@@ -142,7 +162,7 @@ def make_cpio_initramfs(work: Path, source_root: Path) -> bytes:
     ).stdout
 
 
-def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
+def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path, Path]:
     image_root = work / "image-package"
     dtb_root = work / "dtb-package"
     image_root.mkdir()
@@ -154,7 +174,12 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     )
     write(dtb_root / "DEBIAN/control", f"Package: {DTB_NAME}\nVersion: {REVISION}\nArchitecture: arm64\n")
     kernel = b"synthetic-orange-kernel-" + RELEASE.encode()
-    config = b"# CONFIG_RT_GROUP_SCHED is not set\n" + b"\n".join(line.encode() for line in BUILTIN_CONFIG_LINES) + b"\nCONFIG_MMC_SPI=m\nCONFIG_SND_SEQUENCER=m\n"
+    config = b"# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_RUSTC_VERSION=108500\n" + b"\n".join(line.encode() for line in BUILTIN_CONFIG_LINES) + b"\nCONFIG_MMC_SPI=m\nCONFIG_SND_SEQUENCER=m\n"
+    normalized_config_sha256 = hashlib.sha256(normalize_kernel_config(config)).hexdigest()
+    fixture_manifest = work / "orange-midi-interface-manifest.json"
+    manifest = json.loads((REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json").read_text())
+    manifest["build_frameworks"]["armbian"]["packaged_config_normalized_sha256"] = normalized_config_sha256
+    fixture_manifest.write_text(json.dumps(manifest) + "\n")
     dtb = b"\xd0\x0d\xfe\xedsynthetic-zero2w-dtb"
     base_dts = REPOSITORY / "tools/armbian-image/fixtures/h618-orange-ahub-base.dts"
     stock_dts = REPOSITORY / "tools/armbian-image/fixtures/h618-stock-i2c1-pi.dts"
@@ -345,8 +370,9 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "audio_dts_path": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
         "audio_dts_sha256": sha256(overlay_sources["audio"]),
         "audio_dtbo_forbidden": "octessera-ahub0-pcm5102.dtbo",
-        "packaged_config_expected_sha256": "922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc",
+        "packaged_config_expected_sha256": normalized_config_sha256,
         "final_config_sha256": hashlib.sha256(config).hexdigest(),
+        "normalized_config_sha256": normalized_config_sha256,
         "module_relative_path": MODULE_RELATIVE,
         "module_compressed_sha256": hashlib.sha256(module).hexdigest(),
         "module_decompressed_sha256": hashlib.sha256(module).hexdigest(),
@@ -373,6 +399,10 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "kernel_source_branch": "linux-6.18.y",
         "kernel_source_commit": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5",
         "kernel_release": RELEASE,
+        "kernel_config_expected_packaged_sha256": normalized_config_sha256,
+        "kernel_config_final_sha256": evidence_values["final_config_sha256"],
+        "kernel_config_normalized_sha256": evidence_values["normalized_config_sha256"],
+        "kernel_config_sha256_match": "true",
         "source_lock_path": "userpatches/config/sources/git_sources.json",
         "source_lock_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30",
         "source_lock_source": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
@@ -382,14 +412,14 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "source_lock_effective_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30",
     }
     provenance_path.write_text("\n".join(f"{key}={value}" for key, value in provenance_values.items()) + "\n")
-    return final_root, packages / NATIVE_IMAGE, packages / NATIVE_DTB, evidence_path, provenance_path
+    return final_root, packages / NATIVE_IMAGE, packages / NATIVE_DTB, evidence_path, provenance_path, fixture_manifest
 
 
-def verifier_args(root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path, mode: str = "diagnostic", privileged: bool = False) -> list[str]:
+def verifier_args(root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path, mode: str = "diagnostic", privileged: bool = False, manifest: Path | None = None) -> list[str]:
     command = [sys.executable, str(TOOLS / "verify-orange-image.py")]
     if privileged:
         command = ["sudo", "-n", *command]
-    return [*command, "--root", str(root), "--image-sha256", "a" * 64, "--linux-image", str(image), "--linux-dtb", str(dtb), "--evidence", str(evidence), "--provenance", str(provenance), "--manifest", str(REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json"), "--construction-contract", str(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"), "--boot-proof-mode", "phase5-constructor", "--mode", mode]
+    return [*command, "--root", str(root), "--image-sha256", "a" * 64, "--linux-image", str(image), "--linux-dtb", str(dtb), "--evidence", str(evidence), "--provenance", str(provenance), "--manifest", str(manifest or REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json"), "--construction-contract", str(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"), "--boot-proof-mode", "phase5-constructor", "--mode", mode]
 
 
 def run_proof(args: list[str], expected: bool, cwd: Path | None = None) -> None:
@@ -421,11 +451,11 @@ def replace_option(args: list[str], option: str, value: Path) -> list[str]:
     return result
 
 
-def make_missing_builtin_fixture(work: Path, root: Path, image: Path, evidence: Path, provenance: Path) -> tuple[Path, Path, Path, Path]:
-    negative_root = work / "negative-missing-builtin"
+def make_unrelated_config_fixture(work: Path, root: Path, image: Path, evidence: Path, provenance: Path) -> tuple[Path, Path, Path, Path]:
+    negative_root = work / "negative-unrelated-config"
     copy_fixture_root(root, negative_root)
     config_path = negative_root / f"boot/config-{RELEASE}"
-    config = config_path.read_bytes().replace(b"CONFIG_SPI_SPIDEV=y\n", b"", 1)
+    config = config_path.read_bytes() + b"CONFIG_UNRELATED_FIXTURE=y\n"
     write(config_path, config)
     image_root = work / "negative-image-root"
     subprocess.run(["dpkg-deb", "-R", str(image), str(image_root)], check=True, capture_output=True)
@@ -437,14 +467,14 @@ def make_missing_builtin_fixture(work: Path, root: Path, image: Path, evidence: 
     evidence_lines = []
     for line in evidence.read_text().splitlines():
         key, _, value = line.partition("=")
-        value = {"image_package_sha256": sha256(negative_image), "final_config_sha256": hashlib.sha256(config).hexdigest()}.get(key, value)
+        value = {"image_package_sha256": sha256(negative_image), "final_config_sha256": hashlib.sha256(config).hexdigest(), "normalized_config_sha256": hashlib.sha256(normalize_kernel_config(config)).hexdigest()}.get(key, value)
         evidence_lines.append(f"{key}={value}")
     negative_evidence.write_text("\n".join(evidence_lines) + "\n")
     negative_provenance = work / "negative-provenance.txt"
     provenance_lines = []
     for line in provenance.read_text().splitlines():
         key, _, value = line.partition("=")
-        value = {"image_package_sha256": sha256(negative_image), "evidence_sha256": sha256(negative_evidence)}.get(key, value)
+        value = {"image_package_sha256": sha256(negative_image), "kernel_config_final_sha256": hashlib.sha256(config).hexdigest(), "kernel_config_normalized_sha256": hashlib.sha256(normalize_kernel_config(config)).hexdigest(), "evidence_sha256": sha256(negative_evidence)}.get(key, value)
         provenance_lines.append(f"{key}={value}")
     negative_provenance.write_text("\n".join(provenance_lines) + "\n")
     return negative_root, negative_image, negative_evidence, negative_provenance

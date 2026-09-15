@@ -9,7 +9,7 @@ from pathlib import Path
 from test_orange_image_proof_support import (
     CANONICAL_DTB,
     CANONICAL_IMAGE,
-    make_missing_builtin_fixture,
+    make_unrelated_config_fixture,
     replace_option,
     run_proof,
     run_proof_failure,
@@ -17,11 +17,11 @@ from test_orange_image_proof_support import (
 )
 
 
-def run_image_proof(work: Path, fixture: tuple[Path, Path, Path, Path, Path]) -> None:
-    root, image, dtb, evidence, provenance = fixture
-    args = verifier_args(root, image, dtb, evidence, provenance)
+def run_image_proof(work: Path, fixture: tuple[Path, Path, Path, Path, Path, Path]) -> None:
+    root, image, dtb, evidence, provenance, manifest = fixture
+    args = verifier_args(root, image, dtb, evidence, provenance, manifest=manifest)
     run_proof(args, True)
-    negative_root, negative_image, negative_evidence, negative_provenance = make_missing_builtin_fixture(
+    negative_root, negative_image, negative_evidence, negative_provenance = make_unrelated_config_fixture(
         work, root, image, evidence, provenance
     )
     negative_args = args
@@ -33,8 +33,15 @@ def run_image_proof(work: Path, fixture: tuple[Path, Path, Path, Path, Path]) ->
     ):
         negative_args = replace_option(negative_args, option, value)
     negative_result = subprocess.run(negative_args, capture_output=True, text=True)
-    if negative_result.returncode == 0 or "CONFIG_SPI_SPIDEV=y" not in negative_result.stderr:
+    if negative_result.returncode == 0 or "package kernel config evidence changed" not in negative_result.stderr:
         raise AssertionError(negative_result.stdout + negative_result.stderr)
+
+    false_match_provenance = work / "false-match-provenance.txt"
+    false_match_provenance.write_text(provenance.read_text().replace("kernel_config_sha256_match=true", "kernel_config_sha256_match=false"))
+    run_proof_failure(
+        replace_option(args, "--provenance", false_match_provenance),
+        "package kernel config evidence changed",
+    )
 
     artifact = work / "image-provenance.txt"
     run_proof([*args, "--output", str(artifact)], True)
@@ -51,7 +58,7 @@ def run_image_proof(work: Path, fixture: tuple[Path, Path, Path, Path, Path]) ->
     canonical_dtb = work / CANONICAL_DTB
     shutil.copy2(image, canonical_image)
     shutil.copy2(dtb, canonical_dtb)
-    run_proof(verifier_args(root, canonical_image, canonical_dtb, evidence, provenance), True)
+    run_proof(verifier_args(root, canonical_image, canonical_dtb, evidence, provenance, manifest=manifest), True)
 
     wrong_suffix = "self-consistent-wrong-suffix"
     wrong_image = work / f"{CANONICAL_IMAGE.removesuffix('.deb')}__{wrong_suffix}.deb"
@@ -70,4 +77,4 @@ def run_image_proof(work: Path, fixture: tuple[Path, Path, Path, Path, Path]) ->
         key, _, value = line.partition("=")
         provenance_values[key] = {"image_package_native": wrong_image.name, "dtb_package_native": wrong_dtb.name, "artifact_suffix": wrong_suffix, "evidence_sha256": hashlib.sha256(wrong_evidence.read_bytes()).hexdigest()}.get(key, value)
     wrong_provenance.write_text("\n".join(f"{key}={value}" for key, value in provenance_values.items()) + "\n")
-    run_proof_failure(verifier_args(root, wrong_image, wrong_dtb, wrong_evidence, wrong_provenance), "native package suffix evidence is not manifest-approved")
+    run_proof_failure(verifier_args(root, wrong_image, wrong_dtb, wrong_evidence, wrong_provenance, manifest=manifest), "native package suffix evidence is not manifest-approved")

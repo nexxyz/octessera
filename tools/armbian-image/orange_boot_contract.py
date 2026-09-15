@@ -17,6 +17,7 @@ from typing import Any
 from orange_boot_selection import parse_boot_selectors, safe_resolve
 from orange_audio_proof import verify_audio_overlay
 from orange_first_boot_contract import verify_initial_access, verify_production_first_boot
+from orange_kernel_config import kernel_config_hashes, normalize_kernel_config
 from orange_phase5_proof import verify_selected_initramfs
 from orange_sd_card_proof import verify_orange_sd_card
 from verify_runtime_account import (
@@ -41,6 +42,7 @@ class BootContractError(ValueError):
 SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/verify-orange-image.py",
     "tools/armbian-image/orange_boot_contract.py",
+    "tools/armbian-image/orange_kernel_config.py",
     "tools/armbian-image/orange_first_boot_contract.py",
     "tools/armbian-image/orange_boot_inventory.py",
     "tools/armbian-image/orange_boot_selection.py",
@@ -201,8 +203,12 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
     require(not any(path.is_file() and "octessera-ahub0-pcm5102" in path.name.lower() for path in dtb_root.rglob("*")), "exact linux-dtb package embeds the Octessera audio DTBO")
     config = image_root / f"boot/config-{release}"
     require(config.is_file() and not config.is_symlink(), "exact package kernel config is missing")
-    config_hash = sha256_file(config)
-    require(config_hash == evidence["final_config_sha256"] and evidence["packaged_config_expected_sha256"] == armbian["packaged_config_sha256"], "package kernel config evidence changed")
+    config_bytes = config.read_bytes()
+    try:
+        config_hash, normalized_config_hash = kernel_config_hashes(config_bytes)
+    except ValueError as error:
+        raise BootContractError(f"exact package kernel config normalization failed: {error}") from error
+    require(config_hash == evidence["final_config_sha256"] and normalized_config_hash == evidence["normalized_config_sha256"] and normalized_config_hash == armbian["packaged_config_normalized_sha256"] and evidence["packaged_config_expected_sha256"] == armbian["packaged_config_normalized_sha256"] and provenance.get("kernel_config_expected_packaged_sha256") == armbian["packaged_config_normalized_sha256"] and provenance.get("kernel_config_final_sha256") == config_hash and provenance.get("kernel_config_normalized_sha256") == normalized_config_hash and provenance.get("kernel_config_sha256_match") == "true", "package kernel config evidence changed")
     require(evidence.get("audio_dts_path") == audio["canonical_dts"] and evidence.get("audio_dts_sha256") == audio["canonical_dts_sha256"] and evidence.get("audio_dtbo_forbidden") == audio["dtbo_name"], "Orange audio package evidence changed")
     config_lines = config.read_text(encoding="utf-8").splitlines()
     for line in ("CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y"):
@@ -235,7 +241,7 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
     require(facts["interface_options"] == evidence["module_interface_options_marker"], "package usb_f_midi options marker does not match evidence")
     require(facts["interface_runtime"] == evidence["module_interface_runtime_marker"], "package usb_f_midi runtime marker does not match evidence")
     require(str(modules[0].relative_to(image_root)) == evidence["module_relative_path"], "package usb_f_midi path does not match evidence")
-    return {"release": release, "config_hash": config_hash, "config_lines": config_lines, "kernel": kernel_candidates[0].read_bytes(), "dtb": dtb_payload.read_bytes(), "stock_i2c1_dtbo_path": stock_i2c1_dtbo_path, "stock_i2c1_dtbo_sha256": stock_i2c1_dtbo_sha256, "stock_i2c1_dtbo": stock_i2c1_dtbo.read_bytes(), "module": facts, "module_relative_path": evidence["module_relative_path"], "image_identity": image_identity, "dtb_identity": dtb_identity}
+    return {"release": release, "config_hash": config_hash, "normalized_config_hash": normalized_config_hash, "config_lines": config_lines, "kernel": kernel_candidates[0].read_bytes(), "dtb": dtb_payload.read_bytes(), "stock_i2c1_dtbo_path": stock_i2c1_dtbo_path, "stock_i2c1_dtbo_sha256": stock_i2c1_dtbo_sha256, "stock_i2c1_dtbo": stock_i2c1_dtbo.read_bytes(), "module": facts, "module_relative_path": evidence["module_relative_path"], "image_identity": image_identity, "dtb_identity": dtb_identity}
 
 
 def _verify_symlink(path: Path, root: Path, release: str, label: str) -> None:
@@ -482,9 +488,9 @@ def constructor_proof(root: Path, args: Any, image_hash: str, image_name: str, c
     evidence = read_kv(args.evidence)
     provenance = read_kv(args.provenance)
     evidence["_sha256"], provenance["_sha256"] = sha256_file(args.evidence), sha256_file(args.provenance)
-    required = {"image_package_native_basename", "dtb_package_native_basename", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "image_dtb_sha256", "dtb_package_dtb_sha256", "dtb_byte_equal", "stock_i2c1_dtbo_path", "stock_i2c1_dtbo_sha256", "audio_dts_path", "audio_dts_sha256", "audio_dtbo_forbidden", "packaged_config_expected_sha256", "final_config_sha256", "module_relative_path", "module_compressed_sha256", "module_decompressed_sha256", "module_vermagic", "module_interface_string_marker", "module_interface_options_marker", "module_interface_runtime_marker"}
+    required = {"image_package_native_basename", "dtb_package_native_basename", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "image_dtb_sha256", "dtb_package_dtb_sha256", "dtb_byte_equal", "stock_i2c1_dtbo_path", "stock_i2c1_dtbo_sha256", "audio_dts_path", "audio_dts_sha256", "audio_dtbo_forbidden", "packaged_config_expected_sha256", "final_config_sha256", "normalized_config_sha256", "module_relative_path", "module_compressed_sha256", "module_decompressed_sha256", "module_vermagic", "module_interface_string_marker", "module_interface_options_marker", "module_interface_runtime_marker"}
     require(set(evidence) - {"_sha256"} == required and evidence.get("dtb_byte_equal") == "true", "Orange kernel evidence fields changed")
-    for key in ("image_package", "dtb_package", "image_package_native", "dtb_package_native", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "evidence_sha256", "armbian_build_ref", "armbian_build_tag", "kernel_source_repository", "kernel_source_branch", "kernel_source_commit", "kernel_release", "source_lock_path", "source_lock_sha256", "source_lock_source", "source_lock_branch", "source_lock_commit", "source_lock_effective_path", "source_lock_effective_sha256"):
+    for key in ("image_package", "dtb_package", "image_package_native", "dtb_package_native", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "evidence_sha256", "armbian_build_ref", "armbian_build_tag", "kernel_source_repository", "kernel_source_branch", "kernel_source_commit", "kernel_release", "kernel_config_expected_packaged_sha256", "kernel_config_final_sha256", "kernel_config_normalized_sha256", "kernel_config_sha256_match", "source_lock_path", "source_lock_sha256", "source_lock_source", "source_lock_branch", "source_lock_commit", "source_lock_effective_path", "source_lock_effective_sha256"):
         require(key in provenance, f"Orange kernel provenance omits required field: {key}")
     with tempfile.TemporaryDirectory(prefix="octessera-orange-package-proof-") as temporary:
         package = verify_package_chain(args.linux_image, args.linux_dtb, evidence, provenance, manifest, Path(temporary))

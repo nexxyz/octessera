@@ -60,7 +60,7 @@
         "path": "config/kernel/linux-sunxi64-current.config",
         "sha256": "03a427fed857cc598ef95c5c8a2dccb43bb515d513df1eff9c010e6aa56ab155"
       },
-      "packaged_config_sha256": "922e8037090e2202afdf70d46ea50c29790dcece17b62155c28212e7b6554cbc",
+      "packaged_config_normalized_sha256": "a4e55501c096d1fe6c8b1370bcf9a5c6281354cb978b18c5d2a32019d807ba63",
       "audio_overlay": {
         "canonical_dts": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts",
         "canonical_dts_sha256": "727b9a817de68446c3a536da5641af3292834820fa42755fc3a675788bd13e79",
