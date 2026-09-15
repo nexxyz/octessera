@@ -69,6 +69,12 @@ pub(super) enum DuckSource {
     Bus(usize),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum DuckSourceTap {
+    Pre,
+    Post,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum FxBusParams {
     None,
@@ -112,6 +118,7 @@ pub(super) enum FxBusParams {
     },
     Duck {
         source: DuckSource,
+        source_tap: DuckSourceTap,
         threshold: f32,
         amount: f32,
         attack_ms: f32,
@@ -189,6 +196,7 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
         },
         FxKind::Duck => FxBusParams::Duck {
             source: duck_source_from_config(cfg),
+            source_tap: duck_source_tap_from_config(cfg),
             threshold: param_f32(cfg, "threshold", 0.08)
                 .clamp(DUCK_THRESHOLD_MIN, DUCK_THRESHOLD_MAX),
             amount: param_f32(cfg, "amountPct", 60.0).clamp(DUCK_AMOUNT_MIN, DUCK_AMOUNT_MAX)
@@ -293,6 +301,17 @@ pub(super) fn duck_source_from_config(cfg: &FxBusSlotConfig) -> DuckSource {
         .and_then(|value| value.as_str())
         .unwrap_or("I1");
     parse_duck_source(source)
+}
+
+pub(super) fn duck_source_tap_from_config(cfg: &FxBusSlotConfig) -> DuckSourceTap {
+    match cfg
+        .params()
+        .and_then(|params| params.get("sourceTap"))
+        .and_then(|value| value.as_str())
+    {
+        Some("post") => DuckSourceTap::Post,
+        _ => DuckSourceTap::Pre,
+    }
 }
 
 fn pct(cfg: &FxBusSlotConfig, key: &str, fallback: f32) -> f32 {

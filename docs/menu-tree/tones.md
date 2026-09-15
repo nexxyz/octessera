@@ -47,7 +47,7 @@ Shape
 │   ├── Bus 1..4 (group)
 │   │   ├── Slot 1: Effect (group)
 │   │   │   ├── Type: [none | reverb | delay | tremolo | chorus | flanger | vibrato | auto_pan | filter_lfo | wah | vinyl | eq | compressor | duck | saturator | distortion | bitcrusher | glitch] default none
-│   │   │   └── (effect params, visible per Type; Delay shows `Mix %`, `Spread %`, `Time Mode`, `Time Note`, then `Time ms`)
+│   │   │   └── (effect params, visible per Type; Duck shows `Source`, then `Source Tap: [pre | post]` as `Pre | Post`; Delay shows `Mix %`, `Spread %`, `Time Mode`, `Time Note`, then `Time ms`)
 │   │   ├── Slot 2: Effect (group)
 │   │   │   ├── Type: [same options] default none
 │   │   │   └── (effect params, visible per Type)
@@ -68,7 +68,7 @@ Shape
 
 When an instrument Type is `none`, the slot keeps Type, Auto Label, and Name visible and hides Note Mode, engine-specific groups, Mixer, MIDI, and Slot Actions without deleting stored config.
 
-Routing semantics:
+### Routing semantics
 
 - Instrument `Volume` is a post-voice per-slot fader controlled by `Play > Mix`.
 - Instrument `Route=direct` sends post-fader output to main mix using instrument `Pan Pos`.
@@ -79,6 +79,7 @@ Routing semantics:
 - FX bus assignments above the recommended active bus warning budget of 12 active bus FX slots are accepted and saved, but the runtime shows a toast warning. Global stereo FX slots do not count toward the bus FX warning budget.
 - Global FX is intentionally limited to `none | vinyl | eq | compressor | saturator | distortion` for current Pi Zero 2 W performance targets.
 - Bus Delay timing stores `Time Mode` (`ms` or `note`), `Time Note`, and a materialized `Time ms`. In note mode, BPM changes re-materialize `Time ms` from the saved note. In ms mode, `Time ms` is manual and does not retime. Audio/runtime commands receive `timeMs` only; `Time Mode` and `Time Note` are patch metadata and are not bindable targets. `Spread %` widens only the final FX bus output; the bus input and FX slot chain stay mono.
+- Duck `Source Tap` stores `pre` or `post` per FX slot and displays `Pre` or `Post`. For an Instrument source, `Pre` is the raw source before its fader; `Post` applies its fader before instrument-target momentary FX and pan. For a Bus source, `Pre` is the bus input before its fader and Slot 1→2→3 chain; `Post` applies that bus fader to the same pre-chain input. A bus input already includes routed instruments' faders and instrument-target momentary FX. Both modes exclude source-bus slot FX, bus-target momentary FX, spread/pan, global FX, and master volume. Missing values in legacy patches behave as `Pre`.
 - Selecting a slot `Type` initializes that effect's editable parameter defaults immediately; loaded presets/defaults with missing or invalid effect params are repaired to those defaults.
 - Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) but displayed as approximate tail time in seconds (for example `3.1s`) in menu items and aux encoder toasts.
 - Bus output is scaled by bus `Volume`, panned by bus `Pan Pos`, and summed to main mix.

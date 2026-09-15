@@ -1,3 +1,4 @@
+use super::duck_source::resolve_duck_source;
 use super::*;
 
 const FX_BUS_SPREAD_DELAY_MS: f32 = 7.0;
@@ -133,12 +134,17 @@ impl SynthEngine {
                 self.observe_bus_chain(bus_idx, bus_input, 0.0);
                 continue;
             }
-            let mut bus_output = self.bus_chains[bus_idx].process(
-                bus_input,
-                slot_out,
-                &self.bus_mono_snapshot,
-                self.sample_rate,
-            );
+            let resolved_duck = std::array::from_fn(|slot| {
+                resolve_duck_source(
+                    self.bus_chains[bus_idx].slot_params[slot],
+                    slot_out,
+                    &self.slot_volume,
+                    &self.bus_mono_snapshot,
+                    &self.bus_volume,
+                )
+            });
+            let mut bus_output =
+                self.bus_chains[bus_idx].process(bus_input, &resolved_duck, self.sample_rate);
             let chain_output = bus_output.mono;
             self.observe_bus_chain(bus_idx, bus_input, chain_output);
             let input_present = self.signal_present_mono(bus_input);

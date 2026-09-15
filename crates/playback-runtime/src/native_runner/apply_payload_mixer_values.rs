@@ -98,6 +98,13 @@ pub(super) fn apply_fx_bus_slot_payload(
     if let Some(params) = slot.get("params").filter(|params| params.is_object()) {
         *slot_params = sanitized_fx_params(params, slot_type, bpm);
     }
+    if slot_type == "duck" && slot.get("params").is_none() {
+        if let Some(object) = slot_params.as_object_mut() {
+            object
+                .entry("sourceTap")
+                .or_insert_with(|| Value::from("pre"));
+        }
+    }
 }
 
 pub(super) fn apply_global_fx_payload(
@@ -124,7 +131,19 @@ fn sanitized_fx_params(params: &Value, slot_type: &str, bpm: u16) -> Value {
     if slot_type == "delay" {
         crate::delay_timing::normalized_delay_params(params, bpm)
     } else {
-        crate::delay_timing::strip_invalid_timing_metadata(params)
+        let mut params = crate::delay_timing::strip_invalid_timing_metadata(params);
+        if slot_type == "duck" {
+            let Some(object) = params.as_object_mut() else {
+                return params;
+            };
+            if !matches!(
+                object.get("sourceTap").and_then(Value::as_str),
+                Some("pre" | "post")
+            ) {
+                object.insert("sourceTap".into(), Value::from("pre"));
+            }
+        }
+        params
     }
 }
 

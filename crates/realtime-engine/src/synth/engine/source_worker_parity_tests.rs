@@ -1,7 +1,7 @@
 use super::*;
 
 use super::source_worker_test_fixtures::{
-    assert_worker_matches_inline, dynamic_engine, full_mixed_engine,
+    assert_worker_matches_inline, duck_post_engine, dynamic_engine, full_mixed_engine,
 };
 
 const SUPPORTED_QUANTA: [usize; 5] = [32, 64, 128, 256, 2048];
@@ -36,6 +36,75 @@ fn persistent_workers_match_inline_at_supported_quanta_with_transitions() {
             .is_some());
         inline.note_off(1, 60);
         assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, frames);
+        let retirement = runtime.retire();
+        assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
+    }
+}
+
+#[test]
+fn persistent_workers_match_inline_for_post_duck_sources() {
+    let mut worker = duck_post_engine("I2", "B2");
+    let mut inline = duck_post_engine("I2", "B2");
+    for engine in [&mut worker, &mut inline] {
+        engine.note_on(0, 36, 100, 5_000);
+        engine.note_on(1, 60, 100, 5_000);
+        engine.note_on(2, 67, 100, 5_000);
+    }
+    assert_eq!(worker.slot_volume[1], 0.25);
+    assert_eq!(worker.slot_volume[2], 0.5);
+    assert_eq!(worker.bus_volume[1], 0.7);
+
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
+    runtime.set_deadline_for_test(TEST_DEADLINE);
+    let mut worker_left = Vec::new();
+    let mut worker_right = Vec::new();
+    let mut worker_out = Vec::new();
+    let mut inline_left = Vec::new();
+    let mut inline_right = Vec::new();
+    let mut inline_out = Vec::new();
+    worker.render_interleaved_block_with_source_runtime(
+        &mut runtime,
+        128,
+        &mut worker_left,
+        &mut worker_right,
+        &mut worker_out,
+    );
+    inline.render_interleaved_block(128, &mut inline_left, &mut inline_right, &mut inline_out);
+    assert_eq!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::Healthy
+    );
+    assert_eq!(worker_out.len(), inline_out.len());
+    for (index, (actual, expected)) in worker_out.iter().zip(inline_out).enumerate() {
+        assert_eq!(actual.to_bits(), expected.to_bits(), "sample {index}");
+    }
+    assert!(worker_out.iter().any(|sample| sample.abs() > 0.0001));
+    let retirement = runtime.retire();
+    assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
+}
+
+#[test]
+fn persistent_workers_keep_invalid_duck_sources_on_safe_fallbacks() {
+    for (instrument_source, bus_source) in [
+        ("I0", "B2"),
+        ("I999", "B2"),
+        ("wat", "B2"),
+        ("I2", "B0"),
+        ("I2", "B999"),
+        ("I2", "wat"),
+    ] {
+        let mut worker = duck_post_engine(instrument_source, bus_source);
+        let mut inline = duck_post_engine(instrument_source, bus_source);
+        for engine in [&mut worker, &mut inline] {
+            engine.note_on(0, 36, 100, 5_000);
+            engine.note_on(1, 60, 100, 5_000);
+            engine.note_on(2, 67, 100, 5_000);
+        }
+        let (lifecycle, mut runtime) =
+            SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
+        runtime.set_deadline_for_test(TEST_DEADLINE);
+        assert_worker_matches_inline(&mut runtime, &mut worker, &mut inline, 64);
         let retirement = runtime.retire();
         assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
     }

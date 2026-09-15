@@ -105,6 +105,9 @@ pub(super) fn apply_fx_param_menu_state(
     if let Some(source) = menu.value_for_key(&format!("{prefix}.source")) {
         map.insert("source".into(), json!(source));
     }
+    if let Some(source_tap) = menu.value_for_key(&format!("{prefix}.sourceTap")) {
+        map.insert("sourceTap".into(), json!(source_tap));
+    }
     for (key, scale) in [
         ("threshold", 100.0),
         ("amountPct", 1.0),

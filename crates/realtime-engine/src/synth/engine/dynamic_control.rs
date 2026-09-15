@@ -195,6 +195,7 @@ impl SynthEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::synth::fx_params::{DuckSource, DuckSourceTap};
     use crate::synth::{BusIdleThreshold, WorkerWarningThreshold};
 
     #[test]
@@ -329,5 +330,59 @@ mod tests {
                 .collect(),
         );
         assert!(engine.render_plan.generation > duck_generation);
+    }
+
+    #[test]
+    fn duck_source_tap_change_preserves_plan_generation_and_state() {
+        let mut engine = SynthEngine::new(48_000);
+        engine.set_instruments(InstrumentsConfig {
+            instruments: Vec::new(),
+            mixer: Some(MixerConfig {
+                buses: vec![FxBusConfig {
+                    slots: vec![FxBusSlotConfig::Config {
+                        kind: "duck".into(),
+                        params: [
+                            ("source".into(), serde_json::json!("I1")),
+                            ("sourceTap".into(), serde_json::json!("pre")),
+                        ]
+                        .into_iter()
+                        .collect(),
+                    }],
+                    ..FxBusConfig::default()
+                }],
+                master: None,
+            }),
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        });
+        let initial_plan = engine.render_plan.clone();
+        engine.bus_chains[0].slot_state[0] = FxBusState::Duck { env: 0.37 };
+
+        engine.set_fx_bus_slot(
+            0,
+            0,
+            "duck".into(),
+            [
+                ("source".into(), serde_json::json!("I1")),
+                ("sourceTap".into(), serde_json::json!("post")),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        assert_eq!(engine.render_plan, initial_plan);
+        assert_eq!(engine.bus_chains[0].active_slot_count, 1);
+        assert!(matches!(
+            engine.bus_chains[0].slot_params[0],
+            FxBusParams::Duck {
+                source: DuckSource::Instrument(0),
+                source_tap: DuckSourceTap::Post,
+                ..
+            }
+        ));
+        assert!(matches!(
+            engine.bus_chains[0].slot_state[0],
+            FxBusState::Duck { env } if env.to_bits() == 0.37_f32.to_bits()
+        ));
     }
 }

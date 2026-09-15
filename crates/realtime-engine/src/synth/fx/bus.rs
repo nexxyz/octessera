@@ -1,12 +1,11 @@
 use super::algorithms::*;
-use super::{fx_bus_state_from_params, FxBusParams, FxBusState, INSTRUMENT_SLOT_COUNT, PI};
+use super::{fx_bus_state_from_params, FxBusParams, FxBusState, PI};
 
 pub(in crate::synth) fn process_fx_bus_slot(
     params: &FxBusParams,
     state: &mut FxBusState,
     input: f32,
-    slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
-    bus_in: &[f32],
+    resolved_duck_source: f32,
     sample_rate: u32,
 ) -> f32 {
     match *params {
@@ -95,23 +94,21 @@ pub(in crate::synth) fn process_fx_bus_slot(
             input
         }
         FxBusParams::Duck {
-            source,
             threshold,
             amount,
             attack_ms,
             release_ms,
-        } => process_duck(
+            ..
+        } => process_duck_source(
             state,
             input,
             DuckParams {
-                source,
                 threshold,
                 amount,
                 attack_ms,
                 release_ms,
             },
-            slot_out,
-            bus_in,
+            resolved_duck_source,
             sample_rate,
         ),
         FxBusParams::Saturator { drive, mix } => process_saturator(input, drive, mix),
@@ -184,44 +181,4 @@ pub(in crate::synth) fn process_fx_bus_slot(
             )
         }
     }
-}
-
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
-pub(in crate::synth) fn process_fx_bus_slot_with_duck_source(
-    params: &FxBusParams,
-    state: &mut FxBusState,
-    input: f32,
-    duck_source: f32,
-    sample_rate: u32,
-) -> f32 {
-    let FxBusParams::Duck {
-        source,
-        threshold,
-        amount,
-        attack_ms,
-        release_ms,
-    } = *params
-    else {
-        return process_fx_bus_slot(
-            params,
-            state,
-            input,
-            &[0.0; INSTRUMENT_SLOT_COUNT],
-            &[],
-            sample_rate,
-        );
-    };
-    process_duck_source(
-        state,
-        input,
-        DuckParams {
-            source,
-            threshold,
-            amount,
-            attack_ms,
-            release_ms,
-        },
-        duck_source,
-        sample_rate,
-    )
 }

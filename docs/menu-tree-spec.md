@@ -26,6 +26,8 @@ Root (group)
 - [Play](menu-tree/sparks.md)
 - [System](menu-tree/system.md)
 
+The Shape FX bus tree stores Duck `Source Tap` as `pre|post` and displays it as `Pre|Post`; omitted legacy values behave as `Pre`. Exact tap points and excluded stages are defined in [Shape routing semantics](menu-tree/tones.md#routing-semantics).
+
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 
 The System section puts the direct Save Current and dynamic Load Preset shortcut group, followed

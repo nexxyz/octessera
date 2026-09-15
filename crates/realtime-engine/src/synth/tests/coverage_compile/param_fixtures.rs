@@ -1,5 +1,5 @@
 pub(super) use crate::synth::fx_params::{
-    compile_fx_bus_params, DuckSource, FilterLfoKind, FxBusParams,
+    compile_fx_bus_params, parse_duck_source, DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams,
 };
 pub(super) use serde_json::json;
 pub(super) use std::collections::BTreeMap;

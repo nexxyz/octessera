@@ -48,7 +48,7 @@ pub(super) fn fx_field_kind(field: &str) -> Option<(TargetValueKind, bool)> {
     if !FX_FIELDS.contains(&field) {
         return None;
     }
-    if field == "source" {
+    if matches!(field, "source" | "sourceTap") {
         return Some((TargetValueKind::Enum, true));
     }
     if matches!(field, "timeMode" | "timeNote") {
@@ -167,6 +167,7 @@ const INSTRUMENT_ADDITIVE_FIELDS: &[&str] = &[
 
 const FX_FIELDS: &[&str] = &[
     "source",
+    "sourceTap",
     "threshold",
     "amountPct",
     "attackMs",

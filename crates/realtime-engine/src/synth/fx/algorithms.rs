@@ -14,7 +14,6 @@ pub(in crate::synth) use vinyl::VinylState;
 pub(super) use vinyl::{process_vinyl_mono_bus, process_vinyl_stereo, VinylParams};
 
 pub(super) struct DuckParams {
-    pub(super) source: DuckSource,
     pub(super) threshold: f32,
     pub(super) amount: f32,
     pub(super) attack_ms: f32,
@@ -89,21 +88,6 @@ pub(super) fn process_glitch(
     };
     *idx = (*idx + 1) % buf.len();
     input * (1.0 - mix) + wet * mix
-}
-
-pub(super) fn process_duck(
-    state: &mut FxBusState,
-    input: f32,
-    params: DuckParams,
-    slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
-    bus_in: &[f32],
-    sample_rate: u32,
-) -> f32 {
-    let sc = match params.source {
-        DuckSource::Instrument(idx) => slot_out.get(idx).copied().unwrap_or(0.0),
-        DuckSource::Bus(idx) => bus_in.get(idx).copied().unwrap_or(0.0),
-    };
-    process_duck_source(state, input, params, sc, sample_rate)
 }
 
 pub(super) fn process_duck_source(

@@ -128,7 +128,7 @@ pub(super) fn fx_default_params(slot_type: &str) -> Value {
         "wah" => json!({ "rateHz": 1.2, "centerHz": 900, "depthPct": 70, "q": 6 }),
         "filter_lfo" => json!({ "rateHz": 0.5, "centerHz": 1600, "depthPct": 70, "q": 1 }),
         "duck" => {
-            json!({ "source": "I1", "threshold": 0.08, "amountPct": 60, "attackMs": 8, "releaseMs": 160 })
+            json!({ "source": "I1", "sourceTap": "pre", "threshold": 0.08, "amountPct": 60, "attackMs": 8, "releaseMs": 160 })
         }
         "bitcrusher" => json!({ "rateDiv": 4, "bits": 6, "mixPct": 100 }),
         "saturator" => json!({ "drive": 1.8, "mixPct": 100 }),

@@ -3,8 +3,7 @@ use super::super::fx::{
     master_fx_state_matches_params, process_fx_bus_slot, process_master_fx_slot, FxBusState,
     MasterFxState,
 };
-use super::super::fx_params::{DuckSource, FilterLfoKind, FxBusParams};
-use super::*;
+use super::super::fx_params::{DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams};
 
 #[test]
 fn fx_state_factories_and_matchers_cover_supported_variants() {
@@ -50,6 +49,7 @@ fn fx_state_factories_and_matchers_cover_supported_variants() {
         },
         FxBusParams::Duck {
             source: DuckSource::Instrument(0),
+            source_tap: DuckSourceTap::Pre,
             threshold: 0.1,
             amount: 0.5,
             attack_ms: 10.0,
@@ -162,8 +162,6 @@ fn fx_state_factories_and_matchers_cover_supported_variants() {
 
 #[test]
 fn process_fx_paths_stay_finite_across_bus_and_master_slots() {
-    let slot_out = [0.75; INSTRUMENT_SLOT_COUNT];
-    let bus_in = [0.5, 0.25];
     let bus_params = [
         FxBusParams::None,
         FxBusParams::Tremolo {
@@ -206,6 +204,7 @@ fn process_fx_paths_stay_finite_across_bus_and_master_slots() {
         },
         FxBusParams::Duck {
             source: DuckSource::Bus(0),
+            source_tap: DuckSourceTap::Pre,
             threshold: 0.1,
             amount: 0.6,
             attack_ms: 5.0,
@@ -251,8 +250,8 @@ fn process_fx_paths_stay_finite_across_bus_and_master_slots() {
 
     for param in bus_params {
         let mut state = FxBusState::None;
-        let first = process_fx_bus_slot(&param, &mut state, 0.5, &slot_out, &bus_in, 48_000);
-        let second = process_fx_bus_slot(&param, &mut state, 0.25, &slot_out, &bus_in, 48_000);
+        let first = process_fx_bus_slot(&param, &mut state, 0.5, 0.5, 48_000);
+        let second = process_fx_bus_slot(&param, &mut state, 0.25, 0.5, 48_000);
         assert!(first.is_finite());
         assert!(second.is_finite());
     }

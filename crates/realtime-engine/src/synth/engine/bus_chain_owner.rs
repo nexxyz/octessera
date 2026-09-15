@@ -1,9 +1,7 @@
 use super::super::dsp_config::BusIdleThreshold;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
-use super::super::fx::process_fx_bus_slot_with_duck_source;
 use super::super::fx::{fx_bus_state_matches_params, process_fx_bus_slot, FxBusState};
 use super::super::fx_params::{FxBusParams, FxKind};
-use super::super::types::{BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
+use super::super::types::BUS_SLOTS_PER_BUS;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 use super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
 
@@ -179,8 +177,7 @@ impl BusChainOwner {
     pub(super) fn process(
         &mut self,
         input: f32,
-        slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
-        bus_mono_snapshot: &[f32],
+        resolved_duck: &[f32; BUS_SLOTS_PER_BUS],
         sample_rate: u32,
     ) -> BusChainFrameOutput {
         let mut processed = input;
@@ -196,8 +193,7 @@ impl BusChainOwner {
                 &self.slot_params[slot_index],
                 &mut self.slot_state[slot_index],
                 processed,
-                slot_out,
-                bus_mono_snapshot,
+                resolved_duck[slot_index],
                 sample_rate,
             );
             match (&self.slot_params[slot_index], &self.slot_state[slot_index]) {
@@ -255,7 +251,7 @@ impl BusChainOwner {
                 .take(self.active_slot_count)
                 .copied()
             {
-                processed = process_fx_bus_slot_with_duck_source(
+                processed = process_fx_bus_slot(
                     &self.slot_params[slot_index],
                     &mut self.slot_state[slot_index],
                     processed,

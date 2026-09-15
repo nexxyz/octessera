@@ -1,5 +1,6 @@
 use super::super::super::types::{MomentaryFxTarget, BUS_COUNT, INSTRUMENT_SLOT_COUNT};
 use super::super::bus_chain_owner::BusChainOwner;
+use super::super::duck_source::resolve_duck_source;
 use super::super::inline_source_executor::SourceRenderOutput;
 use super::super::render_plan::RenderPlanRoute;
 use super::super::routing_tree_plan::RoutingTreePlan;
@@ -232,12 +233,16 @@ impl SynthEngine {
                 self.observe_bus_chain(bus, input, 0.0);
                 continue;
             }
-            let output = self.bus_chains[bus].process(
-                input,
-                raw_slot_out,
-                &bus_input_snapshot,
-                self.sample_rate,
-            );
+            let resolved_duck = std::array::from_fn(|slot| {
+                resolve_duck_source(
+                    self.bus_chains[bus].slot_params[slot],
+                    raw_slot_out,
+                    &self.slot_volume,
+                    &bus_input_snapshot,
+                    &self.bus_volume,
+                )
+            });
+            let output = self.bus_chains[bus].process(input, &resolved_duck, self.sample_rate);
             self.observe_bus_chain(bus, input, output.mono);
             let input_present = self.signal_present_mono(input);
             let output_present = self.signal_present_mono(output.mono);
