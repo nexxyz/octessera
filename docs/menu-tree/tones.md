@@ -80,7 +80,7 @@ Routing semantics:
 - Global FX is intentionally limited to `none | vinyl | eq | compressor | saturator | distortion` for current Pi Zero 2 W performance targets.
 - Bus Delay timing stores `Time Mode` (`ms` or `note`), `Time Note`, and a materialized `Time ms`. In note mode, BPM changes re-materialize `Time ms` from the saved note. In ms mode, `Time ms` is manual and does not retime. Audio/runtime commands receive `timeMs` only; `Time Mode` and `Time Note` are patch metadata and are not bindable targets. `Spread %` widens only the final FX bus output; the bus input and FX slot chain stay mono.
 - Selecting a slot `Type` initializes that effect's editable parameter defaults immediately; loaded presets/defaults with missing or invalid effect params are repaired to those defaults.
-- Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) but displayed as approximate tail time in seconds (for example `3.1s`) in menu rows and aux encoder toasts.
+- Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) but displayed as approximate tail time in seconds (for example `3.1s`) in menu items and aux encoder toasts.
 - Bus output is scaled by bus `Volume`, panned by bus `Pan Pos`, and summed to main mix.
 - `duck` source options are stable and capability-sized: `I1..I{instrumentCount}` and `B1..B{busCount}`.
 - `auto-pan` modulates the bus stereo output position after the slot chain.
