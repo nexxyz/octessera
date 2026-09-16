@@ -11,6 +11,7 @@ try:
     from .protective_case_mating_interface import (
         apply_deep_mating_interface,
         apply_shallow_mating_interface,
+        component_added_volumes,
         corner_fill_components,
         corrected_outer_bbox_delta,
         deep_receiver_components,
@@ -30,7 +31,7 @@ try:
 except ImportError:
     import generate_protective_case_cadquery as cad
     from protective_case_geometry import hinge_centers, load_parameters, normalize_source_half
-    from protective_case_mating_interface import apply_deep_mating_interface, apply_shallow_mating_interface, corner_fill_components, corrected_outer_bbox_delta, deep_receiver_components, hinge_profile_symmetric_difference, lip_corner_relief_components, main_cavity_prism, minimum_normal_corner_wall, opening_prism, original_diagonal_clash, receiver_exterior_lands, shallow_hinge_gap_bar_relief_components, shallow_tongue_components, transformed_hinge_profile, validate_mating_interface
+    from protective_case_mating_interface import apply_deep_mating_interface, apply_shallow_mating_interface, component_added_volumes, corner_fill_components, corrected_outer_bbox_delta, deep_receiver_components, hinge_profile_symmetric_difference, lip_corner_relief_components, main_cavity_prism, minimum_normal_corner_wall, opening_prism, original_diagonal_clash, receiver_exterior_lands, shallow_hinge_gap_bar_relief_components, shallow_tongue_components, transformed_hinge_profile, validate_mating_interface
     from validate_protective_case import intersection_volume
 
 
@@ -68,7 +69,7 @@ class ProtectiveCaseMatingInterfaceTests(unittest.TestCase):
     def test_opening_and_rail_contract(self) -> None:
         params = self.params
         mating = params["mating_interface"]
-        self.assertEqual(mating["main_cavity"], {"width": 251.2, "depth": 144.0, "radius": 9.5, "center": [127.8, 74.2], "deep_z": [2.2, 54.65], "shallow_z": [54.85, 62.65]})
+        self.assertEqual(mating["main_cavity"], {"width": 251.2, "depth": 144.0, "radius": 9.5, "center": [127.8, 74.2], "deep_z": [2.2, 54.65], "shallow_z": [54.85, 60.65]})
         self.assertEqual(mating["opening"], {"width": 250.0, "depth": 142.0, "radius": 8.5, "center": [127.8, 74.2], "cut_z": [52.55, 54.85]})
         self.assertEqual(mating["tongue"], {"thickness": 1.3, "z": [52.65, 54.85], "corner_tangent_relief": 1.0, "south_hinge_relief_margin": 1.0})
         self.assertEqual(mating["receiver"], {"xy_clearance": 0.25, "cut_z": [52.55, 54.65]})
@@ -141,12 +142,24 @@ class ProtectiveCaseMatingInterfaceTests(unittest.TestCase):
         self.assertLessEqual(corrected_outer_bbox_delta(self.pristine_shallow, self.corrected_shallow), 0.05)
 
     def test_full_height_volume_and_attachment_metrics(self) -> None:
+        shallow_box = shape_box(self.pristine_shallow)
+        for actual, expected in zip((shallow_box.xmin, shallow_box.xmax, shallow_box.ymin, shallow_box.ymax, shallow_box.zmin, shallow_box.zmax), (0.0, 255.6, -4.0, 148.4, 51.85, 62.85)):
+            self.assertAlmostEqual(actual, expected, places=6)
+        self.assertAlmostEqual(volume(self.pristine_shallow), 99669.924754, places=6)
+        self.assertAlmostEqual(volume(self.pristine_shallow.intersect(main_cavity_prism(self.params, "shallow"))), 2378.771609, places=6)
+        shallow_after_main = self.pristine_shallow.cut(opening_prism(self.params))
+        for _, relief in lip_corner_relief_components(self.params) + shallow_hinge_gap_bar_relief_components(self.params):
+            shallow_after_main = shallow_after_main.cut(relief).clean()
+        shallow_after_main = shallow_after_main.cut(main_cavity_prism(self.params, "shallow"))
+        fill_additions = component_added_volumes(shallow_after_main, corner_fill_components(self.params, "shallow"))
+        self.assertTrue(all(abs(volume_added - 3.582536) <= 0.05 for _, volume_added in fill_additions))
+        self.assertAlmostEqual(sum(volume_added for _, volume_added in fill_additions), 14.330143, places=6)
         shallow_cut = volume(self.pristine_shallow.cut(self.corrected_shallow))
         shallow_added = volume(self.corrected_shallow.cut(self.pristine_shallow))
         deep_cut = volume(self.pristine_deep.cut(self.corrected_deep))
-        self.assertAlmostEqual(shallow_cut, 5272.714443, delta=0.05)
-        self.assertAlmostEqual(shallow_added, 1017.110169, delta=0.05)
-        self.assertAlmostEqual(volume(self.corrected_shallow), 98854.965033573, places=6)
+        self.assertAlmostEqual(shallow_cut, 5239.222371, delta=0.05)
+        self.assertAlmostEqual(shallow_added, 1008.840143, delta=0.05)
+        self.assertAlmostEqual(volume(self.corrected_shallow), 95439.542508, places=6)
         self.assertAlmostEqual(deep_cut, 1808.397280, delta=0.05)
         self.assertGreaterEqual(min(intersection_volume(rail, self.pristine_shallow) for _, rail in shallow_tongue_components(self.params)), 58.3275 - 1.0e-6)
 
@@ -164,7 +177,7 @@ class ProtectiveCaseMatingInterfaceTests(unittest.TestCase):
             self.assertAlmostEqual(box.zmax, 54.85, places=6)
             self.assertAlmostEqual(volume(self.pristine_shallow.intersect(relief)), 53.024822397, places=6)
             self.assertLessEqual(intersection_volume(self.corrected_shallow, relief), VOLUME_TOLERANCE)
-        self.assertAlmostEqual(volume(self.pristine_shallow.cut(self.corrected_shallow)), 5272.714443132, places=6)
+        self.assertAlmostEqual(volume(self.pristine_shallow.cut(self.corrected_shallow)), 5239.222371, places=6)
 
     def test_validator_rejects_either_missing_hinge_gap_bar_relief(self) -> None:
         for omitted_name, _ in shallow_hinge_gap_bar_relief_components(self.params):

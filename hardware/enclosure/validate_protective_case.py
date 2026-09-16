@@ -95,6 +95,7 @@ def edge_radius(edge) -> float:
 def validate_parameter_relationships(params: dict) -> None:
     dims = dimensions(params)
     box = params["parametric_box"]
+    normalization = params["normalization"]
     hinge = box["hinge"]
     clip = box["clip"]
     pins = params["hinge_pins"]
@@ -102,7 +103,7 @@ def validate_parameter_relationships(params: dict) -> None:
         box == {
             "width": 255.6,
             "depth": 148.4,
-            "height": 64.85,
+            "height": 62.85,
             "thickness": 2.2,
             "clearance": 0.25,
             "top_height": 54.85,
@@ -114,6 +115,8 @@ def validate_parameter_relationships(params: dict) -> None:
         },
         "parametric box dimensions changed",
     )
+    require(normalization == {"rotate_x_degrees": 180.0, "translate": [127.8, -2.2, 31.425]}, "normalization contract changed")
+    require(normalization["translate"][2] == box["height"] / 2.0, "normalization Z is not height/2")
     require(hinge["kunkle_size"] == 6.0 and hinge["number_of_kunkles"] == 5 and hinge["clearance"] == 0.5, "upstream hinge measures changed")
     require(hinge["leaf_width"] == 6.0 and hinge["leaf_height"] == 2.0 and hinge["pivot_radius"] == 0.875, "upstream hinge leaf measures changed")
     require(clip == {"length": 10.0, "positions_x": [-55.0, 55.0]}, "upstream clip placement changed")
@@ -130,7 +133,7 @@ def validate_parameter_relationships(params: dict) -> None:
     require(abs(hinge["number_of_kunkles"] * hinge["kunkle_size"] + hinge["clearance"] - 30.5) <= TOLERANCE, "upstream leaf depth changed")
     close(dims.width, 255.6, "case_width")
     close(dims.depth, 148.4, "case_depth")
-    close(dims.height, 64.85, "case_height")
+    close(dims.height, 62.85, "case_height")
     require(dims.inner_width == 251.2 and dims.inner_depth == 144.0, "inner wall dimensions changed")
     require(hinge_axis(params) == (-1.0, 54.85), "transformed hinge axis changed")
     require(hinge_centers(params) == (63.9, 191.7), "transformed hinge centers changed")
@@ -201,17 +204,19 @@ def validate_upstream_default() -> None:
 
 
 def validate_source_halves(params: dict) -> tuple[cq.Workplane, cq.Workplane]:
+    dims = dimensions(params)
     deep = cad.build_pristine_deep_tub(params)
     shallow = cad.build_pristine_shallow_lid(params)
     source_box = cad.build_source_box(params)
+    shallow_probe_z = params["parametric_box"]["top_height"] - params["parametric_box"]["thickness"]
     validate_source_box_clip_ownership(source_box)
     for name, part in (("deep_tub", deep), ("shallow_lid", shallow)):
         valid_single(part, name)
     for name, part, expected in (
         ("deep_body", normalize_source_half(source_box.source_top(), params), (0.0, 255.6, 0.0, 148.4, 0.0, 54.6)),
-        ("shallow_body", normalize_source_half(source_box.source_bottom(), params), (0.0, 255.6, 0.0, 148.4, 52.65, 64.85)),
+        ("shallow_body", normalize_source_half(source_box.source_bottom(), params), (0.0, 255.6, 0.0, 148.4, 52.65, 62.85)),
         ("deep_pristine", deep, (0.0, 255.6, -4.0, 148.4, 0.0, 57.85)),
-        ("shallow_pristine", shallow, (0.0, 255.6, -4.0, 148.4, 51.85, 64.85)),
+        ("shallow_pristine", shallow, (0.0, 255.6, -4.0, 148.4, 51.85, 62.85)),
     ):
         bbox = shape_box(part)
         for actual, expected_value, axis in zip((bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax, bbox.zmin, bbox.zmax), expected, ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")):
@@ -227,8 +232,8 @@ def validate_source_halves(params: dict) -> tuple[cq.Workplane, cq.Workplane]:
     for name, before, after, probe in (
         ("deep_side", deep, deep_augmented, prism(40.0, 0.0, 0.0, 175.6, 3.0, 54.6)),
         ("deep_mating", deep, deep_augmented, prism(40.0, 40.0, 53.5, 175.6, 68.4, 1.0)),
-        ("shallow_side", shallow, shallow_augmented, prism(40.0, 0.0, 52.65, 175.6, 3.0, 12.2)),
-        ("shallow_mating", shallow, shallow_augmented, prism(40.0, 40.0, 52.65, 175.6, 68.4, 1.0)),
+        ("shallow_side", shallow, shallow_augmented, prism(40.0, 0.0, shallow_probe_z, 175.6, 3.0, params["parametric_box"]["height"] - shallow_probe_z)),
+        ("shallow_mating", shallow, shallow_augmented, prism(40.0, 40.0, shallow_probe_z, 175.6, 68.4, 1.0)),
     ):
         expected = deep_with_foam if name.startswith("deep_") else shallow_corrected
         close(volume(expected.intersect(probe)), volume(after.intersect(probe)), f"{name}_section_volume")
@@ -246,8 +251,8 @@ def validate_source_halves(params: dict) -> tuple[cq.Workplane, cq.Workplane]:
     body_frame = cq.Compound.makeCompound([cast(cq.Shape, source_box.source_top().val()), cast(cq.Shape, source_box.source_bottom().val())]).BoundingBox()
     close(body_frame.xmax - body_frame.xmin, 255.6, "combined_body_width")
     close(body_frame.ymax - body_frame.ymin, 148.4, "combined_body_depth")
-    close(body_frame.zmax - body_frame.zmin, 64.85, "combined_body_height")
-    print(f"halves=upstream_valid clip_positions=() body_frame=255.6x148.4x64.85 deep_pristine_y=-4.0..148.4 shallow_pristine_y=-4.0..148.4 additions_cut=NONE branding_inlay=BOUNDED")
+    close(body_frame.zmax - body_frame.zmin, dims.height, "combined_body_height")
+    print(f"halves=upstream_valid clip_positions=() body_frame={dims.width:.1f}x{dims.depth:.1f}x{dims.height:.2f} deep_pristine_y=-4.0..148.4 shallow_pristine_y=-4.0..148.4 additions_cut=NONE branding_inlay=BOUNDED")
     return deep, shallow
 
 
@@ -349,11 +354,12 @@ def validate_hinges(params: dict, deep_half: cq.Workplane, shallow_half: cq.Work
                 require(cast(cq.Shape, section.val()).isValid() and len(section.solids().vals()) > 0, f"{variant} hinge section {center + local_x:.3f} must be valid")
                 section_area = volume(section) / 0.05
                 section_areas[variant].append(section_area)
-                require((37.95 <= section_area <= 38.06 if variant == "deep" else 38.31 <= section_area <= 38.42), f"{variant} hinge section area is outside the observed load-path range")
+                require((37.95 <= section_area <= 38.06 if variant == "deep" else 41.91 <= section_area <= 42.02), f"{variant} hinge section area is outside the observed load-path range")
                 attachment_proxy = volume(profile.intersect(hinge_attachment_proxy_probe(params, center, variant, local_x))) / 0.05
                 attachment_proxy_areas[variant].append(attachment_proxy)
                 require(attachment_proxy >= 25.0, f"{variant} hinge section has no usable attachment proxy")
     require(len(section_areas["deep"]) == 4 and len(section_areas["shallow"]) == 6, "unexpected actual upstream knuckle section count")
+    require(abs(sum(section_areas["shallow"]) / len(section_areas["shallow"]) - 41.965673) <= TOLERANCE, "shallow hinge section area changed")
     pin_spec = params["hinge_pins"]
     require(abs(bore_radius * 2.0 - 2.25) <= TOLERANCE, "actual hinge bore is not 2.25 mm")
     paddle_metrics = []
@@ -366,7 +372,7 @@ def validate_hinges(params: dict, deep_half: cq.Workplane, shallow_half: cq.Work
             require(intersection_volume(paddle, deep_half) <= VOLUME_TOLERANCE and intersection_volume(paddle, shallow_half) <= VOLUME_TOLERANCE, f"{side} paddle {center} collides with a case half")
             paddle_metrics.append((intersection_volume(pin, paddle), shape_box(paddle).ymin, shape_box(paddle).ymax))
     min_pin_overlap, paddle_y_min, paddle_y_max = min(paddle_metrics)
-    print(f"hinges=2 axis=Y{hinge_axis(params)[0]:.2f}/Z{hinge_axis(params)[1]:.2f} bore=2.25 radial_clearance=0.25 leaf_depth=30.5 actual_knuckle_sections=10 knuckle_contact={knuckle_contact:.2f} section_area_deep_range={min(section_areas['deep']):.3f}..{max(section_areas['deep']):.3f} expected=38.005673 section_area_shallow_range={min(section_areas['shallow']):.3f}..{max(section_areas['shallow']):.3f} expected=38.365673 attachment_proxy_deep_min={min(attachment_proxy_areas['deep']):.3f} attachment_proxy_shallow_min={min(attachment_proxy_areas['shallow']):.3f} paddles=PASS")
+    print(f"hinges=2 axis=Y{hinge_axis(params)[0]:.2f}/Z{hinge_axis(params)[1]:.2f} bore=2.25 radial_clearance=0.25 leaf_depth=30.5 actual_knuckle_sections=10 knuckle_contact={knuckle_contact:.2f} section_area_deep_range={min(section_areas['deep']):.3f}..{max(section_areas['deep']):.3f} expected=38.005673 section_area_shallow_range={min(section_areas['shallow']):.3f}..{max(section_areas['shallow']):.3f} expected=41.965673 attachment_proxy_deep_min={min(attachment_proxy_areas['deep']):.3f} attachment_proxy_shallow_min={min(attachment_proxy_areas['shallow']):.3f} paddles=PASS")
     print(f"paddle_envelope=Y{paddle_y_min:.2f}..{paddle_y_max:.2f} Z-2.00..2.00 pin_overlap_min={min_pin_overlap:.3f} case_clearance_to_body_y0={-paddle_y_max:.2f} collision=NONE")
 
 

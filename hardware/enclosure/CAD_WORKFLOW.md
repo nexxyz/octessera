@@ -174,10 +174,12 @@ owners are:
 - `protective_case_branding.py`: debossed and multicolor markings;
 - `validate_protective_case.py`: source and exported-package validation.
 
-The source box is `255.6 x 148.4 x 64.85 mm` with `2.2 mm` walls. The deep
-source half becomes the tub and the shallow half becomes the lid. Project code
-retains the upstream shell, hinge, and Clip profiles while adding the normalized
-mating interface, reversed latch ownership, restraints, pads, and branding.
+The configured source box is `255.6 x 148.4 x 62.85 mm` with `2.2 mm` walls.
+Its outer top is Z`62.85`, its interior ceiling is Z`60.65`, and the seam
+remains Z`54.85`. The deep source half becomes the tub and the shallow half
+becomes the lid. Project code retains the upstream shell, hinge, and Clip
+profiles while adding the normalized mating interface, reversed latch
+ownership, restraints, pads, and branding.
 
 The instrument placement is CAD-derived, not physically measured. The
 parameter-owned transform rotates the checked-in top 180 degrees around Y, then

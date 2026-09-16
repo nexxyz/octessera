@@ -13,7 +13,7 @@
   "parametric_box": {
     "width": 255.6,
     "depth": 148.4,
-    "height": 64.85,
+    "height": 62.85,
     "thickness": 2.2,
     "clearance": 0.25,
     "top_height": 54.85,
@@ -36,7 +36,7 @@
   },
   "normalization": {
     "rotate_x_degrees": 180.0,
-    "translate": [127.8, -2.2, 32.425]
+    "translate": [127.8, -2.2, 31.425]
   },
   "device": {
     "envelope": {
@@ -102,7 +102,7 @@
       "radius": 9.5,
       "center": [127.8, 74.2],
       "deep_z": [2.2, 54.65],
-      "shallow_z": [54.85, 62.65]
+      "shallow_z": [54.85, 60.65]
     },
     "opening": {
       "width": 250.0,

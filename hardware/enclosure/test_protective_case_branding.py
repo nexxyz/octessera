@@ -243,7 +243,7 @@ class ProtectiveCaseBrandingTests(unittest.TestCase):
             ):
                 body, marks = builder(params)
                 transform = cad.print_transform(body, exterior)
-                expected_transform = (0.0, (0.0, 4.0, 0.0)) if label == "deep" else (180.0, (0.0, 151.4, 64.85))
+                expected_transform = (0.0, (0.0, 4.0, 0.0)) if label == "deep" else (180.0, (0.0, 151.4, 62.85))
                 self.assertAlmostEqual(transform.rotate_x_degrees, expected_transform[0], places=6)
                 for actual, expected in zip(transform.translation, expected_transform[1]):
                     self.assertAlmostEqual(actual, expected, places=6)
