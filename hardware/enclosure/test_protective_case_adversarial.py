@@ -51,13 +51,15 @@ class ProtectiveCaseAdversarialTests(unittest.TestCase):
         augmented = cad.build_deep_tub(params)
         shallow = cad.build_pristine_shallow_lid(params)
         shallow_corrected = apply_shallow_mating_interface(params, shallow)
+        shallow_probe_z = params["parametric_box"]["top_height"] - params["parametric_box"]["thickness"]
+        shallow_probe_height = params["parametric_box"]["height"] - shallow_probe_z
         self.assertLessEqual(volume(apply_deep_mating_interface(params, deep).cut(augmented)), VOLUME_TOLERANCE)
         self.assertLessEqual(volume(shallow_corrected.cut(cad.build_shallow_lid(params))), VOLUME_TOLERANCE)
         for before, after, probe in (
             (deep_with_foam, augmented, prism(40.0, 0.0, 0.0, 175.6, 3.0, 54.6)),
             (deep_with_foam, augmented, prism(40.0, 40.0, 53.5, 175.6, 68.4, 1.0)),
-            (shallow_corrected, cad.build_shallow_lid(params), prism(40.0, 0.0, 52.65, 175.6, 3.0, 12.2)),
-            (shallow_corrected, cad.build_shallow_lid(params), prism(40.0, 40.0, 52.65, 175.6, 68.4, 1.0)),
+            (shallow_corrected, cad.build_shallow_lid(params), prism(40.0, 0.0, shallow_probe_z, 175.6, 3.0, shallow_probe_height)),
+            (shallow_corrected, cad.build_shallow_lid(params), prism(40.0, 40.0, shallow_probe_z, 175.6, 68.4, 1.0)),
         ):
             self.assertAlmostEqual(volume(before.intersect(probe)), volume(after.intersect(probe)), places=6)
 
@@ -83,9 +85,9 @@ class ProtectiveCaseAdversarialTests(unittest.TestCase):
         self.assertGreaterEqual(min(section_areas["deep"]), 37.95)
         self.assertLessEqual(max(section_areas["deep"]), 38.06)
         self.assertAlmostEqual(sum(section_areas["deep"]) / len(section_areas["deep"]), 38.005673, places=5)
-        self.assertGreaterEqual(min(section_areas["shallow"]), 38.31)
-        self.assertLessEqual(max(section_areas["shallow"]), 38.42)
-        self.assertAlmostEqual(sum(section_areas["shallow"]) / len(section_areas["shallow"]), 38.365673, places=5)
+        self.assertGreaterEqual(min(section_areas["shallow"]), 41.91)
+        self.assertLessEqual(max(section_areas["shallow"]), 42.02)
+        self.assertAlmostEqual(sum(section_areas["shallow"]) / len(section_areas["shallow"]), 41.965673, places=5)
         self.assertGreaterEqual(min(attachment_proxy_areas["deep"]), 25.0)
         self.assertGreaterEqual(min(attachment_proxy_areas["shallow"]), 25.0)
         self.assertGreaterEqual(hinge["kunkle_size"] - hinge["clearance"], 5.0)

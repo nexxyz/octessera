@@ -344,7 +344,8 @@ def validate_mating_interface(params: dict, pristine_deep: cq.Workplane, pristin
     rails = shallow_tongue_components(params)
     receivers = deep_receiver_components(params)
     bar_reliefs = shallow_hinge_gap_bar_relief_components(params)
-    require(main == {"width": 251.2, "depth": 144.0, "radius": 9.5, "center": [127.8, 74.2], "deep_z": [2.2, 54.65], "shallow_z": [54.85, 62.65]}, "main cavity contract changed")
+    shallow_z_min, shallow_z_max = main["shallow_z"]
+    require(main == {"width": 251.2, "depth": 144.0, "radius": 9.5, "center": [127.8, 74.2], "deep_z": [2.2, 54.65], "shallow_z": [54.85, 60.65]}, "main cavity contract changed")
     require(mating["opening"] == {"width": 250.0, "depth": 142.0, "radius": 8.5, "center": [127.8, 74.2], "cut_z": [52.55, 54.85]}, "mating opening contract changed")
     require(mating["tongue"] == {"thickness": 1.3, "z": [52.65, 54.85], "corner_tangent_relief": 1.0, "south_hinge_relief_margin": 1.0}, "mating tongue contract changed")
     require(mating["receiver"] == {"xy_clearance": 0.25, "cut_z": [52.55, 54.65]}, "mating receiver contract changed")
@@ -393,17 +394,17 @@ def validate_mating_interface(params: dict, pristine_deep: cq.Workplane, pristin
     shallow_fills = corner_fill_components(params, "shallow")
     shallow_filled = _add_components(shallow_after_main, shallow_fills)
     expected_shallow = _add_components(shallow_filled, rails)
-    require(abs(_volume(pristine_deep) - 173571.147583) <= TOLERANCE and abs(_volume(pristine_shallow) - 103110.569326) <= TOLERANCE, "zero-chamfer pristine volumes changed")
+    require(abs(_volume(pristine_deep) - 173571.147583) <= TOLERANCE and abs(_volume(pristine_shallow) - 99669.924754) <= TOLERANCE, "zero-chamfer pristine volumes changed")
     require(abs(_volume(pristine_deep.intersect(deep_cavity)) - 877.492280) <= TOLERANCE, "deep main cavity removal changed")
     require(abs(_volume(pristine_shallow.intersect(opening)) - 2703.637698) <= TOLERANCE, "shallow lip removal changed")
     require(abs(_volume(shallow_after_lip.cut(shallow_after_relief)) - 50.763420) <= TOLERANCE and abs(sum(_volume(relief) for _, relief in shallow_reliefs) - 916.044) <= TOLERANCE, "shallow corner relief changed")
     require(all(abs(_volume(relief) - 71.5) <= TOLERANCE for _, relief in bar_reliefs) and all(abs(removed - 53.024822397) <= TOLERANCE for _, removed in bar_removals) and abs(sum(removed for _, removed in bar_removals) - 106.049644795) <= TOLERANCE, "shallow hinge-gap bar relief changed")
-    require(abs(_volume(shallow_after_bar.cut(shallow_after_main)) - 2412.263681) <= TOLERANCE, "shallow main cavity removal changed")
+    require(abs(_volume(shallow_after_bar.cut(shallow_after_main)) - 2378.771609) <= TOLERANCE, "shallow main cavity removal changed")
     deep_fill_additions = component_added_volumes(deep_after_main, deep_fills)
     shallow_fill_additions = component_added_volumes(shallow_after_main, shallow_fills)
     require(all(abs(volume_added - 54.813064) <= TOLERANCE for _, volume_added in deep_fill_additions), "deep corner fill additions changed")
-    require(all(abs(volume_added - 5.650042) <= TOLERANCE for _, volume_added in shallow_fill_additions), "shallow corner fill additions changed")
-    require(abs(sum(volume_added for _, volume_added in deep_fill_additions) - 219.252257) <= TOLERANCE and abs(sum(volume_added for _, volume_added in shallow_fill_additions) - 22.600169) <= TOLERANCE, "corner fill totals changed")
+    require(all(abs(volume_added - 3.582536) <= TOLERANCE for _, volume_added in shallow_fill_additions), "shallow corner fill additions changed")
+    require(abs(sum(volume_added for _, volume_added in deep_fill_additions) - 219.252257) <= TOLERANCE and abs(sum(volume_added for _, volume_added in shallow_fill_additions) - 14.330143) <= TOLERANCE, "corner fill totals changed")
     receiver_removed = _volume(deep_filled.cut(expected_deep))
     rail_added = _volume(expected_shallow.cut(shallow_filled))
     require(abs(receiver_removed - 930.905) <= TOLERANCE and abs(sum(_volume(receiver) for _, receiver in receivers) - 2441.88) <= TOLERANCE, "receiver removal changed")
@@ -411,7 +412,7 @@ def validate_mating_interface(params: dict, pristine_deep: cq.Workplane, pristin
     rail_attachment_min = min(_intersection_volume(rail, pristine_shallow) for _, rail in rails)
     require(rail_attachment_min >= 58.32, "mating rail attachment is below the required minimum")
     require(abs(_volume(pristine_deep.cut(expected_deep)) - 1808.397280) <= TOLERANCE and abs(_volume(expected_deep) - 171982.002559) <= TOLERANCE, "deep corrected volume changed")
-    require(abs(_volume(pristine_shallow.cut(expected_shallow)) - 5272.714443132) <= TOLERANCE and abs(_volume(expected_shallow.cut(pristine_shallow)) - 1017.110169187) <= TOLERANCE and abs(_volume(expected_shallow) - 98854.965033573) <= TOLERANCE, "shallow corrected volumes changed")
+    require(abs(_volume(pristine_shallow.cut(expected_shallow)) - 5239.222371) <= TOLERANCE and abs(_volume(expected_shallow.cut(pristine_shallow)) - 1008.840143) <= TOLERANCE and abs(_volume(expected_shallow) - 95439.542508) <= TOLERANCE, "shallow corrected volumes changed")
     deep_fill_union = _union_components(deep_fills)
     shallow_fill_union = _union_components(shallow_fills)
     expected_shallow_additions = _add_components(shallow_fill_union, rails).cut(pristine_shallow)
@@ -420,8 +421,9 @@ def validate_mating_interface(params: dict, pristine_deep: cq.Workplane, pristin
     require(symmetric_difference_volume(corrected_deep.cut(pristine_deep), deep_fill_union.cut(pristine_deep)) <= VOLUME_TOLERANCE and symmetric_difference_volume(corrected_shallow.cut(pristine_shallow), expected_shallow_additions) <= VOLUME_TOLERANCE, "added ownership changed")
     require(_intersection_volume(deep_fill_union, _union_components(receivers)) <= VOLUME_TOLERANCE, "receiver cuts overlap deep fill additions")
     stable_bounds = _stable_bounds(params)
-    deep_z = [2.21 + 0.05 * index for index in range(1049)]
-    shallow_z = [54.86 + 0.05 * index for index in range(156)]
+    deep_z_min, deep_z_max = main["deep_z"]
+    deep_z = [deep_z_min + 0.01 + 0.05 * index for index in range(round((deep_z_max - deep_z_min) / 0.05))]
+    shallow_z = [shallow_z_min + 0.01 + 0.05 * index for index in range(round((shallow_z_max - shallow_z_min) / 0.05))]
     require(all(stable_square_symmetric_difference(corrected_deep, deep_fill_union, stable_bounds, z) <= VOLUME_TOLERANCE for z in deep_z), "deep stable-square profiles changed")
     require(all(stable_square_symmetric_difference(corrected_shallow, shallow_fill_union, stable_bounds, z) <= VOLUME_TOLERANCE for z in shallow_z), "shallow stable-square profiles changed")
     passage_probes = []
@@ -430,8 +432,8 @@ def validate_mating_interface(params: dict, pristine_deep: cq.Workplane, pristin
             for shift_x, shift_y in shifts:
                 center_x, center_y = params["device"]["center"]
                 bounds = (center_x + shift_x - fit["width"] / 2.0, center_x + shift_x + fit["width"] / 2.0, center_y + shift_y - fit["depth"] / 2.0, center_y + shift_y + fit["depth"] / 2.0)
-                passage_probes.append(rounded_prism(bounds, radius, 54.85, 62.65))
-    passage_probes.append(opening_prism(params, 54.85, 62.65))
+                passage_probes.append(rounded_prism(bounds, radius, shallow_z_min, shallow_z_max))
+    passage_probes.append(opening_prism(params, shallow_z_min, shallow_z_max))
     require(all(_intersection_volume(fill, probe) <= VOLUME_TOLERANCE for _, fill in shallow_fills for probe in passage_probes), "shallow corner fill blocks a guaranteed passage")
     hinge_profiles = tuple(transformed_hinge_profile(params, center, "shallow") for center in hinge_centers(params))
     pins = tuple(_filament_pin(params, center) for center in hinge_centers(params))
@@ -453,4 +455,4 @@ def validate_mating_interface(params: dict, pristine_deep: cq.Workplane, pristin
     require(normal_corner_wall >= 1.2, "normal corner wall is below 1.2 mm")
     outer_bbox_delta = max(corrected_outer_bbox_delta(pristine_deep, corrected_deep), corrected_outer_bbox_delta(pristine_shallow, corrected_shallow))
     require(outer_bbox_delta <= TOLERANCE, "mating correction changed an outer bounding box")
-    print(f"mating_interface=main_cavity=251.2x144R9.5 deepZ2.2..54.65 shallowZ54.85..62.65 opening=250x142R8.5 cutZ52.55..54.85 rails=6 receivers=6 pristine=deep173571.147583/shallow103110.569326 deep_corrected=171982.002559 shallow_corrected=98854.965034 lip_removed=2703.637698 relief_removed=50.763420 hinge_gap_bar_raw=71.500000/each hinge_gap_bar_removed=53.024822/each total=106.049645 main_shallow_removed=2412.263681 receiver_cut=930.905000 rail_added=994.510000 fills=deep219.252257/shallow22.600169 receiver_exterior_land_min={min(land for _, land in lands):.2f} normal_corner_wall={normal_corner_wall:.6f} original_diagonal_clash={original_clash:.6f} original_diagonal_penetration={original_penetration:.6f} hinge_gap_to_profile_min={min(relief_gaps):.6f} shoulders_total={sum(area for _, area in shoulders):.9f} outer_bbox_delta={outer_bbox_delta:.3e} rail_attachment_min={rail_attachment_min:.4f} PASS")
+    print(f"mating_interface=main_cavity=251.2x144R9.5 deepZ2.2..54.65 shallowZ54.85..60.65 opening=250x142R8.5 cutZ52.55..54.85 rails=6 receivers=6 pristine=deep173571.147583/shallow99669.924754 deep_corrected=171982.002559 shallow_corrected=95439.542508 lip_removed=2703.637698 relief_removed=50.763420 hinge_gap_bar_raw=71.500000/each hinge_gap_bar_removed=53.024822/each total=106.049645 main_shallow_removed=2378.771609 receiver_cut=930.905000 rail_added=994.510000 fills=deep219.252257/shallow14.330143 receiver_exterior_land_min={min(land for _, land in lands):.2f} normal_corner_wall={normal_corner_wall:.6f} original_diagonal_clash={original_clash:.6f} original_diagonal_penetration={original_penetration:.6f} hinge_gap_to_profile_min={min(relief_gaps):.6f} shoulders_total={sum(area for _, area in shoulders):.9f} outer_bbox_delta={outer_bbox_delta:.3e} rail_attachment_min={rail_attachment_min:.4f} PASS")

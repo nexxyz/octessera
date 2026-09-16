@@ -336,7 +336,7 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertEqual(
             params["mating_interface"],
             {
-                "main_cavity": {"width": 251.2, "depth": 144.0, "radius": 9.5, "center": [127.8, 74.2], "deep_z": [2.2, 54.65], "shallow_z": [54.85, 62.65]},
+                "main_cavity": {"width": 251.2, "depth": 144.0, "radius": 9.5, "center": [127.8, 74.2], "deep_z": [2.2, 54.65], "shallow_z": [54.85, 60.65]},
                 "opening": {"width": 250.0, "depth": 142.0, "radius": 8.5, "center": [127.8, 74.2], "cut_z": [52.55, 54.85]},
                 "tongue": {"thickness": 1.3, "z": [52.65, 54.85], "corner_tangent_relief": 1.0, "south_hinge_relief_margin": 1.0},
                 "receiver": {"xy_clearance": 0.25, "cut_z": [52.55, 54.65]},

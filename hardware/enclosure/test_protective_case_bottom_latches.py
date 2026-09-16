@@ -128,7 +128,7 @@ class ProtectiveCaseBottomLatchTests(unittest.TestCase):
             printed = cad.orient_for_print(body, "negative_z" if half == "deep" else "positive_z")
             box = shape_box(printed)
             sizes = (box.xmax - box.xmin, box.ymax - box.ymin, box.zmax - box.zmin)
-            expected_sizes = (255.6, 153.834972, 57.85) if half == "deep" else (255.6, 155.4, 18.814590)
+            expected_sizes = (255.6, 153.834972, 57.85) if half == "deep" else (255.6, 155.4, 16.814590)
             for actual, expected in zip(sizes, expected_sizes):
                 self.assertAlmostEqual(actual, expected, delta=TOLERANCE)
             self.assertTrue(all(size <= 260.0 + TOLERANCE for size in sizes))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import unittest
 from typing import cast
 
@@ -11,7 +12,7 @@ try:
     from .protective_case_corner_restraints import continuous_shelf_support, corner_restraint_components, outside_section_area, outside_volume, section_symmetric_difference_volume, shelf_contact_component, shelf_contact_pad, support_section_stations, wall_witness
     from .protective_case_geometry import build_device_insertion, corner_restraints, dimensions, hinge_axis, hinge_centers, load_parameters, normalize_source_half
     from .protective_case_keepouts import control_contact_keepouts
-    from .protective_case_mating_interface import apply_deep_mating_interface
+    from .protective_case_mating_interface import apply_deep_mating_interface, symmetric_difference_volume
     from .validate_protective_case import filament_pin, intersection_volume, paddle_envelope, prism, upstream_outer_envelope
 except ImportError:
     import generate_protective_case_cadquery as cad
@@ -19,7 +20,7 @@ except ImportError:
     from protective_case_corner_restraints import continuous_shelf_support, corner_restraint_components, outside_section_area, outside_volume, section_symmetric_difference_volume, shelf_contact_component, shelf_contact_pad, support_section_stations, wall_witness
     from protective_case_geometry import build_device_insertion, corner_restraints, dimensions, hinge_axis, hinge_centers, load_parameters, normalize_source_half
     from protective_case_keepouts import control_contact_keepouts
-    from protective_case_mating_interface import apply_deep_mating_interface
+    from protective_case_mating_interface import apply_deep_mating_interface, symmetric_difference_volume
     from validate_protective_case import filament_pin, intersection_volume, paddle_envelope, prism, upstream_outer_envelope
 
 
@@ -62,9 +63,9 @@ class ProtectiveCaseGeometryTests(unittest.TestCase):
             self.assertEqual(len(part.solids().vals()), 1)
         for part, expected in (
             (normalize_source_half(source_box.source_top(), params), (0.0, 255.6, 0.0, 148.4, 0.0, 54.6)),
-            (normalize_source_half(source_box.source_bottom(), params), (0.0, 255.6, 0.0, 148.4, 52.65, 64.85)),
+            (normalize_source_half(source_box.source_bottom(), params), (0.0, 255.6, 0.0, 148.4, 52.65, 62.85)),
             (deep, (0.0, 255.6, -4.0, 148.4, 0.0, 57.85)),
-            (shallow, (0.0, 255.6, -4.0, 148.4, 51.85, 64.85)),
+            (shallow, (0.0, 255.6, -4.0, 148.4, 51.85, 62.85)),
         ):
             bbox = shape_box(part)
             actual = (bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax, bbox.zmin, bbox.zmax)
@@ -72,6 +73,18 @@ class ProtectiveCaseGeometryTests(unittest.TestCase):
                 self.assertAlmostEqual(measured, target, places=3)
         self.assertEqual(hinge_axis(params), (-1.0, 54.85))
         self.assertEqual(hinge_centers(params), (63.9, 191.7))
+
+    def test_shallow_lid_reduction_preserves_deep_bodies(self) -> None:
+        old_params = copy.deepcopy(self.params)
+        old_params["parametric_box"]["height"] = 64.85
+        old_params["normalization"]["translate"][2] = 32.425
+        old_params["mating_interface"]["main_cavity"]["shallow_z"] = [54.85, 62.65]
+        for old_body, new_body in (
+            (cad.build_deep_tub(old_params), cad.build_deep_tub(self.params)),
+            (cad.build_debossed_deep_tub(old_params)[0], cad.build_debossed_deep_tub(self.params)[0]),
+            (cad.build_multicolor_deep_tub(old_params)[0], cad.build_multicolor_deep_tub(self.params)[0]),
+        ):
+            self.assertLessEqual(symmetric_difference_volume(old_body, new_body), 1.0e-7)
 
     def test_device_insertion_and_pristine_addition_contract(self) -> None:
         params = self.params
