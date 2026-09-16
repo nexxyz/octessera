@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
 $top3mfs = @(
-    (Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf"),
-    (Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_orange-pi-zero-2w_multicolor.3mf")
+    (Join-Path $repoRoot "hardware\enclosure\3mf-multicolor\case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf"),
+    (Join-Path $repoRoot "hardware\enclosure\3mf-multicolor\case_top_two_level_orange-pi-zero-2w_multicolor.3mf")
 )
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "generate_top_artifacts_checked.ps1")

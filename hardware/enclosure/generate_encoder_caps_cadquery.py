@@ -8,7 +8,7 @@ import cadquery as cq
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
+ARTIFACT_ROOT = ROOT
 STEP_ROOT = ARTIFACT_ROOT / "step"
 STL_ROOT = ARTIFACT_ROOT / "stl"
 

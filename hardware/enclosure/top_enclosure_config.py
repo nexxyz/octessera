@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
+ARTIFACT_ROOT = ROOT
 PARAMS = ROOT / "enclosure_params.json"
 STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery_raspberry-pi-zero-2w.step"
 STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery_raspberry-pi-zero-2w.stl"

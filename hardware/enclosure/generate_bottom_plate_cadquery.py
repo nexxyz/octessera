@@ -7,7 +7,7 @@ import cadquery as cq
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
+ARTIFACT_ROOT = ROOT
 PARAMS = ROOT / "enclosure_params.json"
 STEP_OUT = ARTIFACT_ROOT / "step" / "case_bottom_plate_cadquery.step"
 STL_OUT = ARTIFACT_ROOT / "stl" / "case_bottom_plate_cadquery.stl"

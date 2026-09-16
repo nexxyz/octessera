@@ -227,9 +227,22 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertEqual(params["corner_restraints"]["shelf_overlap"], 0.10)
 
         paths = [Path(path) for path in params["artifacts"]]
+        self.assertEqual(
+            {path.as_posix() for path in paths},
+            {
+                "hardware/enclosure/step/protective_case_deep_tub_debossed_logo.step",
+                "hardware/enclosure/stl/protective_case_deep_tub_debossed_logo.stl",
+                "hardware/enclosure/3mf-single-material/protective_case_deep_tub_debossed_logo.3mf",
+                "hardware/enclosure/3mf-multicolor/protective_case_deep_tub_multicolor_logo.3mf",
+                "hardware/enclosure/step/protective_case_shallow_lid_debossed_branding.step",
+                "hardware/enclosure/stl/protective_case_shallow_lid_debossed_branding.stl",
+                "hardware/enclosure/3mf-single-material/protective_case_shallow_lid_debossed_branding.3mf",
+                "hardware/enclosure/3mf-multicolor/protective_case_shallow_lid_multicolor_branding.3mf",
+            },
+        )
         self.assertEqual(len(paths), 8)
         self.assertEqual(len({path.name for path in paths}), 8)
-        self.assertTrue(all(path.name.startswith("protective_case_checkfit_") for path in paths))
+        self.assertTrue(all(path.name.startswith("protective_case_") for path in paths))
         three_mf_paths = [path for path in paths if path.suffix == ".3mf"]
         self.assertEqual(sum(path.parent.name == "3mf-single-material" for path in three_mf_paths), 2)
         self.assertEqual(sum(path.parent.name == "3mf-multicolor" for path in three_mf_paths), 2)
@@ -262,7 +275,7 @@ class CadSourceStructureTests(unittest.TestCase):
         self.assertIn("def rotate_lockup_group", branding)
         self.assertIn("shallow_lid_lockup_rotation_degrees", branding)
         self.assertIn("build_deep_tub_multicolor_branding_parts", branding)
-        self.assertIn("protective_case_checkfit_deep_tub_device_orientation_guide", branding)
+        self.assertIn("protective_case_deep_tub_device_orientation_guide", branding)
         self.assertIn("mirror_for_negative_z_exterior_view", branding)
         self.assertNotIn("device_origin", branding)
         self.assertNotIn("branding_marking_parts(", branding)
@@ -276,11 +289,11 @@ class CadSourceStructureTests(unittest.TestCase):
         ):
             self.assertNotIn("emb" + "oss", source(name).lower(), name)
         validator = source("protective_case_3mf_validation.py")
-        self.assertIn('"protective_case_checkfit_deep_tub_logo", "2"', validator)
-        self.assertIn('"protective_case_checkfit_deep_tub_device_orientation_guide", "2"', validator)
-        self.assertNotIn('"protective_case_checkfit_deep_tub_wordmark", "2"', validator)
-        self.assertIn('"protective_case_checkfit_shallow_lid_logo", "2"', validator)
-        self.assertIn('"protective_case_checkfit_shallow_lid_wordmark", "2"', validator)
+        self.assertIn('"protective_case_deep_tub_logo", "2"', validator)
+        self.assertIn('"protective_case_deep_tub_device_orientation_guide", "2"', validator)
+        self.assertNotIn('"protective_case_deep_tub_wordmark", "2"', validator)
+        self.assertIn('"protective_case_shallow_lid_logo", "2"', validator)
+        self.assertIn('"protective_case_shallow_lid_wordmark", "2"', validator)
         self.assertIn("deep tub branding must contain logo only", source("protective_case_branding_validation.py"))
         self.assertIn("shallow lid branding must contain logo and wordmark", source("protective_case_branding_validation.py"))
         generator = source("generate_protective_case_cadquery.py")

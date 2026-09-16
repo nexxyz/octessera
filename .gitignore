@@ -14,21 +14,22 @@ apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 hardware/pcb/.history/
 hardware/pcb/octessera-backups/
+hardware/pcb/*.kicad_prl
 hardware/pcb/*.lck
 hardware/pcb/*.rpt
 hardware/pcb/report.txt
-hardware/pcb/gerber/
 debug/
 diagnostics/
 *.zip
+!/hardware/pcb/gerber/gerber.zip
 .opencode/*
 !.opencode/agent/
 .opencode/agent/*
 hardware/pcb/PCB.stl
-release-artifacts/enclosure/status/
+hardware/enclosure/.status/
 hardware/enclosure/review/
-hardware/enclosure/*.stl
-hardware/enclosure/*.step
+/hardware/enclosure/*.stl
+/hardware/enclosure/*.step
 hardware/Mouser Cart with Components.pdf
 *.bak
 *.orig

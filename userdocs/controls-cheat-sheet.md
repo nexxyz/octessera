@@ -103,6 +103,13 @@ as `activate` or direct grid events from `keys` and `looper`.
 | Play Transpose | Grid lets you temporarily transpose eligible synth and MIDI layers. |
 | Play XY | Mappable two-axis surface for live-manipulating parameters. |
 
+## Sample browser
+
+In the sample browser, `..` goes to the parent, `[folder]` opens a folder, file
+rows are samples, and `(empty)` means there are no entries. Press *Play* /
+*Space* to preview the highlighted sample. Long names clip or scroll without
+overlapping other OLED text.
+
 ## Tiny survival notes
 
 - The OLED is the truth. If the grid behaves in an unexpected way, you are probably in an overlay or Play page. Take a look at the OLED, and back out using *Back* or navigate away using *Fn*.

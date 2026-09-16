@@ -23,54 +23,7 @@ recovery paths are not interchangeable.
 Read [`docs/board-profiles.md`](../../docs/board-profiles.md) for the board
 profile and artifact naming contract.
 
-## Safety gates before connecting the Octessera PCB
-
-Start bare-board. Do not connect the Octessera PCB or harness until all of these
-checks pass:
-
-- Compare the Orange schematic/header pinout against the Raspberry Pi Zero 2 W
-  wiring used by Octessera.
-- Confirm 5 V, 3.3 V, and GND land where the PCB expects them.
-- Confirm every connected GPIO is 3.3 V logic and tolerates existing
-  pullups/pulldowns.
-- Confirm I2C, SPI, I2S, encoder/button, OLED reset/DC/CS, and interrupt lines
-  expose the required functions on Armbian.
-- Confirm power input and USB host/device wiring cannot back-power the board or
-  brown it out during gadget binding.
-- Confirm recovery before editing boot overlays: UART console, known-good SSH,
-  or reflashing that does not depend on the gadget port.
-
-If any pin or power check fails, stop. The no-PCB-change assumption is not valid
-for that board/image combination.
-
-Primary desk references:
-
-- [Orange Pi Zero 2W product page](http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-Zero-2W.html)
-- [Orange Pi Zero 2W H618 user manual v1.1](https://orangepi.net/wp-content/uploads/2023/10/OrangePi_Zero2w_H618_User-Manual_v1.1.pdf)
-- [Orange Pi Zero 2W pinout table](https://git.munts.com/muntsos/doc/OrangePiZero2WPinout.pdf)
-
-Use desk references only as a starting point. Trust physical pin numbers first,
-then verify the board revision, schematic, Armbian device tree, and live pinmux.
-
-## Preliminary header desk comparison
-
-- Power positions appear to match 5 V, 3.3 V, and ground; confirm with a
-  multimeter before connecting the PCB.
-- Physical pins 3/5 appear to provide I2C1 SDA/SCL; confirm the live bus.
-- Physical pins 19/21/23/24 appear to provide the reviewed SPI1 data/CS0 path;
-  pin 26 is the reviewed SPI1 CS1 SD2 path. Confirm `/dev/spidev1.0`, the SD2
-  node, and live pinmux.
-- Physical pins 16/36 appear GPIO-capable for OLED D/C and reset; confirm lines
-  and polarity.
-- Physical pins 12/35/40 are not established as Pi-style I2S/PCM pins. I2S is blocked
-  until schematic, DTS, and Armbian overlay checks establish those pins.
-- Physical pin 10 is UART0 RX and pin 8 is UART0 TX in the desk pinout. The
-  approved input-routing overlay must disable UART0 and release PH0/PH1 before
-  NeoTrellis interrupt and SW3 switch checks.
-- USB-C port role, VBUS/CC/ID behavior, UDC, and no-backfeed behavior are not
-  established by the desk documents. Stop before gadget binding if they are unclear.
-
-### Direct encoder mapping
+## Direct encoder mapping
 
 H618 offsets use the established `port base + pin` mapping (`PC12 = 76`,
 `PI14 = 270`). Do not use Raspberry BCM numbering.

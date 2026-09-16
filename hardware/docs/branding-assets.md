@@ -90,9 +90,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_
 
 Expected outputs:
 
-- `release-artifacts/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`
-- `release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`
-- `release-artifacts/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`
+- `hardware/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`
+- `hardware/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`
+- `hardware/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`
 - ignored review images under `hardware/enclosure/review/`
 
 ## Protective-case branding

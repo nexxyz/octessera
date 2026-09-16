@@ -164,7 +164,7 @@ table.small td { width: 35%; }
   width: 100%;
   max-height: 168mm;
   object-fit: contain;
-  margin-top: -8mm;
+  margin-top: 0;
 }
 
 .chips span {

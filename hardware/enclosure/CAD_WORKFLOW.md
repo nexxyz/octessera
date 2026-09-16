@@ -89,7 +89,7 @@ sentinel.
    python hardware/enclosure/validate_wave_roof.py
    ```
 
-4. Inspect or slice `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl` before using it for printing.
+4. Inspect or slice `stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl` before using it for printing.
 
 ## Geometry change checklist
 
@@ -111,7 +111,7 @@ Use this checklist before changing generated solids, Z transitions, or board-adj
 The bottom artifact is a flat drill/alignment plate, not the final enclosure tray.
 
 - Source: `generate_bottom_plate_cadquery.py`.
-- Exports: `../../release-artifacts/enclosure/step/case_bottom_plate_cadquery.step` and `../../release-artifacts/enclosure/stl/case_bottom_plate_cadquery.stl`.
+- Exports: `step/case_bottom_plate_cadquery.step` and `stl/case_bottom_plate_cadquery.stl`.
 - Footprint: same rounded rectangle as the faceplate.
 - Holes: one M3 clearance hole and bottom-side counterbore at each `faceplate_insert_pillars_v22` position.
 - Guide walls: low inset perimeter ribs align the faceplate without forming a full tray.
@@ -133,14 +133,14 @@ Run this script for every roof-wall change.
 
 Top enclosure artifact filenames include the full board name. Use `rpi` for Raspberry Pi Zero 2 W and `opi` for Orange Pi Zero 2W only as shorthand in prose; prefer full board names when space permits.
 
-- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`: Raspberry Pi Zero 2 W CAD exchange artifact.
-- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`: Raspberry Pi Zero 2 W printable/check-fit mesh.
-- `../../release-artifacts/enclosure/3mf-single-material/case_top_two_level_cadquery_raspberry-pi-zero-2w.3mf`: Raspberry Pi Zero 2 W single-material top.
-- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`: Raspberry Pi Zero 2 W multicolor top with flush markings on extruder 2.
-- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_orange-pi-zero-2w.step`: Orange Pi Zero 2W CAD exchange artifact.
-- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`: Orange Pi Zero 2W printable/check-fit mesh.
-- `../../release-artifacts/enclosure/3mf-single-material/case_top_two_level_cadquery_orange-pi-zero-2w.3mf`: Orange Pi Zero 2W single-material top.
-- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_orange-pi-zero-2w_multicolor.3mf`: Orange Pi Zero 2W multicolor top.
+- `step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`: Raspberry Pi Zero 2 W CAD exchange artifact.
+- `stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`: Raspberry Pi Zero 2 W printable/check-fit mesh.
+- `3mf-single-material/case_top_two_level_cadquery_raspberry-pi-zero-2w.3mf`: Raspberry Pi Zero 2 W single-material top.
+- `3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`: Raspberry Pi Zero 2 W multicolor top with flush markings on extruder 2.
+- `step/case_top_two_level_cadquery_orange-pi-zero-2w.step`: Orange Pi Zero 2W CAD exchange artifact.
+- `stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`: Orange Pi Zero 2W printable/check-fit mesh.
+- `3mf-single-material/case_top_two_level_cadquery_orange-pi-zero-2w.3mf`: Orange Pi Zero 2W single-material top.
+- `3mf-multicolor/case_top_two_level_orange-pi-zero-2w_multicolor.3mf`: Orange Pi Zero 2W multicolor top.
 
 STEP, STL, and 3MF files are generated artifacts. Edit the CadQuery source, not
 the exported files.
@@ -201,8 +201,8 @@ single-material tops coexist with branded multicolor tops. Single-material 3MF
 files belong in `3mf-single-material/`. The six support packages are identical
 copies in both 3MF folders; the other `3mf-multicolor/` entries are authored
 two-material packages.
-All protective-case artifact and embedded part names use the
-`protective_case_checkfit_` prefix.
+All protective-case artifact and embedded part names use statusless
+`protective_case_` names.
 
 Run source checks before generation:
 

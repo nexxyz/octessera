@@ -20,7 +20,7 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
+ARTIFACT_ROOT = ROOT
 THREEMF_ROOT = ARTIFACT_ROOT / "3mf-multicolor"
 TOLERANCE = 0.04
 FLUSH_DEPTH = 0.65

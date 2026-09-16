@@ -414,6 +414,8 @@ jobs:
           cache: pnpm
       - name: Install deps
         run: pnpm install --frozen-lockfile
+      - name: Verify hardware artifact inventory
+        run: python3 hardware/test_artifact_inventory.py
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
       - name: Lint integrity gate scripts

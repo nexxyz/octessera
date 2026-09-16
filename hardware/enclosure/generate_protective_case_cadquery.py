@@ -125,22 +125,22 @@ def export_all(params: dict) -> None:
     paths = artifact_paths(params)
     debossed_deep_tub, _ = build_debossed_deep_tub(params)
     export_model(debossed_deep_tub, paths[0], paths[1], "negative_z")
-    write_parts_3mf(paths[2], [("protective_case_checkfit_deep_tub_debossed_logo", orient_for_print(debossed_deep_tub, "negative_z"), 1)])
+    write_parts_3mf(paths[2], [("protective_case_deep_tub_debossed_logo", orient_for_print(debossed_deep_tub, "negative_z"), 1)])
     multicolor_deep_tub, deep_branding = build_multicolor_deep_tub(params)
     deep_transform = print_transform(multicolor_deep_tub, "negative_z")
     write_parts_3mf(
         paths[3],
-        [("protective_case_checkfit_deep_tub_body", apply_print_transform(multicolor_deep_tub, deep_transform), 1)]
+        [("protective_case_deep_tub_body", apply_print_transform(multicolor_deep_tub, deep_transform), 1)]
         + [(name, apply_print_transform(part, deep_transform), 2) for name, part in deep_branding],
     )
     debossed_shallow_lid, _ = build_debossed_shallow_lid(params)
     export_model(debossed_shallow_lid, paths[4], paths[5], "positive_z")
-    write_parts_3mf(paths[6], [("protective_case_checkfit_shallow_lid_debossed_branding", orient_for_print(debossed_shallow_lid, "positive_z"), 1)])
+    write_parts_3mf(paths[6], [("protective_case_shallow_lid_debossed_branding", orient_for_print(debossed_shallow_lid, "positive_z"), 1)])
     multicolor_shallow_lid, shallow_branding = build_multicolor_shallow_lid(params)
     shallow_transform = print_transform(multicolor_shallow_lid, "positive_z")
     write_parts_3mf(
         paths[7],
-        [("protective_case_checkfit_shallow_lid_body", apply_print_transform(multicolor_shallow_lid, shallow_transform), 1)]
+        [("protective_case_shallow_lid_body", apply_print_transform(multicolor_shallow_lid, shallow_transform), 1)]
         + [(name, apply_print_transform(part, shallow_transform), 2) for name, part in shallow_branding],
     )
 

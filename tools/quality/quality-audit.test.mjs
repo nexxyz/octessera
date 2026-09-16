@@ -34,8 +34,6 @@ const EXCLUDED_DIRECTORIES = [
   "generated",
   "gen",
   "hardware/enclosure/review",
-  "hardware/pcb/gerber",
-  "release-artifacts",
   "target",
   "third_party",
   "vendor",
@@ -85,12 +83,6 @@ test("quality audit includes owned script extensions and excludes generated arti
     );
     for (const directory of EXCLUDED_DIRECTORIES)
       writeFile(root, `${directory}/excluded.py`, sourceWithLines(".py"));
-    writeFile(
-      root,
-      "release-artifacts/artifact-script",
-      "#!/bin/sh\n" + sourceWithLines("artifact"),
-    );
-
     const passing = runAudit(root);
     assert.equal(passing.status, 0, passing.stderr);
     assert.match(passing.stdout, /Files scanned: 16/);
@@ -98,7 +90,7 @@ test("quality audit includes owned script extensions and excludes generated arti
     assert.match(passing.stdout, /deployment-script: 500 LOC/);
     assert.doesNotMatch(
       passing.stdout,
-      /excluded\.txt|no-shebang|artifact-script/,
+      /excluded\.txt|no-shebang/,
     );
 
     writeFile(root, "src/exact-500.py", sourceWithLines(".py"));
