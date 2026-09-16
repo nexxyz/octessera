@@ -15,7 +15,7 @@
     "firmware": false
   },
   "exact_inputs": [
-    {"path": "resources/legal/notice-bundle.json", "sha256": "c40736301fde99f820abe4dbf05b24e551092234ff9630a0b5532356867d40b9", "size": 6237, "mode": 420},
+    {"path": "resources/legal/notice-bundle.json", "sha256": "f3118c4b18f5ee18151820b5ca2abdb50957ddda55a04b55c7abcf7bf6922da1", "size": 6237, "mode": 420},
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320, "mode": 493},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911, "mode": 420},
     {"path": "userpatches/overlay/etc/default/locale", "sha256": "a168159d33de0c86614b65ea1e6d2165c79ea7c05372d36a4794e108d8ddf8f0", "size": 45, "mode": 420},
