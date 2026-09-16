@@ -85,7 +85,7 @@ class ProtectiveCaseBrandingTests(unittest.TestCase):
         expected: list[tuple[str, cq.Workplane]],
         body: cq.Workplane,
     ) -> None:
-        self.assertEqual([name.removeprefix("protective_case_checkfit_deep_tub_").removeprefix("protective_case_checkfit_shallow_lid_") for name, _ in actual], [name.removeprefix("octessera_") for name, _ in expected])
+        self.assertEqual([name.removeprefix("protective_case_deep_tub_").removeprefix("protective_case_shallow_lid_") for name, _ in actual], [name.removeprefix("octessera_") for name, _ in expected])
         body_box = shape_box(body)
         for (_, actual_part), (_, expected_part) in zip(actual, expected):
             actual_box = shape_box(actual_part)
@@ -127,9 +127,9 @@ class ProtectiveCaseBrandingTests(unittest.TestCase):
         self.assert_parts_match_canonical(deep_flush, self.canonical_deep_logo(0.0, 0.4), deep_body)
         self.assert_parts_match_canonical(shallow_debossed, self.canonical_parts(self.dims.height - 0.4, 0.4, False, True), shallow_body)
         self.assert_parts_match_canonical(shallow_flush, self.canonical_parts(self.dims.height - 0.4, 0.4, False, True), shallow_body)
-        self.assertEqual([name for name, _ in deep_debossed], ["protective_case_checkfit_deep_tub_logo"])
+        self.assertEqual([name for name, _ in deep_debossed], ["protective_case_deep_tub_logo"])
         self.assertFalse(any("wordmark" in name for name, _ in deep_flush))
-        self.assertEqual([name for name, _ in shallow_debossed], ["protective_case_checkfit_shallow_lid_logo", "protective_case_checkfit_shallow_lid_wordmark"])
+        self.assertEqual([name for name, _ in shallow_debossed], ["protective_case_shallow_lid_logo", "protective_case_shallow_lid_wordmark"])
 
         deep_logo_box = shape_box(deep_flush[0][1])
         self.assertAlmostEqual(deep_logo_box.xmin, 91.8, places=3)
@@ -177,7 +177,7 @@ class ProtectiveCaseBrandingTests(unittest.TestCase):
 
     def test_deep_multicolor_uses_flush_floor_orientation_inlay(self) -> None:
         body, parts = cad.build_multicolor_deep_tub(self.params)
-        self.assertEqual([name for name, _ in parts], ["protective_case_checkfit_deep_tub_logo", "protective_case_checkfit_deep_tub_device_orientation_guide"])
+        self.assertEqual([name for name, _ in parts], ["protective_case_deep_tub_logo", "protective_case_deep_tub_device_orientation_guide"])
         logo_box = shape_box(parts[0][1])
         guide_box = shape_box(parts[1][1])
         self.assertEqual(len(parts[1][1].solids().vals()), 73)
@@ -216,14 +216,14 @@ class ProtectiveCaseBrandingTests(unittest.TestCase):
         self.assertEqual(
             [path.relative_to(Path(__file__).resolve().parents[2]).as_posix() for path in paths],
             [
-                "release-artifacts/enclosure/step/protective_case_checkfit_deep_tub_debossed_logo.step",
-                "release-artifacts/enclosure/stl/protective_case_checkfit_deep_tub_debossed_logo.stl",
-                "release-artifacts/enclosure/3mf-single-material/protective_case_checkfit_deep_tub_debossed_logo.3mf",
-                "release-artifacts/enclosure/3mf-multicolor/protective_case_checkfit_deep_tub_multicolor_logo.3mf",
-                "release-artifacts/enclosure/step/protective_case_checkfit_shallow_lid_debossed_branding.step",
-                "release-artifacts/enclosure/stl/protective_case_checkfit_shallow_lid_debossed_branding.stl",
-                "release-artifacts/enclosure/3mf-single-material/protective_case_checkfit_shallow_lid_debossed_branding.3mf",
-                "release-artifacts/enclosure/3mf-multicolor/protective_case_checkfit_shallow_lid_multicolor_branding.3mf",
+                "hardware/enclosure/step/protective_case_deep_tub_debossed_logo.step",
+                "hardware/enclosure/stl/protective_case_deep_tub_debossed_logo.stl",
+                "hardware/enclosure/3mf-single-material/protective_case_deep_tub_debossed_logo.3mf",
+                "hardware/enclosure/3mf-multicolor/protective_case_deep_tub_multicolor_logo.3mf",
+                "hardware/enclosure/step/protective_case_shallow_lid_debossed_branding.step",
+                "hardware/enclosure/stl/protective_case_shallow_lid_debossed_branding.stl",
+                "hardware/enclosure/3mf-single-material/protective_case_shallow_lid_debossed_branding.3mf",
+                "hardware/enclosure/3mf-multicolor/protective_case_shallow_lid_multicolor_branding.3mf",
             ],
         )
         three_mf_paths = [path for path in paths if path.suffix == ".3mf"]
@@ -285,7 +285,7 @@ class ProtectiveCaseBrandingTests(unittest.TestCase):
                 path = Path(directory) / f"{label}.3mf"
                 cad.write_parts_3mf(
                     path,
-                    [("protective_case_checkfit_" + ("deep_tub" if label == "deep" else "shallow_lid") + "_body", printed_body, 1)]
+                    [("protective_case_" + ("deep_tub" if label == "deep" else "shallow_lid") + "_body", printed_body, 1)]
                     + [(name, printed_mark, 2) for (name, _), printed_mark in zip(marks, printed_marks)],
                 )
                 validator(path, expected_bbox, expected_mesh_bboxes)

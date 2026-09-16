@@ -6,7 +6,7 @@ import cadquery as cq
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
+ARTIFACT_ROOT = ROOT
 
 PLUG_STL_OUT = ARTIFACT_ROOT / "stl" / "friction_insert_expanding_plug_flat_sides.stl"
 PLUG_STEP_OUT = ARTIFACT_ROOT / "step" / "friction_insert_expanding_plug_flat_sides.step"

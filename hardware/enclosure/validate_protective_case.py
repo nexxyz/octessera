@@ -416,8 +416,8 @@ def validate_artifact_paths(params: dict, check_files: bool = False) -> None:
     debossed_3mf_paths = [path for path in three_mf_paths if "debossed" in path.name]
     multicolor_3mf_paths = [path for path in three_mf_paths if "multicolor" in path.name]
     require(len(three_mf_paths) == 4 and len(debossed_3mf_paths) == 2 and len(multicolor_3mf_paths) == 2, "expected two debossed and two multicolor 3MF artifacts")
-    require(all(path.relative_to(repo_root).parent.as_posix() == "release-artifacts/enclosure/3mf-single-material" for path in debossed_3mf_paths), "debossed 3MF artifacts must use the single-material directory")
-    require(all(path.relative_to(repo_root).parent.as_posix() == "release-artifacts/enclosure/3mf-multicolor" for path in multicolor_3mf_paths), "multicolor 3MF artifacts must use the multicolor directory")
+    require(all(path.relative_to(repo_root).parent.as_posix() == "hardware/enclosure/3mf-single-material" for path in debossed_3mf_paths), "debossed 3MF artifacts must use the single-material directory")
+    require(all(path.relative_to(repo_root).parent.as_posix() == "hardware/enclosure/3mf-multicolor" for path in multicolor_3mf_paths), "multicolor 3MF artifacts must use the multicolor directory")
     if not check_files:
         print("artifact_contract=8 exact_paths=SOURCE_ONLY 3mf=debossed2/multicolor2")
         return

@@ -221,13 +221,12 @@ for extension in bash js mjs ps1 psm1 py rs sh ts tsx; do
   printf 'source\n' > "$repo/src/included.$extension"
 done
 printf 'not scanned\n' > "$repo/src/excluded.txt"
-for directory in .opencode .slim artifacts build gen generated release-artifacts target third_party vendor; do
+for directory in .opencode .slim artifacts build gen generated target third_party vendor; do
   mkdir -p "$repo/$directory"
   write_fixture_lines "$repo/$directory/excluded.py" 501
 done
-mkdir -p "$repo/hardware/enclosure/review" "$repo/hardware/pcb/gerber"
+mkdir -p "$repo/hardware/enclosure/review"
 write_fixture_lines "$repo/hardware/enclosure/review/excluded.py" 501
-write_fixture_lines "$repo/hardware/pcb/gerber/excluded.py" 501
 printf '#!/bin/sh\nsource\n' > "$repo/src/shebang-script"
 write_fixture_lines "$repo/src/no-shebang" 501
 write_fixture_lines "$repo/src/exact-500.py" 500
@@ -235,11 +234,6 @@ write_fixture_lines "$repo/src/exact-500-no-newline.sh" 500 no
 deployment_root="$repo/tools/pi-image/stage4-octessera/files/root/usr/local/sbin"
 mkdir -p "$deployment_root"
 write_fixture_lines "$deployment_root/deployment-script" 500 no
-mkdir -p "$repo/release-artifacts"
-printf '#!/bin/sh\n' > "$repo/release-artifacts/artifact-script"
-for ((line = 1; line <= 500; line += 1)); do
-  printf 'artifact line %s\n' "$line" >> "$repo/release-artifacts/artifact-script"
-done
 run_prepush "$repo" --allow-dirty
 expect_rc "sc10" 0
 expect_no_mutation "sc10"

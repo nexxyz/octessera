@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$artifactRoot = Join-Path $projectRoot "release-artifacts\enclosure\status"
+$artifactRoot = Join-Path $projectRoot "hardware\enclosure\.status"
 $statusPath = Join-Path $artifactRoot "protective_case_artifacts_async_status.json"
 $logPath = Join-Path $artifactRoot "protective_case_artifacts_async.log"
 $workerPath = Join-Path $PSScriptRoot "generate_protective_case_artifacts_worker.ps1"

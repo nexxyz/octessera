@@ -21,11 +21,13 @@
 /tools/pi-image/fixtures/trusted-parent-v0.7.5/root/boot/config.txt text eol=lf
 *.ps1 text eol=crlf
 *.exe binary
-hardware/enclosure/*.step -text -diff
-hardware/enclosure/*.stl binary
-release-artifacts/enclosure/**/*.3mf binary
-release-artifacts/enclosure/**/*.step -text -diff
-release-artifacts/enclosure/**/*.stl binary
+/hardware/enclosure/*.step -text -diff
+/hardware/enclosure/*.stl binary
+/hardware/enclosure/**/*.3mf binary
+/hardware/enclosure/**/*.step -text -diff
+/hardware/enclosure/**/*.stl binary
+/hardware/pcb/gerber/** whitespace=-trailing-space
+/hardware/pcb/gerber/gerber.zip binary
 third_party/cpal-0.15.3/** text eol=lf whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
 /samples/SOURCE.md text eol=lf

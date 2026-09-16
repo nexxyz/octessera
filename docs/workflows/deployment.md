@@ -80,8 +80,7 @@ gh workflow run armbian-image.yml \
   -f compression=sha,img,xz \
   -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
   -f run_build=false \
-  -f artifact_mode=public-generic \
-  -f armbian_build_ref=main
+  -f artifact_mode=public-generic
 ```
 
 Change `run_build=true` only with a pinned full 40-character Armbian commit

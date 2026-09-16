@@ -75,14 +75,14 @@ hinges, latches, first layer, and recessed marks.
 
 ## Outputs
 
-- `../../release-artifacts/enclosure/step/protective_case_checkfit_deep_tub_debossed_logo.step`
-- `../../release-artifacts/enclosure/stl/protective_case_checkfit_deep_tub_debossed_logo.stl`
-- `../../release-artifacts/enclosure/3mf-single-material/protective_case_checkfit_deep_tub_debossed_logo.3mf`
-- `../../release-artifacts/enclosure/3mf-multicolor/protective_case_checkfit_deep_tub_multicolor_logo.3mf`
-- `../../release-artifacts/enclosure/step/protective_case_checkfit_shallow_lid_debossed_branding.step`
-- `../../release-artifacts/enclosure/stl/protective_case_checkfit_shallow_lid_debossed_branding.stl`
-- `../../release-artifacts/enclosure/3mf-single-material/protective_case_checkfit_shallow_lid_debossed_branding.3mf`
-- `../../release-artifacts/enclosure/3mf-multicolor/protective_case_checkfit_shallow_lid_multicolor_branding.3mf`
+- `../../hardware/enclosure/step/protective_case_deep_tub_debossed_logo.step`
+- `../../hardware/enclosure/stl/protective_case_deep_tub_debossed_logo.stl`
+- `../../hardware/enclosure/3mf-single-material/protective_case_deep_tub_debossed_logo.3mf`
+- `../../hardware/enclosure/3mf-multicolor/protective_case_deep_tub_multicolor_logo.3mf`
+- `../../hardware/enclosure/step/protective_case_shallow_lid_debossed_branding.step`
+- `../../hardware/enclosure/stl/protective_case_shallow_lid_debossed_branding.stl`
+- `../../hardware/enclosure/3mf-single-material/protective_case_shallow_lid_debossed_branding.3mf`
+- `../../hardware/enclosure/3mf-multicolor/protective_case_shallow_lid_multicolor_branding.3mf`
 
 Source attribution is in
 [`../../hardware/ATTRIBUTIONS.md`](../../hardware/ATTRIBUTIONS.md). Generator

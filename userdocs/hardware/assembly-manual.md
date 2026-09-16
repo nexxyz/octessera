@@ -14,11 +14,6 @@ Choose one compute board before ordering parts:
 Choose the board, then use its matching image in [flash and first boot](flash-and-first-boot.md)
 and its matching enclosure top. The normal user journey is otherwise shared.
 
-For an Orange Pi, the exact board/header power mapping and no-backfeed path must
-be established on the bare board before connecting it to the Octessera PCB. If
-either is unclear, stop; see the [Orange Armbian bring-up procedure](../../hardware/docs/orange-pi-armbian-bringup.md)
-for the detailed reference.
-
 Read [safety and power](safety-and-power.md) before handling power, a host
 cable, or the enclosure. Power the finished instrument through the enclosure
 USB-C power breakout. Do not power the Raspberry Pi through its micro-USB power
@@ -30,7 +25,7 @@ connector.
 
 | Qty | Item | Part | Notes |
 |---:|---|---|---|
-| 1 | Custom PCB | Fabricate from [`../../release-artifacts/pcb/gerber/gerber.zip`](../../release-artifacts/pcb/gerber/gerber.zip) | Order as a two-layer PCB unless the Gerber notes say otherwise. |
+| 1 | Custom PCB | Fabricate from [`../../hardware/pcb/gerber/gerber.zip`](../../hardware/pcb/gerber/gerber.zip) | Order as a two-layer PCB unless the Gerber notes say otherwise. |
 | 4 | NeoTrellis 4x4 driver PCB | [Adafruit `3954`](https://www.adafruit.com/product/3954), Mouser `485-3954` | Forms the 8x8 grid. |
 | 4 | Silicone 4x4 keypad | [Adafruit `1611`](https://www.adafruit.com/product/1611), Mouser `485-1611` | One per NeoTrellis board. |
 | 1 | NeoKey 1x4 QT | [Adafruit `4980`](https://www.adafruit.com/product/4980), Mouser `485-4980` | Holds the four Cherry MX keys. |
@@ -64,14 +59,14 @@ designs with six one-material support pieces.
 
 | Qty | Item | File/spec | Notes |
 |---:|---|---|---|
-| 1 | Enclosure top | Board-specific `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_<board>.stl`, matching single-material `../../release-artifacts/enclosure/3mf-single-material/case_top_two_level_cadquery_<board>.3mf`, or branded multicolor `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_<board>_multicolor.3mf` | The generated tops are named for Raspberry Pi Zero 2 W and Orange Pi Zero 2W. Fit the exact board before ordering a final print. |
-| 1 | Enclosure bottom | `../../release-artifacts/enclosure/stl/case_bottom_plate_cadquery.stl` | Bottom plate with guide walls and screw holes. |
-| 1 | Main encoder knob | Print `../../release-artifacts/enclosure/stl/encoder_cap_main_knurled_dots.stl`, use `../../release-artifacts/enclosure/3mf-single-material/encoder_cap_main_knurled_dots.3mf`, or use `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_main_knurled_dots_multicolor_flush.3mf` | Main encoder cap. The multicolor version uses the dot-ring marking. |
-| 3 | Aux encoder knobs | Print `../../release-artifacts/enclosure/stl/encoder_cap_aux*_ribbed_dot*.stl`, use matching `../../release-artifacts/enclosure/3mf-single-material/encoder_cap_aux*.3mf`, or use matching `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_aux*_multicolor_flush.3mf` | Aux 1/2/3 caps. Multicolor versions use one, two, and three dots. |
-| 4 | MX keycaps | Print `../../release-artifacts/enclosure/stl/mx_keycap_*.stl`, use matching `../../release-artifacts/enclosure/3mf-single-material/mx_keycap_*.3mf`, use matching `../../release-artifacts/enclosure/3mf-multicolor/mx_keycap_*_multicolor_flush.3mf`, or use any MX-stem keycap | Four NeoKey caps: back, play, shift, and function/layer. Transparent filament for the cap body lets the color LEDs shine through. |
-| 8 | 9.5mm standoff pillar | Print `../../release-artifacts/enclosure/stl/standoff_pillar_9_5mm.stl` and matching `../../release-artifacts/enclosure/3mf-single-material/standoff_pillar_9_5mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the OLED and audio/DAC board support locations. |
-| 10 | 10mm standoff pillar | Print `../../release-artifacts/enclosure/stl/standoff_pillar_10mm.stl` and matching `../../release-artifacts/enclosure/3mf-single-material/standoff_pillar_10mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the selected compute board, power breakout, and NeoKey support locations. NeoTrellis array pins go straight into the bottom's integrated pillars. |
-| 26 | Standoff top pin | Print `../../release-artifacts/enclosure/stl/standoff_top_pin_thin_base.stl` and matching `../../release-artifacts/enclosure/3mf-single-material/standoff_top_pin_thin_base.3mf`, or use compatible purchased stackable PCB standoff pins | 4 compute-board + 4 audio/DAC + 4 OLED/screen + 4 NeoKey + 2 power + 8 NeoTrellis array pins = 26 total. |
+| 1 | Enclosure top | Board-specific `../../hardware/enclosure/stl/case_top_two_level_cadquery_<board>.stl`, matching single-material `../../hardware/enclosure/3mf-single-material/case_top_two_level_cadquery_<board>.3mf`, or branded multicolor `../../hardware/enclosure/3mf-multicolor/case_top_two_level_<board>_multicolor.3mf` | The generated tops are named for Raspberry Pi Zero 2 W and Orange Pi Zero 2W. Fit the exact board before ordering a final print. |
+| 1 | Enclosure bottom | `../../hardware/enclosure/stl/case_bottom_plate_cadquery.stl` | Bottom plate with guide walls and screw holes. |
+| 1 | Main encoder knob | Print `../../hardware/enclosure/stl/encoder_cap_main_knurled_dots.stl`, use `../../hardware/enclosure/3mf-single-material/encoder_cap_main_knurled_dots.3mf`, or use `../../hardware/enclosure/3mf-multicolor/encoder_cap_main_knurled_dots_multicolor_flush.3mf` | Main encoder cap. The multicolor version uses the dot-ring marking. |
+| 3 | Aux encoder knobs | Print `../../hardware/enclosure/stl/encoder_cap_aux*_ribbed_dot*.stl`, use matching `../../hardware/enclosure/3mf-single-material/encoder_cap_aux*.3mf`, or use matching `../../hardware/enclosure/3mf-multicolor/encoder_cap_aux*_multicolor_flush.3mf` | Aux 1/2/3 caps. Multicolor versions use one, two, and three dots. |
+| 4 | MX keycaps | Print `../../hardware/enclosure/stl/mx_keycap_*.stl`, use matching `../../hardware/enclosure/3mf-single-material/mx_keycap_*.3mf`, use matching `../../hardware/enclosure/3mf-multicolor/mx_keycap_*_multicolor_flush.3mf`, or use any MX-stem keycap | Four NeoKey caps: back, play, shift, and function/layer. Transparent filament for the cap body lets the color LEDs shine through. |
+| 8 | 9.5mm standoff pillar | Print `../../hardware/enclosure/stl/standoff_pillar_9_5mm.stl` and matching `../../hardware/enclosure/3mf-single-material/standoff_pillar_9_5mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the OLED and audio/DAC board support locations. |
+| 10 | 10mm standoff pillar | Print `../../hardware/enclosure/stl/standoff_pillar_10mm.stl` and matching `../../hardware/enclosure/3mf-single-material/standoff_pillar_10mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the selected compute board, power breakout, and NeoKey support locations. NeoTrellis array pins go straight into the bottom's integrated pillars. |
+| 26 | Standoff top pin | Print `../../hardware/enclosure/stl/standoff_top_pin_thin_base.stl` and matching `../../hardware/enclosure/3mf-single-material/standoff_top_pin_thin_base.3mf`, or use compatible purchased stackable PCB standoff pins | 4 compute-board + 4 audio/DAC + 4 OLED/screen + 4 NeoKey + 2 power + 8 NeoTrellis array pins = 26 total. |
 | 8 | Heat-set insert | M3x6x5 heat-set insert, such as the M3 size in this [heat-set insert kit](https://de.aliexpress.com/item/1005012199553197.html) | Recommended but optional. Insert from the underside of the top; the smooth lead-in side locates in the `4.6mm` pilot hole. |
 | 8 | Screws | M3x8 socket-head cap screw, DIN 912 / ISO 4762 style | Recommended but optional. Install from the bottom; head diameter must be no larger than `6.4mm`. |
 | 8 | Rubber feet or screw-hole plugs | Small adhesive feet | Optional. Covers bottom screw holes and prevents sliding. |
@@ -204,7 +199,7 @@ before continuing.
 
 ## Source and manufacturing references
 
-- Gerbers: [`../../release-artifacts/pcb/gerber/gerber.zip`](../../release-artifacts/pcb/gerber/gerber.zip)
+- Gerbers: [`../../hardware/pcb/gerber/gerber.zip`](../../hardware/pcb/gerber/gerber.zip)
 - Schematic: [`../../hardware/pcb/octessera.kicad_sch`](../../hardware/pcb/octessera.kicad_sch)
 - PCB layout: [`../../hardware/pcb/octessera.kicad_pcb`](../../hardware/pcb/octessera.kicad_pcb)
 - Pin and bus reference: [`../../hardware/docs/pinout-and-connections.md`](../../hardware/docs/pinout-and-connections.md)

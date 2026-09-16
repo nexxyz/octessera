@@ -4,6 +4,21 @@ This is the short route through Octessera's current implementation contracts,
 fixed hardware paths, build tools, and provenance. For operating the instrument,
 start with the [user manual](../userdocs/README.md).
 
+## Repository map
+
+- `apps/` — platform applications and hardware adapters.
+- `crates/` — native Rust core, runtime, and audio crates.
+- `packages/` — shared TypeScript packages and desktop-facing contracts.
+- `config/` + `resources/` — shipped defaults, generated configuration, and shared data.
+- [`hardware/`](../hardware/README.md) — canonical PCB, enclosure, and hardware documentation.
+- `userdocs/` — end-user build, controls, and operation guides.
+- `docs/` — technical specifications, workflows, and contributor references.
+- `tools/` — build, image, hardware, release, and verification tooling.
+- `samples/` — bundled sample content, source acknowledgements, and manifests.
+- `licenses/` + `third_party/` — generated dependency inventories and vendored/source provenance.
+- `assets/` — shared branding and device visual assets.
+- `userpatches/` — Armbian image overlays and device files; it stays at the root because Armbian consumes this conventional path.
+
 ## Architecture and contracts
 
 - [Runtime boundaries](runtime-boundaries.md) — ownership between the desktop

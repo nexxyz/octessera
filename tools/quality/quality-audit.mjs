@@ -41,7 +41,6 @@ const IGNORE_DIRS = new Set([
   "gen",
   "generated",
   "node_modules",
-  "release-artifacts",
   "release-legal",
   "release-samples",
   "signalsmith-stretch",
@@ -52,7 +51,6 @@ const IGNORE_DIRS = new Set([
 ]);
 const EXCLUDED_AUDIT_ROOTS = new Set([
   "hardware/enclosure/review",
-  "hardware/pcb/gerber",
 ]);
 const DEPLOYMENT_SCRIPT_ROOTS = new Set([
   "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/sbin",

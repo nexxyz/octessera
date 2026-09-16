@@ -40,8 +40,7 @@ computer with the USB-A-to-Micro-USB cable.
 ## Orange Pi
 
 Orange has fixed image-defined USB roles and no `System > USB Role` switch. USB
-data is optional for normal use. Do not connect a host unless the exact
-connector and its VBUS/no-backfeed path are known for your build; if not, stop.
+data is optional for normal use.
 
 For the physical openings, see [enclosure](enclosure.md). For the shared power
 rules, see [safety and power](safety-and-power.md).

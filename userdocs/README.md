@@ -36,6 +36,9 @@ flashing, first boot, and network setup.
 [Controls cheat sheet](controls-cheat-sheet.md) · [Behaviors and Play
 pages](behaviors-and-sparks.md) · [Recording](recording.md)
 
+**Something is wrong?** Start with [troubleshooting](troubleshooting.md). Power
+down before opening the case or moving wiring.
+
 ## Reference
 
 ### Practical performance

@@ -464,7 +464,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Build the pinned Octessera Raspberry arm64 kernel package.")
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--source-dir", type=Path)
-    parser.add_argument("--output-dir", type=Path, default=Path("release-artifacts/rpi-kernel"))
+    parser.add_argument("--output-dir", type=Path, default=Path("build/rpi-kernel"))
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--cross-compile", default="aarch64-linux-gnu-")
     parser.add_argument("--make", default="make")
