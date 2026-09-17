@@ -41,6 +41,34 @@ fn save_setting_payload(
     payload
 }
 
+fn live_midi_out_enabled(runner: &NativeRunner) -> bool {
+    runner
+        .last_published_runtime_config
+        .as_ref()
+        .expect("runtime config should be published")
+        .midi_out_enabled
+}
+
+fn midi_restart_runner(boot_applied: bool, editable: bool) -> NativeRunner {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        usb_data_role_available: true,
+        boot_applied_usb_midi_out_enabled: boot_applied,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.midi_enabled = true;
+    runner.usb_midi_out_enabled = editable;
+    runner.menu.rebuild(runner.menu_config());
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "other" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+}
+
 fn reload_default_payload(payload: Value) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
@@ -84,6 +112,38 @@ fn usb_midi_setting_survives_unrelated_restart_setting_save_and_reload() {
         reloaded.test_config_payload()["runtimeConfig"]["usb"]["midiOutEnabled"],
         true
     );
+}
+
+#[test]
+fn pending_usb_midi_enable_does_not_enable_live_route_before_restart() {
+    let mut runner = midi_restart_runner(false, false);
+    assert!(!live_midi_out_enabled(&runner));
+
+    let saved = save_setting_payload(&mut runner, "usb.midiOutEnabled", 1, "usb-enable-save");
+
+    assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], true);
+    assert!(runner.usb_midi_out_enabled);
+    assert!(!runner.boot_applied_usb_midi_out_enabled);
+    assert!(!live_midi_out_enabled(&runner));
+}
+
+#[test]
+fn pending_usb_midi_disable_does_not_disable_live_route_after_candidate_rebuild() {
+    let mut runner = midi_restart_runner(true, true);
+    assert!(live_midi_out_enabled(&runner));
+
+    let saved = save_setting_payload(&mut runner, "usb.midiOutEnabled", -1, "usb-disable-save");
+
+    assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], false);
+    assert!(!runner.usb_midi_out_enabled);
+    assert!(runner.boot_applied_usb_midi_out_enabled);
+    assert!(live_midi_out_enabled(&runner));
+
+    let mut changed = runner.config_payload();
+    changed["runtimeConfig"]["transport"]["bpm"] = json!(121);
+    runner.apply_config_payload(changed).unwrap();
+    assert!(runner.boot_applied_usb_midi_out_enabled);
+    assert!(live_midi_out_enabled(&runner));
 }
 
 #[test]
@@ -242,4 +302,129 @@ fn selecting_gadget_does_not_restore_host_disabled_outputs() {
     assert_eq!(runner.usb_data_role, UsbDataRole::Gadget);
     assert!(!runner.audio_outputs.usb());
     assert!(!runner.usb_midi_out_enabled);
+}
+
+#[test]
+fn orange_usb_device_disable_and_restart_restores_host_midi_selections() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        audio_optimization_capacity_available: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.midi_outputs = vec![MidiPort {
+        id: "name:Host Out".into(),
+        name: "Host Out".into(),
+    }];
+    runner.midi_inputs = vec![MidiPort {
+        id: "name:Host In".into(),
+        name: "Host In".into(),
+    }];
+
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["midi"]["enabled"] = json!(true);
+    payload["runtimeConfig"]["midi"]["outId"] = json!("name:Host Out");
+    payload["runtimeConfig"]["midi"]["inId"] = json!("name:Host In");
+    payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(true);
+    runner.apply_config_payload(payload).unwrap();
+
+    assert!(runner
+        .menu
+        .item_for_key("midi.output.name:Host Out")
+        .is_some());
+    assert!(runner
+        .menu
+        .item_for_key("midi.input.name:Host In")
+        .is_some());
+    assert!(runner.menu.item_for_key("usb.midiOutEnabled").is_some());
+    assert_eq!(
+        runner.selected_midi_output_id.as_deref(),
+        Some("name:Host Out")
+    );
+    assert_eq!(
+        runner.selected_midi_input_id.as_deref(),
+        Some("name:Host In")
+    );
+
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(false);
+    runner.apply_config_payload(payload).unwrap();
+    let reloaded = reload_default_payload(runner.config_payload());
+
+    assert_eq!(
+        reloaded.selected_midi_output_id.as_deref(),
+        Some("name:Host Out")
+    );
+    assert_eq!(
+        reloaded.selected_midi_input_id.as_deref(),
+        Some("name:Host In")
+    );
+}
+
+#[test]
+fn inactive_midi_retains_host_ids_through_usb_status_and_reload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        audio_optimization_capacity_available: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["midi"]["enabled"] = json!(false);
+    payload["runtimeConfig"]["midi"]["outId"] = json!("name:Host Out");
+    payload["runtimeConfig"]["midi"]["inId"] = json!("name:Host In");
+    payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(true);
+    runner.apply_config_payload(payload).unwrap();
+
+    let effects = runner.outbox.drain_platform_effects();
+    assert!(effects.contains(&RuntimePlatformEffect::MidiSelectOutput {
+        id: Some("name:Host Out".into())
+    }));
+    assert!(effects.contains(&RuntimePlatformEffect::MidiSelectInput {
+        id: Some("name:Host In".into())
+    }));
+
+    for _ in 0..2 {
+        let messages = runner
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::MidiStatus {
+                    ok: true,
+                    message: None,
+                    selected_out_id: Some("name:Host Out".into()),
+                    selected_in_id: Some("name:Host In".into()),
+                },
+            })
+            .unwrap();
+        assert!(!messages
+            .iter()
+            .any(|message| matches!(message, RunnerMessage::MidiEvents { .. })));
+    }
+    assert!(!runner.midi_enabled);
+    assert_eq!(
+        runner.selected_midi_output_id.as_deref(),
+        Some("name:Host Out")
+    );
+    assert_eq!(
+        runner.selected_midi_input_id.as_deref(),
+        Some("name:Host In")
+    );
+
+    let baseline = runner.config_payload();
+    let mut runner = reload_default_payload(baseline);
+    let saved = save_setting_payload(&mut runner, "usb.midiOutEnabled", -1, "inactive-usb-save");
+    assert_eq!(saved["runtimeConfig"]["midi"]["outId"], "name:Host Out");
+    assert_eq!(saved["runtimeConfig"]["midi"]["inId"], "name:Host In");
+    assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], false);
+
+    let reloaded = reload_default_payload(saved);
+    assert!(!reloaded.midi_enabled);
+    assert!(!reloaded.usb_midi_out_enabled);
+    assert_eq!(
+        reloaded.selected_midi_output_id.as_deref(),
+        Some("name:Host Out")
+    );
+    assert_eq!(
+        reloaded.selected_midi_input_id.as_deref(),
+        Some("name:Host In")
+    );
 }

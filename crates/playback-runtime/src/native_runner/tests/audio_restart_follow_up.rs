@@ -453,7 +453,7 @@ fn assert_focused_sound_row_fits(runner: &mut NativeRunner, key: &str) {
     );
     let snapshot = runner.snapshot().unwrap();
     let expected_title = match key {
-        "masterVolume" => "/System",
+        "masterVolume" => "/SYS/Audio",
         "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.velocityCurve" => "/SYS/Notes",
         "sound.audioOutputBufferFrames" => "/SYS/Audio/Engine",
         _ => "/SYS/Audio",

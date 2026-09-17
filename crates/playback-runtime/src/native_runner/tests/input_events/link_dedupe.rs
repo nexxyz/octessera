@@ -53,6 +53,7 @@ pub(crate) fn canonical_default_life_first_tick_keeps_expected_note_ons() {
         serde_json::from_str(include_str!("../../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
+    runner.midi_enabled = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let step_pulses = runner.transport.algorithm_step_pulses;
@@ -73,6 +74,7 @@ pub(crate) fn coalesced_24_pulses_preserve_cross_tick_retriggers() {
         serde_json::from_str(include_str!("../../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
+    runner.midi_enabled = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let messages = pulse(&mut runner, 24);

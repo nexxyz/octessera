@@ -30,7 +30,7 @@ pub(crate) fn controls_action_opens_help_without_platform_effects() {
 pub(crate) fn controls_help_popup_turns_without_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 5;
+    runner.menu.state.cursor = 11;
     runner.open_controls_help();
 
     let messages = runner
@@ -90,7 +90,7 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
         .unwrap();
 
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 7;
+    runner.menu.state.cursor = 2;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

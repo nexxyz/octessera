@@ -67,6 +67,7 @@ fn request_snapshot_false_device_event_has_ordered_snapshot_and_expiry() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.test_enable_midi();
     runner.test_set_display_time(start);
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     runner.test_set_display_time(start + Duration::from_millis(91));

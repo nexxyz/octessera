@@ -42,7 +42,7 @@ pub(crate) fn cursor_only_navigation_does_not_apply_group_browsing_side_effects(
 pub(crate) fn entering_group_does_not_apply_group_side_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 8;
+    runner.menu.state.cursor = 3;
     runner.transport.sync_source = SyncSource::External;
 
     let messages = runner
@@ -52,7 +52,7 @@ pub(crate) fn entering_group_does_not_apply_group_side_effects() {
         })
         .unwrap();
 
-    assert_eq!(runner.menu.state.stack, vec![5, 8]);
+    assert_eq!(runner.menu.state.stack, vec![5, 3]);
     assert_eq!(runner.transport.sync_source, SyncSource::External);
     assert_eq!(
         snapshot_from(&messages)["settings"]["midi"]["syncMode"],

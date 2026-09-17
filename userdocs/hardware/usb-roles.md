@@ -16,8 +16,8 @@ cable.
 To use the port with USB devices instead:
 
 1. Disconnect the computer's USB data cable.
-2. Turn USB Audio and USB MIDI output off.
-3. Open `System > USB Role` and select **Host**.
+2. Turn USB Audio and USB MIDI off.
+3. Open `System > Setup > USB Role` and select **Host**.
 4. Save the setting and wait for the OLED to report the reboot result.
 5. After reboot, connect the device through an ID-grounded micro-USB OTG
    adapter. A powered hub is useful only when its upstream path cannot
@@ -26,9 +26,9 @@ To use the port with USB devices instead:
 The role changes on the next boot; do not try to change it while the port is
 live. Host mode disables gadget USB Audio, gadget USB MIDI, and new SD2
 transfers. Gadget mode makes USB Audio, USB MIDI, and SD2 transfer available
-again, but switching back to Gadget does not re-enable output settings that Host
-disabled.
-After reboot, turn desired USB outputs back on separately.
+again, but switching back to Gadget does not restore USB features or audio
+outputs that Host mode disabled.
+After reboot, turn the desired USB features back on separately.
 
 Use a USB-A host or hub connection for the bench cable. Avoid USB-C-to-USB-C
 and USB Power Delivery cables for this connection.
@@ -74,12 +74,12 @@ binds that position as `KEY_Z`, whether the keycap says Y or Z. Space remains
 the hardware S button; the letter S is the Aux 2 encoder click.
 
 To return to Gadget mode, disconnect the USB device, select
-`System > USB Role > Gadget`, save, and reboot. Then connect the data port to a
+`System > Setup > USB Role > Gadget`, save, and reboot. Then connect the data port to a
 computer with the USB-A-to-Micro-USB cable.
 
 ## Orange Pi
 
-Orange has fixed image-defined USB roles and no `System > USB Role` switch. USB
+Orange has fixed image-defined USB roles and no `System > Setup > USB Role` switch. USB
 data is optional for normal use. Its fixed USB-A host connector accepts the
 keyboard independently of USB0 OTG/gadget behavior; there is no Orange role
 switch to change.
@@ -89,6 +89,11 @@ changes and keyboard hotplug are live, and capture remains exclusive to the
 first supported keyboard. The Aux 3 left key follows the same physical Y/Z
 rule, and the letter S remains Aux 2 click rather than the hardware Space/S
 button.
+
+On Orange, USB Device MIDI remains the active route while it is enabled. Host
+MIDI output choices are retained for later use when USB Device MIDI is disabled;
+Disconnect clears the retained Host choice but does not disable active USB Device
+MIDI.
 
 For the physical openings, see [enclosure](enclosure.md). For the shared power
 rules, see [safety and power](safety-and-power.md).

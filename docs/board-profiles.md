@@ -107,8 +107,8 @@ port is present.
 
 On Raspberry, `usb.dataRole` selects the next-boot USB data role. `gadget` is
 the default and enables the image-side Audio/MIDI gadget and SD2 transfer path;
-`host` disables those paths and requires USB Audio and USB MIDI output to be
-off. Applying a role is a serialized save, checked exact `[all]` boot-config
+`host` disables those paths and requires USB Audio and USB MIDI to be off.
+Applying a role is a serialized save, checked exact `[all]` boot-config
 mutation, and reboot transaction; an active authoritative SD2 transfer rejects
 Host before the default is written. It is not a live USB switch. Full image
 construction or Pi provisioning installs the role helper and boot contract.

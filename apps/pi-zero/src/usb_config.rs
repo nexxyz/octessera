@@ -221,7 +221,7 @@ pub(crate) fn parse_usb_runtime_config(
     };
     if data_role == UsbDataRole::Host && (audio_outputs.usb() || midi_out_enabled) {
         return Err(UsbConfigError::Invalid(
-            "host USB data role requires USB audio and MIDI output to be disabled".into(),
+            "host USB data role requires USB audio and MIDI to be disabled".into(),
         ));
     }
     Ok(UsbRuntimeConfig {

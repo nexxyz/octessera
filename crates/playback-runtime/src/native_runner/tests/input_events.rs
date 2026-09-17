@@ -338,6 +338,7 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color()
     .unwrap();
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.midi_enabled = true;
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
     runner

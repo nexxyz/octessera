@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn unsupported_host_keeps_gadget_controls_without_usb_role_row() {
+pub(crate) fn orange_shows_both_midi_host_and_usb_device_groups() {
     let mut config = config();
     config.jack_audio_required = true;
     config.audio_optimization_capacity_available = true;
@@ -15,6 +15,7 @@ pub(crate) fn unsupported_host_keeps_gadget_controls_without_usb_role_row() {
         vec![
             "USB Audio",
             "HDMI Audio",
+            "Master Vol",
             "Perf. Mode",
             "Polyphony",
             "Engine"
@@ -22,7 +23,15 @@ pub(crate) fn unsupported_host_keeps_gadget_controls_without_usb_role_row() {
     );
     assert_eq!(
         super::section_1::group_labels(&config, "MIDI"),
-        vec!["Enabled", "USB MIDI", "MIDI Out", "MIDI In", "Sync / Clock"]
+        vec!["MIDI Active", "MIDI Host", "USB Device", "Sync / Clock"]
+    );
+    assert_eq!(
+        super::section_1::group_labels(&config, "MIDI > MIDI Host"),
+        vec!["MIDI Out", "MIDI In"]
+    );
+    assert_eq!(
+        super::section_1::group_labels(&config, "MIDI > USB Device"),
+        vec!["USB MIDI"]
     );
     assert_eq!(
         super::section_1::group_labels(&config, "SD Card 2"),

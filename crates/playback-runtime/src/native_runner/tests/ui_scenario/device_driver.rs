@@ -13,6 +13,7 @@ pub(super) struct DeviceDriver {
 impl DeviceDriver {
     pub(super) fn new() -> Self {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner.midi_enabled = true;
         let messages = runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "other" }),

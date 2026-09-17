@@ -33,14 +33,14 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                             ),
                         ],
                     ),
+                    preset_action_group("Load", "preset.load", &config.preset_names),
+                    preset_rename_group(config),
+                    preset_action_group("Delete", "preset.delete", &config.preset_names),
                     action_item(
                         "Save Current",
                         "preset.saveCurrent",
                         NativeMenuAction::PlatformEffect("preset.saveCurrent".into()),
                     ),
-                    preset_action_group("Load", "preset.load", &config.preset_names),
-                    preset_rename_group(config),
-                    preset_action_group("Delete", "preset.delete", &config.preset_names),
                     action_item(
                         "Refresh List",
                         "preset.refresh",
@@ -51,6 +51,8 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
             group(
                 "Default",
                 vec![
+                    bool_item("Auto Save", "autoSaveDefault", config.auto_save_default),
+                    bool_item("Backups", "rollingBackups", config.rolling_backups),
                     action_item(
                         "Save Default",
                         "default.save",
@@ -61,8 +63,6 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                         "default.load",
                         NativeMenuAction::PlatformEffect("default.load".into()),
                     ),
-                    bool_item("Auto Save", "autoSaveDefault", config.auto_save_default),
-                    bool_item("Backups", "rollingBackups", config.rolling_backups),
                 ],
             ),
         ],

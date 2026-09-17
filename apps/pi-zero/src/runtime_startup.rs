@@ -52,7 +52,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         keyboard,
     } = config;
     ensure_samples_dir(&samples_dir)?;
-    let (mut playback, mut runner) = init_runtime(audio_optimization);
+    let (mut playback, mut runner) = init_runtime(audio_optimization, usb_midi_out_enabled);
     if early_boot_splash {
         runner.skip_startup_splash();
     }
@@ -207,7 +207,10 @@ impl PreparedRuntime {
     }
 }
 
-fn init_runtime(audio_optimization: AudioOptimization) -> (PlaybackRuntime, NativeRunner) {
+fn init_runtime(
+    audio_optimization: AudioOptimization,
+    boot_applied_usb_midi_out_enabled: bool,
+) -> (PlaybackRuntime, NativeRunner) {
     let playback = PlaybackRuntime::new(RuntimeConfig {
         bpm: 120.0,
         sync_source: SyncSource::Internal,
@@ -221,6 +224,7 @@ fn init_runtime(audio_optimization: AudioOptimization) -> (PlaybackRuntime, Nati
         audio_optimization_capacity_available: true,
         jack_audio_required: true,
         usb_data_role_available: true,
+        boot_applied_usb_midi_out_enabled,
         ..NativeRunnerConfig::default()
     })
     .expect("native runner should initialize");
@@ -254,7 +258,7 @@ mod tests {
             false,
             playback_runtime::AudioOutputSet::jack(),
         );
-        let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency);
+        let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency, false);
         let marker = root.join("candidate-ready.json");
         let mut readiness = CandidateReadiness::new(Some(marker.clone()), "pi-prep".into());
         std::thread::spawn(move || {
@@ -301,7 +305,7 @@ mod tests {
             false,
             playback_runtime::AudioOutputSet::jack(),
         );
-        let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency);
+        let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency, false);
         let marker = root.join("candidate-ready.json");
         let readiness = CandidateReadiness::new(Some(marker.clone()), "pi-prep-failure".into());
         result_tx
@@ -349,7 +353,7 @@ mod tests {
             false,
             playback_runtime::AudioOutputSet::jack(),
         );
-        let (playback, runner) = init_runtime(AudioOptimization::Latency);
+        let (playback, runner) = init_runtime(AudioOptimization::Latency, false);
         let (_, midi_rx) = mpsc::channel::<MidiMessage>();
         let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
         let (_, encoder_rx) = mpsc::channel::<HardwareEvent>();
@@ -379,14 +383,14 @@ mod tests {
 
     #[test]
     fn pi_startup_uses_canonical_builtin_sample_favourites() {
-        let (_, mut runner) = init_runtime(AudioOptimization::Latency);
+        let (_, mut runner) = init_runtime(AudioOptimization::Latency, false);
 
         crate::sample_browser::assert_builtin_favourite_menu(&mut runner);
     }
 
     #[test]
     fn pi_native_runner_uses_persisted_audio_mode_and_exposes_capacity() {
-        let (_, runner) = init_runtime(AudioOptimization::Capacity);
+        let (_, runner) = init_runtime(AudioOptimization::Capacity, false);
         let payload = runner.test_config_payload();
 
         assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "capacity");
@@ -394,7 +398,7 @@ mod tests {
 
     #[test]
     fn pi_native_runner_preserves_latency_as_the_default_mode() {
-        let (_, runner) = init_runtime(AudioOptimization::Latency);
+        let (_, runner) = init_runtime(AudioOptimization::Latency, false);
         let payload = runner.test_config_payload();
 
         assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "latency");

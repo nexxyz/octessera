@@ -349,6 +349,7 @@ pub struct NativeRunner {
     midi_respond_to_start_stop: bool,
     audio_outputs: AudioOutputSet,
     usb_data_role: UsbDataRole,
+    boot_applied_usb_midi_out_enabled: bool,
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
     sparks_mode: String,

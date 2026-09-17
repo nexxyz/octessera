@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 #[test]
 pub(crate) fn transport_and_event_indicators_appear_in_snapshot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.midi_enabled = true;
     let display_start = Instant::now();
     runner.display.transients.set_test_now(display_start);
 

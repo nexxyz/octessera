@@ -8,35 +8,7 @@ use crate::native_runner::UsbDataRole;
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
     let host_role = config.usb_data_role_available && config.usb_data_role.is_host();
     let mut children = vec![
-        action_item(
-            "Save Current",
-            "preset.saveCurrent",
-            NativeMenuAction::PlatformEffect("preset.saveCurrent".into()),
-        ),
         load_preset_group(&config.preset_names),
-        number_item(
-            "Master Vol",
-            "masterVolume",
-            i32::from(config.master_volume),
-            0,
-            100,
-            1,
-        ),
-        action_item(
-            "Panic",
-            "midi.panic",
-            NativeMenuAction::PlatformEffect("midi.panic".into()),
-        ),
-        action_item(
-            "Sys. Info",
-            "system.info",
-            NativeMenuAction::PlatformEffect("system.info".into()),
-        ),
-        action_item(
-            "Basic Help",
-            "system.controlsHelp",
-            NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
-        ),
         group(
             "Recording",
             vec![
@@ -151,26 +123,29 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
             ],
         ),
     ];
-    let audio_index = children
-        .iter()
-        .position(|item| item.label == "Audio")
-        .expect("Audio group is present");
-    if config.usb_data_role_available {
-        children.insert(audio_index + 1, usb_data_role_item(config));
-    }
     if config.jack_audio_required {
-        let sd_card_index = audio_index + 1 + usize::from(config.usb_data_role_available);
-        children.insert(sd_card_index, sd_card_2_group(host_role));
-        let ui_index = children
-            .iter()
-            .position(|item| item.label == "UI")
-            .expect("UI group is present");
-        children.insert(ui_index + 1, hdmi_video_group(config));
+        children.push(sd_card_2_group(host_role));
+        children.push(hdmi_video_group(config));
     }
     children.extend([
         saves_group(config),
-        setup_group(),
+        setup_group(config),
         reset_group(),
+        action_item(
+            "Panic",
+            "midi.panic",
+            NativeMenuAction::PlatformEffect("midi.panic".into()),
+        ),
+        action_item(
+            "Sys. Info",
+            "system.info",
+            NativeMenuAction::PlatformEffect("system.info".into()),
+        ),
+        action_item(
+            "Basic Help",
+            "system.controlsHelp",
+            NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
+        ),
         action_item(
             "Reboot",
             "system.reboot",
@@ -201,6 +176,14 @@ fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
             config.audio_outputs.hdmi(),
         ));
     }
+    children.push(number_item(
+        "Master Vol",
+        "masterVolume",
+        i32::from(config.master_volume),
+        0,
+        100,
+        1,
+    ));
     if config.audio_optimization_capacity_available {
         children.push(enum_item(
             "Perf. Mode",
@@ -274,44 +257,52 @@ fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
 }
 
 fn midi_group(config: &NativeMenuConfig, sync_index: usize, host_role: bool) -> NativeMenuItem {
-    let mut children = vec![bool_item("Enabled", "midiEnabled", config.midi_enabled)];
-    if config.jack_audio_required && !host_role {
-        children.push(bool_item(
-            "USB MIDI",
-            "usb.midiOutEnabled",
-            config.usb_midi_out_enabled,
+    let mut children = vec![bool_item("MIDI Active", "midiEnabled", config.midi_enabled)];
+    if !config.usb_data_role_available || host_role {
+        children.push(group(
+            "MIDI Host",
+            vec![
+                midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
+                midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
+            ],
         ));
     }
-    children.extend([
-        midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
-        midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
-        group(
-            "Sync / Clock",
-            vec![
-                enum_item_from_strings(
-                    "Sync",
-                    "midiSyncMode",
-                    vec!["internal".into(), "external".into()],
-                    sync_index,
-                ),
-                bool_item(
-                    "Clock Out",
-                    "midi.clockOutEnabled",
-                    config.midi_clock_out_enabled,
-                ),
-                bool_item(
-                    "Clock In",
-                    "midi.clockInEnabled",
-                    config.midi_clock_in_enabled,
-                ),
-                bool_item(
-                    "Follow S/S",
-                    "midi.respondToStartStop",
-                    config.midi_respond_to_start_stop,
-                ),
-            ],
-        ),
-    ]);
+    if config.jack_audio_required && !host_role {
+        children.push(group(
+            "USB Device",
+            vec![bool_item(
+                "USB MIDI",
+                "usb.midiOutEnabled",
+                config.usb_midi_out_enabled,
+            )],
+        ));
+    }
+    children.push(group(
+        "Sync / Clock",
+        vec![
+            enum_item_from_strings(
+                "Sync",
+                "midiSyncMode",
+                vec!["internal".into(), "external".into()],
+                sync_index,
+            ),
+            bool_item(
+                "Clock Out",
+                "midi.clockOutEnabled",
+                config.midi_clock_out_enabled,
+            ),
+            bool_item(
+                "Clock In",
+                "midi.clockInEnabled",
+                config.midi_clock_in_enabled,
+            ),
+            bool_item(
+                "Follow S/S",
+                "midi.respondToStartStop",
+                config.midi_respond_to_start_stop,
+            ),
+        ],
+    ));
     group("MIDI", children)
 }
 
@@ -379,28 +370,30 @@ fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {
     group("HDMI Video", children)
 }
 
-fn setup_group() -> NativeMenuItem {
-    group(
-        "Setup",
-        vec![
-            action_item(
-                "Configure WiFi",
-                "system.configureWifi",
-                NativeMenuAction::PlatformEffect("system.configureWifi".into()),
-            ),
-            action_item(
-                "Backup / Restore",
-                "system.backupRestore",
-                NativeMenuAction::PlatformEffect("system.backupRestore".into()),
-            ),
-            updates_group(),
-            action_item(
-                "Hardware Test",
-                "system.hardwareTest",
-                NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
-            ),
-        ],
-    )
+fn setup_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    let mut children = Vec::new();
+    if config.usb_data_role_available {
+        children.push(usb_data_role_item(config));
+    }
+    children.extend([
+        updates_group(),
+        action_item(
+            "Configure WiFi",
+            "system.configureWifi",
+            NativeMenuAction::PlatformEffect("system.configureWifi".into()),
+        ),
+        action_item(
+            "Backup / Restore",
+            "system.backupRestore",
+            NativeMenuAction::PlatformEffect("system.backupRestore".into()),
+        ),
+        action_item(
+            "Hardware Test",
+            "system.hardwareTest",
+            NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
+        ),
+    ]);
+    group("Setup", children)
 }
 
 fn reset_group() -> NativeMenuItem {

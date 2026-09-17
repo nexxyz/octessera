@@ -341,6 +341,7 @@ fn native_transient_transitions_reach_playback_with_matching_oled_revisions() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.test_enable_midi();
     runner.skip_startup_splash();
     runner.test_set_display_time(start);
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());

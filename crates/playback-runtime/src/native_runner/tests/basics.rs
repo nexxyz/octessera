@@ -115,6 +115,7 @@ pub(crate) fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps(
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     runner.apply_config_payload(payload).unwrap();
+    runner.midi_enabled = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let first = runner
