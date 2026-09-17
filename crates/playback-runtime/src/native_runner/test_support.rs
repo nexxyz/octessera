@@ -7,6 +7,10 @@ impl NativeRunner {
         self.config_payload()
     }
 
+    pub fn test_enable_midi(&mut self) {
+        self.midi_enabled = true;
+    }
+
     pub fn test_device_config_payload(payload: Value) -> Result<Value, String> {
         super::device_config_payload_from_payload(payload)
     }

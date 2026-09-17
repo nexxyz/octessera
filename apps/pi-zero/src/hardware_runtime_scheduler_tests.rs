@@ -59,7 +59,14 @@ fn playing_playback() -> (PlaybackRuntime, NativeRunner, TestHost) {
     runner.skip_startup_splash();
     let mut host = TestHost::default();
     playback
-        .dispatch_host_message(HostMessage::MidiRealtimeStart, &mut runner, &mut host)
+        .dispatch_host_message(
+            HostMessage::DeviceInput {
+                input: json!({"type": "button_s", "pressed": true}),
+                request_snapshot: Some(true),
+            },
+            &mut runner,
+            &mut host,
+        )
         .expect("start should dispatch");
     (playback, runner, host)
 }

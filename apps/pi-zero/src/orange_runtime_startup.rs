@@ -80,6 +80,7 @@ pub(crate) fn prepare_runtime(
         audio_optimization,
         audio_optimization_capacity_available: true,
         jack_audio_required: true,
+        boot_applied_usb_midi_out_enabled: usb_midi_out_enabled,
         ..NativeRunnerConfig::default()
     })?;
     if skip_startup_splash {

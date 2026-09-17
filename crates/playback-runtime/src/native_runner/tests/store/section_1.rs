@@ -260,8 +260,8 @@ pub(crate) fn midi_output_menu_selects_dynamic_port() {
 #[test]
 pub(crate) fn entering_midi_port_groups_requests_port_lists() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 8];
-    runner.menu.state.cursor = 1;
+    runner.menu.state.stack = vec![5, 3, 1];
+    runner.menu.state.cursor = 0;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -276,8 +276,8 @@ pub(crate) fn entering_midi_port_groups_requests_port_lists() {
             if effects == &vec![RuntimePlatformEffect::MidiListOutputsRequest]
     )));
 
-    runner.menu.state.stack = vec![5, 8];
-    runner.menu.state.cursor = 2;
+    runner.menu.state.stack = vec![5, 3, 1];
+    runner.menu.state.cursor = 1;
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -327,7 +327,7 @@ pub(crate) fn preset_load_menu_selects_dynamic_preset() {
             },
         })
         .unwrap();
-    nested_runner.menu.state.stack = vec![5, 11, 0, 2];
+    nested_runner.menu.state.stack = vec![5, 6, 0, 1];
     nested_runner.menu.state.cursor = 1;
 
     let opened = nested_runner

@@ -250,6 +250,7 @@ mod tests {
             playing_statuses: 0,
             measure_transport: false,
         };
+        runner.inner.test_enable_midi();
         runner.send(HostMessage::MidiRealtimeStart).unwrap();
         runner.playing_statuses = 0;
         runner.measure_transport = true;
@@ -278,6 +279,7 @@ mod tests {
             playing_statuses: 0,
             measure_transport: false,
         };
+        runner.inner.test_enable_midi();
         runner.send(HostMessage::MidiRealtimeStart).unwrap();
         runner.measure_transport = true;
         runner

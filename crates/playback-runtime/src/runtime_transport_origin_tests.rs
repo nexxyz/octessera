@@ -308,13 +308,18 @@ fn run_native_partition(interval_ms: u64) -> (u64, Vec<MusicalEvent>) {
         midi_out_enabled: false,
         ..RuntimeConfig::default()
     });
-    let mut runner = RecordingNativeRunner {
-        inner: NativeRunner::new(NativeRunnerConfig::default()).unwrap(),
-        pulses: 0,
-    };
+    let inner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = RecordingNativeRunner { inner, pulses: 0 };
     let mut host = FakeHost::default();
     runtime
-        .dispatch_host_message(HostMessage::MidiRealtimeStart, &mut runner, &mut host)
+        .dispatch_host_message(
+            HostMessage::DeviceInput {
+                input: serde_json::json!({ "type": "button_s", "pressed": true }),
+                request_snapshot: Some(true),
+            },
+            &mut runner,
+            &mut host,
+        )
         .unwrap();
     for _ in 0..(6_000 / interval_ms) {
         runtime

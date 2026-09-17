@@ -9,7 +9,9 @@ impl NativeRunner {
             bpm: self.transport.bpm,
             sync_source: self.transport.sync_source.clone(),
             midi_clock_out_enabled: self.midi_clock_out_enabled,
-            midi_out_enabled: self.midi_enabled && self.selected_midi_output_id.is_some(),
+            midi_out_enabled: self.midi_enabled
+                && (self.boot_applied_usb_midi_out_enabled
+                    || self.selected_midi_output_id.is_some()),
         }
     }
 

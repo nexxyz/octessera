@@ -61,7 +61,7 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         |payload| payload["runtimeConfig"]["midi"]["syncMode"] = json!("broken"),
     );
     assert_validation_error(
-        "USB MIDI output",
+        "USB Device MIDI",
         "runtimeConfig.usb.midiOutEnabled must be a boolean",
         |payload| payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!("yes"),
     );

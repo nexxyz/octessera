@@ -29,6 +29,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
         })
         .unwrap();
     runner.select_active_layer(0).unwrap();
+    runner.midi_enabled = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let first = runner
@@ -174,6 +175,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
 #[test]
 pub(crate) fn external_midi_realtime_respects_clock_in_and_start_stop_settings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.midi_enabled = true;
     runner.transport.sync_source = SyncSource::External;
 
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
@@ -188,6 +190,26 @@ pub(crate) fn external_midi_realtime_respects_clock_in_and_start_stop_settings()
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
     runner.midi_clock_in_enabled = false;
     runner.send(HostMessage::MidiRealtimeStop).unwrap();
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
+}
+
+#[test]
+pub(crate) fn midi_active_gates_inbound_realtime_transport_messages() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.sync_source = SyncSource::External;
+    runner.midi_clock_in_enabled = true;
+    runner.midi_respond_to_start_stop = true;
+
+    runner.send(HostMessage::MidiRealtimeStart).unwrap();
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
+
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.current_ppqn_pulse = 10;
+    runner
+        .send(HostMessage::MidiRealtimeClock { pulses: 4 })
+        .unwrap();
+    runner.send(HostMessage::MidiRealtimeStop).unwrap();
+    assert_eq!(runner.transport.current_ppqn_pulse, 10);
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
 }
 

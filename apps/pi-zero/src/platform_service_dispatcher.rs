@@ -152,18 +152,20 @@ pub(crate) fn dispatch_midi_effect(
         }
         RuntimePlatformEffect::MidiSelectOutput { id } => {
             let result = midi.select_output(id.clone());
+            let (ok, message) = midi.selection_status(result);
             Some(RuntimeStoreResult::MidiStatus {
-                ok: result.is_ok(),
-                message: result.err(),
+                ok,
+                message,
                 selected_out_id: midi.selected_output_id(),
                 selected_in_id: midi.selected_input_id(),
             })
         }
         RuntimePlatformEffect::MidiSelectInput { id } => {
             let result = midi.select_input(id.clone());
+            let (ok, message) = midi.selection_status(result);
             Some(RuntimeStoreResult::MidiStatus {
-                ok: result.is_ok(),
-                message: result.err(),
+                ok,
+                message,
                 selected_out_id: midi.selected_output_id(),
                 selected_in_id: midi.selected_input_id(),
             })

@@ -30,6 +30,7 @@ fn pattern_runner() -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.midi_enabled = true;
     runner.select_layer_behavior(1, "weave").unwrap();
     runner
 }
@@ -43,6 +44,7 @@ fn transport_stop_resets_active_looper_phase_and_preserves_recorded_sequence() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.midi_enabled = true;
 
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     runner
@@ -127,6 +129,7 @@ fn transport_stop_resets_active_and_inactive_pattern_phases_but_pause_continue_p
 #[test]
 fn external_resync_boundary_resets_active_and_inactive_pattern_phases() {
     let mut runner = pattern_runner();
+    runner.midi_enabled = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     runner
         .send(HostMessage::TransportPulseStep {

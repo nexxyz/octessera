@@ -280,7 +280,10 @@ fn run_one(
         &mut runtime,
         &mut runner,
         &mut host,
-        HostMessage::MidiRealtimeStart,
+        HostMessage::DeviceInput {
+            input: serde_json::json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: Some(true),
+        },
     )?;
     let mut advance_us = Vec::new();
     let mut wake_late_us = Vec::new();

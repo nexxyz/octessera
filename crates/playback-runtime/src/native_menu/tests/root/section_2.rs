@@ -21,7 +21,7 @@ pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
     let mut cfg = config();
     cfg.preset_names = vec!["One".into(), "Two".into()];
     let mut menu = NativeMenuModel::new(cfg);
-    menu.state.stack = vec![5, 11, 0, 2];
+    menu.state.stack = vec![5, 6, 0, 1];
     menu.state.cursor = 1;
     assert_eq!(menu.current_label(), Some("Two"));
     menu.back();
@@ -34,7 +34,7 @@ pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
 #[test]
 pub(crate) fn static_navigation_memory_does_not_affect_focus_item_key() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 7];
+    menu.state.stack = vec![5, 2];
     menu.state.cursor = 1;
     menu.back();
     let _ = menu.press();

@@ -21,6 +21,74 @@ fn midi_hold_runner() -> NativeRunner {
 }
 
 #[test]
+pub(crate) fn usb_device_midi_routes_notes_and_internal_clock_without_host_selection() {
+    let mut runner = midi_hold_runner();
+    runner.selected_midi_output_id = None;
+    runner.boot_applied_usb_midi_out_enabled = true;
+    runner.midi_clock_out_enabled = true;
+    runner.sync_engine_runtime_config();
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = FakeHost::default();
+
+    runtime
+        .dispatch_host_message(
+            HostMessage::DeviceInput {
+                input: json!({ "type": "other" }),
+                request_snapshot: None,
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert!(runtime.config().midi_out_enabled);
+    assert!(runner.selected_midi_output_id.is_none());
+
+    runtime
+        .dispatch_host_message(
+            HostMessage::DeviceInput {
+                input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+                request_snapshot: None,
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert!(host
+        .midi_messages
+        .iter()
+        .any(|message| message.first().is_some_and(|status| status & 0xF0 == 0x90)));
+
+    host.midi_messages.clear();
+    runtime.advance(500, &mut runner, &mut host).unwrap();
+    assert!(host.midi_messages.iter().any(|message| message == &[0xF8]));
+
+    runner.midi_enabled = false;
+    runtime
+        .dispatch_host_message(
+            HostMessage::DeviceInput {
+                input: json!({ "type": "other" }),
+                request_snapshot: None,
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert!(!runtime.config().midi_out_enabled);
+    host.midi_messages.clear();
+    runtime
+        .dispatch_host_message(
+            HostMessage::DeviceInput {
+                input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+                request_snapshot: None,
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert!(host.midi_messages.is_empty());
+}
+
+#[test]
 pub(crate) fn disabling_global_midi_drains_held_midi_notes_before_gate_changes() {
     let mut runner = midi_hold_runner();
 

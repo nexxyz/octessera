@@ -51,7 +51,7 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
         .expect("Raspberry USB Role help target");
     let role_entry = crate::native_help::resolve_native_help_entry(&role_target)
         .expect("Raspberry USB Role help entry");
-    assert_eq!(role_entry.path, "System > USB Role");
+    assert_eq!(role_entry.path, "System > Setup > USB Role");
     assert_eq!(role_entry.title, "USB Role");
     assert_eq!(
         role_entry.line1,
@@ -74,34 +74,58 @@ fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
         .into_iter()
         .find(|target| target.key == "key:midiEnabled")
         .expect("global MIDI enabled help target");
-    assert_eq!(enabled.path, "Menu > System > MIDI > Enabled");
+    assert_eq!(enabled.path, "Menu > System > MIDI > MIDI Active");
     let enabled_entry = crate::native_help::resolve_native_help_entry(&enabled)
         .expect("global MIDI enabled help entry");
     let enabled_copy = format!("{} {}", enabled_entry.line1, enabled_entry.line2).to_lowercase();
-    assert!(enabled_copy.contains("runtime midi gate"));
-    assert!(enabled_copy.contains("no port or device"));
+    assert!(enabled_copy.contains("global runtime gate"));
+    assert!(enabled_copy.contains("does not select a port or device"));
 
     let usb_midi = menu
         .help_targets()
         .into_iter()
         .find(|target| target.key == "key:usb.midiOutEnabled")
         .expect("USB MIDI help target");
-    assert_eq!(usb_midi.path, "Menu > System > MIDI > USB MIDI");
+    assert_eq!(
+        usb_midi.path,
+        "Menu > System > MIDI > USB Device > USB MIDI"
+    );
     let usb_midi_entry =
         crate::native_help::resolve_native_help_entry(&usb_midi).expect("USB MIDI help entry");
     let usb_midi_copy = format!("{} {}", usb_midi_entry.line1, usb_midi_entry.line2).to_lowercase();
     for phrase in [
         "bidirectional usb midi",
         "after restart",
-        "outbound gadget midi",
-        "inbound device selection",
-        "midi in",
+        "owns both input and output",
+        "routing takes precedence",
+        "host selections are retained",
     ] {
         assert!(
             usb_midi_copy.contains(phrase),
             "USB MIDI help omitted {phrase}"
         );
     }
+
+    let midi_host = menu
+        .help_targets()
+        .into_iter()
+        .find(|target| target.path == "Menu > System > MIDI > MIDI Host")
+        .expect("MIDI Host help target");
+    let midi_host_entry =
+        crate::native_help::resolve_native_help_entry(&midi_host).expect("MIDI Host help entry");
+    let midi_host_copy = format!("{} {}", midi_host_entry.line1, midi_host_entry.line2);
+    assert!(midi_host_copy.contains("MIDI Out"));
+    assert!(midi_host_copy.contains("MIDI In"));
+
+    let usb_device = menu
+        .help_targets()
+        .into_iter()
+        .find(|target| target.path == "Menu > System > MIDI > USB Device")
+        .expect("USB Device help target");
+    let usb_device_entry =
+        crate::native_help::resolve_native_help_entry(&usb_device).expect("USB Device help entry");
+    let usb_device_copy = format!("{} {}", usb_device_entry.line1, usb_device_entry.line2);
+    assert!(usb_device_copy.contains("computer-facing gadget interface"));
 
     let sd2 = menu
         .help_targets()
