@@ -122,6 +122,101 @@ escape_sed_replacement() {
     printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
 }
 
+normalize_raspberry_usb_role() {
+    config="$1"
+    desired_role="$2"
+    sudo python3 - "$config" "$desired_role" <<'PY'
+import os
+import re
+import stat
+import sys
+import tempfile
+
+
+config_path = sys.argv[1]
+desired_role = sys.argv[2]
+role_lines = {
+    b"dtoverlay=dwc2,dr_mode=peripheral": b"gadget",
+    b"dtoverlay=dwc2,dr_mode=host": b"host",
+}
+directive = re.compile(rb"^dtoverlay\s*=\s*dwc2(?:,|$)")
+
+
+def fail(message):
+    print(f"Raspberry boot config: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+if desired_role not in {"gadget", "host"}:
+    fail(f"unsupported USB role: {desired_role}")
+metadata = os.lstat(config_path)
+if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+    fail("boot config must be a regular, unlinked file")
+with open(config_path, "rb") as handle:
+    lines = handle.read().splitlines(keepends=True)
+
+section = None
+all_headers = []
+managed_roles = []
+for index, line in enumerate(lines):
+    body = line.rstrip(b"\r\n")
+    stripped = body.strip()
+    if stripped == b"[all]":
+        all_headers.append(index)
+        section = "all"
+        continue
+    if stripped.startswith(b"[") and stripped.endswith(b"]"):
+        section = None
+        continue
+    if not stripped or stripped.startswith(b"#"):
+        continue
+    if directive.match(stripped):
+        if section != "all":
+            continue
+        if body != stripped or stripped not in role_lines:
+            fail("managed [all] contains a malformed or competing DWC2 directive")
+        managed_roles.append(index)
+
+if not all_headers:
+    fail("boot config must contain a managed [all] block")
+if len(managed_roles) > 1:
+    fail("managed [all] contains duplicate or competing DWC2 role lines")
+
+desired_line = f"dtoverlay=dwc2,dr_mode={'peripheral' if desired_role == 'gadget' else 'host'}".encode()
+if managed_roles:
+    index = managed_roles[0]
+    ending = lines[index][len(lines[index].rstrip(b"\r\n")):]
+    lines[index] = desired_line + ending
+else:
+    index = all_headers[-1]
+    ending = lines[index][len(lines[index].rstrip(b"\r\n")):]
+    if not ending:
+        ending = b"\n"
+    lines.insert(index + 1, desired_line + ending)
+
+directory = os.path.dirname(config_path) or "."
+descriptor, temporary = tempfile.mkstemp(prefix=".octessera-usb-role.", dir=directory)
+try:
+    os.fchmod(descriptor, stat.S_IMODE(metadata.st_mode))
+    os.fchown(descriptor, metadata.st_uid, metadata.st_gid)
+    with os.fdopen(descriptor, "wb") as handle:
+        descriptor = None
+        handle.write(b"".join(lines))
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, config_path)
+    temporary = None
+finally:
+    if descriptor is not None:
+        os.close(descriptor)
+    if temporary is not None:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+PY
+}
+
 BOOT_CONFIG=$(target_path /boot/firmware/config.txt)
 if [ ! -f "$BOOT_CONFIG" ]; then
     BOOT_CONFIG=$(target_path /boot/config.txt)
@@ -276,21 +371,15 @@ else
     echo "Skipping initramfs update; pass -UpdateInitramfs when an OS or boot change requires a rebuild."
 fi
 
-sudo sed -i -E '/^[[:space:]]*dtoverlay=dwc2,dr_mode=(peripheral|host)[[:space:]]*$/d' "$BOOT_CONFIG"
-all_sections=$(grep -Ec '^\[all\]$' "$BOOT_CONFIG")
-if [ "$all_sections" -ne 1 ]; then
-    echo "Raspberry boot config must contain exactly one [all] block; found $all_sections." >&2
-    exit 1
-fi
-sudo sed -i '/^\[all\]$/a dtoverlay=dwc2,dr_mode=peripheral' "$BOOT_CONFIG"
-
-ensure_raspberry_uart_inactive
-
 desired_usb_role=gadget
 device_config=$(target_path /home/pi/presets/default.json)
 if [ -e "$device_config" ] || [ -L "$device_config" ]; then
     desired_usb_role=$(python3 "$IMAGE_ROOT/usr/local/lib/octessera/device_config.py" --data-role "$device_config")
 fi
+normalize_raspberry_usb_role "$BOOT_CONFIG" "$desired_usb_role"
+
+ensure_raspberry_uart_inactive
+
 if [ -n "$SYSROOT" ]; then
     OCTESSERA_USB_ROLE_BOOT_ROOT="$SYSROOT" sudo "$(target_path /usr/local/sbin/octessera-usb-role)" "$desired_usb_role"
 else

@@ -166,7 +166,7 @@ def load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str,
         if source_path.stat().st_size != source["size"]:
             raise ImageProofError("Raspberry boot-layer source input size changed")
     live_parity = contract.get("live_parity_inputs")
-    expected = [{"path": "tools/pi/deploy-pi.sh", "sha256": "54ea212f4fefa218315d3a9a9e982e3cfcc311cea832be339e8733ce6b1179ce", "size": 17245}, {"path": "tools/pi/provision/provision.sh", "sha256": "bee90aefa1992aa0cc2904eef6f26b1f5e404c4f7c4708b53284476384c69f41", "size": 16823}]
+    expected = [{"path": "tools/pi/deploy-pi.sh", "sha256": "54ea212f4fefa218315d3a9a9e982e3cfcc311cea832be339e8733ce6b1179ce", "size": 17245}, {"path": "tools/pi/provision/provision.sh", "sha256": "065731bf725db37b19f78d1bcade5f0c440f1cf2b8c636468c68b2850435cae2", "size": 19362}]
     if not isinstance(live_parity, list) or live_parity != expected:
         raise ImageProofError("Raspberry live parity inputs changed")
     for source in live_parity:

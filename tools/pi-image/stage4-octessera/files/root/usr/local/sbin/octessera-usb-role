@@ -124,12 +124,14 @@ for index, line in enumerate(lines):
     if stripped.startswith(b"#") or not stripped:
         continue
     if DW_C2_DIRECTIVE.match(stripped):
-        if section == "all" and body == stripped and stripped in ROLE_LINES:
+        if section != "all":
+            continue
+        if body == stripped and stripped in ROLE_LINES:
             candidates.append((index, body, stripped))
         else:
             fail("boot config contains a competing or malformed dwc2 directive")
-if len(all_sections) != 1:
-    fail("boot config must contain exactly one managed [all] block")
+if not all_sections:
+    fail("boot config must contain a managed [all] block")
 if len(candidates) != 1:
     fail("boot config must contain exactly one managed USB role line in [all]")
 index, body, role_line = candidates[0]

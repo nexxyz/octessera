@@ -20,6 +20,28 @@ write_config() {
     chown 0:0 "$config"
 }
 
+write_stock_config() {
+    cp "$script_dir/fixtures/trusted-parent-v0.7.5/boot/config.txt" "$config"
+    chmod 0640 "$config"
+    chown 0:0 "$config"
+}
+
+managed_role() {
+    awk '
+        /^\[all\]$/ { section = "all"; next }
+        /^\[[^]]+\]$/ { section = "other"; next }
+        section == "all" && /^dtoverlay=dwc2,dr_mode=/ { print; exit }
+    ' "$config"
+}
+
+model_scope() {
+    awk '
+        /^\[cm5\]$/ { in_cm5 = 1 }
+        in_cm5 && /^\[all\]$/ { exit }
+        in_cm5 { print }
+    ' "$config"
+}
+
 prepare_python_failure_injector() {
     mkdir -p "$root/python" "$root/bin"
     cat > "$root/python/sitecustomize.py" <<'PY'
@@ -99,6 +121,17 @@ OCTESSERA_USB_ROLE_BOOT_ROOT="$root" "$helper" gadget
 assert_gadget
 [ "$(stat -c '%u:%g:%a:%h' "$config")" = 0:0:640:1 ]
 
+write_stock_config
+stock_model_scope="$(model_scope)"
+assert_gadget
+[ "$(managed_role)" = 'dtoverlay=dwc2,dr_mode=peripheral' ]
+OCTESSERA_USB_ROLE_BOOT_ROOT="$root" "$helper" host
+[ "$(managed_role)" = 'dtoverlay=dwc2,dr_mode=host' ]
+[ "$(model_scope)" = "$stock_model_scope" ]
+OCTESSERA_USB_ROLE_BOOT_ROOT="$root" "$helper" gadget
+[ "$(managed_role)" = 'dtoverlay=dwc2,dr_mode=peripheral' ]
+[ "$(model_scope)" = "$stock_model_scope" ]
+
 prepare_python_failure_injector
 for failure in open fsync close; do
     write_config
@@ -143,10 +176,9 @@ fi
 
 write_config
 printf '%s\n' '[pi4]' 'dtoverlay=dwc2,dr_mode=host' >> "$config"
-if OCTESSERA_USB_ROLE_BOOT_ROOT="$root" "$helper" is-gadget; then
-    printf '%s\n' 'competing dwc2 directive was accepted' >&2
-    exit 1
-fi
+before_model_specific="$(cat "$config")"
+assert_gadget
+[ "$(cat "$config")" = "$before_model_specific" ]
 
 rm -f "$config"
 if OCTESSERA_USB_ROLE_BOOT_ROOT="$root" "$helper" is-gadget 2>/dev/null; then

@@ -16,7 +16,7 @@ reset_fixture() {
 }
 
 write_constructor_fat_pair() {
-    printf '%s\n' '# --- octessera additions ---' '# octessera hardware configuration' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' > "$fixture/boot/config.txt"
+    printf '%s\n' '# --- octessera additions ---' '# octessera hardware configuration' '[cm5]' 'dtoverlay=dwc2,dr_mode=host' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' 'dtoverlay=dwc2,dr_mode=peripheral' > "$fixture/boot/config.txt"
     printf '%s\n' 'console=tty1 root=/dev/mmcblk0p2' > "$fixture/boot/cmdline.txt"
 }
 
@@ -27,6 +27,13 @@ write_constructor_redirect_pair() {
 
 expect_constructor_identity_failure() {
     if require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"; then
+        echo "$1" >&2
+        exit 1
+    fi
+}
+
+expect_constructor_usb_role_failure() {
+    if require_octessera_raspberry_usb_role_layout "$fixture/boot" "$fixture/root"; then
         echo "$1" >&2
         exit 1
     fi
