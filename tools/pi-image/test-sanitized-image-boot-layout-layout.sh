@@ -42,7 +42,7 @@ if [ "$(id -u)" -eq 0 ]; then
         "$fixture/root/etc/systemd/system/multi-user.target.wants" \
         "$fixture/root/boot" \
         "$fixture/root/home/pi" "$fixture/root/home/pi/presets" \
-        "$fixture/root/usr/local/lib/octessera"
+        "$fixture/root/usr/local/lib/octessera" "$fixture/root/usr/local/sbin"
     printf '%s\n' 'root:x:0:0:root:/root:/bin/bash' 'pi:x:1000:1000:Pi:/home/pi:/bin/bash' > "$fixture/root/etc/passwd"
     printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'input:x:104:' > "$fixture/root/etc/group"
     cp "$script_dir/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" "$fixture/root/etc/profile.d/octessera-welcome.sh"
@@ -51,6 +51,7 @@ if [ "$(id -u)" -eq 0 ]; then
     chmod 0644 "$fixture/root/home/pi/presets/default.json"
     chown 1000:1000 "$fixture/root/home/pi/presets/default.json"
     cp "$script_dir/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" "$fixture/root/usr/local/lib/octessera/device_config.py"; chmod 0644 "$fixture/root/usr/local/lib/octessera/device_config.py"; chown 0:0 "$fixture/root/usr/local/lib/octessera/device_config.py"
+    cp "$script_dir/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role" "$fixture/root/usr/local/sbin/octessera-usb-role"; chmod 0755 "$fixture/root/usr/local/sbin/octessera-usb-role"; chown 0:0 "$fixture/root/usr/local/sbin/octessera-usb-role"
     : > "$fixture/root/home/pi/.hushlogin"
     chown 1000:1000 "$fixture/root/home/pi/.hushlogin"
     write_constructor_fat_pair
@@ -98,6 +99,21 @@ if [ "$(id -u)" -eq 0 ]; then
     fi
     rm "$fixture/root/usr/share/doc/external-octessera-legal-alias"
     require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"
+    require_octessera_raspberry_usb_role_layout "$fixture/boot" "$fixture/root"
+    role_path="$fixture/root/usr/local/sbin/octessera-usb-role"
+    cp "$role_path" "$role_path.canonical"
+    printf '\n' >> "$role_path"
+    expect_constructor_usb_role_failure 'Constructor identity accepted a stale installed USB role helper.'
+    mv "$role_path.canonical" "$role_path"
+    printf '%s\n' 'dtoverlay=dwc2,dr_mode=host' >> "$fixture/boot/config.txt"
+    expect_constructor_usb_role_failure 'Constructor identity accepted duplicate managed USB role lines.'
+    write_constructor_fat_pair
+    sed -i 's/^dtoverlay=dwc2,dr_mode=peripheral$/dtoverlay=dwc2,dr_mode=peripheral # malformed/' "$fixture/boot/config.txt"
+    expect_constructor_usb_role_failure 'Constructor identity accepted a malformed managed USB role line.'
+    write_constructor_fat_pair
+    sed -i '/^dtoverlay=dwc2,dr_mode=host$/d' "$fixture/boot/config.txt"
+    expect_constructor_usb_role_failure 'Constructor identity accepted a missing stock [cm5] host directive.'
+    write_constructor_fat_pair
     cp "$fixture/root/etc/group" "$fixture/root/etc/group.with-input"
     grep -vFx 'input:x:104:' "$fixture/root/etc/group.with-input" > "$fixture/root/etc/group"
     expect_constructor_identity_failure 'Constructor identity accepted a missing input group.'

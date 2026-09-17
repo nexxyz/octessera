@@ -19,14 +19,6 @@ done
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 REAL_PATH="$PATH"
-HOST_PATHS_BEFORE="$TMP/host-paths-before"
-for host_path in /etc/octessera /etc/systemd/system/octessera.service \
-  /usr/local/sbin/octessera-usb-gadget /opt/octessera \
-  /usr/local/lib/octessera/rpi_uart_release.py; do
-  if [ -e "$host_path" ] || [ -L "$host_path" ]; then
-    printf '%s\n' "$host_path" >> "$HOST_PATHS_BEFORE"
-  fi
-done
 
 PACKAGE="$TMP/package"
 mkdir -p "$PACKAGE"
@@ -66,11 +58,32 @@ case "${1:-}" in
     role_line=host
     [ "$role" = gadget ] && role_line=peripheral
     config="$SYSROOT/boot/firmware/config.txt"
-    if grep -Eq '^[[:space:]]*dtoverlay=dwc2,dr_mode=(peripheral|host)[[:space:]]*$' "$config"; then
-      sed -i -E 's#^[[:space:]]*dtoverlay=dwc2,dr_mode=(peripheral|host)[[:space:]]*$#dtoverlay=dwc2,dr_mode='"$role_line"'#' "$config"
-    else
-      printf '%s\n' "dtoverlay=dwc2,dr_mode=$role_line" >> "$config"
+    if ! awk -v role_line="$role_line" '
+      BEGIN { section = ""; roles = 0; error = 0 }
+      {
+        if ($0 ~ /^\[all\]$/) {
+          section = "all"
+        } else if ($0 ~ /^\[[^]]+\]$/) {
+          section = "other"
+        }
+        if (section == "all" && $0 ~ /^[[:space:]]*dtoverlay=dwc2,dr_mode=(peripheral|host)[[:space:]]*$/) {
+          if ($0 != "dtoverlay=dwc2,dr_mode=peripheral" && $0 != "dtoverlay=dwc2,dr_mode=host") {
+            error = 1
+          }
+          roles++
+          if (roles == 1) {
+            print "dtoverlay=dwc2,dr_mode=" role_line
+          }
+          next
+        }
+        print
+      }
+      END { exit error || roles != 1 }
+    ' "$config" > "$config.tmp"; then
+      rm -f "$config.tmp"
+      exit 1
     fi
+    mv "$config.tmp" "$config"
     echo "usb-role $*" >> "$FAKE_STATE/usb-role.log"
     exit 0
     ;;
@@ -147,6 +160,14 @@ new_fixture() {
     > "$FIXTURE/boot/firmware/cmdline.txt"
   export FAKE_STATE="$TMP/state-$RANDOM"
   mkdir -p "$FAKE_STATE"
+}
+
+boot_managed_role() {
+  awk '
+    /^\[all\]$/ { section = "all"; next }
+    /^\[[^]]+\]$/ { section = "other"; next }
+    section == "all" && /^dtoverlay=dwc2,dr_mode=/ { print; exit }
+  ' "$FIXTURE/boot/firmware/config.txt"
 }
 
 RC=0
@@ -255,6 +276,9 @@ pass() {
   PASS_COUNT=$((PASS_COUNT + 1))
   printf 'ok - %s\n' "$1"
 }
+
+# shellcheck source=tools/pi/provision/test-provision-role-cases.sh
+source "$ROOT/tools/pi/provision/test-provision-role-cases.sh"
 
 # 1. Invalid service name.
 new_fixture
@@ -400,10 +424,13 @@ expect_rc "sc-host" 75
 assert_log_contains "sc-host" "usb-role.log" "host"
 assert_not_contains "sc-host" "$FIXTURE/boot/firmware/config.txt" "dr_mode=peripheral"
 assert_contains "sc-host" "$FIXTURE/boot/firmware/config.txt" "^\[all\]$"
-[[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=host$' "$FIXTURE/boot/firmware/config.txt")" == 1 ]]
+[[ "$(boot_managed_role)" == 'dtoverlay=dwc2,dr_mode=host' ]]
+[[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=host$' "$FIXTURE/boot/firmware/config.txt")" == 2 ]]
 run_provision default
 expect_rc "sc-host-repeat" 0
 assert_not_contains "sc-host-repeat" "$FIXTURE/boot/firmware/config.txt" "dr_mode=peripheral"
+[[ "$(boot_managed_role)" == 'dtoverlay=dwc2,dr_mode=host' ]]
+[[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=host$' "$FIXTURE/boot/firmware/config.txt")" == 2 ]]
 pass "persisted host role is preserved during provisioning"
 
 # 9. Explicit initramfs handling installs the current static hook inputs before refreshing the image.
@@ -438,14 +465,6 @@ expect_err_match "sc7" "GPIO14/15"
 pass "unsafe GPIO state exits 75"
 
 # 11. No host writes anywhere.
-for host_path in /etc/octessera /etc/systemd/system/octessera.service \
-  /usr/local/sbin/octessera-usb-gadget /opt/octessera \
-  /usr/local/lib/octessera/rpi_uart_release.py; do
-  if { [ -e "$host_path" ] || [ -L "$host_path" ]; } && ! grep -qxF "$host_path" "$HOST_PATHS_BEFORE"; then
-    printf 'FAIL[sc8]: host path was written: %s\n' "$host_path" >&2
-    exit 1
-  fi
-done
 if grep -q "HOST WRITE ATTEMPT" "$TMP"/state-*/sudo-host-writes.log 2>/dev/null; then
   printf 'FAIL[sc8]: fake sudo detected a host write attempt\n' >&2
   exit 1

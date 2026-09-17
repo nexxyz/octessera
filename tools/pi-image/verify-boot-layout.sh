@@ -368,10 +368,29 @@ require_octessera_raspberry_identity() {
     fi
 }
 
+require_octessera_raspberry_usb_role_layout() {
+    local boot_root="$1" image_root="$2" boot_config="$1/config.txt"
+    local role_source="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role"
+    local role_installed="$image_root/usr/local/sbin/octessera-usb-role"
+    if [ ! -f "$role_source" ] || [ ! -f "$role_installed" ] || [ -L "$role_installed" ] || [ "$(stat -c '%u:%g:%a' "$role_installed")" != 0:0:755 ] || ! cmp -s "$role_source" "$role_installed"; then
+        echo "constructor-required: Raspberry USB role helper bytes or metadata are not canonical" >&2
+        return 1
+    fi
+    if ! OCTESSERA_USB_ROLE_BOOT_ROOT="$(dirname "$boot_root")" "$role_installed" is-gadget >/dev/null; then
+        echo "constructor-required: Raspberry final boot config has an invalid managed USB role" >&2
+        return 1
+    fi
+    if [ "$(awk '/^\[cm5\]$/ { section = "cm5"; next } /^\[[^]]+\]$/ { section = "other" } section == "cm5" && $0 == "dtoverlay=dwc2,dr_mode=host" { count++ } END { print count + 0 }' "$boot_config")" -ne 1 ]; then
+        echo "constructor-required: Raspberry stock [cm5] host directive is not exact" >&2
+        return 1
+    fi
+}
+
 require_octessera_raspberry_identity_for_boot_layer() {
     case "${OCTESSERA_BOOT_LAYER_CLASSIFICATION:-unknown}" in
         constructor-required)
-            require_octessera_raspberry_identity "$@"
+            require_octessera_raspberry_identity "$@" || return 1
+            require_octessera_raspberry_usb_role_layout "$@" || return 1
             ;;
         trusted-parent-v0.7.5)
             require_octessera_trusted_parent_raspberry_identity "$@"
