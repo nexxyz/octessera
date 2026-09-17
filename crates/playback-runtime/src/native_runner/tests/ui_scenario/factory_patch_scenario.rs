@@ -129,6 +129,7 @@ fn assert_factory_patch_matches_expected_fixture(device: &DeviceDriver) {
 fn expected_factory_patch_payload(revision: u64) -> Value {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.clear_patch_state().unwrap();
+    runner.test_enable_midi();
     let mut expected = runner.config_payload();
     expected["revision"] = revision.into();
     merge_fixture(&mut expected, expected_factory_patch_fixture());

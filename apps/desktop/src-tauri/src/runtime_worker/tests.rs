@@ -92,6 +92,7 @@ fn accepted_snapshot_resets_periodic_cadence_but_preserves_one_native_deadline()
     ));
 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.test_enable_midi();
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     let deadline = runner
         .next_timed_display_snapshot_deadline_after(Some(cadence_at))
@@ -113,6 +114,7 @@ fn failed_native_expiry_does_not_advance_desktop_cadence_until_retry() {
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut host = WorkerTestHost::default();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.test_enable_midi();
     runner.test_set_display_time(start);
     playback
         .dispatch_host_message(HostMessage::MidiRealtimeStart, &mut runner, &mut host)
