@@ -7,6 +7,7 @@ use crate::main_runtime_loop::{drain_encoder_events, drain_host_messages, maybe_
 use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
 use crate::ui_profile::UiProfiler;
+use crate::usb_keyboard::KeyboardCapture;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{AudioOptimization, HostMessage, NativeRunner, PlaybackRuntime};
 use std::path::PathBuf;
@@ -55,6 +56,7 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) input_rx: mpsc::Receiver<HostMessage>,
     pub(crate) encoder_rx: mpsc::Receiver<HardwareEvent>,
     pub(crate) early_boot_splash: bool,
+    pub(crate) keyboard: KeyboardCapture,
 }
 
 pub(crate) fn spawn(config: RuntimeThreadConfig, render_worker: RenderWorker) -> JoinHandle<()> {
@@ -84,6 +86,7 @@ fn run_scheduler(
         mut runner,
         mut adapter,
         candidate_readiness: _,
+        keyboard,
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx,
     } = prepared;
@@ -206,6 +209,9 @@ fn run_scheduler(
                 .scheduler
                 .sleep_duration(Instant::now(), &playback, &runner),
         );
+    }
+    if let Err(error) = keyboard.shutdown() {
+        eprintln!("USB keyboard worker shutdown failed: {error}");
     }
 }
 

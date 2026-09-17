@@ -44,7 +44,7 @@ if [ "$(id -u)" -eq 0 ]; then
         "$fixture/root/home/pi" "$fixture/root/home/pi/presets" \
         "$fixture/root/usr/local/lib/octessera"
     printf '%s\n' 'root:x:0:0:root:/root:/bin/bash' 'pi:x:1000:1000:Pi:/home/pi:/bin/bash' > "$fixture/root/etc/passwd"
-    printf '%s\n' 'root:x:0:' 'pi:x:1000:' > "$fixture/root/etc/group"
+    printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'input:x:104:' > "$fixture/root/etc/group"
     cp "$script_dir/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" "$fixture/root/etc/profile.d/octessera-welcome.sh"
     chmod 0644 "$fixture/root/etc/profile.d/octessera-welcome.sh"
     cp "$script_dir/../../config/generated/pi/default.json" "$fixture/root/home/pi/presets/default.json"
@@ -98,6 +98,10 @@ if [ "$(id -u)" -eq 0 ]; then
     fi
     rm "$fixture/root/usr/share/doc/external-octessera-legal-alias"
     require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"
+    cp "$fixture/root/etc/group" "$fixture/root/etc/group.with-input"
+    grep -vFx 'input:x:104:' "$fixture/root/etc/group.with-input" > "$fixture/root/etc/group"
+    expect_constructor_identity_failure 'Constructor identity accepted a missing input group.'
+    mv "$fixture/root/etc/group.with-input" "$fixture/root/etc/group"
     validator_path="$fixture/root/usr/local/lib/octessera/device_config.py"
     for validator_case in stale size; do
         cp "$script_dir/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" "$validator_path"; chmod 0644 "$validator_path"; chown 0:0 "$validator_path"

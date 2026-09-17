@@ -10,10 +10,10 @@
     "machine_output_checked": false,
     "limitation": "cargo-about 0.9.1 is advisory here: custom first-party license-file metadata and policy review are not represented by its accepted identifiers, so the checked inventory is rendered from Cargo.lock, manifests, and the exact reviewed policy instead."
   },
-  "cargo_lock_sha256": "7ca30202bd8a148d6415970c126d62ca7654a2d6c03688f9e6e4a519dbc8b8e7",
-  "package_count": 525,
+  "cargo_lock_sha256": "8dfbbfeedbea08a52b78fee4d940f7f2bc6fb4adf85ae8af75d43f96731362a4",
+  "package_count": 533,
   "license_classes": {
-    "permissive": 513,
+    "permissive": 521,
     "file-level-copyleft": 10,
     "reviewed-license-alternative": 2,
     "custom-or-unknown": 0
@@ -772,6 +772,35 @@
       }
     },
     {
+      "name": "bitvec",
+      "version": "1.1.1",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "ddcec3d12c579d40898fe0a9a358a803c23e9c52ca3c425707f81c9436211837",
+      "license_files": [
+        {
+          "source_file": "LICENSE.txt",
+          "document_sha256": "411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5",
+          "bytes": 1082
+        }
+      ],
+      "manifest_sha256": "2735dda2aad59ac0e02777717f6cc94165e3265789a2ce5379a36785a2dab738",
+      "manifest_authors": [],
+      "manifest_repository": "https://github.com/bitvecto-rs/bitvec",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "8cd9c4bb6b1cd657e9320351cbd83361951b712844fade6461c7dc39420642ec"
+      }
+    },
+    {
       "name": "block",
       "version": "0.1.6",
       "license": "MIT",
@@ -1517,6 +1546,37 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "ea9ac1f68c1940b7e0c1348b99a6a219d3ebaf65b11f342cff5d547a5367ce91"
+      }
+    },
+    {
+      "name": "cfg_aliases",
+      "version": "0.2.2",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527",
+      "license_files": [
+        {
+          "source_file": "LICENSE",
+          "document_sha256": "31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812",
+          "bytes": 1076
+        }
+      ],
+      "manifest_sha256": "714317efebb5635660abe816709d2a7e5831cd9496bc169d2f898c4bbcf470c1",
+      "manifest_authors": [
+        "Zicklag <zicklag@katharostech.com>"
+      ],
+      "manifest_repository": "https://github.com/katharostech/cfg_aliases",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "9e3b9c6e41ce9e8b40ed4a16c4ee0b57c39b46098997270769dfb5a1429df891"
       }
     },
     {
@@ -3423,6 +3483,43 @@
       }
     },
     {
+      "name": "evdev",
+      "version": "0.13.2",
+      "license": "Apache-2.0 OR MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "25b686663ba7f08d92880ff6ba22170f1df4e83629341cba34cf82cd65ebea99",
+      "license_files": [
+        {
+          "source_file": "LICENSE-APACHE",
+          "document_sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+          "bytes": 9723
+        },
+        {
+          "source_file": "LICENSE-MIT",
+          "document_sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "bytes": 1023
+        }
+      ],
+      "manifest_sha256": "aefb59286af831dabd786e3b77a2fe4779dae1f468c826c8ba606fc83fb3d52a",
+      "manifest_authors": [
+        "Corey Richardson <corey@octayn.net>"
+      ],
+      "manifest_repository": "https://github.com/cmr/evdev",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "152a31c63d572c5dd277c6e970cec0a2d2c40b2f97952401d8f1d1a9df33f2c7"
+      }
+    },
+    {
       "name": "fastrand",
       "version": "2.4.1",
       "license": "Apache-2.0 OR MIT",
@@ -3851,6 +3948,37 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "168ff479ef4e4f953f0211857798e42def3edd88460c38e36971aaf4efd1af64"
+      }
+    },
+    {
+      "name": "funty",
+      "version": "2.0.0",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c",
+      "license_files": [
+        {
+          "source_file": "LICENSE.txt",
+          "document_sha256": "f790cc576999f5998c766d3d26d7d64dc368e805a98461484f65e8d961ec6d9f",
+          "bytes": 1082
+        }
+      ],
+      "manifest_sha256": "32592e4fc609561a1f7da60da38f684b5e54bdee0db4c31fab476b2340186326",
+      "manifest_authors": [
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "manifest_repository": "https://github.com/myrrlyn/funty",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "cdddcf54b895dafa62e2853e16223bf0fd68de7d55c46aedcbe72c9ba005da77"
       }
     },
     {
@@ -7782,6 +7910,37 @@
       }
     },
     {
+      "name": "nix",
+      "version": "0.29.0",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46",
+      "license_files": [
+        {
+          "source_file": "LICENSE",
+          "document_sha256": "66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70",
+          "bytes": 1097
+        }
+      ],
+      "manifest_sha256": "30a3d3032dda335327557f9b1fca7bccf70c8f46b024221fe842f8a707b6f6cf",
+      "manifest_authors": [
+        "The nix-rust Project Developers"
+      ],
+      "manifest_repository": "https://github.com/nix-rust/nix",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "aad1864cb4f1ad7e0ceb5bba3017e030f2c6dfe6b5af9e38ce8b2cf4210b936b"
+      }
+    },
+    {
       "name": "nom",
       "version": "7.1.3",
       "license": "MIT",
@@ -9854,6 +10013,38 @@
       },
       "review_status": "reviewed-alternative",
       "effective_license": "Apache-2.0"
+    },
+    {
+      "name": "radium",
+      "version": "0.7.0",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09",
+      "license_files": [
+        {
+          "source_file": "LICENSE.txt",
+          "document_sha256": "13f4cc9fbc8d4a447b28aa84019c10ad4abf4b5f6919db061bf6690ccc23bc02",
+          "bytes": 1079
+        }
+      ],
+      "manifest_sha256": "b41fc2b1f6259ab32f9c93aeb73074efa00739c587a4ebbf5c13beb45a9edb3f",
+      "manifest_authors": [
+        "Nika Layzell <nika@thelayzells.com>",
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "manifest_repository": "https://github.com/bitvecto-rs/radium",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "c376b856415d3e6df2b8413102a9a41929f5ea1365d5a7c4f76e166c77ef4eeb"
+      }
     },
     {
       "name": "rand",
@@ -12304,6 +12495,38 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "7a09da169a9c373d9e3614bb78f3b4de8376d840cdb23efab482c222b8e25d8c"
+      }
+    },
+    {
+      "name": "tap",
+      "version": "1.0.1",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369",
+      "license_files": [
+        {
+          "source_file": "LICENSE.txt",
+          "document_sha256": "8b4e95f5cf0dc40269c99f7b787203ffe04ded245ca2427422c196efa2b2f42a",
+          "bytes": 1090
+        }
+      ],
+      "manifest_sha256": "e1411b0ffb2a7d409e1706baf31dd4536fdf8834bcc62ca6d4bb1105733fe7cd",
+      "manifest_authors": [
+        "Elliott Linder <elliott.darfink@gmail.com>",
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "manifest_repository": "https://github.com/myrrlyn/tap",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "1bde9dada1d5f27b471e2e2a95f243e5a3a6d243cefeb8ec2b4a78ad987c9031"
       }
     },
     {
@@ -17653,6 +17876,37 @@
       "cargo_checksum": {
         "status": "verified-from-crate-archive",
         "sha256": "47ff4440ba775c04d93e1c6fa27dd41466ca151b20d307e0a14b0be03fb65627"
+      }
+    },
+    {
+      "name": "wyz",
+      "version": "0.5.1",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "source": "crates.io",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed",
+      "license_files": [
+        {
+          "source_file": "LICENSE.txt",
+          "document_sha256": "411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5",
+          "bytes": 1082
+        }
+      ],
+      "manifest_sha256": "91e8b522b0a6f9bdfca01cf33e3e4ce22ed0d2c777200ca8c6dc98dff25e88b0",
+      "manifest_authors": [
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "manifest_repository": "https://github.com/myrrlyn/wyz",
+      "manifest_license_file": null,
+      "license_file_status": "recognized-top-level-file",
+      "source_required": false,
+      "cargo_checksum": {
+        "status": "verified-from-crate-archive",
+        "sha256": "45c3c179e03f5dbf8eb0f4cb30a93772fd419c2bf0f1a65b0e99bdc7cb63715d"
       }
     },
     {

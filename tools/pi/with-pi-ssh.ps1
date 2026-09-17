@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true, Position = 0)]
-  [ValidateSet("ssh", "scp", "ssh-payload")]
+  [ValidateSet("ssh", "ssh-tty", "scp", "ssh-payload")]
   [Alias("Mode")]
   [string]$Command,
 
@@ -187,8 +187,8 @@ if (($sshDirectoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
 $Key = Resolve-RequiredLocalFile $Key "Pi SSH private key"
 $KnownHosts = Resolve-RequiredLocalFile $KnownHosts "Pi SSH known_hosts file"
 
-$transportCommand = if ($Command -eq "ssh-payload") { "ssh" } else { $Command }
-$transportArguments = if ($Command -eq "ssh") {
+$transportCommand = if ($Command -in @("ssh-payload", "ssh-tty")) { "ssh" } else { $Command }
+$transportArguments = if ($Command -in @("ssh", "ssh-tty")) {
   Normalize-SshArguments $ArgumentList $Target
 } elseif ($Command -eq "scp") {
   Normalize-ScpArguments $ArgumentList $Target
@@ -223,10 +223,14 @@ try {
 
   $payload = $null
   if ($Command -eq "ssh-payload") {
-    $payload = [Convert]::ToBase64String([IO.File]::ReadAllBytes($payloadPath))
-    $nativeArguments = $fixedArguments + @($Target, "tr -d '\r' | base64 --decode | bash -s --")
+    $payloadBytes = [IO.File]::ReadAllBytes($payloadPath)
+    $normalizedPayloadBytes = [byte[]]@($payloadBytes | Where-Object { $_ -ne 13 })
+    $payload = [Convert]::ToBase64String($normalizedPayloadBytes)
+    $nativeArguments = $fixedArguments + @($Target, "base64 --decode --ignore-garbage | bash -s --")
   } elseif ($Command -eq "scp") {
     $nativeArguments = $fixedArguments + $transportArguments
+  } elseif ($Command -eq "ssh-tty") {
+    $nativeArguments = $fixedArguments + @("-tt", $Target) + $transportArguments
   } else {
     $nativeArguments = $fixedArguments + @($Target) + $transportArguments
   }

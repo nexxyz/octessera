@@ -52,6 +52,28 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Sample assign mode + Shift + cell press | Shift + cell | Apply current assign toggle/level step to entire row |
 | Sample assign mode + combined modifier + cell press | Shift+Ctrl + cell | Apply current assign toggle/level step to entire column |
 
+## USB-host keyboard
+
+The base keyboard controls mirror the simulator controls. USB-host capture
+additionally maps the three AUX encoder rows:
+
+| Keyboard key | Native control | Repeat |
+|---|---|---|
+| ← / ↑ | Main encoder turn `-1` | Accepted |
+| → / ↓ | Main encoder turn `+1` | Accepted |
+| Q / W / E | AUX1 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
+| A / S / D | AUX2 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
+| Y/Z / X / C | AUX3 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
+| Enter | Main encoder press | Suppressed |
+| Backspace / Escape | Back button | Suppressed |
+| Space | Space button (`S`) | Suppressed |
+| Shift | Shift modifier | Suppressed |
+| Control | Fn modifier | Suppressed |
+
+Key presses and releases update the corresponding native button or modifier state. Arrow and AUX turn key-repeat events emit additional turns; repeat events for Enter, AUX click keys, Back, Space, Shift, and Control do not emit additional edges. AUX click key releases clear their held keyboard state without retriggering the encoder click, and disconnect, disable, read failure, and shutdown use the same held-state cleanup. The AUX3 left key is the physical key immediately right of left Shift; Linux binds that position as `KEY_Z` whether its keycap is `Y` or `Z`. Space remains the hardware Space/S button; the letter `S` is the AUX2 encoder click. Modifier combinations therefore retain their normal semantics: Shift+Space is Stop (or Resync arm under external sync), Control+Space is Reset stop, and Shift+Control+Enter opens context help.
+
+Raspberry capture requires the persisted USB role to be `Host`; changing that role still uses the existing save-and-reboot flow. Orange capture uses the fixed USB-A host connector and is independent of USB0 OTG/gadget behavior. On both boards, capture is enabled only for graphical HDMI modes: `live-grid`, `plain-grid`, `active-behavior`, and `cycle-behaviors`. `Terminal` disables capture. Hotplug and HDMI-mode transitions are live: the first supported keyboard is selected and exclusively grabbed, a second keyboard is ignored while it is selected, and disconnects or gate changes release held logical controls and the grab.
+
 Simulator grid drag behavior follows the active behavior's declared interaction mode. Paint behaviors drag-toggle/draw cells for editing; momentary behaviors such as Keys release the previous cell when the pointer enters another cell, matching a single finger sliding across grid buttons.
 
 Raspberry and Orange use the same native encoder dispatch semantics: consecutive turns from one encoder in one direction coalesce and clamp to a `-127..127` delta, reversals remain ordered, and pending turns dispatch before an encoder press. Each input pickup drains at most 16 encoder events so other runtime work is not starved.

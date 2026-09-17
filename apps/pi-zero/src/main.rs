@@ -7,7 +7,6 @@ mod orange_device_apply;
 mod render;
 mod render_loop;
 mod render_loop_queue;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod seesaw_io;
 
 #[cfg(feature = "native-audio")]
@@ -100,8 +99,6 @@ mod runtime_loop;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod runtime_thread;
 mod sample_browser;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod seesaw_io;
 mod setup_portal;
 mod setup_portal_files;
 mod setup_portal_paths;
@@ -117,13 +114,13 @@ mod update_menu_fixture_tests;
 mod usb_config;
 #[cfg(feature = "native-audio")]
 mod usb_config_validation;
+mod usb_keyboard;
 mod user_data_archive;
 mod user_data_restore;
 mod user_data_transfer;
 mod utility_mode;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod wake_trace;
-
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use audio::AudioManager;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -413,6 +410,7 @@ fn main() {
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx,
         midi_rx,
+        keyboard: seesaw_io.spawn_keyboard(usb_config.data_role),
         input_rx: seesaw_io.input_rx,
         encoder_rx: event_rx,
         early_boot_splash: handoff_mode == boot_oled_handoff::HandoffMode::V1,
@@ -493,7 +491,6 @@ fn init_audio(
         Err(error) => Err(error),
     }
 }
-
 #[cfg(test)]
 #[path = "main_tests.rs"]
 mod tests;

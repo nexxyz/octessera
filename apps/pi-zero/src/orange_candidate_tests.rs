@@ -147,6 +147,7 @@ fn orange_prepare_runtime_preserves_audio_prep_for_startup_wait() {
         false,
         playback_runtime::AudioOptimization::Latency,
         true,
+        None,
     )
     .unwrap();
 
@@ -237,6 +238,7 @@ fn legacy_orange_preparation_starts_with_a_canonical_normal_snapshot() {
         false,
         playback_runtime::AudioOptimization::Latency,
         true,
+        None,
     )
     .unwrap();
     let snapshot = prepared.playback.last_snapshot().unwrap();

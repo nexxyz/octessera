@@ -80,7 +80,7 @@ require_octessera_boot_service_layout() {
         'NoNewPrivileges=no' \
         'TTYPath=/dev/tty1' \
         'TTYReset=yes' \
-        'SupplementaryGroups=tty' \
+        'SupplementaryGroups=tty input' \
         'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
         'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
         if ! grep -qxF "$required_line" "$runtime"; then
@@ -223,6 +223,7 @@ require_octessera_raspberry_identity() {
     local pi_gid
     local pi_home
     local pi_shell
+    local input_group_count
     local hushlogin
     local mask
     local enablement
@@ -262,6 +263,11 @@ require_octessera_raspberry_identity() {
     fi
     if ! awk -F: -v gid="$pi_gid" '$1 == "pi" && $3 == gid { count++ } END { exit count != 1 }' "$image_root/etc/group"; then
         echo "constructor-required: Raspberry pi group is not exact" >&2
+        return 1
+    fi
+    input_group_count="$(awk -F: '$1 == "input" { count++ } END { print count + 0 }' "$image_root/etc/group" 2>/dev/null || printf '0')"
+    if [ "$input_group_count" -ne 1 ]; then
+        echo "constructor-required: Raspberry input group is missing or duplicated" >&2
         return 1
     fi
     hushlogin="$image_root$pi_home/.hushlogin"

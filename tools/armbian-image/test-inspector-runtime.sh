@@ -129,7 +129,7 @@ read_file() {
   case "$1" in
     etc/shadow) printf '%s\n' 'octessera-runtime:!:19000:0:99999:7:::' ;;
     etc/passwd) printf '%s\n' 'octessera:x:1000:1000:Octessera:/home/octessera:/bin/bash' 'octessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin' ;;
-    etc/group) printf '%s\n' 'octessera:x:1000:' 'octessera-runtime:x:990:' 'audio:x:29:octessera-runtime' 'i2c:x:100:octessera-runtime' 'spi:x:999:octessera-runtime' 'gpio:x:997:octessera-runtime' 'tty:x:5:' 'video:x:44:octessera-runtime' ;;
+    etc/group) printf '%s\n' 'octessera:x:1000:' 'octessera-runtime:x:990:' 'audio:x:29:octessera-runtime' 'i2c:x:100:octessera-runtime' 'spi:x:999:octessera-runtime' 'gpio:x:997:octessera-runtime' 'tty:x:5:' 'video:x:44:octessera-runtime' 'input:x:104:' ;;
     etc/hostname) printf '%s\n' 'octessera-opi' ;;
     etc/hosts) printf '%s' "$hosts_fixture" ;;
     etc/login.defs) printf '%s\n' "$login_defs_fixture" ;;

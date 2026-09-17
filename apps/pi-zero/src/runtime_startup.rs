@@ -28,6 +28,7 @@ pub(crate) struct PreparedRuntime {
     pub(super) runner: NativeRunner,
     pub(super) adapter: PiPlaybackHostAdapter,
     pub(super) candidate_readiness: CandidateReadiness,
+    pub(super) keyboard: crate::usb_keyboard::KeyboardCapture,
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     pub(super) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
 }
@@ -48,6 +49,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         input_rx,
         encoder_rx,
         early_boot_splash,
+        keyboard,
     } = config;
     ensure_samples_dir(&samples_dir)?;
     let (mut playback, mut runner) = init_runtime(audio_optimization);
@@ -63,6 +65,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         audio_outputs,
         usb_data_role,
     );
+    adapter.set_keyboard_capture_control(keyboard.control());
     initialize_host_state(&mut playback, &mut runner, &mut adapter)?;
     let message = HostMessage::TransportPulseStep {
         pulses: 0,
@@ -89,6 +92,7 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         runner,
         adapter,
         candidate_readiness: CandidateReadiness::from_env(),
+        keyboard,
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx,
     })
@@ -347,7 +351,7 @@ mod tests {
         );
         let (playback, runner) = init_runtime(AudioOptimization::Latency);
         let (_, midi_rx) = mpsc::channel::<MidiMessage>();
-        let (_, input_rx) = mpsc::channel::<HostMessage>();
+        let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
         let (_, encoder_rx) = mpsc::channel::<HardwareEvent>();
         let marker = root.join("candidate-ready.json");
         let mut prepared = PreparedRuntime {
@@ -361,6 +365,7 @@ mod tests {
                 Some(marker.clone()),
                 "pi-route-readiness".into(),
             ),
+            keyboard: crate::usb_keyboard::KeyboardCapture::spawn(input_tx, false),
             #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
             audio_load_rx: None,
         };

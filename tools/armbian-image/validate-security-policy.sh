@@ -139,7 +139,7 @@ for line in \
   'Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples' \
   'Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json' \
   'RuntimeDirectory=octessera' 'NoNewPrivileges=yes' 'ProtectSystem=strict' \
-  'TTYPath=/dev/tty1' 'SupplementaryGroups=audio i2c spi gpio tty video' \
+  'TTYPath=/dev/tty1' 'SupplementaryGroups=audio i2c spi gpio tty video input' \
   'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox' 'PrivateTmp=yes' 'ProtectHome=yes' \
   'LimitRTPRIO=70' 'LimitMEMLOCK=infinity' 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG'; do
   grep -qFx "$line" "$runtime_service"

@@ -85,7 +85,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
     live_inputs = document["live_parity_inputs"]
     if live_inputs != [
         {"path": "tools/pi/deploy-pi.sh", "sha256": "54ea212f4fefa218315d3a9a9e982e3cfcc311cea832be339e8733ce6b1179ce", "size": 17245},
-        {"path": "tools/pi/provision/provision.sh", "sha256": "86a971826a864ba0bd266c2dbba3496d54be7d8d820db08a247a7a2cfb475455", "size": 15993},
+        {"path": "tools/pi/provision/provision.sh", "sha256": "bee90aefa1992aa0cc2904eef6f26b1f5e404c4f7c4708b53284476384c69f41", "size": 16823},
     ]:
         raise ValueError("Raspberry live parity input identities are not exact")
     for source in live_inputs:
