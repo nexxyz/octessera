@@ -100,37 +100,35 @@ export function createSimulatorRuntime(
     deps.audioLoadService ?? new TauriAudioLoadService(),
   );
 
+  function dispatchDeviceInput(input: DeviceInput): void {
+    if (input.type === 'encoder_turn') {
+      connection.dispatchEncoderTurn(input);
+    } else {
+      connection.dispatchInput(input);
+    }
+  }
+
   function dispatchInputAction(action: InputAction): void {
     if (action.type === 'emergency_brake') {
-      connection.dispatchInput({ type: 'button_s', pressed: true });
+      dispatchDeviceInput({ type: 'button_s', pressed: true });
       return;
     }
     if (action.type === 'shift') {
-      connection.dispatchInput({
+      dispatchDeviceInput({
         type: 'button_shift',
         pressed: action.active,
       });
       return;
     }
     if (action.type === 'fn') {
-      connection.dispatchInput({ type: 'button_fn', pressed: action.active });
+      dispatchDeviceInput({ type: 'button_fn', pressed: action.active });
       return;
     }
-    if (action.input.type === 'encoder_turn') {
-      connection.dispatchEncoderTurn(action.input);
-    } else {
-      connection.dispatchInput(action.input);
-    }
+    dispatchDeviceInput(action.input);
   }
 
   return {
-    dispatch(input) {
-      if (input.type === 'encoder_turn') {
-        connection.dispatchEncoderTurn(input);
-      } else {
-        connection.dispatchInput(input);
-      }
-    },
+    dispatch: dispatchDeviceInput,
     dispatchAction: dispatchInputAction,
     start() {
       lifecycle.start();

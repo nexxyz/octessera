@@ -56,13 +56,7 @@ impl RecorderService {
         let Some(active) = self.active.take() else {
             return Ok(None);
         };
-        active.tap.deactivate_and_flush();
-        if let Some(oled) = &active.oled {
-            oled.close();
-        }
-        active.stop.store(true, Ordering::Release);
-        drop(active.tap);
-        join_recording(active.join, active.partial_path)
+        stop_active_recording(active)
     }
 
     pub fn is_recording(&self) -> bool {
@@ -185,13 +179,7 @@ impl RecorderService {
         let Some(active) = self.active.take() else {
             return Ok(());
         };
-        active.tap.deactivate_and_flush();
-        if let Some(oled) = &active.oled {
-            oled.close();
-        }
-        active.stop.store(true, Ordering::Release);
-        drop(active.tap);
-        join_recording(active.join, active.partial_path).map(|_| ())
+        stop_active_recording(active).map(|_| ())
     }
 }
 
@@ -201,6 +189,18 @@ impl Drop for RecorderService {
             eprintln!("audio recording stopped with an error: {error}");
         }
     }
+}
+
+fn stop_active_recording(
+    active: ActiveRecording,
+) -> Result<Option<RecordingOutcome>, RecordingError> {
+    active.tap.deactivate_and_flush();
+    if let Some(oled) = &active.oled {
+        oled.close();
+    }
+    active.stop.store(true, Ordering::Release);
+    drop(active.tap);
+    join_recording(active.join, active.partial_path)
 }
 
 fn join_recording(
