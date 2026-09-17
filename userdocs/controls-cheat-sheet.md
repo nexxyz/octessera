@@ -42,6 +42,29 @@ Stop, accepted MIDI Start, and resync reset the transport origin, scan, autonomo
 Build cadence, Pattern phase, and Looper playback position. They keep evolved
 worlds, settings, and the recorded loop. Pause/Continue resumes the exact phase.
 
+## USB-host keyboard
+
+When the keyboard is acting as a host control surface, it follows the instrument's
+controls rather than becoming a tiny typing machine:
+
+| Keyboard | Instrument control |
+|---|---|
+| *←* / *↑* or *→* / *↓* | Turn *Main* left or right. |
+| *Enter* | Click *Main*. |
+| *Q* / *W* / *E* | Turn *Aux 1* left / click / right. |
+| *A* / *S* / *D* | Turn *Aux 2* left / click / right. |
+| *Y/Z* / *X* / *C* | Turn *Aux 3* left / click / right. The first key is the physical key immediately right of left Shift. |
+| *Backspace* / *Escape* | *Back*. |
+| *Space* | *Play*. |
+| *Shift* | *Shift* modifier. |
+| *Control* | *Fn* modifier. |
+
+Only the first supported keyboard gets the controls. For host-role, mode-gating,
+and shortcut details, see the [menu and controls specification](../docs/menu-and-controls-spec.md).
+On Linux, the physical Aux 3 left key is bound as `KEY_Z` even on a QWERTZ
+keyboard whose keycap says Y. Space remains the hardware S button; the letter S
+is the Aux 2 encoder click.
+
 ## Context help
 
 To use context help, highlight the menu item you want with *Main*, hold *Shift*

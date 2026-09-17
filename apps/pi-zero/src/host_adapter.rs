@@ -1,5 +1,7 @@
 #[path = "host_adapter_construction.rs"]
 mod host_adapter_construction;
+#[path = "host_adapter_keyboard.rs"]
+mod host_adapter_keyboard;
 #[path = "host_adapter_oled.rs"]
 mod host_adapter_oled;
 #[path = "host_adapter_store.rs"]
@@ -37,6 +39,7 @@ pub struct PiPlaybackHostAdapter {
     power_request: Option<PiPowerRequest>,
     recovery_save_status: Option<Result<(), String>>,
     pub(crate) oled_frame_cache: OledFrameCache,
+    keyboard_control: Option<crate::usb_keyboard::KeyboardCaptureControl>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PiPowerRequest {

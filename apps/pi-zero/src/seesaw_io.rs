@@ -51,9 +51,23 @@ pub(crate) enum SeesawCommand {
 
 pub(crate) struct SeesawIo {
     pub(crate) input_rx: Receiver<HostMessage>,
+    pub(crate) input_tx: Sender<HostMessage>,
     pub(crate) command_tx: Sender<SeesawCommand>,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     worker: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+impl SeesawIo {
+    pub(crate) fn spawn_keyboard(
+        &self,
+        role: playback_runtime::UsbDataRole,
+    ) -> crate::usb_keyboard::KeyboardCapture {
+        crate::usb_keyboard::KeyboardCapture::spawn(
+            self.input_tx.clone(),
+            role == playback_runtime::UsbDataRole::Host,
+        )
+    }
 }
 
 trait LedOutputWriter {
@@ -177,6 +191,7 @@ pub(crate) fn spawn(
 ) -> SeesawIo {
     let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
     let (command_tx, command_rx) = mpsc::channel::<SeesawCommand>();
+    let worker_input_tx = input_tx.clone();
     let worker = thread::spawn(move || {
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
@@ -201,12 +216,21 @@ pub(crate) fn spawn(
             if service_due || interrupt_pending {
                 #[cfg(feature = "hardware-orange-pi-zero-2w")]
                 {
-                    startup_scan_succeeded =
-                        scan_inputs(&mut trellis, &mut neokey, &mut previous_neokey, &input_tx)
-                            .is_ok();
+                    startup_scan_succeeded = scan_inputs(
+                        &mut trellis,
+                        &mut neokey,
+                        &mut previous_neokey,
+                        &worker_input_tx,
+                    )
+                    .is_ok();
                 }
                 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                let _ = scan_inputs(&mut trellis, &mut neokey, &mut previous_neokey, &input_tx);
+                let _ = scan_inputs(
+                    &mut trellis,
+                    &mut neokey,
+                    &mut previous_neokey,
+                    &worker_input_tx,
+                );
                 last_input_service = Instant::now();
             }
 
@@ -253,6 +277,7 @@ pub(crate) fn spawn(
 
     SeesawIo {
         input_rx,
+        input_tx,
         command_tx,
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         worker: Arc::new(Mutex::new(Some(worker))),

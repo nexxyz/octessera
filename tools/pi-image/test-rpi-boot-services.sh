@@ -69,7 +69,7 @@ for required_line in \
     'NoNewPrivileges=no' \
     'TTYPath=/dev/tty1' \
     'TTYReset=yes' \
-    'SupplementaryGroups=tty' \
+    'SupplementaryGroups=tty input' \
     'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
     'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
     grep -qFx "$required_line" "$runtime"
@@ -136,7 +136,7 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_root/usr/local/bin/octessera-pi"
     chmod 0755 "$systemd_root/usr/local/bin/octessera-pi"
     printf '%s\n' 'root:x:0:0:root:/root:/bin/sh' 'pi:x:1000:1000:pi:/home/pi:/bin/sh' > "$systemd_root/etc/passwd"
-    printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'tty:x:5:' > "$systemd_root/etc/group"
+    printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'tty:x:5:' 'input:x:104:' > "$systemd_root/etc/group"
     for unit in \
         sysinit.target \
         systemd-modules-load.service \

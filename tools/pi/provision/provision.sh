@@ -49,12 +49,25 @@ if [ "$BOARD_PROFILE" != raspberry-pi-zero-2w ]; then
     echo "Raspberry Pi provisioning accepts only raspberry-pi-zero-2w; got $BOARD_PROFILE." >&2
     exit 2
 fi
+case "$REMOTE_REPO" in
+    /*) ;;
+    *)
+        echo "REMOTE_REPO must be an absolute path; got $REMOTE_REPO." >&2
+        exit 2
+        ;;
+esac
 
 target_path() {
     printf '%s%s' "$SYSROOT" "$1"
 }
 
 SERVICE_TARGET=$(target_path "/etc/systemd/system/$SERVICE")
+GROUP_TARGET=$(target_path /etc/group)
+input_group_count="$(awk -F: '$1 == "input" { count++ } END { print count + 0 }' "$GROUP_TARGET" 2>/dev/null || printf '0')"
+if [ ! -f "$GROUP_TARGET" ] || [ -L "$GROUP_TARGET" ] || [ "$input_group_count" -ne 1 ]; then
+    echo "Raspberry target must contain exactly one input group in /etc/group before provisioning octessera.service." >&2
+    exit 1
+fi
 
 missing_tools=0
 for command in python3 curl flock sha256sum unzip visudo systemctl; do
@@ -207,6 +220,12 @@ else
     sudo install -D -m 0644 /dev/null "$hushlogin"
     sudo chown "$pi_user:$pi_user" "$hushlogin"
 fi
+
+REMOTE_REPO_TARGET=$(target_path "$REMOTE_REPO")
+sudo install -d -m 0755 "$REMOTE_REPO_TARGET"
+sudo chown "$pi_user:$pi_user" "$REMOTE_REPO_TARGET"
+test -d "$REMOTE_REPO_TARGET" && test ! -L "$REMOTE_REPO_TARGET"
+test "$(stat -c '%u:%g:%a' "$REMOTE_REPO_TARGET")" = "$pi_uid:$pi_gid:755"
 
 REMOTE_REPO_ESCAPED=$(escape_sed_replacement "$REMOTE_REPO")
 if [ "$WAKE_TRACE" = "1" ]; then

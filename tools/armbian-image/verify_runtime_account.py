@@ -70,7 +70,8 @@ def require_orange_production_ttyperm(root: Path, require: Require) -> None:
     records = [line.split() for line in login_defs.read_text(encoding="utf-8").splitlines() if line.strip() and not line.lstrip().startswith("#")]
     require([record for record in records if record[0] == "TTYPERM"] == [["TTYPERM", "0620"]], "production login.defs TTYPERM is not exactly 0620")
     groups = read_kv_records(root / "etc/group", 4, require)
-    require(sum(record[0] == "tty" for record in groups) == 1, "production tty group is missing or duplicated")
+    for name in ("tty", "input"):
+        require(sum(record[0] == name for record in groups) == 1, f"production {name} group is missing or duplicated")
 
 
 def require_runtime_service(root: Path, require: Require) -> None:
@@ -90,7 +91,7 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json",
         "Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1",
         "TTYPath=/dev/tty1",
-        "SupplementaryGroups=audio i2c spi gpio tty video",
+        "SupplementaryGroups=audio i2c spi gpio tty video input",
         "NoNewPrivileges=yes",
         "ProtectSystem=strict",
         "ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox",

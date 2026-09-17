@@ -95,7 +95,7 @@ $record = [ordered]@{
   askPassMatches = $false
   stdin = $null
 }
-$isPayload = $record.tool -eq "ssh" -and @($record.arguments)[-1] -ceq "tr -d '\r' | base64 --decode | bash -s --"
+$isPayload = $record.tool -eq "ssh" -and @($record.arguments)[-1] -ceq "base64 --decode --ignore-garbage | bash -s --"
 if ($isPayload) {
   $record.stdin = [Console]::In.ReadToEnd()
 }
@@ -187,6 +187,17 @@ exit /b %ERRORLEVEL%
   $interactiveRecord = Get-TransportRecord
   if ((@($interactiveRecord.arguments) -join "`n") -cne (($expectedDefaultArguments[0..13] + $explicitTarget) -join "`n")) {
     throw "Interactive SSH wrapper arguments did not contain only fixed options and the exact target."
+  }
+
+  $ttyCommand = "sudo -v"
+  $ttyOutput = @(& $scriptPath -Mode ssh-tty -Target $explicitTarget $ttyCommand 2>&1)
+  if ($LASTEXITCODE -ne 0) {
+    throw "TTY SSH wrapper invocation failed: $($ttyOutput -join "`n")"
+  }
+  $ttyRecord = Get-TransportRecord
+  $expectedTtyArguments = $expectedDefaultArguments[0..13] + @("-tt", $explicitTarget, $ttyCommand)
+  if ((@($ttyRecord.arguments) -join "`n") -cne ($expectedTtyArguments -join "`n")) {
+    throw "TTY SSH wrapper did not place forced-TTY options before the exact target."
   }
 
   New-Item -ItemType Directory -Path $concurrentRecordDir, $concurrentBarrierDir -Force | Out-Null
@@ -287,15 +298,15 @@ exit /b %ERRORLEVEL%
     "-o", "ConnectTimeout=10",
     "-o", "NumberOfPasswordPrompts=1",
     $target,
-    "tr -d '\r' | base64 --decode | bash -s --"
+    "base64 --decode --ignore-garbage | bash -s --"
   )
   if ((@($payloadRecord.arguments) -join "`n") -cne ($expectedPayloadArguments -join "`n")) {
     throw "SSH payload wrapper did not use the fixed remote decoder command."
   }
   $decodedPayload = [Convert]::FromBase64String(([string]$payloadRecord.stdin -replace "\s", ""))
-  $expectedPayloadBytes = [Text.Encoding]::UTF8.GetBytes($payloadContents)
+  $expectedPayloadBytes = [Text.Encoding]::UTF8.GetBytes($payloadContents.Replace("`r", ""))
   if ([Convert]::ToBase64String($decodedPayload) -cne [Convert]::ToBase64String($expectedPayloadBytes)) {
-    throw "SSH payload contents were changed or PowerShell-expanded before transport."
+    throw "SSH payload contents were not CR-normalized before transport."
   }
 
   $env:OCTESSERA_PI_SSH_EXIT_CODE = "23"

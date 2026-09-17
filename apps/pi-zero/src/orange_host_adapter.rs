@@ -1,9 +1,13 @@
 #[path = "orange_host_adapter_construction.rs"]
 mod construction;
+#[path = "orange_host_adapter_keyboard.rs"]
+mod keyboard;
+#[path = "orange_host_adapter_oled.rs"]
+mod oled;
 
 use crate::audio::AudioService;
 use crate::midi_host::{MidiHost, RuntimeOutputSink};
-use crate::oled_frame_cache::{OledFrameCache, OledFramePublication};
+use crate::oled_frame_cache::OledFrameCache;
 use crate::orange_audio::OrangeAudioHost;
 use crate::orange_device_apply::OrangeShutdownRequest;
 use crate::platform_service::{
@@ -14,7 +18,6 @@ use playback_runtime::{
     DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
-use serde_json::Value;
 use std::time::{Duration, Instant};
 
 const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
@@ -29,6 +32,7 @@ pub(crate) struct OrangeHostAdapter {
     oled_frame_cache: OledFrameCache,
     shutdown_request: Option<OrangeShutdownRequest>,
     recovery_save_status: Option<Result<(), String>>,
+    keyboard_control: Option<crate::usb_keyboard::KeyboardCaptureControl>,
 }
 
 impl OrangeHostAdapter {
@@ -87,39 +91,6 @@ impl OrangeHostAdapter {
             .cloned()
             .unwrap_or_else(|| Err("recovery save did not complete".into()))
     }
-    pub(crate) fn ingest_oled_frame(&mut self, message: &playback_runtime::RunnerMessage) {
-        self.oled_frame_cache.ingest(message);
-    }
-
-    pub(crate) fn accept_oled_frame_reference(&mut self, snapshot: &Value) {
-        let _ = self.oled_frame_cache.accept_reference_value(snapshot);
-    }
-
-    pub(crate) fn oled_publication_for_snapshot(
-        &mut self,
-        snapshot: &Value,
-        initial: bool,
-    ) -> Result<OledFramePublication, String> {
-        self.oled_frame_cache
-            .publication_for_snapshot(snapshot, initial)
-    }
-
-    pub(crate) fn oled_frame_fault(&self) -> Option<crate::oled_frame_cache::OledFrameCacheFault> {
-        self.oled_frame_cache.fault()
-    }
-
-    pub(crate) fn submit_accepted_oled_frame(&self) -> Result<(), String> {
-        let Some(frame) = self.oled_frame_cache.accepted_frame() else {
-            return Ok(());
-        };
-        self.audio
-            .submit_accepted_oled_frame(frame.revision(), frame.pixels())
-    }
-
-    pub(crate) fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
-        self.audio.poll_recording_status()
-    }
-
     pub(crate) fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut results = self.platform_service.drain_results(max_results);
         if results.len() < max_results {

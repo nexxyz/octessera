@@ -46,6 +46,7 @@ impl OrangeHostAdapter {
             oled_frame_cache: OledFrameCache::default(),
             shutdown_request: None,
             recovery_save_status: None,
+            keyboard_control: None,
         })
     }
 
@@ -77,6 +78,7 @@ impl OrangeHostAdapter {
             oled_frame_cache: OledFrameCache::default(),
             shutdown_request: None,
             recovery_save_status: None,
+            keyboard_control: None,
         })
     }
 }

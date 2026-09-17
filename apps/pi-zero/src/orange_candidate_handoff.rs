@@ -71,12 +71,14 @@ pub(crate) fn run(
             format!("Orange control startup failed: {error}"),
         )
     })?;
+    let keyboard = crate::usb_keyboard::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
     let prepared = match prepare_runtime(
         audio.service(),
         midi_handler,
         usb_config.midi_out_enabled,
         audio_optimization,
         true,
+        Some(keyboard.control()),
     ) {
         Ok(prepared) => prepared,
         Err(error) => {
@@ -166,6 +168,7 @@ pub(crate) fn run(
         midi_rx,
         true,
     );
+    let keyboard_result = keyboard.shutdown();
     let suspend_result = suspend.shutdown();
     let render_result = lifecycle::teardown_render(&result, &render);
     let seesaw_result = seesaw.shutdown();
@@ -177,6 +180,11 @@ pub(crate) fn run(
         })
         .and_then(|resolution| {
             render_result
+                .map(|_| resolution)
+                .map_err(OrangeRunError::from)
+        })
+        .and_then(|resolution| {
+            keyboard_result
                 .map(|_| resolution)
                 .map_err(OrangeRunError::from)
         })

@@ -357,6 +357,7 @@ fn ingest_oled_messages(
     for message in messages {
         host.ingest_oled_frame(message);
         if let playback_runtime::RunnerMessage::Snapshot { snapshot } = message {
+            host.observe_keyboard_capture_snapshot(snapshot);
             host.accept_oled_frame_reference(snapshot);
         }
     }
@@ -402,4 +403,49 @@ fn publish_snapshot(
         scheduler.record_snapshot_publication_accepted(snapshot_revision);
     }
     Ok(true)
+}
+
+#[cfg(test)]
+mod keyboard_tests {
+    use super::*;
+    use playback_runtime::RunnerMessage;
+    use serde_json::json;
+
+    #[test]
+    fn accepted_snapshot_ingestion_updates_orange_keyboard_gate() {
+        let root = std::env::temp_dir().join(format!(
+            "octessera-orange-keyboard-snapshot-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let (audio, _, _, _) = crate::audio::test_service_with_prep_sender();
+        let mut host = OrangeHostAdapter::with_directories(
+            audio,
+            root.join("store"),
+            root.join("samples"),
+            std::sync::Arc::new(|_| {}),
+            false,
+        )
+        .unwrap();
+        let control = crate::usb_keyboard::KeyboardCaptureControl::new(true);
+        host.set_keyboard_capture_control(control.clone());
+        ingest_oled_messages(
+            &mut host,
+            &[RunnerMessage::Snapshot {
+                snapshot: json!({ "hdmi": { "mode": "live-grid" } }),
+            }],
+        );
+        assert!(control.is_enabled());
+        ingest_oled_messages(
+            &mut host,
+            &[RunnerMessage::Snapshot {
+                snapshot: json!({ "hdmi": { "mode": "none" } }),
+            }],
+        );
+        assert!(!control.is_enabled());
+        let _ = std::fs::remove_dir_all(root);
+    }
 }

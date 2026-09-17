@@ -344,7 +344,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path, Path]:
     write(final_root / "etc/pam.d/20-vendor-login", b"vendor\n")
     write(final_root / "etc/update-motd.d/20-vendor-status", b"vendor\n")
     write(final_root / "etc/shadow", "octessera:!:1:0:99999:7:::\noctessera-runtime:!:1:0:99999:7:::\n")
-    write(final_root / "etc/group", "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\nspi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\nvideo:x:44:octessera-runtime\n")
+    write(final_root / "etc/group", "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\nspi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\nvideo:x:44:octessera-runtime\ninput:x:104:\n")
     runtime_root = final_root / "var/lib/octessera"
     runtime_root.mkdir(parents=True, exist_ok=True)
     os.chown(runtime_root, 0, 0)  # type: ignore[attr-defined]

@@ -141,6 +141,7 @@ chmod +x "$FAKE_BIN"/*
 new_fixture() {
   FIXTURE="$TMP/fixture-$RANDOM"
   mkdir -p "$FIXTURE/boot/firmware" "$FIXTURE/home/pi" "$FIXTURE/etc/octessera"
+  printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'input:x:104:' > "$FIXTURE/etc/group"
   printf '# fixture boot config\narm_64bit=1\n' > "$FIXTURE/boot/firmware/config.txt"
   printf 'console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet\n' \
     > "$FIXTURE/boot/firmware/cmdline.txt"
@@ -164,7 +165,7 @@ run_provision() {
       *) echo "unknown fixture provisioning mode: $mode" >&2; exit 2 ;;
     esac
     export WAKE_TRACE=0
-    export REMOTE_REPO=/home/pi/octessera-dev
+    export REMOTE_REPO="${REMOTE_REPO_VALUE:-/home/pi/octessera-dev}"
     export PATH="$FAKE_BIN:$REAL_PATH"
     sh "$PACKAGE/provision.sh"
   ) > "$TMP/last.out" 2> "$TMP/last.err"
@@ -299,7 +300,32 @@ set -e
 expect_rc "sc3" 2
 pass "unknown profile exits 2"
 
-# 4. First run installs payload, cleans legacy initramfs animation inputs,
+# 4. Relative remote repository paths are rejected before provisioning.
+new_fixture
+REMOTE_REPO_VALUE=relative-repo
+run_provision default
+unset REMOTE_REPO_VALUE
+expect_rc "sc4-remote" 2
+expect_err_match "sc4-remote" "absolute path"
+if [ -e "$FIXTURE/etc/systemd/system/octessera.service" ] || [ -e "$FIXTURE/home/pi/relative-repo" ]; then
+  printf 'FAIL[sc4-remote]: provisioning changed the fixture before rejecting a relative remote repository\n' >&2
+  exit 1
+fi
+pass "relative remote repository exits 2 before provisioning"
+
+# 5. Missing input group is rejected before service installation.
+new_fixture
+sed -i '/^input:/d' "$FIXTURE/etc/group"
+run_provision default
+expect_rc "sc4-input" 1
+expect_err_match "sc4-input" "exactly one input group"
+if [ -e "$FIXTURE/etc/systemd/system/octessera.service" ]; then
+  printf 'FAIL[sc4-input]: provisioning installed the service before rejecting the target group database\n' >&2
+  exit 1
+fi
+pass "missing input group exits before service installation"
+
+# 6. First run installs payload, cleans legacy initramfs animation inputs,
 # and requests reboot (exit 75). Initramfs is not refreshed by default.
 new_fixture
 mkdir -p "$FIXTURE/etc/initramfs-tools/hooks" "$FIXTURE/etc/initramfs-tools/scripts/init-premount"
@@ -318,6 +344,7 @@ assert_file "sc4" "$FIXTURE/etc/sudoers.d/octessera-usb-role"
 assert_mode "sc4" "$FIXTURE/etc/sudoers.d/octessera-usb-role" 440
 assert_file "sc4" "$FIXTURE/etc/systemd/system/octessera.service"
 assert_mode "sc4" "$FIXTURE/etc/systemd/system/octessera.service" 644
+assert_mode "sc4" "$FIXTURE/home/pi/octessera-dev" 755
 assert_file "sc4" "$FIXTURE/etc/systemd/system/octessera.service.d/audio-realtime.conf"
 assert_file "sc4" "$FIXTURE/etc/octessera/board-profile.env"
 assert_file "sc4" "$FIXTURE/etc/sudoers.d/octessera-shutdown"
@@ -330,8 +357,10 @@ if grep -q $'\r' "$FIXTURE/etc/sudoers.d/octessera-shutdown"; then
 fi
 assert_log_contains "sc4" "visudo.log" "octessera-shutdown"
 assert_log_contains "sc4" "visudo.log" "octessera-usb-role"
+assert_log_contains "sc4" "chown.log" "chown pi:pi"
 assert_log_contains "sc4" "usb-role.log" "gadget"
 assert_contains "sc4" "$FIXTURE/etc/octessera/board-profile.env" "OCTESSERA_BOARD_PROFILE_ID=raspberry-pi-zero-2w"
+assert_contains "sc4" "$FIXTURE/etc/systemd/system/octessera.service" '^WorkingDirectory=/home/pi/octessera-dev$'
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^dtoverlay=disable-bt$"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^enable_uart=0$"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^\[all\]$"
@@ -350,7 +379,7 @@ fi
 assert_log_contains "sc4" "systemctl.log" "mask --now serial-getty@ttyAMA0.service"
 pass "default provisioning removes legacy animation inputs without rebuilding initramfs"
 
-# 5. Idempotent second run completes cleanly (exit 0).
+# 7. Idempotent second run completes cleanly (exit 0).
 run_provision default
 expect_rc "sc5" 0
 assert_log_contains "sc5" "systemctl.log" "enable --now octessera-network-health.timer"
@@ -358,9 +387,10 @@ assert_log_contains "sc5" "systemctl.log" "enable octessera-oled-shutdown.servic
 assert_log_contains "sc5" "systemctl.log" "enable octessera-performance-governor.service"
 assert_log_contains "sc5" "systemctl.log" "enable octessera.service"
 assert_log_contains "sc5" "systemctl.log" "daemon-reload"
+assert_mode "sc5" "$FIXTURE/home/pi/octessera-dev" 755
 pass "idempotent second run exits 0"
 
-# 6. A persisted Host configuration is reconciled without reverting to gadget.
+# 8. A persisted Host configuration is reconciled without reverting to gadget.
 new_fixture
 mkdir -p "$FIXTURE/home/pi/presets"
 printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
@@ -376,7 +406,7 @@ expect_rc "sc-host-repeat" 0
 assert_not_contains "sc-host-repeat" "$FIXTURE/boot/firmware/config.txt" "dr_mode=peripheral"
 pass "persisted host role is preserved during provisioning"
 
-# 7. Explicit initramfs handling installs the current static hook inputs before refreshing the image.
+# 9. Explicit initramfs handling installs the current static hook inputs before refreshing the image.
 new_fixture
 run_provision explicit
 expect_rc "sc6" 75
@@ -398,7 +428,7 @@ if ! cmp -s "$FIXTURE/etc/initramfs-tools/scripts/init-premount/octessera-boot-s
 fi
 pass "explicit initramfs rebuild installs current static inputs and refreshes the selected image"
 
-# 7. Reboot-required via unsafe GPIO state.
+# 10. Reboot-required via unsafe GPIO state.
 new_fixture
 run_provision default
 expect_rc "sc7a" 75
@@ -407,7 +437,7 @@ expect_rc "sc7" 75
 expect_err_match "sc7" "GPIO14/15"
 pass "unsafe GPIO state exits 75"
 
-# 8. No host writes anywhere.
+# 11. No host writes anywhere.
 for host_path in /etc/octessera /etc/systemd/system/octessera.service \
   /usr/local/sbin/octessera-usb-gadget /opt/octessera \
   /usr/local/lib/octessera/rpi_uart_release.py; do

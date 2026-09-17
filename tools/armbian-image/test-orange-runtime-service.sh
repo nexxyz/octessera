@@ -103,7 +103,7 @@ for required_line in \
   'After=octessera-orange-boot-splash.service' \
   'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
   'TTYPath=/dev/tty1' \
-  'SupplementaryGroups=audio i2c spi gpio tty video' \
+  'SupplementaryGroups=audio i2c spi gpio tty video input' \
   'LimitRTPRIO=70' \
   'NoNewPrivileges=yes' \
   'ProtectSystem=strict' \
@@ -181,7 +181,7 @@ chmod 0755 "$work/usr/local/bin/octessera-pi"
 printf '%s\n' \
   'root:x:0:0:root:/root:/bin/sh' \
   'octessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin' > "$work/etc/passwd"
-printf '%s\n' 'root:x:0:' 'octessera-runtime:x:990:' 'audio:x:29:' 'i2c:x:998:' 'spi:x:997:' 'gpio:x:996:' 'tty:x:5:' 'video:x:44:' > "$work/etc/group"
+printf '%s\n' 'root:x:0:' 'octessera-runtime:x:990:' 'audio:x:29:' 'i2c:x:998:' 'spi:x:997:' 'gpio:x:996:' 'tty:x:5:' 'video:x:44:' 'input:x:104:' > "$work/etc/group"
 for unit in octessera-provision-musical-default.service octessera-orange-usb-gadget.service; do
   printf '%s\n' '[Unit]' "Description=$unit" '[Service]' 'Type=oneshot' 'ExecStart=/bin/true' > "$work/etc/systemd/system/$unit"
 done

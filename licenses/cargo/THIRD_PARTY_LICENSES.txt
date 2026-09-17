@@ -167,6 +167,13 @@ License files:
 - LICENSE-APACHE (a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2)
 - LICENSE-MIT (6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb)
 
+### bitvec 1.1.1
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE.txt (411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5)
+
 ### block 0.1.6
 License: MIT
 Class: permissive
@@ -330,6 +337,13 @@ Source: crates.io
 License files:
 - LICENSE-APACHE (a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2)
 - LICENSE-MIT (378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397)
+
+### cfg_aliases 0.2.2
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE (31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812)
 
 ### chrono 0.4.44
 License: MIT OR Apache-2.0
@@ -735,6 +749,14 @@ License files:
 - LICENSE-APACHE (62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a)
 - LICENSE-MIT (23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3)
 
+### evdev 0.13.2
+License: Apache-2.0 OR MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE-APACHE (62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a)
+- LICENSE-MIT (23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3)
+
 ### fastrand 2.4.1
 License: Apache-2.0 OR MIT
 Class: permissive
@@ -828,6 +850,13 @@ Source: crates.io
 License files:
 - LICENSE-APACHE (a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2)
 - LICENSE-MIT (20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e)
+
+### funty 2.0.0
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE.txt (f790cc576999f5998c766d3d26d7d64dc368e805a98461484f65e8d961ec6d9f)
 
 ### futures-channel 0.3.32
 License: MIT OR Apache-2.0
@@ -1697,6 +1726,13 @@ Source: crates.io
 License files:
 - LICENSE (66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70)
 
+### nix 0.29.0
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE (66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70)
+
 ### nom 7.1.3
 License: MIT
 Class: permissive
@@ -2153,6 +2189,13 @@ Class: reviewed-license-alternative
 Source: crates.io
 Review: reviewed-alternative (Apache-2.0)
 License files: manifest-license-no-file; informational until source-availability review before public binary release
+
+### radium 0.7.0
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE.txt (13f4cc9fbc8d4a447b28aa84019c10ad4abf4b5f6919db061bf6690ccc23bc02)
 
 ### rand 0.8.6
 License: MIT OR Apache-2.0
@@ -2675,6 +2718,13 @@ License: MIT OR Apache-2.0
 Class: permissive
 Source: crates.io
 License files: manifest-license-no-file; informational until source-availability review before public binary release
+
+### tap 1.0.1
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE.txt (8b4e95f5cf0dc40269c99f7b787203ffe04ded245ca2427422c196efa2b2f42a)
 
 ### target-lexicon 0.12.16
 License: Apache-2.0 WITH LLVM-exception
@@ -3858,6 +3908,13 @@ License files:
 - LICENSE-MIT (ef88893533af22ffbb68ceef0724ba1389518df26165a34f3c99ad30b884df4f)
 - LICENSE.spdx (26235c41e314fb0da35b33b2bb5bcbc4dd523839f8eeca52efcd43586f441fb5)
 
+### wyz 0.5.1
+License: MIT
+Class: permissive
+Source: crates.io
+License files:
+- LICENSE.txt (411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5)
+
 ### x11 2.21.0
 License: MIT
 Class: permissive
@@ -4828,6 +4885,34 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ----- END LICENSE TEXT -----
 
+### SHA-256 13f4cc9fbc8d4a447b28aa84019c10ad4abf4b5f6919db061bf6690ccc23bc02
+Sources:
+- radium 0.7.0: LICENSE.txt
+
+----- BEGIN LICENSE TEXT -----
+MIT License
+
+Copyright (c) 2019 kneecaw (Nika Layzell)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+----- END LICENSE TEXT -----
+
 ### SHA-256 155420c6403d4e0fca34105e3c03fdd6939b64c393c7ec6f95f5b72c5474eab0
 Sources:
 - powerfmt 0.2.0: LICENSE-Apache
@@ -5793,6 +5878,7 @@ Sources:
 - dtoa 1.0.11: LICENSE-MIT
 - dyn-clone 1.0.20: LICENSE-MIT
 - erased-serde 0.4.10: LICENSE-MIT
+- evdev 0.13.2: LICENSE-MIT
 - fastrand 2.4.1: LICENSE-MIT
 - hermit-abi 0.1.19: LICENSE-MIT
 - hermit-abi 0.5.2: LICENSE-MIT
@@ -7086,6 +7172,22 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ----- END LICENSE TEXT -----
 
+### SHA-256 31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812
+Sources:
+- cfg_aliases 0.2.2: LICENSE
+
+----- BEGIN LICENSE TEXT -----
+MIT License
+
+Copyright (c) 2020 Katharos Technology
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+----- END LICENSE TEXT -----
+
 ### SHA-256 31dbbab009f1b2e59a1622d5955dfafc38ebe834000215b49d954c6f85fe927c
 Sources:
 - keyboard-types 0.7.0: LICENSE-MIT
@@ -7850,6 +7952,35 @@ Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
 Copyright (c) 2017 Frommi
 Copyright (c) 2017-2024 oyvindln
 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+----- END LICENSE TEXT -----
+
+### SHA-256 411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5
+Sources:
+- bitvec 1.1.1: LICENSE.txt
+- wyz 0.5.1: LICENSE.txt
+
+----- BEGIN LICENSE TEXT -----
+MIT License
+
+Copyright (c) 2018 myrrlyn (Alexander Payne)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -9553,6 +9684,7 @@ Sources:
 - dtoa 1.0.11: LICENSE-APACHE
 - dyn-clone 1.0.20: LICENSE-APACHE
 - erased-serde 0.4.10: LICENSE-APACHE
+- evdev 0.13.2: LICENSE-APACHE
 - itoa 1.0.18: LICENSE-APACHE
 - libc 0.2.186: LICENSE-APACHE
 - mach2 0.4.3: LICENSE-APACHE
@@ -10317,6 +10449,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 Sources:
 - nix 0.23.2: LICENSE
 - nix 0.26.4: LICENSE
+- nix 0.29.0: LICENSE
 
 ----- BEGIN LICENSE TEXT -----
 The MIT License (MIT)
@@ -13081,6 +13214,34 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+----- END LICENSE TEXT -----
+
+### SHA-256 8b4e95f5cf0dc40269c99f7b787203ffe04ded245ca2427422c196efa2b2f42a
+Sources:
+- tap 1.0.1: LICENSE.txt
+
+----- BEGIN LICENSE TEXT -----
+MIT License
+
+Copyright (c) 2017 Elliot Linder <darfink@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ----- END LICENSE TEXT -----
 
 ### SHA-256 8bb1b50b0e5c9399ae33bd35fab2769010fa6c14e8860c729a52295d84896b7a
@@ -20908,6 +21069,34 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+----- END LICENSE TEXT -----
+
+### SHA-256 f790cc576999f5998c766d3d26d7d64dc368e805a98461484f65e8d961ec6d9f
+Sources:
+- funty 2.0.0: LICENSE.txt
+
+----- BEGIN LICENSE TEXT -----
+MIT License
+
+Copyright (c) 2020 myrrlyn (Alexander Payne)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ----- END LICENSE TEXT -----
 
 ### SHA-256 f7bdb3426d045cd50efd4953026e3eb5a83d0199f458a075602611b9344da5b9

@@ -26,7 +26,7 @@ Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1
 RuntimeDirectory=octessera
 RuntimeDirectoryMode=0755
 TTYPath=/dev/tty1
-SupplementaryGroups=audio i2c spi gpio tty video
+SupplementaryGroups=audio i2c spi gpio tty video input
 NoNewPrivileges=yes
 AmbientCapabilities=CAP_SYS_TTY_CONFIG
 CapabilityBoundingSet=CAP_SYS_TTY_CONFIG

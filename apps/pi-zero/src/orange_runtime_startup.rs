@@ -66,6 +66,7 @@ pub(crate) fn prepare_runtime(
     usb_midi_out_enabled: bool,
     audio_optimization: AudioOptimization,
     skip_startup_splash: bool,
+    keyboard_control: Option<crate::usb_keyboard::KeyboardCaptureControl>,
 ) -> Result<PreparedRuntime, String> {
     let mut playback = PlaybackRuntime::new(RuntimeConfig {
         bpm: 120.0,
@@ -85,6 +86,9 @@ pub(crate) fn prepare_runtime(
         runner.skip_startup_splash();
     }
     let mut host = OrangeHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?;
+    if let Some(control) = keyboard_control {
+        host.set_keyboard_capture_control(control);
+    }
     initialize_host_state(&mut playback, &mut runner, &mut host)?;
     drain_startup_host_work(&mut playback, &mut runner, &mut host)?;
     dispatch(
@@ -227,6 +231,7 @@ mod tests {
             false,
             AudioOptimization::Latency,
             true,
+            None,
         )
         .unwrap();
 

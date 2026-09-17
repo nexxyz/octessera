@@ -79,6 +79,7 @@ octessera_inspect_runtime_mode() {
       group_content="$(read_file etc/group)"
       runtime_owner="$(octessera_require_runtime_account "$passwd_content" "$group_content")"
       for runtime_group in audio i2c spi gpio video; do printf '%s\n' "$group_content" | awk -F: -v wanted="$runtime_group" '$1 == wanted && ("," $4 ",") ~ /,octessera-runtime,/' | grep -q . || { echo "Production image is missing octessera-runtime membership in group: $runtime_group." >&2; exit 1; }; done
+      for supplementary_group in tty input; do printf '%s\n' "$group_content" | awk -F: -v wanted="$supplementary_group" '$1 == wanted' | grep -q . || { echo "Production image is missing supplementary group: $supplementary_group." >&2; exit 1; }; done
       octessera_require_real_directory var/lib/octessera
       octessera_require_owned_mode var/lib/octessera 0:0 755
       octessera_require_real_directory var/lib/octessera/presets

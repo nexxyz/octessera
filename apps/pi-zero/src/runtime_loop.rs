@@ -69,6 +69,7 @@ fn ingest_oled_messages(adapter: &mut PiPlaybackHostAdapter, messages: &[RunnerM
     for message in messages {
         adapter.ingest_oled_frame(message);
         if let RunnerMessage::Snapshot { snapshot } = message {
+            adapter.observe_keyboard_capture_snapshot(snapshot);
             adapter.accept_oled_frame_reference(snapshot);
         }
     }
@@ -313,5 +314,43 @@ mod tests {
         .unwrap();
 
         assert_eq!(runner.runtime_results, 1);
+    }
+
+    #[test]
+    fn accepted_snapshot_ingestion_updates_raspberry_keyboard_gate() {
+        let root = std::env::temp_dir().join(format!(
+            "octessera-pi-keyboard-snapshot-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+            None,
+            root.join("store"),
+            root.join("samples"),
+            std::sync::Arc::new(|_| {}),
+            false,
+            playback_runtime::AudioOutputSet::jack(),
+            playback_runtime::UsbDataRole::Host,
+        );
+        let control = crate::usb_keyboard::KeyboardCaptureControl::new(true);
+        adapter.set_keyboard_capture_control(control.clone());
+        ingest_oled_messages(
+            &mut adapter,
+            &[RunnerMessage::Snapshot {
+                snapshot: json!({ "hdmi": { "mode": "live-grid" } }),
+            }],
+        );
+        assert!(control.is_enabled());
+        ingest_oled_messages(
+            &mut adapter,
+            &[RunnerMessage::Snapshot {
+                snapshot: json!({ "hdmi": { "mode": "none" } }),
+            }],
+        );
+        assert!(!control.is_enabled());
+        let _ = std::fs::remove_dir_all(root);
     }
 }

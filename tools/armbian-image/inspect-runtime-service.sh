@@ -32,7 +32,7 @@ octessera_require_runtime_service() {
     'Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples' \
     'Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json' \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' 'RuntimeDirectory=octessera' 'RuntimeDirectoryMode=0755' \
-    'TTYPath=/dev/tty1' 'SupplementaryGroups=audio i2c spi gpio tty video' \
+    'TTYPath=/dev/tty1' 'SupplementaryGroups=audio i2c spi gpio tty video input' \
     'NoNewPrivileges=yes' 'ProtectSystem=strict' 'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox' \
     'PrivateTmp=yes' 'ProtectHome=yes' 'ProtectKernelTunables=yes' 'ProtectKernelModules=yes' 'ProtectControlGroups=yes' \
     'RestrictNamespaces=yes' 'LockPersonality=yes' 'LimitRTPRIO=70' 'LimitMEMLOCK=infinity' 'Nice=-10' \

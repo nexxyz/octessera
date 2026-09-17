@@ -72,6 +72,7 @@ impl PiPlaybackHostAdapter {
             power_request: None,
             recovery_save_status: None,
             oled_frame_cache: OledFrameCache::default(),
+            keyboard_control: None,
         }
     }
 
