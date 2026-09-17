@@ -360,8 +360,7 @@ body {
 }
 
 button.encoder-center,
-.button-stack button,
-.matrix-cell {
+.button-stack button {
   color: var(--palette-white);
 }
 
