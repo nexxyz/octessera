@@ -328,7 +328,7 @@ Overrides:
 
 ## Brightness Behavior
 
-- OLED Bright is applied by PlaybackRuntime while producing native OLED frame bytes. Grid Bright and Button Bright scale their LEDs; the Dim Timer applies an additional dim with its existing visible floor while the OLED remains on. Once `OLED Sleep`/Screen Sleep turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 20 Hz sparse, independently pulsing dim-star animation; this sleep animation ignores `ledsDimmed`, remains bounded by the existing sleep dim scale, and preserves a zero-brightness blackout.
+- OLED Bright is applied by PlaybackRuntime while producing native OLED frame bytes. Grid Bright and Button Bright scale their LEDs; the Dim Timer applies an additional dim with its existing visible floor while the OLED remains on. Once `OLED Sleep`/Screen Sleep turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz sparse, independently pulsing dim-star animation. The sleep animation ignores `ledsDimmed`, remains bounded by the existing sleep dim scale, and preserves a zero-brightness blackout.
 - Grid Bright scales matrix LED RGB intensity.
 - Button Bright scales NeoKey button LED intensity.
 

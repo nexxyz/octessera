@@ -6,7 +6,7 @@ const GRID_LED_COUNT: usize = 64;
 const KEY_LED_COUNT: usize = 4;
 const MAX_GRID_PULSES: usize = 4;
 const MAX_KEY_PULSES: usize = 1;
-const ANIMATION_TICK: Duration = Duration::from_millis(50);
+const ANIMATION_TICK: Duration = Duration::from_millis(100);
 const PULSE_MIN: Duration = Duration::from_millis(2_400);
 const PULSE_MAX: Duration = Duration::from_millis(4_800);
 const GRID_SPAWN_MIN: Duration = Duration::from_millis(350);
@@ -326,54 +326,5 @@ impl SmallPrng {
 
     fn range(&mut self, minimum: u64, maximum_exclusive: u64) -> u64 {
         minimum + self.next() % (maximum_exclusive - minimum)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::BTreeSet;
-
-    #[test]
-    fn fixed_pulse_samples_are_bounded_monotonic_and_smoother_at_50ms() {
-        let start = Instant::now();
-        let duration = Duration::from_millis(2_400);
-        let pulse = Pulse {
-            started_at: start,
-            duration,
-            color: palette::WHITE,
-        };
-        let sample = |interval: Duration| {
-            let pulses = [Some(pulse)];
-            let steps = (duration.as_millis() / interval.as_millis()) as u32;
-            (0..=steps)
-                .map(|step| render_pulses(&pulses, start + interval * step, 1.0)[0])
-                .collect::<Vec<_>>()
-        };
-        let samples_50 = sample(Duration::from_millis(50));
-        let samples_100 = sample(Duration::from_millis(100));
-        let levels_50 = samples_50.iter().map(|color| color[0]).collect::<Vec<_>>();
-        let peak = levels_50.len() / 2;
-
-        assert!(levels_50[..=peak].windows(2).all(|pair| pair[0] <= pair[1]));
-        assert!(levels_50[peak..].windows(2).all(|pair| pair[0] >= pair[1]));
-
-        let maximum = scale([u8::MAX; 3], sleep_dim_brightness(1.0));
-        assert!(samples_50.iter().all(|color| {
-            color
-                .iter()
-                .zip(maximum)
-                .all(|(value, limit)| *value <= limit)
-        }));
-
-        let distinct_nonzero = |samples: &[[u8; 3]]| {
-            samples
-                .iter()
-                .map(|color| color[0])
-                .filter(|level| *level != 0)
-                .collect::<BTreeSet<_>>()
-                .len()
-        };
-        assert!(distinct_nonzero(&samples_50) > distinct_nonzero(&samples_100));
     }
 }

@@ -323,9 +323,9 @@ fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
     assert!(entry.grid.iter().all(|color| *color == [0; 3]));
     let first_key = animation.key_pulse_windows()[0];
     let next_tick = animation.next_deadline().unwrap();
-    assert_eq!(next_tick, start + Duration::from_millis(50));
+    assert_eq!(next_tick, start + Duration::from_millis(100));
     assert!(animation
-        .frames_if_due(start + Duration::from_millis(25))
+        .frames_if_due(start + Duration::from_millis(50))
         .is_none());
 
     let key = first_key.0;
