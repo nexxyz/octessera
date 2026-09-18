@@ -79,7 +79,7 @@ def build_manifest(
             {
                 "name": f"octessera {version} for Raspberry Pi Zero 2 W",
                 "board_profile": board_profile,
-                "description": "Ready-to-flash Raspberry Pi OS Lite image with octessera hardware services preinstalled. Uses Imager systemd first-run customization for SSH, user, hostname, and Wi-Fi.",
+                "description": "Ready-to-flash Raspberry Pi OS Lite image with octessera hardware services preinstalled. Raspberry Pi Imager may configure SSH, hostname, and Wi-Fi, but the username must remain pi.",
                 "url": image_url,
                 "icon": icon_url,
                 "website": "https://github.com/nexxyz/octessera",

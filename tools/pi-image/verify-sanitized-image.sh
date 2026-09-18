@@ -276,6 +276,7 @@ require_raspberry_constructor_policy() {
     local root="$WORK_DIR/root"
     local locale="$root/etc/default/locale"
     local shutdown_sudoers="$root/etc/sudoers.d/octessera-shutdown"
+    local unit vendor_root state vendor_unit
     require_no_unrestricted_sudoers
     require_root_mode "$shutdown_sudoers" 440
     if [ -L "$shutdown_sudoers" ] || ! printf '%s\n' \
@@ -303,14 +304,28 @@ require_raspberry_constructor_policy() {
             exit 1
         fi
     done
-    if [ ! -L "$root/etc/systemd/system/ssh.service" ] || [ "$(readlink "$root/etc/systemd/system/ssh.service")" != /dev/null ]; then
-        echo "Sanitation check failed: SSH service is not masked" >&2
-        exit 1
-    fi
-    if [ ! -L "$root/etc/systemd/system/ssh.socket" ] || [ "$(readlink "$root/etc/systemd/system/ssh.socket")" != /dev/null ]; then
-        echo "Sanitation check failed: SSH socket is not masked" >&2
-        exit 1
-    fi
+    for unit in ssh.service ssh.socket; do
+        vendor_unit=false
+        for vendor_root in "$root/usr/lib/systemd/system" "$root/lib/systemd/system"; do
+            if [ -e "$vendor_root/$unit" ] || [ -L "$vendor_root/$unit" ]; then
+                vendor_unit=true
+                break
+            fi
+        done
+        state="$(systemctl --root="$root" is-enabled "$unit" 2>/dev/null || true)"
+        if [ "$unit" = ssh.service ] && [ "$vendor_unit" != true ]; then
+            echo "Sanitation check failed: missing vendor systemd unit $unit" >&2
+            exit 1
+        fi
+        if [ "$vendor_unit" = true ] && [ "$state" != disabled ]; then
+            echo "Sanitation check failed: $unit is not exactly disabled offline (state: ${state:-unknown})" >&2
+            exit 1
+        fi
+        if [ "$vendor_unit" != true ] && [ "$state" != not-found ]; then
+            echo "Sanitation check failed: absent $unit is enabled or masked offline (state: ${state:-unknown})" >&2
+            exit 1
+        fi
+    done
     for unit in NetworkManager.service dnsmasq.service systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
         if [ ! -e "$root/etc/systemd/system/$unit" ] && [ ! -e "$root/lib/systemd/system/$unit" ] && [ ! -e "$root/usr/lib/systemd/system/$unit" ]; then
             echo "Sanitation check failed: missing required systemd unit $unit" >&2
