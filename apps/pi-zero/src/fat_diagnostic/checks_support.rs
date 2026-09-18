@@ -139,6 +139,7 @@ pub(super) fn has_assignment(content: &str, key: &str, expected: &str) -> bool {
 }
 
 pub(super) fn read_small(path: &Path) -> Result<String, String> {
+    const MAX_BYTES: usize = 128 * 1024;
     let metadata =
         fs::symlink_metadata(path).map_err(|error| format!("{}: {error}", path.display()))?;
     if metadata.file_type().is_symlink() {
@@ -147,10 +148,17 @@ pub(super) fn read_small(path: &Path) -> Result<String, String> {
     if !metadata.is_file() {
         return Err(format!("{} is not a regular file", path.display()));
     }
-    if metadata.len() > 128 * 1024 {
+    let mut file = fs::File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let mut bytes = Vec::new();
+    file.by_ref()
+        .take((MAX_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    if bytes.len() > MAX_BYTES {
         return Err(format!("{} exceeds diagnostic read limit", path.display()));
     }
-    fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))
+    String::from_utf8(bytes)
+        .map_err(|error| format!("{} is not valid UTF-8: {error}", path.display()))
 }
 
 pub(super) fn outcome(status: CheckStatus, message: &str, artifact: &str) -> CheckOutcome {
@@ -290,9 +298,10 @@ pub(super) fn output_text(output: &Output) -> String {
 mod tests {
     use super::super::super::model::CheckStatus;
     use super::{
-        command_succeeded, has_assignment, output_text, required_command_status, run_command,
-        run_metadata_command, CommandResult,
+        command_succeeded, has_assignment, output_text, read_small, required_command_status,
+        run_command, run_metadata_command, CommandResult,
     };
+    use std::fs;
     use std::sync::Mutex;
 
     static ENVIRONMENT_LOCK: Mutex<()> = Mutex::new(());
@@ -338,6 +347,37 @@ mod tests {
             "OCTESSERA_BOARD_PROFILE_ID",
             "orange-pi-zero-2w"
         ));
+    }
+
+    #[test]
+    fn diagnostic_reads_bound_proc_style_files_and_rejects_invalid_content() {
+        let root = std::env::temp_dir().join(format!(
+            "octessera-fat-read-small-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+
+        let exact = root.join("exact");
+        fs::write(&exact, vec![b'x'; 128 * 1024]).unwrap();
+        assert_eq!(read_small(&exact).unwrap().len(), 128 * 1024);
+
+        let oversized = root.join("oversized");
+        fs::write(&oversized, vec![b'x'; 128 * 1024 + 1]).unwrap();
+        assert!(read_small(&oversized)
+            .unwrap_err()
+            .contains("exceeds diagnostic read limit"));
+
+        let invalid_utf8 = root.join("invalid-utf8");
+        fs::write(&invalid_utf8, [0xff, 0xfe]).unwrap();
+        assert!(read_small(&invalid_utf8)
+            .unwrap_err()
+            .contains("not valid UTF-8"));
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

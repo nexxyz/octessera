@@ -121,7 +121,7 @@ pub(crate) fn system_info_action_opens_loading_popup_and_requests_info() {
             if effects == &vec![RuntimePlatformEffect::SystemInfoRequest]
     ));
     let snapshot = snapshot_from(&messages);
-    assert_eq!(snapshot["display"]["title"], "System Info");
+    assert_eq!(snapshot["display"]["title"], "Sys. Info");
     assert_eq!(snapshot["display"]["lines"][0], "Loading info...");
 }
 

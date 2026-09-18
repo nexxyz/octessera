@@ -20,7 +20,7 @@ pub(super) fn parity_corpus() -> Vec<(String, Value)> {
     push(&mut cases, "marker-bar", marker);
 
     let mut long = menu_snapshot();
-    long["display"]["title"] = json!("System Info / Very Long Title");
+    long["display"]["title"] = json!("Sys. Info / Very Long Title");
     long["display"]["lines"][1] = json!("  a very long line that must clip at the OLED bar");
     long["display"]["scrollOffset"] = json!(7);
     long["display"]["totalRows"] = json!(24);
@@ -251,7 +251,7 @@ pub(super) fn parity_corpus() -> Vec<(String, Value)> {
         ),
         (
             "system-info-shape",
-            "System Info",
+            "Sys. Info",
             vec!["Version 0.7.5", "CPU 12%", "> Back"],
         ),
     ] {
@@ -300,7 +300,7 @@ pub(super) fn parity_corpus() -> Vec<(String, Value)> {
             "setup-succeeded",
             vec![
                 "Setup complete",
-                "IP in System > Info",
+                "IP in System > Sys. Info",
                 "No reboot needed",
                 "> Close",
             ],

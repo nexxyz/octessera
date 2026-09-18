@@ -205,7 +205,7 @@ for root in UI_ROOTS:
         "Applying setup",
         "Watch the OLED for the final result.",
         "After success, find the address in",
-        "System &gt; Info",
+        "System &gt; Sys. Info",
     ):
         assert text in html
     for text in ("Setup request sent", "Load failed", "authoritative", "success screen"):

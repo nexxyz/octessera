@@ -211,7 +211,7 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
             "Wi-Fi Setup".to_string(),
             vec![
                 "Setup complete".into(),
-                "IP in System > Info".into(),
+                "IP in System > Sys. Info".into(),
                 "No reboot needed".into(),
             ],
             "Close",
@@ -328,7 +328,7 @@ fn system_info_modal_display(modal: &super::NativeSystemInfoModal) -> DisplaySna
     let line_count = lines.len();
     DisplaySnapshot {
         body_layout: OledDisplayLayout::Rows,
-        title: "System Info".into(),
+        title: "Sys. Info".into(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![Value::Null; line_count],
