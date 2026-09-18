@@ -43,7 +43,7 @@ fn normalization_and_wrapping_are_fixed_font_safe() {
 fn card_layout_keeps_source_order_and_reserves_selected_action() {
     let lines = vec![
         "Setup complete".into(),
-        "IP in System > Info".into(),
+        "IP in System > Sys. Info".into(),
         "No reboot needed".into(),
         "Check the device status".into(),
         "> Close".into(),
@@ -51,10 +51,11 @@ fn card_layout_keeps_source_order_and_reserves_selected_action() {
     let rows = layout_card_body(&lines, Some(4), CARD_BODY_RECT);
     assert_eq!(
         rows.iter().map(|row| row.source_index).collect::<Vec<_>>(),
-        [0, 1, 2, 3, 3, 4]
+        [0, 1, 1, 2, 3, 3, 4]
     );
-    assert_eq!(rows[3].text, "Check the device");
-    assert_eq!(rows[4].text, "status");
+    assert_eq!(rows[3].text, "No reboot needed");
+    assert_eq!(rows[4].text, "Check the device");
+    assert_eq!(rows[5].text, "status");
     assert_eq!(rows.last().unwrap().text, "> Close");
     assert!(rows.last().unwrap().selected);
     assert!(rows[..rows.len() - 1].iter().all(|row| !row.selected));

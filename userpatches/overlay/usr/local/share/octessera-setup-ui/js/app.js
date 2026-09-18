@@ -11,7 +11,7 @@ const COUNTRY_APPLY_FAILED = 'Could not apply the Wi-Fi country. Check the code 
 const SCAN_FAILED = 'Could not scan nearby Wi-Fi networks. Enter the SSID manually if needed.';
 const APPLYING_PENDING = 'Setup is being applied. Watch the OLED for the final result.';
 const APPLYING_REJECTED = (status) => `The device rejected the Wi-Fi request (HTTP ${status}).`;
-const DISCONNECT_GUIDANCE = 'The portal connection may have dropped while setup applies. This can be expected. Watch the OLED for the final result. After success, find the address in System > Info.';
+const DISCONNECT_GUIDANCE = 'The portal connection may have dropped while setup applies. This can be expected. Watch the OLED for the final result. After success, find the address in System > Sys. Info.';
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 128;
 const PASSWORD_WHITESPACE_RANGES = [

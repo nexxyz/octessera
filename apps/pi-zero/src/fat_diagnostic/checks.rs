@@ -1,6 +1,8 @@
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[path = "installed_identity.rs"]
 mod installed_identity;
+#[path = "orange_checks.rs"]
+mod orange_checks;
 #[path = "readiness.rs"]
 mod readiness;
 #[path = "checks_support.rs"]
@@ -277,7 +279,13 @@ fn validate_setup_status_file(path: &Path) -> Result<(), String> {
 }
 
 fn oled_handoff_check(context: &CheckContext) -> CheckOutcome {
-    let root = Path::new(context.board.oled_handoff_dir);
+    if context.board.profile_id == "orange-pi-zero-2w" {
+        return orange_checks::oled_handoff_check(context);
+    }
+    status_file_oled_handoff_check(Path::new(context.board.oled_handoff_dir))
+}
+
+fn status_file_oled_handoff_check(root: &Path) -> CheckOutcome {
     let status_path = root.join("status.json");
     let lock_path = root.join("oled.lock");
     let payload = match read_small(&status_path) {
@@ -311,6 +319,13 @@ fn oled_handoff_check(context: &CheckContext) -> CheckOutcome {
 }
 
 fn audio_route_check(context: &CheckContext) -> CheckOutcome {
+    if context.board.profile_id == "orange-pi-zero-2w" {
+        return orange_checks::audio_route_check(context);
+    }
+    raspberry_audio_route_check(context)
+}
+
+fn raspberry_audio_route_check(context: &CheckContext) -> CheckOutcome {
     let result = run_command("aplay", &["-l"], context.timeout);
     let text = match &result {
         CommandResult::Completed(output) => output_text(output),
@@ -325,13 +340,7 @@ fn audio_route_check(context: &CheckContext) -> CheckOutcome {
             return outcome(CheckStatus::Fail, error, "07-audio.txt")
         }
     };
-    let lower = text.to_ascii_lowercase();
-    if !context
-        .board
-        .audio_card_fragments
-        .iter()
-        .any(|fragment| lower.contains(fragment))
-    {
+    if !raspberry_audio_card_listed(&text, context.board.audio_card_fragments) {
         return outcome_with_content(
             CheckStatus::Fail,
             "selected audio card is not listed",
@@ -348,6 +357,11 @@ fn audio_route_check(context: &CheckContext) -> CheckOutcome {
         "07-audio.txt",
         &text,
     )
+}
+
+fn raspberry_audio_card_listed(text: &str, fragments: &[&str]) -> bool {
+    let lower = text.to_ascii_lowercase();
+    fragments.iter().any(|fragment| lower.contains(fragment))
 }
 
 fn input_check(_context: &CheckContext) -> CheckOutcome {
@@ -422,79 +436,5 @@ fn usb_state_check(context: &CheckContext) -> CheckOutcome {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{input_check, setup_status_check_paths, CheckContext};
-    use crate::board_profile::FAT_RASPBERRY_PI_ZERO_2W;
-    use crate::fat_diagnostic::model::CheckStatus;
-    use serde_json::json;
-    use std::fs;
-    use std::time::Duration;
-
-    #[test]
-    fn input_check_is_operator_required_without_hardware_access() {
-        let outcome = input_check(&CheckContext {
-            board: FAT_RASPBERRY_PI_ZERO_2W,
-            timeout: Duration::from_secs(1),
-            executable: None,
-        });
-        assert_eq!(outcome.status, CheckStatus::OperatorRequired);
-    }
-
-    #[test]
-    fn absent_setup_status_is_not_run_instead_of_a_hygiene_pass() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-fat-setup-status-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let outcome = setup_status_check_paths(&root.join("public"));
-        assert_eq!(outcome.status, CheckStatus::NotRun);
-        assert!(!root.exists());
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn setup_status_accepts_backend_envelope_phases_and_rejects_missing_type() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-fat-setup-status-valid-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let public = root.join("public");
-        fs::create_dir_all(&public).unwrap();
-        let current = public.join("current.json");
-        for status in [
-            json!({"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}),
-            json!({"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}),
-            json!({"type":"setup_portal_status","phase":"finalizing","rebootRequired":false}),
-            json!({"type":"setup_portal_status","phase":"succeeded","rebootRequired":false}),
-            json!({"type":"setup_portal_status","phase":"failed","errorCode":"operation_failed","rebootRequired":false}),
-            json!({"type":"setup_portal_status","phase":"timed_out","errorCode":"unavailable","rebootRequired":false}),
-        ] {
-            fs::write(
-                &current,
-                serde_json::to_vec(&json!({"schema":1,"status":status})).unwrap(),
-            )
-            .unwrap();
-            assert_eq!(setup_status_check_paths(&public).status, CheckStatus::Pass);
-        }
-
-        fs::write(
-            &current,
-            serde_json::to_vec(&json!({
-                "schema": 1,
-                "status": {"phase":"starting","disposition":"accepted","rebootRequired":false}
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(setup_status_check_paths(&public).status, CheckStatus::Fail);
-        let _ = fs::remove_dir_all(root);
-    }
-}
+#[path = "checks_tests.rs"]
+mod tests;
