@@ -15,7 +15,7 @@
     {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "83ccbe017e1427356fca926bc5eae0b66b2a8d2b9a97cf543b5d75c37d7e5677", "size": 684},
     {"path": "resources/legal/notice-bundle.json", "sha256": "86bb7fe76d57b6c1e55f1ad9f83b1523b059855555fe0668db66d79554c700da", "size": 6237},
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320},
-    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "292927b8de7e93154479383d35587557bb7be384497bc3b1f4c960d6cc56ca9a", "size": 18807},
+    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "51827da447240ab6d80cf4af6250053becd57b4a97e076ab3bb1be35dfa3e00d", "size": 18686},
     {"path": "tools/pi-image/export-image-octessera/02-sanitize-userconf/00-run.sh", "sha256": "1a0c67406da2699bb4a1e92ca483c524f2c24b14aebc2722729f140c3b55a42e", "size": 835},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup", "sha256": "0a9a1487b458a92c7fb72d7b0ec2b77b6b4010505d095ce91024de759d31c1c5", "size": 19147},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py", "sha256": "4d7f72bcfbaee29a16bd7e2397cb3f054f5add63fc8ffb54de1a0eb0385d0be5", "size": 12732},

@@ -52,7 +52,10 @@ wrapper fixed to `wlan0` and `192.168.42.1`; it is deliberately disabled and
 does not serialize credentials or add runtime behavior.
 
 Release images must contain no Wi-Fi credentials, SSH keys, GitHub tokens, host
-logs, or local user secrets. SSH is disabled by default.
+logs, or local user secrets. SSH is disabled by default. An unconfigured
+Raspberry image retains its unmasked vendor SSH units for explicit Raspberry Pi
+Imager customization. Imager may configure SSH, hostname, and Wi-Fi, but the
+username must remain `pi`.
 
 Raspberry updates use `/usr/local/sbin/octessera-update` and the profile-qualified
 device ZIP/checksum. Candidates are staged under

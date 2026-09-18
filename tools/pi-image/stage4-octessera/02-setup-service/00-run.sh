@@ -303,8 +303,6 @@ rm -f \
     "$ROOTFS_DIR/etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service" \
     "$ROOTFS_DIR/etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/ssh.service" "$ROOTFS_DIR/etc/systemd/system/ssh.socket"
-ln -s /dev/null "$ROOTFS_DIR/etc/systemd/system/ssh.service"
-ln -s /dev/null "$ROOTFS_DIR/etc/systemd/system/ssh.socket"
 
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/bluetooth.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/hciuart.service"

@@ -7,12 +7,32 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$root/tools/armbian-image/validation-assertions.sh"
 service="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service"
 runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"
+setup_stage="$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
+sanitize_stage="$root/tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh"
+sanitizer="$root/tools/pi-image/verify-sanitized-image.sh"
 gadget_runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-gadget.service"
 usb_role_helper="$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role"
 usb_role_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role"
 template="$root/tools/pi/provision/files/etc/systemd/system/octessera.service.template"
 shutdown_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-shutdown"
 shutdown_policy='pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot'
+
+grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/ssh.service\" \"\$ROOTFS_DIR/etc/systemd/system/ssh.socket\"" "$setup_stage"
+if grep -Eq "ln -s /dev/null \"\$ROOTFS_DIR/etc/systemd/system/ssh\\.(service|socket)\"" "$setup_stage"; then
+    echo 'Raspberry setup stage must not mask SSH units.' >&2
+    exit 1
+fi
+grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/ssh.service\"" "$sanitize_stage"
+grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/sockets.target.wants/ssh.socket\"" "$sanitize_stage"
+grep -qF 'for unit in ssh.service ssh.socket; do' "$sanitizer"
+grep -qF "systemctl --root=\"\$root\" is-enabled \"\$unit\"" "$sanitizer"
+grep -qF "if [ \"\$unit\" = ssh.service ] && [ \"\$vendor_unit\" != true ]; then" "$sanitizer"
+grep -qF "if [ \"\$vendor_unit\" = true ] && [ \"\$state\" != disabled ]; then" "$sanitizer"
+grep -qF "if [ \"\$vendor_unit\" != true ] && [ \"\$state\" != not-found ]; then" "$sanitizer"
+if grep -Eq 'SSH (service|socket) is not masked|readlink.*ssh\.(service|socket)' "$sanitizer"; then
+    echo 'Raspberry image verifier must require disabled, unmasked SSH units.' >&2
+    exit 1
+fi
 
 for required_line in \
     'Type=simple' \

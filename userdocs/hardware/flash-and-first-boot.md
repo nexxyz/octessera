@@ -31,7 +31,15 @@ This is optional; BalenaEtcher or another image flasher is the normal path.
 To use it, open Imager's **App Options**, edit **Content Repository**, choose
 **Use custom file** or **Use custom URL**, select the release manifest, and
 choose **Apply and Restart**.
-The shared setup portal below remains the first-boot path for either board.
+> **Preferred Raspberry setup:** Flash the image as-is, then use Octessera's
+> built-in Wi-Fi setup below to configure Wi-Fi, the device password, and SSH.
+> If you customize with Raspberry Pi Imager instead, keep the username exactly
+> `pi`. **Do not change it.** Octessera's Raspberry runtime requires that fixed
+> account.
+
+Imager may configure SSH, the hostname, and Wi-Fi. An unconfigured/raw
+Raspberry flash keeps SSH disabled by default. The shared setup portal below
+remains available for either board.
 
 ## 3. Power the open assembly
 
