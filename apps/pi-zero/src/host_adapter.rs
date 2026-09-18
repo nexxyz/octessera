@@ -13,7 +13,7 @@ use crate::host_audio_command::send_audio_command;
 use crate::midi_host::{MidiHost, RuntimeOutputSink};
 use crate::oled_frame_cache::OledFrameCache;
 use crate::platform_service::{
-    dispatch_midi_effect, dispatch_shared_effect, usb_sd_transfer_output_block_reason,
+    dispatch_midi_effect_messages, dispatch_shared_effect, usb_sd_transfer_output_block_reason,
     PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
 };
 use playback_runtime::{
@@ -297,8 +297,8 @@ impl HostAdapter for PiPlaybackHostAdapter {
         {
             return Ok(result);
         }
-        if let Some(result) = dispatch_midi_effect(&mut self.midi, &request.effect)? {
-            return Ok(vec![HostMessage::RuntimeResult { result }]);
+        if let Some(messages) = dispatch_midi_effect_messages(&mut self.midi, &request.effect)? {
+            return Ok(messages);
         }
         let effect = &request.effect;
         let result = match effect {
