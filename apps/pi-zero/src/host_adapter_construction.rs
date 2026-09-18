@@ -125,4 +125,15 @@ impl PiPlaybackHostAdapter {
             platform_service,
         )
     }
+
+    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    pub(crate) fn set_test_midi_backend(
+        &mut self,
+        output_names: impl IntoIterator<Item = String>,
+        input_names: impl IntoIterator<Item = String>,
+        results: impl IntoIterator<Item = Result<(), String>>,
+    ) {
+        self.midi
+            .set_test_backend(output_names, input_names, results);
+    }
 }

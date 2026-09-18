@@ -237,6 +237,7 @@ mod tests {
     use crate::audio::test_service_with_prep_result_sender;
     use crate::candidate_readiness::CandidateReadiness;
     use playback_runtime::{RuntimeOperation, RuntimeStoreResult};
+    use serde_json::json;
     use std::sync::Arc;
 
     #[test]
@@ -402,6 +403,81 @@ mod tests {
         let payload = runner.test_config_payload();
 
         assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "latency");
+    }
+
+    #[test]
+    fn pi_gadget_midi_startup_waits_for_both_directions_before_oled_handoff() {
+        let root = std::env::temp_dir().join(format!(
+            "octessera-pi-gadget-midi-startup-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = root.join("store");
+        std::fs::create_dir_all(&store).unwrap();
+        let mut payload: serde_json::Value =
+            serde_json::from_str(include_str!("../../../config/generated/pi/default.json"))
+                .unwrap();
+        payload["runtimeConfig"]["audioOutputs"]["usb"] = json!(true);
+        payload["runtimeConfig"]["midi"]["enabled"] = json!(true);
+        payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(true);
+        std::fs::write(
+            store.join("default.json"),
+            serde_json::to_vec(&payload).unwrap(),
+        )
+        .unwrap();
+
+        let samples = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../samples")
+            .canonicalize()
+            .unwrap();
+        let audio = crate::audio::test_service_with_prep_worker();
+        let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+            Some(audio),
+            store,
+            samples,
+            Arc::new(|_| {}),
+            true,
+            playback_runtime::AudioOutputSet::from_flags(true, true, false).unwrap(),
+            playback_runtime::UsbDataRole::Gadget,
+        );
+        adapter.set_test_midi_backend(
+            vec![
+                "MIDI Through Port-0".into(),
+                "Octessera MIDI:Octessera MIDI 20:0".into(),
+            ],
+            vec!["MIDI Through Port-0".into(), "Octessera MIDI".into()],
+            [Ok(()), Ok(())],
+        );
+        let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency, true);
+        runner.skip_startup_splash();
+
+        initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
+        crate::runtime_loop::dispatch_runtime_message(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            HostMessage::TransportPulseStep {
+                pulses: 0,
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(true),
+            },
+        )
+        .unwrap();
+        wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter).unwrap();
+
+        let snapshot = playback.last_snapshot().unwrap();
+        assert!(playback.latched_errors().is_empty());
+        assert!(snapshot["runtimeError"].is_null());
+        assert!(is_normal_menu_snapshot(snapshot));
+        assert!(runner.is_canonical_menu_presentation());
+        assert!(adapter
+            .oled_publication_for_snapshot(snapshot, true)
+            .is_ok());
+        let _ = std::fs::remove_dir_all(root);
     }
 }
 

@@ -152,27 +152,43 @@ pub(crate) fn dispatch_midi_effect(
         }
         RuntimePlatformEffect::MidiSelectOutput { id } => {
             let result = midi.select_output(id.clone());
-            let (ok, message) = midi.selection_status(result);
-            Some(RuntimeStoreResult::MidiStatus {
-                ok,
-                message,
-                selected_out_id: midi.selected_output_id(),
-                selected_in_id: midi.selected_input_id(),
-            })
+            midi.selection_status(result)
+                .map(|(ok, message)| RuntimeStoreResult::MidiStatus {
+                    ok,
+                    message,
+                    selected_out_id: midi.selected_output_id(),
+                    selected_in_id: midi.selected_input_id(),
+                })
         }
         RuntimePlatformEffect::MidiSelectInput { id } => {
             let result = midi.select_input(id.clone());
-            let (ok, message) = midi.selection_status(result);
-            Some(RuntimeStoreResult::MidiStatus {
-                ok,
-                message,
-                selected_out_id: midi.selected_output_id(),
-                selected_in_id: midi.selected_input_id(),
-            })
+            midi.selection_status(result)
+                .map(|(ok, message)| RuntimeStoreResult::MidiStatus {
+                    ok,
+                    message,
+                    selected_out_id: midi.selected_output_id(),
+                    selected_in_id: midi.selected_input_id(),
+                })
         }
         _ => None,
     };
     Ok(result)
+}
+
+pub(crate) fn dispatch_midi_effect_messages(
+    midi: &mut MidiHost,
+    effect: &RuntimePlatformEffect,
+) -> Result<Option<Vec<HostMessage>>, RuntimeAdapterError> {
+    let midi_selection = matches!(
+        effect,
+        RuntimePlatformEffect::MidiSelectOutput { .. }
+            | RuntimePlatformEffect::MidiSelectInput { .. }
+    );
+    match dispatch_midi_effect(midi, effect)? {
+        Some(result) => Ok(Some(vec![HostMessage::RuntimeResult { result }])),
+        None if midi_selection => Ok(Some(Vec::new())),
+        None => Ok(None),
+    }
 }
 
 fn enqueue(

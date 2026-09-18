@@ -11,8 +11,9 @@ use crate::oled_frame_cache::OledFrameCache;
 use crate::orange_audio::OrangeAudioHost;
 use crate::orange_device_apply::OrangeShutdownRequest;
 use crate::platform_service::{
-    dispatch_midi_effect, dispatch_shared_effect, enqueue_job, usb_sd_transfer_output_block_reason,
-    PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
+    dispatch_midi_effect_messages, dispatch_shared_effect, enqueue_job,
+    usb_sd_transfer_output_block_reason, PiPlatformService, PlatformJob, PlatformJobKind,
+    QueueFailureStyle,
 };
 use playback_runtime::{
     DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError,
@@ -266,8 +267,8 @@ impl HostAdapter for OrangeHostAdapter {
         {
             return Ok(result);
         }
-        if let Some(result) = dispatch_midi_effect(&mut self.midi, &request.effect)? {
-            return Ok(vec![HostMessage::RuntimeResult { result }]);
+        if let Some(messages) = dispatch_midi_effect_messages(&mut self.midi, &request.effect)? {
+            return Ok(messages);
         }
         let result = match &request.effect {
             RuntimePlatformEffect::StoreLoadDefault => {
