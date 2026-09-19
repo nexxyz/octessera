@@ -110,6 +110,8 @@ for root in UI_ROOTS:
     assert "overflow-x: hidden" in styles
     assert ".checkbox, .choice-group { display: flex; flex-wrap: wrap;" in styles
     assert "focus-visible" in styles
+    assert 'id="refreshNetworks">Scan for networks</button>' in html
+    assert "Refresh scan" not in html
     assert "els.refreshNetworks.disabled = loading" in app
     assert "state.networkPhase = 'scan'" in app
     assert "const renderSshChoices = () =>" in app
