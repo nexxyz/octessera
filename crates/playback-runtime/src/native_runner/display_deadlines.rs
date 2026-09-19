@@ -35,7 +35,7 @@ impl NativeRunner {
                 deadline,
                 self.display.last_interaction_at
                     + Duration::from_secs(u64::from(self.display.ui.screen_sleep_seconds)),
-                last_snapshot_at,
+                None,
             );
         }
         if self.display.oled_mode == NativeOledMode::Splash {
