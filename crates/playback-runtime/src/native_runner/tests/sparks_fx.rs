@@ -58,7 +58,7 @@ pub(crate) fn sparks_fx_grid_press_and_release_emit_audio_commands() {
     assert!(stop.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if effects == &vec![RuntimePlatformEffect::AudioCommand { command: RuntimeAudioCommand::MomentaryFxStop { id: "momentary-fx:2:3".into() } }]
+            if effects == &vec![RuntimePlatformEffect::AudioCommand { command: RuntimeAudioCommand::MomentaryFxStop { id: "momentary-fx:2:3".into(), epoch: 1 } }]
     )));
 }
 

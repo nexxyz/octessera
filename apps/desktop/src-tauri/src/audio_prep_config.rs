@@ -1,22 +1,18 @@
 use crate::audio_config::{
-    normalize_config, sample_bank_signature, sample_banks, synth_payload, synth_slots,
-    SampleBankError,
+    normalize_config, parse_instrument_slot_config, sample_bank_for_slot_config,
+    sample_bank_signature, sample_banks, synth_payload, synth_slots, SampleBankError,
 };
 use crate::sample_decode_cache::SampleDecodeCacheError;
 use crate::samples::resolve_sample_file;
-use crate::types::QueuedAudioEvent;
-use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use realtime_engine::synth::{
+    prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
+    prepare_instrument_slot_config, DEFAULT_AUDIO_SAMPLE_RATE, INSTRUMENT_SLOT_COUNT,
+};
+use rodio_engine_source::EngineEvent;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::Sender;
 
 use super::DesktopAudioPrepState;
-
-pub(super) struct PreparedAudioConfig {
-    event: QueuedAudioEvent,
-    synth_slots: [bool; INSTRUMENT_SLOT_COUNT],
-    sample_signature: Option<String>,
-}
 
 pub(super) enum AudioPrepError {
     Superseded,
@@ -25,9 +21,16 @@ pub(super) enum AudioPrepError {
     Failed(String),
 }
 
+pub(super) struct PreparedAudioConfig {
+    pub(super) event: EngineEvent,
+    pub(super) synth_slots: [bool; INSTRUMENT_SLOT_COUNT],
+    pub(super) sample_signature: Option<String>,
+}
+
 pub(super) fn prepare_full_audio_config(
     revision: u64,
-    request_id: Option<String>,
+    generation: u64,
+    _request_id: Option<String>,
     config: Value,
     state: &DesktopAudioPrepState,
 ) -> Result<PreparedAudioConfig, AudioPrepError> {
@@ -58,24 +61,113 @@ pub(super) fn prepare_full_audio_config(
     };
     ensure_current_audio_revision(state, revision)?;
     Ok(PreparedAudioConfig {
-        event: QueuedAudioEvent::SetAudioConfig {
-            revision,
-            request_id,
-            instruments: synth_payload(&config),
-            sample_banks: next_sample_banks,
-            voice_stealing_mode: config.voice_stealing_mode,
+        event: EngineEvent::SetPreparedAudioConfig {
+            generation,
+            config: prepare_audio_config(
+                synth_payload(&config),
+                next_sample_banks,
+                config.voice_stealing_mode,
+                DEFAULT_AUDIO_SAMPLE_RATE,
+            ),
         },
         synth_slots: next_slots,
         sample_signature: should_update_sample_banks.then_some(next_sample_signature),
     })
 }
 
+pub(super) fn commit_full_audio_config(
+    prepared: &PreparedAudioConfig,
+    state: &DesktopAudioPrepState,
+    generation: u64,
+) -> Result<(), AudioPrepError> {
+    let mut slots = state
+        .synth_slots
+        .lock()
+        .map_err(|_| AudioPrepError::Failed("synth slot state lock failed".into()))?;
+    *slots = prepared.synth_slots;
+    drop(slots);
+    if let Some(signature) = &prepared.sample_signature {
+        let mut current = state
+            .sample_bank_signature
+            .lock()
+            .map_err(|_| AudioPrepError::Failed("sample bank signature lock failed".into()))?;
+        *current = signature.clone();
+    }
+    let mut generations = state
+        .generations
+        .lock()
+        .map_err(|_| AudioPrepError::Failed("audio generation state lock failed".into()))?;
+    let full = generations.full.max(generation);
+    generations.full = full;
+    generations.instrument.fill(full);
+    generations.sample.fill(full);
+    generations.bus_mixer.fill(full);
+    generations
+        .fx_bus
+        .fill([full; realtime_engine::synth::BUS_SLOTS_PER_BUS]);
+    generations.global_fx.fill(full);
+    Ok(())
+}
+
+pub(super) fn prepare_instrument_slot_event(
+    instrument_slot: usize,
+    generation: u64,
+    config: Value,
+    state: &DesktopAudioPrepState,
+) -> Result<EngineEvent, AudioPrepError> {
+    let parsed = parse_instrument_slot_config(&config).map_err(AudioPrepError::InvalidConfig)?;
+    let sample_bank = sample_bank_for_slot_config(&config, resolve_sample_file, |path| match state
+        .sample_decode_cache
+        .load(path)
+    {
+        Ok(buffer) => buffer,
+        Err(SampleDecodeCacheError::LookupLock) => None,
+        Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
+    })
+    .map_err(AudioPrepError::Sample)?;
+    Ok(EngineEvent::SetPreparedInstrumentOwner {
+        instrument_slot: instrument_slot as u8,
+        generation,
+        config: prepare_instrument_slot_config(parsed),
+        sample_bank,
+    })
+}
+
+pub(super) fn prepare_fx_bus_slot_event(
+    bus_index: usize,
+    slot_index: usize,
+    generation: u64,
+    fx_type: String,
+    params: std::collections::BTreeMap<String, Value>,
+) -> EngineEvent {
+    EngineEvent::SetPreparedFxBusSlot {
+        bus_index: bus_index as u8,
+        slot_index: slot_index as u8,
+        generation,
+        config: prepare_fx_bus_slot(fx_type, params, DEFAULT_AUDIO_SAMPLE_RATE),
+    }
+}
+
+pub(super) fn prepare_global_fx_slot_event(
+    slot_index: usize,
+    generation: u64,
+    fx_type: String,
+    params: std::collections::BTreeMap<String, Value>,
+) -> EngineEvent {
+    EngineEvent::SetPreparedGlobalFxSlot {
+        slot_index: slot_index as u8,
+        generation,
+        config: prepare_global_fx_slot(fx_type, params),
+    }
+}
+
 pub(super) fn prepare_sample_preview(
     instrument_slot: usize,
+    generation: u64,
     path: &str,
     velocity: u8,
     state: &DesktopAudioPrepState,
-) -> Result<QueuedAudioEvent, AudioPrepError> {
+) -> Result<EngineEvent, AudioPrepError> {
     let full_path = resolve_sample_file(path)
         .ok_or_else(|| AudioPrepError::Sample(SampleBankError::Unresolved(path.into())))?;
     let buffer = match state.sample_decode_cache.load(&full_path) {
@@ -87,8 +179,9 @@ pub(super) fn prepare_sample_preview(
         }
         Err(_) => return Err(AudioPrepError::Failed("sample cache lock failed".into())),
     };
-    Ok(QueuedAudioEvent::PreviewSample {
-        instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
+    Ok(EngineEvent::PreviewSample {
+        instrument_slot: instrument_slot as u8,
+        generation,
         buffer,
         velocity,
     })
@@ -101,43 +194,4 @@ fn ensure_current_audio_revision(
     (state.config_revision.load(Ordering::SeqCst) == revision)
         .then_some(())
         .ok_or(AudioPrepError::Superseded)
-}
-
-pub(super) fn apply_prepared_audio_config(
-    prepared: PreparedAudioConfig,
-    revision: u64,
-    trigger_tx: &Sender<QueuedAudioEvent>,
-    state: &DesktopAudioPrepState,
-) -> Result<(), AudioPrepError> {
-    ensure_current_audio_revision(state, revision)?;
-    if state.synth_slots.lock().is_err() {
-        return Err(AudioPrepError::Failed(
-            "synth slot state lock failed".into(),
-        ));
-    }
-    if prepared.sample_signature.is_some() && state.sample_bank_signature.lock().is_err() {
-        return Err(AudioPrepError::Failed(
-            "sample bank signature lock failed".into(),
-        ));
-    }
-    trigger_tx.send(prepared.event).map_err(|error| {
-        AudioPrepError::Failed(format!("audio engine queue send failed: {error}"))
-    })?;
-    if let Ok(mut slots) = state.synth_slots.lock() {
-        *slots = prepared.synth_slots;
-    } else {
-        return Err(AudioPrepError::Failed(
-            "synth slot state lock failed".into(),
-        ));
-    }
-    if let Some(signature) = prepared.sample_signature {
-        if let Ok(mut current) = state.sample_bank_signature.lock() {
-            *current = signature;
-        } else {
-            return Err(AudioPrepError::Failed(
-                "sample bank signature lock failed".into(),
-            ));
-        }
-    }
-    Ok(())
 }

@@ -22,14 +22,20 @@ fn audio_oled_submission_uses_final_tap_cursor_and_rejects_duplicate_revision() 
         .submit_accepted_oled_frame(2, &solid_frame(0x07e0))
         .unwrap();
     push_frames(&service, 4_410);
-    service.stop_recording().unwrap();
+    let outcome = service.stop_recording_with_outcome().unwrap().unwrap();
+    assert_eq!(outcome.frames_written, 8_820);
+    assert_eq!(outcome.status, RecordingStatus::Complete);
+    assert_eq!(
+        outcome
+            .path
+            .extension()
+            .and_then(|extension| extension.to_str()),
+        Some("avi")
+    );
+    assert!(!outcome.path.to_string_lossy().contains(".incomplete."));
     assert!(service.poll_recording_status().is_none());
 
-    let path = fs::read_dir(&directory)
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .find(|path| path.extension().is_some_and(|extension| extension == "avi"))
-        .unwrap();
+    let path = outcome.path;
     let videos = avi_video_payloads(&path);
     assert_eq!(videos.len(), 2);
     assert_ne!(videos[0], videos[1]);
@@ -84,14 +90,14 @@ fn audio_and_audio_oled_starts_share_one_active_recording() {
     assert!(service
         .start_recording(1)
         .unwrap_err()
-        .contains("already active"));
+        .eq(&media_recording::RecordingStartError::AlreadyActive));
     service.stop_recording().unwrap();
 
     service.start_recording(1).unwrap();
     assert!(service
         .start_recording_audio_oled_with_seed(1, None)
         .unwrap_err()
-        .contains("already active"));
+        .eq(&media_recording::RecordingStartError::AlreadyActive));
     service.stop_recording().unwrap();
     let _ = fs::remove_dir_all(directory);
 }
@@ -100,7 +106,11 @@ fn audio_and_audio_oled_starts_share_one_active_recording() {
 fn recording_completion_uses_existing_status_toast_result() {
     assert!(matches!(
         super::super::audio_recording::recording_status(RecordingStatus::Complete),
-        RuntimeStoreResult::RecordingStatus { ok: true, message }
+        RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message,
+            active: false,
+        }
             if message == "Recording saved"
     ));
     assert!(matches!(
@@ -110,8 +120,20 @@ fn recording_completion_uses_existing_status_toast_result() {
             overflow_count: 0,
             overflow_frames: 0,
         }),
-        RuntimeStoreResult::RecordingStatus { ok: false, message }
+        RuntimeStoreResult::RecordingStatus {
+            ok: false,
+            message,
+            active: false,
+        }
             if message == "Recording incomplete"
+    ));
+    assert!(matches!(
+        super::super::audio_recording::max_time_recording_status(RecordingStatus::Complete),
+        RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message,
+            active: false,
+        } if message == "Max time: saved"
     ));
 }
 

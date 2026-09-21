@@ -7,10 +7,12 @@ use std::path::Path;
 use std::sync::mpsc::Sender;
 
 pub(crate) struct PreviewRequest {
+    pub(crate) sequence: u64,
     pub(crate) instrument_slot: usize,
     pub(crate) path: String,
     pub(crate) velocity: u8,
     pub(crate) samples_dir: std::path::PathBuf,
+    pub(crate) preview_token: u64,
 }
 
 pub(crate) fn process_request(
@@ -19,45 +21,87 @@ pub(crate) fn process_request(
     path: &str,
     velocity: u8,
     samples_dir: &Path,
+    preview_token: u64,
     result_tx: &Sender<HostMessage>,
 ) {
-    match prepare_sample_preview(audio, instrument_slot, path, velocity, samples_dir) {
-        Ok(event) => match audio.broadcast(event) {
-            Ok(()) => send_result(
-                result_tx,
-                RuntimeStoreResult::OperationSucceeded {
-                    operation: RuntimeOperation::SamplePreview,
-                    request_id: None,
-                    revision: None,
-                },
-            ),
-            Err(error) => send_result(
+    if audio
+        .preview_generation
+        .load(std::sync::atomic::Ordering::Acquire)
+        != preview_token
+    {
+        return;
+    }
+    let sample_generation = match audio.sample_owner_generation(instrument_slot) {
+        Ok(generation) => generation,
+        Err(error) => {
+            send_result(
                 result_tx,
                 sample_preview_failure(RuntimeErrorCode::OperationFailed, error),
-            ),
-        },
-        Err(error) => send_result(
-            result_tx,
-            sample_preview_failure(error.code(), error.message()),
-        ),
+            );
+            return;
+        }
+    };
+    match prepare_sample_preview(
+        audio,
+        instrument_slot,
+        path,
+        velocity,
+        samples_dir,
+        sample_generation,
+    ) {
+        Ok(event) => {
+            match preview_is_current(audio, instrument_slot, preview_token, sample_generation) {
+                Ok(true) => match audio.broadcast(event) {
+                    Ok(()) => send_result(
+                        result_tx,
+                        RuntimeStoreResult::OperationSucceeded {
+                            operation: RuntimeOperation::SamplePreview,
+                            request_id: None,
+                            revision: None,
+                        },
+                    ),
+                    Err(error) => send_result(
+                        result_tx,
+                        sample_preview_failure(RuntimeErrorCode::OperationFailed, error),
+                    ),
+                },
+                Ok(false) => {}
+                Err(error) => send_result(
+                    result_tx,
+                    sample_preview_failure(RuntimeErrorCode::OperationFailed, error),
+                ),
+            }
+        }
+        Err(error) => {
+            match preview_is_current(audio, instrument_slot, preview_token, sample_generation) {
+                Ok(true) => send_result(
+                    result_tx,
+                    sample_preview_failure(error.code(), error.message()),
+                ),
+                Ok(false) => {}
+                Err(error) => send_result(
+                    result_tx,
+                    sample_preview_failure(RuntimeErrorCode::OperationFailed, error),
+                ),
+            }
+        }
     }
 }
 
-pub(crate) fn process_requests(
+fn preview_is_current(
     audio: &AudioService,
-    requests: Vec<PreviewRequest>,
-    result_tx: &Sender<HostMessage>,
-) {
-    for request in requests {
-        process_request(
-            audio,
-            request.instrument_slot,
-            &request.path,
-            request.velocity,
-            &request.samples_dir,
-            result_tx,
-        );
+    instrument_slot: usize,
+    preview_token: u64,
+    sample_generation: u64,
+) -> Result<bool, String> {
+    if audio
+        .preview_generation
+        .load(std::sync::atomic::Ordering::Acquire)
+        != preview_token
+    {
+        return Ok(false);
     }
+    Ok(audio.sample_owner_generation(instrument_slot)? == sample_generation)
 }
 
 fn send_result(result_tx: &Sender<HostMessage>, result: RuntimeStoreResult) {

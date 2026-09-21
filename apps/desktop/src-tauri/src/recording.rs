@@ -130,49 +130,49 @@ impl DesktopRecording {
         self.tap.clone()
     }
 
-    pub(crate) fn start_audio(&self, max_minutes: u16) -> Result<(), String> {
-        let mut recorder = self
-            .recorder
-            .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?;
-        let recording_tap = recorder
-            .start_audio(max_minutes)
-            .map_err(|error| error.to_string())?;
-        self.clear_oled_ingress()?;
-        let mut tap = self
-            .tap
-            .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())?;
+    pub(crate) fn start_audio(
+        &self,
+        max_minutes: u16,
+    ) -> Result<(), media_recording::RecordingStartError> {
+        let mut recorder = self.recorder.lock().map_err(|_| {
+            media_recording::RecordingStartError::Io("recorder lock poisoned".into())
+        })?;
+        let recording_tap = recorder.start_audio(max_minutes)?;
+        self.clear_oled_ingress()
+            .map_err(media_recording::RecordingStartError::Io)?;
+        let mut tap = self.tap.write().map_err(|_| {
+            media_recording::RecordingStartError::Io("recording tap lock poisoned".into())
+        })?;
         *tap = Some(recording_tap);
         Ok(())
     }
 
-    pub(crate) fn start_audio_oled(&self, max_minutes: u16) -> Result<(), String> {
-        let mut recorder = self
-            .recorder
-            .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?;
-        let recording = recorder
-            .start_audio_oled(max_minutes)
-            .map_err(|error| error.to_string())?;
+    pub(crate) fn start_audio_oled(
+        &self,
+        max_minutes: u16,
+    ) -> Result<(), media_recording::RecordingStartError> {
+        let mut recorder = self.recorder.lock().map_err(|_| {
+            media_recording::RecordingStartError::Io("recorder lock poisoned".into())
+        })?;
+        let recording = recorder.start_audio_oled(max_minutes)?;
         if let Some((revision, pixels)) = self
             .accepted_oled
             .read()
-            .map_err(|_| "accepted OLED frame lock poisoned".to_string())?
+            .map_err(|_| {
+                media_recording::RecordingStartError::Io("accepted OLED frame lock poisoned".into())
+            })?
             .clone()
         {
             let frame = OledFrame::from_bytes(revision, 0, pixels.as_ref())
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| media_recording::RecordingStartError::Io(error.to_string()))?;
             let _ = recording.oled.try_submit(frame);
         }
-        let mut tap = self
-            .tap
-            .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())?;
-        let mut oled = self
-            .oled
-            .write()
-            .map_err(|_| "OLED recording lock poisoned".to_string())?;
+        let mut tap = self.tap.write().map_err(|_| {
+            media_recording::RecordingStartError::Io("recording tap lock poisoned".into())
+        })?;
+        let mut oled = self.oled.write().map_err(|_| {
+            media_recording::RecordingStartError::Io("OLED recording lock poisoned".into())
+        })?;
         *tap = Some(recording.tap);
         *oled = Some(recording.oled);
         Ok(())

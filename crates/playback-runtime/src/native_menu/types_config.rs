@@ -104,6 +104,7 @@ pub struct NativeMenuConfig {
     pub sparks_fx_target: String,
     pub sparks_fx_params: serde_json::Map<String, serde_json::Value>,
     pub xy_release: String,
+    pub xy_smoothing_ms: u16,
     pub xy_invert_x: bool,
     pub xy_invert_y: bool,
     pub bpm: u16,

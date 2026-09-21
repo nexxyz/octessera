@@ -3,6 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.active_sparks_mode = "pan".into();
 
     let direct = runner
@@ -22,6 +23,7 @@ pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
                     instrument_slot: 0,
                     volume_pct: None,
                     pan_pos: Some(27),
+                    ..
                 }
             ))
     )));
@@ -45,6 +47,7 @@ pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
                     instrument_slot: 0,
                     volume_pct: None,
                     pan_pos: Some(5),
+                    ..
                 }
             )) && commands.iter().any(|command| matches!(
                 command,

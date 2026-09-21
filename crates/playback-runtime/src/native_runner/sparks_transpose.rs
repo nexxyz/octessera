@@ -151,8 +151,10 @@ impl NativeRunner {
     }
 
     pub(super) fn drain_sparks_transpose_instrument_notes(&mut self, instrument_index: usize) {
-        let mut drained = RoutedMusicalEvents::default();
-        for active_notes in &mut self.sparks_transpose_active_notes {
+        let mut drained_by_layer = Vec::new();
+        for (layer_index, active_notes) in self.sparks_transpose_active_notes.iter_mut().enumerate()
+        {
+            let mut layer_drained = RoutedMusicalEvents::default();
             let keys = active_notes
                 .keys()
                 .copied()
@@ -168,19 +170,36 @@ impl NativeRunner {
                         note: held_note.routed_note,
                     };
                     if held_note.routed_to_midi {
-                        drained.midi.push(event);
+                        layer_drained.midi.push(event);
                     } else {
-                        drained.audio.push(event);
+                        layer_drained.audio.push(event);
                     }
                 }
             }
+            if !layer_drained.is_empty() {
+                drained_by_layer.push((layer_index, layer_drained));
+            }
+        }
+        let mut drained = RoutedMusicalEvents::default();
+        for (layer_index, layer_drained) in drained_by_layer {
+            self.forget_layer_owned_route_note_offs(layer_index, &layer_drained);
+            drained.extend(layer_drained);
         }
         self.pending_transpose_note_offs.extend(drained);
     }
 
-    fn drain_sparks_transpose_layers(&mut self, layers: &[usize]) {
+    pub(super) fn drain_sparks_transpose_layers(&mut self, layers: &[usize]) {
+        self.drain_sparks_transpose_layers_inner(layers, true);
+    }
+
+    pub(super) fn drain_sparks_transpose_layers_for_layer_disable(&mut self, layer: usize) {
+        self.drain_sparks_transpose_layers_inner(&[layer], false);
+    }
+
+    fn drain_sparks_transpose_layers_inner(&mut self, layers: &[usize], forget_ownership: bool) {
         let mut drained = RoutedMusicalEvents::default();
         for layer in layers {
+            let mut layer_drained = RoutedMusicalEvents::default();
             let Some(active_notes) = self.sparks_transpose_active_notes.get_mut(*layer) else {
                 continue;
             };
@@ -191,12 +210,16 @@ impl NativeRunner {
                         note: held_note.routed_note,
                     };
                     if held_note.routed_to_midi {
-                        drained.midi.push(event);
+                        layer_drained.midi.push(event);
                     } else {
-                        drained.audio.push(event);
+                        layer_drained.audio.push(event);
                     }
                 }
             }
+            if forget_ownership {
+                self.forget_layer_owned_route_note_offs(*layer, &layer_drained);
+            }
+            drained.extend(layer_drained);
         }
         self.pending_transpose_note_offs.extend(drained);
     }

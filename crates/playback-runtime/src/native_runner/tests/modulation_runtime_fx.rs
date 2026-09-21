@@ -19,6 +19,30 @@ fn fx_binding(key: &str, min: f64, max: f64, step: f64) -> NativeParamBinding {
 }
 
 #[test]
+pub(crate) fn fx_live_endpoint_classification_keeps_geometry_on_full_slots() {
+    for (field, safe) in [
+        ("mixPct", true),
+        ("feedback", true),
+        ("rateHz", true),
+        ("depthPct", true),
+        ("timeMs", false),
+        ("timeMode", false),
+        ("timeNote", false),
+        ("depthMs", false),
+        ("baseMs", false),
+        ("source", false),
+        ("sourceTap", false),
+    ] {
+        let key = format!("mixer.buses.0.slot1.params.{field}");
+        assert_eq!(
+            crate::native_runner::is_live_link_lfo_target_for_picker(&key),
+            safe,
+            "{field}"
+        );
+    }
+}
+
+#[test]
 pub(crate) fn fx_storage_display_codec_materializes_bus_and_global_slots() {
     for (fx_type, param, storage, global_supported) in [
         ("eq", "midQ", 2.5, true),
@@ -59,12 +83,12 @@ pub(crate) fn fx_storage_display_codec_materializes_bus_and_global_slots() {
         assert!(
             commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot {
+                RuntimeAudioCommand::SetFxBusParam {
                     bus_index: 0,
                     slot_index: 2,
-                    params,
+                    value,
                     ..
-                } if params.get(param) == Some(&json!(storage))
+                } if (*value - storage as f32).abs() < f32::EPSILON
             )),
             "{fx_type} {param}: {commands:?}"
         );
@@ -72,11 +96,11 @@ pub(crate) fn fx_storage_display_codec_materializes_bus_and_global_slots() {
             assert!(
                 commands.iter().any(|command| matches!(
                     command,
-                    RuntimeAudioCommand::SetGlobalFxSlot {
+                    RuntimeAudioCommand::SetGlobalFxParam {
                         slot_index: 0,
-                        params,
+                        value,
                         ..
-                    } if params.get(param) == Some(&json!(storage))
+                    } if (*value - storage as f32).abs() < f32::EPSILON
                 )),
                 "{fx_type} {param}: {commands:?}"
             );
@@ -236,17 +260,24 @@ pub(crate) fn overlaid_endpoint_sibling_edit_rematerializes_complete_fx_slot() {
     runner.recompose_lfo_audio(false).unwrap();
     let _ = runner.outbox.drain_audio_commands();
 
-    runner.fx_buses[0].slot3_params["q"] = json!(7.0);
-    runner.recompose_lfo_audio(false).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner
+        .menu
+        .set_number_value_for_key("mixer.buses.0.slot3.params.lowGainDb", 12));
+    runner
+        .apply_or_schedule_menu_key("mixer.buses.0.slot3.params.lowGainDb")
+        .unwrap();
     assert!(runner
         .outbox
         .drain_audio_commands()
         .iter()
         .any(|command| matches!(
             command,
-            RuntimeAudioCommand::SetFxBusSlot { params, .. }
-                if params.get("midQ") == Some(&json!(2.5))
-                    && params.get("q") == Some(&json!(7.0))
+            RuntimeAudioCommand::SetFxBusParam {
+                param: realtime_engine::synth::FxParamId::LowGainDb,
+                value,
+                ..
+            } if (*value - 6.0).abs() < f32::EPSILON
         )));
 }
 
@@ -292,9 +323,11 @@ pub(crate) fn physical_fx_menu_sibling_edits_rematerialize_owned_endpoints() {
         .iter()
         .any(|command| matches!(
             command,
-            RuntimeAudioCommand::SetFxBusSlot { params, .. }
-                if params.get("midQ") == Some(&json!(2.5))
-                    && params.get("lowGainDb") == Some(&json!(6.0))
+            RuntimeAudioCommand::SetFxBusParam {
+                param: realtime_engine::synth::FxParamId::LowGainDb,
+                value,
+                ..
+            } if (*value - 6.0).abs() < f32::EPSILON
         )));
 
     assert!(runner
@@ -309,9 +342,11 @@ pub(crate) fn physical_fx_menu_sibling_edits_rematerialize_owned_endpoints() {
         .iter()
         .any(|command| matches!(
             command,
-            RuntimeAudioCommand::SetGlobalFxSlot { params, .. }
-                if params.get("midQ") == Some(&json!(2.5))
-                    && params.get("lowGainDb") == Some(&json!(6.0))
+            RuntimeAudioCommand::SetGlobalFxParam {
+                param: realtime_engine::synth::FxParamId::LowGainDb,
+                value,
+                ..
+            } if (*value - 6.0).abs() < f32::EPSILON
         )));
 }
 
@@ -319,6 +354,7 @@ pub(crate) fn physical_fx_menu_sibling_edits_rematerialize_owned_endpoints() {
 pub(crate) fn binding_fx_sibling_edits_rematerialize_owned_endpoints() {
     let mut runner = setup_eq_lfo_runner();
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     let binding = |key: &str| NativeParamBinding {
         key: key.into(),
         label: Some("Low Gain".into()),
@@ -333,6 +369,7 @@ pub(crate) fn binding_fx_sibling_edits_rematerialize_owned_endpoints() {
     };
     runner.xy_x_binding = Some(binding("mixer.buses.0.slot3.params.lowGainDb"));
     runner.xy_y_binding = Some(binding("mixer.master.slots.0.params.lowGainDb"));
+    let _ = runner.messages_with_snapshot().unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 7 }),
@@ -349,16 +386,20 @@ pub(crate) fn binding_fx_sibling_edits_rematerialize_owned_endpoints() {
     assert!(
         commands.iter().any(|command| matches!(
             command,
-            RuntimeAudioCommand::SetFxBusSlot { params, .. }
-                if params.get("midQ") == Some(&json!(2.5))
-                    && params.get("lowGainDb") == Some(&json!(6.0))
+            RuntimeAudioCommand::SetFxBusParam {
+                param: realtime_engine::synth::FxParamId::LowGainDb,
+                value,
+                ..
+            } if (*value - 6.0).abs() < f32::EPSILON
         )),
         "{commands:?}"
     );
     assert!(commands.iter().any(|command| matches!(
         command,
-        RuntimeAudioCommand::SetGlobalFxSlot { params, .. }
-            if params.get("midQ") == Some(&json!(2.5))
-                && params.get("lowGainDb") == Some(&json!(6.0))
+        RuntimeAudioCommand::SetGlobalFxParam {
+            param: realtime_engine::synth::FxParamId::LowGainDb,
+            value,
+            ..
+        } if (*value - 6.0).abs() < f32::EPSILON
     )));
 }

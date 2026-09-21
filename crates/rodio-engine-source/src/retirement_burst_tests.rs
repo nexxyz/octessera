@@ -58,8 +58,11 @@ fn full_sample_burst_replacements_preserve_fifo_and_retirement_ownership() {
         })
         .unwrap();
     }
-    tx.send(EngineEvent::SetPreparedAudioConfig(full_sample_config(2.0)))
-        .unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 1,
+        config: full_sample_config(2.0),
+    })
+    .unwrap();
 
     let (allocation_count, deallocation_count) = callback_memory_activity(&mut source);
     assert_eq!(allocation_count, 0);
@@ -84,8 +87,8 @@ fn full_sample_burst_replacements_preserve_fifo_and_retirement_ownership() {
         MAX_CONTROL_EVENTS_PER_CALLBACK - 1
     );
     assert!(retired_rx.try_recv().is_err());
-    let (_, source_deallocations) = allocations_and_deallocations(|| drop(source));
-    assert!(source_deallocations > 0);
+    let (source_allocations, source_deallocations) = allocations_and_deallocations(|| drop(source));
+    assert_eq!((source_allocations, source_deallocations), (0, 0));
     let (_, bulk_deallocations) = allocations_and_deallocations(|| drop(bulk_retired));
     assert!(bulk_deallocations > 0);
     let (_, burst_deallocations) = allocations_and_deallocations(|| drop(burst_retired));

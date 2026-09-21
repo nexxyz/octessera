@@ -1,12 +1,10 @@
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
-use super::modulation_source::ModulationSourceId;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
 use super::sparks_fx_config::{sparks_fx_params, sparks_fx_target_key, sparks_fx_type};
 use super::{
     momentary_fx_target, sparks_fx_cell_id, trigger_gate_mode_for_column, NativeRunner,
-    NativeSparksFxAssignment, NativeToast, NativeXyTouch, GRID_HEIGHT, GRID_WIDTH,
-    SPARKS_FX_MAX_CONCURRENT,
+    NativeSparksFxAssignment, NativeToast, GRID_HEIGHT, GRID_WIDTH, SPARKS_FX_MAX_CONCURRENT,
 };
 
 impl NativeRunner {
@@ -23,6 +21,7 @@ impl NativeRunner {
         Some(RuntimePlatformEffect::AudioCommand {
             command: RuntimeAudioCommand::MomentaryFxStart {
                 id: sparks_fx_cell_id(x, y),
+                epoch: 0,
                 fx_type,
                 params: sparks_fx_params(&assignment.config),
                 target: momentary_fx_target(sparks_fx_target_key(&assignment.config)),
@@ -86,7 +85,7 @@ impl NativeRunner {
         };
         let (id, _) = self.active_sparks_fx.remove(index);
         vec![RuntimePlatformEffect::AudioCommand {
-            command: RuntimeAudioCommand::MomentaryFxStop { id },
+            command: RuntimeAudioCommand::MomentaryFxStop { id, epoch: 0 },
         }]
     }
 
@@ -138,6 +137,7 @@ impl NativeRunner {
                             self.mark_config_dirty();
                             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                                 instrument_slot: x,
+                                generation: 0,
                                 volume_pct: Some(f32::from(volume)),
                                 pan_pos: None,
                             });
@@ -161,6 +161,7 @@ impl NativeRunner {
                         self.mark_config_dirty();
                         self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                             instrument_slot: y,
+                            generation: 0,
                             volume_pct: None,
                             pan_pos: Some(usize::from(pan_pos)),
                         });
@@ -172,6 +173,7 @@ impl NativeRunner {
                                 self.mark_config_dirty();
                                 self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
                                     bus_index,
+                                    generation: 0,
                                     pan_pos: Some(usize::from(pan_pos)),
                                     volume_pct: None,
                                 });
@@ -186,34 +188,21 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_sparks_xy_press(&mut self, x: usize, y: usize) {
+        self.handle_sparks_xy_press_at(x, y, std::time::Instant::now());
+    }
+
+    pub(super) fn handle_sparks_xy_press_at(
+        &mut self,
+        x: usize,
+        y: usize,
+        now: std::time::Instant,
+    ) {
         let physical_x = x.min(GRID_WIDTH - 1) as f32 / (GRID_WIDTH - 1) as f32;
         let physical_y = y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32;
-        let mut x_value = physical_x;
-        let mut y_value = physical_y;
-        if self.xy_invert_x {
-            x_value = 1.0 - x_value;
-        }
-        if self.xy_invert_y {
-            y_value = 1.0 - y_value;
-        }
-        self.xy_touch = NativeXyTouch {
-            x: x_value,
-            y: y_value,
-            display_x: x.min(GRID_WIDTH - 1) as f32 / (GRID_WIDTH - 1) as f32,
-            display_y: y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32,
-            active: true,
-        };
-        let changed_x = self.set_xy_runtime_source(
-            ModulationSourceId::play_x(),
-            self.xy_x_binding.clone(),
-            x_value,
-        );
-        let changed_y = self.set_xy_runtime_source(
-            ModulationSourceId::play_y(),
-            self.xy_y_binding.clone(),
-            y_value,
-        );
-        if changed_x || changed_y {
+        self.xy_touch.display_x = physical_x;
+        self.xy_touch.display_y = physical_y;
+        self.xy_touch.active = true;
+        if self.retarget_xy_runtime_sources_at(now, false) {
             if let Err(error) = self.process_dirty_modulation_step(true) {
                 self.show_toast(format!("modulation composition unavailable: {error}"));
             }
@@ -221,44 +210,21 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_sparks_xy_release(&mut self) {
+        self.handle_sparks_xy_release_at(std::time::Instant::now());
+    }
+
+    pub(super) fn handle_sparks_xy_release_at(&mut self, now: std::time::Instant) {
         if self.xy_release == "reset-center" {
-            self.xy_touch = NativeXyTouch {
-                x: 0.5,
-                y: 0.5,
-                display_x: 0.5,
-                display_y: 0.5,
-                active: false,
-            };
-            let changed_x = self.set_xy_runtime_source(
-                ModulationSourceId::play_x(),
-                self.xy_x_binding.clone(),
-                0.5,
-            );
-            let changed_y = self.set_xy_runtime_source(
-                ModulationSourceId::play_y(),
-                self.xy_y_binding.clone(),
-                0.5,
-            );
-            if changed_x || changed_y {
+            self.xy_touch.display_x = 0.5;
+            self.xy_touch.display_y = 0.5;
+            self.xy_touch.active = false;
+            if self.retarget_xy_runtime_sources_at(now, true) {
                 if let Err(error) = self.process_dirty_modulation_step(true) {
                     self.show_toast(format!("modulation composition unavailable: {error}"));
                 }
             }
         } else {
             self.xy_touch.active = false;
-        }
-    }
-
-    fn set_xy_runtime_source(
-        &mut self,
-        source: ModulationSourceId,
-        binding: Option<super::NativeParamBinding>,
-        normalized: f32,
-    ) -> bool {
-        if let Some(binding) = binding {
-            self.set_runtime_source_input(source, binding, f64::from(normalized))
-        } else {
-            self.clear_runtime_source_input(source)
         }
     }
 
@@ -312,14 +278,10 @@ impl NativeRunner {
                 offset: 0,
             });
         } else {
+            self.drain_layer_owned_notes(index);
+            self.apply_trigger_gate_mode_to_layer(index, "zero");
             if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = Some(current);
-            }
-            if let Some(mode) = self.trigger_gate_modes.get_mut(index) {
-                *mode = "zero".into();
-            }
-            if let Some(layer) = self.pulses_layers.get_mut(index) {
-                layer.trigger_probability_mode = "zero".into();
             }
             self.display.toast = Some(NativeToast {
                 message: format!("L{} triggers off", index + 1),

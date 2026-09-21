@@ -1,5 +1,6 @@
 use super::super::dsp_config::BusIdleThreshold;
-use super::super::fx::{fx_bus_state_matches_params, process_fx_bus_slot, FxBusState};
+use super::super::fx::{fx_bus_state_can_preserve, process_fx_bus_slot, FxBusState};
+use super::super::fx_param::{apply_fx_param, FxParamId, FxParamMutation};
 use super::super::fx_params::{FxBusParams, FxKind};
 use super::super::types::BUS_SLOTS_PER_BUS;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
@@ -304,7 +305,8 @@ impl BusChainOwner {
         let previous_params = self.slot_params[slot_index];
         let previous_cost = self.slot_costs[slot_index];
         let previous_state = std::mem::replace(&mut self.slot_state[slot_index], state);
-        let preserved_state = fx_bus_state_matches_params(&previous_state, &params);
+        let preserved_state =
+            fx_bus_state_can_preserve(&previous_state, &params, &self.slot_state[slot_index]);
         let retired_state = if preserved_state {
             std::mem::replace(&mut self.slot_state[slot_index], previous_state)
         } else {
@@ -337,9 +339,10 @@ impl BusChainOwner {
         self.render_hold_frames = previous.render_hold_frames;
         self.quiet_frames = if same_slots { previous.quiet_frames } else { 0 };
         for slot_index in 0..BUS_SLOTS_PER_BUS {
-            if fx_bus_state_matches_params(
+            if fx_bus_state_can_preserve(
                 &previous.slot_state[slot_index],
                 &self.slot_params[slot_index],
+                &self.slot_state[slot_index],
             ) {
                 std::mem::swap(
                     &mut previous.slot_state[slot_index],
@@ -354,6 +357,18 @@ impl BusChainOwner {
 
     pub(super) fn cost_units(&self) -> u16 {
         self.slot_costs.iter().copied().sum()
+    }
+
+    pub(super) fn set_slot_param(
+        &mut self,
+        slot_index: usize,
+        id: FxParamId,
+        value: f32,
+    ) -> FxParamMutation {
+        let Some(params) = self.slot_params.get_mut(slot_index) else {
+            return FxParamMutation::Rejected;
+        };
+        apply_fx_param(params, id, value)
     }
 
     pub(super) fn observe(
@@ -434,55 +449,4 @@ fn active_slots(params: &[FxBusParams; BUS_SLOTS_PER_BUS]) -> ([usize; BUS_SLOTS
         }
     }
     (indices, count)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::synth::fx_params::FxKind;
-
-    #[test]
-    fn cost_table_is_exhaustive_and_worker_capacity_is_symbolic() {
-        let kinds = [
-            (FxKind::None, 0),
-            (FxKind::Duck, 1),
-            (FxKind::Distortion, 1),
-            (FxKind::Bitcrusher, 1),
-            (FxKind::Tremolo, 2),
-            (FxKind::Delay, 2),
-            (FxKind::Glitch, 2),
-            (FxKind::AutoPan, 2),
-            (FxKind::Saturator, 2),
-            (FxKind::Vibrato, 3),
-            (FxKind::Chorus, 3),
-            (FxKind::Flanger, 3),
-            (FxKind::Reverb, 3),
-            (FxKind::Eq, 3),
-            (FxKind::FilterLfo, BUS_CHAIN_SLOT_COST_UNITS),
-            (FxKind::Wah, BUS_CHAIN_SLOT_COST_UNITS),
-            (FxKind::Compressor, BUS_CHAIN_SLOT_COST_UNITS),
-            (FxKind::Vinyl, BUS_CHAIN_SLOT_COST_UNITS),
-        ];
-        for (kind, cost) in kinds {
-            assert_eq!(fx_kind_cost(kind), cost);
-        }
-    }
-
-    #[test]
-    fn exact_threshold_requires_exact_zero() {
-        let mut owner = BusChainOwner::new(
-            0,
-            [FxBusParams::Tremolo {
-                rate_hz: 1.0,
-                depth: 0.0,
-            }; BUS_SLOTS_PER_BUS],
-            std::array::from_fn(|_| FxBusState::None),
-            [1; BUS_SLOTS_PER_BUS],
-        );
-        owner.assigned_worker = Some(1);
-        owner.observe(0.0, 0.0, BusIdleThreshold::Exact, 4_000);
-        assert_eq!(owner.quiet_frames, 1);
-        owner.observe(f32::EPSILON, 0.0, BusIdleThreshold::Exact, 4_000);
-        assert_eq!(owner.quiet_frames, 0);
-    }
 }

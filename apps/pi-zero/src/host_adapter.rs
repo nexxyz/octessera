@@ -4,6 +4,8 @@ mod host_adapter_construction;
 mod host_adapter_keyboard;
 #[path = "host_adapter_oled.rs"]
 mod host_adapter_oled;
+#[path = "host_adapter_recording.rs"]
+mod host_adapter_recording;
 #[path = "host_adapter_store.rs"]
 mod host_adapter_store;
 
@@ -211,21 +213,6 @@ impl PiPlaybackHostAdapter {
             .collect())
     }
 
-    fn stop_recording_for_transition(
-        &self,
-        request: &RuntimePlatformRequest,
-    ) -> Result<Option<RuntimeStoreResult>, RuntimeAdapterError> {
-        let Some(audio) = &self.audio else {
-            return Ok(None);
-        };
-        audio
-            .stop_recording_with_outcome()
-            .map(|outcome| {
-                outcome.map(|outcome| crate::audio_recording::recording_status(outcome.status))
-            })
-            .map_err(|error| RuntimeAdapterError::from_facts(request.failure_facts(error)))
-    }
-
     fn start_usb_sd_transfer(
         &mut self,
         request: &RuntimePlatformRequest,
@@ -331,29 +318,9 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     .map(|result| HostMessage::RuntimeResult { result })
                     .collect());
             }
-            RuntimePlatformEffect::RecordingStartAudio { max_minutes } => {
-                if let Some(audio) = &self.audio {
-                    audio.start_recording(*max_minutes)?;
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::RecordingStartAudioOled { max_minutes } => {
-                let seed = self
-                    .oled_frame_cache
-                    .accepted_frame()
-                    .map(|frame| (frame.revision(), frame.pixels().to_vec()));
-                if let Some(audio) = &self.audio {
-                    audio.start_recording_audio_oled_with_seed(*max_minutes, seed)?;
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::RecordingStop => {
-                return Ok(self
-                    .stop_recording_for_transition(request)?
-                    .into_iter()
-                    .map(|result| HostMessage::RuntimeResult { result })
-                    .collect());
-            }
+            RuntimePlatformEffect::RecordingStartAudio { .. }
+            | RuntimePlatformEffect::RecordingStartAudioOled { .. }
+            | RuntimePlatformEffect::RecordingStop => return self.handle_recording_effect(request),
             RuntimePlatformEffect::UsbSdTransferStart => {
                 return self.start_usb_sd_transfer(request);
             }

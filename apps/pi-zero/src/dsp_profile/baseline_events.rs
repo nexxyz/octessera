@@ -174,12 +174,15 @@ fn prepared_config(
     voice_stealing_mode: VoiceStealingMode,
     sample_rate: u32,
 ) -> EngineEvent {
-    EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-        instruments,
-        sample_banks,
-        Some(voice_stealing_mode),
-        sample_rate,
-    ))
+    EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_audio_config(
+            instruments,
+            sample_banks,
+            Some(voice_stealing_mode),
+            sample_rate,
+        ),
+    }
 }
 
 fn instruments(
@@ -255,17 +258,15 @@ fn default_capacity_momentary_events(sample_rate: u32) -> Vec<EngineEvent> {
         ),
     ]
     .into_iter()
-    .map(|(id, kind, params)| {
-        EngineEvent::PreparedMomentaryFxStart(
-            prepare_momentary_fx_start(
-                id.into(),
-                kind.into(),
-                params,
-                MomentaryFxTarget::Global,
-                sample_rate,
-            )
-            .expect("default capacity momentary FX is valid"),
+    .map(|(id, kind, params)| EngineEvent::PreparedMomentaryFxStart {
+        config: prepare_momentary_fx_start(
+            id.into(),
+            kind.into(),
+            params,
+            MomentaryFxTarget::Global,
+            sample_rate,
         )
+        .expect("default capacity momentary FX is valid"),
     })
     .collect()
 }
@@ -313,17 +314,15 @@ fn momentary_events(count: usize, sample_rate: u32) -> Vec<EngineEvent> {
     ]
     .into_iter()
     .take(count.min(2))
-    .map(|(id, kind, target)| {
-        EngineEvent::PreparedMomentaryFxStart(
-            prepare_momentary_fx_start(
-                id.into(),
-                kind.into(),
-                BTreeMap::new(),
-                target,
-                sample_rate,
-            )
-            .expect("baseline momentary FX is valid"),
+    .map(|(id, kind, target)| EngineEvent::PreparedMomentaryFxStart {
+        config: prepare_momentary_fx_start(
+            id.into(),
+            kind.into(),
+            BTreeMap::new(),
+            target,
+            sample_rate,
         )
+        .expect("baseline momentary FX is valid"),
     })
     .collect()
 }

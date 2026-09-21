@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::mpsc::Sender;
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn test_service() -> (
@@ -17,7 +18,7 @@ pub(crate) fn test_service_for_sample_prep() -> AudioService {
 
 #[cfg(test)]
 pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<HostMessage>) {
-    let (control_tx, _control_rx) = std::sync::mpsc::channel();
+    let (control_tx, _control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
     let service = AudioService {
         realtime_txs: Arc::new(Mutex::new(Vec::new())),
@@ -27,6 +28,11 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
+        preview_generation: Arc::new(AtomicU64::new(0)),
+        momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
+        next_sequence: Arc::new(AtomicU64::new(0)),
+        latest_full_sequence: Arc::new(AtomicU64::new(0)),
+        generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
         audio_outputs: AudioOutputSet::jack(),
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -44,7 +50,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) fn test_service_with_prep_worker() -> AudioService {
-    let (control_tx, control_rx) = std::sync::mpsc::channel();
+    let (control_tx, control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
     let service = AudioService {
         realtime_txs: Arc::new(Mutex::new(Vec::new())),
@@ -54,6 +60,11 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
+        preview_generation: Arc::new(AtomicU64::new(0)),
+        momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
+        next_sequence: Arc::new(AtomicU64::new(0)),
+        latest_full_sequence: Arc::new(AtomicU64::new(0)),
+        generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
         audio_outputs: AudioOutputSet::jack(),
         required_jack_health: None,
@@ -100,7 +111,7 @@ pub(crate) fn test_service_with_recording_dir(
     Sender<HostMessage>,
 ) {
     let (event_tx, event_rx) = event_queue();
-    let (control_tx, control_rx) = std::sync::mpsc::channel();
+    let (control_tx, control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
     let service = AudioService {
         realtime_txs: Arc::new(Mutex::new(vec![test_sink_sender(event_tx)])),
@@ -110,6 +121,11 @@ pub(crate) fn test_service_with_recording_dir(
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
+        preview_generation: Arc::new(AtomicU64::new(0)),
+        momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
+        next_sequence: Arc::new(AtomicU64::new(0)),
+        latest_full_sequence: Arc::new(AtomicU64::new(0)),
+        generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
         audio_outputs: AudioOutputSet::jack(),
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

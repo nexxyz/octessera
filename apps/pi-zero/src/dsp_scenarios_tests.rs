@@ -179,7 +179,9 @@ fn analogue_fixture_timing_matches_approved_measurement_windows() {
             .events
             .iter()
             .find_map(|event| match event {
-                rodio_engine_source::EngineEvent::SetPreparedAudioConfig(config) => Some(config),
+                rodio_engine_source::EngineEvent::SetPreparedAudioConfig { config, .. } => {
+                    Some(config)
+                }
                 _ => None,
             })
             .expect("analogue audio config");
@@ -208,7 +210,7 @@ fn mixed_boundary_live_state_is_exact_and_uses_one_long_sample_backing() {
         .events
         .iter()
         .find_map(|event| match event {
-            rodio_engine_source::EngineEvent::SetPreparedAudioConfig(config) => Some(config),
+            rodio_engine_source::EngineEvent::SetPreparedAudioConfig { config, .. } => Some(config),
             _ => None,
         })
         .unwrap();

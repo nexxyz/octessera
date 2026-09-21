@@ -1,4 +1,4 @@
-use crate::audio_recording::{self, RecordingServices};
+use crate::audio_recording::RecordingServices;
 use crate::audio_replay::ReplayCache;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::audio_route::readiness as route_readiness;
@@ -20,13 +20,15 @@ pub(crate) use crate::audio_stream_health::AudioStreamHealth;
     )
 ))]
 pub(crate) use crate::audio_stream_health::AudioStreamStatus;
-use media_recording::{OledFrame, OledIngress, RecordingOutcome, RecordingTap};
+use media_recording::{OledIngress, RecordingTap};
 #[path = "audio_defaults.rs"]
 mod audio_defaults;
 #[path = "audio_error.rs"]
 mod audio_error;
 #[path = "audio_output.rs"]
 mod audio_output;
+#[path = "audio_recording_service.rs"]
+mod audio_recording_service;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
 #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
@@ -51,27 +53,52 @@ pub(crate) use audio_output::{
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use playback_runtime::AudioOptimization;
 use playback_runtime::AudioOutputSet;
-use playback_runtime::{HostMessage, RuntimeAdapterError, RuntimeStoreResult};
+use playback_runtime::{HostMessage, RuntimeAdapterError};
+use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEvent;
 #[cfg(test)]
 use rodio_engine_source::{event_queue, EngineEventReceiver};
 use serde_json::Value;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU64;
-use std::sync::mpsc::{Receiver, Sender, TryRecvError};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{Receiver, SyncSender, TryRecvError};
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
+
+pub(crate) const AUDIO_PREP_QUEUE_CAPACITY: usize = 32;
+
+#[derive(Clone)]
+pub(crate) struct AudioGenerationState {
+    pub(crate) full: u64,
+    pub(crate) instrument: [u64; INSTRUMENT_SLOT_COUNT],
+    pub(crate) sample: [u64; INSTRUMENT_SLOT_COUNT],
+}
+
+impl Default for AudioGenerationState {
+    fn default() -> Self {
+        Self {
+            full: 0,
+            instrument: [0; INSTRUMENT_SLOT_COUNT],
+            sample: [0; INSTRUMENT_SLOT_COUNT],
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct AudioService {
     realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
     replay_events: Arc<Mutex<ReplayCache>>,
     attach_gate: AudioAttachGate,
-    pub control_tx: Sender<AudioControlRequest>,
+    pub control_tx: SyncSender<AudioControlRequest>,
     pub config_revision: Arc<AtomicU64>,
     pub sample_cache:
         Arc<Mutex<std::collections::HashMap<String, realtime_engine::synth::SampleBuffer>>>,
     pub sample_bank_signature: Arc<Mutex<String>>,
+    pub preview_generation: Arc<AtomicU64>,
+    pub momentary_fx_types: Arc<Mutex<std::collections::BTreeMap<String, (u64, String)>>>,
+    pub(crate) next_sequence: Arc<AtomicU64>,
+    pub(crate) latest_full_sequence: Arc<AtomicU64>,
+    pub(crate) generations: Arc<Mutex<AudioGenerationState>>,
     route_registry: AudioRouteRegistry,
     audio_outputs: AudioOutputSet,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -84,18 +111,43 @@ pub struct AudioService {
 
 pub enum AudioControlRequest {
     FullConfig {
+        sequence: u64,
         revision: u64,
+        generation: u64,
         request_id: Option<String>,
         config: Value,
         samples_dir: PathBuf,
     },
+    InstrumentSlot {
+        sequence: u64,
+        instrument_slot: usize,
+        generation: u64,
+        config: Value,
+        samples_dir: PathBuf,
+    },
+    FxBusSlot {
+        sequence: u64,
+        bus_index: usize,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    },
+    GlobalFxSlot {
+        sequence: u64,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    },
     SamplePreview {
+        sequence: u64,
         instrument_slot: usize,
         path: String,
         velocity: u8,
         samples_dir: PathBuf,
+        preview_token: u64,
     },
-    Dynamic(Box<EngineEvent>),
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -105,9 +157,13 @@ pub(crate) fn orange_profile(optimization: AudioOptimization) -> OrangeAudioProf
 
 impl AudioService {
     pub fn send(&self, event: EngineEvent) -> Result<(), RuntimeAdapterError> {
-        self.control_tx
-            .send(AudioControlRequest::Dynamic(Box::new(event)))
-            .map_err(|error| audio_queue_error(format!("audio control send failed: {error}")))
+        broadcast_event_atomic(
+            &self.attach_gate,
+            &self.realtime_txs,
+            &self.replay_events,
+            event,
+        )
+        .map_err(audio_queue_error)
     }
 
     pub fn send_realtime(&self, event: EngineEvent) -> Result<(), RuntimeAdapterError> {
@@ -120,21 +176,133 @@ impl AudioService {
         .map_err(audio_queue_error)
     }
 
+    pub fn remember_momentary_fx_type(
+        &self,
+        id: &str,
+        epoch: u64,
+        fx_type: &str,
+    ) -> Result<(), String> {
+        self.momentary_fx_types
+            .lock()
+            .map_err(|_| "momentary FX type lock failed".to_string())?
+            .insert(id.to_string(), (epoch, fx_type.to_string()));
+        Ok(())
+    }
+
+    pub fn momentary_fx_type(&self, id: &str) -> Result<Option<(u64, String)>, String> {
+        self.momentary_fx_types
+            .lock()
+            .map_err(|_| "momentary FX type lock failed".to_string())
+            .map(|types| types.get(id).cloned())
+    }
+
+    pub fn remove_momentary_fx_type(&self, id: &str, epoch: u64) -> Result<(), String> {
+        let mut types = self
+            .momentary_fx_types
+            .lock()
+            .map_err(|_| "momentary FX type lock failed".to_string())?;
+        if types
+            .get(id)
+            .is_some_and(|(active_epoch, _)| *active_epoch == epoch)
+        {
+            types.remove(id);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn next_sequence(&self) -> u64 {
+        self.next_sequence.fetch_add(1, Ordering::Relaxed)
+    }
+
     pub fn enqueue_full_config(
         &self,
         revision: u64,
+        generation: u64,
         request_id: Option<String>,
         config: Value,
         samples_dir: PathBuf,
     ) -> Result<(), String> {
+        let previous = self.config_revision.fetch_max(revision, Ordering::AcqRel);
+        let sequence = self.next_sequence();
+        match self.control_tx.try_send(AudioControlRequest::FullConfig {
+            sequence,
+            revision,
+            generation,
+            request_id,
+            config,
+            samples_dir,
+        }) {
+            Ok(()) => {
+                self.latest_full_sequence
+                    .fetch_max(sequence, Ordering::Release);
+                Ok(())
+            }
+            Err(error) => {
+                let _ = self.config_revision.compare_exchange(
+                    revision.max(previous),
+                    previous,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                );
+                Err(format!("audio prep queue failed: {error}"))
+            }
+        }
+    }
+
+    pub fn enqueue_instrument_slot(
+        &self,
+        instrument_slot: usize,
+        generation: u64,
+        config: Value,
+        samples_dir: PathBuf,
+    ) -> Result<(), String> {
         self.control_tx
-            .send(AudioControlRequest::FullConfig {
-                revision,
-                request_id,
+            .try_send(AudioControlRequest::InstrumentSlot {
+                sequence: self.next_sequence(),
+                instrument_slot,
+                generation,
                 config,
                 samples_dir,
             })
-            .map_err(|e| format!("audio prep send failed: {e}"))
+            .map_err(|e| format!("audio prep queue failed: {e}"))
+    }
+
+    pub fn enqueue_fx_bus_slot(
+        &self,
+        bus_index: usize,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    ) -> Result<(), String> {
+        self.control_tx
+            .try_send(AudioControlRequest::FxBusSlot {
+                sequence: self.next_sequence(),
+                bus_index,
+                slot_index,
+                generation,
+                fx_type,
+                params,
+            })
+            .map_err(|e| format!("audio prep queue failed: {e}"))
+    }
+
+    pub fn enqueue_global_fx_slot(
+        &self,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    ) -> Result<(), String> {
+        self.control_tx
+            .try_send(AudioControlRequest::GlobalFxSlot {
+                sequence: self.next_sequence(),
+                slot_index,
+                generation,
+                fx_type,
+                params,
+            })
+            .map_err(|e| format!("audio prep queue failed: {e}"))
     }
 
     pub fn enqueue_sample_preview(
@@ -144,14 +312,17 @@ impl AudioService {
         velocity: u8,
         samples_dir: PathBuf,
     ) -> Result<(), String> {
+        let preview_generation = self.preview_generation.fetch_add(1, Ordering::AcqRel) + 1;
         self.control_tx
-            .send(AudioControlRequest::SamplePreview {
+            .try_send(AudioControlRequest::SamplePreview {
+                sequence: self.next_sequence(),
                 instrument_slot,
                 path,
                 velocity,
                 samples_dir,
+                preview_token: preview_generation,
             })
-            .map_err(|e| format!("sample preview prep send failed: {e}"))
+            .map_err(|e| format!("sample preview queue failed: {e}"))
     }
 
     pub fn drain_prep_results(&self, max_results: usize) -> Vec<HostMessage> {
@@ -166,6 +337,19 @@ impl AudioService {
             }
         }
         output
+    }
+
+    pub(crate) fn sample_owner_generation(&self, instrument_slot: usize) -> Result<u64, String> {
+        self.generations
+            .lock()
+            .map_err(|_| "audio generation state lock failed".to_string())
+            .map(|generations| {
+                generations
+                    .sample
+                    .get(instrument_slot)
+                    .copied()
+                    .unwrap_or_default()
+            })
     }
 
     pub(crate) fn ensure_route_readiness(&self) -> Result<(), String> {
@@ -199,168 +383,6 @@ impl AudioService {
             health.runtime_status() == crate::audio_stream_health::AudioStreamStatus::Terminal
         })
     }
-
-    pub fn start_recording(&self, max_minutes: u16) -> Result<(), String> {
-        let mut recorder = self
-            .recorder
-            .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?;
-        let tap = recorder
-            .start_audio(max_minutes)
-            .map_err(|error| error.to_string())?;
-        *self
-            .recording_oled
-            .write()
-            .map_err(|_| "OLED recording lock poisoned".to_string())? = None;
-        *self
-            .recording_tap
-            .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())? = Some(tap);
-        Ok(())
-    }
-
-    pub(crate) fn start_recording_audio_oled_with_seed(
-        &self,
-        max_minutes: u16,
-        seed: Option<(u64, Vec<u8>)>,
-    ) -> Result<(), String> {
-        let mut recorder = self
-            .recorder
-            .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?;
-        let recording = recorder
-            .start_audio_oled(max_minutes)
-            .map_err(|error| error.to_string())?;
-        if let Some((revision, pixels)) = seed {
-            let frame =
-                OledFrame::from_bytes(revision, 0, pixels).map_err(|error| error.to_string())?;
-            let _ = recording.oled.try_submit(frame);
-        }
-        *self
-            .recording_tap
-            .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())? = Some(recording.tap);
-        *self
-            .recording_oled
-            .write()
-            .map_err(|_| "OLED recording lock poisoned".to_string())? = Some(recording.oled);
-        Ok(())
-    }
-
-    pub fn stop_recording(&self) -> Result<(), String> {
-        self.stop_recording_with_outcome().map(|_| ())
-    }
-
-    pub(crate) fn stop_recording_with_outcome(&self) -> Result<Option<RecordingOutcome>, String> {
-        let mut recorder = self
-            .recorder
-            .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?;
-        *self
-            .recording_tap
-            .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())? = None;
-        *self
-            .recording_oled
-            .write()
-            .map_err(|_| "OLED recording lock poisoned".to_string())? = None;
-        let outcome = recorder.stop_audio().map_err(|error| error.to_string())?;
-        if let Some(outcome) = &outcome {
-            println!(
-                "recording stopped: path={} frames={} status={:?}",
-                outcome.path.display(),
-                outcome.frames_written,
-                outcome.status
-            );
-        }
-        Ok(outcome)
-    }
-
-    pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {
-        audio_recording::poll_recording_status(
-            &self.recorder,
-            &self.recording_tap,
-            &self.recording_oled,
-        )
-    }
-
-    pub(crate) fn prepare_restore(&self) -> Result<(), String> {
-        let mut recorder = self
-            .recorder
-            .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())?;
-        let active = recorder.is_recording();
-        if active {
-            recorder.stop_audio().map_err(|error| error.to_string())?;
-        }
-        *self
-            .recording_tap
-            .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())? = None;
-        *self
-            .recording_oled
-            .write()
-            .map_err(|_| "OLED recording lock poisoned".to_string())? = None;
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub fn is_recording(&self) -> Result<bool, String> {
-        self.recorder
-            .lock()
-            .map_err(|_| "recorder lock poisoned".to_string())
-            .map(|recorder| recorder.is_recording())
-    }
-
-    pub(crate) fn submit_accepted_oled_frame(
-        &self,
-        revision: u64,
-        pixels: &[u8],
-    ) -> Result<(), String> {
-        if !self.is_recording()? {
-            return Ok(());
-        }
-        let tap = self
-            .recording_tap
-            .read()
-            .map_err(|_| "recording tap lock poisoned".to_string())?
-            .clone();
-        let oled = self
-            .recording_oled
-            .read()
-            .map_err(|_| "OLED recording lock poisoned".to_string())?
-            .clone();
-        let Some((tap, oled)) = tap.zip(oled) else {
-            return Ok(());
-        };
-        let frame = OledFrame::from_bytes(revision, tap.audio_frame_cursor(), pixels)
-            .map_err(|error| error.to_string())?;
-        let _ = oled.try_submit(frame);
-        Ok(())
-    }
-
-    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-    pub(crate) fn test_push_recording_samples(&self, samples: &[i16]) -> Result<(), String> {
-        let tap = self
-            .recording_tap
-            .read()
-            .map_err(|_| "recording tap lock poisoned".to_string())?
-            .clone()
-            .ok_or_else(|| "recording tap is inactive".to_string())?;
-        let mut chunk = tap.new_chunk();
-        let (frames, _) = samples.as_chunks::<2>();
-        for frame in frames {
-            if !chunk.push_frame(frame[0], frame[1]) {
-                tap.push_chunk(chunk);
-                chunk = tap.new_chunk();
-                assert!(chunk.push_frame(frame[0], frame[1]));
-            }
-        }
-        if !chunk.is_empty() {
-            tap.push_chunk(chunk);
-        }
-        Ok(())
-    }
 }
 
 impl AudioService {
@@ -371,6 +393,7 @@ impl AudioService {
             &self.replay_events,
             event,
         )
+        .map_err(|error| error.to_string())
     }
 }
 

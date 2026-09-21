@@ -1,4 +1,6 @@
 use super::super::dsp_config::DspRuntimeConfig;
+use super::super::fx_param::{apply_fx_param, FxParamId, FxParamMutation};
+use super::super::scalar_param::{SampleBankParamId, ScalarMutation, SynthParamId};
 use super::bus_chain_owner::fx_kind_cost;
 use super::*;
 use crate::synth::engine::render_plan::render_plan_fx_slot;
@@ -15,8 +17,15 @@ impl SynthEngine {
         self.dsp_config = config;
     }
 
-    pub fn set_master_volume(&mut self, volume_pct: f32) {
-        self.master_volume = (volume_pct / 100.0).clamp(0.0, 1.0);
+    pub fn set_master_volume(&mut self, volume_pct: f32) -> ScalarMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return ScalarMutation::Rejected;
+        }
+        set_clamped_f32(&mut self.master_volume, volume_pct, 0.0, 100.0, 100.0)
     }
 
     pub fn set_instrument_mixer(
@@ -24,14 +33,31 @@ impl SynthEngine {
         instrument_slot: usize,
         volume_pct: Option<f32>,
         pan_pos: Option<usize>,
-    ) {
-        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
-        let normalized_volume = volume_pct.map(|volume| (volume / 100.0).clamp(0.0, 1.0));
-        let normalized_pan = pan_pos.map(|pan| pan.min(self.pan_positions - 1));
-        self.apply_normalized_instrument_mixer(slot, None, normalized_pan, normalized_volume);
-        if normalized_pan.is_some() {
-            self.slot_pan_gains[slot] = pan_gains(self.slot_pan_pos[slot], self.pan_positions);
+    ) -> ScalarMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return ScalarMutation::Rejected;
         }
+        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        let mut mutation = ScalarMutation::Unchanged;
+        if let Some(volume_pct) = volume_pct {
+            mutation = combine_mutation(
+                mutation,
+                set_clamped_f32(&mut self.slot_volume[slot], volume_pct, 0.0, 100.0, 100.0),
+            );
+        }
+        if let Some(pan_pos) = pan_pos {
+            let normalized_pan = pan_pos.min(self.pan_positions - 1);
+            if self.slot_pan_pos[slot] != normalized_pan {
+                self.slot_pan_pos[slot] = normalized_pan;
+                self.slot_pan_gains[slot] = pan_gains(normalized_pan, self.pan_positions);
+                mutation = combine_mutation(mutation, ScalarMutation::Changed);
+            }
+        }
+        mutation
     }
 
     pub fn set_fx_bus_mixer(
@@ -39,89 +65,192 @@ impl SynthEngine {
         bus_index: usize,
         pan_pos: Option<usize>,
         volume_pct: Option<f32>,
-    ) {
-        if bus_index >= self.bus_pan_pos.len() {
-            return;
+    ) -> ScalarMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return ScalarMutation::Rejected;
         }
+        if bus_index >= self.bus_pan_pos.len() {
+            return ScalarMutation::Rejected;
+        }
+        let mut mutation = ScalarMutation::Unchanged;
         if let Some(pan_pos) = pan_pos {
-            self.bus_pan_pos[bus_index] = pan_pos.min(self.pan_positions - 1);
-            self.bus_pan_gains_cache[bus_index] =
-                pan_gains(self.bus_pan_pos[bus_index], self.pan_positions);
+            let normalized_pan = pan_pos.min(self.pan_positions - 1);
+            if self.bus_pan_pos[bus_index] != normalized_pan {
+                self.bus_pan_pos[bus_index] = normalized_pan;
+                self.bus_pan_gains_cache[bus_index] = pan_gains(normalized_pan, self.pan_positions);
+                mutation = combine_mutation(mutation, ScalarMutation::Changed);
+            }
         }
         if let Some(volume_pct) = volume_pct {
-            self.bus_volume[bus_index] = (volume_pct / 100.0).clamp(0.0, 1.0);
+            mutation = combine_mutation(
+                mutation,
+                set_clamped_f32(
+                    &mut self.bus_volume[bus_index],
+                    volume_pct,
+                    0.0,
+                    100.0,
+                    100.0,
+                ),
+            );
         }
+        mutation
     }
 
-    pub fn set_synth_param(&mut self, instrument_slot: usize, path: &str, value: f32) {
+    pub fn set_synth_param_typed(
+        &mut self,
+        instrument_slot: usize,
+        id: SynthParamId,
+        value: f32,
+    ) -> ScalarMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return ScalarMutation::Rejected;
+        }
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
         if self.slot_kind[slot] != InstrumentKind::Synth {
-            return;
+            return ScalarMutation::Rejected;
         }
-        let synth = &mut self.instruments[slot];
-        match path {
-            "synth.amp.gainPct" => synth.amp.gain_pct = value.clamp(0.0, 100.0),
-            "synth.amp.velocitySensitivityPct" => {
-                synth.amp.velocity_sensitivity_pct = value.clamp(0.0, 100.0)
+        let mutation = {
+            let synth = &mut self.instruments[slot];
+            match id {
+                SynthParamId::AmpGainPct => {
+                    set_clamped_f32(&mut synth.amp.gain_pct, value, 0.0, 100.0, 1.0)
+                }
+                SynthParamId::AmpVelocitySensitivityPct => set_clamped_f32(
+                    &mut synth.amp.velocity_sensitivity_pct,
+                    value,
+                    0.0,
+                    100.0,
+                    1.0,
+                ),
+                SynthParamId::AmpEnvAttackMs => {
+                    set_clamped_f32(&mut synth.amp_env.attack_ms, value, 0.0, 5000.0, 1.0)
+                }
+                SynthParamId::AmpEnvDecayMs => {
+                    set_clamped_f32(&mut synth.amp_env.decay_ms, value, 0.0, 5000.0, 1.0)
+                }
+                SynthParamId::AmpEnvSustainPct => {
+                    set_clamped_f32(&mut synth.amp_env.sustain_pct, value, 0.0, 100.0, 1.0)
+                }
+                SynthParamId::AmpEnvReleaseMs => {
+                    set_clamped_f32(&mut synth.amp_env.release_ms, value, 0.0, 10000.0, 1.0)
+                }
+                SynthParamId::FilterCutoffHz => {
+                    set_clamped_f32(&mut synth.filter.cutoff_hz, value, 20.0, 20_000.0, 1.0)
+                }
+                SynthParamId::FilterResonance => {
+                    set_clamped_f32(&mut synth.filter.resonance, value, 0.0, 255.0, 1.0)
+                }
+                SynthParamId::FilterEnvAmountPct => {
+                    set_clamped_f32(&mut synth.filter.env_amount_pct, value, -100.0, 100.0, 1.0)
+                }
+                SynthParamId::FilterKeyTrackingPct => {
+                    set_clamped_f32(&mut synth.filter.key_tracking_pct, value, 0.0, 100.0, 1.0)
+                }
+                SynthParamId::FilterEnvAttackMs => {
+                    set_clamped_f32(&mut synth.filter_env.attack_ms, value, 0.0, 5000.0, 1.0)
+                }
+                SynthParamId::FilterEnvDecayMs => {
+                    set_clamped_f32(&mut synth.filter_env.decay_ms, value, 0.0, 5000.0, 1.0)
+                }
+                SynthParamId::FilterEnvSustainPct => {
+                    set_clamped_f32(&mut synth.filter_env.sustain_pct, value, 0.0, 100.0, 1.0)
+                }
+                SynthParamId::FilterEnvReleaseMs => {
+                    set_clamped_f32(&mut synth.filter_env.release_ms, value, 0.0, 10000.0, 1.0)
+                }
             }
-            "synth.ampEnv.attackMs" => synth.amp_env.attack_ms = value.clamp(0.0, 5000.0),
-            "synth.ampEnv.decayMs" => synth.amp_env.decay_ms = value.clamp(0.0, 5000.0),
-            "synth.ampEnv.sustainPct" => synth.amp_env.sustain_pct = value.clamp(0.0, 100.0),
-            "synth.ampEnv.releaseMs" => synth.amp_env.release_ms = value.clamp(0.0, 10000.0),
-            "synth.filter.cutoffHz" => synth.filter.cutoff_hz = value.clamp(20.0, 20_000.0),
-            "synth.filter.resonance" => synth.filter.resonance = value.clamp(0.0, 255.0),
-            "synth.filter.envAmountPct" => synth.filter.env_amount_pct = value.clamp(-100.0, 100.0),
-            "synth.filter.keyTrackingPct" => {
-                synth.filter.key_tracking_pct = value.clamp(0.0, 100.0)
-            }
-            "synth.filterEnv.attackMs" => synth.filter_env.attack_ms = value.clamp(0.0, 5000.0),
-            "synth.filterEnv.decayMs" => synth.filter_env.decay_ms = value.clamp(0.0, 5000.0),
-            "synth.filterEnv.sustainPct" => synth.filter_env.sustain_pct = value.clamp(0.0, 100.0),
-            "synth.filterEnv.releaseMs" => synth.filter_env.release_ms = value.clamp(0.0, 10000.0),
-            _ => return,
+        };
+        if mutation == ScalarMutation::Changed {
+            self.synth_render_configs[slot] =
+                SynthVoiceRenderConfig::from_config(self.instruments[slot]);
+            self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
         }
-        self.synth_render_configs[slot] = SynthVoiceRenderConfig::from_config(*synth);
-        self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
+        mutation
     }
 
-    pub fn set_sample_bank_param(&mut self, instrument_slot: usize, path: &str, value: f32) {
+    pub fn set_synth_param(
+        &mut self,
+        instrument_slot: usize,
+        path: &str,
+        value: f32,
+    ) -> ScalarMutation {
+        let Some(id) = SynthParamId::from_path(path) else {
+            return ScalarMutation::Rejected;
+        };
+        self.set_synth_param_typed(instrument_slot, id, value)
+    }
+
+    pub fn set_sample_bank_param_typed(
+        &mut self,
+        instrument_slot: usize,
+        id: SampleBankParamId,
+        value: f32,
+    ) -> ScalarMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return ScalarMutation::Rejected;
+        }
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
         if !self.sample_voice_pool.has_home() {
-            return;
+            return ScalarMutation::Rejected;
         }
-        let Some((changed, cutoff_hz, resonance)) = self.sample_banks.get_mut(slot).map(|bank| {
-            let changed = match path {
-                "sample.tuneSemis" => {
-                    bank.tune_semis = value.clamp(-24.0, 24.0);
-                    false
-                }
-                "sample.amp.gainPct" => {
-                    bank.gain_pct = value.clamp(0.0, 100.0);
-                    false
-                }
-                "sample.amp.velocitySensitivityPct" => {
-                    bank.velocity_sensitivity_pct = value.clamp(0.0, 100.0);
-                    false
-                }
-                "sample.filter.cutoffHz" => {
-                    bank.filter_cutoff_hz = value.clamp(20.0, 20_000.0);
-                    true
-                }
-                "sample.filter.resonance" => {
-                    bank.filter_resonance = value.clamp(0.0, 255.0);
-                    true
-                }
-                _ => false,
+        let (mutation, cutoff_hz, resonance) = {
+            let Some(bank) = self.sample_banks.get_mut(slot) else {
+                return ScalarMutation::Rejected;
             };
-            (changed, bank.filter_cutoff_hz, bank.filter_resonance)
-        }) else {
-            return;
+            let mutation = match id {
+                SampleBankParamId::TuneSemis => {
+                    set_clamped_f32(&mut bank.tune_semis, value, -24.0, 24.0, 1.0)
+                }
+                SampleBankParamId::AmpGainPct => {
+                    set_clamped_f32(&mut bank.gain_pct, value, 0.0, 100.0, 1.0)
+                }
+                SampleBankParamId::AmpVelocitySensitivityPct => {
+                    set_clamped_f32(&mut bank.velocity_sensitivity_pct, value, 0.0, 100.0, 1.0)
+                }
+                SampleBankParamId::FilterCutoffHz => {
+                    set_clamped_f32(&mut bank.filter_cutoff_hz, value, 20.0, 20_000.0, 1.0)
+                }
+                SampleBankParamId::FilterResonance => {
+                    set_clamped_f32(&mut bank.filter_resonance, value, 0.0, 255.0, 1.0)
+                }
+            };
+            (mutation, bank.filter_cutoff_hz, bank.filter_resonance)
         };
-        if changed {
+        if mutation == ScalarMutation::Changed
+            && matches!(
+                id,
+                SampleBankParamId::FilterCutoffHz | SampleBankParamId::FilterResonance
+            )
+        {
             let _ = self
                 .sample_voice_pool
                 .update_filter_for_slot(slot, cutoff_hz, resonance);
         }
+        mutation
+    }
+
+    pub fn set_sample_bank_param(
+        &mut self,
+        instrument_slot: usize,
+        path: &str,
+        value: f32,
+    ) -> ScalarMutation {
+        let Some(id) = SampleBankParamId::from_path(path) else {
+            return ScalarMutation::Rejected;
+        };
+        self.set_sample_bank_param_typed(instrument_slot, id, value)
     }
 
     pub fn set_fx_bus_slot(
@@ -140,14 +269,7 @@ impl SynthEngine {
         };
         let render_plan = render_plan_fx_slot(&config);
         let next_params = compile_fx_bus_params(&config);
-        let next_state = if fx_bus_state_matches_params(
-            &self.bus_chains[bus_index].slot_state[slot_index],
-            &next_params,
-        ) {
-            FxBusState::None
-        } else {
-            fx_bus_state_from_params(&next_params, self.sample_rate)
-        };
+        let next_state = fx_bus_state_from_params(&next_params, self.sample_rate);
         let retired_slot = self.bus_chains[bus_index].replace_slot(
             slot_index,
             next_params,
@@ -190,199 +312,70 @@ impl SynthEngine {
             .install_master_fx_slot(slot_index, render_plan);
         self.refresh_master_active_slot_indices();
     }
+
+    pub fn set_fx_bus_param(
+        &mut self,
+        bus_index: usize,
+        slot_index: usize,
+        id: FxParamId,
+        value: f32,
+    ) -> FxParamMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && (self.routing_tree_source_event_sample_clock.is_none() || self.bus_chains.is_empty())
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return FxParamMutation::Rejected;
+        }
+        let Some(chain) = self.bus_chains.get_mut(bus_index) else {
+            return FxParamMutation::Rejected;
+        };
+        chain.set_slot_param(slot_index, id, value)
+    }
+
+    pub fn set_global_fx_param(
+        &mut self,
+        slot_index: usize,
+        id: FxParamId,
+        value: f32,
+    ) -> FxParamMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return FxParamMutation::Rejected;
+        }
+        let Some(params) = self.master_slot_params.get_mut(slot_index) else {
+            return FxParamMutation::Rejected;
+        };
+        apply_fx_param(params, id, value)
+    }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::synth::fx_params::{DuckSource, DuckSourceTap};
-    use crate::synth::{BusIdleThreshold, WorkerWarningThreshold};
-
-    #[test]
-    fn dsp_config_is_dynamic_and_does_not_change_render_plan() {
-        let mut engine = SynthEngine::new(48_000);
-        let generation = engine.render_plan.generation;
-        let config = DspRuntimeConfig {
-            worker_warning_threshold: WorkerWarningThreshold::Percent95,
-            bus_idle_threshold: BusIdleThreshold::Exact,
-        };
-
-        engine.set_dsp_config(config);
-
-        assert_eq!(engine.dsp_config(), config);
-        assert_eq!(engine.render_plan.generation, generation);
+fn set_clamped_f32(
+    current: &mut f32,
+    value: f32,
+    minimum: f32,
+    maximum: f32,
+    divisor: f32,
+) -> ScalarMutation {
+    if !value.is_finite() {
+        return ScalarMutation::Rejected;
     }
-
-    #[test]
-    fn dynamic_fx_bus_slot_accepts_third_slot_and_ignores_fourth() {
-        let mut engine = SynthEngine::new(48_000);
-        engine.set_instruments(InstrumentsConfig {
-            instruments: Vec::new(),
-            mixer: Some(MixerConfig {
-                buses: vec![FxBusConfig::default()],
-                master: None,
-            }),
-            pan_positions: DEFAULT_PAN_POSITIONS,
-            master_volume: 100.0,
-        });
-
-        engine.set_fx_bus_slot(0, 2, "tremolo".into(), BTreeMap::new());
-        assert_eq!(engine.bus_chains[0].active_slot_count, 1);
-        assert!(matches!(
-            engine.bus_chains[0].slot_params[2],
-            FxBusParams::Tremolo { .. }
-        ));
-
-        engine.set_fx_bus_slot(0, 3, "delay".into(), BTreeMap::new());
-        assert_eq!(engine.bus_chains[0].active_slot_count, 1);
+    let next = (value / divisor).clamp(minimum / divisor, maximum / divisor);
+    if current.to_bits() == next.to_bits() {
+        ScalarMutation::Unchanged
+    } else {
+        *current = next;
+        ScalarMutation::Changed
     }
+}
 
-    #[test]
-    fn master_fx_config_ignores_third_slot() {
-        let mut engine = SynthEngine::new(48_000);
-        engine.set_instruments(InstrumentsConfig {
-            instruments: Vec::new(),
-            mixer: Some(MixerConfig {
-                buses: Vec::new(),
-                master: Some(MasterFxConfig {
-                    slots: vec![
-                        FxBusSlotConfig::Kind("none".into()),
-                        FxBusSlotConfig::Kind("none".into()),
-                        FxBusSlotConfig::Kind("tremolo".into()),
-                    ],
-                }),
-            }),
-            pan_positions: DEFAULT_PAN_POSITIONS,
-            master_volume: 100.0,
-        });
-
-        assert_eq!(engine.master_slot_params.len(), GLOBAL_FX_SLOT_COUNT);
-        assert!(engine.master_active_slot_indices.is_empty());
-    }
-
-    #[test]
-    fn dynamic_render_plan_tracks_fx_structure_not_parameters() {
-        let mut engine = SynthEngine::new(48_000);
-        engine.set_instruments(InstrumentsConfig {
-            instruments: Vec::new(),
-            mixer: Some(MixerConfig {
-                buses: vec![FxBusConfig {
-                    slots: vec![FxBusSlotConfig::Config {
-                        kind: "delay".into(),
-                        params: BTreeMap::new(),
-                    }],
-                    ..FxBusConfig::default()
-                }],
-                master: Some(MasterFxConfig {
-                    slots: vec![FxBusSlotConfig::Kind("compressor".into())],
-                }),
-            }),
-            pan_positions: DEFAULT_PAN_POSITIONS,
-            master_volume: 100.0,
-        });
-        let initial_generation = engine.render_plan.generation;
-
-        engine.set_fx_bus_slot(
-            0,
-            0,
-            "delay".into(),
-            [("timeMs".into(), serde_json::json!(400.0))]
-                .into_iter()
-                .collect(),
-        );
-        engine.set_global_fx_slot(
-            0,
-            "compressor".into(),
-            [("thresholdDb".into(), serde_json::json!(-8.0))]
-                .into_iter()
-                .collect(),
-        );
-        assert_eq!(engine.render_plan.generation, initial_generation);
-
-        engine.set_fx_bus_slot(0, 0, "reverb".into(), BTreeMap::new());
-        let changed_generation = engine.render_plan.generation;
-        assert!(changed_generation > initial_generation);
-
-        engine.set_global_fx_slot(
-            0,
-            "duck".into(),
-            [("source".into(), serde_json::json!("I1"))]
-                .into_iter()
-                .collect(),
-        );
-        let duck_generation = engine.render_plan.generation;
-        engine.set_global_fx_slot(
-            0,
-            "duck".into(),
-            [
-                ("source".into(), serde_json::json!("I1")),
-                ("amountPct".into(), serde_json::json!(25.0)),
-            ]
-            .into_iter()
-            .collect(),
-        );
-        assert_eq!(engine.render_plan.generation, duck_generation);
-        engine.set_global_fx_slot(
-            0,
-            "duck".into(),
-            [("source".into(), serde_json::json!("B1"))]
-                .into_iter()
-                .collect(),
-        );
-        assert!(engine.render_plan.generation > duck_generation);
-    }
-
-    #[test]
-    fn duck_source_tap_change_preserves_plan_generation_and_state() {
-        let mut engine = SynthEngine::new(48_000);
-        engine.set_instruments(InstrumentsConfig {
-            instruments: Vec::new(),
-            mixer: Some(MixerConfig {
-                buses: vec![FxBusConfig {
-                    slots: vec![FxBusSlotConfig::Config {
-                        kind: "duck".into(),
-                        params: [
-                            ("source".into(), serde_json::json!("I1")),
-                            ("sourceTap".into(), serde_json::json!("pre")),
-                        ]
-                        .into_iter()
-                        .collect(),
-                    }],
-                    ..FxBusConfig::default()
-                }],
-                master: None,
-            }),
-            pan_positions: DEFAULT_PAN_POSITIONS,
-            master_volume: 100.0,
-        });
-        let initial_plan = engine.render_plan.clone();
-        engine.bus_chains[0].slot_state[0] = FxBusState::Duck { env: 0.37 };
-
-        engine.set_fx_bus_slot(
-            0,
-            0,
-            "duck".into(),
-            [
-                ("source".into(), serde_json::json!("I1")),
-                ("sourceTap".into(), serde_json::json!("post")),
-            ]
-            .into_iter()
-            .collect(),
-        );
-
-        assert_eq!(engine.render_plan, initial_plan);
-        assert_eq!(engine.bus_chains[0].active_slot_count, 1);
-        assert!(matches!(
-            engine.bus_chains[0].slot_params[0],
-            FxBusParams::Duck {
-                source: DuckSource::Instrument(0),
-                source_tap: DuckSourceTap::Post,
-                ..
-            }
-        ));
-        assert!(matches!(
-            engine.bus_chains[0].slot_state[0],
-            FxBusState::Duck { env } if env.to_bits() == 0.37_f32.to_bits()
-        ));
+fn combine_mutation(current: ScalarMutation, next: ScalarMutation) -> ScalarMutation {
+    match (current, next) {
+        (ScalarMutation::Changed, _) | (_, ScalarMutation::Changed) => ScalarMutation::Changed,
+        (ScalarMutation::Rejected, _) | (_, ScalarMutation::Rejected) => ScalarMutation::Rejected,
+        _ => ScalarMutation::Unchanged,
     }
 }

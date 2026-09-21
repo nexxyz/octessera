@@ -68,16 +68,20 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     let full_config = loop {
         match control_rx.recv_timeout(Duration::from_secs(1)).unwrap() {
             AudioControlRequest::FullConfig {
+                sequence: _,
                 revision,
+                generation,
                 request_id,
                 config,
                 samples_dir,
-            } => break (revision, request_id, config, samples_dir),
-            AudioControlRequest::Dynamic(_) => {}
+            } => break (revision, generation, request_id, config, samples_dir),
+            AudioControlRequest::InstrumentSlot { .. }
+            | AudioControlRequest::FxBusSlot { .. }
+            | AudioControlRequest::GlobalFxSlot { .. } => {}
             AudioControlRequest::SamplePreview { .. } => panic!("unexpected sample preview"),
         }
     };
-    let (revision, request_id, audio_config, forwarded_samples) = full_config;
+    let (revision, generation, request_id, audio_config, forwarded_samples) = full_config;
     assert!(request_id
         .as_deref()
         .is_some_and(|id| id.starts_with("audio-")));
@@ -89,7 +93,9 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     let (replay_tx, replay_rx) = std::sync::mpsc::channel();
     replay_tx
         .send(AudioControlRequest::FullConfig {
+            sequence: 1,
             revision,
+            generation,
             request_id,
             config: audio_config.clone(),
             samples_dir: forwarded_samples,
@@ -119,7 +125,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     ));
     let prepared = (0..500)
         .find_map(|_| match event_rx.try_recv() {
-            Ok(EngineEvent::SetPreparedAudioConfig(config)) => Some(config),
+            Ok(EngineEvent::SetPreparedAudioConfig { config, .. }) => Some(config),
             Ok(_) => None,
             Err(_) => {
                 std::thread::sleep(Duration::from_millis(2));

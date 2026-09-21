@@ -14,7 +14,7 @@ Play
 ├── Trigger Gate
 ├── Transpose
 └── XY
-    └── X Axis, Y Axis, Invert X, Invert Y, Release
+    └── X Axis, Y Axis, Smoothing, Invert X, Invert Y, Release
 ```
 
 Play layer behavior:
@@ -47,6 +47,7 @@ Play layer behavior:
 - Bottom-row columns `5..7` are always-bright all-layers actions: set all layers to `0%`, `custom`, or `100%`.
 - Trigger filtering resolves per-layer mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that layer's `Low Prob` and `High Prob` thresholds.
 - `Shift+Fn+left-column layer` toggles that layer between `0%` and its previously active trigger mode without rewriting the stored probability map or changing the active layer.
+- Disabling a layer with `Shift+Fn+left-column layer` immediately releases notes owned by that layer, including internal synth/sample and external MIDI notes. It affects no other layer, suppresses future triggers for the disabled layer, and re-enabling it does not resurrect released notes.
 - FX cells are mapped from `Play > FX`: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
 - `Play > FX > Aux Map` lists the current Play FX parameters/actions that are auto-mapped to aux controls. Rows are editable but do not change the mapping target. OLED row prefixes use the same `1-` turn and `1!` press markers as the live auto-map indicators.
 - Entering FX grid assignment shows a concise `Map FX: ...` toast; Back exits assignment without changing stored cells.
@@ -66,5 +67,7 @@ Play layer behavior:
 - `xy` grid LEDs: bright white on the touched cell while finger is down; dim gray on sample-hold (when `Release = sample-hold` and finger is lifted); rest of grid is dark.
 - `Release: sample-hold` keeps the last modulation values active after lifting the finger. `Release: reset-center` returns X and Y to 0.5 (center) on release.
 - `Invert X` / `Invert Y` flip the respective axis: `value = 1 - norm` when enabled, so left becomes max and right becomes min (X axis), or bottom becomes max and top becomes min (Y axis).
-- Saved with presets/defaults: selected Play Page, FX page config and assignments, instrument mix volumes, pan positions, per-layer trigger probability mode, low/high thresholds, trigger probability map cell state, global X/Y bindings, X/Y invert flags, and X/Y release behavior.
+- `Smoothing` is `Off` at `0`, or `10–500 ms` in `10 ms` steps (shipped default `80 ms`). It glides each mapped normalized axis independently from its current value toward the new target without overshoot; the raw visual marker follows the press immediately. `sample-hold` keeps an active glide running after release, while `reset-center` moves the marker to center immediately and glides mapped axes to `0.5` when smoothing is enabled.
+- Changing inversion retargets only the affected mapped axis through the same smoothing glide; the visual marker is never inverted.
+- Saved with presets/defaults: selected Play Page, FX page config and assignments, instrument mix volumes, pan positions, per-layer trigger probability mode, low/high thresholds, trigger probability map cell state, global X/Y bindings, X/Y smoothing, X/Y invert flags, and X/Y release behavior.
 - Not saved: transient performance state such as the currently active Play overlay on load/startup, Play Transpose selections/enabled state/offsets, the live X/Y touch position (`sparksXyTouch`), active momentary FX instances, assign modes, held modifiers, and other temporary overlays.

@@ -48,8 +48,10 @@ impl NativeRunner {
         if let Some(layer) = self.pulses_layers.get_mut(layer_index) {
             layer.trigger_probability_mode = mode.into();
         }
-        if let Some(restore) = self.trigger_gate_restore_modes.get_mut(layer_index) {
-            *restore = None;
+        if mode != "zero" {
+            if let Some(restore) = self.trigger_gate_restore_modes.get_mut(layer_index) {
+                *restore = None;
+            }
         }
     }
 }

@@ -3,7 +3,8 @@ use media_recording::{
     RecordingStartError, RecordingStatus, RecordingTap,
 };
 use playback_runtime::{
-    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation, RuntimeStoreResult,
+    HostMessage, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeOperation, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
@@ -118,7 +119,7 @@ pub(crate) fn poll_recording_status(
         }
     }
     match result {
-        Ok(Some(outcome)) => Some(recording_status(outcome.status)),
+        Ok(Some(outcome)) => Some(max_time_recording_status(outcome.status)),
         Ok(None) => None,
         Err(error) => Some(recording_failure(error.to_string())),
     }
@@ -138,16 +139,53 @@ fn clear_recording_ingress(
 }
 
 pub(crate) fn recording_status(status: RecordingStatus) -> RuntimeStoreResult {
+    recording_status_with_complete_message(status, "Recording saved")
+}
+
+pub(crate) fn max_time_recording_status(status: RecordingStatus) -> RuntimeStoreResult {
+    recording_status_with_complete_message(status, "Max time: saved")
+}
+
+fn recording_status_with_complete_message(
+    status: RecordingStatus,
+    complete_message: &str,
+) -> RuntimeStoreResult {
     match status {
         RecordingStatus::Complete => RuntimeStoreResult::RecordingStatus {
             ok: true,
-            message: "Recording saved".into(),
+            message: complete_message.into(),
+            active: false,
         },
         RecordingStatus::Incomplete { .. } => RuntimeStoreResult::RecordingStatus {
             ok: false,
             message: "Recording incomplete".into(),
+            active: false,
         },
     }
+}
+
+pub(crate) fn recording_start_result(
+    result: Result<(), RecordingStartError>,
+    request: &RuntimePlatformRequest,
+) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+    let status = match result {
+        Ok(()) => RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message: "Recording started".into(),
+            active: true,
+        },
+        Err(RecordingStartError::AlreadyActive) => RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message: "Recording is already running".into(),
+            active: true,
+        },
+        Err(RecordingStartError::Io(error)) => {
+            return Err(RuntimeAdapterError::from_facts(
+                request.failure_facts(error),
+            ));
+        }
+    };
+    Ok(vec![HostMessage::RuntimeResult { result: status }])
 }
 
 fn recording_failure(message: impl Into<String>) -> RuntimeStoreResult {

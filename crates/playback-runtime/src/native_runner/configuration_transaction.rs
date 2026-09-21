@@ -65,16 +65,16 @@ impl NativeRunner {
                 }
             }
             ConfigurationRuntimePlan::FullRevisionedConfiguration { revision } => {
-                self.outbox
-                    .push_audio_command(RuntimeAudioCommand::SetAudioConfig {
-                        revision,
-                        request_id: None,
-                        config: audio_config_payload(self),
-                    });
-                self.outbox
-                    .push_audio_command(RuntimeAudioCommand::SetDspConfig {
-                        config: self.dsp_config,
-                    });
+                self.queue_audio_command(RuntimeAudioCommand::SetAudioConfig {
+                    revision,
+                    request_id: None,
+                    generation: revision,
+                    config: audio_config_payload(self),
+                });
+                self.queue_audio_command(RuntimeAudioCommand::SetDspConfig {
+                    generation: revision,
+                    config: self.dsp_config,
+                });
             }
         }
     }

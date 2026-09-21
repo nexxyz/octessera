@@ -204,6 +204,7 @@ impl NativeRunner {
                 if let Some(config) = self.instrument_audio_config(index) {
                     self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
                         instrument_slot: index,
+                        generation: 0,
                         config,
                     });
                 } else {
@@ -245,6 +246,7 @@ impl NativeRunner {
         if command_value.is_some() && !self.rebase_and_recompose_modulation_key(&key) {
             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot: index,
+                generation: 0,
                 volume_pct: command_value,
                 pan_pos: None,
             });
@@ -266,6 +268,7 @@ impl NativeRunner {
         if command_value.is_some() && !self.rebase_and_recompose_modulation_key(&key) {
             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot: index,
+                generation: 0,
                 volume_pct: None,
                 pan_pos: command_value,
             });
@@ -292,6 +295,7 @@ impl NativeRunner {
         if !self.rebase_and_recompose_modulation_key(&path_key(index, path)) {
             self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
                 instrument_slot: index,
+                generation: 0,
                 path: path.into(),
                 value: audio_value,
             });
@@ -320,6 +324,7 @@ impl NativeRunner {
         if !self.rebase_and_recompose_modulation_key(&path_key(index, command_path)) {
             self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
                 instrument_slot: index,
+                generation: 0,
                 path: command_path.into(),
                 value: audio_value,
             });
@@ -346,6 +351,7 @@ impl NativeRunner {
         if !self.rebase_and_recompose_modulation_key(&path_key(index, path)) {
             self.queue_audio_command(RuntimeAudioCommand::SetSampleBankParam {
                 instrument_slot: index,
+                generation: 0,
                 path: path.into(),
                 value: audio_value,
             });

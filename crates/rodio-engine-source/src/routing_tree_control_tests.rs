@@ -1,10 +1,10 @@
 use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_fx_bus_slot,
-    prepare_instrument_slot_config, prepare_momentary_fx_start, FxBusConfig, FxBusSlotConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MomentaryFxTarget, SampleBankConfig,
-    SampleBuffer, SampleSlotConfig, SourceWorkerHealth, DEFAULT_PAN_POSITIONS,
-    INSTRUMENT_SLOT_COUNT,
+    prepare_instrument_slot_config, prepare_momentary_fx_start, prepare_momentary_fx_update,
+    FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig,
+    MomentaryFxTarget, SampleBankConfig, SampleBankParamId, SampleBuffer, SampleSlotConfig,
+    SourceWorkerHealth, SynthParamId, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -12,12 +12,40 @@ use std::collections::BTreeMap;
 const RATE: u32 = 44_100;
 const BLOCK_FRAMES: usize = 128;
 
+#[cfg(feature = "routing-tree-executor")]
+#[test]
+fn routing_tree_owner_without_source_clock_retires_incoming_payload() {
+    let (tx, rx) = event_queue();
+    let (mut source, retired_rx) =
+        EngineSource::with_routing_tree_test_retirement_receiver(rx, RATE, BLOCK_FRAMES);
+    tx.send(EngineEvent::SetPreparedInstrumentOwner {
+        instrument_slot: 0,
+        generation: 1,
+        config: prepare_instrument_slot_config(instrument("sampler", "direct")),
+        sample_bank: Some(sample_bank(0.5)),
+    })
+    .unwrap();
+
+    assert_eq!(source.drain_control_events().config_events, 1);
+    assert_eq!(source.owner_generations.instrument[0], 0);
+    assert_eq!(source.owner_generations.sample[0], 0);
+    let item = retired_rx
+        .try_recv()
+        .expect("expected rejected owner state");
+    assert!(item.event.is_none());
+    assert!(!item
+        .state
+        .expect("expected rejected owner payload")
+        .is_empty());
+}
+
 #[test]
 fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio() {
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedAudioConfig(full_bank_config(
-        4, 0.8,
-    )))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: full_bank_config(4, 0.8),
+    })
     .unwrap();
     for slot in 0..INSTRUMENT_SLOT_COUNT {
         tx.send(EngineEvent::NoteOn {
@@ -30,12 +58,13 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
     }
     tx.send(EngineEvent::PreviewSample {
         instrument_slot: 1,
+        generation: 0,
         buffer: sample_buffer(0.6),
         velocity: 100,
     })
     .unwrap();
-    tx.send(EngineEvent::PreparedMomentaryFxStart(
-        prepare_momentary_fx_start(
+    tx.send(EngineEvent::PreparedMomentaryFxStart {
+        config: prepare_momentary_fx_start(
             "local-filter".into(),
             "filter_sweep".into(),
             BTreeMap::new(),
@@ -43,36 +72,44 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
             RATE,
         )
         .unwrap(),
-    ))
+    })
     .unwrap();
     tx.send(EngineEvent::SetSynthParam {
         instrument_slot: 0,
-        path: "synth.amp.gainPct".into(),
+        generation: 0,
+        param: SynthParamId::AmpGainPct,
         value: 72.0,
     })
     .unwrap();
     tx.send(EngineEvent::SetSampleBankParam {
         instrument_slot: 1,
-        path: "sample.amp.gainPct".into(),
+        generation: 0,
+        param: SampleBankParamId::AmpGainPct,
         value: 65.0,
     })
     .unwrap();
-    tx.send(EngineEvent::SetMasterVolume { volume_pct: 90.0 })
-        .unwrap();
+    tx.send(EngineEvent::SetMasterVolume {
+        generation: 0,
+        volume_pct: 90.0,
+    })
+    .unwrap();
     tx.send(EngineEvent::SetInstrumentMixer {
         instrument_slot: 0,
+        generation: 0,
         volume_pct: Some(80.0),
         pan_pos: Some(DEFAULT_PAN_POSITIONS / 2),
     })
     .unwrap();
     tx.send(EngineEvent::SetFxBusMixer {
         bus_index: 0,
+        generation: 0,
         pan_pos: Some(DEFAULT_PAN_POSITIONS / 2),
         volume_pct: Some(90.0),
     })
     .unwrap();
     tx.send(EngineEvent::SetPreparedSampleBank {
         instrument_slot: 1,
+        generation: 0,
         bank: sample_bank(0.5),
     })
     .unwrap();
@@ -85,25 +122,32 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
     .unwrap();
     tx.send(EngineEvent::SetPreparedInstrumentSlot {
         instrument_slot: 2,
+        generation: 0,
         config: prepare_instrument_slot_config(instrument("sampler", "fx_bus_1")),
     })
     .unwrap();
     tx.send(EngineEvent::SetPreparedFxBusSlot {
         bus_index: 0,
         slot_index: 0,
+        generation: 0,
         config: prepare_fx_bus_slot("compressor".into(), BTreeMap::new(), RATE),
     })
     .unwrap();
-    tx.send(EngineEvent::MomentaryFxUpdate {
-        id: "local-filter".into(),
-        params: BTreeMap::from([("sweepOutMs".into(), json!(2.0))]),
-    })
+    tx.send(EngineEvent::MomentaryFxUpdate(
+        prepare_momentary_fx_update(
+            0,
+            "filter_sweep".into(),
+            BTreeMap::from([("sweepOutMs".into(), json!(2.0))]),
+            RATE,
+        )
+        .unwrap(),
+    ))
     .unwrap();
 
     let (mut source, shutdown) =
         EngineSource::with_routing_tree_persistent_workers(rx, RATE, BLOCK_FRAMES, None).unwrap();
     let (allocations, deallocations) = allocations_and_deallocations(|| {
-        for _ in 0..BLOCK_FRAMES * 2 * 3 {
+        for _ in 0..BLOCK_FRAMES * 2 * 8 {
             let _ = source.next();
         }
     });
@@ -117,9 +161,10 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
     assert!(profile.active_bus_fx_slots > 0);
     assert!(source.routing_tree_control_gate_calls > 0);
 
-    tx.send(EngineEvent::SetPreparedAudioConfig(full_bank_config(
-        1, 0.4,
-    )))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 1,
+        config: full_bank_config(1, 0.4),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,

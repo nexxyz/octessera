@@ -1,25 +1,74 @@
 #[path = "audio_prep_config.rs"]
 mod audio_prep_config;
+#[path = "audio_prep_results.rs"]
+mod audio_prep_results;
+#[path = "audio_prep_worker.rs"]
+mod audio_prep_worker;
 
 use crate::sample_decode_cache::SampleDecodeCache;
-use crate::types::QueuedAudioEvent;
-use audio_prep_config::{
-    apply_prepared_audio_config, prepare_full_audio_config, prepare_sample_preview, AudioPrepError,
-};
-use playback_runtime::{
-    HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
-    RuntimeStoreResult,
-};
+use audio_prep_worker::audio_control_loop;
+use playback_runtime::HostMessage;
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use rodio_engine_source::EngineEventSender;
 use serde_json::Value;
+#[cfg(test)]
+use std::collections::VecDeque;
+#[cfg(test)]
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
+
+pub(crate) const AUDIO_PREP_QUEUE_CAPACITY: usize = 32;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AudioPrepEnqueueResult {
+    Accepted,
+    Full,
+    Disconnected,
+}
+
+#[derive(Clone)]
+pub(crate) struct AudioGenerationState {
+    pub(crate) full: u64,
+    pub(crate) instrument: [u64; INSTRUMENT_SLOT_COUNT],
+    pub(crate) sample: [u64; INSTRUMENT_SLOT_COUNT],
+    pub(crate) bus_mixer: [u64; realtime_engine::synth::BUS_COUNT],
+    pub(crate) fx_bus:
+        [[u64; realtime_engine::synth::BUS_SLOTS_PER_BUS]; realtime_engine::synth::BUS_COUNT],
+    pub(crate) global_fx: [u64; realtime_engine::synth::GLOBAL_FX_SLOT_COUNT],
+}
+
+impl Default for AudioGenerationState {
+    fn default() -> Self {
+        Self {
+            full: 0,
+            instrument: [0; INSTRUMENT_SLOT_COUNT],
+            sample: [0; INSTRUMENT_SLOT_COUNT],
+            bus_mixer: [0; realtime_engine::synth::BUS_COUNT],
+            fx_bus: [[0; realtime_engine::synth::BUS_SLOTS_PER_BUS];
+                realtime_engine::synth::BUS_COUNT],
+            global_fx: [0; realtime_engine::synth::GLOBAL_FX_SLOT_COUNT],
+        }
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct DesktopAudioControl {
-    tx: Sender<AudioControlRequest>,
+    tx: SyncSender<AudioControlRequest>,
     config_revision: Arc<AtomicU64>,
+    next_sequence: Arc<AtomicU64>,
+    next_preview_token: Arc<AtomicU64>,
+    preview_latest: Arc<Mutex<Option<PreviewRequest>>>,
+    generations: Arc<Mutex<AudioGenerationState>>,
+    #[cfg(test)]
+    preview_prepare_gate: Option<Arc<PreviewPrepareTestGate>>,
+}
+
+#[cfg(test)]
+struct PreviewPrepareTestGate {
+    started: AtomicBool,
+    release: AtomicBool,
 }
 
 pub(crate) struct DesktopAudioPrepState {
@@ -27,66 +76,146 @@ pub(crate) struct DesktopAudioPrepState {
     pub(crate) synth_slots: Arc<Mutex<[bool; INSTRUMENT_SLOT_COUNT]>>,
     pub(crate) sample_decode_cache: SampleDecodeCache,
     pub(crate) sample_bank_signature: Arc<Mutex<String>>,
+    pub(crate) generations: Arc<Mutex<AudioGenerationState>>,
 }
 
+#[derive(Clone)]
 enum AudioControlRequest {
     FullConfig {
+        sequence: u64,
         revision: u64,
+        generation: u64,
         request_id: Option<String>,
         config: Value,
     },
-    SamplePreview {
+    InstrumentSlot {
+        sequence: u64,
         instrument_slot: usize,
-        path: String,
-        velocity: u8,
+        generation: u64,
+        config: Value,
     },
-    Dynamic(QueuedAudioEvent),
+    FxBusSlot {
+        sequence: u64,
+        bus_index: usize,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    },
+    GlobalFxSlot {
+        sequence: u64,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    },
+    SamplePreview(PreviewRequest),
 }
 
+#[derive(Clone)]
 struct PreviewRequest {
+    sequence: u64,
+    token: u64,
     instrument_slot: usize,
     path: String,
     velocity: u8,
 }
 
 pub(crate) fn spawn_desktop_audio_control(
-    trigger_tx: Sender<QueuedAudioEvent>,
+    engine_tx: EngineEventSender,
     state: DesktopAudioPrepState,
 ) -> (DesktopAudioControl, Receiver<HostMessage>) {
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = mpsc::sync_channel(AUDIO_PREP_QUEUE_CAPACITY);
     let (result_tx, result_rx) = mpsc::channel();
-    let config_revision = state.config_revision.clone();
-    std::thread::spawn(move || audio_control_loop(rx, trigger_tx, result_tx, state));
-    (
-        DesktopAudioControl {
-            tx,
-            config_revision,
-        },
-        result_rx,
-    )
+    let control = DesktopAudioControl {
+        tx,
+        config_revision: state.config_revision.clone(),
+        next_sequence: Arc::new(AtomicU64::new(0)),
+        next_preview_token: Arc::new(AtomicU64::new(0)),
+        preview_latest: Arc::new(Mutex::new(None)),
+        generations: state.generations.clone(),
+        #[cfg(test)]
+        preview_prepare_gate: None,
+    };
+    let worker_control = control.clone();
+    std::thread::spawn(move || audio_control_loop(rx, engine_tx, result_tx, state, worker_control));
+    (control, result_rx)
 }
 
 impl DesktopAudioControl {
     pub(crate) fn enqueue_full_config(
         &self,
         revision: u64,
+        generation: u64,
         request_id: Option<String>,
         config: Value,
-    ) -> Result<(), String> {
-        self.config_revision.fetch_max(revision, Ordering::SeqCst);
-        self.tx
-            .send(AudioControlRequest::FullConfig {
+    ) -> AudioPrepEnqueueResult {
+        let previous_revision = self.config_revision.fetch_max(revision, Ordering::SeqCst);
+        let request = AudioControlRequest::FullConfig {
+            sequence: self.next_sequence(),
+            revision,
+            generation,
+            request_id,
+            config,
+        };
+        let result = self.try_send(request);
+        if result != AudioPrepEnqueueResult::Accepted && revision > previous_revision {
+            let _ = self.config_revision.compare_exchange(
                 revision,
-                request_id,
-                config,
-            })
-            .map_err(|e| format!("audio prep queue send failed: {e}"))
+                previous_revision,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            );
+        }
+        result
     }
 
-    pub(crate) fn enqueue_dynamic(&self, event: QueuedAudioEvent) -> Result<(), String> {
-        self.tx
-            .send(AudioControlRequest::Dynamic(event))
-            .map_err(|e| format!("audio control queue send failed: {e}"))
+    pub(crate) fn enqueue_instrument_slot(
+        &self,
+        instrument_slot: usize,
+        generation: u64,
+        config: Value,
+    ) -> AudioPrepEnqueueResult {
+        self.try_send(AudioControlRequest::InstrumentSlot {
+            sequence: self.next_sequence(),
+            instrument_slot,
+            generation,
+            config,
+        })
+    }
+
+    pub(crate) fn enqueue_fx_bus_slot(
+        &self,
+        bus_index: usize,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    ) -> AudioPrepEnqueueResult {
+        self.try_send(AudioControlRequest::FxBusSlot {
+            sequence: self.next_sequence(),
+            bus_index,
+            slot_index,
+            generation,
+            fx_type,
+            params,
+        })
+    }
+
+    pub(crate) fn enqueue_global_fx_slot(
+        &self,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: std::collections::BTreeMap<String, Value>,
+    ) -> AudioPrepEnqueueResult {
+        self.try_send(AudioControlRequest::GlobalFxSlot {
+            sequence: self.next_sequence(),
+            slot_index,
+            generation,
+            fx_type,
+            params,
+        })
     }
 
     pub(crate) fn enqueue_sample_preview(
@@ -94,72 +223,79 @@ impl DesktopAudioControl {
         instrument_slot: usize,
         path: String,
         velocity: u8,
-    ) -> Result<(), String> {
-        self.tx
-            .send(AudioControlRequest::SamplePreview {
-                instrument_slot,
-                path,
-                velocity,
-            })
-            .map_err(|e| format!("sample preview queue send failed: {e}"))
-    }
-}
-
-fn audio_control_loop(
-    rx: Receiver<AudioControlRequest>,
-    trigger_tx: Sender<QueuedAudioEvent>,
-    result_tx: Sender<HostMessage>,
-    state: DesktopAudioPrepState,
-) {
-    while let Ok(request) = rx.recv() {
-        match request {
-            AudioControlRequest::Dynamic(event) => {
-                let _ = trigger_tx.send(event);
+    ) -> AudioPrepEnqueueResult {
+        let token = self.next_preview_token.fetch_add(1, Ordering::SeqCst) + 1;
+        let request = PreviewRequest {
+            sequence: self.next_sequence(),
+            token,
+            instrument_slot,
+            path,
+            velocity,
+        };
+        match self
+            .tx
+            .try_send(AudioControlRequest::SamplePreview(request.clone()))
+        {
+            Ok(()) => AudioPrepEnqueueResult::Accepted,
+            Err(mpsc::TrySendError::Full(_)) => {
+                if let Ok(mut latest) = self.preview_latest.lock() {
+                    *latest = Some(request);
+                    AudioPrepEnqueueResult::Accepted
+                } else {
+                    AudioPrepEnqueueResult::Disconnected
+                }
             }
-            AudioControlRequest::SamplePreview {
-                instrument_slot,
-                path,
-                velocity,
-            } => match prepare_sample_preview(instrument_slot, &path, velocity, &state) {
-                Ok(event) => {
-                    if trigger_tx.send(event).is_ok() {
-                        send_audio_prep_result(
-                            &result_tx,
-                            RuntimeStoreResult::OperationSucceeded {
-                                operation: RuntimeOperation::SamplePreview,
-                                request_id: None,
-                                revision: None,
-                            },
-                        );
-                    } else {
-                        send_audio_prep_result(
-                            &result_tx,
-                            sample_preview_failure(
-                                RuntimeErrorCode::OperationFailed,
-                                "audio engine queue send failed".into(),
-                            ),
-                        );
+            Err(mpsc::TrySendError::Disconnected(_)) => AudioPrepEnqueueResult::Disconnected,
+        }
+    }
+
+    fn next_sequence(&self) -> u64 {
+        self.next_sequence.fetch_add(1, Ordering::Relaxed)
+    }
+
+    fn try_send(&self, request: AudioControlRequest) -> AudioPrepEnqueueResult {
+        match self.tx.try_send(request) {
+            Ok(()) => AudioPrepEnqueueResult::Accepted,
+            Err(mpsc::TrySendError::Full(_)) => AudioPrepEnqueueResult::Full,
+            Err(mpsc::TrySendError::Disconnected(_)) => AudioPrepEnqueueResult::Disconnected,
+        }
+    }
+
+    fn commit_owner_generation(
+        &self,
+        request: &AudioControlRequest,
+        event: &rodio_engine_source::EngineEvent,
+    ) {
+        if let Ok(mut generations) = self.generations.lock() {
+            match request {
+                AudioControlRequest::InstrumentSlot {
+                    instrument_slot,
+                    generation,
+                    ..
+                } => {
+                    generations.instrument[*instrument_slot] = *generation;
+                    if matches!(
+                        event,
+                        rodio_engine_source::EngineEvent::SetPreparedInstrumentOwner {
+                            sample_bank: Some(_),
+                            ..
+                        }
+                    ) {
+                        generations.sample[*instrument_slot] = *generation;
                     }
                 }
-                Err(error) => send_audio_prep_result(
-                    &result_tx,
-                    sample_preview_failure(error_code(&error), error_message(&error)),
-                ),
-            },
-            AudioControlRequest::FullConfig {
-                revision,
-                request_id,
-                config,
-            } => {
-                handle_full_config_request_with_result(
-                    revision,
-                    request_id,
-                    config,
-                    &rx,
-                    &trigger_tx,
-                    &result_tx,
-                    &state,
-                );
+                AudioControlRequest::FxBusSlot {
+                    bus_index,
+                    slot_index,
+                    generation,
+                    ..
+                } => generations.fx_bus[*bus_index][*slot_index] = *generation,
+                AudioControlRequest::GlobalFxSlot {
+                    slot_index,
+                    generation,
+                    ..
+                } => generations.global_fx[*slot_index] = *generation,
+                AudioControlRequest::FullConfig { .. } | AudioControlRequest::SamplePreview(_) => {}
             }
         }
     }
@@ -167,317 +303,21 @@ fn audio_control_loop(
 
 #[cfg(test)]
 fn handle_full_config_request(
-    revision: u64,
-    request_id: Option<String>,
-    config: Value,
-    rx: &Receiver<AudioControlRequest>,
-    trigger_tx: &Sender<QueuedAudioEvent>,
+    request: AudioControlRequest,
+    rx: &std::sync::mpsc::Receiver<AudioControlRequest>,
+    pending: &mut VecDeque<AudioControlRequest>,
+    engine_tx: &rodio_engine_source::EngineEventSender,
+    result_tx: &std::sync::mpsc::Sender<HostMessage>,
     state: &DesktopAudioPrepState,
 ) {
-    let (result_tx, _result_rx) = mpsc::channel::<HostMessage>();
-    handle_full_config_request_with_result(
-        revision, request_id, config, rx, trigger_tx, &result_tx, state,
+    audio_prep_worker::handle_full_config_request(
+        request, rx, pending, engine_tx, result_tx, state,
     );
-}
-
-fn handle_full_config_request_with_result(
-    mut revision: u64,
-    mut request_id: Option<String>,
-    mut config: Value,
-    rx: &Receiver<AudioControlRequest>,
-    trigger_tx: &Sender<QueuedAudioEvent>,
-    result_tx: &Sender<HostMessage>,
-    state: &DesktopAudioPrepState,
-) {
-    let mut pending_dynamic = Vec::new();
-    let mut pending_previews = Vec::new();
-    state.config_revision.fetch_max(revision, Ordering::SeqCst);
-    let had_initial_full_config = drain_pending_requests(
-        rx,
-        &mut revision,
-        &mut request_id,
-        &mut config,
-        &mut pending_dynamic,
-        &mut pending_previews,
-    );
-    if had_initial_full_config {
-        state.config_revision.fetch_max(revision, Ordering::SeqCst);
-    }
-    loop {
-        let prepared =
-            match prepare_full_audio_config(revision, request_id.clone(), config.clone(), state) {
-                Ok(prepared) => prepared,
-                Err(AudioPrepError::Superseded) => {
-                    send_dynamic_events(trigger_tx, pending_dynamic);
-                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
-                    return;
-                }
-                Err(AudioPrepError::InvalidConfig(error)) => {
-                    send_audio_prep_result(
-                        result_tx,
-                        audio_config_failure(revision, request_id.clone(), error),
-                    );
-                    send_dynamic_events(trigger_tx, pending_dynamic);
-                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
-                    return;
-                }
-                Err(AudioPrepError::Sample(error)) => {
-                    send_audio_prep_result(
-                        result_tx,
-                        sample_failure(revision, request_id.clone(), error.code(), error.message()),
-                    );
-                    send_dynamic_events(trigger_tx, pending_dynamic);
-                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
-                    return;
-                }
-                Err(AudioPrepError::Failed(error)) => {
-                    send_audio_prep_result(
-                        result_tx,
-                        audio_prep_failure(revision, request_id.clone(), error),
-                    );
-                    send_dynamic_events(trigger_tx, pending_dynamic);
-                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
-                    return;
-                }
-            };
-        let mut newer_revision = revision;
-        let mut newer_request_id = request_id.clone();
-        let mut newer_config = config.clone();
-        let had_newer = drain_pending_requests(
-            rx,
-            &mut newer_revision,
-            &mut newer_request_id,
-            &mut newer_config,
-            &mut pending_dynamic,
-            &mut pending_previews,
-        );
-        if had_newer {
-            revision = newer_revision;
-            state.config_revision.fetch_max(revision, Ordering::SeqCst);
-            request_id = newer_request_id;
-            config = newer_config;
-            continue;
-        }
-        match apply_prepared_audio_config(prepared, revision, trigger_tx, state) {
-            Ok(()) => {
-                send_audio_prep_result(result_tx, audio_prep_success(revision, request_id.clone()))
-            }
-            Err(AudioPrepError::Superseded) => {}
-            Err(AudioPrepError::InvalidConfig(error)) => send_audio_prep_result(
-                result_tx,
-                audio_config_failure(revision, request_id.clone(), error),
-            ),
-            Err(AudioPrepError::Sample(error)) => send_audio_prep_result(
-                result_tx,
-                sample_failure(revision, request_id.clone(), error.code(), error.message()),
-            ),
-            Err(AudioPrepError::Failed(error)) => send_audio_prep_result(
-                result_tx,
-                audio_prep_failure(revision, request_id.clone(), error),
-            ),
-        }
-        send_dynamic_events(trigger_tx, pending_dynamic);
-        send_preview_requests(state, trigger_tx, result_tx, pending_previews);
-        return;
-    }
-}
-
-fn drain_pending_requests(
-    rx: &Receiver<AudioControlRequest>,
-    revision: &mut u64,
-    request_id: &mut Option<String>,
-    config: &mut Value,
-    pending_dynamic: &mut Vec<QueuedAudioEvent>,
-    pending_previews: &mut Vec<PreviewRequest>,
-) -> bool {
-    let mut had_full_config = false;
-    while let Ok(request) = rx.try_recv() {
-        match request {
-            AudioControlRequest::FullConfig {
-                revision: next_revision,
-                request_id: next_request_id,
-                config: next_config,
-            } => {
-                *revision = next_revision;
-                *request_id = next_request_id;
-                *config = next_config;
-                had_full_config = true;
-                pending_dynamic.retain(is_realtime_dynamic_event);
-            }
-            AudioControlRequest::Dynamic(event) => pending_dynamic.push(event),
-            AudioControlRequest::SamplePreview {
-                instrument_slot,
-                path,
-                velocity,
-            } => pending_previews.push(PreviewRequest {
-                instrument_slot,
-                path,
-                velocity,
-            }),
-        }
-    }
-    had_full_config
-}
-
-fn send_audio_prep_result(result_tx: &Sender<HostMessage>, result: RuntimeStoreResult) {
-    let _ = result_tx.send(HostMessage::RuntimeResult { result });
-}
-
-fn audio_prep_success(revision: u64, request_id: Option<String>) -> RuntimeStoreResult {
-    let result = RuntimeStoreResult::OperationSucceeded {
-        operation: RuntimeOperation::AudioCommand,
-        request_id: None,
-        revision: Some(revision),
-    };
-    identify_audio_prep_result(result, request_id, revision)
-}
-
-fn audio_prep_failure(
-    revision: u64,
-    request_id: Option<String>,
-    message: String,
-) -> RuntimeStoreResult {
-    let result = RuntimeStoreResult::RuntimeFailure {
-        error: RuntimeErrorFacts::new(
-            RuntimeErrorDomain::Audio,
-            RuntimeErrorCode::OperationFailed,
-            RuntimeOperation::AudioCommand,
-            Some(message),
-        ),
-    };
-    identify_audio_prep_result(result, request_id, revision)
-}
-
-fn audio_config_failure(
-    revision: u64,
-    request_id: Option<String>,
-    message: String,
-) -> RuntimeStoreResult {
-    let result = RuntimeStoreResult::RuntimeFailure {
-        error: RuntimeErrorFacts::new(
-            RuntimeErrorDomain::Audio,
-            RuntimeErrorCode::InvalidPayload,
-            RuntimeOperation::AudioCommand,
-            Some(message),
-        ),
-    };
-    identify_audio_prep_result(result, request_id, revision)
-}
-
-fn sample_failure(
-    revision: u64,
-    request_id: Option<String>,
-    code: RuntimeErrorCode,
-    message: String,
-) -> RuntimeStoreResult {
-    identify_audio_prep_result(
-        RuntimeStoreResult::RuntimeFailure {
-            error: RuntimeErrorFacts::new(
-                RuntimeErrorDomain::Sample,
-                code,
-                RuntimeOperation::AudioCommand,
-                Some(message),
-            ),
-        },
-        request_id,
-        revision,
-    )
-}
-
-fn sample_preview_failure(code: RuntimeErrorCode, message: String) -> RuntimeStoreResult {
-    RuntimeStoreResult::RuntimeFailure {
-        error: RuntimeErrorFacts::new(
-            RuntimeErrorDomain::Sample,
-            code,
-            RuntimeOperation::SamplePreview,
-            Some(message),
-        ),
-    }
-}
-
-fn error_code(error: &AudioPrepError) -> RuntimeErrorCode {
-    match error {
-        AudioPrepError::Sample(error) => error.code(),
-        _ => RuntimeErrorCode::OperationFailed,
-    }
-}
-
-fn error_message(error: &AudioPrepError) -> String {
-    match error {
-        AudioPrepError::Sample(error) => error.message(),
-        AudioPrepError::InvalidConfig(message) => message.clone(),
-        AudioPrepError::Failed(message) => message.clone(),
-        AudioPrepError::Superseded => "sample preview superseded".into(),
-    }
-}
-
-fn identify_audio_prep_result(
-    result: RuntimeStoreResult,
-    request_id: Option<String>,
-    revision: u64,
-) -> RuntimeStoreResult {
-    match request_id {
-        Some(request_id) => result.with_identity(request_id, Some(revision)),
-        None => result,
-    }
-}
-
-fn send_dynamic_events(trigger_tx: &Sender<QueuedAudioEvent>, events: Vec<QueuedAudioEvent>) {
-    for event in events {
-        let _ = trigger_tx.send(event);
-    }
-}
-
-fn send_preview_requests(
-    state: &DesktopAudioPrepState,
-    trigger_tx: &Sender<QueuedAudioEvent>,
-    result_tx: &Sender<HostMessage>,
-    requests: Vec<PreviewRequest>,
-) {
-    for request in requests {
-        match prepare_sample_preview(
-            request.instrument_slot,
-            &request.path,
-            request.velocity,
-            state,
-        ) {
-            Ok(event) => match trigger_tx.send(event) {
-                Ok(()) => send_audio_prep_result(
-                    result_tx,
-                    RuntimeStoreResult::OperationSucceeded {
-                        operation: RuntimeOperation::SamplePreview,
-                        request_id: None,
-                        revision: None,
-                    },
-                ),
-                Err(error) => send_audio_prep_result(
-                    result_tx,
-                    sample_preview_failure(RuntimeErrorCode::OperationFailed, error.to_string()),
-                ),
-            },
-            Err(error) => send_audio_prep_result(
-                result_tx,
-                sample_preview_failure(error_code(&error), error_message(&error)),
-            ),
-        }
-    }
-}
-
-fn is_realtime_dynamic_event(event: &QueuedAudioEvent) -> bool {
-    matches!(
-        event,
-        QueuedAudioEvent::AllNotesOff
-            | QueuedAudioEvent::Note(_)
-            | QueuedAudioEvent::NoteOff { .. }
-            | QueuedAudioEvent::Cc { .. }
-            | QueuedAudioEvent::PreviewSample { .. }
-            | QueuedAudioEvent::SetDspConfig { .. }
-            | QueuedAudioEvent::MomentaryFxStart { .. }
-            | QueuedAudioEvent::MomentaryFxUpdate { .. }
-            | QueuedAudioEvent::MomentaryFxStop { .. }
-    )
 }
 
 #[cfg(test)]
 #[path = "audio_prep_service_tests.rs"]
 mod extra_tests;
+#[cfg(test)]
+#[path = "audio_prep_preview_tests.rs"]
+mod preview_tests;

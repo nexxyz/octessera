@@ -1,9 +1,9 @@
 use crate::audio::AudioService;
 use playback_runtime::RuntimeErrorCode;
 use realtime_engine::synth::{
-    normalize_audio_config, normalize_instrument_slot_config, InstrumentSlotConfig,
-    NormalizedAudioConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig, INSTRUMENT_SLOT_COUNT,
-    SAMPLE_SLOTS_PER_INSTRUMENT,
+    normalize_audio_config, normalize_instrument_slot_config, NormalizedAudioConfig,
+    NormalizedInstrumentSlot, SampleBankConfig, SampleBuffer, SampleSlotConfig,
+    INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT,
 };
 use rodio_engine_source::{decode_sample_file, EngineEvent};
 use std::path::{Component, Path, PathBuf};
@@ -40,10 +40,10 @@ pub(crate) fn parse_audio_config(
     normalize_audio_config(config)
 }
 
-pub(crate) fn parse_instrument_slot_config(
+pub(crate) fn parse_normalized_instrument_slot_config(
     config: &serde_json::Value,
-) -> Result<InstrumentSlotConfig, String> {
-    Ok(normalize_instrument_slot_config(config)?.slot)
+) -> Result<NormalizedInstrumentSlot, String> {
+    normalize_instrument_slot_config(config)
 }
 
 pub(crate) fn sample_banks(
@@ -55,29 +55,38 @@ pub(crate) fn sample_banks(
         .instruments
         .iter()
         .take(INSTRUMENT_SLOT_COUNT)
-        .map(|instrument| -> Result<SampleBankConfig, SampleLoadError> {
-            let Some(sample) = instrument.active_sample() else {
-                return Ok(SampleBankConfig::default());
-            };
-            let mut slots = vec![SampleSlotConfig::default(); SAMPLE_SLOTS_PER_INSTRUMENT];
-            for (index, path) in sample.slots.iter().enumerate() {
-                let Some(path) = path.as_deref() else {
-                    continue;
-                };
-                let resolved = resolve_sample_path(samples_dir, path)
-                    .ok_or_else(|| SampleLoadError::Unresolved(path.into()))?;
-                slots[index].buffer = Some(cached_sample_buffer(audio, &resolved, path)?);
-            }
-            Ok(SampleBankConfig {
-                slots,
-                tune_semis: sample.tune_semis,
-                gain_pct: sample.gain_pct,
-                velocity_sensitivity_pct: sample.velocity_sensitivity_pct,
-                filter_cutoff_hz: sample.filter_cutoff_hz,
-                filter_resonance: sample.filter_resonance,
-            })
+        .map(|instrument| {
+            sample_bank_for_instrument(instrument, samples_dir, audio)
+                .map(|bank| bank.unwrap_or_default())
         })
         .collect()
+}
+
+pub(crate) fn sample_bank_for_instrument(
+    instrument: &NormalizedInstrumentSlot,
+    samples_dir: &Path,
+    audio: &AudioService,
+) -> Result<Option<SampleBankConfig>, SampleLoadError> {
+    let Some(sample) = instrument.active_sample() else {
+        return Ok(None);
+    };
+    let mut slots = vec![SampleSlotConfig::default(); SAMPLE_SLOTS_PER_INSTRUMENT];
+    for (index, path) in sample.slots.iter().enumerate() {
+        let Some(path) = path.as_deref() else {
+            continue;
+        };
+        let resolved = resolve_sample_path(samples_dir, path)
+            .ok_or_else(|| SampleLoadError::Unresolved(path.into()))?;
+        slots[index].buffer = Some(cached_sample_buffer(audio, &resolved, path)?);
+    }
+    Ok(Some(SampleBankConfig {
+        slots,
+        tune_semis: sample.tune_semis,
+        gain_pct: sample.gain_pct,
+        velocity_sensitivity_pct: sample.velocity_sensitivity_pct,
+        filter_cutoff_hz: sample.filter_cutoff_hz,
+        filter_resonance: sample.filter_resonance,
+    }))
 }
 
 pub(crate) fn sample_signature(config: &NormalizedAudioConfig) -> String {
@@ -90,12 +99,14 @@ pub(crate) fn prepare_sample_preview(
     path: &str,
     velocity: u8,
     samples_dir: &Path,
+    generation: u64,
 ) -> Result<EngineEvent, SampleLoadError> {
     let resolved = resolve_sample_path(samples_dir, path)
         .ok_or_else(|| SampleLoadError::Unresolved(path.into()))?;
     let buffer = cached_sample_buffer(audio, &resolved, path)?;
     Ok(EngineEvent::PreviewSample {
         instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
+        generation,
         buffer,
         velocity,
     })

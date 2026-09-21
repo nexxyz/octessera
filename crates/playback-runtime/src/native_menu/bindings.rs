@@ -1,5 +1,5 @@
 use super::binding_picker::{axis_binding_label, parameter_picker_group};
-use super::{bool_item, enum_item, selected_index, NativeMenuConfig, NativeMenuItem};
+use super::{bool_item, enum_item, number_item, selected_index, NativeMenuConfig, NativeMenuItem};
 
 pub(super) fn xy_pad_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     vec![
@@ -14,6 +14,14 @@ pub(super) fn xy_pad_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
             "xy:y".into(),
             config.xy_y_binding.as_ref(),
             config,
+        ),
+        number_item(
+            "Smoothing",
+            "sparks.xy.smoothingMs",
+            i32::from(config.xy_smoothing_ms),
+            0,
+            500,
+            10,
         ),
         bool_item("Invert X", "sparks.xy.invertX", config.xy_invert_x),
         bool_item("Invert Y", "sparks.xy.invertY", config.xy_invert_y),

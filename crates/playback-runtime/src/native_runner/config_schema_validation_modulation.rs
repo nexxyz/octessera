@@ -41,6 +41,7 @@ pub(super) fn validate_global_modulation(runtime: &Map<String, Value>) -> Result
         .ok_or_else(|| "runtimeConfig.xy must be present".to_string())?;
     validate_binding_field(xy, "x", "runtimeConfig.xy")?;
     validate_binding_field(xy, "y", "runtimeConfig.xy")?;
+    validate_smoothing_ms(xy, "runtimeConfig.xy")?;
     bool_field(xy, "xInvert", "runtimeConfig.xy")?;
     bool_field(xy, "yInvert", "runtimeConfig.xy")?;
     super::super::modulation_migration::validate_canonical_modulation(runtime)
@@ -69,6 +70,21 @@ fn validate_param_mods(mods: &Map<String, Value>, path: &str) -> Result<(), Stri
                 validate_binding_value(value, &format!("{path}.{axis}[{index}]"))?;
             }
         }
+    }
+    Ok(())
+}
+
+fn validate_smoothing_ms(xy: &Map<String, Value>, path: &str) -> Result<(), String> {
+    let Some(value) = xy.get("smoothingMs") else {
+        return Ok(());
+    };
+    let value = value
+        .as_u64()
+        .ok_or_else(|| format!("{path}.smoothingMs must be an unsigned integer"))?;
+    if value != 0 && (!(10..=500).contains(&value) || !value.is_multiple_of(10)) {
+        return Err(format!(
+            "{path}.smoothingMs must be 0 or a multiple of 10 from 10 to 500"
+        ));
     }
     Ok(())
 }

@@ -18,6 +18,68 @@ fn persistent_probe_marks_fence_two_refills() {
     assert_two_probe_marks_fence(tx, source, Some(shutdown));
 }
 
+#[test]
+fn off_thread_probe_report_arrives_after_prior_musical_event() {
+    let (tx, rx) = event_queue();
+    let mut source = EngineSource::with_block_frames(rx, 44_100, BLOCK_FRAMES);
+    let (report_tx, report_rx) = mpsc::sync_channel(1);
+    let producer = std::thread::spawn(move || {
+        tx.send(EngineEvent::NoteOn {
+            instrument_slot: 0,
+            note: 60,
+            velocity: 100,
+            duration_ms: 1_000,
+        })
+        .unwrap();
+        tx.send(probe(report_tx)).unwrap();
+    });
+    producer.join().unwrap();
+    source.next();
+    assert!(report_rx.recv_timeout(Duration::from_secs(1)).is_ok());
+}
+
+#[test]
+fn probe_waits_for_retirement_capacity_before_dequeue() {
+    let (tx, rx) = event_queue();
+    let (mut source, retired_rx) = EngineSource::with_test_retirement_receiver(rx, 44_100);
+    for _ in 0..RETIREMENT_QUEUE_CAPACITY {
+        source
+            .retired_tx
+            .try_send(RetiredAudioItem {
+                state: None,
+                event: None,
+                #[cfg(test)]
+                drop_probe: None,
+            })
+            .unwrap();
+    }
+    for _ in 0..RETIREMENT_BACKLOG_CAPACITY {
+        source
+            .retired_backlog
+            .as_mut()
+            .expect("retired backlog")
+            .enqueue(RetiredAudioItem {
+                state: None,
+                event: None,
+                #[cfg(test)]
+                drop_probe: None,
+            });
+    }
+    let (report_tx, report_rx) = mpsc::sync_channel(1);
+    tx.send(probe(report_tx)).unwrap();
+
+    source.next();
+    assert!(report_rx.try_recv().is_err());
+    assert!(source.control_rx.has_pending_structural());
+
+    while retired_rx.try_recv().is_ok() {}
+    for _ in 1..(BLOCK_FRAMES * 2) {
+        source.next();
+    }
+    source.next();
+    assert!(report_rx.recv_timeout(Duration::from_secs(1)).is_ok());
+}
+
 #[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_tree_probe_marks_fence_two_refills() {

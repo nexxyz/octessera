@@ -232,4 +232,7 @@ fn apply_global_xy_binding_payload(runner: &mut NativeRunner, runtime: &Value) {
     if let Some(invert) = xy.get("yInvert").and_then(Value::as_bool) {
         runner.xy_invert_y = invert;
     }
+    if let Some(smoothing_ms) = xy.get("smoothingMs").and_then(Value::as_u64) {
+        runner.xy_smoothing_ms = super::normalize_xy_smoothing_ms(smoothing_ms);
+    }
 }

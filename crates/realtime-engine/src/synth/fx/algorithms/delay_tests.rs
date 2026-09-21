@@ -1,14 +1,14 @@
 use super::*;
 
 #[test]
-fn delay_matches_reference_and_only_grows_buffer() {
+fn prepared_delay_matches_reference_without_callback_growth() {
     let mut actual = FxBusState::Delay {
-        buf: vec![0.0; 2],
+        buf: vec![0.0; DelayCache::new(11.75, 44_100).min_len],
         idx: 0,
         cache: DelayCache::new(3.25, 44_100),
     };
     let mut expected = FxBusState::Delay {
-        buf: vec![0.0; 2],
+        buf: vec![0.0; DelayCache::new(11.75, 44_100).min_len],
         idx: 0,
         cache: DelayCache::new(3.25, 44_100),
     };
@@ -35,9 +35,16 @@ fn delay_matches_reference_and_only_grows_buffer() {
 }
 
 #[test]
-fn mod_delay_matches_reference_phase_and_only_grows_buffer() {
+fn prepared_mod_delay_matches_reference_without_callback_growth() {
+    let maximum = ModDelayParams {
+        rate_hz: 0.7,
+        depth_ms: 12.0,
+        base_ms: 18.0,
+        feedback: 0.2,
+        mix: 0.45,
+    };
     let mut actual = FxBusState::ModDelay {
-        buf: vec![0.0; 2],
+        buf: vec![0.0; ModDelayCache::new(&maximum, 44_100).min_len],
         idx: 0,
         phase: 0.0,
         cache: ModDelayCache::new(
@@ -52,7 +59,7 @@ fn mod_delay_matches_reference_phase_and_only_grows_buffer() {
         ),
     };
     let mut expected = FxBusState::ModDelay {
-        buf: vec![0.0; 2],
+        buf: vec![0.0; ModDelayCache::new(&maximum, 44_100).min_len],
         idx: 0,
         phase: 0.0,
         cache: ModDelayCache::new(
@@ -96,13 +103,21 @@ fn mod_delay_matches_reference_phase_and_only_grows_buffer() {
 
 #[test]
 fn delay_caches_refresh_across_param_and_sample_rate_changes() {
+    let maximum_delay = DelayCache::new(8.0, 48_000);
     let mut delay = FxBusState::Delay {
-        buf: vec![0.0; 2],
+        buf: vec![0.0; maximum_delay.min_len],
         idx: 0,
         cache: DelayCache::new(2.0, 44_100),
     };
+    let maximum_mod_delay = ModDelayParams {
+        rate_hz: 0.9,
+        depth_ms: 12.0,
+        base_ms: 18.0,
+        feedback: 0.1,
+        mix: 0.5,
+    };
     let mut mod_delay = FxBusState::ModDelay {
-        buf: vec![0.0; 2],
+        buf: vec![0.0; ModDelayCache::new(&maximum_mod_delay, 48_000).min_len],
         idx: 0,
         phase: 0.0,
         cache: ModDelayCache::new(
@@ -116,25 +131,60 @@ fn delay_caches_refresh_across_param_and_sample_rate_changes() {
             44_100,
         ),
     };
-    for frame in 0..128 {
-        let sample_rate = if frame < 64 { 44_100 } else { 48_000 };
-        let _ = process_delay(
-            &mut delay,
-            0.1,
-            2.0 + frame as f32 * 0.01,
-            0.2,
-            0.5,
-            sample_rate,
-        );
-        let params = ModDelayParams {
-            rate_hz: if frame < 64 { 0.3 } else { 0.9 },
-            depth_ms: 2.0 + frame as f32 * 0.01,
-            base_ms: 4.0,
-            feedback: 0.1,
-            mix: 0.5,
-        };
-        let _ = process_mod_delay(&mut mod_delay, 0.1, params, sample_rate);
-    }
+    let first_mod_params = ModDelayParams {
+        rate_hz: 0.3,
+        depth_ms: 2.0,
+        base_ms: 4.0,
+        feedback: 0.1,
+        mix: 0.5,
+    };
+    let ((delay_outputs, mod_delay_outputs), allocations, deallocations) =
+        crate::synth::test_allocator::count_allocations_and_deallocations(|| {
+            let first_delay = process_delay(&mut delay, 0.8, 2.0, 0.2, 0.5, 44_100);
+            assert_delay_cache(&delay, 2.0, 44_100);
+            let refreshed_delay = process_delay(&mut delay, 0.0, 8.0, 0.2, 0.5, 48_000);
+            assert_delay_cache(&delay, 8.0, 48_000);
+
+            let first_mod_delay = process_mod_delay(&mut mod_delay, 0.6, first_mod_params, 44_100);
+            assert_mod_delay_cache(&mod_delay, &first_mod_params, 44_100);
+            let refreshed_mod_delay =
+                process_mod_delay(&mut mod_delay, 0.2, maximum_mod_delay, 48_000);
+            assert_mod_delay_cache(&mod_delay, &maximum_mod_delay, 48_000);
+            (
+                (first_delay, refreshed_delay),
+                (first_mod_delay, refreshed_mod_delay),
+            )
+        });
+    assert_eq!((allocations, deallocations), (0, 0));
+    assert!(delay_outputs.0 > delay_outputs.1);
+    assert!(mod_delay_outputs.0 > mod_delay_outputs.1);
+}
+
+fn assert_delay_cache(state: &FxBusState, time_ms: f32, sample_rate: u32) {
+    let FxBusState::Delay { cache, .. } = state else {
+        panic!("delay state mismatch")
+    };
+    let expected = DelayCache::new(time_ms, sample_rate);
+    assert_eq!(cache.time_ms.to_bits(), expected.time_ms.to_bits());
+    assert_eq!(cache.sample_rate, expected.sample_rate);
+    assert_eq!(
+        cache.delay_samples.to_bits(),
+        expected.delay_samples.to_bits()
+    );
+    assert_eq!(cache.min_len, expected.min_len);
+}
+
+fn assert_mod_delay_cache(state: &FxBusState, params: &ModDelayParams, sample_rate: u32) {
+    let FxBusState::ModDelay { cache, .. } = state else {
+        panic!("mod-delay state mismatch")
+    };
+    let expected = ModDelayCache::new(params, sample_rate);
+    assert_eq!(cache.rate_hz.to_bits(), expected.rate_hz.to_bits());
+    assert_eq!(cache.base_ms.to_bits(), expected.base_ms.to_bits());
+    assert_eq!(cache.depth_ms.to_bits(), expected.depth_ms.to_bits());
+    assert_eq!(cache.sample_rate, expected.sample_rate);
+    assert_eq!(cache.min_len, expected.min_len);
+    assert_eq!(cache.phase_inc.to_bits(), expected.phase_inc.to_bits());
 }
 
 fn reference_process_delay(

@@ -273,12 +273,22 @@ mod tests {
             Ok(EngineEvent::NoteOn { note: 60, .. })
         ));
 
-        host.handle_audio_command(&RuntimeAudioCommand::SetMasterVolume { volume_pct: 80.0 })
-            .unwrap();
+        host.handle_audio_command(&RuntimeAudioCommand::SetFxBusSlot {
+            bus_index: 0,
+            slot_index: 0,
+            generation: 0,
+            fx_type: "delay".into(),
+            params: Default::default(),
+        })
+        .unwrap();
         assert!(matches!(
             command_rx.recv().unwrap(),
-            AudioControlRequest::Dynamic(event)
-                if matches!(*event, EngineEvent::SetMasterVolume { volume_pct } if volume_pct == 80.0)
+            AudioControlRequest::FxBusSlot {
+                bus_index: 0,
+                slot_index: 0,
+                generation: 0,
+                ..
+            }
         ));
 
         host.silence_internal_audio().unwrap();

@@ -76,6 +76,7 @@ pub(crate) fn global_lfos_sum_shared_instrument_mixer_target_once() {
                 instrument_slot: 0,
                 volume_pct,
                 pan_pos,
+                ..
             } => Some((*volume_pct, *pan_pos)),
             _ => None,
         })
@@ -338,6 +339,7 @@ pub(crate) fn active_pulses_modulation_refreshes_mapping_before_next_event() {
 #[test]
 pub(crate) fn lfo_pause_holds_stop_restores_and_base_edit_recomposes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.instruments[0].volume = 50;
     runner.link_lfos[0].enabled = true;
     runner.link_lfos[0].phase_pulses = 24;

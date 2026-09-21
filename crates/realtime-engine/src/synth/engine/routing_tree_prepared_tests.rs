@@ -1,6 +1,6 @@
 use super::prepared_control_tests::{install_prepared_config, prepared_engine};
 use super::*;
-use crate::synth::{FxBusConfig, BUS_COUNT};
+use crate::synth::{FxBusConfig, SampleBankConfig, BUS_COUNT};
 use std::collections::BTreeMap;
 
 #[test]
@@ -41,4 +41,32 @@ fn oversized_routing_tree_prepared_bus_config_is_rejected_before_mutation() {
     assert!(engine.take_routing_tree_rejection());
     assert_eq!(engine.bus_chains.len(), 1);
     assert_eq!(retired.bus_chains.len(), BUS_COUNT + 1);
+}
+
+#[test]
+fn instrument_owner_requires_source_clock_and_retires_both_on_rejection() {
+    let mut engine = prepared_engine(super::prepared_control_tests::test_config());
+    assert!(engine.enable_routing_tree());
+    let rejected = engine.apply_prepared_instrument_owner(
+        0,
+        prepare_instrument_slot_config(super::prepared_control_tests::test_slot("sampler", false)),
+        Some(SampleBankConfig::default()),
+    );
+    assert!(engine.take_routing_tree_rejection());
+    assert!(rejected.prepared_instrument_slot.is_some());
+    assert!(rejected.sample_bank.is_some());
+
+    let accepted = engine.with_routing_tree_source_event_sample_clock(42, |engine| {
+        engine.apply_prepared_instrument_owner(
+            0,
+            prepare_instrument_slot_config(super::prepared_control_tests::test_slot(
+                "sampler", false,
+            )),
+            Some(SampleBankConfig::default()),
+        )
+    });
+    assert!(!engine.take_routing_tree_rejection());
+    assert!(accepted.prepared_instrument_slot.is_none());
+    assert!(accepted.sample_bank.is_some());
+    assert_eq!(engine.slot_kind[0], InstrumentKind::Sample);
 }

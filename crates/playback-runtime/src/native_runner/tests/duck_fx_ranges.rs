@@ -97,6 +97,7 @@ pub(crate) fn legacy_duck_source_tap_omission_loads_as_pre() {
 #[test]
 pub(crate) fn duck_source_tap_fast_edit_persists_and_queues_audio_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.fx_buses[0].slot1_type = "duck".into();
     runner.fx_buses[0].slot1_params = fx_default_params("duck");
     runner.menu.rebuild(runner.menu_config());
@@ -128,7 +129,7 @@ pub(crate) fn duck_source_tap_fast_edit_persists_and_queues_audio_command() {
                     bus_index: 0,
                     slot_index: 0,
                     fx_type,
-                    params
+                    params, ..
                 } if fx_type == "duck" && params.get("sourceTap") == Some(&json!("post"))
             ))
     )));

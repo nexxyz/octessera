@@ -85,8 +85,10 @@ impl CapturedOutput {
             | RuntimeAudioCommand::SetMasterVolume { .. }
             | RuntimeAudioCommand::SetInstrumentMixer { .. }
             | RuntimeAudioCommand::SetFxBusMixer { .. }
+            | RuntimeAudioCommand::SetFxBusParam { .. }
             | RuntimeAudioCommand::SetFxBusSlot { .. }
             | RuntimeAudioCommand::SetGlobalFxSlot { .. }
+            | RuntimeAudioCommand::SetGlobalFxParam { .. }
             | RuntimeAudioCommand::MomentaryFxUpdate { .. }
             | RuntimeAudioCommand::SamplePreview { .. } => {}
         }

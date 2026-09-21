@@ -1,69 +1,449 @@
+use super::instrument_payload_owns_sample_bank;
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
+use std::collections::BTreeMap;
+
+#[path = "outbox_coalescing.rs"]
+mod coalescing;
+#[cfg(test)]
+#[path = "outbox_generation_tests.rs"]
+mod generation_tests;
+#[cfg(test)]
+#[path = "outbox_momentary_tests.rs"]
+mod momentary_tests;
+#[cfg(test)]
+#[path = "outbox_sample_generation_tests.rs"]
+mod sample_generation_tests;
+#[cfg(test)]
+#[path = "outbox_tests.rs"]
+mod tests;
 
 #[derive(Clone, Default)]
 pub(super) struct NativeRunnerOutbox {
     platform_effects: Vec<RuntimePlatformEffect>,
     audio_commands: Vec<RuntimeAudioCommand>,
+    full_audio_generation: u64,
+    instrument_generations: BTreeMap<usize, u64>,
+    fx_bus_generations: BTreeMap<(usize, usize), u64>,
+    global_fx_generations: BTreeMap<usize, u64>,
+    sample_generations: BTreeMap<usize, u64>,
+    momentary_epoch: u64,
+    momentary_epoch_wrapped: bool,
+    active_momentary_epochs: BTreeMap<String, u64>,
 }
 
 impl NativeRunnerOutbox {
     pub(super) fn push_platform_effect(&mut self, effect: RuntimePlatformEffect) {
-        self.platform_effects.push(effect);
+        let RuntimePlatformEffect::AudioCommand { command } = effect else {
+            self.platform_effects.push(effect);
+            return;
+        };
+        let command = self.stamp_audio_command(command);
+        if matches!(command, RuntimeAudioCommand::SamplePreview { .. }) {
+            self.audio_commands
+                .retain(|queued| !matches!(queued, RuntimeAudioCommand::SamplePreview { .. }));
+            self.platform_effects.retain(|queued| {
+                !matches!(
+                    queued,
+                    RuntimePlatformEffect::AudioCommand {
+                        command: RuntimeAudioCommand::SamplePreview { .. }
+                    }
+                )
+            });
+        }
+        coalescing::push_platform_audio_command(
+            &mut self.platform_effects,
+            command,
+            &self.active_momentary_epochs,
+        );
+    }
+
+    pub(super) fn stamp_platform_effect(
+        &mut self,
+        effect: RuntimePlatformEffect,
+    ) -> RuntimePlatformEffect {
+        match effect {
+            RuntimePlatformEffect::AudioCommand { command } => {
+                RuntimePlatformEffect::AudioCommand {
+                    command: self.stamp_audio_command(command),
+                }
+            }
+            effect => effect,
+        }
     }
 
     pub(super) fn push_audio_command(&mut self, command: RuntimeAudioCommand) {
-        if matches!(command, RuntimeAudioCommand::SetAudioConfig { .. }) {
+        let command = self.stamp_audio_command(command);
+        if matches!(command, RuntimeAudioCommand::SamplePreview { .. }) {
             self.audio_commands
-                .retain(|queued| !matches!(queued, RuntimeAudioCommand::SetAudioConfig { .. }));
-            self.audio_commands.insert(0, command);
-            return;
+                .retain(|queued| !matches!(queued, RuntimeAudioCommand::SamplePreview { .. }));
+            self.platform_effects.retain(|queued| {
+                !matches!(
+                    queued,
+                    RuntimePlatformEffect::AudioCommand {
+                        command: RuntimeAudioCommand::SamplePreview { .. }
+                    }
+                )
+            });
         }
-        if let Some(command) = merge_fx_bus_mixer_command(&mut self.audio_commands, command) {
-            self.audio_commands.push(command);
-        }
+        coalescing::push_audio_command(
+            &mut self.audio_commands,
+            command,
+            &self.active_momentary_epochs,
+        );
     }
-}
 
-fn merge_fx_bus_mixer_command(
-    commands: &mut Vec<RuntimeAudioCommand>,
-    command: RuntimeAudioCommand,
-) -> Option<RuntimeAudioCommand> {
-    let RuntimeAudioCommand::SetFxBusMixer {
-        bus_index,
-        pan_pos,
-        volume_pct,
-    } = command
-    else {
-        commands.retain(|queued| !same_dynamic_audio_target(queued, &command));
-        return Some(command);
-    };
-    if let Some(RuntimeAudioCommand::SetFxBusMixer {
-        pan_pos: queued_pan,
-        volume_pct: queued_volume,
-        ..
-    }) = commands.iter_mut().find(|queued| {
-        matches!(
-            queued,
+    fn stamp_audio_command(&mut self, command: RuntimeAudioCommand) -> RuntimeAudioCommand {
+        match command {
+            RuntimeAudioCommand::SetAudioConfig {
+                revision,
+                request_id,
+                generation,
+                config,
+            } => {
+                let requested_generation = if generation == 0 {
+                    revision
+                } else {
+                    generation
+                };
+                let generation = self.full_audio_generation.max(requested_generation);
+                self.full_audio_generation = generation;
+                self.instrument_generations.clear();
+                self.sample_generations.clear();
+                self.fx_bus_generations.clear();
+                self.global_fx_generations.clear();
+                RuntimeAudioCommand::SetAudioConfig {
+                    revision,
+                    request_id,
+                    generation,
+                    config,
+                }
+            }
+            RuntimeAudioCommand::SetDspConfig { generation, config } => {
+                RuntimeAudioCommand::SetDspConfig {
+                    generation: self.scalar_generation(generation),
+                    config,
+                }
+            }
+            RuntimeAudioCommand::SetMasterVolume {
+                generation,
+                volume_pct,
+            } => RuntimeAudioCommand::SetMasterVolume {
+                generation: self.scalar_generation(generation),
+                volume_pct,
+            },
+            RuntimeAudioCommand::SetInstrumentMixer {
+                instrument_slot,
+                generation,
+                volume_pct,
+                pan_pos,
+            } => RuntimeAudioCommand::SetInstrumentMixer {
+                instrument_slot,
+                generation: self.instrument_generation(instrument_slot, generation),
+                volume_pct,
+                pan_pos,
+            },
+            RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot,
+                generation,
+                config,
+            } => {
+                let owns_sample_bank = instrument_payload_owns_sample_bank(&config);
+                let generation = self.replace_instrument_generation(
+                    instrument_slot,
+                    generation,
+                    owns_sample_bank,
+                );
+                if owns_sample_bank {
+                    self.sample_generations.insert(instrument_slot, generation);
+                }
+                RuntimeAudioCommand::SetInstrumentSlot {
+                    instrument_slot,
+                    generation,
+                    config,
+                }
+            }
             RuntimeAudioCommand::SetFxBusMixer {
-                bus_index: queued_bus,
-                ..
-            } if *queued_bus == bus_index
-        )
-    }) {
-        if pan_pos.is_some() {
-            *queued_pan = pan_pos;
+                bus_index,
+                generation,
+                pan_pos,
+                volume_pct,
+            } => RuntimeAudioCommand::SetFxBusMixer {
+                bus_index,
+                generation: self.bus_generation(bus_index, usize::MAX, generation),
+                pan_pos,
+                volume_pct,
+            },
+            RuntimeAudioCommand::SetSynthParam {
+                instrument_slot,
+                generation,
+                path,
+                value,
+            } => RuntimeAudioCommand::SetSynthParam {
+                instrument_slot,
+                generation: self.instrument_generation(instrument_slot, generation),
+                path,
+                value,
+            },
+            RuntimeAudioCommand::SetSampleBankParam {
+                instrument_slot,
+                generation,
+                path,
+                value,
+            } => RuntimeAudioCommand::SetSampleBankParam {
+                instrument_slot,
+                generation: self.sample_generation(instrument_slot, generation),
+                path,
+                value,
+            },
+            RuntimeAudioCommand::SetFxBusParam {
+                bus_index,
+                slot_index,
+                generation,
+                param,
+                value,
+            } => RuntimeAudioCommand::SetFxBusParam {
+                bus_index,
+                slot_index,
+                generation: self.bus_generation(bus_index, slot_index, generation),
+                param,
+                value,
+            },
+            RuntimeAudioCommand::SetFxBusSlot {
+                bus_index,
+                slot_index,
+                generation,
+                fx_type,
+                params,
+            } => RuntimeAudioCommand::SetFxBusSlot {
+                bus_index,
+                slot_index,
+                generation: self.replace_bus_generation(bus_index, slot_index, generation),
+                fx_type,
+                params,
+            },
+            RuntimeAudioCommand::SetGlobalFxSlot {
+                slot_index,
+                generation,
+                fx_type,
+                params,
+            } => RuntimeAudioCommand::SetGlobalFxSlot {
+                slot_index,
+                generation: self.replace_global_generation(slot_index, generation),
+                fx_type,
+                params,
+            },
+            RuntimeAudioCommand::SetGlobalFxParam {
+                slot_index,
+                generation,
+                param,
+                value,
+            } => RuntimeAudioCommand::SetGlobalFxParam {
+                slot_index,
+                generation: self.global_generation(slot_index, generation),
+                param,
+                value,
+            },
+            RuntimeAudioCommand::MomentaryFxStart {
+                id,
+                epoch,
+                fx_type,
+                params,
+                target,
+            } => {
+                let epoch = self.resolve_momentary_start_epoch(epoch);
+                self.active_momentary_epochs.insert(id.clone(), epoch);
+                RuntimeAudioCommand::MomentaryFxStart {
+                    id,
+                    epoch,
+                    fx_type,
+                    params,
+                    target,
+                }
+            }
+            RuntimeAudioCommand::MomentaryFxUpdate { id, epoch, params } => {
+                let epoch = if epoch == 0 {
+                    self.active_momentary_epochs
+                        .get(&id)
+                        .copied()
+                        .unwrap_or_default()
+                } else {
+                    epoch
+                };
+                RuntimeAudioCommand::MomentaryFxUpdate { id, epoch, params }
+            }
+            RuntimeAudioCommand::MomentaryFxStop { id, epoch } => {
+                let epoch = if epoch == 0 {
+                    self.active_momentary_epochs
+                        .get(&id)
+                        .copied()
+                        .unwrap_or_default()
+                } else {
+                    epoch
+                };
+                if self.active_momentary_epochs.get(&id) == Some(&epoch) {
+                    self.active_momentary_epochs.remove(&id);
+                }
+                RuntimeAudioCommand::MomentaryFxStop { id, epoch }
+            }
+            command => command,
         }
-        if volume_pct.is_some() {
-            *queued_volume = volume_pct;
-        }
-        return None;
     }
 
-    Some(RuntimeAudioCommand::SetFxBusMixer {
-        bus_index,
-        pan_pos,
-        volume_pct,
-    })
+    fn scalar_generation(&mut self, generation: u64) -> u64 {
+        self.full_audio_generation = self.full_audio_generation.max(generation);
+        self.full_audio_generation
+    }
+
+    fn instrument_generation(&mut self, slot: usize, generation: u64) -> u64 {
+        let current = self
+            .instrument_generations
+            .get(&slot)
+            .copied()
+            .unwrap_or(self.full_audio_generation);
+        let generation = current.max(generation);
+        if generation != current {
+            self.instrument_generations.insert(slot, generation);
+        }
+        generation
+    }
+
+    fn replace_instrument_generation(
+        &mut self,
+        slot: usize,
+        generation: u64,
+        owns_sample_bank: bool,
+    ) -> u64 {
+        let current = self
+            .instrument_generations
+            .get(&slot)
+            .copied()
+            .unwrap_or(self.full_audio_generation);
+        let mut next = if generation == 0 {
+            current.saturating_add(1)
+        } else {
+            generation.max(current.saturating_add(1))
+        };
+        if owns_sample_bank {
+            let sample_current = self
+                .sample_generations
+                .get(&slot)
+                .copied()
+                .unwrap_or(self.full_audio_generation);
+            next = next.max(sample_current.saturating_add(1));
+        }
+        self.instrument_generations.insert(slot, next);
+        next
+    }
+
+    fn sample_generation(&mut self, slot: usize, generation: u64) -> u64 {
+        let current = self
+            .sample_generations
+            .get(&slot)
+            .copied()
+            .unwrap_or(self.full_audio_generation);
+        let generation = current.max(generation);
+        if generation != current {
+            self.sample_generations.insert(slot, generation);
+        }
+        generation
+    }
+
+    fn bus_generation(&mut self, bus: usize, slot: usize, generation: u64) -> u64 {
+        let current = self
+            .fx_bus_generations
+            .get(&(bus, slot))
+            .copied()
+            .unwrap_or(self.full_audio_generation);
+        let generation = current.max(generation);
+        if generation != current {
+            self.fx_bus_generations.insert((bus, slot), generation);
+        }
+        generation
+    }
+
+    fn replace_bus_generation(&mut self, bus: usize, slot: usize, generation: u64) -> u64 {
+        let current = self
+            .fx_bus_generations
+            .get(&(bus, slot))
+            .copied()
+            .unwrap_or(self.full_audio_generation);
+        let next = if generation == 0 {
+            current.saturating_add(1)
+        } else {
+            generation.max(current.saturating_add(1))
+        };
+        self.fx_bus_generations.insert((bus, slot), next);
+        next
+    }
+
+    fn replace_global_generation(&mut self, slot: usize, generation: u64) -> u64 {
+        let current = self
+            .global_fx_generations
+            .get(&slot)
+            .copied()
+            .unwrap_or(self.full_audio_generation);
+        let next = if generation == 0 {
+            current.saturating_add(1)
+        } else {
+            generation.max(current.saturating_add(1))
+        };
+        self.global_fx_generations.insert(slot, next);
+        next
+    }
+
+    fn global_generation(&mut self, slot: usize, generation: u64) -> u64 {
+        let current = self
+            .global_fx_generations
+            .get(&slot)
+            .copied()
+            .unwrap_or(self.full_audio_generation);
+        let generation = current.max(generation);
+        if generation != current {
+            self.global_fx_generations.insert(slot, generation);
+        }
+        generation
+    }
+
+    fn resolve_momentary_start_epoch(&mut self, requested: u64) -> u64 {
+        if !self.momentary_epoch_wrapped
+            && requested != 0
+            && requested != u64::MAX
+            && requested > self.momentary_epoch
+            && !self
+                .active_momentary_epochs
+                .values()
+                .any(|&epoch| epoch == requested)
+        {
+            self.momentary_epoch = requested;
+            requested
+        } else {
+            self.allocate_momentary_epoch()
+        }
+    }
+
+    fn allocate_momentary_epoch(&mut self) -> u64 {
+        let mut candidate = self.momentary_epoch.wrapping_add(1);
+        if candidate == 0 || candidate == u64::MAX {
+            candidate = 1;
+            self.momentary_epoch_wrapped = true;
+        }
+        for _ in 0..=self.active_momentary_epochs.len() {
+            if !self
+                .active_momentary_epochs
+                .values()
+                .any(|&epoch| epoch == candidate)
+            {
+                self.momentary_epoch = candidate;
+                return candidate;
+            }
+            candidate = candidate.wrapping_add(1);
+            if candidate == 0 || candidate == u64::MAX {
+                candidate = 1;
+                self.momentary_epoch_wrapped = true;
+            }
+        }
+        unreachable!("momentary epoch space exhausted by active effects")
+    }
 }
 
 impl NativeRunnerOutbox {
@@ -81,213 +461,5 @@ impl NativeRunnerOutbox {
 
     pub(super) fn has_audio_commands(&self) -> bool {
         !self.audio_commands.is_empty()
-    }
-}
-
-fn same_dynamic_audio_target(left: &RuntimeAudioCommand, right: &RuntimeAudioCommand) -> bool {
-    match (left, right) {
-        (
-            RuntimeAudioCommand::SetAudioConfig { .. },
-            RuntimeAudioCommand::SetAudioConfig { .. },
-        ) => true,
-        (
-            RuntimeAudioCommand::SetMasterVolume { .. },
-            RuntimeAudioCommand::SetMasterVolume { .. },
-        ) => true,
-        (RuntimeAudioCommand::SetDspConfig { .. }, RuntimeAudioCommand::SetDspConfig { .. }) => {
-            true
-        }
-        (
-            RuntimeAudioCommand::SetInstrumentMixer {
-                instrument_slot: left_slot,
-                volume_pct: left_volume,
-                pan_pos: left_pan,
-            },
-            RuntimeAudioCommand::SetInstrumentMixer {
-                instrument_slot: right_slot,
-                volume_pct: right_volume,
-                pan_pos: right_pan,
-            },
-        ) => {
-            left_slot == right_slot
-                && left_volume.is_some() == right_volume.is_some()
-                && left_pan.is_some() == right_pan.is_some()
-        }
-        (
-            RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: left_slot,
-                ..
-            },
-            RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: right_slot,
-                ..
-            },
-        ) => left_slot == right_slot,
-        (
-            RuntimeAudioCommand::SetFxBusMixer {
-                bus_index: left_bus,
-                pan_pos: left_pan,
-                volume_pct: left_volume,
-            },
-            RuntimeAudioCommand::SetFxBusMixer {
-                bus_index: right_bus,
-                pan_pos: right_pan,
-                volume_pct: right_volume,
-            },
-        ) => {
-            left_bus == right_bus
-                && left_pan.is_some() == right_pan.is_some()
-                && left_volume.is_some() == right_volume.is_some()
-        }
-        (
-            RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: left_slot,
-                path: left_path,
-                ..
-            },
-            RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: right_slot,
-                path: right_path,
-                ..
-            },
-        ) => left_slot == right_slot && left_path == right_path,
-        (
-            RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot: left_slot,
-                path: left_path,
-                ..
-            },
-            RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot: right_slot,
-                path: right_path,
-                ..
-            },
-        ) => left_slot == right_slot && left_path == right_path,
-        (
-            RuntimeAudioCommand::SetFxBusSlot {
-                bus_index: left_bus,
-                slot_index: left_slot,
-                ..
-            },
-            RuntimeAudioCommand::SetFxBusSlot {
-                bus_index: right_bus,
-                slot_index: right_slot,
-                ..
-            },
-        ) => left_bus == right_bus && left_slot == right_slot,
-        (
-            RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index: left_slot,
-                ..
-            },
-            RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index: right_slot,
-                ..
-            },
-        ) => left_slot == right_slot,
-        _ => false,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn coalesces_dynamic_audio_commands_for_same_target() {
-        let mut outbox = NativeRunnerOutbox::default();
-        outbox.push_audio_command(RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: 0,
-            path: "filter.cutoff".into(),
-            value: 100.0,
-        });
-        outbox.push_audio_command(RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: 0,
-            path: "filter.cutoff".into(),
-            value: 200.0,
-        });
-
-        assert_eq!(
-            outbox.drain_audio_commands(),
-            vec![RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: 0,
-                path: "filter.cutoff".into(),
-                value: 200.0,
-            }]
-        );
-        assert!(!outbox.has_audio_commands());
-    }
-
-    #[test]
-    fn coalesces_full_audio_config_to_latest_revision() {
-        let mut outbox = NativeRunnerOutbox::default();
-        outbox.push_audio_command(RuntimeAudioCommand::SetAudioConfig {
-            revision: 1,
-            request_id: None,
-            config: serde_json::json!({ "masterVolume": 80 }),
-        });
-        outbox.push_audio_command(RuntimeAudioCommand::SetAudioConfig {
-            revision: 2,
-            request_id: None,
-            config: serde_json::json!({ "masterVolume": 90 }),
-        });
-
-        assert_eq!(
-            outbox.drain_audio_commands(),
-            vec![RuntimeAudioCommand::SetAudioConfig {
-                revision: 2,
-                request_id: None,
-                config: serde_json::json!({ "masterVolume": 90 }),
-            }]
-        );
-    }
-
-    #[test]
-    fn coalesces_fx_bus_mixer_options_without_losing_pending_fields() {
-        let mut outbox = NativeRunnerOutbox::default();
-        outbox.push_audio_command(RuntimeAudioCommand::SetFxBusMixer {
-            bus_index: 0,
-            pan_pos: Some(11),
-            volume_pct: None,
-        });
-        outbox.push_audio_command(RuntimeAudioCommand::SetFxBusMixer {
-            bus_index: 0,
-            pan_pos: None,
-            volume_pct: Some(55.0),
-        });
-
-        assert_eq!(
-            outbox.drain_audio_commands(),
-            vec![RuntimeAudioCommand::SetFxBusMixer {
-                bus_index: 0,
-                pan_pos: Some(11),
-                volume_pct: Some(55.0),
-            }]
-        );
-    }
-
-    #[test]
-    fn preserves_non_coalesced_audio_commands_and_drains_platform_effects() {
-        let mut outbox = NativeRunnerOutbox::default();
-        outbox.push_audio_command(RuntimeAudioCommand::SamplePreview {
-            instrument_slot: 0,
-            sample_slot: 1,
-            path: "kick.wav".into(),
-            velocity: 100,
-        });
-        outbox.push_audio_command(RuntimeAudioCommand::SamplePreview {
-            instrument_slot: 0,
-            sample_slot: 1,
-            path: "snare.wav".into(),
-            velocity: 100,
-        });
-        outbox.push_platform_effect(RuntimePlatformEffect::StoreListPresets);
-
-        assert_eq!(outbox.drain_audio_commands().len(), 2);
-        assert_eq!(
-            outbox.drain_platform_effects(),
-            vec![RuntimePlatformEffect::StoreListPresets]
-        );
-        assert!(!outbox.has_platform_effects());
     }
 }

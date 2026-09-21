@@ -245,6 +245,16 @@ impl OledIngress {
                 dropped_frames: 0,
             };
         }
+        if self.state.has_revision.load(Ordering::Acquire)
+            && frame.revision <= self.state.last_revision.load(Ordering::Acquire)
+        {
+            return OledSubmission {
+                accepted: false,
+                stale: true,
+                material_loss: false,
+                dropped_frames: 0,
+            };
+        }
         let Ok(mut queue) = self.state.queue.try_lock() else {
             self.state.material_loss.fetch_add(1, Ordering::Relaxed);
             return OledSubmission {

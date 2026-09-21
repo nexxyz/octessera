@@ -1,5 +1,5 @@
-mod audio_config_apply;
 mod host_adapter_audio;
+mod host_adapter_musical;
 #[path = "host_adapter_recording.rs"]
 mod host_adapter_recording;
 mod host_adapter_store;
@@ -10,8 +10,7 @@ use crate::desktop_platform_service::{
 };
 use crate::midi;
 use crate::recording::DesktopRecording;
-use crate::sample_decode_cache::SampleDecodeCache;
-use crate::types::{QueuedAudioEvent, QueuedNote};
+use host_adapter_audio::audio_queue_error;
 use midir::MidiInputConnection;
 use playback_runtime::{
     DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
@@ -20,10 +19,11 @@ use playback_runtime::{
     RuntimeSetupPortalStatus, RuntimeStoreResult, RuntimeUserDataTransferPhase,
     RuntimeUserDataTransferStatus,
 };
-use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use rodio_engine_source::{EngineEvent, EngineEventSender, QueueKind, QueueSendError};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::mpsc::{Sender, SyncSender};
+use std::sync::mpsc::SyncSender;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -40,13 +40,13 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     shutdown_requested: bool,
+    momentary_fx_types: HashMap<String, (u64, String)>,
 }
 
 #[derive(Clone)]
 pub(crate) struct DesktopHostAudioState {
-    pub(crate) trigger_tx: Sender<QueuedAudioEvent>,
+    pub(crate) engine_tx: EngineEventSender,
     pub(crate) audio_control: DesktopAudioControl,
-    pub(crate) sample_decode_cache: SampleDecodeCache,
     pub(crate) recording: DesktopRecording,
 }
 
@@ -70,6 +70,7 @@ impl DesktopPlaybackHostAdapter {
             selected_midi_output_id: None,
             selected_midi_input_id: None,
             shutdown_requested: false,
+            momentary_fx_types: HashMap::new(),
         }
     }
 
@@ -125,20 +126,6 @@ impl DesktopPlaybackHostAdapter {
         Ok(())
     }
 
-    fn queued_note(
-        channel: &u8,
-        note: &u8,
-        velocity: &u8,
-        duration_ms: &Option<u32>,
-    ) -> QueuedAudioEvent {
-        QueuedAudioEvent::Note(QueuedNote {
-            instrument_slot: (*channel).clamp(0, (INSTRUMENT_SLOT_COUNT - 1) as u8),
-            note: (*note).min(127),
-            velocity: (*velocity).clamp(1, 127),
-            duration_ms: duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
-        })
-    }
-
     fn enqueue_platform_service_request(
         &self,
         runtime_request: &RuntimePlatformRequest,
@@ -157,32 +144,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
         &mut self,
         event: &RuntimeMusicalEvent,
     ) -> Result<(), RuntimeAdapterError> {
-        let queued = match event {
-            RuntimeMusicalEvent::NoteOn {
-                channel,
-                note,
-                velocity,
-                duration_ms,
-            } => Self::queued_note(channel, note, velocity, duration_ms),
-            RuntimeMusicalEvent::NoteOff { channel, note } => QueuedAudioEvent::NoteOff {
-                instrument_slot: (*channel).clamp(0, (INSTRUMENT_SLOT_COUNT - 1) as u8),
-                note: (*note).min(127),
-            },
-            RuntimeMusicalEvent::Cc {
-                channel,
-                controller,
-                value,
-            } => QueuedAudioEvent::Cc {
-                instrument_slot: (*channel).clamp(0, (INSTRUMENT_SLOT_COUNT - 1) as u8),
-                controller: (*controller).min(127),
-                value: (*value).min(127),
-            },
-        };
-        Ok(self
-            .audio
-            .trigger_tx
-            .send(queued)
-            .map_err(|e| format!("audio queue send failed: {e}"))?)
+        self.handle_runtime_musical_event(event)
     }
 
     fn handle_platform_effect(
@@ -425,10 +387,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.audio
-            .trigger_tx
-            .send(crate::types::QueuedAudioEvent::AllNotesOff)
-            .map_err(|error| RuntimeAdapterError::from(error.to_string()))
+        self.send_engine_event(EngineEvent::AllNotesOff, RuntimeOperation::AudioCommand)
     }
 
     fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
@@ -442,6 +401,37 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             }
         }
         first_error.map_or(Ok(()), Err)
+    }
+}
+
+impl DesktopPlaybackHostAdapter {
+    pub(super) fn send_engine_event(
+        &self,
+        event: EngineEvent,
+        operation: RuntimeOperation,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.handle_engine_send_result(self.audio.engine_tx.send(event), operation)
+    }
+
+    pub(super) fn handle_engine_send_result(
+        &self,
+        result: Result<(), QueueSendError>,
+        operation: RuntimeOperation,
+    ) -> Result<(), RuntimeAdapterError> {
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                if matches!(
+                    error,
+                    QueueSendError::Full {
+                        queue: QueueKind::Musical | QueueKind::Structural
+                    }
+                ) {
+                    let _ = self.audio.engine_tx.send(EngineEvent::AllNotesOff);
+                }
+                Err(audio_queue_error(error, operation))
+            }
+        }
     }
 }
 

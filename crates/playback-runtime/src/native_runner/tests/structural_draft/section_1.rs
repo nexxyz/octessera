@@ -98,6 +98,7 @@ pub(crate) fn fx_type_switch_rematerializes_visible_params_back_and_forth() {
 #[test]
 pub(crate) fn fx_bus_slot2_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.slot2.type"));
     runner.menu.state.editing = true;
 
@@ -132,6 +133,7 @@ pub(crate) fn fx_bus_slot2_type_turn_applies_immediately() {
 #[test]
 pub(crate) fn global_fx_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner.menu.focus_item_key("mixer.master.slots.0.type"));
     runner.menu.state.editing = true;
 
@@ -166,6 +168,7 @@ pub(crate) fn global_fx_type_turn_applies_immediately() {
 #[test]
 pub(crate) fn instrument_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.auto_save_default = true;
     assert!(runner.menu.focus_item_key("instruments.0.type"));
     runner.menu.state.editing = true;
@@ -209,6 +212,7 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
 #[test]
 pub(crate) fn fx_bus_slot3_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.slot3.type"));
     runner.menu.state.editing = true;
 

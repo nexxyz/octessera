@@ -133,6 +133,40 @@ fn audio_is_master_clock_and_frames_hold_until_changed() {
 }
 
 #[test]
+fn duplicate_oled_revision_under_queue_contention_is_stale_without_loss() {
+    let dir = temp_dir("avi-duplicate-contention");
+    let mut service = RecorderService::new(dir.clone());
+    let recording = service.start_oled_with_max_frames(4_410).unwrap();
+    assert!(
+        recording
+            .oled
+            .try_submit(solid_frame(1, 0, 0xf800))
+            .accepted
+    );
+    let queue_guard = recording.oled.state.queue.lock().unwrap();
+    let duplicate = recording.oled.try_submit(solid_frame(1, 4_410, 0x07e0));
+    assert!(duplicate.stale);
+    assert!(!duplicate.material_loss);
+    assert_eq!(duplicate.dropped_frames, 0);
+    assert_eq!(recording.oled.material_loss_count(), 0);
+    drop(queue_guard);
+
+    push_audio(&recording.tap, 4_410);
+    let outcome = service.stop_audio().unwrap().unwrap();
+    assert_eq!(outcome.frames_written, 4_410);
+    assert_eq!(outcome.status, RecordingStatus::Complete);
+    assert_eq!(
+        outcome
+            .path
+            .extension()
+            .and_then(|extension| extension.to_str()),
+        Some("avi")
+    );
+    assert!(!outcome.path.to_string_lossy().contains(".incomplete."));
+    remove_temp_dir(dir);
+}
+
+#[test]
 fn gaps_make_silent_audio_and_incomplete_avi() {
     let dir = temp_dir("avi-gap");
     let mut service = RecorderService::new(dir.clone());

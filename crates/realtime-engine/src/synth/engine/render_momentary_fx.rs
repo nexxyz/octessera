@@ -1,5 +1,105 @@
+use super::super::scalar_param::ScalarMutation;
 use super::retired_state::{store_retired_momentary, PREVIEW_AUDITION_SLOTS};
 use super::*;
+
+pub(super) fn apply_prepared_momentary_fx_update(
+    fx: &mut MomentaryFxState,
+    update: PreparedMomentaryFxUpdate,
+) -> ScalarMutation {
+    match (fx.kind, update) {
+        (
+            MomentaryFxKind::Stutter,
+            PreparedMomentaryFxUpdate::Stutter {
+                depth, segment_len, ..
+            },
+        ) => {
+            let MomentaryFxRuntimeParams::Stutter {
+                depth: current_depth,
+            } = fx.runtime_params
+            else {
+                return ScalarMutation::Rejected;
+            };
+            if current_depth.to_bits() == depth.to_bits() && fx.stutter_segment_len == segment_len {
+                return ScalarMutation::Unchanged;
+            }
+            fx.runtime_params = MomentaryFxRuntimeParams::Stutter { depth };
+            fx.stutter_segment_len = segment_len;
+            fx.stutter_write = 0;
+            fx.stutter_ready = false;
+            fx.stutter_ramp_pos = 0;
+            ScalarMutation::Changed
+        }
+        (
+            MomentaryFxKind::Freeze,
+            PreparedMomentaryFxUpdate::Freeze {
+                mix, release_len, ..
+            },
+        ) => {
+            let MomentaryFxRuntimeParams::Freeze {
+                mix: current_mix,
+                release_len: current_release_len,
+            } = fx.runtime_params
+            else {
+                return ScalarMutation::Rejected;
+            };
+            if current_mix.to_bits() == mix.to_bits() && current_release_len == release_len {
+                return ScalarMutation::Unchanged;
+            }
+            fx.runtime_params = MomentaryFxRuntimeParams::Freeze { mix, release_len };
+            ScalarMutation::Changed
+        }
+        (
+            MomentaryFxKind::FilterSweep,
+            PreparedMomentaryFxUpdate::FilterSweep {
+                target_cutoff,
+                q,
+                sweep_in_step,
+                sweep_out_step,
+                ..
+            },
+        ) => {
+            let MomentaryFxRuntimeParams::FilterSweep {
+                target_cutoff: current_cutoff,
+                q: current_q,
+                sweep_in_step: current_in_step,
+                sweep_out_step: current_out_step,
+            } = fx.runtime_params
+            else {
+                return ScalarMutation::Rejected;
+            };
+            if current_cutoff.to_bits() == target_cutoff.to_bits()
+                && current_q.to_bits() == q.to_bits()
+                && current_in_step.to_bits() == sweep_in_step.to_bits()
+                && current_out_step.to_bits() == sweep_out_step.to_bits()
+            {
+                return ScalarMutation::Unchanged;
+            }
+            fx.runtime_params = MomentaryFxRuntimeParams::FilterSweep {
+                target_cutoff,
+                q,
+                sweep_in_step,
+                sweep_out_step,
+            };
+            ScalarMutation::Changed
+        }
+        (MomentaryFxKind::PitchShift, PreparedMomentaryFxUpdate::PitchShift { ratio, mix, .. }) => {
+            let MomentaryFxRuntimeParams::PitchShift {
+                ratio: current_ratio,
+                mix: current_mix,
+            } = fx.runtime_params
+            else {
+                return ScalarMutation::Rejected;
+            };
+            if current_ratio.to_bits() == ratio.to_bits() && current_mix.to_bits() == mix.to_bits()
+            {
+                return ScalarMutation::Unchanged;
+            }
+            fx.runtime_params = MomentaryFxRuntimeParams::PitchShift { ratio, mix };
+            ScalarMutation::Changed
+        }
+        _ => ScalarMutation::Rejected,
+    }
+}
 
 impl SynthEngine {
     pub(super) fn process_momentary_fx_target(
@@ -32,8 +132,33 @@ pub(super) fn process_momentary_fx_states(
     }
     let mut l = left;
     let mut r = right;
-    for fx in states.iter_mut() {
-        if let Some((next_l, next_r)) = process_momentary_fx_state(fx, target, l, r, sample_rate) {
+    for index in 0..states.len() {
+        let kind = states[index].kind;
+        let state_target = states[index].target;
+        let pitch_deferred = kind == MomentaryFxKind::PitchShift
+            && states[..index]
+                .iter()
+                .any(|fx| fx.target == target && fx.kind == MomentaryFxKind::FilterSweep);
+        if pitch_deferred {
+            continue;
+        }
+        if kind == MomentaryFxKind::FilterSweep && state_target == target {
+            let pitch_index = states[index + 1..]
+                .iter()
+                .position(|fx| fx.target == target && fx.kind == MomentaryFxKind::PitchShift)
+                .map(|offset| index + 1 + offset);
+            if let Some(pitch_index) = pitch_index {
+                if let Some((next_l, next_r)) =
+                    process_momentary_fx_state(&mut states[pitch_index], target, l, r, sample_rate)
+                {
+                    l = next_l;
+                    r = next_r;
+                }
+            }
+        }
+        if let Some((next_l, next_r)) =
+            process_momentary_fx_state(&mut states[index], target, l, r, sample_rate)
+        {
             l = next_l;
             r = next_r;
         }
@@ -240,3 +365,7 @@ fn process_pitch_shift(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32
         right * (1.0 - wet_mix) + wet_r * wet_mix,
     )
 }
+
+#[cfg(test)]
+#[path = "render_momentary_fx_tests.rs"]
+mod tests;

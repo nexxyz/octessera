@@ -71,45 +71,72 @@ pub(crate) fn maybe_advance_runtime(
         return shutdown_if_requested(playback, adapter, render_worker);
     }
     let now = Instant::now();
-    let runtime_snapshot_requested =
-        if let Some(advance) = scheduler.next_runtime_advance(now, playback) {
-            let request_snapshot = advance.request_snapshot;
-            let revision_before = playback.last_snapshot_revision();
-            advance_playback_if_due(
-                advance.elapsed,
-                advance.lateness,
-                request_snapshot,
-                playback,
-                runner,
-                adapter,
-                ui_profiler,
+    let runtime_snapshot_requested = if let Some(advance) =
+        scheduler.next_runtime_advance(now, playback, runner.next_xy_glide_deadline())
+    {
+        let request_snapshot = advance.request_snapshot;
+        let revision_before = playback.last_snapshot_revision();
+        advance_playback_if_due(
+            advance.elapsed,
+            advance.lateness,
+            request_snapshot,
+            playback,
+            runner,
+            adapter,
+            ui_profiler,
+        );
+        service_xy_glide_tick(playback, runner, adapter);
+        let revision_after = playback.last_snapshot_revision();
+        let completed_at = Instant::now();
+        if request_snapshot {
+            scheduler.record_snapshot_attempt(
+                completed_at,
+                DisplaySnapshotDue::default(),
+                revision_before,
+                revision_after,
             );
-            let revision_after = playback.last_snapshot_revision();
-            let completed_at = Instant::now();
-            if request_snapshot {
-                scheduler.record_snapshot_attempt(
-                    completed_at,
-                    DisplaySnapshotDue::default(),
-                    revision_before,
-                    revision_after,
-                );
-            } else {
-                scheduler.observe_snapshot_revision(completed_at, revision_before, revision_after);
-            }
-            scheduler.record_runtime_advance_complete(completed_at, playback);
-            if adapter.shutdown_pending() {
-                return shutdown_if_requested(playback, adapter, render_worker);
-            }
-            request_snapshot
         } else {
-            scheduler.observe_snapshot(Instant::now(), playback);
-            false
-        };
+            scheduler.observe_snapshot_revision(completed_at, revision_before, revision_after);
+        }
+        scheduler.record_runtime_advance_complete(
+            completed_at,
+            playback,
+            runner.next_xy_glide_deadline(),
+        );
+        if adapter.shutdown_pending() {
+            return shutdown_if_requested(playback, adapter, render_worker);
+        }
+        request_snapshot
+    } else {
+        scheduler.observe_snapshot(Instant::now(), playback);
+        false
+    };
     if !runtime_snapshot_requested {
         request_periodic_snapshot_if_due(now, scheduler, playback, runner, adapter);
     }
     service_render_if_due(now, scheduler, playback, adapter, render_worker);
     shutdown_if_requested(playback, adapter, render_worker)
+}
+
+fn service_xy_glide_tick(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter,
+) {
+    if runner.next_xy_glide_deadline().is_none() {
+        return;
+    }
+    match playback.dispatch_runtime_tick(runner, adapter) {
+        Ok(output) => {
+            if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
+                eprintln!("pi XY glide output processing failed: {error}");
+            }
+        }
+        Err(error) => eprintln!("pi XY glide runtime tick failed: {error}"),
+    }
+    if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
+        eprintln!("pi XY glide deferred host work failed: {error}");
+    }
 }
 
 fn advance_playback_if_due(

@@ -93,6 +93,7 @@ impl NativeRunner {
                 if let Some(config) = self.instrument_audio_config(instrument_slot) {
                     self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
                         instrument_slot,
+                        generation: 0,
                         config,
                     });
                 }

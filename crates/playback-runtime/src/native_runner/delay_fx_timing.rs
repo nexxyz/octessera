@@ -40,6 +40,7 @@ impl NativeRunner {
                     commands.push(RuntimeAudioCommand::SetFxBusSlot {
                         bus_index,
                         slot_index,
+                        generation: 0,
                         fx_type: fx_type.clone(),
                         params: strip_delay_timing_metadata(params).into_iter().collect(),
                     });

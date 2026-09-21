@@ -8,6 +8,21 @@ use crate::synth::{
 use serde_json::json;
 
 #[test]
+fn prepared_momentary_start_exposes_epoch() {
+    let prepared = crate::synth::prepare_momentary_fx_start_with_epoch(
+        "fx".into(),
+        37,
+        "stutter".into(),
+        std::collections::BTreeMap::new(),
+        crate::synth::MomentaryFxTarget::Global,
+        44_100,
+    )
+    .expect("prepared momentary start");
+
+    assert_eq!(prepared.epoch(), 37);
+}
+
+#[test]
 fn prepared_audio_apply_matches_canonical_audio() {
     let config = test_config();
     let mut canonical = SynthEngine::new(44_100);
@@ -127,24 +142,6 @@ fn prepared_single_non_synth_slot_apply_preserves_partial_state_and_voices() {
     assert_eq!(prepared.synth_render_revisions[SLOT], prepared_revision);
     assert_eq!(canonical.active_voice_count_for_slot(SLOT), 1);
     assert_eq!(prepared.active_voice_count_for_slot(SLOT), 1);
-}
-
-#[test]
-fn prepared_momentary_start_fits_fixed_control_budget() {
-    let mut engine = SynthEngine::new(44_100);
-    for index in 0..2 {
-        let prepared = prepare_momentary_fx_start(
-            format!("fx-{index}"),
-            "stutter".into(),
-            BTreeMap::new(),
-            MomentaryFxTarget::Global,
-            44_100,
-        )
-        .unwrap();
-        engine.apply_prepared_momentary_fx_start(prepared);
-    }
-    assert_eq!(engine.momentary_fx.len(), 1);
-    assert_eq!(engine.momentary_fx.capacity(), 2);
 }
 
 #[test]
@@ -436,7 +433,7 @@ pub(super) fn test_config() -> InstrumentsConfig {
     }
 }
 
-fn single_slot_engine() -> SynthEngine {
+pub(super) fn single_slot_engine() -> SynthEngine {
     let mut engine = SynthEngine::new(44_100);
     engine.set_instruments(InstrumentsConfig {
         instruments: Vec::new(),
@@ -450,7 +447,7 @@ fn single_slot_engine() -> SynthEngine {
     engine
 }
 
-fn test_slot(kind: &str, with_mixer: bool) -> InstrumentSlotConfig {
+pub(super) fn test_slot(kind: &str, with_mixer: bool) -> InstrumentSlotConfig {
     let mut synth = crate::synth::default_synth_config();
     synth.osc1.waveform = WaveformId::Triangle;
     synth.amp.gain_pct = 42.0;

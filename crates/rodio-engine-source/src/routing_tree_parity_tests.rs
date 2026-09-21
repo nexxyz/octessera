@@ -13,8 +13,11 @@ fn threaded_routing_tree_matches_inline_for_duck_spread_tail_and_profile() {
     let (inline_tx, inline_rx) = event_queue();
     let (routing_tx, routing_rx) = event_queue();
     for tx in [&inline_tx, &routing_tx] {
-        tx.send(EngineEvent::SetPreparedInstruments(prepared.clone()))
-            .unwrap();
+        tx.send(EngineEvent::SetPreparedInstruments {
+            generation: 0,
+            config: prepared.clone(),
+        })
+        .unwrap();
         for (slot, note) in [(0, 36), (1, 60), (2, 67)] {
             tx.send(EngineEvent::NoteOn {
                 instrument_slot: slot,

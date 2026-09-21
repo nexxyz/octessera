@@ -57,9 +57,10 @@ impl HardwareRuntimeScheduler {
         &mut self,
         now: Instant,
         playback: &PlaybackRuntime,
+        xy_glide_deadline: Option<Instant>,
     ) -> Option<RuntimeAdvance> {
         self.observe_snapshot(now, playback);
-        let realtime_active = runtime_tick_needed(playback);
+        let realtime_active = runtime_tick_needed(playback, xy_glide_deadline);
         if realtime_active != self.realtime_active {
             self.realtime_active = realtime_active;
             self.last_tick_at = now;
@@ -162,8 +163,9 @@ impl HardwareRuntimeScheduler {
         &mut self,
         now: Instant,
         playback: &PlaybackRuntime,
+        xy_glide_deadline: Option<Instant>,
     ) {
-        let realtime_active = runtime_tick_needed(playback);
+        let realtime_active = runtime_tick_needed(playback, xy_glide_deadline);
         if realtime_active != self.realtime_active {
             self.realtime_active = realtime_active;
             self.last_tick_at = now;
@@ -187,7 +189,7 @@ impl HardwareRuntimeScheduler {
         playback: &PlaybackRuntime,
         runner: &NativeRunner,
     ) -> Duration {
-        let realtime_active = runtime_tick_needed(playback);
+        let realtime_active = runtime_tick_needed(playback, runner.next_xy_glide_deadline());
         let next_runtime_due = self.last_tick_at
             + if realtime_active {
                 PLAYBACK_TICK
@@ -253,8 +255,11 @@ impl HardwareRuntimeScheduler {
     }
 }
 
-pub(crate) fn runtime_tick_needed(playback: &PlaybackRuntime) -> bool {
-    playback.has_scheduled_midi() || is_internal_playing(playback)
+pub(crate) fn runtime_tick_needed(
+    playback: &PlaybackRuntime,
+    xy_glide_deadline: Option<Instant>,
+) -> bool {
+    playback.has_scheduled_midi() || is_internal_playing(playback) || xy_glide_deadline.is_some()
 }
 
 pub(crate) fn is_internal_playing(playback: &PlaybackRuntime) -> bool {
@@ -283,3 +288,6 @@ pub(crate) fn prepare_dispatch_message(
 #[cfg(test)]
 #[path = "hardware_runtime_scheduler_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "hardware_runtime_xy_glide_tests.rs"]
+mod xy_glide_tests;

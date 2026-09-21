@@ -1,6 +1,6 @@
 use crate::audio::AudioSink;
 use crate::audio_replay::{is_replay_event, replay_to_sink, ReplayCache};
-use rodio_engine_source::{EngineEvent, EngineEventSender};
+use rodio_engine_source::{EngineEvent, EngineEventSender, QueueKind, QueueSendError};
 use std::sync::{Arc, Mutex};
 
 pub(crate) type AudioAttachGate = Arc<Mutex<()>>;
@@ -12,6 +12,20 @@ pub(crate) fn new_attach_gate() -> AudioAttachGate {
 pub(crate) struct SinkSender {
     pub(crate) sink: AudioSink,
     tx: EngineEventSender,
+}
+
+pub(crate) enum AudioBroadcastError {
+    Queue(QueueSendError),
+    Registry(String),
+}
+
+impl std::fmt::Display for AudioBroadcastError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Queue(error) => error.fmt(formatter),
+            Self::Registry(error) => formatter.write_str(error),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -27,27 +41,61 @@ pub(crate) fn test_sink_sender_for(sink: AudioSink, tx: EngineEventSender) -> Si
 pub(crate) fn broadcast_event(
     txs: &Arc<Mutex<Vec<SinkSender>>>,
     event: EngineEvent,
-) -> Result<(), String> {
-    let mut failed = Vec::new();
+) -> Result<(), AudioBroadcastError> {
+    let mut disconnected = Vec::new();
     let mut first_error = None;
     let mut guard = txs
         .lock()
-        .map_err(|_| "audio sink registry lock failed".to_string())?;
+        .map_err(|_| AudioBroadcastError::Registry("audio sink registry lock failed".into()))?;
     for sink in guard.iter() {
-        if let Err(error) = sink.tx.send(event.clone()) {
-            first_error.get_or_insert_with(|| error.to_string());
-            failed.push(sink.sink);
-        }
+        record_send_result(
+            sink.sink,
+            sink.tx.send(event.clone()),
+            || sink.tx.send(EngineEvent::AllNotesOff),
+            &mut first_error,
+            &mut disconnected,
+        );
     }
-    guard.retain(|sink| !failed.contains(&sink.sink));
-    if failed.is_empty() || !failed.iter().any(failed_sink_is_required) {
-        Ok(())
-    } else {
-        Err(format!(
-            "audio event queue unavailable for {:?}: {}",
-            failed,
-            first_error.unwrap_or_else(|| "unknown queue failure".into())
-        ))
+    guard.retain(|sink| !disconnected.contains(&sink.sink));
+    first_error.map_or(Ok(()), Err)
+}
+
+fn remember_error(first_error: &mut Option<AudioBroadcastError>, error: QueueSendError) {
+    first_error.get_or_insert(AudioBroadcastError::Queue(error));
+}
+
+fn record_send_result(
+    sink: AudioSink,
+    result: Result<(), QueueSendError>,
+    send_emergency: impl FnOnce() -> Result<(), QueueSendError>,
+    first_error: &mut Option<AudioBroadcastError>,
+    disconnected: &mut Vec<AudioSink>,
+) {
+    match result {
+        Ok(()) => {}
+        Err(
+            error @ QueueSendError::Full {
+                queue: QueueKind::Latest,
+            },
+        ) => {
+            if failed_sink_is_required(&sink) {
+                remember_error(first_error, error);
+            }
+        }
+        Err(error @ QueueSendError::Full { .. }) => {
+            remember_error(first_error, error);
+            match send_emergency() {
+                Ok(()) => {}
+                Err(QueueSendError::Disconnected { .. }) => disconnected.push(sink),
+                Err(error) => remember_error(first_error, error),
+            }
+        }
+        Err(error @ QueueSendError::Disconnected { .. }) => {
+            if failed_sink_is_required(&sink) {
+                remember_error(first_error, error);
+            }
+            disconnected.push(sink);
+        }
     }
 }
 
@@ -56,14 +104,14 @@ pub(crate) fn broadcast_event_atomic(
     txs: &Arc<Mutex<Vec<SinkSender>>>,
     replay_events: &Arc<Mutex<ReplayCache>>,
     event: EngineEvent,
-) -> Result<(), String> {
+) -> Result<(), AudioBroadcastError> {
     let _gate = gate
         .lock()
-        .map_err(|_| "audio attach gate lock failed".to_string())?;
+        .map_err(|_| AudioBroadcastError::Registry("audio attach gate lock failed".into()))?;
     if is_replay_event(&event) {
         replay_events
             .lock()
-            .map_err(|_| "audio replay cache lock failed".to_string())?
+            .map_err(|_| AudioBroadcastError::Registry("audio replay cache lock failed".into()))?
             .remember(&event);
     }
     broadcast_event(txs, event)
@@ -135,55 +183,5 @@ pub(crate) fn attach_sink_atomic(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use rodio_engine_source::event_queue;
-
-    #[test]
-    fn atomic_attach_delivers_a_concurrent_event_exactly_once() {
-        use std::sync::{Arc, Barrier};
-        use std::thread;
-
-        let gate = new_attach_gate();
-        let txs = Arc::new(Mutex::new(Vec::new()));
-        let replay = Arc::new(Mutex::new(ReplayCache::default()));
-        let (sink_tx, mut sink_rx) = event_queue();
-        let start = Arc::new(Barrier::new(3));
-        let event = EngineEvent::SetMasterVolume { volume_pct: 72.0 };
-        let event_gate = gate.clone();
-        let event_txs = txs.clone();
-        let event_replay = replay.clone();
-        let event_start = start.clone();
-        let event_thread = thread::spawn(move || {
-            event_start.wait();
-            broadcast_event_atomic(&event_gate, &event_txs, &event_replay, event).unwrap();
-        });
-        let attach_gate = gate.clone();
-        let attach_txs = txs.clone();
-        let attach_replay = replay.clone();
-        let attach_start = start.clone();
-        let attach_thread = thread::spawn(move || {
-            attach_start.wait();
-            attach_sink_atomic(
-                &attach_gate,
-                &attach_txs,
-                &attach_replay,
-                AudioSink::Jack,
-                sink_tx,
-            )
-            .unwrap();
-        });
-        start.wait();
-        event_thread.join().unwrap();
-        attach_thread.join().unwrap();
-        let matches = std::iter::from_fn(|| sink_rx.try_recv().ok())
-            .filter(|event| {
-                matches!(
-                    event,
-                    EngineEvent::SetMasterVolume { volume_pct } if *volume_pct == 72.0
-                )
-            })
-            .count();
-        assert_eq!(matches, 1);
-    }
-}
+#[path = "audio_sink_registry_tests.rs"]
+mod tests;

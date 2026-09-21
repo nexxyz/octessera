@@ -5,6 +5,7 @@ use super::modulation_keys::{
 use super::modulation_target::{classify_key, TargetMode, TargetValueKind};
 use super::{NativeRunner, Value};
 use crate::protocol::RuntimeAudioCommand;
+use realtime_engine::synth::FxParamId;
 
 impl NativeRunner {
     pub(super) fn apply_fx_bus_param_binding(
@@ -56,7 +57,7 @@ pub(crate) fn is_live_link_lfo_target(key: &str) -> bool {
         return match (slot, field) {
             ("bus", "panPos" | "volume") => true,
             ("slot1" | "slot2" | "slot3", field) if field.starts_with("params.") => {
-                is_realtime_safe_fx_param(&field[7..])
+                realtime_safe_fx_param_id(&field[7..]).is_some()
             }
             _ => false,
         };
@@ -64,46 +65,46 @@ pub(crate) fn is_live_link_lfo_target(key: &str) -> bool {
     if let Some((_index, field)) = parse_global_fx_binding_key(key) {
         return field
             .strip_prefix("params.")
-            .is_some_and(is_realtime_safe_fx_param);
+            .is_some_and(|field| realtime_safe_fx_param_id(field).is_some());
     }
     parse_instrument_binding_key(key)
         .is_some_and(|(_index, field)| matches!(field, "mixer.volume" | "mixer.panPos"))
 }
 
-fn is_realtime_safe_fx_param(field: &str) -> bool {
-    matches!(
-        field,
-        "amountPct"
-            | "attackMs"
-            | "bits"
-            | "centerHz"
-            | "chancePct"
-            | "clip"
-            | "cracklePct"
-            | "damp"
-            | "decay"
-            | "depthPct"
-            | "drive"
-            | "feedback"
-            | "highGainDb"
-            | "lowGainDb"
-            | "makeupDb"
-            | "midFreqHz"
-            | "midGainDb"
-            | "midQ"
-            | "mixPct"
-            | "q"
-            | "rateDiv"
-            | "rateHz"
-            | "ratio"
-            | "releaseMs"
-            | "saturationPct"
-            | "sliceMs"
-            | "spreadPct"
-            | "threshold"
-            | "thresholdDb"
-            | "warpDepthPct"
-    )
+pub(super) fn realtime_safe_fx_param_id(field: &str) -> Option<FxParamId> {
+    Some(match field {
+        "amountPct" => FxParamId::AmountPct,
+        "attackMs" => FxParamId::AttackMs,
+        "bits" => FxParamId::Bits,
+        "centerHz" => FxParamId::CenterHz,
+        "chancePct" => FxParamId::ChancePct,
+        "clip" => FxParamId::Clip,
+        "cracklePct" => FxParamId::CracklePct,
+        "damp" => FxParamId::Damp,
+        "decay" => FxParamId::Decay,
+        "depthPct" => FxParamId::DepthPct,
+        "drive" => FxParamId::Drive,
+        "feedback" => FxParamId::Feedback,
+        "highGainDb" => FxParamId::HighGainDb,
+        "lowGainDb" => FxParamId::LowGainDb,
+        "makeupDb" => FxParamId::MakeupDb,
+        "midFreqHz" => FxParamId::MidFreqHz,
+        "midGainDb" => FxParamId::MidGainDb,
+        "midQ" => FxParamId::MidQ,
+        "mixPct" => FxParamId::MixPct,
+        "q" => FxParamId::Q,
+        "rateDiv" => FxParamId::RateDiv,
+        "rateHz" => FxParamId::RateHz,
+        "ratio" => FxParamId::Ratio,
+        "releaseMs" => FxParamId::ReleaseMs,
+        "saturationPct" => FxParamId::SaturationPct,
+        "sliceMs" => FxParamId::SliceMs,
+        "spreadPct" => FxParamId::SpreadPct,
+        "threshold" => FxParamId::Threshold,
+        "thresholdDb" => FxParamId::ThresholdDb,
+        "warpDepthPct" => FxParamId::WarpDepthPct,
+        _ => return None,
+    })
 }
 
 pub(super) fn instrument_modulation_audio_command(
@@ -116,26 +117,31 @@ pub(super) fn instrument_modulation_audio_command(
     match field {
         "mixer.volume" => Some(RuntimeAudioCommand::SetInstrumentMixer {
             instrument_slot: index,
+            generation: 0,
             volume_pct: Some(value.round().clamp(0.0, 100.0) as f32),
             pan_pos: None,
         }),
         "mixer.panPos" => Some(RuntimeAudioCommand::SetInstrumentMixer {
             instrument_slot: index,
+            generation: 0,
             volume_pct: None,
             pan_pos: Some(value.round().clamp(0.0, 32.0) as usize),
         }),
         "synth.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
+            generation: 0,
             path: field.into(),
             value: super::cutoff_display_to_hz(display) as f32,
         }),
         "synth.filter.resonance" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
+            generation: 0,
             path: field.into(),
             value: value.round().clamp(0.0, 255.0) as f32,
         }),
         "synth.filter.envAmountPct" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
+            generation: 0,
             path: field.into(),
             value: value.round().clamp(-100.0, 100.0) as f32,
         }),
@@ -144,6 +150,7 @@ pub(super) fn instrument_modulation_audio_command(
         | "synth.ampEnv.sustainPct"
         | "synth.filterEnv.sustainPct" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
+            generation: 0,
             path: field.into(),
             value: value.round().clamp(0.0, 100.0) as f32,
         }),
@@ -152,23 +159,27 @@ pub(super) fn instrument_modulation_audio_command(
         | "synth.filterEnv.attackMs"
         | "synth.filterEnv.decayMs" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
+            generation: 0,
             path: field.into(),
             value: value.round().clamp(0.0, 5000.0) as f32,
         }),
         "synth.ampEnv.releaseMs" | "synth.filterEnv.releaseMs" => {
             Some(RuntimeAudioCommand::SetSynthParam {
                 instrument_slot: index,
+                generation: 0,
                 path: field.into(),
                 value: value.round().clamp(0.0, 10000.0) as f32,
             })
         }
         "sample.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: index,
+            generation: 0,
             path: field.into(),
             value: super::cutoff_display_to_hz(display) as f32,
         }),
         "sample.filter.resonance" => Some(RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: index,
+            generation: 0,
             path: field.into(),
             value: value.round().clamp(0.0, 255.0) as f32,
         }),

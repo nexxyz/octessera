@@ -20,8 +20,11 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
             .expect("routing-tree runtime");
     let expired = expired_report();
     source.last_load_report = expired;
-    tx.send(EngineEvent::SetPreparedAudioConfig(routing_status_config()))
-        .unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: routing_status_config(),
+    })
+    .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
         note: 60,
@@ -36,8 +39,8 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
         duration_ms: 10_000,
     })
     .unwrap();
-    tx.send(EngineEvent::PreparedMomentaryFxStart(
-        realtime_engine::synth::prepare_momentary_fx_start(
+    tx.send(EngineEvent::PreparedMomentaryFxStart {
+        config: realtime_engine::synth::prepare_momentary_fx_start(
             "global-freeze".into(),
             "freeze".into(),
             BTreeMap::new(),
@@ -45,7 +48,7 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
             44_100,
         )
         .expect("global momentary FX"),
-    ))
+    })
     .unwrap();
 
     for _ in 0..256 {
@@ -59,7 +62,7 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
     assert_eq!(first_profile.active_sample_voices, 0);
     assert_eq!(first_profile.active_bus_fx_slots, 0);
     assert_eq!(first_profile.active_global_fx_slots, 1);
-    assert_eq!(first_profile.active_momentary_fx, 1);
+    assert_eq!(first_profile.active_momentary_fx, 0);
 
     for _ in 0..256 {
         source.next();
@@ -67,6 +70,9 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
     let status = load_rx.try_recv().expect("fresh routing status");
     assert_eq!(status.control_events, 4);
     assert_eq!(status.config_events, 2);
+    for _ in 0..256 {
+        source.next();
+    }
     assert!(!source.pending_load_status_after_fresh);
     assert_eq!(
         source.profile_snapshot(),
@@ -123,6 +129,7 @@ fn routing_tree_status_does_not_publish_deferred_evidence_after_fatal() {
     tx.send(EngineEvent::SetPreparedFxBusSlot {
         bus_index: 0,
         slot_index: 0,
+        generation: 0,
         config: prepare_fx_bus_slot("reverb".into(), BTreeMap::new(), RATE),
     })
     .unwrap();
@@ -280,9 +287,10 @@ fn routing_source() -> (
 ) {
     let (tx, rx) = event_queue();
     let (load_tx, load_rx) = audio_load_status_channel();
-    tx.send(EngineEvent::SetPreparedInstruments(
-        prepare_instruments_config(initial_routing_config(), RATE),
-    ))
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: prepare_instruments_config(initial_routing_config(), RATE),
+    })
     .unwrap();
     let (mut source, shutdown) =
         EngineSource::with_routing_tree_persistent_workers(rx, RATE, 128, Some(load_tx.clone()))

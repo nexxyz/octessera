@@ -80,7 +80,11 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetInstrumentSlot { instrument_slot: 0, .. }
+                RuntimeAudioCommand::SetInstrumentSlot {
+                    instrument_slot: 0,
+                    generation: 1,
+                    config
+                } if config["type"] == "sampler" && config["sample"].is_object()
             ))
     )));
     let snapshot = runner.snapshot().unwrap();

@@ -220,7 +220,9 @@ impl EngineSource {
             control_rx,
             retired_tx,
             retired_backlog,
+            emergency_retirement,
             retirement_disconnected,
+            owner_generations,
             #[cfg(test)]
             retired_drop_probe,
             sample_rate,
@@ -300,6 +302,8 @@ impl EngineSource {
                 retired_tx,
                 retired_backlog.as_mut().expect("retired backlog"),
                 retirement_disconnected,
+                owner_generations,
+                emergency_retirement,
                 #[cfg(test)]
                 retired_drop_probe.clone(),
             );
@@ -363,7 +367,9 @@ impl EngineSource {
             control_rx,
             retired_tx,
             retired_backlog,
+            emergency_retirement,
             retirement_disconnected,
+            owner_generations,
             #[cfg(test)]
             retired_drop_probe,
             sample_rate,
@@ -430,6 +436,8 @@ impl EngineSource {
             retired_tx,
             retired_backlog.as_mut().expect("retired backlog"),
             retirement_disconnected,
+            owner_generations,
+            emergency_retirement,
             #[cfg(test)]
             retired_drop_probe.clone(),
         );

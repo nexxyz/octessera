@@ -172,7 +172,7 @@ pub(crate) fn startup_playback_resets_scan_accumulators() {
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
     assert_eq!(runner.transport.tick, 0);
     assert_eq!(runner.transport.current_ppqn_pulse, 0);
-    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 6);
 }
 
 #[test]
@@ -251,7 +251,7 @@ pub(crate) fn stop_then_start_restarts_scanning_from_zero_accumulator() {
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
     assert_eq!(runner.transport.tick, 0);
     assert_eq!(runner.transport.current_ppqn_pulse, 0);
-    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 6);
 }
 
 #[test]

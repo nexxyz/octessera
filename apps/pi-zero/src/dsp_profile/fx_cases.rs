@@ -201,9 +201,9 @@ fn fx_limit_momentary_events(momentary: usize) -> Vec<EngineEvent> {
     specs
         .into_iter()
         .take(momentary.clamp(0, 2))
-        .map(|(id, fx_type, target)| {
-            EngineEvent::PreparedMomentaryFxStart(
-                prepare_momentary_fx_start(
+        .map(
+            |(id, fx_type, target)| EngineEvent::PreparedMomentaryFxStart {
+                config: prepare_momentary_fx_start(
                     id.into(),
                     fx_type.into(),
                     BTreeMap::new(),
@@ -211,8 +211,8 @@ fn fx_limit_momentary_events(momentary: usize) -> Vec<EngineEvent> {
                     44_100,
                 )
                 .unwrap(),
-            )
-        })
+            },
+        )
         .collect()
 }
 
@@ -222,12 +222,15 @@ fn prepared_config(
     voice_stealing_mode: VoiceStealingMode,
     sample_rate: u32,
 ) -> EngineEvent {
-    EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-        instruments,
-        sample_banks,
-        Some(voice_stealing_mode),
-        sample_rate,
-    ))
+    EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_audio_config(
+            instruments,
+            sample_banks,
+            Some(voice_stealing_mode),
+            sample_rate,
+        ),
+    }
 }
 
 fn bus(slots: Vec<&str>, pan_pos: usize) -> FxBusConfig {

@@ -111,7 +111,17 @@ impl NativeRunner {
     }
 
     pub(super) fn advance_oled_sleep_state(&mut self) {
-        let now = Instant::now();
+        let now = self.display.transients.now();
+        if self.recording_active {
+            if self.display.oled_mode == NativeOledMode::Splash
+                && self.display.oled_splash_text == OLED_SLEEP_SPLASH_KEY
+            {
+                self.display.oled_mode = NativeOledMode::Normal;
+                self.display.oled_splash_text.clear();
+                self.display.oled_splash_until = None;
+            }
+            return;
+        }
         if self.display.oled_mode == NativeOledMode::Splash
             && self
                 .display

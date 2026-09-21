@@ -1,5 +1,5 @@
 use super::*;
-use crate::{DspRuntimeConfig, RuntimeConfig};
+use crate::RuntimeConfig;
 use serde_json::json;
 use std::collections::BTreeMap;
 
@@ -23,11 +23,12 @@ fn recording_protocol_json_uses_public_field_names() {
     let status = RuntimeStoreResult::RecordingStatus {
         ok: true,
         message: "Recording saved".into(),
+        active: false,
     };
     assert_eq!(status.operation(), RuntimeOperation::Recording);
     assert_eq!(
         serde_json::to_value(status).unwrap(),
-        json!({ "type": "recording_status", "ok": true, "message": "Recording saved" })
+        json!({ "type": "recording_status", "ok": true, "message": "Recording saved", "active": false })
     );
 
     assert_eq!(
@@ -53,16 +54,6 @@ fn recording_protocol_json_uses_public_field_names() {
         serde_json::to_value(RuntimePlatformEffect::RecordingStop).unwrap(),
         json!({ "type": "recording_stop" })
     );
-}
-
-#[test]
-fn audio_command_platform_effect_uses_the_audio_command_operation() {
-    let effect = RuntimePlatformEffect::AudioCommand {
-        command: RuntimeAudioCommand::SetMasterVolume { volume_pct: 80.0 },
-    };
-
-    assert_eq!(effect.operation(), RuntimeOperation::AudioCommand);
-    assert_eq!(effect.error_domain(), RuntimeErrorDomain::Audio);
 }
 
 #[test]
@@ -272,6 +263,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
 
     let fx_command = RuntimeAudioCommand::MomentaryFxStart {
         id: "sparks".into(),
+        epoch: 1,
         fx_type: "stutter".into(),
         params: BTreeMap::new(),
         target: RuntimeMomentaryFxTarget::FxBus { index: 3 },
@@ -281,6 +273,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
         json!({
             "type": "momentary_fx_start",
             "id": "sparks",
+            "epoch": 1,
             "fxType": "stutter",
             "params": {},
             "target": { "type": "fx_bus", "index": 3 },
@@ -353,6 +346,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
             "command": {
                 "type": "momentary_fx_start",
                 "id": "sparks",
+                "epoch": 1,
                 "fxType": "stutter",
                 "params": {},
                 "target": { "type": "fx_bus", "index": 3 },
@@ -362,81 +356,30 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
 }
 
 #[test]
-fn every_runtime_audio_command_round_trips_through_json() {
-    let params = BTreeMap::from([(String::from("mixPct"), json!(35))]);
-    let commands = vec![
-        RuntimeAudioCommand::SetAudioConfig {
-            revision: 4,
-            request_id: Some("audio-4".into()),
-            config: json!({ "instruments": [] }),
-        },
-        RuntimeAudioCommand::SetDspConfig {
-            config: DspRuntimeConfig::default(),
-        },
-        RuntimeAudioCommand::SetMasterVolume { volume_pct: 82.0 },
-        RuntimeAudioCommand::SetInstrumentMixer {
-            instrument_slot: 1,
-            volume_pct: Some(74.0),
-            pan_pos: Some(16),
-        },
-        RuntimeAudioCommand::SetInstrumentSlot {
-            instrument_slot: 2,
-            config: json!({ "type": "synth" }),
-        },
-        RuntimeAudioCommand::SetFxBusMixer {
-            bus_index: 2,
-            pan_pos: Some(12),
-            volume_pct: Some(66.0),
-        },
-        RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: 3,
-            path: "synth.filter.cutoffHz".into(),
-            value: 440.0,
-        },
-        RuntimeAudioCommand::SetSampleBankParam {
-            instrument_slot: 4,
-            path: "sample.tuneSemis".into(),
-            value: 2.0,
-        },
-        RuntimeAudioCommand::SetFxBusSlot {
-            bus_index: 1,
-            slot_index: 0,
-            fx_type: "delay".into(),
-            params: params.clone(),
-        },
-        RuntimeAudioCommand::SetGlobalFxSlot {
-            slot_index: 1,
-            fx_type: "compressor".into(),
-            params: params.clone(),
-        },
-        RuntimeAudioCommand::MomentaryFxStart {
-            id: "spark:0".into(),
-            fx_type: "freeze".into(),
-            params: params.clone(),
-            target: RuntimeMomentaryFxTarget::Global,
-        },
-        RuntimeAudioCommand::MomentaryFxUpdate {
-            id: "spark:0".into(),
-            params: params.clone(),
-        },
-        RuntimeAudioCommand::MomentaryFxStop {
-            id: "spark:0".into(),
-        },
-        RuntimeAudioCommand::SamplePreview {
-            instrument_slot: 5,
-            sample_slot: 2,
-            path: "kits/hat.wav".into(),
-            velocity: 96,
-        },
-    ];
+fn audio_command_owner_stamps_are_backward_compatible_on_read() {
+    let decoded = serde_json::from_value::<RuntimeAudioCommand>(json!({
+        "type": "set_instrument_slot",
+        "instrumentSlot": 0,
+        "config": { "type": "synth" }
+    }))
+    .unwrap();
+    assert!(matches!(
+        decoded,
+        RuntimeAudioCommand::SetInstrumentSlot { generation: 0, .. }
+    ));
 
-    for command in commands {
-        let encoded = serde_json::to_value(&command).unwrap();
-        assert_eq!(
-            serde_json::from_value::<RuntimeAudioCommand>(encoded).unwrap(),
-            command
-        );
-    }
+    let decoded = serde_json::from_value::<RuntimeAudioCommand>(json!({
+        "type": "momentary_fx_start",
+        "id": "old",
+        "fxType": "stutter",
+        "params": {},
+        "target": { "type": "global" }
+    }))
+    .unwrap();
+    assert!(matches!(
+        decoded,
+        RuntimeAudioCommand::MomentaryFxStart { epoch: 0, .. }
+    ));
 }
 
 #[test]

@@ -1,6 +1,8 @@
 use crate::audio::default_pi_instruments;
-use realtime_engine::synth::SampleBankConfig;
-use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
+use realtime_engine::synth::{
+    prepare_instruments_config, FxParamId, SampleBankConfig, SampleBankParamId, SynthParamId,
+    DEFAULT_AUDIO_SAMPLE_RATE,
+};
 use rodio_engine_source::{EngineEvent, EngineEventSender};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -11,9 +13,17 @@ pub(crate) fn default_replay_events() -> ReplayCache {
 
 #[derive(Clone, Default)]
 pub(crate) struct ReplayCache {
-    audio_config: Option<EngineEvent>,
+    audio_config: Option<ReplayValue>,
     sample_banks: Option<Vec<SampleBankConfig>>,
-    keyed: BTreeMap<ReplayKey, EngineEvent>,
+    full_generation: Option<u64>,
+    keyed: BTreeMap<ReplayKey, ReplayValue>,
+    sample_owner_generations: BTreeMap<usize, u64>,
+}
+
+#[derive(Clone)]
+struct ReplayValue {
+    generation: u64,
+    event: EngineEvent,
 }
 
 impl ReplayCache {
@@ -21,7 +31,13 @@ impl ReplayCache {
         if !is_replay_event(event) {
             return;
         }
-        if let EngineEvent::SetPreparedAudioConfig(config) = event {
+        if let EngineEvent::SetPreparedAudioConfig { generation, config } = event {
+            if self
+                .full_generation
+                .is_some_and(|current| *generation < current)
+            {
+                return;
+            }
             let sample_banks = config
                 .sample_banks()
                 .map(<[SampleBankConfig]>::to_vec)
@@ -29,32 +45,200 @@ impl ReplayCache {
             if let Some(banks) = sample_banks.as_ref() {
                 self.sample_banks = Some(banks.clone());
             }
-            self.audio_config = Some(EngineEvent::SetPreparedAudioConfig(
-                config.with_sample_banks(sample_banks),
-            ));
+            self.full_generation = Some(*generation);
+            self.audio_config = Some(ReplayValue {
+                generation: *generation,
+                event: EngineEvent::SetPreparedAudioConfig {
+                    generation: *generation,
+                    config: config.with_sample_banks(sample_banks),
+                },
+            });
+            self.keyed
+                .retain(|_, value| value.generation >= *generation);
+            self.sample_owner_generations
+                .retain(|_, value| *value >= *generation);
             return;
         }
-        if let EngineEvent::SetPreparedInstruments(config) = event {
-            self.audio_config = Some(EngineEvent::SetPreparedInstruments(config.clone()));
+        if let EngineEvent::SetPreparedInstruments { .. } = event {
+            if self.audio_config.is_none() {
+                self.audio_config = Some(ReplayValue {
+                    generation: 0,
+                    event: event.clone(),
+                });
+            }
             return;
         }
-        if let Some(key) = replay_key(event) {
-            if merge_fx_bus_mixer_event(&mut self.keyed, &key, event) {
+        if let EngineEvent::SetPreparedInstrumentOwner {
+            instrument_slot,
+            generation,
+            ..
+        } = event
+        {
+            let slot = usize::from(*instrument_slot);
+            if self
+                .full_generation
+                .is_some_and(|current| *generation < current)
+                || self
+                    .keyed
+                    .get(&ReplayKey::InstrumentSlot(slot))
+                    .is_some_and(|current| current.generation > *generation)
+                || self
+                    .sample_owner_generations
+                    .get(&slot)
+                    .is_some_and(|current| *current > *generation)
+            {
                 return;
             }
-            self.keyed.insert(key, event.clone());
+            if matches!(
+                event,
+                EngineEvent::SetPreparedInstrumentOwner {
+                    sample_bank: Some(_),
+                    ..
+                }
+            ) {
+                self.keyed.remove(&ReplayKey::SampleBank(slot));
+                self.sample_owner_generations.insert(slot, *generation);
+            } else {
+                self.preserve_atomic_sample_bank(slot);
+            }
+            self.keyed.insert(
+                ReplayKey::InstrumentSlot(slot),
+                ReplayValue {
+                    generation: *generation,
+                    event: event.clone(),
+                },
+            );
+            return;
         }
+        let Some(key) = replay_key(event) else {
+            return;
+        };
+        let generation = event_generation(event);
+        if self
+            .full_generation
+            .is_some_and(|current| generation < current)
+        {
+            return;
+        }
+        if self
+            .keyed
+            .get(&key)
+            .is_some_and(|current| current.generation > generation)
+        {
+            return;
+        }
+        if let EngineEvent::SetPreparedSampleBank {
+            instrument_slot,
+            generation: bank_generation,
+            ..
+        } = event
+        {
+            let slot = usize::from(*instrument_slot);
+            if self
+                .sample_owner_generations
+                .get(&slot)
+                .is_some_and(|current| *current > *bank_generation)
+            {
+                return;
+            }
+            self.sample_owner_generations.insert(slot, *bank_generation);
+        }
+        if merge_mixer_event(&mut self.keyed, &key, generation, event) {
+            return;
+        }
+        self.keyed.insert(
+            key,
+            ReplayValue {
+                generation,
+                event: event.clone(),
+            },
+        );
     }
 
     fn events(&self) -> Vec<EngineEvent> {
-        let mut events = vec![self.audio_config.clone().unwrap_or_else(|| {
-            EngineEvent::SetPreparedInstruments(prepare_instruments_config(
-                default_pi_instruments(),
-                DEFAULT_AUDIO_SAMPLE_RATE,
-            ))
-        })];
-        events.extend(self.keyed.values().cloned());
+        let mut events = vec![self
+            .audio_config
+            .as_ref()
+            .map(|value| value.event.clone())
+            .unwrap_or_else(|| EngineEvent::SetPreparedInstruments {
+                generation: 0,
+                config: prepare_instruments_config(
+                    default_pi_instruments(),
+                    DEFAULT_AUDIO_SAMPLE_RATE,
+                ),
+            })];
+        let mut owners = self
+            .keyed
+            .iter()
+            .filter(|(key, _)| key.is_owner())
+            .map(|(key, value)| (value.generation, *key, value.event.clone()))
+            .collect::<Vec<_>>();
+        owners.sort_by_key(|(generation, key, _)| (*generation, *key));
+        events.extend(owners.into_iter().map(|(_, _, event)| event));
+
+        let mut scalars = self
+            .keyed
+            .iter()
+            .filter(|(key, value)| key.is_scalar() && self.scalar_is_current(key, value.generation))
+            .map(|(key, value)| (*key, value.event.clone()))
+            .collect::<Vec<_>>();
+        scalars.sort_by_key(|(key, _)| *key);
+        events.extend(scalars.into_iter().map(|(_, event)| event));
         events
+    }
+
+    fn scalar_is_current(&self, key: &ReplayKey, generation: u64) -> bool {
+        match key.owner() {
+            Some(owner) => self
+                .owner_generation(owner)
+                .or(self.full_generation)
+                .is_some_and(|expected| generation == expected),
+            None => self
+                .full_generation
+                .is_none_or(|expected| generation == expected),
+        }
+    }
+
+    fn owner_generation(&self, owner: ReplayKey) -> Option<u64> {
+        match owner {
+            ReplayKey::SampleBank(slot) => self
+                .sample_owner_generations
+                .get(&slot)
+                .copied()
+                .or_else(|| self.keyed.get(&owner).map(|value| value.generation)),
+            owner => self.keyed.get(&owner).map(|value| value.generation),
+        }
+    }
+
+    fn preserve_atomic_sample_bank(&mut self, slot: usize) {
+        if self.keyed.contains_key(&ReplayKey::SampleBank(slot)) {
+            return;
+        }
+        let Some(previous) = self.keyed.get(&ReplayKey::InstrumentSlot(slot)).cloned() else {
+            return;
+        };
+        let EngineEvent::SetPreparedInstrumentOwner {
+            instrument_slot,
+            generation,
+            sample_bank: Some(bank),
+            ..
+        } = previous.event
+        else {
+            return;
+        };
+        self.sample_owner_generations
+            .insert(slot, previous.generation);
+        self.keyed.insert(
+            ReplayKey::SampleBank(slot),
+            ReplayValue {
+                generation: previous.generation,
+                event: EngineEvent::SetPreparedSampleBank {
+                    instrument_slot,
+                    generation,
+                    bank,
+                },
+            },
+        );
     }
 }
 
@@ -66,42 +250,12 @@ pub(crate) fn replay_to_sink(
         .lock()
         .map_err(|_| "audio replay cache lock failed".to_string())?;
     for event in events.events() {
-        tx.send(event.clone()).map_err(|error| error.to_string())?;
+        tx.send(event).map_err(|error| error.to_string())?;
     }
     Ok(())
 }
 
-fn merge_fx_bus_mixer_event(
-    keyed: &mut BTreeMap<ReplayKey, EngineEvent>,
-    key: &ReplayKey,
-    event: &EngineEvent,
-) -> bool {
-    let EngineEvent::SetFxBusMixer {
-        pan_pos,
-        volume_pct,
-        ..
-    } = event
-    else {
-        return false;
-    };
-    let Some(EngineEvent::SetFxBusMixer {
-        pan_pos: queued_pan,
-        volume_pct: queued_volume,
-        ..
-    }) = keyed.get_mut(key)
-    else {
-        return false;
-    };
-    if pan_pos.is_some() {
-        *queued_pan = *pan_pos;
-    }
-    if volume_pct.is_some() {
-        *queued_volume = *volume_pct;
-    }
-    true
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum ReplayKey {
     SampleBank(usize),
     DspConfig,
@@ -110,46 +264,170 @@ enum ReplayKey {
     InstrumentMixer(usize),
     InstrumentSlot(usize),
     FxBusMixer(usize),
-    SynthParam(usize, String),
-    SampleBankParam(usize, String),
+    SynthParam(usize, SynthParamId),
+    SampleBankParam(usize, SampleBankParamId),
     FxBusSlot(usize, usize),
+    FxBusParam(usize, usize, FxParamId),
     GlobalFxSlot(usize),
+    GlobalFxParam(usize, FxParamId),
+}
+
+impl ReplayKey {
+    fn is_owner(self) -> bool {
+        matches!(
+            self,
+            Self::SampleBank(_)
+                | Self::InstrumentSlot(_)
+                | Self::FxBusSlot(_, _)
+                | Self::GlobalFxSlot(_)
+        )
+    }
+
+    fn is_scalar(self) -> bool {
+        !self.is_owner()
+    }
+
+    fn owner(self) -> Option<Self> {
+        match self {
+            Self::InstrumentMixer(slot) | Self::SynthParam(slot, _) => {
+                Some(Self::InstrumentSlot(slot))
+            }
+            Self::SampleBankParam(slot, _) => Some(Self::SampleBank(slot)),
+            Self::FxBusParam(bus, slot, _) => Some(Self::FxBusSlot(bus, slot)),
+            Self::GlobalFxParam(slot, _) => Some(Self::GlobalFxSlot(slot)),
+            _ => None,
+        }
+    }
+}
+
+fn event_generation(event: &EngineEvent) -> u64 {
+    match event {
+        EngineEvent::SetPreparedSampleBank { generation, .. }
+        | EngineEvent::SetPreparedInstrumentOwner { generation, .. }
+        | EngineEvent::SetPreparedInstruments { generation, .. }
+        | EngineEvent::SetPreparedAudioConfig { generation, .. }
+        | EngineEvent::SetVoiceStealingMode { generation, .. }
+        | EngineEvent::SetDspConfig { generation, .. }
+        | EngineEvent::SetMasterVolume { generation, .. }
+        | EngineEvent::SetInstrumentMixer { generation, .. }
+        | EngineEvent::SetPreparedInstrumentSlot { generation, .. }
+        | EngineEvent::SetFxBusMixer { generation, .. }
+        | EngineEvent::SetSynthParam { generation, .. }
+        | EngineEvent::SetSampleBankParam { generation, .. }
+        | EngineEvent::SetFxBusParam { generation, .. }
+        | EngineEvent::SetPreparedFxBusSlot { generation, .. }
+        | EngineEvent::SetGlobalFxParam { generation, .. }
+        | EngineEvent::SetPreparedGlobalFxSlot { generation, .. } => *generation,
+        _ => 0,
+    }
 }
 
 fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
     match event {
         EngineEvent::SetPreparedSampleBank {
             instrument_slot, ..
-        } => Some(ReplayKey::SampleBank(*instrument_slot)),
-        EngineEvent::SetDspConfig(_) => Some(ReplayKey::DspConfig),
-        EngineEvent::SetVoiceStealingMode(_) => Some(ReplayKey::VoiceStealingMode),
+        } => Some(ReplayKey::SampleBank(usize::from(*instrument_slot))),
+        EngineEvent::SetPreparedInstrumentOwner {
+            instrument_slot, ..
+        } => Some(ReplayKey::InstrumentSlot(usize::from(*instrument_slot))),
+        EngineEvent::SetDspConfig { .. } => Some(ReplayKey::DspConfig),
+        EngineEvent::SetVoiceStealingMode { .. } => Some(ReplayKey::VoiceStealingMode),
         EngineEvent::SetMasterVolume { .. } => Some(ReplayKey::MasterVolume),
         EngineEvent::SetInstrumentMixer {
             instrument_slot, ..
-        } => Some(ReplayKey::InstrumentMixer(*instrument_slot)),
+        } => Some(ReplayKey::InstrumentMixer(usize::from(*instrument_slot))),
         EngineEvent::SetPreparedInstrumentSlot {
             instrument_slot, ..
-        } => Some(ReplayKey::InstrumentSlot(*instrument_slot)),
-        EngineEvent::SetFxBusMixer { bus_index, .. } => Some(ReplayKey::FxBusMixer(*bus_index)),
+        } => Some(ReplayKey::InstrumentSlot(usize::from(*instrument_slot))),
+        EngineEvent::SetFxBusMixer { bus_index, .. } => {
+            Some(ReplayKey::FxBusMixer(usize::from(*bus_index)))
+        }
         EngineEvent::SetSynthParam {
             instrument_slot,
-            path,
+            param,
             ..
-        } => Some(ReplayKey::SynthParam(*instrument_slot, path.clone())),
+        } => Some(ReplayKey::SynthParam(usize::from(*instrument_slot), *param)),
         EngineEvent::SetSampleBankParam {
             instrument_slot,
-            path,
+            param,
             ..
-        } => Some(ReplayKey::SampleBankParam(*instrument_slot, path.clone())),
+        } => Some(ReplayKey::SampleBankParam(
+            usize::from(*instrument_slot),
+            *param,
+        )),
+        EngineEvent::SetFxBusParam {
+            bus_index,
+            slot_index,
+            param,
+            ..
+        } => Some(ReplayKey::FxBusParam(
+            usize::from(*bus_index),
+            usize::from(*slot_index),
+            *param,
+        )),
         EngineEvent::SetPreparedFxBusSlot {
             bus_index,
             slot_index,
             ..
-        } => Some(ReplayKey::FxBusSlot(*bus_index, *slot_index)),
+        } => Some(ReplayKey::FxBusSlot(
+            usize::from(*bus_index),
+            usize::from(*slot_index),
+        )),
+        EngineEvent::SetGlobalFxParam {
+            slot_index, param, ..
+        } => Some(ReplayKey::GlobalFxParam(usize::from(*slot_index), *param)),
         EngineEvent::SetPreparedGlobalFxSlot { slot_index, .. } => {
-            Some(ReplayKey::GlobalFxSlot(*slot_index))
+            Some(ReplayKey::GlobalFxSlot(usize::from(*slot_index)))
         }
         _ => None,
+    }
+}
+
+fn merge_mixer_event(
+    keyed: &mut BTreeMap<ReplayKey, ReplayValue>,
+    key: &ReplayKey,
+    generation: u64,
+    event: &EngineEvent,
+) -> bool {
+    let (EngineEvent::SetFxBusMixer {
+        pan_pos,
+        volume_pct,
+        ..
+    }
+    | EngineEvent::SetInstrumentMixer {
+        pan_pos,
+        volume_pct,
+        ..
+    }) = event
+    else {
+        return false;
+    };
+    let Some(value) = keyed.get_mut(key) else {
+        return false;
+    };
+    if value.generation != generation {
+        return false;
+    }
+    match &mut value.event {
+        EngineEvent::SetFxBusMixer {
+            pan_pos: queued_pan,
+            volume_pct: queued_volume,
+            ..
+        }
+        | EngineEvent::SetInstrumentMixer {
+            pan_pos: queued_pan,
+            volume_pct: queued_volume,
+            ..
+        } => {
+            if pan_pos.is_some() {
+                *queued_pan = *pan_pos;
+            }
+            if volume_pct.is_some() {
+                *queued_volume = *volume_pct;
+            }
+            true
+        }
+        _ => false,
     }
 }
 
@@ -162,7 +440,7 @@ pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
             | EngineEvent::Cc { .. }
             | EngineEvent::PreviewSample { .. }
             | EngineEvent::PreparedMomentaryFxStart { .. }
-            | EngineEvent::MomentaryFxUpdate { .. }
+            | EngineEvent::MomentaryFxUpdate(_)
             | EngineEvent::MomentaryFxStop { .. }
             | EngineEvent::ProbeMark { .. }
     )
@@ -170,150 +448,9 @@ pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
 
 #[cfg(test)]
 pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
-    use rodio_engine_source::event_queue;
-
-    let (tx, mut rx) = event_queue();
-    let cache = Arc::new(Mutex::new(cache.clone()));
-    replay_to_sink(&tx, &cache).unwrap();
-    let mut events = Vec::new();
-    while let Ok(event) = rx.try_recv() {
-        events.push(event);
-    }
-    events
+    cache.events()
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use realtime_engine::synth::prepare_audio_config;
-
-    #[test]
-    fn replay_events_skip_transient_realtime_messages() {
-        assert!(!is_replay_event(&EngineEvent::NoteOn {
-            instrument_slot: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: 100,
-        }));
-        assert!(is_replay_event(&EngineEvent::SetMasterVolume {
-            volume_pct: 70.0
-        }));
-    }
-
-    #[test]
-    fn replay_cache_keeps_current_sample_banks_when_audio_config_omits_them() {
-        let mut cache = ReplayCache::default();
-        let bank = SampleBankConfig {
-            gain_pct: 42.0,
-            ..Default::default()
-        };
-        cache.remember(&EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-            default_pi_instruments(),
-            Some(vec![bank.clone()]),
-            None,
-            DEFAULT_AUDIO_SAMPLE_RATE,
-        )));
-        cache.remember(&EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-            default_pi_instruments(),
-            None,
-            None,
-            DEFAULT_AUDIO_SAMPLE_RATE,
-        )));
-        let replay = collect_replay_events(&cache);
-        assert!(replay.iter().any(|event| matches!(
-            event,
-            EngineEvent::SetPreparedAudioConfig(config)
-                if config
-                    .sample_banks()
-                    .is_some_and(|banks| banks[0].gain_pct == 42.0)
-        )));
-    }
-
-    #[test]
-    fn replay_cache_keys_incremental_config_by_identity() {
-        let mut cache = ReplayCache::default();
-        cache.remember(&EngineEvent::SetSynthParam {
-            instrument_slot: 1,
-            path: "osc.mix".to_string(),
-            value: 0.25,
-        });
-        cache.remember(&EngineEvent::SetSynthParam {
-            instrument_slot: 1,
-            path: "osc.mix".to_string(),
-            value: 0.75,
-        });
-        cache.remember(&EngineEvent::SetSynthParam {
-            instrument_slot: 2,
-            path: "osc.mix".to_string(),
-            value: 0.5,
-        });
-        let replay = collect_replay_events(&cache);
-        assert_eq!(
-            replay
-                .iter()
-                .filter(|event| matches!(event, EngineEvent::SetSynthParam { .. }))
-                .count(),
-            2
-        );
-        assert!(replay.iter().any(|event| matches!(
-            event,
-            EngineEvent::SetSynthParam {
-                instrument_slot: 1,
-                value,
-                ..
-            } if *value == 0.75
-        )));
-    }
-
-    #[test]
-    fn replay_cache_keeps_one_current_dsp_config() {
-        let mut cache = ReplayCache::default();
-        cache.remember(&EngineEvent::SetDspConfig(
-            realtime_engine::synth::DspRuntimeConfig {
-                worker_warning_threshold: realtime_engine::synth::WorkerWarningThreshold::Percent70,
-                bus_idle_threshold: realtime_engine::synth::BusIdleThreshold::Exact,
-            },
-        ));
-        cache.remember(&EngineEvent::SetDspConfig(
-            realtime_engine::synth::DspRuntimeConfig::default(),
-        ));
-
-        let replay = collect_replay_events(&cache);
-        assert_eq!(
-            replay
-                .iter()
-                .filter(|event| matches!(event, EngineEvent::SetDspConfig(_)))
-                .count(),
-            1
-        );
-        assert!(replay.iter().any(|event| matches!(
-            event,
-            EngineEvent::SetDspConfig(config)
-                if *config == realtime_engine::synth::DspRuntimeConfig::default()
-        )));
-    }
-
-    #[test]
-    fn replay_cache_merges_fx_bus_mixer_options() {
-        let mut cache = ReplayCache::default();
-        cache.remember(&EngineEvent::SetFxBusMixer {
-            bus_index: 0,
-            pan_pos: Some(13),
-            volume_pct: None,
-        });
-        cache.remember(&EngineEvent::SetFxBusMixer {
-            bus_index: 0,
-            pan_pos: None,
-            volume_pct: Some(55.0),
-        });
-        let replay = collect_replay_events(&cache);
-        assert!(replay.iter().any(|event| matches!(
-            event,
-            EngineEvent::SetFxBusMixer {
-                bus_index: 0,
-                pan_pos: Some(13),
-                volume_pct: Some(55.0),
-            }
-        )));
-    }
-}
+#[path = "audio_replay_tests.rs"]
+mod tests;

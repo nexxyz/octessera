@@ -121,6 +121,7 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
           {
             type: "momentary_fx_start",
             id: "fx:2:5",
+            epoch: 1,
             fxType: "stutter",
             params: { depth: 0.6 },
             target: { type: "global" },

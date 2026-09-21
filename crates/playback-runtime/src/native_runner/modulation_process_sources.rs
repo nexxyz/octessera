@@ -19,7 +19,7 @@ pub(super) struct ModulationProcessState {
     pub(super) base_values: BTreeMap<String, f64>,
     pub(super) base_bindings: BTreeMap<String, NativeParamBinding>,
     pub(super) base_discrete: BTreeMap<String, (NativeParamBinding, Value)>,
-    pub(super) audio_commands: BTreeMap<Endpoint, crate::protocol::RuntimeAudioCommand>,
+    pub(super) audio_commands: BTreeMap<Endpoint, Vec<crate::protocol::RuntimeAudioCommand>>,
     pub(super) active_endpoints: BTreeSet<Endpoint>,
     active_keys: BTreeSet<String>,
     active_endpoint_keys: BTreeMap<Endpoint, BTreeSet<String>>,
@@ -155,6 +155,13 @@ impl ModulationProcessState {
 
     pub(super) fn has_source(&self, source: ModulationSourceId) -> bool {
         self.sources.contains_key(&source)
+    }
+
+    pub(super) fn active_keys_for_endpoint(
+        &self,
+        endpoint: &Endpoint,
+    ) -> Option<&BTreeSet<String>> {
+        self.active_endpoint_keys.get(endpoint)
     }
 
     pub(super) fn rebase_key(&mut self, runner: &NativeRunner, key: &str) -> bool {

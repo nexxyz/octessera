@@ -73,8 +73,11 @@ fn persistent_miss_repeats_once_then_silences_until_recovery_and_drains_controls
     runtime(&mut source).set_pause_for_parity_for_test(0, false);
     runtime(&mut source).set_pause_for_parity_for_test(1, false);
     runtime(&mut source).set_deadline_for_test(Duration::from_secs(1));
-    tx.send(EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None))
-        .unwrap();
+    tx.send(EngineEvent::SetVoiceStealingMode {
+        generation: 0,
+        mode: VoiceStealingMode::None,
+    })
+    .unwrap();
     let mut recovered = false;
     for _ in 0..1_000 {
         let block = block_bits(&mut source);

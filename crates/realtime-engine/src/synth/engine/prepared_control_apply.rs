@@ -1,8 +1,10 @@
+use super::super::scalar_param::ScalarMutation;
 use super::bus_chain_owner::{fx_kind_cost, BusChainOwner, BusChainSlot};
 use super::prepared_control_prepare::{
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
-    PreparedInstrumentsConfig, PreparedMomentaryFxStart,
+    PreparedInstrumentsConfig, PreparedMomentaryFxStart, PreparedMomentaryFxUpdate,
 };
+use super::render_momentary_fx::apply_prepared_momentary_fx_update;
 use super::render_plan::RenderPlanInstrumentSlot;
 use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::support::MomentaryFxKind;
@@ -274,6 +276,27 @@ impl SynthEngine {
         retired
     }
 
+    pub fn apply_prepared_momentary_fx_update(
+        &mut self,
+        update: PreparedMomentaryFxUpdate,
+    ) -> ScalarMutation {
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return ScalarMutation::Rejected;
+        }
+        let Some(fx) = self
+            .momentary_fx
+            .iter_mut()
+            .find(|fx| fx.epoch == update.epoch())
+        else {
+            return ScalarMutation::Rejected;
+        };
+        apply_prepared_momentary_fx_update(fx, update)
+    }
+
     pub fn apply_prepared_fx_bus_slot(
         &mut self,
         bus_index: usize,
@@ -442,6 +465,17 @@ fn preserve_spread_state(
 #[cfg(test)]
 #[path = "prepared_control_tests.rs"]
 mod prepared_control_tests;
+
+#[path = "prepared_instrument_owner.rs"]
+mod prepared_instrument_owner;
+
+#[cfg(test)]
+#[path = "prepared_instrument_owner_tests.rs"]
+mod prepared_instrument_owner_tests;
+
+#[cfg(test)]
+#[path = "momentary_control_tests.rs"]
+mod momentary_control_tests;
 
 #[cfg(all(test, feature = "routing-tree-benchmark"))]
 #[path = "routing_tree_prepared_tests.rs"]

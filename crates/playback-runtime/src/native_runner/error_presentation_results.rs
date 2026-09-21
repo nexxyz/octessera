@@ -50,7 +50,13 @@ impl NativeRunner {
             RuntimeStoreResult::DeviceUpdateStatus { message, .. } => {
                 self.display.toast = Some(NativeToast { message, offset: 0 });
             }
-            RuntimeStoreResult::RecordingStatus { message, .. } => {
+            RuntimeStoreResult::RecordingStatus {
+                active, message, ..
+            } => {
+                if self.recording_active && !active {
+                    self.display.last_interaction_at = self.display.transients.now();
+                }
+                self.recording_active = active;
                 self.display.toast = Some(NativeToast { message, offset: 0 });
             }
             RuntimeStoreResult::RuntimeFailure { error }
@@ -71,6 +77,12 @@ impl NativeRunner {
                 }
             }
             RuntimeStoreResult::RuntimeFailure { error } => {
+                if error.operation == crate::RuntimeOperation::Recording {
+                    if self.recording_active {
+                        self.display.last_interaction_at = self.display.transients.now();
+                    }
+                    self.recording_active = false;
+                }
                 self.display.runtime_error_presentation = None;
                 let sample_changed = self.mark_sample_unavailable_from_error(&error);
                 if is_midi_input_list_failure(&error.domain, &error.code, &error.operation) {

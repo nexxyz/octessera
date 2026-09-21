@@ -211,7 +211,6 @@ const FX_EXCLUSIVE_FIELDS: &[&str] = &[
     "timeMs",
     "timeMode",
     "timeNote",
-    "rateHz",
     "rateDiv",
     "depthMs",
     "baseMs",

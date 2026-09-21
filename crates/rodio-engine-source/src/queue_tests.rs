@@ -1,98 +1,126 @@
 use super::*;
+use crate::queue::{QueueEventClass, MUSICAL_QUEUE_CAPACITY, STRUCTURAL_QUEUE_CAPACITY};
 use realtime_engine::synth::{
-    prepare_instruments_config, prepare_momentary_fx_start, InstrumentsConfig, MomentaryFxTarget,
+    prepare_instruments_config, prepare_momentary_fx_start_with_epoch, InstrumentsConfig,
+    MomentaryFxTarget, SynthParamId, DEFAULT_PAN_POSITIONS,
 };
-use std::collections::BTreeMap;
+
+fn empty_prepared() -> realtime_engine::synth::PreparedInstrumentsConfig {
+    prepare_instruments_config(
+        InstrumentsConfig {
+            instruments: Vec::new(),
+            mixer: None,
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        },
+        44_100,
+    )
+}
 
 #[test]
-fn coalesced_queue_is_bounded_and_keeps_latest_control() {
+fn latest_controls_replace_without_consuming_fifo_capacity() {
     let (sender, mut receiver) = event_queue();
-    for value in 0..(COALESCED_QUEUE_CAPACITY + 17) {
+    for value in 0..10_000 {
         sender
-            .send(EngineEvent::SetMasterVolume {
-                volume_pct: value as f32,
+            .send(EngineEvent::SetSynthParam {
+                instrument_slot: 0,
+                generation: 0,
+                param: SynthParamId::AmpGainPct,
+                value: value as f32,
             })
             .unwrap();
     }
-    let mut events = Vec::new();
-    while let Ok(event) = receiver.try_recv_coalesced() {
-        events.push(event);
-    }
-    assert!(events.len() <= COALESCED_QUEUE_CAPACITY);
     assert!(matches!(
-        events.last(),
-        Some(EngineEvent::SetMasterVolume { volume_pct }) if *volume_pct == (COALESCED_QUEUE_CAPACITY + 16) as f32
+        receiver.try_recv_classified(),
+        Err(crossbeam_channel::TryRecvError::Empty)
     ));
+    let candidate = receiver.take_latest_candidate().expect("latest cell");
+    assert_eq!(candidate.value as u32, (9_999_f32).to_bits());
 }
 
 #[test]
-fn ordered_queue_preserves_note_panic_and_momentary_fx_order() {
+fn musical_fifo_is_exact_under_latest_flood() {
     let (sender, mut receiver) = event_queue();
-    sender
-        .send(EngineEvent::NoteOn {
-            instrument_slot: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: 100,
-        })
-        .unwrap();
-    sender.send(EngineEvent::AllNotesOff).unwrap();
-    sender
-        .send(EngineEvent::MomentaryFxStop { id: "fx".into() })
-        .unwrap();
-    assert!(matches!(
-        receiver.try_recv_ordered().unwrap(),
-        EngineEvent::NoteOn { note: 60, .. }
-    ));
-    assert!(matches!(
-        receiver.try_recv_ordered().unwrap(),
-        EngineEvent::AllNotesOff
-    ));
-    assert!(matches!(
-        receiver.try_recv_ordered().unwrap(),
-        EngineEvent::MomentaryFxStop { id } if id == "fx"
-    ));
-    let _ = MomentaryFxTarget::Global;
-    let _ = BTreeMap::<String, serde_json::Value>::new();
-}
-
-#[test]
-fn ordered_queue_full_is_typed_and_does_not_silently_drop_panic() {
-    let (sender, mut receiver) = event_queue();
-    for _ in 0..ORDERED_QUEUE_CAPACITY {
+    for note in 0..MUSICAL_QUEUE_CAPACITY {
         sender
             .send(EngineEvent::NoteOn {
                 instrument_slot: 0,
-                note: 60,
+                note: (note % 128) as u8,
+                velocity: 100,
+                duration_ms: 100,
+            })
+            .unwrap();
+        sender
+            .send(EngineEvent::SetMasterVolume {
+                generation: 0,
+                volume_pct: note as f32,
+            })
+            .unwrap();
+    }
+    for note in 0..MUSICAL_QUEUE_CAPACITY {
+        assert!(matches!(
+            receiver.try_recv().unwrap(),
+            EngineEvent::NoteOn { note: received, .. } if received == (note % 128) as u8
+        ));
+    }
+    assert!(matches!(
+        receiver.try_recv(),
+        Err(crossbeam_channel::TryRecvError::Empty)
+    ));
+}
+
+#[test]
+fn structural_queue_is_bounded_and_reports_full() {
+    let (sender, _receiver) = event_queue();
+    for _ in 0..STRUCTURAL_QUEUE_CAPACITY {
+        sender
+            .send(EngineEvent::SetPreparedInstruments {
+                generation: 0,
+                config: empty_prepared(),
+            })
+            .unwrap();
+    }
+    let error = sender
+        .send(EngineEvent::SetPreparedInstruments {
+            generation: 0,
+            config: empty_prepared(),
+        })
+        .unwrap_err();
+    assert!(error.is_structural_full());
+}
+
+#[test]
+fn panic_is_prioritized_and_cancels_older_musical_events() {
+    let (sender, mut receiver) = event_queue();
+    for note in 0..MUSICAL_QUEUE_CAPACITY {
+        sender
+            .send(EngineEvent::NoteOn {
+                instrument_slot: 0,
+                note: note as u8,
                 velocity: 100,
                 duration_ms: 100,
             })
             .unwrap();
     }
-
-    let error = sender
-        .send(EngineEvent::NoteOff {
-            instrument_slot: 0,
-            note: 60,
-        })
-        .unwrap_err();
-    assert!(error.is_full());
-    assert!(error.is_ordered_full());
+    sender.send(EngineEvent::AllNotesOff).unwrap();
+    let (class, event) = receiver.try_recv_classified().unwrap();
+    assert_eq!(class, QueueEventClass::Emergency);
+    assert!(matches!(event, EngineEvent::AllNotesOff));
     assert!(matches!(
-        error,
-        QueueSendError::Full {
-            queue: QueueKind::Ordered
-        }
-    ));
-    assert!(matches!(
-        receiver.try_recv_ordered(),
-        Ok(EngineEvent::NoteOn { .. })
+        receiver.try_recv(),
+        Err(crossbeam_channel::TryRecvError::Empty)
     ));
 }
 
 #[test]
-fn ordered_queue_keeps_preview_and_momentary_events_fifo() {
+fn structural_and_musical_events_share_sequence_order() {
     let (sender, mut receiver) = event_queue();
+    sender
+        .send(EngineEvent::SetPreparedInstruments {
+            generation: 0,
+            config: empty_prepared(),
+        })
+        .unwrap();
     sender
         .send(EngineEvent::NoteOn {
             instrument_slot: 0,
@@ -101,133 +129,221 @@ fn ordered_queue_keeps_preview_and_momentary_events_fifo() {
             duration_ms: 100,
         })
         .unwrap();
+    assert!(matches!(
+        receiver.try_recv().unwrap(),
+        EngineEvent::SetPreparedInstruments { .. }
+    ));
+    assert!(matches!(
+        receiver.try_recv().unwrap(),
+        EngineEvent::NoteOn { .. }
+    ));
+}
+
+#[test]
+fn disconnected_latest_sink_is_not_reported_as_full() {
+    let (sender, receiver) = event_queue();
+    drop(receiver);
+    assert!(matches!(
+        sender.send(EngineEvent::SetMasterVolume {
+            generation: 0,
+            volume_pct: 80.0,
+        }),
+        Err(QueueSendError::Disconnected {
+            queue: QueueKind::Latest
+        })
+    ));
+}
+
+#[test]
+fn prepared_momentary_start_remains_structural() {
+    let prepared = realtime_engine::synth::prepare_momentary_fx_start(
+        "fx".into(),
+        "stutter".into(),
+        std::collections::BTreeMap::new(),
+        MomentaryFxTarget::Global,
+        44_100,
+    )
+    .unwrap();
+    let (sender, mut receiver) = event_queue();
     sender
-        .send(EngineEvent::NoteOff {
-            instrument_slot: 0,
-            note: 60,
+        .send(EngineEvent::PreparedMomentaryFxStart { config: prepared })
+        .unwrap();
+    assert_eq!(
+        receiver.try_recv_classified().unwrap().0,
+        QueueEventClass::StructuralRetiring
+    );
+}
+
+#[test]
+fn accepted_momentary_start_is_idempotent() {
+    let prepared = prepare_momentary_fx_start_with_epoch(
+        "fx".into(),
+        1,
+        "stutter".into(),
+        std::collections::BTreeMap::new(),
+        MomentaryFxTarget::Global,
+        44_100,
+    )
+    .unwrap();
+    let (sender, mut receiver) = event_queue();
+    sender
+        .send(EngineEvent::PreparedMomentaryFxStart {
+            config: prepared.clone(),
         })
         .unwrap();
     sender
-        .send(EngineEvent::PreviewSample {
-            instrument_slot: 0,
-            buffer: realtime_engine::synth::SampleBuffer {
-                samples: vec![0.0].into_boxed_slice().into(),
-                channels: 1,
-                sample_rate: 44_100,
-            },
-            velocity: 100,
-        })
+        .send(EngineEvent::PreparedMomentaryFxStart { config: prepared })
         .unwrap();
-    sender
-        .send(EngineEvent::PreparedMomentaryFxStart(
-            prepare_momentary_fx_start(
-                "fx".into(),
+
+    assert!(matches!(
+        receiver.try_recv_structural(),
+        Ok(EngineEvent::PreparedMomentaryFxStart { config }) if config.epoch() == 1
+    ));
+    assert!(matches!(
+        receiver.try_recv_structural(),
+        Err(crossbeam_channel::TryRecvError::Empty)
+    ));
+}
+
+#[test]
+fn failed_momentary_start_enqueue_rolls_back_reservation() {
+    let (sender, mut receiver) = event_queue();
+    for _ in 0..STRUCTURAL_QUEUE_CAPACITY {
+        sender
+            .send(EngineEvent::SetPreparedInstruments {
+                generation: 0,
+                config: empty_prepared(),
+            })
+            .unwrap();
+    }
+    let start = prepare_momentary_fx_start_with_epoch(
+        "fx".into(),
+        41,
+        "stutter".into(),
+        std::collections::BTreeMap::new(),
+        MomentaryFxTarget::Global,
+        44_100,
+    )
+    .unwrap();
+    assert!(sender
+        .send(EngineEvent::PreparedMomentaryFxStart { config: start })
+        .unwrap_err()
+        .is_structural_full());
+    assert!(sender
+        .send(EngineEvent::MomentaryFxUpdate(
+            realtime_engine::synth::prepare_momentary_fx_update(
+                41,
                 "stutter".into(),
-                BTreeMap::new(),
-                MomentaryFxTarget::Global,
+                std::collections::BTreeMap::new(),
                 44_100,
             )
             .unwrap(),
         ))
-        .unwrap();
+        .unwrap_err()
+        .is_full());
 
-    assert!(matches!(
-        receiver.try_recv_ordered().unwrap(),
-        EngineEvent::NoteOn { .. }
-    ));
-    assert!(matches!(
-        receiver.try_recv_ordered().unwrap(),
-        EngineEvent::NoteOff { .. }
-    ));
-    assert!(matches!(
-        receiver.try_recv_ordered().unwrap(),
-        EngineEvent::PreviewSample { .. }
-    ));
-    assert!(matches!(
-        receiver.try_recv_ordered().unwrap(),
-        EngineEvent::PreparedMomentaryFxStart(_)
-    ));
+    receiver.try_recv_structural().unwrap();
+    let start = prepare_momentary_fx_start_with_epoch(
+        "fx".into(),
+        41,
+        "stutter".into(),
+        std::collections::BTreeMap::new(),
+        MomentaryFxTarget::Global,
+        44_100,
+    )
+    .unwrap();
+    sender
+        .send(EngineEvent::PreparedMomentaryFxStart { config: start })
+        .unwrap();
+    assert!(sender
+        .send(EngineEvent::MomentaryFxUpdate(
+            realtime_engine::synth::prepare_momentary_fx_update(
+                41,
+                "stutter".into(),
+                std::collections::BTreeMap::new(),
+                44_100,
+            )
+            .unwrap(),
+        ))
+        .is_ok());
 }
 
 #[test]
-fn structural_and_control_events_keep_cross_category_order() {
+fn failed_momentary_stop_enqueue_keeps_reservation() {
     let (sender, mut receiver) = event_queue();
-    let prepared = prepare_instruments_config(
-        InstrumentsConfig {
-            instruments: Vec::new(),
-            mixer: None,
-            pan_positions: 33,
-            master_volume: 100.0,
-        },
-        44_100,
-    );
     sender
-        .send(EngineEvent::SetMasterVolume { volume_pct: 80.0 })
-        .unwrap();
-    sender
-        .send(EngineEvent::NoteOn {
-            instrument_slot: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: 100,
+        .send(EngineEvent::PreparedMomentaryFxStart {
+            config: prepare_momentary_fx_start_with_epoch(
+                "fx".into(),
+                42,
+                "stutter".into(),
+                std::collections::BTreeMap::new(),
+                MomentaryFxTarget::Global,
+                44_100,
+            )
+            .unwrap(),
         })
         .unwrap();
-    sender
-        .send(EngineEvent::SetPreparedInstruments(prepared))
-        .unwrap();
-
-    assert!(matches!(
-        receiver.try_recv().unwrap(),
-        EngineEvent::SetMasterVolume { .. }
-    ));
-    assert!(matches!(
-        receiver.try_recv().unwrap(),
-        EngineEvent::NoteOn { .. }
-    ));
-    assert!(matches!(
-        receiver.try_recv().unwrap(),
-        EngineEvent::SetPreparedInstruments(_)
-    ));
-}
-
-#[test]
-fn emergency_all_notes_off_bypasses_a_full_ordered_queue() {
-    let (sender, mut receiver) = event_queue();
-    for _ in 0..ORDERED_QUEUE_CAPACITY {
+    for _ in 1..STRUCTURAL_QUEUE_CAPACITY {
         sender
-            .send(EngineEvent::NoteOn {
-                instrument_slot: 0,
-                note: 60,
-                velocity: 100,
-                duration_ms: 100,
+            .send(EngineEvent::SetPreparedInstruments {
+                generation: 0,
+                config: empty_prepared(),
             })
             .unwrap();
     }
-    sender.send(EngineEvent::AllNotesOff).unwrap();
+    assert!(sender
+        .send(EngineEvent::MomentaryFxStop { epoch: 42 })
+        .unwrap_err()
+        .is_structural_full());
+    assert!(sender
+        .send(EngineEvent::MomentaryFxUpdate(
+            realtime_engine::synth::prepare_momentary_fx_update(
+                42,
+                "stutter".into(),
+                std::collections::BTreeMap::new(),
+                44_100,
+            )
+            .unwrap(),
+        ))
+        .is_ok());
 
-    for _ in 0..ORDERED_QUEUE_CAPACITY {
-        assert!(matches!(
-            receiver.try_recv().unwrap(),
-            EngineEvent::NoteOn { .. }
-        ));
-    }
-    assert!(matches!(
-        receiver.try_recv().unwrap(),
-        EngineEvent::AllNotesOff
-    ));
+    receiver.try_recv_structural().unwrap();
+    sender
+        .send(EngineEvent::MomentaryFxStop { epoch: 42 })
+        .unwrap();
+    assert!(sender
+        .send(EngineEvent::MomentaryFxUpdate(
+            realtime_engine::synth::prepare_momentary_fx_update(
+                42,
+                "stutter".into(),
+                std::collections::BTreeMap::new(),
+                44_100,
+            )
+            .unwrap(),
+        ))
+        .is_err());
 }
 
 #[test]
-fn queue_disconnect_is_typed_for_coalesced_controls() {
-    let (sender, receiver) = event_queue();
-    drop(receiver);
-    let error = sender
-        .send(EngineEvent::SetMasterVolume { volume_pct: 80.0 })
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        QueueSendError::Disconnected {
-            queue: QueueKind::Coalesced
-        }
-    ));
+fn prepared_instrument_owner_is_one_retiring_structural_event() {
+    let (sender, mut receiver) = event_queue();
+    sender
+        .send(EngineEvent::SetPreparedInstrumentOwner {
+            instrument_slot: 0,
+            generation: 1,
+            config: realtime_engine::synth::prepare_instrument_slot_config(
+                realtime_engine::synth::InstrumentSlotConfig {
+                    kind: "synth".into(),
+                    synth: realtime_engine::synth::default_synth_config(),
+                    mixer: None,
+                },
+            ),
+            sample_bank: None,
+        })
+        .unwrap();
+    assert_eq!(
+        receiver.try_recv_classified().unwrap().0,
+        QueueEventClass::StructuralRetiring
+    );
 }

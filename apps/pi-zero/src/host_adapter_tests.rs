@@ -1,8 +1,8 @@
 use super::*;
 use crate::usb_config::UsbAudioOut;
 use playback_runtime::{
-    AudioOutputSet, HostMessage, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeSetupPortalPhase, RuntimeStoreResult,
+    AudioOutputSet, HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimePlatformEffect,
+    RuntimePlatformRequest, RuntimeSetupPortalPhase, RuntimeStoreResult,
 };
 
 fn assert_sd2_store_error(response: &[HostMessage], message: &str) {
@@ -111,15 +111,34 @@ fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
         "audio-oled-start".into(),
         None,
     );
-    adapter.handle_platform_effect(&oled).unwrap();
+    let started = adapter.handle_platform_effect(&oled).unwrap();
+    assert!(matches!(
+        started.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: true,
+            }
+        }] if message == "Recording started"
+    ));
     let active = adapter
         .handle_platform_effect(&RuntimePlatformRequest::new(
             RuntimePlatformEffect::RecordingStartAudio { max_minutes: 1 },
             "audio-start".into(),
             None,
         ))
-        .unwrap_err();
-    assert!(active.to_string().contains("already active"));
+        .unwrap();
+    assert!(matches!(
+        active.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: true,
+            }
+        }] if message == "Recording is already running"
+    ));
     let response = adapter
         .handle_platform_effect(&RuntimePlatformRequest::new(
             RuntimePlatformEffect::RecordingStop,
@@ -130,9 +149,62 @@ fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
     assert!(matches!(
         response.as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RecordingStatus { ok: true, .. }
-        }]
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: false,
+            }
+        }] if message == "Recording saved"
     ));
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn raspberry_recording_stop_failure_preserves_error_detail() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-recording-stop-error-{}",
+        std::process::id()
+    ));
+    let recordings = root.join("recordings");
+    std::fs::create_dir_all(&recordings).unwrap();
+    let (audio, _, _, _) = crate::audio::test_service_with_recording_dir(recordings.clone());
+    audio.start_recording(1).unwrap();
+    let partial = std::fs::read_dir(&recordings)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| path.to_string_lossy().ends_with(".partial.wav"))
+        .expect("partial WAV");
+    let stem = partial
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .trim_end_matches(".partial.wav")
+        .to_string();
+    std::fs::create_dir(recordings.join(format!("{stem}.wav"))).unwrap();
+    let mut adapter = PiPlaybackHostAdapter::new(
+        Some(audio.clone()),
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        UsbAudioOut::Jack,
+    );
+
+    let error = adapter
+        .handle_platform_effect(&RuntimePlatformRequest::new(
+            RuntimePlatformEffect::RecordingStop,
+            "recording-stop-error".into(),
+            None,
+        ))
+        .unwrap_err();
+    assert_eq!(error.facts.domain, RuntimeErrorDomain::Recording);
+    assert_eq!(error.facts.code, RuntimeErrorCode::OperationFailed);
+    assert!(error
+        .facts
+        .message
+        .as_deref()
+        .is_some_and(|message| message.contains("already exists")));
+    assert!(!audio.is_recording().unwrap());
     let _ = std::fs::remove_dir_all(root);
 }
 

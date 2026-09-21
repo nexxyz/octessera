@@ -1,7 +1,7 @@
 use super::{
     merge_preserved_aux_payloads, migrate_legacy_modulation, patch_payload_from_payload,
     strip_device_audio_fields, validate_audio_outputs, validate_canonical_lfo_bank_shape,
-    validate_config_payload, validate_portable_patch_fields, ConfigDto, Value,
+    validate_config_payload, validate_portable_patch_fields, AudioOutputSet, ConfigDto, Value,
 };
 
 #[path = "config_schema_derived_names.rs"]
@@ -45,6 +45,7 @@ pub(super) fn prepare_config_payload(
     }
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
+        migrate_legacy_audio_output(&mut input)?;
         normalize_missing_usb_data_role(&mut input, true);
     } else {
         normalize_missing_usb_data_role(&mut input, false);
@@ -96,6 +97,7 @@ pub(super) fn prepare_patch_payload(
     }
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
+        migrate_legacy_audio_output(&mut input)?;
         normalize_missing_usb_data_role(&mut input, true);
     } else {
         normalize_missing_usb_data_role(&mut input, false);
@@ -146,6 +148,7 @@ pub(super) fn prepare_device_payload(
     validate_canonical_lfo_bank_shape(&input)?;
     if version.is_legacy() {
         migrate_legacy_runtime_root(&mut input);
+        migrate_legacy_audio_output(&mut input)?;
         normalize_missing_usb_data_role(&mut input, true);
     } else {
         normalize_missing_usb_data_role(&mut input, false);
@@ -343,6 +346,55 @@ fn validate_supplied_audio_outputs(payload: &Value) -> Result<(), String> {
         return Ok(());
     };
     validate_audio_outputs(runtime)
+}
+
+fn migrate_legacy_audio_output(payload: &mut Value) -> Result<(), String> {
+    let runtime = if payload.get("runtimeConfig").is_some() {
+        payload.get_mut("runtimeConfig").expect("runtimeConfig")
+    } else {
+        payload
+    };
+    let Some(runtime) = runtime.as_object_mut() else {
+        return Ok(());
+    };
+    let legacy_value = runtime
+        .get("usb")
+        .and_then(Value::as_object)
+        .and_then(|usb| usb.get("audioOut"))
+        .cloned();
+    let Some(legacy_value) = legacy_value else {
+        return Ok(());
+    };
+    let legacy = match legacy_value.as_str() {
+        Some("jack") => AudioOutputSet::jack(),
+        Some("usb") => AudioOutputSet::from_flags(false, true, false)
+            .expect("legacy usb audio output is valid"),
+        Some("both") => AudioOutputSet::from_flags(true, true, false)
+            .expect("legacy both audio output is valid"),
+        Some(value) => {
+            return Err(format!(
+                "runtimeConfig.usb.audioOut has unsupported value `{value}`"
+            ));
+        }
+        None => return Err("runtimeConfig.usb.audioOut must be a string".into()),
+    };
+    let canonical = runtime
+        .get("audioOutputs")
+        .map(AudioOutputSet::decode)
+        .transpose()?;
+    if let Some(canonical) = canonical {
+        if canonical.dac() != legacy.dac() || canonical.usb() != legacy.usb() {
+            return Err(
+                "runtimeConfig.usb.audioOut disagrees with runtimeConfig.audioOutputs".into(),
+            );
+        }
+    } else {
+        runtime.insert("audioOutputs".into(), legacy.as_value());
+    }
+    if let Some(usb) = runtime.get_mut("usb").and_then(Value::as_object_mut) {
+        usb.remove("audioOut");
+    }
+    Ok(())
 }
 
 fn migrate_legacy_runtime_root(payload: &mut Value) {

@@ -93,6 +93,13 @@ impl NativeRunner {
 
     pub(super) fn apply_xy_menu_state(&mut self) -> bool {
         let mut changed = false;
+        let mut smoothing_changed = false;
+        if let Some(smoothing_ms) = self.menu.number_for_key("sparks.xy.smoothingMs") {
+            let smoothing_ms = super::normalize_xy_smoothing_ms(smoothing_ms.max(0) as u64);
+            smoothing_changed = self.xy_smoothing_ms != smoothing_ms;
+            changed |= smoothing_changed;
+            self.xy_smoothing_ms = smoothing_ms;
+        }
         if let Some(xy_release) = self.menu.value_for_key("sparks.xy.release") {
             changed |= self.xy_release != xy_release;
             self.xy_release = xy_release;
@@ -108,7 +115,11 @@ impl NativeRunner {
             self.xy_invert_y = invert_y;
         }
         if changed {
-            self.resample_xy_runtime_sources();
+            if smoothing_changed {
+                let _ = self.retarget_xy_runtime_sources_at(std::time::Instant::now(), true);
+            } else {
+                self.resample_xy_runtime_sources();
+            }
             if let Err(error) = self.process_modulation_step(false) {
                 self.show_toast(format!("modulation composition unavailable: {error}"));
             }

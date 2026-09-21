@@ -1,10 +1,9 @@
 use realtime_engine::synth::{
-    DspRuntimeConfig, PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot,
-    PreparedInstrumentSlot, PreparedInstrumentsConfig, PreparedMomentaryFxStart, SampleBankConfig,
+    DspRuntimeConfig, FxParamId, PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot,
+    PreparedInstrumentSlot, PreparedInstrumentsConfig, PreparedMomentaryFxStart,
+    PreparedMomentaryFxUpdate, SampleBankConfig, SampleBankParamId, SampleBuffer, SynthParamId,
     VoiceStealingMode,
 };
-use serde_json::Value;
-use std::collections::BTreeMap;
 use std::sync::mpsc::SyncSender;
 use std::time::Instant;
 
@@ -26,62 +25,102 @@ pub enum EngineEvent {
         controller: u8,
         value: u8,
     },
-    SetPreparedInstruments(PreparedInstrumentsConfig),
-    SetPreparedAudioConfig(PreparedAudioConfig),
+    SetPreparedInstruments {
+        generation: u64,
+        config: PreparedInstrumentsConfig,
+    },
+    SetPreparedAudioConfig {
+        generation: u64,
+        config: PreparedAudioConfig,
+    },
     SetPreparedSampleBank {
-        instrument_slot: usize,
+        instrument_slot: u8,
+        generation: u64,
         bank: SampleBankConfig,
+    },
+    SetPreparedInstrumentOwner {
+        instrument_slot: u8,
+        generation: u64,
+        config: PreparedInstrumentSlot,
+        sample_bank: Option<SampleBankConfig>,
     },
     PreviewSample {
         instrument_slot: u8,
-        buffer: realtime_engine::synth::SampleBuffer,
+        generation: u64,
+        buffer: SampleBuffer,
         velocity: u8,
     },
-    SetVoiceStealingMode(VoiceStealingMode),
-    SetDspConfig(DspRuntimeConfig),
+    SetVoiceStealingMode {
+        generation: u64,
+        mode: VoiceStealingMode,
+    },
+    SetDspConfig {
+        generation: u64,
+        config: DspRuntimeConfig,
+    },
     SetMasterVolume {
+        generation: u64,
         volume_pct: f32,
     },
     SetInstrumentMixer {
-        instrument_slot: usize,
+        instrument_slot: u8,
+        generation: u64,
         volume_pct: Option<f32>,
         pan_pos: Option<usize>,
     },
     SetPreparedInstrumentSlot {
-        instrument_slot: usize,
+        instrument_slot: u8,
+        generation: u64,
         config: PreparedInstrumentSlot,
     },
     SetFxBusMixer {
-        bus_index: usize,
+        bus_index: u8,
+        generation: u64,
         pan_pos: Option<usize>,
         volume_pct: Option<f32>,
     },
     SetSynthParam {
-        instrument_slot: usize,
-        path: String,
+        instrument_slot: u8,
+        generation: u64,
+        param: SynthParamId,
         value: f32,
     },
     SetSampleBankParam {
-        instrument_slot: usize,
-        path: String,
+        instrument_slot: u8,
+        generation: u64,
+        param: SampleBankParamId,
+        value: f32,
+    },
+    SetFxBusParam {
+        bus_index: u8,
+        slot_index: u8,
+        generation: u64,
+        param: FxParamId,
         value: f32,
     },
     SetPreparedFxBusSlot {
-        bus_index: usize,
-        slot_index: usize,
+        bus_index: u8,
+        slot_index: u8,
+        generation: u64,
         config: PreparedFxBusSlot,
     },
+    SetGlobalFxParam {
+        slot_index: u8,
+        generation: u64,
+        param: FxParamId,
+        value: f32,
+    },
     SetPreparedGlobalFxSlot {
-        slot_index: usize,
+        slot_index: u8,
+        generation: u64,
         config: PreparedGlobalFxSlot,
     },
-    PreparedMomentaryFxStart(PreparedMomentaryFxStart),
-    MomentaryFxUpdate {
-        id: String,
-        params: BTreeMap<String, Value>,
+    PreparedMomentaryFxStart {
+        config: PreparedMomentaryFxStart,
     },
+    MomentaryFxUpdate(PreparedMomentaryFxUpdate),
     MomentaryFxStop {
-        id: String,
+        epoch: u64,
     },
     ProbeMark {
         sent_at: Instant,

@@ -1,8 +1,9 @@
 use super::*;
 use crossbeam_channel::bounded;
 use realtime_engine::synth::{
-    default_synth_config, prepare_audio_config, prepare_momentary_fx_start, InstrumentSlotConfig,
-    InstrumentsConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
+    default_synth_config, prepare_audio_config, prepare_momentary_fx_start,
+    prepare_momentary_fx_update, InstrumentSlotConfig, InstrumentsConfig, MomentaryFxTarget,
+    SampleBankConfig, SampleBankParamId, SampleBuffer, SynthParamId,
     DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_PAN_POSITIONS, MAX_CONTROL_EVENTS_PER_CALLBACK,
 };
 use serde_json::json;
@@ -262,10 +263,16 @@ fn prepared_control_path_does_not_allocate_while_refilling() {
     );
     let prepared_again = prepared.clone();
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedAudioConfig(prepared))
-        .unwrap();
-    tx.send(EngineEvent::SetPreparedAudioConfig(prepared_again))
-        .unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepared,
+    })
+    .unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepared_again,
+    })
+    .unwrap();
     let mut source = EngineSource::new(rx, 44_100);
     let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
         for _ in 0..512 {
@@ -321,8 +328,11 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
         sent_at: Instant::now(),
         report_tx,
     };
-    tx.send(EngineEvent::SetPreparedAudioConfig(config))
-        .unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config,
+    })
+    .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
         note: 60,
@@ -332,36 +342,40 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
     .unwrap();
     tx.send(EngineEvent::PreviewSample {
         instrument_slot: 0,
+        generation: 0,
         buffer: preview,
         velocity: 100,
     })
     .unwrap();
-    tx.send(EngineEvent::PreparedMomentaryFxStart(momentary_start))
-        .unwrap();
-    tx.send(EngineEvent::MomentaryFxUpdate {
-        id: "filter".into(),
-        params: momentary_update,
+    tx.send(EngineEvent::PreparedMomentaryFxStart {
+        config: momentary_start,
     })
     .unwrap();
+    let momentary_update =
+        prepare_momentary_fx_update(0, "filter_sweep".into(), momentary_update, 44_100).unwrap();
+    tx.send(EngineEvent::MomentaryFxUpdate(momentary_update))
+        .unwrap();
     tx.send(EngineEvent::SetSynthParam {
         instrument_slot: 0,
-        path: "synth.amp.gainPct".into(),
+        generation: 0,
+        param: SynthParamId::AmpGainPct,
         value: 90.0,
     })
     .unwrap();
     tx.send(EngineEvent::SetSampleBankParam {
         instrument_slot: 0,
-        path: "sample.amp.gainPct".into(),
+        generation: 0,
+        param: SampleBankParamId::AmpGainPct,
         value: 90.0,
     })
     .unwrap();
     tx.send(probe_event).unwrap();
-    tx.send(EngineEvent::SetPreparedAudioConfig(replacement))
-        .unwrap();
-    tx.send(EngineEvent::MomentaryFxStop {
-        id: "filter".into(),
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: replacement,
     })
     .unwrap();
+    tx.send(EngineEvent::MomentaryFxStop { epoch: 0 }).unwrap();
     tx.send(EngineEvent::AllNotesOff).unwrap();
 
     let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
@@ -377,6 +391,9 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
 
 #[path = "retirement_tests.rs"]
 mod retirement_tests;
+
+#[path = "prepared_instrument_owner_tests.rs"]
+mod prepared_instrument_owner_tests;
 
 #[path = "shutdown_handoff_tests.rs"]
 mod shutdown_handoff_tests;
@@ -410,37 +427,6 @@ mod pcm_mirror_integration_tests;
 mod persistent_flash_tests;
 
 #[test]
-fn benchmark_persistent_constructor_uses_exact_requested_frames_without_env_override() {
-    if std::env::var_os("OCTESSERA_BENCHMARK_QUANTUM_CHILD").is_none() {
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "tests::benchmark_persistent_constructor_uses_exact_requested_frames_without_env_override",
-                "--nocapture",
-            ])
-            .env("OCTESSERA_BENCHMARK_QUANTUM_CHILD", "1")
-            .env("OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES", "2048")
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        return;
-    }
-    for block_frames in [64, 128, 256, 512, 1024, 2048] {
-        let (_tx, rx) = event_queue();
-        let (source, shutdown) =
-            EngineSource::with_persistent_workers_for_benchmark(rx, 44_100, block_frames, None)
-                .unwrap();
-        assert_eq!(source.block_frames(), block_frames);
-        drop(source);
-        assert_eq!(shutdown.shutdown().joined_workers, 2);
-    }
-}
-
-#[test]
 fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
     for block_frames in [31, 2049] {
         let reaper_spawn_failure = source_worker_reaper::fail_next_reaper_spawn_for_test();
@@ -458,6 +444,9 @@ fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
         assert_eq!(reaper_spawn_failure.attempts_for_test(), 0);
     }
 }
+
+#[path = "benchmark_tests.rs"]
+mod benchmark_tests;
 
 #[cfg(feature = "source-worker-benchmark-timing")]
 #[path = "persistent_timing_tests.rs"]

@@ -35,7 +35,7 @@ use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::{json, Value};
 #[cfg(any(test, feature = "test-support"))]
 use std::cell::Cell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 mod action_bindings;
@@ -145,6 +145,7 @@ mod modulation_source;
 mod modulation_target;
 mod modulation_target_table;
 mod modulation_value;
+mod note_ownership;
 mod note_set_selection;
 mod outbox;
 mod overlays;
@@ -198,6 +199,7 @@ mod user_data_restore_state;
 mod user_data_transfer_results;
 mod user_data_transfer_state;
 mod velocity_curve;
+mod xy_smoothing;
 
 use crate::{clean_preset_name, fresh_preset_name};
 pub use audio_optimization::AudioOptimization;
@@ -245,6 +247,7 @@ use synth_config::*;
 use system_info::*;
 use trigger_probability_payload::*;
 use velocity_curve::*;
+use xy_smoothing::*;
 
 pub(crate) fn normalize_user_data_patch_payload(
     payload: Value,
@@ -272,6 +275,7 @@ pub(crate) fn validate_user_data_config_payload(payload: &Value) -> Result<(), S
 }
 
 const DEFAULT_ALGORITHM_STEP_RED: u32 = 12;
+const DEFAULT_XY_SMOOTHING_MS: u16 = 80;
 const TRIGGER_PROBABILITY_RNG_INITIAL_SEED: u64 = 0xC311_5A7E_2024_0001;
 const OLED_BODY_ROWS: usize = 7;
 #[cfg(not(test))]
@@ -329,6 +333,7 @@ pub struct NativeRunner {
     link_arp_held_notes: Vec<Vec<LinkArpHeldNote>>,
     link_arp_rotating_phase: Vec<usize>,
     link_arp_random_state: u32,
+    emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
     audio_output_buffer_frames: u32,
     display: NativeDisplayState,
     midi_enabled: bool,
@@ -352,6 +357,7 @@ pub struct NativeRunner {
     boot_applied_usb_midi_out_enabled: bool,
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
+    recording_active: bool,
     sparks_mode: String,
     active_sparks_mode: String,
     sparks_fx_selected: Value,
@@ -360,8 +366,11 @@ pub struct NativeRunner {
     active_sparks_fx: Vec<(String, String)>,
     xy_touch: NativeXyTouch,
     xy_release: String,
+    xy_smoothing_ms: u16,
     xy_invert_x: bool,
     xy_invert_y: bool,
+    xy_x_glide: Option<NativeXyGlide>,
+    xy_y_glide: Option<NativeXyGlide>,
     xy_x_binding: Option<NativeParamBinding>,
     xy_y_binding: Option<NativeParamBinding>,
     aux_auto_map_enabled: bool,

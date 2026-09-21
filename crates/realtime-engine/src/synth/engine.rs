@@ -1,7 +1,7 @@
 use super::dsp_config::{DspRuntimeConfig, WorkerLoadWarningState};
 use super::fx::{
-    fx_bus_state_from_params, fx_bus_state_matches_params, master_fx_state_from_params,
-    master_fx_state_matches_params, process_master_fx_slot, FxBusState, MasterFxState,
+    fx_bus_state_from_params, master_fx_state_from_params, master_fx_state_matches_params,
+    process_master_fx_slot, FxBusState, MasterFxState,
 };
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
 use super::runtime_state::*;
@@ -22,6 +22,8 @@ mod control;
 mod control_tests;
 mod duck_source;
 mod dynamic_control;
+#[cfg(test)]
+mod dynamic_control_tests;
 mod inline_source_executor;
 #[cfg(test)]
 mod lifecycle_tests;
@@ -162,8 +164,9 @@ mod voice_budget;
 pub use prepared_control_prepare::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
-    PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
-    PreparedInstrumentsConfig, PreparedMomentaryFxStart,
+    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, PreparedAudioConfig,
+    PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
+    PreparedMomentaryFxStart, PreparedMomentaryFxUpdate,
 };
 pub use retired_state::RetiredAudioState;
 use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};

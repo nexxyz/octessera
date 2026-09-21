@@ -299,26 +299,32 @@ impl NativeRunner {
     }
 
     pub(super) fn refresh_xy_runtime_sources(&mut self) {
-        self.set_xy_runtime_sources([self.xy_touch.x, self.xy_touch.y]);
+        let _ = self.set_xy_runtime_sources([self.xy_touch.x, self.xy_touch.y]);
     }
 
     pub(super) fn resample_xy_runtime_sources(&mut self) {
-        self.set_xy_runtime_sources([
-            if self.xy_invert_x {
-                1.0 - self.xy_touch.display_x
-            } else {
-                self.xy_touch.display_x
-            },
-            if self.xy_invert_y {
-                1.0 - self.xy_touch.display_y
-            } else {
-                self.xy_touch.display_y
-            },
-        ]);
+        let _ = self.resample_xy_runtime_sources_at(std::time::Instant::now(), false);
     }
 
-    fn set_xy_runtime_sources(&mut self, normalized: [f32; 2]) {
+    pub(super) fn resample_xy_runtime_sources_at(
+        &mut self,
+        now: std::time::Instant,
+        force: bool,
+    ) -> bool {
+        self.retarget_xy_runtime_sources_at(now, force)
+    }
+
+    pub(super) fn set_xy_runtime_sources(&mut self, normalized: [f32; 2]) -> bool {
+        self.set_xy_runtime_sources_with_force(normalized, false)
+    }
+
+    pub(super) fn set_xy_runtime_sources_forced(&mut self, normalized: [f32; 2]) -> bool {
+        self.set_xy_runtime_sources_with_force(normalized, true)
+    }
+
+    fn set_xy_runtime_sources_with_force(&mut self, normalized: [f32; 2], force: bool) -> bool {
         let active = self.xy_touch.active;
+        let mut changed = false;
         for (source, binding, normalized) in [
             (
                 ModulationSourceId::play_x(),
@@ -332,13 +338,15 @@ impl NativeRunner {
             ),
         ] {
             if let Some(binding) = binding {
-                if active || self.modulation_process.has_source(source) {
-                    self.set_runtime_source_input(source, binding, f64::from(normalized));
+                if force || active || self.modulation_process.has_source(source) {
+                    changed |=
+                        self.set_runtime_source_input(source, binding, f64::from(normalized));
                 }
             } else {
-                self.clear_runtime_source_input(source);
+                changed |= self.clear_runtime_source_input(source);
             }
         }
+        changed
     }
 
     #[cfg(test)]

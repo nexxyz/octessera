@@ -106,6 +106,7 @@ impl NativeRunner {
             }
             "sound.velocityCurve" => Some(self.fast_sound_string_menu_key(key)),
             "sound.voiceStealingMode" => Some(self.fast_voice_stealing_mode_menu_key()),
+            "sparks.xy.smoothingMs" => Some(self.fast_xy_smoothing_menu_key()),
             "sparks.xy.release" => Some(self.fast_xy_release_menu_key()),
             "sparks.xy.invertX" => Some(self.fast_xy_invert_menu_key(true)),
             "sparks.xy.invertY" => Some(self.fast_xy_invert_menu_key(false)),
@@ -248,7 +249,10 @@ impl NativeRunner {
             bus_idle_threshold,
         };
         if value_changed(&mut self.dsp_config, config) {
-            self.queue_audio_command(RuntimeAudioCommand::SetDspConfig { config });
+            self.queue_audio_command(RuntimeAudioCommand::SetDspConfig {
+                generation: 0,
+                config,
+            });
             self.mark_fast_autosave_dirty();
         }
         true
@@ -372,6 +376,22 @@ impl NativeRunner {
         true
     }
 
+    fn fast_xy_smoothing_menu_key(&mut self) -> bool {
+        let Some(value) = self.menu.number_for_key("sparks.xy.smoothingMs") else {
+            return false;
+        };
+        let value = super::normalize_xy_smoothing_ms(value.max(0) as u64);
+        if value_changed(&mut self.xy_smoothing_ms, value) {
+            if self.set_xy_smoothing_ms_at(u64::from(value), std::time::Instant::now()) {
+                if let Err(error) = self.process_dirty_modulation_step(false) {
+                    self.show_toast(format!("modulation composition unavailable: {error}"));
+                }
+            }
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
     fn fast_xy_invert_menu_key(&mut self, x_axis: bool) -> bool {
         let key = if x_axis {
             "sparks.xy.invertX"
@@ -458,6 +478,7 @@ impl NativeRunner {
             self.display.ui.master_volume = master_volume;
             self.mark_fast_autosave_dirty();
             self.queue_audio_command(RuntimeAudioCommand::SetMasterVolume {
+                generation: 0,
                 volume_pct: f32::from(master_volume),
             });
         }

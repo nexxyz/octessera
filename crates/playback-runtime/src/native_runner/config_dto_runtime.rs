@@ -102,6 +102,7 @@ pub struct LinkLfoDto {
 pub struct XyDto {
     pub(super) x: Option<Option<ParamBindingDto>>,
     pub(super) y: Option<Option<ParamBindingDto>>,
+    pub(super) smoothing_ms: Option<u16>,
     pub(super) x_invert: Option<bool>,
     pub(super) y_invert: Option<bool>,
 }

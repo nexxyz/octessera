@@ -2,8 +2,10 @@ mod audio_config;
 mod dsp_config;
 mod engine;
 mod fx;
+mod fx_param;
 mod fx_params;
 mod runtime_state;
+mod scalar_param;
 #[cfg(feature = "source-worker-benchmark-timing")]
 mod source_worker_timing;
 #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
@@ -38,8 +40,9 @@ pub use engine::{
 pub use engine::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
-    PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
-    PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SourceWorkerHealth,
+    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, PreparedAudioConfig,
+    PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
+    PreparedMomentaryFxStart, PreparedMomentaryFxUpdate, RetiredAudioState, SourceWorkerHealth,
     SourceWorkerHealthSnapshot, SourceWorkerLoadSnapshot, SourceWorkerMode,
     SourceWorkerRenderDisposition, SourceWorkerRetirement, SourceWorkerRetirementError,
     SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine, WorkStamp, WorkerPhase,
@@ -49,6 +52,8 @@ pub use engine::{
 };
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};
+pub use fx_param::{FxParamId, FxParamMutation};
+pub use scalar_param::{SampleBankParamId, ScalarMutation, SynthParamId};
 #[cfg(feature = "source-worker-benchmark-timing")]
 pub use source_worker_timing::{
     SourceWorkerCoordinatorTimingSnapshot, SourceWorkerCpuSampler, SourceWorkerTimingProbe,

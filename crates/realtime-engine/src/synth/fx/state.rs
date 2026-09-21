@@ -76,27 +76,22 @@ pub(in crate::synth) fn fx_bus_state_from_params(
     sample_rate: u32,
 ) -> FxBusState {
     match params {
-        FxBusParams::Delay { time_ms, .. } => FxBusState::Delay {
-            buf: vec![0.0; ((*time_ms / 1000.0) * sample_rate as f32).round().max(1.0) as usize],
-            idx: 0,
-            cache: DelayCache::new(*time_ms, sample_rate),
-        },
+        FxBusParams::Delay { time_ms, .. } => {
+            let cache = DelayCache::new(*time_ms, sample_rate);
+            FxBusState::Delay {
+                buf: vec![0.0; cache.min_len],
+                idx: 0,
+                cache,
+            }
+        }
         FxBusParams::Tremolo { .. } => FxBusState::Tremolo { phase: 0.0 },
         FxBusParams::ModDelay {
             rate_hz,
             depth_ms,
             base_ms,
             ..
-        } => FxBusState::ModDelay {
-            buf: vec![
-                0.0;
-                (((*base_ms + *depth_ms + 5.0) / 1000.0) * sample_rate as f32)
-                    .ceil()
-                    .max(2.0) as usize
-            ],
-            idx: 0,
-            phase: 0.0,
-            cache: ModDelayCache::new(
+        } => {
+            let cache = ModDelayCache::new(
                 &ModDelayParams {
                     rate_hz: *rate_hz,
                     depth_ms: *depth_ms,
@@ -105,8 +100,14 @@ pub(in crate::synth) fn fx_bus_state_from_params(
                     mix: 0.0,
                 },
                 sample_rate,
-            ),
-        },
+            );
+            FxBusState::ModDelay {
+                buf: vec![0.0; cache.min_len],
+                idx: 0,
+                phase: 0.0,
+                cache,
+            }
+        }
         FxBusParams::FilterLfo { kind, rate_hz, .. } => FxBusState::FilterLfo {
             filt: BiquadState::new(),
             phase: 0.0,
@@ -184,6 +185,23 @@ pub(in crate::synth) fn fx_bus_state_matches_params(
             | (FxBusState::Eq { .. }, FxBusParams::Eq { .. })
             | (FxBusState::Vinyl(..), FxBusParams::Vinyl { .. })
     )
+}
+
+pub(in crate::synth) fn fx_bus_state_can_preserve(
+    previous: &FxBusState,
+    params: &FxBusParams,
+    prepared: &FxBusState,
+) -> bool {
+    if !fx_bus_state_matches_params(previous, params) {
+        return false;
+    }
+    match (previous, prepared) {
+        (FxBusState::Delay { buf: previous, .. }, FxBusState::Delay { buf: next, .. })
+        | (FxBusState::ModDelay { buf: previous, .. }, FxBusState::ModDelay { buf: next, .. }) => {
+            previous.len() >= next.len()
+        }
+        _ => true,
+    }
 }
 
 pub(in crate::synth) fn master_fx_state_matches_params(

@@ -1,6 +1,8 @@
+use realtime_engine::synth::SourceWorkerHealth;
+#[cfg(any(test, feature = "routing-tree-executor"))]
+use realtime_engine::synth::SourceWorkerRetirement;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use realtime_engine::synth::SourceWorkerRuntime;
-use realtime_engine::synth::{SourceWorkerHealth, SourceWorkerRetirement};
 
 #[derive(Clone, Copy)]
 pub(super) enum EngineSourceMode {
@@ -88,6 +90,7 @@ impl EngineSourceWorkerState {
             .unwrap_or(0)
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn retire(&mut self) -> Option<SourceWorkerRetirement> {
         self.mode = EngineSourceMode::Inline;
         #[cfg(any(test, feature = "routing-tree-executor"))]
@@ -98,6 +101,12 @@ impl EngineSourceWorkerState {
         {
             None
         }
+    }
+
+    #[cfg(any(test, feature = "routing-tree-executor"))]
+    pub(super) fn take_runtime(&mut self) -> Option<SourceWorkerRuntime> {
+        self.mode = EngineSourceMode::Inline;
+        self.worker.take().map(|worker| worker.runtime)
     }
 }
 

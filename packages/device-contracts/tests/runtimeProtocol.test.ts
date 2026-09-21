@@ -6,10 +6,12 @@ import {
   isPositiveOledFrameRevision,
   isRuntimeSnapshotMessage,
   MIDI_REALTIME_MESSAGE_TYPES,
+  RUNTIME_FX_PARAM_IDS,
   RUNTIME_STATUS_STATES,
   RUNTIME_TRANSPORT_STATES,
   SHARED_RUNTIME_CONTRACT_FIXTURES,
   type RuntimeAudioCommand,
+  type RuntimeFxParamId,
   type RuntimeHostMessage,
   type RuntimePlatformEffect,
   type RuntimeRunnerMessage,
@@ -17,6 +19,7 @@ import {
 } from "../src/index";
 import {
   RUNTIME_AUDIO_COMMAND_FIXTURES,
+  RUNTIME_FX_PARAM_ID_FIXTURES,
   RUNTIME_PLATFORM_EFFECT_FIXTURES,
   RUNTIME_SETUP_PORTAL_STATUS_FIXTURES,
   RUNTIME_STORE_RESULT_FIXTURES,
@@ -27,6 +30,7 @@ type AssertNever<T extends never> = T;
 
 type AudioCommandFixtureTypes =
   (typeof RUNTIME_AUDIO_COMMAND_FIXTURES)[number]["type"];
+type FxParamFixtureIds = (typeof RUNTIME_FX_PARAM_ID_FIXTURES)[number];
 type PlatformEffectFixtureTypes =
   (typeof RUNTIME_PLATFORM_EFFECT_FIXTURES)[number]["type"];
 type StoreResultFixtureTypes =
@@ -38,6 +42,8 @@ type RunnerMessageFixtureTypes =
 const EXHAUSTIVE_RUNTIME_PROTOCOL_FIXTURE_CHECK: AssertNever<
   | Exclude<RuntimeAudioCommand["type"], AudioCommandFixtureTypes>
   | Exclude<AudioCommandFixtureTypes, RuntimeAudioCommand["type"]>
+  | Exclude<RuntimeFxParamId, FxParamFixtureIds>
+  | Exclude<FxParamFixtureIds, RuntimeFxParamId>
   | Exclude<RuntimePlatformEffect["type"], PlatformEffectFixtureTypes>
   | Exclude<PlatformEffectFixtureTypes, RuntimePlatformEffect["type"]>
   | Exclude<RuntimeStoreResult["type"], StoreResultFixtureTypes>
@@ -59,6 +65,37 @@ const assertRoundTripsThroughJson = <T extends { type: string }>(
     serialized.map((fixture) => fixture.type).sort(),
     [...expectedTypes].sort(),
   );
+};
+
+const AUDIO_COMMAND_GENERATION_TYPES = new Set([
+  "set_audio_config",
+  "set_dsp_config",
+  "set_master_volume",
+  "set_instrument_mixer",
+  "set_instrument_slot",
+  "set_fx_bus_mixer",
+  "set_synth_param",
+  "set_sample_bank_param",
+  "set_fx_bus_param",
+  "set_fx_bus_slot",
+  "set_global_fx_slot",
+  "set_global_fx_param",
+]);
+const AUDIO_COMMAND_EPOCH_TYPES = new Set([
+  "momentary_fx_start",
+  "momentary_fx_update",
+  "momentary_fx_stop",
+]);
+const normalizeAudioCommandDefaults = (command: RuntimeAudioCommand) => {
+  if (AUDIO_COMMAND_GENERATION_TYPES.has(command.type)) {
+    const generation = "generation" in command ? command.generation ?? 0 : 0;
+    return { ...command, generation };
+  }
+  if (AUDIO_COMMAND_EPOCH_TYPES.has(command.type)) {
+    const epoch = "epoch" in command ? command.epoch ?? 0 : 0;
+    return { ...command, epoch };
+  }
+  return command;
 };
 
 test("OLED frame revisions are positive and snapshot wire messages reject missing or non-positive revisions", () => {
@@ -161,18 +198,26 @@ test("runtime contract fixtures cover each host and runner message class", () =>
 test("runtime protocol union fixtures serialize every drift-prone discriminant", () => {
   assertRoundTripsThroughJson(RUNTIME_AUDIO_COMMAND_FIXTURES, [
     "set_audio_config",
+    "set_dsp_config",
     "set_master_volume",
     "set_instrument_mixer",
+    "set_instrument_slot",
     "set_fx_bus_mixer",
     "set_synth_param",
     "set_sample_bank_param",
+    "set_fx_bus_param",
     "set_fx_bus_slot",
     "set_global_fx_slot",
+    "set_global_fx_param",
     "momentary_fx_start",
     "momentary_fx_update",
     "momentary_fx_stop",
     "sample_preview",
   ]);
+  assert.deepEqual(
+    [...new Set(RUNTIME_FX_PARAM_ID_FIXTURES)].sort(),
+    [...RUNTIME_FX_PARAM_IDS].sort(),
+  );
   assertRoundTripsThroughJson(RUNTIME_PLATFORM_EFFECT_FIXTURES, [
     "store_list_presets",
     "store_load_preset",
@@ -239,4 +284,30 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
     "identified",
     "user_data_transfer_status",
   ]);
+});
+
+test("audio command fixtures keep owner stamps explicit while legacy input normalizes to zero", () => {
+  for (const command of RUNTIME_AUDIO_COMMAND_FIXTURES) {
+    if ("generation" in command) assert.equal(typeof command.generation, "number");
+    if ("epoch" in command) assert.equal(typeof command.epoch, "number");
+  }
+
+  const legacyGenerationCommand = {
+    type: "set_instrument_slot",
+    instrumentSlot: 0,
+    config: { type: "synth" },
+  } as const satisfies RuntimeAudioCommand;
+  assert.deepEqual(normalizeAudioCommandDefaults(legacyGenerationCommand), {
+    ...legacyGenerationCommand,
+    generation: 0,
+  });
+
+  const legacyEpochCommand = {
+    type: "momentary_fx_stop",
+    id: "legacy",
+  } as const satisfies RuntimeAudioCommand;
+  assert.deepEqual(normalizeAudioCommandDefaults(legacyEpochCommand), {
+    ...legacyEpochCommand,
+    epoch: 0,
+  });
 });

@@ -8,10 +8,13 @@ use crate::audio_replay::ReplayCache;
 use crate::audio_route::RouteOpenError;
 use crate::audio_sink_registry::{has_sink, new_attach_gate, register_sink};
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
-use realtime_engine::synth::SourceWorkerHealth;
-use rodio_engine_source::event_queue;
+use realtime_engine::synth::{
+    default_synth_config, prepare_instrument_slot_config, InstrumentSlotConfig, SampleBankConfig,
+    SampleBankParamId, SourceWorkerHealth,
+};
+use rodio_engine_source::{event_queue, EngineEvent, EngineEventReceiver};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 fn opener_with_calls() -> (OrangeRecoveryOpener, Arc<Mutex<usize>>) {
     let calls = Arc::new(Mutex::new(0));
@@ -213,6 +216,122 @@ fn optional_initial_mirror_does_not_require_an_event_sink_registration() {
     assert_eq!(controller.runtime_status(), AudioStreamStatus::Healthy);
     assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
     assert_eq!(*calls.lock().unwrap(), 0);
+}
+
+#[test]
+fn required_recovery_replays_preserved_sample_bank_before_synth_owner() {
+    let (initial_tx, _initial_rx) = event_queue();
+    let health = AudioStreamHealth::optional("Jack".into());
+    let config = prepare_instrument_slot_config(InstrumentSlotConfig {
+        kind: "synth".into(),
+        synth: default_synth_config(),
+        mixer: None,
+    });
+    let mut replay = ReplayCache::default();
+    replay.remember(&EngineEvent::SetPreparedInstrumentOwner {
+        instrument_slot: 0,
+        generation: 1,
+        config: config.clone(),
+        sample_bank: Some(SampleBankConfig {
+            gain_pct: 42.0,
+            ..Default::default()
+        }),
+    });
+    replay.remember(&EngineEvent::SetSampleBankParam {
+        instrument_slot: 0,
+        generation: 1,
+        param: SampleBankParamId::TuneSemis,
+        value: 3.0,
+    });
+    replay.remember(&EngineEvent::SetPreparedInstrumentOwner {
+        instrument_slot: 0,
+        generation: 2,
+        config,
+        sample_bank: None,
+    });
+    let recovered_receiver = Arc::new(Mutex::new(None::<Arc<Mutex<EngineEventReceiver>>>));
+    let receiver_for_opener = recovered_receiver.clone();
+    let opener: OrangeRecoveryOpener = Arc::new(move |_, _, health, _, _, _, _| {
+        let (engine_tx, engine_rx) = event_queue();
+        *receiver_for_opener.lock().unwrap() = Some(Arc::new(Mutex::new(engine_rx)));
+        Ok(OpenedAudioSink {
+            engine_tx: Some(engine_tx),
+            _stream: None,
+            health,
+            _test_engine_rx: None,
+        })
+    });
+    let now = Arc::new(Mutex::new(Instant::now()));
+    let clock_now = now.clone();
+    let clock: OrangeRecoveryClock = Arc::new(move || *clock_now.lock().unwrap());
+    let realtime_txs = Arc::new(Mutex::new(Vec::new()));
+    let initial = opened(initial_tx, health.clone());
+    let mut controller = OrangeRecoveryController::new_initial_with_dependencies(
+        AudioSink::Jack,
+        true,
+        initial,
+        OrangeRecoveryDependencies {
+            profile: OrangeAudioProfile::from_optimization(
+                playback_runtime::AudioOptimization::Capacity,
+            ),
+            realtime_txs,
+            replay_events: Arc::new(Mutex::new(replay)),
+            attach_gate: new_attach_gate(),
+            recording_tap: None,
+            mirror_producer: None,
+            mirror_producers: [None, None],
+            opener,
+            clock,
+        },
+    )
+    .unwrap();
+
+    health.log(cpal::StreamError::DeviceNotAvailable);
+    controller.recover_if_due();
+    controller.recover_if_due();
+    *now.lock().unwrap() += Duration::from_millis(250);
+    controller.recover_if_due();
+
+    let receiver = recovered_receiver.lock().unwrap().take().unwrap();
+    let mut receiver = receiver.lock().unwrap();
+    let mut events = Vec::new();
+    while let Ok(event) = receiver.try_recv() {
+        events.push(event);
+    }
+    let bank_index = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                EngineEvent::SetPreparedSampleBank {
+                    generation: 1,
+                    bank,
+                    ..
+                } if bank.gain_pct == 42.0
+            )
+        })
+        .unwrap();
+    let owner_index = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                EngineEvent::SetPreparedInstrumentOwner {
+                    generation: 2,
+                    sample_bank: None,
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, EngineEvent::SetPreparedSampleBank { .. }))
+            .count(),
+        1
+    );
+    assert!(bank_index < owner_index);
 }
 
 fn load_status(worker_utilization: f32) -> realtime_engine::synth::AudioLoadStatus {

@@ -165,6 +165,7 @@ impl NativeRunner {
             sparks_fx_target: sparks_fx_target_key(&self.sparks_fx_selected).into(),
             sparks_fx_params: sparks_fx_params_map(&self.sparks_fx_selected),
             xy_release: self.xy_release.clone(),
+            xy_smoothing_ms: self.xy_smoothing_ms,
             xy_invert_x: self.xy_invert_x,
             xy_invert_y: self.xy_invert_y,
             bpm: crate::delay_timing::visible_bpm_u16(self.transport.bpm),
@@ -191,6 +192,7 @@ impl NativeRunner {
                 "xy": {
                     "x": super::param_binding_payload(self.xy_x_binding.as_ref()),
                     "y": super::param_binding_payload(self.xy_y_binding.as_ref()),
+                    "smoothingMs": self.xy_smoothing_ms,
                     "xInvert": self.xy_invert_x,
                     "yInvert": self.xy_invert_y
                 },

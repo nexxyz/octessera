@@ -288,6 +288,7 @@ mod tests {
             .apply_store_result(RuntimeStoreResult::RecordingStatus {
                 ok: false,
                 message: "Recording incomplete".into(),
+                active: false,
             })
             .unwrap();
 
