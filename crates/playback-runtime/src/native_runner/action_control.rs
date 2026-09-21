@@ -1,7 +1,7 @@
 use crate::native_menu::NativeMenuAction;
 use crate::protocol::RuntimePlatformEffect;
 
-use super::sparks_fx_config::sparks_fx_type;
+use super::play_fx_config::play_fx_type;
 use super::{
     derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
     NativeAuxBinding, NativeInstrumentSlot, NativeRunner, NativeToast, RuntimeTransportState,
@@ -17,12 +17,12 @@ impl NativeRunner {
             self.apply_factory_payload()?;
             return Ok(None);
         }
-        if action == "sparks.fx.map" {
-            let config = self.sparks_fx_selected.clone();
-            self.sparks_fx_assign = Some(config.clone());
-            self.active_sparks_mode = "fx".into();
+        if action == "play.fx.map" {
+            let config = self.play_fx_selected.clone();
+            self.play_fx_assign = Some(config.clone());
+            self.active_play_mode = "fx".into();
             self.display.toast = Some(NativeToast {
-                message: format!("Map FX: {}", sparks_fx_type(&config)),
+                message: format!("Map FX: {}", play_fx_type(&config)),
                 offset: 0,
             });
             return Ok(None);

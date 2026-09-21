@@ -98,7 +98,7 @@ fn system_info_protocol_is_typed_and_identity_safe() {
 }
 
 #[test]
-fn device_update_protocol_is_dedicated_and_backwards_compatible() {
+fn device_update_protocol_is_dedicated_and_requires_status_fields() {
     let effect = RuntimePlatformEffect::UpdateApply;
     assert_eq!(effect.operation(), RuntimeOperation::DeviceUpdate);
     let result = RuntimeStoreResult::DeviceUpdateStatus {
@@ -114,16 +114,10 @@ fn device_update_protocol_is_dedicated_and_backwards_compatible() {
             "message": "helper output"
         })
     );
-    assert_eq!(
-        serde_json::from_value::<RuntimeStoreResult>(json!({
-            "type": "device_update_status"
-        }))
-        .unwrap(),
-        RuntimeStoreResult::DeviceUpdateStatus {
-            ok: false,
-            message: String::new(),
-        }
-    );
+    assert!(serde_json::from_value::<RuntimeStoreResult>(json!({
+        "type": "device_update_status"
+    }))
+    .is_err());
     assert_eq!(
         serde_json::from_value::<RuntimeStoreResult>(json!({
             "type": "operation_succeeded",
@@ -262,7 +256,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
     );
 
     let fx_command = RuntimeAudioCommand::MomentaryFxStart {
-        id: "sparks".into(),
+        id: "play".into(),
         epoch: 1,
         fx_type: "stutter".into(),
         params: BTreeMap::new(),
@@ -272,7 +266,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
         serde_json::to_value(&fx_command).unwrap(),
         json!({
             "type": "momentary_fx_start",
-            "id": "sparks",
+            "id": "play",
             "epoch": 1,
             "fxType": "stutter",
             "params": {},
@@ -345,7 +339,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
             "type": "audio_command",
             "command": {
                 "type": "momentary_fx_start",
-                "id": "sparks",
+                "id": "play",
                 "epoch": 1,
                 "fxType": "stutter",
                 "params": {},
@@ -356,30 +350,22 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
 }
 
 #[test]
-fn audio_command_owner_stamps_are_backward_compatible_on_read() {
-    let decoded = serde_json::from_value::<RuntimeAudioCommand>(json!({
+fn audio_command_owner_stamps_are_required_on_read() {
+    assert!(serde_json::from_value::<RuntimeAudioCommand>(json!({
         "type": "set_instrument_slot",
         "instrumentSlot": 0,
         "config": { "type": "synth" }
     }))
-    .unwrap();
-    assert!(matches!(
-        decoded,
-        RuntimeAudioCommand::SetInstrumentSlot { generation: 0, .. }
-    ));
+    .is_err());
 
-    let decoded = serde_json::from_value::<RuntimeAudioCommand>(json!({
+    assert!(serde_json::from_value::<RuntimeAudioCommand>(json!({
         "type": "momentary_fx_start",
-        "id": "old",
+        "id": "missing-generation",
         "fxType": "stutter",
         "params": {},
         "target": { "type": "global" }
     }))
-    .unwrap();
-    assert!(matches!(
-        decoded,
-        RuntimeAudioCommand::MomentaryFxStart { epoch: 0, .. }
-    ));
+    .is_err());
 }
 
 #[test]
@@ -423,7 +409,7 @@ fn runtime_error_metadata_json_uses_stable_typed_fields() {
         })
     );
 
-    let legacy_status = serde_json::from_value::<RuntimeStatus>(json!({
+    let status_without_error = serde_json::from_value::<RuntimeStatus>(json!({
         "state": "running",
         "transport": "playing",
         "currentPpqnPulse": 24,
@@ -432,5 +418,5 @@ fn runtime_error_metadata_json_uses_stable_typed_fields() {
         "message": null
     }))
     .unwrap();
-    assert_eq!(legacy_status.error, None);
+    assert_eq!(status_without_error.error, None);
 }

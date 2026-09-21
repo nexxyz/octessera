@@ -240,44 +240,44 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.sparks_fx_assign.is_some() {
-            self.handle_sparks_fx_assignment_grid_press(x, y);
+        if self.play_fx_assign.is_some() {
+            self.handle_play_fx_assignment_grid_press(x, y);
         } else if self.sample_assign.is_some() {
             self.handle_sample_assignment_grid_press(x, y);
         } else if self.trigger_probability_assign.is_some() {
             self.handle_trigger_probability_grid_press(x, y);
-        } else if self.active_sparks_mode == "transpose" && x == 0 && self.display.ui.shift_held {
-            self.toggle_all_sparks_transpose_layers();
+        } else if self.active_play_mode == "transpose" && x == 0 && self.display.ui.shift_held {
+            self.toggle_all_play_transpose_layers();
         } else if self.display.ui.combined_modifier_held && x == 0 {
             self.toggle_layer_trigger_gate(display_layer_index_from_y(y));
         } else if self.display.ui.fn_held && x == 0 && !self.display.ui.shift_held {
             self.select_active_layer(display_layer_index_from_y(y))?;
-            self.active_sparks_mode = "none".into();
+            self.active_play_mode = "none".into();
         } else if self.display.ui.fn_held
             && x == super::GRID_WIDTH - 1
             && !self.display.ui.shift_held
         {
-            self.select_sparks_page_from_fn_grid(y);
+            self.select_play_page_from_fn_grid(y);
         } else if self.display.ui.shift_held
             && !self.display.ui.fn_held
-            && self.active_sparks_mode == "none"
+            && self.active_play_mode == "none"
         {
             if !self.handle_param_mod_grid_press(x, y) {
                 self.mark_grid_input_dirty();
                 let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
                 return self.messages_with_input_result(result);
             }
-        } else if self.active_sparks_mode == "trigger-gate" {
+        } else if self.active_play_mode == "trigger-gate" {
             self.handle_trigger_gate_grid_press(x, y);
-        } else if self.active_sparks_mode == "transpose" {
-            self.handle_sparks_transpose_grid_press(x, y);
-        } else if self.active_sparks_mode == "fx" {
-            let effects = self.sparks_fx_press_effects(x, y);
+        } else if self.active_play_mode == "transpose" {
+            self.handle_play_transpose_grid_press(x, y);
+        } else if self.active_play_mode == "fx" {
+            let effects = self.play_fx_press_effects(x, y);
             if !effects.is_empty() {
                 return self.messages_with_effects(effects);
             }
-        } else if self.active_sparks_mode != "none" {
-            self.handle_sparks_grid_press(x, y);
+        } else if self.active_play_mode != "none" {
+            self.handle_play_grid_press(x, y);
         } else {
             self.mark_grid_input_dirty();
             let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
@@ -291,16 +291,16 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.active_sparks_mode != "none" {
-            if self.active_sparks_mode == "fx" {
-                let effects = self.sparks_fx_release_effects(x, y);
+        if self.active_play_mode != "none" {
+            if self.active_play_mode == "fx" {
+                let effects = self.play_fx_release_effects(x, y);
                 if !effects.is_empty() {
                     return self.messages_with_effects(effects);
                 }
                 return self.messages_with_snapshot();
             }
-            if self.active_sparks_mode == "xy" {
-                self.handle_sparks_xy_release();
+            if self.active_play_mode == "xy" {
+                self.handle_play_xy_release();
             }
             return self.messages_with_snapshot();
         }
@@ -348,7 +348,7 @@ impl NativeRunner {
                     };
                 if was_playing && self.transport.transport == RuntimeTransportState::Paused {
                     self.drain_all_layer_engine_notes();
-                    self.drain_all_sparks_transpose_notes();
+                    self.drain_all_play_transpose_notes();
                 }
             }
         }
@@ -410,12 +410,12 @@ impl NativeRunner {
         let mut events = self.take_due_link_events(self.active_layer_index);
         self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
         let transpose_offset = self
-            .sparks_transpose_offsets_for_routing()
+            .play_transpose_offsets_for_routing()
             .get(self.active_layer_index)
             .copied()
             .unwrap_or(0);
         let instruments = self.instruments.clone();
-        let sense = self.pulses_layers.get(self.active_layer_index).cloned();
+        let sense = self.link_layers.get(self.active_layer_index).cloned();
         events.extend(self.route_events_with_link_timing(
             self.active_layer_index,
             LinkRoutingInput {

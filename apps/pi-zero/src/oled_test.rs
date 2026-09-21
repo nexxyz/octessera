@@ -76,7 +76,7 @@ pub fn run() -> bool {
         return run_oled_off_once();
     }
     println!("octessera OLED persistent test pattern");
-    let mut oled = match open_oled_legacy() {
+    let mut oled = match open_oled_for_diagnostic() {
         Ok(oled) => oled,
         Err(error) => {
             eprintln!("FAIL OLED init failed: {error}");
@@ -102,7 +102,7 @@ pub fn run() -> bool {
 }
 
 fn run_oled_off_once() -> bool {
-    match open_oled_legacy() {
+    match open_oled_for_diagnostic() {
         Ok(mut oled) => oled.display_off().is_ok(),
         Err(error) => {
             eprintln!("FAIL OLED off init failed: {error}");
@@ -111,7 +111,7 @@ fn run_oled_off_once() -> bool {
     }
 }
 
-fn open_oled_legacy() -> Result<OledSsd1351, String> {
+fn open_oled_for_diagnostic() -> Result<OledSsd1351, String> {
     OledSsd1351::new()
 }
 

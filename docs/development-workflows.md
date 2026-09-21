@@ -46,7 +46,7 @@ cargo test -p playback-runtime
 ## Shared source of truth
 
 - [`board-profiles.md`](board-profiles.md) owns the canonical Raspberry and
-  Orange IDs, feature owners, aliases, and image boundary.
+  Orange IDs, feature owners, and image boundary.
 - `resources/platform-capabilities.json` owns dimensions and limits.
 - `resources/display-palette.json` owns the shared display/UI palette.
 - `config/defaults/` owns shipped default configuration sources.

@@ -78,19 +78,48 @@ if args and args[0] == 'start' and args[1] == 'octessera.service':
         except FileNotFoundError:
             pass
         os.symlink(os.path.realpath(os.path.join(os.environ['ROOT'], 'current', 'octessera-pi')), proc_exe)
+def mutate_marker(marker):
+    mutation = os.environ.get('MARKER_MUTATION')
+    if mutation == 'invocation_alias':
+        marker['invocation_id'] = marker.pop('systemd_invocation_id')
+    elif mutation == 'ready_at_alias':
+        marker['ready_at_ms'] = marker.pop('ready_at_unix_ms')
+    elif mutation == 'missing_kind':
+        marker.pop('kind')
+    elif mutation == 'missing_status':
+        marker.pop('status')
+    elif mutation == 'wrong_kind':
+        marker['kind'] = 'candidate_readiness'
+    elif mutation == 'wrong_status':
+        marker['status'] = 'running'
+    elif mutation == 'wrong_pid':
+        marker['pid'] = 4242
+    elif mutation == 'wrong_invocation':
+        marker['systemd_invocation_id'] = 'inv-wrong'
+    elif mutation == 'wrong_version':
+        marker['package_version'] = '9.9.9'
+    elif mutation == 'wrong_profile':
+        marker['board_profile'] = 'orange-pi-zero-2w'
+    elif mutation == 'future_timestamp':
+        marker['ready_at_unix_ms'] = int(time.time() * 1000) + 60001
+    elif mutation == 'extra':
+        marker['extra'] = True
 if args and args[0] == 'restart':
-    if mode in ('normal', 'pid', 'partialrestart', 'nrestarts', 'legacy'):
+    if mode in ('normal', 'pid', 'partialrestart', 'nrestarts', 'manual'):
         open(os.environ['RESTARTED'], 'w', encoding='utf-8').close()
     if mode in ('normal', 'pid', 'partialrestart'):
         tx = json.load(open(os.environ['TX'], encoding='utf-8'))
         marker = {
             'schema_version': 1,
+            'kind': 'octessera_candidate_readiness',
+            'status': 'ready',
             'pid': 4343,
             'systemd_invocation_id': 'inv-2',
             'package_version': tx['candidate']['version'],
             'board_profile': os.environ['OCTESSERA_UPDATE_BOARD_PROFILE'],
             'ready_at_unix_ms': int(time.time() * 1000),
         }
+        mutate_marker(marker)
         with open(os.environ['HEALTH'], 'w', encoding='utf-8') as handle:
             json.dump(marker, handle)
     if mode in ('restartfail', 'partialrestart'):
@@ -99,12 +128,15 @@ if args and args[0] == 'restart':
         tx = json.load(open(os.environ['TX'], encoding='utf-8'))
         marker = {
             'schema_version': 1,
+            'kind': 'octessera_candidate_readiness',
+            'status': 'ready',
             'pid': 4343,
             'systemd_invocation_id': 'inv-2',
             'package_version': tx['candidate']['version'],
             'board_profile': os.environ['OCTESSERA_UPDATE_BOARD_PROFILE'],
             'ready_at_unix_ms': int(time.time() * 1000),
         }
+        mutate_marker(marker)
         with open(os.environ['HEALTH'], 'w', encoding='utf-8') as handle:
             json.dump(marker, handle)
 if args and args[0] == 'show':
@@ -337,6 +369,9 @@ if args and args[0] == 'show':
                     "phase": "committed",
                     "current": current,
                     "previous": previous,
+                    "updated_at": "2026-01-01T00:00:00Z",
+                    "release": self.manifest(current),
+                    "asset": None,
                 }
             ),
             encoding="utf-8",
@@ -354,7 +389,7 @@ if args and args[0] == 'show':
             check=check,
         )
 
-    def guard(self, mode="normal"):
+    def guard(self, mode="normal", marker_mutation=None):
         candidate = Path(
             json.loads((self.root / "update-transaction.json").read_text())[
                 "candidate"
@@ -370,7 +405,10 @@ if args and args[0] == 'show':
             (self.proc / "4343" / "exe").symlink_to(
                 self.root / "releases" / "1.0.0" / "octessera-pi"
             )
-        return self.invoke("guard", env={"SYSTEMCTL_MODE": mode}, check=False)
+        environment = {"SYSTEMCTL_MODE": mode}
+        if marker_mutation:
+            environment["MARKER_MUTATION"] = marker_mutation
+        return self.invoke("guard", env=environment, check=False)
 
 
 class UpdaterProtocolTests(UpdaterProtocolFixture):
@@ -437,11 +475,11 @@ class UpdaterProtocolTests(UpdaterProtocolFixture):
         state = json.loads((self.root / "update-state.json").read_text())
         self.assertEqual(state["previous"], "1.0.1")
 
-    def test_legacy_manual_rollback_does_not_require_health_marker(self):
+    def test_installed_rollback_does_not_require_health_marker(self):
         self.invoke("apply", "v1.0.1")
         self.assertEqual(self.guard().returncode, 0)
         self.invoke("rollback")
-        result = self.guard("legacy")
+        result = self.guard("manual")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.root / "current").resolve().name, "1.0.0")
 

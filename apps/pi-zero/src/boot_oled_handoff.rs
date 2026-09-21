@@ -99,7 +99,7 @@ impl StartupFatal {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HandoffMode {
-    Legacy,
+    Direct,
     V1,
 }
 
@@ -117,7 +117,7 @@ fn parse_mode_value(value: Option<&str>) -> Result<HandoffMode, String> {
         Some(value) => Err(format!(
             "{HANDOFF_ENV} has unsupported value {value:?}; expected v1"
         )),
-        None => Ok(HandoffMode::Legacy),
+        None => Ok(HandoffMode::Direct),
     }
 }
 
@@ -342,8 +342,8 @@ mod tests {
     }
 
     #[test]
-    fn handoff_mode_missing_is_legacy_and_invalid_is_closed() {
-        assert_eq!(parse_mode_value(None), Ok(HandoffMode::Legacy));
+    fn handoff_mode_missing_is_direct_and_invalid_is_closed() {
+        assert_eq!(parse_mode_value(None), Ok(HandoffMode::Direct));
         assert_eq!(parse_mode_value(Some("v1")), Ok(HandoffMode::V1));
         assert!(parse_mode_value(Some("v2")).is_err());
     }

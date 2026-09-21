@@ -1,7 +1,7 @@
 use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSampleEntryConfig};
 use crate::protocol::SyncSource;
 
-use super::sparks_fx_config::{sparks_fx_params_map, sparks_fx_target_key, sparks_fx_type};
+use super::play_fx_config::{play_fx_params_map, play_fx_target_key, play_fx_type};
 use super::{
     aux_binding_configs, aux_bindings_payload, device_runtime_config, fx_bus_configs,
     fx_slot_payload_with_params, instrument_audio_payload, instrument_auto_names,
@@ -15,10 +15,10 @@ use super::{
     instrument_sample_velocity_low, instrument_sample_velocity_medium, instrument_synth_configs,
     instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
     instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
-    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes,
-    param_binding_spec_from_native, param_mod_configs, param_mods_payload,
-    portable_patch_projection, pulses_layer_configs, pulses_layer_payload, velocity_curve_id,
-    NativeLinkLfoConfig, NativeRunner, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION,
+    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes, link_layer_configs,
+    link_layer_payload, param_binding_spec_from_native, param_mod_configs, param_mods_payload,
+    portable_patch_projection, velocity_curve_id, NativeLinkLfoConfig, NativeRunner, Value,
+    CONFIG_KIND, CONFIG_SCHEMA_VERSION,
 };
 use serde_json::json;
 
@@ -30,14 +30,14 @@ impl NativeRunner {
                 .iter()
                 .map(|id| (*id).to_string())
                 .collect(),
-            worlds_items: self.worlds_menu_items(),
-            worlds_items_by_layer: self.worlds_menu_items_by_layer(),
+            build_items: self.build_menu_items(),
+            build_items_by_layer: self.build_menu_items_by_layer(),
             behavior_target_items: self.behavior_target_items(),
             dsp_config: self.dsp_config,
             layer_labels: self.layer_labels(),
             layer_names: self.layer_names.clone(),
             layer_auto_names: self.layer_auto_names.clone(),
-            pulses_layers: pulses_layer_configs(&self.pulses_layers),
+            link_layers: link_layer_configs(&self.link_layers),
             active_layer_index: self.active_layer_index,
             link_lfos: self.link_lfos.clone().map(|lfo| NativeLinkLfoConfig {
                 enabled: lfo.enabled,
@@ -160,10 +160,10 @@ impl NativeRunner {
                 .iter()
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
-            sparks_mode: self.sparks_mode.clone(),
-            sparks_fx_type: sparks_fx_type(&self.sparks_fx_selected).into(),
-            sparks_fx_target: sparks_fx_target_key(&self.sparks_fx_selected).into(),
-            sparks_fx_params: sparks_fx_params_map(&self.sparks_fx_selected),
+            play_mode: self.play_mode.clone(),
+            play_fx_type: play_fx_type(&self.play_fx_selected).into(),
+            play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
+            play_fx_params: play_fx_params_map(&self.play_fx_selected),
             xy_release: self.xy_release.clone(),
             xy_smoothing_ms: self.xy_smoothing_ms,
             xy_invert_x: self.xy_invert_x,
@@ -197,7 +197,7 @@ impl NativeRunner {
                     "yInvert": self.xy_invert_y
                 },
                 "layers": self.layer_behavior_ids.iter().enumerate().map(|(index, behavior_id)| {
-                    let sense = self.pulses_layers.get(index).cloned().unwrap_or_default();
+                    let sense = self.link_layers.get(index).cloned().unwrap_or_default();
                     let probability_map = self.trigger_probability_maps.get(index).cloned().unwrap_or_default();
                     let auto_name = self.layer_auto_names.get(index).copied().unwrap_or(true);
                     let name = if auto_name {
@@ -206,16 +206,16 @@ impl NativeRunner {
                         self.layer_names.get(index).cloned().unwrap_or_else(|| behavior_id.clone())
                     };
                     json!({
-                        "worlds": self.worlds_payload_for_layer(index, behavior_id),
-                        "pulses": pulses_layer_payload(&sense, &probability_map),
+                        "build": self.build_payload_for_layer(index, behavior_id),
+                        "link": link_layer_payload(&sense, &probability_map),
                         "paramMods": param_mods_payload(self.param_mods.get(index)),
                         "autoName": auto_name,
                         "name": name
                     })
                 }).collect::<Vec<_>>(),
-                "sparksFx": {
-                    "selected": self.sparks_fx_selected.clone(),
-                    "assignments": self.sparks_fx_assignments.iter().map(|assignment| json!({
+                "playFx": {
+                    "selected": self.play_fx_selected.clone(),
+                    "assignments": self.play_fx_assignments.iter().map(|assignment| json!({
                         "x": assignment.x,
                         "y": assignment.y,
                         "config": assignment.config,
@@ -262,7 +262,7 @@ impl NativeRunner {
                 "rollingBackups": self.rolling_backups,
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
                 "bpm": self.transport.bpm,
-                "sparksMode": self.sparks_mode,
+                "playMode": self.play_mode,
                 "auxBindings": aux_bindings_payload(&self.aux_bindings),
                 "shiftAuxBindings": aux_bindings_payload(&self.shift_aux_bindings),
                 "midi": {
@@ -288,7 +288,7 @@ impl NativeRunner {
             },
             "mappingConfig": self.base_mapping_config,
             "system": {
-                "sparksMode": self.sparks_mode
+                "playMode": self.play_mode
             }
         })
     }

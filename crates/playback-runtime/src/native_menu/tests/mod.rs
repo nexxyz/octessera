@@ -8,10 +8,10 @@ mod fixture_tests;
 mod fixtures;
 mod help;
 mod help_enum_tests;
+mod link;
 mod note_set_help;
-mod pulses;
+mod play;
 mod root;
-mod sparks;
 mod timing;
 mod voice;
 

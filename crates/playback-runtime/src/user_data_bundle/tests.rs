@@ -2,7 +2,7 @@ use super::*;
 use serde_json::{json, Value};
 
 fn canonical_defaults() -> Value {
-    serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap()
+    serde_json::from_str(include_str!("../../../../config/defaults/base.json")).unwrap()
 }
 
 fn patch() -> Value {
@@ -173,27 +173,23 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
 }
 
 #[test]
-fn user_data_rehydration_applies_preferences_before_migrated_portable_patch() {
+fn user_data_rehydration_applies_preferences_before_canonical_portable_patch() {
     let defaults = canonical_defaults();
     let mut preferences = UserPreferenceDelta::empty();
     preferences
         .values
         .insert("displayBrightness".into(), json!(42));
-    let patch = json!({
-        "kind": "octessera.patch",
-        "schemaVersion": 1,
-        "runtimeConfig": {
-            "masterVolume": 1,
-            "layers": [{
-                "name": "Portable layer",
-                "linkLfo": {
-                    "enabled": true,
-                    "target": { "key": "instruments.0.mixer.volume", "kind": "number" },
-                    "period": "1/4",
-                    "depthPct": 37
-                }
-            }]
-        }
+    let mut patch = patch();
+    patch["runtimeConfig"]["masterVolume"] = json!(1);
+    patch["runtimeConfig"]["layers"] = json!([{
+        "name": "Portable layer"
+    }]);
+    patch["runtimeConfig"]["linkLfos"] = defaults["runtimeConfig"]["linkLfos"].clone();
+    patch["runtimeConfig"]["linkLfos"][0] = json!({
+        "enabled": true,
+        "target": { "key": "instruments.0.mixer.volume", "kind": "number" },
+        "period": "1/4",
+        "depthPct": 37
     });
 
     let restored = apply_user_data_patch_and_preferences(&defaults, &patch, &preferences).unwrap();
@@ -273,34 +269,6 @@ fn media_reference_from_bytes_hashes_and_validates_content() {
     )
     .unwrap_err();
     assert!(error.contains("media id"));
-}
-
-#[test]
-fn migration_adds_envelope_and_migrates_legacy_patch_schema() {
-    let legacy = json!({
-        "presets": [{"name": "Legacy", "payload": {
-            "kind": "octessera.patch",
-            "schemaVersion": 1,
-            "runtimeConfig": {}
-        }}],
-        "current": {
-            "kind": "octessera.patch",
-            "schemaVersion": 1,
-            "runtimeConfig": {}
-        },
-        "default": {
-            "kind": "octessera.patch",
-            "schemaVersion": 1,
-            "runtimeConfig": {}
-        }
-    });
-    let migrated = migrate_user_data_bundle(legacy, &canonical_defaults()).unwrap();
-    assert_eq!(migrated.kind, USER_DATA_BUNDLE_KIND);
-    assert_eq!(migrated.schema_version, USER_DATA_BUNDLE_SCHEMA_VERSION);
-    assert_eq!(migrated.presets[0].display_name, "Legacy");
-    assert_eq!(migrated.presets[0].patch["schemaVersion"], 2);
-    assert_eq!(migrated.current_state.patch["schemaVersion"], 2);
-    assert!(!migrated.media_included);
 }
 
 #[test]

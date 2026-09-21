@@ -63,9 +63,8 @@ fn port_ids_are_stable_for_reordered_unique_names() {
 }
 
 #[test]
-fn legacy_index_selection_resolves_to_a_stable_identity() {
+fn host_selection_requires_an_exact_stable_identity() {
     let ids = stable_port_ids(&["MIDI Through".into(), "Octessera MIDI".into()]);
-    assert_eq!(resolve_port_id("1", &ids).unwrap(), "name:Octessera MIDI");
     assert_eq!(
         resolve_port_id("name:MIDI Through", &ids).unwrap(),
         "name:MIDI Through"

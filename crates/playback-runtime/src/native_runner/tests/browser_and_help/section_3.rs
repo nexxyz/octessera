@@ -23,7 +23,7 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
         })
         .unwrap();
     if let Some(help) = &mut runner.display.help_popup {
-        help.lines = vec!["worlds", "pulses", "l3", "l4", "l5", "l6", "l7", "l8"]
+        help.lines = vec!["build", "link", "l3", "l4", "l5", "l6", "l7", "l8"]
             .into_iter()
             .map(String::from)
             .collect();

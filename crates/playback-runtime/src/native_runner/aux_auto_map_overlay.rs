@@ -141,7 +141,7 @@ fn aux_overlay_fx_context(key: &str) -> Option<&'static str> {
         Some("FX Bus")
     } else if key.contains("mixer.master.slots.") {
         Some("Global FX")
-    } else if key.contains("sparks.fx.params.") {
+    } else if key.contains("play.fx.params.") {
         Some("Play FX")
     } else {
         None

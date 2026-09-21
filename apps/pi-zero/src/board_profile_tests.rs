@@ -35,9 +35,7 @@ fn audio_card_identity_keeps_raspberry_fragments_but_requires_orange_octesserada
 
 #[cfg(not(any(
     feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "legacy-hardware-rpi-zero-2w",
-    feature = "legacy-hardware-pi"
+    feature = "hardware-orange-pi-zero-2w"
 )))]
 #[test]
 fn fat_diagnostics_reject_an_unprofiled_default_build() {
@@ -46,24 +44,7 @@ fn fat_diagnostics_reject_an_unprofiled_default_build() {
     assert!(error.contains("canonical hardware build"));
 }
 
-#[cfg(any(
-    feature = "legacy-hardware-rpi-zero-2w",
-    feature = "legacy-hardware-pi"
-))]
-#[test]
-fn deprecated_raspberry_features_cannot_run_fat_diagnostics() {
-    let error = super::validate_fat_diagnostic_profile("raspberry-pi-zero-2w")
-        .expect_err("deprecated Raspberry features must not run diagnostics");
-    assert!(error.contains("canonical hardware build"));
-}
-
-#[cfg(all(
-    feature = "hardware-raspberry-pi-zero-2w",
-    not(any(
-        feature = "legacy-hardware-rpi-zero-2w",
-        feature = "legacy-hardware-pi"
-    ))
-))]
+#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
 #[test]
 fn raspberry_fat_diagnostics_reject_the_other_board_profile() {
     let error = super::validate_fat_diagnostic_profile("orange-pi-zero-2w")

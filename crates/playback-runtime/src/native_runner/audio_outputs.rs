@@ -47,26 +47,6 @@ impl AudioOutputSet {
         decode_canonical(value, "runtimeConfig.audioOutputs")
     }
 
-    pub fn decode_runtime_config(value: &Value) -> Result<Self, String> {
-        let runtime = value
-            .get("runtimeConfig")
-            .unwrap_or(value)
-            .as_object()
-            .ok_or_else(|| "runtimeConfig must be an object".to_string())?;
-        if let Some(usb) = runtime.get("usb") {
-            let usb = usb
-                .as_object()
-                .ok_or_else(|| "runtimeConfig.usb must be an object".to_string())?;
-            if usb.contains_key("audioOut") {
-                return Err("runtimeConfig.usb.audioOut is unsupported".into());
-            }
-        }
-        runtime
-            .get("audioOutputs")
-            .ok_or_else(|| "runtimeConfig must contain audioOutputs".to_string())
-            .and_then(|value| decode_canonical(value, "runtimeConfig.audioOutputs"))
-    }
-
     pub(crate) fn as_value(self) -> Value {
         json!({
             "dac": self.dac,

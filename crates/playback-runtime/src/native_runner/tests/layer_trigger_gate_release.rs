@@ -56,7 +56,7 @@ fn note_key(event: &MusicalEvent) -> Option<(u8, u8)> {
 #[test]
 pub(crate) fn disabling_layer_drains_internal_synth_note_with_transpose_routing() {
     let mut runner = held_keys_runner();
-    runner.sparks_transpose_offsets[0] = 7;
+    runner.play_transpose_offsets[0] = 7;
 
     let pressed = press_note(&mut runner, 2, 3);
     let pressed_events = routed_events(&pressed, false);
@@ -78,7 +78,7 @@ pub(crate) fn disabling_layer_drains_internal_synth_note_with_transpose_routing(
     assert!(released_events
         .iter()
         .all(|event| matches!(event, MusicalEvent::NoteOff { .. })));
-    assert!(runner.sparks_transpose_active_notes[0].is_empty());
+    assert!(runner.play_transpose_active_notes[0].is_empty());
 }
 
 #[test]
@@ -144,8 +144,8 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
     runner.instruments[1].note_behavior = "hold".into();
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 4;
-    runner.pulses_layers[1].activate_slot = 1;
-    runner.pulses_layers[1].event_enabled = true;
+    runner.link_layers[1].activate_slot = 1;
+    runner.link_layers[1].event_enabled = true;
     runner.midi_enabled = true;
     runner.sync_engine_runtime_config();
 
@@ -175,7 +175,7 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
 pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_only() {
     let mut runner = held_keys_runner();
     runner.trigger_gate_modes[0] = "custom".into();
-    runner.pulses_layers[0].trigger_probability_mode = "custom".into();
+    runner.link_layers[0].trigger_probability_mode = "custom".into();
     runner.transport.tick = 7;
     runner.transport.current_ppqn_pulse = 13;
     let _ = press_note(&mut runner, 2, 3);
@@ -197,7 +197,7 @@ pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_on
 
     let reenabled = disable_layer(&mut runner, 0);
     assert_eq!(runner.trigger_gate_modes[0], "custom");
-    assert_eq!(runner.pulses_layers[0].trigger_probability_mode, "custom");
+    assert_eq!(runner.link_layers[0].trigger_probability_mode, "custom");
     assert!(routed_events(&reenabled, false).is_empty());
 
     let new_note = press_note(&mut runner, 3, 3);
@@ -234,9 +234,9 @@ fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
             }
         }
     }
-    runner.pulses_layers[1] = runner.pulses_layers[0].clone();
-    runner.pulses_layers[1].activate_slot = 0;
-    runner.pulses_layers[1].event_enabled = true;
+    runner.link_layers[1] = runner.link_layers[0].clone();
+    runner.link_layers[1].activate_slot = 0;
+    runner.link_layers[1].event_enabled = true;
     if matches!(route, SharedRoute::Midi) {
         runner.midi_enabled = true;
     }
@@ -288,7 +288,7 @@ pub(crate) fn disabling_layer_releases_only_the_final_same_route_owner() {
 #[test]
 pub(crate) fn disabling_layer_cancels_delayed_note_without_note_off() {
     let mut runner = held_keys_runner();
-    runner.pulses_layers[0].activate_timing.delay_steps = 1;
+    runner.link_layers[0].activate_timing.delay_steps = 1;
 
     let press = press_note(&mut runner, 2, 3);
     assert!(routed_events(&press, false).is_empty());
@@ -310,7 +310,7 @@ pub(crate) fn transpose_drain_then_layer_disable_does_not_repeat_note_off() {
         1
     );
 
-    runner.active_sparks_mode = "transpose".into();
+    runner.active_play_mode = "transpose".into();
     let transpose = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 5 }),
@@ -325,7 +325,7 @@ pub(crate) fn transpose_drain_then_layer_disable_does_not_repeat_note_off() {
         1
     );
 
-    runner.active_sparks_mode = "none".into();
+    runner.active_play_mode = "none".into();
     let disabled = disable_layer(&mut runner, 0);
     assert!(routed_events(&disabled, false)
         .iter()
@@ -340,9 +340,9 @@ pub(crate) fn transpose_drain_preserves_another_layer_owner_for_final_disable() 
     runner.select_active_layer(1).unwrap();
     let _ = press_note(&mut runner, 2, 3);
     runner.select_active_layer(0).unwrap();
-    runner.sparks_transpose_selected[1] = false;
+    runner.play_transpose_selected[1] = false;
 
-    runner.active_sparks_mode = "transpose".into();
+    runner.active_play_mode = "transpose".into();
     let transpose = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 5 }),
@@ -357,7 +357,7 @@ pub(crate) fn transpose_drain_preserves_another_layer_owner_for_final_disable() 
         1
     );
 
-    runner.active_sparks_mode = "none".into();
+    runner.active_play_mode = "none".into();
     let first_disabled = disable_layer(&mut runner, 0);
     assert!(routed_events(&first_disabled, false)
         .iter()
@@ -380,7 +380,7 @@ pub(crate) fn trigger_gate_page_zero_only_blocks_future_admission() {
     let press = press_note(&mut runner, 2, 3);
     assert!(!routed_events(&press, false).is_empty());
 
-    runner.active_sparks_mode = "trigger-gate".into();
+    runner.active_play_mode = "trigger-gate".into();
     let edit = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
@@ -391,7 +391,7 @@ pub(crate) fn trigger_gate_page_zero_only_blocks_future_admission() {
         .iter()
         .all(|event| !matches!(event, MusicalEvent::NoteOff { .. })));
 
-    runner.active_sparks_mode = "none".into();
+    runner.active_play_mode = "none".into();
     let blocked = press_note(&mut runner, 3, 3);
     assert!(routed_events(&blocked, false).is_empty());
 }

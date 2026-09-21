@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import copy
 import datetime as dt
 import os
 import re
@@ -55,7 +54,6 @@ class Updater(UpdaterStateMixin):
         self.releases = self.root / "releases"
         self.state_path = self.root / "update-state.json"
         self.transaction_path = self.root / "update-transaction.json"
-        self.legacy_next_path = self.state_path.with_name("update-state.json.next")
         self.bin_link = Path(os.environ.get("OCTESSERA_UPDATE_BIN_LINK", "/usr/local/bin/octessera-pi"))
         self.lock_path = Path(os.environ.get("OCTESSERA_UPDATE_LOCK", str(self.root / ".update.lock")))
         self.service = os.environ.get("OCTESSERA_UPDATE_SERVICE", DEFAULT_SERVICE_PATH)
@@ -198,37 +196,63 @@ class Updater(UpdaterStateMixin):
         payload = read_json(self.transaction_path, MAX_JSON_BYTES)
         if not isinstance(payload, dict) or payload.get("schema_version") != TRANSACTION_SCHEMA:
             raise UpdateError("Update transaction schema is invalid")
+        if set(payload) != {
+            "schema_version", "phase", "operation", "candidate_source", "board_profile",
+            "candidate_health_protocol", "activation_attempted", "transaction_id", "prepared_at",
+            "service", "health_path", "candidate", "fallback",
+        }:
+            raise UpdateError("Update transaction contract is invalid")
         if payload.get("phase") not in ("prepared", "validating"):
             raise UpdateError("Update transaction phase is invalid")
+        if payload.get("operation") not in ("apply", "rollback"):
+            raise UpdateError("Update transaction operation is invalid")
+        expected_source = "downloaded" if payload["operation"] == "apply" else "installed"
+        if payload.get("candidate_source") != expected_source:
+            raise UpdateError("Update transaction candidate source is invalid")
+        if payload.get("candidate_health_protocol") != CANDIDATE_HEALTH_PROTOCOL:
+            raise UpdateError("Update transaction health protocol is invalid")
+        if not isinstance(payload.get("board_profile"), str) or not payload["board_profile"]:
+            raise UpdateError("Update transaction board profile is invalid")
+        if not isinstance(payload.get("transaction_id"), str) or not payload["transaction_id"]:
+            raise UpdateError("Update transaction identity is invalid")
+        if not isinstance(payload.get("prepared_at"), str) or not payload["prepared_at"]:
+            raise UpdateError("Update transaction timestamp is invalid")
         candidate = payload.get("candidate")
         fallback = payload.get("fallback")
-        if not isinstance(candidate, dict) or not isinstance(fallback, dict) or not version(candidate.get("version")):
+        if (
+            not isinstance(candidate, dict)
+            or set(candidate) != {"path", "version", "manifest"}
+            or not isinstance(fallback, dict)
+            or set(fallback) != {"current", "current_link", "previous", "bin_link", "state"}
+            or not version(candidate.get("version"))
+        ):
             raise UpdateError("Update transaction identity is invalid")
         activation_attempted = payload.get("activation_attempted", False)
         if not isinstance(activation_attempted, bool):
             raise UpdateError("Update transaction activation state is invalid")
-        candidate_path = Path(candidate.get("path", "")).resolve(strict=False)
+        if not isinstance(candidate.get("path"), str):
+            raise UpdateError("Update transaction candidate path is invalid")
+        candidate_path = Path(candidate["path"]).resolve(strict=False)
         if not same_path(candidate_path, (self.releases / candidate["version"]).resolve(strict=False)):
             raise UpdateError("Update transaction candidate is outside releases")
-        candidate_source = payload.get("candidate_source")
-        if candidate_source not in ("downloaded", "installed"):
-            raise UpdateError("Update transaction candidate source is invalid")
+        candidate_source = payload["candidate_source"]
         transaction_profile = payload.get("board_profile")
-        actual_manifest = self.validate_release(candidate_path, allow_legacy=candidate_source == "installed", require_immutable=candidate_source == "downloaded", expected_profile=transaction_profile)
+        actual_manifest = self.validate_release(candidate_path, require_immutable=candidate_source == "downloaded", expected_profile=transaction_profile)
         if candidate.get("manifest") != actual_manifest:
             raise UpdateError("Update transaction candidate manifest is not authentic")
         if transaction_profile and actual_manifest.get("board_profile") not in (None, transaction_profile):
             raise UpdateError("Update transaction board profile is invalid")
         if not recovery and transaction_profile and self.profile and transaction_profile != self.profile:
             raise UpdateError("Update transaction board profile does not match this device")
-        if not recovery and candidate_source == "downloaded" and (not transaction_profile or payload.get("candidate_health_protocol") != CANDIDATE_HEALTH_PROTOCOL or (self.profile and actual_manifest.get("board_profile") != self.profile)):
+        if not recovery and candidate_source == "downloaded" and (self.profile and actual_manifest.get("board_profile") != self.profile):
             raise UpdateError("Downloaded candidate health protocol is not protocol 1")
         if payload.get("service") != self.service_name or payload.get("health_path") != str(self.health_path):
             raise UpdateError("Update transaction adapter identity is invalid")
         fallback_current = fallback.get("current")
         if not version(fallback_current):
             raise UpdateError("Update transaction fallback is invalid")
-        self.validate_release(self.releases / str(fallback_current), allow_legacy=True)
+        fallback_manifest = self.validate_release(self.releases / str(fallback_current))
+        fallback_state = self.validate_committed_state(fallback.get("state"), str(fallback_current), fallback_manifest)
         fallback_current_link = fallback.get("current_link")
         fallback_bin_link = fallback.get("bin_link")
         if not isinstance(fallback_current_link, str) or not same_path((self.root / "current").parent / fallback_current_link, self.releases / str(fallback_current)):
@@ -236,10 +260,12 @@ class Updater(UpdaterStateMixin):
         if not isinstance(fallback_bin_link, str) or not same_path(self.bin_link.parent / fallback_bin_link, self.root / "current" / BINARY):
             raise UpdateError("Update transaction binary fallback link is unsafe")
         fallback_previous = fallback.get("previous")
+        if fallback_previous != fallback_state["previous"]:
+            raise UpdateError("Update transaction previous fallback is inconsistent")
         if fallback_previous is not None:
             if not version(fallback_previous):
                 raise UpdateError("Update transaction previous fallback is invalid")
-            self.validate_release(self.releases / str(fallback_previous), allow_legacy=True)
+            self.validate_release(self.releases / str(fallback_previous))
         return payload
 
     def write_committed_state(self, current: str, previous: str | None, manifest: dict, asset: object | None) -> None:
@@ -263,35 +289,6 @@ class Updater(UpdaterStateMixin):
             shutil.rmtree(candidate, ignore_errors=True)
         if stop_service:
             self.start_service_verified(fallback["current"])
-
-    def recover_legacy(self, force: bool = False) -> None:
-        state = self.state()
-        if self.legacy_next_path.exists():
-            self.validate_control_file(self.legacy_next_path)
-        pending = self.legacy_next_path.exists() or (isinstance(state, dict) and state.get("next"))
-        if not pending and not force:
-            return
-        recorded_value = state.get("current", state.get("active")) if isinstance(state, dict) else None
-        if not version(recorded_value):
-            raise UpdateError("Incomplete legacy update has no safe recorded current release")
-        recorded = str(recorded_value)
-        self.validate_release(self.releases / recorded, allow_legacy=True)
-        current = None
-        try:
-            current, _ = self.current_link()
-        except UpdateError:
-            pass
-        if current != recorded:
-            atomic_symlink(self.root / "current", str(self.releases / recorded))
-        atomic_symlink(self.bin_link, str(self.root / "current" / BINARY))
-        if isinstance(state, dict) and pending:
-            migrated = copy.deepcopy(state)
-            migrated.pop("next", None)
-            migrated["schema_version"] = 2
-            migrated["phase"] = "committed"
-            migrated["current"] = recorded
-            self.write_committed_state(recorded, migrated.get("previous"), self.validate_release(self.releases / recorded, allow_legacy=True), migrated.get("asset"))
-        self.legacy_next_path.unlink(missing_ok=True)
 
     def require_recovery_active(self) -> None:
         from updater_guard import require_recovery_active; require_recovery_active(self)
@@ -374,7 +371,13 @@ class Updater(UpdaterStateMixin):
         self.asset_url(payload, sums_name, tag)
         try:
             current, _ = self.current_link()
-            compatibility = "ready" if self.current_protocol_manifest(self.validate_release(self.releases / current, allow_legacy=True)) else "legacy-provision-required"
+            if self.transaction_path.exists():
+                self.load_transaction(recovery=True)
+                self.managed_bin_link()
+                self.validate_service()
+            else:
+                self.fallback()
+            compatibility = "ready"
         except UpdateError:
             current = "unmanaged"
             compatibility = "provision-required"
@@ -386,9 +389,7 @@ class Updater(UpdaterStateMixin):
         self.require_repo()
         self.require_recovery_active()
         self.recover_pending()
-        fallback = self.fallback()
-        if fallback["legacy"]:
-            raise UpdateError("Legacy installation requires provisioning or reflash before online apply")
+        self.fallback()
         self.releases.mkdir(parents=True, exist_ok=True)
         candidate, manifest = self.download_candidate(requested_tag)
         self.prepare(candidate, manifest, "apply")
@@ -402,19 +403,10 @@ class Updater(UpdaterStateMixin):
         if not fallback["previous"]:
             raise UpdateError("No previous release recorded")
         candidate = self.releases / fallback["previous"]
-        manifest = self.validate_release(candidate, allow_legacy=True)
+        manifest = self.validate_release(candidate)
         self.immutable(candidate)
         self.prepare(candidate, manifest, "rollback")
         print("Update health validation scheduled.")
-
-    def bootstrap(self) -> None:
-        self.require_profile()
-        self.require_recovery_active()
-        current = self.bootstrap_legacy()
-        if current is None:
-            print("No managed release requires legacy bootstrap.")
-        else:
-            print(f"Managed release bootstrap complete: {current}")
 
     def guard(self) -> None:
         from updater_guard import guard_transaction
@@ -436,8 +428,6 @@ class Updater(UpdaterStateMixin):
                 self.apply(args[0] if args else "")
             elif operation == "rollback":
                 self.rollback()
-            elif operation == "bootstrap":
-                self.bootstrap()
             elif operation == "guard":
                 self.guard()
             elif operation == "recover":

@@ -166,7 +166,7 @@ impl NativeTransportState {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(super) struct NativePulsesLayer {
+pub(super) struct NativeLinkLayer {
     pub(super) scan_mode: String,
     pub(super) scan_axis: String,
     pub(super) scan_unit: String,
@@ -368,7 +368,7 @@ pub(super) struct NativeParamMods {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(super) struct NativeSparksFxAssignment {
+pub(super) struct NativePlayFxAssignment {
     pub(super) x: usize,
     pub(super) y: usize,
     pub(super) config: Value,

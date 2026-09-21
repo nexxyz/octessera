@@ -5,8 +5,8 @@ replace the ordered Orange bring-up procedure or the deployment runbook.
 
 Canonical board IDs are `raspberry-pi-zero-2w` and `orange-pi-zero-2w`; their
 images, pinouts, port roles, and deployment adapters are not interchangeable.
-See [`../board-profiles.md`](../board-profiles.md) for feature owners and the
-deprecated compatibility aliases.
+See [`../board-profiles.md`](../board-profiles.md) for feature owners and
+supported board IDs.
 
 ## Builds without hardware
 
@@ -20,9 +20,6 @@ Hardware HAL target check when the Rust target is installed:
 
 ```bash
 cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
-
-# Deprecated compatibility alias; accepted for existing Cargo commands.
-cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
 ```
 
 The Orange cross-builder is WSL Docker-only. It never contacts or deploys to a

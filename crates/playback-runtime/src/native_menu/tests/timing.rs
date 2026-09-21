@@ -21,8 +21,8 @@ fn item_with_label<'a>(item: &'a NativeMenuItem, label: &str) -> Option<&'a Nati
 pub(crate) fn invalid_timing_menu_labels_use_the_canonical_default() {
     let mut config = config();
     config.link_lfos[0].period = "invalid".into();
-    config.pulses_layers[0].scan_mode = "scanning".into();
-    config.pulses_layers[0].scan_unit = "invalid".into();
+    config.link_layers[0].scan_mode = "scanning".into();
+    config.link_layers[0].scan_unit = "invalid".into();
     config.fx_buses[0].slot1_type = "delay".into();
     config.fx_buses[0].slot1_params = serde_json::json!({
         "timeMs": 250,
@@ -38,7 +38,7 @@ pub(crate) fn invalid_timing_menu_labels_use_the_canonical_default() {
         crate::timing_units::DEFAULT_NOTE_UNIT
     );
     assert_eq!(
-        selected_option(&root, "layers.0.pulses.scanUnit"),
+        selected_option(&root, "layers.0.link.scanUnit"),
         crate::timing_units::DEFAULT_NOTE_UNIT
     );
     assert_eq!(

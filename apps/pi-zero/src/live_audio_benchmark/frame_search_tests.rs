@@ -7,8 +7,6 @@ use super::geometry::{expected_lookahead_frames, is_approved_geometry_tuple};
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 )))]
 use super::metrics::CallbackMetricsSnapshot;
 use super::parse;
@@ -168,7 +166,7 @@ fn frame_search_rejects_cross_executor_and_unapproved_tuples() {
 }
 
 #[test]
-fn legacy_generic_inline_geometry_remains_accepted() {
+fn generic_inline_geometry_is_accepted() {
     if super::geometry::is_raspberry_diagnostic() {
         return;
     }
@@ -188,7 +186,7 @@ fn legacy_generic_inline_geometry_remains_accepted() {
                 internal_frames,
             )
             .is_ok(),
-            "legacy generic Inline tuple should remain accepted: output={output_frames} internal={internal_frames}"
+            "generic Inline tuple should remain accepted: output={output_frames} internal={internal_frames}"
         );
     }
 }
@@ -226,8 +224,6 @@ fn frame_search_preserves_all_approved_measurement_durations() {
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 )))]
 #[test]
 fn six_hundred_second_clean_policy_uses_the_approved_overrun_budget() {

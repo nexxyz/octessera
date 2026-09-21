@@ -46,7 +46,7 @@ pub(crate) fn static_navigation_memory_does_not_affect_focus_item_key() {
 }
 
 #[test]
-pub(crate) fn entering_worlds_selects_active_layer_row() {
+pub(crate) fn entering_build_selects_active_layer_row() {
     let mut menu = NativeMenuModel::new(NativeMenuConfig {
         active_layer_index: 2,
         ..config()
@@ -61,7 +61,7 @@ pub(crate) fn entering_worlds_selects_active_layer_row() {
 }
 
 #[test]
-pub(crate) fn entering_pulses_selects_active_layer_row_after_global_rows() {
+pub(crate) fn entering_link_selects_active_layer_row_after_global_rows() {
     let mut menu = NativeMenuModel::new(NativeMenuConfig {
         active_layer_index: 2,
         ..config()
@@ -82,7 +82,7 @@ pub(crate) fn entering_pulses_selects_active_layer_row_after_global_rows() {
 }
 
 #[test]
-pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
+pub(crate) fn link_starts_with_global_rows_and_layer_rows_are_enterable() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(1);
     let _ = menu.press();

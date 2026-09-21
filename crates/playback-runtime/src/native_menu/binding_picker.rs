@@ -1,18 +1,18 @@
 use platform_core::BUS_COUNT as FX_BUS_COUNT;
 
 use super::binding_behavior::behavior_binding_groups;
+use super::binding_link::link_binding_group;
 use super::binding_picker_voice::instrument_binding_groups;
-use super::binding_pulses::pulses_binding_group;
 use super::binding_tree::{binding_action, binding_group_from_items, binding_tree_from_menu_item};
 use super::fx::{fx_buses_group, global_fx_group};
+use super::play::play_fx_page_items;
 use super::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
-use super::sparks::sparks_fx_page_items;
 use super::{
     action_item, keyed_group, number_item, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
 };
 use super::{NativeMenuValue, NativeParamBindingSpec};
 
-pub(super) fn sparks_fx_targets() -> Vec<String> {
+pub(super) fn play_fx_targets() -> Vec<String> {
     let mut targets = vec!["master".to_string()];
     targets.extend((1..=FX_BUS_COUNT).map(|index| format!("fx_bus_{index}")));
     targets.extend((1..=8).map(|index| format!("instrument_{index}")));
@@ -112,7 +112,7 @@ fn keep_numeric_binding_item(mut item: NativeMenuItem, target: &str) -> Option<N
 }
 
 fn is_lfo_config_key(key: &str) -> bool {
-    key.contains(".linkLfo.") || key.starts_with("linkLfos.")
+    key.starts_with("linkLfos.")
 }
 
 fn is_lfo_target_picker(target: &str) -> bool {
@@ -159,14 +159,14 @@ pub(super) fn parameter_tree_groups(
         ));
     }
 
-    let pulses_groups = config
+    let link_groups = config
         .layer_labels
         .iter()
         .enumerate()
-        .filter_map(|(index, label)| pulses_binding_group(index, label, config, target))
+        .filter_map(|(index, label)| link_binding_group(index, label, config, target))
         .collect::<Vec<_>>();
-    if !pulses_groups.is_empty() {
-        groups.push(keyed_group(LINK_LABEL, "binding.group.link", pulses_groups));
+    if !link_groups.is_empty() {
+        groups.push(keyed_group(LINK_LABEL, "binding.group.link", link_groups));
     }
 
     let instrument_groups = instrument_binding_groups(config, target);
@@ -201,7 +201,7 @@ pub(super) fn parameter_tree_groups(
         ));
     }
 
-    if let Some(item) = binding_group_from_items("Play FX", &sparks_fx_page_items(config), target) {
+    if let Some(item) = binding_group_from_items("Play FX", &play_fx_page_items(config), target) {
         groups.push(keyed_group(PLAY_LABEL, "binding.group.play_fx", vec![item]));
     }
 

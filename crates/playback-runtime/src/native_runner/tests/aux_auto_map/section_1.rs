@@ -113,7 +113,7 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
 }
 
 #[test]
-pub(crate) fn auto_map_is_disabled_in_pulses_and_unbound_toast_uses_short_format() {
+pub(crate) fn auto_map_is_disabled_in_link_and_unbound_toast_uses_short_format() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![1];
     runner.menu.state.cursor = 0;
@@ -193,7 +193,7 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
 }
 
 #[test]
-pub(crate) fn custom_binding_is_used_on_worlds_non_mapped_rows_even_when_auto_map_is_enabled() {
+pub(crate) fn custom_binding_is_used_on_build_non_mapped_rows_even_when_auto_map_is_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = 0;
@@ -211,18 +211,18 @@ pub(crate) fn custom_binding_is_used_on_worlds_non_mapped_rows_even_when_auto_ma
 
     assert_eq!(runner.display.ui.master_volume, 72);
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
+        runner.config_payload()["runtimeConfig"]["layers"][0]["build"]["stepRate"],
         "1/8"
     );
 }
 
 #[test]
-pub(crate) fn auto_map_worlds_life_turn_and_press_follow_behavior_context() {
+pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let life_items = &runner.menu.root.children[0].children[0].children;
     let interval_cursor = child_index_by_key(
         life_items,
-        "layers.0.worlds.behaviorConfig.randomTickInterval",
+        "layers.0.build.behaviorConfig.randomTickInterval",
     );
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = interval_cursor;
@@ -242,7 +242,7 @@ pub(crate) fn auto_map_worlds_life_turn_and_press_follow_behavior_context() {
         })
         .unwrap();
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
+        runner.config_payload()["runtimeConfig"]["layers"][0]["build"]["stepRate"],
         "1/4T"
     );
 

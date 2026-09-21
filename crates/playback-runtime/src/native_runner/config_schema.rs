@@ -1,7 +1,7 @@
 use super::{
-    merge_preserved_aux_payloads, migrate_legacy_modulation, patch_payload_from_payload,
-    strip_device_audio_fields, validate_audio_outputs, validate_canonical_lfo_bank_shape,
-    validate_config_payload, validate_portable_patch_fields, AudioOutputSet, ConfigDto, Value,
+    merge_preserved_aux_payloads, patch_payload_from_payload, strip_device_audio_fields,
+    validate_audio_outputs, validate_canonical_lfo_bank_shape, validate_config_payload,
+    validate_portable_patch_fields, ConfigDto, Value,
 };
 
 #[path = "config_schema_derived_names.rs"]
@@ -14,13 +14,12 @@ pub(super) const CONFIG_SCHEMA_VERSION: u64 = 2;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum EnvelopeVersion {
     Unversioned,
-    V1,
     V2,
 }
 
 impl EnvelopeVersion {
-    fn is_legacy(self) -> bool {
-        matches!(self, Self::Unversioned | Self::V1)
+    fn is_unversioned(self) -> bool {
+        matches!(self, Self::Unversioned)
     }
 }
 
@@ -30,7 +29,6 @@ pub(super) struct PreparedConfigPayload {
     pub(super) apply_payload: Value,
     pub(super) envelope: ConfigDto,
     pub(super) source_revision: Option<u64>,
-    pub(super) migration_report: Option<String>,
 }
 
 pub(super) fn prepare_config_payload(
@@ -43,22 +41,15 @@ pub(super) fn prepare_config_payload(
     if version == EnvelopeVersion::V2 && !has_global_lfo_bank(&input) {
         return Err("runtimeConfig.linkLfos must be supplied in a v2 full config".into());
     }
-    if version.is_legacy() {
-        migrate_legacy_runtime_root(&mut input);
-        migrate_legacy_audio_output(&mut input)?;
+    if version.is_unversioned() {
         normalize_missing_usb_data_role(&mut input, true);
     } else {
         normalize_missing_usb_data_role(&mut input, false);
     }
-    let migration_report = if version.is_legacy() {
-        migrate_legacy_modulation(&mut input, current)?
-    } else {
-        None
-    };
     validate_supplied_audio_outputs(&input)?;
     let merge_base = current.clone();
     let mut payload = merge_values(&merge_base, &input);
-    if version.is_legacy() {
+    if version.is_unversioned() {
         derived_names::canonicalize_partial_payload_names(&mut input, current);
         payload = merge_values(&merge_base, &input);
     } else {
@@ -68,12 +59,12 @@ pub(super) fn prepare_config_payload(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    if !version.is_legacy() {
+    if !version.is_unversioned() {
         validate_config_payload(&payload)?;
     }
     let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
-        apply_payload: if version.is_legacy() {
+        apply_payload: if version.is_unversioned() {
             input
         } else {
             payload.clone()
@@ -81,7 +72,6 @@ pub(super) fn prepare_config_payload(
         payload,
         envelope,
         source_revision,
-        migration_report,
     })
 }
 
@@ -95,26 +85,19 @@ pub(super) fn prepare_patch_payload(
     if version == EnvelopeVersion::V2 {
         validate_portable_patch_fields(&input, current)?;
     }
-    if version.is_legacy() {
-        migrate_legacy_runtime_root(&mut input);
-        migrate_legacy_audio_output(&mut input)?;
+    if version.is_unversioned() {
         normalize_missing_usb_data_role(&mut input, true);
     } else {
         normalize_missing_usb_data_role(&mut input, false);
     }
     strip_device_audio_fields(&mut input);
-    let migration_report = if version.is_legacy() {
-        migrate_legacy_modulation(&mut input, current)?
-    } else {
-        None
-    };
     let mut patch = patch_payload_from_payload(input)?;
-    if version.is_legacy() {
+    if version.is_unversioned() {
         derived_names::canonicalize_partial_payload_names(&mut patch, current);
     }
     merge_preserved_aux_payloads(&mut patch, current, true);
     let mut payload = merge_values(current, &patch);
-    if !version.is_legacy() {
+    if !version.is_unversioned() {
         derived_names::canonicalize_merged_payload_names(&mut payload, &patch);
     }
     discard_incompatible_layer_state(&mut payload, &patch, current);
@@ -122,12 +105,12 @@ pub(super) fn prepare_patch_payload(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    if !version.is_legacy() {
+    if !version.is_unversioned() {
         validate_config_payload(&payload)?;
     }
     let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
-        apply_payload: if version.is_legacy() {
+        apply_payload: if version.is_unversioned() {
             patch
         } else {
             payload.clone()
@@ -135,7 +118,6 @@ pub(super) fn prepare_patch_payload(
         payload,
         envelope,
         source_revision,
-        migration_report,
     })
 }
 
@@ -146,18 +128,11 @@ pub(super) fn prepare_device_payload(
     let (input, source_revision, version) = parse_envelope(input, CONFIG_KIND)?;
     let mut input = input;
     validate_canonical_lfo_bank_shape(&input)?;
-    if version.is_legacy() {
-        migrate_legacy_runtime_root(&mut input);
-        migrate_legacy_audio_output(&mut input)?;
+    if version.is_unversioned() {
         normalize_missing_usb_data_role(&mut input, true);
     } else {
         normalize_missing_usb_data_role(&mut input, false);
     }
-    let migration_report = if version.is_legacy() {
-        migrate_legacy_modulation(&mut input, current)?
-    } else {
-        None
-    };
     validate_supplied_audio_outputs(&input)?;
     let mut device = super::device_config_payload_from_payload(input)?;
     merge_preserved_aux_payloads(&mut device, current, false);
@@ -167,12 +142,12 @@ pub(super) fn prepare_device_payload(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    if !version.is_legacy() {
+    if !version.is_unversioned() {
         validate_config_payload(&payload)?;
     }
     let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
-        apply_payload: if version.is_legacy() {
+        apply_payload: if version.is_unversioned() {
             device
         } else {
             payload.clone()
@@ -180,7 +155,6 @@ pub(super) fn prepare_device_payload(
         payload,
         envelope,
         source_revision,
-        migration_report,
     })
 }
 
@@ -207,55 +181,54 @@ fn discard_incompatible_layer_state(payload: &mut Value, patch: &Value, current:
         return;
     };
     for (index, patch_layer) in patch_layers.iter().enumerate() {
-        let Some(patch_worlds) = patch_layer.get("worlds") else {
+        let Some(patch_build) = patch_layer.get("build") else {
             continue;
         };
         let Some(current_behavior) = current_layers
             .get(index)
-            .and_then(|layer| layer.get("worlds"))
-            .and_then(|worlds| worlds.get("behaviorId"))
+            .and_then(|layer| layer.get("build"))
+            .and_then(|build| build.get("behaviorId"))
             .and_then(Value::as_str)
         else {
             continue;
         };
-        let behavior_changed = patch_worlds
+        let behavior_changed = patch_build
             .get("behaviorId")
             .and_then(Value::as_str)
             .is_some_and(|next_behavior| next_behavior != current_behavior);
-        let config_changed = patch_worlds
+        let config_changed = patch_build
             .get("behaviorConfig")
             .zip(
                 current_layers
                     .get(index)
-                    .and_then(|layer| layer.get("worlds"))
-                    .and_then(|worlds| worlds.get("behaviorConfig")),
+                    .and_then(|layer| layer.get("build"))
+                    .and_then(|build| build.get("behaviorConfig")),
             )
             .is_some_and(|(patch_config, current_config)| {
                 merge_values(current_config, patch_config) != *current_config
             })
-            || patch_worlds
+            || patch_build
                 .get("behaviorConfig")
                 .is_some_and(|patch_config| {
                     current_layers
                         .get(index)
-                        .and_then(|layer| layer.get("worlds"))
-                        .and_then(|worlds| worlds.get("behaviorConfig"))
+                        .and_then(|layer| layer.get("build"))
+                        .and_then(|build| build.get("behaviorConfig"))
                         .is_none()
                         && !patch_config
                             .as_object()
                             .is_some_and(|object| object.is_empty())
                 });
-        if let Some(worlds) = candidate_layers
+        if let Some(build) = candidate_layers
             .get_mut(index)
-            .and_then(|layer| layer.get_mut("worlds"))
+            .and_then(|layer| layer.get_mut("build"))
             .and_then(Value::as_object_mut)
         {
-            if behavior_changed && patch_worlds.get("behaviorConfig").is_none() {
-                worlds.remove("behaviorConfig");
+            if behavior_changed && patch_build.get("behaviorConfig").is_none() {
+                build.remove("behaviorConfig");
             }
-            if patch_worlds.get("savedState").is_none() && (behavior_changed || config_changed) {
-                worlds.remove("savedState");
-                worlds.remove("behaviorState");
+            if patch_build.get("savedState").is_none() && (behavior_changed || config_changed) {
+                build.remove("savedState");
             }
         }
     }
@@ -285,16 +258,12 @@ fn parse_envelope(
             .get("schemaVersion")
             .and_then(Value::as_u64)
             .ok_or_else(|| "configuration schemaVersion must be an integer".to_string())?;
-        if version != CONFIG_SCHEMA_VERSION && version != 1 {
+        if version != CONFIG_SCHEMA_VERSION {
             return Err(format!(
                 "unsupported configuration schema version {version}"
             ));
         }
-        if version == CONFIG_SCHEMA_VERSION {
-            EnvelopeVersion::V2
-        } else {
-            EnvelopeVersion::V1
-        }
+        EnvelopeVersion::V2
     } else {
         EnvelopeVersion::Unversioned
     };
@@ -348,72 +317,7 @@ fn validate_supplied_audio_outputs(payload: &Value) -> Result<(), String> {
     validate_audio_outputs(runtime)
 }
 
-fn migrate_legacy_audio_output(payload: &mut Value) -> Result<(), String> {
-    let runtime = if payload.get("runtimeConfig").is_some() {
-        payload.get_mut("runtimeConfig").expect("runtimeConfig")
-    } else {
-        payload
-    };
-    let Some(runtime) = runtime.as_object_mut() else {
-        return Ok(());
-    };
-    let legacy_value = runtime
-        .get("usb")
-        .and_then(Value::as_object)
-        .and_then(|usb| usb.get("audioOut"))
-        .cloned();
-    let Some(legacy_value) = legacy_value else {
-        return Ok(());
-    };
-    let legacy = match legacy_value.as_str() {
-        Some("jack") => AudioOutputSet::jack(),
-        Some("usb") => AudioOutputSet::from_flags(false, true, false)
-            .expect("legacy usb audio output is valid"),
-        Some("both") => AudioOutputSet::from_flags(true, true, false)
-            .expect("legacy both audio output is valid"),
-        Some(value) => {
-            return Err(format!(
-                "runtimeConfig.usb.audioOut has unsupported value `{value}`"
-            ));
-        }
-        None => return Err("runtimeConfig.usb.audioOut must be a string".into()),
-    };
-    let canonical = runtime
-        .get("audioOutputs")
-        .map(AudioOutputSet::decode)
-        .transpose()?;
-    if let Some(canonical) = canonical {
-        if canonical.dac() != legacy.dac() || canonical.usb() != legacy.usb() {
-            return Err(
-                "runtimeConfig.usb.audioOut disagrees with runtimeConfig.audioOutputs".into(),
-            );
-        }
-    } else {
-        runtime.insert("audioOutputs".into(), legacy.as_value());
-    }
-    if let Some(usb) = runtime.get_mut("usb").and_then(Value::as_object_mut) {
-        usb.remove("audioOut");
-    }
-    Ok(())
-}
-
-fn migrate_legacy_runtime_root(payload: &mut Value) {
-    if payload.get("runtimeConfig").is_some() {
-        return;
-    }
-    let Some(object) = payload.as_object_mut() else {
-        return;
-    };
-    let mut runtime = object.clone();
-    runtime.remove("kind");
-    runtime.remove("schemaVersion");
-    runtime.remove("revision");
-    runtime.remove("mappingConfig");
-    runtime.remove("system");
-    object.insert("runtimeConfig".into(), Value::Object(runtime));
-}
-
-fn normalize_missing_usb_data_role(payload: &mut Value, legacy: bool) {
+fn normalize_missing_usb_data_role(payload: &mut Value, allow_missing_data_role: bool) {
     let runtime = if payload.get("runtimeConfig").is_some() {
         payload.get_mut("runtimeConfig")
     } else {
@@ -430,7 +334,7 @@ fn normalize_missing_usb_data_role(payload: &mut Value, legacy: bool) {
             .get("audioOutputs")
             .and_then(Value::as_object)
             .is_some_and(|outputs| outputs.contains_key("usb"));
-    if !legacy && !has_usb_flags {
+    if !allow_missing_data_role && !has_usb_flags {
         return;
     }
     let usb = runtime

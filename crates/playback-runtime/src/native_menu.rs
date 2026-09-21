@@ -5,17 +5,17 @@ use bindings::xy_pad_items;
 #[cfg(test)]
 use fx::default_fx_bus_config;
 #[cfg(test)]
+use link::default_link_layer_config;
+#[cfg(test)]
 use options::{FX_BUS_SLOT_OPTIONS, GLOBAL_FX_SLOT_OPTIONS};
 #[cfg(test)]
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
-#[cfg(test)]
-use pulses::default_pulses_layer_config;
 
 mod binding_behavior;
+mod binding_link;
+mod binding_link_axis;
 mod binding_picker;
 mod binding_picker_voice;
-mod binding_pulses;
-mod binding_pulses_axis;
 mod binding_tree;
 mod bindings;
 mod format;
@@ -24,6 +24,9 @@ mod fx;
 mod fx_params;
 mod help;
 mod item_builders;
+mod link;
+mod link_axis;
+mod link_sections;
 mod model;
 mod model_binding_specs;
 mod model_current;
@@ -35,12 +38,9 @@ mod model_snapshot;
 mod model_values;
 mod note_mapping;
 mod options;
-mod pulses;
-mod pulses_axis;
-mod pulses_sections;
+mod play;
 mod sample_browser_menu;
 pub(crate) mod section_labels;
-mod sparks;
 mod synth_preset_items;
 mod system;
 mod system_aux;

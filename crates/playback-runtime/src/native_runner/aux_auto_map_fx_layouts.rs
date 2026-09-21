@@ -1,5 +1,5 @@
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxPress, ResolvedAuxSlot, ResolvedAuxTurn};
-use super::sparks_fx_config::sparks_fx_type;
+use super::play_fx_config::play_fx_type;
 use super::*;
 
 impl NativeRunner {
@@ -139,9 +139,9 @@ impl NativeRunner {
         Some((slot_type, format!("mixer.master.slots.{slot_index}.params")))
     }
 
-    pub(super) fn sparks_fx_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
-        let fx_type = sparks_fx_type(&self.sparks_fx_selected);
-        let key_for = |name: &str| format!("sparks.fx.params.{name}");
+    pub(super) fn play_fx_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
+        let fx_type = play_fx_type(&self.play_fx_selected);
+        let key_for = |name: &str| format!("play.fx.params.{name}");
         let slots = match fx_type {
             "stutter" => [
                 Some(self.turn_slot(key_for("rateHz"), "Rate")),
@@ -173,7 +173,7 @@ impl NativeRunner {
             Some(ResolvedAuxSlot {
                 turn: slots[0].as_ref().and_then(|slot| slot.turn.clone()),
                 press: Some(ResolvedAuxPress {
-                    action: NativeMenuAction::PlatformEffect("sparks.fx.map".into()),
+                    action: NativeMenuAction::PlatformEffect("play.fx.map".into()),
                     label: "Map".into(),
                 }),
                 turn_source: slots[0]

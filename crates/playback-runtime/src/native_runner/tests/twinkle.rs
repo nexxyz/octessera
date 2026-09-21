@@ -20,7 +20,7 @@ fn state_cells(runner: &NativeRunner) -> Vec<bool> {
 #[test]
 pub(crate) fn twinkle_menu_exposes_native_defaults_and_actions() {
     let runner = twinkle_runner();
-    let prefix = "layers.0.worlds.behaviorConfig";
+    let prefix = "layers.0.build.behaviorConfig";
     assert_eq!(
         runner.menu.number_for_key(&format!("{prefix}.density")),
         Some(3)
@@ -74,11 +74,11 @@ pub(crate) fn twinkle_layer_selection_and_keyed_edit_stay_targeted() {
     assert_eq!(runner.layer_behavior_ids[1], "twinkle");
     assert!(runner
         .menu
-        .item_for_key("layers.1.worlds.behaviorConfig.density")
+        .item_for_key("layers.1.build.behaviorConfig.density")
         .is_some());
 
     let active_before = runner.engine.serialized_state().unwrap();
-    let key = "layers.1.worlds.behaviorConfig.density";
+    let key = "layers.1.build.behaviorConfig.density";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
     runner
@@ -107,7 +107,7 @@ pub(crate) fn twinkle_actions_reset_aux_and_autosave_round_trip() {
     runner.config_dirty = false;
     runner
         .menu
-        .focus_item_key("layers.0.worlds.behaviorConfig.density");
+        .focus_item_key("layers.0.build.behaviorConfig.density");
     let slot = runner.effective_aux_slot(2);
     assert!(slot.turn.is_none());
     assert!(matches!(
@@ -135,8 +135,8 @@ pub(crate) fn twinkle_help_round_trip_resolves_menu_keys_and_actions() {
     let runner = twinkle_runner();
     let targets = runner.menu.help_targets();
     for key in [
-        "key:layers.*.worlds.behaviorConfig.density",
-        "key:layers.*.worlds.behaviorConfig.seed",
+        "key:layers.*.build.behaviorConfig.density",
+        "key:layers.*.build.behaviorConfig.seed",
         "action:behavior_action:reseedStars",
         "action:behavior_action:clearStars",
         "action:behavior_select:twinkle",

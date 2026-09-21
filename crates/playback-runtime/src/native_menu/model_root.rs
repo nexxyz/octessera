@@ -1,9 +1,9 @@
 use crate::protocol::SyncSource;
 
 use super::fx::{fx_buses_group, global_fx_group};
-use super::pulses::{pulses_layer_group, pulses_root_items};
+use super::link::{link_layer_group, link_root_items};
+use super::play::play_group;
 use super::section_labels::{BUILD_LABEL, LINK_LABEL, SHAPE_LABEL};
-use super::sparks::sparks_group;
 use super::system::system_group;
 use super::voice::{instrument_group, InstrumentMenuConfig};
 use super::{number_item, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
@@ -19,10 +19,10 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
         key: None,
         value: NativeMenuValue::Group,
         children: vec![
-            worlds_group(&config),
-            pulses_group(&config),
-            tones_group(&config),
-            sparks_group(&config),
+            build_group(&config),
+            link_group(&config),
+            shape_group(&config),
+            play_group(&config),
             NativeMenuItem {
                 label: "".into(),
                 key: None,
@@ -34,7 +34,7 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
     }
 }
 
-fn worlds_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn build_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
         label: BUILD_LABEL.into(),
         key: None,
@@ -48,16 +48,16 @@ fn worlds_group(config: &NativeMenuConfig) -> NativeMenuItem {
                 key: None,
                 value: NativeMenuValue::Group,
                 children: config
-                    .worlds_items_by_layer
+                    .build_items_by_layer
                     .get(index)
                     .cloned()
-                    .unwrap_or_else(|| config.worlds_items.clone()),
+                    .unwrap_or_else(|| config.build_items.clone()),
             })
             .collect(),
     }
 }
 
-fn pulses_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn link_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let instrument_options = config.instrument_labels.to_vec();
     NativeMenuItem {
         label: LINK_LABEL.into(),
@@ -75,18 +75,18 @@ fn pulses_group(config: &NativeMenuConfig) -> NativeMenuItem {
             ),
         ]
         .into_iter()
-        .chain(pulses_root_items(config))
+        .chain(link_root_items(config))
         .chain(
             config
                 .layer_labels
                 .iter()
                 .enumerate()
                 .map(|(index, label)| {
-                    pulses_layer_group(
+                    link_layer_group(
                         index,
                         label.clone(),
                         &instrument_options,
-                        config.pulses_layers.get(index),
+                        config.link_layers.get(index),
                         config,
                     )
                 }),
@@ -95,7 +95,7 @@ fn pulses_group(config: &NativeMenuConfig) -> NativeMenuItem {
     }
 }
 
-fn tones_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn shape_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
         label: SHAPE_LABEL.into(),
         key: None,

@@ -30,7 +30,7 @@ pub enum RuntimePlatformEffect {
     StoreSaveRecovery {
         payload: Value,
     },
-    #[serde(rename = "apply_device_config_reboot", alias = "usb_apply_reboot")]
+    #[serde(rename = "apply_device_config_reboot")]
     ApplyDeviceConfigReboot {
         payload: Value,
     },

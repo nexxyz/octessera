@@ -1,6 +1,5 @@
 use super::platform_service_store::{
-    delete_preset_payload, list_presets, load_json, preset_load_path, preset_patch_path,
-    save_backup, save_json,
+    delete_preset_payload, list_presets, load_json, preset_patch_path, save_backup, save_json,
 };
 use crate::device_update;
 use crate::sample_browser::sample_entries;
@@ -30,7 +29,7 @@ pub(super) fn handle_job(
             Err(message) => store_error(format!("Preset list failed: {message}")),
         },
         PlatformJobKind::LoadPreset { name } => {
-            match preset_load_path(store_dir, &name).and_then(|path| load_json(&path)) {
+            match preset_patch_path(store_dir, &name).and_then(|path| load_json(&path)) {
                 Ok(payload) => RuntimeStoreResult::LoadPresetResult { payload, name },
                 Err(message) => store_error(format!("Load {name} failed: {message}")),
             }

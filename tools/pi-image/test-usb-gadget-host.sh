@@ -67,7 +67,7 @@ root=$TEST_ROOT/host-role-cleanup
 prepare_storage_root "$root"
 : > "$root/mounted"
 host_config=$root/host.json
-write_config "$host_config" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"dataRole":"host"}}}'
+write_config "$host_config" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}'
 run_setup "$root" "$COMBINED_CONFIG" > "$root/setup-normal.log"
 run_storage_action "$root" storage-start "$COMBINED_CONFIG" > "$root/setup-storage.log"
 run_storage_action "$root" storage-stop "$host_config" > "$root/stop-storage.log"
@@ -78,7 +78,7 @@ test ! -e "$root/config/usb_gadget/octessera"
 root=$TEST_ROOT/host-role-setup
 prepare_storage_root "$root"
 host_config=$root/host.json
-write_config "$host_config" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"dataRole":"host"}}}'
+write_config "$host_config" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}'
 assert_failed run_setup "$root" "$host_config"
 test ! -e "$root/config/usb_gadget/octessera"
 test ! -e "$root/storage.state"
@@ -86,7 +86,7 @@ test ! -e "$root/storage.state"
 root=$TEST_ROOT/host-role-start
 prepare_storage_root "$root"
 host_config=$root/host.json
-write_config "$host_config" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"dataRole":"host"}}}'
+write_config "$host_config" '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}'
 run_setup "$root" "$COMBINED_CONFIG" > "$root/setup-normal.log"
 assert_failed run_storage_action "$root" storage-start "$host_config"
 test -e "$root/config/usb_gadget/octessera"

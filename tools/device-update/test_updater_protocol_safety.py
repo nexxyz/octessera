@@ -22,6 +22,20 @@ class UpdaterProtocolSafetyTests(UpdaterProtocolFixture):
         self.assertEqual((self.root / "current").resolve().name, "1.0.0")
         self.assertFalse((self.root / "update-transaction.json").exists())
 
+    def test_readiness_marker_rejects_aliases_missing_fields_wrong_values_and_extras(self):
+        mutations = (
+            "invocation_alias", "ready_at_alias", "missing_kind", "missing_status",
+            "wrong_kind", "wrong_status", "wrong_pid", "wrong_invocation",
+            "wrong_version", "wrong_profile", "future_timestamp", "extra",
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                self.invoke("apply", "v1.0.1")
+                result = self.guard(marker_mutation=mutation)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual((self.root / "current").resolve().name, "1.0.0")
+                self.assertFalse((self.root / "update-transaction.json").exists())
+
     def test_restart_failure_stops_and_verifies_fallback(self):
         self.invoke("apply", "v1.0.1")
         result = self.guard("restartfail")
@@ -77,14 +91,26 @@ class UpdaterProtocolSafetyTests(UpdaterProtocolFixture):
         self.assertNotIn("stop octessera.service", log)
         self.assertNotIn("start octessera.service", log)
 
-    def test_successful_malformed_transaction_restoration_returns_success(self):
+    def test_malformed_transaction_is_rejected_without_mutation(self):
+        before = (self.root / "update-state.json").read_bytes()
         (self.root / "update-transaction.json").write_text(
             json.dumps({"schema_version": 2, "phase": "validating"}), encoding="utf-8"
         )
         result = self.invoke("recover", check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(result.returncode, 0)
         self.assertEqual((self.root / "current").resolve().name, "1.0.0")
-        self.assertFalse((self.root / "update-transaction.json").exists())
+        self.assertEqual((self.root / "update-state.json").read_bytes(), before)
+        self.assertTrue((self.root / "update-transaction.json").exists())
+
+    def test_guard_rejects_malformed_transaction_without_mutation(self):
+        before = (self.root / "update-state.json").read_bytes()
+        (self.root / "update-transaction.json").write_text(
+            json.dumps({"schema_version": 2, "phase": "validating"}), encoding="utf-8"
+        )
+        result = self.invoke("guard", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual((self.root / "update-state.json").read_bytes(), before)
+        self.assertTrue((self.root / "update-transaction.json").exists())
 
     def test_guard_requires_active_recovery(self):
         self.invoke("apply", "v1.0.1")
@@ -113,24 +139,20 @@ class UpdaterProtocolSafetyTests(UpdaterProtocolFixture):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((self.root / "releases" / "1.0.3").exists())
 
-    def test_legacy_state_is_migrated_backwards_only(self):
+    def test_obsolete_state_is_rejected_without_mutation(self):
         candidate = self.root / "releases" / "1.0.1"
         (self.root / "current").unlink()
         (self.root / "current").symlink_to(candidate, target_is_directory=True)
-        (self.root / "update-state.json").write_text(
-            json.dumps({"current": "1.0.0", "previous": "0.9.0", "next": "1.0.1"}),
-            encoding="utf-8",
-        )
+        state = self.root / "update-state.json"
+        state.write_text(json.dumps({"current": "1.0.0", "previous": "0.9.0", "next": "1.0.1"}), encoding="utf-8")
         (self.root / "update-state.json.next").write_text("{}", encoding="utf-8")
-        result = self.invoke("recover")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((self.root / "current").resolve().name, "1.0.0")
-        self.assertEqual(
-            json.loads((self.root / "update-state.json").read_text())["schema_version"],
-            2,
-        )
+        result = self.invoke("recover", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual((self.root / "current").resolve().name, "1.0.1")
+        self.assertEqual(json.loads(state.read_text()), {"current": "1.0.0", "previous": "0.9.0", "next": "1.0.1"})
+        self.assertTrue((self.root / "update-state.json.next").exists())
 
-    def test_legacy_installed_release_is_bootstrapped_before_online_apply(self):
+    def test_schema_one_release_is_rejected_before_online_apply(self):
         manifest_path = self.root / "releases/1.0.0/update-manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest.pop("board_profile")
@@ -140,24 +162,18 @@ class UpdaterProtocolSafetyTests(UpdaterProtocolFixture):
         manifest["platforms"] = ["linux-aarch64-device"]
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         sentinel = self.work / "curl-called"
-        result = self.invoke("bootstrap", check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        migrated = json.loads(manifest_path.read_text(encoding="utf-8"))
-        self.assertEqual(
-            (
-                migrated["schema_version"],
-                migrated["updater_protocol"],
-                migrated["candidate_health_protocol"],
-                migrated["board_profile"],
-            ),
-            (2, 2, 1, PROFILE),
-        )
-        self.assertIn(PROFILE, migrated["platforms"])
         result = self.invoke(
             "apply", "v1.0.1", check=False, env={"CURL_SENTINEL": str(sentinel)}
         )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(sentinel.exists())
+        self.assertEqual(json.loads(manifest_path.read_text(encoding="utf-8"))["schema_version"], 1)
+        result = self.invoke("check", "v1.0.1")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(sentinel.exists())
+        self.assertEqual(
+            result.stdout,
+            "available=v1.0.1 current=unmanaged compatibility=provision-required pending=no\n",
+        )
 
     def test_check_does_not_repair_or_write_live_state(self):
         before = {

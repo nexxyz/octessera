@@ -3,8 +3,8 @@ use super::*;
 #[test]
 pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() {
     let mut runner = brain_target_runner();
-    let key = "layers.1.worlds.behaviorConfig.randomSeedCells";
-    runner.active_sparks_mode = "xy".into();
+    let key = "layers.1.build.behaviorConfig.randomSeedCells";
+    runner.active_play_mode = "xy".into();
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
@@ -69,8 +69,8 @@ pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() 
 #[test]
 pub(crate) fn aux_behavior_turn_recomposes_held_value_with_one_replacement() {
     let mut runner = brain_target_runner();
-    let key = "layers.1.worlds.behaviorConfig.randomSeedCells";
-    runner.active_sparks_mode = "xy".into();
+    let key = "layers.1.build.behaviorConfig.randomSeedCells";
+    runner.active_play_mode = "xy".into();
     runner.xy_touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
@@ -118,7 +118,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
     runner
         .messages_with_snapshot()
         .expect("initial runtime snapshot");
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
@@ -126,7 +126,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
         display_y: 0.5,
         active: true,
     };
-    let key = "layers.1.worlds.behaviorConfig.randomSeedCells";
+    let key = "layers.1.build.behaviorConfig.randomSeedCells";
     runner.xy_x_binding = Some(NativeParamBinding {
         key: key.into(),
         label: Some("Seed Cells".into()),
@@ -233,7 +233,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
     assert_eq!(saves.len(), 1);
     assert_eq!(saves[0].1, Some("deferred"));
     assert_eq!(
-        saves[0].0["runtimeConfig"]["layers"][1]["worlds"]["behaviorConfig"]["randomSeedCells"],
+        saves[0].0["runtimeConfig"]["layers"][1]["build"]["behaviorConfig"]["randomSeedCells"],
         base_before + 2
     );
     assert!(runner.behavior_state_serialization_calls.get() > 0);
@@ -242,8 +242,8 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
 #[test]
 pub(crate) fn physical_aux_binding_selection_keeps_normal_and_shifted_turn_banks() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let normal_key = "layers.0.worlds.behaviorConfig.randomCellsPerTick";
-    let shifted_key = "layers.0.worlds.behaviorConfig.randomTickInterval";
+    let normal_key = "layers.0.build.behaviorConfig.randomCellsPerTick";
+    let shifted_key = "layers.0.build.behaviorConfig.randomTickInterval";
 
     bind_aux_turn_physical(&mut runner, normal_key, false);
     bind_aux_turn_physical(&mut runner, shifted_key, true);

@@ -53,13 +53,13 @@ impl NativeRunner {
                     value.clamp(1, 64) as u8,
                 )
             })),
-            "sparksMode" => Some(self.fast_sparks_mode_menu_key()),
-            "sparks.page.mix" => Some(self.fast_sparks_page_key("mix")),
-            "sparks.page.pan" => Some(self.fast_sparks_page_key("pan")),
-            "sparks.page.fx" => Some(self.fast_sparks_page_key("fx")),
-            "sparks.page.trigger-gate" => Some(self.fast_sparks_page_key("trigger-gate")),
-            "sparks.page.transpose" => Some(self.fast_sparks_page_key("transpose")),
-            "sparks.page.xy" => Some(self.fast_sparks_page_key("xy")),
+            "playMode" => Some(self.fast_play_mode_menu_key()),
+            "play.page.mix" => Some(self.fast_play_page_key("mix")),
+            "play.page.pan" => Some(self.fast_play_page_key("pan")),
+            "play.page.fx" => Some(self.fast_play_page_key("fx")),
+            "play.page.trigger-gate" => Some(self.fast_play_page_key("trigger-gate")),
+            "play.page.transpose" => Some(self.fast_play_page_key("transpose")),
+            "play.page.xy" => Some(self.fast_play_page_key("xy")),
             "algorithmStep" => Some(self.fast_algorithm_step_menu_key()),
             "masterVolume" => Some(self.fast_master_volume_menu_key()),
             "displayBrightness" => Some(self.fast_display_brightness_menu_key()),
@@ -106,10 +106,10 @@ impl NativeRunner {
             }
             "sound.velocityCurve" => Some(self.fast_sound_string_menu_key(key)),
             "sound.voiceStealingMode" => Some(self.fast_voice_stealing_mode_menu_key()),
-            "sparks.xy.smoothingMs" => Some(self.fast_xy_smoothing_menu_key()),
-            "sparks.xy.release" => Some(self.fast_xy_release_menu_key()),
-            "sparks.xy.invertX" => Some(self.fast_xy_invert_menu_key(true)),
-            "sparks.xy.invertY" => Some(self.fast_xy_invert_menu_key(false)),
+            "play.xy.smoothingMs" => Some(self.fast_xy_smoothing_menu_key()),
+            "play.xy.release" => Some(self.fast_xy_release_menu_key()),
+            "play.xy.invertX" => Some(self.fast_xy_invert_menu_key(true)),
+            "play.xy.invertY" => Some(self.fast_xy_invert_menu_key(false)),
             "sound.audioOutputBufferFrames" => {
                 Some(self.fast_audio_output_buffer_frames_menu_key())
             }
@@ -200,7 +200,7 @@ impl NativeRunner {
         if bool_changed(&mut self.midi_enabled, value) {
             if !value {
                 self.drain_all_layer_engine_notes();
-                self.drain_all_sparks_transpose_notes();
+                self.drain_all_play_transpose_notes();
             }
             self.mark_fast_autosave_dirty();
         }
@@ -364,7 +364,7 @@ impl NativeRunner {
     }
 
     fn fast_xy_release_menu_key(&mut self) -> bool {
-        let Some(value) = self.menu.value_for_key("sparks.xy.release") else {
+        let Some(value) = self.menu.value_for_key("play.xy.release") else {
             return false;
         };
         if !matches!(value.as_str(), "sample-hold" | "reset-center") {
@@ -377,7 +377,7 @@ impl NativeRunner {
     }
 
     fn fast_xy_smoothing_menu_key(&mut self) -> bool {
-        let Some(value) = self.menu.number_for_key("sparks.xy.smoothingMs") else {
+        let Some(value) = self.menu.number_for_key("play.xy.smoothingMs") else {
             return false;
         };
         let value = super::normalize_xy_smoothing_ms(value.max(0) as u64);
@@ -394,9 +394,9 @@ impl NativeRunner {
 
     fn fast_xy_invert_menu_key(&mut self, x_axis: bool) -> bool {
         let key = if x_axis {
-            "sparks.xy.invertX"
+            "play.xy.invertX"
         } else {
-            "sparks.xy.invertY"
+            "play.xy.invertY"
         };
         let Some(value) = self.menu.value_for_key(key).map(|value| value == "true") else {
             return false;
@@ -416,29 +416,29 @@ impl NativeRunner {
         true
     }
 
-    fn fast_sparks_mode_menu_key(&mut self) -> bool {
-        let Some(sparks_mode) = self.menu.selected_sparks_mode() else {
+    fn fast_play_mode_menu_key(&mut self) -> bool {
+        let Some(play_mode) = self.menu.selected_play_mode() else {
             return false;
         };
-        let changed = self.sparks_mode != sparks_mode;
+        let changed = self.play_mode != play_mode;
         if changed {
-            self.sparks_mode = sparks_mode.clone();
-            if self.menu.is_in_sparks_root_group() {
-                self.active_sparks_mode = sparks_mode;
+            self.play_mode = play_mode.clone();
+            if self.menu.is_in_play_root_group() {
+                self.active_play_mode = play_mode;
             }
             self.mark_fast_autosave_dirty();
         }
         true
     }
 
-    fn fast_sparks_page_key(&mut self, sparks_mode: &str) -> bool {
-        let changed = self.sparks_mode != sparks_mode;
+    fn fast_play_page_key(&mut self, play_mode: &str) -> bool {
+        let changed = self.play_mode != play_mode;
         if changed {
-            self.sparks_mode = sparks_mode.into();
+            self.play_mode = play_mode.into();
             self.mark_fast_autosave_dirty();
         }
-        if self.menu.is_in_sparks_root_group() {
-            self.active_sparks_mode = self.sparks_mode.clone();
+        if self.menu.is_in_play_root_group() {
+            self.active_play_mode = self.play_mode.clone();
         }
         true
     }

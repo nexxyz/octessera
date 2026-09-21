@@ -9,7 +9,6 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const UTILITY_MODE_ENVIRONMENT: &[&str] = &[
-    "OCTESSERA_PI_DIAGNOSTIC",
     "OCTESSERA_PI_HARDWARE_TEST",
     "OCTESSERA_PI_HARDWARE_NOISE_TEST",
     "OCTESSERA_PI_PROFILE_DSP",
@@ -381,30 +380,30 @@ mod tests {
     }
 
     #[test]
-    fn metadata_command_clears_a_valid_diagnostic_environment() {
+    fn metadata_command_clears_a_valid_utility_environment() {
         let _guard = ENVIRONMENT_LOCK.lock().unwrap();
-        let previous = std::env::var_os("OCTESSERA_PI_DIAGNOSTIC");
+        let previous = std::env::var_os("OCTESSERA_PI_HARDWARE_TEST");
         let marker = std::env::temp_dir().join(format!(
             "octessera-metadata-recursion-{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&marker);
         let marker = marker.to_string_lossy().into_owned();
-        std::env::set_var("OCTESSERA_PI_DIAGNOSTIC", "1");
+        std::env::set_var("OCTESSERA_PI_HARDWARE_TEST", "1");
         let result = if cfg!(windows) {
             let command = format!(
-                "if defined OCTESSERA_PI_DIAGNOSTIC (mkdir \"{marker}\" >nul 2>&1 & exit /b 1) else (echo metadata)"
+                "if defined OCTESSERA_PI_HARDWARE_TEST (mkdir \"{marker}\" >nul 2>&1 & exit /b 1) else (echo metadata)"
             );
             run_metadata_command("cmd", &["/C", &command], Duration::from_secs(1))
         } else {
             let command = format!(
-                "if [ -n \"$OCTESSERA_PI_DIAGNOSTIC\" ]; then mkdir -p '{marker}'; exit 1; else printf metadata; fi"
+                "if [ -n \"$OCTESSERA_PI_HARDWARE_TEST\" ]; then mkdir -p '{marker}'; exit 1; else printf metadata; fi"
             );
             run_metadata_command("sh", &["-c", &command], Duration::from_secs(1))
         };
         match previous {
-            Some(value) => std::env::set_var("OCTESSERA_PI_DIAGNOSTIC", value),
-            None => std::env::remove_var("OCTESSERA_PI_DIAGNOSTIC"),
+            Some(value) => std::env::set_var("OCTESSERA_PI_HARDWARE_TEST", value),
+            None => std::env::remove_var("OCTESSERA_PI_HARDWARE_TEST"),
         }
         assert!(command_succeeded(&result));
         assert!(!std::path::Path::new(&marker).exists());

@@ -345,7 +345,7 @@ pub(super) fn materialize_endpoint(
         Endpoint::GlobalControl { .. }
         | Endpoint::LayerControl { .. }
         | Endpoint::InstrumentParameter { .. }
-        | Endpoint::SparksFx => None,
+        | Endpoint::PlayFx => None,
     }
 }
 

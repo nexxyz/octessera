@@ -1214,7 +1214,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -1400,7 +1400,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {
             "life": {
@@ -1568,7 +1568,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -1754,7 +1754,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "sequencer",
@@ -1845,7 +1845,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -2031,7 +2031,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": {
             "lengthSteps": 32,
             "mode": "overdub"
@@ -2172,7 +2172,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -2358,7 +2358,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "sequencer",
@@ -2449,7 +2449,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -2635,7 +2635,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
@@ -2655,7 +2655,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -2841,7 +2841,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
@@ -2861,7 +2861,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -3047,7 +3047,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
@@ -3067,7 +3067,7 @@
             null
           ]
         },
-        "pulses": {
+        "link": {
           "arp": {
             "gatePct": 80,
             "mode": "none",
@@ -3253,7 +3253,7 @@
             }
           }
         },
-        "worlds": {
+        "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
@@ -3460,7 +3460,7 @@
       "velocityScalePct": 100,
       "voiceStealingMode": "auto-balanced"
     },
-    "sparksFx": {
+    "playFx": {
       "assignments": [
         {
           "config": {
@@ -3568,7 +3568,7 @@
         "targetKey": "master"
       }
     },
-    "sparksMode": "fx",
+    "playMode": "fx",
     "transport": {
       "bpm": 120,
       "swingPct": 0
@@ -3591,6 +3591,6 @@
   },
   "schemaVersion": 2,
   "system": {
-    "sparksMode": "fx"
+    "playMode": "fx"
   }
 }

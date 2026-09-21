@@ -212,12 +212,12 @@ impl NativeRunner {
         let mut messages = Vec::new();
         self.apply_runtime_modulation(&result.mapped_intents, self.active_layer_index);
         let transpose_offset = self
-            .sparks_transpose_offsets_for_routing()
+            .play_transpose_offsets_for_routing()
             .get(self.active_layer_index)
             .copied()
             .unwrap_or(0);
         let instruments = self.instruments.clone();
-        let sense = self.pulses_layers.get(self.active_layer_index).cloned();
+        let sense = self.link_layers.get(self.active_layer_index).cloned();
         let events = self.route_events_with_link_timing(
             self.active_layer_index,
             LinkRoutingInput {

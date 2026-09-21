@@ -239,7 +239,7 @@ pub(crate) fn note_mode_delay_config_load_uses_visible_bpm_clamp() {
 }
 
 #[test]
-pub(crate) fn old_delay_payload_loads_as_ms_mode_and_audio_strips_timing_metadata() {
+pub(crate) fn sparse_delay_payload_defaults_to_ms_mode_and_audio_strips_timing_metadata() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner
@@ -362,7 +362,7 @@ pub(crate) fn fx_params_edit_into_config_payload() {
 }
 
 #[test]
-pub(crate) fn old_fx_bus_payload_defaults_slot3_to_none() {
+pub(crate) fn sparse_fx_bus_payload_defaults_omitted_slot3_to_none() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.fx_buses[0].slot3_type = "tremolo".into();
     runner.fx_buses[0].slot3_params = json!({ "rateHz": 4.0, "depthPct": 60 });
@@ -440,7 +440,7 @@ pub(crate) fn active_bus_fx_warning_reports_synthetic_over_budget_state() {
 #[test]
 pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = legacy_payload(runner.config_payload());
+    let mut payload = unversioned_payload(runner.config_payload());
     payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
         json!({ "type": "pitch_shift", "params": {} });
     payload["runtimeConfig"]["mixer"]["master"]["slots"][0] =

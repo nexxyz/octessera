@@ -48,7 +48,7 @@ function capabilitiesFrom(source) {
     busCount: positiveInteger(source, "busCount"),
     globalFxSlotCount: positiveInteger(source, "globalFxSlotCount"),
     auxEncoderCount: positiveInteger(source, "auxEncoderCount"),
-    sparksFxMaxConcurrent: positiveInteger(source, "sparksFxMaxConcurrent"),
+    playFxMaxConcurrent: positiveInteger(source, "playFxMaxConcurrent"),
     scanSectionCounts: parsedScanSectionCounts,
     panPositionCount: positiveInteger(source, "panPositionCount"),
     oledWidth: positiveInteger(source, "oledWidth"),

@@ -10,15 +10,14 @@ fn payload(role: &str, usb_audio: bool, midi: bool) -> serde_json::Value {
 }
 
 #[test]
-fn missing_data_role_defaults_to_gadget() {
-    assert_eq!(
-        parse_usb_runtime_config(&serde_json::json!({
-            "runtimeConfig": { "audioOutputs": { "dac": true, "usb": false, "hdmi": false } }
-        }))
-        .unwrap()
-        .data_role,
-        UsbDataRole::Gadget
-    );
+fn data_role_is_required() {
+    assert!(parse_usb_runtime_config(&serde_json::json!({
+        "runtimeConfig": {
+            "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
+            "usb": { "midiOutEnabled": false }
+        }
+    }))
+    .is_err());
 }
 
 #[test]

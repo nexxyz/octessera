@@ -190,7 +190,7 @@ pub(crate) fn system_info_popup_distinguishes_unavailable_state() {
 }
 
 #[test]
-pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_sparks_xy_keys() {
+pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_play_xy_keys() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.modulation_process_calls = 0;
     runner.xy_smoothing_ms = 0;
@@ -199,7 +199,7 @@ pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_sparks_xy_keys(
     assert_eq!(runner.voice_stealing_mode, "auto-hard");
     assert_eq!(runner.audio_config_revision, 1);
 
-    turn_menu_key_physical(&mut runner, "sparks.xy.release", 1);
+    turn_menu_key_physical(&mut runner, "play.xy.release", 1);
     assert_eq!(runner.xy_release, "reset-center");
 
     runner.instruments[0].volume = 50;
@@ -226,10 +226,10 @@ pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_sparks_xy_keys(
     runner.process_dirty_modulation_step(false).unwrap();
     assert_eq!(runner.instruments[0].volume, 25);
 
-    turn_menu_key_physical(&mut runner, "sparks.xy.invertX", 1);
+    turn_menu_key_physical(&mut runner, "play.xy.invertX", 1);
     assert!(runner.xy_invert_x);
     assert_eq!(runner.instruments[0].volume, 75);
-    turn_menu_key_physical(&mut runner, "sparks.xy.invertY", 1);
+    turn_menu_key_physical(&mut runner, "play.xy.invertY", 1);
     assert!(runner.xy_invert_y);
 }
 

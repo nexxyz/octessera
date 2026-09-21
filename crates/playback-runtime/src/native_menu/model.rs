@@ -343,7 +343,7 @@ impl NativeMenuModel {
         self.find_key_number(key)
     }
 
-    pub fn is_in_sparks_root_group(&self) -> bool {
+    pub fn is_in_play_root_group(&self) -> bool {
         self.state
             .stack
             .first()

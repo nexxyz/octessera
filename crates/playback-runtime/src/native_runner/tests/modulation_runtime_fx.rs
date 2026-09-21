@@ -353,7 +353,7 @@ pub(crate) fn physical_fx_menu_sibling_edits_rematerialize_owned_endpoints() {
 #[test]
 pub(crate) fn binding_fx_sibling_edits_rematerialize_owned_endpoints() {
     let mut runner = setup_eq_lfo_runner();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     let binding = |key: &str| NativeParamBinding {
         key: key.into(),

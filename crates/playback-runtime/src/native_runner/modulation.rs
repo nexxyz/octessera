@@ -1,11 +1,11 @@
 pub(crate) use super::modulation_audio::is_live_link_lfo_target;
-use super::modulation_fx::apply_sparks_fx_binding_value;
+use super::modulation_fx::apply_play_fx_binding_value;
 use super::modulation_instrument::apply_instrument_binding_value;
 use super::modulation_keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_instrument_binding_key,
-    parse_layer_behavior_config_binding_key, parse_pulses_binding_key,
+    parse_layer_behavior_config_binding_key, parse_link_binding_key,
 };
-use super::modulation_pulses::apply_pulses_binding_value;
+use super::modulation_link::apply_link_binding_value;
 pub(super) use super::modulation_sampler::{
     apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents,
 };
@@ -154,16 +154,16 @@ impl NativeRunner {
                 .or_default()
                 .push((field.into(), value));
             return true;
-        } else if let Some((index, field)) = parse_pulses_binding_key(key) {
-            return self.apply_pulses_param_binding(index, &field, value);
+        } else if let Some((index, field)) = parse_link_binding_key(key) {
+            return self.apply_link_param_binding(index, &field, value);
         } else if let Some((index, field)) = parse_instrument_binding_key(key) {
             return self.apply_instrument_param_binding(index, field, value);
         } else if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
             return self.apply_fx_bus_param_binding(index, slot, field, value);
         } else if let Some((index, field)) = parse_global_fx_binding_key(key) {
             return self.apply_global_fx_param_binding(index, field, value);
-        } else if let Some(field) = key.strip_prefix("sparks.fx.") {
-            if apply_sparks_fx_binding_value(&mut self.sparks_fx_selected, field, value) {
+        } else if let Some(field) = key.strip_prefix("play.fx.") {
+            if apply_play_fx_binding_value(&mut self.play_fx_selected, field, value) {
                 return true;
             }
         }
@@ -191,11 +191,11 @@ impl NativeRunner {
         false
     }
 
-    fn apply_pulses_param_binding(&mut self, index: usize, field: &str, value: Value) -> bool {
+    fn apply_link_param_binding(&mut self, index: usize, field: &str, value: Value) -> bool {
         let changed = self
-            .pulses_layers
+            .link_layers
             .get_mut(index)
-            .is_some_and(|layer| apply_pulses_binding_value(layer, field, value));
+            .is_some_and(|layer| apply_link_binding_value(layer, field, value));
         changed
     }
 

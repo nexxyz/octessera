@@ -10,7 +10,6 @@ use super::{
 
 impl NativeRunner {
     pub(super) fn apply_instruments_payload(&mut self, runtime: &Value) {
-        let incoming_pan_positions = runtime.get("panPositions").and_then(Value::as_u64);
         let Some(instruments) = runtime.get("instruments").and_then(Value::as_array) else {
             return;
         };
@@ -19,7 +18,7 @@ impl NativeRunner {
                 continue;
             };
             apply_instrument_identity_payload(slot, instrument);
-            apply_instrument_mixer_payload(slot, incoming_pan_positions, instrument);
+            apply_instrument_mixer_payload(slot, instrument);
             apply_instrument_sample_payload(slot, instrument);
             apply_instrument_synth_payload(slot, instrument);
             apply_instrument_midi_payload(slot, instrument);
@@ -84,31 +83,49 @@ impl NativeRunner {
             }
         }
         let sound = runtime.get("sound");
-        if let Some(value) = sound_or_runtime_u64(sound, runtime, "noteLengthMs") {
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("noteLengthMs"))
+            .and_then(Value::as_u64)
+        {
             if let Ok(value) = u32::try_from(value) {
                 self.global_sound.note_length_ms = value.clamp(30, 2000);
             }
         }
-        if let Some(value) = sound_or_runtime_u64(sound, runtime, "velocityScalePct") {
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("velocityScalePct"))
+            .and_then(Value::as_u64)
+        {
             if let Ok(value) = u16::try_from(value) {
                 self.global_sound.velocity_scale_pct = value.min(200);
             }
         }
-        if let Some(value) = sound_or_runtime_str(sound, runtime, "velocityCurve") {
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("velocityCurve"))
+            .and_then(Value::as_str)
+        {
             self.global_sound.velocity_curve = velocity_curve_from_id(value);
         }
-        if let Some(value) = sound_or_runtime_str(sound, runtime, "voiceStealingMode") {
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("voiceStealingMode"))
+            .and_then(Value::as_str)
+        {
             if let Some(mode) = super::normalize_voice_stealing_mode(value) {
                 self.voice_stealing_mode = mode.into();
             }
         }
-        if let Some(value) = sound_or_runtime_u64(sound, runtime, "audioOutputBufferFrames") {
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("audioOutputBufferFrames"))
+            .and_then(Value::as_u64)
+        {
             if let Ok(value) = u32::try_from(value) {
                 self.audio_output_buffer_frames =
                     super::normalize_audio_output_buffer_frames(value);
             }
         }
-        if let Some(value) = sound_or_runtime_str(sound, runtime, "optimizeFor") {
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("optimizeFor"))
+            .and_then(Value::as_str)
+        {
             let optimization = AudioOptimization::from_wire_name(value)
                 .ok_or_else(|| format!("unsupported audio optimization `{value}`"))?;
             if !optimization.is_supported(self.audio_optimization_capacity_available) {
@@ -161,11 +178,7 @@ impl NativeRunner {
                 self.display.ui.screen_sleep_seconds = value.min(600);
             }
         }
-        if let Some(value) = runtime
-            .get("dimTimerSeconds")
-            .and_then(Value::as_u64)
-            .or(screen_sleep_seconds)
-        {
+        if let Some(value) = runtime.get("dimTimerSeconds").and_then(Value::as_u64) {
             if let Ok(value) = u16::try_from(value) {
                 self.display.ui.dim_timer_seconds = value.min(600);
             }
@@ -220,15 +233,15 @@ impl NativeRunner {
                 self.transport.swing_pct = value.min(75);
             }
         }
-        if let Some(value) = runtime.get("sparksMode").and_then(Value::as_str) {
+        if let Some(value) = runtime.get("playMode").and_then(Value::as_str) {
             let normalized = match value {
                 "mix" | "pan" | "fx" | "trigger-gate" | "transpose" | "xy" => Some(value),
                 "none" => Some("mix"),
                 _ => None,
             };
             if let Some(value) = normalized {
-                self.sparks_mode = value.into();
-                self.active_sparks_mode = "none".into();
+                self.play_mode = value.into();
+                self.active_play_mode = "none".into();
             }
         }
     }

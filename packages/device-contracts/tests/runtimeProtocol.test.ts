@@ -10,7 +10,6 @@ import {
   RUNTIME_STATUS_STATES,
   RUNTIME_TRANSPORT_STATES,
   SHARED_RUNTIME_CONTRACT_FIXTURES,
-  type RuntimeAudioCommand,
   type RuntimeFxParamId,
   type RuntimeHostMessage,
   type RuntimePlatformEffect,
@@ -86,18 +85,6 @@ const AUDIO_COMMAND_EPOCH_TYPES = new Set([
   "momentary_fx_update",
   "momentary_fx_stop",
 ]);
-const normalizeAudioCommandDefaults = (command: RuntimeAudioCommand) => {
-  if (AUDIO_COMMAND_GENERATION_TYPES.has(command.type)) {
-    const generation = "generation" in command ? command.generation ?? 0 : 0;
-    return { ...command, generation };
-  }
-  if (AUDIO_COMMAND_EPOCH_TYPES.has(command.type)) {
-    const epoch = "epoch" in command ? command.epoch ?? 0 : 0;
-    return { ...command, epoch };
-  }
-  return command;
-};
-
 test("OLED frame revisions are positive and snapshot wire messages reject missing or non-positive revisions", () => {
   assert.equal(isPositiveOledFrameRevision(1), true);
   assert.equal(isPositiveOledFrameRevision(0), false);
@@ -286,28 +273,11 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
   ]);
 });
 
-test("audio command fixtures keep owner stamps explicit while legacy input normalizes to zero", () => {
+test("audio command fixtures include every owner stamp as a number", () => {
   for (const command of RUNTIME_AUDIO_COMMAND_FIXTURES) {
-    if ("generation" in command) assert.equal(typeof command.generation, "number");
-    if ("epoch" in command) assert.equal(typeof command.epoch, "number");
+    if (AUDIO_COMMAND_GENERATION_TYPES.has(command.type))
+      assert.equal(typeof command.generation, "number");
+    if (AUDIO_COMMAND_EPOCH_TYPES.has(command.type))
+      assert.equal(typeof command.epoch, "number");
   }
-
-  const legacyGenerationCommand = {
-    type: "set_instrument_slot",
-    instrumentSlot: 0,
-    config: { type: "synth" },
-  } as const satisfies RuntimeAudioCommand;
-  assert.deepEqual(normalizeAudioCommandDefaults(legacyGenerationCommand), {
-    ...legacyGenerationCommand,
-    generation: 0,
-  });
-
-  const legacyEpochCommand = {
-    type: "momentary_fx_stop",
-    id: "legacy",
-  } as const satisfies RuntimeAudioCommand;
-  assert.deepEqual(normalizeAudioCommandDefaults(legacyEpochCommand), {
-    ...legacyEpochCommand,
-    epoch: 0,
-  });
 });

@@ -18,7 +18,6 @@ mod browser_and_help;
 mod canonical_defaults;
 mod config_dto;
 mod config_field_partition;
-mod config_name_migration;
 mod config_persistence;
 mod config_schema_validation_matrix;
 mod config_transactions;
@@ -38,6 +37,7 @@ mod layer_replacement;
 mod layer_trigger_gate_device_replay;
 mod layer_trigger_gate_release;
 mod life_mapping;
+mod link_and_shape_menu;
 mod looper;
 mod menu_navigation;
 mod menu_navigation_state;
@@ -51,9 +51,11 @@ mod modulation_runtime_fx;
 mod modulation_runtime_phase3;
 mod note_set_runtime;
 mod note_sets;
+mod play_fx;
+mod play_menu;
+mod play_overlay;
 mod portable_patch;
 mod portable_patch_samples;
-mod pulses_and_tones_menu;
 mod recording;
 mod restart_dialog_snapshots;
 mod runtime_control;
@@ -65,9 +67,6 @@ mod setup_portal;
 mod shutdown;
 mod snapshot_autosave;
 mod snapshot_runtime;
-mod sparks_fx;
-mod sparks_menu;
-mod sparks_overlay;
 mod step_rates;
 mod store;
 mod store_result_contracts;
@@ -130,7 +129,7 @@ pub(crate) fn assert_rejected_without_byte_changes(runner: &mut NativeRunner, pa
     );
 }
 
-pub(crate) fn legacy_payload(mut payload: Value) -> Value {
+pub(crate) fn unversioned_payload(mut payload: Value) -> Value {
     if let Some(object) = payload.as_object_mut() {
         object.remove("kind");
         object.remove("schemaVersion");

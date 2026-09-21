@@ -1,13 +1,13 @@
-use super::{NativePulsesLayer, GRID_WIDTH};
+use super::{NativeLinkLayer, GRID_WIDTH};
 use platform_core::CellTriggerIntent;
 
 pub(super) fn trigger_probability_allows(
-    pulses_layer: Option<&NativePulsesLayer>,
+    link_layer: Option<&NativeLinkLayer>,
     map: &[String],
     rng: &mut u64,
     intent: &CellTriggerIntent,
 ) -> bool {
-    let pct = trigger_probability_pct(pulses_layer, map, intent.x, intent.y);
+    let pct = trigger_probability_pct(link_layer, map, intent.x, intent.y);
     if pct == 0 {
         return false;
     }
@@ -18,12 +18,12 @@ pub(super) fn trigger_probability_allows(
 }
 
 fn trigger_probability_pct(
-    pulses_layer: Option<&NativePulsesLayer>,
+    link_layer: Option<&NativeLinkLayer>,
     map: &[String],
     x: usize,
     y: usize,
 ) -> u8 {
-    let Some(layer) = pulses_layer else {
+    let Some(layer) = link_layer else {
         return 100;
     };
     match layer.trigger_probability_mode.as_str() {

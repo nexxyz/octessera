@@ -1,5 +1,5 @@
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use tauri::Manager;
 
@@ -16,11 +16,7 @@ pub(crate) enum DesktopStoreStartupError {
     CreateStoreDirectory { path: PathBuf, source: String },
     CreatePresetDirectory { path: PathBuf, source: String },
     ParseBundledDefault { source: String },
-    InvalidBundledDefault { detail: String },
     SeedDefault { path: PathBuf, source: String },
-    ReadExistingDefault { path: PathBuf, source: String },
-    ParseExistingDefault { path: PathBuf, source: String },
-    RepairDefaultBrightness { path: PathBuf, source: String },
 }
 
 impl fmt::Display for DesktopStoreStartupError {
@@ -44,28 +40,9 @@ impl fmt::Display for DesktopStoreStartupError {
                 formatter,
                 "desktop startup store initialization failed: unable to parse bundled default: {source}"
             ),
-            Self::InvalidBundledDefault { detail } => write!(
-                formatter,
-                "desktop startup store initialization failed: bundled default is invalid: {detail}"
-            ),
             Self::SeedDefault { path, source } => write!(
                 formatter,
                 "desktop startup store initialization failed: unable to atomically seed bundled default {}: {source}",
-                path.display()
-            ),
-            Self::ReadExistingDefault { path, source } => write!(
-                formatter,
-                "desktop startup store initialization failed: unable to read existing default {}: {source}",
-                path.display()
-            ),
-            Self::ParseExistingDefault { path, source } => write!(
-                formatter,
-                "desktop startup store initialization failed: unable to parse existing default {}: {source}",
-                path.display()
-            ),
-            Self::RepairDefaultBrightness { path, source } => write!(
-                formatter,
-                "desktop startup store initialization failed: unable to atomically repair default brightness {}: {source}",
                 path.display()
             ),
         }
@@ -96,16 +73,6 @@ where
 }
 
 fn ensure_store_dir_at(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError> {
-    ensure_store_dir_at_with_writer(dir, persistence::atomic_write_json)
-}
-
-fn ensure_store_dir_at_with_writer<F>(
-    dir: PathBuf,
-    write_json: F,
-) -> Result<PathBuf, DesktopStoreStartupError>
-where
-    F: Fn(&Path, &serde_json::Value) -> Result<(), String>,
-{
     std::fs::create_dir_all(&dir).map_err(|error| {
         DesktopStoreStartupError::CreateStoreDirectory {
             path: dir.clone(),
@@ -119,94 +86,29 @@ where
             source: error.to_string(),
         }
     })?;
-    let bundled: serde_json::Value =
-        serde_json::from_str(BUNDLED_DEFAULT_CONFIG).map_err(|error| {
-            DesktopStoreStartupError::ParseBundledDefault {
-                source: error.to_string(),
-            }
-        })?;
     let default_path = dir.join("default.json");
     if !default_path.is_file() {
-        write_json(&default_path, &bundled).map_err(|source| {
+        let bundled: serde_json::Value =
+            serde_json::from_str(BUNDLED_DEFAULT_CONFIG).map_err(|error| {
+                DesktopStoreStartupError::ParseBundledDefault {
+                    source: error.to_string(),
+                }
+            })?;
+        persistence::atomic_write_json(&default_path, &bundled).map_err(|source| {
             DesktopStoreStartupError::SeedDefault {
                 path: default_path.clone(),
                 source,
             }
         })?;
-    } else {
-        repair_existing_desktop_default_brightness(&default_path, &bundled, &write_json)?;
     }
     Ok(dir)
-}
-
-fn repair_existing_desktop_default_brightness<F>(
-    path: &Path,
-    bundled: &serde_json::Value,
-    write_json: &F,
-) -> Result<(), DesktopStoreStartupError>
-where
-    F: Fn(&Path, &serde_json::Value) -> Result<(), String>,
-{
-    let mut payload: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(path).map_err(|error| {
-            DesktopStoreStartupError::ReadExistingDefault {
-                path: path.to_path_buf(),
-                source: error.to_string(),
-            }
-        })?)
-        .map_err(|error| DesktopStoreStartupError::ParseExistingDefault {
-            path: path.to_path_buf(),
-            source: error.to_string(),
-        })?;
-    let Some(runtime) = payload
-        .get_mut("runtimeConfig")
-        .and_then(serde_json::Value::as_object_mut)
-    else {
-        return Ok(());
-    };
-    let bundled_runtime = bundled
-        .get("runtimeConfig")
-        .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| DesktopStoreStartupError::InvalidBundledDefault {
-            detail: "missing runtimeConfig".to_string(),
-        })?;
-    let old_pi_defaults = [
-        ("buttonBrightness", 35_u64),
-        ("displayBrightness", 75_u64),
-        ("gridBrightness", 25_u64),
-    ];
-    let mut changed = false;
-    for (key, old_value) in old_pi_defaults {
-        let should_repair = runtime
-            .get(key)
-            .and_then(serde_json::Value::as_u64)
-            .is_none_or(|current| current == old_value);
-        if !should_repair {
-            continue;
-        }
-        let Some(next) = bundled_runtime.get(key) else {
-            continue;
-        };
-        if runtime.get(key) != Some(next) {
-            runtime.insert(key.to_string(), next.clone());
-            changed = true;
-        }
-    }
-    if changed {
-        write_json(path, &payload).map_err(|source| {
-            DesktopStoreStartupError::RepairDefaultBrightness {
-                path: path.to_path_buf(),
-                source,
-            }
-        })?;
-    }
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::Path;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static TEMP_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -223,10 +125,6 @@ mod tests {
 
     fn remove_temp_dir(path: &Path) {
         let _ = fs::remove_dir_all(path);
-    }
-
-    fn failing_json_write(_: &Path, _: &serde_json::Value) -> Result<(), String> {
-        Err("injected atomic write failure".to_string())
     }
 
     #[test]
@@ -257,15 +155,17 @@ mod tests {
     }
 
     #[test]
-    fn malformed_existing_default_is_reported() {
+    fn malformed_existing_default_is_preserved() {
         let root = unique_temp_dir("octessera-malformed-default");
-        fs::write(root.join("default.json"), b"{ malformed").expect("malformed default");
+        let original = b"{ malformed";
+        fs::write(root.join("default.json"), original).expect("malformed default");
 
-        let error = ensure_store_dir_at(root.clone()).expect_err("malformed default must fail");
+        ensure_store_dir_at(root.clone()).expect("existing malformed default");
 
-        assert!(error.to_string().starts_with(
-            "desktop startup store initialization failed: unable to parse existing default"
-        ));
+        assert_eq!(
+            fs::read(root.join("default.json")).expect("existing default"),
+            original
+        );
         remove_temp_dir(&root);
     }
 
@@ -278,32 +178,6 @@ mod tests {
 
         assert!(error.to_string().starts_with(
             "desktop startup store initialization failed: unable to atomically seed bundled default"
-        ));
-        remove_temp_dir(&root);
-    }
-
-    #[test]
-    fn brightness_repair_write_failure_is_reported() {
-        let root = unique_temp_dir("octessera-brightness-write-failure");
-        fs::write(
-            root.join("default.json"),
-            serde_json::to_vec(&serde_json::json!({
-                "runtimeConfig": {
-                    "buttonBrightness": 35,
-                    "displayBrightness": 75,
-                    "gridBrightness": 25,
-                    "masterVolume": 82
-                }
-            }))
-            .expect("serialize old default"),
-        )
-        .expect("write old default");
-
-        let error = ensure_store_dir_at_with_writer(root.clone(), failing_json_write)
-            .expect_err("brightness repair write must fail");
-
-        assert!(error.to_string().starts_with(
-            "desktop startup store initialization failed: unable to atomically repair default brightness"
         ));
         remove_temp_dir(&root);
     }
@@ -343,35 +217,6 @@ mod tests {
         )
         .expect("parse custom default");
         assert_eq!(actual, custom);
-        remove_temp_dir(&root);
-    }
-
-    #[test]
-    fn valid_existing_default_repairs_only_legacy_brightness_values() {
-        let root = unique_temp_dir("octessera-existing-default");
-        fs::write(
-            root.join("default.json"),
-            serde_json::to_vec(&serde_json::json!({
-                "runtimeConfig": {
-                    "buttonBrightness": 35,
-                    "displayBrightness": 88,
-                    "gridBrightness": 25,
-                    "masterVolume": 82
-                }
-            }))
-            .expect("serialize existing default"),
-        )
-        .expect("write existing default");
-
-        ensure_store_dir_at(root.clone()).expect("existing default");
-
-        let actual: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(root.join("default.json")).expect("default"))
-                .expect("parse default");
-        assert_eq!(actual["runtimeConfig"]["buttonBrightness"], 100);
-        assert_eq!(actual["runtimeConfig"]["displayBrightness"], 88);
-        assert_eq!(actual["runtimeConfig"]["gridBrightness"], 100);
-        assert_eq!(actual["runtimeConfig"]["masterVolume"], 82);
         remove_temp_dir(&root);
     }
 

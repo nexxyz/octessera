@@ -11,7 +11,7 @@ fn scanning_runner(scan_unit: &str, scanned_slot: usize) -> NativeRunner {
 }
 
 fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slot: usize) {
-    let layer = &mut runner.pulses_layers[runner.active_layer_index];
+    let layer = &mut runner.link_layers[runner.active_layer_index];
     layer.scan_mode = "scanning".into();
     layer.scan_axis = "rows".into();
     layer.scan_unit = scan_unit.into();
@@ -229,7 +229,7 @@ fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_c
 fn muted_sequencer_consumes_origin_tick_without_events() {
     let mut runner = scanning_runner("1/16", 0);
     add_cell(&mut runner, 0, 0);
-    runner.pulses_layers[0].trigger_probability_mode = "zero".into();
+    runner.link_layers[0].trigger_probability_mode = "zero".into();
     arm_boundary(&mut runner, 95);
     runner.prime_sequencer_layer_origins();
 
@@ -247,8 +247,8 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     let mut runner = scanning_runner("1/16", 0);
     runner.instruments[0].note_behavior = "hold".into();
     runner.sync_engine_runtime_config();
-    runner.pulses_layers[0].scanned_timing.delay_steps = 2;
-    runner.pulses_layers[0].arp.mode = "direct".into();
+    runner.link_layers[0].scanned_timing.delay_steps = 2;
+    runner.link_layers[0].arp.mode = "direct".into();
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 1,
         events: RoutedMusicalEvents {

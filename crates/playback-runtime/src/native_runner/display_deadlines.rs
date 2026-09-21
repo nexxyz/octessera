@@ -96,7 +96,7 @@ impl NativeRunner {
             || self.display.confirm_dialog.is_some()
             || self.sample_assign.is_some()
             || self.trigger_probability_assign.is_some()
-            || self.sparks_fx_assign.is_some()
+            || self.play_fx_assign.is_some()
         {
             return None;
         }

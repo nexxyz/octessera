@@ -147,9 +147,7 @@ pub enum RuntimeStoreResult {
         message: String,
     },
     DeviceUpdateStatus {
-        #[serde(default)]
         ok: bool,
-        #[serde(default)]
         message: String,
     },
     RecordingStatus {

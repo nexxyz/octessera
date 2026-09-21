@@ -28,7 +28,7 @@ the WAV-only browser. You can add your own samples through the sample browser.
 
 The simulator's keyboard and UI controls mirror the hardware. The
 [controls cheat sheet](controls-cheat-sheet.md) has the complete map, and
-[behaviors and Play pages](behaviors-and-sparks.md) explains the moving parts.
+[behaviors and Play pages](behaviors-and-play.md) explains the moving parts.
 
 ## Limits
 

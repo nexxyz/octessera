@@ -156,7 +156,7 @@ impl DeviceDriver {
         self.release_button("fn");
     }
 
-    pub(super) fn select_sparks_page_with_fn(&mut self, y: usize) {
+    pub(super) fn select_play_page_with_fn(&mut self, y: usize) {
         self.hold_button("fn");
         self.press_grid(7, y);
         self.release_grid(7, y);
@@ -187,12 +187,12 @@ impl DeviceDriver {
 
     pub(super) fn fail(&self, message: &str) -> ! {
         panic!(
-            "{message}\ntrace:\n{}\nactive behavior: {}\nactive sparks: {}\ntransport: {}\ntoast: {}\noutput counts: audio={} synth={} sample={} fx_start={} fx_stop={}\nlatest OLED:\n{}",
+            "{message}\ntrace:\n{}\nactive behavior: {}\nactive play: {}\ntransport: {}\ntoast: {}\noutput counts: audio={} synth={} sample={} fx_start={} fx_stop={}\nlatest OLED:\n{}",
             self.trace.join("\n"),
             self.latest_snapshot["activeBehavior"]
                 .as_str()
                 .unwrap_or("?"),
-            self.latest_snapshot["activeSparksMode"]
+            self.latest_snapshot["activePlayMode"]
                 .as_str()
                 .unwrap_or("?"),
             self.latest_snapshot["transportIcon"]

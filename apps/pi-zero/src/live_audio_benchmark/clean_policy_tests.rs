@@ -4,8 +4,6 @@ use super::*;
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 #[test]
 fn raspberry_result_status_requires_zero_persistent_output_events() {
@@ -37,8 +35,6 @@ fn raspberry_result_status_requires_zero_persistent_output_events() {
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 #[test]
 fn raspberry_callback_events_fail_the_clean_policy_at_each_duration() {

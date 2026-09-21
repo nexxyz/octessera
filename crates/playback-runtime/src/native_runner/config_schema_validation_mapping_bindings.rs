@@ -25,9 +25,6 @@ fn validate_aux_binding(value: &Value, path: &str) -> Result<(), String> {
     let binding = object_value(value, path)?;
     if let Some(turn_key) = binding.get("turnKey") {
         if let Some(turn_key) = turn_key.as_str() {
-            if turn_key.starts_with("layers.") && turn_key.contains(".linkLfo.") {
-                return Err(format!("{path}.turnKey uses a legacy per-layer LFO key"));
-            }
             if !super::super::supported_aux_turn_key(turn_key) {
                 return Err(format!("{path}.turnKey is unsupported"));
             }

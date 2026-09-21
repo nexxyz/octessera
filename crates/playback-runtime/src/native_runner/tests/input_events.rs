@@ -111,7 +111,7 @@ pub(crate) fn trigger_probability_zero_suppresses_input_transition_events() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.pulses_layers[0].trigger_probability_mode = "zero".into();
+    runner.link_layers[0].trigger_probability_mode = "zero".into();
     runner.refresh_active_interpretation_profile();
 
     let press = runner
@@ -133,7 +133,7 @@ pub(crate) fn none_trigger_targets_do_not_apply_runtime_modulation() {
     .unwrap();
     bind_x_to_instrument_volume(&mut runner);
     runner.instruments[0].volume = 10;
-    runner.pulses_layers[0].activate_action = "none".into();
+    runner.link_layers[0].activate_action = "none".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
 
@@ -157,7 +157,7 @@ pub(crate) fn probability_suppressed_events_do_not_apply_runtime_modulation() {
     .unwrap();
     bind_x_to_instrument_volume(&mut runner);
     runner.instruments[0].volume = 10;
-    runner.pulses_layers[0].trigger_probability_mode = "zero".into();
+    runner.link_layers[0].trigger_probability_mode = "zero".into();
     runner.refresh_active_interpretation_profile();
 
     let press = runner
@@ -178,7 +178,7 @@ pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.pulses_layers[0].event_enabled = false;
+    runner.link_layers[0].event_enabled = false;
     runner.refresh_active_interpretation_profile();
     runner
         .engine
@@ -203,11 +203,11 @@ pub(crate) fn trigger_probability_custom_zero_cell_suppresses_transport_events()
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/4".into();
-    runner.pulses_layers[0].scanned_action = "note_on".into();
-    runner.pulses_layers[0].trigger_probability_mode = "custom".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/4".into();
+    runner.link_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].trigger_probability_mode = "custom".into();
     runner.trigger_probability_maps[0][2] = "zero".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
@@ -238,7 +238,7 @@ pub(crate) fn scanned_note_on_events_apply_runtime_modulation() {
     let mut runner = scanning_sequencer_runner();
     bind_x_to_instrument_volume(&mut runner);
     runner.instruments[0].volume = 10;
-    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scanned_action = "note_on".into();
     runner.refresh_active_mapping_config();
 
     runner
@@ -265,8 +265,8 @@ pub(crate) fn scanned_empty_note_on_events_apply_runtime_modulation() {
     let mut runner = scanning_sequencer_runner();
     bind_x_to_instrument_volume(&mut runner);
     runner.instruments[0].volume = 10;
-    runner.pulses_layers[0].scanned_action = "none".into();
-    runner.pulses_layers[0].scanned_empty_action = "note_on".into();
+    runner.link_layers[0].scanned_action = "none".into();
+    runner.link_layers[0].scanned_empty_action = "note_on".into();
     runner.refresh_active_mapping_config();
 
     let messages = runner
@@ -336,8 +336,8 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color()
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
     runner.midi_enabled = true;
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
@@ -395,9 +395,9 @@ pub(crate) fn reverse_scan_direction_starts_from_last_lane() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_direction = "reverse".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_direction = "reverse".into();
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
 
@@ -418,9 +418,9 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_sections = 2;
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_sections = 2;
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
 
@@ -433,9 +433,9 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
 }
 
 #[test]
-pub(crate) fn pulses_scan_menu_exposes_none_and_scanned_empty_targets() {
+pub(crate) fn link_scan_menu_exposes_none_and_scanned_empty_targets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
     runner.menu.rebuild(runner.menu_config());
     let layer = runner.menu.root.children[1]
         .children
@@ -457,7 +457,7 @@ pub(crate) fn pulses_scan_menu_exposes_none_and_scanned_empty_targets() {
     assert!(labels.contains(&"Empty Trig"));
     assert!(runner
         .menu
-        .value_for_key("layers.0.pulses.mapping.scanned_empty.slot")
+        .value_for_key("layers.0.link.mapping.scanned_empty.slot")
         .is_some_and(|value| value != "none"));
 }
 
@@ -484,9 +484,9 @@ fn scanning_sequencer_runner() -> NativeRunner {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/4".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/4".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

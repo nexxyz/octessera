@@ -4,7 +4,7 @@ use crate::native_runner::modulation_sampler::{
 };
 
 #[test]
-pub(crate) fn sparks_transpose_offsets_note_based_routes_but_not_sampler_assignments() {
+pub(crate) fn play_transpose_offsets_note_based_routes_but_not_sampler_assignments() {
     let intent = CellTriggerIntent {
         x: 2,
         y: 3,
@@ -88,7 +88,7 @@ pub(crate) fn sparks_transpose_offsets_note_based_routes_but_not_sampler_assignm
 }
 
 #[test]
-pub(crate) fn sparks_transpose_note_off_uses_original_transposed_note() {
+pub(crate) fn play_transpose_note_off_uses_original_transposed_note() {
     let intent = CellTriggerIntent {
         x: 0,
         y: 0,
@@ -136,7 +136,7 @@ pub(crate) fn sparks_transpose_note_off_uses_original_transposed_note() {
 }
 
 #[test]
-pub(crate) fn sparks_transpose_tracks_only_explicit_release_notes() {
+pub(crate) fn play_transpose_tracks_only_explicit_release_notes() {
     let intent = CellTriggerIntent {
         x: 0,
         y: 0,
@@ -256,7 +256,7 @@ pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
 }
 
 #[test]
-pub(crate) fn sparks_transpose_tracks_clamped_explicit_release_notes() {
+pub(crate) fn play_transpose_tracks_clamped_explicit_release_notes() {
     let intent = CellTriggerIntent {
         x: 0,
         y: 0,
@@ -299,11 +299,11 @@ pub(crate) fn sparks_transpose_tracks_clamped_explicit_release_notes() {
 }
 
 #[test]
-pub(crate) fn sparks_transpose_retarget_drains_held_note_before_new_offset() {
+pub(crate) fn play_transpose_retarget_drains_held_note_before_new_offset() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "transpose".into();
-    runner.sparks_transpose_offsets[0] = 7;
-    runner.sparks_transpose_active_notes[0]
+    runner.active_play_mode = "transpose".into();
+    runner.play_transpose_offsets[0] = 7;
+    runner.play_transpose_active_notes[0]
         .entry((0, 60))
         .or_default()
         .push(TransposedHeldNote {
@@ -324,18 +324,18 @@ pub(crate) fn sparks_transpose_retarget_drains_held_note_before_new_offset() {
         RunnerMessage::MusicalEvents { events }
             if events == &vec![MusicalEvent::NoteOff { channel: 0, note: 67 }]
     )));
-    assert!(runner.sparks_transpose_active_notes[0].is_empty());
-    assert_eq!(runner.sparks_transpose_offsets[0], 12);
+    assert!(runner.play_transpose_active_notes[0].is_empty());
+    assert_eq!(runner.play_transpose_offsets[0], 12);
 }
 
 #[test]
-pub(crate) fn sparks_transpose_disable_drains_midi_held_note_to_routed_channel() {
+pub(crate) fn play_transpose_disable_drains_midi_held_note_to_routed_channel() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "transpose".into();
+    runner.active_play_mode = "transpose".into();
     runner.instruments[0].kind = "midi".into();
     runner.instruments[0].midi_enabled = true;
     runner.instruments[0].midi_channel = 3;
-    runner.sparks_transpose_active_notes[0]
+    runner.play_transpose_active_notes[0]
         .entry((0, 60))
         .or_default()
         .push(TransposedHeldNote {
@@ -356,11 +356,11 @@ pub(crate) fn sparks_transpose_disable_drains_midi_held_note_to_routed_channel()
         RunnerMessage::MidiEvents { events }
             if events == &vec![MusicalEvent::NoteOff { channel: 2, note: 67 }]
     )));
-    assert!(runner.sparks_transpose_active_notes[0].is_empty());
+    assert!(runner.play_transpose_active_notes[0].is_empty());
 }
 
 #[test]
-pub(crate) fn sparks_transpose_release_uses_stored_route_after_midi_is_disabled() {
+pub(crate) fn play_transpose_release_uses_stored_route_after_midi_is_disabled() {
     let intent = CellTriggerIntent {
         x: 0,
         y: 0,
@@ -408,9 +408,9 @@ pub(crate) fn sparks_transpose_release_uses_stored_route_after_midi_is_disabled(
 }
 
 #[test]
-pub(crate) fn sparks_transpose_instrument_route_change_drains_all_original_notes() {
+pub(crate) fn play_transpose_instrument_route_change_drains_all_original_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.sparks_transpose_active_notes[0].insert(
+    runner.play_transpose_active_notes[0].insert(
         (0, 60),
         vec![TransposedHeldNote {
             routed_channel: 2,
@@ -418,7 +418,7 @@ pub(crate) fn sparks_transpose_instrument_route_change_drains_all_original_notes
             routed_to_midi: true,
         }],
     );
-    runner.sparks_transpose_active_notes[1].insert(
+    runner.play_transpose_active_notes[1].insert(
         (0, 64),
         vec![TransposedHeldNote {
             routed_channel: 2,
@@ -427,7 +427,7 @@ pub(crate) fn sparks_transpose_instrument_route_change_drains_all_original_notes
         }],
     );
 
-    runner.drain_sparks_transpose_instrument_notes(0);
+    runner.drain_play_transpose_instrument_notes(0);
     let messages = runner.messages_without_snapshot().unwrap();
 
     assert!(messages.iter().any(|message| matches!(
@@ -438,14 +438,14 @@ pub(crate) fn sparks_transpose_instrument_route_change_drains_all_original_notes
                 MusicalEvent::NoteOff { channel: 2, note: 71 },
             ]
     )));
-    assert!(runner.sparks_transpose_active_notes[0].is_empty());
-    assert!(runner.sparks_transpose_active_notes[1].is_empty());
+    assert!(runner.play_transpose_active_notes[0].is_empty());
+    assert!(runner.play_transpose_active_notes[1].is_empty());
 }
 
 #[test]
 pub(crate) fn clear_patch_state_preserves_pending_transpose_note_offs() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.sparks_transpose_active_notes[0].insert(
+    runner.play_transpose_active_notes[0].insert(
         (0, 60),
         vec![TransposedHeldNote {
             routed_channel: 0,

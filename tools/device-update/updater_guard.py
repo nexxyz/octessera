@@ -7,6 +7,9 @@ from typing import TypedDict
 
 from updater_contract import BINARY, CANDIDATE_HEALTH_PROTOCOL, MARKER_SCHEMA, MAX_JSON_BYTES, read_json, same_path
 
+CANDIDATE_READINESS_KIND = "octessera_candidate_readiness"
+CANDIDATE_READINESS_STATUS = "ready"
+
 
 class ServiceSnapshot(TypedDict):
     main_pid: int
@@ -33,13 +36,29 @@ def marker(updater, pid: int, invocation: str, expected: dict) -> None:
     if not updater.health_path.exists():
         raise error("Candidate readiness marker did not arrive")
     payload = read_json(updater.health_path, 64 * 1024)
-    if not isinstance(payload, dict) or payload.get("schema_version") != MARKER_SCHEMA:
+    fields = {
+        "schema_version", "kind", "status", "pid", "systemd_invocation_id",
+        "package_version", "board_profile", "ready_at_unix_ms",
+    }
+    if not isinstance(payload, dict) or set(payload) != fields:
         raise error("Candidate readiness marker schema is invalid")
-    marker_invocation = payload.get("systemd_invocation_id", payload.get("invocation_id"))
-    ready_ms = payload.get("ready_at_unix_ms", payload.get("ready_at_ms"))
-    if payload.get("pid") != pid or marker_invocation != invocation or payload.get("package_version") != expected["version"] or payload.get("board_profile") != updater.profile:
+    if (
+        type(payload["schema_version"]) is not int
+        or payload["schema_version"] != MARKER_SCHEMA
+        or payload["kind"] != CANDIDATE_READINESS_KIND
+        or payload["status"] != CANDIDATE_READINESS_STATUS
+    ):
+        raise error("Candidate readiness marker declaration is invalid")
+    ready_ms = payload["ready_at_unix_ms"]
+    if (
+        type(payload["pid"]) is not int
+        or payload["pid"] != pid
+        or payload["systemd_invocation_id"] != invocation
+        or payload["package_version"] != expected["version"]
+        or payload["board_profile"] != updater.profile
+    ):
         raise error("Candidate readiness identity does not match the running service")
-    if not isinstance(ready_ms, int) or ready_ms > int(time.time() * 1000) + 60000:
+    if type(ready_ms) is not int or ready_ms < 0 or ready_ms > int(time.time() * 1000):
         raise error("Candidate readiness time is invalid")
 
 
@@ -121,11 +140,7 @@ def guard_transaction(updater) -> None:
     payload = None
     activation_attempted = False
     try:
-        try:
-            payload = updater.load_transaction()
-        except error:
-            updater.recover_pending()
-            return
+        payload = updater.load_transaction()
         if payload.get("candidate_source") == "downloaded" and not updater.profile:
             updater.profile = payload.get("board_profile", "")
         if payload["phase"] != "validating":
@@ -191,11 +206,5 @@ def guard_transaction(updater) -> None:
         updater.health_path.unlink(missing_ok=True)
     except Exception as exc:
         if payload is None:
-            try:
-                updater.recover_legacy(force=True)
-                updater.transaction_path.unlink(missing_ok=True)
-                updater.health_path.unlink(missing_ok=True)
-            except Exception as rollback_error:
-                raise error(f"Updater recovery failed: {rollback_error}") from exc
             raise error(f"Updater guard failed: {exc}") from exc
         _restore(updater, payload, activation_attempted, exc)

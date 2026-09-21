@@ -11,7 +11,7 @@ Octessera names are organized into five layers:
 
 - General/native shared crates — `crates/platform-core`, `crates/playback-runtime`, and other board-agnostic native crates.
 - Desktop Simulator — `apps/desktop`, `@octessera/desktop`, and `octessera-desktop`.
-- Shared hardware host — `apps/pi-zero` and `octessera-pi`, retained compatibility names serving both boards.
+- Shared hardware host — `apps/pi-zero` and `octessera-pi`, serving both boards.
 - Raspberry Pi Zero 2 W — `raspberry-pi-zero-2w`, `tools/pi`.
 - Orange Pi Zero 2W — `orange-pi-zero-2w`, `tools/orange-pi`.
 
@@ -20,11 +20,6 @@ Octessera names are organized into five layers:
 - Canonical HAL features: `raspberry-pi-zero-2w` and `orange-pi-zero-2w`.
 - Canonical app features: `hardware-raspberry-pi-zero-2w` and
   `hardware-orange-pi-zero-2w`.
-- Compatibility aliases: `rpi-zero-2w`, `pi-zero`, `hardware-rpi-zero-2w`, and
-  `hardware-pi`. They remain accepted for existing Cargo commands; use the
-  canonical names for new commands. No alias removal date is promised.
-- Names matching `legacy-hardware-*` are internal rejection markers, not
-  user-facing aliases.
 
 ## Shared AArch64 Rust target
 

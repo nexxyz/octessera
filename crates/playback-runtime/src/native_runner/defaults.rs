@@ -1,5 +1,5 @@
 use super::{
-    json, NativeFxBus, NativeInstrumentSlot, NativePulsesLayer, Value, BUS_COUNT,
+    json, NativeFxBus, NativeInstrumentSlot, NativeLinkLayer, Value, BUS_COUNT,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT, LAYER_COUNT,
 };
 
@@ -71,18 +71,16 @@ pub(super) fn default_instruments() -> Vec<NativeInstrumentSlot> {
         .collect()
 }
 
-pub(super) fn default_pulses_layers() -> Vec<NativePulsesLayer> {
-    let mut layers = (0..LAYER_COUNT)
-        .map(default_pulses_layer)
-        .collect::<Vec<_>>();
+pub(super) fn default_link_layers() -> Vec<NativeLinkLayer> {
+    let mut layers = (0..LAYER_COUNT).map(default_link_layer).collect::<Vec<_>>();
     for layer in layers.iter_mut().skip(1) {
         layer.event_enabled = false;
     }
     layers
 }
 
-pub(super) fn default_pulses_layer(index: usize) -> NativePulsesLayer {
-    let mut layer = NativePulsesLayer::default();
+pub(super) fn default_link_layer(index: usize) -> NativeLinkLayer {
+    let mut layer = NativeLinkLayer::default();
     let slot = index.min(INSTRUMENT_COUNT.saturating_sub(1));
     layer.scanned_slot = slot;
     layer.scanned_empty_slot = slot;

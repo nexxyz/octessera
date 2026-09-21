@@ -117,14 +117,14 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     configs.push(dynamic);
 
     let mut scanning = config();
-    scanning.pulses_layers[0].scan_mode = "scanning".into();
-    scanning.pulses_layers[0].x_velocity.enabled = true;
-    scanning.pulses_layers[0].x_filter_cutoff.enabled = true;
-    scanning.pulses_layers[0].x_filter_resonance.enabled = true;
-    scanning.pulses_layers[0].y_pitch_enabled = true;
-    scanning.pulses_layers[0].y_velocity.enabled = true;
-    scanning.pulses_layers[0].y_filter_cutoff.enabled = true;
-    scanning.pulses_layers[0].y_filter_resonance.enabled = true;
+    scanning.link_layers[0].scan_mode = "scanning".into();
+    scanning.link_layers[0].x_velocity.enabled = true;
+    scanning.link_layers[0].x_filter_cutoff.enabled = true;
+    scanning.link_layers[0].x_filter_resonance.enabled = true;
+    scanning.link_layers[0].y_pitch_enabled = true;
+    scanning.link_layers[0].y_velocity.enabled = true;
+    scanning.link_layers[0].y_filter_cutoff.enabled = true;
+    scanning.link_layers[0].y_filter_resonance.enabled = true;
     configs.push(scanning);
 
     for instrument_type in ["none", "synth", "sampler", "midi"] {
@@ -148,19 +148,19 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
         configs.push(cfg);
     }
 
-    for sparks_mode in ["mix", "pan", "fx", "trigger-gate", "xy"] {
+    for play_mode in ["mix", "pan", "fx", "trigger-gate", "xy"] {
         let mut cfg = config();
-        cfg.sparks_mode = sparks_mode.into();
-        cfg.sparks_fx_type = "stutter".into();
-        cfg.sparks_fx_params
+        cfg.play_mode = play_mode.into();
+        cfg.play_fx_type = "stutter".into();
+        cfg.play_fx_params
             .insert("rateHz".into(), serde_json::json!(8));
         configs.push(cfg);
     }
 
     for fx_type in ["stutter", "freeze", "filter_sweep", "pitch_shift"] {
         let mut cfg = config();
-        cfg.sparks_mode = "fx".into();
-        cfg.sparks_fx_type = fx_type.into();
+        cfg.play_mode = "fx".into();
+        cfg.play_fx_type = fx_type.into();
         configs.push(cfg);
     }
 

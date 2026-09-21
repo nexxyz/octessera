@@ -33,6 +33,12 @@ fn adapter() -> (PiPlaybackHostAdapter, PathBuf) {
     (adapter, root)
 }
 
+fn canonical_payload(revision: u64) -> serde_json::Value {
+    let mut payload = crate::user_data_archive::canonical_defaults();
+    payload["revision"] = json!(revision);
+    payload
+}
+
 fn request(effect: RuntimePlatformEffect, id: &str, revision: u64) -> RuntimePlatformRequest {
     RuntimePlatformRequest::new(effect, id.into(), Some(revision))
 }
@@ -55,8 +61,8 @@ fn cleanup(root: PathBuf) {
 #[test]
 fn newer_deferred_save_replaces_payload_and_request() {
     let (mut adapter, root) = adapter();
-    let first = json!({"version": 1});
-    let second = json!({"version": 2});
+    let first = canonical_payload(1);
+    let second = canonical_payload(2);
     assert!(adapter
         .handle_platform_effect(&deferred("old", 3, first))
         .unwrap()
@@ -76,8 +82,8 @@ fn newer_deferred_save_replaces_payload_and_request() {
 #[test]
 fn load_immediate_save_and_usb_apply_cancel_deferred_work() {
     let (mut adapter, root) = adapter();
-    let deferred_payload = json!({"deferred": true});
-    let immediate_payload = json!({"immediate": true});
+    let deferred_payload = canonical_payload(1);
+    let immediate_payload = canonical_payload(2);
 
     assert!(adapter
         .handle_platform_effect(&deferred("load", 1, deferred_payload.clone()))
@@ -145,7 +151,7 @@ fn full_platform_queue_retains_deferred_entry_and_delays_retry() {
     let (mut adapter, root) = adapter();
     let (entered, release) = adapter.platform_service.enqueue_test_gate().unwrap();
     entered.recv_timeout(Duration::from_secs(1)).unwrap();
-    let payload = json!({"version": 11});
+    let payload = canonical_payload(11);
     let deferred_request = deferred("full", 9, payload.clone());
     assert!(adapter
         .handle_platform_effect(&deferred_request)
@@ -171,7 +177,7 @@ fn full_platform_queue_retains_deferred_entry_and_delays_retry() {
     let _ = adapter.pending_default_save.take_now();
     adapter
         .pending_default_save
-        .schedule(payload, before, deferred_request);
+        .schedule(payload.clone(), before, deferred_request);
     assert!(adapter
         .flush_due_default_save()
         .unwrap()
@@ -184,7 +190,7 @@ fn full_platform_queue_retains_deferred_entry_and_delays_retry() {
         )));
     let retry = adapter.pending_default_save.take_now().unwrap();
     assert!(retry.due_at > before);
-    assert_eq!(retry.payload, json!({"version": 11}));
+    assert_eq!(retry.payload, payload);
     assert_eq!(retry.request.request_id, "full");
     drop(release);
     cleanup(root);
@@ -194,7 +200,7 @@ fn full_platform_queue_retains_deferred_entry_and_delays_retry() {
 fn disconnected_platform_queue_retains_deferred_entry_and_delays_retry() {
     let (mut adapter, root) = adapter();
     adapter.platform_service.disconnect_results_for_test();
-    let payload = json!({"version": 12});
+    let payload = canonical_payload(12);
     let deferred_request = deferred("disconnected", 10, payload.clone());
     assert!(adapter
         .handle_platform_effect(&deferred_request)
@@ -227,7 +233,7 @@ fn disconnected_platform_queue_retains_deferred_entry_and_delays_retry() {
         )));
     let retry = adapter.pending_default_save.take_now().unwrap();
     assert!(retry.due_at > before);
-    assert_eq!(retry.payload, json!({"version": 12}));
+    assert_eq!(retry.payload, payload);
     assert_eq!(retry.request.request_id, "disconnected");
     cleanup(root);
 }
@@ -235,7 +241,7 @@ fn disconnected_platform_queue_retains_deferred_entry_and_delays_retry() {
 #[test]
 fn successful_deferred_save_has_original_identity_and_auto_flag() {
     let (mut adapter, root) = adapter();
-    let payload = json!({"version": 13});
+    let payload = canonical_payload(13);
     let deferred_request = deferred("success", 11, payload.clone());
     assert!(adapter
         .handle_platform_effect(&deferred_request)
@@ -265,7 +271,7 @@ fn successful_deferred_save_has_original_identity_and_auto_flag() {
 #[test]
 fn restore_barrier_cancels_pending_deferred_save_before_flush() {
     let (mut adapter, root) = adapter();
-    let payload = json!({"stale": true});
+    let payload = canonical_payload(14);
     assert!(adapter
         .handle_platform_effect(&deferred("restore-race", 12, payload.clone()))
         .unwrap()

@@ -42,46 +42,46 @@ export type RuntimeAudioCommand =
       type: "set_audio_config";
       revision: number;
       requestId?: string;
-      generation?: number;
+      generation: number;
       config: Record<string, unknown>;
     }
   | {
       type: "set_dsp_config";
-      generation?: number;
+      generation: number;
       config: Record<string, unknown>;
     }
-  | { type: "set_master_volume"; generation?: number; volumePct: number }
+  | { type: "set_master_volume"; generation: number; volumePct: number }
   | {
       type: "set_instrument_mixer";
       instrumentSlot: number;
-      generation?: number;
+      generation: number;
       volumePct?: number;
       panPos?: number;
     }
   | {
       type: "set_instrument_slot";
       instrumentSlot: number;
-      generation?: number;
+      generation: number;
       config: Record<string, unknown>;
     }
   | {
       type: "set_fx_bus_mixer";
       busIndex: number;
-      generation?: number;
+      generation: number;
       panPos?: number;
       volumePct?: number;
     }
   | {
       type: "set_synth_param";
       instrumentSlot: number;
-      generation?: number;
+      generation: number;
       path: string;
       value: number;
     }
   | {
       type: "set_sample_bank_param";
       instrumentSlot: number;
-      generation?: number;
+      generation: number;
       path: string;
       value: number;
     }
@@ -89,7 +89,7 @@ export type RuntimeAudioCommand =
       type: "set_fx_bus_param";
       busIndex: number;
       slotIndex: number;
-      generation?: number;
+      generation: number;
       param: RuntimeFxParamId;
       value: number;
     }
@@ -97,28 +97,28 @@ export type RuntimeAudioCommand =
       type: "set_fx_bus_slot";
       busIndex: number;
       slotIndex: number;
-      generation?: number;
+      generation: number;
       fxType: string;
       params: Record<string, unknown>;
     }
   | {
       type: "set_global_fx_slot";
       slotIndex: number;
-      generation?: number;
+      generation: number;
       fxType: string;
       params: Record<string, unknown>;
     }
   | {
       type: "set_global_fx_param";
       slotIndex: number;
-      generation?: number;
+      generation: number;
       param: RuntimeFxParamId;
       value: number;
     }
   | {
       type: "momentary_fx_start";
       id: string;
-      epoch?: number;
+      epoch: number;
       fxType: string;
       params: Record<string, unknown>;
       target: RuntimeMomentaryFxTarget;
@@ -126,10 +126,14 @@ export type RuntimeAudioCommand =
   | {
       type: "momentary_fx_update";
       id: string;
-      epoch?: number;
+      epoch: number;
       params: Record<string, unknown>;
     }
-  | { type: "momentary_fx_stop"; id: string; epoch?: number }
+  | {
+      type: "momentary_fx_stop";
+      id: string;
+      epoch: number;
+    }
   | {
       type: "sample_preview";
       instrumentSlot: number;

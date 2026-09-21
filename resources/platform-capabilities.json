@@ -17,7 +17,7 @@
   "busCount": 4,
   "globalFxSlotCount": 2,
   "auxEncoderCount": 3,
-  "sparksFxMaxConcurrent": 2,
+  "playFxMaxConcurrent": 2,
   "scanSectionCounts": [1, 2, 4, 8],
   "panPositionCount": 33,
   "oledWidth": 128,

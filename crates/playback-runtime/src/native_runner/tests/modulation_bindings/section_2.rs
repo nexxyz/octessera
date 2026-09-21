@@ -1,9 +1,9 @@
 use super::*;
 
 #[test]
-pub(crate) fn sparks_xy_binding_updates_native_runtime_config() {
+pub(crate) fn play_xy_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.xy_invert_x = true;
     runner.xy_x_binding = Some(NativeParamBinding {
@@ -36,7 +36,7 @@ pub(crate) fn sparks_xy_binding_updates_native_runtime_config() {
 #[test]
 pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.sparks_mode = "xy".into();
+    runner.play_mode = "xy".into();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("xy:x"));
 
@@ -71,9 +71,9 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
 }
 
 #[test]
-pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
+pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
@@ -81,7 +81,7 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
     runner.global_fx_params[0] =
         json!({ "cracklePct": 8, "saturationPct": 15, "warpDepthPct": 5, "mixPct": 100 });
     runner.xy_x_binding = Some(NativeParamBinding {
-        key: "layers.0.pulses.x.pitch.steps".into(),
+        key: "layers.0.link.x.pitch.steps".into(),
         label: Some("Steps".into()),
         kind: "number".into(),
         min: Some(-16.0),
@@ -112,7 +112,7 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
         })
         .unwrap();
 
-    assert_eq!(runner.pulses_layers[0].x_pitch_steps, 16);
+    assert_eq!(runner.link_layers[0].x_pitch_steps, 16);
     assert_eq!(runner.fx_buses[0].slot1_params["feedback"], json!(0.98));
 
     runner.set_param_binding_target(
@@ -133,7 +133,7 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
     runner.set_param_binding_target(
         "xy:y",
         Some(NativeParamBinding {
-            key: "sparks.fx.params.rateHz".into(),
+            key: "play.fx.params.rateHz".into(),
             label: Some("Rate Hz".into()),
             kind: "number".into(),
             min: Some(1.0),
@@ -145,20 +145,20 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
             invert: false,
         }),
     );
-    runner.sparks_fx_selected = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8, "depthPct": 100 } });
+    runner.play_fx_selected = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8, "depthPct": 100 } });
 
     runner.refresh_xy_runtime_sources();
     runner.process_modulation_step(false).unwrap();
 
     assert_eq!(runner.global_fx_params[0]["cracklePct"], json!(100));
-    assert_eq!(runner.sparks_fx_selected["params"]["rateHz"], json!(32.0));
+    assert_eq!(runner.play_fx_selected["params"]["rateHz"], json!(32.0));
 }
 
 #[test]
 pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.fx_buses[0].slot3_type = "eq".into();
     runner.fx_buses[0].slot3_params = json!({ "midQ": 1.0, "mixPct": 100 });
@@ -232,7 +232,7 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
 #[test]
 pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = legacy_payload(runner.config_payload());
+    let mut payload = unversioned_payload(runner.config_payload());
     payload["runtimeConfig"]["auxBindings"] = json!({ "aux1": { "turnKey": "../../bad", "pressAction": null }, "aux2": { "turnKey": "sound.noteLengthMs", "pressAction": null } });
     payload["runtimeConfig"]["xy"]["x"] = json!({ "key": "unknown.path", "kind": "number" });
     payload["runtimeConfig"]["xy"]["y"] = json!({ "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 });
@@ -254,7 +254,7 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
 #[test]
 pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.xy_x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
@@ -290,7 +290,7 @@ pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
 #[test]
 pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.xy_invert_x = true;
     runner
@@ -313,7 +313,7 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
         }))
         .unwrap();
 
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     let binding = runner.xy_x_binding.as_ref().unwrap();
     assert_eq!(binding.user_min, Some(10.0));
@@ -367,7 +367,7 @@ pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
 #[test]
 pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.sparks_mode = "xy".into();
+    runner.play_mode = "xy".into();
     runner.xy_x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),

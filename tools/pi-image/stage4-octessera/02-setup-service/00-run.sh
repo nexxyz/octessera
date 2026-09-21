@@ -78,11 +78,6 @@ done
 octessera_remove_raspberry_parent_sudoers "$ROOTFS_DIR"
 
 rm -f \
-    "$ROOTFS_DIR/etc/initramfs-tools/hooks/cellsymphony-boot-splash" \
-    "$ROOTFS_DIR/etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash" \
-    "$ROOTFS_DIR/etc/systemd/system/cellsymphony-boot-splash.service" \
-    "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service" \
-    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service" \
     "$ROOTFS_DIR/etc/initramfs-tools/hooks/octessera-boot-splash" \
     "$ROOTFS_DIR/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash" \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service"

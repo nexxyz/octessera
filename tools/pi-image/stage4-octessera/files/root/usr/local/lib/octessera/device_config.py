@@ -33,21 +33,6 @@ def parse_config(payload):
     if not isinstance(runtime, dict):
         raise ConfigError("runtimeConfig must be an object")
 
-    usb = runtime.get("usb")
-    if "usb" not in runtime:
-        usb = {}
-    if not isinstance(usb, dict):
-        raise ConfigError("usb must be an object")
-    if "midiOutEnabled" in usb and type(usb["midiOutEnabled"]) is not bool:
-        raise ConfigError("usb.midiOutEnabled must be boolean")
-    midi = usb.get("midiOutEnabled", False)
-    data_role = usb.get("dataRole", "gadget")
-    if data_role not in ("gadget", "host"):
-        raise ConfigError("usb.dataRole must be gadget or host")
-
-    if "audioOut" in usb:
-        raise ConfigError("runtimeConfig.usb.audioOut is unsupported; use runtimeConfig.audioOutputs")
-
     if "audioOutputs" not in runtime:
         raise ConfigError("audioOutputs is required")
     outputs = runtime["audioOutputs"]
@@ -60,6 +45,25 @@ def parse_config(payload):
     dac = outputs["dac"]
     usb_audio = outputs["usb"]
     hdmi = outputs["hdmi"]
+    if not dac:
+        raise ConfigError("Jack Audio is always on")
+
+    if "usb" not in runtime:
+        raise ConfigError("usb is required")
+    usb = runtime["usb"]
+    if not isinstance(usb, dict):
+        raise ConfigError("usb must be an object")
+    if set(usb) - {"midiOutEnabled", "dataRole"}:
+        raise ConfigError("usb contains unsupported fields")
+    if set(usb) != {"midiOutEnabled", "dataRole"}:
+        raise ConfigError("usb must contain exactly midiOutEnabled and dataRole")
+    if type(usb["midiOutEnabled"]) is not bool:
+        raise ConfigError("usb.midiOutEnabled must be boolean")
+    midi = usb["midiOutEnabled"]
+    data_role = usb["dataRole"]
+    if type(data_role) is not str or data_role not in ("gadget", "host"):
+        raise ConfigError("usb.dataRole must be gadget or host")
+
     if data_role == "host" and (usb_audio or midi):
         raise ConfigError("host USB data role requires USB audio and MIDI output to be disabled")
 
@@ -73,8 +77,7 @@ def parse_config(payload):
 
 def parse_data_role(payload):
     parse_config(payload)
-    usb = payload["runtimeConfig"].get("usb") or {}
-    return usb.get("dataRole", "gadget")
+    return payload["runtimeConfig"]["usb"]["dataRole"]
 
 
 def load_config(path):

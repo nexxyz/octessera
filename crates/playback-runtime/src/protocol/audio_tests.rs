@@ -4,24 +4,22 @@ use serde_json::json;
 use std::collections::BTreeMap;
 
 #[test]
-fn device_config_reboot_wire_names_deserialize_with_canonical_and_legacy_alias() {
+fn device_config_reboot_wire_name_deserializes_canonically() {
     let payload = json!({
         "runtimeConfig": {
             "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
             "usb": { "midiOutEnabled": false }
         }
     });
-    for wire_name in ["apply_device_config_reboot", "usb_apply_reboot"] {
-        let request: RuntimePlatformRequest = serde_json::from_value(json!({
-            "effect": { "type": wire_name, "payload": payload },
-            "requestId": "request-1"
-        }))
-        .unwrap();
-        assert!(matches!(
-            request.effect,
-            RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
-        ));
-    }
+    let request: RuntimePlatformRequest = serde_json::from_value(json!({
+        "effect": { "type": "apply_device_config_reboot", "payload": payload },
+        "requestId": "request-1"
+    }))
+    .unwrap();
+    assert!(matches!(
+        request.effect,
+        RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+    ));
 }
 
 #[test]
@@ -151,5 +149,25 @@ fn every_runtime_audio_command_round_trips_through_json() {
             serde_json::from_value::<RuntimeAudioCommand>(encoded).unwrap(),
             command
         );
+    }
+}
+
+#[test]
+fn global_fx_audio_commands_require_generation() {
+    for payload in [
+        json!({
+            "type": "set_global_fx_slot",
+            "slotIndex": 0,
+            "fxType": "delay",
+            "params": {}
+        }),
+        json!({
+            "type": "set_global_fx_param",
+            "slotIndex": 0,
+            "param": "mixPct",
+            "value": 0.5
+        }),
+    ] {
+        assert!(serde_json::from_value::<RuntimeAudioCommand>(payload).is_err());
     }
 }

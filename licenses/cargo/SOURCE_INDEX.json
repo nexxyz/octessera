@@ -16,10 +16,10 @@
       ]
     },
     {
-      "name": "pi-hardware-rpi-zero-2w",
+      "name": "pi-hardware-raspberry-pi-zero-2w",
       "workspace_member": "octessera-pi",
       "features": [
-        "hardware-rpi-zero-2w"
+        "hardware-raspberry-pi-zero-2w"
       ]
     },
     {

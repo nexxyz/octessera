@@ -119,8 +119,8 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
     if is_sample_assignments_path(path) {
         return validate_sample_assignments(value, path);
     }
-    if is_sparks_assignments_path(path) {
-        return validate_sparks_assignments(value, path);
+    if is_play_assignments_path(path) {
+        return validate_play_assignments(value, path);
     }
     match (value, template) {
         (Value::Object(object), Value::Object(template)) => {
@@ -193,7 +193,7 @@ fn validate_sample_assignments(value: &Value, path: &str) -> Result<(), String> 
     Ok(())
 }
 
-fn validate_sparks_assignments(value: &Value, path: &str) -> Result<(), String> {
+fn validate_play_assignments(value: &Value, path: &str) -> Result<(), String> {
     let assignments = value
         .as_array()
         .ok_or_else(|| format!("{path} must be an array"))?;
@@ -202,7 +202,7 @@ fn validate_sparks_assignments(value: &Value, path: &str) -> Result<(), String> 
         let object = value
             .as_object()
             .ok_or_else(|| format!("{path} must be an object"))?;
-        validate_object_keys(value, &path, SPARKS_ASSIGNMENT_FIELDS)?;
+        validate_object_keys(value, &path, PLAY_ASSIGNMENT_FIELDS)?;
         for key in ["x", "y"] {
             if let Some(value) = object.get(key) {
                 if value.as_u64().is_none() {
@@ -211,17 +211,17 @@ fn validate_sparks_assignments(value: &Value, path: &str) -> Result<(), String> 
             }
         }
         if let Some(config) = object.get("config") {
-            validate_sparks_assignment_config(config, &format!("{path}.config"))?;
+            validate_play_assignment_config(config, &format!("{path}.config"))?;
         }
     }
     Ok(())
 }
 
-fn validate_sparks_assignment_config(value: &Value, path: &str) -> Result<(), String> {
+fn validate_play_assignment_config(value: &Value, path: &str) -> Result<(), String> {
     let object = value
         .as_object()
         .ok_or_else(|| format!("{path} must be an object"))?;
-    validate_object_keys(value, path, SPARKS_CONFIG_FIELDS)?;
+    validate_object_keys(value, path, PLAY_CONFIG_FIELDS)?;
     for key in ["fxType", "targetKey"] {
         if let Some(value) = object.get(key) {
             if !value.is_string() {
@@ -238,14 +238,9 @@ fn validate_sparks_assignment_config(value: &Value, path: &str) -> Result<(), St
 }
 
 fn is_opaque_path(path: &str) -> bool {
-    [
-        ".behaviorConfig",
-        ".behaviorConfigHistory",
-        ".savedState",
-        ".behaviorState",
-    ]
-    .iter()
-    .any(|suffix| path.ends_with(suffix))
+    [".behaviorConfig", ".behaviorConfigHistory", ".savedState"]
+        .iter()
+        .any(|suffix| path.ends_with(suffix))
 }
 
 fn is_dynamic_params_path(path: &str) -> bool {
@@ -269,8 +264,8 @@ fn is_sample_assignments_path(path: &str) -> bool {
     path.ends_with(".sample.assignments")
 }
 
-fn is_sparks_assignments_path(path: &str) -> bool {
-    path.ends_with(".sparksFx.assignments")
+fn is_play_assignments_path(path: &str) -> bool {
+    path.ends_with(".playFx.assignments")
 }
 
 const PARAM_BINDING_FIELDS: &[&str] = &[
@@ -278,8 +273,8 @@ const PARAM_BINDING_FIELDS: &[&str] = &[
 ];
 const AUX_BINDING_FIELDS: &[&str] = &["turnKey", "pressAction"];
 const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "action", "slot"];
-const SYSTEM_FIELDS: &[&str] = &["sparksMode"];
+const SYSTEM_FIELDS: &[&str] = &["playMode"];
 const SAMPLE_ASSIGNMENT_FIELDS: &[&str] = &["level", "sampleSlot", "x", "y"];
 const SAMPLE_ASSIGNMENT_LEVELS: &[&str] = &["high", "medium", "low"];
-const SPARKS_ASSIGNMENT_FIELDS: &[&str] = &["config", "x", "y"];
-const SPARKS_CONFIG_FIELDS: &[&str] = &["fxType", "params", "targetKey"];
+const PLAY_ASSIGNMENT_FIELDS: &[&str] = &["config", "x", "y"];
+const PLAY_CONFIG_FIELDS: &[&str] = &["fxType", "params", "targetKey"];

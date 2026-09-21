@@ -17,40 +17,17 @@ pub(crate) fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), 
 }
 
 pub(super) fn delete_preset_payload(store_dir: &Path, name: &str) -> bool {
-    let Ok(legacy) = preset_path(store_dir, name) else {
-        return false;
-    };
     let Ok(patch) = preset_patch_path(store_dir, name) else {
         return false;
     };
-    let mut removed = false;
-    for path in [legacy, patch] {
-        if path.is_file() && std::fs::remove_file(path).is_ok() {
-            removed = true;
-        }
+    if patch.is_file() {
+        return std::fs::remove_file(patch).is_ok();
     }
-    removed
+    false
 }
 
 pub(crate) fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
     let mut names = BTreeSet::new();
-    if !store_dir.is_dir() {
-        return Ok(Vec::new());
-    }
-    for entry in std::fs::read_dir(store_dir).map_err(|error| error.to_string())? {
-        let entry = entry.map_err(|error| error.to_string())?;
-        if !entry.path().is_file() {
-            continue;
-        }
-        if let Some(name) = entry
-            .path()
-            .file_name()
-            .and_then(|name| name.to_str())
-            .and_then(preset_name_from_file_name)
-        {
-            names.insert(name);
-        }
-    }
     let patch_dir = store_dir.join("patches");
     if patch_dir.is_dir() {
         for entry in std::fs::read_dir(&patch_dir).map_err(|error| error.to_string())? {
@@ -71,26 +48,11 @@ pub(crate) fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
     Ok(names.into_iter().collect())
 }
 
-pub(crate) fn preset_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    if !playback_runtime::is_valid_preset_name(name) {
-        return Err(format!("Unsafe preset name: {name:?}"));
-    }
-    Ok(store_dir.join(format!("{name}.json")))
-}
-
 pub(crate) fn preset_patch_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
     if !playback_runtime::is_valid_preset_name(name) {
         return Err(format!("Unsafe preset name: {name:?}"));
     }
     Ok(store_dir.join("patches").join(format!("{name}.json")))
-}
-
-pub(crate) fn preset_load_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    let patch = preset_patch_path(store_dir, name)?;
-    if patch.is_file() {
-        return Ok(patch);
-    }
-    preset_path(store_dir, name)
 }
 
 pub(crate) fn save_backup(store_dir: &Path, payload: &serde_json::Value) -> Result<(), String> {

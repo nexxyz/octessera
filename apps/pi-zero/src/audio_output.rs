@@ -30,8 +30,6 @@ mod cpal_audio_callback;
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     )
 ))]
 pub(crate) use audio_stream_lifecycle::{
@@ -44,8 +42,6 @@ pub(crate) use audio_stream_lifecycle::{
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     )
 ))]
 pub(crate) use cpal_audio_callback::CallbackSource;

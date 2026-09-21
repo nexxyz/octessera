@@ -84,7 +84,7 @@ pub(super) fn behavior_param_is_safe(key: &str, item: &NativeMenuItem) -> bool {
     !item.label.contains("Reset") && !key.contains("name")
 }
 
-pub(super) fn pulses_param_is_safe(key: &str, _: &NativeMenuItem) -> bool {
+pub(super) fn link_param_is_safe(key: &str, _: &NativeMenuItem) -> bool {
     key.contains("scan") || key.contains("mapping") || key.contains("triggerProbability")
 }
 

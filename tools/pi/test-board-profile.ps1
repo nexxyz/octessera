@@ -19,7 +19,7 @@ foreach ($profileCase in @(
     throw "Board profile mapping is incorrect for $($profileCase.Profile)"
   }
 }
-foreach ($value in @("opi-zero-2w", "rpi-zero-2w", "hardware-pi", "")) {
+foreach ($value in @("opi-zero-2w", "unknown-board", "unsupported-board", "")) {
   $rejected = $false
   try {
     Assert-PiBoardProfile $value
@@ -41,10 +41,9 @@ try {
 foreach ($value in @(
     "orange-pi-zero-2w",
     "opi-zero-2w",
-    "rpi-zero-2w",
+    "unknown-board",
     "pi-zero-2w",
-    "hardware-rpi-zero-2w",
-    "hardware-pi"
+    "unsupported-board"
   )) {
   try {
     Assert-RaspberryBoardProfile $value
@@ -240,7 +239,7 @@ try {
     board_profile = "orange-pi-zero-2w"
     binary = "other-binary"
     arch = "x86_64-unknown-linux-gnu"
-    cargo_feature = "hardware-pi"
+    cargo_feature = "unsupported-feature"
   }
   foreach ($field in $invalidValues.Keys) {
     $invalid = [ordered]@{}
@@ -329,7 +328,7 @@ try {
   [IO.File]::WriteAllBytes($metadataPath, [byte[]](0x7B, 0xFF, 0x7D))
   Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "invalid UTF-8"
   Assert-Rejected { Write-RaspberryBoardMetadata $metadataPath -Binary "wrong" } "writer binary"
-  Assert-Rejected { Write-RaspberryBoardMetadata $metadataPath -CargoFeature "hardware-pi" } "writer cargo feature"
+  Assert-Rejected { Write-RaspberryBoardMetadata $metadataPath -CargoFeature "unsupported-feature" } "writer cargo feature"
 } finally {
   Remove-Item -LiteralPath $metadataPath, $binaryPath, $swappedBinaryPath -Force -ErrorAction SilentlyContinue
 }

@@ -3,10 +3,10 @@ use super::*;
 #[test]
 pub(crate) fn auto_map_context_updates_after_navigation_only_group_enter() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let worlds_items = &runner.menu.root.children[0].children[0].children;
+    let build_items = &runner.menu.root.children[0].children[0].children;
     let interval_cursor = child_index_by_key(
-        worlds_items,
-        "layers.0.worlds.behaviorConfig.randomTickInterval",
+        build_items,
+        "layers.0.build.behaviorConfig.randomTickInterval",
     );
 
     runner.menu.state.stack = vec![0, 0];
@@ -30,12 +30,12 @@ pub(crate) fn auto_map_context_updates_after_navigation_only_group_enter() {
 }
 
 #[test]
-pub(crate) fn auto_map_behavior_context_uses_worlds_label() {
+pub(crate) fn auto_map_behavior_context_uses_build_label() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let worlds_items = &runner.menu.root.children[0].children[0].children;
+    let build_items = &runner.menu.root.children[0].children[0].children;
     let interval_cursor = child_index_by_key(
-        worlds_items,
-        "layers.0.worlds.behaviorConfig.randomTickInterval",
+        build_items,
+        "layers.0.build.behaviorConfig.randomTickInterval",
     );
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = interval_cursor;
@@ -357,7 +357,7 @@ pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
 }
 
 #[test]
-pub(crate) fn shift_aux_bindings_round_trip_and_old_payload_defaults_empty() {
+pub(crate) fn shift_aux_bindings_round_trip_and_omitted_payload_defaults_empty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("sound.noteLengthMs".into()),
@@ -380,7 +380,7 @@ pub(crate) fn shift_aux_bindings_round_trip_and_old_payload_defaults_empty() {
         Some("sound.noteLengthMs")
     );
 
-    let mut old_payload = legacy_payload(restored.config_payload());
+    let mut old_payload = unversioned_payload(restored.config_payload());
     old_payload["runtimeConfig"]
         .as_object_mut()
         .unwrap()

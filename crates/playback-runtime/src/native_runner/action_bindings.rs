@@ -283,7 +283,7 @@ impl NativeRunner {
         };
         if let Some(field) = binding.key.strip_prefix("behavior.") {
             binding.key = format!(
-                "layers.{}.worlds.behaviorConfig.{field}",
+                "layers.{}.build.behaviorConfig.{field}",
                 self.active_layer_index
             );
         }
@@ -432,7 +432,7 @@ impl NativeRunner {
             return Ok(None);
         };
         if let NativeMenuAction::BehaviorAction(action_type) = &press.action {
-            let valid = self.worlds_menu_items().into_iter().any(|item| {
+            let valid = self.build_menu_items().into_iter().any(|item| {
                 matches!(
                     item.value,
                     NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == action_type

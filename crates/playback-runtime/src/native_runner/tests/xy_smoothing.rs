@@ -36,7 +36,7 @@ pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
         80
     );
 
-    assert!(runner.menu.focus_item_key("sparks.xy.smoothingMs"));
+    assert!(runner.menu.focus_item_key("play.xy.smoothingMs"));
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -67,7 +67,7 @@ pub(crate) fn xy_smoothing_off_jumps_before_target_conversion() {
     runner.instruments[0].volume = 0;
     let now = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 0, now);
+    runner.handle_play_xy_press_at(7, 0, now);
 
     assert_eq!(runner.xy_touch.display_x, 1.0);
     assert_eq!(runner.xy_touch.display_y, 0.0);
@@ -82,7 +82,7 @@ pub(crate) fn xy_smoothing_uses_elapsed_time_and_stays_monotonic() {
     runner.xy_smoothing_ms = 100;
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 7, start);
+    runner.handle_play_xy_press_at(7, 7, start);
     assert_eq!(runner.xy_touch.x, 0.5);
     assert_eq!(runner.xy_touch.y, 0.5);
 
@@ -107,7 +107,7 @@ pub(crate) fn xy_smoothing_axes_glide_independently() {
     runner.xy_smoothing_ms = 100;
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 0, start);
+    runner.handle_play_xy_press_at(7, 0, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
@@ -122,13 +122,13 @@ pub(crate) fn xy_smoothing_retargets_from_current_mapped_value() {
     runner.xy_smoothing_ms = 100;
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 0, start);
+    runner.handle_play_xy_press_at(7, 0, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(40))
         .unwrap();
     assert!((runner.xy_touch.x - 0.7).abs() < 0.0001);
 
-    runner.handle_sparks_xy_press_at(0, 0, start + Duration::from_millis(40));
+    runner.handle_play_xy_press_at(0, 0, start + Duration::from_millis(40));
     assert!((runner.xy_touch.x - 0.7).abs() < 0.0001);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(90))
@@ -142,7 +142,7 @@ pub(crate) fn xy_smoothing_duration_change_advances_old_glide_before_retargeting
     runner.xy_smoothing_ms = 100;
     let start = Instant::now() - Duration::from_millis(40);
 
-    runner.handle_sparks_xy_press_at(7, 7, start);
+    runner.handle_play_xy_press_at(7, 7, start);
     assert!((runner.xy_touch.x - 0.5).abs() < 0.0001);
     let before = runner.xy_touch.x;
     let changed_at = Instant::now();
@@ -165,10 +165,10 @@ pub(crate) fn xy_smoothing_duration_change_advances_old_glide_before_retargeting
 pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let start = Instant::now() - Duration::from_millis(30);
-    runner.handle_sparks_xy_press_at(7, 7, start);
+    runner.handle_play_xy_press_at(7, 7, start);
     let before = runner.xy_touch.x;
 
-    assert!(runner.menu.focus_item_key("sparks.xy.smoothingMs"));
+    assert!(runner.menu.focus_item_key("play.xy.smoothingMs"));
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -191,7 +191,7 @@ pub(crate) fn xy_smoothing_config_replacement_rebases_from_old_duration() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.xy_smoothing_ms = 500;
     let start = Instant::now() - Duration::from_millis(100);
-    runner.handle_sparks_xy_press_at(7, 7, start);
+    runner.handle_play_xy_press_at(7, 7, start);
     let before = runner.xy_touch.x;
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["xy"]["smoothingMs"] = json!(200);
@@ -215,7 +215,7 @@ pub(crate) fn xy_smoothing_happens_before_target_step_conversion() {
     runner.instruments[0].volume = 0;
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 0, start);
+    runner.handle_play_xy_press_at(7, 0, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
@@ -230,7 +230,7 @@ pub(crate) fn xy_inversion_retargets_only_mapped_axis() {
     runner.xy_smoothing_ms = 100;
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(0, 7, start);
+    runner.handle_play_xy_press_at(0, 7, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
@@ -267,12 +267,12 @@ pub(crate) fn xy_sample_hold_finishes_an_in_progress_glide() {
     runner.xy_release = "sample-hold".into();
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 7, start);
+    runner.handle_play_xy_press_at(7, 7, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(40))
         .unwrap();
     assert!(runner.xy_x_glide.is_some());
-    runner.handle_sparks_xy_release_at(start + Duration::from_millis(40));
+    runner.handle_play_xy_release_at(start + Duration::from_millis(40));
     assert!(!runner.xy_touch.active);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(100))
@@ -298,7 +298,7 @@ pub(crate) fn xy_smoothing_quantized_steps_dirty_only_changed_persistent_values(
     runner.pending.pending_autosave_payload_due_at = None;
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 0, start);
+    runner.handle_play_xy_press_at(7, 0, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
@@ -338,11 +338,11 @@ pub(crate) fn xy_reset_center_moves_marker_now_and_glides_mapped_axes() {
     runner.xy_release = "reset-center".into();
     let start = Instant::now();
 
-    runner.handle_sparks_xy_press_at(7, 7, start);
+    runner.handle_play_xy_press_at(7, 7, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(100))
         .unwrap();
-    runner.handle_sparks_xy_release_at(start + Duration::from_millis(100));
+    runner.handle_play_xy_release_at(start + Duration::from_millis(100));
     assert_eq!(runner.xy_touch.display_x, 0.5);
     assert_eq!(runner.xy_touch.display_y, 0.5);
     assert_eq!(runner.xy_touch.x, 1.0);
@@ -360,8 +360,8 @@ pub(crate) fn xy_reset_center_moves_marker_now_and_glides_mapped_axes() {
     assert_eq!(runner.xy_touch.y, 0.5);
 
     runner.xy_smoothing_ms = 0;
-    runner.handle_sparks_xy_press_at(7, 7, start + Duration::from_millis(100));
-    runner.handle_sparks_xy_release_at(start + Duration::from_millis(100));
+    runner.handle_play_xy_press_at(7, 7, start + Duration::from_millis(100));
+    runner.handle_play_xy_release_at(start + Duration::from_millis(100));
     assert_eq!(runner.xy_touch.x, 0.5);
     assert_eq!(runner.xy_touch.y, 0.5);
 }

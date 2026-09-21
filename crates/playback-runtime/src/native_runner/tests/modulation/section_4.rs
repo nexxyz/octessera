@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_runner::modulation_pulses::apply_pulses_binding_value;
+use crate::native_runner::modulation_link::apply_link_binding_value;
 use crate::native_runner::modulation_sampler::{
     cc_events_from_intent, value_from_lane, velocity_from_intent,
 };
@@ -73,7 +73,7 @@ pub(crate) fn curve_lane_endpoints_and_reversed_ranges_are_preserved() {
 #[test]
 pub(crate) fn curve_applies_to_velocity_cutoff_and_resonance_on_both_axes() {
     for (use_x, expected) in [(true, 18), (false, 61)] {
-        let mut sense = NativePulsesLayer::default();
+        let mut sense = NativeLinkLayer::default();
         if use_x {
             sense.x_velocity = lane(10, 110, "curve");
             sense.x_filter_cutoff = lane(10, 110, "curve");
@@ -103,34 +103,34 @@ pub(crate) fn lane_offsets_ranges_and_disabled_lanes_keep_existing_behavior() {
         assert!((10..=110).contains(&value_from_lane(index, 8, &shifted)));
     }
 
-    let sense = NativePulsesLayer::default();
+    let sense = NativeLinkLayer::default();
     let trigger = intent(3, 3);
     assert_eq!(velocity_from_intent(&trigger, &sense), None);
     assert!(cc_events_from_intent(&trigger, &sense, 2).is_empty());
 }
 
 #[test]
-pub(crate) fn pulses_binding_curve_accepts_only_named_lane_curves() {
-    let mut pulses = NativePulsesLayer::default();
-    assert!(apply_pulses_binding_value(
-        &mut pulses,
+pub(crate) fn link_binding_curve_accepts_only_named_lane_curves() {
+    let mut link = NativeLinkLayer::default();
+    assert!(apply_link_binding_value(
+        &mut link,
         "x.velocity.curve",
         json!("curve")
     ));
-    assert_eq!(pulses.x_velocity.curve, "curve");
-    assert!(!apply_pulses_binding_value(
-        &mut pulses,
+    assert_eq!(link.x_velocity.curve, "curve");
+    assert!(!apply_link_binding_value(
+        &mut link,
         "x.velocity.curve",
         json!("exp")
     ));
-    assert_eq!(pulses.x_velocity.curve, "curve");
+    assert_eq!(link.x_velocity.curve, "curve");
 }
 
 #[test]
 pub(crate) fn config_schema_rejects_invalid_lane_curve_without_mutating_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["pulses"]["x"]["velocity"]["curve"] = json!("exp");
+    payload["runtimeConfig"]["layers"][0]["link"]["x"]["velocity"]["curve"] = json!("exp");
 
     assert_rejected_without_byte_changes(&mut runner, payload);
 }

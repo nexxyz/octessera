@@ -12,7 +12,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     assert_eq!(runner.layer_behavior_ids[1], "sequencer");
     assert_eq!(runner.layer_behavior_ids[2], "looper");
     assert_eq!(runner.transport.layer_algorithm_step_pulses[1], 12);
-    assert_eq!(runner.pulses_layers[1].scan_unit, "1/8");
+    assert_eq!(runner.link_layers[1].scan_unit, "1/8");
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
     assert_eq!(runner.instruments[1].name, "Sampler");
     assert_eq!(
@@ -20,7 +20,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
         "Factory loaded"
     );
 
-    runner.pulses_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scan_mode = "scanning".into();
     runner.select_active_layer(1).unwrap();
     runner
         .send(HostMessage::DeviceInput {
@@ -88,7 +88,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.preset_names = vec!["old".into()];
     runner.instruments[0].kind = "synth".into();
     runner.fx_buses[0].slot1_type = "delay".into();
-    runner.sparks_fx_assign = Some(json!({ "type": "delay" }));
+    runner.play_fx_assign = Some(json!({ "type": "delay" }));
     runner.aux_auto_map_enabled = false;
     runner.display.ui.ghost_cells = false;
     runner.display.ui.master_volume = 77;
@@ -111,7 +111,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
         .as_array()
         .unwrap()
         .iter()
-        .all(|layer| layer["worlds"].get("savedState").is_none()));
+        .all(|layer| layer["build"].get("savedState").is_none()));
     assert!(runner
         .instruments
         .iter()
@@ -248,11 +248,11 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
         sample_slot: 2,
         level: None,
     }];
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/16".into();
-    runner.pulses_layers[0].scanned_slot = 0;
-    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/16".into();
+    runner.link_layers[0].scanned_slot = 0;
+    runner.link_layers[0].scanned_action = "note_on".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

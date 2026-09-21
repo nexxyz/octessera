@@ -26,11 +26,7 @@ pub(super) fn apply_instrument_identity_payload(
     }
 }
 
-pub(super) fn apply_instrument_mixer_payload(
-    slot: &Value,
-    incoming_pan_positions: Option<u64>,
-    instrument: &mut NativeInstrumentSlot,
-) {
+pub(super) fn apply_instrument_mixer_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
     let Some(mixer) = slot.get("mixer") else {
         return;
     };
@@ -40,10 +36,10 @@ pub(super) fn apply_instrument_mixer_payload(
         }
     }
     if let Some(pan_pos) = mixer.get("panPos").and_then(Value::as_u64) {
-        instrument.pan_pos = sanitize_pan_position_payload(pan_pos, incoming_pan_positions);
+        instrument.pan_pos = sanitize_pan_position_payload(pan_pos);
     }
     if let Some(route) = mixer.get("route").and_then(Value::as_str) {
-        instrument.route = super::normalize_route(route);
+        instrument.route = route.into();
     }
 }
 

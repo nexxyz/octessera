@@ -65,7 +65,7 @@ pub(crate) fn config_envelope_round_trips_without_reinterpreting_state() {
                 "activeLayerIndex": 1,
                 "layers": [
                     {},
-                    { "worlds": { "behaviorId": "sequencer" } }
+                    { "build": { "behaviorId": "sequencer" } }
                 ],
                 "masterVolume": 88
             }
@@ -132,10 +132,10 @@ pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
 }
 
 #[test]
-pub(crate) fn legacy_config_is_migrated_to_current_envelope() {
+pub(crate) fn unversioned_config_is_emitted_with_current_envelope() {
     let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut legacy = source.config_payload();
-    let object = legacy.as_object_mut().unwrap();
+    let mut unversioned = source.config_payload();
+    let object = unversioned.as_object_mut().unwrap();
     object.remove("kind");
     object.remove("schemaVersion");
     object.remove("revision");
@@ -146,74 +146,15 @@ pub(crate) fn legacy_config_is_migrated_to_current_envelope() {
         .unwrap()
         .remove("audioOutputs");
 
-    source.apply_config_payload(legacy).unwrap();
-    let migrated = source.config_payload();
+    source.apply_config_payload(unversioned).unwrap();
+    let canonical = source.config_payload();
 
-    assert_eq!(migrated["kind"], "octessera.config");
-    assert_eq!(migrated["schemaVersion"], 2);
-    assert!(migrated["runtimeConfig"].is_object());
+    assert_eq!(canonical["kind"], "octessera.config");
+    assert_eq!(canonical["schemaVersion"], 2);
+    assert!(canonical["runtimeConfig"].is_object());
     assert_eq!(
-        migrated["runtimeConfig"]["audioOutputs"],
+        canonical["runtimeConfig"]["audioOutputs"],
         json!({ "dac": true, "usb": false, "hdmi": false })
-    );
-}
-
-#[test]
-pub(crate) fn versioned_v1_config_and_patch_run_legacy_modulation_migration() {
-    let mut config_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut config = config_runner.config_payload();
-    config["schemaVersion"] = json!(1);
-    config["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("linkLfos");
-    config["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("xy");
-    config["runtimeConfig"]["layers"][1]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 },
-        "period": "1/4",
-        "depthPct": 33
-    });
-    config["runtimeConfig"]["layers"][1]["xy"] = json!({
-        "x": null,
-        "y": { "key": "instruments.0.mixer.panPos", "kind": "number", "min": 0, "max": 32, "step": 1 },
-        "xInvert": false,
-        "yInvert": true
-    });
-    config_runner.apply_config_payload(config).unwrap();
-    assert_eq!(
-        config_runner.config_payload()["runtimeConfig"]["linkLfos"][1]["depthPct"],
-        33
-    );
-    assert_eq!(
-        config_runner.config_payload()["runtimeConfig"]["xy"]["y"]["key"],
-        "instruments.0.mixer.panPos"
-    );
-
-    let mut patch_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let patch = json!({
-        "kind": "octessera.patch",
-        "schemaVersion": 1,
-        "runtimeConfig": {
-            "layers": [{
-                "linkLfo": {
-                    "enabled": true,
-                    "target": { "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 },
-                    "period": "1/2",
-                    "depthPct": 22
-                }
-            }]
-        }
-    });
-    patch_runner
-        .apply_patch_payload_preserving_device(patch)
-        .unwrap();
-    assert_eq!(
-        patch_runner.config_payload()["runtimeConfig"]["linkLfos"][0]["depthPct"],
-        22
     );
 }
 
@@ -258,17 +199,17 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     runner.menu.state.cursor = 2;
     runner.xy_touch.active = true;
     runner.xy_touch.x = 0.23;
-    runner.active_sparks_fx = vec![("mixer.volume".into(), "instruments.0".into())];
+    runner.active_play_fx = vec![("mixer.volume".into(), "instruments.0".into())];
     runner.sample_assign = Some((1, 2));
     let before_payload = runner.config_payload();
     let before_snapshot = runner.snapshot().unwrap();
     let before_transport = runner.transport.clone();
     let before_audio_revision = runner.audio_config_revision;
     let before_xy_touch = runner.xy_touch.clone();
-    let before_active_sparks_fx = runner.active_sparks_fx.clone();
+    let before_active_play_fx = runner.active_play_fx.clone();
     let before_sample_assign = runner.sample_assign;
     let mut invalid = before_payload.clone();
-    invalid["runtimeConfig"]["layers"][0]["worlds"]["behaviorId"] = json!("unsupported-behavior");
+    invalid["runtimeConfig"]["layers"][0]["build"]["behaviorId"] = json!("unsupported-behavior");
 
     assert!(runner.apply_config_payload(invalid).is_err());
 
@@ -279,7 +220,7 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     assert_eq!(runner.menu.state.stack, vec![0, 1]);
     assert_eq!(runner.menu.state.cursor, 2);
     assert_eq!(runner.xy_touch, before_xy_touch);
-    assert_eq!(runner.active_sparks_fx, before_active_sparks_fx);
+    assert_eq!(runner.active_play_fx, before_active_play_fx);
     assert_eq!(runner.sample_assign, before_sample_assign);
 }
 
@@ -335,7 +276,7 @@ pub(crate) fn rejected_config_does_not_drain_live_held_notes() {
         })
         .unwrap();
     let mut invalid = runner.config_payload();
-    invalid["runtimeConfig"]["layers"][0]["worlds"]["behaviorId"] = json!("unsupported-behavior");
+    invalid["runtimeConfig"]["layers"][0]["build"]["behaviorId"] = json!("unsupported-behavior");
 
     assert!(runner.apply_config_payload(invalid).is_err());
     assert_eq!(runner.engine.drain_held_notes(usize::MAX).len(), 1);

@@ -108,7 +108,7 @@ fn audio_optimization_survives_load_empty_and_patch_load() {
             "schemaVersion": 2,
             "runtimeConfig": {
                 "sound": { "optimizeFor": "latency" },
-                "layers": [{ "worlds": { "behaviorId": "life" } }]
+                "layers": [{ "build": { "behaviorId": "life" } }]
             }
         }))
         .unwrap();

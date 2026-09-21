@@ -1,6 +1,6 @@
 use super::canonical::{
-    array_field, behavior_field, bool_field, bool_value, enum_field, enum_value, object_field,
-    object_value, signed_field, string_field, unsigned_field,
+    array_field, behavior_field, bool_field, enum_field, enum_value, object_field, object_value,
+    signed_field, string_field, unsigned_field,
 };
 use super::mapping_bindings::validate_mapping;
 use super::modulation::validate_layer_modulation;
@@ -16,82 +16,66 @@ pub(super) fn validate_layers(runtime: &Map<String, Value>) -> Result<(), String
     for (index, value) in layers.iter().enumerate() {
         let path = format!("runtimeConfig.layers[{index}]");
         let layer = object_value(value, &path)?;
-        if layer.contains_key("linkLfo") || layer.contains_key("xy") {
-            return Err(format!(
-                "{path} contains legacy per-layer modulation ownership"
-            ));
-        }
         string_field(layer, "name", &path)?;
         bool_field(layer, "autoName", &path)?;
-        if let Some(worlds) = object_field(layer, "worlds", &path)? {
-            behavior_field(worlds, "behaviorId", &format!("{path}.worlds"))?;
+        if let Some(build) = object_field(layer, "build", &path)? {
+            behavior_field(build, "behaviorId", &format!("{path}.build"))?;
             enum_field(
-                worlds,
+                build,
                 "stepRate",
-                &format!("{path}.worlds"),
+                &format!("{path}.build"),
                 NOTE_UNIT_OPTIONS,
             )?;
-            bool_field(worlds, "saveGridState", &format!("{path}.worlds"))?;
-            for key in [
-                "behaviorConfig",
-                "savedState",
-                "behaviorState",
-                "behaviorConfigHistory",
-            ] {
-                if let Some(value) = worlds.get(key) {
+            bool_field(build, "saveGridState", &format!("{path}.build"))?;
+            for key in ["behaviorConfig", "savedState", "behaviorConfigHistory"] {
+                if let Some(value) = build.get(key) {
                     if !value.is_null() && !value.is_object() {
-                        return Err(format!("{path}.worlds.{key} must be an object or null"));
+                        return Err(format!("{path}.build.{key} must be an object or null"));
                     }
                 }
             }
-            if let Some(history) = worlds
+            if let Some(history) = build
                 .get("behaviorConfigHistory")
                 .and_then(Value::as_object)
             {
                 for (behavior_id, config) in history {
                     if !config.is_null() && !config.is_object() {
                         return Err(format!(
-                            "{path}.worlds.behaviorConfigHistory.{behavior_id} must be an object or null"
+                            "{path}.build.behaviorConfigHistory.{behavior_id} must be an object or null"
                         ));
                     }
                 }
             }
-            if let Some(gates) = array_field(worlds, "triggerGates", &format!("{path}.worlds"), 64)?
-            {
-                for (cell, value) in gates.iter().enumerate() {
-                    bool_value(value, &format!("{path}.worlds.triggerGates[{cell}]"))?;
-                }
-            }
         }
-        if let Some(pulses) = object_field(layer, "pulses", &path)? {
-            validate_pulses(pulses, &format!("{path}.pulses"))?;
+        if let Some(link) = object_field(layer, "link", &path)? {
+            validate_link(link, &format!("{path}.link"))?;
         }
         validate_layer_modulation(layer, &path)?;
     }
     Ok(())
 }
 
-fn validate_pulses(pulses: &Map<String, Value>, path: &str) -> Result<(), String> {
-    enum_field(pulses, "scanMode", path, &["none", "scanning"])?;
-    enum_field(pulses, "scanAxis", path, &["rows", "columns"])?;
-    enum_field(pulses, "scanUnit", path, NOTE_UNIT_OPTIONS)?;
-    enum_field(pulses, "scanDirection", path, &["forward", "reverse"])?;
-    unsigned_field(pulses, "scanSections", path, 1, 8)?;
-    if let Some(value) = pulses.get("scanSections") {
+fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
+    enum_field(link, "scanMode", path, &["none", "scanning"])?;
+    enum_field(link, "scanAxis", path, &["rows", "columns"])?;
+    enum_field(link, "scanUnit", path, NOTE_UNIT_OPTIONS)?;
+    enum_field(link, "scanDirection", path, &["forward", "reverse"])?;
+    unsigned_field(link, "scanSections", path, 1, 8)?;
+    if let Some(value) = link.get("scanSections") {
         if !matches!(value.as_u64(), Some(1 | 2 | 4 | 8)) {
             return Err(format!("{path}.scanSections is unsupported"));
         }
     }
     enum_field(
-        pulses,
+        link,
         "triggerProbabilityMode",
         path,
         &["zero", "custom", "full"],
     )?;
     for key in ["triggerProbabilityLowPct", "triggerProbabilityHighPct"] {
-        unsigned_field(pulses, key, path, 0, 100)?;
+        unsigned_field(link, key, path, 0, 100)?;
     }
-    if let Some(map) = array_field(pulses, "triggerProbabilityMap", path, 64)? {
+    if let Some(map) = array_field(link, "triggerProbabilityMap", path, 64)? {
         for (index, value) in map.iter().enumerate() {
             enum_value(
                 value,
@@ -100,7 +84,7 @@ fn validate_pulses(pulses: &Map<String, Value>, path: &str) -> Result<(), String
             )?;
         }
     }
-    if let Some(arp) = object_field(pulses, "arp", path)? {
+    if let Some(arp) = object_field(link, "arp", path)? {
         enum_field(arp, "mode", &format!("{path}.arp"), ARP_MODES)?;
         enum_field(
             arp,
@@ -113,10 +97,10 @@ fn validate_pulses(pulses: &Map<String, Value>, path: &str) -> Result<(), String
         signed_field(arp, "gatePct", &format!("{path}.arp"), 1, 100)?;
         signed_field(arp, "octaveSpread", &format!("{path}.arp"), 0, 3)?;
     }
-    if let Some(mapping) = object_field(pulses, "mapping", path)? {
+    if let Some(mapping) = object_field(link, "mapping", path)? {
         validate_mapping(mapping, &format!("{path}.mapping"))?;
     }
-    if let Some(pitch) = object_field(pulses, "pitch", path)? {
+    if let Some(pitch) = object_field(link, "pitch", path)? {
         for key in ["lowestNote", "highestNote", "startingNote"] {
             unsigned_field(pitch, key, &format!("{path}.pitch"), 0, 127)?;
         }
@@ -131,7 +115,7 @@ fn validate_pulses(pulses: &Map<String, Value>, path: &str) -> Result<(), String
         )?;
     }
     for axis in ["x", "y"] {
-        if let Some(axis_value) = object_field(pulses, axis, path)? {
+        if let Some(axis_value) = object_field(link, axis, path)? {
             validate_axis(axis_value, &format!("{path}.{axis}"))?;
         }
     }

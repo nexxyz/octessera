@@ -176,6 +176,7 @@ impl ConfigDto {
         self.mapping_config.as_ref()
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn system(&self) -> Option<&Value> {
         self.system.as_ref()
     }

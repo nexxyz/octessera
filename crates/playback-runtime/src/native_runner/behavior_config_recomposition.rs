@@ -10,7 +10,7 @@ impl NativeRunner {
         let mut state = std::mem::take(&mut self.modulation_process);
         let mut final_config = base_config.as_object().cloned().unwrap_or_default();
         for field in fields {
-            let key = format!("layers.{layer_index}.worlds.behaviorConfig.{field}");
+            let key = format!("layers.{layer_index}.build.behaviorConfig.{field}");
             let Some(base_value) = final_config.get(field).cloned() else {
                 continue;
             };

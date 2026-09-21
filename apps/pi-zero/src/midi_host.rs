@@ -330,12 +330,7 @@ fn resolve_port_id(requested: &str, ids: &[String]) -> Result<String, String> {
     if ids.iter().any(|id| id == requested) {
         return Ok(requested.into());
     }
-    let index = requested
-        .parse::<usize>()
-        .map_err(|_| "invalid MIDI port id".to_string())?;
-    ids.get(index)
-        .cloned()
-        .ok_or_else(|| "MIDI port not found".to_string())
+    Err("MIDI port not found".into())
 }
 
 fn resolve_selected_port_id(

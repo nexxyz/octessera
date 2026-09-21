@@ -5,7 +5,7 @@ impl NativeRunner {
         &self,
         layer_index: usize,
     ) -> platform_core::MappingConfig {
-        self.mapping_config_for_sense(layer_index, self.pulses_layers.get(layer_index).cloned())
+        self.mapping_config_for_sense(layer_index, self.link_layers.get(layer_index).cloned())
     }
 
     pub(super) fn interpretation_profile_for_layer(
@@ -14,14 +14,14 @@ impl NativeRunner {
     ) -> InterpretationProfile {
         self.interpretation_profile_for_sense(
             layer_index,
-            self.pulses_layers.get(layer_index).cloned(),
+            self.link_layers.get(layer_index).cloned(),
         )
     }
 
     pub(super) fn mapping_config_for_sense(
         &self,
         _layer_index: usize,
-        sense: Option<NativePulsesLayer>,
+        sense: Option<NativeLinkLayer>,
     ) -> platform_core::MappingConfig {
         let Some(sense) = sense.as_ref() else {
             return self.base_mapping_config.clone();
@@ -64,7 +64,7 @@ impl NativeRunner {
     pub(super) fn interpretation_profile_for_sense(
         &self,
         _layer_index: usize,
-        sense: Option<NativePulsesLayer>,
+        sense: Option<NativeLinkLayer>,
     ) -> InterpretationProfile {
         let Some(sense) = sense.as_ref() else {
             return self.interpretation_profile.clone();
@@ -199,7 +199,7 @@ impl NativeRunner {
         Ok(Value::Null)
     }
 
-    pub(super) fn worlds_payload_for_layer(&self, index: usize, behavior_id: &str) -> Value {
+    pub(super) fn build_payload_for_layer(&self, index: usize, behavior_id: &str) -> Value {
         let step_pulses = if index == self.active_layer_index {
             self.transport.algorithm_step_pulses
         } else {
@@ -210,10 +210,10 @@ impl NativeRunner {
                 .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)
         };
         let save_grid_state = self.save_grid_states.get(index).copied().unwrap_or(true);
-        let mut worlds = serde_json::Map::new();
-        worlds.insert("behaviorId".into(), json!(behavior_id));
+        let mut build = serde_json::Map::new();
+        build.insert("behaviorId".into(), json!(behavior_id));
         if behavior_id != "none" {
-            worlds.insert("stepRate".into(), json!(note_unit_from_pulses(step_pulses)));
+            build.insert("stepRate".into(), json!(note_unit_from_pulses(step_pulses)));
         }
         let behavior_config = if index == self.active_layer_index {
             self.behavior_config.clone()
@@ -223,12 +223,12 @@ impl NativeRunner {
                 .cloned()
                 .unwrap_or(Value::Null)
         };
-        worlds.insert(
+        build.insert(
             "behaviorConfig".into(),
             self.modulation_process
                 .persistent_behavior_config(index, behavior_config),
         );
-        worlds.insert(
+        build.insert(
             "behaviorConfigHistory".into(),
             Value::Object(
                 self.layer_behavior_config_history
@@ -239,15 +239,15 @@ impl NativeRunner {
                     .collect(),
             ),
         );
-        worlds.insert("saveGridState".into(), json!(save_grid_state));
+        build.insert("saveGridState".into(), json!(save_grid_state));
         if save_grid_state && behavior_id != "none" {
             if let Ok(state) = self.serialized_state_for_layer(index) {
                 if !state.is_null() {
-                    worlds.insert("savedState".into(), state);
+                    build.insert("savedState".into(), state);
                 }
             }
         }
-        Value::Object(worlds)
+        Value::Object(build)
     }
 
     pub(super) fn remap_bindings_for_behavior_change(

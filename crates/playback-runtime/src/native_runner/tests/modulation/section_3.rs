@@ -32,11 +32,11 @@ pub(crate) fn assignment_mode_wins_over_fn_layer_navigation_and_autosaves() {
 }
 
 #[test]
-pub(crate) fn sparks_mix_grid_edit_autosaves_persistent_volume_change() {
+pub(crate) fn play_mix_grid_edit_autosaves_persistent_volume_change() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner.auto_save_default = true;
-    runner.active_sparks_mode = "mix".into();
+    runner.active_play_mode = "mix".into();
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -71,9 +71,9 @@ pub(crate) fn sparks_mix_grid_edit_autosaves_persistent_volume_change() {
 }
 
 #[test]
-pub(crate) fn sparks_xy_touch_persists_and_release_behavior_matches_config() {
+pub(crate) fn play_xy_touch_persists_and_release_behavior_matches_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.xy_invert_x = true;
     runner.xy_release = "reset-center".into();
@@ -109,9 +109,9 @@ pub(crate) fn sparks_xy_touch_persists_and_release_behavior_matches_config() {
 }
 
 #[test]
-pub(crate) fn sparks_xy_overlay_marks_physical_touch_with_inverted_modulation() {
+pub(crate) fn play_xy_overlay_marks_physical_touch_with_inverted_modulation() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.xy_invert_x = true;
     runner.xy_invert_y = true;
@@ -148,9 +148,9 @@ pub(crate) fn sparks_xy_overlay_marks_physical_touch_with_inverted_modulation() 
 }
 
 #[test]
-pub(crate) fn sparks_xy_reset_center_overlay_returns_to_center() {
+pub(crate) fn play_xy_reset_center_overlay_returns_to_center() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.xy_release = "reset-center".into();
 
@@ -213,7 +213,7 @@ pub(crate) fn param_mod_binding_updates_native_runtime_config() {
 #[test]
 pub(crate) fn repeated_xy_input_does_not_dirty_or_reemit_the_same_result() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.instruments[0].volume = 50;
     runner.xy_x_binding = Some(NativeParamBinding {
@@ -259,7 +259,7 @@ pub(crate) fn repeated_xy_input_does_not_dirty_or_reemit_the_same_result() {
 #[test]
 pub(crate) fn xy_menu_removal_recomposes_the_held_target_to_its_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.instruments[0].volume = 50;
     let binding = NativeParamBinding {

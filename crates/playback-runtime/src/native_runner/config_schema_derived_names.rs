@@ -67,8 +67,7 @@ fn canonicalize_partial_instrument_names(
             continue;
         }
         let kind = effective_instrument_kind(instrument, current);
-        let name = instrument.get("name").and_then(Value::as_str);
-        if !instrument.contains_key("name") || is_legacy_instrument_name(name, kind) {
+        if !instrument.contains_key("name") {
             instrument.insert(
                 "name".into(),
                 Value::String(derive_instrument_name(index, kind)),
@@ -99,8 +98,7 @@ fn canonicalize_merged_instrument_names(
             continue;
         }
         let kind = normalized_instrument_kind(instrument.get("type"));
-        let name = source.get("name").and_then(Value::as_str);
-        if is_legacy_instrument_name(name, kind) {
+        if !source.contains_key("name") {
             instrument.insert(
                 "name".into(),
                 Value::String(derive_instrument_name(index, kind)),
@@ -127,8 +125,7 @@ fn canonicalize_partial_bus_names(
             continue;
         }
         let slots = normalized_partial_bus_slots(bus, current);
-        let name = bus.get("name").and_then(Value::as_str);
-        if !bus.contains_key("name") || name == Some(legacy_bus_name(&slots).as_str()) {
+        if !bus.contains_key("name") {
             bus.insert("name".into(), Value::String(canonical_bus_name(&slots)));
         }
     }
@@ -155,8 +152,7 @@ fn canonicalize_merged_bus_names(
             continue;
         }
         let slots = normalized_merged_bus_slots(bus);
-        let name = source.get("name").and_then(Value::as_str);
-        if name == Some(legacy_bus_name(&slots).as_str()) {
+        if !source.contains_key("name") {
             bus.insert("name".into(), Value::String(canonical_bus_name(&slots)));
         }
     }
@@ -218,16 +214,6 @@ fn is_valid_instrument_kind(kind: &str) -> bool {
     matches!(kind, "none" | "synth" | "sampler" | "midi")
 }
 
-fn is_legacy_instrument_name(name: Option<&str>, kind: &str) -> bool {
-    matches!(
-        (kind, name),
-        ("none", Some("none"))
-            | ("synth", Some("synth"))
-            | ("sampler", Some("sampler"))
-            | ("midi", Some("midi"))
-    )
-}
-
 fn normalized_partial_bus_slots(
     value: &Map<String, Value>,
     current: Option<&Map<String, Value>>,
@@ -274,17 +260,4 @@ fn normalized_slot_type(value: Option<&Value>, current: &str) -> String {
 
 fn canonical_bus_name(slots: &[String; 3]) -> String {
     derive_bus_name_from_slots([&slots[0], &slots[1], &slots[2]])
-}
-
-fn legacy_bus_name(slots: &[String; 3]) -> String {
-    let slots = slots
-        .iter()
-        .filter(|slot| slot.as_str() != "none")
-        .map(String::as_str)
-        .collect::<Vec<_>>();
-    match slots.as_slice() {
-        [] => "(none)".into(),
-        [slot] => (*slot).into(),
-        slots => slots.join("+"),
-    }
 }

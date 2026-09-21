@@ -4,6 +4,7 @@ use super::canonical::{
 use super::mapping_bindings::{validate_binding_field, validate_binding_value};
 use super::Value;
 use serde_json::Map;
+use std::collections::BTreeSet;
 
 pub(super) fn validate_global_modulation(runtime: &Map<String, Value>) -> Result<(), String> {
     let lfos = array_field(runtime, "linkLfos", "runtimeConfig", 8)?
@@ -44,7 +45,71 @@ pub(super) fn validate_global_modulation(runtime: &Map<String, Value>) -> Result
     validate_smoothing_ms(xy, "runtimeConfig.xy")?;
     bool_field(xy, "xInvert", "runtimeConfig.xy")?;
     bool_field(xy, "yInvert", "runtimeConfig.xy")?;
-    super::super::modulation_migration::validate_canonical_modulation(runtime)
+    validate_canonical_modulation(runtime)
+}
+
+pub(crate) fn validate_canonical_lfo_bank_shape(payload: &Value) -> Result<(), String> {
+    let runtime = payload.get("runtimeConfig").unwrap_or(payload);
+    let Some(lfos) = runtime.get("linkLfos") else {
+        return Ok(());
+    };
+    let Some(lfos) = lfos.as_array() else {
+        return Err("runtimeConfig.linkLfos must be an array".into());
+    };
+    if lfos.len() != super::super::GLOBAL_LFO_COUNT {
+        return Err("runtimeConfig.linkLfos must contain exactly eight slots".into());
+    }
+    Ok(())
+}
+
+fn validate_canonical_modulation(runtime: &Map<String, Value>) -> Result<(), String> {
+    let mut claimed = BTreeSet::new();
+    let Some(layers) = runtime.get("layers").and_then(Value::as_array) else {
+        return Ok(());
+    };
+    for (layer_index, layer) in layers.iter().enumerate() {
+        let Some(param_mods) = layer.get("paramMods").and_then(Value::as_object) else {
+            continue;
+        };
+        for axis in ["x", "y"] {
+            let Some(bindings) = param_mods.get(axis).and_then(Value::as_array) else {
+                continue;
+            };
+            for (slot, binding) in bindings.iter().enumerate() {
+                if claim_is_exclusive(binding, &mut claimed) {
+                    return Err(format!(
+                        "runtimeConfig.layers[{layer_index}].paramMods.{axis}[{slot}] conflicts with an earlier exclusive binding"
+                    ));
+                }
+            }
+        }
+    }
+    if let Some(xy) = runtime.get("xy").and_then(Value::as_object) {
+        for axis in ["x", "y"] {
+            let Some(binding) = xy.get(axis) else {
+                continue;
+            };
+            if claim_is_exclusive(binding, &mut claimed) {
+                return Err(format!(
+                    "runtimeConfig.xy.{axis} conflicts with an earlier exclusive binding"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn claim_is_exclusive(value: &Value, claimed: &mut BTreeSet<String>) -> bool {
+    let Some(key) = value.get("key").and_then(Value::as_str) else {
+        return false;
+    };
+    if super::super::modulation_target::classify_key(key)
+        .is_some_and(|(_, mode, _)| mode == super::super::modulation_target::TargetMode::Discrete)
+    {
+        !claimed.insert(key.into())
+    } else {
+        false
+    }
 }
 
 pub(super) fn validate_layer_modulation(

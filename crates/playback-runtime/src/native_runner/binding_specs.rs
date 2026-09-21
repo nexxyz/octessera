@@ -151,7 +151,7 @@ pub(super) fn remap_behavior_binding_key(
         let analogue = behavior_param_analogue(param_key, to_behavior)?;
         return Some(NativeParamBinding {
             key: format!(
-                "layers.{}.worlds.behaviorConfig.{}",
+                "layers.{}.build.behaviorConfig.{}",
                 layer_index.unwrap_or(index),
                 analogue.key
             ),

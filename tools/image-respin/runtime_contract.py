@@ -28,8 +28,7 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 METADATA_KEYS = {"artifact_kind", "binary_sha256", "name", "profile", "runtime_ready", "version"}
 MANIFEST_KEYS = {"schema_version", "updater_protocol", "candidate_health_protocol", "tag", "version", "board_profile", "arch", "binary", "platforms"}
 ORANGE_MANIFEST_KEYS = MANIFEST_KEYS | {"updater_supported", "distribution"}
-STATE_KEYS = {"schema_version", "phase", "current", "previous", "next", "updated_at", "release", "asset"}
-ORANGE_STATE_KEYS = STATE_KEYS - {"next"}
+STATE_KEYS = {"schema_version", "phase", "current", "previous", "updated_at", "release", "asset"}
 STATE_TIMESTAMP_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z$")
 BUILD_METADATA_KEY_ORDER = ("OCTESSERA_IMAGE_KIND", "OCTESSERA_IMAGE_MODE", "OCTESSERA_BOARD_PROFILE_ID", "OCTESSERA_IMAGE_BUILT_AT", "OCTESSERA_RUNTIME_ENABLED_DEFAULT", "OCTESSERA_IMAGE_CONTRACT_SHA256", "OCTESSERA_RUNTIME_VERSION", "OCTESSERA_RUNTIME_BINARY_SHA256", "OCTESSERA_RUNTIME_MANIFEST_SHA256", "OCTESSERA_RUNTIME_METADATA_SHA256", "OCTESSERA_SPI1_OLED_SD2_DTS_SHA256", "OCTESSERA_SPI1_OLED_SD2_DTBO_SHA256", "OCTESSERA_INPUT_ROUTING_DTS_SHA256", "OCTESSERA_INPUT_ROUTING_DTBO_SHA256", "OCTESSERA_AHUB0_PCM5102_DTS_SHA256", "OCTESSERA_AHUB0_PCM5102_DTBO_SHA256", "OCTESSERA_PI_DEFAULT_SHA256", "OCTESSERA_SAMPLES_MANIFEST_SHA256")
 BUILD_METADATA_KEYS = set(BUILD_METADATA_KEY_ORDER)
@@ -315,11 +314,11 @@ def _check_state(root: Path, inventory: Inventory, contract: dict[str, Any], pri
     check_spec(entry or {}, contract["state_contract"], "runtime state")
     state, raw = read_json_bytes(managed_lstat(root, relative))
     orange = contract["board_profile"] == "orange-pi-zero-2w"
-    expected_keys = ORANGE_STATE_KEYS if orange else STATE_KEYS
+    expected_keys = STATE_KEYS
     if not isinstance(state, dict) or set(state) != expected_keys or state["schema_version"] != 2 or state["phase"] != "committed" or state["current"] != prior_version:
         fail("Orange runtime state shape is not exact" if orange else "Raspberry runtime state shape is not exact")
     timestamp_valid = isinstance(state["updated_at"], str) and bool(state["updated_at"].strip())
-    if state["previous"] is not None or (not orange and state["next"] is not None) or state["asset"] is not None or state["release"] != manifest or not timestamp_valid or (orange and not STATE_TIMESTAMP_RE.fullmatch(state["updated_at"])):
+    if state["previous"] is not None or state["asset"] is not None or state["release"] != manifest or not timestamp_valid or (orange and not STATE_TIMESTAMP_RE.fullmatch(state["updated_at"])):
         fail("Orange runtime state does not describe the current release" if orange else "Raspberry runtime state does not describe the current release")
     return state, raw, hashlib.sha256(raw).hexdigest()
 

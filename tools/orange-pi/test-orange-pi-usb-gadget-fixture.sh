@@ -234,11 +234,10 @@ run_teardown_with_unbind_write_error() {
         FAKE_EXPECTED_UDC=musb-hdrc.4.auto run_teardown "$root" > "$output" 2>&1
 }
 
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":true},"usb":{"midiOutEnabled":true}}}' > "$TEST_ROOT/config-midi.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false}}}' > "$TEST_ROOT/config-uac2.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":true}}}' > "$TEST_ROOT/config-combined.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false}}}' > "$TEST_ROOT/config-none.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":true}}}' > "$TEST_ROOT/config-invalid.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":true},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-midi.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-uac2.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-combined.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-none.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-invalid.json"
 printf '%s\n' '{' > "$TEST_ROOT/config-malformed.json"
-printf '%s\n' '{"runtimeConfig":{"usb":{"audioOut":"usb"}}}' > "$TEST_ROOT/config-legacy-only.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"audioOut":"both"}}}' > "$TEST_ROOT/config-conflict.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget","unexpected":true}}}' > "$TEST_ROOT/config-unknown-usb.json"

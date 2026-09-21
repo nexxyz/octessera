@@ -1,4 +1,4 @@
-use super::sparks_fx_config::default_sparks_fx_selected;
+use super::play_fx_config::default_play_fx_selected;
 use super::*;
 
 impl NativeRunner {
@@ -31,7 +31,7 @@ impl NativeRunner {
         self.transport.bpm = 120.0;
         self.transport.swing_pct = 0;
         self.voice_stealing_mode = "auto-balanced".into();
-        self.pulses_layers = default_pulses_layers();
+        self.link_layers = default_link_layers();
         self.trigger_probability_assign = None;
         self.trigger_probability_maps =
             vec![vec!["full".into(); GRID_WIDTH * GRID_HEIGHT]; LAYER_COUNT];
@@ -78,12 +78,12 @@ impl NativeRunner {
         self.fx_buses = default_fx_buses();
         self.global_fx_slots = default_global_fx_slots();
         self.global_fx_params = default_global_fx_params();
-        self.sparks_fx_selected = default_sparks_fx_selected();
-        self.sparks_fx_assign = None;
-        self.sparks_fx_assignments.clear();
-        self.active_sparks_fx.clear();
-        self.sparks_mode = "mix".into();
-        self.active_sparks_mode = "none".into();
+        self.play_fx_selected = default_play_fx_selected();
+        self.play_fx_assign = None;
+        self.play_fx_assignments.clear();
+        self.active_play_fx.clear();
+        self.play_mode = "mix".into();
+        self.active_play_mode = "none".into();
         self.xy_touch = NativeXyTouch {
             x: 0.5,
             y: 0.5,
@@ -104,10 +104,10 @@ impl NativeRunner {
         self.shift_aux_bindings = vec![None; platform_core::AUX_ENCODER_COUNT];
         self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];
         self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
-        self.sparks_transpose_selected = vec![true; LAYER_COUNT];
-        self.sparks_transpose_enabled = vec![true; LAYER_COUNT];
-        self.sparks_transpose_offsets = vec![0; LAYER_COUNT];
-        self.sparks_transpose_active_notes = vec![BTreeMap::new(); LAYER_COUNT];
+        self.play_transpose_selected = vec![true; LAYER_COUNT];
+        self.play_transpose_enabled = vec![true; LAYER_COUNT];
+        self.play_transpose_offsets = vec![0; LAYER_COUNT];
+        self.play_transpose_active_notes = vec![BTreeMap::new(); LAYER_COUNT];
         self.display.help_popup = None;
         self.display.confirm_dialog = None;
         self.pending.pending_menu_apply = None;

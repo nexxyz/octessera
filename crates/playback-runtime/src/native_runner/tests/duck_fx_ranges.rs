@@ -57,7 +57,7 @@ pub(crate) fn duck_source_tap_schema_rejects_other_values() {
 }
 
 #[test]
-pub(crate) fn legacy_duck_source_tap_omission_loads_as_pre() {
+pub(crate) fn omitted_duck_source_tap_defaults_to_pre() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
         .apply_config_payload(json!({

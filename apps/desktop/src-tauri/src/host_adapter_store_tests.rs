@@ -37,9 +37,9 @@ fn preset_host_paths_reject_unsafe_names_and_filter_list() {
     let (mut adapter, _) = test_adapter();
     adapter.store_dir = temp_store_dir("preset-safety");
     let presets = adapter.store_dir.join("presets");
-    std::fs::create_dir_all(&presets).unwrap();
-    std::fs::write(presets.join("safe.json"), "{}").unwrap();
-    std::fs::write(presets.join(" bad .json"), "{}").unwrap();
+    std::fs::create_dir_all(presets.join("patches")).unwrap();
+    std::fs::write(presets.join("patches").join("safe.json"), "{}").unwrap();
+    std::fs::write(presets.join("patches").join(" bad .json"), "{}").unwrap();
 
     assert_eq!(
         adapter.list_preset_names().unwrap(),
@@ -76,27 +76,20 @@ fn preset_host_paths_reject_unsafe_names_and_filter_list() {
 }
 
 #[test]
-fn preset_patch_files_are_preferred_and_delete_removes_legacy_copy() {
+fn preset_store_uses_only_canonical_patch_files() {
     let (mut adapter, _) = test_adapter();
     adapter.store_dir = temp_store_dir("preset-patch-precedence");
     let presets = adapter.store_dir.join("presets");
     std::fs::create_dir_all(&presets).unwrap();
-    std::fs::write(presets.join("Jam.json"), r#"{"legacy":true}"#).unwrap();
     std::fs::create_dir_all(presets.join("patches")).unwrap();
     std::fs::write(
         presets.join("patches").join("Jam.json"),
         r#"{"patch":true}"#,
     )
     .unwrap();
-    std::fs::write(
-        presets.join("Jam.patch.json"),
-        r#"{"legacy_patch_name":true}"#,
-    )
-    .unwrap();
-
     assert_eq!(
         adapter.list_preset_names().unwrap(),
-        vec!["Jam".to_string(), "Jam.patch".to_string()]
+        vec!["Jam".to_string()]
     );
     assert_eq!(
         adapter.load_preset_payload("Jam").unwrap(),
@@ -110,9 +103,7 @@ fn preset_patch_files_are_preferred_and_delete_removes_legacy_copy() {
     assert!(!presets.join("New.json").is_file());
 
     assert!(adapter.delete_preset_payload("Jam").unwrap());
-    assert!(!presets.join("Jam.json").exists());
     assert!(!presets.join("patches").join("Jam.json").exists());
-    assert!(presets.join("Jam.patch.json").exists());
     let _ = std::fs::remove_dir_all(&adapter.store_dir);
 }
 

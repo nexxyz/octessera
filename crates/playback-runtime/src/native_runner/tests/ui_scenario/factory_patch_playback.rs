@@ -51,7 +51,7 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
 
     let synth_before = device.output().synth_param_count;
     device.select_layer_with_fn(0);
-    device.select_sparks_page_with_fn(5);
+    device.select_play_page_with_fn(5);
     device.start();
     device.press_grid(6, 6);
     device.clock_pulses(6);
@@ -61,7 +61,7 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
     }
 
     let fx_before = device.output().momentary_fx_start_count;
-    device.select_sparks_page_with_fn(2);
+    device.select_play_page_with_fn(2);
     device.press_grid(0, 0);
     for _ in 0..8 {
         device.clock_pulses(6);

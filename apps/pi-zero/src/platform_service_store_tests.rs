@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn list_presets_filters_unsafe_legacy_files() {
+fn list_presets_ignores_noncanonical_files() {
     let dir = std::env::temp_dir().join(format!(
         "octessera-pi-preset-list-{}-{}",
         std::process::id(),
@@ -11,12 +11,13 @@ fn list_presets_filters_unsafe_legacy_files() {
             .as_nanos()
     ));
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("safe.json"), "{}").unwrap();
     std::fs::write(dir.join("default.json"), "{}").unwrap();
     std::fs::write(dir.join("recovery-save.json"), "{}").unwrap();
     std::fs::write(dir.join("bak-123.json"), "{}").unwrap();
     std::fs::write(dir.join("bad:name.json"), "{}").unwrap();
     std::fs::write(dir.join("CON.json"), "{}").unwrap();
+    std::fs::create_dir_all(dir.join("patches")).unwrap();
+    std::fs::write(dir.join("patches").join("safe.json"), "{}").unwrap();
 
     assert_eq!(list_presets(&dir).unwrap(), vec!["safe".to_string()]);
 
@@ -24,7 +25,7 @@ fn list_presets_filters_unsafe_legacy_files() {
 }
 
 #[test]
-fn preset_patch_files_are_preferred_and_delete_removes_legacy_copy() {
+fn preset_store_uses_only_canonical_patch_files() {
     let dir = std::env::temp_dir().join(format!(
         "octessera-pi-preset-patch-{}-{}",
         std::process::id(),
@@ -35,17 +36,12 @@ fn preset_patch_files_are_preferred_and_delete_removes_legacy_copy() {
     ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("Jam.json"), r#"{"legacy":true}"#).unwrap();
     std::fs::create_dir_all(dir.join("patches")).unwrap();
     std::fs::write(dir.join("patches").join("Jam.json"), r#"{"patch":true}"#).unwrap();
-    std::fs::write(dir.join("Jam.patch.json"), r#"{"legacy_patch_name":true}"#).unwrap();
 
+    assert_eq!(list_presets(&dir).unwrap(), vec!["Jam".to_string()]);
     assert_eq!(
-        list_presets(&dir).unwrap(),
-        vec!["Jam".to_string(), "Jam.patch".to_string()]
-    );
-    assert_eq!(
-        load_json(&preset_load_path(&dir, "Jam").unwrap()).unwrap(),
+        load_json(&preset_patch_path(&dir, "Jam").unwrap()).unwrap(),
         Some(serde_json::json!({ "patch": true }))
     );
     save_json(
@@ -56,9 +52,7 @@ fn preset_patch_files_are_preferred_and_delete_removes_legacy_copy() {
     assert!(dir.join("patches").join("New.json").is_file());
     assert!(!dir.join("New.json").is_file());
     assert!(delete_preset_payload(&dir, "Jam"));
-    assert!(!dir.join("Jam.json").exists());
     assert!(!dir.join("patches").join("Jam.json").exists());
-    assert!(dir.join("Jam.patch.json").exists());
 
     let _ = std::fs::remove_dir_all(dir);
 }

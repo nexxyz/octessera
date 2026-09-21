@@ -75,7 +75,7 @@ impl NativeRunner {
         let current = self.layer_behavior_config_ref(layer_index).clone();
         let mut normalized = BTreeMap::new();
         for (field, value) in deltas {
-            let key = format!("layers.{layer_index}.worlds.behaviorConfig.{field}");
+            let key = format!("layers.{layer_index}.build.behaviorConfig.{field}");
             let Some(item) = self.generated_behavior_target_item(&key) else {
                 return Err(format!("behavior config key is not active: `{key}`"));
             };
@@ -90,7 +90,7 @@ impl NativeRunner {
             .then(|| self.menu.current_key())
             .flatten();
         let changed = normalized.iter().any(|(field, (next_value, item))| {
-            let key = format!("layers.{layer_index}.worlds.behaviorConfig.{field}");
+            let key = format!("layers.{layer_index}.build.behaviorConfig.{field}");
             let baseline_item = if editing_key == Some(key.as_str()) {
                 self.behavior_target_item_for_layer(layer_index, &key)
                     .unwrap_or_else(|| item.clone())
@@ -122,7 +122,7 @@ impl NativeRunner {
         self.set_layer_behavior_config(layer_index, behavior_id.as_str(), engine_config);
         if mark_autosave {
             for field in fields {
-                let key = format!("layers.{layer_index}.worlds.behaviorConfig.{field}");
+                let key = format!("layers.{layer_index}.build.behaviorConfig.{field}");
                 if let Some(value) = next_config.get(field).cloned() {
                     self.set_behavior_config_menu_value(&key, &value);
                 }
@@ -210,24 +210,23 @@ impl NativeRunner {
         &mut self,
         layer_index: usize,
         behavior_id: &str,
-        worlds: &Value,
+        build: &Value,
     ) -> Result<(), String> {
         let behavior = platform_core::get_native_behavior(behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
-        let behavior_config = worlds
+        let behavior_config = build
             .get("behaviorConfig")
             .cloned()
             .unwrap_or_else(|| self.layer_behavior_config(layer_index));
-        let save_grid_state = worlds
+        let save_grid_state = build
             .get("saveGridState")
             .and_then(Value::as_bool)
             .unwrap_or(true);
         let state = save_grid_state
             .then(|| {
-                worlds
+                build
                     .get("savedState")
                     .filter(|value| !value.is_null())
-                    .or_else(|| worlds.get("behaviorState").filter(|value| !value.is_null()))
                     .cloned()
             })
             .flatten();
@@ -312,9 +311,9 @@ impl NativeRunner {
             return;
         }
         let instruments = self.instruments.clone();
-        let sense = self.pulses_layers.get(layer_index).cloned();
+        let sense = self.link_layers.get(layer_index).cloned();
         let transpose_offset = self
-            .sparks_transpose_offsets
+            .play_transpose_offsets
             .get(layer_index)
             .copied()
             .unwrap_or(0);
@@ -325,7 +324,7 @@ impl NativeRunner {
             &instruments,
             sense.as_ref(),
             transpose_offset,
-            self.sparks_transpose_active_notes.get_mut(layer_index),
+            self.play_transpose_active_notes.get_mut(layer_index),
         );
         self.pending_transpose_note_offs.extend(routed);
     }
@@ -333,7 +332,7 @@ impl NativeRunner {
     pub(super) fn clear_layer_replacement_state(&mut self, layer_index: usize) {
         self.clear_delayed_link_events_for_layer(layer_index);
         self.clear_link_arp_state_for_layer(layer_index);
-        if let Some(active_notes) = self.sparks_transpose_active_notes.get_mut(layer_index) {
+        if let Some(active_notes) = self.play_transpose_active_notes.get_mut(layer_index) {
             active_notes.clear();
         }
     }
@@ -396,7 +395,7 @@ impl NativeRunner {
 
 fn parse_behavior_config_key(key: &str) -> Option<(usize, &str)> {
     let rest = key.strip_prefix("layers.")?;
-    let (index, field) = rest.split_once(".worlds.behaviorConfig.")?;
+    let (index, field) = rest.split_once(".build.behaviorConfig.")?;
     Some((index.parse().ok()?, field))
 }
 

@@ -51,7 +51,7 @@ run_provision default
 expect_rc "sc-stock-gadget-repeat" 0
 cmp -s "$TMP/stock-gadget-config" "$FIXTURE/boot/firmware/config.txt"
 mkdir -p "$FIXTURE/home/pi/presets"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
 run_provision default
 expect_rc "sc-stock-host" 75
 assert_stock_non_all "$TMP/stock-config-before" "$FIXTURE/boot/firmware/config.txt"

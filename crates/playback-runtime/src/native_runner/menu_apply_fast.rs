@@ -39,8 +39,8 @@ impl NativeRunner {
     }
 
     fn should_defer_menu_key(&self, key: &str) -> bool {
-        key == "sparksMode"
-            || key == "sparks.fx.type"
+        key == "playMode"
+            || key == "play.fx.type"
             || key == "system.draftName"
             || key.starts_with("layers.") && key.ends_with(".name")
             || key.starts_with("instruments.") && key.ends_with(".name")
@@ -49,11 +49,11 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
-        if key == "sparks.fx.type" {
-            return self.fast_sparks_fx_type_key(key);
+        if key == "play.fx.type" {
+            return self.fast_play_fx_type_key(key);
         }
-        if key == "sparks.fx.target" || key.starts_with("sparks.fx.params.") {
-            return self.fast_sparks_fx_value_key();
+        if key == "play.fx.target" || key.starts_with("play.fx.params.") {
+            return self.fast_play_fx_value_key();
         }
         if let Some(applied) = self.apply_runtime_menu_key_fast(key) {
             return applied;
@@ -67,7 +67,7 @@ impl NativeRunner {
         if let Some(applied) = self.apply_behavior_config_menu_key_fast(key) {
             return applied;
         }
-        if let Some(applied) = self.apply_pulses_menu_key_fast(key) {
+        if let Some(applied) = self.apply_link_menu_key_fast(key) {
             return applied;
         }
         self.apply_instrument_menu_key_fast(key).unwrap_or(false)

@@ -13,7 +13,7 @@ impl NativeRunner {
         let mut changed = false;
         for index in 0..self.instruments.len() {
             if self.instrument_transpose_route_will_change(index) {
-                self.drain_sparks_transpose_instrument_notes(index);
+                self.drain_play_transpose_instrument_notes(index);
             }
             let Some(instrument) = self.instruments.get_mut(index) else {
                 continue;

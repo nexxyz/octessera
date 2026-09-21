@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn root_snapshot_includes_sparks_separator_and_system() {
+pub(crate) fn root_snapshot_includes_play_separator_and_system() {
     let menu = NativeMenuModel::new(config());
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "MENU");
@@ -39,7 +39,7 @@ pub(crate) fn rebuild_preserves_navigation_state() {
     menu.turn(1);
     let mut next = config();
     next.behavior_id = "brain".into();
-    next.worlds_items[0].value = NativeMenuValue::Enum {
+    next.build_items[0].value = NativeMenuValue::Enum {
         options: vec!["life".into(), "brain".into(), "none".into()],
         selected: 1,
     };
@@ -54,10 +54,10 @@ pub(crate) fn rebuild_preserves_navigation_state() {
 #[test]
 pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
     let mut cfg = config();
-    cfg.worlds_items = vec![
+    cfg.build_items = vec![
         NativeMenuItem {
             label: "Other Play".into(),
-            key: Some("sparksMode".into()),
+            key: Some("playMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["none".into(), "fx".into()],
                 selected: 0,
@@ -66,7 +66,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
         },
         NativeMenuItem {
             label: "Play".into(),
-            key: Some("sparksMode".into()),
+            key: Some("playMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["none".into(), "fx".into()],
                 selected: 1,
@@ -96,7 +96,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
     menu.state.stack = vec![0, 0];
 
     menu.state.cursor = 1;
-    assert_eq!(menu.selected_sparks_mode(), None);
+    assert_eq!(menu.selected_play_mode(), None);
 
     menu.state.cursor = 3;
     assert_eq!(menu.selected_sync_source(), Some(SyncSource::External));

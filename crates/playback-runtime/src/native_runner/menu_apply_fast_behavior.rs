@@ -2,7 +2,7 @@ use super::NativeRunner;
 
 impl NativeRunner {
     pub(super) fn apply_behavior_config_menu_key_fast(&mut self, key: &str) -> Option<bool> {
-        if !key.contains(".worlds.behaviorConfig.") {
+        if !key.contains(".build.behaviorConfig.") {
             return None;
         }
         if let Err(error) = self.apply_behavior_config_menu_key(key) {

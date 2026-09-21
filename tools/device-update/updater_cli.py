@@ -10,10 +10,10 @@ def usage() -> int:
 
 
 def main(argv: list[str]) -> int:
-    if not argv or len(argv) > 2 or argv[0] not in {"check", "apply", "rollback", "bootstrap", "guard", "recover"}:
+    if not argv or len(argv) > 2 or argv[0] not in {"check", "apply", "rollback", "guard", "recover"}:
         return usage()
     operation = argv[0]
-    if operation in {"rollback", "bootstrap", "guard"} and len(argv) != 1:
+    if operation in {"rollback", "guard"} and len(argv) != 1:
         return usage()
     if operation == "recover" and (len(argv) > 2 or (len(argv) == 2 and argv[1] != "--boot")):
         return usage()

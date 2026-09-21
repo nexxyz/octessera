@@ -320,10 +320,10 @@ pub(crate) fn scanning_sequencer_pattern_emits_different_rows_over_scan_steps() 
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/4".into();
-    runner.pulses_layers[0].scanned_slot = 1;
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/4".into();
+    runner.link_layers[0].scanned_slot = 1;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

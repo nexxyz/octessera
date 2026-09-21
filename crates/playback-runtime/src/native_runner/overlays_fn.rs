@@ -1,9 +1,9 @@
 use super::led_color::{trigger_gate_color, LedColor};
-use super::sparks_fx_config::sparks_fx_type;
-use super::sparks_fx_presentation::momentary_fx_color;
+use super::play_fx_config::play_fx_type;
+use super::play_fx_presentation::play_fx_color;
 use super::{
-    pan_marker_left_cell, sparks_fx_cell_id, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
-    INSTRUMENT_COUNT, SPARKS_FX_MAX_CONCURRENT,
+    pan_marker_left_cell, play_fx_cell_id, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT,
+    PLAY_FX_MAX_CONCURRENT,
 };
 
 impl NativeRunner {
@@ -13,7 +13,7 @@ impl NativeRunner {
         }
         if self.sample_assign.is_some()
             || self.trigger_probability_assign.is_some()
-            || self.sparks_fx_assign.is_some()
+            || self.play_fx_assign.is_some()
         {
             return;
         }
@@ -24,7 +24,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_sparks_mix_overlay(&self, leds: &mut [LedColor]) {
+    pub(super) fn apply_play_mix_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
         for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
             let instrument = self.instruments.get(x);
@@ -39,13 +39,13 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_sparks_pan_overlay(&self, leds: &mut [LedColor]) {
+    pub(super) fn apply_play_pan_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
         for y in 0..INSTRUMENT_COUNT.min(GRID_HEIGHT) {
             let Some(instrument) = self.instruments.get(y) else {
                 continue;
             };
-            let (pan_pos, color) = self.sparks_pan_target(instrument);
+            let (pan_pos, color) = self.play_pan_target(instrument);
             let left = pan_marker_left_cell(pan_pos);
             let value = if instrument.kind == "none" {
                 color.dim(4)
@@ -57,22 +57,22 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_sparks_fx_overlay(&self, leds: &mut [LedColor]) {
+    pub(super) fn apply_play_fx_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
-        for assignment in &self.sparks_fx_assignments {
-            let id = sparks_fx_cell_id(assignment.x, assignment.y);
+        for assignment in &self.play_fx_assignments {
+            let id = play_fx_cell_id(assignment.x, assignment.y);
             let active = self
-                .active_sparks_fx
+                .active_play_fx
                 .iter()
                 .any(|(active_id, _)| active_id == &id);
-            let fx_type = sparks_fx_type(&assignment.config);
+            let fx_type = play_fx_type(&assignment.config);
             let same_type_active = self
-                .active_sparks_fx
+                .active_play_fx
                 .iter()
                 .any(|(_, active_type)| active_type == fx_type);
             let limited = !active
-                && (self.active_sparks_fx.len() >= SPARKS_FX_MAX_CONCURRENT || same_type_active);
-            let color = momentary_fx_color(fx_type);
+                && (self.active_play_fx.len() >= PLAY_FX_MAX_CONCURRENT || same_type_active);
+            let color = play_fx_color(fx_type);
             self.set_display_led(
                 leds,
                 assignment.x,
@@ -88,7 +88,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_sparks_trigger_gate_overlay(&self, leds: &mut [LedColor]) {
+    pub(super) fn apply_play_trigger_gate_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
         for (row, mode) in self.trigger_gate_modes.iter().enumerate().take(GRID_HEIGHT) {
             for (x, candidate) in [(0, "zero"), (1, "custom"), (2, "full")] {
@@ -110,7 +110,7 @@ impl NativeRunner {
         self.set_display_led(leds, 7, 0, trigger_gate_color("full"));
     }
 
-    pub(super) fn apply_sparks_xy_overlay(&self, leds: &mut [LedColor]) {
+    pub(super) fn apply_play_xy_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
         let x =
             (self.xy_touch.display_x.clamp(0.0, 1.0) * (GRID_WIDTH - 1) as f32).round() as usize;
@@ -129,10 +129,10 @@ impl NativeRunner {
     pub(super) fn param_mod_overlay_ready(&self) -> bool {
         self.display.ui.shift_held
             && !self.display.ui.fn_held
-            && self.active_sparks_mode == "none"
+            && self.active_play_mode == "none"
             && self.sample_assign.is_none()
             && self.trigger_probability_assign.is_none()
-            && self.sparks_fx_assign.is_none()
+            && self.play_fx_assign.is_none()
     }
 
     fn dim_fn_overlay(&self, leds: &mut [LedColor]) {
@@ -151,7 +151,7 @@ impl NativeRunner {
             let color = fn_layer_color(
                 configured,
                 row == self.active_layer_index,
-                self.active_sparks_mode != "none",
+                self.active_play_mode != "none",
             );
             self.set_display_led(leds, 0, row, color);
         }
@@ -160,7 +160,7 @@ impl NativeRunner {
     fn paint_fn_page_column(&self, leds: &mut [LedColor]) {
         let page_options = ["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
         for (row, mode) in page_options.iter().enumerate() {
-            let selected = self.active_sparks_mode != "none" && self.active_sparks_mode == *mode;
+            let selected = self.active_play_mode != "none" && self.active_play_mode == *mode;
             let color = if selected {
                 LedColor::GREEN
             } else {
@@ -174,8 +174,8 @@ impl NativeRunner {
     }
 }
 
-fn fn_layer_color(configured: bool, active: bool, sparks_active: bool) -> LedColor {
-    if sparks_active {
+fn fn_layer_color(configured: bool, active: bool, play_active: bool) -> LedColor {
+    if play_active {
         if configured {
             LedColor::BLUE
         } else {

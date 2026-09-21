@@ -74,7 +74,7 @@ pub(crate) fn build_export_plan(
     let presets = crate::platform_service::list_presets(store_dir)?
         .into_iter()
         .map(|display_name| {
-            let path = crate::platform_service::preset_load_path(store_dir, &display_name)?;
+            let path = crate::platform_service::preset_patch_path(store_dir, &display_name)?;
             let patch = crate::platform_service::load_json(&path)?
                 .ok_or_else(|| format!("preset `{display_name}` disappeared during export"))?;
             Ok(UserDataPreset {
