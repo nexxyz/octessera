@@ -330,6 +330,14 @@ pub(super) struct NativeXyTouch {
     pub(super) active: bool,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct NativeXyGlide {
+    pub(super) from: f32,
+    pub(super) target: f32,
+    pub(super) started_at: Instant,
+    pub(super) duration: Duration,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeValueLane {
     pub(super) enabled: bool,

@@ -13,7 +13,7 @@ impl AudioManager {
     ) -> Result<Self, String> {
         let AudioOpenPolicy::Outputs(outputs) = policy;
         require_jack_output(outputs)?;
-        let (control_tx, control_rx) = mpsc::channel::<AudioControlRequest>();
+        let (control_tx, control_rx) = mpsc::sync_channel::<AudioControlRequest>(32);
         let (prep_result_tx, prep_result_rx) = mpsc::channel::<HostMessage>();
         #[cfg(any(
             feature = "hardware-orange-pi-zero-2w",
@@ -160,6 +160,11 @@ impl AudioManager {
             config_revision: Arc::new(AtomicU64::new(0)),
             sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
             sample_bank_signature: Arc::new(Mutex::new(String::new())),
+            preview_generation: Arc::new(AtomicU64::new(0)),
+            momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
+            next_sequence: Arc::new(AtomicU64::new(0)),
+            latest_full_sequence: Arc::new(AtomicU64::new(0)),
+            generations: Arc::new(Mutex::new(crate::audio::AudioGenerationState::default())),
             prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
             route_registry: route_registry.clone(),
             audio_outputs: match policy {

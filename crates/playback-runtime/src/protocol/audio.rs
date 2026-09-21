@@ -1,4 +1,4 @@
-use realtime_engine::synth::DspRuntimeConfig;
+use realtime_engine::synth::{DspRuntimeConfig, FxParamId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -18,18 +18,26 @@ pub enum RuntimeAudioCommand {
         revision: u64,
         #[serde(default, rename = "requestId", skip_serializing_if = "Option::is_none")]
         request_id: Option<String>,
+        #[serde(default)]
+        generation: u64,
         config: Value,
     },
     SetDspConfig {
+        #[serde(default)]
+        generation: u64,
         config: DspRuntimeConfig,
     },
     SetMasterVolume {
+        #[serde(default)]
+        generation: u64,
         #[serde(rename = "volumePct")]
         volume_pct: f32,
     },
     SetInstrumentMixer {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,
+        #[serde(default)]
+        generation: u64,
         #[serde(default, rename = "volumePct")]
         volume_pct: Option<f32>,
         #[serde(default, rename = "panPos")]
@@ -38,11 +46,15 @@ pub enum RuntimeAudioCommand {
     SetInstrumentSlot {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,
+        #[serde(default)]
+        generation: u64,
         config: Value,
     },
     SetFxBusMixer {
         #[serde(rename = "busIndex")]
         bus_index: usize,
+        #[serde(default)]
+        generation: u64,
         #[serde(default, rename = "panPos")]
         pan_pos: Option<usize>,
         #[serde(default, rename = "volumePct")]
@@ -51,13 +63,27 @@ pub enum RuntimeAudioCommand {
     SetSynthParam {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,
+        #[serde(default)]
+        generation: u64,
         path: String,
         value: f32,
     },
     SetSampleBankParam {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,
+        #[serde(default)]
+        generation: u64,
         path: String,
+        value: f32,
+    },
+    SetFxBusParam {
+        #[serde(rename = "busIndex")]
+        bus_index: usize,
+        #[serde(rename = "slotIndex")]
+        slot_index: usize,
+        #[serde(default)]
+        generation: u64,
+        param: FxParamId,
         value: f32,
     },
     SetFxBusSlot {
@@ -65,6 +91,8 @@ pub enum RuntimeAudioCommand {
         bus_index: usize,
         #[serde(rename = "slotIndex")]
         slot_index: usize,
+        #[serde(default)]
+        generation: u64,
         #[serde(rename = "fxType")]
         fx_type: String,
         #[serde(default)]
@@ -73,13 +101,25 @@ pub enum RuntimeAudioCommand {
     SetGlobalFxSlot {
         #[serde(rename = "slotIndex")]
         slot_index: usize,
+        #[serde(default)]
+        generation: u64,
         #[serde(rename = "fxType")]
         fx_type: String,
         #[serde(default)]
         params: BTreeMap<String, Value>,
     },
+    SetGlobalFxParam {
+        #[serde(rename = "slotIndex")]
+        slot_index: usize,
+        #[serde(default)]
+        generation: u64,
+        param: FxParamId,
+        value: f32,
+    },
     MomentaryFxStart {
         id: String,
+        #[serde(default)]
+        epoch: u64,
         #[serde(rename = "fxType")]
         fx_type: String,
         #[serde(default)]
@@ -89,10 +129,14 @@ pub enum RuntimeAudioCommand {
     MomentaryFxUpdate {
         id: String,
         #[serde(default)]
+        epoch: u64,
+        #[serde(default)]
         params: BTreeMap<String, Value>,
     },
     MomentaryFxStop {
         id: String,
+        #[serde(default)]
+        epoch: u64,
     },
     SamplePreview {
         #[serde(rename = "instrumentSlot")]

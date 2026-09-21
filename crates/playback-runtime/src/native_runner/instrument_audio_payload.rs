@@ -51,3 +51,11 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
         }
     })
 }
+
+pub(super) fn instrument_payload_owns_sample_bank(payload: &Value) -> bool {
+    payload
+        .get("type")
+        .and_then(Value::as_str)
+        .is_some_and(|kind| kind == "sampler")
+        && payload.get("sample").is_some_and(Value::is_object)
+}

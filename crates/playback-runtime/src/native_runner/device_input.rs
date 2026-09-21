@@ -337,6 +337,7 @@ impl NativeRunner {
             } else {
                 if self.transport.transport == RuntimeTransportState::Stopped {
                     self.reset_transport_position();
+                    self.prime_sequencer_layer_origins();
                 }
                 let was_playing = self.transport.transport == RuntimeTransportState::Playing;
                 self.transport.transport =

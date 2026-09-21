@@ -12,6 +12,8 @@ mod oled_runtime_fixtures;
 mod oled_runtime_invariant;
 #[path = "presented_runtime_error_tests.rs"]
 mod presented_runtime_error;
+#[path = "recording_runtime_tests.rs"]
+mod recording;
 #[path = "setup_portal_runtime_tests.rs"]
 mod setup_portal;
 #[path = "runtime_test_support.rs"]

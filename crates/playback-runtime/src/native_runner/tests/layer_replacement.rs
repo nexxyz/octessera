@@ -73,6 +73,7 @@ pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
 pub(crate) fn inactive_layer_xy_modulation_changes_execution_state() {
     let mut runner = brain_target_runner();
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     runner.xy_y_binding = Some(NativeParamBinding {
         key: "layers.1.worlds.behaviorConfig.randomSeedCells".into(),
         label: Some("Spawn Count".into()),

@@ -1,5 +1,7 @@
 use super::*;
+use crate::DspRuntimeConfig;
 use serde_json::json;
+use std::collections::BTreeMap;
 
 #[test]
 fn device_config_reboot_wire_names_deserialize_with_canonical_and_legacy_alias() {
@@ -44,4 +46,110 @@ fn device_config_reboot_wire_name_serializes_canonically() {
             }
         })
     );
+}
+
+#[test]
+fn every_runtime_audio_command_round_trips_through_json() {
+    let params = BTreeMap::from([(String::from("mixPct"), json!(35))]);
+    let commands = vec![
+        RuntimeAudioCommand::SetAudioConfig {
+            revision: 4,
+            request_id: Some("audio-4".into()),
+            generation: 4,
+            config: json!({ "instruments": [] }),
+        },
+        RuntimeAudioCommand::SetDspConfig {
+            generation: 4,
+            config: DspRuntimeConfig::default(),
+        },
+        RuntimeAudioCommand::SetMasterVolume {
+            generation: 4,
+            volume_pct: 82.0,
+        },
+        RuntimeAudioCommand::SetInstrumentMixer {
+            instrument_slot: 1,
+            generation: 1,
+            volume_pct: Some(74.0),
+            pan_pos: Some(16),
+        },
+        RuntimeAudioCommand::SetInstrumentSlot {
+            instrument_slot: 2,
+            generation: 1,
+            config: json!({ "type": "synth" }),
+        },
+        RuntimeAudioCommand::SetFxBusMixer {
+            bus_index: 2,
+            generation: 1,
+            pan_pos: Some(12),
+            volume_pct: Some(66.0),
+        },
+        RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: 3,
+            generation: 1,
+            path: "synth.filter.cutoffHz".into(),
+            value: 440.0,
+        },
+        RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: 4,
+            generation: 1,
+            path: "sample.tuneSemis".into(),
+            value: 2.0,
+        },
+        RuntimeAudioCommand::SetFxBusParam {
+            bus_index: 1,
+            slot_index: 0,
+            generation: 1,
+            param: realtime_engine::synth::FxParamId::MixPct,
+            value: 0.35,
+        },
+        RuntimeAudioCommand::SetFxBusSlot {
+            bus_index: 1,
+            slot_index: 0,
+            generation: 1,
+            fx_type: "delay".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::SetGlobalFxSlot {
+            slot_index: 1,
+            generation: 1,
+            fx_type: "compressor".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::SetGlobalFxParam {
+            slot_index: 1,
+            generation: 1,
+            param: realtime_engine::synth::FxParamId::MixPct,
+            value: 0.35,
+        },
+        RuntimeAudioCommand::MomentaryFxStart {
+            id: "spark:0".into(),
+            epoch: 1,
+            fx_type: "freeze".into(),
+            params: params.clone(),
+            target: RuntimeMomentaryFxTarget::Global,
+        },
+        RuntimeAudioCommand::MomentaryFxUpdate {
+            id: "spark:0".into(),
+            epoch: 1,
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::MomentaryFxStop {
+            id: "spark:0".into(),
+            epoch: 1,
+        },
+        RuntimeAudioCommand::SamplePreview {
+            instrument_slot: 5,
+            sample_slot: 2,
+            path: "kits/hat.wav".into(),
+            velocity: 96,
+        },
+    ];
+
+    for command in commands {
+        let encoded = serde_json::to_value(&command).unwrap();
+        assert_eq!(
+            serde_json::from_value::<RuntimeAudioCommand>(encoded).unwrap(),
+            command
+        );
+    }
 }

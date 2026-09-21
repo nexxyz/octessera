@@ -31,6 +31,7 @@ use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAK
 pub(crate) use requests::{request_worker_audio_command, request_worker_dispatch};
 
 const PLAYING_SNAPSHOT_INTERVAL_MS: u64 = 50;
+const XY_GLIDE_TICK: Duration = Duration::from_millis(8);
 
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
@@ -53,6 +54,7 @@ pub(crate) struct RuntimeWorker {
     adapter: DesktopPlaybackHostAdapter,
     platform_service_result_rx: Receiver<Vec<HostMessage>>,
     last_advance_at: Instant,
+    last_xy_glide_tick_at: Instant,
     last_ui_refresh_at: Instant,
     last_snapshot_cadence_at: Instant,
     last_observed_snapshot_revision: u64,
@@ -86,6 +88,7 @@ impl RuntimeWorker {
             adapter,
             platform_service_result_rx,
             last_advance_at: Instant::now(),
+            last_xy_glide_tick_at: Instant::now(),
             last_ui_refresh_at: Instant::now(),
             last_snapshot_cadence_at: Instant::now(),
             last_observed_snapshot_revision: 0,
@@ -160,11 +163,12 @@ impl RuntimeWorker {
     }
 
     fn maybe_advance(&mut self) -> Result<(), String> {
+        let now = Instant::now();
         if !self.is_internal_playing() {
-            self.last_advance_at = Instant::now();
+            self.last_advance_at = now;
+            self.maybe_dispatch_xy_glide(now)?;
             return Ok(());
         }
-        let now = Instant::now();
         let elapsed = now.duration_since(self.last_advance_at);
         if elapsed.is_zero() {
             return Ok(());
@@ -190,6 +194,22 @@ impl RuntimeWorker {
         )?;
         #[cfg(debug_assertions)]
         self.perf.record_advance(started_at.elapsed());
+        self.emit_runtime_output(output)?;
+        self.maybe_dispatch_xy_glide(Instant::now())
+    }
+
+    fn maybe_dispatch_xy_glide(&mut self, now: Instant) -> Result<(), String> {
+        if !xy_glide_tick_due(
+            now,
+            self.last_xy_glide_tick_at,
+            self.runner.next_xy_glide_deadline(),
+        ) {
+            return Ok(());
+        }
+        self.last_xy_glide_tick_at = now;
+        let output = self
+            .playback
+            .dispatch_runtime_tick(&mut self.runner, &mut self.adapter)?;
         self.emit_runtime_output(output)
     }
 
@@ -323,4 +343,8 @@ fn timed_display_snapshot_due(
     runner
         .next_timed_display_snapshot_deadline_after(Some(last_snapshot_cadence_at))
         .is_some_and(|deadline| now >= deadline)
+}
+
+fn xy_glide_tick_due(now: Instant, last_tick_at: Instant, deadline: Option<Instant>) -> bool {
+    deadline.is_some() && now.duration_since(last_tick_at) >= XY_GLIDE_TICK
 }

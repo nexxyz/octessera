@@ -32,9 +32,10 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     };
-    tx.send(EngineEvent::SetPreparedInstruments(
-        prepare_instruments_config(instruments, 44_100),
-    ))
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: prepare_instruments_config(instruments, 44_100),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
@@ -70,6 +71,7 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
     .unwrap();
     tx.send(EngineEvent::SetPreparedGlobalFxSlot {
         slot_index: 0,
+        generation: 0,
         config: realtime_engine::synth::prepare_global_fx_slot(
             "compressor".into(),
             BTreeMap::new(),
@@ -94,8 +96,9 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
 #[test]
 fn recovers_routing_tree_with_current_global_controls_and_next_quantum_notes() {
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedInstruments(
-        prepare_instruments_config(
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: prepare_instruments_config(
             InstrumentsConfig {
                 instruments: vec![InstrumentSlotConfig {
                     kind: "synth".into(),
@@ -108,7 +111,7 @@ fn recovers_routing_tree_with_current_global_controls_and_next_quantum_notes() {
             },
             44_100,
         ),
-    ))
+    })
     .unwrap();
     let (mut source, shutdown) =
         EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
@@ -158,6 +161,7 @@ fn recovers_routing_tree_with_current_global_controls_and_next_quantum_notes() {
     .unwrap();
     tx.send(EngineEvent::SetPreparedGlobalFxSlot {
         slot_index: 0,
+        generation: 0,
         config: realtime_engine::synth::prepare_global_fx_slot(
             "compressor".into(),
             BTreeMap::new(),

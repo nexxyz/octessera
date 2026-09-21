@@ -215,3 +215,7 @@ fn sample_bank(samples: Vec<f32>) -> SampleBankConfig {
     };
     bank
 }
+
+include!("scalar_fx_tests.rs");
+include!("scalar_param_contract_tests.rs");
+include!("scalar_control_tests.rs");

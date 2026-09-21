@@ -25,11 +25,13 @@ pub(crate) fn audio_command(
     let runtime_command = match command {
         AudioCommandPayload::MomentaryFxStart {
             id,
+            epoch,
             fx_type,
             params,
             target,
         } => RuntimeAudioCommand::MomentaryFxStart {
             id,
+            epoch,
             fx_type,
             params,
             target: match target {
@@ -44,10 +46,12 @@ pub(crate) fn audio_command(
                 }
             },
         },
-        AudioCommandPayload::MomentaryFxUpdate { id, params } => {
-            RuntimeAudioCommand::MomentaryFxUpdate { id, params }
+        AudioCommandPayload::MomentaryFxUpdate { id, epoch, params } => {
+            RuntimeAudioCommand::MomentaryFxUpdate { id, epoch, params }
         }
-        AudioCommandPayload::MomentaryFxStop { id } => RuntimeAudioCommand::MomentaryFxStop { id },
+        AudioCommandPayload::MomentaryFxStop { id, epoch } => {
+            RuntimeAudioCommand::MomentaryFxStop { id, epoch }
+        }
         AudioCommandPayload::SamplePreview {
             instrument_slot,
             sample_slot,

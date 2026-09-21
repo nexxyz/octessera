@@ -4,6 +4,7 @@ use super::*;
 pub(crate) fn dsp_menu_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner.menu.focus_item_key("dsp.workerWarningThreshold"));
     runner.menu.state.editing = true;
 
@@ -24,7 +25,7 @@ pub(crate) fn dsp_menu_uses_direct_audio_command_without_revision_bump() {
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetDspConfig { config }
+                RuntimeAudioCommand::SetDspConfig { config, .. }
                     if config.worker_warning_threshold
                         == realtime_engine::synth::WorkerWarningThreshold::Percent90
             ))
@@ -35,6 +36,7 @@ pub(crate) fn dsp_menu_uses_direct_audio_command_without_revision_bump() {
 #[test]
 pub(crate) fn fast_path_audio_param_still_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner
         .menu
         .focus_item_key("instruments.0.synth.amp.gainPct"));
@@ -58,7 +60,7 @@ pub(crate) fn fast_path_audio_param_still_applies_immediately() {
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetSynthParam { instrument_slot: 0, path, value }
+                RuntimeAudioCommand::SetSynthParam { instrument_slot: 0, path, value, .. }
                     if path == "synth.amp.gainPct" && (*value - 70.0).abs() < f32::EPSILON
             ))
     )));
@@ -67,6 +69,7 @@ pub(crate) fn fast_path_audio_param_still_applies_immediately() {
 #[test]
 pub(crate) fn sampler_fast_path_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
@@ -87,7 +90,7 @@ pub(crate) fn sampler_fast_path_uses_direct_audio_command_without_revision_bump(
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetSampleBankParam { instrument_slot: 0, path, value }
+                RuntimeAudioCommand::SetSampleBankParam { instrument_slot: 0, path, value, .. }
                     if path == "sample.tuneSemis" && (*value - 7.0).abs() < f32::EPSILON
             ))
     )));
@@ -153,6 +156,7 @@ pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump
     runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
     runner.apply_menu_state().unwrap();
     runner.audio_config_revision = 0;
+    runner.last_snapshot_audio_config_revision = Some(0);
     assert!(runner
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.depthPct"));
@@ -172,8 +176,13 @@ pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, params }
-                    if fx_type == "tremolo" && params.get("depthPct") == Some(&json!(61))
+                RuntimeAudioCommand::SetFxBusParam {
+                    bus_index: 0,
+                    slot_index: 0,
+                    param: realtime_engine::synth::FxParamId::DepthPct,
+                    value,
+                    ..
+                } if (*value - 61.0).abs() < f32::EPSILON
             ))
     )));
 }
@@ -184,6 +193,7 @@ pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
     runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
     runner.apply_menu_state().unwrap();
     runner.audio_config_revision = 0;
+    runner.last_snapshot_audio_config_revision = Some(0);
     assert!(runner
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.rateHz"));
@@ -203,8 +213,13 @@ pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, params }
-                    if fx_type == "tremolo" && params.get("rateHz") == Some(&json!(4.05))
+                RuntimeAudioCommand::SetFxBusParam {
+                    bus_index: 0,
+                    slot_index: 0,
+                    param: realtime_engine::synth::FxParamId::RateHz,
+                    value,
+                    ..
+                } if (*value - 4.05).abs() < f32::EPSILON
             ))
     )));
 }
@@ -342,7 +357,7 @@ fn assert_direct_synth_param(messages: &[RunnerMessage], expected_path: &str, ex
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetSynthParam { instrument_slot: 0, path, value }
+                RuntimeAudioCommand::SetSynthParam { instrument_slot: 0, path, value, .. }
                     if path == expected_path && (*value - expected).abs() < f32::EPSILON
             ))
     )));

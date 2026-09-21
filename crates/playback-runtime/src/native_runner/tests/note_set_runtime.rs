@@ -183,10 +183,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
         .has_source(crate::native_runner::modulation_source::ModulationSourceId::play_x()));
     assert!(runner.link_arp_held_notes[0].is_empty());
     assert_eq!(runner.link_arp_rotating_phase[0], 0);
-    assert_eq!(
-        runner.link_arp_random_state,
-        crate::native_runner::link_arp::LINK_ARP_RANDOM_SEED
-    );
+    assert_eq!(runner.link_arp_random_state, 123);
     assert!(runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
     assert_eq!(runner.pending.pending_save_revision, None);

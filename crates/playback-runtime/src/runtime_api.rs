@@ -71,6 +71,7 @@ impl PlaybackRuntime {
         let RuntimeAudioCommand::SetAudioConfig {
             revision,
             request_id: None,
+            generation,
             config,
         } = command
         else {
@@ -80,6 +81,7 @@ impl PlaybackRuntime {
         RuntimeAudioCommand::SetAudioConfig {
             revision,
             request_id: Some(format!("audio-{}", self.next_request_id)),
+            generation,
             config,
         }
     }
@@ -138,6 +140,36 @@ impl PlaybackRuntime {
 
     pub fn request_next_snapshot(&mut self) {
         self.request_next_snapshot = true;
+    }
+
+    pub fn dispatch_runtime_tick<R: CoreRunner, H: HostAdapter>(
+        &mut self,
+        runner: &mut R,
+        host: &mut H,
+    ) -> Result<RuntimeIngest, String> {
+        let status_before_tick = self.last_status().cloned();
+        let mut output = self.dispatch(
+            RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
+                pulses: 0,
+                source: self.config.sync_source.clone(),
+                at_ppqn_pulse: self.last_status().map(|status| status.current_ppqn_pulse),
+                request_snapshot: Some(false),
+            }),
+            runner,
+            host,
+        )?;
+        if let Some(status_before_tick) = status_before_tick {
+            if let Some(index) = output.messages.iter().position(|message| {
+                matches!(
+                    message,
+                    RunnerMessage::RuntimeStatus { status }
+                        if status == &status_before_tick
+                )
+            }) {
+                output.messages.remove(index);
+            }
+        }
+        Ok(output)
     }
 
     pub fn has_scheduled_midi(&self) -> bool {

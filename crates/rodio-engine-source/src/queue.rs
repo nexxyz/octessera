@@ -1,11 +1,18 @@
-use crate::EngineEvent;
+use crate::event::EngineEvent;
+use crate::latest_controls::{LatestCandidate, LatestControls, LatestCursor};
+use crate::momentary_transport;
+use crate::queue_types::{is_latest_event, is_musical_event, QueueEventClass};
+pub use crate::queue_types::{QueueKind, QueueSendError};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
-use std::fmt::{Display, Formatter};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
-pub const ORDERED_QUEUE_CAPACITY: usize = 512;
-pub const COALESCED_QUEUE_CAPACITY: usize = 128;
+#[path = "queue_sender.rs"]
+mod sender;
+
+pub const MUSICAL_QUEUE_CAPACITY: usize = 512;
+pub const STRUCTURAL_QUEUE_CAPACITY: usize = 64;
+const PREVIEW_QUEUE_CAPACITY: usize = 1;
 const NO_EMERGENCY_SEQUENCE: u64 = u64::MAX;
 
 struct SequencedEvent {
@@ -14,122 +21,73 @@ struct SequencedEvent {
 }
 
 pub struct EngineEventSender {
-    ordered_tx: Sender<SequencedEvent>,
-    coalesced_tx: Sender<SequencedEvent>,
-    coalesced_drop_rx: Receiver<SequencedEvent>,
+    musical_tx: Sender<SequencedEvent>,
+    structural_tx: Sender<SequencedEvent>,
+    preview_tx: Sender<EngineEvent>,
+    preview_drop_rx: Receiver<EngineEvent>,
+    latest: Arc<LatestControls>,
     receiver_alive: Arc<AtomicBool>,
     next_sequence: Arc<AtomicU64>,
     emergency_sequence: Arc<AtomicU64>,
 }
 
 pub struct EngineEventReceiver {
-    ordered_rx: Receiver<SequencedEvent>,
-    coalesced_rx: Receiver<SequencedEvent>,
+    musical_rx: Receiver<SequencedEvent>,
+    structural_rx: Receiver<SequencedEvent>,
+    preview_rx: Receiver<EngineEvent>,
+    latest: Arc<LatestControls>,
+    latest_cursor: LatestCursor,
     receiver_alive: Arc<AtomicBool>,
-    next_ordered: Option<SequencedEvent>,
-    next_coalesced: Option<SequencedEvent>,
-    ordered_disconnected: bool,
-    coalesced_disconnected: bool,
+    next_musical: Option<SequencedEvent>,
+    next_structural: Option<SequencedEvent>,
+    musical_disconnected: bool,
+    structural_disconnected: bool,
+    preview_disconnected: bool,
     emergency_sequence: Arc<AtomicU64>,
     pending_emergency: Option<u64>,
+    panic_fence: Option<u64>,
+    #[cfg(test)]
+    panic_consume_hook: Option<fn(&AtomicU64)>,
 }
 
 pub fn event_queue() -> (EngineEventSender, EngineEventReceiver) {
-    let (ordered_tx, ordered_rx) = bounded(ORDERED_QUEUE_CAPACITY);
-    let (coalesced_tx, coalesced_rx) = bounded(COALESCED_QUEUE_CAPACITY);
+    let (musical_tx, musical_rx) = bounded(MUSICAL_QUEUE_CAPACITY);
+    let (structural_tx, structural_rx) = bounded(STRUCTURAL_QUEUE_CAPACITY);
+    let (preview_tx, preview_rx) = bounded(PREVIEW_QUEUE_CAPACITY);
     let receiver_alive = Arc::new(AtomicBool::new(true));
+    let latest = Arc::new(LatestControls::new());
     let next_sequence = Arc::new(AtomicU64::new(0));
     let emergency_sequence = Arc::new(AtomicU64::new(NO_EMERGENCY_SEQUENCE));
     (
         EngineEventSender {
-            ordered_tx,
-            coalesced_tx,
-            coalesced_drop_rx: coalesced_rx.clone(),
+            musical_tx,
+            structural_tx,
+            preview_drop_rx: preview_rx.clone(),
+            preview_tx,
+            latest: latest.clone(),
             receiver_alive: receiver_alive.clone(),
             next_sequence: next_sequence.clone(),
             emergency_sequence: emergency_sequence.clone(),
         },
         EngineEventReceiver {
-            ordered_rx,
-            coalesced_rx,
+            musical_rx,
+            structural_rx,
+            preview_rx,
+            latest,
+            latest_cursor: LatestCursor::new(),
             receiver_alive,
-            next_ordered: None,
-            next_coalesced: None,
-            ordered_disconnected: false,
-            coalesced_disconnected: false,
+            next_musical: None,
+            next_structural: None,
+            musical_disconnected: false,
+            structural_disconnected: false,
+            preview_disconnected: false,
             emergency_sequence,
             pending_emergency: None,
+            panic_fence: None,
+            #[cfg(test)]
+            panic_consume_hook: None,
         },
     )
-}
-
-impl Clone for EngineEventSender {
-    fn clone(&self) -> Self {
-        Self {
-            ordered_tx: self.ordered_tx.clone(),
-            coalesced_tx: self.coalesced_tx.clone(),
-            coalesced_drop_rx: self.coalesced_drop_rx.clone(),
-            receiver_alive: self.receiver_alive.clone(),
-            next_sequence: self.next_sequence.clone(),
-            emergency_sequence: self.emergency_sequence.clone(),
-        }
-    }
-}
-
-impl EngineEventSender {
-    pub fn send(&self, event: EngineEvent) -> Result<(), QueueSendError> {
-        let sequence = self.next_sequence.fetch_add(1, Ordering::Relaxed);
-        if matches!(event, EngineEvent::AllNotesOff) {
-            return self.send_emergency(sequence);
-        }
-        let event = SequencedEvent { sequence, event };
-        if is_ordered_event(&event.event) {
-            return self
-                .ordered_tx
-                .try_send(event)
-                .map_err(|error| match error {
-                    TrySendError::Full(_) => QueueSendError::full(QueueKind::Ordered),
-                    TrySendError::Disconnected(_) => {
-                        QueueSendError::disconnected(QueueKind::Ordered)
-                    }
-                });
-        }
-        if !self.receiver_alive.load(Ordering::Acquire) {
-            return Err(QueueSendError::disconnected(QueueKind::Coalesced));
-        }
-        let mut event = event;
-        loop {
-            match self.coalesced_tx.try_send(event) {
-                Ok(()) => return Ok(()),
-                Err(TrySendError::Full(next)) => {
-                    event = next;
-                    let _ = self.coalesced_drop_rx.try_recv();
-                }
-                Err(TrySendError::Disconnected(_)) => {
-                    return Err(QueueSendError::disconnected(QueueKind::Coalesced))
-                }
-            }
-        }
-    }
-
-    fn send_emergency(&self, sequence: u64) -> Result<(), QueueSendError> {
-        if !self.receiver_alive.load(Ordering::Acquire) {
-            return Err(QueueSendError::disconnected(QueueKind::Emergency));
-        }
-        let mut current = self.emergency_sequence.load(Ordering::Acquire);
-        while sequence < current {
-            match self.emergency_sequence.compare_exchange_weak(
-                current,
-                sequence,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            ) {
-                Ok(_) => break,
-                Err(next) => current = next,
-            }
-        }
-        Ok(())
-    }
 }
 
 impl Drop for EngineEventReceiver {
@@ -139,64 +97,186 @@ impl Drop for EngineEventReceiver {
 }
 
 impl EngineEventReceiver {
+    pub(crate) fn take_latest_candidate(&mut self) -> Option<LatestCandidate> {
+        self.latest.candidate(&mut self.latest_cursor)
+    }
+
+    pub(crate) fn mark_latest_applied(&mut self, candidate: LatestCandidate) {
+        self.latest.mark_applied(&mut self.latest_cursor, candidate);
+    }
+
+    pub(crate) fn latest_epoch_cancelled(&self, epoch: u64) -> bool {
+        self.latest.is_momentary_epoch_cancelled(epoch)
+    }
+
+    pub(crate) fn cancel_latest_epoch(&mut self, epoch: u64) {
+        self.latest.cancel_epoch(epoch);
+    }
+
     #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn has_pending(&mut self) -> bool {
         self.fill_heads();
         self.fill_pending_emergency();
         self.next_source().is_some()
+            || self.latest.has_pending(&self.latest_cursor)
+            || !self.preview_rx.is_empty()
     }
 
-    pub fn try_recv(&mut self) -> Result<EngineEvent, crossbeam_channel::TryRecvError> {
+    pub(crate) fn has_pending_structural(&mut self) -> bool {
+        self.fill_heads();
+        self.next_structural.is_some()
+    }
+
+    pub(crate) fn try_take_emergency(&mut self) -> Option<EngineEvent> {
         self.fill_heads();
         self.fill_pending_emergency();
+        if matches!(self.next_source(), Some((QueueSource::Emergency, _))) {
+            let event = self.take_next().map(|(_, event)| event);
+            #[cfg(test)]
+            if event.is_some() {
+                if let Some(hook) = self.panic_consume_hook {
+                    hook(self.emergency_sequence.as_ref());
+                }
+            }
+            return event;
+        }
+        None
+    }
 
-        let Some((source, sequence)) = self.next_source() else {
-            if self.ordered_is_disconnected() && self.coalesced_is_disconnected() {
+    #[cfg(test)]
+    pub(crate) fn set_panic_consume_hook(&mut self, hook: fn(&AtomicU64)) {
+        self.panic_consume_hook = Some(hook);
+    }
+
+    pub(crate) fn try_take_musical(&mut self) -> Option<EngineEvent> {
+        self.fill_heads();
+        self.fill_pending_emergency();
+        if self.pending_emergency.is_some() {
+            return None;
+        }
+        self.discard_fenced_musical();
+        self.next_musical.take().map(|event| event.event)
+    }
+
+    pub(crate) fn try_take_next_allowed(
+        &mut self,
+        allow_emergency: bool,
+        allow_structural_owner: bool,
+        allow_structural_barrier: bool,
+    ) -> Result<QueueDequeueResult, crossbeam_channel::TryRecvError> {
+        self.fill_heads();
+        self.fill_pending_emergency();
+        if self.next_source().is_none() {
+            if self.queues_disconnected() {
+                return Err(crossbeam_channel::TryRecvError::Disconnected);
+            }
+            return Err(crossbeam_channel::TryRecvError::Empty);
+        }
+        let Some(class) = self.next_class() else {
+            return Err(crossbeam_channel::TryRecvError::Empty);
+        };
+        let allowed = match class {
+            QueueEventClass::Emergency => allow_emergency,
+            QueueEventClass::StructuralRetiring | QueueEventClass::StructuralNonRetiring => {
+                allow_structural_owner
+            }
+            QueueEventClass::Musical => true,
+            QueueEventClass::StructuralBarrier => allow_structural_barrier,
+        };
+        if !allowed {
+            return Ok(QueueDequeueResult { class, event: None });
+        }
+        match self.take_next() {
+            Some((class, event)) => Ok(QueueDequeueResult {
+                class,
+                event: Some(event),
+            }),
+            None => Err(crossbeam_channel::TryRecvError::Empty),
+        }
+    }
+
+    pub(crate) fn try_recv_classified(
+        &mut self,
+    ) -> Result<(QueueEventClass, EngineEvent), crossbeam_channel::TryRecvError> {
+        self.fill_heads();
+        self.fill_pending_emergency();
+        let Some((_, _)) = self.next_source() else {
+            if self.queues_disconnected() {
                 return Err(crossbeam_channel::TryRecvError::Disconnected);
             }
             return Err(crossbeam_channel::TryRecvError::Empty);
         };
-        match source {
-            QueueSource::Emergency => {
-                self.pending_emergency = None;
-                Ok(EngineEvent::AllNotesOff)
-            }
-            QueueSource::Ordered => {
-                let event = self.next_ordered.take().expect("ordered queue head");
-                debug_assert_eq!(event.sequence, sequence);
-                Ok(event.event)
-            }
-            QueueSource::Coalesced => {
-                let event = self.next_coalesced.take().expect("coalesced queue head");
-                debug_assert_eq!(event.sequence, sequence);
-                Ok(event.event)
-            }
+        match self.take_next() {
+            Some(next) => Ok(next),
+            None => Err(crossbeam_channel::TryRecvError::Empty),
         }
+    }
+
+    pub fn try_recv(&mut self) -> Result<EngineEvent, crossbeam_channel::TryRecvError> {
+        self.try_recv_classified().map(|(_, event)| event)
     }
 
     pub fn try_recv_ordered(&mut self) -> Result<EngineEvent, crossbeam_channel::TryRecvError> {
         self.try_recv()
     }
 
-    pub fn try_recv_coalesced(&mut self) -> Result<EngineEvent, crossbeam_channel::TryRecvError> {
-        self.try_recv()
+    pub fn try_recv_musical(&mut self) -> Result<EngineEvent, crossbeam_channel::TryRecvError> {
+        self.fill_heads();
+        self.fill_pending_emergency();
+        if self.pending_emergency.is_some() {
+            return self.try_recv();
+        }
+        self.discard_fenced_musical();
+        let Some(event) = self.next_musical.take() else {
+            return if self.musical_disconnected {
+                Err(crossbeam_channel::TryRecvError::Disconnected)
+            } else {
+                Err(crossbeam_channel::TryRecvError::Empty)
+            };
+        };
+        Ok(event.event)
+    }
+
+    pub fn try_recv_structural(&mut self) -> Result<EngineEvent, crossbeam_channel::TryRecvError> {
+        self.fill_heads();
+        let Some(event) = self.next_structural.take() else {
+            return if self.structural_disconnected {
+                Err(crossbeam_channel::TryRecvError::Disconnected)
+            } else {
+                Err(crossbeam_channel::TryRecvError::Empty)
+            };
+        };
+        Ok(event.event)
+    }
+
+    pub(crate) fn try_take_preview(&mut self) -> Option<EngineEvent> {
+        match self.preview_rx.try_recv() {
+            Ok(event) => Some(event),
+            Err(crossbeam_channel::TryRecvError::Disconnected) => {
+                self.preview_disconnected = true;
+                None
+            }
+            Err(crossbeam_channel::TryRecvError::Empty) => None,
+        }
     }
 
     fn fill_heads(&mut self) {
-        if self.next_ordered.is_none() && !self.ordered_disconnected {
-            match self.ordered_rx.try_recv() {
-                Ok(event) => self.next_ordered = Some(event),
+        self.discard_fenced_musical();
+        if self.next_musical.is_none() && !self.musical_disconnected {
+            match self.musical_rx.try_recv() {
+                Ok(event) => self.next_musical = Some(event),
                 Err(crossbeam_channel::TryRecvError::Disconnected) => {
-                    self.ordered_disconnected = true
+                    self.musical_disconnected = true
                 }
                 Err(crossbeam_channel::TryRecvError::Empty) => {}
             }
         }
-        if self.next_coalesced.is_none() && !self.coalesced_disconnected {
-            match self.coalesced_rx.try_recv() {
-                Ok(event) => self.next_coalesced = Some(event),
+        self.discard_fenced_musical();
+        if self.next_structural.is_none() && !self.structural_disconnected {
+            match self.structural_rx.try_recv() {
+                Ok(event) => self.next_structural = Some(event),
                 Err(crossbeam_channel::TryRecvError::Disconnected) => {
-                    self.coalesced_disconnected = true
+                    self.structural_disconnected = true
                 }
                 Err(crossbeam_channel::TryRecvError::Empty) => {}
             }
@@ -214,113 +294,106 @@ impl EngineEventReceiver {
         }
     }
 
+    fn discard_fenced_musical(&mut self) {
+        let Some(fence) = self.panic_fence else {
+            return;
+        };
+        while self
+            .next_musical
+            .as_ref()
+            .is_some_and(|event| event.sequence <= fence)
+        {
+            self.next_musical = None;
+            if self.musical_disconnected {
+                break;
+            }
+            match self.musical_rx.try_recv() {
+                Ok(event) => self.next_musical = Some(event),
+                Err(crossbeam_channel::TryRecvError::Disconnected) => {
+                    self.musical_disconnected = true;
+                    break;
+                }
+                Err(crossbeam_channel::TryRecvError::Empty) => break,
+            }
+        }
+    }
+
     fn next_source(&self) -> Option<(QueueSource, u64)> {
-        let emergency = self
-            .pending_emergency
-            .map(|sequence| (QueueSource::Emergency, sequence));
-        let ordered = self
-            .next_ordered
+        if let Some(sequence) = self.pending_emergency {
+            return Some((QueueSource::Emergency, sequence));
+        }
+        let musical = self
+            .next_musical
             .as_ref()
-            .map(|event| (QueueSource::Ordered, event.sequence));
-        let coalesced = self
-            .next_coalesced
+            .map(|event| (QueueSource::Musical, event.sequence));
+        let structural = self
+            .next_structural
             .as_ref()
-            .map(|event| (QueueSource::Coalesced, event.sequence));
-        [emergency, ordered, coalesced]
+            .map(|event| (QueueSource::Structural, event.sequence));
+        [musical, structural]
             .into_iter()
             .flatten()
             .min_by_key(|(_, sequence)| *sequence)
     }
 
-    fn ordered_is_disconnected(&self) -> bool {
-        self.next_ordered.is_none() && self.ordered_disconnected
+    fn take_next(&mut self) -> Option<(QueueEventClass, EngineEvent)> {
+        let (source, sequence) = self.next_source()?;
+        match source {
+            QueueSource::Emergency => {
+                self.pending_emergency = None;
+                self.panic_fence = Some(
+                    self.panic_fence
+                        .map_or(sequence, |fence| fence.max(sequence)),
+                );
+                Some((QueueEventClass::Emergency, EngineEvent::AllNotesOff))
+            }
+            QueueSource::Musical => {
+                let event = self.next_musical.take()?;
+                debug_assert_eq!(event.sequence, sequence);
+                let class = QueueEventClass::from_event(&event.event);
+                Some((class, event.event))
+            }
+            QueueSource::Structural => {
+                let event = self.next_structural.take()?;
+                debug_assert_eq!(event.sequence, sequence);
+                let class = QueueEventClass::from_event(&event.event);
+                Some((class, event.event))
+            }
+        }
     }
 
-    fn coalesced_is_disconnected(&self) -> bool {
-        self.next_coalesced.is_none() && self.coalesced_disconnected
+    fn next_class(&self) -> Option<QueueEventClass> {
+        match self.next_source()?.0 {
+            QueueSource::Emergency => Some(QueueEventClass::Emergency),
+            QueueSource::Musical => self
+                .next_musical
+                .as_ref()
+                .map(|event| QueueEventClass::from_event(&event.event)),
+            QueueSource::Structural => self
+                .next_structural
+                .as_ref()
+                .map(|event| QueueEventClass::from_event(&event.event)),
+        }
+    }
+
+    fn queues_disconnected(&self) -> bool {
+        self.next_musical.is_none()
+            && self.next_structural.is_none()
+            && self.musical_disconnected
+            && self.structural_disconnected
     }
 }
 
 #[derive(Clone, Copy)]
 enum QueueSource {
     Emergency,
-    Ordered,
-    Coalesced,
+    Musical,
+    Structural,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum QueueSendError {
-    Full { queue: QueueKind },
-    Disconnected { queue: QueueKind },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QueueKind {
-    Ordered,
-    Coalesced,
-    Emergency,
-}
-
-impl QueueSendError {
-    fn full(queue: QueueKind) -> Self {
-        Self::Full { queue }
-    }
-
-    fn disconnected(queue: QueueKind) -> Self {
-        Self::Disconnected { queue }
-    }
-
-    pub fn is_full(&self) -> bool {
-        matches!(self, Self::Full { .. })
-    }
-
-    pub fn is_ordered_full(&self) -> bool {
-        matches!(
-            self,
-            Self::Full {
-                queue: QueueKind::Ordered
-            }
-        )
-    }
-}
-
-impl Display for QueueSendError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Full {
-                queue: QueueKind::Ordered,
-            } => f.write_str("ordered audio event queue is full"),
-            Self::Full {
-                queue: QueueKind::Coalesced,
-            } => f.write_str("coalesced audio event queue is full"),
-            Self::Full {
-                queue: QueueKind::Emergency,
-            } => f.write_str("emergency audio event queue is full"),
-            Self::Disconnected { queue } => write!(f, "{queue:?} audio event queue disconnected"),
-        }
-    }
-}
-
-impl std::error::Error for QueueSendError {}
-
-pub(crate) fn is_ordered_event(event: &EngineEvent) -> bool {
-    matches!(
-        event,
-        EngineEvent::SetPreparedInstruments(_)
-            | EngineEvent::SetPreparedAudioConfig(_)
-            | EngineEvent::SetPreparedSampleBank { .. }
-            | EngineEvent::SetPreparedInstrumentSlot { .. }
-            | EngineEvent::SetPreparedFxBusSlot { .. }
-            | EngineEvent::SetPreparedGlobalFxSlot { .. }
-            | EngineEvent::NoteOn { .. }
-            | EngineEvent::NoteOff { .. }
-            | EngineEvent::Cc { .. }
-            | EngineEvent::PreviewSample { .. }
-            | EngineEvent::PreparedMomentaryFxStart { .. }
-            | EngineEvent::MomentaryFxUpdate { .. }
-            | EngineEvent::MomentaryFxStop { .. }
-            | EngineEvent::ProbeMark { .. }
-    )
+pub(crate) struct QueueDequeueResult {
+    pub(crate) class: QueueEventClass,
+    pub(crate) event: Option<EngineEvent>,
 }
 
 #[cfg(test)]

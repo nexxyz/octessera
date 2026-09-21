@@ -2,8 +2,9 @@ use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, FxBusConfig, FxBusSlotConfig,
     InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig,
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, SourceWorkerHealth, SynthEngine,
-    VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY,
+    SampleBankConfig, SampleBankParamId, SampleBuffer, SampleSlotConfig, SourceWorkerHealth,
+    SynthEngine, SynthParamId, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    SYNTH_VOICE_LANE_CAPACITY,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -131,12 +132,16 @@ fn persistent_source() -> (
 fn persistent_profile_cache_tracks_controls_without_pool_reads() {
     let samples: Arc<[f32]> = Arc::from(vec![0.8; 4_096]);
     let (tx, mut source, shutdown) = persistent_source();
-    tx.send(EngineEvent::SetPreparedAudioConfig(mixed_config(
-        Arc::clone(&samples),
-    )))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: mixed_config(Arc::clone(&samples)),
+    })
     .unwrap();
-    tx.send(EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None))
-        .unwrap();
+    tx.send(EngineEvent::SetVoiceStealingMode {
+        generation: 0,
+        mode: VoiceStealingMode::None,
+    })
+    .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 1,
         note: 36,
@@ -163,13 +168,15 @@ fn persistent_profile_cache_tracks_controls_without_pool_reads() {
 
     tx.send(EngineEvent::SetSynthParam {
         instrument_slot: 0,
-        path: "synth.amp.gainPct".into(),
+        generation: 0,
+        param: SynthParamId::AmpGainPct,
         value: 72.0,
     })
     .unwrap();
     tx.send(EngineEvent::SetSampleBankParam {
         instrument_slot: 1,
-        path: "sample.amp.gainPct".into(),
+        generation: 0,
+        param: SampleBankParamId::AmpGainPct,
         value: 65.0,
     })
     .unwrap();
@@ -178,6 +185,7 @@ fn persistent_profile_cache_tracks_controls_without_pool_reads() {
 
     tx.send(EngineEvent::SetPreparedSampleBank {
         instrument_slot: 1,
+        generation: 0,
         bank: sample_bank(Arc::clone(&samples)),
     })
     .unwrap();
@@ -209,8 +217,11 @@ fn persistent_profile_cache_tracks_controls_without_pool_reads() {
 fn persistent_profile_cache_reports_bus_fx_after_completed_block() {
     let config = bus_heavy_config();
     let (tx, mut source, shutdown) = persistent_source();
-    tx.send(EngineEvent::SetPreparedAudioConfig(config.clone()))
-        .unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: config.clone(),
+    })
+    .unwrap();
     for slot in 0..INSTRUMENT_SLOT_COUNT {
         for note in [60, 67] {
             tx.send(EngineEvent::NoteOn {
@@ -251,9 +262,10 @@ fn persistent_profile_cache_reports_bus_fx_after_completed_block() {
 fn persistent_profile_cache_reports_short_sample_completion_after_refill() {
     let samples: Arc<[f32]> = Arc::from(vec![0.8, -0.4, 0.2, -0.1]);
     let (tx, mut source, shutdown) = persistent_source();
-    tx.send(EngineEvent::SetPreparedAudioConfig(mixed_config(
-        Arc::clone(&samples),
-    )))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: mixed_config(Arc::clone(&samples)),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 1,
@@ -275,9 +287,10 @@ fn persistent_profile_cache_reports_synth_release_completion_after_refill() {
     synth.amp_env.release_ms = 0.0;
     synth.filter_env.release_ms = 0.0;
     let (tx, mut source, shutdown) = persistent_source();
-    tx.send(EngineEvent::SetPreparedAudioConfig(prepare_config(
-        synth, None,
-    )))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_config(synth, None),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
@@ -299,6 +312,7 @@ fn persistent_profile_cache_reports_preview_completion_and_drains_pending_retire
     let (tx, mut source, shutdown) = persistent_source();
     tx.send(EngineEvent::PreviewSample {
         instrument_slot: 1,
+        generation: 0,
         buffer: SampleBuffer {
             samples: Arc::clone(&samples),
             channels: 1,

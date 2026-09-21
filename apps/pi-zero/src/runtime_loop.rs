@@ -161,6 +161,7 @@ mod tests {
             match message {
                 HostMessage::DeviceInput { .. } => Ok(vec![RunnerMessage::AudioCommands {
                     commands: vec![playback_runtime::RuntimeAudioCommand::SetMasterVolume {
+                        generation: 0,
                         volume_pct: 75.0,
                     }],
                 }]),

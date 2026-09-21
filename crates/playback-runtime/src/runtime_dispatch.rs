@@ -1,7 +1,7 @@
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorMetadata,
-    RuntimeOperation, RuntimeRecovery, RuntimeStoreResult,
+    RuntimeOperation, RuntimePlatformEffect, RuntimeRecovery, RuntimeStoreResult,
 };
 
 impl PlaybackRuntime {
@@ -168,6 +168,21 @@ impl PlaybackRuntime {
                                 }
                             }
                             Err(error) => {
+                                let recording_finalization_failed = error.facts.operation
+                                    == RuntimeOperation::Recording
+                                    && !matches!(
+                                        &request.effect,
+                                        RuntimePlatformEffect::RecordingStartAudio { .. }
+                                            | RuntimePlatformEffect::RecordingStartAudioOled { .. }
+                                    );
+                                let recording_failure = recording_finalization_failed
+                                    .then(|| error.facts.clone())
+                                    .map(|facts| {
+                                        facts.with_identity(
+                                            Some(request.request_id.clone()),
+                                            request.revision,
+                                        )
+                                    });
                                 let message = error.to_string();
                                 let error = self.adapter_error_metadata(
                                     error,
@@ -180,10 +195,17 @@ impl PlaybackRuntime {
                                 let recovery = error.recovery.clone();
                                 self.latch_error(error);
                                 self.apply_recovery(recovery, &mut runner, host, &mut output);
-                                if request.operation() == RuntimeOperation::StoreSaveDefault {
+                                if matches!(
+                                    request.operation(),
+                                    RuntimeOperation::StoreSaveDefault
+                                        | RuntimeOperation::Recording
+                                ) || recording_finalization_failed
+                                {
+                                    let failure_facts = recording_failure
+                                        .unwrap_or_else(|| request.effect.failure_facts(message));
                                     output.follow_ups.push(HostMessage::RuntimeResult {
                                         result: RuntimeStoreResult::RuntimeFailure {
-                                            error: request.effect.failure_facts(message),
+                                            error: failure_facts,
                                         }
                                         .with_identity(
                                             request.request_id.clone(),

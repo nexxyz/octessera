@@ -80,6 +80,61 @@ pub(crate) fn sparks_spec_rows_show_only_selected_sparks_page_controls() {
 }
 
 #[test]
+pub(crate) fn xy_menu_orders_and_formats_smoothing() {
+    let mut config = config();
+    config.sparks_mode = "xy".into();
+    let mut menu = NativeMenuModel::new(config);
+    let xy = &menu.root.children[3].children[5];
+    let labels = xy
+        .children
+        .iter()
+        .map(|item| item.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        vec![
+            "X Axis: (none)",
+            "Y Axis: (none)",
+            "Smoothing",
+            "Invert X",
+            "Invert Y",
+            "Release",
+        ]
+    );
+    let smoothing = menu.item_for_key("sparks.xy.smoothingMs").unwrap();
+    assert!(matches!(
+        smoothing.value,
+        NativeMenuValue::Number {
+            value: 80,
+            min: 0,
+            max: 500,
+            step: 10
+        }
+    ));
+    assert!(menu.focus_item_key("sparks.xy.smoothingMs"));
+    menu.set_number_value_for_key("sparks.xy.smoothingMs", 0);
+    assert_eq!(
+        menu.snapshot()
+            .full_lines
+            .iter()
+            .flatten()
+            .find(|line| line.contains("Smoothing"))
+            .map(String::as_str),
+        Some("> Smoothing Off")
+    );
+    menu.set_number_value_for_key("sparks.xy.smoothingMs", 120);
+    assert_eq!(
+        menu.snapshot()
+            .full_lines
+            .iter()
+            .flatten()
+            .find(|line| line.contains("Smoothing"))
+            .map(String::as_str),
+        Some("> Smoothing 120 ms")
+    );
+}
+
+#[test]
 pub(crate) fn sparks_fx_page_is_flat_and_shows_selected_type_params() {
     let mut config = config();
     config.sparks_mode = "fx".into();

@@ -33,6 +33,7 @@ fn fx_binding(key: &str, min: f64, max: f64, step: f64) -> NativeParamBinding {
 #[test]
 pub(crate) fn patch_transaction_discards_held_xy_source_and_captured_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_smoothing_ms = 0;
     runner.instruments[0].volume = 50;
     runner.xy_x_binding = Some(volume_binding());
     runner.active_sparks_mode = "xy".into();
@@ -57,6 +58,7 @@ pub(crate) fn patch_transaction_discards_held_xy_source_and_captured_base() {
 #[test]
 pub(crate) fn config_transaction_resamples_active_xy_against_candidate_inversion() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_smoothing_ms = 0;
     runner.instruments[0].volume = 50;
     runner.xy_touch = NativeXyTouch {
         x: 0.25,
@@ -85,6 +87,7 @@ pub(crate) fn config_transaction_resamples_active_xy_against_candidate_inversion
 #[test]
 pub(crate) fn config_load_captures_changed_xy_owner_then_clear_restores_loaded_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_smoothing_ms = 0;
     runner.instruments[1].volume = 20;
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
@@ -245,7 +248,7 @@ fn assert_type_modulation_emits_midi_slot_update(previous_kind: &str) {
         command,
         RuntimeAudioCommand::SetInstrumentSlot {
             instrument_slot: 0,
-            config
+            config, ..
         } if config["type"] == "midi"
     )));
     assert!(!commands.iter().any(|command| matches!(

@@ -1,11 +1,57 @@
 use super::super::dsp_config::{BusIdleThreshold, DspRuntimeConfig};
 use super::super::fx::{fx_bus_state_from_params, process_fx_bus_slot, FxBusState};
-use super::super::fx_params::{DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams};
+use super::super::fx_params::{DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams, FxKind};
 use super::super::types::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MixerConfig, BUS_SLOTS_PER_BUS, DEFAULT_PAN_POSITIONS,
 };
+use super::bus_chain_owner::fx_kind_cost;
 use super::*;
+
+#[test]
+fn cost_table_is_exhaustive_and_worker_capacity_is_symbolic() {
+    let kinds = [
+        (FxKind::None, 0),
+        (FxKind::Duck, 1),
+        (FxKind::Distortion, 1),
+        (FxKind::Bitcrusher, 1),
+        (FxKind::Tremolo, 2),
+        (FxKind::Delay, 2),
+        (FxKind::Glitch, 2),
+        (FxKind::AutoPan, 2),
+        (FxKind::Saturator, 2),
+        (FxKind::Vibrato, 3),
+        (FxKind::Chorus, 3),
+        (FxKind::Flanger, 3),
+        (FxKind::Reverb, 3),
+        (FxKind::Eq, 3),
+        (FxKind::FilterLfo, BUS_CHAIN_SLOT_COST_UNITS),
+        (FxKind::Wah, BUS_CHAIN_SLOT_COST_UNITS),
+        (FxKind::Compressor, BUS_CHAIN_SLOT_COST_UNITS),
+        (FxKind::Vinyl, BUS_CHAIN_SLOT_COST_UNITS),
+    ];
+    for (kind, cost) in kinds {
+        assert_eq!(fx_kind_cost(kind), cost);
+    }
+}
+
+#[test]
+fn exact_threshold_requires_exact_zero() {
+    let mut owner = BusChainOwner::new(
+        0,
+        [FxBusParams::Tremolo {
+            rate_hz: 1.0,
+            depth: 0.0,
+        }; BUS_SLOTS_PER_BUS],
+        std::array::from_fn(|_| FxBusState::None),
+        [1; BUS_SLOTS_PER_BUS],
+    );
+    owner.assigned_worker = Some(1);
+    owner.observe(0.0, 0.0, BusIdleThreshold::Exact, 4_000);
+    assert_eq!(owner.quiet_frames, 1);
+    owner.observe(f32::EPSILON, 0.0, BusIdleThreshold::Exact, 4_000);
+    assert_eq!(owner.quiet_frames, 0);
+}
 
 #[test]
 fn every_persistent_fx_owner_path_is_bit_exact_to_the_slot_kernel() {

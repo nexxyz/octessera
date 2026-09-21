@@ -98,39 +98,45 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            let (runtime_snapshot_requested, runtime_advanced) =
-                if let Some(advance) = scheduler.next_runtime_advance(Instant::now(), &playback) {
-                    let revision_before = playback.last_snapshot_revision();
-                    if advance.request_snapshot {
-                        playback.request_next_snapshot();
-                    }
-                    let output = playback.advance_duration_with_output(
-                        advance.elapsed,
-                        &mut runner,
-                        &mut host,
-                    )?;
-                    process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                    let revision_after = playback.last_snapshot_revision();
-                    let completed_at = Instant::now();
-                    if advance.request_snapshot {
-                        scheduler.record_snapshot_attempt(
-                            completed_at,
-                            DisplaySnapshotDue::default(),
-                            revision_before,
-                            revision_after,
-                        );
-                    } else {
-                        scheduler.observe_snapshot_revision(
-                            completed_at,
-                            revision_before,
-                            revision_after,
-                        );
-                    }
-                    (advance.request_snapshot, true)
+            let (runtime_snapshot_requested, runtime_advanced) = if let Some(advance) = scheduler
+                .next_runtime_advance(Instant::now(), &playback, runner.next_xy_glide_deadline())
+            {
+                let revision_before = playback.last_snapshot_revision();
+                if advance.request_snapshot {
+                    playback.request_next_snapshot();
+                }
+                let output = playback.advance_duration_with_output(
+                    advance.elapsed,
+                    &mut runner,
+                    &mut host,
+                )?;
+                process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
+                let revision_after = playback.last_snapshot_revision();
+                let completed_at = Instant::now();
+                if advance.request_snapshot {
+                    scheduler.record_snapshot_attempt(
+                        completed_at,
+                        DisplaySnapshotDue::default(),
+                        revision_before,
+                        revision_after,
+                    );
                 } else {
-                    scheduler.observe_snapshot(Instant::now(), &playback);
-                    (false, false)
-                };
+                    scheduler.observe_snapshot_revision(
+                        completed_at,
+                        revision_before,
+                        revision_after,
+                    );
+                }
+                (advance.request_snapshot, true)
+            } else {
+                scheduler.observe_snapshot(Instant::now(), &playback);
+                (false, false)
+            };
+            if runner.next_xy_glide_deadline().is_some() {
+                let output = playback.dispatch_runtime_tick(&mut runner, &mut host)?;
+                process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
+                drain_host_work(&mut playback, &mut runner, &mut host)?;
+            }
             if host.shutdown_pending() {
                 break;
             }
@@ -140,7 +146,11 @@ pub(crate) fn run_prepared_runtime(
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
             drain_host_work(&mut playback, &mut runner, &mut host)?;
             if runtime_advanced {
-                scheduler.record_runtime_advance_complete(Instant::now(), &playback);
+                scheduler.record_runtime_advance_complete(
+                    Instant::now(),
+                    &playback,
+                    runner.next_xy_glide_deadline(),
+                );
             }
             if host.shutdown_pending() {
                 break;

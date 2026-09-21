@@ -1,18 +1,17 @@
 use crate::audio::AudioService;
-use crate::audio_config_parse::parse_instrument_slot_config;
-use playback_runtime::{
-    RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain,
-    RuntimeErrorFacts, RuntimeMomentaryFxTarget, RuntimeOperation,
+#[path = "host_audio_command_validation.rs"]
+mod host_audio_command_validation;
+use host_audio_command_validation::{
+    audio_queue_failure, index_u8, invalid_audio_command, momentary_fx_target,
+    validate_audio_command,
 };
+use playback_runtime::{RuntimeAdapterError, RuntimeAudioCommand};
 use realtime_engine::synth::{
-    normalize_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
-    prepare_instrument_slot_config, prepare_momentary_fx_start, validate_fx_type,
-    validate_momentary_fx_type, validate_sample_bank_param_path, validate_synth_param_path,
-    MomentaryFxTarget, DEFAULT_AUDIO_SAMPLE_RATE,
+    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_momentary_fx_type,
+    SampleBankParamId, SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::Path;
-use std::sync::atomic::Ordering;
 
 pub fn send_audio_command(
     audio: Option<AudioService>,
@@ -26,35 +25,45 @@ pub fn send_audio_command(
     match command {
         RuntimeAudioCommand::SetAudioConfig {
             revision,
+            generation,
             request_id,
             config,
         } => {
-            audio.config_revision.fetch_max(*revision, Ordering::SeqCst);
             audio.enqueue_full_config(
                 *revision,
+                *generation,
                 request_id.clone(),
                 config.clone(),
                 samples_dir.to_path_buf(),
             )?;
             Ok(())
         }
-        RuntimeAudioCommand::SetMasterVolume { volume_pct } => {
+        RuntimeAudioCommand::SetMasterVolume {
+            generation,
+            volume_pct,
+        } => {
             audio.send(EngineEvent::SetMasterVolume {
+                generation: *generation,
                 volume_pct: *volume_pct,
             })?;
             Ok(())
         }
-        RuntimeAudioCommand::SetDspConfig { config } => {
-            audio.send(EngineEvent::SetDspConfig(*config))?;
+        RuntimeAudioCommand::SetDspConfig { generation, config } => {
+            audio.send(EngineEvent::SetDspConfig {
+                generation: *generation,
+                config: *config,
+            })?;
             Ok(())
         }
         RuntimeAudioCommand::SetInstrumentMixer {
             instrument_slot,
+            generation,
             volume_pct,
             pan_pos,
         } => {
             audio.send(EngineEvent::SetInstrumentMixer {
-                instrument_slot: *instrument_slot,
+                instrument_slot: index_u8(*instrument_slot, "instrument slot")?,
+                generation: *generation,
                 volume_pct: *volume_pct,
                 pan_pos: *pan_pos,
             })?;
@@ -62,22 +71,28 @@ pub fn send_audio_command(
         }
         RuntimeAudioCommand::SetInstrumentSlot {
             instrument_slot,
+            generation,
             config,
         } => {
-            let config = parse_instrument_slot_config(config).map_err(invalid_audio_command)?;
-            audio.send(EngineEvent::SetPreparedInstrumentSlot {
-                instrument_slot: *instrument_slot,
-                config: prepare_instrument_slot_config(config),
-            })?;
+            audio
+                .enqueue_instrument_slot(
+                    *instrument_slot,
+                    *generation,
+                    config.clone(),
+                    samples_dir.to_path_buf(),
+                )
+                .map_err(audio_queue_failure)?;
             Ok(())
         }
         RuntimeAudioCommand::SetFxBusMixer {
             bus_index,
+            generation,
             pan_pos,
             volume_pct,
         } => {
             audio.send(EngineEvent::SetFxBusMixer {
-                bus_index: *bus_index,
+                bus_index: index_u8(*bus_index, "FX bus index")?,
+                generation: *generation,
                 pan_pos: *pan_pos,
                 volume_pct: *volume_pct,
             })?;
@@ -85,26 +100,50 @@ pub fn send_audio_command(
         }
         RuntimeAudioCommand::SetSynthParam {
             instrument_slot,
+            generation,
             path,
             value,
         } => {
-            validate_synth_param_path(path).map_err(invalid_audio_command)?;
+            let param = SynthParamId::from_path(path).ok_or_else(|| {
+                invalid_audio_command(format!("unsupported synth parameter path `{path}`"))
+            })?;
             audio.send(EngineEvent::SetSynthParam {
-                instrument_slot: *instrument_slot,
-                path: path.clone(),
+                instrument_slot: index_u8(*instrument_slot, "instrument slot")?,
+                generation: *generation,
+                param,
                 value: *value,
             })?;
             Ok(())
         }
         RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot,
+            generation,
             path,
             value,
         } => {
-            validate_sample_bank_param_path(path).map_err(invalid_audio_command)?;
+            let param = SampleBankParamId::from_path(path).ok_or_else(|| {
+                invalid_audio_command(format!("unsupported sample parameter path `{path}`"))
+            })?;
             audio.send(EngineEvent::SetSampleBankParam {
-                instrument_slot: *instrument_slot,
-                path: path.clone(),
+                instrument_slot: index_u8(*instrument_slot, "instrument slot")?,
+                generation: *generation,
+                param,
+                value: *value,
+            })?;
+            Ok(())
+        }
+        RuntimeAudioCommand::SetFxBusParam {
+            bus_index,
+            slot_index,
+            generation,
+            param,
+            value,
+        } => {
+            audio.send(EngineEvent::SetFxBusParam {
+                bus_index: index_u8(*bus_index, "FX bus index")?,
+                slot_index: index_u8(*slot_index, "FX slot index")?,
+                generation: *generation,
+                param: *param,
                 value: *value,
             })?;
             Ok(())
@@ -112,60 +151,103 @@ pub fn send_audio_command(
         RuntimeAudioCommand::SetFxBusSlot {
             bus_index,
             slot_index,
+            generation,
             fx_type,
             params,
         } => {
-            validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-            audio.send(EngineEvent::SetPreparedFxBusSlot {
-                bus_index: *bus_index,
-                slot_index: *slot_index,
-                config: prepare_fx_bus_slot(
+            audio
+                .enqueue_fx_bus_slot(
+                    *bus_index,
+                    *slot_index,
+                    *generation,
                     fx_type.clone(),
                     params.clone(),
-                    DEFAULT_AUDIO_SAMPLE_RATE,
-                ),
-            })?;
+                )
+                .map_err(audio_queue_failure)?;
             Ok(())
         }
         RuntimeAudioCommand::SetGlobalFxSlot {
             slot_index,
+            generation,
             fx_type,
             params,
         } => {
-            validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-            audio.send(EngineEvent::SetPreparedGlobalFxSlot {
-                slot_index: *slot_index,
-                config: prepare_global_fx_slot(fx_type.clone(), params.clone()),
+            audio
+                .enqueue_global_fx_slot(*slot_index, *generation, fx_type.clone(), params.clone())
+                .map_err(audio_queue_failure)?;
+            Ok(())
+        }
+        RuntimeAudioCommand::SetGlobalFxParam {
+            slot_index,
+            generation,
+            param,
+            value,
+        } => {
+            audio.send(EngineEvent::SetGlobalFxParam {
+                slot_index: index_u8(*slot_index, "global FX slot index")?,
+                generation: *generation,
+                param: *param,
+                value: *value,
             })?;
             Ok(())
         }
         RuntimeAudioCommand::MomentaryFxStart {
             id,
+            epoch,
             fx_type,
             params,
             target,
         } => {
             validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
-            let prepared = prepare_momentary_fx_start(
+            let prepared = prepare_momentary_fx_start_with_epoch(
                 id.clone(),
+                *epoch,
                 fx_type.clone(),
                 params.clone(),
                 momentary_fx_target(target),
                 DEFAULT_AUDIO_SAMPLE_RATE,
             )
             .ok_or_else(|| invalid_audio_command("invalid momentary FX type".into()))?;
-            audio.send(EngineEvent::PreparedMomentaryFxStart(prepared))?;
+            audio.send(EngineEvent::PreparedMomentaryFxStart { config: prepared })?;
+            audio
+                .remember_momentary_fx_type(id, *epoch, fx_type)
+                .map_err(audio_queue_failure)?;
             Ok(())
         }
-        RuntimeAudioCommand::MomentaryFxUpdate { id, params } => {
-            audio.send(EngineEvent::MomentaryFxUpdate {
-                id: id.clone(),
-                params: params.clone(),
-            })?;
+        RuntimeAudioCommand::MomentaryFxUpdate { id, epoch, params } => {
+            let (active_epoch, fx_type) = audio
+                .momentary_fx_type(id)
+                .map_err(audio_queue_failure)?
+                .ok_or_else(|| invalid_audio_command(format!("unknown momentary FX id `{id}`")))?;
+            if active_epoch != *epoch {
+                return Err(invalid_audio_command(format!(
+                    "stale momentary FX epoch for `{id}`"
+                )));
+            }
+            let update = prepare_momentary_fx_update(
+                *epoch,
+                fx_type.clone(),
+                params.clone(),
+                DEFAULT_AUDIO_SAMPLE_RATE,
+            )
+            .ok_or_else(|| invalid_audio_command("invalid momentary FX update".into()))?;
+            audio.send(EngineEvent::MomentaryFxUpdate(update))?;
             Ok(())
         }
-        RuntimeAudioCommand::MomentaryFxStop { id } => {
-            audio.send(EngineEvent::MomentaryFxStop { id: id.clone() })?;
+        RuntimeAudioCommand::MomentaryFxStop { id, epoch } => {
+            let (active_epoch, _) = audio
+                .momentary_fx_type(id)
+                .map_err(audio_queue_failure)?
+                .ok_or_else(|| invalid_audio_command(format!("unknown momentary FX id `{id}`")))?;
+            if active_epoch != *epoch {
+                return Err(invalid_audio_command(format!(
+                    "stale momentary FX epoch for `{id}`"
+                )));
+            }
+            audio.send(EngineEvent::MomentaryFxStop { epoch: *epoch })?;
+            audio
+                .remove_momentary_fx_type(id, *epoch)
+                .map_err(audio_queue_failure)?;
             Ok(())
         }
         RuntimeAudioCommand::SamplePreview {
@@ -185,203 +267,6 @@ pub fn send_audio_command(
     }
 }
 
-fn validate_audio_command(
-    command: &RuntimeAudioCommand,
-    _samples_dir: &Path,
-) -> Result<(), RuntimeAdapterError> {
-    match command {
-        RuntimeAudioCommand::SetAudioConfig { config, .. } => {
-            normalize_audio_config(config).map_err(invalid_audio_command)?;
-        }
-        RuntimeAudioCommand::SetInstrumentSlot { config, .. } => {
-            parse_instrument_slot_config(config).map_err(invalid_audio_command)?;
-        }
-        RuntimeAudioCommand::SetSynthParam { path, .. } => {
-            validate_synth_param_path(path).map_err(invalid_audio_command)?;
-        }
-        RuntimeAudioCommand::SetSampleBankParam { path, .. } => {
-            validate_sample_bank_param_path(path).map_err(invalid_audio_command)?;
-        }
-        RuntimeAudioCommand::SetFxBusSlot { fx_type, .. }
-        | RuntimeAudioCommand::SetGlobalFxSlot { fx_type, .. } => {
-            validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-        }
-        RuntimeAudioCommand::MomentaryFxStart { fx_type, .. } => {
-            validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn momentary_fx_target(target: &RuntimeMomentaryFxTarget) -> MomentaryFxTarget {
-    match target {
-        RuntimeMomentaryFxTarget::Global => MomentaryFxTarget::Global,
-        RuntimeMomentaryFxTarget::FxBus { index } => MomentaryFxTarget::FxBus { index: *index },
-        RuntimeMomentaryFxTarget::Instrument { index } => {
-            MomentaryFxTarget::Instrument { index: *index }
-        }
-    }
-}
-
-fn invalid_audio_command(message: String) -> RuntimeAdapterError {
-    RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
-        RuntimeErrorDomain::Audio,
-        RuntimeErrorCode::InvalidPayload,
-        RuntimeOperation::AudioCommand,
-        Some(message),
-    ))
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::audio_config_parse::{resolve_sample_path, SampleLoadError};
-    use rodio_engine_source::decode_sample_file;
-    use std::collections::BTreeMap;
-
-    #[test]
-    fn pi_sample_preview_resolves_decodes_and_queues_preview_event() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-pi-preview-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(root.join("kick.wav"), wav_bytes()).unwrap();
-
-        let path = resolve_sample_path(&root, "kick.wav").unwrap();
-        assert!(!decode_sample_file(&path).unwrap().samples.is_empty());
-        assert!(resolve_sample_path(&root, "../kick.wav").is_none());
-        let error = SampleLoadError::Unresolved("../kick.wav".into());
-        assert_eq!(error.code(), RuntimeErrorCode::NotFound);
-        assert_eq!(error.message(), "sample not found: ../kick.wav");
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn pi_accepts_every_valid_runtime_audio_command_at_the_adapter_boundary() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-pi-command-contract-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(root.join("kick.wav"), b"placeholder").unwrap();
-        let params = BTreeMap::new();
-        let commands = vec![
-            RuntimeAudioCommand::SetAudioConfig {
-                revision: 1,
-                request_id: None,
-                config: serde_json::json!({ "instruments": [] }),
-            },
-            RuntimeAudioCommand::SetDspConfig {
-                config: realtime_engine::synth::DspRuntimeConfig::default(),
-            },
-            RuntimeAudioCommand::SetMasterVolume { volume_pct: 80.0 },
-            RuntimeAudioCommand::SetInstrumentMixer {
-                instrument_slot: 0,
-                volume_pct: Some(80.0),
-                pan_pos: Some(16),
-            },
-            RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: 0,
-                config: serde_json::json!({ "type": "synth" }),
-            },
-            RuntimeAudioCommand::SetFxBusMixer {
-                bus_index: 0,
-                pan_pos: Some(16),
-                volume_pct: Some(80.0),
-            },
-            RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: 0,
-                path: "synth.filter.cutoffHz".into(),
-                value: 440.0,
-            },
-            RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot: 0,
-                path: "sample.tuneSemis".into(),
-                value: 0.0,
-            },
-            RuntimeAudioCommand::SetFxBusSlot {
-                bus_index: 0,
-                slot_index: 0,
-                fx_type: "delay".into(),
-                params: params.clone(),
-            },
-            RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index: 0,
-                fx_type: "eq".into(),
-                params: params.clone(),
-            },
-            RuntimeAudioCommand::MomentaryFxStart {
-                id: "fx".into(),
-                fx_type: "freeze".into(),
-                params: params.clone(),
-                target: RuntimeMomentaryFxTarget::Global,
-            },
-            RuntimeAudioCommand::MomentaryFxUpdate {
-                id: "fx".into(),
-                params: params.clone(),
-            },
-            RuntimeAudioCommand::MomentaryFxStop { id: "fx".into() },
-            RuntimeAudioCommand::SamplePreview {
-                instrument_slot: 0,
-                sample_slot: 0,
-                path: "kick.wav".into(),
-                velocity: 96,
-            },
-        ];
-
-        for command in commands {
-            send_audio_command(None, &command, &root).unwrap();
-        }
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn pi_invalid_fx_command_has_typed_invalid_payload_failure() {
-        let error = send_audio_command(
-            None,
-            &RuntimeAudioCommand::SetFxBusSlot {
-                bus_index: 0,
-                slot_index: 0,
-                fx_type: "unknown".into(),
-                params: BTreeMap::new(),
-            },
-            Path::new("samples"),
-        )
-        .unwrap_err();
-        assert_eq!(error.facts.domain, RuntimeErrorDomain::Audio);
-        assert_eq!(error.facts.code, RuntimeErrorCode::InvalidPayload);
-        assert_eq!(error.facts.operation, RuntimeOperation::AudioCommand);
-    }
-
-    fn wav_bytes() -> Vec<u8> {
-        let samples = [0_i16, 1_000_i16];
-        let data_len = samples.len() * 2;
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"RIFF");
-        bytes.extend_from_slice(&(36_u32 + data_len as u32).to_le_bytes());
-        bytes.extend_from_slice(b"WAVEfmt ");
-        bytes.extend_from_slice(&16_u32.to_le_bytes());
-        bytes.extend_from_slice(&1_u16.to_le_bytes());
-        bytes.extend_from_slice(&1_u16.to_le_bytes());
-        bytes.extend_from_slice(&44_100_u32.to_le_bytes());
-        bytes.extend_from_slice(&88_200_u32.to_le_bytes());
-        bytes.extend_from_slice(&2_u16.to_le_bytes());
-        bytes.extend_from_slice(&16_u16.to_le_bytes());
-        bytes.extend_from_slice(b"data");
-        bytes.extend_from_slice(&(data_len as u32).to_le_bytes());
-        for sample in samples {
-            bytes.extend_from_slice(&sample.to_le_bytes());
-        }
-        bytes
-    }
-}
+#[path = "host_audio_command_tests.rs"]
+mod tests;

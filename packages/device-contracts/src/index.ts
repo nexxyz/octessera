@@ -54,6 +54,7 @@ export type {
 } from "./runtimeErrors";
 export {
   MIDI_REALTIME_MESSAGE_TYPES,
+  RUNTIME_FX_PARAM_IDS,
   RUNTIME_MOMENTARY_FX_TYPES,
   RUNTIME_SETUP_PORTAL_DISPOSITIONS,
   RUNTIME_SETUP_PORTAL_ERROR_CODES,
@@ -69,6 +70,7 @@ export { SHARED_RUNTIME_CONTRACT_FIXTURES } from "./runtimeProtocolFixtures";
 export type {
   MidiRealtimeMessageType,
   RuntimeAudioCommand,
+  RuntimeAudioCommandOutbound,
   RuntimeAudioCommandsMessage,
   RuntimeContractFixture,
   RuntimeDeviceInputMessage,
@@ -77,6 +79,7 @@ export type {
   RuntimeMidiRealtimeWireMessage,
   RuntimeMomentaryFxTarget,
   RuntimeMomentaryFxType,
+  RuntimeFxParamId,
   RuntimeMusicalEventsMessage,
   RuntimePlatformEffect,
   RuntimePlatformEffectsMessage,

@@ -127,6 +127,7 @@ pub(super) enum MomentaryFxKind {
 #[derive(Clone)]
 pub(super) struct MomentaryFxState {
     pub(super) id: String,
+    pub(super) epoch: u64,
     pub(super) kind: MomentaryFxKind,
     pub(super) runtime_params: MomentaryFxRuntimeParams,
     pub(super) target: MomentaryFxTarget,
@@ -225,6 +226,17 @@ impl MomentaryFxState {
         target: MomentaryFxTarget,
         sample_rate: u32,
     ) -> Self {
+        Self::new_with_epoch(id, 0, kind, params, target, sample_rate)
+    }
+
+    pub(super) fn new_with_epoch(
+        id: String,
+        epoch: u64,
+        kind: MomentaryFxKind,
+        params: &BTreeMap<String, Value>,
+        target: MomentaryFxTarget,
+        sample_rate: u32,
+    ) -> Self {
         let ramp_samples = ((sample_rate as f32 * 0.002) as usize).max(1);
         let pitch_ramp_len = ((sample_rate as f32 * 0.002) as u32).max(1);
         let stutter_segment_len = stutter_segment_len(sample_rate, params);
@@ -235,6 +247,7 @@ impl MomentaryFxState {
         let runtime_params = MomentaryFxRuntimeParams::from_params(kind, params, sample_rate);
         Self {
             id,
+            epoch,
             kind,
             runtime_params,
             target,

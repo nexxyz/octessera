@@ -171,6 +171,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         sparks_fx_target: "master".into(),
         sparks_fx_params: serde_json::Map::new(),
         xy_release: "sample-hold".into(),
+        xy_smoothing_ms: 80,
         xy_invert_x: false,
         xy_invert_y: false,
         bpm: 120,

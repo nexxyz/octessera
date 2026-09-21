@@ -250,6 +250,10 @@ impl NativeLayerEngine {
         self.state.reset_transport_phase();
     }
 
+    pub fn set_interpretation_tick(&mut self, tick: usize) {
+        self.tick = tick;
+    }
+
     pub fn state(&self) -> &NativeBehaviorState {
         &self.state
     }

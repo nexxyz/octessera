@@ -96,11 +96,15 @@ fn stopped_runtime_uses_fifty_millisecond_maintenance() {
     let playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
 
     assert!(scheduler
-        .next_runtime_advance(now + MAINTENANCE_TICK - Duration::from_nanos(1), &playback)
+        .next_runtime_advance(
+            now + MAINTENANCE_TICK - Duration::from_nanos(1),
+            &playback,
+            None,
+        )
         .is_none());
     assert_eq!(
         scheduler
-            .next_runtime_advance(now + MAINTENANCE_TICK, &playback)
+            .next_runtime_advance(now + MAINTENANCE_TICK, &playback, None)
             .expect("maintenance should be due")
             .elapsed,
         MAINTENANCE_TICK
@@ -162,11 +166,15 @@ fn realtime_activation_rebases_before_the_first_playing_tick() {
     let mut scheduler = HardwareRuntimeScheduler::new(now, playback.last_snapshot_revision());
 
     assert!(scheduler
-        .next_runtime_advance(now + Duration::from_secs(1), &playback)
+        .next_runtime_advance(now + Duration::from_secs(1), &playback, None)
         .is_none());
     assert_eq!(
         scheduler
-            .next_runtime_advance(now + Duration::from_secs(1) + PLAYBACK_TICK, &playback)
+            .next_runtime_advance(
+                now + Duration::from_secs(1) + PLAYBACK_TICK,
+                &playback,
+                None,
+            )
             .expect("playing tick should be due")
             .elapsed,
         PLAYBACK_TICK
@@ -181,16 +189,16 @@ fn playing_runtime_requests_one_snapshot_per_thirty_three_milliseconds() {
     let baseline = now + Duration::from_millis(1);
 
     assert!(scheduler
-        .next_runtime_advance(baseline, &playback)
+        .next_runtime_advance(baseline, &playback, None)
         .is_none());
     let first = scheduler
-        .next_runtime_advance(baseline + Duration::from_millis(33), &playback)
+        .next_runtime_advance(baseline + Duration::from_millis(33), &playback, None)
         .expect("playing advance should be due");
     assert!(first.request_snapshot);
     let first_attempt = baseline + Duration::from_millis(33);
     scheduler.record_snapshot_attempt(first_attempt, DisplaySnapshotDue::default(), 1, 1);
     let next = scheduler
-        .next_runtime_advance(baseline + Duration::from_millis(41), &playback)
+        .next_runtime_advance(baseline + Duration::from_millis(41), &playback, None)
         .expect("next playing advance should be due");
     assert!(!next.request_snapshot);
     assert_eq!(scheduler.last_snapshot_attempt_at, first_attempt);
@@ -203,7 +211,9 @@ fn accepted_external_snapshot_rebases_playing_and_continuous_cadence() {
     let initial_revision = playback.last_snapshot_revision();
     let mut scheduler = HardwareRuntimeScheduler::new(now, initial_revision);
 
-    assert!(scheduler.next_runtime_advance(now, &playback).is_none());
+    assert!(scheduler
+        .next_runtime_advance(now, &playback, None)
+        .is_none());
     runner
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::StoreError {
@@ -231,6 +241,7 @@ fn accepted_external_snapshot_rebases_playing_and_continuous_cadence() {
         .next_runtime_advance(
             accepted_at + SNAPSHOT_TICK - Duration::from_nanos(1),
             &playback,
+            None,
         )
         .expect("playing tick should be due before snapshot cadence");
     assert!(!before_playing_due.request_snapshot);
@@ -243,7 +254,7 @@ fn accepted_external_snapshot_rebases_playing_and_continuous_cadence() {
             .continuous
     );
     let after_playing_due = scheduler
-        .next_runtime_advance(accepted_at + SNAPSHOT_TICK + PLAYBACK_TICK, &playback)
+        .next_runtime_advance(accepted_at + SNAPSHOT_TICK + PLAYBACK_TICK, &playback, None)
         .expect("next playing tick should be due");
     assert!(after_playing_due.request_snapshot);
     assert!(
@@ -279,17 +290,19 @@ fn scheduled_midi_idle_rebases_before_a_new_eight_millisecond_tick() {
         )
         .expect("initial MIDI note should be accepted");
     assert!(playback.has_scheduled_midi());
-    assert!(scheduler.next_runtime_advance(now, &playback).is_none());
+    assert!(scheduler
+        .next_runtime_advance(now, &playback, None)
+        .is_none());
 
     let first_tick_at = now + PLAYBACK_TICK;
     let first_advance = scheduler
-        .next_runtime_advance(first_tick_at, &playback)
+        .next_runtime_advance(first_tick_at, &playback, None)
         .expect("scheduled MIDI should receive its first tick");
     assert_eq!(first_advance.elapsed, PLAYBACK_TICK);
     playback
         .advance_duration_with_output(first_advance.elapsed, &mut runner, &mut host)
         .expect("final scheduled note-off should flush");
-    scheduler.record_runtime_advance_complete(first_tick_at, &playback);
+    scheduler.record_runtime_advance_complete(first_tick_at, &playback, None);
     assert!(!playback.has_scheduled_midi());
     assert_eq!(
         host.midi_messages,
@@ -311,10 +324,10 @@ fn scheduled_midi_idle_rebases_before_a_new_eight_millisecond_tick() {
         .expect("new short MIDI note should be accepted");
     let idle_rebase_at = first_tick_at + Duration::from_secs(1);
     assert!(scheduler
-        .next_runtime_advance(idle_rebase_at, &playback)
+        .next_runtime_advance(idle_rebase_at, &playback, None)
         .is_none());
     let restarted = scheduler
-        .next_runtime_advance(idle_rebase_at + PLAYBACK_TICK, &playback)
+        .next_runtime_advance(idle_rebase_at + PLAYBACK_TICK, &playback, None)
         .expect("restarted MIDI runtime should tick after eight milliseconds");
     assert_eq!(restarted.elapsed, PLAYBACK_TICK);
     playback
@@ -327,7 +340,7 @@ fn scheduled_midi_idle_rebases_before_a_new_eight_millisecond_tick() {
 
     let note_off_at = idle_rebase_at + Duration::from_millis(30);
     let note_off_advance = scheduler
-        .next_runtime_advance(note_off_at, &playback)
+        .next_runtime_advance(note_off_at, &playback, None)
         .expect("new MIDI note-off should be due");
     playback
         .advance_duration_with_output(note_off_advance.elapsed, &mut runner, &mut host)
@@ -353,10 +366,10 @@ fn external_sync_keeps_runtime_event_driven() {
     });
 
     let advance = scheduler
-        .next_runtime_advance(now + MAINTENANCE_TICK, &playback)
+        .next_runtime_advance(now + MAINTENANCE_TICK, &playback, None)
         .expect("stopped maintenance should be due");
     assert!(!advance.request_snapshot);
-    assert!(!runtime_tick_needed(&playback));
+    assert!(!runtime_tick_needed(&playback, None));
 }
 
 #[test]
@@ -446,10 +459,12 @@ fn playing_snapshot_deadline_waits_for_the_next_eight_millisecond_tick() {
     let mut runner = NativeRunner::new(playback_runtime::NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     runner.messages_with_snapshot().unwrap();
-    assert!(scheduler.next_runtime_advance(now, &playback).is_none());
+    assert!(scheduler
+        .next_runtime_advance(now, &playback, None)
+        .is_none());
     for offset in [8, 16, 24, 32] {
         assert!(scheduler
-            .next_runtime_advance(now + Duration::from_millis(offset), &playback)
+            .next_runtime_advance(now + Duration::from_millis(offset), &playback, None)
             .is_some());
     }
 

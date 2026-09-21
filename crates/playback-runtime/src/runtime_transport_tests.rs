@@ -1,9 +1,167 @@
 use super::support::{canonical_oled_snapshot, set_runtime_playing, FakeHost, FakeRunner};
 use crate::{
     CoreRunner, HostMessage, MusicalEvent, PlaybackRuntime, RunnerMessage, RuntimeAudioCommand,
-    RuntimeConfig, RuntimePlatformEffect, SyncSource,
+    RuntimeConfig, RuntimeDispatchInput, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState,
+    RuntimeTransportState, SyncSource,
 };
 use serde_json::json;
+
+struct RuntimeTickRunner {
+    response: Vec<RunnerMessage>,
+}
+
+impl CoreRunner for RuntimeTickRunner {
+    fn send(&mut self, _message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        Ok(std::mem::take(&mut self.response))
+    }
+}
+
+fn running_status(current_ppqn_pulse: u64) -> RuntimeStatus {
+    RuntimeStatus {
+        state: RuntimeStatusState::Running,
+        transport: RuntimeTransportState::Playing,
+        current_ppqn_pulse,
+        pending_resync: false,
+        sync_source: SyncSource::Internal,
+        message: None,
+        error: None,
+    }
+}
+
+#[test]
+fn zero_pulse_runtime_tick_dispatches_without_snapshot_in_each_clock_state() {
+    for (mut runtime, playing) in [
+        (PlaybackRuntime::new(RuntimeConfig::default()), false),
+        (
+            PlaybackRuntime::new(RuntimeConfig {
+                sync_source: SyncSource::External,
+                ..RuntimeConfig::default()
+            }),
+            false,
+        ),
+        (PlaybackRuntime::new(RuntimeConfig::default()), true),
+    ] {
+        let mut runner = FakeRunner::default();
+        let mut host = FakeHost::default();
+        if playing {
+            set_runtime_playing(&mut runtime, &mut host);
+            runner.seen.clear();
+        }
+
+        let output = runtime
+            .dispatch(
+                RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
+                    pulses: 0,
+                    source: runtime.config().sync_source.clone(),
+                    at_ppqn_pulse: None,
+                    request_snapshot: Some(false),
+                }),
+                &mut runner,
+                &mut host,
+            )
+            .unwrap();
+
+        assert!(matches!(
+            runner.seen.as_slice(),
+            [HostMessage::TransportPulseStep {
+                pulses: 0,
+                request_snapshot: Some(false),
+                ..
+            }]
+        ));
+        assert!(output
+            .messages
+            .iter()
+            .all(|message| !matches!(message, RunnerMessage::Snapshot { .. })));
+    }
+}
+
+#[test]
+fn runtime_tick_omits_unchanged_presented_status() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    runtime
+        .ingest_runner_messages(
+            vec![RunnerMessage::RuntimeStatus {
+                status: running_status(0),
+            }],
+            &mut host,
+        )
+        .unwrap();
+    let mut runner = RuntimeTickRunner {
+        response: vec![RunnerMessage::RuntimeStatus {
+            status: running_status(0),
+        }],
+    };
+
+    let output = runtime
+        .dispatch_runtime_tick(&mut runner, &mut host)
+        .unwrap();
+
+    assert!(output
+        .messages
+        .iter()
+        .all(|message| { !matches!(message, RunnerMessage::RuntimeStatus { .. }) }));
+}
+
+#[test]
+fn runtime_tick_preserves_changed_presented_status() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    runtime
+        .ingest_runner_messages(
+            vec![RunnerMessage::RuntimeStatus {
+                status: running_status(1),
+            }],
+            &mut host,
+        )
+        .unwrap();
+    let mut runner = RuntimeTickRunner {
+        response: vec![RunnerMessage::RuntimeStatus {
+            status: running_status(0),
+        }],
+    };
+
+    let output = runtime
+        .dispatch_runtime_tick(&mut runner, &mut host)
+        .unwrap();
+
+    assert!(output.messages.iter().any(|message| {
+        matches!(
+            message,
+            RunnerMessage::RuntimeStatus { status }
+                if status.current_ppqn_pulse == 0
+        )
+    }));
+}
+
+#[test]
+fn runtime_tick_preserves_non_status_output() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    runtime
+        .ingest_runner_messages(
+            vec![RunnerMessage::RuntimeStatus {
+                status: running_status(0),
+            }],
+            &mut host,
+        )
+        .unwrap();
+    let mut snapshot = canonical_oled_snapshot("tick output");
+    snapshot["oledFrameRevision"] = json!(1);
+    let mut runner = RuntimeTickRunner {
+        response: vec![RunnerMessage::Snapshot { snapshot }],
+    };
+
+    let output = runtime
+        .dispatch_runtime_tick(&mut runner, &mut host)
+        .unwrap();
+
+    assert!(output
+        .messages
+        .iter()
+        .any(|message| { matches!(message, RunnerMessage::Snapshot { .. }) }));
+}
 
 #[test]
 fn internal_clock_advances_runner_and_schedules_note_offs() {
@@ -82,6 +240,7 @@ fn internal_musical_events_use_host_audio_path_and_forward_audio_commands() {
                 RunnerMessage::AudioCommands {
                     commands: vec![RuntimeAudioCommand::SetSynthParam {
                         instrument_slot: 0,
+                        generation: 0,
                         path: "oscillator.pitch".into(),
                         value: 440.0,
                     }],
@@ -114,6 +273,7 @@ fn internal_musical_events_use_host_audio_path_and_forward_audio_commands() {
         host.audio_commands,
         vec![RuntimeAudioCommand::SetSynthParam {
             instrument_slot: 0,
+            generation: 0,
             path: "oscillator.pitch".into(),
             value: 440.0,
         }]

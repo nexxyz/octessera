@@ -198,9 +198,13 @@ pub(super) fn open_audio_sink(
     }
     if let Some(engine_tx) = engine_tx.as_ref() {
         engine_tx
-            .send(EngineEvent::SetPreparedInstruments(
-                prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
-            ))
+            .send(EngineEvent::SetPreparedInstruments {
+                generation: 0,
+                config: prepare_instruments_config(
+                    default_pi_instruments(),
+                    DEFAULT_AUDIO_SAMPLE_RATE,
+                ),
+            })
             .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
     }
     Ok(OpenedAudioSink {
@@ -297,9 +301,13 @@ pub(super) fn open_orange_audio_sink_with_health(
     };
     if let Some(engine_tx) = engine_tx.as_ref() {
         engine_tx
-            .send(EngineEvent::SetPreparedInstruments(
-                prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
-            ))
+            .send(EngineEvent::SetPreparedInstruments {
+                generation: 0,
+                config: prepare_instruments_config(
+                    default_pi_instruments(),
+                    DEFAULT_AUDIO_SAMPLE_RATE,
+                ),
+            })
             .map_err(|error| RouteOpenError::Fault(error.to_string()))?;
     }
     Ok(OpenedAudioSink {

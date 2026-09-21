@@ -70,6 +70,15 @@ fn audio_oled_submission_uses_cursor_and_deduplicates_revision() {
         tap.push_frame(3, 4);
     }
     let outcome = recording.stop_audio().unwrap().unwrap();
+    assert_eq!(outcome.status, RecordingStatus::Complete);
+    assert_eq!(
+        outcome
+            .path
+            .extension()
+            .and_then(|extension| extension.to_str()),
+        Some("avi")
+    );
+    assert!(!outcome.path.to_string_lossy().contains(".incomplete."));
     let videos = avi_video_payloads(&outcome.path);
     assert_eq!(videos.len(), 2);
     assert_ne!(videos[0], videos[1]);
@@ -153,9 +162,10 @@ fn repeated_rejected_starts_do_not_interrupt_a_flowing_active_take() {
     }
     assert!(!timed_out);
     assert_eq!(results.len(), attempts);
-    assert!(results
-        .into_iter()
-        .all(|result| matches!(result, Err(error) if error.contains("already active"))));
+    assert!(results.into_iter().all(|result| matches!(
+        result,
+        Err(media_recording::RecordingStartError::AlreadyActive)
+    )));
 
     let outcome = recording.stop_audio().unwrap().unwrap();
     assert_eq!(outcome.frames_written, 512);

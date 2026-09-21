@@ -1,7 +1,8 @@
 use crate::{
     CoreRunner, HostAdapter, HostMessage, MusicalEvent, RunnerMessage, RuntimeAdapterError,
-    RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStatus,
-    RuntimeStatusState, RuntimeStoreResult, RuntimeTransportState, SyncSource,
+    RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
+    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStatus, RuntimeStatusState,
+    RuntimeStoreResult, RuntimeTransportState, SyncSource,
 };
 use serde_json::{json, Value};
 
@@ -139,6 +140,8 @@ pub(crate) struct FakeHost {
     pub silence_calls: usize,
     pub fail_internal_silence: bool,
     pub fail_midi_message: bool,
+    pub fail_recording_stop: bool,
+    pub fail_recording_transition: bool,
     pub setup_portal_result: Option<RuntimeStoreResult>,
     pub setup_portal_results_sent: Vec<RuntimeStoreResult>,
 }
@@ -155,6 +158,26 @@ impl HostAdapter for FakeHost {
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
         let effect = &request.effect;
         self.effects.push(effect.clone());
+        if self.fail_recording_stop && matches!(effect, RuntimePlatformEffect::RecordingStop) {
+            return Err(RuntimeAdapterError::operation_failed(
+                "stop finalize failed".into(),
+            ));
+        }
+        if self.fail_recording_transition
+            && matches!(
+                effect,
+                RuntimePlatformEffect::Reboot
+                    | RuntimePlatformEffect::Shutdown
+                    | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+            )
+        {
+            return Err(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
+                RuntimeErrorDomain::Recording,
+                RuntimeErrorCode::OperationFailed,
+                RuntimeOperation::Recording,
+                Some("stop finalize failed".into()),
+            )));
+        }
         if matches!(effect, RuntimePlatformEffect::SetupPortalOpen) {
             if let Some(result) = self.setup_portal_result.take() {
                 let result = result.with_identity(request.request_id.clone(), request.revision);

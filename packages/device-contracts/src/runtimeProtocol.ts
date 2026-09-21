@@ -12,6 +12,15 @@ import type {
 } from "./runtimeErrors";
 import type { RuntimeSetupPortalStatus } from "./runtimeSetupPortal";
 import type { RuntimeUserDataTransferStatus } from "./runtimeUserDataTransfer";
+import type { RuntimeAudioCommand } from "./runtimeAudioProtocol";
+
+export { RUNTIME_FX_PARAM_IDS } from "./runtimeAudioProtocol";
+export type {
+  RuntimeAudioCommand,
+  RuntimeAudioCommandOutbound,
+  RuntimeFxParamId,
+  RuntimeMomentaryFxTarget,
+} from "./runtimeAudioProtocol";
 
 export {
   RUNTIME_SETUP_PORTAL_DISPOSITIONS,
@@ -73,73 +82,6 @@ export const RUNTIME_MOMENTARY_FX_TYPES = [
 ] as const;
 export type RuntimeMomentaryFxType =
   (typeof RUNTIME_MOMENTARY_FX_TYPES)[number];
-
-export type RuntimeMomentaryFxTarget =
-  | { type: "global" }
-  | { type: "fx_bus"; index: number }
-  | { type: "instrument"; index: number };
-
-export type RuntimeAudioCommand =
-  | {
-      type: "set_audio_config";
-      revision: number;
-      requestId?: string;
-      config: Record<string, unknown>;
-    }
-  | { type: "set_master_volume"; volumePct: number }
-  | {
-      type: "set_instrument_mixer";
-      instrumentSlot: number;
-      volumePct?: number;
-      panPos?: number;
-    }
-  | {
-      type: "set_fx_bus_mixer";
-      busIndex: number;
-      panPos?: number;
-      volumePct?: number;
-    }
-  | {
-      type: "set_synth_param";
-      instrumentSlot: number;
-      path: string;
-      value: number;
-    }
-  | {
-      type: "set_sample_bank_param";
-      instrumentSlot: number;
-      path: string;
-      value: number;
-    }
-  | {
-      type: "set_fx_bus_slot";
-      busIndex: number;
-      slotIndex: number;
-      fxType: string;
-      params: Record<string, unknown>;
-    }
-  | {
-      type: "set_global_fx_slot";
-      slotIndex: number;
-      fxType: string;
-      params: Record<string, unknown>;
-    }
-  | {
-      type: "momentary_fx_start";
-      id: string;
-      fxType: RuntimeMomentaryFxType;
-      params: Record<string, unknown>;
-      target: RuntimeMomentaryFxTarget;
-    }
-  | { type: "momentary_fx_update"; id: string; params: Record<string, unknown> }
-  | { type: "momentary_fx_stop"; id: string }
-  | {
-      type: "sample_preview";
-      instrumentSlot: number;
-      sampleSlot: number;
-      path: string;
-      velocity: number;
-    };
 
 export type RuntimePlatformEffect =
   | { type: "store_list_presets" }
@@ -251,7 +193,12 @@ export type RuntimeStoreResult =
     }
   | { type: "sample_preview_error"; message: string }
   | { type: "device_update_status"; ok: boolean; message: string }
-  | { type: "recording_status"; ok: boolean; message: string }
+  | {
+      type: "recording_status";
+      ok: boolean;
+      message: string;
+      active: boolean;
+    }
   | { type: "system_info_result"; info: RuntimeSystemInfo }
   | { type: "system_info_error"; error: RuntimeSystemInfoError }
   | RuntimeSetupPortalStatus

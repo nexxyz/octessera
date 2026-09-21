@@ -170,7 +170,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    fn append_pending_transpose_note_offs(&mut self, messages: &mut Vec<RunnerMessage>) {
+    pub(super) fn append_pending_transpose_note_offs(&mut self, messages: &mut Vec<RunnerMessage>) {
         let events = std::mem::take(&mut self.pending_transpose_note_offs);
         if !events.audio.is_empty() {
             messages.push(RunnerMessage::MusicalEvents {
@@ -188,6 +188,10 @@ impl NativeRunner {
         &mut self,
         effects: Vec<RuntimePlatformEffect>,
     ) -> Result<Vec<RunnerMessage>, String> {
+        let effects = effects
+            .into_iter()
+            .map(|effect| self.outbox.stamp_platform_effect(effect))
+            .collect::<Vec<_>>();
         if effects
             .iter()
             .any(|effect| matches!(effect, RuntimePlatformEffect::AudioCommand { .. }))
@@ -224,6 +228,7 @@ impl NativeRunner {
                 transpose_offset,
             },
         )?;
+        self.track_emitted_route_notes(self.active_layer_index, &events);
         if !events.is_empty() {
             let now = self.display.transients.now();
             self.display.transients.trigger_event_dot(now);
@@ -246,6 +251,7 @@ impl NativeRunner {
         &mut self,
         events: super::RoutedMusicalEvents,
     ) -> Result<Vec<RunnerMessage>, String> {
+        self.track_emitted_route_notes(self.active_layer_index, &events);
         let mut messages = Vec::new();
         if !events.is_empty() {
             let now = self.display.transients.now();

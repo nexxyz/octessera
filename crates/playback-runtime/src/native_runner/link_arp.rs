@@ -20,7 +20,6 @@ impl NativeRunner {
         if let Some(phase) = self.link_arp_rotating_phase.get_mut(layer_index) {
             *phase = 0;
         }
-        self.link_arp_random_state = LINK_ARP_RANDOM_SEED;
     }
 
     pub(super) fn apply_link_arp_timing(

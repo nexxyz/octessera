@@ -14,11 +14,14 @@ mod startup_failure;
 mod store_startup;
 mod types;
 
-use audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepState};
+use audio_prep_service::{
+    spawn_desktop_audio_control, AudioGenerationState, DesktopAudioPrepState,
+};
 use audio_thread::{spawn_audio_engine_thread, spawn_load_listener};
 use desktop_platform_service::spawn_desktop_platform_service;
 use host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use rodio_engine_source::event_queue;
 use runtime_worker::{RuntimeWorker, WorkerCommand};
 use sample_decode_cache::SampleDecodeCache;
 use std::sync::mpsc;
@@ -34,13 +37,14 @@ pub(crate) struct AppState {
 pub fn run() {
     let no_audio = std::env::args().any(|arg| arg == "--no-audio");
 
-    let (trigger_tx, trigger_rx) = mpsc::channel::<crate::types::QueuedAudioEvent>();
+    let (engine_tx, engine_rx) = event_queue();
     let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
     let (audio_failure_tx, audio_failure_rx) =
         mpsc::channel::<playback_runtime::RuntimeAdapterError>();
     let synth_slots = Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT]));
     let sample_decode_cache = SampleDecodeCache::new();
     let sample_bank_signature = Arc::new(Mutex::new(String::new()));
+    let generations = Arc::new(Mutex::new(AudioGenerationState::default()));
     let config_revision = Arc::new(std::sync::atomic::AtomicU64::new(0));
     let midi_out = Arc::new(Mutex::new(None));
     let midi_in = Arc::new(Mutex::new(None));
@@ -73,7 +77,7 @@ pub fn run() {
                 screen_recording_dir,
             );
             spawn_audio_engine_thread(
-                trigger_rx,
+                engine_rx,
                 load_tx,
                 audio_failure_tx,
                 no_audio,
@@ -81,12 +85,13 @@ pub fn run() {
             );
             let platform_service = spawn_desktop_platform_service();
             let (audio_control, audio_prep_result_rx) = spawn_desktop_audio_control(
-                trigger_tx.clone(),
+                engine_tx.clone(),
                 DesktopAudioPrepState {
                     config_revision: config_revision.clone(),
                     synth_slots: synth_slots.clone(),
                     sample_decode_cache: sample_decode_cache.clone(),
                     sample_bank_signature: sample_bank_signature.clone(),
+                    generations: generations.clone(),
                 },
             );
             let (native_midi_tx, native_midi_rx) = mpsc::channel::<Vec<u8>>();
@@ -97,9 +102,8 @@ pub fn run() {
                 audio_prep_result_rx,
                 DesktopPlaybackHostAdapter::new(
                     DesktopHostAudioState {
-                        trigger_tx: trigger_tx.clone(),
+                        engine_tx: engine_tx.clone(),
                         audio_control,
-                        sample_decode_cache,
                         recording: recording.clone(),
                     },
                     midi_out.clone(),

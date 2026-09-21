@@ -29,8 +29,9 @@ fn fixture_profile_barriers_match_executor_lookahead_and_publish_next_profile() 
 fn assert_fixture_profile_barriers(executor_mode: BenchmarkExecutorMode, expected_barriers: usize) {
     let (sender, receiver) = event_queue();
     sender
-        .send(EngineEvent::SetPreparedInstruments(
-            prepare_instruments_config(
+        .send(EngineEvent::SetPreparedInstruments {
+            generation: 0,
+            config: prepare_instruments_config(
                 InstrumentsConfig {
                     instruments: vec![InstrumentSlotConfig {
                         kind: "synth".into(),
@@ -43,7 +44,7 @@ fn assert_fixture_profile_barriers(executor_mode: BenchmarkExecutorMode, expecte
                 },
                 SAMPLE_RATE,
             ),
-        ))
+        })
         .unwrap();
     let (mut source, shutdown) = source_for_executor(executor_mode, receiver);
     let health = AudioStreamHealth::new("fixture barrier test".into());

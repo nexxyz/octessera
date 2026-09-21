@@ -110,9 +110,9 @@ pub(super) fn momentary_events(mode: usize, sample_rate: u32) -> Vec<EngineEvent
         push_synth_voices(&mut events, slot, *count);
     }
     for (id, fx_type, params, target) in momentary_fx_specs(mode) {
-        events.push(EngineEvent::PreparedMomentaryFxStart(
-            prepare_momentary_fx_start(id, fx_type, params, target, sample_rate).unwrap(),
-        ));
+        events.push(EngineEvent::PreparedMomentaryFxStart {
+            config: prepare_momentary_fx_start(id, fx_type, params, target, sample_rate).unwrap(),
+        });
     }
     events
 }
@@ -145,12 +145,15 @@ fn prepared_config(
     voice_stealing_mode: VoiceStealingMode,
     sample_rate: u32,
 ) -> EngineEvent {
-    EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-        instruments,
-        sample_banks,
-        Some(voice_stealing_mode),
-        sample_rate,
-    ))
+    EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_audio_config(
+            instruments,
+            sample_banks,
+            Some(voice_stealing_mode),
+            sample_rate,
+        ),
+    }
 }
 
 fn momentary_fx_specs(

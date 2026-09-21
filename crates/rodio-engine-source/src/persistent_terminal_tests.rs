@@ -131,13 +131,15 @@ fn render_attempts(source: &EngineSource) -> u64 {
 }
 
 fn queue_active_state(tx: &EngineEventSender, samples: Arc<[f32]>) {
-    tx.send(EngineEvent::SetPreparedAudioConfig(
-        super::persistent_profile_tests::mixed_config(samples),
-    ))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: super::persistent_profile_tests::mixed_config(samples),
+    })
     .unwrap();
-    tx.send(EngineEvent::SetVoiceStealingMode(
-        realtime_engine::synth::VoiceStealingMode::None,
-    ))
+    tx.send(EngineEvent::SetVoiceStealingMode {
+        generation: 0,
+        mode: realtime_engine::synth::VoiceStealingMode::None,
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 1,
@@ -161,7 +163,8 @@ fn queue_unconsumed_controls(tx: &EngineEventSender) -> mpsc::Receiver<u128> {
     let (report_tx, report_rx) = mpsc::sync_channel(1);
     tx.send(EngineEvent::SetSynthParam {
         instrument_slot: 0,
-        path: "synth.amp.gainPct".into(),
+        generation: 0,
+        param: realtime_engine::synth::SynthParamId::AmpGainPct,
         value: 12.0,
     })
     .unwrap();
@@ -307,9 +310,10 @@ fn persistent_worker_panic_is_terminal_through_iterator() {
 fn recovered_owner_refreshes_post_render_profile_and_allows_controls() {
     let samples: Arc<[f32]> = Arc::from(vec![0.8, -0.4, 0.2, -0.1]);
     let (tx, mut source, shutdown, hold_control) = gated_source(true, None, false);
-    tx.send(EngineEvent::SetPreparedAudioConfig(
-        super::persistent_profile_tests::mixed_config(Arc::clone(&samples)),
-    ))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: super::persistent_profile_tests::mixed_config(Arc::clone(&samples)),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 1,

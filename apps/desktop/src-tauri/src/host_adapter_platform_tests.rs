@@ -1,11 +1,10 @@
-use super::{platform_request, test_adapter};
-use crate::types::QueuedAudioEvent;
+use super::{next_event, platform_request, test_adapter};
 use playback_runtime::{
     HostAdapter, HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeOperation,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeSetupPortalErrorCode,
     RuntimeSetupPortalPhase, RuntimeStoreResult, RuntimeUserDataTransferPhase,
 };
-use std::time::Duration;
+use rodio_engine_source::EngineEvent;
 
 #[test]
 fn sample_list_request_reports_service_unavailable_when_enqueue_fails() {
@@ -128,7 +127,7 @@ fn user_data_transfer_open_reports_identified_unsupported_status() {
 
 #[test]
 fn midi_panic_returns_native_status_result() {
-    let (mut adapter, rx) = test_adapter();
+    let (mut adapter, mut rx) = test_adapter();
     let follow_ups = adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::MidiPanic))
         .unwrap();
@@ -143,10 +142,7 @@ fn midi_panic_returns_native_status_result() {
             }
         }]
     );
-    assert!(matches!(
-        rx.recv_timeout(Duration::from_secs(1)).unwrap(),
-        QueuedAudioEvent::AllNotesOff
-    ));
+    assert!(matches!(next_event(&mut rx), EngineEvent::AllNotesOff));
 }
 
 #[test]

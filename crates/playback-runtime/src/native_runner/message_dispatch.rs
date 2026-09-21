@@ -37,6 +37,7 @@ impl super::CoreRunner for NativeRunner {
 
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
         let flush_time = Instant::now();
+        self.advance_xy_smoothing_at(flush_time)?;
         let presented_error_input =
             matches!(&message, HostMessage::PresentedRuntimeErrorInput { .. });
         let mut messages = match message {

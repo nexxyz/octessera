@@ -15,8 +15,15 @@ Open `System > Recording`:
 - **St. Audio+OLED** writes an AVI with 128x128 MJPEG video at 10 fps and 44.1
   kHz stereo signed 16-bit PCM audio. It captures OLED frames, with audio as the
   master clock.
-- **Stop** ends the active take and finalizes the file. Use it before rebooting
-  or shutting down when possible.
+- A successful start shows **Recording started**. Starting again while a take is
+  active shows **Recording is already running**.
+- While a take is active, the OLED stays awake temporarily. This does not change
+  the saved **OLED Sleep** setting; normal idle sleep timing restarts after
+  recording ends.
+- **Stop** ends the active take and finalizes the file. Manual stop shows
+  **Recording saved** or **Recording incomplete**. A clean max-time completion
+  shows **Max time: saved**. Use Stop before rebooting or shutting down when
+  possible.
 
 Max Time also stops a take automatically. Never remove power, the recording
 storage, or the board's microSD card while a take is active.

@@ -1,7 +1,7 @@
 use crate::retired_audio_backlog::RetiredAudioBacklog;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use crate::source_worker::EngineSourceWorkerShutdownOwner;
-use crate::{drop_retired_item, RetiredAudioItem};
+use crate::{drop_retired_item, RetiredAudioItem, SourceOwnedDropState};
 use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError, TrySendError};
 use realtime_engine::synth::SourceWorkerRetirement;
 #[cfg(any(test, feature = "routing-tree-executor"))]
@@ -59,6 +59,7 @@ impl Drop for ReaperLifecycleExitGuard {
 pub(crate) struct SourceShutdownEnvelope {
     pub(crate) backlog: RetiredAudioBacklog,
     pub(crate) retirement: Option<SourceWorkerRetirement>,
+    pub(crate) source_state: Option<SourceOwnedDropState>,
 }
 
 pub const SOURCE_REAPER_THREAD_NAME: &str = "oct-src-reaper";
@@ -266,14 +267,27 @@ fn run_persistent_reaper(mut state: PersistentReaper) {
         completion_tx,
         ..
     } = state;
-    let (backlog, retirement) = match envelope {
-        Some(envelope) => (Some(envelope.backlog), envelope.retirement),
-        None => (None, None),
+    let (backlog, envelope_retirement, source_state) = match envelope {
+        Some(envelope) => (
+            Some(envelope.backlog),
+            envelope.retirement,
+            envelope.source_state,
+        ),
+        None => (None, None, None),
     };
+    let mut source_state = source_state;
+    let mut retirement = envelope_retirement;
+    if let Some(state) = source_state.as_mut() {
+        state.close_retirement_channel();
+        if retirement.is_none() {
+            retirement = state.retire_worker_runtime();
+        }
+    }
     drain_retired_audio(retired_rx);
     if let Some(backlog) = backlog {
         backlog.drain();
     }
+    drop(source_state);
     let shutdown = match retirement {
         Some(retirement) => match lifecycle.validate_retirement(&retirement) {
             Ok(()) => lifecycle.shutdown(retirement),
@@ -336,10 +350,16 @@ fn run_inline_reaper(
         let SourceShutdownEnvelope {
             backlog,
             retirement,
+            source_state,
         } = envelope;
         let _retirement = retirement;
+        let mut source_state = source_state;
+        if let Some(state) = source_state.as_mut() {
+            state.close_retirement_channel();
+        }
         drain_retired_audio(retired_rx);
         backlog.drain();
+        drop(source_state);
     } else {
         drain_retired_audio(retired_rx);
     }
@@ -427,6 +447,7 @@ mod tests {
             .send(SourceShutdownEnvelope {
                 backlog: RetiredAudioBacklog::new(),
                 retirement: None,
+                source_state: None,
             })
             .unwrap();
         drop(retired_tx);

@@ -88,10 +88,10 @@ Expected result: transport stops, MIDI panic/note safety runs, all layers and in
 ### 6. Playback assertions
 
 1. Start transport; clock the pattern and assert musical output appears.
-2. `Shift+Fn+Grid 0,0`: mute L1; clock and assert L2/L3 still output.
-3. `Shift+Fn+Grid 0,0`: unmute L1.
-4. `Shift+Fn+Grid 0,1`: mute L2; clock and assert L1/L3 still output.
-5. `Shift+Fn+Grid 0,1`: unmute L2.
+2. `Shift+Fn+Grid 0,0`: mute L1; assert any L1-owned notes release immediately, then clock and assert L2/L3 still output.
+3. `Shift+Fn+Grid 0,0`: unmute L1; assert released L1 notes do not return without a new trigger.
+4. `Shift+Fn+Grid 0,1`: mute L2; assert any L2-owned notes release immediately, then clock and assert L1/L3 still output.
+5. `Shift+Fn+Grid 0,1`: unmute L2; assert released L2 notes do not return without a new trigger.
 6. Mute L1 and L2, select L3, press several looper grid keys, clock across the loop, and assert output from the looper layer.
 7. Unmute L1 and L2.
 8. `Fn+Grid 7,5`: activate XY page; press an XY grid cell; clock once; assert a synth parameter command reaches audio.

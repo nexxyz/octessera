@@ -13,6 +13,8 @@ pub(crate) enum AudioCommandPayload {
     #[serde(rename = "momentary_fx_start")]
     MomentaryFxStart {
         id: String,
+        #[serde(default)]
+        epoch: u64,
         #[serde(rename = "fxType")]
         fx_type: String,
         #[serde(default)]
@@ -24,10 +26,16 @@ pub(crate) enum AudioCommandPayload {
     MomentaryFxUpdate {
         id: String,
         #[serde(default)]
+        epoch: u64,
+        #[serde(default)]
         params: BTreeMap<String, Value>,
     },
     #[serde(rename = "momentary_fx_stop")]
-    MomentaryFxStop { id: String },
+    MomentaryFxStop {
+        id: String,
+        #[serde(default)]
+        epoch: u64,
+    },
     #[serde(rename = "sample_preview")]
     SamplePreview {
         #[serde(rename = "instrumentSlot")]
@@ -106,96 +114,6 @@ impl Drop for AudioRuntime {
     fn drop(&mut self) {
         self.stop();
     }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct QueuedNote {
-    pub(crate) instrument_slot: u8,
-    pub(crate) note: u8,
-    pub(crate) velocity: u8,
-    pub(crate) duration_ms: u32,
-}
-
-#[derive(Clone)]
-pub(crate) enum QueuedAudioEvent {
-    AllNotesOff,
-    Note(QueuedNote),
-    NoteOff {
-        instrument_slot: u8,
-        note: u8,
-    },
-    Cc {
-        instrument_slot: u8,
-        controller: u8,
-        value: u8,
-    },
-    PreviewSample {
-        instrument_slot: u8,
-        buffer: realtime_engine::synth::SampleBuffer,
-        velocity: u8,
-    },
-    SetAudioConfig {
-        revision: u64,
-        request_id: Option<String>,
-        instruments: realtime_engine::synth::InstrumentsConfig,
-        sample_banks: Option<Vec<realtime_engine::synth::SampleBankConfig>>,
-        voice_stealing_mode: Option<realtime_engine::synth::VoiceStealingMode>,
-    },
-    SetMasterVolume {
-        volume_pct: f32,
-    },
-    SetDspConfig {
-        config: realtime_engine::synth::DspRuntimeConfig,
-    },
-    SetInstrumentMixer {
-        instrument_slot: usize,
-        volume_pct: Option<f32>,
-        pan_pos: Option<usize>,
-    },
-    SetInstrumentSlot {
-        instrument_slot: usize,
-        config: realtime_engine::synth::InstrumentSlotConfig,
-        sample_bank: Option<realtime_engine::synth::SampleBankConfig>,
-    },
-    SetFxBusMixer {
-        bus_index: usize,
-        pan_pos: Option<usize>,
-        volume_pct: Option<f32>,
-    },
-    SetSynthParam {
-        instrument_slot: usize,
-        path: String,
-        value: f32,
-    },
-    SetSampleBankParam {
-        instrument_slot: usize,
-        path: String,
-        value: f32,
-    },
-    SetFxBusSlot {
-        bus_index: usize,
-        slot_index: usize,
-        fx_type: String,
-        params: BTreeMap<String, Value>,
-    },
-    SetGlobalFxSlot {
-        slot_index: usize,
-        fx_type: String,
-        params: BTreeMap<String, Value>,
-    },
-    MomentaryFxStart {
-        id: String,
-        fx_type: String,
-        params: BTreeMap<String, Value>,
-        target: MomentaryFxTargetPayload,
-    },
-    MomentaryFxUpdate {
-        id: String,
-        params: BTreeMap<String, Value>,
-    },
-    MomentaryFxStop {
-        id: String,
-    },
 }
 
 pub(crate) const RUNTIME_MESSAGES_EVENT: &str = "runtime_messages";

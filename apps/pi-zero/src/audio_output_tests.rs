@@ -248,7 +248,10 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
     let sinks = Arc::new(Mutex::new(Vec::new()));
     register_sink(&sinks, super::AudioSink::Jack, dac_tx);
     let mut replay = ReplayCache::default();
-    replay.remember(&EngineEvent::SetMasterVolume { volume_pct: 72.0 });
+    replay.remember(&EngineEvent::SetMasterVolume {
+        generation: 0,
+        volume_pct: 72.0,
+    });
     let replay_events = Arc::new(Mutex::new(replay));
     let mut controller = super::orange_audio_recovery::OrangeRecoveryController::
         new_optional_missing_with_dependencies(

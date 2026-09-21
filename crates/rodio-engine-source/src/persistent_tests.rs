@@ -1,7 +1,8 @@
 use super::*;
 use realtime_engine::synth::{
-    default_synth_config, prepare_audio_config, prepare_momentary_fx_start, InstrumentSlotConfig,
-    InstrumentsConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer, SampleSlotConfig,
+    default_synth_config, prepare_audio_config, prepare_momentary_fx_start,
+    prepare_momentary_fx_update, InstrumentSlotConfig, InstrumentsConfig, MomentaryFxTarget,
+    SampleBankConfig, SampleBankParamId, SampleBuffer, SampleSlotConfig, SynthParamId,
     DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
@@ -146,7 +147,10 @@ fn run_mixed_flow(frames: usize) {
     send_to_both(
         &inline_tx,
         &persistent_tx,
-        EngineEvent::SetPreparedAudioConfig(mixed_config(0.8)),
+        EngineEvent::SetPreparedAudioConfig {
+            generation: 0,
+            config: mixed_config(0.8),
+        },
     );
     assert_block_parity(&mut inline, &mut persistent, frames);
 
@@ -177,6 +181,7 @@ fn run_mixed_flow(frames: usize) {
         &persistent_tx,
         EngineEvent::PreviewSample {
             instrument_slot: 1,
+            generation: 0,
             buffer: sample_bank(0.8).slots[0].buffer.clone().unwrap(),
             velocity: 100,
         },
@@ -196,8 +201,8 @@ fn run_mixed_flow(frames: usize) {
     send_to_both(
         &inline_tx,
         &persistent_tx,
-        EngineEvent::PreparedMomentaryFxStart(
-            prepare_momentary_fx_start(
+        EngineEvent::PreparedMomentaryFxStart {
+            config: prepare_momentary_fx_start(
                 "test".into(),
                 "stutter".into(),
                 BTreeMap::new(),
@@ -205,7 +210,7 @@ fn run_mixed_flow(frames: usize) {
                 RATE,
             )
             .unwrap(),
-        ),
+        },
     );
     assert_block_parity(&mut inline, &mut persistent, frames);
     assert!(inline_report_rx
@@ -220,7 +225,8 @@ fn run_mixed_flow(frames: usize) {
         &persistent_tx,
         EngineEvent::SetSynthParam {
             instrument_slot: 0,
-            path: "synth.amp.gainPct".into(),
+            generation: 0,
+            param: SynthParamId::AmpGainPct,
             value: 72.0,
         },
     );
@@ -229,23 +235,24 @@ fn run_mixed_flow(frames: usize) {
         &persistent_tx,
         EngineEvent::SetSampleBankParam {
             instrument_slot: 1,
-            path: "sample.amp.gainPct".into(),
+            generation: 0,
+            param: SampleBankParamId::AmpGainPct,
             value: 65.0,
         },
     );
     send_to_both(
         &inline_tx,
         &persistent_tx,
-        EngineEvent::MomentaryFxUpdate {
-            id: "test".into(),
-            params: BTreeMap::new(),
-        },
+        EngineEvent::MomentaryFxUpdate(
+            prepare_momentary_fx_update(0, "stutter".into(), BTreeMap::new(), RATE).unwrap(),
+        ),
     );
     send_to_both(
         &inline_tx,
         &persistent_tx,
         EngineEvent::SetPreparedSampleBank {
             instrument_slot: 1,
+            generation: 0,
             bank: sample_bank(0.4),
         },
     );
@@ -262,7 +269,7 @@ fn run_mixed_flow(frames: usize) {
     send_to_both(
         &inline_tx,
         &persistent_tx,
-        EngineEvent::MomentaryFxStop { id: "test".into() },
+        EngineEvent::MomentaryFxStop { epoch: 0 },
     );
     send_to_both(&inline_tx, &persistent_tx, EngineEvent::AllNotesOff);
     for _ in 0..4 {
@@ -307,7 +314,10 @@ fn persistent_refill_has_no_callback_memory_activity() {
     send_to_both(
         &inline_tx,
         &persistent_tx,
-        EngineEvent::SetPreparedAudioConfig(mixed_config(0.8)),
+        EngineEvent::SetPreparedAudioConfig {
+            generation: 0,
+            config: mixed_config(0.8),
+        },
     );
     send_to_both(
         &inline_tx,

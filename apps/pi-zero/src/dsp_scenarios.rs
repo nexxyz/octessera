@@ -201,15 +201,18 @@ pub fn live_scenario(
         .events
         .into_iter()
         .map(|event| match event {
-            rodio_engine_source::EngineEvent::SetPreparedAudioConfig(config)
+            rodio_engine_source::EngineEvent::SetPreparedAudioConfig { generation, config }
                 if config.sample_banks().is_some() =>
             {
-                rodio_engine_source::EngineEvent::SetPreparedAudioConfig(config.with_sample_banks(
-                    Some(crate::dsp_profile::samples::long_sample_banks(
-                        sample_rate,
-                        sample_lifetime_seconds,
+                rodio_engine_source::EngineEvent::SetPreparedAudioConfig {
+                    generation,
+                    config: config.with_sample_banks(Some(
+                        crate::dsp_profile::samples::long_sample_banks(
+                            sample_rate,
+                            sample_lifetime_seconds,
+                        ),
                     )),
-                ))
+                }
             }
             rodio_engine_source::EngineEvent::NoteOn {
                 instrument_slot,

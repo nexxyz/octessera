@@ -4,6 +4,7 @@ use super::*;
 pub(crate) fn sparks_xy_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     runner.xy_invert_x = true;
     runner.xy_x_binding = Some(NativeParamBinding {
         key: "sound.velocityScalePct".into(),
@@ -73,6 +74,7 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
 pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
     runner.global_fx_slots[0] = "vinyl".into();
@@ -155,7 +157,9 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
 #[test]
 pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     runner.fx_buses[0].slot3_type = "eq".into();
     runner.fx_buses[0].slot3_params = json!({ "midQ": 1.0, "mixPct": 100 });
     runner.global_fx_slots[0] = "eq".into();
@@ -204,15 +208,24 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
     assert!(
         commands.iter().any(|command| matches!(
             command,
-            RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, params, .. }
-                if params.get("midQ") == Some(&json!(20.0))
+            RuntimeAudioCommand::SetFxBusParam {
+                bus_index: 0,
+                slot_index: 2,
+                param: realtime_engine::synth::FxParamId::MidQ,
+                value,
+                ..
+            } if (*value - 20.0).abs() < f32::EPSILON
         )),
         "{commands:?}"
     );
     assert!(commands.iter().any(|command| matches!(
         command,
-        RuntimeAudioCommand::SetGlobalFxSlot { slot_index: 0, params, .. }
-            if params.get("midQ") == Some(&json!(20.0))
+        RuntimeAudioCommand::SetGlobalFxParam {
+            slot_index: 0,
+            param: realtime_engine::synth::FxParamId::MidQ,
+            value,
+            ..
+        } if (*value - 20.0).abs() < f32::EPSILON
     )));
 }
 
@@ -242,6 +255,7 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
 pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     runner.xy_x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
@@ -277,6 +291,7 @@ pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
 pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     runner.xy_invert_x = true;
     runner
         .apply_config_payload(json!({
@@ -299,6 +314,7 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
         .unwrap();
 
     runner.active_sparks_mode = "xy".into();
+    runner.xy_smoothing_ms = 0;
     let binding = runner.xy_x_binding.as_ref().unwrap();
     assert_eq!(binding.user_min, Some(10.0));
     assert_eq!(binding.user_max, Some(90.0));

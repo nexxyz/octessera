@@ -11,20 +11,33 @@ fn desktop_recording_start_and_stop_finalize_a_valid_wav() {
     let directory = temp_store_dir("recording-valid");
     let (mut adapter, _) = test_adapter_with_recording_dir(directory.clone());
 
-    assert!(adapter
+    assert!(matches!(
+        adapter
         .handle_platform_effect(&platform_request(
             RuntimePlatformEffect::RecordingStartAudio { max_minutes: 1 }
         ))
         .unwrap()
-        .is_empty());
+        .as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: true,
+            }
+        }] if message == "Recording started"
+    ));
     assert!(matches!(
         adapter
             .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
             .unwrap()
             .as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RecordingStatus { ok: true, .. }
-        }]
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: false,
+            }
+        }] if message == "Recording saved"
     ));
     assert!(adapter.poll_recording_status().is_none());
 
@@ -51,21 +64,36 @@ fn desktop_audio_oled_effect_uses_screen_recording_mode_and_rejects_audio_start(
     let directory = temp_store_dir("recording-oled");
     let (mut adapter, _) = test_adapter_with_recording_dir(directory.clone());
 
-    adapter
+    let started = adapter
         .handle_platform_effect(&platform_request(
             RuntimePlatformEffect::RecordingStartAudioOled { max_minutes: 1 },
         ))
         .unwrap();
+    assert!(matches!(
+        started.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: true,
+            }
+        }] if message == "Recording started"
+    ));
     let active = adapter
         .handle_platform_effect(&platform_request(
             RuntimePlatformEffect::RecordingStartAudio { max_minutes: 1 },
         ))
-        .unwrap_err();
-    assert!(active
-        .facts
-        .message
-        .as_deref()
-        .is_some_and(|message| message.contains("already active")));
+        .unwrap();
+    assert!(matches!(
+        active.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: true,
+            }
+        }] if message == "Recording is already running"
+    ));
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
         .unwrap();
@@ -91,14 +119,17 @@ fn desktop_recording_reports_already_active_and_filesystem_errors() {
         .handle_platform_effect(&platform_request(
             RuntimePlatformEffect::RecordingStartAudio { max_minutes: 1 },
         ))
-        .unwrap_err();
-    assert_eq!(active.facts.domain, RuntimeErrorDomain::Recording);
-    assert_eq!(active.facts.code, RuntimeErrorCode::OperationFailed);
-    assert!(active
-        .facts
-        .message
-        .as_deref()
-        .is_some_and(|message| message.contains("already active")));
+        .unwrap();
+    assert!(matches!(
+        active.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: true,
+            }
+        }] if message == "Recording is already running"
+    ));
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
         .unwrap();
@@ -171,7 +202,11 @@ fn desktop_recording_completion_uses_existing_status_toast_result() {
         super::super::host_adapter_recording::status_for_recording(RecordingStatus::Complete);
     assert!(matches!(
         saved,
-        RuntimeStoreResult::RecordingStatus { ok: true, message }
+        RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message,
+            active: false,
+        }
             if message == "Recording saved"
     ));
 
@@ -184,7 +219,23 @@ fn desktop_recording_completion_uses_existing_status_toast_result() {
         });
     assert!(matches!(
         incomplete,
-        RuntimeStoreResult::RecordingStatus { ok: false, message }
+        RuntimeStoreResult::RecordingStatus {
+            ok: false,
+            message,
+            active: false,
+        }
             if message == "Recording incomplete"
+    ));
+
+    let max_time = super::super::host_adapter_recording::max_time_status_for_recording(
+        RecordingStatus::Complete,
+    );
+    assert!(matches!(
+        max_time,
+        RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message,
+            active: false,
+        } if message == "Max time: saved"
     ));
 }

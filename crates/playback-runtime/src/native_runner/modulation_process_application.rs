@@ -79,18 +79,21 @@ pub(super) fn apply_composed_audio_commands(
     application: ComposedAudioApplication<'_>,
 ) {
     for endpoint in application.endpoints {
-        let Some(command) = super::modulation_process_audio::materialize_endpoint(
+        let Some(commands) = super::modulation_process_audio::materialize_endpoint_commands(
             runner,
             &endpoint,
             application.audio_values,
+            state.active_keys_for_endpoint(&endpoint),
         ) else {
             continue;
         };
         if (application.transient_endpoints.contains(&endpoint) && application.force)
-            || state.audio_commands.get(&endpoint) != Some(&command)
+            || state.audio_commands.get(&endpoint) != Some(&commands)
         {
-            state.audio_commands.insert(endpoint, command.clone());
-            runner.queue_audio_command(command);
+            state.audio_commands.insert(endpoint, commands.clone());
+            for command in commands {
+                runner.queue_audio_command(command);
+            }
         }
     }
     queue_changed_instrument_commands(runner, application.resolved, application.changed_keys);

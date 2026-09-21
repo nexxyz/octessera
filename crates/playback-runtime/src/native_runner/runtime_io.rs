@@ -157,6 +157,7 @@ impl NativeRunner {
         }
         self.transport.transport = RuntimeTransportState::Playing;
         self.reset_transport_position();
+        self.prime_sequencer_layer_origins();
         let now = self.display.transients.now();
         self.display
             .transients
@@ -168,7 +169,11 @@ impl NativeRunner {
         if self.should_ignore_external_start_stop() {
             return self.messages_with_snapshot();
         }
+        let was_stopped = self.transport.transport == RuntimeTransportState::Stopped;
         self.transport.transport = RuntimeTransportState::Playing;
+        if was_stopped {
+            self.prime_sequencer_layer_origins();
+        }
         self.messages_with_snapshot()
     }
 
@@ -208,13 +213,58 @@ impl NativeRunner {
         let mut remaining = pulses;
         let mut out = Vec::new();
         while remaining > 0 {
-            let chunk = if self.transport.pending_resync {
+            if self.transport.pending_resync {
                 let until_boundary = EXTERNAL_RESYNC_PPQN
                     - (self.transport.current_ppqn_pulse % EXTERNAL_RESYNC_PPQN);
-                remaining.min(until_boundary as u32)
-            } else {
-                remaining
-            };
+                let before_boundary = remaining.min(
+                    u32::try_from(until_boundary.saturating_sub(1))
+                        .expect("PPQN boundary fits u32"),
+                );
+                if before_boundary > 0 {
+                    self.transport.current_ppqn_pulse = self
+                        .transport
+                        .current_ppqn_pulse
+                        .saturating_add(u64::from(before_boundary));
+                    let events = self.advance_algorithm(before_boundary)?;
+                    if !events.is_empty() {
+                        if !events.audio.is_empty() {
+                            out.push(RunnerMessage::MusicalEvents {
+                                events: events.audio,
+                            });
+                        }
+                        if !events.midi.is_empty() {
+                            out.push(RunnerMessage::MidiEvents {
+                                events: events.midi,
+                            });
+                        }
+                    }
+                    out.extend(self.messages_with_snapshot()?);
+                    remaining -= before_boundary;
+                    continue;
+                }
+
+                remaining -= 1;
+                self.reset_transport_position();
+                self.prime_sequencer_layer_origins();
+                self.append_pending_transpose_note_offs(&mut out);
+                let events = self.advance_due_layer_ticks()?;
+                if !events.is_empty() {
+                    if !events.audio.is_empty() {
+                        out.push(RunnerMessage::MusicalEvents {
+                            events: events.audio,
+                        });
+                    }
+                    if !events.midi.is_empty() {
+                        out.push(RunnerMessage::MidiEvents {
+                            events: events.midi,
+                        });
+                    }
+                }
+                out.extend(self.messages_with_snapshot()?);
+                continue;
+            }
+
+            let chunk = remaining;
             self.transport.current_ppqn_pulse = self
                 .transport
                 .current_ppqn_pulse
@@ -234,15 +284,6 @@ impl NativeRunner {
             }
             out.extend(self.messages_with_snapshot()?);
             remaining -= chunk;
-            if self.transport.pending_resync
-                && self
-                    .transport
-                    .current_ppqn_pulse
-                    .is_multiple_of(EXTERNAL_RESYNC_PPQN)
-            {
-                self.reset_transport_position();
-                out.extend(self.messages_with_snapshot()?);
-            }
         }
         Ok(out)
     }

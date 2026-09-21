@@ -29,6 +29,7 @@ pub(super) fn queue_changed_instrument_commands(
             if let Some(config) = runner.instrument_audio_config(index) {
                 runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
                     instrument_slot: index,
+                    generation: 0,
                     config,
                 });
             }
@@ -48,6 +49,7 @@ pub(super) fn queue_changed_instrument_commands(
             if let Some(config) = runner.instrument_audio_config(index) {
                 runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
                     instrument_slot: index,
+                    generation: 0,
                     config,
                 });
             }
@@ -250,6 +252,7 @@ pub(super) fn materialize_endpoint(
             }
             Some(RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot: *index,
+                generation: 0,
                 volume_pct: Some(
                     value_or_base(
                         values,
@@ -272,6 +275,7 @@ pub(super) fn materialize_endpoint(
             let bus = runner.fx_buses.get(*index)?;
             Some(RuntimeAudioCommand::SetFxBusMixer {
                 bus_index: *index,
+                generation: 0,
                 pan_pos: Some(
                     value_or_base(
                         values,
@@ -312,6 +316,7 @@ pub(super) fn materialize_endpoint(
             Some(RuntimeAudioCommand::SetFxBusSlot {
                 bus_index: *bus_index,
                 slot_index: *slot,
+                generation: 0,
                 fx_type: fx_type.clone(),
                 params,
             })
@@ -332,6 +337,7 @@ pub(super) fn materialize_endpoint(
             }
             Some(RuntimeAudioCommand::SetGlobalFxSlot {
                 slot_index: *slot,
+                generation: 0,
                 fx_type: fx_type.clone(),
                 params,
             })
@@ -341,6 +347,103 @@ pub(super) fn materialize_endpoint(
         | Endpoint::InstrumentParameter { .. }
         | Endpoint::SparksFx => None,
     }
+}
+
+pub(super) fn materialize_endpoint_commands(
+    runner: &NativeRunner,
+    endpoint: &Endpoint,
+    values: &BTreeMap<String, f64>,
+    active_keys: Option<&BTreeSet<String>>,
+) -> Option<Vec<RuntimeAudioCommand>> {
+    let commands = match endpoint {
+        Endpoint::FxBusSlot { bus_index, slot } => {
+            let prefix = format!("mixer.buses.{bus_index}.slot{}.params.", slot + 1);
+            let Some(keys) = active_keys else {
+                return Some(vec![materialize_endpoint(runner, endpoint, values)?]);
+            };
+            let mut commands = Vec::new();
+            let mut safe = true;
+            for key in keys {
+                let Some(field) = key.strip_prefix(&prefix) else {
+                    safe = false;
+                    break;
+                };
+                let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(field) else {
+                    safe = false;
+                    break;
+                };
+                let Some(value) = values
+                    .get(key)
+                    .copied()
+                    .or_else(|| audio_base_value(runner, key))
+                else {
+                    safe = false;
+                    break;
+                };
+                let value = super::fx_param_codec::display_to_storage(field, value);
+                let Some(value) = value.as_f64() else {
+                    safe = false;
+                    break;
+                };
+                commands.push(RuntimeAudioCommand::SetFxBusParam {
+                    bus_index: *bus_index,
+                    slot_index: *slot,
+                    generation: 0,
+                    param,
+                    value: value as f32,
+                });
+            }
+            if !safe || commands.is_empty() {
+                vec![materialize_endpoint(runner, endpoint, values)?]
+            } else {
+                commands
+            }
+        }
+        Endpoint::GlobalFxSlot { slot } => {
+            let prefix = format!("mixer.master.slots.{slot}.params.");
+            let Some(keys) = active_keys else {
+                return Some(vec![materialize_endpoint(runner, endpoint, values)?]);
+            };
+            let mut commands = Vec::new();
+            let mut safe = true;
+            for key in keys {
+                let Some(field) = key.strip_prefix(&prefix) else {
+                    safe = false;
+                    break;
+                };
+                let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(field) else {
+                    safe = false;
+                    break;
+                };
+                let Some(value) = values
+                    .get(key)
+                    .copied()
+                    .or_else(|| audio_base_value(runner, key))
+                else {
+                    safe = false;
+                    break;
+                };
+                let value = super::fx_param_codec::display_to_storage(field, value);
+                let Some(value) = value.as_f64() else {
+                    safe = false;
+                    break;
+                };
+                commands.push(RuntimeAudioCommand::SetGlobalFxParam {
+                    slot_index: *slot,
+                    generation: 0,
+                    param,
+                    value: value as f32,
+                });
+            }
+            if !safe || commands.is_empty() {
+                vec![materialize_endpoint(runner, endpoint, values)?]
+            } else {
+                commands
+            }
+        }
+        _ => vec![materialize_endpoint(runner, endpoint, values)?],
+    };
+    Some(commands)
 }
 
 fn value_or_base(values: &BTreeMap<String, f64>, key: &str, base: f64) -> f64 {

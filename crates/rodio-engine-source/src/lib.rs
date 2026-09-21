@@ -1,14 +1,20 @@
 mod audio_quantum;
 mod control_drain;
 mod event;
+mod latest_control_encoding;
+mod latest_controls;
+mod latest_momentary;
+mod momentary_transport;
 mod pcm_mirror;
 mod persistent_output;
 mod profile_cache;
 mod queue;
+mod queue_types;
 mod retired_audio_backlog;
 mod sample_decode;
 mod source_factory;
 mod source_shutdown;
+mod source_state;
 mod source_worker;
 mod source_worker_reaper;
 mod telemetry;
@@ -16,7 +22,7 @@ mod telemetry;
 use audio_quantum::audio_render_quantum_frames;
 #[cfg(test)]
 use audio_quantum::resolve_audio_render_quantum_frames;
-use crossbeam_channel::{Sender, TrySendError};
+use crossbeam_channel::Sender;
 pub use event::EngineEvent;
 pub use pcm_mirror::{
     new_pcm_mirror, PcmMirrorConsumer, PcmMirrorPair, PcmMirrorProducer, PcmMirrorProducers,
@@ -42,6 +48,11 @@ use realtime_engine::synth::{
 };
 use retired_audio_backlog::RetiredAudioBacklog;
 pub use sample_decode::decode_sample_file;
+use source_state::{
+    drop_retired_item, EngineSlot, SourceOwned, SourceOwnedDropState, SourceRetirementChannels,
+};
+#[cfg(test)]
+use source_state::{RetiredAudioDropProbe, SourceOwnedDropProbe};
 use source_worker::{EngineSourceMode, EngineSourceWorkerState};
 pub use source_worker::{EngineSourceWorkerShutdownError, EngineSourceWorkerShutdownOwner};
 use source_worker_reaper::SourceShutdownEnvelope;
@@ -67,45 +78,32 @@ pub(crate) struct RetiredAudioItem {
     pub(crate) drop_probe: Option<RetiredAudioDropProbe>,
 }
 
-struct SourceRetirementChannels {
-    retired_tx: Sender<RetiredAudioItem>,
-    shutdown_tx: Sender<SourceShutdownEnvelope>,
-}
-
-#[cfg(test)]
-pub(crate) struct RetiredAudioDropProbe {
-    drop_tx: std::sync::mpsc::Sender<std::thread::ThreadId>,
-}
-
-#[cfg(test)]
-impl Drop for RetiredAudioDropProbe {
-    fn drop(&mut self) {
-        let _ = self.drop_tx.send(std::thread::current().id());
-    }
-}
-
 pub struct EngineSource {
-    engine: Box<SynthEngine>,
+    engine: EngineSlot,
     worker_state: EngineSourceWorkerState,
-    control_rx: EngineEventReceiver,
+    control_rx: SourceOwned<EngineEventReceiver>,
     sample_rate: u32,
     block_frames: usize,
     #[cfg(any(test, feature = "routing-tree-executor"))]
     cached_profile_snapshot: SynthProfileSnapshot,
-    buf: Vec<f32>,
-    left_buf: Vec<f32>,
-    right_buf: Vec<f32>,
+    buf: SourceOwned<Vec<f32>>,
+    left_buf: SourceOwned<Vec<f32>>,
+    right_buf: SourceOwned<Vec<f32>>,
     idx: usize,
     load_tx: Option<AudioLoadStatusSender>,
     last_load_report: Instant,
     pending_load_status_after_fresh: bool,
     telemetry: EngineTelemetry,
-    retired_tx: Sender<RetiredAudioItem>,
+    retired_tx: SourceOwned<Sender<RetiredAudioItem>>,
     retired_backlog: Option<RetiredAudioBacklog>,
+    emergency_retirement: Option<RetiredAudioItem>,
     shutdown_tx: Option<Sender<SourceShutdownEnvelope>>,
     retirement_disconnected: bool,
+    owner_generations: control_drain::OwnerGenerations,
     #[cfg(test)]
     retired_drop_probe: Option<std::sync::mpsc::Sender<std::thread::ThreadId>>,
+    #[cfg(test)]
+    source_owned_drop_probe: Option<SourceOwnedDropProbe>,
     #[cfg(test)]
     refill_generation: u64,
     #[cfg(all(test, feature = "routing-tree-executor"))]
@@ -229,27 +227,31 @@ impl EngineSource {
             shutdown_tx,
         } = retirement;
         Self {
-            engine,
+            engine: EngineSlot::new(engine),
             worker_state,
-            control_rx,
+            control_rx: SourceOwned::new(control_rx),
             sample_rate,
             block_frames,
             #[cfg(any(test, feature = "routing-tree-executor"))]
             cached_profile_snapshot: SynthProfileSnapshot::default(),
-            buf: Vec::with_capacity(block_frames * OUTPUT_CHANNELS),
-            left_buf: Vec::with_capacity(block_frames),
-            right_buf: Vec::with_capacity(block_frames),
+            buf: SourceOwned::new(Vec::with_capacity(block_frames * OUTPUT_CHANNELS)),
+            left_buf: SourceOwned::new(Vec::with_capacity(block_frames)),
+            right_buf: SourceOwned::new(Vec::with_capacity(block_frames)),
             idx: 0,
             load_tx,
             last_load_report: Instant::now(),
             pending_load_status_after_fresh: false,
             telemetry: EngineTelemetry::default(),
-            retired_tx,
+            retired_tx: SourceOwned::new(retired_tx),
             retired_backlog: Some(RetiredAudioBacklog::new()),
+            emergency_retirement: None,
             shutdown_tx: Some(shutdown_tx),
             retirement_disconnected: false,
+            owner_generations: control_drain::OwnerGenerations::default(),
             #[cfg(test)]
             retired_drop_probe: None,
+            #[cfg(test)]
+            source_owned_drop_probe: None,
             #[cfg(test)]
             refill_generation: 0,
             #[cfg(all(test, feature = "routing-tree-executor"))]
@@ -366,74 +368,14 @@ impl EngineSource {
         status_queued
     }
 
-    fn retire_state(&mut self, state: RetiredAudioState) {
-        if state.is_empty() {
-            return;
-        }
-        self.retire_item(RetiredAudioItem {
-            state: Some(state),
-            event: None,
-            #[cfg(test)]
-            drop_probe: None,
-        });
-    }
-
-    #[cfg(test)]
-    fn retire_event(&mut self, event: EngineEvent) {
-        self.retire_item(RetiredAudioItem {
-            state: None,
-            event: Some(event),
-            #[cfg(test)]
-            drop_probe: None,
-        });
-    }
-
-    fn retire_item(&mut self, item: RetiredAudioItem) {
-        #[cfg(test)]
-        let mut item = item;
-        #[cfg(test)]
-        {
-            item.drop_probe =
-                self.retired_drop_probe
-                    .as_ref()
-                    .map(|drop_tx| RetiredAudioDropProbe {
-                        drop_tx: drop_tx.clone(),
-                    });
-        }
-        let Some(backlog) = self.retired_backlog.as_mut() else {
-            return;
-        };
-        if self.retirement_disconnected {
-            let _ = backlog.enqueue(item);
-            return;
-        }
-        backlog.flush(&self.retired_tx, &mut self.retirement_disconnected);
-        match self.retired_tx.try_send(item) {
-            Ok(()) => {}
-            Err(TrySendError::Full(item)) => {
-                let _ = backlog.enqueue(item);
-            }
-            Err(TrySendError::Disconnected(item)) => {
-                self.retirement_disconnected = true;
-                let _ = backlog.enqueue(item);
-            }
-        }
-    }
-
-    fn retirement_storage_can_accept_item(&mut self) -> bool {
-        let Some(backlog) = self.retired_backlog.as_mut() else {
-            return false;
-        };
-        backlog.flush(&self.retired_tx, &mut self.retirement_disconnected);
-        backlog.len < RETIREMENT_BACKLOG_CAPACITY
-    }
-
     fn drain_control_events(&mut self) -> DrainedControlEvents {
         let mut controls = control_drain::ControlDrain::new(
             &mut self.control_rx,
             &self.retired_tx,
             self.retired_backlog.as_mut().expect("retired backlog"),
             &mut self.retirement_disconnected,
+            &mut self.owner_generations,
+            &mut self.emergency_retirement,
             #[cfg(test)]
             self.retired_drop_probe.clone(),
         );
@@ -444,13 +386,6 @@ impl EngineSource {
     pub(crate) fn refill_generation_for_test(&self) -> u64 {
         self.refill_generation
     }
-}
-
-pub(crate) fn drop_retired_item(item: RetiredAudioItem) {
-    drop(item.state);
-    drop(item.event);
-    #[cfg(test)]
-    drop(item.drop_probe);
 }
 
 impl Iterator for EngineSource {
@@ -497,3 +432,7 @@ mod tests;
 #[cfg(test)]
 #[path = "e2e_tests.rs"]
 mod e2e_tests;
+
+#[cfg(test)]
+#[path = "generation_tests.rs"]
+mod generation_tests;

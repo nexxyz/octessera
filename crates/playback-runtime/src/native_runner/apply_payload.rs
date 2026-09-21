@@ -90,10 +90,13 @@ impl NativeRunner {
         self.jack_audio_required = source.jack_audio_required;
         self.usb_data_role_available = source.usb_data_role_available;
         self.boot_applied_usb_midi_out_enabled = source.boot_applied_usb_midi_out_enabled;
+        self.recording_active = source.recording_active;
     }
 
     fn copy_live_runtime_state_from(&mut self, source: &NativeRunner) {
         self.xy_touch = source.xy_touch.clone();
+        self.xy_x_glide = source.xy_x_glide.clone();
+        self.xy_y_glide = source.xy_y_glide.clone();
         self.active_sparks_fx = source.active_sparks_fx.clone();
         self.trigger_gate_modes = source.trigger_gate_modes.clone();
         self.trigger_gate_restore_modes = source.trigger_gate_restore_modes.clone();

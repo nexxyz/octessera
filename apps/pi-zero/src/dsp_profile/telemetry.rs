@@ -63,60 +63,115 @@ pub(crate) fn apply_events(
     for event in events {
         match event {
             EngineEvent::AllNotesOff => retired.push(engine.all_notes_off()),
-            EngineEvent::SetDspConfig(config) => engine.set_dsp_config(*config),
-            EngineEvent::SetVoiceStealingMode(mode) => engine.set_voice_stealing_mode(*mode),
+            EngineEvent::SetDspConfig { config, .. } => engine.set_dsp_config(*config),
+            EngineEvent::SetVoiceStealingMode { mode, .. } => engine.set_voice_stealing_mode(*mode),
             EngineEvent::SetPreparedSampleBank {
                 instrument_slot,
                 bank,
-            } => retired.push(engine.apply_prepared_sample_bank(*instrument_slot, bank.clone())),
-            EngineEvent::SetPreparedInstruments(config) => {
+                ..
+            } => retired
+                .push(engine.apply_prepared_sample_bank((*instrument_slot).into(), bank.clone())),
+            EngineEvent::SetPreparedInstruments { config, .. } => {
                 retired.push(engine.apply_prepared_instruments_config(config.clone()))
             }
-            EngineEvent::SetPreparedAudioConfig(config) => {
+            EngineEvent::SetPreparedAudioConfig { config, .. } => {
                 retired.push(engine.apply_prepared_audio_config(config.clone()))
             }
-            EngineEvent::SetMasterVolume { volume_pct } => engine.set_master_volume(*volume_pct),
+            EngineEvent::SetMasterVolume { volume_pct, .. } => {
+                let _ = engine.set_master_volume(*volume_pct);
+            }
             EngineEvent::SetInstrumentMixer {
                 instrument_slot,
                 volume_pct,
                 pan_pos,
-            } => engine.set_instrument_mixer(*instrument_slot, *volume_pct, *pan_pos),
+                ..
+            } => {
+                let _ =
+                    engine.set_instrument_mixer((*instrument_slot).into(), *volume_pct, *pan_pos);
+            }
             EngineEvent::SetPreparedInstrumentSlot {
                 instrument_slot,
                 config,
-            } => retired
-                .push(engine.apply_prepared_instrument_slot(*instrument_slot, config.clone())),
+                ..
+            } => retired.push(
+                engine.apply_prepared_instrument_slot((*instrument_slot).into(), config.clone()),
+            ),
+            EngineEvent::SetPreparedInstrumentOwner {
+                instrument_slot,
+                config,
+                sample_bank,
+                ..
+            } => retired.push(engine.apply_prepared_instrument_owner(
+                (*instrument_slot).into(),
+                config.clone(),
+                sample_bank.clone(),
+            )),
             EngineEvent::SetFxBusMixer {
                 bus_index,
                 pan_pos,
                 volume_pct,
-            } => engine.set_fx_bus_mixer(*bus_index, *pan_pos, *volume_pct),
+                ..
+            } => {
+                let _ = engine.set_fx_bus_mixer((*bus_index).into(), *pan_pos, *volume_pct);
+            }
             EngineEvent::SetSynthParam {
                 instrument_slot,
-                path,
+                param,
                 value,
-            } => engine.set_synth_param(*instrument_slot, path, *value),
+                ..
+            } => {
+                let _ = engine.set_synth_param_typed((*instrument_slot).into(), *param, *value);
+            }
             EngineEvent::SetSampleBankParam {
                 instrument_slot,
-                path,
+                param,
                 value,
-            } => engine.set_sample_bank_param(*instrument_slot, path, *value),
+                ..
+            } => {
+                let _ =
+                    engine.set_sample_bank_param_typed((*instrument_slot).into(), *param, *value);
+            }
             EngineEvent::SetPreparedFxBusSlot {
                 bus_index,
                 slot_index,
                 config,
+                ..
             } => retired.push(engine.apply_prepared_fx_bus_slot(
-                *bus_index,
-                *slot_index,
+                (*bus_index).into(),
+                (*slot_index).into(),
                 config.clone(),
             )),
-            EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
-                retired.push(engine.apply_prepared_global_fx_slot(*slot_index, config.clone()))
+            EngineEvent::SetGlobalFxParam {
+                slot_index,
+                param,
+                value,
+                ..
+            } => {
+                let _ = engine.set_global_fx_param((*slot_index).into(), *param, *value);
             }
+            EngineEvent::SetFxBusParam {
+                bus_index,
+                slot_index,
+                param,
+                value,
+                ..
+            } => {
+                let _ = engine.set_fx_bus_param(
+                    (*bus_index).into(),
+                    (*slot_index).into(),
+                    *param,
+                    *value,
+                );
+            }
+            EngineEvent::SetPreparedGlobalFxSlot {
+                slot_index, config, ..
+            } => retired
+                .push(engine.apply_prepared_global_fx_slot((*slot_index).into(), config.clone())),
             EngineEvent::PreviewSample {
                 instrument_slot,
                 buffer,
                 velocity,
+                ..
             } => retired.push(engine.preview_sample(*instrument_slot, buffer.clone(), *velocity)),
             EngineEvent::NoteOn {
                 instrument_slot,
@@ -133,11 +188,15 @@ pub(crate) fn apply_events(
                 controller,
                 value,
             } => engine.cc(*instrument_slot, *controller, *value),
-            EngineEvent::PreparedMomentaryFxStart(config) => {
+            EngineEvent::PreparedMomentaryFxStart { config } => {
                 retired.push(engine.apply_prepared_momentary_fx_start(config.clone()))
             }
-            EngineEvent::MomentaryFxUpdate { id, params } => engine.momentary_fx_update(id, params),
-            EngineEvent::MomentaryFxStop { id } => retired.push(engine.momentary_fx_stop(id)),
+            EngineEvent::MomentaryFxUpdate(update) => {
+                let _ = engine.apply_prepared_momentary_fx_update(*update);
+            }
+            EngineEvent::MomentaryFxStop { epoch } => {
+                retired.push(engine.momentary_fx_stop_by_epoch(*epoch));
+            }
             EngineEvent::ProbeMark { .. } => {}
         }
     }

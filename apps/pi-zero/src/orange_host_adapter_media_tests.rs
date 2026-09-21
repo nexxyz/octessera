@@ -1,6 +1,6 @@
 use super::*;
 use crate::audio::{test_service, test_service_with_outputs, test_service_with_recording_dir};
-use playback_runtime::{AudioOutputSet, RuntimeErrorCode};
+use playback_runtime::{AudioOutputSet, RuntimeErrorCode, RuntimeErrorDomain};
 
 fn assert_sd2_start_rejected(response: &[HostMessage], message: &str) {
     let [HostMessage::RuntimeResult {
@@ -111,7 +111,8 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
     )
     .unwrap();
 
-    assert!(adapter
+    assert!(matches!(
+        adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::RecordingStartAudio {
                 max_minutes: u16::MAX,
@@ -119,7 +120,15 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
             "recording-start",
         ))
         .unwrap()
-        .is_empty());
+        .as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: true,
+            }
+        }] if message == "Recording started"
+    ));
     assert!(audio.is_recording().unwrap());
     audio
         .test_push_recording_samples(&[0, i16::MAX, i16::MIN, -1])
@@ -133,8 +142,12 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
             .unwrap()
             .as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RecordingStatus { ok: true, .. }
-        }]
+            result: RuntimeStoreResult::RecordingStatus {
+                ok: true,
+                message,
+                active: false,
+            }
+        }] if message == "Recording saved"
     ));
     assert!(!audio.is_recording().unwrap());
     assert!(audio.poll_recording_status().is_none());
@@ -186,6 +199,51 @@ fn orange_recording_directory_failure_is_typed_and_does_not_stop_runtime() {
     assert!(!audio.is_recording().unwrap());
     assert!(!adapter.shutdown_pending());
 
+    let _ = std::fs::remove_dir_all(store.parent().unwrap());
+    let _ = std::fs::remove_dir_all(samples);
+}
+
+#[test]
+fn orange_recording_stop_failure_preserves_error_detail() {
+    let (store, samples) = directories();
+    let recordings = store.parent().unwrap().join("recordings");
+    let (audio, _, _, _) = test_service_with_recording_dir(recordings.clone());
+    audio.start_recording(1).unwrap();
+    let partial = std::fs::read_dir(&recordings)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| path.to_string_lossy().ends_with(".partial.wav"))
+        .expect("partial WAV");
+    let stem = partial
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .trim_end_matches(".partial.wav")
+        .to_string();
+    std::fs::create_dir(recordings.join(format!("{stem}.wav"))).unwrap();
+    let mut adapter = OrangeHostAdapter::with_directories(
+        audio.clone(),
+        store.clone(),
+        samples.clone(),
+        Arc::new(|_| {}),
+        false,
+    )
+    .unwrap();
+
+    let error = adapter
+        .handle_platform_effect(&request(
+            RuntimePlatformEffect::RecordingStop,
+            "recording-stop-error",
+        ))
+        .unwrap_err();
+    assert_eq!(error.facts.domain, RuntimeErrorDomain::Recording);
+    assert_eq!(error.facts.code, RuntimeErrorCode::OperationFailed);
+    assert!(error
+        .facts
+        .message
+        .as_deref()
+        .is_some_and(|message| message.contains("already exists")));
+    assert!(!audio.is_recording().unwrap());
     let _ = std::fs::remove_dir_all(store.parent().unwrap());
     let _ = std::fs::remove_dir_all(samples);
 }

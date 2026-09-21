@@ -36,9 +36,7 @@ fn empty_control_steady_state_uses_no_control_gate() {
         .expect("retired backlog")
         .enqueue(RetiredAudioItem {
             state: None,
-            event: Some(EngineEvent::MomentaryFxStop {
-                id: "empty-steady-state".into(),
-            }),
+            event: Some(EngineEvent::MomentaryFxStop { epoch: 0 }),
             drop_probe: None,
         }));
 
@@ -77,9 +75,10 @@ fn applies_controls_before_dispatching_next_quantum() {
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     };
-    tx.send(EngineEvent::SetPreparedInstruments(
-        realtime_engine::synth::prepare_instruments_config(instruments, 44_100),
-    ))
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: realtime_engine::synth::prepare_instruments_config(instruments, 44_100),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
@@ -118,9 +117,10 @@ fn routing_tree_note_events_start_at_next_quantum() {
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     };
-    tx.send(EngineEvent::SetPreparedInstruments(
-        realtime_engine::synth::prepare_instruments_config(instruments, 44_100),
-    ))
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: realtime_engine::synth::prepare_instruments_config(instruments, 44_100),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
@@ -145,15 +145,14 @@ fn routing_tree_note_events_start_at_next_quantum() {
 #[test]
 fn routing_tree_preview_runs_through_source_control_gate() {
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-        direct_synth_instruments(),
-        None,
-        None,
-        44_100,
-    )))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_audio_config(direct_synth_instruments(), None, None, 44_100),
+    })
     .unwrap();
     tx.send(EngineEvent::PreviewSample {
         instrument_slot: 0,
+        generation: 0,
         buffer: realtime_engine::synth::SampleBuffer {
             samples: vec![0.5; 4096].into(),
             channels: 1,
@@ -166,7 +165,7 @@ fn routing_tree_preview_runs_through_source_control_gate() {
         EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
 
-    for _ in 0..(128 * 2 * 2) {
+    for _ in 0..(128 * 2 * 4) {
         let _ = source.next();
     }
     assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
@@ -179,15 +178,13 @@ fn routing_tree_preview_runs_through_source_control_gate() {
 #[test]
 fn routing_tree_local_momentary_fx_runs_through_source_control_gate() {
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-        direct_synth_instruments(),
-        None,
-        None,
-        44_100,
-    )))
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_audio_config(direct_synth_instruments(), None, None, 44_100),
+    })
     .unwrap();
-    tx.send(EngineEvent::PreparedMomentaryFxStart(
-        realtime_engine::synth::prepare_momentary_fx_start(
+    tx.send(EngineEvent::PreparedMomentaryFxStart {
+        config: realtime_engine::synth::prepare_momentary_fx_start(
             "local".into(),
             "filter_sweep".into(),
             BTreeMap::new(),
@@ -195,13 +192,13 @@ fn routing_tree_local_momentary_fx_runs_through_source_control_gate() {
             44_100,
         )
         .expect("momentary FX"),
-    ))
+    })
     .unwrap();
     let (mut source, shutdown) =
         EngineSource::with_routing_tree_persistent_workers(rx, 44_100, 128, None)
             .expect("routing-tree runtime");
 
-    for _ in 0..(128 * 2 * 2) {
+    for _ in 0..(128 * 2 * 4) {
         let _ = source.next();
     }
     assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
@@ -216,8 +213,11 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     let prepared =
         realtime_engine::synth::prepare_instruments_config(direct_synth_instruments(), 44_100);
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedInstruments(prepared))
-        .unwrap();
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: prepared,
+    })
+    .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
         note: 48,
@@ -232,8 +232,8 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     let first: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
     assert!(first.iter().all(|sample| sample.to_bits() == 0));
 
-    tx.send(EngineEvent::PreparedMomentaryFxStart(
-        realtime_engine::synth::prepare_momentary_fx_start(
+    tx.send(EngineEvent::PreparedMomentaryFxStart {
+        config: realtime_engine::synth::prepare_momentary_fx_start(
             "global-freeze".into(),
             "freeze".into(),
             BTreeMap::from([("releaseMs".into(), serde_json::json!(1.0))]),
@@ -241,7 +241,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
             44_100,
         )
         .expect("global momentary FX"),
-    ))
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOff {
         instrument_slot: 0,
@@ -268,10 +268,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     assert_eq!(source.profile_snapshot().active_synth_voices, 2);
     assert_eq!(source.profile_snapshot().active_momentary_fx, 1);
 
-    tx.send(EngineEvent::MomentaryFxStop {
-        id: "global-freeze".into(),
-    })
-    .unwrap();
+    tx.send(EngineEvent::MomentaryFxStop { epoch: 0 }).unwrap();
     let _ = (0..256).map(|_| source.next().unwrap()).collect::<Vec<_>>();
     let after_stop: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
     assert!(after_stop.iter().any(|sample| sample.abs() > 0.0001));
@@ -307,8 +304,11 @@ fn routing_tree_profile_matches_inline_after_a_completed_quantum() {
     };
     let prepared = prepare_instruments_config(instruments, 44_100);
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedInstruments(prepared.clone()))
-        .unwrap();
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: prepared.clone(),
+    })
+    .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
         note: 60,
@@ -367,9 +367,10 @@ fn processes_bus_owned_by_worker() {
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     };
-    tx.send(EngineEvent::SetPreparedInstruments(
-        realtime_engine::synth::prepare_instruments_config(instruments, 44_100),
-    ))
+    tx.send(EngineEvent::SetPreparedInstruments {
+        generation: 0,
+        config: realtime_engine::synth::prepare_instruments_config(instruments, 44_100),
+    })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,

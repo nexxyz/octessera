@@ -110,8 +110,8 @@ fn wait_for_probe(
     event_count: usize,
     block_frames: usize,
 ) -> Result<(), String> {
-    let max_frames = (event_count / 256 + 2) * block_frames * 2;
-    for _ in 0..max_frames {
+    let max_samples = event_count.saturating_add(2) * block_frames * 2;
+    for _ in 0..max_samples {
         let _ = source.next();
         if probe_rx.try_recv().is_ok() {
             return Ok(());

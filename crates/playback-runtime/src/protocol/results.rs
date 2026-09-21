@@ -157,6 +157,8 @@ pub enum RuntimeStoreResult {
         ok: bool,
         #[serde(default)]
         message: String,
+        #[serde(default)]
+        active: bool,
     },
     SystemInfoResult {
         info: RuntimeSystemInfo,
@@ -270,9 +272,9 @@ impl RuntimeStoreResult {
             Self::DeviceUpdateStatus { ok: false, message } => {
                 (RuntimeErrorDomain::Runtime, message.clone())
             }
-            Self::RecordingStatus { ok: false, message } => {
-                (RuntimeErrorDomain::Recording, message.clone())
-            }
+            Self::RecordingStatus {
+                ok: false, message, ..
+            } => (RuntimeErrorDomain::Recording, message.clone()),
             Self::SystemInfoError { error } => {
                 return Some(RuntimeErrorFacts::new(
                     RuntimeErrorDomain::Runtime,

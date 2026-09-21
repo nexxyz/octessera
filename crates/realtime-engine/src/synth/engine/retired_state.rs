@@ -56,6 +56,7 @@ impl RetiredSampleVoices {
 pub struct RetiredAudioState {
     pub(super) sample_banks: Option<Vec<SampleBankConfig>>,
     pub(super) sample_bank: Option<SampleBankConfig>,
+    pub(super) prepared_instrument_slot: Option<PreparedInstrumentSlot>,
     pub(super) sample_voices: RetiredSampleVoices,
     pub(super) render_plan: Option<RenderPlan>,
     pub(super) prepared_slots: Vec<PreparedInstrumentSlot>,
@@ -80,6 +81,7 @@ impl Default for RetiredAudioState {
         Self {
             sample_banks: None,
             sample_bank: None,
+            prepared_instrument_slot: None,
             sample_voices: RetiredSampleVoices::default(),
             render_plan: None,
             prepared_slots: Vec::new(),
@@ -105,6 +107,7 @@ impl RetiredAudioState {
     pub fn is_empty(&self) -> bool {
         self.sample_banks.is_none()
             && self.sample_bank.is_none()
+            && self.prepared_instrument_slot.is_none()
             && self.sample_voices.is_empty()
             && self.render_plan.is_none()
             && self.prepared_slots.is_empty()

@@ -180,10 +180,12 @@ impl NativeRunner {
             note_behaviors: self.note_behaviors.clone(),
             layer_index,
         };
-        let next_engine = match state {
+        let mut next_engine = match state {
             Some(state) => NativeLayerEngine::from_serialized_state(config, state)?,
             None => NativeLayerEngine::new(config)?,
         };
+        let layer_tick = self.transport.layer_ticks[layer_index];
+        next_engine.set_interpretation_tick(usize::try_from(layer_tick).unwrap_or(usize::MAX));
         #[cfg(test)]
         {
             self.layer_behavior_rebuilds = self.layer_behavior_rebuilds.saturating_add(1);
@@ -191,6 +193,7 @@ impl NativeRunner {
 
         self.drain_layer_engine_notes(layer_index);
         self.clear_layer_replacement_state(layer_index);
+        self.clear_layer_emitted_route_notes(layer_index);
         if layer_index == self.active_layer_index {
             self.engine = next_engine;
             self.behavior = behavior;
@@ -292,9 +295,10 @@ impl NativeRunner {
         for layer_index in 0..self.layer_engines.len() {
             self.drain_layer_engine_notes(layer_index);
         }
+        self.clear_all_emitted_route_notes();
     }
 
-    fn drain_layer_engine_notes(&mut self, layer_index: usize) {
+    pub(super) fn drain_layer_engine_notes(&mut self, layer_index: usize) {
         let notes = if layer_index == self.active_layer_index {
             self.engine.drain_held_notes(usize::MAX)
         } else {
@@ -326,7 +330,7 @@ impl NativeRunner {
         self.pending_transpose_note_offs.extend(routed);
     }
 
-    fn clear_layer_replacement_state(&mut self, layer_index: usize) {
+    pub(super) fn clear_layer_replacement_state(&mut self, layer_index: usize) {
         self.clear_delayed_link_events_for_layer(layer_index);
         self.clear_link_arp_state_for_layer(layer_index);
         if let Some(active_notes) = self.sparks_transpose_active_notes.get_mut(layer_index) {

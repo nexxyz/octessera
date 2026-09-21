@@ -64,7 +64,7 @@ impl SynthEngine {
     }
 
     pub fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
-        let mut retired = RetiredAudioState::default();
+        let retired = RetiredAudioState::default();
         #[cfg(feature = "routing-tree-benchmark")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
@@ -75,6 +75,26 @@ impl SynthEngine {
         let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) else {
             return retired;
         };
+        self.stop_momentary_fx_at(pos)
+    }
+
+    pub fn momentary_fx_stop_by_epoch(&mut self, epoch: u64) -> RetiredAudioState {
+        let retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-benchmark")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return retired;
+        }
+        let Some(pos) = self.momentary_fx.iter().position(|fx| fx.epoch == epoch) else {
+            return retired;
+        };
+        self.stop_momentary_fx_at(pos)
+    }
+
+    fn stop_momentary_fx_at(&mut self, pos: usize) -> RetiredAudioState {
+        let mut retired = RetiredAudioState::default();
         let should_remove = matches!(
             self.momentary_fx[pos].kind,
             MomentaryFxKind::Stutter | MomentaryFxKind::PitchShift

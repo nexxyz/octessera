@@ -3,7 +3,7 @@ use super::queue::{
 };
 use super::{
     observe_accepted_snapshot_revision, periodic_snapshot_due, timed_display_snapshot_due,
-    WorkerCommand, PLAYING_SNAPSHOT_INTERVAL_MS,
+    xy_glide_tick_due, WorkerCommand, PLAYING_SNAPSHOT_INTERVAL_MS,
 };
 use crate::types::{encode_runtime_responses, RuntimeMessagesPayload};
 use playback_runtime::{
@@ -16,6 +16,26 @@ use serde_json::json;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
+
+#[test]
+fn desktop_xy_glide_tick_decision_is_bounded_and_deadline_driven() {
+    let start = Instant::now();
+    assert!(!xy_glide_tick_due(
+        start + Duration::from_millis(7),
+        start,
+        Some(start + Duration::from_millis(10)),
+    ));
+    assert!(xy_glide_tick_due(
+        start + Duration::from_millis(8),
+        start,
+        Some(start + Duration::from_millis(10)),
+    ));
+    assert!(!xy_glide_tick_due(
+        start + Duration::from_millis(8),
+        start,
+        None,
+    ));
+}
 
 #[test]
 fn runtime_outbox_retains_capped_monotonic_tail() {

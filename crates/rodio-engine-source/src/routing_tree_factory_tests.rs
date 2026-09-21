@@ -174,14 +174,15 @@ fn routing_rejected_topology_state_is_retired_after_source_callback() {
         EngineSource::with_routing_tree_test_retirement_receiver(rx, 44_100, 128);
     let (drop_tx, drop_rx) = mpsc::channel();
     source.set_retired_drop_probe(drop_tx);
-    tx.send(EngineEvent::SetPreparedAudioConfig(
-        realtime_engine::synth::prepare_audio_config(
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: realtime_engine::synth::prepare_audio_config(
             direct_synth_instruments(),
             None,
             None,
             44_100,
         ),
-    ))
+    })
     .unwrap();
     for _ in 0..256 {
         let _ = source.next();
@@ -192,6 +193,7 @@ fn routing_rejected_topology_state_is_retired_after_source_callback() {
     tx.send(EngineEvent::SetPreparedFxBusSlot {
         bus_index: 0,
         slot_index: 0,
+        generation: 0,
         config: realtime_engine::synth::prepare_fx_bus_slot(
             "reverb".into(),
             std::collections::BTreeMap::new(),

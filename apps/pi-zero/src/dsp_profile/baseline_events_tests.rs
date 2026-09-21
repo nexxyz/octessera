@@ -80,7 +80,7 @@ fn mixed_boundary_fixture_has_two_synth_and_six_sampler_slots() {
         })
         .all(|note| note == 36));
     match &events[0] {
-        EngineEvent::SetPreparedAudioConfig(config) => {
+        EngineEvent::SetPreparedAudioConfig { config, .. } => {
             assert_eq!(config.sample_banks().unwrap().len(), 8);
         }
         _ => panic!("mixed boundary fixture did not begin with its audio config"),
@@ -160,7 +160,7 @@ fn default_capacity_fixture_uses_shipped_slot_and_fx_topology() {
     assert_eq!(
         events
             .iter()
-            .filter(|event| matches!(event, EngineEvent::PreparedMomentaryFxStart(_)))
+            .filter(|event| matches!(event, EngineEvent::PreparedMomentaryFxStart { .. }))
             .count(),
         2
     );

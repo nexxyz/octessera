@@ -58,11 +58,15 @@ impl NativeRunner {
             return Ok(RoutedMusicalEvents::default());
         }
 
-        let mut events = RoutedMusicalEvents::default();
         self.advance_transport_indicators(pulses);
         self.advance_global_lfo_audio(pulses)?;
         let swung_pulses = self.consume_swung_pulses(pulses);
         self.accumulate_layer_pulses(swung_pulses);
+        self.advance_due_layer_ticks()
+    }
+
+    pub(super) fn advance_due_layer_ticks(&mut self) -> Result<RoutedMusicalEvents, String> {
+        let mut events = RoutedMusicalEvents::default();
         self.advance_active_layer(&mut events)?;
 
         let instruments = self.instruments.clone();
@@ -112,7 +116,9 @@ impl NativeRunner {
                 if let Some(layer_tick) = self.transport.layer_ticks.get_mut(index) {
                     *layer_tick = layer_tick.saturating_add(1);
                 }
-                events.extend(self.take_due_link_events(index));
+                let due_events = self.take_due_link_events(index);
+                self.track_emitted_route_notes(index, &due_events);
+                events.extend(due_events);
                 inactive_modulation_updates.push((index, tick.mapped_intents.clone()));
                 let tick_events = self.route_events_with_link_timing(
                     index,
@@ -124,6 +130,7 @@ impl NativeRunner {
                         transpose_offset: transpose_offsets.get(index).copied().unwrap_or(0),
                     },
                 )?;
+                self.track_emitted_route_notes(index, &tick_events);
                 events.extend(tick_events);
             }
         }
@@ -136,6 +143,29 @@ impl NativeRunner {
             self.display.transients.trigger_event_dot(now);
         }
         Ok(events)
+    }
+
+    pub(super) fn prime_sequencer_layer_origins(&mut self) {
+        for index in 0..self.layer_engines.len() {
+            let is_sequencer = if index == self.active_layer_index {
+                self.behavior.id() == "sequencer"
+            } else {
+                self.layer_behavior_ids
+                    .get(index)
+                    .is_some_and(|behavior_id| behavior_id == "sequencer")
+            };
+            if is_sequencer
+                && self
+                    .pulses_layers
+                    .get(index)
+                    .is_some_and(|layer| layer.scan_mode == "scanning")
+            {
+                let step_pulses = self.step_pulses_for_layer(index);
+                if let Some(accumulator) = self.transport.layer_pulse_accumulators.get_mut(index) {
+                    *accumulator = step_pulses;
+                }
+            }
+        }
     }
 
     fn step_pulses_for_layer(&self, index: usize) -> u32 {
@@ -226,7 +256,9 @@ impl NativeRunner {
             if let Some(layer_tick) = self.transport.layer_ticks.get_mut(self.active_layer_index) {
                 *layer_tick = self.transport.tick;
             }
-            events.extend(self.take_due_link_events(self.active_layer_index));
+            let due_events = self.take_due_link_events(self.active_layer_index);
+            self.track_emitted_route_notes(self.active_layer_index, &due_events);
+            events.extend(due_events);
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self
                 .sparks_transpose_offsets_for_routing()
@@ -245,6 +277,7 @@ impl NativeRunner {
                     transpose_offset,
                 },
             )?;
+            self.track_emitted_route_notes(self.active_layer_index, &tick_events);
             events.extend(tick_events);
         }
         Ok(())

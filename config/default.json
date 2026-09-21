@@ -3581,6 +3581,7 @@
     "velocityScalePct": 100,
     "voiceStealingMode": "auto-balanced",
     "xy": {
+      "smoothingMs": 80,
       "x": null,
       "xInvert": false,
       "y": null,

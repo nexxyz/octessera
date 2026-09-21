@@ -4,7 +4,7 @@ use realtime_engine::synth::{
     default_synth_config, install_source_worker_shutdown_probe_for_test, prepare_audio_config,
     InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
     SourceWorkerStartHook, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
-    MAX_CONTROL_EVENTS_PER_CALLBACK, MAX_SAMPLE_VOICES_PER_SLOT,
+    MAX_SAMPLE_VOICES_PER_SLOT,
 };
 use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
@@ -60,20 +60,14 @@ fn shared_sample_engine() -> (SynthEngine, Arc<[f32]>) {
 fn fill_retirement_storage_for_reaper(tx: &EngineEventSender, source: &mut EngineSource) {
     prime_pending_render_retirement(source);
     for index in 0..RETIREMENT_FILL_COUNT {
-        tx.send(EngineEvent::MomentaryFxStop {
-            id: format!("reaper-fill-{index}"),
+        tx.send(EngineEvent::SetPreparedAudioConfig {
+            generation: index as u64 + 1,
+            config: super::retirement_tests::full_sample_config(2.0),
         })
         .unwrap();
+        assert_eq!(source.drain_control_events().control_events, 1);
     }
     let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
-        assert_eq!(
-            source.drain_control_events().control_events,
-            MAX_CONTROL_EVENTS_PER_CALLBACK as u64
-        );
-        assert_eq!(
-            source.drain_control_events().control_events,
-            (RETIREMENT_FILL_COUNT - MAX_CONTROL_EVENTS_PER_CALLBACK) as u64
-        );
         source.refill();
     });
     assert_eq!((allocation_count, deallocation_count), (0, 0));
@@ -403,6 +397,48 @@ fn persistent_terminal_backlog_handoff_destroys_all_callback_payloads_on_reaper(
     let result = shutdown.shutdown();
     assert_eq!(result.joined_workers, 2);
     assert_reaper_drops(drop_rx, source_thread, RETIREMENT_STORED_ITEM_COUNT);
+}
+
+#[test]
+fn inline_source_owned_state_drops_on_reaper() {
+    let (tx, mut source, hold_retired, reaper, _drop_rx) = held_inline_source();
+    let (source_drop_tx, source_drop_rx) = mpsc::channel();
+    source.set_source_owned_drop_probe(source_drop_tx);
+    tx.send(EngineEvent::PreviewSample {
+        instrument_slot: 0,
+        generation: 1,
+        buffer: SampleBuffer {
+            samples: Arc::from(vec![0.25; 128]),
+            channels: 1,
+            sample_rate: TEST_SAMPLE_RATE,
+        },
+        velocity: 100,
+    })
+    .unwrap();
+    let source_thread = thread::current().id();
+    drop(tx);
+    let (allocation_count, deallocation_count) = allocations_and_deallocations(|| drop(source));
+    assert_eq!((allocation_count, deallocation_count), (0, 0));
+    hold_retired.store(false, std::sync::atomic::Ordering::Release);
+    reaper.join().unwrap();
+    assert_ne!(
+        source_drop_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("source-owned state drop notification"),
+        source_thread
+    );
+}
+
+#[cfg(feature = "routing-tree-executor")]
+#[test]
+fn routing_tree_source_drop_has_no_source_thread_deallocation() {
+    let (_tx, rx) = event_queue();
+    let (source, shutdown) =
+        EngineSource::with_routing_tree_persistent_workers(rx, TEST_SAMPLE_RATE, 128, None)
+            .expect("routing-tree runtime");
+    let (allocation_count, deallocation_count) = allocations_and_deallocations(|| drop(source));
+    assert_eq!((allocation_count, deallocation_count), (0, 0));
+    assert_eq!(shutdown.shutdown().joined_workers, 2);
 }
 
 #[test]

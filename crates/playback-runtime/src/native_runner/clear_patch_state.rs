@@ -94,8 +94,11 @@ impl NativeRunner {
         self.xy_x_binding = None;
         self.xy_y_binding = None;
         self.xy_release = "sample-hold".into();
+        self.xy_smoothing_ms = DEFAULT_XY_SMOOTHING_MS;
         self.xy_invert_x = false;
         self.xy_invert_y = false;
+        self.xy_x_glide = None;
+        self.xy_y_glide = None;
         self.param_mods = vec![NativeParamMods::default(); LAYER_COUNT];
         self.aux_bindings = vec![None; platform_core::AUX_ENCODER_COUNT];
         self.shift_aux_bindings = vec![None; platform_core::AUX_ENCODER_COUNT];

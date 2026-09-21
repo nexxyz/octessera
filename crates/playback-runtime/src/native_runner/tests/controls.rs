@@ -193,6 +193,7 @@ pub(crate) fn system_info_popup_distinguishes_unavailable_state() {
 pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_sparks_xy_keys() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.modulation_process_calls = 0;
+    runner.xy_smoothing_ms = 0;
 
     turn_menu_key_physical(&mut runner, "sound.voiceStealingMode", 1);
     assert_eq!(runner.voice_stealing_mode, "auto-hard");

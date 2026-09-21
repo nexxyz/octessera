@@ -51,6 +51,7 @@ impl NativeRunner {
         if !self.rebase_and_recompose_modulation_key(key) {
             self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
                 bus_index,
+                generation: 0,
                 pan_pos: Some(usize::from(pan_pos)),
                 volume_pct: None,
             });
@@ -74,6 +75,7 @@ impl NativeRunner {
         if !self.rebase_and_recompose_modulation_key(key) {
             self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
                 bus_index,
+                generation: 0,
                 pan_pos: None,
                 volume_pct: Some(f32::from(volume_pct)),
             });
@@ -114,12 +116,25 @@ impl NativeRunner {
         }
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
-            self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
-                bus_index,
-                slot_index,
-                fx_type,
-                params,
-            });
+            if let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(param_path) {
+                if let Some(value) = params.get(param_path).and_then(Value::as_f64) {
+                    self.queue_audio_command(RuntimeAudioCommand::SetFxBusParam {
+                        bus_index,
+                        slot_index,
+                        generation: 0,
+                        param,
+                        value: value as f32,
+                    });
+                }
+            } else {
+                self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
+                    bus_index,
+                    slot_index,
+                    generation: 0,
+                    fx_type,
+                    params,
+                });
+            }
         }
         true
     }
@@ -207,6 +222,7 @@ impl NativeRunner {
             self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
                 bus_index,
                 slot_index,
+                generation: 0,
                 fx_type,
                 params,
             });
@@ -231,11 +247,23 @@ impl NativeRunner {
         let params = value_object_to_map(params);
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
-            self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index,
-                fx_type,
-                params,
-            });
+            if let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(param_path) {
+                if let Some(value) = params.get(param_path).and_then(Value::as_f64) {
+                    self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxParam {
+                        slot_index,
+                        generation: 0,
+                        param,
+                        value: value as f32,
+                    });
+                }
+            } else {
+                self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
+                    slot_index,
+                    generation: 0,
+                    fx_type,
+                    params,
+                });
+            }
         }
         true
     }
@@ -277,6 +305,7 @@ impl NativeRunner {
             self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
                 slot_index,
                 fx_type,
+                generation: 0,
                 params,
             });
         }

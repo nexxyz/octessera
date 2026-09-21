@@ -80,6 +80,7 @@ pub(crate) fn invalid_delay_fields_normalize_and_non_delay_strips_timing_metadat
 #[test]
 pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.transport.bpm = 120.0;
     set_bus_delay(&mut runner, 250);
     assert!(runner
@@ -108,7 +109,7 @@ pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() 
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, params }
+                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, params, .. }
                     if fx_type == "delay"
                         && params.get("timeMs") == Some(&json!(333))
                         && !params.contains_key("timeMode")
@@ -141,6 +142,7 @@ pub(crate) fn delay_time_ms_edit_remains_authoritative() {
 #[test]
 pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.transport.bpm = 120.0;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot1_params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
@@ -239,6 +241,7 @@ pub(crate) fn note_mode_delay_config_load_uses_visible_bpm_clamp() {
 #[test]
 pub(crate) fn old_delay_payload_loads_as_ms_mode_and_audio_strips_timing_metadata() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
@@ -257,6 +260,7 @@ pub(crate) fn old_delay_payload_loads_as_ms_mode_and_audio_strips_timing_metadat
             }
         }))
         .unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
     runner.menu.rebuild(runner.menu_config());
 
     assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
@@ -283,8 +287,11 @@ pub(crate) fn old_delay_payload_loads_as_ms_mode_and_audio_strips_timing_metadat
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot { params, .. }
-                    if !params.contains_key("timeMode") && !params.contains_key("timeNote")
+                RuntimeAudioCommand::SetFxBusParam {
+                    slot_index: 0,
+                    param: realtime_engine::synth::FxParamId::Feedback,
+                    ..
+                }
             ))
     )));
 }

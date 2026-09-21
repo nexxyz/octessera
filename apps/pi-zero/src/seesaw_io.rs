@@ -3,9 +3,12 @@ use crate::input::{grid_message, neokey_message};
 use octessera_hal::SeesawInterrupt;
 use octessera_hal::{NeoKey, NeoTrellis};
 use playback_runtime::HostMessage;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::Arc;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -18,6 +21,12 @@ const OUTPUT_RETRY_INTERVAL: Duration = Duration::from_millis(10);
 const SEESAW_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(750);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 const SEESAW_STARTUP_TIMEOUT: Duration = Duration::from_millis(750);
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const SEESAW_HEALTH_CHECK_INTERVAL: Duration = Duration::from_secs(1);
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const SEESAW_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(30);
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const SEESAW_STALL_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -183,6 +192,69 @@ fn attempt_due(next_attempt_at: Option<Instant>, now: Instant) -> bool {
     next_attempt_at.is_none_or(|deadline| now >= deadline)
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn seesaw_worker_has_stalled(
+    last_generation: &mut u64,
+    last_progress_at: &mut Instant,
+    current_generation: u64,
+    now: Instant,
+) -> bool {
+    if current_generation != *last_generation {
+        *last_generation = current_generation;
+        *last_progress_at = now;
+        return false;
+    }
+    now.saturating_duration_since(*last_progress_at) >= SEESAW_STALL_TIMEOUT
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn spawn_seesaw_health_monitor(scan_generation: Arc<AtomicU64>) {
+    let _monitor = thread::spawn(move || {
+        let mut last_generation = scan_generation.load(Ordering::Relaxed);
+        let mut last_progress_at = Instant::now();
+        loop {
+            thread::sleep(SEESAW_HEALTH_CHECK_INTERVAL);
+            let now = Instant::now();
+            let current_generation = scan_generation.load(Ordering::Relaxed);
+            if seesaw_worker_has_stalled(
+                &mut last_generation,
+                &mut last_progress_at,
+                current_generation,
+                now,
+            ) {
+                eprintln!(
+                    "critical Seesaw worker stall: no successful input scan for {}s; exiting for service restart",
+                    SEESAW_STALL_TIMEOUT.as_secs()
+                );
+                std::process::exit(1);
+            }
+        }
+    });
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn scan_raspberry_inputs(
+    trellis: &mut NeoTrellis,
+    neokey: &mut NeoKey,
+    previous_neokey: &mut [bool; 4],
+    input_tx: &Sender<HostMessage>,
+    scan_generation: &AtomicU64,
+    next_error_log_at: &mut Option<Instant>,
+) {
+    match scan_inputs(trellis, neokey, previous_neokey, input_tx) {
+        Ok(()) => {
+            scan_generation.fetch_add(1, Ordering::Relaxed);
+        }
+        Err(error) => {
+            let now = Instant::now();
+            if next_error_log_at.is_none_or(|deadline| now >= deadline) {
+                eprintln!("{error}");
+                *next_error_log_at = Some(now + SEESAW_ERROR_LOG_INTERVAL);
+            }
+        }
+    }
+}
+
 pub(crate) fn spawn(
     mut trellis: NeoTrellis,
     mut neokey: NeoKey,
@@ -192,10 +264,16 @@ pub(crate) fn spawn(
     let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
     let (command_tx, command_rx) = mpsc::channel::<SeesawCommand>();
     let worker_input_tx = input_tx.clone();
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let scan_generation = Arc::new(AtomicU64::new(0));
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let worker_scan_generation = Arc::clone(&scan_generation);
     let worker = thread::spawn(move || {
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
         let mut last_input_service = Instant::now() - INPUT_SERVICE_INTERVAL;
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        let mut next_scan_error_log_at = None;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut startup_scan_succeeded = false;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -225,11 +303,13 @@ pub(crate) fn spawn(
                     .is_ok();
                 }
                 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                let _ = scan_inputs(
+                scan_raspberry_inputs(
                     &mut trellis,
                     &mut neokey,
                     &mut previous_neokey,
                     &worker_input_tx,
+                    &worker_scan_generation,
+                    &mut next_scan_error_log_at,
                 );
                 last_input_service = Instant::now();
             }
@@ -272,6 +352,8 @@ pub(crate) fn spawn(
             thread::sleep(Duration::from_millis(2));
         }
     });
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    spawn_seesaw_health_monitor(scan_generation);
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     let _ = worker;
 

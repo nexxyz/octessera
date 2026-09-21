@@ -14,7 +14,7 @@ pub(in crate::synth) struct DelayCache {
     time_ms: f32,
     sample_rate: u32,
     delay_samples: f32,
-    min_len: usize,
+    pub(in crate::synth) min_len: usize,
 }
 
 impl DelayCache {
@@ -43,7 +43,7 @@ pub(in crate::synth) struct ModDelayCache {
     base_ms: f32,
     depth_ms: f32,
     sample_rate: u32,
-    min_len: usize,
+    pub(in crate::synth) min_len: usize,
     phase_inc: f32,
 }
 
@@ -81,19 +81,10 @@ pub(in crate::synth) fn process_delay(
     mix: f32,
     sample_rate: u32,
 ) -> f32 {
-    let fallback_cache = DelayCache::new(time_ms, sample_rate);
     let FxBusState::Delay { buf, idx, cache } = state else {
-        *state = FxBusState::Delay {
-            buf: vec![0.0; fallback_cache.min_len],
-            idx: 0,
-            cache: fallback_cache,
-        };
         return input;
     };
     cache.refresh(time_ms, sample_rate);
-    if buf.len() < cache.min_len {
-        buf.resize(cache.min_len, 0.0);
-    }
     let delayed = read_delay(buf, *idx, cache.delay_samples);
     buf[*idx] = input + delayed * feedback;
     *idx = (*idx + 1) % buf.len();
@@ -106,7 +97,6 @@ pub(in crate::synth) fn process_mod_delay(
     params: ModDelayParams,
     sample_rate: u32,
 ) -> f32 {
-    let fallback_cache = ModDelayCache::new(&params, sample_rate);
     let FxBusState::ModDelay {
         buf,
         idx,
@@ -114,18 +104,9 @@ pub(in crate::synth) fn process_mod_delay(
         cache,
     } = state
     else {
-        *state = FxBusState::ModDelay {
-            buf: vec![0.0; ((sample_rate as f32) * 0.08) as usize],
-            idx: 0,
-            phase: 0.0,
-            cache: fallback_cache,
-        };
         return input;
     };
     cache.refresh(&params, sample_rate);
-    if buf.len() < cache.min_len {
-        buf.resize(cache.min_len, 0.0);
-    }
     let delay_ms =
         (params.base_ms + params.depth_ms * ((*phase).sin() + 1.0) * 0.5).clamp(0.1, 100.0);
     let delayed = read_delay(buf, *idx, delay_ms * sample_rate as f32 / 1000.0);

@@ -41,6 +41,57 @@ fn fake_output(grid_failures: usize, key_failures: usize) -> FakeLedOutput {
     }
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[test]
+fn seesaw_worker_health_stalls_at_timeout_without_progress() {
+    let start = Instant::now();
+    let mut last_generation = 7;
+    let mut last_progress_at = start;
+
+    assert!(!seesaw_worker_has_stalled(
+        &mut last_generation,
+        &mut last_progress_at,
+        7,
+        start + SEESAW_STALL_TIMEOUT - Duration::from_millis(1),
+    ));
+    assert!(seesaw_worker_has_stalled(
+        &mut last_generation,
+        &mut last_progress_at,
+        7,
+        start + SEESAW_STALL_TIMEOUT,
+    ));
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[test]
+fn seesaw_worker_progress_resets_the_stall_deadline() {
+    let start = Instant::now();
+    let progress_at = start + SEESAW_STALL_TIMEOUT - Duration::from_millis(1);
+    let mut last_generation = 0;
+    let mut last_progress_at = start;
+
+    assert!(!seesaw_worker_has_stalled(
+        &mut last_generation,
+        &mut last_progress_at,
+        1,
+        progress_at,
+    ));
+    assert_eq!(last_generation, 1);
+    assert_eq!(last_progress_at, progress_at);
+    assert!(!seesaw_worker_has_stalled(
+        &mut last_generation,
+        &mut last_progress_at,
+        1,
+        progress_at + SEESAW_STALL_TIMEOUT - Duration::from_millis(1),
+    ));
+    assert!(seesaw_worker_has_stalled(
+        &mut last_generation,
+        &mut last_progress_at,
+        1,
+        progress_at + SEESAW_STALL_TIMEOUT,
+    ));
+}
+
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
 fn startup_gate_requires_both_input_scan_and_output_ack() {

@@ -20,6 +20,13 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
             _ => raw,
         };
     }
+    if key == "sparks.xy.smoothingMs" {
+        return if raw == "0" {
+            "Off".into()
+        } else {
+            format!("{raw} ms")
+        };
+    }
     if key.ends_with("panPos") {
         return format_pan_position(raw.parse::<i32>().unwrap_or(16));
     }

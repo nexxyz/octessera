@@ -27,6 +27,7 @@ mod controls;
 mod dim_sleep;
 mod display_transients;
 mod duck_fx_ranges;
+mod external_resync_boundary;
 mod fast_dispatch_parity;
 mod happy_path;
 mod hdmi;
@@ -34,6 +35,8 @@ mod input_events;
 mod input_events_midi;
 mod instruments;
 mod layer_replacement;
+mod layer_trigger_gate_device_replay;
+mod layer_trigger_gate_release;
 mod life_mapping;
 mod looper;
 mod menu_navigation;
@@ -51,10 +54,13 @@ mod note_sets;
 mod portable_patch;
 mod portable_patch_samples;
 mod pulses_and_tones_menu;
+mod recording;
 mod restart_dialog_snapshots;
 mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
+mod scan_replacement;
+mod sequencer_transport_origin;
 mod setup_portal;
 mod shutdown;
 mod snapshot_autosave;
@@ -73,6 +79,7 @@ mod twinkle;
 mod ui_scenario;
 mod user_data_restore;
 mod user_data_transfer;
+mod xy_smoothing;
 
 pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
     messages
