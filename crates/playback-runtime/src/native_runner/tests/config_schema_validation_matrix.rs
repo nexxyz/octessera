@@ -130,9 +130,9 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
     );
     assert_validation_error(
         "pulse mapping",
-        "runtimeConfig.layers[0].pulses.mapping.activate.action has unknown value `broken`",
+        "runtimeConfig.layers[0].link.mapping.activate.action has unknown value `broken`",
         |payload| {
-            payload["runtimeConfig"]["layers"][0]["pulses"]["mapping"]["activate"]["action"] =
+            payload["runtimeConfig"]["layers"][0]["link"]["mapping"]["activate"]["action"] =
                 json!("broken")
         },
     );
@@ -148,13 +148,13 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
     );
     assert_validation_error(
         "layer behavior",
-        "runtimeConfig.layers[0].worlds.behaviorId has unknown behavior `broken`",
-        |payload| payload["runtimeConfig"]["layers"][0]["worlds"]["behaviorId"] = json!("broken"),
+        "runtimeConfig.layers[0].build.behaviorId has unknown behavior `broken`",
+        |payload| payload["runtimeConfig"]["layers"][0]["build"]["behaviorId"] = json!("broken"),
     );
     assert_validation_error(
         "pulse scan sections",
-        "runtimeConfig.layers[0].pulses.scanSections is unsupported",
-        |payload| payload["runtimeConfig"]["layers"][0]["pulses"]["scanSections"] = json!(3),
+        "runtimeConfig.layers[0].link.scanSections is unsupported",
+        |payload| payload["runtimeConfig"]["layers"][0]["link"]["scanSections"] = json!(3),
     );
     assert_validation_error(
         "transport swing",
@@ -162,13 +162,13 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         |payload| payload["runtimeConfig"]["transport"]["swingPct"] = json!(76),
     );
     assert_validation_error(
-        "Sparks FX type",
-        "runtimeConfig.sparksFx.selected.fxType has unknown value `broken`",
-        |payload| payload["runtimeConfig"]["sparksFx"]["selected"]["fxType"] = json!("broken"),
+        "Play FX type",
+        "runtimeConfig.playFx.selected.fxType has unknown value `broken`",
+        |payload| payload["runtimeConfig"]["playFx"]["selected"]["fxType"] = json!("broken"),
     );
     assert_validation_error(
-        "system Sparks mode",
-        "configuration.system.sparksMode has unknown value `broken`",
-        |payload| payload["system"]["sparksMode"] = json!("broken"),
+        "system Play mode",
+        "configuration.system.playMode has unknown value `broken`",
+        |payload| payload["system"]["playMode"] = json!("broken"),
     );
 }

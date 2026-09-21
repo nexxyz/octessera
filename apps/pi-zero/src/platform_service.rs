@@ -52,11 +52,7 @@ use platform_service_executor::handle_job;
 use platform_service_executor::usb_storage_message;
 #[cfg(test)]
 use platform_service_store::delete_preset_payload;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) use platform_service_store::preset_path;
-pub(crate) use platform_service_store::{
-    list_presets, load_json, preset_load_path, preset_patch_path, save_json,
-};
+pub(crate) use platform_service_store::{list_presets, load_json, preset_patch_path, save_json};
 pub(crate) use system_info::{regular_wlan0_ipv4, RegularWlan0Ipv4};
 const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;

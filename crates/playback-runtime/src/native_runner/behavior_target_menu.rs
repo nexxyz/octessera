@@ -74,7 +74,7 @@ impl NativeRunner {
         if behavior.config_menu(&state).is_err() {
             state = self.default_behavior_state_for_layer(layer_index, behavior);
         }
-        let field = key.split_once(".worlds.behaviorConfig.")?.1;
+        let field = key.split_once(".build.behaviorConfig.")?.1;
         let item = behavior
             .config_menu(&state)
             .ok()
@@ -190,7 +190,7 @@ fn behavior_target_menu_item(
     state: &platform_core::NativeBehaviorState,
     item: BehaviorConfigItem,
 ) -> Option<crate::native_menu::NativeMenuItem> {
-    let key = format!("layers.{layer_index}.worlds.behaviorConfig.{}", item.key);
+    let key = format!("layers.{layer_index}.build.behaviorConfig.{}", item.key);
     match item.item_type {
         BehaviorConfigItemType::Number => Some(crate::native_menu::NativeMenuItem {
             label: item.label,

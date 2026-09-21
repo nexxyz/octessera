@@ -33,7 +33,7 @@ pub enum TimingProbeScenario {
     StopStart,
     EncoderStress,
     MuteStress,
-    SparksPageStress,
+    PlayPageStress,
 }
 
 #[derive(Clone, Debug)]

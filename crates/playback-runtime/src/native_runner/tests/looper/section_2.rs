@@ -20,7 +20,7 @@ pub(crate) fn looper_punch_aux_binding_uses_same_action_path() {
     assert_eq!(looper_mode_and_step(&runner).0, "play");
     assert_eq!(runner.behavior_config["mode"], "play");
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfig"]["mode"],
+        runner.config_payload()["runtimeConfig"]["layers"][0]["build"]["behaviorConfig"]["mode"],
         "play"
     );
     assert!(runner.config_dirty);

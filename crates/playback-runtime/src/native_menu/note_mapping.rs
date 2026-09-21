@@ -1,12 +1,10 @@
-use super::{
-    enum_item, group, number_item, selected_index, NativeMenuItem, NativePulsesLayerConfig,
-};
+use super::{enum_item, group, number_item, selected_index, NativeLinkLayerConfig, NativeMenuItem};
 use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 
 pub(super) fn note_mapping_group(
     layer_index: usize,
     prefix: &str,
-    sense: &NativePulsesLayerConfig,
+    sense: &NativeLinkLayerConfig,
 ) -> NativeMenuItem {
     group(
         "Note Mapping",

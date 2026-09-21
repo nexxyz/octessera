@@ -95,6 +95,6 @@ fn parse_layer_algorithm_step_key(key: &str) -> Option<usize> {
 
 fn parse_layer_behavior_config_key(key: &str) -> Option<(usize, &str)> {
     let rest = key.strip_prefix("layers.")?;
-    let (index, field) = rest.split_once(".worlds.behaviorConfig.")?;
+    let (index, field) = rest.split_once(".build.behaviorConfig.")?;
     Some((index.parse().ok()?, field))
 }

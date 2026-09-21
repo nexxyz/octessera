@@ -192,7 +192,7 @@ def check_cargo_inventory(root: Path, inventory: dict[str, Any]) -> list[str]:
     if [profile.get("name") for profile in source_index.get("release_target_profiles", [])] != [
         "desktop",
         "pi-default",
-        "pi-hardware-rpi-zero-2w",
+        "pi-hardware-raspberry-pi-zero-2w",
         "pi-hardware-orange-pi-zero-2w",
     ]:
         errors.append("Cargo SOURCE_INDEX release target profiles are incomplete")

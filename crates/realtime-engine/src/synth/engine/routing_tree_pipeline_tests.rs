@@ -352,7 +352,7 @@ fn bus_config() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "bus_1".into(),
+                route: "fx_bus_1".into(),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

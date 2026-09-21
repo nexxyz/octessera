@@ -59,13 +59,13 @@ class UpdaterStateMixin:
         if getattr(os, "geteuid", lambda: -1)() == 0 and metadata.st_uid != 0:
             raise UpdateError("Updater lock is not root-owned")
 
-    def validate_manifest(self, path: Path, expected_version: str, allow_legacy: bool = False, expected_profile: str | None = None) -> dict:
+    def validate_manifest(self, path: Path, expected_version: str, expected_profile: str | None = None) -> dict:
         payload = read_json(path, MAX_JSON_BYTES)
         if not isinstance(payload, dict):
             raise UpdateError("Release manifest is not an object")
         manifest_profile = payload.get("board_profile")
         profile = expected_profile or self.profile
-        if manifest_profile is None and not allow_legacy:
+        if manifest_profile is None:
             raise UpdateError("Release manifest has no board profile")
         if manifest_profile is not None and profile and manifest_profile != profile:
             raise UpdateError("Release manifest board profile does not match this device")
@@ -73,7 +73,7 @@ class UpdaterStateMixin:
         if schema_version == MANIFEST_SCHEMA:
             if payload.get("updater_protocol") != UPDATER_PROTOCOL or payload.get("candidate_health_protocol") != CANDIDATE_HEALTH_PROTOCOL:
                 raise UpdateError("Release manifest protocol declaration is invalid")
-        elif not (allow_legacy and schema_version == 1):
+        else:
             raise UpdateError("Release manifest schema is unsupported")
         required = {
             "tag": f"v{expected_version}",
@@ -97,68 +97,23 @@ class UpdaterStateMixin:
             raise UpdateError("Orange release manifest is not an explicit runtime updater asset")
         return payload
 
-    @staticmethod
-    def current_protocol_manifest(manifest: dict) -> bool:
-        return (
-            manifest.get("schema_version") == MANIFEST_SCHEMA
-            and manifest.get("updater_protocol") == UPDATER_PROTOCOL
-            and manifest.get("candidate_health_protocol") == CANDIDATE_HEALTH_PROTOCOL
-            and isinstance(manifest.get("board_profile"), str)
-        )
-
     def mark_activation_attempted(self, payload: dict) -> None:
         payload["activation_attempted"] = True
         atomic_json(self.transaction_path, payload)
-
-    def bootstrap_legacy(self) -> str | None:
-        current_link = self.root / "current"
-        if not current_link.exists() and not current_link.is_symlink():
-            return None
-        current, _ = self.current_link()
-        self.managed_bin_link()
-        manifest = self.validate_release(self.releases / current, allow_legacy=True)
-        if self.current_protocol_manifest(manifest):
-            return current
-        if manifest.get("schema_version") != 1:
-            raise UpdateError("Legacy release manifest cannot be bootstrapped safely")
-        state = self.state()
-        previous = state.get("previous") if isinstance(state, dict) else None
-        if previous is not None:
-            if not version(previous):
-                raise UpdateError("Legacy state previous release is invalid")
-            self.validate_release(self.releases / previous, allow_legacy=True)
-        asset = state.get("asset") if isinstance(state, dict) else None
-        migrated = copy.deepcopy(manifest)
-        migrated["schema_version"] = MANIFEST_SCHEMA
-        migrated["updater_protocol"] = UPDATER_PROTOCOL
-        migrated["candidate_health_protocol"] = CANDIDATE_HEALTH_PROTOCOL
-        migrated["board_profile"] = migrated.get("board_profile") or self.profile
-        platforms = list(migrated["platforms"])
-        if self.profile not in platforms:
-            platforms.insert(0, self.profile)
-        migrated["platforms"] = platforms
-        atomic_json(self.releases / current / MANIFEST, migrated)
-        self.immutable(self.releases / current)
-        self.write_committed_state(current, previous, migrated, asset)
-        return current
 
     def recover_pending(self, boot: bool = False) -> None:
         if boot:
             self.verify_service_inactive()
         if self.transaction_path.exists():
-            try:
-                payload = self.load_transaction(recovery=True)
-            except UpdateError:
-                self.recover_legacy(force=True)
-                self.transaction_path.unlink(missing_ok=True)
-                self.health_path.unlink(missing_ok=True)
-            else:
-                self.restore_transaction(payload, stop_service=bool(payload.get("activation_attempted", False)) and not boot)
-        self.recover_legacy()
+            payload = self.load_transaction(recovery=True)
+            self.restore_transaction(payload, stop_service=bool(payload.get("activation_attempted", False)) and not boot)
+        current, _ = self.current_link()
+        manifest = self.validate_release(self.releases / current)
+        self.validate_committed_state(self.state(), current, manifest)
         if boot:
             self.verify_service_inactive()
 
-    def validate_release(self, directory: Path, allow_legacy: bool = False, require_immutable: bool = False, expected_profile: str | None = None) -> dict:
+    def validate_release(self, directory: Path, require_immutable: bool = False, expected_profile: str | None = None) -> dict:
         if not directory.is_dir() or directory.is_symlink() or not version(directory.name):
             raise UpdateError(f"Release directory is unmanaged: {directory}")
         self.validate_managed_directory(directory, "release directory")
@@ -184,7 +139,7 @@ class UpdaterStateMixin:
                 raise UpdateError(f"Release entry is group/world writable: {child}")
             if require_immutable and child_stat.st_mode & 0o222:
                 raise UpdateError(f"Release entry is writable: {child}")
-        return self.validate_manifest(manifest, directory.name, allow_legacy=allow_legacy, expected_profile=expected_profile)
+        return self.validate_manifest(manifest, directory.name, expected_profile=expected_profile)
 
     def current_link(self) -> tuple[str, str]:
         try:
@@ -202,7 +157,7 @@ class UpdaterStateMixin:
         releases = self.releases.resolve(strict=False)
         if not same_path(target.parent, releases) or not version(target.name):
             raise UpdateError("Current release link is unmanaged or points to a dev build")
-        self.validate_release(target, allow_legacy=True)
+        self.validate_release(target)
         return target.name, raw
 
     def managed_bin_link(self) -> str:
@@ -240,6 +195,24 @@ class UpdaterStateMixin:
         self.validate_control_file(self.state_path)
         return read_json(self.state_path, MAX_JSON_BYTES)
 
+    def validate_committed_state(self, state: object, current: str, manifest: dict) -> dict:
+        if not isinstance(state, dict):
+            raise UpdateError("Update state is not a committed object")
+        if set(state) != {"schema_version", "phase", "current", "previous", "updated_at", "release", "asset"}:
+            raise UpdateError("Update state contract is invalid")
+        if state["schema_version"] != UPDATER_PROTOCOL or state["phase"] != "committed":
+            raise UpdateError("Update state contract is invalid")
+        if state["current"] != current or state["release"] != manifest:
+            raise UpdateError("Update state does not match the managed current release")
+        if not isinstance(state["updated_at"], str) or not state["updated_at"]:
+            raise UpdateError("Update state timestamp is invalid")
+        previous = state["previous"]
+        if previous is not None:
+            if not version(previous):
+                raise UpdateError("State previous release is invalid")
+            self.validate_release(self.releases / previous)
+        return state
+
     def validate_control_file(self, path: Path) -> None:
         self.validate_managed_directory(path.parent, "control-file directory")
         metadata = path.lstat()
@@ -253,22 +226,9 @@ class UpdaterStateMixin:
     def fallback(self) -> dict:
         current, current_raw = self.current_link()
         bin_raw = self.managed_bin_link()
-        current_manifest = self.validate_release(self.releases / current, allow_legacy=True)
-        state = self.state()
-        previous = None
-        if isinstance(state, dict):
-            if state.get("schema_version") == 2 and state.get("phase") != "committed":
-                raise UpdateError("Update state is not a committed transaction")
-            recorded = state.get("current", state.get("active"))
-            if recorded not in (None, current):
-                raise UpdateError("State current does not match the managed current link")
-            previous = state.get("previous")
-        elif state is not None:
-            raise UpdateError("Update state is not an object")
-        if previous is not None:
-            if not version(previous):
-                raise UpdateError("State previous release is invalid")
-            self.validate_release(self.releases / previous, allow_legacy=True)
+        current_manifest = self.validate_release(self.releases / current)
+        state = self.validate_committed_state(self.state(), current, current_manifest)
+        previous = state["previous"]
         self.validate_service()
         return {
             "current": current,
@@ -276,7 +236,6 @@ class UpdaterStateMixin:
             "previous": previous,
             "bin_link": bin_raw,
             "state": copy.deepcopy(state),
-            "legacy": not self.current_protocol_manifest(current_manifest),
         }
 
 

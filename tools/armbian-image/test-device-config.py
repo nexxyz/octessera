@@ -27,21 +27,28 @@ def test_helper(path, index):
         config = Path(directory) / "default.json"
         cases = (
             ({"dac": True, "usb": False, "hdmi": False}, False, (True, False, False, False)),
-            ({"dac": False, "usb": True, "hdmi": False}, True, (False, True, False, True)),
-            ({"dac": False, "usb": False, "hdmi": True}, False, (False, False, True, False)),
+            ({"dac": True, "usb": True, "hdmi": False}, True, (True, True, False, True)),
+            ({"dac": True, "usb": False, "hdmi": True}, False, (True, False, True, False)),
             ({"dac": True, "usb": True, "hdmi": True}, True, (True, True, True, True)),
         )
         for audio, midi, expected in cases:
-            config.write_text(json.dumps({"runtimeConfig": {"audioOutputs": audio, "usb": {"midiOutEnabled": midi}}}), encoding="utf-8")
+            config.write_text(json.dumps({"runtimeConfig": {"audioOutputs": audio, "usb": {"midiOutEnabled": midi, "dataRole": "gadget"}}}), encoding="utf-8")
             assert tuple(helper.load_config(config).values()) == expected
 
         invalid = (
-            {"runtimeConfig": {"usb": {"audioOut": "both"}}},
+            {},
+            {"runtimeConfig": {}},
+            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}}},
+            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": []}},
             {"runtimeConfig": {"usb": {"midiOutEnabled": False}}},
             {"runtimeConfig": {"audioOutputs": {"dac": False, "usb": False, "hdmi": False}}},
+            {"runtimeConfig": {"audioOutputs": {"dac": False, "usb": True, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "gadget"}}},
             {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False, "extra": False}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"audioOut": "both"}}},
+            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"unexpected": True}}},
+            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"dataRole": "gadget"}}},
+            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"midiOutEnabled": False}}},
             {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": 1}}},
+            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": 1}}},
         )
         for payload in invalid:
             config.write_text(json.dumps(payload), encoding="utf-8")
@@ -53,9 +60,8 @@ def test_helper(path, index):
                 raise AssertionError(payload)
 
         role_cases = (
-            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}}, "gadget"),
-            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"dataRole": "gadget"}}, "gadget"),
-            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"dataRole": "host"}}, "host"),
+            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "gadget"}}, "gadget"),
+            ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "host"}}, "host"),
         )
         for runtime, expected in role_cases:
             config.write_text(json.dumps({"runtimeConfig": runtime}), encoding="utf-8")

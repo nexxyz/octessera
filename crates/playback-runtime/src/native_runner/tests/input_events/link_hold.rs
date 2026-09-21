@@ -17,7 +17,7 @@ pub(crate) fn delayed_hold_note_on_is_cancelled_by_release_before_due() {
         })
         .unwrap();
     assert_eq!(runner.instruments[0].note_behavior, "hold");
-    runner.pulses_layers[0].activate_timing.delay_steps = 1;
+    runner.link_layers[0].activate_timing.delay_steps = 1;
 
     let press = runner
         .send(HostMessage::DeviceInput {
@@ -68,7 +68,7 @@ pub(crate) fn hold_note_retrigger_is_cancelled_by_release_before_repeat() {
         })
         .unwrap();
     assert_eq!(runner.instruments[0].note_behavior, "hold");
-    runner.pulses_layers[0].activate_timing.retrigger_count = 1;
+    runner.link_layers[0].activate_timing.retrigger_count = 1;
 
     let press = runner
         .send(HostMessage::DeviceInput {
@@ -119,7 +119,7 @@ pub(crate) fn held_link_note_ons_do_not_schedule_indefinite_retriggers() {
         })
         .unwrap();
     assert_eq!(runner.instruments[0].note_behavior, "hold");
-    runner.pulses_layers[0].activate_timing.retrigger_count = 1;
+    runner.link_layers[0].activate_timing.retrigger_count = 1;
 
     let press = runner
         .send(HostMessage::DeviceInput {

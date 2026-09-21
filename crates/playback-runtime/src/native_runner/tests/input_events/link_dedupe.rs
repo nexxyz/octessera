@@ -178,11 +178,11 @@ pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
 pub(crate) fn same_note_from_two_layers_remains_two_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.pulses_layers[1].activate_slot = 0;
-    runner.pulses_layers[1].deactivate_slot = 0;
+    runner.link_layers[1].activate_slot = 0;
+    runner.link_layers[1].deactivate_slot = 0;
     runner.transport.layer_algorithm_step_pulses[0] = 12;
     runner.transport.layer_algorithm_step_pulses[1] = 12;
-    runner.pulses_layers[1].event_enabled = true;
+    runner.link_layers[1].event_enabled = true;
 
     let messages = pulse(&mut runner, 12);
     let notes = musical_note_ons(&messages);
@@ -302,7 +302,7 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.pulses_layers[0].activate_timing.retrigger_count = 1;
+    runner.link_layers[0].activate_timing.retrigger_count = 1;
     let activate = intent(platform_core::CellTriggerKind::Activate);
     let immediate = runner.apply_link_timing(
         0,
@@ -333,12 +333,12 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
     for (x, y) in [(4, 4), (4, 5), (4, 6)] {
         cells[y * 8 + x] = true;
     }
-    payload["runtimeConfig"]["layers"][0]["worlds"]["savedState"]["cells"] = json!(cells);
+    payload["runtimeConfig"]["layers"][0]["build"]["savedState"]["cells"] = json!(cells);
     runner.apply_config_payload(payload).unwrap();
-    runner.pulses_layers[0].trigger_probability_mode = "custom".into();
+    runner.link_layers[0].trigger_probability_mode = "custom".into();
     runner.trigger_probability_maps[0].fill("full".into());
     runner.trigger_probability_maps[0][5 * 8 + 3] = "zero".into();
-    runner.pulses_layers[0].x_velocity = NativeValueLane {
+    runner.link_layers[0].x_velocity = NativeValueLane {
         enabled: true,
         from: 10,
         to: 110,

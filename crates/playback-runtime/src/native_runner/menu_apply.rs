@@ -44,17 +44,17 @@ impl NativeRunner {
         }
         let mut config_changed = false;
         let mut audio_config_changed = false;
-        let (_sparks_mode_changed, global_config_changed, global_audio_config_changed) =
+        let (_play_mode_changed, global_config_changed, global_audio_config_changed) =
             self.apply_global_runtime_menu_state();
-        let sparks_fx_changed = self.apply_sparks_fx_menu_state();
-        config_changed |= global_config_changed || sparks_fx_changed;
+        let play_fx_changed = self.apply_play_fx_menu_state();
+        config_changed |= global_config_changed || play_fx_changed;
         audio_config_changed |= global_audio_config_changed;
         config_changed |= self.apply_param_mod_invert_menu_state();
         let layer_changed = self.apply_layer_menu_state();
         let instrument_changed = self.apply_instrument_menu_state();
-        let pulses_changed = self.apply_pulses_menu_state();
+        let link_changed = self.apply_link_menu_state();
         let fx_changed = self.apply_fx_menu_state();
-        config_changed |= layer_changed || instrument_changed || pulses_changed || fx_changed;
+        config_changed |= layer_changed || instrument_changed || link_changed || fx_changed;
         audio_config_changed |=
             instrument_changed && current_key_requires_audio_config(&current_key);
         audio_config_changed |= fx_changed && current_key_requires_audio_config(&current_key);
@@ -62,7 +62,7 @@ impl NativeRunner {
         if audio_config_changed || current_key_requires_menu_materialization(&current_key) {
             self.menu.rebuild(self.menu_config());
         }
-        if pulses_changed {
+        if link_changed {
             self.refresh_active_interpretation_profile();
             self.engine
                 .set_interpretation_profile(self.interpretation_profile.clone());
@@ -347,7 +347,7 @@ fn current_key_requires_menu_materialization(current_key: &Option<String>) -> bo
         let Some((_, suffix)) = rest.split_once('.') else {
             return true;
         };
-        return suffix == "pulses.scanMode";
+        return suffix == "link.scanMode";
     }
     false
 }

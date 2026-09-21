@@ -19,21 +19,21 @@ pub(crate) fn runtime_dto_round_trips_factory_defaults() {
 #[test]
 pub(crate) fn layer_dto_preserves_behavior_extensions_and_rejects_bad_fields() {
     let mut runtime = runtime_payload();
-    runtime["layers"][0]["worlds"]["behaviorConfig"] = json!({
+    runtime["layers"][0]["build"]["behaviorConfig"] = json!({
         "ruleExtension": { "seed": [1, 2, 3] }
     });
-    runtime["layers"][0]["worlds"]["behaviorConfigHistory"]["life"]["historyExtension"] =
+    runtime["layers"][0]["build"]["behaviorConfigHistory"]["life"]["historyExtension"] =
         json!(true);
 
     let dto = RuntimeConfigDto::from_value(&runtime).unwrap();
     let round_trip = dto.to_value().unwrap();
     assert_eq!(round_trip, runtime);
     assert_eq!(
-        round_trip["layers"][0]["worlds"]["behaviorConfig"]["ruleExtension"]["seed"],
+        round_trip["layers"][0]["build"]["behaviorConfig"]["ruleExtension"]["seed"],
         json!([1, 2, 3])
     );
 
-    runtime["layers"][0]["pulses"]["scanSections"] = json!("broken");
+    runtime["layers"][0]["link"]["scanSections"] = json!("broken");
     assert!(RuntimeConfigDto::from_value(&runtime).is_err());
 }
 

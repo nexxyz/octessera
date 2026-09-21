@@ -5,8 +5,6 @@ pub(crate) const fn is_raspberry_diagnostic() -> bool {
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     ))
 }
 

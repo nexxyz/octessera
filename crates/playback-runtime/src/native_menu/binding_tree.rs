@@ -92,7 +92,7 @@ pub(super) fn binding_spec_from_leaf(
 
 pub(super) fn is_excluded_binding_key(key: &str) -> bool {
     key == "behaviorId"
-        || key == "sparksMode"
+        || key == "playMode"
         || key.ends_with(".name")
         || key.ends_with(".autoName")
         || key.ends_with(".clone")

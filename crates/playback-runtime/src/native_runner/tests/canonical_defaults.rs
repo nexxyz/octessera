@@ -1,13 +1,12 @@
 use super::*;
 use sha2::{Digest, Sha256};
 
-const LEGACY_RPI_DEFAULT: &[u8] =
-    include_bytes!("fixtures/config_persistence/legacy_rpi_canonical_default.json");
-const LEGACY_RPI_DEFAULT_SHA256: &str =
-    "3d0c97a2c76a29b8e5478ea4eb6f93fefb711ad813ef8403d7a0b043489bf0f9";
+const PI_DEFAULT_BYTES: &[u8] =
+    include_bytes!("fixtures/config_persistence/pi_canonical_default.json");
+const PI_DEFAULT_SHA256: &str = "1d6e6ec42c161052f175b028d7bff70e1d59484dde205e3ca7dcf140ce16fa8f";
 
 #[test]
-pub(crate) fn legacy_rpi_default_reproduces_complete_canonical_projections() {
+pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
     let base: Value =
         serde_json::from_str(include_str!("../../../../../config/defaults/base.json")).unwrap();
     let desktop: Value = serde_json::from_str(include_str!(
@@ -24,10 +23,10 @@ pub(crate) fn legacy_rpi_default_reproduces_complete_canonical_projections() {
         serde_json::from_str(include_str!("../../../../../config/defaults/pi.json")).unwrap();
 
     let mut runner = runner_with_config(base.clone());
-    let mut legacy = legacy_rpi_default();
-    normalize_sample_paths(&mut legacy);
+    let mut pi_default = pi_default();
+    normalize_sample_paths(&mut pi_default);
     runner
-        .apply_patch_payload_preserving_device(legacy)
+        .apply_patch_payload_preserving_device(pi_default)
         .unwrap();
 
     assert_eq!(
@@ -72,10 +71,10 @@ fn runner_with_config(payload: Value) -> NativeRunner {
     runner
 }
 
-fn legacy_rpi_default() -> Value {
-    let digest = Sha256::digest(LEGACY_RPI_DEFAULT);
-    assert_eq!(format!("{digest:x}"), LEGACY_RPI_DEFAULT_SHA256);
-    serde_json::from_slice(LEGACY_RPI_DEFAULT).unwrap()
+fn pi_default() -> Value {
+    let digest = Sha256::digest(PI_DEFAULT_BYTES);
+    assert_eq!(format!("{digest:x}"), PI_DEFAULT_SHA256);
+    serde_json::from_slice(PI_DEFAULT_BYTES).unwrap()
 }
 
 fn normalize_sample_paths(payload: &mut Value) {

@@ -6,16 +6,16 @@ fn scanning_runner(behavior_id: &str) -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/16".into();
-    runner.pulses_layers[0].event_enabled = false;
-    runner.pulses_layers[0].scanned_slot = 0;
-    runner.pulses_layers[0].scanned_action = "note_on".into();
-    runner.pulses_layers[0].scanned_empty_slot = 0;
-    runner.pulses_layers[0].scanned_empty_action = "note_on".into();
-    runner.pulses_layers[0].y_pitch_enabled = true;
-    runner.pulses_layers[0].y_pitch_steps = 1;
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/16".into();
+    runner.link_layers[0].event_enabled = false;
+    runner.link_layers[0].scanned_slot = 0;
+    runner.link_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scanned_empty_slot = 0;
+    runner.link_layers[0].scanned_empty_action = "note_on".into();
+    runner.link_layers[0].y_pitch_enabled = true;
+    runner.link_layers[0].y_pitch_steps = 1;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

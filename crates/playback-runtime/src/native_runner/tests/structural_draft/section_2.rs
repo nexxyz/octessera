@@ -18,7 +18,7 @@ pub(crate) fn behavior_selection_applies_immediately() {
                 effect,
                 RuntimePlatformEffect::StoreSaveDefault { payload, mode }
                     if mode.as_deref() == Some("deferred")
-                        && payload["runtimeConfig"]["layers"][0]["worlds"]["behaviorId"] == "keys"
+                        && payload["runtimeConfig"]["layers"][0]["build"]["behaviorId"] == "keys"
             ))
     )));
 }

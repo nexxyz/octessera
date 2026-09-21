@@ -1,21 +1,19 @@
 use super::*;
 
 impl NativeRunner {
-    pub(super) fn worlds_menu_items_by_layer(
-        &self,
-    ) -> Vec<Vec<crate::native_menu::NativeMenuItem>> {
+    pub(super) fn build_menu_items_by_layer(&self) -> Vec<Vec<crate::native_menu::NativeMenuItem>> {
         (0..self.layer_behavior_ids.len())
             .map(|layer_index| {
                 if layer_index == self.active_layer_index {
-                    self.worlds_menu_items()
+                    self.build_menu_items()
                 } else {
-                    self.worlds_menu_items_for_layer(layer_index)
+                    self.build_menu_items_for_layer(layer_index)
                 }
             })
             .collect()
     }
 
-    pub(super) fn worlds_menu_items_for_layer(
+    pub(super) fn build_menu_items_for_layer(
         &self,
         layer_index: usize,
     ) -> Vec<crate::native_menu::NativeMenuItem> {
@@ -63,7 +61,7 @@ impl NativeRunner {
         items
     }
 
-    pub(super) fn worlds_menu_items(&self) -> Vec<crate::native_menu::NativeMenuItem> {
+    pub(super) fn build_menu_items(&self) -> Vec<crate::native_menu::NativeMenuItem> {
         let mut items = vec![
             self.behavior_selector_menu_item(),
             crate::native_menu::NativeMenuItem {
@@ -223,7 +221,7 @@ impl NativeRunner {
         item: BehaviorConfigItem,
     ) -> Option<crate::native_menu::NativeMenuItem> {
         let key = format!(
-            "layers.{}.worlds.behaviorConfig.{}",
+            "layers.{}.build.behaviorConfig.{}",
             self.active_layer_index, item.key
         );
         match item.item_type {
@@ -357,7 +355,7 @@ impl NativeRunner {
         if let Ok(Some(config_items)) = self.behavior.config_menu(&self.engine_state()) {
             for item in config_items {
                 let key = format!(
-                    "layers.{}.worlds.behaviorConfig.{}",
+                    "layers.{}.build.behaviorConfig.{}",
                     self.active_layer_index, item.key
                 );
                 match item.item_type {

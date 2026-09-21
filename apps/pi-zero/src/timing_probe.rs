@@ -284,7 +284,7 @@ fn initialize_live_host_state(
     process_live_output(playback, runner, host, output)
 }
 
-fn send_sparks_page_input(
+fn send_play_page_input(
     playback: &mut PlaybackRuntime,
     runner: &mut LiveProbeRunner,
     host: &mut LiveProbeHost,

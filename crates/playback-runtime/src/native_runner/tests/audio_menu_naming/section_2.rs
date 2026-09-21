@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn button_back_commits_worlds_behavior_auto_name_after_manual_auto_name_toggle() {
+pub(crate) fn button_back_commits_build_behavior_auto_name_after_manual_auto_name_toggle() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layer_behavior_ids[3] = "sequencer".into();
     runner.layer_names[3] = "sequencer".into();
@@ -141,7 +141,7 @@ pub(crate) fn layer_four_auto_name_change_is_in_deferred_autosave_payload() {
     assert_eq!(runner.layer_behavior_ids[3], "none");
     assert_eq!(runner.layer_names[3], "none");
     assert_eq!(
-        saved_payload["runtimeConfig"]["layers"][3]["worlds"]["behaviorId"],
+        saved_payload["runtimeConfig"]["layers"][3]["build"]["behaviorId"],
         "none"
     );
     assert_eq!(saved_payload["runtimeConfig"]["layers"][3]["name"], "none");
@@ -180,8 +180,8 @@ pub(crate) fn loading_auto_named_layer_ignores_stale_payload_name() {
             "runtimeConfig": {
                 "activeLayerIndex": 1,
                 "layers": [
-                    { "worlds": { "behaviorId": "life" }, "autoName": true, "name": "life" },
-                    { "worlds": { "behaviorId": "none" }, "autoName": true, "name": "sequencer" }
+                    { "build": { "behaviorId": "life" }, "autoName": true, "name": "life" },
+                    { "build": { "behaviorId": "none" }, "autoName": true, "name": "sequencer" }
                 ]
             }
         }))

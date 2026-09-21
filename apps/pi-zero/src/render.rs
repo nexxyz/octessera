@@ -314,17 +314,18 @@ pub fn led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
     {
         brightness = sleep_dim_brightness(brightness);
     }
-    let Some(rgb) = snapshot.get("leds")?.get("rgb").and_then(Value::as_array) else {
-        return legacy_led_frame(snapshot, brightness);
-    };
+    let rgb = snapshot.get("leds")?.get("rgb")?.as_array()?;
+    if rgb.len() != 64 * 3 {
+        return None;
+    }
     let mut frame = [[0_u8; 3]; 64];
     for (idx, cell) in frame.iter_mut().enumerate() {
         let offset = idx * 3;
         *cell = scale(
             [
-                scaled_u8(rgb.get(offset)),
-                scaled_u8(rgb.get(offset + 1)),
-                scaled_u8(rgb.get(offset + 2)),
+                packed_rgb_channel(rgb.get(offset))?,
+                packed_rgb_channel(rgb.get(offset + 1))?,
+                packed_rgb_channel(rgb.get(offset + 2))?,
             ],
             brightness,
         );
@@ -332,20 +333,8 @@ pub fn led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
     Some(frame)
 }
 
-fn legacy_led_frame(snapshot: &Value, brightness: f32) -> Option<[[u8; 3]; 64]> {
-    let cells = snapshot.get("leds")?.get("cells")?.as_array()?;
-    let mut frame = [[0_u8; 3]; 64];
-    for (idx, cell) in cells.iter().take(64).enumerate() {
-        frame[idx] = scale(
-            [
-                scaled_u8(cell.get("r")),
-                scaled_u8(cell.get("g")),
-                scaled_u8(cell.get("b")),
-            ],
-            brightness,
-        );
-    }
-    Some(frame)
+fn packed_rgb_channel(value: Option<&Value>) -> Option<u8> {
+    u8::try_from(value?.as_u64()?).ok()
 }
 
 pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
@@ -419,10 +408,6 @@ fn snapshot_display_off(snapshot: &Value) -> bool {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn fault_oled_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     oled::fault_frame_into(lines, frame, lit);
-}
-
-fn scaled_u8(value: Option<&Value>) -> u8 {
-    value.and_then(Value::as_u64).unwrap_or(0).min(255) as u8
 }
 
 fn brightness_scale(value: Option<&Value>) -> f32 {

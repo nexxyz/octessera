@@ -42,7 +42,7 @@ impl NativeMenuModel {
             .map(|value| value.clamp(0, 100) as u8)
     }
 
-    pub fn selected_sparks_mode(&self) -> Option<String> {
+    pub fn selected_play_mode(&self) -> Option<String> {
         let path = self.current_focus_path();
         if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Mix")) {
             return Some("mix".into());

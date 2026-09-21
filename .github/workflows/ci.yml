@@ -246,10 +246,6 @@ jobs:
           done
       - name: Build HAL for Pi Zero 2W
         run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
-      - name: Compile deprecated HAL compatibility alias rpi-zero-2w
-        run: cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features rpi-zero-2w
-      - name: Compile deprecated HAL compatibility alias pi-zero
-        run: cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
       - name: Test Orange HAL profile
         run: cargo test -p octessera-hal --features orange-pi-zero-2w
       - name: Lint Orange HAL profile
@@ -293,10 +289,6 @@ jobs:
           grep -F 'PKG_CONFIG_ALLOW_CROSS=1' Dockerfile.pi-zero
       - name: Build Pi app with cross
         run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-raspberry-pi-zero-2w
-      - name: Compile deprecated Pi app compatibility alias hardware-rpi-zero-2w
-        run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-rpi-zero-2w
-      - name: Compile deprecated Pi app compatibility alias hardware-pi
-        run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
       - name: Check Orange foreground tests for AArch64
         run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w --tests
       - name: Build Orange foreground runtime candidate

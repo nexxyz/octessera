@@ -13,8 +13,8 @@ pub(crate) fn transport_stop_drains_active_and_inactive_held_notes_to_their_rout
     runner.instruments[1].kind = "midi".into();
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 3;
-    runner.pulses_layers[1].event_enabled = true;
-    runner.pulses_layers[1].activate_slot = 1;
+    runner.link_layers[1].event_enabled = true;
+    runner.link_layers[1].activate_slot = 1;
     runner.select_layer_behavior(1, "keys").unwrap();
     runner.sync_engine_runtime_config();
 
@@ -71,10 +71,10 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
     })
     .unwrap();
     runner.midi_enabled = true;
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/16".into();
-    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/16".into();
+    runner.link_layers[0].scanned_action = "note_on".into();
     runner.refresh_active_interpretation_profile();
     runner
         .engine

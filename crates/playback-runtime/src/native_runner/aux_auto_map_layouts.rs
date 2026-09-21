@@ -18,14 +18,14 @@ impl NativeRunner {
         }
 
         if path.contains(PLAY_LABEL)
-            && (selected_key.is_some_and(|key| key.starts_with("sparks.fx.params."))
+            && (selected_key.is_some_and(|key| key.starts_with("play.fx.params."))
                 || selected_action
                     .map(|action| {
-                        matches!(action, NativeMenuAction::PlatformEffect(effect) if effect == "sparks.fx.map")
+                        matches!(action, NativeMenuAction::PlatformEffect(effect) if effect == "play.fx.map")
                     })
                     .unwrap_or(false))
         {
-            return self.sparks_fx_auto_map();
+            return self.play_fx_auto_map();
         }
 
         if let Some(key) = selected_key {
@@ -48,8 +48,8 @@ impl NativeRunner {
             if let Some(slot) = self.sample_action_auto_map(action) {
                 return slot;
             }
-            if action == "sparks.fx.map" {
-                return self.sparks_fx_auto_map();
+            if action == "play.fx.map" {
+                return self.play_fx_auto_map();
             }
         }
 
@@ -59,13 +59,13 @@ impl NativeRunner {
     fn is_behavior_auto_map_key(&self, key: &str) -> bool {
         key == "algorithmStep"
             || key.starts_with(&format!(
-                "layers.{}.worlds.behaviorConfig.",
+                "layers.{}.build.behaviorConfig.",
                 self.active_layer_index
             ))
     }
 
     fn behavior_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
-        let layer_prefix = format!("layers.{}.worlds.behaviorConfig", self.active_layer_index);
+        let layer_prefix = format!("layers.{}.build.behaviorConfig", self.active_layer_index);
         match self.behavior.id() {
             "life" => self.with_step_rate([
                 Some(self.turn_slot(format!("{layer_prefix}.randomCellsPerTick"), "Count")),

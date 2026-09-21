@@ -1,8 +1,5 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
-use crate::persistence::{
-    atomic_write_json, preset_file_path, preset_load_file_path, preset_name_from_file_name,
-    preset_patch_file_path,
-};
+use crate::persistence::{atomic_write_json, preset_name_from_file_name, preset_patch_file_path};
 use playback_runtime::{HostMessage, RuntimePlatformRequest, RuntimeStoreResult};
 use std::time::{Duration, Instant};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -17,19 +14,6 @@ impl DesktopPlaybackHostAdapter {
     pub(super) fn list_preset_names(&self) -> Result<Vec<String>, String> {
         let presets_dir = self.store_dir.join("presets");
         let mut names = std::collections::BTreeSet::new();
-        if presets_dir.is_dir() {
-            for entry in std::fs::read_dir(&presets_dir).map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                if let Some(name) = entry
-                    .path()
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .and_then(preset_name_from_file_name)
-                {
-                    names.insert(name);
-                }
-            }
-        }
         let patch_dir = presets_dir.join("patches");
         if patch_dir.is_dir() {
             for entry in std::fs::read_dir(&patch_dir).map_err(|e| e.to_string())? {
@@ -51,7 +35,7 @@ impl DesktopPlaybackHostAdapter {
         &self,
         name: &str,
     ) -> Result<Option<serde_json::Value>, String> {
-        let path = preset_load_file_path(&self.store_dir.join("presets"), name)?;
+        let path = preset_patch_file_path(&self.store_dir.join("presets"), name)?;
         if !path.is_file() {
             return Ok(None);
         }
@@ -72,16 +56,12 @@ impl DesktopPlaybackHostAdapter {
 
     pub(super) fn delete_preset_payload(&self, name: &str) -> Result<bool, String> {
         let presets_dir = self.store_dir.join("presets");
-        let legacy = preset_file_path(&presets_dir, name)?;
         let patch = preset_patch_file_path(&presets_dir, name)?;
-        let mut removed = false;
-        for path in [legacy, patch] {
-            if path.is_file() {
-                std::fs::remove_file(&path).map_err(|e| e.to_string())?;
-                removed = true;
-            }
+        if patch.is_file() {
+            std::fs::remove_file(&patch).map_err(|e| e.to_string())?;
+            return Ok(true);
         }
-        Ok(removed)
+        Ok(false)
     }
 
     pub(super) fn load_default_result(&mut self) -> Result<Vec<HostMessage>, String> {

@@ -23,7 +23,7 @@ impl NativeRunner {
             });
         }
         let layer_index = self.active_layer_index;
-        let sense = self.pulses_layers.get(layer_index).cloned();
+        let sense = self.link_layers.get(layer_index).cloned();
         let probability_map = self
             .trigger_probability_maps
             .get(layer_index)
@@ -70,14 +70,14 @@ impl NativeRunner {
         self.advance_active_layer(&mut events)?;
 
         let instruments = self.instruments.clone();
-        let transpose_offsets = self.sparks_transpose_offsets_for_routing();
+        let transpose_offsets = self.play_transpose_offsets_for_routing();
         let inactive_configs = (0..self.layer_engines.len())
             .map(|index| {
                 (
                     self.interpretation_profile_for_layer(index),
                     self.mapping_config_for_layer(index),
                     self.step_pulses_for_layer(index),
-                    self.pulses_layers.get(index).cloned(),
+                    self.link_layers.get(index).cloned(),
                     self.trigger_probability_maps
                         .get(index)
                         .cloned()
@@ -156,7 +156,7 @@ impl NativeRunner {
             };
             if is_sequencer
                 && self
-                    .pulses_layers
+                    .link_layers
                     .get(index)
                     .is_some_and(|layer| layer.scan_mode == "scanning")
             {
@@ -169,7 +169,7 @@ impl NativeRunner {
     }
 
     fn step_pulses_for_layer(&self, index: usize) -> u32 {
-        if let Some(layer) = self.pulses_layers.get(index) {
+        if let Some(layer) = self.link_layers.get(index) {
             if layer.scan_mode == "scanning" {
                 return crate::timing_units::note_unit_to_pulses(&layer.scan_unit);
             }
@@ -188,9 +188,9 @@ impl NativeRunner {
     fn probability_context(
         &self,
         layer_index: usize,
-    ) -> (Option<super::NativePulsesLayer>, Vec<String>) {
+    ) -> (Option<super::NativeLinkLayer>, Vec<String>) {
         (
-            self.pulses_layers.get(layer_index).cloned(),
+            self.link_layers.get(layer_index).cloned(),
             self.trigger_probability_maps
                 .get(layer_index)
                 .cloned()
@@ -261,12 +261,12 @@ impl NativeRunner {
             events.extend(due_events);
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self
-                .sparks_transpose_offsets_for_routing()
+                .play_transpose_offsets_for_routing()
                 .get(self.active_layer_index)
                 .copied()
                 .unwrap_or(0);
             let instruments = self.instruments.clone();
-            let sense = self.pulses_layers.get(self.active_layer_index).cloned();
+            let sense = self.link_layers.get(self.active_layer_index).cloned();
             let tick_events = self.route_events_with_link_timing(
                 self.active_layer_index,
                 LinkRoutingInput {

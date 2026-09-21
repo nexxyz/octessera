@@ -37,16 +37,6 @@ pub(crate) struct UsbRuntimeConfig {
     pub(crate) data_role: UsbDataRole,
 }
 
-impl Default for UsbRuntimeConfig {
-    fn default() -> Self {
-        Self {
-            audio_outputs: AudioOutputSet::jack(),
-            midi_out_enabled: false,
-            data_role: UsbDataRole::Gadget,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum UsbConfigError {
     Read { path: String, message: String },
@@ -161,59 +151,50 @@ pub(crate) fn audio_output_buffer_frames_from_default_config(store_dir: &Path) -
 pub(crate) fn parse_usb_runtime_config(
     payload: &serde_json::Value,
 ) -> Result<UsbRuntimeConfig, UsbConfigError> {
-    let root = payload.get("runtimeConfig").unwrap_or(payload);
+    let root = payload
+        .get("runtimeConfig")
+        .ok_or_else(|| UsbConfigError::Invalid("runtimeConfig must be an object".into()))?;
     let Some(root) = root.as_object() else {
         return Err(UsbConfigError::Invalid(
             "runtimeConfig must be an object".into(),
         ));
     };
-    let usb = match root.get("usb") {
-        None => None,
-        Some(usb) => Some(usb.as_object().ok_or_else(|| {
-            UsbConfigError::Invalid("runtimeConfig.usb must be an object".into())
-        })?),
-    };
-    if usb.is_some_and(|usb| usb.contains_key("audioOut")) {
-        return Err(UsbConfigError::Invalid(
-            "runtimeConfig.usb.audioOut is unsupported; use runtimeConfig.audioOutputs".into(),
-        ));
-    }
-    let audio_outputs_value = root.get("audioOutputs");
-    if audio_outputs_value
-        .and_then(|value| value.get("dac"))
-        .and_then(serde_json::Value::as_bool)
-        == Some(false)
-    {
-        return Err(UsbConfigError::Invalid("Jack Audio is always on".into()));
-    }
-    let audio_outputs = audio_outputs_value
-        .map(|value| AudioOutputSet::decode(value).map_err(UsbConfigError::Invalid))
-        .transpose()?
-        .unwrap_or_default();
+    let audio_outputs = root
+        .get("audioOutputs")
+        .ok_or_else(|| UsbConfigError::Invalid("runtimeConfig.audioOutputs is required".into()))
+        .and_then(|value| AudioOutputSet::decode(value).map_err(UsbConfigError::Invalid))?;
     if !audio_outputs.dac() {
         return Err(UsbConfigError::Invalid("Jack Audio is always on".into()));
     }
-    let midi_out_enabled = match usb.and_then(|usb| usb.get("midiOutEnabled")) {
-        None => false,
-        Some(serde_json::Value::Bool(value)) => *value,
-        Some(_) => {
-            return Err(UsbConfigError::Invalid(
-                "runtimeConfig.usb.midiOutEnabled must be boolean".into(),
-            ))
-        }
-    };
-    let data_role = match usb.and_then(|usb| usb.get("dataRole")) {
-        None => UsbDataRole::Gadget,
-        Some(serde_json::Value::String(value)) => match value.as_str() {
-            "gadget" => UsbDataRole::Gadget,
-            "host" => UsbDataRole::Host,
-            _ => {
-                return Err(UsbConfigError::Invalid(
-                    "runtimeConfig.usb.dataRole must be `gadget` or `host`".into(),
-                ))
-            }
-        },
-        Some(_) => {
+    let usb = root
+        .get("usb")
+        .ok_or_else(|| UsbConfigError::Invalid("runtimeConfig.usb is required".into()))?
+        .as_object()
+        .ok_or_else(|| UsbConfigError::Invalid("runtimeConfig.usb must be an object".into()))?;
+    if usb
+        .keys()
+        .any(|key| !matches!(key.as_str(), "midiOutEnabled" | "dataRole"))
+    {
+        return Err(UsbConfigError::Invalid(
+            "runtimeConfig.usb contains unsupported fields".into(),
+        ));
+    }
+    let midi_out_enabled = usb
+        .get("midiOutEnabled")
+        .and_then(serde_json::Value::as_bool)
+        .ok_or_else(|| {
+            UsbConfigError::Invalid("runtimeConfig.usb.midiOutEnabled must be boolean".into())
+        })?;
+    let data_role = usb
+        .get("dataRole")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            UsbConfigError::Invalid("runtimeConfig.usb.dataRole must be `gadget` or `host`".into())
+        })?;
+    let data_role = match data_role {
+        "gadget" => UsbDataRole::Gadget,
+        "host" => UsbDataRole::Host,
+        _ => {
             return Err(UsbConfigError::Invalid(
                 "runtimeConfig.usb.dataRole must be `gadget` or `host`".into(),
             ))
@@ -243,11 +224,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_to_jack_and_midi_off() {
-        assert_eq!(
-            parse_usb_runtime_config(&serde_json::json!({})).unwrap(),
-            UsbRuntimeConfig::default()
-        );
+    fn requires_canonical_usb_runtime_config() {
+        for payload in [
+            serde_json::json!({}),
+            serde_json::json!({ "runtimeConfig": {} }),
+            serde_json::json!({
+                "runtimeConfig": {
+                    "audioOutputs": { "dac": true, "usb": false, "hdmi": false }
+                }
+            }),
+        ] {
+            assert!(parse_usb_runtime_config(&payload).is_err());
+        }
     }
 
     #[test]
@@ -256,7 +244,7 @@ mod tests {
             parse_usb_runtime_config(&serde_json::json!({
                 "runtimeConfig": {
                     "audioOutputs": { "dac": true, "usb": true, "hdmi": false },
-                    "usb": { "midiOutEnabled": true }
+                    "usb": { "midiOutEnabled": true, "dataRole": "gadget" }
                 }
             }))
             .unwrap(),
@@ -273,7 +261,7 @@ mod tests {
         let error = parse_usb_runtime_config(&serde_json::json!({
             "runtimeConfig": {
                 "audioOutputs": { "dac": false, "usb": true, "hdmi": false },
-                "usb": { "midiOutEnabled": false }
+                "usb": { "midiOutEnabled": false, "dataRole": "gadget" }
             }
         }))
         .unwrap_err();
@@ -309,7 +297,10 @@ mod tests {
         ] {
             assert_eq!(
                 parse_usb_runtime_config(&serde_json::json!({
-                    "runtimeConfig": { "audioOutputs": outputs }
+                    "runtimeConfig": {
+                        "audioOutputs": outputs,
+                        "usb": { "midiOutEnabled": false, "dataRole": "gadget" }
+                    }
                 }))
                 .unwrap()
                 .audio_outputs,
@@ -319,30 +310,13 @@ mod tests {
     }
 
     #[test]
-    fn legacy_audio_outputs_are_rejected() {
-        for payload in [
-            serde_json::json!({
-                "runtimeConfig": { "usb": { "audioOut": "both" } }
-            }),
-            serde_json::json!({
-                "runtimeConfig": {
-                    "audioOutputs": { "dac": true, "usb": true, "hdmi": false },
-                    "usb": { "audioOut": "both", "midiOutEnabled": true }
-                }
-            }),
-        ] {
-            assert!(matches!(
-                parse_usb_runtime_config(&payload),
-                Err(UsbConfigError::Invalid(_))
-            ));
-        }
-    }
-
-    #[test]
     fn canonical_hdmi_and_unrepresentable_outputs_are_profile_checked_later() {
         let audio_outputs = serde_json::json!({ "dac": true, "usb": false, "hdmi": true });
         assert!(parse_usb_runtime_config(&serde_json::json!({
-            "runtimeConfig": { "audioOutputs": audio_outputs }
+            "runtimeConfig": {
+                "audioOutputs": audio_outputs,
+                "usb": { "midiOutEnabled": false, "dataRole": "gadget" }
+            }
         }))
         .is_ok());
         for audio_outputs in [
@@ -361,7 +335,7 @@ mod tests {
         let config = parse_usb_runtime_config(&serde_json::json!({
             "runtimeConfig": {
                 "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
-                "usb": { "midiOutEnabled": true }
+                "usb": { "midiOutEnabled": true, "dataRole": "gadget" }
             }
         }))
         .unwrap();
@@ -383,7 +357,7 @@ mod tests {
         std::fs::create_dir_all(&store_dir).unwrap();
         std::fs::write(
             store_dir.join("default.json"),
-            r#"{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false}}}"#,
+            r#"{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}"#,
         )
         .unwrap();
 
@@ -395,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_or_legacy_optimize_for_defaults_to_latency() {
+    fn missing_sound_optimize_for_defaults_to_latency() {
         for payload in [
             serde_json::json!({}),
             serde_json::json!({
@@ -446,14 +420,33 @@ mod tests {
     }
 
     #[test]
-    fn missing_usb_fields_keep_safe_defaults() {
-        assert_eq!(
-            parse_usb_runtime_config(&serde_json::json!({
-                "runtimeConfig": { "usb": {} }
-            }))
-            .unwrap(),
-            UsbRuntimeConfig::default()
-        );
+    fn rejects_missing_or_unknown_usb_fields() {
+        for payload in [
+            serde_json::json!({
+                "runtimeConfig": {
+                    "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
+                    "usb": { "dataRole": "gadget" }
+                }
+            }),
+            serde_json::json!({
+                "runtimeConfig": {
+                    "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
+                    "usb": { "midiOutEnabled": false }
+                }
+            }),
+            serde_json::json!({
+                "runtimeConfig": {
+                    "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
+                    "usb": {
+                        "midiOutEnabled": false,
+                        "dataRole": "gadget",
+                        "unknown": true
+                    }
+                }
+            }),
+        ] {
+            assert!(parse_usb_runtime_config(&payload).is_err());
+        }
     }
 
     #[test]

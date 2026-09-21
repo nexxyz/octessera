@@ -1,17 +1,17 @@
 use super::*;
 
 #[test]
-pub(crate) fn pulses_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
+pub(crate) fn link_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["pulses"]["x"]["velocity"] = json!({
+    payload["runtimeConfig"]["layers"][0]["link"]["x"]["velocity"] = json!({
         "enabled": true,
         "from": 12,
         "to": 99,
         "gridOffset": 2,
         "curve": "curve"
     });
-    payload["runtimeConfig"]["layers"][0]["pulses"]["y"]["filterResonance"] = json!({
+    payload["runtimeConfig"]["layers"][0]["link"]["y"]["filterResonance"] = json!({
         "enabled": true,
         "from": 3,
         "to": 77,
@@ -21,17 +21,17 @@ pub(crate) fn pulses_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
 
     runner.apply_config_payload(payload).unwrap();
 
-    assert!(runner.pulses_layers[0].x_velocity.enabled);
-    assert_eq!(runner.pulses_layers[0].x_velocity.from, 12);
-    assert_eq!(runner.pulses_layers[0].x_velocity.to, 99);
-    assert_eq!(runner.pulses_layers[0].x_velocity.grid_offset, 2);
-    assert_eq!(runner.pulses_layers[0].x_velocity.curve, "curve");
-    assert!(runner.pulses_layers[0].y_filter_resonance.enabled);
+    assert!(runner.link_layers[0].x_velocity.enabled);
+    assert_eq!(runner.link_layers[0].x_velocity.from, 12);
+    assert_eq!(runner.link_layers[0].x_velocity.to, 99);
+    assert_eq!(runner.link_layers[0].x_velocity.grid_offset, 2);
+    assert_eq!(runner.link_layers[0].x_velocity.curve, "curve");
+    assert!(runner.link_layers[0].y_filter_resonance.enabled);
 
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.turn_key("layers.0.pulses.x.velocity.curve", -1);
+    runner.menu.turn_key("layers.0.link.x.velocity.curve", -1);
     runner.apply_menu_state().unwrap();
-    assert_eq!(runner.pulses_layers[0].x_velocity.curve, "linear");
+    assert_eq!(runner.link_layers[0].x_velocity.curve, "linear");
 }
 
 #[test]
@@ -48,177 +48,11 @@ pub(crate) fn canonical_global_modulation_has_eight_slots_and_no_layer_ownership
 }
 
 #[test]
-pub(crate) fn legacy_lfos_xy_and_aux_banks_migrate_transactionally() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut legacy = legacy_payload(runner.config_payload());
-    legacy["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("linkLfos");
-    legacy["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("xy");
-    legacy["runtimeConfig"]["layers"][2]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 },
-        "period": "1/4",
-        "depthPct": 40
-    });
-    legacy["runtimeConfig"]["layers"][0]["xy"] = json!({
-        "x": { "key": "instruments.0.mixer.panPos", "kind": "number", "min": 0, "max": 32, "step": 1 },
-        "y": null,
-        "xInvert": true,
-        "yInvert": false
-    });
-    legacy["runtimeConfig"]["activeLayerIndex"] = json!(0);
-    legacy["runtimeConfig"]["auxBindings"]["aux1"] = json!({
-        "turnKey": "layers.2.linkLfo.depthPct"
-    });
-    legacy["runtimeConfig"]["shiftAuxBindings"]["aux2"] = json!({
-        "turnKey": "layers.2.linkLfo.period"
-    });
-
-    runner.apply_config_payload(legacy).unwrap();
-    let runtime = runner.config_payload()["runtimeConfig"].clone();
-    assert_eq!(runtime["linkLfos"][2]["depthPct"], 40);
-    assert_eq!(runtime["xy"]["x"]["key"], "instruments.0.mixer.panPos");
-    assert_eq!(
-        runtime["auxBindings"]["aux1"]["turnKey"],
-        "linkLfos.2.depthPct"
-    );
-    assert_eq!(
-        runtime["shiftAuxBindings"]["aux2"]["turnKey"],
-        "linkLfos.2.period"
-    );
-    assert!(runner
-        .display
-        .toast
-        .as_ref()
-        .is_some_and(|toast| toast.message.contains("Migrated legacy modulation")));
-}
-
-#[test]
-pub(crate) fn legacy_global_lfo_bank_wins_per_layer_conflicts() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut legacy = legacy_payload(runner.config_payload());
-    legacy["runtimeConfig"]["layers"][0]["linkLfo"] = json!({"depthPct": 99});
-    legacy["runtimeConfig"]["linkLfos"][0]["depthPct"] = json!(11);
-
-    runner.apply_config_payload(legacy).unwrap();
-
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["linkLfos"][0]["depthPct"],
-        11
-    );
-}
-
-#[test]
-pub(crate) fn canonical_v2_rejects_legacy_fields_without_mutating_state() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let before = runner.config_payload();
-    let mut payload = before.clone();
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": false,
-        "target": null,
-        "period": "1/1",
-        "depthPct": 100
-    });
-
-    assert!(runner.apply_config_payload(payload).is_err());
-    assert_eq!(runner.config_payload(), before);
-}
-
-#[test]
-pub(crate) fn canonical_v2_rejects_legacy_xy_aux_keys_and_noncanonical_lfo_shape() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let before = runner.config_payload();
-    let mutations: [fn(&mut Value); 4] = [
-        |payload: &mut Value| {
-            payload["runtimeConfig"]["layers"][0]["xy"] = json!({"x": null, "y": null});
-        },
-        |payload: &mut Value| {
-            payload["runtimeConfig"]["auxBindings"]["aux1"] =
-                json!({"turnKey": "layers.0.linkLfo.depthPct"});
-        },
-        |payload: &mut Value| {
-            payload["runtimeConfig"]["linkLfos"] = json!([]);
-        },
-        |payload: &mut Value| {
-            payload["runtimeConfig"]["linkLfos"][0]["phasePulses"] = json!(2);
-        },
-    ];
-    for (index, mutate) in mutations.into_iter().enumerate() {
-        let mut payload = before.clone();
-        mutate(&mut payload);
-        assert!(
-            runner.apply_config_payload(payload).is_err(),
-            "canonical mutation {index} was accepted"
-        );
-        assert_eq!(runner.config_payload(), before);
-    }
-}
-
-#[test]
-pub(crate) fn legacy_exclusive_claims_keep_stable_first_and_report() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut legacy = legacy_payload(runner.config_payload());
-    let binding = json!({
-        "key": "layers.0.pulses.scanSections",
-        "kind": "number",
-        "min": 1,
-        "max": 8,
-        "step": 1
-    });
-    legacy["runtimeConfig"]["layers"][0]["paramMods"]["x"][0] = binding.clone();
-    legacy["runtimeConfig"]["layers"][0]["paramMods"]["y"][0] = binding;
-
-    runner.apply_config_payload(legacy).unwrap();
-
-    let mods = &runner.config_payload()["runtimeConfig"]["layers"][0]["paramMods"];
-    assert!(mods["x"][0].is_object());
-    assert!(mods["y"][0].is_null());
-    assert!(runner
-        .display
-        .toast
-        .as_ref()
-        .is_some_and(|toast| toast.message.contains("duplicate exclusive")));
-}
-
-#[test]
-pub(crate) fn legacy_xy_uses_first_present_layer_when_active_layer_has_none() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut legacy = legacy_payload(runner.config_payload());
-    legacy["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("linkLfos");
-    legacy["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("xy");
-    legacy["runtimeConfig"]["activeLayerIndex"] = json!(0);
-    legacy["runtimeConfig"]["layers"][1]["xy"] = json!({
-        "x": { "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 },
-        "y": null,
-        "xInvert": false,
-        "yInvert": true
-    });
-
-    runner.apply_config_payload(legacy).unwrap();
-
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["xy"]["x"]["key"],
-        "instruments.0.mixer.volume"
-    );
-}
-
-#[test]
 pub(crate) fn canonical_duplicate_exclusive_claim_is_rejected() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
     let binding = json!({
-        "key": "layers.0.pulses.scanSections",
+        "key": "layers.0.link.scanSections",
         "kind": "number",
         "min": 1,
         "max": 8,
@@ -307,7 +141,7 @@ pub(crate) fn lfo_assignment_rejects_exclusive_and_lfo_config_targets() {
 }
 
 #[test]
-pub(crate) fn global_lfo_phase_is_transient_and_old_audio_path_is_not_run() {
+pub(crate) fn global_lfo_phase_is_transient_without_audio_commands() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.link_lfos[0].phase_pulses = 17;
     let payload = runner.config_payload();

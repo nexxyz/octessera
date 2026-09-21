@@ -16,11 +16,11 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
         level: None,
     }];
     runner.layer_behavior_ids[1] = "sequencer".into();
-    runner.pulses_layers[1].scan_mode = "scanning".into();
-    runner.pulses_layers[1].scan_axis = "rows".into();
-    runner.pulses_layers[1].scan_unit = "1/16".into();
-    runner.pulses_layers[1].scanned_slot = 1;
-    runner.pulses_layers[1].scanned_action = "note_on".into();
+    runner.link_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scan_axis = "rows".into();
+    runner.link_layers[1].scan_unit = "1/16".into();
+    runner.link_layers[1].scanned_slot = 1;
+    runner.link_layers[1].scanned_action = "note_on".into();
     runner.select_active_layer(1).unwrap();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
@@ -58,10 +58,10 @@ pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/8T".into();
-    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/8T".into();
+    runner.link_layers[0].scanned_action = "note_on".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -106,11 +106,11 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
-    runner.pulses_layers[1].scan_mode = "scanning".into();
-    runner.pulses_layers[1].scan_axis = "rows".into();
-    runner.pulses_layers[1].scan_unit = "1/16".into();
-    runner.pulses_layers[1].scanned_slot = 1;
-    runner.pulses_layers[1].scanned_action = "note_on".into();
+    runner.link_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scan_axis = "rows".into();
+    runner.link_layers[1].scan_unit = "1/16".into();
+    runner.link_layers[1].scanned_slot = 1;
+    runner.link_layers[1].scanned_action = "note_on".into();
     runner.select_active_layer(1).unwrap();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
@@ -164,9 +164,9 @@ pub(crate) fn switching_to_scanning_layer_restores_its_visual_scan_tick() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
-    runner.pulses_layers[1].scan_mode = "scanning".into();
-    runner.pulses_layers[1].scan_axis = "columns".into();
-    runner.pulses_layers[1].scan_unit = "1/16".into();
+    runner.link_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scan_axis = "columns".into();
+    runner.link_layers[1].scan_unit = "1/16".into();
 
     runner.select_active_layer(1).unwrap();
     runner.select_active_layer(0).unwrap();
@@ -191,10 +191,10 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
         "runtimeConfig": {
             "activeLayerIndex": 0,
             "instruments": [
-                { "type": "synth", "name": "synth", "autoName": true },
+                { "type": "synth", "name": "Synth", "autoName": true },
                 {
                     "type": "sampler",
-                    "name": "sampler",
+                    "name": "Sampler",
                     "autoName": true,
                     "sample": {
                         "assignments": [{ "x": 0, "y": 0, "sampleSlot": 4, "level": null }],
@@ -204,11 +204,11 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
             ],
             "layers": [
                 {
-                    "worlds": { "behaviorId": "life", "behaviorConfig": {}, "saveGridState": false },
-                    "pulses": {
+                    "build": { "behaviorId": "life", "behaviorConfig": {}, "saveGridState": false },
+                    "link": {
                         "eventEnabled": true,
                         "stateNotesEnabled": false,
-                        "scanMode": "immediate",
+                        "scanMode": "none",
                         "mapping": {
                             "activate": { "slot": 0, "action": "note_on" },
                             "stable": { "slot": "none", "action": "none" },
@@ -219,11 +219,11 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                     }
                 },
                 {
-                    "worlds": {
+                    "build": {
                         "behaviorId": "sequencer",
                         "behaviorConfig": {},
                         "saveGridState": true,
-                        "behaviorState": {
+                        "savedState": {
                             "width": 8,
                             "height": 8,
                             "cells": [
@@ -239,7 +239,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                         },
                         "stepRate": "1/16"
                     },
-                    "pulses": {
+                    "link": {
                         "eventEnabled": false,
                         "stateNotesEnabled": true,
                         "scanMode": "scanning",
@@ -284,30 +284,4 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
         .iter()
         .any(|(channel, note)| *channel == 1 && *note == 40));
     assert!(!notes.iter().any(|(channel, _)| *channel == 0));
-}
-
-#[test]
-pub(crate) fn numeric_string_slot_payloads_load_with_legacy_one_based_compatibility() {
-    let payload = json!({
-        "runtimeConfig": {
-            "layers": [{
-                "pulses": {
-                    "mapping": {
-                        "activate": { "slot": "1", "action": "note_on" },
-                        "stable": { "slot": "2", "action": "note_on" },
-                        "deactivate": { "slot": "0", "action": "note_off" },
-                        "scanned": { "slot": "none", "action": "none" },
-                        "scanned_empty": { "slot": "none", "action": "none" }
-                    }
-                }
-            }]
-        }
-    });
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    runner.apply_config_payload(payload).unwrap();
-
-    assert_eq!(runner.pulses_layers[0].activate_slot, 0);
-    assert_eq!(runner.pulses_layers[0].stable_slot, 1);
-    assert_eq!(runner.pulses_layers[0].deactivate_slot, 0);
 }

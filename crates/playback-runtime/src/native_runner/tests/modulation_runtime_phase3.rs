@@ -236,7 +236,7 @@ pub(crate) fn active_lfo_tick_does_not_reapply_unrelated_held_xy_source() {
     })
     .unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
@@ -245,7 +245,7 @@ pub(crate) fn active_lfo_tick_does_not_reapply_unrelated_held_xy_source() {
         active: true,
     };
     runner.xy_x_binding = Some(NativeParamBinding {
-        key: "layers.1.worlds.behaviorConfig.randomSeedCells".into(),
+        key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Seed Cells".into()),
         kind: "number".into(),
         min: Some(0.0),

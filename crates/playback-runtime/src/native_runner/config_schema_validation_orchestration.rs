@@ -28,7 +28,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
         "runtimeConfig",
         DISPLAY_MODES,
     )?;
-    enum_field(runtime, "sparksMode", "runtimeConfig", SPARKS_MODES)?;
+    enum_field(runtime, "playMode", "runtimeConfig", PLAY_MODES)?;
     enum_field(runtime, "xyRelease", "runtimeConfig", XY_RELEASES)?;
     validate_dsp(runtime)?;
     unsigned_field(
@@ -47,7 +47,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     modulation::validate_global_modulation(runtime)?;
     layers::validate_layers(runtime)?;
     validate_transport(runtime)?;
-    validate_sparks(runtime)?;
+    validate_play(runtime)?;
     instruments::validate_instruments(runtime)?;
     mixer_fx::validate_mixer(runtime)?;
     mapping_bindings::validate_bindings(runtime)?;
@@ -69,7 +69,7 @@ fn validate_dsp(runtime: &Map<String, Value>) -> Result<(), String> {
 
 pub(super) fn validate_system(root: &Map<String, Value>) -> Result<(), String> {
     if let Some(system) = object_field(root, "system", "configuration")? {
-        enum_field(system, "sparksMode", "configuration.system", SPARKS_MODES)?;
+        enum_field(system, "playMode", "configuration.system", PLAY_MODES)?;
     }
     Ok(())
 }
@@ -83,40 +83,40 @@ fn validate_transport(runtime: &Map<String, Value>) -> Result<(), String> {
     unsigned_field(runtime, "swingPct", "runtimeConfig", 0, 75)
 }
 
-fn validate_sparks(runtime: &Map<String, Value>) -> Result<(), String> {
-    let Some(sparks) = object_field(runtime, "sparksFx", "runtimeConfig")? else {
+fn validate_play(runtime: &Map<String, Value>) -> Result<(), String> {
+    let Some(play_fx) = object_field(runtime, "playFx", "runtimeConfig")? else {
         return Ok(());
     };
-    if let Some(selected) = sparks.get("selected") {
-        validate_sparks_config(selected, "runtimeConfig.sparksFx.selected")?;
+    if let Some(selected) = play_fx.get("selected") {
+        validate_play_config(selected, "runtimeConfig.playFx.selected")?;
     }
     if let Some(assignments) =
-        super::canonical::array_field(sparks, "assignments", "runtimeConfig.sparksFx", usize::MAX)?
+        super::canonical::array_field(play_fx, "assignments", "runtimeConfig.playFx", usize::MAX)?
     {
         for (index, value) in assignments.iter().enumerate() {
-            let path = format!("runtimeConfig.sparksFx.assignments[{index}]");
+            let path = format!("runtimeConfig.playFx.assignments[{index}]");
             let assignment = object_value(value, &path)?;
             unsigned_field(assignment, "x", &path, 0, 7)?;
             unsigned_field(assignment, "y", &path, 0, 7)?;
             let config = object_field(assignment, "config", &path)?
                 .ok_or_else(|| format!("{path}.config must be an object"))?;
-            validate_sparks_config(&Value::Object(config.clone()), &format!("{path}.config"))?;
+            validate_play_config(&Value::Object(config.clone()), &format!("{path}.config"))?;
         }
     }
     Ok(())
 }
 
-fn validate_sparks_config(value: &Value, path: &str) -> Result<(), String> {
+fn validate_play_config(value: &Value, path: &str) -> Result<(), String> {
     let object = object_value(value, path)?;
-    enum_field(object, "fxType", path, SPARKS_FX_TYPES)?;
-    enum_field(object, "targetKey", path, SPARKS_TARGETS)?;
+    enum_field(object, "fxType", path, PLAY_FX_TYPES)?;
+    enum_field(object, "targetKey", path, PLAY_TARGETS)?;
     if let Some(params) = object_field(object, "params", path)? {
         let fx_type = object
             .get("fxType")
             .and_then(Value::as_str)
             .unwrap_or("none");
         for (key, value) in params {
-            let Some((min, max)) = sparks_param_range(fx_type, key) else {
+            let Some((min, max)) = play_param_range(fx_type, key) else {
                 return Err(format!("{path}.params.{key} is not valid for {fx_type}"));
             };
             signed_value(value, &format!("{path}.params.{key}"), min, max)?;
@@ -125,7 +125,7 @@ fn validate_sparks_config(value: &Value, path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn sparks_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
+fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
     match (fx_type, key) {
         ("stutter", "rateHz") => Some((1, 32)),
         ("stutter", "depthPct") => Some((0, 100)),
@@ -150,10 +150,10 @@ const VOICE_MODES: &[&str] = &[
     "auto-hard",
 ];
 const DISPLAY_MODES: &[&str] = &["bar", "numbers", "bar+numbers"];
-const SPARKS_MODES: &[&str] = &["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
+const PLAY_MODES: &[&str] = &["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
-const SPARKS_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
-const SPARKS_TARGETS: &[&str] = &[
+const PLAY_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
+const PLAY_TARGETS: &[&str] = &[
     "master",
     "fx_bus_1",
     "fx_bus_2",

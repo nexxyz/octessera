@@ -13,7 +13,7 @@ impl NativeRunner {
         let changed = self.apply_behavior_selection(&behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
         self.update_active_behavior_selector_label();
-        self.update_active_worlds_menu_items();
+        self.update_active_build_menu_items();
         if changed {
             self.mark_fast_autosave_dirty();
         }
@@ -28,7 +28,7 @@ impl NativeRunner {
         let changed = self.apply_behavior_selection(behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
         self.update_active_behavior_selector_label();
-        self.update_active_worlds_menu_items();
+        self.update_active_build_menu_items();
         let _ = self.menu.focus_item_key("behaviorId");
         if changed {
             self.mark_fast_autosave_dirty();
@@ -50,7 +50,7 @@ impl NativeRunner {
             .map(|name| format!("L{}: {name}", layer_index + 1));
         let changed = self.apply_layer_behavior_selection(layer_index, behavior_id)?;
         self.update_layer_menu_label(layer_index, previous_label.as_deref());
-        self.update_layer_worlds_menu_items(layer_index);
+        self.update_layer_build_menu_items(layer_index);
         if changed {
             self.mark_fast_autosave_dirty();
         }
@@ -84,22 +84,22 @@ impl NativeRunner {
         }
     }
 
-    fn update_active_worlds_menu_items(&mut self) {
-        self.update_layer_worlds_menu_items(self.active_layer_index);
-        let children = self.worlds_menu_items();
+    fn update_active_build_menu_items(&mut self) {
+        self.update_layer_build_menu_items(self.active_layer_index);
+        let children = self.build_menu_items();
         self.menu
             .replace_group_children_containing_direct_key("behaviorId", &children);
     }
 
-    pub(super) fn update_layer_worlds_menu_items(&mut self, layer_index: usize) {
+    pub(super) fn update_layer_build_menu_items(&mut self, layer_index: usize) {
         let Some(name) = self.layer_names.get(layer_index) else {
             return;
         };
         let label = format!("L{}: {name}", layer_index + 1);
         let children = if layer_index == self.active_layer_index {
-            self.worlds_menu_items()
+            self.build_menu_items()
         } else {
-            self.worlds_menu_items_for_layer(layer_index)
+            self.build_menu_items_for_layer(layer_index)
         };
         self.menu
             .replace_group_children_for_label(&label, &children);

@@ -31,7 +31,7 @@ pub(super) fn behavior_field_kind(field: &str) -> Option<TargetValueKind> {
     })
 }
 
-pub(super) fn pulses_field_kind(field: &str) -> Option<TargetValueKind> {
+pub(super) fn link_field_kind(field: &str) -> Option<TargetValueKind> {
     if !PULSES_FIELDS.contains(&field) {
         return None;
     }
@@ -60,12 +60,12 @@ pub(super) fn fx_field_kind(field: &str) -> Option<(TargetValueKind, bool)> {
     ))
 }
 
-pub(super) fn sparks_field_is_exclusive(field: &str) -> bool {
-    SPARKS_EXCLUSIVE_FIELDS.contains(&field)
+pub(super) fn play_field_is_exclusive(field: &str) -> bool {
+    PLAY_EXCLUSIVE_FIELDS.contains(&field)
 }
 
-pub(super) fn sparks_field_is_known(field: &str) -> bool {
-    SPARKS_FIELDS.contains(&field)
+pub(super) fn play_field_is_known(field: &str) -> bool {
+    PLAY_FIELDS.contains(&field)
 }
 
 const INSTRUMENT_FIELDS: &[&str] = &[
@@ -219,7 +219,7 @@ const FX_EXCLUSIVE_FIELDS: &[&str] = &[
     "bits",
 ];
 
-const SPARKS_FIELDS: &[&str] = &[
+const PLAY_FIELDS: &[&str] = &[
     "rateHz",
     "depthPct",
     "releaseMs",
@@ -232,7 +232,7 @@ const SPARKS_FIELDS: &[&str] = &[
     "cents",
 ];
 
-const SPARKS_EXCLUSIVE_FIELDS: &[&str] = &[
+const PLAY_EXCLUSIVE_FIELDS: &[&str] = &[
     "rateHz",
     "releaseMs",
     "sweepInMs",

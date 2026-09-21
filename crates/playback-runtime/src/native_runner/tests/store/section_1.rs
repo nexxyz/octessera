@@ -31,7 +31,7 @@ pub(crate) fn system_menu_save_default_emits_native_config_payload() {
         .expect("save default payload");
     assert!(payload["activeBehavior"].is_null());
     assert_eq!(payload["runtimeConfig"]["activeBehavior"], "life");
-    assert!(payload["runtimeConfig"]["sparksXyTouch"].is_null());
+    assert!(payload["runtimeConfig"]["playXyTouch"].is_null());
     assert!(
         payload["runtimeConfig"]["instruments"]
             .as_array()
@@ -52,16 +52,16 @@ pub(crate) fn load_default_result_applies_native_config_payload() {
         "runtimeConfig": {
             "activeLayerIndex": 1,
             "layers": [
-                { "worlds": { "behaviorId": "life" }, "name": "life" },
-                { "worlds": { "behaviorId": "sequencer" }, "name": "sequencer" }
+                { "build": { "behaviorId": "life" }, "name": "life" },
+                { "build": { "behaviorId": "sequencer" }, "name": "sequencer" }
             ],
             "instruments": [
-                { "type": "sampler", "name": "sampler", "noteBehavior": "hold", "autoName": true, "mixer": { "volume": 70, "panPos": 10 } }
+                { "type": "sampler", "name": "Sampler", "noteBehavior": "hold", "autoName": true, "mixer": { "volume": 70, "panPos": 10 } }
             ],
             "masterVolume": 88,
             "displayBrightness": 66,
             "buttonBrightness": 55,
-            "sparksMode": "pan",
+            "playMode": "pan",
             "midi": { "enabled": true, "syncMode": "external" }
         },
         "mappingConfig": platform_core::default_mapping_config()
@@ -123,7 +123,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
 }
 
 #[test]
-pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
+pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 22;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
@@ -133,11 +133,11 @@ pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
     runner
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::LoadPresetResult {
-                name: "Legacy".into(),
+                name: "Current".into(),
                 payload: Some(json!({
                     "runtimeConfig": {
                         "activeBehavior": "sequencer",
-                        "layers": [{ "worlds": { "behaviorId": "sequencer" } }],
+                        "layers": [{ "build": { "behaviorId": "sequencer" } }],
                         "displayBrightness": 88,
                         "usb": { "midiOutEnabled": true },
                         "midi": { "enabled": true },

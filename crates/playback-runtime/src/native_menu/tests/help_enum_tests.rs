@@ -91,7 +91,7 @@ fn assert_specific_enum_help(target: &EnumHelpTarget) {
         entry.key
     );
     let copy = format!("{} {}", entry.line1, entry.line2);
-    if target.target.key == "key:layers.*.pulses.pitch.scale" {
+    if target.target.key == "key:layers.*.link.pitch.scale" {
         assert!(copy.contains("pitch classes"));
         assert!(copy.contains("simultaneous chords or inversions"));
         assert!(copy.contains("12-TET approximations"));
@@ -194,7 +194,7 @@ fn representative_behavior_help_configs() -> Vec<NativeMenuConfig> {
             let mut config = config();
             config.behavior_id = (*behavior_id).into();
             config.layer_labels[0] = format!("L1: {behavior_id}");
-            config.worlds_items_by_layer = vec![enum_items];
+            config.build_items_by_layer = vec![enum_items];
             Some(config)
         })
         .collect()
@@ -224,7 +224,7 @@ fn behavior_enum_item(item: platform_core::BehaviorConfigItem) -> Option<NativeM
     }
     Some(NativeMenuItem {
         label: item.label,
-        key: Some(format!("layers.0.worlds.behaviorConfig.{}", item.key)),
+        key: Some(format!("layers.0.build.behaviorConfig.{}", item.key)),
         value: NativeMenuValue::Enum {
             options: item.options.unwrap_or_default(),
             selected: 0,

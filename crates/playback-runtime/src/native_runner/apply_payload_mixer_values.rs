@@ -154,25 +154,3 @@ pub(super) fn nested_u64(value: &Value, path: &[&str]) -> Option<u64> {
     }
     current.as_u64()
 }
-
-pub(super) fn sound_or_runtime_u64(
-    sound: Option<&Value>,
-    runtime: &Value,
-    key: &str,
-) -> Option<u64> {
-    sound
-        .and_then(|sound| sound.get(key))
-        .or_else(|| runtime.get(key))
-        .and_then(Value::as_u64)
-}
-
-pub(super) fn sound_or_runtime_str<'a>(
-    sound: Option<&'a Value>,
-    runtime: &'a Value,
-    key: &str,
-) -> Option<&'a str> {
-    sound
-        .and_then(|sound| sound.get(key))
-        .or_else(|| runtime.get(key))
-        .and_then(Value::as_str)
-}

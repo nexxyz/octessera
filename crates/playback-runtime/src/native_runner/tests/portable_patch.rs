@@ -20,7 +20,7 @@ fn generated_desktop_default() -> Value {
 
 fn explicit_orange_default_payload(mut payload: Value) -> Value {
     payload["revision"] = json!(91);
-    payload["system"]["sparksMode"] = json!("pan");
+    payload["system"]["playMode"] = json!("pan");
     payload["runtimeConfig"]["displayBrightness"] = json!(13);
     payload["runtimeConfig"]["gridBrightness"] = json!(17);
     payload["runtimeConfig"]["buttonBrightness"] = json!(19);

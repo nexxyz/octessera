@@ -6,9 +6,9 @@ use serde_json::Value;
 #[serde(rename_all = "camelCase")]
 pub struct LayerDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) worlds: Option<WorldsDto>,
+    pub(super) build: Option<BuildDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) pulses: Option<PulsesDto>,
+    pub(super) link: Option<LinkDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) param_mods: Option<ParamModsDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,7 +19,7 @@ pub struct LayerDto {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorldsDto {
+pub struct BuildDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) behavior_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -29,16 +29,11 @@ pub struct WorldsDto {
     #[serde(default, deserialize_with = "deserialize_nullable_value")]
     pub(super) saved_state: Option<Option<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, deserialize_with = "deserialize_nullable_value")]
-    pub(super) behavior_state: Option<Option<Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) behavior_config_history: Option<std::collections::BTreeMap<String, Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) save_grid_state: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) step_rate: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) trigger_gates: Option<Vec<bool>>,
 }
 
 fn deserialize_nullable_value<'de, D>(deserializer: D) -> Result<Option<Option<Value>>, D::Error>
@@ -50,7 +45,7 @@ where
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PulsesDto {
+pub struct LinkDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) scan_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

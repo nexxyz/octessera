@@ -63,11 +63,7 @@ pub(super) fn apply_global_fx_binding_value(
     }
 }
 
-pub(super) fn apply_sparks_fx_binding_value(
-    selected: &mut Value,
-    field: &str,
-    value: Value,
-) -> bool {
+pub(super) fn apply_play_fx_binding_value(selected: &mut Value, field: &str, value: Value) -> bool {
     let mut object = selected.as_object().cloned().unwrap_or_default();
     let changed = match field {
         "type" => {

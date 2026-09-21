@@ -1,7 +1,7 @@
 use crate::native_menu::{
-    NativeAuxBindingConfig, NativeFxBusConfig, NativeLinkLfoConfig, NativeMenuAction,
-    NativeMenuConfig, NativeMenuModel, NativeParamBindingSpec, NativeParamModsConfig,
-    NativePulsesLayerConfig, NativeSampleAvailability, NativeValueLaneConfig,
+    NativeAuxBindingConfig, NativeFxBusConfig, NativeLinkLayerConfig, NativeLinkLfoConfig,
+    NativeMenuAction, NativeMenuConfig, NativeMenuModel, NativeParamBindingSpec,
+    NativeParamModsConfig, NativeSampleAvailability, NativeValueLaneConfig,
 };
 #[cfg(test)]
 use crate::protocol::{HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};
@@ -15,7 +15,7 @@ use crate::runtime::{CoreRunner, RuntimeConfig};
 use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
 use defaults::{
     default_fx_buses, default_global_fx_params, default_global_fx_slots, default_instruments,
-    default_pulses_layers, derive_bus_name, derive_bus_name_from_slots, derive_instrument_name,
+    default_link_layers, derive_bus_name, derive_bus_name_from_slots, derive_instrument_name,
     fx_default_params, fx_slot_payload_with_params,
 };
 use modulation_keys::{parse_instrument_binding_key, parse_layer_behavior_config_binding_key};
@@ -26,8 +26,8 @@ use platform_core::{
     BehaviorConfigItemType, DeviceInput, GlobalSoundConfig, GridInteraction, InterpretationProfile,
     NativeBehavior, NativeLayerEngine, NativeLayerEngineConfig, NoteBehavior, RangeMode,
     TickStrategy, TriggerAction, TriggerTarget, VelocityCurve, BUS_COUNT, GLOBAL_FX_SLOT_COUNT,
-    GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT,
-    SPARKS_FX_MAX_CONCURRENT,
+    GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT, PAN_POSITION_COUNT,
+    PLAY_FX_MAX_CONCURRENT, SAMPLE_SLOT_COUNT,
 };
 #[cfg(test)]
 use platform_core::{CellTriggerIntent, MusicalEvent};
@@ -106,7 +106,7 @@ mod menu_apply_fast_fx;
 mod menu_apply_fast_fx_bus;
 mod menu_apply_fast_instruments;
 mod menu_apply_fast_layers;
-mod menu_apply_fast_pulses;
+mod menu_apply_fast_link;
 mod menu_apply_fast_runtime;
 mod menu_apply_fast_structural;
 mod menu_apply_fast_usb;
@@ -119,13 +119,16 @@ mod menu_apply_instrument_midi;
 mod menu_apply_instrument_synth;
 #[cfg(test)]
 mod menu_apply_layers;
-mod menu_apply_pulses_fx;
+mod menu_apply_link_fx;
 mod menu_apply_structural;
 mod menu_value_apply;
 mod message_dispatch;
 mod modulation;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod error_presentation_results;
+mod link_config;
+mod link_payload;
+mod link_payload_apply;
 mod midi_results;
 mod modulation_assignment_validation;
 mod modulation_audio;
@@ -133,13 +136,12 @@ mod modulation_fx;
 mod modulation_instrument;
 mod modulation_instrument_numeric;
 mod modulation_keys;
-mod modulation_migration;
+mod modulation_link;
 mod modulation_process;
 mod modulation_process_application;
 mod modulation_process_audio;
 mod modulation_process_sources;
 mod modulation_process_values;
-mod modulation_pulses;
 mod modulation_sampler;
 mod modulation_source;
 mod modulation_target;
@@ -154,10 +156,12 @@ mod pan_mapping;
 mod pan_position;
 mod patch_device_payload;
 mod payload_assign;
+mod play_control;
+mod play_fx_config;
+mod play_fx_presentation;
+mod play_transpose;
+mod play_trigger_gate;
 mod portable_patch_validation;
-mod pulses_config;
-mod pulses_payload;
-mod pulses_payload_apply;
 mod restart_settings;
 mod restart_settings_runtime;
 mod runner_config;
@@ -175,13 +179,8 @@ mod snapshot_audio_settings;
 mod snapshot_display;
 mod snapshot_leds;
 mod snapshot_messages;
-mod sparks_control;
-mod sparks_fx_config;
-mod sparks_fx_presentation;
-mod sparks_transpose;
-mod sparks_trigger_gate;
 mod state_instrument_types;
-mod state_pulses;
+mod state_link;
 mod state_types;
 mod store;
 mod store_persistence_results;
@@ -226,21 +225,20 @@ use instrument_collections::*;
 use instrument_runtime::*;
 use json_path::*;
 use link_arp::LINK_ARP_RANDOM_SEED;
+use link_config::*;
+use link_payload::*;
 use menu_value_apply::*;
 use modulation_instrument_numeric::*;
-use modulation_migration::*;
 use modulation_process::ModulationProcessState;
 use modulation_sampler::{RoutedMusicalEvents, TransposedHeldNote};
 use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use patch_device_payload::*;
+use play_trigger_gate::*;
 use portable_patch_validation::*;
-use pulses_config::*;
-use pulses_payload::*;
 use restart_settings::RestartSettingsState;
 use sample_assignment_payload::*;
 use sample_paths::*;
-use sparks_trigger_gate::*;
 use state_instrument_types::*;
 use state_types::*;
 use synth_config::*;
@@ -262,8 +260,8 @@ pub(crate) fn apply_user_data_patch_payload(
     canonical_defaults: &Value,
 ) -> Result<Value, String> {
     let payload = if payload.get("kind").and_then(Value::as_str) == Some(CONFIG_KIND) {
-        let migrated = prepare_config_payload(payload, canonical_defaults)?.payload;
-        portable_patch_payload_for_save(&migrated)?
+        let prepared_full_config = prepare_config_payload(payload, canonical_defaults)?.payload;
+        portable_patch_payload_for_save(&prepared_full_config)?
     } else {
         payload
     };
@@ -358,12 +356,12 @@ pub struct NativeRunner {
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
     recording_active: bool,
-    sparks_mode: String,
-    active_sparks_mode: String,
-    sparks_fx_selected: Value,
-    sparks_fx_assign: Option<Value>,
-    sparks_fx_assignments: Vec<NativeSparksFxAssignment>,
-    active_sparks_fx: Vec<(String, String)>,
+    play_mode: String,
+    active_play_mode: String,
+    play_fx_selected: Value,
+    play_fx_assign: Option<Value>,
+    play_fx_assignments: Vec<NativePlayFxAssignment>,
+    active_play_fx: Vec<(String, String)>,
     xy_touch: NativeXyTouch,
     xy_release: String,
     xy_smoothing_ms: u16,
@@ -377,10 +375,10 @@ pub struct NativeRunner {
     param_mods: Vec<NativeParamMods>,
     trigger_gate_modes: Vec<String>,
     trigger_gate_restore_modes: Vec<Option<String>>,
-    sparks_transpose_selected: Vec<bool>,
-    sparks_transpose_enabled: Vec<bool>,
-    sparks_transpose_offsets: Vec<i8>,
-    sparks_transpose_active_notes: Vec<BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    play_transpose_selected: Vec<bool>,
+    play_transpose_enabled: Vec<bool>,
+    play_transpose_offsets: Vec<i8>,
+    play_transpose_active_notes: Vec<BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
     pending_transpose_note_offs: RoutedMusicalEvents,
     trigger_probability_assign: Option<usize>,
     trigger_probability_maps: Vec<Vec<String>>,
@@ -390,7 +388,7 @@ pub struct NativeRunner {
     save_grid_states: Vec<bool>,
     link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
     modulation_process: ModulationProcessState,
-    pulses_layers: Vec<NativePulsesLayer>,
+    link_layers: Vec<NativeLinkLayer>,
     aux_bindings: Vec<Option<NativeAuxBinding>>,
     shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
     active_layer_index: usize,
@@ -427,7 +425,7 @@ pub struct NativeRunner {
     #[cfg(test)]
     engine_runtime_sync_calls: usize,
     #[cfg(test)]
-    active_pulses_refresh_calls: usize,
+    active_link_refresh_calls: usize,
     #[cfg(any(test, feature = "test-support"))]
     test_snapshot_failure: Cell<bool>,
 }

@@ -167,7 +167,7 @@ pub(crate) fn multi_target_grid_modulation_aggregates_revision_and_deferred_auto
     runner.param_mods[0].x[0] = Some(volume_binding());
     runner.param_mods[0].x[1] = Some(pan_binding());
     runner.param_mods[0].y[0] = Some(NativeParamBinding {
-        key: "layers.1.worlds.behaviorConfig.randomSeedCells".into(),
+        key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Seed Cells".into()),
         kind: "number".into(),
         min: Some(0.0),
@@ -305,10 +305,10 @@ pub(crate) fn unchanged_ppqn_without_lfo_does_not_run_modulation_process() {
 }
 
 #[test]
-pub(crate) fn active_pulses_modulation_refreshes_mapping_before_next_event() {
+pub(crate) fn active_link_modulation_refreshes_mapping_before_next_event() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.param_mods[0].x[0] = Some(NativeParamBinding {
-        key: "layers.0.pulses.x.pitch.steps".into(),
+        key: "layers.0.link.x.pitch.steps".into(),
         label: Some("X Steps".into()),
         kind: "number".into(),
         min: Some(-16.0),
@@ -319,7 +319,7 @@ pub(crate) fn active_pulses_modulation_refreshes_mapping_before_next_event() {
         options: vec![],
         invert: false,
     });
-    runner.active_pulses_refresh_calls = 0;
+    runner.active_link_refresh_calls = 0;
 
     runner.apply_runtime_modulation(
         &[platform_core::CellTriggerIntent {
@@ -331,9 +331,9 @@ pub(crate) fn active_pulses_modulation_refreshes_mapping_before_next_event() {
         0,
     );
 
-    assert_eq!(runner.pulses_layers[0].x_pitch_steps, 16);
+    assert_eq!(runner.link_layers[0].x_pitch_steps, 16);
     assert_eq!(runner.mapping_config.column_step_degrees, 16);
-    assert_eq!(runner.active_pulses_refresh_calls, 1);
+    assert_eq!(runner.active_link_refresh_calls, 1);
 }
 
 #[test]

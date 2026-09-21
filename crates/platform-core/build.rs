@@ -33,7 +33,7 @@ fn main() {
     let bus_count = positive_usize(&value, "busCount");
     let global_fx_slot_count = positive_usize(&value, "globalFxSlotCount");
     let aux_encoder_count = positive_usize(&value, "auxEncoderCount");
-    let sparks_fx_max_concurrent = positive_usize(&value, "sparksFxMaxConcurrent");
+    let play_fx_max_concurrent = positive_usize(&value, "playFxMaxConcurrent");
     let bus_fx_warning_slot_count = positive_usize(&value, "busFxWarningSlotCount");
     let pan_position_count = positive_u8(&value, "panPositionCount");
     let oled_width = positive_usize(&value, "oledWidth");
@@ -58,7 +58,7 @@ pub const SAMPLE_VOICE_LANE_CAPACITY: usize = {sample_voice_lane_capacity};
 pub const BUS_COUNT: usize = {bus_count};
 pub const GLOBAL_FX_SLOT_COUNT: usize = {global_fx_slot_count};
 pub const AUX_ENCODER_COUNT: usize = {aux_encoder_count};
-pub const SPARKS_FX_MAX_CONCURRENT: usize = {sparks_fx_max_concurrent};
+pub const PLAY_FX_MAX_CONCURRENT: usize = {play_fx_max_concurrent};
 pub const BUS_FX_WARNING_SLOT_COUNT: usize = {bus_fx_warning_slot_count};
 pub const SCAN_SECTION_COUNTS: &[usize] = &[{scan_section_counts_source}];
 pub const PAN_POSITION_COUNT: u8 = {pan_position_count};
@@ -77,7 +77,7 @@ pub const PLATFORM_CAPABILITIES: PlatformCapabilities = PlatformCapabilities {{
     bus_count: BUS_COUNT,
     global_fx_slot_count: GLOBAL_FX_SLOT_COUNT,
     aux_encoder_count: AUX_ENCODER_COUNT,
-    sparks_fx_max_concurrent: SPARKS_FX_MAX_CONCURRENT,
+    play_fx_max_concurrent: PLAY_FX_MAX_CONCURRENT,
     bus_fx_warning_slot_count: BUS_FX_WARNING_SLOT_COUNT,
     scan_section_counts: SCAN_SECTION_COUNTS,
     pan_position_count: PAN_POSITION_COUNT,

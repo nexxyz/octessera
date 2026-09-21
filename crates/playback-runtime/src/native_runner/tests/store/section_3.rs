@@ -7,7 +7,7 @@ pub(crate) fn patch_envelope_round_trips_and_preserves_local_aux_bindings() {
         .apply_config_payload(json!({
             "runtimeConfig": {
                 "activeBehavior": "sequencer",
-                "layers": [{ "worlds": { "behaviorId": "sequencer" } }]
+                "layers": [{ "build": { "behaviorId": "sequencer" } }]
             }
         }))
         .unwrap();
@@ -53,7 +53,7 @@ pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects(
                             "outId": "preset-out",
                             "inId": "preset-in"
                         },
-                        "layers": [{ "worlds": { "behaviorId": "sequencer" } }]
+                        "layers": [{ "build": { "behaviorId": "sequencer" } }]
                     }
                 })),
             },
@@ -138,7 +138,7 @@ pub(crate) fn aux_platform_effect_clicks_split_musical_from_device_actions() {
     });
     source.aux_bindings[1] = Some(NativeAuxBinding {
         turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("sparks.fx.map".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect("play.fx.map".into())),
     });
     source.aux_bindings[2] = Some(NativeAuxBinding {
         turn_key: None,
@@ -171,7 +171,7 @@ pub(crate) fn aux_platform_effect_clicks_split_musical_from_device_actions() {
         loaded.aux_bindings[1]
             .as_ref()
             .and_then(|binding| binding.press_action.as_ref()),
-        Some(NativeMenuAction::PlatformEffect(action)) if action == "sparks.fx.map"
+        Some(NativeMenuAction::PlatformEffect(action)) if action == "play.fx.map"
     ));
     assert!(matches!(
         loaded.aux_bindings[2]
@@ -222,7 +222,7 @@ pub(crate) fn patch_load_swaps_active_engine_state_to_loaded_behavior() {
                 payload: Some(json!({
                     "runtimeConfig": {
                         "activeLayerIndex": 0,
-                        "layers": [{ "worlds": { "behaviorId": "keys" } }]
+                        "layers": [{ "build": { "behaviorId": "keys" } }]
                     }
                 })),
             },
@@ -247,7 +247,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
             "schemaVersion": 2,
             "runtimeConfig": {
                 "activeBehavior": "sequencer",
-                "layers": [{ "worlds": { "behaviorId": "sequencer" } }],
+                "layers": [{ "build": { "behaviorId": "sequencer" } }],
                 "displayBrightness": 99,
                 "usb": { "midiOutEnabled": true },
                 "sound": { "audioOutputBufferFrames": 1024 }

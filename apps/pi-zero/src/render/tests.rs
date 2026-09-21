@@ -151,6 +151,27 @@ fn led_frame_applies_grid_brightness_and_sleep_dim() {
 }
 
 #[test]
+fn led_frame_rejects_missing_malformed_and_non_exact_packed_rgb() {
+    let mut missing = snapshot_with_leds();
+    missing["leds"].as_object_mut().unwrap().remove("rgb");
+    assert!(led_frame(&missing).is_none());
+
+    for rgb in [vec![json!(0); 64 * 3 - 1], vec![json!(0); 64 * 3 + 1]] {
+        let mut snapshot = snapshot_with_leds();
+        snapshot["leds"]["rgb"] = json!(rgb);
+        assert!(led_frame(&snapshot).is_none());
+    }
+
+    for value in [json!("red"), json!(256), json!(-1), json!(1.5)] {
+        let mut rgb = vec![json!(0); 64 * 3];
+        rgb[0] = value;
+        let mut snapshot = snapshot_with_leds();
+        snapshot["leds"]["rgb"] = json!(rgb);
+        assert!(led_frame(&snapshot).is_none());
+    }
+}
+
+#[test]
 fn neokey_play_button_uses_transport_state_and_flash_colors() {
     let mut snapshot = snapshot_with_leds();
     assert_eq!(neokey_colors(&snapshot)[1], palette::RED);

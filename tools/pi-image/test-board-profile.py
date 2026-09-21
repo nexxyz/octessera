@@ -31,7 +31,7 @@ if 'if [ "$SERVICE" != octessera.service ]' not in provision_script:
 for value in (
     MODULE.ORANGE_PI_ZERO_2W_PROFILE_ID,
     "opi-zero-2w",
-    "rpi-zero-2w",
+    "unknown-board",
     "pi-zero-2w",
 ):
     try:

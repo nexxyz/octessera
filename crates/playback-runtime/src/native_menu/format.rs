@@ -238,7 +238,6 @@ fn should_use_number_bar(key: &str) -> bool {
     let key_lower = key.to_ascii_lowercase();
     if key_lower.ends_with("channel")
         || key_lower.ends_with("selectedslot")
-        || key_lower.ends_with("activepartindex")
         || key_lower.ends_with("startingnote")
         || key_lower.ends_with("lowestnote")
         || key_lower.ends_with("highestnote")

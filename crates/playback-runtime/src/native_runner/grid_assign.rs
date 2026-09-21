@@ -135,19 +135,19 @@ impl NativeRunner {
     pub(super) fn enter_root_group(&mut self, label: Option<&str>) {
         match label {
             Some(PLAY_LABEL) => {
-                self.active_sparks_mode = self.sparks_mode.clone();
+                self.active_play_mode = self.play_mode.clone();
             }
             Some(BUILD_LABEL) => {
                 self.menu.state.cursor = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
-                self.active_sparks_mode = "none".into();
+                self.active_play_mode = "none".into();
             }
             Some(LINK_LABEL) => {
                 let active_label = format!("L{}:", self.active_layer_index + 1);
                 let _ = self.menu.focus_current_group_label(&active_label);
-                self.active_sparks_mode = "none".into();
+                self.active_play_mode = "none".into();
             }
             Some(SHAPE_LABEL) | Some("System") => {
-                self.active_sparks_mode = "none".into();
+                self.active_play_mode = "none".into();
             }
             _ => {}
         }
@@ -160,9 +160,9 @@ impl NativeRunner {
     ) -> Result<(), String> {
         if stack_depth_before == 1 {
             if let Some(label) = label {
-                if let Some(mode) = sparks_mode_from_page_label(label) {
-                    self.sparks_mode = mode.into();
-                    self.active_sparks_mode = self.sparks_mode.clone();
+                if let Some(mode) = play_mode_from_page_label(label) {
+                    self.play_mode = mode.into();
+                    self.active_play_mode = self.play_mode.clone();
                     self.mark_config_dirty();
                     return Ok(());
                 }
@@ -173,8 +173,8 @@ impl NativeRunner {
                     if let Ok(index) = layer.parse::<usize>() {
                         let previous_index = self.active_layer_index;
                         self.select_active_layer(index.saturating_sub(1))?;
-                        self.update_layer_worlds_menu_items(previous_index);
-                        self.update_layer_worlds_menu_items(self.active_layer_index);
+                        self.update_layer_build_menu_items(previous_index);
+                        self.update_layer_build_menu_items(self.active_layer_index);
                         self.update_active_behavior_selector_label();
                     }
                 }
@@ -184,7 +184,7 @@ impl NativeRunner {
     }
 }
 
-fn sparks_mode_from_page_label(label: &str) -> Option<&'static str> {
+fn play_mode_from_page_label(label: &str) -> Option<&'static str> {
     match label {
         "Mix" => Some("mix"),
         "Pan" => Some("pan"),

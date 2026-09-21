@@ -26,10 +26,10 @@ pub(super) fn run() {
     }
 
     factory_patch_configuration::clear_all_from_visible_ui(&mut device);
-    factory_patch_configuration::configure_worlds_and_paint_from_visible_ui(&mut device);
-    factory_patch_configuration::configure_pulses_from_visible_ui(&mut device);
-    factory_patch_configuration::configure_tones_from_visible_ui(&mut device);
-    factory_patch_configuration::configure_aux_xy_and_sparks_fx_from_visible_ui(&mut device);
+    factory_patch_configuration::configure_build_and_paint_from_visible_ui(&mut device);
+    factory_patch_configuration::configure_link_from_visible_ui(&mut device);
+    factory_patch_configuration::configure_shape_from_visible_ui(&mut device);
+    factory_patch_configuration::configure_aux_xy_and_play_fx_from_visible_ui(&mut device);
     assert_build_menu_generated_values(&mut device);
     save_and_reload_test_json_then_recheck_build_menu(&mut device);
     assert_factory_patch_matches_expected_fixture(&device);
@@ -203,16 +203,16 @@ fn expected_factory_patch_fixture() -> Value {
             "layers": [
                 {
                     "name": "life",
-                    "worlds": {
+                    "build": {
                         "behaviorId": "life",
                         "stepRate": "1/16",
                         "savedState": life_saved_state()
                     },
-                    "pulses": { "pitch": { "startingNote": 62 } }
+                    "link": { "pitch": { "startingNote": 62 } }
                 },
                 {
                     "name": "sequencer",
-                    "worlds": {
+                    "build": {
                         "behaviorId": "sequencer",
                         "stepRate": "1/8",
                         "savedState": {
@@ -230,7 +230,7 @@ fn expected_factory_patch_fixture() -> Value {
                             "width": 8
                         }
                     },
-                    "pulses": {
+                    "link": {
                         "eventEnabled": true,
                         "scanAxis": "rows",
                         "scanMode": "scanning",
@@ -239,7 +239,7 @@ fn expected_factory_patch_fixture() -> Value {
                 },
                 {
                     "name": "looper",
-                    "worlds": {
+                    "build": {
                         "behaviorId": "looper",
                         "stepRate": "1/8",
                         "savedState": {
@@ -248,7 +248,7 @@ fn expected_factory_patch_fixture() -> Value {
                             "steps": [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
                         }
                     },
-                    "pulses": {
+                    "link": {
                         "eventEnabled": true,
                         "pitch": { "startingNote": 62 }
                     }
@@ -281,7 +281,7 @@ fn expected_factory_patch_fixture() -> Value {
                     }
                 }]
             },
-            "sparksFx": {
+            "playFx": {
                 "assignments": [
                     { "x": 0, "y": 0, "config": stutter_fx() },
                     { "x": 1, "y": 0, "config": freeze_fx() },
@@ -290,7 +290,7 @@ fn expected_factory_patch_fixture() -> Value {
                 ],
                 "selected": pitch_fx(7)
             },
-            "sparksMode": "fx",
+            "playMode": "fx",
             "xy": {
                 "x": {
                     "invert": false,
@@ -312,7 +312,7 @@ fn expected_factory_patch_fixture() -> Value {
                 }
             }
         },
-        "system": { "sparksMode": "fx" }
+        "system": { "playMode": "fx" }
     })
 }
 

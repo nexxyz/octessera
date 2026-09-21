@@ -8,7 +8,7 @@ pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
     pub(super) event_intents: &'a [Option<CellTriggerIntent>],
     pub(super) instruments: &'a [super::NativeInstrumentSlot],
-    pub(super) sense: Option<super::NativePulsesLayer>,
+    pub(super) sense: Option<super::NativeLinkLayer>,
     pub(super) transpose_offset: i8,
 }
 
@@ -48,7 +48,7 @@ impl NativeRunner {
         intents: &[CellTriggerIntent],
         routed: RoutedMusicalEvents,
     ) -> RoutedMusicalEvents {
-        let sense = self.pulses_layers.get(layer_index).cloned();
+        let sense = self.link_layers.get(layer_index).cloned();
         self.apply_link_timing_with_sense(layer_index, intents, routed, sense.as_ref())
     }
 
@@ -57,7 +57,7 @@ impl NativeRunner {
         layer_index: usize,
         intents: &[CellTriggerIntent],
         routed: RoutedMusicalEvents,
-        sense: Option<&super::NativePulsesLayer>,
+        sense: Option<&super::NativeLinkLayer>,
     ) -> RoutedMusicalEvents {
         if routed.is_empty() {
             return routed;
@@ -152,7 +152,7 @@ impl NativeRunner {
                     instruments,
                     sense.as_ref(),
                     transpose_offset,
-                    self.sparks_transpose_active_notes.get_mut(layer_index),
+                    self.play_transpose_active_notes.get_mut(layer_index),
                 );
                 self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
                 out.extend(routed);
@@ -183,7 +183,7 @@ impl NativeRunner {
                 instruments,
                 sense.as_ref(),
                 transpose_offset,
-                self.sparks_transpose_active_notes.get_mut(layer_index),
+                self.play_transpose_active_notes.get_mut(layer_index),
             );
             let routed = dedupe_note_ons_in_group(routed);
             out.extend(self.apply_link_timing_with_sense(
@@ -275,7 +275,7 @@ fn has_matching_held_note_on(events: &[MusicalEvent], note_offs: &[(u8, u8)]) ->
 }
 
 fn link_timing_for_intents(
-    layer: Option<&super::NativePulsesLayer>,
+    layer: Option<&super::NativeLinkLayer>,
     intents: &[CellTriggerIntent],
 ) -> LinkEventTiming {
     let Some(layer) = layer else {

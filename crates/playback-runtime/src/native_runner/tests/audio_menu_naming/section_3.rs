@@ -23,7 +23,7 @@ pub(crate) fn turning_instrument_and_bus_auto_name_on_replaces_manual_names() {
 }
 
 #[test]
-pub(crate) fn worlds_layer_config_always_exposes_auto_name() {
+pub(crate) fn build_layer_config_always_exposes_auto_name() {
     for behavior_id in ["life", "none", "brain"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig {
             behavior_id: behavior_id.into(),

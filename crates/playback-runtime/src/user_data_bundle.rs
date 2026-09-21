@@ -4,11 +4,10 @@ use crate::native_runner::{
     validate_user_data_config_payload,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::collections::BTreeMap;
 
 mod format;
-mod migration;
 mod preferences;
 mod validation;
 
@@ -247,56 +246,18 @@ pub fn decode_user_data_bundle(
     if bytes.len() > USER_DATA_MAX_BUNDLE_BYTES {
         return Err("user-data bundle exceeds its size limit".into());
     }
-    let value: Value = serde_json::from_slice(bytes)
-        .map_err(|error| format!("user-data bundle JSON is invalid: {error}"))?;
-    migrate_user_data_bundle(value, canonical_defaults)
-}
-
-pub fn migrate_user_data_bundle(
-    mut value: Value,
-    canonical_defaults: &Value,
-) -> Result<UserDataBundle, String> {
-    let object = value
-        .as_object_mut()
-        .ok_or_else(|| "user-data bundle must be an object".to_string())?;
-    let version = object
-        .get("schemaVersion")
-        .map(|value| {
-            value
-                .as_u64()
-                .ok_or_else(|| "user-data schemaVersion must be an integer".to_string())
-        })
-        .transpose()?
-        .unwrap_or(0);
-    if version > USER_DATA_BUNDLE_SCHEMA_VERSION {
-        return Err(format!("unsupported user-data schema version {version}"));
-    }
-    if version == 0 {
-        migration::legacy_fields(object)?;
-    }
-    let mut bundle: UserDataBundle = serde_json::from_value(value)
+    let bundle: UserDataBundle = serde_json::from_slice(bytes)
         .map_err(|error| format!("user-data bundle fields are invalid: {error}"))?;
-    if version == USER_DATA_BUNDLE_SCHEMA_VERSION {
-        validation::manifest_shape(&bundle)?;
-        validation::structural(&bundle)?;
-        if bundle.manifest != manifest_for_validated_user_data_bundle(&bundle)? {
-            return Err("user-data bundle manifest does not match its contents".into());
-        }
+    if bundle.kind != USER_DATA_BUNDLE_KIND {
+        return Err("unsupported user-data bundle kind".into());
     }
-    bundle.current_state.patch = normalize_patch(bundle.current_state.patch, canonical_defaults)?;
-    bundle.default_state.patch = normalize_patch(bundle.default_state.patch, canonical_defaults)?;
-    for preset in &mut bundle.presets {
-        preset.patch = normalize_patch(preset.patch.clone(), canonical_defaults)?;
+    if bundle.schema_version != USER_DATA_BUNDLE_SCHEMA_VERSION {
+        return Err(format!(
+            "unsupported user-data schema version {}",
+            bundle.schema_version
+        ));
     }
-    bundle
-        .presets
-        .sort_by(|left, right| left.display_name.cmp(&right.display_name));
-    bundle
-        .media
-        .sort_by(|left, right| format::media_sort_key(left).cmp(&format::media_sort_key(right)));
-    bundle.kind = USER_DATA_BUNDLE_KIND.into();
-    bundle.schema_version = USER_DATA_BUNDLE_SCHEMA_VERSION;
-    bundle.manifest = manifest_for_validated_user_data_bundle(&bundle)?;
+    validation::manifest_shape(&bundle)?;
     validate_user_data_bundle(&bundle, canonical_defaults)?;
     Ok(bundle)
 }
@@ -378,7 +339,7 @@ fn validate_canonical_patch(
     let normalized = normalize_user_data_patch_payload(patch.clone(), canonical_defaults)
         .map_err(|error| format!("{path}: {error}"))?;
     if normalized != *patch {
-        return Err(format!("{path} is not the canonical migrated patch"));
+        return Err(format!("{path} is not a canonical patch"));
     }
     Ok(())
 }

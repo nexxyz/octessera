@@ -23,6 +23,8 @@ import {
 
 const CANDIDATE_HEALTH_MARKER_FIXTURE = {
   schema_version: 1,
+  kind: "octessera_candidate_readiness",
+  status: "ready",
   pid: 4242,
   systemd_invocation_id: "inv-1",
   package_version: "0.7.0",
@@ -100,7 +102,7 @@ test("platform capabilities match the hardware profile", () => {
     busCount: 4,
     globalFxSlotCount: 2,
     auxEncoderCount: 3,
-    sparksFxMaxConcurrent: 2,
+    playFxMaxConcurrent: 2,
     scanSectionCounts: [1, 2, 4, 8],
     panPositionCount: 33,
     oledWidth: 128,
@@ -158,7 +160,22 @@ test("candidate health marker fixture matches the guard identity contract", () =
     JSON.parse(JSON.stringify(CANDIDATE_HEALTH_MARKER_FIXTURE)),
     CANDIDATE_HEALTH_MARKER_FIXTURE,
   );
+  assert.deepEqual(Object.keys(CANDIDATE_HEALTH_MARKER_FIXTURE).sort(), [
+    "board_profile",
+    "kind",
+    "package_version",
+    "pid",
+    "ready_at_unix_ms",
+    "schema_version",
+    "status",
+    "systemd_invocation_id",
+  ]);
   assert.equal(CANDIDATE_HEALTH_MARKER_FIXTURE.schema_version, 1);
+  assert.equal(
+    CANDIDATE_HEALTH_MARKER_FIXTURE.kind,
+    "octessera_candidate_readiness",
+  );
+  assert.equal(CANDIDATE_HEALTH_MARKER_FIXTURE.status, "ready");
   assert.ok(CANDIDATE_HEALTH_MARKER_FIXTURE.pid > 0);
   assert.ok(CANDIDATE_HEALTH_MARKER_FIXTURE.systemd_invocation_id.length > 0);
   assert.equal(

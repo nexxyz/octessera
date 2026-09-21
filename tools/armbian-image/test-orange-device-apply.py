@@ -38,7 +38,7 @@ setattr(helper.subprocess, "run", successful_reboot)
 
 valid_directory = tempfile.TemporaryDirectory()
 valid_config = Path(valid_directory.name) / "default.json"
-valid_config.write_text('{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false}}}', encoding="utf-8")
+valid_config.write_text('{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}', encoding="utf-8")
 valid_config.chmod(0o644)
 valid_owner = valid_config.stat()
 setattr(helper, "CONFIG_PATH", str(valid_config))

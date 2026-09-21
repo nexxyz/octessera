@@ -175,7 +175,7 @@ fn default_system_effect_help_key(effect: &str) -> Option<String> {
         "system.updateCheck" => Some("action:system_update_check".into()),
         "system.updateApply" => Some("action:system_update_apply".into()),
         "system.rollback" => Some("action:system_rollback".into()),
-        "sparks.fx.map" => Some("action:fx_assign_enter".into()),
+        "play.fx.map" => Some("action:fx_assign_enter".into()),
         _ => None,
     }
 }

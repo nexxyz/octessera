@@ -63,8 +63,6 @@ mod input;
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     )
 ))]
 mod live_audio_benchmark;
@@ -144,8 +142,6 @@ use octessera_pi::board_profile;
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 )))]
 fn raspberry_benchmark_requested() -> bool {
     raspberry_benchmark_requested_from(std::env::args().skip(1))
@@ -155,8 +151,6 @@ fn raspberry_benchmark_requested() -> bool {
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 fn orange_benchmark_requested_from(mut args: impl Iterator<Item = String>) -> bool {
     args.any(|arg| arg == "--benchmark-orange-audio")
@@ -168,8 +162,6 @@ fn orange_benchmark_requested_from(mut args: impl Iterator<Item = String>) -> bo
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     ))
 ))]
 fn raspberry_benchmark_requested_from(mut args: impl Iterator<Item = String>) -> bool {
@@ -204,9 +196,6 @@ fn main() {
         return;
     }
     match utility_mode {
-        utility_mode::UtilityMode::LegacyDiagnostic => {
-            std::process::exit(compatibility_diagnostic_exit_code())
-        }
         utility_mode::UtilityMode::FatDiagnostic => std::process::exit(fat_diagnostic_exit_code()),
         utility_mode::UtilityMode::InteractiveHardware
         | utility_mode::UtilityMode::InteractiveNoise => {
@@ -245,8 +234,6 @@ fn main() {
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     ))]
     if orange_benchmark_requested_from(std::env::args().skip(1)) {
         eprintln!("--benchmark-orange-audio requires the Orange diagnostic benchmark build");
@@ -256,8 +243,6 @@ fn main() {
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     )))]
     if raspberry_benchmark_requested()
         || std::env::args()
@@ -279,9 +264,6 @@ fn main() {
         return;
     }
     match utility_mode {
-        utility_mode::UtilityMode::LegacyDiagnostic => {
-            std::process::exit(compatibility_diagnostic_exit_code())
-        }
         utility_mode::UtilityMode::FatDiagnostic => std::process::exit(fat_diagnostic_exit_code()),
         utility_mode::UtilityMode::InteractiveHardware => {
             std::process::exit(exit_code(hardware_test::run_interactive()))
@@ -296,8 +278,6 @@ fn main() {
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     ))]
     {
         if dsp_profile::profile_requested() && live_audio_benchmark::requested() {
@@ -355,7 +335,7 @@ fn main() {
                 std::process::exit(2);
             }
         };
-    let hardware = match init_hardware(handoff_mode == boot_oled_handoff::HandoffMode::Legacy) {
+    let hardware = match init_hardware(handoff_mode == boot_oled_handoff::HandoffMode::Direct) {
         Ok(devices) => devices,
         Err(fault) => hardware_fault::run_hardware_fault_mode(fault),
     };
@@ -419,7 +399,7 @@ fn main() {
     if handoff_mode == boot_oled_handoff::HandoffMode::V1 {
         rpi_oled_handoff_runtime::run(runtime_config, seesaw_io.command_tx.clone(), hdmi);
     } else {
-        let oled = oled.expect("legacy startup must initialize OLED");
+        let oled = oled.expect("direct startup must initialize OLED");
         let render_worker = RenderWorker::spawn(HardwareRenderTargets {
             oled,
             seesaw_tx: seesaw_io.command_tx.clone(),
@@ -448,13 +428,6 @@ fn run_requested_utility() {
 
 fn fat_diagnostic_exit_code() -> i32 {
     diagnostic_result_exit_code(fat_diagnostic::run())
-}
-
-fn compatibility_diagnostic_exit_code() -> i32 {
-    println!(
-        "WARN legacy diagnostic mode is deprecated; use --fat-diagnostic --board-profile <profile>"
-    );
-    diagnostic_result_exit_code(fat_diagnostic::run_legacy_raspberry())
 }
 
 fn diagnostic_result_exit_code(result: Result<bool, String>) -> i32 {

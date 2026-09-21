@@ -47,7 +47,7 @@ def render_cargo_outputs(
                 "release_target_profiles": [
                     {"name": "desktop", "workspace_member": "octessera-desktop", "features": []},
                     {"name": "pi-default", "workspace_member": "octessera-pi", "features": ["default"]},
-                    {"name": "pi-hardware-rpi-zero-2w", "workspace_member": "octessera-pi", "features": ["hardware-rpi-zero-2w"]},
+                    {"name": "pi-hardware-raspberry-pi-zero-2w", "workspace_member": "octessera-pi", "features": ["hardware-raspberry-pi-zero-2w"]},
                     {"name": "pi-hardware-orange-pi-zero-2w", "workspace_member": "octessera-pi", "features": ["hardware-orange-pi-zero-2w"]}
                 ],
                 "packages": source_index,

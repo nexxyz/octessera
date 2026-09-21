@@ -219,8 +219,6 @@ fn continue_on_recovered_miss_rejects_inline_executor() {
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     ))
 ))]
 #[test]
@@ -262,8 +260,6 @@ fn analogue_capacity_128_64_is_inline_only_and_preflight_validates_it() {
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 #[test]
 fn raspberry_analogue_capacity_geometry_is_exact_by_executor() {

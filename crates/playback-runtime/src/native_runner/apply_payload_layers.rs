@@ -1,8 +1,7 @@
-use super::pulses_payload_apply::apply_pulses_payload;
+use super::link_payload_apply::apply_link_payload;
 use super::{
-    apply_legacy_trigger_gates_payload, apply_trigger_probability_map_payload, note_unit_to_pulses,
-    param_binding_from_payload, param_mods_from_payload, NativeLinkLfo, NativeRunner, Value,
-    GLOBAL_LFO_COUNT, GRID_HEIGHT,
+    apply_trigger_probability_map_payload, note_unit_to_pulses, param_binding_from_payload,
+    param_mods_from_payload, NativeLinkLfo, NativeRunner, Value, GLOBAL_LFO_COUNT, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -11,18 +10,18 @@ impl NativeRunner {
             return Ok(());
         };
         for (index, layer) in layers.iter().take(GRID_HEIGHT).enumerate() {
-            let worlds = layer.get("worlds");
+            let build = layer.get("build");
             apply_layer_identity_payload(self, index, layer);
-            apply_layer_pulses_payload(self, index, layer, worlds);
-            apply_layer_worlds_payload(self, index, worlds)?;
+            apply_layer_link_payload(self, index, layer);
+            apply_layer_build_payload(self, index, build)?;
             apply_layer_param_mods_payload(self, index, layer);
         }
         Ok(())
     }
 
-    pub(super) fn apply_sparks_and_xy_payload(&mut self, runtime: &Value) {
-        if let Some(sparks_fx) = runtime.get("sparksFx") {
-            self.apply_sparks_fx_payload(sparks_fx);
+    pub(super) fn apply_play_and_xy_payload(&mut self, runtime: &Value) {
+        if let Some(play_fx) = runtime.get("playFx") {
+            self.apply_play_fx_payload(play_fx);
         }
         apply_xy_touch_payload(self, runtime);
         apply_xy_release_payload(self, runtime);
@@ -33,8 +32,8 @@ impl NativeRunner {
 
 fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
     if let Some(behavior_id) = layer
-        .get("worlds")
-        .and_then(|worlds| worlds.get("behaviorId"))
+        .get("build")
+        .and_then(|build| build.get("behaviorId"))
         .and_then(Value::as_str)
     {
         if platform_core::get_native_behavior(behavior_id).is_some() {
@@ -79,55 +78,42 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
     }
 }
 
-fn apply_layer_pulses_payload(
-    runner: &mut NativeRunner,
-    index: usize,
-    layer: &Value,
-    worlds: Option<&Value>,
-) {
-    let Some(pulses) = layer.get("pulses") else {
+fn apply_layer_link_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
+    let Some(link) = layer.get("link") else {
         return;
     };
-    if let Some(pulses_layer) = runner.pulses_layers.get_mut(index) {
-        apply_pulses_payload(pulses_layer, pulses);
+    if let Some(link_layer) = runner.link_layers.get_mut(index) {
+        apply_link_payload(link_layer, link);
     }
     if let Some(target) = runner.trigger_probability_maps.get_mut(index) {
-        if let Some(map) = pulses
-            .get("triggerProbabilityMap")
-            .and_then(Value::as_array)
-        {
+        if let Some(map) = link.get("triggerProbabilityMap").and_then(Value::as_array) {
             apply_trigger_probability_map_payload(target, map);
-        } else if let Some(gates) = worlds
-            .and_then(|worlds| worlds.get("triggerGates"))
-            .and_then(Value::as_array)
-        {
-            apply_legacy_trigger_gates_payload(target, gates);
         }
     }
 }
 
-fn apply_layer_worlds_payload(
+fn apply_layer_build_payload(
     runner: &mut NativeRunner,
     index: usize,
-    worlds: Option<&Value>,
+    build: Option<&Value>,
 ) -> Result<(), String> {
-    let Some(worlds) = worlds else {
+    let Some(build) = build else {
         return Ok(());
     };
     let Some(behavior_id) = runner.layer_behavior_ids.get(index).cloned() else {
         return Ok(());
     };
-    if let Some(save_grid_state) = worlds.get("saveGridState").and_then(Value::as_bool) {
+    if let Some(save_grid_state) = build.get("saveGridState").and_then(Value::as_bool) {
         if let Some(target) = runner.save_grid_states.get_mut(index) {
             *target = save_grid_state;
         }
     }
-    if let Some(step_rate) = worlds.get("stepRate").and_then(Value::as_str) {
+    if let Some(step_rate) = build.get("stepRate").and_then(Value::as_str) {
         if let Some(layer_step) = runner.transport.layer_algorithm_step_pulses.get_mut(index) {
             *layer_step = note_unit_to_pulses(step_rate);
         }
     }
-    if let Some(history) = worlds
+    if let Some(history) = build
         .get("behaviorConfigHistory")
         .and_then(Value::as_object)
     {
@@ -139,12 +125,12 @@ fn apply_layer_worlds_payload(
                 .collect();
         }
     }
-    if let Some(config) = worlds.get("behaviorConfig") {
+    if let Some(config) = build.get("behaviorConfig") {
         if let Some(target) = runner.layer_behavior_configs.get_mut(index) {
             *target = config.clone();
         }
     }
-    runner.replace_layer_engine_from_payload(index, &behavior_id, worlds)?;
+    runner.replace_layer_engine_from_payload(index, &behavior_id, build)?;
     Ok(())
 }
 
@@ -157,7 +143,7 @@ fn apply_layer_param_mods_payload(runner: &mut NativeRunner, index: usize, layer
 }
 
 fn apply_xy_touch_payload(runner: &mut NativeRunner, runtime: &Value) {
-    let Some(xy_touch) = runtime.get("sparksXyTouch") else {
+    let Some(xy_touch) = runtime.get("playXyTouch") else {
         return;
     };
     if let Some(x) = xy_touch.get("x").and_then(Value::as_f64) {

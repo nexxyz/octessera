@@ -4,29 +4,29 @@ use crate::native_runner::modulation_sampler::{
 };
 
 #[test]
-pub(crate) fn sparks_fx_payload_sanitizes_type_target_and_params() {
+pub(crate) fn play_fx_payload_sanitizes_type_target_and_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.apply_sparks_fx_payload(&json!({
+    runner.apply_play_fx_payload(&json!({
         "selected": { "fxType": "stutter", "targetKey": "bad", "params": { "rateHz": 99, "depthPct": -5, "ignored": 42 } },
         "assignments": [
             { "x": 1, "y": 2, "config": { "fxType": "pitch_shift", "targetKey": "instrument_8", "params": { "semitones": 99, "cents": -200, "mixPct": 250 } } }
         ]
     }));
 
-    assert_eq!(runner.sparks_fx_selected["targetKey"], "master");
-    assert_eq!(runner.sparks_fx_selected["params"]["rateHz"], 32);
-    assert_eq!(runner.sparks_fx_selected["params"]["depthPct"], 0);
-    assert!(runner.sparks_fx_selected["params"].get("ignored").is_none());
+    assert_eq!(runner.play_fx_selected["targetKey"], "master");
+    assert_eq!(runner.play_fx_selected["params"]["rateHz"], 32);
+    assert_eq!(runner.play_fx_selected["params"]["depthPct"], 0);
+    assert!(runner.play_fx_selected["params"].get("ignored").is_none());
     assert_eq!(
-        runner.sparks_fx_assignments[0].config["params"]["semitones"],
+        runner.play_fx_assignments[0].config["params"]["semitones"],
         24
     );
     assert_eq!(
-        runner.sparks_fx_assignments[0].config["params"]["cents"],
+        runner.play_fx_assignments[0].config["params"]["cents"],
         -100
     );
     assert_eq!(
-        runner.sparks_fx_assignments[0].config["params"]["mixPct"],
+        runner.play_fx_assignments[0].config["params"]["mixPct"],
         100
     );
 }
@@ -121,8 +121,8 @@ pub(crate) fn sample_assignment_velocity_level_uses_configured_values() {
 }
 
 #[test]
-pub(crate) fn pulses_velocity_and_filter_lanes_modulate_mapped_events() {
-    let sense = NativePulsesLayer {
+pub(crate) fn link_velocity_and_filter_lanes_modulate_mapped_events() {
+    let sense = NativeLinkLayer {
         x_velocity: NativeValueLane {
             enabled: true,
             from: 10,
@@ -137,7 +137,7 @@ pub(crate) fn pulses_velocity_and_filter_lanes_modulate_mapped_events() {
             grid_offset: 0,
             curve: "linear".into(),
         },
-        ..NativePulsesLayer::default()
+        ..NativeLinkLayer::default()
     };
     let events = vec![MusicalEvent::NoteOn {
         channel: 2,
@@ -175,7 +175,7 @@ pub(crate) fn midi_instrument_channel_remaps_note_and_cc_events() {
         ..NativeInstrumentSlot::new(0)
     };
     instrument.midi_enabled = true;
-    let sense = NativePulsesLayer {
+    let sense = NativeLinkLayer {
         y_filter_cutoff: NativeValueLane {
             enabled: true,
             from: 20,
@@ -183,7 +183,7 @@ pub(crate) fn midi_instrument_channel_remaps_note_and_cc_events() {
             grid_offset: 0,
             curve: "linear".into(),
         },
-        ..NativePulsesLayer::default()
+        ..NativeLinkLayer::default()
     };
     let intent = CellTriggerIntent {
         x: 0,

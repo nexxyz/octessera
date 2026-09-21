@@ -116,10 +116,6 @@ require_octessera_boot_service_layout() {
         echo "constructor-required: Raspberry image has more than one enabled early splash writer" >&2
         return 1
     fi
-    if find "$image_root/etc/systemd/system" -name '*cellsymphony-boot-splash*' -print -quit | grep -q .; then
-        echo "constructor-required: legacy early splash writer remains installed" >&2
-        return 1
-    fi
 }
 
 require_octessera_initramfs_boot_layer() {

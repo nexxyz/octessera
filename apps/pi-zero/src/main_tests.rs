@@ -4,8 +4,6 @@ use super::raspberry_benchmark_requested_from;
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 use super::orange_benchmark_requested_from;
 
@@ -23,8 +21,6 @@ fn raspberry_benchmark_argument_is_detected_for_profile_rejection() {
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 #[test]
 fn orange_benchmark_argument_is_detected_for_profile_rejection() {

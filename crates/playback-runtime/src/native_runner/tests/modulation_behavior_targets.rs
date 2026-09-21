@@ -16,11 +16,11 @@ pub(crate) fn behavior_target_picker_uses_each_layers_behavior_and_prunes_none()
     ));
     assert!(contains_key_recursive(
         &config.behavior_target_items[2],
-        "layers.2.worlds.behaviorConfig.randomSeedCells"
+        "layers.2.build.behaviorConfig.randomSeedCells"
     ));
     assert!(!contains_key_recursive(
         &config.behavior_target_items[2],
-        "layers.0.worlds.behaviorConfig.randomCellsPerTick"
+        "layers.0.build.behaviorConfig.randomCellsPerTick"
     ));
 }
 
@@ -63,7 +63,7 @@ pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_confi
         press_action: None,
     });
     runner.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("layers.2.worlds.behaviorConfig.randomSeedCells".into()),
+        turn_key: Some("layers.2.build.behaviorConfig.randomSeedCells".into()),
         press_action: None,
     });
 
@@ -84,7 +84,7 @@ pub(crate) fn keyed_layer_algorithm_step_rebases_held_discrete_source() {
     })
     .unwrap();
     let key = "algorithmStep";
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
@@ -142,7 +142,7 @@ pub(crate) fn unchanged_modulation_avoids_state_serialization_rebuild_and_autosa
         active: true,
     };
     runner.xy_y_binding = Some(NativeParamBinding {
-        key: "layers.1.worlds.behaviorConfig.randomSeedCells".into(),
+        key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Spawn Count".into()),
         kind: "number".into(),
         min: Some(0.0),
@@ -220,7 +220,7 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
         invert: false,
     });
     runner.xy_y_binding = Some(NativeParamBinding {
-        key: "layers.2.worlds.behaviorConfig.randomSeedCells".into(),
+        key: "layers.2.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Spawn Count".into()),
         kind: "number".into(),
         min: Some(0.0),

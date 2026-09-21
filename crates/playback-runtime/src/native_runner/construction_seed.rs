@@ -1,5 +1,5 @@
-use super::sparks_fx_config::{
-    default_sparks_fx_selected, sparks_fx_params_map, sparks_fx_target_key, sparks_fx_type,
+use super::play_fx_config::{
+    default_play_fx_selected, play_fx_params_map, play_fx_target_key, play_fx_type,
 };
 use super::*;
 
@@ -18,7 +18,7 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) algorithm_step_pulses: u32,
     pub(super) instruments: Vec<NativeInstrumentSlot>,
     pub(super) sample_availability: Vec<Vec<NativeSampleAvailability>>,
-    pub(super) pulses_layers: Vec<NativePulsesLayer>,
+    pub(super) link_layers: Vec<NativeLinkLayer>,
     pub(super) fx_buses: Vec<NativeFxBus>,
     pub(super) global_fx_slots: Vec<String>,
     pub(super) global_fx_params: Vec<Value>,
@@ -38,8 +38,8 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) preset_names: Vec<String>,
     pub(super) midi_outputs: Vec<MidiPort>,
     pub(super) midi_inputs: Vec<MidiPort>,
-    pub(super) sparks_mode: String,
-    pub(super) sparks_fx_selected: Value,
+    pub(super) play_mode: String,
+    pub(super) play_fx_selected: Value,
     pub(super) xy_release: String,
     pub(super) xy_smoothing_ms: u16,
     pub(super) xy_invert_x: bool,
@@ -90,7 +90,7 @@ impl NativeRunnerConstructionSeed {
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_RED,
             instruments: default_instruments(),
             sample_availability: default_sample_availability(),
-            pulses_layers: default_pulses_layers(),
+            link_layers: default_link_layers(),
             fx_buses: default_fx_buses(),
             global_fx_slots: default_global_fx_slots(),
             global_fx_params: default_global_fx_params(),
@@ -110,8 +110,8 @@ impl NativeRunnerConstructionSeed {
             preset_names: Vec::new(),
             midi_outputs: Vec::new(),
             midi_inputs: Vec::new(),
-            sparks_mode: "mix".into(),
-            sparks_fx_selected: default_sparks_fx_selected(),
+            play_mode: "mix".into(),
+            play_fx_selected: default_play_fx_selected(),
             xy_release: "sample-hold".into(),
             xy_smoothing_ms: DEFAULT_XY_SMOOTHING_MS,
             xy_invert_x: false,
@@ -142,8 +142,8 @@ impl NativeRunnerConstructionSeed {
                 .iter()
                 .map(|id| (*id).to_string())
                 .collect(),
-            worlds_items: vec![],
-            worlds_items_by_layer: vec![vec![]; LAYER_COUNT],
+            build_items: vec![],
+            build_items_by_layer: vec![vec![]; LAYER_COUNT],
             behavior_target_items: vec![vec![]; LAYER_COUNT],
             dsp_config: self.dsp_config,
             layer_labels: self
@@ -154,7 +154,7 @@ impl NativeRunnerConstructionSeed {
                 .collect(),
             layer_names: self.layer_names.clone(),
             layer_auto_names: self.layer_auto_names.clone(),
-            pulses_layers: pulses_layer_configs(&self.pulses_layers),
+            link_layers: link_layer_configs(&self.link_layers),
             active_layer_index: self.active_layer_index,
             link_lfos: self.link_lfos.clone().map(|lfo| NativeLinkLfoConfig {
                 enabled: lfo.enabled,
@@ -260,10 +260,10 @@ impl NativeRunnerConstructionSeed {
                 .iter()
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
-            sparks_mode: self.sparks_mode.clone(),
-            sparks_fx_type: sparks_fx_type(&self.sparks_fx_selected).into(),
-            sparks_fx_target: sparks_fx_target_key(&self.sparks_fx_selected).into(),
-            sparks_fx_params: sparks_fx_params_map(&self.sparks_fx_selected),
+            play_mode: self.play_mode.clone(),
+            play_fx_type: play_fx_type(&self.play_fx_selected).into(),
+            play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
+            play_fx_params: play_fx_params_map(&self.play_fx_selected),
             xy_release: self.xy_release.clone(),
             xy_smoothing_ms: self.xy_smoothing_ms,
             xy_invert_x: self.xy_invert_x,

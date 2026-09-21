@@ -14,7 +14,7 @@ impl NativeRunner {
             && self.display.confirm_dialog.is_none()
             && self.sample_assign.is_none()
             && self.trigger_probability_assign.is_none()
-            && self.sparks_fx_assign.is_none()
+            && self.play_fx_assign.is_none()
             && self
                 .display
                 .modifier_hint_started_at

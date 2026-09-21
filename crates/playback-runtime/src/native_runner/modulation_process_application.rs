@@ -25,7 +25,7 @@ pub(super) fn apply_persistent_modulation_values(
     let mut behavior_keys = BTreeMap::<usize, Vec<String>>::new();
     let mut changed_keys = BTreeSet::new();
     let mut sync_engine_runtime = false;
-    let mut refresh_active_pulses = false;
+    let mut refresh_active_link = false;
     for (key, (_, value)) in resolved {
         if !dirty_persistent_keys.contains(key)
             || !runner.apply_param_binding_value(key, value.clone(), &mut behavior_deltas)
@@ -41,7 +41,7 @@ pub(super) fn apply_persistent_modulation_values(
                 "sound.noteLengthMs" | "sound.velocityScalePct"
             ) || key.starts_with("instruments.")
                 && key.ends_with(".noteBehavior");
-            refresh_active_pulses |= super::modulation_keys::parse_pulses_binding_key(key)
+            refresh_active_link |= super::modulation_keys::parse_link_binding_key(key)
                 .is_some_and(|(index, _)| index == runner.active_layer_index);
         }
     }
@@ -55,11 +55,10 @@ pub(super) fn apply_persistent_modulation_values(
     if sync_engine_runtime {
         runner.sync_engine_runtime_config();
     }
-    if refresh_active_pulses {
+    if refresh_active_link {
         #[cfg(test)]
         {
-            runner.active_pulses_refresh_calls =
-                runner.active_pulses_refresh_calls.saturating_add(1);
+            runner.active_link_refresh_calls = runner.active_link_refresh_calls.saturating_add(1);
         }
         runner.refresh_active_mapping_config();
         runner.refresh_active_interpretation_profile();

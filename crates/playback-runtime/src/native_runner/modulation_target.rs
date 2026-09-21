@@ -22,7 +22,7 @@ pub(crate) enum Endpoint {
     FxBusMixer { index: usize },
     FxBusSlot { bus_index: usize, slot: usize },
     GlobalFxSlot { slot: usize },
-    SparksFx,
+    PlayFx,
 }
 
 pub(crate) fn classify_key(key: &str) -> Option<(TargetValueKind, TargetMode, Endpoint)> {
@@ -41,7 +41,7 @@ pub(crate) fn classify_key(key: &str) -> Option<(TargetValueKind, TargetMode, En
     if let Some((index, field)) = indexed_key(key, "mixer.master.slots.") {
         return classify_global_fx_key(index, field);
     }
-    classify_sparks_key(key).map(|(kind, mode)| (kind, mode, Endpoint::SparksFx))
+    classify_play_key(key).map(|(kind, mode)| (kind, mode, Endpoint::PlayFx))
 }
 
 fn classify_global_key(key: &str) -> Option<(TargetValueKind, TargetMode, Endpoint)> {
@@ -70,11 +70,11 @@ fn classify_layer_key(
     }
     let value_kind = if field == "algorithmStep" {
         TargetValueKind::Enum
-    } else if let Some(field) = field.strip_prefix("worlds.behaviorConfig.") {
+    } else if let Some(field) = field.strip_prefix("build.behaviorConfig.") {
         super::modulation_target_table::behavior_field_kind(field)?
     } else {
-        let field = field.strip_prefix("pulses.")?;
-        super::modulation_target_table::pulses_field_kind(field)?
+        let field = field.strip_prefix("link.")?;
+        super::modulation_target_table::link_field_kind(field)?
     };
     Some((
         value_kind,
@@ -173,17 +173,17 @@ fn classify_global_fx_key(
     Some((value_kind, mode, Endpoint::GlobalFxSlot { slot: index }))
 }
 
-fn classify_sparks_key(key: &str) -> Option<(TargetValueKind, TargetMode)> {
-    if key == "sparks.fx.type" || key == "sparks.fx.target" {
+fn classify_play_key(key: &str) -> Option<(TargetValueKind, TargetMode)> {
+    if key == "play.fx.type" || key == "play.fx.target" {
         return Some((TargetValueKind::Enum, TargetMode::Discrete));
     }
-    let field = key.strip_prefix("sparks.fx.params.")?;
-    if !super::modulation_target_table::sparks_field_is_known(field) {
+    let field = key.strip_prefix("play.fx.params.")?;
+    if !super::modulation_target_table::play_field_is_known(field) {
         return None;
     }
     Some((
         TargetValueKind::Numeric,
-        if super::modulation_target_table::sparks_field_is_exclusive(field) {
+        if super::modulation_target_table::play_field_is_exclusive(field) {
             TargetMode::Discrete
         } else {
             TargetMode::Numeric
@@ -244,8 +244,8 @@ mod tests {
             "unknown.target",
             "instruments.0.unknown",
             "instruments.99.mixer.volume",
-            "layers.0.pulses.unknown",
-            "layers.0.worlds.behaviorConfig.unknown",
+            "layers.0.link.unknown",
+            "layers.0.build.behaviorConfig.unknown",
         ] {
             assert!(classify_key(key).is_none(), "{key} must be unsupported");
         }

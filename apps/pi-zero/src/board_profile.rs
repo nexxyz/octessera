@@ -35,8 +35,6 @@ pub const BINARY_NAME: &str = "octessera-pi";
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 #[path = "raspberry_live_benchmark_metadata.rs"]
 mod raspberry_live_benchmark_metadata;
@@ -104,36 +102,16 @@ const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime benchmark diagnostic";
 ))]
 const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime-candidate";
 
-#[cfg(all(
-    feature = "hardware-raspberry-pi-zero-2w",
-    not(any(
-        feature = "legacy-hardware-rpi-zero-2w",
-        feature = "legacy-hardware-pi"
-    ))
-))]
+#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
 pub const COMPILED_FAT_DIAGNOSTIC_PROFILE: Option<&str> = Some(RASPBERRY_PI_ZERO_2W_ID);
 
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    not(any(
-        feature = "legacy-hardware-rpi-zero-2w",
-        feature = "legacy-hardware-pi"
-    ))
-))]
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub const COMPILED_FAT_DIAGNOSTIC_PROFILE: Option<&str> = Some(ORANGE_PI_ZERO_2W_ID);
 
 #[cfg(not(any(
     feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "legacy-hardware-rpi-zero-2w",
-    feature = "legacy-hardware-pi"
+    feature = "hardware-orange-pi-zero-2w"
 )))]
-pub const COMPILED_FAT_DIAGNOSTIC_PROFILE: Option<&str> = None;
-
-#[cfg(any(
-    feature = "legacy-hardware-rpi-zero-2w",
-    feature = "legacy-hardware-pi"
-))]
 pub const COMPILED_FAT_DIAGNOSTIC_PROFILE: Option<&str> = None;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -276,8 +254,6 @@ pub fn print_build_metadata() {
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     ))]
     raspberry_live_benchmark_metadata::print_build_metadata();
     #[cfg(not(any(
@@ -286,8 +262,6 @@ pub fn print_build_metadata() {
             feature = "hardware-raspberry-pi-zero-2w",
             feature = "routing-tree-benchmark",
             feature = "benchmark-voice-pools-128",
-            not(feature = "legacy-hardware-rpi-zero-2w"),
-            not(feature = "legacy-hardware-pi")
         )
     )))]
     println!(

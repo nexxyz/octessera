@@ -8,7 +8,7 @@ impl NativeRunner {
         let midi_start = self.pending_transpose_note_offs.midi.len();
         self.clear_delayed_link_events_for_layer(layer_index);
         self.drain_layer_engine_notes(layer_index);
-        self.drain_sparks_transpose_layers_for_layer_disable(layer_index);
+        self.drain_play_transpose_layers_for_layer_disable(layer_index);
         let mut drained = RoutedMusicalEvents {
             audio: self
                 .pending_transpose_note_offs

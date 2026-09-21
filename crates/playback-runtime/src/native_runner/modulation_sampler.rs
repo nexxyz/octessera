@@ -1,4 +1,4 @@
-use super::{NativePulsesLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
+use super::{NativeLinkLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{CellTriggerIntent, MusicalEvent};
 use std::collections::BTreeMap;
 
@@ -32,7 +32,7 @@ pub(super) fn apply_sampler_assignments_for_instruments(
     intents: &[CellTriggerIntent],
     mapped_event_offset: usize,
     instruments: &[super::NativeInstrumentSlot],
-    sense: Option<&NativePulsesLayer>,
+    sense: Option<&NativeLinkLayer>,
 ) -> Vec<MusicalEvent> {
     let routed = apply_sampler_assignments_for_instruments_routed(
         events,
@@ -51,7 +51,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
     intents: &[CellTriggerIntent],
     mapped_event_offset: usize,
     instruments: &[super::NativeInstrumentSlot],
-    sense: Option<&NativePulsesLayer>,
+    sense: Option<&NativeLinkLayer>,
     transpose_offset: i8,
     mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
 ) -> RoutedMusicalEvents {
@@ -126,7 +126,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
 fn prepare_note_on_with_intent(
     event: &mut MusicalEvent,
     intent: &CellTriggerIntent,
-    sense: Option<&NativePulsesLayer>,
+    sense: Option<&NativeLinkLayer>,
     instruments: &[super::NativeInstrumentSlot],
     transpose_offset: i8,
     active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
@@ -366,7 +366,7 @@ pub(super) fn midi_event_channel(
 
 pub(super) fn cc_events_from_intent(
     intent: &CellTriggerIntent,
-    sense: &NativePulsesLayer,
+    sense: &NativeLinkLayer,
     channel: u8,
 ) -> Vec<MusicalEvent> {
     let mut events = Vec::new();
@@ -425,7 +425,7 @@ fn push_lane_cc(
 
 pub(super) fn velocity_from_intent(
     intent: &CellTriggerIntent,
-    sense: &NativePulsesLayer,
+    sense: &NativeLinkLayer,
 ) -> Option<u8> {
     let mut values = Vec::new();
     if sense.x_velocity.enabled {

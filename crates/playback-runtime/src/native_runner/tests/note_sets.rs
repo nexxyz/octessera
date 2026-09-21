@@ -1,7 +1,7 @@
 use super::*;
 use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 
-const NOTE_SET_KEY: &str = "layers.0.pulses.pitch.scale";
+const NOTE_SET_KEY: &str = "layers.0.link.pitch.scale";
 
 #[test]
 pub(crate) fn note_set_parent_is_a_bindable_flat_enum_with_four_folders() {
@@ -85,7 +85,7 @@ pub(crate) fn host_device_input_navigates_and_selects_every_note_set() {
             .filter_map(Value::as_str)
             .any(|line| line.starts_with(" !")));
         let snapshot = send_main(&mut runner, "encoder_press", None);
-        assert_eq!(runner.pulses_layers[0].scale, note_set.id);
+        assert_eq!(runner.link_layers[0].scale, note_set.id);
         assert_eq!(runner.menu.current_key(), Some(NOTE_SET_KEY));
         assert!(runner
             .menu
@@ -146,7 +146,7 @@ pub(crate) fn selecting_the_current_note_set_does_not_dirty_config() {
     runner
         .execute_menu_action(NativeMenuAction::SelectNoteSet {
             layer_index: 0,
-            note_set_id: runner.pulses_layers[0].scale.clone(),
+            note_set_id: runner.link_layers[0].scale.clone(),
         })
         .unwrap();
     assert_eq!(runner.config_revision, before);
@@ -167,7 +167,7 @@ pub(crate) fn note_set_parent_selected_and_unselected_rows_are_exact() {
     assert!(selected.chars().count() <= 19);
     assert!(!selected.contains("..."));
 
-    assert!(runner.menu.focus_item_key("layers.0.pulses.pitch.root"));
+    assert!(runner.menu.focus_item_key("layers.0.link.pitch.root"));
     let unselected = runner.menu.snapshot().lines;
     let unselected = unselected
         .iter()

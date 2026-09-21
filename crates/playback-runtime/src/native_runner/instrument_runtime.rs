@@ -1,12 +1,5 @@
 use super::*;
 
-pub(super) fn normalize_route(route: &str) -> String {
-    route
-        .strip_prefix("bus_")
-        .map(|suffix| format!("fx_bus_{suffix}"))
-        .unwrap_or_else(|| route.to_string())
-}
-
 pub(super) fn trigger_target(
     slot: usize,
     action: &str,

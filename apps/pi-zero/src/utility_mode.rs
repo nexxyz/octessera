@@ -1,7 +1,6 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum UtilityMode {
     Normal,
-    LegacyDiagnostic,
     FatDiagnostic,
     InteractiveHardware,
     InteractiveNoise,
@@ -9,20 +8,17 @@ pub(crate) enum UtilityMode {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct EnvironmentSelectors<'a> {
-    pub(crate) diagnostic: Option<&'a str>,
     pub(crate) hardware_test: Option<&'a str>,
     pub(crate) hardware_noise_test: Option<&'a str>,
 }
 
 pub(crate) fn from_process() -> Result<UtilityMode, String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    let diagnostic = std::env::var("OCTESSERA_PI_DIAGNOSTIC").ok();
     let hardware_test = std::env::var("OCTESSERA_PI_HARDWARE_TEST").ok();
     let hardware_noise_test = std::env::var("OCTESSERA_PI_HARDWARE_NOISE_TEST").ok();
     parse(
         &args,
         EnvironmentSelectors {
-            diagnostic: diagnostic.as_deref(),
             hardware_test: hardware_test.as_deref(),
             hardware_noise_test: hardware_noise_test.as_deref(),
         },
@@ -33,11 +29,7 @@ pub(crate) fn parse(
     args: &[String],
     environment: EnvironmentSelectors<'_>,
 ) -> Result<UtilityMode, String> {
-    let diagnostic_arg = args.iter().any(|arg| arg == "--diagnostic");
     let fat_diagnostic_arg = args.iter().any(|arg| arg == "--fat-diagnostic");
-    if diagnostic_arg && fat_diagnostic_arg {
-        return Err("--diagnostic and --fat-diagnostic cannot be combined; choose one".into());
-    }
     let profile = profile_option(args)?;
     let interactive_hardware =
         args.iter().any(|arg| arg == "--hardware-test") || truthy(environment.hardware_test);
@@ -48,27 +40,8 @@ pub(crate) fn parse(
             "--hardware-test and --hardware-noise-test cannot be combined; choose one".into(),
         );
     }
-    let diagnostic_environment = diagnostic_environment_selected(environment.diagnostic);
-    if diagnostic_environment {
-        if profile.is_some() {
-            return Err(
-                "OCTESSERA_PI_DIAGNOSTIC cannot be combined with --board-profile or --profile"
-                    .into(),
-            );
-        }
-        if interactive_hardware || interactive_noise {
-            return Err(
-                "OCTESSERA_PI_DIAGNOSTIC cannot be combined with interactive hardware-test modes"
-                    .into(),
-            );
-        }
-        if fat_diagnostic_arg {
-            return Err("OCTESSERA_PI_DIAGNOSTIC cannot be combined with --fat-diagnostic".into());
-        }
-        return Ok(UtilityMode::LegacyDiagnostic);
-    }
     if interactive_hardware || interactive_noise {
-        if diagnostic_arg || fat_diagnostic_arg || profile.is_some() {
+        if fat_diagnostic_arg || profile.is_some() {
             return Err("interactive hardware-test modes cannot be combined with diagnostic or profile options".into());
         }
         return Ok(if interactive_hardware {
@@ -77,10 +50,10 @@ pub(crate) fn parse(
             UtilityMode::InteractiveNoise
         });
     }
-    if profile.is_some() && !diagnostic_arg && !fat_diagnostic_arg {
-        return Err("--board-profile/--profile requires --diagnostic or --fat-diagnostic".into());
+    if profile.is_some() && !fat_diagnostic_arg {
+        return Err("--board-profile requires --fat-diagnostic".into());
     }
-    if (diagnostic_arg || fat_diagnostic_arg)
+    if fat_diagnostic_arg
         && args
             .iter()
             .any(|arg| matches!(arg.as_str(), "--help" | "-h"))
@@ -96,20 +69,8 @@ pub(crate) fn parse(
     if fat_diagnostic_arg {
         return Ok(UtilityMode::FatDiagnostic);
     }
-    if diagnostic_arg {
-        if profile.is_none() && diagnostic_options_present(args) {
-            return Err(
-                "diagnostic options require --fat-diagnostic with an explicit board profile".into(),
-            );
-        }
-        return Ok(if profile.is_some() {
-            UtilityMode::FatDiagnostic
-        } else {
-            UtilityMode::LegacyDiagnostic
-        });
-    }
     if diagnostic_options_present(args) {
-        return Err("diagnostic options require --diagnostic or --fat-diagnostic".into());
+        return Err("diagnostic options require --fat-diagnostic".into());
     }
     Ok(UtilityMode::Normal)
 }
@@ -118,9 +79,9 @@ fn profile_option(args: &[String]) -> Result<Option<&str>, String> {
     let mut profile = None;
     let mut index = 0;
     while index < args.len() {
-        if matches!(args[index].as_str(), "--board-profile" | "--profile") {
+        if args[index] == "--board-profile" {
             if profile.is_some() {
-                return Err("only one --board-profile/--profile option is allowed".into());
+                return Err("only one --board-profile option is allowed".into());
             }
             let value = args
                 .get(index + 1)
@@ -142,15 +103,6 @@ fn diagnostic_options_present(args: &[String]) -> bool {
         .any(|arg| matches!(arg.as_str(), "--evidence-dir" | "--timeout-seconds"))
 }
 
-fn diagnostic_environment_selected(value: Option<&str>) -> bool {
-    value.is_some_and(|value| {
-        matches!(
-            value.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "preflight" | "hardware"
-        )
-    })
-}
-
 fn truthy(value: Option<&str>) -> bool {
     value.is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"))
 }
@@ -163,94 +115,79 @@ mod tests {
         values.iter().map(|value| (*value).into()).collect()
     }
 
-    fn env(diagnostic: Option<&str>) -> EnvironmentSelectors<'_> {
-        EnvironmentSelectors {
-            diagnostic,
-            ..EnvironmentSelectors::default()
-        }
+    fn env() -> EnvironmentSelectors<'static> {
+        EnvironmentSelectors::default()
     }
 
     #[test]
     fn normal_mode_is_selected_without_utility_flags() {
-        assert_eq!(parse(&[], env(None)), Ok(UtilityMode::Normal));
+        assert_eq!(parse(&[], env()), Ok(UtilityMode::Normal));
         assert_eq!(
-            parse(&args(&["--print-build-metadata"]), env(None)),
+            parse(&args(&["--print-build-metadata"]), env()),
             Ok(UtilityMode::Normal)
         );
     }
 
     #[test]
-    fn diagnostic_selectors_distinguish_legacy_and_profile_modes() {
-        assert_eq!(
-            parse(&args(&["--diagnostic"]), env(None)),
-            Ok(UtilityMode::LegacyDiagnostic)
-        );
+    fn diagnostic_selectors_require_the_canonical_profile_mode() {
         assert_eq!(
             parse(
-                &args(&["--diagnostic", "--board-profile", "orange-pi-zero-2w"]),
-                env(None),
+                &args(&["--fat-diagnostic", "--board-profile", "orange-pi-zero-2w"]),
+                env(),
             ),
             Ok(UtilityMode::FatDiagnostic)
         );
         assert_eq!(
             parse(
-                &args(&["--fat-diagnostic", "--profile", "raspberry-pi-zero-2w"]),
-                env(None),
+                &args(&[
+                    "--fat-diagnostic",
+                    "--board-profile",
+                    "raspberry-pi-zero-2w"
+                ]),
+                env(),
             ),
             Ok(UtilityMode::FatDiagnostic)
         );
     }
 
     #[test]
-    fn diagnostic_environment_is_a_selector_and_rejects_ambiguous_modes() {
-        assert_eq!(
-            parse(&[], env(Some("1"))),
-            Ok(UtilityMode::LegacyDiagnostic)
-        );
+    fn canonical_diagnostic_mode_rejects_ambiguous_options() {
         assert!(parse(
-            &args(&["--board-profile", "orange-pi-zero-2w"]),
-            env(Some("1"))
+            &args(&[
+                "--fat-diagnostic",
+                "--board-profile",
+                "orange-pi-zero-2w",
+                "--hardware-test"
+            ]),
+            env()
         )
         .unwrap_err()
         .contains("cannot be combined"));
-        assert!(parse(&args(&["--hardware-test"]), env(Some("1")))
-            .unwrap_err()
-            .contains("interactive"));
     }
 
     #[test]
     fn interactive_modes_are_explicit_and_mutually_exclusive() {
         assert_eq!(
-            parse(&args(&["--hardware-test"]), env(None)),
+            parse(&args(&["--hardware-test"]), env()),
             Ok(UtilityMode::InteractiveHardware)
         );
         assert_eq!(
-            parse(&args(&["--hardware-noise-test"]), env(None)),
+            parse(&args(&["--hardware-noise-test"]), env()),
             Ok(UtilityMode::InteractiveNoise)
         );
-        assert!(parse(
-            &args(&["--hardware-test", "--hardware-noise-test"]),
-            env(None)
-        )
-        .is_err());
+        assert!(parse(&args(&["--hardware-test", "--hardware-noise-test"]), env()).is_err());
     }
 
     #[test]
     fn invalid_or_missing_profile_modes_fail_closed() {
-        assert!(parse(&args(&["--fat-diagnostic"]), env(None))
+        assert!(parse(&args(&["--fat-diagnostic"]), env())
             .unwrap_err()
             .contains("required"));
         assert!(
-            parse(&args(&["--board-profile", "orange-pi-zero-2w"]), env(None))
+            parse(&args(&["--board-profile", "orange-pi-zero-2w"]), env())
                 .unwrap_err()
                 .contains("requires")
         );
-        assert!(parse(&args(&["--diagnostic", "--board-profile"]), env(None)).is_err());
-        assert!(parse(&args(&["--diagnostic", "--hardware-test"]), env(None)).is_err());
-        assert!(parse(
-            &args(&["--diagnostic", "--evidence-dir", "evidence"]),
-            env(None)
-        )
-        .is_err());
+        assert!(parse(&args(&["--evidence-dir", "evidence"]), env()).is_err());
     }
 }

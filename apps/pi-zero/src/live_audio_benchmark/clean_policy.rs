@@ -11,8 +11,6 @@ pub(super) fn result_passes(
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     ))]
     let raspberry_zero_event_policy = detected_continuity_events == 0
         && metrics.over_audio_duration_budget_count == 0
@@ -22,8 +20,6 @@ pub(super) fn result_passes(
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
-        not(feature = "legacy-hardware-rpi-zero-2w"),
-        not(feature = "legacy-hardware-pi")
     )))]
     let raspberry_zero_event_policy = true;
     metrics.callback_count > 0
@@ -51,8 +47,6 @@ pub(super) fn result_passes(
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 pub(super) fn persistent_output_counters_passes(
     _config: &BenchmarkConfig,
@@ -77,8 +71,6 @@ pub(super) fn persistent_output_counters_passes(
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 )))]
 pub(super) fn persistent_output_counters_passes(
     _config: &BenchmarkConfig,
@@ -91,8 +83,6 @@ pub(super) fn persistent_output_counters_passes(
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 fn callback_budget_passes(_measure_seconds: u64, overrun_count: u64) -> bool {
     overrun_count == 0
@@ -102,8 +92,6 @@ fn callback_budget_passes(_measure_seconds: u64, overrun_count: u64) -> bool {
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 )))]
 fn callback_budget_passes(measure_seconds: u64, overrun_count: u64) -> bool {
     match measure_seconds {
@@ -119,8 +107,6 @@ fn callback_budget_passes(measure_seconds: u64, overrun_count: u64) -> bool {
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
-    not(feature = "legacy-hardware-rpi-zero-2w"),
-    not(feature = "legacy-hardware-pi")
 ))]
 #[path = "clean_policy_tests.rs"]
 mod tests;

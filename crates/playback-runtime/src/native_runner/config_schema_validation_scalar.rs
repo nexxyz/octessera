@@ -28,7 +28,6 @@ fn is_opaque_scalar_subtree(path: &str) -> bool {
         ".behaviorConfig",
         ".behaviorConfigHistory",
         ".savedState",
-        ".behaviorState",
         ".params",
     ]
     .iter()

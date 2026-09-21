@@ -32,17 +32,6 @@ pub(crate) fn layer_and_bus_names_round_trip_with_auto_name_flags() {
     restored
         .apply_config_payload(json!({
             "runtimeConfig": {
-                "instruments": [{ "type": "sampler", "name": "sampler", "autoName": true }],
-                "mixer": { "buses": [{ "slot1": { "type": "duck" }, "slot2": { "type": "none" }, "name": "duck", "autoName": true }] }
-            }
-        }))
-        .unwrap();
-    assert_eq!(restored.instruments[0].name, "Sampler");
-    assert_eq!(restored.fx_buses[0].name, "Duck");
-
-    restored
-        .apply_config_payload(json!({
-            "runtimeConfig": {
                 "instruments": [{ "type": "sampler", "name": "manual lower", "autoName": false }],
                 "mixer": { "buses": [{ "slot1": { "type": "duck" }, "slot2": { "type": "none" }, "name": "side duck", "autoName": false }] }
             }
@@ -107,14 +96,6 @@ pub(crate) fn factory_payload_uses_display_style_auto_names() {
     let runtime = &payload["runtimeConfig"];
     assert_eq!(runtime["instruments"][0]["name"], "Synth");
     assert_eq!(runtime["instruments"][1]["name"], "Sampler");
-    assert!(runtime["instruments"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .all(|instrument| {
-            !instrument["autoName"].as_bool().unwrap_or(false)
-                || instrument["name"] != "synth" && instrument["name"] != "sampler"
-        }));
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     assert_eq!(runner.fx_buses[0].name, "Delay+Duck");

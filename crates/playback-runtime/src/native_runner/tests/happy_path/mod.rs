@@ -18,7 +18,7 @@ pub(crate) fn behavior_selector_and_visible_params_are_usable() {
         if behavior_id != "none" {
             edit_visible_params(
                 &mut runner,
-                "layers.0.worlds.behaviorConfig",
+                "layers.0.build.behaviorConfig",
                 behavior_param_is_safe,
             );
             assert_snapshot(grid_press(&mut runner, 2, 3));
@@ -28,27 +28,27 @@ pub(crate) fn behavior_selector_and_visible_params_are_usable() {
 }
 
 #[test]
-pub(crate) fn pulses_scanning_params_and_scan_step_are_usable() {
+pub(crate) fn link_scanning_params_and_scan_step_are_usable() {
     let mut runner = runner();
 
-    edit_key_by_turns(&mut runner, "layers.0.pulses.scanMode", 1);
+    edit_key_by_turns(&mut runner, "layers.0.link.scanMode", 1);
     assert_eq!(
         runner
             .menu
-            .value_for_key("layers.0.pulses.scanMode")
+            .value_for_key("layers.0.link.scanMode")
             .as_deref(),
         Some("scanning")
     );
     assert!(runner
         .menu
-        .value_for_key("layers.0.pulses.scanAxis")
+        .value_for_key("layers.0.link.scanAxis")
         .is_some());
     assert!(runner
         .menu
-        .value_for_key("layers.0.pulses.mapping.scanned.slot")
+        .value_for_key("layers.0.link.mapping.scanned.slot")
         .is_some());
 
-    edit_visible_params(&mut runner, "layers.0.pulses", pulses_param_is_safe);
+    edit_visible_params(&mut runner, "layers.0.link", link_param_is_safe);
     assert_snapshot(grid_press(&mut runner, 1, 1));
     assert_snapshot(transport_step(&mut runner));
 }
@@ -173,33 +173,33 @@ pub(crate) fn fx_bus_and_global_slots_rematerialize_and_params_are_usable() {
 }
 
 #[test]
-pub(crate) fn sparks_pages_fx_mapping_and_momentary_use_are_usable() {
+pub(crate) fn play_pages_fx_mapping_and_momentary_use_are_usable() {
     let mut runner = runner();
 
     for (key, mode) in [
-        ("sparks.page.mix", "mix"),
-        ("sparks.page.pan", "pan"),
-        ("sparks.page.fx", "fx"),
-        ("sparks.page.xy", "xy"),
+        ("play.page.mix", "mix"),
+        ("play.page.pan", "pan"),
+        ("play.page.fx", "fx"),
+        ("play.page.xy", "xy"),
     ] {
         assert!(runner.menu.focus_item_key(key), "missing {key}");
         assert_snapshot(press_main(&mut runner));
-        assert_eq!(runner.active_sparks_mode, mode);
+        assert_eq!(runner.active_play_mode, mode);
     }
-    assert!(runner.menu.focus_item_key("sparks.page.fx"));
+    assert!(runner.menu.focus_item_key("play.page.fx"));
     let _ = press_main(&mut runner);
-    assert_eq!(runner.active_sparks_mode, "fx");
-    edit_key_to_value(&mut runner, "sparks.fx.type", "stutter", 1);
+    assert_eq!(runner.active_play_mode, "fx");
+    edit_key_to_value(&mut runner, "play.fx.type", "stutter", 1);
     assert!(runner
         .menu
-        .number_for_key("sparks.fx.params.rateHz")
+        .number_for_key("play.fx.params.rateHz")
         .is_some());
-    edit_key_by_turns(&mut runner, "sparks.fx.target", 1);
-    edit_visible_params(&mut runner, "sparks.fx.params", fx_param_is_safe);
+    edit_key_by_turns(&mut runner, "play.fx.target", 1);
+    edit_visible_params(&mut runner, "play.fx.params", fx_param_is_safe);
 
-    assert!(runner.menu.focus_item_key("sparks.fx.map"));
+    assert!(runner.menu.focus_item_key("play.fx.map"));
     let _ = press_main(&mut runner);
-    assert!(runner.sparks_fx_assign.is_some());
+    assert!(runner.play_fx_assign.is_some());
     assert_snapshot(grid_press(&mut runner, 2, 3));
     let start = grid_press(&mut runner, 2, 3);
     assert!(contains_momentary_start(&start));

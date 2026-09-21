@@ -83,7 +83,7 @@ fn encoder_delta(boundary_ms: u64) -> i32 {
     }
 }
 
-fn sparks_page(boundary_ms: u64) -> usize {
+fn play_page(boundary_ms: u64) -> usize {
     ((boundary_ms / 250) % 5) as usize
 }
 
@@ -159,19 +159,19 @@ pub(super) fn apply_scenario(
             }
             Ok(())
         }
-        TimingProbeScenario::SparksPageStress if now_ms == 0 => {
-            send_sparks_page_input(runtime, runner, host, 0)
+        TimingProbeScenario::PlayPageStress if now_ms == 0 => {
+            send_play_page_input(runtime, runner, host, 0)
         }
-        TimingProbeScenario::SparksPageStress => {
+        TimingProbeScenario::PlayPageStress => {
             for boundary_ms in crossed_boundaries(previous_ms, now_ms, 250, 0) {
-                send_sparks_page_input(runtime, runner, host, sparks_page(boundary_ms))?;
+                send_play_page_input(runtime, runner, host, play_page(boundary_ms))?;
             }
             Ok(())
         }
     }
 }
 
-fn send_sparks_page_input(
+fn send_play_page_input(
     runtime: &mut PlaybackRuntime,
     runner: &mut ProbeRunner,
     host: &mut ProbeHost,
@@ -251,7 +251,7 @@ mod tests {
     use super::super::timing_probe_report::intervals;
     use super::super::{ProbeHost, ProbeRunner, SendMetric};
     use super::{
-        apply_scenario, crossed_boundaries, encoder_delta, pulses_stress_actions, sparks_page,
+        apply_scenario, crossed_boundaries, encoder_delta, play_page, pulses_stress_actions,
         wake_endpoints,
     };
     use crate::{
@@ -288,7 +288,7 @@ mod tests {
         assert_eq!(
             crossed_boundaries(0, 1000, 250, 0)
                 .into_iter()
-                .map(sparks_page)
+                .map(play_page)
                 .collect::<Vec<_>>(),
             vec![1, 2, 3, 4]
         );
@@ -373,7 +373,7 @@ mod tests {
         assert_eq!(action_count(TimingProbeScenario::EncoderStress, 36, 42), 1);
         assert_eq!(action_count(TimingProbeScenario::MuteStress, 492, 504), 3);
         assert_eq!(
-            action_count(TimingProbeScenario::SparksPageStress, 242, 256),
+            action_count(TimingProbeScenario::PlayPageStress, 242, 256),
             3
         );
     }
@@ -387,7 +387,7 @@ mod tests {
             25
         );
         assert_eq!(
-            action_count(TimingProbeScenario::SparksPageStress, 0, 1000),
+            action_count(TimingProbeScenario::PlayPageStress, 0, 1000),
             12
         );
     }

@@ -5,14 +5,14 @@ pub(crate) fn link_arp_payload_round_trips_and_clamps() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
         .apply_config_payload(json!({
-            "runtimeConfig": { "layers": [{ "pulses": { "arp": {
+            "runtimeConfig": { "layers": [{ "link": { "arp": {
                 "mode": "strum", "source": "held", "stepIntervalSteps": 99,
                 "noteLengthMs": 9999, "gatePct": 0, "octaveSpread": 9
             } } }] }
         }))
         .unwrap();
 
-    let arp = &runner.pulses_layers[0].arp;
+    let arp = &runner.link_layers[0].arp;
     assert_eq!(arp.mode, "strum");
     assert_eq!(arp.source, "held");
     assert_eq!(arp.step_interval_steps, 16);
@@ -20,19 +20,19 @@ pub(crate) fn link_arp_payload_round_trips_and_clamps() {
     assert_eq!(arp.gate_pct, 1);
     assert_eq!(arp.octave_spread, 3);
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["pulses"]["arp"]["source"],
+        runner.config_payload()["runtimeConfig"]["layers"][0]["link"]["arp"]["source"],
         "held"
     );
 
     runner
         .apply_config_payload(json!({
-            "runtimeConfig": { "layers": [{ "pulses": { "arp": {
+            "runtimeConfig": { "layers": [{ "link": { "arp": {
                 "stepIntervalSteps": -9, "noteLengthMs": -9,
                 "gatePct": -9, "octaveSpread": -9
             } } }] }
         }))
         .unwrap();
-    let arp = &runner.pulses_layers[0].arp;
+    let arp = &runner.link_layers[0].arp;
     assert_eq!(arp.step_interval_steps, 1);
     assert_eq!(arp.note_length_ms, 10);
     assert_eq!(arp.gate_pct, 1);
@@ -42,12 +42,12 @@ pub(crate) fn link_arp_payload_round_trips_and_clamps() {
 #[test]
 pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.turn_key("layers.0.pulses.arp.source", 1);
-    runner.menu.turn_key("layers.0.pulses.arp.mode", 2);
-    assert!(runner.apply_menu_key_fast("layers.0.pulses.arp.source"));
-    assert!(runner.apply_menu_key_fast("layers.0.pulses.arp.mode"));
-    assert_eq!(runner.pulses_layers[0].arp.source, "held");
-    assert_eq!(runner.pulses_layers[0].arp.mode, "up");
+    runner.menu.turn_key("layers.0.link.arp.source", 1);
+    runner.menu.turn_key("layers.0.link.arp.mode", 2);
+    assert!(runner.apply_menu_key_fast("layers.0.link.arp.source"));
+    assert!(runner.apply_menu_key_fast("layers.0.link.arp.mode"));
+    assert_eq!(runner.link_layers[0].arp.source, "held");
+    assert_eq!(runner.link_layers[0].arp.mode, "up");
 
     runner.link_arp_held_notes[0].push(LinkArpHeldNote {
         audio: true,
@@ -55,22 +55,22 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
         note: 60,
         velocity: 96,
     });
-    runner.menu.turn_key("layers.0.pulses.arp.mode", -2);
-    assert!(runner.apply_menu_key_fast("layers.0.pulses.arp.mode"));
+    runner.menu.turn_key("layers.0.link.arp.mode", -2);
+    assert!(runner.apply_menu_key_fast("layers.0.link.arp.mode"));
     assert!(runner.link_arp_held_notes[0].is_empty());
-    runner.menu.turn_key("layers.0.pulses.arp.mode", 2);
+    runner.menu.turn_key("layers.0.link.arp.mode", 2);
 
-    runner.pulses_layers[0].arp = NativeLinkArp::default();
+    runner.link_layers[0].arp = NativeLinkArp::default();
     runner.apply_menu_state().unwrap();
-    assert_eq!(runner.pulses_layers[0].arp.source, "held");
-    assert_eq!(runner.pulses_layers[0].arp.mode, "up");
+    assert_eq!(runner.link_layers[0].arp.source, "held");
+    assert_eq!(runner.link_layers[0].arp.mode, "up");
 }
 
 #[test]
 pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "up".into();
-    runner.pulses_layers[0].arp.step_interval_steps = 1;
+    runner.link_layers[0].arp.mode = "up".into();
+    runner.link_layers[0].arp.step_interval_steps = 1;
     let intent = platform_core::CellTriggerIntent {
         x: 0,
         y: 0,
@@ -104,7 +104,7 @@ pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
 #[test]
 pub(crate) fn link_arp_passes_non_note_events_through() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "up".into();
+    runner.link_layers[0].arp.mode = "up".into();
     let immediate = runner.apply_link_timing(
         0,
         &[],
@@ -131,8 +131,8 @@ pub(crate) fn link_arp_passes_non_note_events_through() {
 #[test]
 pub(crate) fn link_arp_held_source_merges_non_note_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "direct".into();
-    runner.pulses_layers[0].arp.source = "held".into();
+    runner.link_layers[0].arp.mode = "direct".into();
+    runner.link_layers[0].arp.source = "held".into();
     runner.apply_link_timing(
         0,
         &[],
@@ -168,9 +168,9 @@ pub(crate) fn link_arp_held_source_merges_non_note_events() {
 #[test]
 pub(crate) fn link_arp_octave_spread_expands_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "octave_spread".into();
-    runner.pulses_layers[0].arp.octave_spread = 1;
-    runner.pulses_layers[0].arp.step_interval_steps = 1;
+    runner.link_layers[0].arp.mode = "octave_spread".into();
+    runner.link_layers[0].arp.octave_spread = 1;
+    runner.link_layers[0].arp.step_interval_steps = 1;
     let immediate = runner.apply_link_timing(
         0,
         &[],
@@ -191,8 +191,8 @@ pub(crate) fn link_arp_octave_spread_expands_notes() {
 #[test]
 pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].activate_timing.delay_steps = 1;
-    runner.pulses_layers[0].activate_timing.retrigger_count = 1;
+    runner.link_layers[0].activate_timing.delay_steps = 1;
+    runner.link_layers[0].activate_timing.retrigger_count = 1;
     let intent = platform_core::CellTriggerIntent {
         x: 0,
         y: 0,
@@ -215,7 +215,7 @@ pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
 #[test]
 pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_not_collapse() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "direct".into();
+    runner.link_layers[0].arp.mode = "direct".into();
     let routed = RoutedMusicalEvents {
         audio: vec![note_on(67), note_on(60), note_on(64)],
         midi: vec![],
@@ -226,8 +226,8 @@ pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_n
         vec![(0, 67), (0, 60), (0, 64)]
     );
 
-    runner.pulses_layers[0].arp.mode = "up".into();
-    runner.pulses_layers[0].arp.step_interval_steps = 16;
+    runner.link_layers[0].arp.mode = "up".into();
+    runner.link_layers[0].arp.step_interval_steps = 16;
     let routed = RoutedMusicalEvents {
         audio: (0..20).map(|index| note_on(40 + index)).collect(),
         midi: vec![],
@@ -241,9 +241,9 @@ pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_n
 #[test]
 pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "up".into();
-    runner.pulses_layers[0].arp.source = "held".into();
-    runner.pulses_layers[0].arp.step_interval_steps = 1;
+    runner.link_layers[0].arp.mode = "up".into();
+    runner.link_layers[0].arp.source = "held".into();
+    runner.link_layers[0].arp.step_interval_steps = 1;
 
     let first = runner.apply_link_timing(
         0,
@@ -282,8 +282,8 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
 #[test]
 pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "up".into();
-    runner.pulses_layers[0].arp.source = "held".into();
+    runner.link_layers[0].arp.mode = "up".into();
+    runner.link_layers[0].arp.source = "held".into();
 
     let finite = runner.apply_link_timing(
         0,
@@ -314,9 +314,9 @@ pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
 #[test]
 pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "direct".into();
-    runner.pulses_layers[0].arp.source = "held".into();
-    runner.pulses_layers[0].activate_timing.retrigger_count = 1;
+    runner.link_layers[0].arp.mode = "direct".into();
+    runner.link_layers[0].arp.source = "held".into();
+    runner.link_layers[0].activate_timing.retrigger_count = 1;
     let intent = platform_core::CellTriggerIntent {
         x: 0,
         y: 0,
@@ -347,7 +347,7 @@ pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
 #[test]
 pub(crate) fn link_arp_rotating_and_random_vary() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].arp.mode = "rotating".into();
+    runner.link_layers[0].arp.mode = "rotating".into();
     let routed = || RoutedMusicalEvents {
         audio: vec![note_on(60), note_on(64), note_on(67)],
         midi: vec![],
@@ -359,7 +359,7 @@ pub(crate) fn link_arp_rotating_and_random_vary() {
         musical_note_ons_from_events(&second.audio)
     );
 
-    runner.pulses_layers[0].arp.mode = "random".into();
+    runner.link_layers[0].arp.mode = "random".into();
     let first = runner.apply_link_timing(0, &[], routed());
     let second = runner.apply_link_timing(0, &[], routed());
     assert_ne!(

@@ -20,6 +20,8 @@ mod orchestration;
 #[path = "config_schema_validation_scalar.rs"]
 mod scalar;
 
+pub(super) use modulation::validate_canonical_lfo_bank_shape;
+
 pub(super) fn validate_config_payload(payload: &Value) -> Result<(), String> {
     let object = payload
         .as_object()

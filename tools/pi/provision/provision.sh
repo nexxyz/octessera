@@ -241,13 +241,9 @@ while IFS= read -r line || [ -n "$line" ]; do
 done < "$PROVISION_ROOT/boot/config.txt.append"
 
 sudo rm -f \
-    "$(target_path /etc/initramfs-tools/hooks/cellsymphony-boot-splash)" \
-    "$(target_path /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash)" \
     "$(target_path /etc/initramfs-tools/hooks/octessera-boot-splash)" \
     "$(target_path /etc/initramfs-tools/scripts/init-premount/octessera-boot-splash)" \
-    "$(target_path /etc/systemd/system/cellsymphony-boot-splash.service)" \
-    "$(target_path /etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service)" \
-    "$(target_path /etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service)"
+    "$(target_path /etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service)"
 
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-gadget" /usr/local/sbin/octessera-usb-gadget
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-role" /usr/local/sbin/octessera-usb-role
@@ -407,9 +403,6 @@ if ! command -v pinctrl >/dev/null 2>&1 || \
 fi
 sudo systemctl enable octessera-usb-gadget.service >/dev/null
 sudo systemctl enable --now octessera-update-recovery.service >/dev/null
-if [ -e "$(target_path /opt/octessera/current)" ] || [ -L "$(target_path /opt/octessera/current)" ]; then
-    sudo "$(target_path /usr/local/sbin/octessera-update)" bootstrap >/dev/null
-fi
 sudo systemctl enable --now octessera-network-health.timer >/dev/null
 sudo systemctl enable octessera-oled-shutdown.service >/dev/null
 sudo systemctl start octessera-oled-shutdown.service

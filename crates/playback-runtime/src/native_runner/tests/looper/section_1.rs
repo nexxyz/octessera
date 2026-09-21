@@ -3,19 +3,19 @@ use super::*;
 #[test]
 pub(crate) fn looper_menu_exposes_punch_length_and_clear() {
     let runner = looper_runner();
-    let worlds_items = &runner.menu.root.children[0].children[0].children;
-    assert!(worlds_items.iter().any(|item| item.key.as_deref()
-        == Some("layers.0.worlds.behaviorConfig.toggleMode")
+    let build_items = &runner.menu.root.children[0].children[0].children;
+    assert!(build_items.iter().any(|item| item.key.as_deref()
+        == Some("layers.0.build.behaviorConfig.toggleMode")
         && item.label == "Punch In/Out"));
-    assert!(!worlds_items
+    assert!(!build_items
         .iter()
-        .any(|item| item.key.as_deref() == Some("layers.0.worlds.behaviorConfig.mode")));
-    assert!(worlds_items
+        .any(|item| item.key.as_deref() == Some("layers.0.build.behaviorConfig.mode")));
+    assert!(build_items
         .iter()
-        .any(|item| item.key.as_deref() == Some("layers.0.worlds.behaviorConfig.lengthSteps")));
-    assert!(worlds_items
+        .any(|item| item.key.as_deref() == Some("layers.0.build.behaviorConfig.lengthSteps")));
+    assert!(build_items
         .iter()
-        .any(|item| item.key.as_deref() == Some("layers.0.worlds.behaviorConfig.clearLoop")));
+        .any(|item| item.key.as_deref() == Some("layers.0.build.behaviorConfig.clearLoop")));
 }
 
 #[test]
@@ -29,7 +29,7 @@ pub(crate) fn looper_defaults_to_overdub_in_menu_and_state() {
     assert!(!runner.menu.root.children[0].children[0]
         .children
         .iter()
-        .any(|item| item.key.as_deref() == Some("layers.0.worlds.behaviorConfig.mode")));
+        .any(|item| item.key.as_deref() == Some("layers.0.build.behaviorConfig.mode")));
 }
 
 #[test]
@@ -120,23 +120,17 @@ pub(crate) fn looper_saved_state_persists_sequence_only_when_grid_state_is_saved
         .unwrap();
 
     let payload = runner.config_payload();
-    let worlds = &payload["runtimeConfig"]["layers"][0]["worlds"];
-    assert_eq!(worlds["behaviorId"], "looper");
-    assert_eq!(worlds["behaviorConfig"]["lengthSteps"], 2);
-    assert_eq!(worlds["savedState"]["steps"].as_array().unwrap().len(), 2);
-    assert_eq!(
-        worlds["savedState"]["steps"][0].as_array().unwrap().len(),
-        1
-    );
-    assert_eq!(
-        worlds["savedState"]["steps"][1].as_array().unwrap().len(),
-        1
-    );
+    let build = &payload["runtimeConfig"]["layers"][0]["build"];
+    assert_eq!(build["behaviorId"], "looper");
+    assert_eq!(build["behaviorConfig"]["lengthSteps"], 2);
+    assert_eq!(build["savedState"]["steps"].as_array().unwrap().len(), 2);
+    assert_eq!(build["savedState"]["steps"][0].as_array().unwrap().len(), 1);
+    assert_eq!(build["savedState"]["steps"][1].as_array().unwrap().len(), 1);
 
     runner.save_grid_states[0] = false;
     let payload = runner.config_payload();
-    let worlds = &payload["runtimeConfig"]["layers"][0]["worlds"];
-    assert!(worlds.get("savedState").is_none());
+    let build = &payload["runtimeConfig"]["layers"][0]["build"];
+    assert!(build.get("savedState").is_none());
 }
 
 #[test]
@@ -195,7 +189,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     let (mode, step_index) = looper_mode_and_step(&runner);
     assert_eq!(runner.behavior_config["mode"], "play");
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfig"]["mode"],
+        runner.config_payload()["runtimeConfig"]["layers"][0]["build"]["behaviorConfig"]["mode"],
         "play"
     );
     assert!(runner.config_dirty);

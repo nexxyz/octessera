@@ -136,11 +136,11 @@ pub(crate) fn configured_scanning_sequencer_runner() -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/16".into();
-    runner.pulses_layers[0].scanned_slot = 0;
-    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/16".into();
+    runner.link_layers[0].scanned_slot = 0;
+    runner.link_layers[0].scanned_action = "note_on".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -183,12 +183,12 @@ pub(crate) fn scanning_sequencer_emits_scanned_notes_with_state_notes_disabled()
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/16".into();
-    runner.pulses_layers[0].state_notes_enabled = false;
-    runner.pulses_layers[0].scanned_slot = 0;
-    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/16".into();
+    runner.link_layers[0].state_notes_enabled = false;
+    runner.link_layers[0].scanned_slot = 0;
+    runner.link_layers[0].scanned_action = "note_on".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -286,7 +286,7 @@ pub(crate) fn fn_encoder_single_step_matures_delayed_link_queue() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Paused;
     runner.input_events_while_paused = true;
-    runner.pulses_layers[0].activate_timing.delay_steps = 1;
+    runner.link_layers[0].activate_timing.delay_steps = 1;
     let queued = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),

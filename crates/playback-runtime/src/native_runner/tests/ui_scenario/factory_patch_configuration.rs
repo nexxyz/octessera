@@ -34,7 +34,7 @@ fn paint_layer_two_pattern(device: &mut DeviceDriver) {
     }
 }
 
-pub(super) fn configure_worlds_and_paint_from_visible_ui(device: &mut DeviceDriver) {
+pub(super) fn configure_build_and_paint_from_visible_ui(device: &mut DeviceDriver) {
     {
         let mut menu = VisibleMenuDriver::new(device);
         menu.open_group("Build");
@@ -69,7 +69,7 @@ pub(super) fn configure_worlds_and_paint_from_visible_ui(device: &mut DeviceDriv
     }
 }
 
-pub(super) fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
+pub(super) fn configure_link_from_visible_ui(device: &mut DeviceDriver) {
     let mut menu = VisibleMenuDriver::new(device);
     menu.open_group("Link");
     menu.expect_visible_value("BPM", "120");
@@ -123,7 +123,7 @@ pub(super) fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
     menu.back_to_root();
 }
 
-pub(super) fn configure_tones_from_visible_ui(device: &mut DeviceDriver) {
+pub(super) fn configure_shape_from_visible_ui(device: &mut DeviceDriver) {
     let before_audio_slots = device.output().set_instrument_slot_count;
     {
         let mut menu = VisibleMenuDriver::new(device);
@@ -189,7 +189,7 @@ pub(super) fn configure_tones_from_visible_ui(device: &mut DeviceDriver) {
     }
 }
 
-pub(super) fn configure_aux_xy_and_sparks_fx_from_visible_ui(device: &mut DeviceDriver) {
+pub(super) fn configure_aux_xy_and_play_fx_from_visible_ui(device: &mut DeviceDriver) {
     {
         let mut menu = VisibleMenuDriver::new(device);
         menu.open_group("Link");
@@ -212,15 +212,15 @@ pub(super) fn configure_aux_xy_and_sparks_fx_from_visible_ui(device: &mut Device
         menu.open_group("Play");
         menu.open_group("FX");
     }
-    map_sparks_fx_cell(device, 1, 0, 0);
-    map_sparks_fx_cell(device, 1, 1, 0);
-    map_sparks_fx_cell(device, 2, 2, 0);
+    map_play_fx_cell(device, 1, 0, 0);
+    map_play_fx_cell(device, 1, 1, 0);
+    map_play_fx_cell(device, 2, 2, 0);
     {
         let mut menu = VisibleMenuDriver::new(device);
         menu.open_group_unless_visible("FX >", "Map to Grid");
         menu.edit_number_by("Semitones", 7);
     }
-    map_sparks_fx_cell(device, 0, 3, 0);
+    map_play_fx_cell(device, 0, 3, 0);
     let mut menu = VisibleMenuDriver::new(device);
     menu.back_to_root();
 }
@@ -243,7 +243,7 @@ fn select_synth_filter_target(menu: &mut VisibleMenuDriver<'_>, target: &str) {
     menu.activate_action(target);
 }
 
-fn map_sparks_fx_cell(device: &mut DeviceDriver, type_delta: i32, x: usize, y: usize) {
+fn map_play_fx_cell(device: &mut DeviceDriver, type_delta: i32, x: usize, y: usize) {
     {
         let mut menu = VisibleMenuDriver::new(device);
         menu.open_group_unless_visible("FX >", "Map to Grid");

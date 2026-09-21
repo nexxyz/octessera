@@ -191,7 +191,7 @@ fn is_musical_aux_turn_key(key: &str) -> bool {
         || key.starts_with("linkLfos.")
         || key.starts_with("mixer.")
         || key.starts_with("transport.")
-        || key.starts_with("sparks.")
+        || key.starts_with("play.")
 }
 
 fn is_musical_aux_press_action(value: &Value) -> bool {
@@ -214,7 +214,7 @@ fn is_musical_aux_press_action(value: &Value) -> bool {
 }
 
 fn is_musical_platform_effect_action(action: &str) -> bool {
-    action == "sparks.fx.map"
+    action == "play.fx.map"
         || action.starts_with("sample.assign:")
         || action.starts_with("trigger.probability.assign:")
         || action.starts_with("synth.preset:")

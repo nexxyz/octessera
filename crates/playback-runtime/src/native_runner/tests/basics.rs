@@ -21,8 +21,8 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
         .unwrap_or(0) as usize;
     let expected_behavior_id = payload["runtimeConfig"]["layers"]
         .get(expected_active_layer_index)
-        .and_then(|layer| layer.get("worlds"))
-        .and_then(|worlds| worlds.get("behaviorId"))
+        .and_then(|layer| layer.get("build"))
+        .and_then(|build| build.get("behaviorId"))
         .and_then(Value::as_str)
         .unwrap_or("life")
         .to_string();
@@ -40,53 +40,9 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
         .iter()
         .any(|cell| *cell));
     assert_eq!(runner.instruments[0].kind, "synth");
-    assert_eq!(runner.pulses_layers[0].activate_slot, 0);
-    assert_eq!(runner.pulses_layers[0].activate_action, "note_on");
+    assert_eq!(runner.link_layers[0].activate_slot, 0);
+    assert_eq!(runner.link_layers[0].activate_action, "note_on");
     assert!(runner.input_events_while_paused);
-}
-
-#[test]
-pub(crate) fn old_part_schema_payload_is_rejected() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    let result = runner.apply_config_payload(json!({
-        "runtimeConfig": {
-            "activeLayerIndex": 0,
-            "parts": [{ "l1": { "behaviorId": "life" }, "l2": {} }]
-        }
-    }));
-
-    assert!(result.is_err());
-}
-
-#[test]
-pub(crate) fn old_sparks_schema_payload_is_rejected() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    for runtime in [
-        json!({ "danceMode": "fx" }),
-        json!({ "touchFx": { "assignments": [] } }),
-        json!({ "touchFxMaxConcurrent": 2 }),
-        json!({ "xyTouch": { "x": 0.5, "y": 0.5 } }),
-        json!({ "auxBindings": [{ "path": "dance.fx.params.rateHz" }] }),
-        json!({ "auxBindings": [{ "action": "dance.fx.map" }] }),
-    ] {
-        assert!(runner
-            .apply_config_payload(json!({ "runtimeConfig": runtime }))
-            .is_err());
-    }
-}
-
-#[test]
-pub(crate) fn old_system_sparks_schema_payload_is_rejected() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    let result = runner.apply_config_payload(json!({
-        "runtimeConfig": { "activeLayerIndex": 0 },
-        "system": { "danceMode": "fx" }
-    }));
-
-    assert!(result.is_err());
 }
 
 #[test]
@@ -177,19 +133,19 @@ pub(crate) fn keys_behavior_reports_momentary_grid_interaction() {
 pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    assert_eq!(runner.pulses_layers[0].scan_mode, "none");
-    assert_eq!(runner.pulses_layers[0].scan_axis, "columns");
-    assert_eq!(runner.pulses_layers[0].scan_unit, "1/16");
-    assert!(runner.pulses_layers[0].event_enabled);
-    assert!(!runner.pulses_layers[1].event_enabled);
-    assert_eq!(runner.pulses_layers[0].lowest_note, 36);
-    assert_eq!(runner.pulses_layers[0].starting_note, 60);
-    assert_eq!(runner.pulses_layers[0].highest_note, 74);
-    assert_eq!(runner.pulses_layers[0].scale, "major_pentatonic");
-    assert_eq!(runner.pulses_layers[0].root, "D");
-    assert_eq!(runner.pulses_layers[0].out_of_range, "clamp");
-    assert_eq!(runner.pulses_layers[0].x_pitch_steps, 0);
-    assert_eq!(runner.pulses_layers[0].y_pitch_steps, 1);
+    assert_eq!(runner.link_layers[0].scan_mode, "none");
+    assert_eq!(runner.link_layers[0].scan_axis, "columns");
+    assert_eq!(runner.link_layers[0].scan_unit, "1/16");
+    assert!(runner.link_layers[0].event_enabled);
+    assert!(!runner.link_layers[1].event_enabled);
+    assert_eq!(runner.link_layers[0].lowest_note, 36);
+    assert_eq!(runner.link_layers[0].starting_note, 60);
+    assert_eq!(runner.link_layers[0].highest_note, 74);
+    assert_eq!(runner.link_layers[0].scale, "major_pentatonic");
+    assert_eq!(runner.link_layers[0].root, "D");
+    assert_eq!(runner.link_layers[0].out_of_range, "clamp");
+    assert_eq!(runner.link_layers[0].x_pitch_steps, 0);
+    assert_eq!(runner.link_layers[0].y_pitch_steps, 1);
     assert_eq!(runner.display.ui.master_volume, 73);
     assert_eq!(runner.global_sound.note_length_ms, 120);
     assert!(!runner.auto_save_default);

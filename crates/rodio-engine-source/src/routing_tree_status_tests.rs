@@ -441,7 +441,7 @@ fn routing_status_config() -> realtime_engine::synth::PreparedAudioConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                    route: "bus_1".into(),
+                    route: "fx_bus_1".into(),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),

@@ -76,7 +76,7 @@ def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
     _write(release / "octessera-pi", old, 0o555 if board == ORANGE else 0o755)
     if board == RPI:
         _write(release / "update-manifest.json", json.dumps(_manifest(board, prior), sort_keys=True, indent=2) + "\n", 0o644)
-        state = {"schema_version": 2, "phase": "committed", "current": prior, "previous": None, "next": None, "updated_at": "1970-01-01T00:00:00Z", "release": _manifest(board, prior), "asset": None}
+        state = {"schema_version": 2, "phase": "committed", "current": prior, "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": _manifest(board, prior), "asset": None}
         _write(root / "opt/octessera/update-state.json", json.dumps(state, sort_keys=True, indent=2) + "\n", 0o644)
     else:
         state = {"schema_version": 2, "phase": "committed", "current": prior, "previous": None, "updated_at": "1970-01-01T00:00:00Z", "release": _manifest(board, prior), "asset": None}
@@ -208,7 +208,7 @@ class RuntimeMutationTests(unittest.TestCase):
             self.assertEqual((root / "opt/octessera/releases/2.0.0/octessera-pi").read_bytes(), b"new-runtime")
             self.assertNotIn(".image-respin", "\n".join(result.changed_paths))
 
-    def test_missing_malformed_or_extra_next_orange_parent_state_is_rejected_without_mutation(self) -> None:
+    def test_missing_malformed_or_extra_committed_state_is_rejected_without_mutation(self) -> None:
         for mutation in ("missing", "malformed", "extra-next"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
                 work = Path(temporary)

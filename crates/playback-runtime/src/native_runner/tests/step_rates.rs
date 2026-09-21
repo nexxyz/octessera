@@ -9,7 +9,7 @@ pub(crate) fn saved_step_rate_rehydrates_from_default_payload() {
     loaded.apply_config_payload(payload).unwrap();
     assert_eq!(loaded.transport.algorithm_step_pulses, 6);
     assert_eq!(
-        loaded.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
+        loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]["stepRate"],
         "1/16"
     );
 }
@@ -24,7 +24,7 @@ pub(crate) fn triplet_step_rate_round_trips_from_default_payload() {
 
     assert_eq!(loaded.transport.algorithm_step_pulses, 4);
     assert_eq!(
-        loaded.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
+        loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]["stepRate"],
         "1/16T"
     );
 }
@@ -40,10 +40,10 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
     runner.transport.layer_algorithm_step_pulses[0] = 6;
     runner.transport.layer_algorithm_step_pulses[1] = 24;
     runner.transport.algorithm_step_pulses = 6;
-    runner.pulses_layers[0].scan_mode = "none".into();
-    runner.pulses_layers[1].scan_mode = "none".into();
-    runner.pulses_layers[0].stable_action = "note_on".into();
-    runner.pulses_layers[1].stable_action = "note_on".into();
+    runner.link_layers[0].scan_mode = "none".into();
+    runner.link_layers[1].scan_mode = "none".into();
+    runner.link_layers[0].stable_action = "note_on".into();
+    runner.link_layers[1].stable_action = "note_on".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -66,11 +66,11 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
 
     let payload = runner.config_payload();
     assert_eq!(
-        payload["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
+        payload["runtimeConfig"]["layers"][0]["build"]["stepRate"],
         "1/16"
     );
     assert_eq!(
-        payload["runtimeConfig"]["layers"][1]["worlds"]["stepRate"],
+        payload["runtimeConfig"]["layers"][1]["build"]["stepRate"],
         "1/4"
     );
 
@@ -104,16 +104,16 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
 }
 
 #[test]
-pub(crate) fn pulses_pitch_mapping_uses_lowest_starting_highest_and_both_axis_steps() {
+pub(crate) fn link_pitch_mapping_uses_lowest_starting_highest_and_both_axis_steps() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].lowest_note = 60;
-    runner.pulses_layers[0].starting_note = 64;
-    runner.pulses_layers[0].highest_note = 72;
-    runner.pulses_layers[0].scale = "major_pentatonic".into();
-    runner.pulses_layers[0].x_pitch_enabled = true;
-    runner.pulses_layers[0].x_pitch_steps = 2;
-    runner.pulses_layers[0].y_pitch_enabled = true;
-    runner.pulses_layers[0].y_pitch_steps = 5;
+    runner.link_layers[0].lowest_note = 60;
+    runner.link_layers[0].starting_note = 64;
+    runner.link_layers[0].highest_note = 72;
+    runner.link_layers[0].scale = "major_pentatonic".into();
+    runner.link_layers[0].x_pitch_enabled = true;
+    runner.link_layers[0].x_pitch_steps = 2;
+    runner.link_layers[0].y_pitch_enabled = true;
+    runner.link_layers[0].y_pitch_steps = 5;
 
     let mapping = runner.mapping_config_for_layer(0);
     assert_eq!(mapping.base_midi_note, 60);
@@ -139,8 +139,8 @@ pub(crate) fn layer_mapping_derives_from_stable_base_config_and_layer_slot_defau
     runner.base_mapping_config.starting_midi_note = 43;
     runner.base_mapping_config.max_midi_note = 88;
     runner.base_mapping_config.activate.channel = 9;
-    runner.pulses_layers[1].x_pitch_enabled = false;
-    runner.pulses_layers[1].y_pitch_enabled = false;
+    runner.link_layers[1].x_pitch_enabled = false;
+    runner.link_layers[1].y_pitch_enabled = false;
 
     let layer_two_mapping = runner.mapping_config_for_layer(1);
 

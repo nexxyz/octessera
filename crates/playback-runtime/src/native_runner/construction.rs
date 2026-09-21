@@ -94,12 +94,12 @@ impl NativeRunner {
             midi_clock_out_enabled: seed.midi_clock_out_enabled,
             midi_clock_in_enabled: seed.midi_clock_in_enabled,
             midi_respond_to_start_stop: seed.midi_respond_to_start_stop,
-            sparks_mode: seed.sparks_mode,
-            active_sparks_mode: "none".into(),
-            sparks_fx_selected: seed.sparks_fx_selected,
-            sparks_fx_assign: None,
-            sparks_fx_assignments: vec![],
-            active_sparks_fx: Vec::new(),
+            play_mode: seed.play_mode,
+            active_play_mode: "none".into(),
+            play_fx_selected: seed.play_fx_selected,
+            play_fx_assign: None,
+            play_fx_assignments: vec![],
+            active_play_fx: Vec::new(),
             xy_touch: NativeXyTouch {
                 x: 0.5,
                 y: 0.5,
@@ -119,10 +119,10 @@ impl NativeRunner {
             param_mods: seed.param_mods,
             trigger_gate_modes: vec!["full".into(); LAYER_COUNT],
             trigger_gate_restore_modes: vec![None; LAYER_COUNT],
-            sparks_transpose_selected: vec![true; LAYER_COUNT],
-            sparks_transpose_enabled: vec![true; LAYER_COUNT],
-            sparks_transpose_offsets: vec![0; LAYER_COUNT],
-            sparks_transpose_active_notes: vec![BTreeMap::new(); LAYER_COUNT],
+            play_transpose_selected: vec![true; LAYER_COUNT],
+            play_transpose_enabled: vec![true; LAYER_COUNT],
+            play_transpose_offsets: vec![0; LAYER_COUNT],
+            play_transpose_active_notes: vec![BTreeMap::new(); LAYER_COUNT],
             pending_transpose_note_offs: RoutedMusicalEvents::default(),
             trigger_probability_assign: None,
             trigger_probability_maps: vec![
@@ -135,7 +135,7 @@ impl NativeRunner {
             save_grid_states: seed.save_grid_states,
             link_lfos: seed.link_lfos,
             modulation_process: ModulationProcessState::default(),
-            pulses_layers: seed.pulses_layers,
+            link_layers: seed.link_layers,
             aux_bindings: seed.aux_bindings,
             shift_aux_bindings: seed.shift_aux_bindings,
             active_layer_index: seed.active_layer_index,
@@ -172,7 +172,7 @@ impl NativeRunner {
             #[cfg(test)]
             engine_runtime_sync_calls: 0,
             #[cfg(test)]
-            active_pulses_refresh_calls: 0,
+            active_link_refresh_calls: 0,
             #[cfg(any(test, feature = "test-support"))]
             test_snapshot_failure: Cell::new(false),
         };

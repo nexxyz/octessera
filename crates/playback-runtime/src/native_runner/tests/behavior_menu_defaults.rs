@@ -9,7 +9,7 @@ pub(crate) fn fresh_lightning_active_config_menu_uses_native_defaults() {
     })
     .unwrap();
 
-    assert_lightning_defaults(&runner.menu_config().worlds_items, 0);
+    assert_lightning_defaults(&runner.menu_config().build_items, 0);
 }
 
 #[test]
@@ -25,7 +25,7 @@ pub(crate) fn fresh_lightning_target_config_menu_uses_native_defaults() {
 }
 
 fn assert_lightning_defaults(items: &[crate::native_menu::NativeMenuItem], layer_index: usize) {
-    let prefix = format!("layers.{layer_index}.worlds.behaviorConfig");
+    let prefix = format!("layers.{layer_index}.build.behaviorConfig");
     assert_eq!(
         number_for_key(items, &format!("{prefix}.branchChancePct")),
         Some(25)
@@ -53,7 +53,7 @@ pub(crate) fn invalid_step_rate_pulses_use_the_canonical_menu_default() {
     let config = runner.menu_config();
 
     assert_eq!(
-        enum_selected_for_key(&config.worlds_items, "algorithmStep"),
+        enum_selected_for_key(&config.build_items, "algorithmStep"),
         Some(crate::timing_units::DEFAULT_NOTE_UNIT.into())
     );
     assert_eq!(

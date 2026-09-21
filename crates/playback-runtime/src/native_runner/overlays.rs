@@ -6,14 +6,14 @@ use super::{
 };
 
 impl NativeRunner {
-    pub(super) fn apply_sparks_overlay(&self, leds: &mut [LedColor]) {
-        match self.active_sparks_mode.as_str() {
-            "mix" => self.apply_sparks_mix_overlay(leds),
-            "pan" => self.apply_sparks_pan_overlay(leds),
-            "fx" => self.apply_sparks_fx_overlay(leds),
-            "trigger-gate" => self.apply_sparks_trigger_gate_overlay(leds),
-            "transpose" => self.apply_sparks_transpose_overlay(leds),
-            "xy" => self.apply_sparks_xy_overlay(leds),
+    pub(super) fn apply_play_overlay(&self, leds: &mut [LedColor]) {
+        match self.active_play_mode.as_str() {
+            "mix" => self.apply_play_mix_overlay(leds),
+            "pan" => self.apply_play_pan_overlay(leds),
+            "fx" => self.apply_play_fx_overlay(leds),
+            "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),
+            "transpose" => self.apply_play_transpose_overlay(leds),
+            "xy" => self.apply_play_xy_overlay(leds),
             _ => {}
         }
     }
@@ -75,7 +75,7 @@ impl NativeRunner {
         };
         if let Some(field) = highlighted.key.strip_prefix("behavior.") {
             highlighted.key = format!(
-                "layers.{}.worlds.behaviorConfig.{field}",
+                "layers.{}.build.behaviorConfig.{field}",
                 self.active_layer_index
             );
         }
@@ -137,7 +137,7 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_scan_progress_overlay(&self, leds: &mut [LedColor]) {
-        let Some(sense) = self.pulses_layers.get(self.active_layer_index) else {
+        let Some(sense) = self.link_layers.get(self.active_layer_index) else {
             return;
         };
         if sense.scan_mode != "scanning" {
@@ -227,7 +227,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn sparks_pan_target(&self, instrument: &NativeInstrumentSlot) -> (u8, LedColor) {
+    pub(super) fn play_pan_target(&self, instrument: &NativeInstrumentSlot) -> (u8, LedColor) {
         if let Some(bus_index) = instrument
             .route
             .strip_prefix("fx_bus_")

@@ -374,10 +374,7 @@ pub(super) fn parse_route(route: &str) -> usize {
     if route == "direct" {
         return 0;
     }
-    if let Some(rest) = route
-        .strip_prefix("fx_bus_")
-        .or_else(|| route.strip_prefix("bus_"))
-    {
+    if let Some(rest) = route.strip_prefix("fx_bus_") {
         if let Ok(n) = rest.parse::<usize>() {
             if n >= 1 {
                 return n;
@@ -447,4 +444,14 @@ pub(super) fn pan_gains_float(pos: f32) -> (f32, f32) {
 
 pub(super) fn midi_note_to_hz(note: u8) -> f32 {
     440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_route;
+
+    #[test]
+    fn obsolete_bus_route_falls_back_to_direct() {
+        assert_eq!(parse_route("bus_1"), 0);
+    }
 }

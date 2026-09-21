@@ -76,18 +76,19 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
 
     service.acknowledge_restored_state();
     std::fs::create_dir_all(store.join("patches")).unwrap();
+    let fresh_payload = crate::user_data_archive::canonical_defaults();
     service
         .enqueue(PlatformJob::new(
             RuntimePlatformRequest::new(
                 playback_runtime::RuntimePlatformEffect::StoreSaveDefault {
-                    payload: serde_json::json!({"fresh": true}),
+                    payload: fresh_payload.clone(),
                     mode: None,
                 },
                 "fresh-default".into(),
                 None,
             ),
             PlatformJobKind::SaveDefault {
-                payload: serde_json::json!({"fresh": true}),
+                payload: fresh_payload.clone(),
                 is_auto: None,
             },
         ))
@@ -96,7 +97,7 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(
         load_json(&store.join("default.json")).unwrap(),
-        Some(serde_json::json!({"fresh": true}))
+        Some(fresh_payload)
     );
     let _ = std::fs::remove_dir_all(root);
 }

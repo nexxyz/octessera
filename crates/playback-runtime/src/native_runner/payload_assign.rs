@@ -1,4 +1,4 @@
-use super::{parse_slot_index, NativeValueLane, Value, INSTRUMENT_COUNT};
+use super::{NativeValueLane, Value, INSTRUMENT_COUNT};
 
 pub(super) fn assign_string(payload: &Value, key: &str, target: &mut String) {
     if let Some(value) = payload.get(key).and_then(Value::as_str) {
@@ -35,11 +35,7 @@ pub(super) fn assign_mapping(payload: &Value, key: &str, slot: &mut usize, actio
     if let Some(value) = mapping.get("slot") {
         if value.as_str() == Some("none") {
             *slot = usize::MAX;
-        } else if let Some(parsed) = value
-            .as_str()
-            .and_then(parse_slot_index)
-            .or_else(|| value.as_u64().and_then(|value| usize::try_from(value).ok()))
-        {
+        } else if let Some(parsed) = value.as_u64().and_then(|value| usize::try_from(value).ok()) {
             *slot = parsed.min(INSTRUMENT_COUNT - 1);
         }
     }

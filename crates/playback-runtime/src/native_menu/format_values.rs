@@ -20,7 +20,7 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
             _ => raw,
         };
     }
-    if key == "sparks.xy.smoothingMs" {
+    if key == "play.xy.smoothingMs" {
         return if raw == "0" {
             "Off".into()
         } else {

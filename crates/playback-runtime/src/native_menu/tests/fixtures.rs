@@ -6,7 +6,7 @@ pub(crate) fn config() -> NativeMenuConfig {
     NativeMenuConfig {
         behavior_id: "life".into(),
         behavior_ids: vec!["life".into(), "brain".into(), "none".into()],
-        worlds_items: vec![
+        build_items: vec![
             NativeMenuItem {
                 label: "Behavior".into(),
                 key: Some("behaviorId".into()),
@@ -68,7 +68,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                 children: vec![],
             },
         ],
-        worlds_items_by_layer: vec![],
+        build_items_by_layer: vec![],
         behavior_target_items: behavior_target_items(),
         dsp_config: DspRuntimeConfig::default(),
         layer_labels: (0..LAYER_COUNT)
@@ -76,7 +76,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             .collect(),
         layer_names: vec!["life".into(); LAYER_COUNT],
         layer_auto_names: vec![true; LAYER_COUNT],
-        pulses_layers: vec![default_pulses_layer_config(); LAYER_COUNT],
+        link_layers: vec![default_link_layer_config(); LAYER_COUNT],
         active_layer_index: 0,
         link_lfos: std::array::from_fn(|_| NativeLinkLfoConfig {
             enabled: false,
@@ -166,10 +166,10 @@ pub(crate) fn config() -> NativeMenuConfig {
         preset_rename_source: None,
         midi_outputs: vec![],
         midi_inputs: vec![],
-        sparks_mode: "mix".into(),
-        sparks_fx_type: "none".into(),
-        sparks_fx_target: "master".into(),
-        sparks_fx_params: serde_json::Map::new(),
+        play_mode: "mix".into(),
+        play_fx_type: "none".into(),
+        play_fx_target: "master".into(),
+        play_fx_params: serde_json::Map::new(),
         xy_release: "sample-hold".into(),
         xy_smoothing_ms: 80,
         xy_invert_x: false,
@@ -202,7 +202,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                 NativeMenuItem {
                     label: "Spawn Count".into(),
                     key: Some(format!(
-                        "layers.{layer_index}.worlds.behaviorConfig.randomCellsPerTick"
+                        "layers.{layer_index}.build.behaviorConfig.randomCellsPerTick"
                     )),
                     value: NativeMenuValue::Number {
                         value: 12,
@@ -215,7 +215,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                 NativeMenuItem {
                     label: "Spawn Interval".into(),
                     key: Some(format!(
-                        "layers.{layer_index}.worlds.behaviorConfig.randomTickInterval"
+                        "layers.{layer_index}.build.behaviorConfig.randomTickInterval"
                     )),
                     value: NativeMenuValue::Number {
                         value: 1,

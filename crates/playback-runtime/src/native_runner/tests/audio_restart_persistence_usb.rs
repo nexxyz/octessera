@@ -204,7 +204,7 @@ fn host_role_stages_gadget_outputs_off_and_saves_the_compound_setting() {
 }
 
 #[test]
-fn legacy_usb_role_defaults_to_gadget() {
+fn unversioned_usb_role_defaults_to_gadget() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         usb_data_role_available: true,
@@ -220,7 +220,7 @@ fn legacy_usb_role_defaults_to_gadget() {
         .unwrap()
         .remove("dataRole");
     runner
-        .apply_config_payload(legacy_payload(payload))
+        .apply_config_payload(unversioned_payload(payload))
         .unwrap();
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["usb"]["dataRole"],

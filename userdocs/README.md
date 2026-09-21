@@ -34,7 +34,7 @@ flashing, first boot, and network setup.
    pages.
 
 [Controls cheat sheet](controls-cheat-sheet.md) · [Behaviors and Play
-pages](behaviors-and-sparks.md) · [Recording](recording.md)
+pages](behaviors-and-play.md) · [Recording](recording.md)
 
 **Something is wrong?** Start with [troubleshooting](troubleshooting.md). Power
 down before opening the case or moving wiring.
@@ -58,7 +58,7 @@ are practical targets rather than guarantees; behaviors, samples, and effects
 all change the available headroom.
 
 - [Controls cheat sheet](controls-cheat-sheet.md)
-- [Behaviors and Play pages](behaviors-and-sparks.md)
+- [Behaviors and Play pages](behaviors-and-play.md)
 - [Recording audio and OLED](recording.md)
 - [Safety and power](hardware/safety-and-power.md)
 - [USB roles](hardware/usb-roles.md)

@@ -29,7 +29,7 @@ pub(super) fn set_target_slot_from_menu(
         let parsed = if value == "none" {
             Some(usize::MAX)
         } else {
-            parse_slot_index(&value).map(|value| value.min(INSTRUMENT_COUNT - 1))
+            parse_named_slot_index(&value).map(|value| value.min(INSTRUMENT_COUNT - 1))
         };
         if let Some(value) = parsed {
             if *target != value {

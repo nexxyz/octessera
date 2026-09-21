@@ -1,9 +1,8 @@
-use super::sparks_fx_config::{default_sparks_fx_selected, sanitize_sparks_fx_config};
+use super::play_fx_config::{default_play_fx_selected, sanitize_play_fx_config};
 use super::{
     prepare_config_payload, prepare_device_payload, prepare_patch_payload, ConfigDto,
-    ConfigurationAggregate, ConfigurationRuntimePlan, NativeRunner, NativeRunnerConfig,
-    NativeSparksFxAssignment, PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED,
-    GRID_HEIGHT,
+    ConfigurationAggregate, ConfigurationRuntimePlan, NativePlayFxAssignment, NativeRunner,
+    NativeRunnerConfig, PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -24,11 +23,7 @@ impl NativeRunner {
             self.audio_config_revision,
         );
         let source_revision = prepared.source_revision;
-        let migration_report = prepared.migration_report;
         self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
-        if let Some(report) = migration_report {
-            self.show_toast(report);
-        }
         Ok(())
     }
 
@@ -97,13 +92,13 @@ impl NativeRunner {
         self.xy_touch = source.xy_touch.clone();
         self.xy_x_glide = source.xy_x_glide.clone();
         self.xy_y_glide = source.xy_y_glide.clone();
-        self.active_sparks_fx = source.active_sparks_fx.clone();
+        self.active_play_fx = source.active_play_fx.clone();
         self.trigger_gate_modes = source.trigger_gate_modes.clone();
         self.trigger_gate_restore_modes = source.trigger_gate_restore_modes.clone();
-        self.sparks_transpose_selected = source.sparks_transpose_selected.clone();
-        self.sparks_transpose_enabled = source.sparks_transpose_enabled.clone();
-        self.sparks_transpose_offsets = source.sparks_transpose_offsets.clone();
-        self.sparks_transpose_active_notes = source.sparks_transpose_active_notes.clone();
+        self.play_transpose_selected = source.play_transpose_selected.clone();
+        self.play_transpose_enabled = source.play_transpose_enabled.clone();
+        self.play_transpose_offsets = source.play_transpose_offsets.clone();
+        self.play_transpose_active_notes = source.play_transpose_active_notes.clone();
         self.pending_transpose_note_offs = source.pending_transpose_note_offs.clone();
         self.sample_assign = source.sample_assign;
         self.trigger_probability_assign = source.trigger_probability_assign;
@@ -162,12 +157,8 @@ impl NativeRunner {
         envelope: &ConfigDto,
     ) -> Result<(), String> {
         self.clear_all_link_arp_state();
-        let raw_runtime = envelope.runtime_config();
-        reject_old_layer_schema(raw_runtime)?;
-        reject_old_sparks_schema(raw_runtime)?;
         let runtime_value = envelope.typed_runtime_config_value()?;
         let runtime = &runtime_value;
-        reject_old_payload_sparks_schema(envelope.system())?;
         let desired_active_layer_index = runtime
             .get("activeLayerIndex")
             .and_then(Value::as_u64)
@@ -180,7 +171,7 @@ impl NativeRunner {
             .unwrap_or(self.active_layer_index);
         self.switch_active_engine(desired_active_layer_index)?;
         self.apply_layers_payload(runtime)?;
-        self.apply_sparks_and_xy_payload(runtime);
+        self.apply_play_and_xy_payload(runtime);
         self.apply_instruments_payload(runtime);
         if apply_device {
             self.apply_runtime_ui_and_sound_payload(runtime, envelope.mapping_config())?;
@@ -204,13 +195,13 @@ impl NativeRunner {
         let behavior = platform_core::get_native_behavior(&active_behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{active_behavior_id}`"))?;
         self.behavior = behavior;
-        if let Some(active_worlds) = runtime
+        if let Some(active_build) = runtime
             .get("layers")
             .and_then(Value::as_array)
             .and_then(|layers| layers.get(self.active_layer_index))
-            .and_then(|layer| layer.get("worlds"))
+            .and_then(|layer| layer.get("build"))
         {
-            self.behavior_config = active_worlds
+            self.behavior_config = active_build
                 .get("behaviorConfig")
                 .cloned()
                 .unwrap_or_else(|| self.layer_behavior_config(self.active_layer_index));
@@ -238,11 +229,7 @@ impl NativeRunner {
             self.audio_config_revision,
         );
         let source_revision = prepared.source_revision;
-        let migration_report = prepared.migration_report;
         self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
-        if let Some(report) = migration_report {
-            self.show_toast(report);
-        }
         Ok(())
     }
 
@@ -260,11 +247,7 @@ impl NativeRunner {
             self.audio_config_revision,
         );
         let source_revision = prepared.source_revision;
-        let migration_report = prepared.migration_report;
         self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
-        if let Some(report) = migration_report {
-            self.show_toast(report);
-        }
         Ok(())
     }
 
@@ -289,14 +272,14 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_sparks_fx_payload(&mut self, sparks_fx: &Value) {
-        self.sparks_fx_selected = sanitize_sparks_fx_config(
-            &sparks_fx
+    pub(super) fn apply_play_fx_payload(&mut self, play_fx: &Value) {
+        self.play_fx_selected = sanitize_play_fx_config(
+            &play_fx
                 .get("selected")
                 .cloned()
-                .unwrap_or_else(default_sparks_fx_selected),
+                .unwrap_or_else(default_play_fx_selected),
         );
-        self.sparks_fx_assignments = sparks_fx
+        self.play_fx_assignments = play_fx
             .get("assignments")
             .and_then(Value::as_array)
             .map(|assignments| {
@@ -308,21 +291,21 @@ impl NativeRunner {
                         if x >= super::GRID_WIDTH || y >= super::GRID_HEIGHT {
                             return None;
                         }
-                        Some(NativeSparksFxAssignment {
+                        Some(NativePlayFxAssignment {
                             x,
                             y,
-                            config: sanitize_sparks_fx_config(
+                            config: sanitize_play_fx_config(
                                 &assignment
                                     .get("config")
                                     .cloned()
-                                    .unwrap_or_else(default_sparks_fx_selected),
+                                    .unwrap_or_else(default_play_fx_selected),
                             ),
                         })
                     })
                     .collect()
             })
             .unwrap_or_default();
-        self.sparks_fx_assign = None;
+        self.play_fx_assign = None;
         self.active_layer_index = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
         self.transport.algorithm_step_pulses = self
             .transport
@@ -343,56 +326,5 @@ impl NativeRunner {
                     .collect()
             })
             .unwrap_or_default();
-    }
-}
-
-fn reject_old_layer_schema(runtime: &Value) -> Result<(), String> {
-    if runtime.get("activePartIndex").is_some() || runtime.get("parts").is_some() {
-        return Err("unsupported old layer schema".into());
-    }
-    if let Some(layers) = runtime.get("layers").and_then(Value::as_array) {
-        if layers
-            .iter()
-            .any(|layer| layer.get("l1").is_some() || layer.get("l2").is_some())
-        {
-            return Err("unsupported old layer schema".into());
-        }
-    }
-    Ok(())
-}
-
-fn reject_old_sparks_schema(runtime: &Value) -> Result<(), String> {
-    if runtime.get("danceMode").is_some()
-        || runtime.get("touchFx").is_some()
-        || runtime.get("touchFxMaxConcurrent").is_some()
-        || runtime.get("xyTouch").is_some()
-    {
-        return Err("unsupported old Play schema".into());
-    }
-    if contains_old_sparks_key(runtime) {
-        return Err("unsupported old Play schema".into());
-    }
-    Ok(())
-}
-
-fn reject_old_payload_sparks_schema(system: Option<&Value>) -> Result<(), String> {
-    if system.and_then(|system| system.get("danceMode")).is_some() {
-        return Err("unsupported old Play schema".into());
-    }
-    Ok(())
-}
-
-fn contains_old_sparks_key(value: &Value) -> bool {
-    match value {
-        Value::Object(map) => map.iter().any(|(key, value)| {
-            key.starts_with("dance.fx")
-                || value
-                    .as_str()
-                    .is_some_and(|text| text.starts_with("dance.fx"))
-                || contains_old_sparks_key(value)
-        }),
-        Value::Array(items) => items.iter().any(contains_old_sparks_key),
-        Value::String(text) => text.starts_with("dance.fx"),
-        _ => false,
     }
 }

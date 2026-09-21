@@ -1,29 +1,18 @@
 use super::*;
 use crate::native_menu::NativeMenuAction;
 
-const NOTE_SET_KEY: &str = "layers.0.pulses.pitch.scale";
-const LEGACY_NOTE_SET_IDS: &[&str] = &[
-    "chromatic",
-    "major",
-    "natural_minor",
-    "dorian",
-    "mixolydian",
-    "major_pentatonic",
-    "minor_pentatonic",
-    "harmonic_minor",
-];
-
+const NOTE_SET_KEY: &str = "layers.0.link.pitch.scale";
 #[test]
 pub(crate) fn note_set_config_and_modulation_accept_new_ids_and_reject_unknown_ids() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["pulses"]["pitch"]["scale"] = json!("major_ninth");
+    payload["runtimeConfig"]["layers"][0]["link"]["pitch"]["scale"] = json!("major_ninth");
     runner.apply_config_payload(payload).unwrap();
-    assert_eq!(runner.pulses_layers[0].scale, "major_ninth");
+    assert_eq!(runner.link_layers[0].scale, "major_ninth");
 
-    let mut layer = runner.pulses_layers[0].clone();
+    let mut layer = runner.link_layers[0].clone();
     assert!(
-        !crate::native_runner::modulation_pulses::apply_pulses_binding_value(
+        !crate::native_runner::modulation_link::apply_link_binding_value(
             &mut layer,
             "pitch.scale",
             json!("not_a_note_set")
@@ -32,21 +21,8 @@ pub(crate) fn note_set_config_and_modulation_accept_new_ids_and_reject_unknown_i
     assert_eq!(layer.scale, "major_ninth");
 
     let mut invalid = runner.config_payload();
-    invalid["runtimeConfig"]["layers"][0]["pulses"]["pitch"]["scale"] = json!("not_a_note_set");
+    invalid["runtimeConfig"]["layers"][0]["link"]["pitch"]["scale"] = json!("not_a_note_set");
     assert!(runner.apply_config_payload(invalid).is_err());
-}
-
-#[test]
-pub(crate) fn legacy_note_set_ids_round_trip_through_a_fresh_runner() {
-    for note_set_id in LEGACY_NOTE_SET_IDS {
-        let mut payload = NativeRunner::new(NativeRunnerConfig::default())
-            .unwrap()
-            .config_payload();
-        payload["runtimeConfig"]["layers"][0]["pulses"]["pitch"]["scale"] = json!(note_set_id);
-        let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        restored.apply_config_payload(payload).unwrap();
-        assert_eq!(restored.pulses_layers[0].scale, *note_set_id);
-    }
 }
 
 #[test]
@@ -55,43 +31,15 @@ pub(crate) fn every_note_set_id_round_trips_through_a_fresh_runner() {
         let mut payload = NativeRunner::new(NativeRunnerConfig::default())
             .unwrap()
             .config_payload();
-        payload["runtimeConfig"]["layers"][0]["pulses"]["pitch"]["scale"] = json!(note_set_id);
+        payload["runtimeConfig"]["layers"][0]["link"]["pitch"]["scale"] = json!(note_set_id);
         let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         restored.apply_config_payload(payload).unwrap();
-        assert_eq!(restored.pulses_layers[0].scale, note_set_id);
+        assert_eq!(restored.link_layers[0].scale, note_set_id);
     }
 }
 
 #[test]
-pub(crate) fn note_set_bindings_preserve_legacy_options_and_write_all_new_options() {
-    let mut legacy_payload = NativeRunner::new(NativeRunnerConfig::default())
-        .unwrap()
-        .config_payload();
-    legacy_payload["runtimeConfig"]["xy"]["x"] = json!({
-        "key": NOTE_SET_KEY,
-        "label": "Scale",
-        "kind": "enum",
-        "options": LEGACY_NOTE_SET_IDS,
-        "invert": false
-    });
-    let mut legacy_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    legacy_runner.apply_config_payload(legacy_payload).unwrap();
-    let legacy_output = legacy_runner.config_payload();
-    assert_eq!(
-        legacy_output["runtimeConfig"]["xy"]["x"]["options"],
-        json!(LEGACY_NOTE_SET_IDS)
-    );
-    assert_eq!(
-        legacy_output["runtimeConfig"]["xy"]["x"],
-        json!({
-            "key": NOTE_SET_KEY,
-            "label": "Scale",
-            "kind": "enum",
-            "options": LEGACY_NOTE_SET_IDS,
-            "invert": false
-        })
-    );
-
+pub(crate) fn note_set_bindings_write_all_current_options() {
     let mut current_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let binding = current_runner
         .menu
@@ -169,7 +117,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
         })
         .unwrap();
 
-    assert_eq!(runner.pulses_layers[0].scale, "dominant_seventh");
+    assert_eq!(runner.link_layers[0].scale, "dominant_seventh");
     assert_eq!(
         runner
             .modulation_process
@@ -194,7 +142,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
 pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
     for midi in [false, true] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        let layer = &mut runner.pulses_layers[0];
+        let layer = &mut runner.link_layers[0];
         layer.lowest_note = 60;
         layer.highest_note = 67;
         layer.starting_note = 60;
@@ -213,9 +161,9 @@ pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
             std::slice::from_ref(&intent),
             &runner.mapping_config,
         );
-        runner.sparks_transpose_enabled[0] = true;
-        runner.sparks_transpose_selected[0] = true;
-        runner.sparks_transpose_offsets[0] = 1;
+        runner.play_transpose_enabled[0] = true;
+        runner.play_transpose_selected[0] = true;
+        runner.play_transpose_offsets[0] = 1;
         let messages = runner
             .messages_with_input_result(platform_core::NativeInputResult {
                 events: mapped.events,

@@ -417,7 +417,7 @@ pass "idempotent second run exits 0"
 # 8. A persisted Host configuration is reconciled without reverting to gadget.
 new_fixture
 mkdir -p "$FIXTURE/home/pi/presets"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
 printf '%s\n' 'dtoverlay=dwc2,dr_mode=host' >> "$FIXTURE/boot/firmware/config.txt"
 run_provision default
 expect_rc "sc-host" 75

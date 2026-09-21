@@ -2,7 +2,7 @@ use super::{velocity_curve_from_id, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_global_runtime_menu_state(&mut self) -> (bool, bool, bool) {
-        let mut sparks_mode_changed = false;
+        let mut play_mode_changed = false;
         let mut config_changed = false;
         let mut audio_config_changed = false;
         if let Some(sync_source) = self.menu.selected_sync_source() {
@@ -33,13 +33,13 @@ impl NativeRunner {
         config_changed |= self.apply_audio_outputs_menu_state();
         config_changed |= self.apply_hdmi_menu_state();
         config_changed |= self.apply_recording_menu_state();
-        if let Some(sparks_mode) = self.menu.selected_sparks_mode() {
-            let changed = self.sparks_mode != sparks_mode;
-            self.sparks_mode = sparks_mode.clone();
-            sparks_mode_changed = changed;
+        if let Some(play_mode) = self.menu.selected_play_mode() {
+            let changed = self.play_mode != play_mode;
+            self.play_mode = play_mode.clone();
+            play_mode_changed = changed;
             config_changed |= changed;
-            if changed && self.menu.is_in_sparks_root_group() {
-                self.active_sparks_mode = sparks_mode;
+            if changed && self.menu.is_in_play_root_group() {
+                self.active_play_mode = play_mode;
             }
         }
         config_changed |= self.apply_xy_menu_state();
@@ -47,7 +47,7 @@ impl NativeRunner {
             self.apply_ui_sound_transport_menu_state();
         config_changed |= ui_sound_changed;
         audio_config_changed |= sound_audio_config_changed;
-        (sparks_mode_changed, config_changed, audio_config_changed)
+        (play_mode_changed, config_changed, audio_config_changed)
     }
 
     pub(super) fn apply_midi_menu_flags(&mut self) -> bool {
@@ -60,7 +60,7 @@ impl NativeRunner {
             changed |= self.midi_enabled != midi_enabled;
             if self.midi_enabled && !midi_enabled {
                 self.drain_all_layer_engine_notes();
-                self.drain_all_sparks_transpose_notes();
+                self.drain_all_play_transpose_notes();
             }
             self.midi_enabled = midi_enabled;
         }
@@ -94,22 +94,22 @@ impl NativeRunner {
     pub(super) fn apply_xy_menu_state(&mut self) -> bool {
         let mut changed = false;
         let mut smoothing_changed = false;
-        if let Some(smoothing_ms) = self.menu.number_for_key("sparks.xy.smoothingMs") {
+        if let Some(smoothing_ms) = self.menu.number_for_key("play.xy.smoothingMs") {
             let smoothing_ms = super::normalize_xy_smoothing_ms(smoothing_ms.max(0) as u64);
             smoothing_changed = self.xy_smoothing_ms != smoothing_ms;
             changed |= smoothing_changed;
             self.xy_smoothing_ms = smoothing_ms;
         }
-        if let Some(xy_release) = self.menu.value_for_key("sparks.xy.release") {
+        if let Some(xy_release) = self.menu.value_for_key("play.xy.release") {
             changed |= self.xy_release != xy_release;
             self.xy_release = xy_release;
         }
-        if let Some(invert_x) = self.menu.value_for_key("sparks.xy.invertX") {
+        if let Some(invert_x) = self.menu.value_for_key("play.xy.invertX") {
             let invert_x = invert_x == "true";
             changed |= self.xy_invert_x != invert_x;
             self.xy_invert_x = invert_x;
         }
-        if let Some(invert_y) = self.menu.value_for_key("sparks.xy.invertY") {
+        if let Some(invert_y) = self.menu.value_for_key("play.xy.invertY") {
             let invert_y = invert_y == "true";
             changed |= self.xy_invert_y != invert_y;
             self.xy_invert_y = invert_y;

@@ -182,8 +182,8 @@ pub fn parse_timing_probe_scenarios(value: &str) -> Result<Vec<TimingProbeScenar
             "stop-start" => Ok(TimingProbeScenario::StopStart),
             "encoder" | "encoder-stress" => Ok(TimingProbeScenario::EncoderStress),
             "mute" | "mute-stress" | "fn-play" => Ok(TimingProbeScenario::MuteStress),
-            "sparks-page" | "sparks-pages" | "sparks-page-stress" => {
-                Ok(TimingProbeScenario::SparksPageStress)
+            "play-page" | "play-pages" | "play-page-stress" => {
+                Ok(TimingProbeScenario::PlayPageStress)
             }
             other => Err(format!("unknown scenario {other}")),
         })

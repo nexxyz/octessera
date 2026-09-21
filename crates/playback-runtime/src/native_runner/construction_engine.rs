@@ -44,7 +44,7 @@ impl NativeRunner {
     pub(super) fn reset_transport_position(&mut self) {
         self.clear_lfo_audio();
         self.drain_all_layer_engine_notes();
-        self.drain_all_sparks_transpose_notes();
+        self.drain_all_play_transpose_notes();
         self.transport.pending_resync = false;
         self.transport.tick = 0;
         self.transport.current_ppqn_pulse = 0;

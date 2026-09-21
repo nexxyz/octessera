@@ -12,13 +12,6 @@ fn canonical_factory_payload() -> Value {
     fresh_factory_runner().config_payload()
 }
 
-fn legacy_modulation_fixture() -> Value {
-    serde_json::from_str(include_str!(
-        "fixtures/config_persistence/legacy_modulation_v1.json"
-    ))
-    .unwrap()
-}
-
 #[test]
 pub(crate) fn canonical_full_config_round_trip_through_fresh_runner_is_stable() {
     let canonical = canonical_factory_payload();
@@ -30,7 +23,7 @@ pub(crate) fn canonical_full_config_round_trip_through_fresh_runner_is_stable() 
 }
 
 #[test]
-pub(crate) fn legacy_envelopes_are_reemitted_as_canonical_v2() {
+pub(crate) fn unversioned_envelopes_are_reemitted_as_canonical_v2() {
     let canonical = canonical_factory_payload();
     let mut unversioned = canonical.clone();
     let unversioned_object = unversioned.as_object_mut().unwrap();
@@ -38,18 +31,13 @@ pub(crate) fn legacy_envelopes_are_reemitted_as_canonical_v2() {
     unversioned_object.remove("schemaVersion");
     unversioned_object.remove("revision");
 
-    let mut v1 = canonical.clone();
-    v1["schemaVersion"] = json!(1);
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_config_payload(unversioned).unwrap();
+    let output = runner.config_payload();
 
-    for input in [unversioned, v1] {
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.apply_config_payload(input).unwrap();
-        let output = runner.config_payload();
-
-        assert_eq!(output, canonical);
-        assert_eq!(output["kind"], "octessera.config");
-        assert_eq!(output["schemaVersion"], 2);
-    }
+    assert_eq!(output, canonical);
+    assert_eq!(output["kind"], "octessera.config");
+    assert_eq!(output["schemaVersion"], 2);
 }
 
 #[test]
@@ -59,18 +47,17 @@ pub(crate) fn unknown_fields_are_tolerated_and_removed_from_canonical_output() {
     let mut input = canonical.clone();
     input["unknownEnvelope"] = json!({ "value": "discard me" });
     input["runtimeConfig"]["unknownRuntime"] = json!({ "value": "discard me" });
-    input["runtimeConfig"]["layers"][0]["worlds"]["unknownWorld"] =
-        json!({ "value": "discard me" });
+    input["runtimeConfig"]["layers"][0]["build"]["unknownWorld"] = json!({ "value": "discard me" });
     input["runtimeConfig"]["instruments"][0]["sample"]["unknownSample"] =
         json!({ "value": "discard me" });
-    input["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]["opaque-extension"] =
+    input["runtimeConfig"]["layers"][0]["build"]["behaviorConfigHistory"]["opaque-extension"] =
         json!({ "sentinel": "keep me" });
 
     runner.apply_config_payload(input).unwrap();
 
     let output = runner.config_payload();
     let mut expected = canonical;
-    expected["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]["opaque-extension"] =
+    expected["runtimeConfig"]["layers"][0]["build"]["behaviorConfigHistory"]["opaque-extension"] =
         json!({ "sentinel": "keep me" });
     assert_eq!(output, expected);
     assert!(output.as_object().unwrap().get("unknownEnvelope").is_none());
@@ -79,7 +66,7 @@ pub(crate) fn unknown_fields_are_tolerated_and_removed_from_canonical_output() {
         .unwrap()
         .get("unknownRuntime")
         .is_none());
-    assert!(output["runtimeConfig"]["layers"][0]["worlds"]
+    assert!(output["runtimeConfig"]["layers"][0]["build"]
         .as_object()
         .unwrap()
         .get("unknownWorld")
@@ -90,7 +77,7 @@ pub(crate) fn unknown_fields_are_tolerated_and_removed_from_canonical_output() {
         .get("unknownSample")
         .is_none());
     assert_eq!(
-        output["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]["opaque-extension"]
+        output["runtimeConfig"]["layers"][0]["build"]["behaviorConfigHistory"]["opaque-extension"]
             ["sentinel"],
         "keep me"
     );
@@ -136,7 +123,7 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
         { "mixer": { "volume": 1 } }
     ]);
     device["runtimeConfig"]["layers"] = json!([
-        { "worlds": { "behaviorId": "brain" } }
+        { "build": { "behaviorId": "brain" } }
     ]);
     device["runtimeConfig"]["mixer"] = json!({
         "buses": [{ "volumePct": 1 }]
@@ -158,46 +145,7 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
 }
 
 #[test]
-pub(crate) fn legacy_modulation_fixture_migrates_to_canonical_v2_without_phase_pulses() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    runner
-        .apply_config_payload(legacy_modulation_fixture())
-        .unwrap();
-
-    let output = runner.config_payload();
-    let lfo = &output["runtimeConfig"]["linkLfos"][0];
-    assert_eq!(lfo["enabled"], true);
-    assert_eq!(lfo["period"], "1/4");
-    assert_eq!(lfo["depthPct"], 37);
-    assert_eq!(lfo["target"]["key"], "instruments.0.mixer.volume");
-    assert_eq!(
-        output["runtimeConfig"]["xy"]["x"]["key"],
-        "instruments.0.mixer.panPos"
-    );
-    assert_eq!(output["runtimeConfig"]["xy"]["xInvert"], true);
-    assert_eq!(
-        output["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
-        "linkLfos.0.depthPct"
-    );
-    assert_eq!(
-        output["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"],
-        "linkLfos.1.period"
-    );
-    let canonical_lfos = output["runtimeConfig"]["linkLfos"].as_array().unwrap();
-    assert_eq!(canonical_lfos.len(), 8);
-    for lfo in canonical_lfos {
-        assert!(lfo.as_object().unwrap().get("phasePulses").is_none());
-    }
-    assert_eq!(output["kind"], "octessera.config");
-    assert_eq!(output["schemaVersion"], 2);
-    let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    restored.apply_config_payload(output.clone()).unwrap();
-    assert_eq!(restored.config_payload(), output);
-}
-
-#[test]
-pub(crate) fn prepared_legacy_envelopes_decode_as_current_typed_envelopes() {
+pub(crate) fn prepared_unversioned_envelopes_decode_as_current_typed_envelopes() {
     let canonical = canonical_factory_payload();
     let mut unversioned = canonical.clone();
     let unversioned_object = unversioned.as_object_mut().unwrap();
@@ -205,27 +153,22 @@ pub(crate) fn prepared_legacy_envelopes_decode_as_current_typed_envelopes() {
     unversioned_object.remove("schemaVersion");
     unversioned_object.remove("revision");
 
-    let mut v1 = canonical.clone();
-    v1["schemaVersion"] = json!(1);
-
-    for input in [unversioned, v1] {
-        let prepared = prepare_config_payload(input, &canonical).unwrap();
-        assert_eq!(prepared.envelope.kind(), "octessera.config");
-        assert_eq!(prepared.envelope.schema_version(), 2);
-        assert_eq!(prepared.envelope.revision(), canonical["revision"].as_u64());
-        assert_eq!(
-            prepared.envelope.runtime_config(),
-            &prepared.payload["runtimeConfig"]
-        );
-        assert_eq!(
-            prepared.envelope.mapping_config(),
-            prepared.payload.as_object().unwrap().get("mappingConfig")
-        );
-        assert_eq!(
-            prepared.envelope.system(),
-            prepared.payload.as_object().unwrap().get("system")
-        );
-    }
+    let prepared = prepare_config_payload(unversioned, &canonical).unwrap();
+    assert_eq!(prepared.envelope.kind(), "octessera.config");
+    assert_eq!(prepared.envelope.schema_version(), 2);
+    assert_eq!(prepared.envelope.revision(), canonical["revision"].as_u64());
+    assert_eq!(
+        prepared.envelope.runtime_config(),
+        &prepared.payload["runtimeConfig"]
+    );
+    assert_eq!(
+        prepared.envelope.mapping_config(),
+        prepared.payload.as_object().unwrap().get("mappingConfig")
+    );
+    assert_eq!(
+        prepared.envelope.system(),
+        prepared.payload.as_object().unwrap().get("system")
+    );
 }
 
 #[test]
@@ -264,10 +207,10 @@ pub(crate) fn application_view_rejects_missing_runtime_config_without_fallback()
 pub(crate) fn typed_decode_keeps_opaque_state_and_canonical_bytes_unchanged() {
     let canonical = canonical_factory_payload();
     let mut input = canonical.clone();
-    let worlds = input["runtimeConfig"]["layers"][0]["worlds"]
+    let build = input["runtimeConfig"]["layers"][0]["build"]
         .as_object_mut()
         .unwrap();
-    let mut behavior_config = match worlds.get("behaviorConfig") {
+    let mut behavior_config = match build.get("behaviorConfig") {
         Some(value) if value.is_object() => value.clone(),
         _ => json!({}),
     };
@@ -275,8 +218,8 @@ pub(crate) fn typed_decode_keeps_opaque_state_and_canonical_bytes_unchanged() {
         .as_object_mut()
         .unwrap()
         .insert("opaque".into(), json!({ "nested": [true, null, "value"] }));
-    worlds.insert("behaviorConfig".into(), behavior_config.clone());
-    let mut behavior_history = worlds
+    build.insert("behaviorConfig".into(), behavior_config.clone());
+    let mut behavior_history = build
         .get("behaviorConfigHistory")
         .cloned()
         .unwrap_or_else(|| json!({}));
@@ -284,7 +227,7 @@ pub(crate) fn typed_decode_keeps_opaque_state_and_canonical_bytes_unchanged() {
         .as_object_mut()
         .unwrap()
         .insert("opaque".into(), json!({ "history": [1, 2, 3] }));
-    worlds.insert("behaviorConfigHistory".into(), behavior_history.clone());
+    build.insert("behaviorConfigHistory".into(), behavior_history.clone());
     let fx_params = input["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"].clone();
     let canonical_bytes = serde_json::to_vec(&input).unwrap();
 
@@ -293,11 +236,11 @@ pub(crate) fn typed_decode_keeps_opaque_state_and_canonical_bytes_unchanged() {
     let prepared_bytes = serde_json::to_vec(&prepared.payload).unwrap();
     let decoded = &prepared.envelope;
     assert_eq!(
-        decoded.runtime_config()["layers"][0]["worlds"]["behaviorConfig"],
+        decoded.runtime_config()["layers"][0]["build"]["behaviorConfig"],
         behavior_config
     );
     assert_eq!(
-        decoded.runtime_config()["layers"][0]["worlds"]["behaviorConfigHistory"],
+        decoded.runtime_config()["layers"][0]["build"]["behaviorConfigHistory"],
         behavior_history
     );
     assert_eq!(
@@ -305,13 +248,13 @@ pub(crate) fn typed_decode_keeps_opaque_state_and_canonical_bytes_unchanged() {
         fx_params
     );
     assert_eq!(
-        serde_json::to_vec(&decoded.runtime_config()["layers"][0]["worlds"]["behaviorConfig"])
+        serde_json::to_vec(&decoded.runtime_config()["layers"][0]["build"]["behaviorConfig"])
             .unwrap(),
         serde_json::to_vec(&behavior_config).unwrap()
     );
     assert_eq!(
         serde_json::to_vec(
-            &decoded.runtime_config()["layers"][0]["worlds"]["behaviorConfigHistory"]
+            &decoded.runtime_config()["layers"][0]["build"]["behaviorConfigHistory"]
         )
         .unwrap(),
         serde_json::to_vec(&behavior_history).unwrap()
@@ -322,12 +265,12 @@ pub(crate) fn typed_decode_keeps_opaque_state_and_canonical_bytes_unchanged() {
         serde_json::to_vec(&fx_params).unwrap()
     );
     assert_eq!(
-        decoded.runtime_config()["layers"][0]["worlds"]["behaviorConfig"]["opaque"],
-        input["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfig"]["opaque"]
+        decoded.runtime_config()["layers"][0]["build"]["behaviorConfig"]["opaque"],
+        input["runtimeConfig"]["layers"][0]["build"]["behaviorConfig"]["opaque"]
     );
     assert_eq!(
-        decoded.runtime_config()["layers"][0]["worlds"]["behaviorConfigHistory"]["opaque"],
-        input["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]["opaque"]
+        decoded.runtime_config()["layers"][0]["build"]["behaviorConfigHistory"]["opaque"],
+        input["runtimeConfig"]["layers"][0]["build"]["behaviorConfigHistory"]["opaque"]
     );
     assert_eq!(
         serde_json::to_vec(&prepared.payload).unwrap(),
@@ -353,40 +296,20 @@ pub(crate) fn invalid_v2_is_rejected_before_typed_decode() {
 }
 
 #[test]
-pub(crate) fn full_config_to_portable_conversion_is_fallible_and_migrates_v1_first() {
+pub(crate) fn full_config_to_portable_conversion_validates_and_emits_canonical_patch() {
     let canonical = canonical_factory_payload();
     let mut malformed = canonical.clone();
     malformed["runtimeConfig"]["masterVolume"] = json!("broken");
     let error = normalize_user_data_patch_payload(malformed, &canonical).unwrap_err();
     assert!(error.contains("masterVolume"), "{error}");
 
-    let mut legacy = canonical.clone();
-    legacy["schemaVersion"] = json!(1);
-    legacy["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("linkLfos");
-    legacy["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("xy");
-    legacy["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": {
-            "key": "instruments.0.mixer.volume",
-            "kind": "number",
-            "min": 0,
-            "max": 100,
-            "step": 1
-        },
-        "period": "1/4",
-        "depthPct": 37
-    });
-    let patch = normalize_user_data_patch_payload(legacy, &canonical).unwrap();
+    let patch = normalize_user_data_patch_payload(canonical.clone(), &canonical).unwrap();
     assert_eq!(patch["kind"], "octessera.patch");
     assert_eq!(patch["schemaVersion"], 2);
-    assert_eq!(patch["runtimeConfig"]["linkLfos"][0]["enabled"], true);
-    assert_eq!(patch["runtimeConfig"]["linkLfos"][0]["depthPct"], 37);
+    assert_eq!(
+        patch["runtimeConfig"]["linkLfos"].as_array().unwrap().len(),
+        8
+    );
     assert!(patch["runtimeConfig"]["masterVolume"].is_null());
 }
 
@@ -410,29 +333,28 @@ fn opaque_scalar_collision_fixture() -> Value {
 pub(crate) fn opaque_subtrees_accept_colliding_scalar_names_but_canonical_paths_remain_strict() {
     let canonical = canonical_factory_payload();
     let mut payload = canonical.clone();
-    let worlds = payload["runtimeConfig"]["layers"][0]["worlds"]
+    let build = payload["runtimeConfig"]["layers"][0]["build"]
         .as_object_mut()
         .unwrap();
     let collision = opaque_scalar_collision_fixture();
-    worlds.insert("behaviorConfig".into(), collision.clone());
-    worlds.insert(
+    build.insert("behaviorConfig".into(), collision.clone());
+    build.insert(
         "behaviorConfigHistory".into(),
         json!({ "collision": collision.clone() }),
     );
-    worlds.insert("savedState".into(), collision.clone());
-    worlds.insert("behaviorState".into(), collision.clone());
+    build.insert("savedState".into(), collision.clone());
 
     validate_config_payload(&payload).unwrap();
     let prepared = prepare_config_payload(payload.clone(), &canonical).unwrap();
-    for key in ["behaviorConfig", "savedState", "behaviorState"] {
-        let output = prepared.payload["runtimeConfig"]["layers"][0]["worlds"][key]
+    for key in ["behaviorConfig", "savedState"] {
+        let output = prepared.payload["runtimeConfig"]["layers"][0]["build"][key]
             .as_object()
             .unwrap();
         for (field, value) in collision.as_object().unwrap() {
             assert_eq!(output.get(field), Some(value));
         }
     }
-    let history = prepared.payload["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]
+    let history = prepared.payload["runtimeConfig"]["layers"][0]["build"]["behaviorConfigHistory"]
         ["collision"]
         .as_object()
         .unwrap();
@@ -444,17 +366,17 @@ pub(crate) fn opaque_subtrees_accept_colliding_scalar_names_but_canonical_paths_
     let output = runner.config_payload();
     for (field, value) in collision.as_object().unwrap() {
         assert_eq!(
-            output["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfig"].get(field),
+            output["runtimeConfig"]["layers"][0]["build"]["behaviorConfig"].get(field),
             Some(value)
         );
     }
     assert_eq!(
-        output["runtimeConfig"]["layers"][0]["worlds"]["behaviorConfigHistory"]["collision"],
+        output["runtimeConfig"]["layers"][0]["build"]["behaviorConfigHistory"]["collision"],
         collision
     );
 
     let mut unknown_state = canonical.clone();
-    unknown_state["runtimeConfig"]["layers"][0]["worlds"]["state"] = collision.clone();
+    unknown_state["runtimeConfig"]["layers"][0]["build"]["state"] = collision.clone();
     assert!(prepare_config_payload(unknown_state, &runner.config_payload()).is_err());
 
     let mut invalid = canonical;

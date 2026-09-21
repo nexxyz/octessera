@@ -19,7 +19,7 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) layers: Option<Vec<LayerDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sparks_fx: Option<SparksFxDto>,
+    pub(super) play_fx: Option<PlayFxDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) transport: Option<TransportDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -73,7 +73,7 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) swing_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sparks_mode: Option<String>,
+    pub(super) play_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_bindings: Option<BTreeMap<String, Option<AuxBindingDto>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -149,27 +149,27 @@ pub struct ParamModsDto {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SparksFxDto {
+pub struct PlayFxDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) selected: Option<SparksConfigDto>,
+    pub(super) selected: Option<PlayConfigDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) assignments: Option<Vec<SparksAssignmentDto>>,
+    pub(super) assignments: Option<Vec<PlayAssignmentDto>>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SparksAssignmentDto {
+pub struct PlayAssignmentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) x: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) y: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) config: Option<SparksConfigDto>,
+    pub(super) config: Option<PlayConfigDto>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SparksConfigDto {
+pub struct PlayConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) fx_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

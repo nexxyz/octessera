@@ -20,7 +20,7 @@ export const PLATFORM_CAPS = {
   "busCount": 4,
   "globalFxSlotCount": 2,
   "auxEncoderCount": 3,
-  "sparksFxMaxConcurrent": 2,
+  "playFxMaxConcurrent": 2,
   "scanSectionCounts": [
     1,
     2,

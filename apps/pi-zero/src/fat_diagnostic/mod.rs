@@ -25,19 +25,6 @@ pub(crate) fn run() -> Result<bool, String> {
     run_with_options(options)
 }
 
-pub(crate) fn run_legacy_raspberry() -> Result<bool, String> {
-    let evidence_dir = std::env::temp_dir().join(format!(
-        "octessera-fat-diagnostic-legacy-{}-{}",
-        std::process::id(),
-        unix_nanos()
-    ));
-    run_with_options(DiagnosticOptions {
-        board_profile: "raspberry-pi-zero-2w".into(),
-        evidence_dir,
-        timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
-    })
-}
-
 fn run_with_options(options: DiagnosticOptions) -> Result<bool, String> {
     crate::board_profile::validate_fat_diagnostic_profile(&options.board_profile)?;
     let board = crate::board_profile::fat_diagnostic_board(&options.board_profile)
@@ -117,12 +104,12 @@ fn parse_args(args: Vec<String>) -> Result<DiagnosticOptions, String> {
     let mut index = 0;
     while index < args.len() {
         match args[index].as_str() {
-            "--fat-diagnostic" | "--diagnostic" => index += 1,
+            "--fat-diagnostic" => index += 1,
             "--help" | "-h" => {
                 print_help();
                 return Err("help requested".into());
             }
-            "--board-profile" | "--profile" => {
+            "--board-profile" => {
                 board_profile = Some(next_value(&args, index, "--board-profile")?);
                 index += 2;
             }
@@ -205,13 +192,6 @@ fn unix_seconds() -> u64 {
         .unwrap_or(0)
 }
 
-fn unix_nanos() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
-}
-
 fn print_help() {
     println!(
         "Usage: octessera-pi --fat-diagnostic --board-profile <profile> [OPTIONS]\n\n\
@@ -219,7 +199,6 @@ Safe, non-destructive FAT evidence checks for the two fixed board profiles.\n\
   --board-profile <id>  Required fixed profile: raspberry-pi-zero-2w or orange-pi-zero-2w\n\
   --evidence-dir <path> New evidence directory (default: /tmp/octessera-fat-diagnostic)\n\
   --timeout-seconds <n> Per-command timeout, 1..600 (default: 30)\n\
-  --diagnostic           Deprecated Raspberry compatibility alias when no profile is supplied\n\
 No flashing, reboot, restore, gadget binding, tone playback, or visual qualification is performed."
     );
 }
@@ -233,7 +212,7 @@ mod tests {
     fn profile_selection_requires_an_explicit_fixed_profile() {
         assert!(parse_args(vec!["--fat-diagnostic".into()]).is_err());
         let options = parse_args(vec![
-            "--diagnostic".into(),
+            "--fat-diagnostic".into(),
             "--board-profile".into(),
             "orange-pi-zero-2w".into(),
         ])
@@ -246,7 +225,7 @@ mod tests {
     fn timeout_is_bounded_and_input_scan_is_not_an_option() {
         let options = parse_args(vec![
             "--fat-diagnostic".into(),
-            "--profile".into(),
+            "--board-profile".into(),
             "raspberry-pi-zero-2w".into(),
             "--timeout-seconds".into(),
             "60".into(),
@@ -258,14 +237,14 @@ mod tests {
         assert_eq!(options.evidence_dir, PathBuf::from("evidence"));
         assert!(parse_args(vec![
             "--fat-diagnostic".into(),
-            "--profile".into(),
+            "--board-profile".into(),
             "raspberry-pi-zero-2w".into(),
             "--scan-inputs".into(),
         ])
         .is_err());
         assert!(parse_args(vec![
             "--fat-diagnostic".into(),
-            "--profile".into(),
+            "--board-profile".into(),
             "raspberry-pi-zero-2w".into(),
             "--timeout-seconds".into(),
             "601".into(),

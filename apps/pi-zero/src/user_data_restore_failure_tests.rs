@@ -347,7 +347,7 @@ fn injected_post_swap_rollback_failure_propagates_and_preserves_recovery_trees()
 }
 
 #[test]
-fn restore_rehydrates_migrated_patch_preferences_and_split_aux_ownership() {
+fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
     let fixture = Fixture::new("rehydrate-runtime-owned-config");
     let canonical = user_data_archive::canonical_defaults();
     let mut staged = fixture.staged(false);
@@ -360,32 +360,25 @@ fn restore_rehydrates_migrated_patch_preferences_and_split_aux_ownership() {
         "audioOutputs".into(),
         json!({ "dac": false, "usb": true, "hdmi": false }),
     );
-    staged.bundle.current_state.patch = json!({
-        "kind": "octessera.patch",
-        "schemaVersion": 1,
-        "runtimeConfig": {
-            "masterVolume": 1,
-            "layers": [{
-                "worlds": { "behaviorId": "sequencer" },
-                "linkLfo": {
-                    "enabled": true,
-                    "target": { "key": "instruments.0.mixer.volume", "kind": "number" },
-                    "period": "1/4",
-                    "depthPct": 37
-                }
-            }],
-            "auxBindings": {
-                "aux1": {
-                    "turnKey": "sound.noteLengthMs",
-                    "pressAction": { "kind": "behavior_action", "actionType": "clear" }
-                },
-                "aux2": {
-                    "turnKey": "displayBrightness",
-                    "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
-                }
-            }
+    let mut current_patch = staged.bundle.current_state.patch.clone();
+    current_patch["runtimeConfig"]["masterVolume"] = json!(1);
+    current_patch["runtimeConfig"]["linkLfos"][0] = json!({
+        "enabled": true,
+        "target": { "key": "instruments.0.mixer.volume", "kind": "number" },
+        "period": "1/4",
+        "depthPct": 37
+    });
+    current_patch["runtimeConfig"]["auxBindings"] = json!({
+        "aux1": {
+            "turnKey": "sound.noteLengthMs",
+            "pressAction": { "kind": "behavior_action", "actionType": "clear" }
+        },
+        "aux2": {
+            "turnKey": "displayBrightness",
+            "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
         }
     });
+    staged.bundle.current_state.patch = current_patch;
     staged.bundle.default_state.patch = json!({
         "kind": "octessera.patch",
         "schemaVersion": 2,

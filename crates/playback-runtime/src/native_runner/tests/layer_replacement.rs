@@ -16,7 +16,7 @@ pub(crate) fn inactive_layer_encoder_config_edit_rebuilds_only_target_layer() {
         .as_i64()
         .unwrap();
     let active_before = runner.engine.serialized_state().unwrap();
-    let key = "layers.1.worlds.behaviorConfig.randomSeedCells";
+    let key = "layers.1.build.behaviorConfig.randomSeedCells";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
 
@@ -55,7 +55,7 @@ pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
         .unwrap();
     let active_before = runner.engine.serialized_state().unwrap();
     runner.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("layers.1.worlds.behaviorConfig.randomSeedCells".into()),
+        turn_key: Some("layers.1.build.behaviorConfig.randomSeedCells".into()),
         press_action: None,
     });
 
@@ -72,10 +72,10 @@ pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
 #[test]
 pub(crate) fn inactive_layer_xy_modulation_changes_execution_state() {
     let mut runner = brain_target_runner();
-    runner.active_sparks_mode = "xy".into();
+    runner.active_play_mode = "xy".into();
     runner.xy_smoothing_ms = 0;
     runner.xy_y_binding = Some(NativeParamBinding {
-        key: "layers.1.worlds.behaviorConfig.randomSeedCells".into(),
+        key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Spawn Count".into()),
         kind: "number".into(),
         min: Some(0.0),
@@ -131,11 +131,9 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
 
     runner
         .apply_patch_payload_preserving_device(json!({
-            "kind": "octessera.patch",
-            "schemaVersion": 1,
             "runtimeConfig": {
                 "layers": [{
-                    "worlds": {
+                    "build": {
                         "behaviorConfig": { "randomCellsPerTick": 2 }
                     }
                 }]
@@ -159,11 +157,9 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
 
     runner
         .apply_patch_payload_preserving_device(json!({
-            "kind": "octessera.patch",
-            "schemaVersion": 1,
             "runtimeConfig": {
                 "layers": [{
-                    "worlds": {
+                    "build": {
                         "behaviorId": "life",
                         "behaviorConfig": { "randomCellsPerTick": 3 },
                         "savedState": saved_state
@@ -217,7 +213,7 @@ pub(crate) fn behavior_config_history_round_trips_through_config_payload() {
 
     let payload = runner.config_payload();
     assert_eq!(
-        payload["runtimeConfig"]["layers"][1]["worlds"]["behaviorConfigHistory"]["life"]
+        payload["runtimeConfig"]["layers"][1]["build"]["behaviorConfigHistory"]["life"]
             ["randomCellsPerTick"],
         7
     );
@@ -362,7 +358,7 @@ pub(crate) fn fast_layer_edit_clears_only_the_target_link_arp_state() {
         note: 64,
         velocity: 100,
     });
-    let key = "layers.0.worlds.behaviorConfig.randomCellsPerTick";
+    let key = "layers.0.build.behaviorConfig.randomCellsPerTick";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
 
@@ -423,7 +419,7 @@ pub(crate) fn fast_behavior_edit_reports_replacement_errors_without_committing()
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layer_behavior_ids[0] = "unsupported-behavior".into();
     let before = runner.layer_behavior_configs[0].clone();
-    let key = "layers.0.worlds.behaviorConfig.randomCellsPerTick";
+    let key = "layers.0.build.behaviorConfig.randomCellsPerTick";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
 

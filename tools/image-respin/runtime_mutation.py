@@ -60,8 +60,6 @@ def _state_payload(contract: dict[str, Any], state: dict[str, Any] | None, versi
         raise MutationError("Orange runtime state is missing" if contract["board_profile"] == "orange-pi-zero-2w" else "Raspberry runtime state is missing")
     result = dict(state)
     result.update({"current": version, "previous": None, "release": manifest_for(contract["board_profile"], version)})
-    if contract["board_profile"] == "raspberry-pi-zero-2w":
-        result["next"] = None
     return result, (json.dumps(result, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 

@@ -209,7 +209,7 @@ fn raspberry_recording_stop_failure_preserves_error_detail() {
 }
 
 #[test]
-fn preset_path_rejects_unsafe_names() {
+fn preset_patch_path_rejects_unsafe_names() {
     let store_dir = PathBuf::from("store");
     let _adapter = PiPlaybackHostAdapter::new(
         None,
@@ -219,10 +219,10 @@ fn preset_path_rejects_unsafe_names() {
         false,
         UsbAudioOut::Jack,
     );
-    assert!(crate::platform_service::preset_path(&store_dir, "safe").is_ok());
+    assert!(crate::platform_service::preset_patch_path(&store_dir, "safe").is_ok());
     for name in ["bad/name", r"bad\name", r"C:\x", "CON", "bad:name"] {
         assert!(
-            crate::platform_service::preset_path(&store_dir, name).is_err(),
+            crate::platform_service::preset_patch_path(&store_dir, name).is_err(),
             "{name:?}"
         );
     }

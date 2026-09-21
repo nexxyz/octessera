@@ -262,8 +262,12 @@ Expected:
 
 This is the Raspberry-only interactive hardware command. It actuates LEDs, scans
 physical inputs, and plays a test tone under operator control. For the passive
-diagnostic command, use `--fat-diagnostic --board-profile
-<raspberry-pi-zero-2w>`.
+diagnostic command, run:
+
+```bash
+/usr/local/bin/octessera-pi --fat-diagnostic \
+  --board-profile raspberry-pi-zero-2w
+```
 
 Run the no-OLED interactive hardware-test mode directly over SSH:
 
@@ -278,16 +282,10 @@ OLED. It runs the LED checks, logs grid/key/encoder events to stdout, launches
 the ALSA test tone, and prints a final `SUMMARY`.
 
 Do not combine `--hardware-test` or `--hardware-noise-test` with
-`--diagnostic` or `--fat-diagnostic`. The command exits before hardware access
-when modes are combined.
+`--fat-diagnostic --board-profile raspberry-pi-zero-2w`. The command exits
+before hardware access when modes are combined.
 
 For unattended launch, set `OCTESSERA_PI_HARDWARE_TEST=1` instead of passing `--hardware-test`.
-
-`OCTESSERA_PI_DIAGNOSTIC=1` selects the safe diagnostic owner, not this
-interactive test. It is a deprecated Raspberry compatibility alias and is
-rejected when combined with `--board-profile`, `--profile`, `--hardware-test`,
-or `--hardware-noise-test`. Do not leave it set in the service environment
-when launching an interactive test.
 
 To run only the no-touch input noise check:
 

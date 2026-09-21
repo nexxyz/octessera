@@ -20,13 +20,13 @@ Root (group)
 
 ## Split-out sections
 
-- [Build](menu-tree/worlds.md)
-- [Link](menu-tree/pulses.md)
-- [Shape](menu-tree/tones.md)
-- [Play](menu-tree/sparks.md)
+- [Build](menu-tree/build.md)
+- [Link](menu-tree/link.md)
+- [Shape](menu-tree/shape.md)
+- [Play](menu-tree/play.md)
 - [System](menu-tree/system.md)
 
-The Shape FX bus tree stores Duck `Source Tap` as `pre|post` and displays it as `Pre|Post`; omitted legacy values behave as `Pre`. Exact tap points and excluded stages are defined in [Shape routing semantics](menu-tree/tones.md#routing-semantics).
+The Shape FX bus tree stores Duck `Source Tap` as `pre|post` and displays it as `Pre|Post`; omitted legacy values behave as `Pre`. Exact tap points and excluded stages are defined in [Shape routing semantics](menu-tree/shape.md#routing-semantics).
 
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 

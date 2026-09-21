@@ -1,5 +1,5 @@
 use super::live_probe::{LiveProbeHost, LiveProbeRunner, LiveSendRecord};
-use super::{send_device_input, send_fn_play, send_sparks_page_input};
+use super::{send_device_input, send_fn_play, send_play_page_input};
 use playback_runtime::{PlaybackRuntime, TimingProbeScenario};
 use std::time::{Duration, Instant};
 
@@ -131,7 +131,7 @@ pub(super) fn encoder_delta(boundary_ms: u64) -> i32 {
     }
 }
 
-pub(super) fn sparks_page(boundary_ms: u64) -> usize {
+pub(super) fn play_page(boundary_ms: u64) -> usize {
     ((boundary_ms / 250) % 5) as usize
 }
 
@@ -210,12 +210,12 @@ pub(super) fn apply_scenario(
             }
             Ok(())
         }
-        TimingProbeScenario::SparksPageStress if now_ms == 0 => {
-            send_sparks_page_input(playback, runner, host, 0)
+        TimingProbeScenario::PlayPageStress if now_ms == 0 => {
+            send_play_page_input(playback, runner, host, 0)
         }
-        TimingProbeScenario::SparksPageStress => {
+        TimingProbeScenario::PlayPageStress => {
             for boundary_ms in crossed_boundaries(previous_ms, now_ms, 250, 0) {
-                send_sparks_page_input(playback, runner, host, sparks_page(boundary_ms))?;
+                send_play_page_input(playback, runner, host, play_page(boundary_ms))?;
             }
             Ok(())
         }
@@ -225,7 +225,7 @@ pub(super) fn apply_scenario(
 #[cfg(test)]
 mod tests {
     use super::{
-        crossed_boundaries, encoder_delta, pulses_stress_actions, sparks_page, stop_start_actions,
+        crossed_boundaries, encoder_delta, play_page, pulses_stress_actions, stop_start_actions,
         wake_endpoints, LiveCadence,
     };
     use std::time::{Duration, Instant};
@@ -293,7 +293,7 @@ mod tests {
         assert_eq!(
             crossed_boundaries(0, 1000, 250, 0)
                 .into_iter()
-                .map(sparks_page)
+                .map(play_page)
                 .collect::<Vec<_>>(),
             vec![1, 2, 3, 4]
         );

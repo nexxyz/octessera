@@ -29,10 +29,7 @@ pub(super) fn same_sample_path(left: &str, right: &str) -> bool {
     left.replace('\\', "/") == right.replace('\\', "/")
 }
 
-pub(super) fn parse_slot_index(value: &str) -> Option<usize> {
-    if let Ok(index) = value.parse::<usize>() {
-        return Some(if index == 0 { 0 } else { index - 1 });
-    }
+pub(super) fn parse_named_slot_index(value: &str) -> Option<usize> {
     value
         .strip_prefix('I')
         .and_then(|rest| rest.split(':').next())

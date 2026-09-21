@@ -10,10 +10,10 @@ pub(crate) fn transport_tick_advances_multiple_configured_layers() {
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
     runner.layer_behavior_ids[1] = "sequencer".into();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scanned_slot = 0;
-    runner.pulses_layers[1].scan_mode = "scanning".into();
-    runner.pulses_layers[1].scanned_slot = 1;
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scanned_slot = 0;
+    runner.link_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scanned_slot = 1;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -56,9 +56,9 @@ pub(crate) fn inactive_layer_transport_tick_applies_param_modulation() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scanned_slot = 0;
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scanned_slot = 0;
     runner.param_mods[0].x[0] = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
@@ -134,9 +134,9 @@ pub(crate) fn scan_unit_advances_scanning_before_full_note_step_rate() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 96;
-    runner.pulses_layers[0].scan_mode = "scanning".into();
-    runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.pulses_layers[0].scan_unit = "1/4".into();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_unit = "1/4".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -221,32 +221,21 @@ pub(crate) fn save_grid_state_controls_saved_state_payload_and_restore() {
     let mut payload = runner.config_payload();
 
     assert_eq!(
-        payload["runtimeConfig"]["layers"][0]["worlds"]["saveGridState"],
+        payload["runtimeConfig"]["layers"][0]["build"]["saveGridState"],
         true
     );
-    assert!(!payload["runtimeConfig"]["layers"][0]["worlds"]["savedState"].is_null());
-    assert!(payload["runtimeConfig"]["layers"][0]["worlds"]["savedState"]["generation"].is_null());
-    assert!(payload["runtimeConfig"]["layers"][0]["worlds"]["savedState"]["tickCounter"].is_null());
-    assert!(payload["runtimeConfig"]["layers"][0]["worlds"]["behaviorState"].is_null());
+    assert!(!payload["runtimeConfig"]["layers"][0]["build"]["savedState"].is_null());
+    assert!(payload["runtimeConfig"]["layers"][0]["build"]["savedState"]["generation"].is_null());
+    assert!(payload["runtimeConfig"]["layers"][0]["build"]["savedState"]["tickCounter"].is_null());
 
-    let mut legacy_payload = payload.clone();
-    let saved_state = legacy_payload["runtimeConfig"]["layers"][0]["worlds"]["savedState"].clone();
-    legacy_payload["runtimeConfig"]["layers"][0]["worlds"]["savedState"] = Value::Null;
-    legacy_payload["runtimeConfig"]["layers"][0]["worlds"]["behaviorState"] = saved_state;
-    let mut legacy_loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    legacy_loaded.apply_config_payload(legacy_payload).unwrap();
-    assert!(legacy_loaded.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
-
-    payload["runtimeConfig"]["layers"][0]["worlds"]["saveGridState"] = json!(false);
+    payload["runtimeConfig"]["layers"][0]["build"]["saveGridState"] = json!(false);
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(payload).unwrap();
 
     assert!(!loaded.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
     assert_eq!(
-        loaded.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["saveGridState"],
+        loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]["saveGridState"],
         false
     );
-    assert!(
-        loaded.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["savedState"].is_null()
-    );
+    assert!(loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]["savedState"].is_null());
 }
