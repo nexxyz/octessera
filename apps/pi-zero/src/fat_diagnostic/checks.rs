@@ -89,25 +89,43 @@ fn identity_check(context: &CheckContext) -> CheckOutcome {
         );
     }
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    let use_installed_identity = context.board.profile_id == "orange-pi-zero-2w";
+    let (orange_executable, orange_production) = if context.board.profile_id == "orange-pi-zero-2w"
+    {
+        let Some(path) = context.executable.as_deref() else {
+            return outcome(
+                CheckStatus::Fail,
+                "Orange runtime executable path is unavailable",
+                "01-identity.txt",
+            );
+        };
+        match installed_identity::canonicalize_and_is_production(path) {
+            Ok((canonical, production)) => (Some(canonical), production),
+            Err(error) => return outcome(CheckStatus::Fail, &error, "01-identity.txt"),
+        }
+    } else {
+        (None, false)
+    };
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let use_installed_identity = false;
-    if use_installed_identity {
+    let (orange_executable, orange_production): (Option<PathBuf>, bool) = (None, false);
+    if orange_production {
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         {
-            let Some(path) = context.executable.as_deref() else {
-                return outcome(
-                    CheckStatus::Fail,
-                    "Orange runtime executable path is unavailable",
-                    "01-identity.txt",
-                );
-            };
+            let path = orange_executable
+                .as_deref()
+                .expect("production identity has a canonical executable");
             match installed_identity::validate(path) {
-                Ok(metadata) => {
-                    artifact.push_str(&format!("\nproduction_metadata={}", metadata.trim_end()))
+                Ok(identity) => {
+                    artifact.push_str(&format!(
+                        "\napplication_identity=production-runtime\nresolved_executable={}\nproduction_metadata={}\nimage_fat_claim=not_evaluated",
+                        path.display(),
+                        identity.trim_end()
+                    ));
                 }
                 Err(error) => {
-                    let artifact_content = format!("{artifact}\nproduction_metadata_error={error}");
+                    let artifact_content = format!(
+                        "{artifact}\napplication_identity=production-runtime\nresolved_executable={}\nimage_fat_claim=not_evaluated\nproduction_metadata_error={error}",
+                        path.display()
+                    );
                     return outcome_with_content(
                         CheckStatus::Fail,
                         &format!("Orange production identity validation failed: {error}"),
@@ -117,7 +135,17 @@ fn identity_check(context: &CheckContext) -> CheckOutcome {
                 }
             }
         }
-    } else if let Some(path) = context.executable.as_deref() {
+    } else if let Some(path) = orange_executable
+        .as_deref()
+        .or(context.executable.as_deref())
+    {
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        if context.board.profile_id == "orange-pi-zero-2w" {
+            artifact.push_str(&format!(
+                "\napplication_identity=runtime-candidate\nresolved_executable={}\nimage_fat_claim=not_evaluated",
+                path.display()
+            ));
+        }
         match run_metadata_command(
             path.to_string_lossy().as_ref(),
             &["--print-build-metadata"],

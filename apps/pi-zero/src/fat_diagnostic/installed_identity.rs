@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const PRODUCTION_RELEASES_ROOT: &str = "/opt/octessera/releases";
 const PRODUCTION_METADATA_NAME: &str = "octessera-runtime.json";
@@ -19,6 +19,13 @@ struct ProductionRuntimeMetadata {
 
 pub(super) fn validate(executable: &Path) -> Result<String, String> {
     validate_at(executable, Path::new(PRODUCTION_RELEASES_ROOT))
+}
+
+pub(super) fn canonicalize_and_is_production(executable: &Path) -> Result<(PathBuf, bool), String> {
+    let canonical = std::fs::canonicalize(executable)
+        .map_err(|error| format!("cannot canonicalize Orange runtime executable: {error}"))?;
+    let is_production = canonical.starts_with(Path::new(PRODUCTION_RELEASES_ROOT));
+    Ok((canonical, is_production))
 }
 
 fn validate_at(executable: &Path, releases_root: &Path) -> Result<String, String> {

@@ -270,6 +270,12 @@ diagnostic command, run:
   --board-profile raspberry-pi-zero-2w
 ```
 
+For the Orange exact-source application FAT procedure, keep
+`octessera.service` running and follow [the Orange bring-up
+command](orange-pi-armbian-bringup.md#exact-source-application-fat-not-image-fat).
+It validates the application candidate only; use the separate image FAT and
+construction checks for the installed image.
+
 Run the no-OLED interactive hardware-test mode directly over SSH:
 
 ```bash
