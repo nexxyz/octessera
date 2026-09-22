@@ -16,7 +16,7 @@ Assert-DeploymentTarget $Target | Out-Null
 Assert-RaspberryBoardProfile $BoardProfile
 Assert-OctesseraServiceName $Service
 
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
 $script:PiTransportExitCode = 0
 $script:PiFailureExitCode = 0
 

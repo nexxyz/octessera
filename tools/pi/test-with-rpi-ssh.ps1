@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$scriptPath = Join-Path $PSScriptRoot "with-pi-ssh.ps1"
+$scriptPath = Join-Path $PSScriptRoot "with-rpi-ssh.ps1"
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-pi-ssh-test-" + [guid]::NewGuid().ToString("N"))
 $fakeBin = Join-Path $testRoot "bin"
 $userProfile = Join-Path $testRoot "user profile"

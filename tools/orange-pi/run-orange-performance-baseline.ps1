@@ -25,7 +25,7 @@ $metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
 Import-Module $manifestModule -Force
 Import-Module $resultsModule -Force
 Import-Module $metadataModule -Force
-$transport = Join-Path $PSScriptRoot "with-orange-ssh.ps1"
+$transport = Join-Path $PSScriptRoot "with-opi-ssh.ps1"
 $service = "octessera.service"
 $defaultManifestPath = Join-Path $PSScriptRoot "..\performance\cross-board-baseline.json"
 $defaultRunnerPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"

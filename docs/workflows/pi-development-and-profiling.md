@@ -26,9 +26,9 @@ The Orange cross-builder is WSL Docker-only. It never contacts or deploys to a
 board and writes checked artifacts under `target/orange-pi-cross/`:
 
 ```powershell
-./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
-./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release
-./tools/orange-pi/test-build-orange-cross.ps1
+./tools/orange-pi/build-opi-cross.ps1 -Binary orange-oled-smoke -Profile release
+./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release
+./tools/orange-pi/test-build-opi-cross.ps1
 ```
 
 Cargo and rustup caches use persistent named Docker volumes; `-DryRun` prints
@@ -90,7 +90,7 @@ After live probes, inspect recent logs:
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
-./tools/pi/with-pi-ssh.ps1 ssh -Target $PiTarget "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'audio callback RT promotion not qualified|audio stream error|underrun|POLLERR' || true"
+./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'audio callback RT promotion not qualified|audio stream error|underrun|POLLERR' || true"
 ```
 
 Use `-PrintOnly` before any live or service-changing probe. Runtime-only mode

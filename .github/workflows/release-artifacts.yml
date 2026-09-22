@@ -127,7 +127,7 @@ jobs:
           cmp tools/device-update/octessera-update-guard userpatches/overlay/usr/local/sbin/octessera-update-guard
           cmp tools/device-update/octessera-update-recovery tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery
           cmp tools/device-update/octessera-update-recovery userpatches/overlay/usr/local/sbin/octessera-update-recovery
-          grep -q 'update-transaction.json' tools/pi/deploy-pi-fast.ps1
+          grep -q 'update-transaction.json' tools/pi/deploy-rpi-fast.ps1
       - name: Validate sudoers and systemd units
         run: |
           sudo visudo -cf tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update

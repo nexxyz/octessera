@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$buildScript = Join-Path $PSScriptRoot "build-orange-cross.ps1"
+$buildScript = Join-Path $PSScriptRoot "build-opi-cross.ps1"
 $metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
 $source = [IO.File]::ReadAllText($buildScript)
 $metadataSource = [IO.File]::ReadAllText($metadataModule)

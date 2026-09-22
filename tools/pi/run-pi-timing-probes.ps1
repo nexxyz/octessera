@@ -26,7 +26,7 @@ $ErrorActionPreference = "Stop"
 Assert-DeploymentTarget $Target | Out-Null
 $boardProfilePath = Join-Path $PSScriptRoot "board-profile.ps1"
 . $boardProfilePath
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
 $interruptsService = -not $KeepServiceRunning -and $Mode -ne "RuntimeOnly"
 if (-not $PrintOnly -and $interruptsService -and -not $AllowServiceInterruption) { throw "$Mode requires -AllowServiceInterruption." }
 

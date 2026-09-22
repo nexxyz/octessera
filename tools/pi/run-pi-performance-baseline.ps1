@@ -27,7 +27,7 @@ $boardProfile = Join-Path $PSScriptRoot "board-profile.ps1"
 Import-Module $manifestModule -Force
 Import-Module $resultsModule -Force
 . $boardProfile
-$transport = Join-Path $PSScriptRoot "with-pi-ssh.ps1"
+$transport = Join-Path $PSScriptRoot "with-rpi-ssh.ps1"
 $defaultManifestPath = Join-Path $PSScriptRoot "..\performance\cross-board-baseline.json"
 $defaultRunnerPath = Join-Path $PSScriptRoot "run-pi-timing-probes.ps1"
 if ([string]::IsNullOrWhiteSpace($ManifestPath)) { $ManifestPath = $defaultManifestPath }

@@ -27,7 +27,7 @@ Set `OCTESSERA_PI_PASSPHRASE` in the current PowerShell process first:
 ```powershell
 # Set OCTESSERA_PI_PASSPHRASE in this PowerShell process before these commands.
 $PiTarget = "pi@<PI_HOST>"
-./tools/pi/with-pi-ssh.ps1 ssh -Target $PiTarget "hostname"
-./tools/pi/with-pi-ssh.ps1 scp -Target $PiTarget ./candidate.bin "${PiTarget}:/tmp/candidate.bin"
-./tools/pi/with-pi-ssh.ps1 ssh-payload -Target $PiTarget ./remote-script.sh
+./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget "hostname"
+./tools/pi/with-rpi-ssh.ps1 scp -Target $PiTarget ./candidate.bin "${PiTarget}:/tmp/candidate.bin"
+./tools/pi/with-rpi-ssh.ps1 ssh-payload -Target $PiTarget ./remote-script.sh
 ```

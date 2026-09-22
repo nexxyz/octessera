@@ -76,7 +76,7 @@ $passive = Invoke-StudyPrintOnly -Parameters @{ Mode = "PassiveBaseline"; PrintO
 Assert-NoPayloadPlaceholders $passive
 Assert-Contains $passive "PrintOnly: no Orange transport is invoked."
 Assert-Contains $passive $orangeTarget
-Assert-Contains $passive "with-orange-ssh.ps1"
+Assert-Contains $passive "with-opi-ssh.ps1"
 Assert-Contains $passive "systemctl is-active"
 Assert-Contains $passive "thermal_zone"
 Assert-Contains $passive "scp"
@@ -85,7 +85,7 @@ Assert-NotContains $passive "--wait --pipe"
 $passiveCleanup = $passive.Substring($passive.LastIndexOf("Cleanup payload:", [StringComparison]::Ordinal))
 Assert-NotContains $passiveCleanup "systemctl"
 Assert-NotContains $passiveCleanup "sudo"
-if ($passive -match "run-pi-|with-pi-ssh|ssh -i") {
+if ($passive -match "run-pi-|with-rpi-ssh|ssh -i") {
   throw "Passive PrintOnly output routed through Raspberry or direct SSH tooling."
 }
 
@@ -321,7 +321,7 @@ $live300 = Invoke-StudyPrintOnly -Parameters $live300Parameters
 Assert-NoPayloadPlaceholders $live300
 Assert-Contains $live300 "Live selection: A output=256 period=64 engine=128 internal=128 scenario=mixed_ramp_16_48 measure=300 warmup=5 worker-timing=enabled executor=routing_tree_persistent lookahead=128 effective-latency=384"
 Assert-Contains $live300 "RuntimeMaxSec=455s"
-Assert-Contains $live300 "with-orange-ssh.ps1"
+Assert-Contains $live300 "with-opi-ssh.ps1"
 Assert-Contains $live300 "sensor_loop"
 Assert-Contains $live300 "validate_benchmark_progress"
 Assert-Contains $live300 "wait_for_benchmark_terminal"

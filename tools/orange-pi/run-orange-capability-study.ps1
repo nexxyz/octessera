@@ -47,7 +47,7 @@ Assert-DeploymentTarget $Target | Out-Null
 if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
 
 $service = "octessera.service"
-$transport = Join-Path $PSScriptRoot "with-orange-ssh.ps1"
+$transport = Join-Path $PSScriptRoot "with-opi-ssh.ps1"
 $metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
 $payloadModule = Join-Path $PSScriptRoot "orange-capability-study-payloads.psm1"
 $livePayloadModule = Join-Path $PSScriptRoot "orange-live-benchmark-payloads.psm1"
