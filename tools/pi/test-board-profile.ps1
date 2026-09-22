@@ -55,9 +55,9 @@ foreach ($value in @(
   }
 }
 
-$deployScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "deploy-pi-fast.ps1"))
+$deployScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "deploy-rpi-fast.ps1"))
 $remoteDeployScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "deploy-pi-fast-remote.sh"))
-$crossBuildScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "build-pi-cross.ps1"))
+$crossBuildScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "build-rpi-opi-cross.ps1"))
 $wslCrossBuildScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "build-pi-cross-wsl.sh"))
 if ($crossBuildScript -notmatch "--no-default-features --features") {
   throw "Pi PowerShell cross-build must disable default features before selecting a board feature."

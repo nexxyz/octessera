@@ -190,9 +190,9 @@ setup and administration; it is not the runtime account.
 Stage the canonical binary name together with its adjacent exact-name sidecar:
 
 ```powershell
-./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
-./tools/orange-pi/build-orange-cross.ps1 -Binary orange-seesaw-smoke -Profile release
-./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release
+./tools/orange-pi/build-opi-cross.ps1 -Binary orange-oled-smoke -Profile release
+./tools/orange-pi/build-opi-cross.ps1 -Binary orange-seesaw-smoke -Profile release
+./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release
 ```
 
 The builder copies the selected binary and writes its exact-name `.metadata.json`

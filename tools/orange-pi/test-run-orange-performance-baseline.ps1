@@ -126,7 +126,7 @@ Assert-Contains $canary "Target: $orangeTarget"
 Assert-Contains $canary "01: passive board identity"
 Assert-Contains $canary "02: offline repetition=1/3 cell=common_baseline_idle"
 Assert-Contains $canary "05: live repetition=1/3 cell=orange_live_default_synth_cross_slot_16"
-if ($canary -match "08:|with-orange-ssh.ps1|with-pi-ssh.ps1") { throw "Orange canary PrintOnly emitted transport or an extra cell." }
+if ($canary -match "08:|with-opi-ssh.ps1|with-rpi-ssh.ps1") { throw "Orange canary PrintOnly emitted transport or an extra cell." }
 $spacedDirectory = Join-Path ([IO.Path]::GetTempPath()) ("octessera orange spaced " + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $spacedDirectory | Out-Null
 $spacedRunner = Join-Path $spacedDirectory "runner.ps1"
@@ -170,8 +170,8 @@ Assert-Contains $baselineLivePrint "--worker-timing disabled"
 Assert-Contains $baselineLivePrint "--executor inline"
 Assert-Contains $baselineLivePrint '"artifact_kind":"runtime-candidate"'
 Assert-Contains $baselineLivePrint '"cargo_feature":"hardware-orange-pi-zero-2w"'
-if ($runnerSource -match "with-pi-ssh|run-pi-performance-baseline") { throw "Orange runner references Raspberry tooling." }
-if ($driverSource -match "with-pi-ssh|run-pi-timing-probes") { throw "Orange driver references Raspberry tooling." }
+if ($runnerSource -match "with-rpi-ssh|run-pi-performance-baseline") { throw "Orange runner references Raspberry tooling." }
+if ($driverSource -match "with-rpi-ssh|run-pi-timing-probes") { throw "Orange driver references Raspberry tooling." }
 
 $studyStart = $baselinePrint.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
 $studyEnd = $baselinePrint.IndexOf("Study payload transport:", $studyStart, [StringComparison]::Ordinal)

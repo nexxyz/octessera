@@ -1,10 +1,10 @@
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\deployment-target.ps1")
 
-$deployScript = Join-Path $PSScriptRoot "deploy-pi-fast.ps1"
+$deployScript = Join-Path $PSScriptRoot "deploy-rpi-fast.ps1"
 $deployText = [IO.File]::ReadAllText($deployScript)
 $targetValidationIndex = $deployText.IndexOf('Assert-DeploymentTarget $Target | Out-Null', [StringComparison]::Ordinal)
-$transportIndex = $deployText.IndexOf('with-pi-ssh.ps1', [StringComparison]::Ordinal)
+$transportIndex = $deployText.IndexOf('with-rpi-ssh.ps1', [StringComparison]::Ordinal)
 if ($deployText.IndexOf('[Parameter(Mandatory = $true)]', [StringComparison]::Ordinal) -lt 0 -or $deployText.IndexOf('[string]$Target', [StringComparison]::Ordinal) -lt 0) {
   throw "Fast deployment must require an explicit target."
 }

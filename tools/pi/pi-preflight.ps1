@@ -11,7 +11,7 @@ Assert-DeploymentTarget $Target | Out-Null
 . (Join-Path $PSScriptRoot "board-profile.ps1")
 Assert-RaspberryBoardProfile $BoardProfile
 
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
 
 $remote = @'
 set -u

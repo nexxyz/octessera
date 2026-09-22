@@ -22,8 +22,8 @@ Preferred fast path:
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
-./tools/pi/build-pi-cross.ps1
-./tools/pi/deploy-pi-fast.ps1 -Target $PiTarget -LocalBinary target/pi-cross/octessera-pi -NoTail
+./tools/pi/build-rpi-opi-cross.ps1
+./tools/pi/deploy-rpi-fast.ps1 -Target $PiTarget -LocalBinary target/pi-cross/octessera-pi -NoTail
 # The adjacent target/pi-cross/octessera-pi.metadata.json is checked during deployment.
 # If boot-splash assets changed, provision first; this path never rebuilds initramfs.
 ```
@@ -103,8 +103,8 @@ checks do not cover tactile timing or display readability.
    ```powershell
    $PiTarget = "pi@<PI_HOST>"
    ./tools/pi/provision-pi.ps1 -Target $PiTarget
-   ./tools/pi/build-pi-cross.ps1
-   ./tools/pi/deploy-pi-fast.ps1 -Target $PiTarget -LocalBinary target/pi-cross/octessera-pi -NoTail
+   ./tools/pi/build-rpi-opi-cross.ps1
+   ./tools/pi/deploy-rpi-fast.ps1 -Target $PiTarget -LocalBinary target/pi-cross/octessera-pi -NoTail
    ```
 2. Pull service logs and profile summaries when the behavior is unclear;
    disable `OCTESSERA_PI_UI_PROFILE=1` after profiling.

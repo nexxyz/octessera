@@ -339,7 +339,7 @@ Assert-Throws { & $runner -Target $testTarget -Units 16 } "missing explicit inte
 if ($runnerSource.IndexOf("ObserveCompromises", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf("completed observation", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf('StatusClass -ne "pass" -and -not ($ObserveCompromises', [StringComparison]::Ordinal) -lt 0) { throw "Raspberry observation mode does not retain completed compromised runs." }
 
 foreach ($required in @(
-  "with-pi-ssh.ps1",
+  "with-rpi-ssh.ps1",
   "systemd-run",
   "sndrpihifiberry/pcm0p/sub0/hw_params",
   "vcgencmd get_throttled",
@@ -355,7 +355,7 @@ foreach ($required in @("__OUTPUT_FRAMES__", "__ALSA_PERIOD_FRAMES__", "__INTERN
   if ($runnerSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { throw "Runner is missing executor-owned geometry or continuation contract: $required" }
 }
 if ($runnerSource -match '--output-frames 256|--engine-block-frames 128|\[ "\$buffer" = 256 \]|\[ "\$period" = 64 \]') { throw "Raspberry runner retains hard-coded benchmark geometry." }
-if ($runnerSource -match "with-orange-ssh|orange_audio_benchmark|fallback") { throw "Raspberry runner contains Orange or fallback behavior." }
+if ($runnerSource -match "with-opi-ssh|orange_audio_benchmark|fallback") { throw "Raspberry runner contains Orange or fallback behavior." }
 $preflightIndex = $runnerSource.IndexOf("if ! sudo -n -v >/dev/null 2>&1", [StringComparison]::Ordinal)
 $serviceReadIndex = $runnerSource.IndexOf('initial_active="$(sudo -n systemctl', [StringComparison]::Ordinal)
 if ($preflightIndex -lt 0 -or $serviceReadIndex -lt 0 -or $preflightIndex -ge $serviceReadIndex) { throw "Raspberry runner does not preflight sudo before service-state reads." }

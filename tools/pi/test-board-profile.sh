@@ -18,7 +18,7 @@ if require_raspberry_pi_board_profile "$ORANGE_PI_ZERO_2W_PROFILE_ID"; then
   exit 1
 fi
 
-cross_build_script="$(cat ./tools/pi/build-pi-cross.ps1)"
+cross_build_script="$(cat ./tools/pi/build-rpi-opi-cross.ps1)"
 wsl_cross_build_script="$(cat ./tools/pi/build-pi-cross-wsl.sh)"
 if ! grep -Eq '\$dockerfilePath[[:space:]]*=[[:space:]]*Join-Path \$buildContext "Dockerfile\.pi-zero"' <<<"$cross_build_script"; then
   echo "Pi PowerShell cross-build must place its Dockerfile in the temporary build context" >&2

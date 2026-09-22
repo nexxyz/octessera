@@ -126,14 +126,14 @@ specific board, hostnames, IP addresses, or generated SSH config to Git.
 
 ## Target and transport
 
-Set the target for the board you are operating. Use `with-orange-ssh.ps1` for
+Set the target for the board you are operating. Use `with-opi-ssh.ps1` for
 SSH and SCP; it supplies the dedicated key,
 `known_hosts`, strict host-key checking, and the passphrase from
 `OCTESSERA_PI_PASSPHRASE`.
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
-./tools/orange-pi/with-orange-ssh.ps1 ssh -Target $OrangeTarget "id -un; hostname"
+./tools/orange-pi/with-opi-ssh.ps1 ssh -Target $OrangeTarget "id -un; hostname"
 ```
 
 For input-routing changes, use the [Orange input-routing reference](../../hardware/docs/orange-pi-input-routing.md)
@@ -146,10 +146,10 @@ The WSL Docker builder writes AArch64 binaries and schema-2 metadata sidecars
 under `target/orange-pi-cross/`:
 
 ```powershell
-./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
-./tools/orange-pi/build-orange-cross.ps1 -Binary orange-seesaw-smoke -Profile release
-./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release
-./tools/orange-pi/test-build-orange-cross.ps1
+./tools/orange-pi/build-opi-cross.ps1 -Binary orange-oled-smoke -Profile release
+./tools/orange-pi/build-opi-cross.ps1 -Binary orange-seesaw-smoke -Profile release
+./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release
+./tools/orange-pi/test-build-opi-cross.ps1
 ```
 
 Use `-DryRun` to print the Docker command. The canonical outputs are
@@ -162,11 +162,11 @@ the binary and sidecar names:
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
-./tools/orange-pi/with-orange-ssh.ps1 scp `
+./tools/orange-pi/with-opi-ssh.ps1 scp `
   -Target $OrangeTarget `
   target/orange-pi-cross/octessera-pi `
   "${OrangeTarget}:/tmp/octessera-pi"
-./tools/orange-pi/with-orange-ssh.ps1 scp `
+./tools/orange-pi/with-opi-ssh.ps1 scp `
   -Target $OrangeTarget `
   target/orange-pi-cross/octessera-pi.metadata.json `
   "${OrangeTarget}:/tmp/octessera-pi.metadata.json"
@@ -190,7 +190,7 @@ Active runs use `-AllowServiceInterruption`; the live matrix additionally uses
 `-AllowMatrixServiceInterruption`. The command-generation checks are:
 
 ```powershell
-./tools/orange-pi/test-with-orange-ssh.ps1
+./tools/orange-pi/test-with-opi-ssh.ps1
 ./tools/orange-pi/test-run-orange-capability-study.ps1
 ./tools/orange-pi/test-run-orange-live-audio-matrix.ps1
 ./tools/orange-pi/test-run-orange-performance-baseline.ps1

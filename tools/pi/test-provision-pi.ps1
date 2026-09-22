@@ -13,7 +13,7 @@ $provisionText = [IO.File]::ReadAllText($scriptPath)
 if ($provisionText.IndexOf('[Parameter(Mandatory = $true)]', [StringComparison]::Ordinal) -lt 0 -or $provisionText.IndexOf('[string]$Target', [StringComparison]::Ordinal) -lt 0) {
   throw "Pi provisioning must require an explicit target."
 }
-if ($provisionText.IndexOf("with-pi-ssh.ps1", [StringComparison]::Ordinal) -lt 0 -or $provisionText -match '(?m)^\s*(?:ssh|scp)\s+@') {
+if ($provisionText.IndexOf("with-rpi-ssh.ps1", [StringComparison]::Ordinal) -lt 0 -or $provisionText -match '(?m)^\s*(?:ssh|scp)\s+@') {
   throw "Pi provisioning must route SSH and SCP through the canonical Pi transport wrapper."
 }
 

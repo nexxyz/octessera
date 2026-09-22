@@ -47,7 +47,7 @@ Assert-Contains $canary "Target: $testTarget"
 Assert-Contains $canary "02: offline repetition=1/3 cell=common_baseline_idle"
 Assert-Contains $canary "05: live mode=Live repetition=1/3 cell=raspberry_live_output_256 scenario=pulses-stress output=256 internal=128 callback=null"
 Assert-Contains $canary "06: live mode=AudioDrain repetition=1/3 cell=raspberry_live_output_256 scenario=pulses-stress output=256 internal=128 callback=null"
-if ($canary -match "11:|with-pi-ssh.ps1.*ssh-payload") { throw "Raspberry canary PrintOnly emitted an extra cell or transport." }
+if ($canary -match "11:|with-rpi-ssh.ps1.*ssh-payload") { throw "Raspberry canary PrintOnly emitted an extra cell or transport." }
 $full = Invoke-PrintOnly $driver @{ Target = $testTarget; PrintOnly = $true; Phase = "Full" }
 Assert-Contains $full "offline repetition=2/3"
 Assert-Contains $full "raspberry_live_output_128"
@@ -83,8 +83,8 @@ Assert-Throws { & $runner -Target $testTarget -Mode ProfileBaseline -Scenario sy
 Assert-Throws { & $runner -Target $testTarget -Mode Live -Durations 30s } "live runner consent"
 Assert-Throws { & $runner -Target $testTarget -Mode ProfileBaseline -Scenario unknown_scenario -AudioRenderQuantumFrames 256 -ProfileMeasureFrames 256 -PrintOnly } "native unknown ID remains fail closed at the host contract"
 if ($runnerSource -notmatch "RuntimeOnly|DspFxLimits|DspSoak") { throw "Raspberry timing runner legacy modes were not retained." }
-if ($driverSource -match "with-orange-ssh|run-orange-performance-baseline") { throw "Raspberry driver references Orange tooling." }
-if ($runnerSource -match "with-orange-ssh|run-orange-performance-baseline") { throw "Raspberry runner references Orange tooling." }
+if ($driverSource -match "with-opi-ssh|run-orange-performance-baseline") { throw "Raspberry driver references Orange tooling." }
+if ($runnerSource -match "with-opi-ssh|run-orange-performance-baseline") { throw "Raspberry runner references Orange tooling." }
 Assert-Contains $driverSource 'CallbackFields = $null'
 Assert-Contains $driverSource "Invoke-PiLiveProbe"
 Assert-Contains $driverSource "local_sha256"

@@ -370,14 +370,14 @@ jobs:
         run: ./tools/fat/test-prepare-evidence.ps1
       - name: Validate fast deployment target handling
         shell: pwsh
-        run: ./tools/pi/test-deploy-pi-fast.ps1
+        run: ./tools/pi/test-deploy-rpi-fast.ps1
       - name: Validate Pi provisioning wrapper flags
         shell: pwsh
         run: ./tools/pi/test-provision-pi.ps1
       - name: Validate Orange profile PowerShell scripts
         shell: pwsh
         run: |
-          ./tools/orange-pi/test-build-orange-cross.ps1
+          ./tools/orange-pi/test-build-opi-cross.ps1
           ./tools/orange-pi/test-run-opi-bringup.ps1
           ./tools/orange-pi/test-provision-input-routing.ps1
 
@@ -505,7 +505,7 @@ jobs:
             echo 'updater internals must not be exposed through sudoers' >&2
             exit 1
           fi
-          grep -q 'update-transaction.json' tools/pi/deploy-pi-fast.ps1
+          grep -q 'update-transaction.json' tools/pi/deploy-rpi-fast.ps1
           bash tools/pi-image/test-wifi-foundation.sh
       - name: Validate Linux sudoers and systemd layout
         run: |
