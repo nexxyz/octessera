@@ -55,6 +55,10 @@ function Assert-NoPayloadPlaceholders {
   }
 }
 
+$scriptSource = [IO.File]::ReadAllText($scriptPath)
+Assert-Contains $scriptSource '& $transport -Command $Command -Target $Target -ArgumentList $wrapperArguments'
+Assert-NotContains $scriptSource '& $transport -Command $Command -Target $Target @wrapperArguments'
+
 Assert-Throws { & $scriptPath -Mode PassiveBaseline -PrintOnly | Out-Null }
 
 function Assert-Ordered {

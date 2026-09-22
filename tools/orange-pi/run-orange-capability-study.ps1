@@ -258,7 +258,7 @@ function Invoke-OrangeTransport {
     return
   }
   $wrapperArguments = if ($Command -in @("ssh", "ssh-payload") -and $Arguments.Count -gt 0 -and $Arguments[0] -ceq $Target) { @($Arguments | Select-Object -Skip 1) } else { @($Arguments) }
-  & $transport -Command $Command -Target $Target @wrapperArguments
+  & $transport -Command $Command -Target $Target -ArgumentList $wrapperArguments
   if ($LASTEXITCODE -ne 0) {
     throw "Orange transport failed with exit code ${LASTEXITCODE}: $Command"
   }
