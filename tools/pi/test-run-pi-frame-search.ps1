@@ -207,7 +207,7 @@ try {
   Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$printArguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $runner, "-Units", "42", "-FrameSearchProfile", "RM256", "-FrameSearchPhase", "Soak", "-PrintOnly")
+$printArguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $runner, "-Target", "pi@pi.test.invalid", "-Units", "42", "-FrameSearchProfile", "RM256", "-FrameSearchPhase", "Soak", "-PrintOnly")
 $printOutput = @(& (Join-Path $PSHOME "powershell.exe") @printArguments 2>&1)
 $printText = ($printOutput | ForEach-Object { [string]$_ }) -join "`n"
 if ($LASTEXITCODE -ne 0 -or $printText -notmatch "U42 profile=RM256 phase=Soak scenario=capacity_analogue_42 executor=Multicore output=256 period=64 internal=256 lookahead=256 effective=512 worker-timing=disabled continue-on-recovered-miss=True measure=600 label=600-second soak") { throw "Raspberry frame-search PrintOnly contract changed." }

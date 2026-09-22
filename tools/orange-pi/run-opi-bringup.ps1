@@ -10,6 +10,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 
 function ConvertTo-ShellLiteral {
   param([string]$Value)

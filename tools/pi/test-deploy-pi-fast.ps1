@@ -1,12 +1,12 @@
 $ErrorActionPreference = "Stop"
-. (Join-Path $PSScriptRoot "deploy-target.ps1")
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
 
 $deployScript = Join-Path $PSScriptRoot "deploy-pi-fast.ps1"
 $deployText = [IO.File]::ReadAllText($deployScript)
-$targetValidationIndex = $deployText.IndexOf('Assert-PiDeploymentTarget $Target | Out-Null', [StringComparison]::Ordinal)
+$targetValidationIndex = $deployText.IndexOf('Assert-DeploymentTarget $Target | Out-Null', [StringComparison]::Ordinal)
 $transportIndex = $deployText.IndexOf('with-pi-ssh.ps1', [StringComparison]::Ordinal)
-if ($deployText.IndexOf('Target = "pi@192.168.0.218"', [StringComparison]::Ordinal) -lt 0) {
-  throw "Fast deployment default target must be pi@192.168.0.218."
+if ($deployText.IndexOf('[Parameter(Mandatory = $true)]', [StringComparison]::Ordinal) -lt 0 -or $deployText.IndexOf('[string]$Target', [StringComparison]::Ordinal) -lt 0) {
+  throw "Fast deployment must require an explicit target."
 }
 if ($targetValidationIndex -lt 0 -or $targetValidationIndex -ge $transportIndex) {
   throw "Fast deployment must validate its target before constructing SSH arguments."
@@ -33,11 +33,11 @@ function Assert-Rejected {
 }
 
 foreach ($validTarget in @(
-    "pi@192.168.0.211",
+    "pi@192.0.2.211",
     "octessera@octessera.local",
     "deploy@pi-zero-2w"
   )) {
-  if ((Assert-PiDeploymentTarget $validTarget) -cne $validTarget) {
+  if ((Assert-DeploymentTarget $validTarget) -cne $validTarget) {
     throw "Deployment target validator changed a valid target: $validTarget"
   }
 }
@@ -64,7 +64,7 @@ foreach ($invalidTarget in @(
     "pi@999.1.1.1",
     "pi@256.256.256.256"
   )) {
-  Assert-Rejected { Assert-PiDeploymentTarget $invalidTarget } $invalidTarget
+  Assert-Rejected { Assert-DeploymentTarget $invalidTarget } $invalidTarget
 }
 
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-deploy-target-test-" + [guid]::NewGuid().ToString("N"))
@@ -104,7 +104,7 @@ function Invoke-DeployScript {
 
 try {
   New-Item -ItemType Directory -Path $fakeBin, $sshDirectory, (Split-Path -Parent $binaryPath) -Force | Out-Null
-  Write-Utf8NoBom (Join-Path $sshDirectory "known_hosts") "192.168.0.218 ssh-ed25519 fake"
+  Write-Utf8NoBom (Join-Path $sshDirectory "known_hosts") "pi.test.invalid ssh-ed25519 fake"
   Write-Utf8NoBom (Join-Path $testRoot "key with spaces") "fake private key"
   Write-Utf8NoBom (Join-Path $fakeBin "record-transport.ps1") @'
 [IO.File]::AppendAllText($env:OCTESSERA_PI_TRANSPORT_LOG, "$($args[0])`n")
@@ -129,7 +129,15 @@ exit /b %ERRORLEVEL%
   $env:OCTESSERA_PI_PASSPHRASE = "test-only-passphrase"
   $env:OCTESSERA_PI_TRANSPORT_LOG = $transportLog
   Remove-Item -LiteralPath $transportLog -Force -ErrorAction SilentlyContinue
+  $testTarget = "pi@pi.test.invalid"
+  if ((Invoke-DeployScript @{ NoTail = $true }) -eq 0) {
+    throw "Fast deployment accepted an omitted target."
+  }
+  if (Test-Path -LiteralPath $transportLog) {
+    throw "Fast deployment reached a transport before rejecting an omitted target."
+  }
   $validParameters = @{
+    Target = $testTarget
     Key = Join-Path $testRoot "key with spaces"
     RemoteRepo = "/home/pi/O'Reilly repo with spaces"
     InstallDir = "/opt/octessera/O'Reilly install"
@@ -138,7 +146,7 @@ exit /b %ERRORLEVEL%
     NoTail = $true
   }
   if ((Invoke-DeployScript $validParameters) -ne 0) {
-    throw "Fast deployment rejected valid paths or the default target."
+    throw "Fast deployment rejected valid paths or the explicit target."
   }
   $transportCalls = @(Get-Content -LiteralPath $transportLog -ErrorAction Stop)
   if ($transportCalls.Count -eq 0 -or -not ($transportCalls -contains "scp") -or -not ($transportCalls -contains "ssh")) {
@@ -150,6 +158,7 @@ exit /b %ERRORLEVEL%
   $failureStderr = Join-Path $testRoot "failure.stderr"
   $failureArguments = @(
     "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ('"{0}"' -f $deployScript),
+    "-Target", $testTarget,
     "-Key", ('"{0}"' -f (Join-Path $testRoot "key with spaces")),
     "-LocalBinary", ('"{0}"' -f $binaryPath),
     "-LocalMetadata", ('"{0}"' -f $metadataPath),

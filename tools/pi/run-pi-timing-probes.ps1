@@ -1,5 +1,6 @@
 param(
-  [string]$Target = "pi@192.168.0.218",
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$Binary = "/usr/local/bin/octessera-pi",
   [string]$Service = "octessera.service",
@@ -21,6 +22,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 $boardProfilePath = Join-Path $PSScriptRoot "board-profile.ps1"
 . $boardProfilePath
 $transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-pi-ssh.ps1")).Path

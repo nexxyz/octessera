@@ -40,8 +40,6 @@ hardware/Mouser Cart with Components.pdf
 # BEGIN oh-my-opencode-slim clonedeps
 .slim/clonedeps/repos/
 # END oh-my-opencode-slim clonedeps
-tools/orange-pi/with-orange-ssh.ps1
-tools/orange-pi/test-with-orange-ssh.ps1
 apps/desktop/src-tauri/samples/
 tools/pi-image/stage4-octessera/files/root/usr/
 !tools/pi-image/stage4-octessera/files/root/usr/

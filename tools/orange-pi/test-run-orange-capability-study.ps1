@@ -1,11 +1,13 @@
 $ErrorActionPreference = "Stop"
 
 $scriptPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
+$orangeTarget = "octessera@orange.test.invalid"
 Import-Module (Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-cross-metadata.psm1") -Force
 
 function Invoke-StudyPrintOnly {
   param([hashtable]$Parameters)
+  if (-not $Parameters.ContainsKey("Target")) { $Parameters.Target = $orangeTarget }
   try {
     $output = @(& $scriptPath @Parameters 2>&1)
     if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
@@ -53,6 +55,8 @@ function Assert-NoPayloadPlaceholders {
   }
 }
 
+Assert-Throws { & $scriptPath -Mode PassiveBaseline -PrintOnly | Out-Null }
+
 function Assert-Ordered {
   param(
     [Parameter(Mandatory)][string]$Text,
@@ -71,7 +75,7 @@ function Assert-Ordered {
 $passive = Invoke-StudyPrintOnly -Parameters @{ Mode = "PassiveBaseline"; PrintOnly = $true }
 Assert-NoPayloadPlaceholders $passive
 Assert-Contains $passive "PrintOnly: no Orange transport is invoked."
-Assert-Contains $passive "octessera@192.168.0.217"
+Assert-Contains $passive $orangeTarget
 Assert-Contains $passive "with-orange-ssh.ps1"
 Assert-Contains $passive "systemctl is-active"
 Assert-Contains $passive "thermal_zone"
@@ -81,7 +85,7 @@ Assert-NotContains $passive "--wait --pipe"
 $passiveCleanup = $passive.Substring($passive.LastIndexOf("Cleanup payload:", [StringComparison]::Ordinal))
 Assert-NotContains $passiveCleanup "systemctl"
 Assert-NotContains $passiveCleanup "sudo"
-if ($passive -match "run-pi-timing-probes|192\.168\.0\.211|ssh -i") {
+if ($passive -match "run-pi-|with-pi-ssh|ssh -i") {
   throw "Passive PrintOnly output routed through Raspberry or direct SSH tooling."
 }
 

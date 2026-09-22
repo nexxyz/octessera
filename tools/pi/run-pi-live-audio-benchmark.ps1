@@ -3,7 +3,8 @@ param(
   [string]$Units = "16",
   [ValidateSet("Inline", "Multicore", "")][string]$ExecutorMode = "",
   [string]$MeasureSeconds = "30",
-  [string]$Target = "pi@192.168.0.218",
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$Artifact = "",
   [string]$Metadata = "",
@@ -17,6 +18,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 . (Join-Path $PSScriptRoot "board-profile.ps1")
 Import-Module (Join-Path $PSScriptRoot "raspberry-live-benchmark-metadata.psm1") -Force

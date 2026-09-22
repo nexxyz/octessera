@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$ManifestPath = "",
   [ValidateSet("Passive", "Offline", "Live", "Full")]
   [string]$Phase = "Full",
@@ -14,6 +16,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 
 $manifestModule = Join-Path $PSScriptRoot "..\performance\performance-baseline-plan.psm1"
 $resultsModule = Join-Path $PSScriptRoot "..\performance\performance-baseline-results.psm1"
@@ -22,7 +26,6 @@ Import-Module $manifestModule -Force
 Import-Module $resultsModule -Force
 Import-Module $metadataModule -Force
 $transport = Join-Path $PSScriptRoot "with-orange-ssh.ps1"
-$target = "octessera@192.168.0.217"
 $service = "octessera.service"
 $defaultManifestPath = Join-Path $PSScriptRoot "..\performance\cross-board-baseline.json"
 $defaultRunnerPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
@@ -91,7 +94,7 @@ function Invoke-OrangeIdentity {
   $stdout = Join-Path $Directory "passive.stdout.txt"
   $stderr = Join-Path $Directory "passive.stderr.txt"
   $command = Get-IdentityCommand
-  & $transport "ssh" $target $command 1> $stdout 2> $stderr
+  & $transport -Command ssh -Target $Target $command 1> $stdout 2> $stderr
   $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
   if ($exitCode -ne 0) { throw "Orange passive identity collection failed: $exitCode" }
   $identityText = Get-Content -LiteralPath $stdout -Raw
@@ -165,7 +168,7 @@ function Invoke-OrangeCell {
   $stdout = Join-Path $cellDirectory "runner.stdout.txt"
   $stderr = Join-Path $cellDirectory "runner.stderr.txt"
   $arguments = @(
-    "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $RunnerPath,
+    "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $RunnerPath, "-Target", $Target,
     "-OutputDirectory", $cellDirectory, "-Artifact", $Artifact, "-Metadata", $Metadata, "-AllowServiceInterruption"
   )
   if ($Kind -eq "offline") {
@@ -227,7 +230,7 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Get-Def
 Assert-PerformanceBaselinePath $OutputDirectory "Orange baseline output path"
 if ($PrintOnly) {
   Write-Output "Orange performance baseline PrintOnly: no transport is invoked."
-  Write-Output "Target: $target"
+  Write-Output "Target: $Target"
   Write-Output "Manifest: $ManifestPath"
   Write-Output "01: passive board identity"
   $index = 2
@@ -258,7 +261,7 @@ if ($needsActiveRun) {
 if ($null -eq $repositoryIdentity) { $repositoryIdentity = Get-RepositoryIdentity }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $cohortManifestPath = Join-Path $OutputDirectory "cohort-manifest.json"
-$cohortManifest = [ordered]@{ schema_version = 1; study_id = $manifest.study_id; board_profile = "orange-pi-zero-2w"; target = $target; sample_rate = $manifest.sample_rate; warmup_seconds = $manifest.warmup_seconds; offline_observations = $manifest.offline_observations; repetitions = $manifest.repetitions; source = [ordered]@{ repository = $repoRoot; head = $repositoryIdentity.Head; status = $repositoryIdentity.Status }; artifact = [ordered]@{ local = $Artifact; binary = $Artifact; metadata = $Metadata; local_sha256 = $localArtifactHash; remote_sha256 = $null }; manifest = (Resolve-Path $ManifestPath).Path; phase = $Phase; canary_only = [bool]$CanaryOnly; identity = $null; results = @() }
+$cohortManifest = [ordered]@{ schema_version = 1; study_id = $manifest.study_id; board_profile = "orange-pi-zero-2w"; target = $Target; sample_rate = $manifest.sample_rate; warmup_seconds = $manifest.warmup_seconds; offline_observations = $manifest.offline_observations; repetitions = $manifest.repetitions; source = [ordered]@{ repository = $repoRoot; head = $repositoryIdentity.Head; status = $repositoryIdentity.Status }; artifact = [ordered]@{ local = $Artifact; binary = $Artifact; metadata = $Metadata; local_sha256 = $localArtifactHash; remote_sha256 = $null }; manifest = (Resolve-Path $ManifestPath).Path; phase = $Phase; canary_only = [bool]$CanaryOnly; identity = $null; results = @() }
 Write-CohortManifest $cohortManifestPath $cohortManifest
 $identity = Invoke-OrangeIdentity $OutputDirectory
 $cohortManifest.identity = [ordered]@{ stdout = $identity.StdoutPath; stderr = $identity.StderrPath; values = Read-IdentityValues $identity.StdoutPath }

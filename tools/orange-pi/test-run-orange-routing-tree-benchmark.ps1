@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 
 $runner = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
 $matrix = Join-Path $PSScriptRoot "run-orange-live-audio-matrix.ps1"
+$orangeTarget = "octessera@orange.test.invalid"
 $validation = Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1"
 Import-Module $validation -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-payload-validation.psm1") -Force
@@ -11,6 +12,7 @@ Import-Module (Join-Path $PSScriptRoot "orange-worker-timing-validation.psm1") -
 
 function Invoke-PrintOnly {
   param([Parameter(Mandatory)][string]$Path, [hashtable]$Parameters = @{})
+  if (-not $Parameters.ContainsKey("Target")) { $Parameters.Target = $orangeTarget }
   $global:LASTEXITCODE = 0
   $output = @(& $Path @Parameters 2>&1)
   if ($LASTEXITCODE -ne 0) { throw "PrintOnly failed for $Path" }

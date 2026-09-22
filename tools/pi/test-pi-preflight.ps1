@@ -2,6 +2,9 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $source = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "pi-preflight.ps1"))
+if ($source.IndexOf('[Parameter(Mandatory = $true)]', [StringComparison]::Ordinal) -lt 0 -or $source.IndexOf('[string]$Target', [StringComparison]::Ordinal) -lt 0 -or $source.IndexOf('Assert-DeploymentTarget $Target | Out-Null', [StringComparison]::Ordinal) -lt 0) {
+  throw "Raspberry preflight must require and validate an explicit target."
+}
 foreach ($forbidden in @("systemctl\s+status", "journalctl", "--lines")) {
   if ($source -match $forbidden) {
     throw "Raspberry preflight contains forbidden shared-evidence command content: $forbidden"

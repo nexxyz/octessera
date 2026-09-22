@@ -9,6 +9,8 @@ result together with the machine.
 Start with the [desktop simulator](desktop-simulator.md) if you want to make a
 sound before building anything. It needs no PCB, board, OLED, or soldering iron.
 
+**Next:** [Learn the controls](controls-cheat-sheet.md)
+
 ## 2. Build the device
 
 Choose a Raspberry Pi Zero 2 W or Orange Pi Zero 2W. Use the matching board
@@ -17,12 +19,16 @@ image and enclosure top.
 [Build and assembly manual](hardware/assembly-manual.md) · [Safety and
 power](hardware/safety-and-power.md)
 
+**Next:** [Flash and first boot](hardware/flash-and-first-boot.md)
+
 ## 3. Flash and set it up
 
 [Flash and first-boot guide](hardware/flash-and-first-boot.md) — matching image,
 flashing, first boot, and network setup.
 
 [USB roles](hardware/usb-roles.md) — host-computer connections.
+
+**Next:** [Make music](#4-make-music)
 
 ## 4. Make music
 
@@ -36,10 +42,26 @@ flashing, first boot, and network setup.
 [Controls cheat sheet](controls-cheat-sheet.md) · [Behaviors and Play
 pages](behaviors-and-play.md) · [Recording](recording.md)
 
+**Next:** [Controls cheat sheet](controls-cheat-sheet.md)
+
 **Something is wrong?** Start with [troubleshooting](troubleshooting.md). Power
 down before opening the case or moving wiring.
 
 ## Reference
+
+### Contents
+
+- **Operation:** [Controls cheat sheet](controls-cheat-sheet.md), [Behaviors and
+  Play pages](behaviors-and-play.md), [Recording audio and OLED](recording.md),
+  [Data backup and restore](data-backup-restore.md), and
+  [Troubleshooting](troubleshooting.md).
+- **Build and hardware:** [Assembly manual](hardware/assembly-manual.md),
+  [Flash and first boot](hardware/flash-and-first-boot.md),
+  [Setup portal](hardware/setup-portal.md), [Enclosure](hardware/enclosure.md),
+  [Protective case (optional)](hardware/protective-case.md),
+  [Safety and power](hardware/safety-and-power.md), and
+  [USB roles](hardware/usb-roles.md).
+- **Quick reference:** [Printable quick reference](print/quick-reference.pdf).
 
 ### Practical performance
 
@@ -56,15 +78,6 @@ Voice counts are totals across all instrument slots, not per-instrument limits.
 Adaptive voice stealing may reduce the active synth count as load rises. These
 are practical targets rather than guarantees; behaviors, samples, and effects
 all change the available headroom.
-
-- [Controls cheat sheet](controls-cheat-sheet.md)
-- [Behaviors and Play pages](behaviors-and-play.md)
-- [Recording audio and OLED](recording.md)
-- [Safety and power](hardware/safety-and-power.md)
-- [USB roles](hardware/usb-roles.md)
-- [Data backup and restore](data-backup-restore.md)
-- [Troubleshooting](troubleshooting.md)
-- [Printable quick reference](print/quick-reference.pdf)
 
 ### Samples
 

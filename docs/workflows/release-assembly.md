@@ -3,6 +3,9 @@
 The release artifact entrypoint is `.github/workflows/release-artifacts.yml`.
 It builds the custom GitHub release files listed below.
 
+Published versions, tags, and assets are immutable. New bytes require a new
+exact semantic version; do not replace bytes for an existing version.
+
 ## Custom release assets
 
 The current contract contains exactly fourteen custom root files:

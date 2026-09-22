@@ -44,6 +44,8 @@ start with the [user manual](../userdocs/README.md).
 
 ## Development, build, and deployment
 
+- [Development workflows](development-workflows.md) — contributor workflow map
+  and focused references.
 - [Desktop development](workflows/desktop-development.md) — simulator
   development and desktop builds.
 - [Pi provisioning](../tools/pi/provision/README.md) — Raspberry OS and boot

@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-  [string]$Target = "octessera@192.168.0.217",
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_orange_pi_ed25519",
   [string]$KnownHosts = "$env:USERPROFILE\.ssh\known_hosts",
   [switch]$Apply,
@@ -10,6 +11,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 
 if (-not $Apply -and -not $Preflight -and [string]::IsNullOrWhiteSpace($RollbackId)) {
   $Preflight = $true

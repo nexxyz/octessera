@@ -36,7 +36,22 @@ function Invoke-Wrapper {
 
   $threw = $false
   try {
-    $output = @(& $scriptPath @Arguments 2>&1)
+    $modeIndex = if ([string]$Arguments[0] -ceq "-Mode") { 1 } else { 0 }
+    $mode = [string]$Arguments[$modeIndex]
+    $remaining = @($Arguments | Select-Object -Skip ($modeIndex + 1))
+    $targetIndex = [array]::IndexOf($remaining, "-Target")
+    if ($targetIndex -ge 0) {
+      $targetValue = [string]$remaining[$targetIndex + 1]
+      $transportArguments = @()
+      for ($index = 0; $index -lt $remaining.Count; $index++) {
+        if ($index -ne $targetIndex -and $index -ne $targetIndex + 1) {
+          $transportArguments += $remaining[$index]
+        }
+      }
+      $output = @(& $scriptPath -Mode $mode -Target $targetValue @transportArguments 2>&1)
+    } else {
+      $output = @(& $scriptPath -Mode $mode @remaining 2>&1)
+    }
   } catch {
     $threw = $true
     $output = @($_)
@@ -67,7 +82,7 @@ function Assert-EqualText {
 try {
   New-Item -ItemType Directory -Path $sshDirectory, $fakeBin -Force | Out-Null
   Write-Utf8NoBom (Join-Path $sshDirectory "octessera_pi_dev") "fake private key"
-  Write-Utf8NoBom (Join-Path $sshDirectory "known_hosts") "192.168.0.218 ssh-ed25519 fake"
+  Write-Utf8NoBom (Join-Path $sshDirectory "known_hosts") "pi.test.invalid ssh-ed25519 fake"
 
   Write-Utf8NoBom (Join-Path $fakeBin "record-transport.ps1") @'
 $arguments = @($args | Select-Object -Skip 1)
@@ -131,15 +146,21 @@ exit /b %ERRORLEVEL%
   $env:SSH_ASKPASS = "prior-askpass"
   $env:SSH_ASKPASS_REQUIRE = "prior-require"
   $env:DISPLAY = "prior-display"
+  $target = "pi@pi.test.invalid"
   $staleBasePath = [IO.Path]::GetTempFileName()
   $staleSiblingPath = "$staleBasePath.cmd"
   Write-Utf8NoBom $staleSiblingPath "unrelated stale helper"
 
-  $defaultResult = Invoke-Wrapper @("ssh", "printf safe")
-  if ($defaultResult.ExitCode -ne 0) {
-    throw "Default SSH wrapper invocation failed: $($defaultResult.Output -join "`n")"
+  Write-Utf8NoBom $recordPath ""
+  $omittedResult = Invoke-Wrapper @("-Mode", "ssh", "printf omitted")
+  if ($omittedResult.ExitCode -eq 0 -or (Get-Item -LiteralPath $recordPath).Length -ne 0) {
+    throw "SSH wrapper allowed an omitted target or reached transport."
   }
-  $defaultRecord = Get-TransportRecord
+  $explicitResult = Invoke-Wrapper @("-Mode", "ssh", "-Target", $target, "printf safe")
+  if ($explicitResult.ExitCode -ne 0) {
+    throw "Explicit SSH wrapper invocation failed: $($explicitResult.Output -join "`n")"
+  }
+  $explicitRecord = Get-TransportRecord
   $expectedDefaultArguments = @(
     "-i", (Join-Path $sshDirectory "octessera_pi_dev"),
     "-o", "IdentitiesOnly=yes",
@@ -148,19 +169,19 @@ exit /b %ERRORLEVEL%
     "-o", "BatchMode=no",
     "-o", "ConnectTimeout=10",
     "-o", "NumberOfPasswordPrompts=1",
-    "pi@192.168.0.218",
+    $target,
     "printf safe"
   )
-  if ((@($defaultRecord.arguments) -join "`n") -cne ($expectedDefaultArguments -join "`n")) {
-    throw "Default SSH wrapper arguments did not use the exact Pi identity, host, and bounded transport options."
+  if ((@($explicitRecord.arguments) -join "`n") -cne ($expectedDefaultArguments -join "`n")) {
+    throw "Explicit SSH wrapper arguments did not use the exact Pi identity, host, and bounded transport options."
   }
-  if (-not $defaultRecord.helperExists -or $defaultRecord.helperContainsPassphrase -or -not $defaultRecord.askPassMatches) {
+  if (-not $explicitRecord.helperExists -or $explicitRecord.helperContainsPassphrase -or -not $explicitRecord.askPassMatches) {
     throw "SSH_ASKPASS helper did not safely read only the process environment."
   }
-  if ($defaultRecord.askPassRequire -cne "force" -or $defaultRecord.display -cne "octessera") {
+  if ($explicitRecord.askPassRequire -cne "force" -or $explicitRecord.display -cne "octessera") {
     throw "SSH_ASKPASS environment was not configured for the child transport."
   }
-  if (Test-Path -LiteralPath $defaultRecord.askPass -PathType Leaf) {
+  if (Test-Path -LiteralPath $explicitRecord.askPass -PathType Leaf) {
     throw "Temporary SSH_ASKPASS helper was not removed after success."
   }
   if (-not (Test-Path -LiteralPath $staleSiblingPath -PathType Leaf) -or [IO.File]::ReadAllText($staleSiblingPath) -cne "unrelated stale helper") {
@@ -170,32 +191,31 @@ exit /b %ERRORLEVEL%
   Assert-EqualText $env:SSH_ASKPASS_REQUIRE "prior-require" "SSH_ASKPASS_REQUIRE was not restored after success."
   Assert-EqualText $env:DISPLAY "prior-display" "DISPLAY was not restored after success."
 
-  $explicitTarget = "pi@192.168.0.219"
-  $explicitOutput = @(& $scriptPath -Mode ssh -Target $explicitTarget "printf explicit" 2>&1)
+  $explicitOutput = @(& $scriptPath -Mode ssh -Target $target "printf explicit" 2>&1)
   if ($LASTEXITCODE -ne 0) {
     throw "Explicit target parameter invocation failed: $($explicitOutput -join "`n")"
   }
   $explicitRecord = Get-TransportRecord
-  if (-not (@($explicitRecord.arguments) -contains $explicitTarget)) {
+  if (-not (@($explicitRecord.arguments) -contains $target)) {
     throw "Explicit target parameter was not passed to the child transport."
   }
 
-  $interactiveOutput = @(& $scriptPath -Mode ssh -Target $explicitTarget 2>&1)
+  $interactiveOutput = @(& $scriptPath -Mode ssh -Target $target 2>&1)
   if ($LASTEXITCODE -ne 0) {
     throw "Interactive SSH wrapper invocation failed: $($interactiveOutput -join "`n")"
   }
   $interactiveRecord = Get-TransportRecord
-  if ((@($interactiveRecord.arguments) -join "`n") -cne (($expectedDefaultArguments[0..13] + $explicitTarget) -join "`n")) {
+  if ((@($interactiveRecord.arguments) -join "`n") -cne (($expectedDefaultArguments[0..13] + $target) -join "`n")) {
     throw "Interactive SSH wrapper arguments did not contain only fixed options and the exact target."
   }
 
   $ttyCommand = "sudo -v"
-  $ttyOutput = @(& $scriptPath -Mode ssh-tty -Target $explicitTarget $ttyCommand 2>&1)
+  $ttyOutput = @(& $scriptPath -Mode ssh-tty -Target $target $ttyCommand 2>&1)
   if ($LASTEXITCODE -ne 0) {
     throw "TTY SSH wrapper invocation failed: $($ttyOutput -join "`n")"
   }
   $ttyRecord = Get-TransportRecord
-  $expectedTtyArguments = $expectedDefaultArguments[0..13] + @("-tt", $explicitTarget, $ttyCommand)
+  $expectedTtyArguments = $expectedDefaultArguments[0..13] + @("-tt", $target, $ttyCommand)
   if ((@($ttyRecord.arguments) -join "`n") -cne ($expectedTtyArguments -join "`n")) {
     throw "TTY SSH wrapper did not place forced-TTY options before the exact target."
   }
@@ -204,8 +224,8 @@ exit /b %ERRORLEVEL%
   $env:OCTESSERA_PI_SSH_RECORD_DIR = $concurrentRecordDir
   $env:OCTESSERA_PI_SSH_BARRIER_DIR = $concurrentBarrierDir
   $concurrentProcesses = @(
-    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $scriptPath, "ssh", "printf concurrent") -PassThru -WindowStyle Hidden
-    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $scriptPath, "ssh", "printf concurrent") -PassThru -WindowStyle Hidden
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $scriptPath, "-Mode", "ssh", "-Target", $target, "printf concurrent") -PassThru -WindowStyle Hidden
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $scriptPath, "-Mode", "ssh", "-Target", $target, "printf concurrent") -PassThru -WindowStyle Hidden
   )
   foreach ($process in $concurrentProcesses) {
     $process.WaitForExit()
@@ -234,9 +254,8 @@ exit /b %ERRORLEVEL%
   Assert-EqualText $env:SSH_ASKPASS_REQUIRE "prior-require" "SSH_ASKPASS_REQUIRE changed during concurrent wrappers."
   Assert-EqualText $env:DISPLAY "prior-display" "DISPLAY changed during concurrent wrappers."
 
-  $target = "pi@192.168.0.218"
   $scpDestination = "$target`:/tmp/candidate"
-  $scpResult = Invoke-Wrapper @("scp", "candidate.bin", $scpDestination)
+  $scpResult = Invoke-Wrapper @("-Mode", "scp", "-Target", $target, "candidate.bin", $scpDestination)
   if ($scpResult.ExitCode -ne 0) {
     throw "SCP wrapper invocation failed: $($scpResult.Output -join "`n")"
   }
@@ -257,7 +276,7 @@ exit /b %ERRORLEVEL%
   }
 
   $scpSource = "$target`:/tmp/candidate"
-  $scpDownloadResult = Invoke-Wrapper @("scp", $scpSource, "download.bin")
+  $scpDownloadResult = Invoke-Wrapper @("-Mode", "scp", "-Target", $target, $scpSource, "download.bin")
   if ($scpDownloadResult.ExitCode -ne 0) {
     throw "SCP download wrapper invocation failed: $($scpDownloadResult.Output -join "`n")"
   }
@@ -310,7 +329,7 @@ exit /b %ERRORLEVEL%
   }
 
   $env:OCTESSERA_PI_SSH_EXIT_CODE = "23"
-  $failureResult = Invoke-Wrapper @("ssh", "printf failure")
+  $failureResult = Invoke-Wrapper @("-Mode", "ssh", "-Target", $target, "printf failure")
   if ($failureResult.ExitCode -ne 23) {
     throw "SSH wrapper did not preserve a mocked transport failure exit code."
   }
@@ -323,10 +342,10 @@ exit /b %ERRORLEVEL%
   Assert-EqualText $env:DISPLAY "prior-display" "DISPLAY was not restored after failure."
   Remove-Item Env:\OCTESSERA_PI_SSH_EXIT_CODE -ErrorAction SilentlyContinue
 
-  $timeoutMessage = "ssh: connect to host 192.168.0.218 port 22: Connection timed out"
+  $timeoutMessage = "ssh: connect to host pi.test.invalid port 22: Connection timed out"
   $env:OCTESSERA_PI_SSH_EXIT_CODE = "42"
   $env:OCTESSERA_PI_SSH_STDERR = $timeoutMessage
-  $timeoutResult = Invoke-Wrapper @("ssh", "printf timeout")
+  $timeoutResult = Invoke-Wrapper @("-Mode", "ssh", "-Target", $target, "printf timeout")
   if ($timeoutResult.Threw -or $timeoutResult.ExitCode -ne 42 -or ($timeoutResult.Output -join "`n") -notlike "*$timeoutMessage*") {
     throw "SSH connection-timeout stderr did not return normally with the exact native exit code."
   }
@@ -342,26 +361,26 @@ exit /b %ERRORLEVEL%
 
   Write-Utf8NoBom $recordPath ""
   Remove-Item Env:\OCTESSERA_PI_PASSPHRASE -ErrorAction SilentlyContinue
-  $missingPassphraseResult = Invoke-Wrapper @("ssh", "printf missing-passphrase")
+  $missingPassphraseResult = Invoke-Wrapper @("-Mode", "ssh", "-Target", $target, "printf missing-passphrase")
   if ($missingPassphraseResult.ExitCode -eq 0 -or (Get-Item -LiteralPath $recordPath).Length -ne 0) {
     throw "SSH wrapper allowed transport without the process passphrase environment."
   }
   $env:OCTESSERA_PI_PASSPHRASE = "test-only-passphrase"
 
   Write-Utf8NoBom $recordPath ""
-  $unsafeResult = Invoke-Wrapper @("ssh", "-i", "other-key", $target, "printf unsafe")
+  $unsafeResult = Invoke-Wrapper @("-Mode", "ssh", "-Target", $target, "-i", "other-key", $target, "printf unsafe")
   if ($unsafeResult.ExitCode -eq 0 -or (Get-Item -LiteralPath $recordPath).Length -ne 0) {
     throw "Unsafe SSH identity arguments were not rejected before transport."
   }
 
   Write-Utf8NoBom $recordPath ""
-  $wrongTargetResult = Invoke-Wrapper @("ssh", "pi@192.168.0.219", "printf unsafe")
+  $wrongTargetResult = Invoke-Wrapper @("-Mode", "ssh", "-Target", $target, "pi@192.0.2.219", "printf unsafe")
   if ($wrongTargetResult.ExitCode -eq 0 -or (Get-Item -LiteralPath $recordPath).Length -ne 0) {
     throw "A mismatched SSH target was not rejected before transport."
   }
 
   Write-Utf8NoBom $recordPath ""
-  $wrongScpResult = Invoke-Wrapper @("scp", "candidate.bin", "pi@192.168.0.219:/tmp/unsafe")
+  $wrongScpResult = Invoke-Wrapper @("-Mode", "scp", "-Target", $target, "candidate.bin", "pi@192.0.2.219:/tmp/unsafe")
   if ($wrongScpResult.ExitCode -eq 0 -or (Get-Item -LiteralPath $recordPath).Length -ne 0) {
     throw "A mismatched SCP target was not rejected before transport."
   }

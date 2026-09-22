@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [ValidateSet("PassiveBaseline", "ProfileBaseline", "Dsp64", "Dsp256", "LiveCandidate", "LiveAudioBenchmark")]
   [string]$Mode = "PassiveBaseline",
   [ValidateSet("full", "overload", "soak", "fx-limits")]
@@ -40,9 +42,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
 
-$target = "octessera@192.168.0.217"
 $service = "octessera.service"
 $transport = Join-Path $PSScriptRoot "with-orange-ssh.ps1"
 $metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
@@ -241,7 +244,8 @@ function Format-TransportCommand {
     [Parameter(Mandatory)][string]$Command,
     [Parameter(Mandatory)][string[]]$Arguments
   )
-  return "& $(Quote-PowerShellValue $transport) $(Quote-PowerShellValue $Command) " + (($Arguments | ForEach-Object { Quote-PowerShellValue $_ }) -join " ")
+  $wrapperArguments = if ($Command -in @("ssh", "ssh-payload") -and $Arguments.Count -gt 0 -and $Arguments[0] -ceq $Target) { @($Arguments | Select-Object -Skip 1) } else { @($Arguments) }
+  return "& $(Quote-PowerShellValue $transport) -Command $(Quote-PowerShellValue $Command) -Target $(Quote-PowerShellValue $Target) " + (($wrapperArguments | ForEach-Object { Quote-PowerShellValue $_ }) -join " ")
 }
 
 function Invoke-OrangeTransport {
@@ -253,7 +257,8 @@ function Invoke-OrangeTransport {
     Write-Output (Format-TransportCommand $Command $Arguments)
     return
   }
-  & $transport $Command @Arguments
+  $wrapperArguments = if ($Command -in @("ssh", "ssh-payload") -and $Arguments.Count -gt 0 -and $Arguments[0] -ceq $Target) { @($Arguments | Select-Object -Skip 1) } else { @($Arguments) }
+  & $transport -Command $Command -Target $Target @wrapperArguments
   if ($LASTEXITCODE -ne 0) {
     throw "Orange transport failed with exit code ${LASTEXITCODE}: $Command"
   }
@@ -352,7 +357,7 @@ try {
     } elseif ($artifactRequired) {
       Write-Output "Local release metadata: required before a non-print run"
     }
-    Write-Output "Fixed target: $target"
+    Write-Output "Target: $Target"
     Write-Output "Remote study root: $remoteRoot"
     Write-Output "Candidate health path: $healthPath"
     if ($Mode -eq "LiveAudioBenchmark") {
@@ -377,27 +382,27 @@ try {
     Write-Output "Prepare payload:"
     Write-Output $payloadBundle.Prepare
     Write-Output "Prepare payload transport:"
-    Write-Output (Format-TransportCommand "ssh-payload" @($target, $preparePath))
+    Write-Output (Format-TransportCommand "ssh-payload" @($Target, $preparePath))
     Write-Output "Study payload:"
     Write-Output $payloadBundle.Study
     Write-Output "Study payload transport:"
-    Write-Output (Format-TransportCommand "ssh-payload" @($target, $studyPath))
+    Write-Output (Format-TransportCommand "ssh-payload" @($Target, $studyPath))
     if ($artifactRequired) {
-      Write-Output (Format-TransportCommand "scp" @($Artifact, "$target`:$remoteBinary"))
-      Write-Output (Format-TransportCommand "scp" @($Metadata, "$target`:$remoteMetadata"))
+      Write-Output (Format-TransportCommand "scp" @($Artifact, "$Target`:$remoteBinary"))
+      Write-Output (Format-TransportCommand "scp" @($Metadata, "$Target`:$remoteMetadata"))
     }
     Write-Output "Retrieve payload transport:"
-    Write-Output (Format-TransportCommand "scp" @("-r", "$target`:$remoteRoot/.", $OutputDirectory))
+    Write-Output (Format-TransportCommand "scp" @("-r", "$Target`:$remoteRoot/.", $OutputDirectory))
     Write-Output "Cleanup payload:"
     Write-Output $payloadBundle.Cleanup
-    Write-Output (Format-TransportCommand "ssh-payload" @($target, $cleanupPath))
+    Write-Output (Format-TransportCommand "ssh-payload" @($Target, $cleanupPath))
   } else {
-    Invoke-OrangeTransport "ssh-payload" @($target, $preparePath)
+    Invoke-OrangeTransport "ssh-payload" @($Target, $preparePath)
     if ($artifactRequired) {
-      Invoke-OrangeTransport "scp" @($Artifact, "$target`:$remoteBinary")
-      Invoke-OrangeTransport "scp" @($Metadata, "$target`:$remoteMetadata")
+      Invoke-OrangeTransport "scp" @($Artifact, "$Target`:$remoteBinary")
+      Invoke-OrangeTransport "scp" @($Metadata, "$Target`:$remoteMetadata")
     }
-    Invoke-OrangeTransport "ssh-payload" @($target, $studyPath)
+    Invoke-OrangeTransport "ssh-payload" @($Target, $studyPath)
   }
 } catch {
   $studyFailure = $_
@@ -407,13 +412,13 @@ try {
     New-Item -ItemType Directory -Force -Path $localRunDirectory | Out-Null
     Write-Output "Evidence staging directory: $localRunDirectory"
     try {
-      Invoke-OrangeTransport "scp" @("-r", "$target`:$remoteRoot/.", $localRunDirectory)
+      Invoke-OrangeTransport "scp" @("-r", "$Target`:$remoteRoot/.", $localRunDirectory)
     } catch {
       if ($null -eq $studyFailure) { $studyFailure = $_ }
     }
     if ($null -ne $cleanupPath) {
       try {
-        Invoke-OrangeTransport "ssh-payload" @($target, $cleanupPath)
+        Invoke-OrangeTransport "ssh-payload" @($Target, $cleanupPath)
       } catch {
         if ($null -eq $recoveryFailure) { $recoveryFailure = $_ }
       }
