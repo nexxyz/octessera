@@ -44,10 +44,10 @@ if (-not $long.LongRepeat -or $long.InternalFrames -ne 128 -or $long.AlsaPeriodF
 if (@(Get-OrangeLiveMatrixPlan | Where-Object { $null -ne $_.PSObject.Properties["IsCapacityDiagnostic"] }).Count -ne 0) { throw "Dynamic capacity scenarios changed the canonical live matrix." }
 $missingActive = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-missing-" + [guid]::NewGuid().ToString("N"))
 Assert-Throws {
-  & $runner -Mode LiveAudioBenchmark -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 -Artifact $missingActive -Metadata "$missingActive.metadata.json" -AllowServiceInterruption
+  & $runner -Target "octessera@orange.test.invalid" -Mode LiveAudioBenchmark -Scenario synth_cross_slot_96_steal -OutputFrames 256 -EngineBlockFrames 64 -MeasureSeconds 30 -Artifact $missingActive -Metadata "$missingActive.metadata.json" -AllowServiceInterruption
 }
 Assert-Throws { & $runner -Mode LiveAudioBenchmark -Scenario synth_ramp_16 -OutputFrames 256 -MeasureSeconds 30 -PrintOnly }
-$distinctPrint = Invoke-PrintOnly $runner @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; Artifact = $missingActive; Metadata = "$missingActive.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
+$distinctPrint = Invoke-PrintOnly $runner @{ Target = "octessera@orange.test.invalid"; Mode = "LiveAudioBenchmark"; Scenario = "synth_ramp_16"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; Artifact = $missingActive; Metadata = "$missingActive.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
 Assert-Contains $distinctPrint "Live selection: individual output=256 period=64 engine=256 internal=256 scenario=synth_ramp_16 measure=30 warmup=5"
 $fakeWorst = Get-OrangeLiveWorstPassingScenario @(
   [pscustomobject]@{ StatusClass = "pass"; Scenario = "synth_ramp_64"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; RatioP999 = 9.0; RatioMax = 9.0 },
@@ -283,8 +283,8 @@ try {
 } finally {
   Remove-Item -LiteralPath $evidenceRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
-$matrixOutput = Invoke-PrintOnly $matrix @{ PrintOnly = $true }
-$canaryPrint = Invoke-PrintOnly $matrix @{ PrintOnly = $true; CanaryOnly = $true }
+$matrixOutput = Invoke-PrintOnly $matrix @{ Target = "octessera@orange.test.invalid"; PrintOnly = $true }
+$canaryPrint = Invoke-PrintOnly $matrix @{ Target = "octessera@orange.test.invalid"; PrintOnly = $true; CanaryOnly = $true }
 $matrixSource = Get-Content -LiteralPath $matrix -Raw
 if ($matrixSource -match '&\s+\$runner') { throw "Matrix still invokes the runner in-process." }
 if ($matrixSource -notmatch '(?s)(?=.*& \(Join-Path \$PSHOME "powershell.exe"\) @processArguments 2>&1)(?=.*"-NonInteractive")(?=.*"-File")(?=.*\$LASTEXITCODE)') { throw "Matrix did not preserve isolated PowerShell runner invocation." }
@@ -324,7 +324,7 @@ throw "fake runner failure after evidence output"
   $env:OCTESSERA_FAKE_LIVE_EVIDENCE = $fakeEvidence
   $threw = $false
   try {
-    & $matrix -Artifact "fake-artifact" -Metadata "fake-metadata" -OutputDirectory $fakeMatrixOutput -RunnerPath $fakeRunner -AllowMatrixServiceInterruption
+    & $matrix -Target "octessera@orange.test.invalid" -Artifact "fake-artifact" -Metadata "fake-metadata" -OutputDirectory $fakeMatrixOutput -RunnerPath $fakeRunner -AllowMatrixServiceInterruption
   } catch { $threw = $true }
   if (-not $threw) { throw "Fake throwing runner did not stop the matrix." }
   $fakeManifestPath = @(Get-ChildItem -LiteralPath $fakeMatrixOutput -Filter "*.json" -File | Select-Object -First 1).FullName
@@ -352,7 +352,7 @@ Write-Output ("Evidence directory: " + $env:OCTESSERA_FAKE_LIVE_EVIDENCE)
   $oldPassEvidence = $env:OCTESSERA_FAKE_LIVE_EVIDENCE
   $env:OCTESSERA_FAKE_LIVE_EVIDENCE = $passFakeEvidence
   try {
-    & $matrix -Artifact "fake-artifact" -Metadata "fake-metadata" -OutputDirectory $passFakeMatrixOutput -RunnerPath $passFakeRunner -AllowMatrixServiceInterruption -CanaryOnly
+    & $matrix -Target "octessera@orange.test.invalid" -Artifact "fake-artifact" -Metadata "fake-metadata" -OutputDirectory $passFakeMatrixOutput -RunnerPath $passFakeRunner -AllowMatrixServiceInterruption -CanaryOnly
   } catch { throw "Native stderr success runner unexpectedly failed: $($_.Exception.Message)" }
   $passManifestPath = @(Get-ChildItem -LiteralPath $passFakeMatrixOutput -Filter "*.json" -File | Select-Object -First 1).FullName
   $passManifest = ConvertFrom-Json -InputObject (Get-Content -LiteralPath $passManifestPath -Raw)
@@ -382,7 +382,7 @@ throw "fake runner failed before terminal evidence"
   $env:OCTESSERA_FAKE_LIVE_EVIDENCE = $partialFakeEvidence
   $partialThrew = $false
   try {
-    & $matrix -Artifact "fake-artifact" -Metadata "fake-metadata" -OutputDirectory $partialFakeMatrixOutput -RunnerPath $partialFakeRunner -AllowMatrixServiceInterruption -CanaryOnly
+    & $matrix -Target "octessera@orange.test.invalid" -Artifact "fake-artifact" -Metadata "fake-metadata" -OutputDirectory $partialFakeMatrixOutput -RunnerPath $partialFakeRunner -AllowMatrixServiceInterruption -CanaryOnly
   } catch { $partialThrew = $true }
   if (-not $partialThrew) { throw "Partial staging runner did not stop the canary." }
   $partialManifestPath = @(Get-ChildItem -LiteralPath $partialFakeMatrixOutput -Filter "*.json" -File | Select-Object -First 1).FullName
@@ -395,7 +395,7 @@ throw "fake runner failed before terminal evidence"
   Remove-Item -LiteralPath $partialFakeRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 $runnerArtifact = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-live-benchmark-missing"
-$runnerParameters = @{ Mode = "LiveAudioBenchmark"; Scenario = "synth_cross_slot_96_steal"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; Artifact = $runnerArtifact; Metadata = "$runnerArtifact.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
+$runnerParameters = @{ Target = "octessera@orange.test.invalid"; Mode = "LiveAudioBenchmark"; Scenario = "synth_cross_slot_96_steal"; OutputFrames = 256; EngineBlockFrames = 256; MeasureSeconds = 30; Artifact = $runnerArtifact; Metadata = "$runnerArtifact.metadata.json"; AllowServiceInterruption = $true; PrintOnly = $true }
 $recoveryEvidenceRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-live-recovery-" + [guid]::NewGuid().ToString("N"))
 try {
   New-Item -ItemType Directory -Force -Path $recoveryEvidenceRoot | Out-Null

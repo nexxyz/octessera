@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 
 $runner = Join-Path $PSScriptRoot "run-pi-timing-probes.ps1"
 $wakeIntervals = "2,4,6,8,10,12"
+$testTarget = "pi@pi.test.invalid"
 
 function Invoke-PrintOnly {
   param([hashtable]$Parameters)
@@ -45,23 +46,24 @@ function Assert-Fails {
   if (-not $failed) { throw "Expected command generation to fail: $Message" }
 }
 
-$runtime = Invoke-PrintOnly @{ Mode = "RuntimeOnly"; WakeIntervalsMs = $wakeIntervals; Snapshots = $true; PrintOnly = $true }
+$runtime = Invoke-PrintOnly @{ Target = $testTarget; Mode = "RuntimeOnly"; WakeIntervalsMs = $wakeIntervals; Snapshots = $true; PrintOnly = $true }
 Assert-Contains $runtime "--timing-probe-wake-intervals-ms '2,4,6,8,10,12'"
 Assert-Contains $runtime "--timing-probe-snapshots"
 
-$live = Invoke-PrintOnly @{ Mode = "Live"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
+$live = Invoke-PrintOnly @{ Target = $testTarget; Mode = "Live"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
 Assert-Contains $live "--timing-probe-wake-intervals-ms '2,4,6,8,10,12'"
 
-$audioDrain = Invoke-PrintOnly @{ Mode = "AudioDrain"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
+$audioDrain = Invoke-PrintOnly @{ Target = $testTarget; Mode = "AudioDrain"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
 Assert-NotContains $audioDrain "--timing-probe-wake-intervals-ms"
 
-$dspFx = Invoke-PrintOnly @{ Mode = "DspFxLimits"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
+$dspFx = Invoke-PrintOnly @{ Target = $testTarget; Mode = "DspFxLimits"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
 Assert-NotContains $dspFx "--timing-probe-wake-intervals-ms"
 
-$dspSoak = Invoke-PrintOnly @{ Mode = "DspSoak"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
+$dspSoak = Invoke-PrintOnly @{ Target = $testTarget; Mode = "DspSoak"; WakeIntervalsMs = $wakeIntervals; PrintOnly = $true }
 Assert-NotContains $dspSoak "--timing-probe-wake-intervals-ms"
 
 $profile = Invoke-PrintOnly @{
+  Target = $testTarget
   Mode = "ProfileBaseline"
   Scenario = "synth_cross_slot_16"
   AudioRenderQuantumFrames = 256
@@ -70,5 +72,6 @@ $profile = Invoke-PrintOnly @{
   PrintOnly = $true
 }
 Assert-NotContains $profile "--timing-probe-wake-intervals-ms"
+Assert-Fails @{ Mode = "RuntimeOnly"; PrintOnly = $true } "missing mandatory"
 
 Write-Output "Raspberry timing-probe wake interval wrapper checks passed"

@@ -95,7 +95,8 @@ route, DNS, or ICMP.
 Once SSH is reachable, run the read-only Windows probe:
 
 ```powershell
-.\tools\orange-pi\run-opi-bringup.ps1 -Target orangepi@192.168.x.x
+$OrangeTarget = "orangepi@<ORANGE_HOST>"
+.\tools\orange-pi\run-opi-bringup.ps1 -Target $OrangeTarget
 ```
 
 The owner check requires passwordless `sudo -n` or a root SSH session. Add

@@ -10,8 +10,8 @@ $oldPath = $env:PATH
 $oldUserProfile = $env:USERPROFILE
 $oldPassphrase = $env:OCTESSERA_PI_PASSPHRASE
 $provisionText = [IO.File]::ReadAllText($scriptPath)
-if ($provisionText.IndexOf('Target = "pi@192.168.0.218"', [StringComparison]::Ordinal) -lt 0) {
-  throw "Pi provisioning default target must be pi@192.168.0.218."
+if ($provisionText.IndexOf('[Parameter(Mandatory = $true)]', [StringComparison]::Ordinal) -lt 0 -or $provisionText.IndexOf('[string]$Target', [StringComparison]::Ordinal) -lt 0) {
+  throw "Pi provisioning must require an explicit target."
 }
 if ($provisionText.IndexOf("with-pi-ssh.ps1", [StringComparison]::Ordinal) -lt 0 -or $provisionText -match '(?m)^\s*(?:ssh|scp)\s+@') {
   throw "Pi provisioning must route SSH and SCP through the canonical Pi transport wrapper."
@@ -20,7 +20,7 @@ if ($provisionText.IndexOf("with-pi-ssh.ps1", [StringComparison]::Ordinal) -lt 0
 New-Item -ItemType Directory -Path $fakeBin, $sshDirectory -Force | Out-Null
 try {
   "fake private key" | Set-Content -LiteralPath (Join-Path $sshDirectory "octessera_pi_dev") -Encoding ASCII
-  "192.168.0.218 ssh-ed25519 fake" | Set-Content -LiteralPath (Join-Path $sshDirectory "known_hosts") -Encoding ASCII
+  "pi.test.invalid ssh-ed25519 fake" | Set-Content -LiteralPath (Join-Path $sshDirectory "known_hosts") -Encoding ASCII
   @'
 @echo off
 set "archive="
@@ -80,12 +80,14 @@ exit /b %ERRORLEVEL%
       if ($payload -notmatch "UPDATE_INITRAMFS=$ExpectedUpdate\b") {
         throw "$Name did not pass the expected initramfs flags: $payload"
       }
+    } elseif ($Name -ceq "omitted-target" -and (Test-Path -LiteralPath $log)) {
+      throw "$Name reached transport before failing."
     }
   }
 
-  Invoke-ProvisionCase "default" @() 0 "0"
-  Invoke-ProvisionCase "explicit" @("-UpdateInitramfs") 0 "1"
-  Invoke-ProvisionCase "transport-failure" @() 75 "0"
+  Invoke-ProvisionCase "omitted-target" @() 1 ""
+  Invoke-ProvisionCase "explicit" @("-Target", "pi@pi.test.invalid", "-UpdateInitramfs") 0 "1"
+  Invoke-ProvisionCase "transport-failure" @("-Target", "pi@pi.test.invalid") 75 "0"
   Write-Output "PowerShell provisioning wrapper mock tests passed"
 }
 finally {

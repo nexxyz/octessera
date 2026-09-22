@@ -97,6 +97,7 @@ exit /b %ERRORLEVEL%
   }
 
   $savedErrorActionPreference = $ErrorActionPreference
+  [IO.File]::WriteAllText($recordPath, "", $utf8NoBom)
   $ErrorActionPreference = "Continue"
   $missingTargetOutput = @(& (Join-Path $PSHOME "powershell.exe") -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath 2>&1)
   $missingTargetExitCode = $LASTEXITCODE
@@ -105,7 +106,20 @@ exit /b %ERRORLEVEL%
     throw "run-opi-bringup.ps1 did not require -Target"
   }
 
-  $target = "test-target.invalid"
+  if (@(Read-TransportRecords).Count -ne 0) {
+    throw "Omitted target reached mocked transport."
+  }
+
+  $malformedTarget = Invoke-BringupForTest -Parameters @{
+    Target = "octessera@bad host"
+    LocalOutputDir = (Join-Path $testRoot "malformed-target-output")
+  }
+  $malformedTargetText = ($malformedTarget.Output | ForEach-Object { [string]$_ }) -join "`n"
+  if (-not $malformedTarget.Threw -or $malformedTargetText -notmatch "target" -or @(Read-TransportRecords).Count -ne 0 -or (Test-Path -LiteralPath (Join-Path $testRoot "malformed-target-output"))) {
+    throw "Malformed target was not rejected before mocked transport or output creation."
+  }
+
+  $target = "octessera@orange.test.invalid"
   $cases = @(
     [pscustomobject]@{
       Name = "simple"

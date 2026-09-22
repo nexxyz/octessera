@@ -55,23 +55,25 @@ timing. `tools/pi/run-pi-timing-probes.ps1` is
 Raspberry-only; never point it at Orange.
 
 ```powershell
+$PiTarget = "pi@<PI_HOST>"
+
 # Shared native logical wake probe.
 cargo run -p playback-runtime --bin playback_timing_probe -- --durations 6s --scenarios idle --wake-intervals-ms 2,4,6,8,10,12
 
 # Runtime-only probe; leaves service and live audio untouched.
-./tools/pi/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,pulses-stress -WakeIntervalsMs 2,4,6,8,10,12 -Snapshots
+./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode RuntimeOnly -Durations 15s -Scenarios idle,pulses-stress -WakeIntervalsMs 2,4,6,8,10,12 -Snapshots
 
 # Live-audio probe.
-./tools/pi/run-pi-timing-probes.ps1 -Mode Live -AllowServiceInterruption -Durations 10m -Scenarios idle -WakeIntervalsMs 2,4,6,8,10,12
+./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode Live -AllowServiceInterruption -Durations 10m -Scenarios idle -WakeIntervalsMs 2,4,6,8,10,12
 
 # Audio-source drain latency probe.
-./tools/pi/run-pi-timing-probes.ps1 -Mode AudioDrain -AllowServiceInterruption -Durations 10m
+./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode AudioDrain -AllowServiceInterruption -Durations 10m
 
 # FX budget profile.
-./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -AllowServiceInterruption
+./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode DspFxLimits -AllowServiceInterruption
 
 # Alternate render quantum.
-./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -AllowServiceInterruption -AudioRenderQuantumFrames 256
+./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode DspFxLimits -AllowServiceInterruption -AudioRenderQuantumFrames 256
 ```
 
 The shared binary uses a deterministic logical matrix and the Pi RuntimeOnly
@@ -87,7 +89,8 @@ it running. Use `-PrintOnly` to inspect the remote command first.
 After live probes, inspect recent logs:
 
 ```powershell
-./tools/pi/with-pi-ssh.ps1 ssh pi@192.168.0.218 "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'audio callback RT promotion not qualified|audio stream error|underrun|POLLERR' || true"
+$PiTarget = "pi@<PI_HOST>"
+./tools/pi/with-pi-ssh.ps1 ssh -Target $PiTarget "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'audio callback RT promotion not qualified|audio stream error|underrun|POLLERR' || true"
 ```
 
 Use `-PrintOnly` before any live or service-changing probe. Runtime-only mode

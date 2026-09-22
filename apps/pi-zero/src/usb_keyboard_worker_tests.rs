@@ -1,6 +1,6 @@
-use super::{
-    worker, HostMessage, KeyboardCapture, KeyboardCaptureControl, KeyboardInput, KeyboardKey,
-};
+#[cfg(not(target_os = "linux"))]
+use super::KeyboardCapture;
+use super::{worker, HostMessage, KeyboardCaptureControl, KeyboardInput, KeyboardKey};
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::io;

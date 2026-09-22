@@ -30,7 +30,7 @@ function Invoke-Provisioner {
   } else {
     Remove-Item Env:\OCTESSERA_PI_PASSPHRASE -ErrorAction SilentlyContinue
   }
-  $output = @(& $scriptPath -Target "octessera@test.invalid" -Key $keyPath -KnownHosts $knownHostsPath -Preflight 2>&1)
+  $output = @(& $scriptPath -Target "octessera@orange.test.invalid" -Key $keyPath -KnownHosts $knownHostsPath -Preflight 2>&1)
   if ($LASTEXITCODE -ne 0) {
     throw "Provisioner invocation failed: $($output -join "`n")"
   }
@@ -83,7 +83,7 @@ function Assert-TransportPolicy {
 try {
   New-Item -ItemType Directory -Path $fakeBin -Force | Out-Null
   Write-Utf8NoBom $keyPath "fake key"
-  Write-Utf8NoBom $knownHostsPath "test.invalid ssh-ed25519 fake"
+  Write-Utf8NoBom $knownHostsPath "orange.test.invalid ssh-ed25519 fake"
   Write-Utf8NoBom (Join-Path $fakeBin "record-transport.ps1") @'
 $tool = [string]$args[0]
 $arguments = @($args | Select-Object -Skip 1)
@@ -126,6 +126,18 @@ exit /b %ERRORLEVEL%
   Remove-Item Env:\SSH_ASKPASS -ErrorAction SilentlyContinue
   Remove-Item Env:\SSH_ASKPASS_REQUIRE -ErrorAction SilentlyContinue
   Remove-Item Env:\DISPLAY -ErrorAction SilentlyContinue
+
+  Write-Utf8NoBom $recordPath ""
+  $missingTargetExitCode = 0
+  try {
+    $missingTargetOutput = @(& (Join-Path $PSHOME "powershell.exe") -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath -Key $keyPath -KnownHosts $knownHostsPath -Preflight 2>&1)
+    $missingTargetExitCode = $LASTEXITCODE
+  } catch {
+    $missingTargetExitCode = 1
+  }
+  if ($missingTargetExitCode -eq 0 -or (Get-Item -LiteralPath $recordPath).Length -ne 0) {
+    throw "Input-routing provisioner allowed an omitted target or reached transport: $($missingTargetOutput -join "`n")"
+  }
 
   Assert-TransportPolicy (Invoke-Provisioner $true) $true
   if ($env:SSH_ASKPASS -or $env:SSH_ASKPASS_REQUIRE -or $env:DISPLAY) {

@@ -3,7 +3,8 @@ param(
   [string]$ManifestPath = "",
   [ValidateSet("Passive", "Offline", "Live", "Full")]
   [string]$Phase = "Full",
-  [string]$Target = "pi@192.168.0.218",
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$Binary = "/usr/local/bin/octessera-pi",
   [string]$Artifact = "",
@@ -17,6 +18,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 
 $manifestModule = Join-Path $PSScriptRoot "..\performance\performance-baseline-plan.psm1"
 $resultsModule = Join-Path $PSScriptRoot "..\performance\performance-baseline-results.psm1"

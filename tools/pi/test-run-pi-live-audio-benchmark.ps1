@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 
 $runner = Join-Path $PSScriptRoot "run-pi-live-audio-benchmark.ps1"
 $runnerSource = [IO.File]::ReadAllText($runner)
+$testTarget = "pi@pi.test.invalid"
 Import-Module (Join-Path $PSScriptRoot "raspberry-live-benchmark-metadata.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "raspberry-live-benchmark-validation.psm1") -Force
 
@@ -327,13 +328,14 @@ try {
   Remove-Item -LiteralPath $manifestRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$printOnly = Invoke-PrintOnly @{ Units = 16; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
+$printOnly = Invoke-PrintOnly @{ Target = $testTarget; Units = 16; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
 if ($printOnly -notmatch "no transport is invoked" -or $printOnly -notmatch "U16 scenario=capacity_analogue_16 executor=Inline output=256 period=64 internal=128 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "Inline PrintOnly output changed." }
-$u8PrintOnly = Invoke-PrintOnly @{ Units = 8; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
+$u8PrintOnly = Invoke-PrintOnly @{ Target = $testTarget; Units = 8; ExecutorMode = "Inline"; MeasureSeconds = 30; PrintOnly = $true }
 if ($u8PrintOnly -notmatch "U8 scenario=capacity_analogue_8 executor=Inline output=256 period=64 internal=128 lookahead=0 worker-timing=disabled continue-on-recovered-miss=False measure=30 label=30-second screen") { throw "U8 PrintOnly output changed." }
-$multicorePrintOnly = Invoke-PrintOnly @{ Units = 32; ExecutorMode = "Multicore"; MeasureSeconds = 120; ObserveCompromises = $true; PrintOnly = $true }
+$multicorePrintOnly = Invoke-PrintOnly @{ Target = $testTarget; Units = 32; ExecutorMode = "Multicore"; MeasureSeconds = 120; ObserveCompromises = $true; PrintOnly = $true }
 if ($multicorePrintOnly -notmatch "U32 scenario=capacity_analogue_32 executor=Multicore output=256 period=64 internal=128 lookahead=128 worker-timing=disabled continue-on-recovered-miss=True measure=120 label=120-second repeat") { throw "Multicore PrintOnly output changed." }
-Assert-Throws { & $runner -Units 16 } "missing explicit interruption consent"
+Assert-Throws { & $runner -PrintOnly } "omitted target"
+Assert-Throws { & $runner -Target $testTarget -Units 16 } "missing explicit interruption consent"
 if ($runnerSource.IndexOf("ObserveCompromises", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf("completed observation", [StringComparison]::Ordinal) -lt 0 -or $runnerSource.IndexOf('StatusClass -ne "pass" -and -not ($ObserveCompromises', [StringComparison]::Ordinal) -lt 0) { throw "Raspberry observation mode does not retain completed compromised runs." }
 
 foreach ($required in @(

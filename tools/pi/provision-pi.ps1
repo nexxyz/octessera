@@ -1,5 +1,6 @@
 param(
-  [string]$Target = "pi@192.168.0.218",
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$RemoteRepo = "/home/pi/octessera-dev",
   [string]$Service = "octessera.service",
@@ -9,6 +10,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 . (Join-Path $PSScriptRoot "board-profile.ps1")
 Assert-RaspberryBoardProfile $BoardProfile
 Assert-OctesseraServiceName $Service

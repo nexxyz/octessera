@@ -108,8 +108,9 @@ The four NeoTrellis boards form one 8x8 grid.
 
 1. Arrange the boards as upper-left, upper-right, lower-left, and lower-right
    when viewed from the play surface.
-2. Turn the arrangement around as one plane before soldering; left and right
-   swap when viewed from the bottom.
+2. Turn the whole arrangement around as one plane before soldering. The address
+   table below uses positions seen from the bottom after that flip, so left and
+   right are swapped relative to the play surface.
 3. Solder 20 straight male header pins between adjacent boards.
 4. Add 5 straight male header pins as the external connection point on the
    left side of the upper-left board.
@@ -121,6 +122,10 @@ The four NeoTrellis boards form one 8x8 grid.
    | upper right | none | `0x2E` |
    | lower left | A0 + A1 | `0x31` |
    | lower right | A1 | `0x30` |
+
+   On the play surface, the resulting order is upper-left none/`0x2E`,
+   upper-right A0/`0x2F`, lower-left A1/`0x30`, and lower-right
+   A0+A1/`0x31`.
 
    See the [NeoTrellis address jumper photo](images/assembly/neotrellis-address-jumpers.jpg).
 
@@ -145,8 +150,16 @@ powering the device, check that `INT` is on the south side.
 ## 5. Flash and setup
 
 Complete [flash and first boot](flash-and-first-boot.md) before installing the
-enclosure. Confirm that the OLED, grid, keys, encoders, and audio respond while
-the boards are still accessible.
+enclosure. Keep the boards accessible and run this acceptance gate:
+
+- All four encoders turn and click.
+- All four NeoKey switches respond.
+- All 64 NeoTrellis cells respond.
+- The OLED is readable.
+- A synth produces audio through the DAC.
+
+Do not close the enclosure if any item fails. Keep it open and troubleshoot
+before continuing.
 
 ## 6. Enclosure
 
@@ -187,10 +200,10 @@ instead of forcing the case closed.
 1. Reinsert the selected board's boot microSD card and the OLED microSD card if
    you removed them for enclosure assembly.
 2. Connect power through the enclosure USB-C breakout and wait for boot.
-3. Confirm that all four encoders, four NeoKey switches, and all 64 NeoTrellis
-   cells respond.
-4. Confirm that the OLED is readable and audio comes from the DAC.
-5. Confirm that the compute-board microSD, OLED microSD, audio, USB-C power,
+3. Confirm that the enclosure has not blocked any controls or openings. If
+   enclosure work disturbed a connection, reopen it and repeat the acceptance
+   gate before use.
+4. Confirm that the compute-board microSD, OLED microSD, audio, USB-C power,
    and video openings are accessible. See [enclosure](enclosure.md) for the
    matching board top.
 

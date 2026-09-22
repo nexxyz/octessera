@@ -15,8 +15,9 @@ already-running board, use the no-reboot wrapper only after reviewing its
 printed backup record:
 
 ```powershell
-.\tools\orange-pi\provision-input-routing.ps1 -Preflight
-.\tools\orange-pi\provision-input-routing.ps1 -Apply
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+.\tools\orange-pi\provision-input-routing.ps1 -Target $OrangeTarget -Preflight
+.\tools\orange-pi\provision-input-routing.ps1 -Target $OrangeTarget -Apply
 ```
 
 The apply step records the exact base-DTB and overlay hashes, copies of the
@@ -25,7 +26,8 @@ getty state under `/var/lib/octessera/input-routing-backups/<id>/`. It stages
 the changes but does not reboot. Rollback is explicit and also does not reboot:
 
 ```powershell
-.\tools\orange-pi\provision-input-routing.ps1 -RollbackId <backup-id>
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+.\tools\orange-pi\provision-input-routing.ps1 -Target $OrangeTarget -RollbackId <backup-id>
 ```
 
 After either apply or rollback, reboot only through the separately reviewed

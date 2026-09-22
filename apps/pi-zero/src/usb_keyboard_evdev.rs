@@ -4,12 +4,6 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
-pub(super) enum Discovery {
-    None,
-    GrabFailed,
-    Ready(EvdevKeyboard),
-}
-
 pub(super) struct EvdevKeyboard {
     device: Device,
 }
@@ -20,11 +14,7 @@ impl super::worker::KeyboardAcquirer for EvdevAcquirer {
     type Device = EvdevKeyboard;
 
     fn discover_first(&mut self) -> super::worker::Acquisition<Self::Device> {
-        match discover_first() {
-            Discovery::None => super::worker::Acquisition::None,
-            Discovery::GrabFailed => super::worker::Acquisition::GrabFailed,
-            Discovery::Ready(device) => super::worker::Acquisition::Ready(device),
-        }
+        discover_keyboard()
     }
 }
 
@@ -57,7 +47,9 @@ impl super::worker::KeyboardDevice for EvdevKeyboard {
     }
 }
 
-pub(super) fn discover_first() -> Discovery {
+pub(super) fn discover_keyboard() -> super::worker::Acquisition<EvdevKeyboard> {
+    use super::worker::Acquisition::{GrabFailed, None, Ready};
+
     let paths = fs::read_dir("/dev/input")
         .into_iter()
         .flatten()
@@ -75,11 +67,11 @@ pub(super) fn discover_first() -> Discovery {
             continue;
         }
         if device.grab().is_err() {
-            return Discovery::GrabFailed;
+            return GrabFailed;
         }
-        return Discovery::Ready(EvdevKeyboard { device });
+        return Ready(EvdevKeyboard { device });
     }
-    Discovery::None
+    None
 }
 
 fn is_supported_keyboard(device: &Device) -> bool {
@@ -91,7 +83,7 @@ fn is_supported_keyboard(device: &Device) -> bool {
     })
 }
 
-fn evdev_key(key: KeyboardKey) -> KeyCode {
+pub(super) fn evdev_key(key: KeyboardKey) -> KeyCode {
     match key {
         KeyboardKey::Left => KeyCode::KEY_LEFT,
         KeyboardKey::Up => KeyCode::KEY_UP,
@@ -117,7 +109,7 @@ fn evdev_key(key: KeyboardKey) -> KeyCode {
     }
 }
 
-fn keyboard_key(code: u16) -> Option<KeyboardKey> {
+pub(super) fn keyboard_key(code: u16) -> Option<KeyboardKey> {
     Some(match KeyCode::new(code) {
         KeyCode::KEY_LEFT => KeyboardKey::Left,
         KeyCode::KEY_UP => KeyboardKey::Up,

@@ -191,10 +191,10 @@ fn arrows_repeat_and_edge_controls_suppress_repeat() {
 fn evdev_binds_aux3_left_to_physical_bottom_left_key_z() {
     assert_eq!(
         super::evdev::evdev_key(KeyboardKey::Z),
-        evdev::KeyCode::KEY_Z
+        ::evdev::KeyCode::KEY_Z
     );
     assert_eq!(
-        super::evdev::keyboard_key(evdev::KeyCode::KEY_Z.code()),
+        super::evdev::keyboard_key(::evdev::KeyCode::KEY_Z.code()),
         Some(KeyboardKey::Z)
     );
 }

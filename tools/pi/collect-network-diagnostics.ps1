@@ -1,10 +1,13 @@
 param(
-  [string]$Target = "pi@192.168.0.218",
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$OutputDir = "diagnostics"
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 
 if (-not (Test-Path -LiteralPath $OutputDir)) {
   New-Item -ItemType Directory -Path $OutputDir | Out-Null

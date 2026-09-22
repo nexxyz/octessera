@@ -14,14 +14,16 @@ Raspberry animation inputs without rebuilding the selected image. `-WakeTrace`
 enables the development wake trace in the service configuration.
 
 ```powershell
-./tools/pi/provision-pi.ps1 -Target pi@192.168.0.218 -BoardProfile raspberry-pi-zero-2w
+$PiTarget = "pi@<PI_HOST>"
+./tools/pi/provision-pi.ps1 -Target $PiTarget -BoardProfile raspberry-pi-zero-2w
 ```
 
 Preferred fast path:
 
 ```powershell
+$PiTarget = "pi@<PI_HOST>"
 ./tools/pi/build-pi-cross.ps1
-./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.218 -LocalBinary target/pi-cross/octessera-pi -NoTail
+./tools/pi/deploy-pi-fast.ps1 -Target $PiTarget -LocalBinary target/pi-cross/octessera-pi -NoTail
 # The adjacent target/pi-cross/octessera-pi.metadata.json is checked during deployment.
 # If boot-splash assets changed, provision first; this path never rebuilds initramfs.
 ```
@@ -54,10 +56,11 @@ exact DTB/overlay hashes, prior boot files, and serial-getty state under
 `/var/lib/octessera/input-routing-backups/<id>/`.
 
 ```powershell
-.\tools\orange-pi\provision-input-routing.ps1 -Preflight
-.\tools\orange-pi\provision-input-routing.ps1 -Apply
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+.\tools\orange-pi\provision-input-routing.ps1 -Target $OrangeTarget -Preflight
+.\tools\orange-pi\provision-input-routing.ps1 -Target $OrangeTarget -Apply
 # after an operator-approved reboot, rerun -Preflight
-.\tools\orange-pi\provision-input-routing.ps1 -RollbackId <backup-id>
+.\tools\orange-pi\provision-input-routing.ps1 -Target $OrangeTarget -RollbackId <backup-id>
 ```
 
 Apply never reboots; rollback also leaves reboot to the operator. The separate
@@ -98,9 +101,10 @@ checks do not cover tactile timing or display readability.
    then cross-build and deploy from the PC:
 
    ```powershell
-   ./tools/pi/provision-pi.ps1 -Target pi@192.168.0.218
+   $PiTarget = "pi@<PI_HOST>"
+   ./tools/pi/provision-pi.ps1 -Target $PiTarget
    ./tools/pi/build-pi-cross.ps1
-   ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.218 -LocalBinary target/pi-cross/octessera-pi -NoTail
+   ./tools/pi/deploy-pi-fast.ps1 -Target $PiTarget -LocalBinary target/pi-cross/octessera-pi -NoTail
    ```
 2. Pull service logs and profile summaries when the behavior is unclear;
    disable `OCTESSERA_PI_UI_PROFILE=1` after profiling.

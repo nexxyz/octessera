@@ -3,8 +3,8 @@
 This is a one-key bootstrap for an Armbian Orange Pi. It creates only the
 dedicated `octessera` deployment account and its SSH key authorization. It does
 not edit global `sshd` configuration, passwords, firewall rules, or default
-users. The deployed Octessera board is permanently `octessera@192.168.0.217`;
-the bootstrap examples below remain generic for bringing up a replacement image.
+users. Supply the deployed board target explicitly; the bootstrap examples below
+remain generic for bringing up a replacement image.
 
 ## SSH bootstrap
 
@@ -17,13 +17,13 @@ prints the private key. Supplying a host appends a labelled stanza to
 an overwrite.
 
 ```powershell
-.\tools\orange-pi\bootstrap-ssh.ps1 -HostName 192.168.1.50 -UserName octessera
+.\tools\orange-pi\bootstrap-ssh.ps1 -HostName "<ORANGE_HOST>" -UserName octessera
 ```
 
 To preview without creating or changing anything:
 
 ```powershell
-.\tools\orange-pi\bootstrap-ssh.ps1 -HostName 192.168.1.50 -UserName octessera -WhatIf
+.\tools\orange-pi\bootstrap-ssh.ps1 -HostName "<ORANGE_HOST>" -UserName octessera -WhatIf
 ```
 
 Copy the public-key line and the exact next command printed by the script.
@@ -124,15 +124,16 @@ Remove the labelled `OCTESSERA ORANGE PI` stanza from the Windows SSH config
 manually. Do not commit private keys, public keys, fingerprints tied to a
 specific board, hostnames, IP addresses, or generated SSH config to Git.
 
-## Canonical target and transport
+## Target and transport
 
-The fixed board target is `octessera@192.168.0.217`. Use
-`with-orange-ssh.ps1` for SSH and SCP; it supplies the dedicated key,
+Set the target for the board you are operating. Use `with-orange-ssh.ps1` for
+SSH and SCP; it supplies the dedicated key,
 `known_hosts`, strict host-key checking, and the passphrase from
 `OCTESSERA_PI_PASSPHRASE`.
 
 ```powershell
-./tools/orange-pi/with-orange-ssh.ps1 ssh octessera@192.168.0.217 "id -un; hostname"
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+./tools/orange-pi/with-orange-ssh.ps1 ssh -Target $OrangeTarget "id -un; hostname"
 ```
 
 For input-routing changes, use the [Orange input-routing reference](../../hardware/docs/orange-pi-input-routing.md)
@@ -160,12 +161,15 @@ To stage an output on the fixed board, use the canonical wrapper and preserve
 the binary and sidecar names:
 
 ```powershell
+$OrangeTarget = "octessera@<ORANGE_HOST>"
 ./tools/orange-pi/with-orange-ssh.ps1 scp `
+  -Target $OrangeTarget `
   target/orange-pi-cross/octessera-pi `
-  octessera@192.168.0.217:/tmp/octessera-pi
+  "${OrangeTarget}:/tmp/octessera-pi"
 ./tools/orange-pi/with-orange-ssh.ps1 scp `
+  -Target $OrangeTarget `
   target/orange-pi-cross/octessera-pi.metadata.json `
-  octessera@192.168.0.217:/tmp/octessera-pi.metadata.json
+  "${OrangeTarget}:/tmp/octessera-pi.metadata.json"
 ```
 
 ## Performance tools
@@ -174,17 +178,19 @@ The current performance commands are also listed in
 [`docs/workflows/pi-development-and-profiling.md`](../../docs/workflows/pi-development-and-profiling.md):
 
 ```powershell
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode PassiveBaseline -PrintOnly
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp64 -AllowServiceInterruption -PrintOnly
-./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp256 -AllowServiceInterruption -PrintOnly
-./tools/orange-pi/run-orange-live-audio-matrix.ps1 -PrintOnly
-./tools/orange-pi/run-orange-performance-baseline.ps1 -PrintOnly
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+./tools/orange-pi/run-orange-capability-study.ps1 -Target $OrangeTarget -Mode PassiveBaseline -PrintOnly
+./tools/orange-pi/run-orange-capability-study.ps1 -Target $OrangeTarget -Mode Dsp64 -AllowServiceInterruption -PrintOnly
+./tools/orange-pi/run-orange-capability-study.ps1 -Target $OrangeTarget -Mode Dsp256 -AllowServiceInterruption -PrintOnly
+./tools/orange-pi/run-orange-live-audio-matrix.ps1 -Target $OrangeTarget -PrintOnly
+./tools/orange-pi/run-orange-performance-baseline.ps1 -Target $OrangeTarget -PrintOnly
 ```
 
 Active runs use `-AllowServiceInterruption`; the live matrix additionally uses
 `-AllowMatrixServiceInterruption`. The command-generation checks are:
 
 ```powershell
+./tools/orange-pi/test-with-orange-ssh.ps1
 ./tools/orange-pi/test-run-orange-capability-study.ps1
 ./tools/orange-pi/test-run-orange-live-audio-matrix.ps1
 ./tools/orange-pi/test-run-orange-performance-baseline.ps1

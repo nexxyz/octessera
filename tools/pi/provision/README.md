@@ -7,7 +7,8 @@ the tracked files in this directory or the shared Pi image files.
 Provision the device before the first fast deployment:
 
 ```powershell
-./tools/pi/provision-pi.ps1 -Target pi@192.168.0.218 -BoardProfile raspberry-pi-zero-2w
+$PiTarget = "pi@<PI_HOST>"
+./tools/pi/provision-pi.ps1 -Target $PiTarget -BoardProfile raspberry-pi-zero-2w
 ```
 
 The selected initramfs is not refreshed by default. Pass `-UpdateInitramfs` for
@@ -25,7 +26,8 @@ Set `OCTESSERA_PI_PASSPHRASE` in the current PowerShell process first:
 
 ```powershell
 # Set OCTESSERA_PI_PASSPHRASE in this PowerShell process before these commands.
-./tools/pi/with-pi-ssh.ps1 ssh -Target pi@192.168.0.218 "hostname"
-./tools/pi/with-pi-ssh.ps1 scp -Target pi@192.168.0.218 ./candidate.bin pi@192.168.0.218:/tmp/candidate.bin
-./tools/pi/with-pi-ssh.ps1 ssh-payload -Target pi@192.168.0.218 ./remote-script.sh
+$PiTarget = "pi@<PI_HOST>"
+./tools/pi/with-pi-ssh.ps1 ssh -Target $PiTarget "hostname"
+./tools/pi/with-pi-ssh.ps1 scp -Target $PiTarget ./candidate.bin "${PiTarget}:/tmp/candidate.bin"
+./tools/pi/with-pi-ssh.ps1 ssh-payload -Target $PiTarget ./remote-script.sh
 ```

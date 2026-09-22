@@ -1,10 +1,10 @@
 # Manual Hardware Test Suite
 
-Use this checklist for hands-on hardware bring-up when no OLED is installed. The operator watches the hardware while the test runner controls the Pi over SSH.
+This Raspberry-only checklist covers no-OLED bench bring-up. The operator watches the hardware while the test runner controls the Pi over SSH.
 
 ## Starting State
 
-- Pi is reachable as `pi@192.168.0.211`.
+- Raspberry Pi is reachable as `pi@<PI_HOST>`.
 - `octessera.service` is disabled and inactive unless a test step explicitly starts it.
 - OLED is removed.
 - NeoTrellis, NeoKey, DAC/audio, encoders, and power are connected.
@@ -12,7 +12,8 @@ Use this checklist for hands-on hardware bring-up when no OLED is installed. The
 Before each session:
 
 ```powershell
-./tools/pi/pi-preflight.ps1 -Target pi@192.168.0.211
+$PiTarget = "pi@<PI_HOST>"
+./tools/pi/pi-preflight.ps1 -Target $PiTarget
 ```
 
 Inspect the installed Raspberry power policy. An interactive dry-run with extra

@@ -44,7 +44,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf", "sha256": "8ae8a03c4a95d70dd2de829aa6e01b20187dcf1cbd7b92e5f7a07ce337a6186f", "size": 184},
     {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "620e6fc8a651e7f47317fb97871a6961a481899fa75d9f1dbe1b4b4aef580dcc", "size": 6403},
     {"path": "tools/pi-image/rpi_kernel_image_mount.py", "sha256": "e665a41335a1cb8998e8072829ddcb12eb21749acea94845ce1836d082d67df2", "size": 3678},
-    {"path": "tools/pi-image/rpi_kernel_boot_proof.py", "sha256": "9830aed296d9515d856577f176e02c13d63608c80323bbd9ecb3f6779021cebd", "size": 16713},
+    {"path": "tools/pi-image/rpi_kernel_boot_proof.py", "sha256": "57adb7237253404f05ebad6275b71bdf2afcf893b226a26aa667b84feab5dec2", "size": 16713},
     {"path": "tools/pi-image/rpi_kernel_payload_proof.py", "sha256": "07aa3455ecc66259d114abf2c37d7fade32b05729e879b8d658d2b4af62731d8", "size": 3316},
     {"path": "tools/pi-image/rpi_kernel_stock_recovery.py", "sha256": "57344adbcc39bd067c77f2ee06822e9b9fb808d7ab9cf3a4ba4b755f7c505ac4", "size": 2406},
     {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "22d8ba31cf016c665f562d3fa7b9004e00c280984eef08d646f86862b1093d32", "size": 23278},

@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+  [Parameter(Mandatory = $true)]
+  [string]$Target,
   [string]$Artifact = "",
   [string]$Metadata = "",
   [string]$OutputDirectory = "",
@@ -18,6 +20,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+Assert-DeploymentTarget $Target | Out-Null
 
 $runner = if ([string]::IsNullOrWhiteSpace($RunnerPath)) { Join-Path $PSScriptRoot "run-orange-capability-study.ps1" } else { $RunnerPath }
 $validationModule = Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1"
@@ -91,6 +95,8 @@ function Invoke-LiveCell {
     "Bypass"
     "-File"
     $runner
+    "-Target"
+    $Target
     "-Mode"
     "LiveAudioBenchmark"
     "-ExecutorMode"

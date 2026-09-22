@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $runnerPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
+$orangeTarget = "octessera@orange.test.invalid"
 Import-Module (Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-benchmark-payloads.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-live-result-evidence-validation.psm1") -Force
@@ -36,6 +37,7 @@ function New-OrangeSummaryResult {
 
 function Invoke-PrintOnly {
   param([hashtable]$Parameters)
+  if (-not $Parameters.ContainsKey("Target")) { $Parameters.Target = $orangeTarget }
   $global:LASTEXITCODE = 0
   $output = @(& $runnerPath @Parameters 2>&1)
   if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Frame-search runner exited with code $LASTEXITCODE." }

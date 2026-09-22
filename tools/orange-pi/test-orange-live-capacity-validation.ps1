@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $scriptPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
+$orangeTarget = "octessera@orange.test.invalid"
 $runnerSource = [IO.File]::ReadAllText($scriptPath)
 Import-Module (Join-Path $PSScriptRoot "orange-live-benchmark-validation.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "orange-profile-baseline-validation.psm1") -Force
@@ -9,6 +10,7 @@ Import-Module (Join-Path $PSScriptRoot "orange-cross-metadata.psm1") -Force
 
 function Invoke-StudyPrintOnly {
   param([hashtable]$Parameters)
+  if (-not $Parameters.ContainsKey("Target")) { $Parameters.Target = $orangeTarget }
   try {
     $global:LASTEXITCODE = 0
     $output = @(& $scriptPath @Parameters 2>&1)

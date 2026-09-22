@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 
 $driver = Join-Path $PSScriptRoot "run-orange-performance-baseline.ps1"
 $runner = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
+$orangeTarget = "octessera@orange.test.invalid"
 $driverSource = [IO.File]::ReadAllText($driver)
 $runnerSource = [IO.File]::ReadAllText($runner)
 $payloadSource = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "orange-capability-study-payloads.psm1"))
@@ -23,6 +24,7 @@ function Assert-Throws {
 
 function Invoke-PrintOnly {
   param([Parameter(Mandatory)][string]$Path, [hashtable]$Parameters = @{})
+  if (-not $Parameters.ContainsKey("Target")) { $Parameters.Target = $orangeTarget }
   $arguments = @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $Path)
   foreach ($key in $Parameters.Keys) {
     if ($Parameters[$key] -is [bool]) { if ($Parameters[$key]) { $arguments += "-$key" } } else { $arguments += @("-$key", [string]$Parameters[$key]) }
@@ -41,6 +43,7 @@ if ($driverSource -notmatch '\$arguments \+= @\("-Mode", "LiveAudioBenchmark", "
 Assert-Contains $driverSource 'Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate"'
 Assert-Contains $driverSource '-BuildSpec $buildSpec'
 if ($driverSource -match 'persistent_two_workers') { throw "Orange performance baseline retained the removed two-worker executor." }
+Assert-Throws { & $driver -PrintOnly } "omitted target"
 
 Assert-Contains $driverSource "/etc/octessera/build-metadata.env"
 if ($driverSource -match "/etc/octessera/board-profile\.env") { throw "Orange baseline passive identity regressed to the Raspberry board-profile path." }
@@ -119,7 +122,7 @@ try {
 
 $canary = Invoke-PrintOnly $driver @{ PrintOnly = $true; CanaryOnly = $true }
 Assert-Contains $canary "Orange performance baseline PrintOnly: no transport is invoked."
-Assert-Contains $canary "Target: octessera@192.168.0.217"
+Assert-Contains $canary "Target: $orangeTarget"
 Assert-Contains $canary "01: passive board identity"
 Assert-Contains $canary "02: offline repetition=1/3 cell=common_baseline_idle"
 Assert-Contains $canary "05: live repetition=1/3 cell=orange_live_default_synth_cross_slot_16"
@@ -135,8 +138,8 @@ $full = Invoke-PrintOnly $driver @{ PrintOnly = $true; Phase = "Full" }
 Assert-Contains $full "offline repetition=2/3"
 Assert-Contains $full "live repetition=3/3"
 Assert-Contains $full "selection=p99.9_then_max"
-Assert-Throws { & $driver -Phase Offline -Artifact "missing" -Metadata "missing.json" } "active consent"
-Assert-Throws { & $driver -PrintOnly -RunnerPath "bad`"runner.ps1" } "quoted runner path"
+Assert-Throws { & $driver -Target $orangeTarget -Phase Offline -Artifact "missing" -Metadata "missing.json" } "active consent"
+Assert-Throws { & $driver -Target $orangeTarget -PrintOnly -RunnerPath "bad`"runner.ps1" } "quoted runner path"
 
 $baselineArtifact = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-profile-baseline-missing"
 $baselinePrint = Invoke-PrintOnly $runner @{ Mode = "ProfileBaseline"; Scenario = "synth_cross_slot_16"; EngineBlockFrames = 256; ProfileMeasureFrames = 256; Artifact = $baselineArtifact; Metadata = "$baselineArtifact.metadata.json"; PrintOnly = $true }
@@ -158,9 +161,9 @@ if ($baselinePrint -match "70000|75000|runtime-thermal-abort") { throw "Orange P
 if ($payloadSource -match "function New-ProfileBaselineBody") { throw "Orange ProfileBaseline payload remains in the general payload module." }
 Assert-Contains $baselinePrint "runtime-candidate-sha256.txt"
 Assert-Contains $driverSource "Get-OrangeSafetyFailureReason"
-Assert-Throws { & $runner -Mode ProfileBaseline -Scenario unknown_scenario -EngineBlockFrames 256 -ProfileMeasureFrames 256 -PrintOnly } "unknown profile ID"
-Assert-Throws { & $runner -Mode ProfileBaseline -Scenario synth_cross_slot_16 -EngineBlockFrames 128 -ProfileMeasureFrames 256 -PrintOnly } "profile geometry"
-$baselineLivePrint = & $runner -Mode LiveAudioBenchmark -Scenario mixed_16_synth_32_sample -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 30 -Artifact $baselineArtifact -Metadata "$baselineArtifact.metadata.json" -AllowServiceInterruption -ExecutorMode inline -WorkerTimingMode disabled -PrintOnly | Out-String
+Assert-Throws { & $runner -Target $orangeTarget -Mode ProfileBaseline -Scenario unknown_scenario -EngineBlockFrames 256 -ProfileMeasureFrames 256 -PrintOnly } "unknown profile ID"
+Assert-Throws { & $runner -Target $orangeTarget -Mode ProfileBaseline -Scenario synth_cross_slot_16 -EngineBlockFrames 128 -ProfileMeasureFrames 256 -PrintOnly } "profile geometry"
+$baselineLivePrint = & $runner -Target $orangeTarget -Mode LiveAudioBenchmark -Scenario mixed_16_synth_32_sample -OutputFrames 128 -EngineBlockFrames 32 -MeasureSeconds 30 -Artifact $baselineArtifact -Metadata "$baselineArtifact.metadata.json" -AllowServiceInterruption -ExecutorMode inline -WorkerTimingMode disabled -PrintOnly | Out-String
 Assert-Contains $baselineLivePrint "output=128 period=32 engine=32"
 Assert-Contains $baselineLivePrint "worker-timing=disabled executor=inline"
 Assert-Contains $baselineLivePrint "--worker-timing disabled"
