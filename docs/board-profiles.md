@@ -169,6 +169,10 @@ Pi binaries expose `--print-build-metadata`, and cross-build output includes
 `octessera-pi.metadata.json`. Release manifests, installed service metadata,
 and device update manifests carry the same canonical ID so a mismatched
 binary or artifact fails closed where the host can check it.
+The staged `octessera-pi` sidecar is an application runtime-candidate contract;
+the installed `/opt/octessera/releases/<version>/octessera-runtime.json` is the
+separate production-runtime contract. Passing the candidate metadata command
+does not qualify the image.
 
 Production image artifacts use the version-qualified name
 `octessera-<version>-orange-pi-zero-2w.img.xz`, with matching SHA-256 and image

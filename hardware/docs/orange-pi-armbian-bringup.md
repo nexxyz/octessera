@@ -187,6 +187,28 @@ USB state without binding USB, playing audio, or actuating the control surface.
 `--hardware-test` and `--hardware-noise-test` are Raspberry interactive modes
 and are rejected on Orange.
 
+### Exact-source application FAT (not image FAT)
+
+The command above checks the installed production runtime under
+`/opt/octessera/releases` with the strict `octessera-runtime.json` contract. It
+does not qualify the image. For an exact cross-built candidate, keep the
+production service running, copy the binary and unchanged sidecar, and run:
+
+```sh
+cp /path/to/octessera-pi /tmp/octessera-pi
+cp /path/to/octessera-pi.metadata.json /tmp/octessera-pi.metadata.json
+chmod 0755 /tmp/octessera-pi
+/tmp/octessera-pi --fat-diagnostic \
+  --board-profile orange-pi-zero-2w \
+  --evidence-dir "/tmp/octessera-fat-diagnostic-orange-candidate"
+```
+
+Do not copy the candidate into `/usr/local/bin` or `/opt/octessera/releases`,
+and do not stop, restart, or replace the service. Candidate evidence names the
+resolved executable, full source commit, and
+`image_fat_claim=not_evaluated`. Run separate image FAT and construction checks
+to qualify the image.
+
 ### 6. Fault handling
 
 Stop before use when any mapping, power, recovery, UDC, I2S, GPIO, OLED,
