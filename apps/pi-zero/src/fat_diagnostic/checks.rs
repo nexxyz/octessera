@@ -234,8 +234,8 @@ fn setup_status_check_paths(public: &Path) -> CheckOutcome {
         }
     } else {
         outcome(
-            CheckStatus::NotRun,
-            "setup status evidence is absent; hygiene remains pending",
+            CheckStatus::OperatorRequired,
+            "setup status evidence is absent; image-flash customization may have completed setup without a portal receipt",
             "05-setup-status.txt",
         )
     }

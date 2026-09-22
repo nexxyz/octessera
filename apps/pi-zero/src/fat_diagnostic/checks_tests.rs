@@ -20,10 +20,11 @@ fn input_check_is_operator_required_without_hardware_access() {
 }
 
 #[test]
-fn absent_setup_status_is_not_run_instead_of_a_hygiene_pass() {
+fn absent_setup_status_is_operator_required_for_image_flash_customization() {
     let root = test_root("setup-status");
     let outcome = setup_status_check_paths(&root.join("public"));
-    assert_eq!(outcome.status, CheckStatus::NotRun);
+    assert_eq!(outcome.status, CheckStatus::OperatorRequired);
+    assert!(outcome.message.contains("image-flash customization"));
     assert!(!root.exists());
     let _ = fs::remove_dir_all(root);
 }
