@@ -381,7 +381,13 @@ fn freeze_fx() -> Value {
 fn pitch_fx(semitones: i32) -> Value {
     json!({
         "fxType": "pitch_shift",
-        "params": { "cents": 0, "mixPct": 100, "semitones": semitones },
+        "params": {
+            "cents": 0,
+            "mixPct": 100,
+            "semitones": semitones,
+            "slideInMs": 120,
+            "slideOutMs": 180
+        },
         "targetKey": "master"
     })
 }
