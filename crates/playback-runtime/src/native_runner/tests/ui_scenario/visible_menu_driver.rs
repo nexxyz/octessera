@@ -19,11 +19,10 @@ impl<'a> VisibleMenuDriver<'a> {
         self.device.press_main();
     }
 
-    pub(super) fn open_group_unless_visible(&mut self, group_label: &str, visible_marker: &str) {
-        if self.any_line_contains(visible_marker) {
-            return;
+    pub(super) fn open_group_if_visible(&mut self, label: &str) {
+        if self.any_line_contains(label) {
+            self.open_group(label);
         }
-        self.open_group(group_label);
     }
 
     pub(super) fn activate_action(&mut self, label: &str) {
