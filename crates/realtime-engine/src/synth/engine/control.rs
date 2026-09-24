@@ -55,12 +55,6 @@ impl SynthEngine {
             target,
             self.sample_rate,
         ));
-
-        if kind == MomentaryFxKind::PitchShift {
-            let fx = self.momentary_fx.last_mut().expect("inserted momentary FX");
-            fx.pitch_shifter
-                .prefill_from_ring(&self.dry_history, self.dry_history_pos);
-        }
     }
 
     pub fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
@@ -95,23 +89,46 @@ impl SynthEngine {
 
     fn stop_momentary_fx_at(&mut self, pos: usize) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        let should_remove = matches!(
-            self.momentary_fx[pos].kind,
-            MomentaryFxKind::Stutter | MomentaryFxKind::PitchShift
-        );
-        if should_remove {
+        if self.momentary_fx[pos].kind == MomentaryFxKind::Stutter {
             store_retired_momentary(
                 &mut retired.displaced_momentary_fx,
                 self.momentary_fx.remove(pos),
             );
-        } else {
+            return retired;
+        }
+        if self.momentary_fx[pos].kind == MomentaryFxKind::PitchShift {
+            if self.momentary_fx[pos].releasing {
+                return retired;
+            }
             let fx = &mut self.momentary_fx[pos];
-            fx.releasing = true;
-            fx.release_pos = 0;
-            if fx.kind == MomentaryFxKind::Freeze {
-                if let MomentaryFxRuntimeParams::Freeze { release_len, .. } = fx.runtime_params {
-                    fx.release_len = release_len;
-                }
+            let activation = if fx.pitch_fill_pos < PITCH_FILL_FRAMES {
+                0.0
+            } else {
+                (fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len.max(1) as f32).clamp(0.0, 1.0)
+            };
+            let mix = match fx.runtime_params {
+                MomentaryFxRuntimeParams::PitchShift { mix, .. } => mix,
+                _ => 0.0,
+            };
+            if mix * activation == 0.0 {
+                store_retired_momentary(
+                    &mut retired.displaced_momentary_fx,
+                    self.momentary_fx.remove(pos),
+                );
+            } else {
+                fx.releasing = true;
+                fx.release_pos = 0;
+                fx.release_len = fx.pitch_ramp_len;
+            }
+            return retired;
+        }
+
+        let fx = &mut self.momentary_fx[pos];
+        fx.releasing = true;
+        fx.release_pos = 0;
+        if fx.kind == MomentaryFxKind::Freeze {
+            if let MomentaryFxRuntimeParams::Freeze { release_len, .. } = fx.runtime_params {
+                fx.release_len = release_len;
             }
         }
         retired
@@ -126,6 +143,9 @@ impl SynthEngine {
             return;
         }
         if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
+            if fx.kind == MomentaryFxKind::PitchShift && fx.releasing {
+                return;
+            }
             fx.runtime_params =
                 MomentaryFxRuntimeParams::from_params(fx.kind, params, self.sample_rate);
             if fx.kind == MomentaryFxKind::Stutter {

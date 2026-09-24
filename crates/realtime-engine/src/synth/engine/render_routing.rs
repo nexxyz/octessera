@@ -242,15 +242,6 @@ impl SynthEngine {
         )
     }
 
-    pub(super) fn push_dry_history(&mut self, left: f32, right: f32) {
-        self.dry_history[self.dry_history_pos] = left;
-        self.dry_history[self.dry_history_pos + 1] = right;
-        self.dry_history_pos += 2;
-        if self.dry_history_pos >= self.dry_history.len() {
-            self.dry_history_pos = 0;
-        }
-    }
-
     pub(super) fn apply_master_fx_slots(&mut self, mut left: f32, mut right: f32) -> (f32, f32) {
         for slot_idx in self.master_active_slot_indices.iter().copied() {
             let params = self.master_slot_params[slot_idx];

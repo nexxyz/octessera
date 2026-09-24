@@ -7,7 +7,6 @@ use super::prepared_control_prepare::{
 use super::render_momentary_fx::apply_prepared_momentary_fx_update;
 use super::render_plan::RenderPlanInstrumentSlot;
 use super::retired_state::{store_retired_momentary, RetiredAudioState};
-use super::support::MomentaryFxKind;
 use super::*;
 
 impl SynthEngine {
@@ -254,7 +253,7 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return retired;
         }
-        let mut state = prepared.state;
+        let state = prepared.state;
         if let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == state.id) {
             store_retired_momentary(
                 &mut retired.displaced_momentary_fx,
@@ -266,11 +265,6 @@ impl SynthEngine {
         {
             store_retired_momentary(&mut retired.displaced_momentary_fx, state);
             return retired;
-        }
-        if state.kind == MomentaryFxKind::PitchShift {
-            state
-                .pitch_shifter
-                .prefill_from_ring(&self.dry_history, self.dry_history_pos);
         }
         self.momentary_fx.push(state);
         retired

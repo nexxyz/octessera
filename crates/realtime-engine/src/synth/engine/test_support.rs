@@ -2,6 +2,16 @@ use super::*;
 
 impl SynthEngine {
     #[cfg(test)]
+    pub(in crate::synth) fn process_momentary_frame_for_test(
+        &mut self,
+        target: MomentaryFxTarget,
+        left: f32,
+        right: f32,
+    ) -> (f32, f32) {
+        self.process_momentary_fx_target(target, left, right)
+    }
+
+    #[cfg(test)]
     pub(in crate::synth) fn active_voice_count_for_slot(&self, slot: usize) -> usize {
         self.synth_voice_pool
             .active_count_for_slot(slot)
@@ -141,5 +151,27 @@ impl SynthEngine {
             }
         }
         None
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::type_complexity)]
+    pub(in crate::synth) fn freeze_state_probe(
+        &self,
+        id: &str,
+    ) -> Option<([Vec<f32>; 4], [usize; 4], [f32; 4], u32, u32, u32, u32)> {
+        self.momentary_fx
+            .iter()
+            .find(|fx| fx.id == id && matches!(fx.kind, MomentaryFxKind::Freeze))
+            .map(|fx| {
+                (
+                    fx.freeze_bufs.clone(),
+                    fx.freeze_idxs,
+                    fx.freeze_lp,
+                    fx.freeze_inject_pos,
+                    fx.freeze_ready_len,
+                    fx.freeze_activation_pos,
+                    fx.freeze_activation_len,
+                )
+            })
     }
 }
