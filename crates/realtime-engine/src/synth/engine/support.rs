@@ -9,6 +9,8 @@ const PITCH_MIN_DELAY: f32 = 64.0;
 const PITCH_RANGE: f32 = 1024.0;
 pub(super) const PITCH_FILL_FRAMES: u32 = (PITCH_MIN_DELAY + PITCH_RANGE) as u32;
 const PITCH_ACTIVATION_RAMP_MS: u32 = 10;
+pub(super) const PITCH_DEFAULT_SLIDE_IN_MS: f32 = 120.0;
+pub(super) const PITCH_DEFAULT_SLIDE_OUT_MS: f32 = 180.0;
 
 #[cfg(test)]
 thread_local! {
@@ -142,6 +144,11 @@ pub(super) struct MomentaryFxState {
     pub(super) pitch_fill_pos: u32,
     pub(super) pitch_ramp_pos: u32,
     pub(super) pitch_ramp_len: u32,
+    pub(super) pitch_amount_octaves: f32,
+    pub(super) pitch_slide_start_octaves: f32,
+    pub(super) pitch_slide_target_octaves: f32,
+    pub(super) pitch_slide_pos: u32,
+    pub(super) pitch_slide_len: u32,
     pub(super) stutter_l: Vec<f32>,
     pub(super) stutter_r: Vec<f32>,
     pub(super) stutter_write: usize,
@@ -175,8 +182,10 @@ pub(super) enum MomentaryFxRuntimeParams {
         sweep_out_step: f32,
     },
     PitchShift {
-        ratio: f32,
+        target_octaves: f32,
         mix: f32,
+        slide_in_len: u32,
+        slide_out_len: u32,
     },
 }
 
@@ -214,9 +223,21 @@ impl MomentaryFxRuntimeParams {
                 let semitones = param_f32(params, "semitones", 7.0).clamp(-24.0, 24.0);
                 let cents = param_f32(params, "cents", 0.0).clamp(-100.0, 100.0);
                 let mix = (param_f32(params, "mixPct", 100.0) / 100.0).clamp(0.0, 1.0);
+                let slide_in_len = ms_to_samples(
+                    param_f32(params, "slideInMs", PITCH_DEFAULT_SLIDE_IN_MS),
+                    sample_rate,
+                )
+                .max(1);
+                let slide_out_len = ms_to_samples(
+                    param_f32(params, "slideOutMs", PITCH_DEFAULT_SLIDE_OUT_MS),
+                    sample_rate,
+                )
+                .max(1);
                 Self::PitchShift {
-                    ratio: 2.0_f32.powf((semitones + cents / 100.0) / 12.0),
+                    target_octaves: (semitones + cents / 100.0) / 12.0,
                     mix,
+                    slide_in_len,
+                    slide_out_len,
                 }
             }
         }
@@ -252,6 +273,14 @@ impl MomentaryFxState {
         let freeze_ready_len = freeze_bufs.iter().map(Vec::len).max().unwrap_or(1) as u32;
         let freeze_activation_len = (sample_rate * 5 / 1000).max(1);
         let runtime_params = MomentaryFxRuntimeParams::from_params(kind, params, sample_rate);
+        let (pitch_slide_target_octaves, pitch_slide_len) = match runtime_params {
+            MomentaryFxRuntimeParams::PitchShift {
+                target_octaves,
+                slide_in_len,
+                ..
+            } => (target_octaves, slide_in_len),
+            _ => (0.0, 1),
+        };
         Self {
             id,
             epoch,
@@ -268,6 +297,11 @@ impl MomentaryFxState {
             pitch_fill_pos: 0,
             pitch_ramp_pos: 0,
             pitch_ramp_len,
+            pitch_amount_octaves: 0.0,
+            pitch_slide_start_octaves: 0.0,
+            pitch_slide_target_octaves,
+            pitch_slide_pos: 0,
+            pitch_slide_len,
             stutter_l: vec![0.0; sample_rate as usize],
             stutter_r: vec![0.0; sample_rate as usize],
             stutter_write: 0,

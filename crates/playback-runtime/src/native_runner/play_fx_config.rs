@@ -45,6 +45,7 @@ fn sanitize_play_fx_param(fx_type: &str, key: &str, value: i64) -> i64 {
         ("filter_sweep", "sweepOutMs") => value.clamp(10, 3000),
         ("pitch_shift", "semitones") => value.clamp(-24, 24),
         ("pitch_shift", "cents") => value.clamp(-100, 100),
+        ("pitch_shift", "slideInMs" | "slideOutMs") => value.clamp(10, 3000),
         ("pitch_shift", "mixPct") => value.clamp(0, 100),
         _ => value,
     }
@@ -81,7 +82,7 @@ pub(super) fn play_fx_param_keys(fx_type: &str) -> &'static [&'static str] {
         "stutter" => &["rateHz", "depthPct"],
         "freeze" => &["releaseMs", "mixPct"],
         "filter_sweep" => &["cutoffPct", "resonancePct", "sweepInMs", "sweepOutMs"],
-        "pitch_shift" => &["semitones", "cents", "mixPct"],
+        "pitch_shift" => &["semitones", "cents", "slideInMs", "slideOutMs", "mixPct"],
         _ => &[],
     }
 }
@@ -98,6 +99,8 @@ pub(super) fn play_fx_param_default(fx_type: &str, key: &str) -> i32 {
         ("filter_sweep", "sweepOutMs") => 180,
         ("pitch_shift", "semitones") => 0,
         ("pitch_shift", "cents") => 0,
+        ("pitch_shift", "slideInMs") => 120,
+        ("pitch_shift", "slideOutMs") => 180,
         ("pitch_shift", "mixPct") => 100,
         _ => 0,
     }

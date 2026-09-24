@@ -24,12 +24,15 @@ fn pitch_release_uses_full_rate_scaled_complementary_fade() {
             let retired = engine.momentary_fx_stop("pitch");
             assert!(retired.displaced_momentary_fx.iter().all(Option::is_none));
             assert_eq!(engine.momentary_fx[0].release_len, release_len);
+            let release_start_octaves = engine.momentary_fx[0].pitch_amount_octaves;
 
             for release_pos in 0..release_len {
                 let input = (0.35, -0.2);
+                let ratio =
+                    pitch_ratio_for_release(release_start_octaves, release_pos, release_len);
                 let wet = wet_state
                     .pitch_shifter
-                    .process_frame(input.0, input.1, pitch_ratio());
+                    .process_frame(input.0, input.1, ratio);
                 let output = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
                 if release_pos == 0
                     || release_pos == release_len / 2
@@ -78,9 +81,14 @@ fn pitch_partial_activation_release_starts_at_current_wet_and_only_declines() {
         } else {
             (1.0, 1.0)
         };
+        let ratio = if frame < PITCH_FILL_FRAMES {
+            1.0
+        } else {
+            pitch_ratio_for_slide(frame - PITCH_FILL_FRAMES + 1, release_len)
+        };
         let _ = wet_state
             .pitch_shifter
-            .process_frame(input.0, input.1, pitch_ratio());
+            .process_frame(input.0, input.1, ratio);
         let _ = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
     }
     let activation =
@@ -90,16 +98,53 @@ fn pitch_partial_activation_release_starts_at_current_wet_and_only_declines() {
     assert_eq!(engine.momentary_fx[0].release_pos, 0);
 
     let mut previous_gain = activation;
+    let release_start_octaves = engine.momentary_fx[0].pitch_amount_octaves;
     for release_pos in 0..release_len {
         let input = (1.0, 1.0);
+        let ratio = pitch_ratio_for_release(release_start_octaves, release_pos, release_len);
         let wet = wet_state
             .pitch_shifter
-            .process_frame(input.0, input.1, pitch_ratio());
+            .process_frame(input.0, input.1, ratio);
         let output = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
         let wet_gain = activation * (1.0 - release_pos as f32 / release_len as f32);
         assert!(wet_gain <= previous_gain);
         assert!((output.0 - (input.0 * (1.0 - wet_gain) + wet.0 * wet_gain)).abs() < 1e-6);
         previous_gain = wet_gain;
+    }
+    assert!(engine.momentary_fx.is_empty());
+}
+
+#[test]
+fn pitch_slide_out_holds_wet_until_the_final_fixed_activation_window() {
+    let sample_rate = 44_100;
+    let release_len = 1_323;
+    let mut engine = SynthEngine::new(sample_rate);
+    let mut wet_state = new_pitch_with_slides(sample_rate, 100.0, 10.0, 30.0);
+    engine.momentary_fx_start(
+        "pitch".into(),
+        "pitch_shift".into(),
+        pitch_params_with_slides(100.0, 10.0, 30.0),
+        GLOBAL,
+    );
+    render_full_activation(&mut engine, &mut wet_state, release_len);
+    engine.momentary_fx_stop("pitch");
+    assert_eq!(engine.momentary_fx[0].release_len, release_len);
+    let start_octaves = engine.momentary_fx[0].pitch_amount_octaves;
+    let fixed_len = engine.momentary_fx[0].pitch_ramp_len.max(1);
+    let input = (0.35, -0.2);
+    for release_pos in 0..release_len {
+        let ratio = pitch_ratio_for_release(start_octaves, release_pos, release_len);
+        let wet = wet_state
+            .pitch_shifter
+            .process_frame(input.0, input.1, ratio);
+        let output = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
+        let fade_start = release_len - fixed_len;
+        let fade = if release_pos < fade_start {
+            1.0
+        } else {
+            (release_len - release_pos) as f32 / fixed_len as f32
+        };
+        assert!((output.0 - (input.0 * (1.0 - fade) + wet.0 * fade)).abs() < 1.0e-6);
     }
     assert!(engine.momentary_fx.is_empty());
 }
@@ -157,8 +202,10 @@ fn pitch_repeated_stop_does_not_reset_release_and_releasing_updates_are_rejected
     assert_eq!(
         engine.apply_prepared_momentary_fx_update(PreparedMomentaryFxUpdate::PitchShift {
             epoch,
-            ratio: 0.5,
+            target_octaves: 0.0,
             mix: 0.25,
+            slide_in_len: 120,
+            slide_out_len: 180,
         }),
         ScalarMutation::Rejected
     );
@@ -210,32 +257,57 @@ fn render_full_activation_for_target(
     target: MomentaryFxTarget,
     release_len: u32,
 ) {
+    let slide_in_len = engine.momentary_fx[0].pitch_slide_len;
     for frame in 0..PITCH_FILL_FRAMES + release_len + 1 {
         let input = if frame < PITCH_FILL_FRAMES {
             (-1.0, -1.0)
         } else {
             (1.0, 1.0)
         };
+        let ratio = if frame < PITCH_FILL_FRAMES {
+            1.0
+        } else {
+            pitch_ratio_for_slide(frame - PITCH_FILL_FRAMES + 1, slide_in_len)
+        };
         let _ = wet_state
             .pitch_shifter
-            .process_frame(input.0, input.1, pitch_ratio());
+            .process_frame(input.0, input.1, ratio);
         let _ = engine.process_momentary_fx_target(target, input.0, input.1);
     }
 }
 
 fn new_pitch(sample_rate: u32, mix: f32) -> MomentaryFxState {
+    new_pitch_with_slides(sample_rate, mix, 10.0, 10.0)
+}
+
+fn new_pitch_with_slides(
+    sample_rate: u32,
+    mix: f32,
+    slide_in_ms: f32,
+    slide_out_ms: f32,
+) -> MomentaryFxState {
     MomentaryFxState::new(
         "pitch".into(),
         MomentaryFxKind::PitchShift,
-        &pitch_params(mix),
+        &pitch_params_with_slides(mix, slide_in_ms, slide_out_ms),
         GLOBAL,
         sample_rate,
     )
 }
 
 fn pitch_params(mix: f32) -> BTreeMap<String, serde_json::Value> {
+    pitch_params_with_slides(mix, 10.0, 10.0)
+}
+
+fn pitch_params_with_slides(
+    mix: f32,
+    slide_in_ms: f32,
+    slide_out_ms: f32,
+) -> BTreeMap<String, serde_json::Value> {
     BTreeMap::from([
         ("semitones".into(), json!(7.0)),
+        ("slideInMs".into(), json!(slide_in_ms)),
+        ("slideOutMs".into(), json!(slide_out_ms)),
         ("mixPct".into(), json!(mix)),
     ])
 }
@@ -247,6 +319,15 @@ fn pitch_mix(fx: &MomentaryFxState) -> f32 {
     }
 }
 
-fn pitch_ratio() -> f32 {
-    2.0_f32.powf(7.0 / 12.0)
+fn pitch_ratio_for_slide(position: u32, slide_len: u32) -> f32 {
+    pitch_ratio_for_amount(7.0 / 12.0 * (position.min(slide_len) as f32 / slide_len as f32))
+}
+
+fn pitch_ratio_for_release(start_octaves: f32, position: u32, release_len: u32) -> f32 {
+    let position = position.saturating_add(1).min(release_len);
+    pitch_ratio_for_amount(start_octaves * (1.0 - position as f32 / release_len as f32))
+}
+
+fn pitch_ratio_for_amount(octaves: f32) -> f32 {
+    2.0_f32.powf(octaves)
 }

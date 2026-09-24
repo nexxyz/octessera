@@ -367,7 +367,7 @@ mod cli_tests {
 
     #[test]
     fn static_boot_splash_writes_one_clean_frame_without_runtime_waits() {
-        let source = include_str!("oled_test.rs");
+        let source = include_str!("oled_utility.rs");
         let static_body = source
             .split_once("fn run_boot_splash_static()")
             .and_then(|(_, body)| body.split_once("fn run_boot_splash_loop()"))
@@ -382,7 +382,7 @@ mod cli_tests {
 
     #[test]
     fn boot_loop_uses_one_startup_delayed_frame_and_keeps_polling_handoff() {
-        let source = include_str!("oled_test.rs");
+        let source = include_str!("oled_utility.rs");
         let loop_body = source
             .split_once("fn run_boot_splash_loop()")
             .and_then(|(_, body)| body.split_once("fn sleep_boot_sweep_rest("))

@@ -179,6 +179,31 @@ pub(crate) fn play_fx_type_turn_updates_params_immediately() {
 }
 
 #[test]
+pub(crate) fn pitch_play_fx_mapping_normalizes_complete_params() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.play_fx_selected = json!({
+        "fxType": "pitch_shift",
+        "targetKey": "master",
+        "params": {}
+    });
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.apply_play_fx_menu_state());
+    let params = runner.play_fx_selected["params"].as_object().unwrap();
+    let mut keys = params.keys().cloned().collect::<Vec<_>>();
+    keys.sort();
+    assert_eq!(
+        keys,
+        vec!["cents", "mixPct", "semitones", "slideInMs", "slideOutMs"]
+    );
+    assert_eq!(params["semitones"], json!(0));
+    assert_eq!(params["cents"], json!(0));
+    assert_eq!(params["slideInMs"], json!(120));
+    assert_eq!(params["slideOutMs"], json!(180));
+    assert_eq!(params["mixPct"], json!(100));
+}
+
+#[test]
 pub(crate) fn play_fx_none_exposes_type_without_effect_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.play_mode = "fx".into();

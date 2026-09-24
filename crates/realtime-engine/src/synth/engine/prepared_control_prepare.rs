@@ -12,7 +12,7 @@ use super::render_plan::{
 use super::render_routing::FxBusOutputSpreadState;
 use super::support::{
     parse_instrument_kind, parse_momentary_fx_kind, InstrumentKind, MomentaryFxKind,
-    MomentaryFxState,
+    MomentaryFxRuntimeParams, MomentaryFxState,
 };
 use super::*;
 
@@ -98,8 +98,10 @@ pub enum PreparedMomentaryFxUpdate {
     },
     PitchShift {
         epoch: u64,
-        ratio: f32,
+        target_octaves: f32,
         mix: f32,
+        slide_in_len: u32,
+        slide_out_len: u32,
     },
 }
 
@@ -280,12 +282,21 @@ pub fn prepare_momentary_fx_update(
             }
         }
         MomentaryFxKind::PitchShift => {
-            let semitones = value("semitones", 7.0)?.clamp(-24.0, 24.0);
-            let cents = value("cents", 0.0)?.clamp(-100.0, 100.0);
+            let MomentaryFxRuntimeParams::PitchShift {
+                target_octaves,
+                mix,
+                slide_in_len,
+                slide_out_len,
+            } = MomentaryFxRuntimeParams::from_params(kind, &params, sample_rate)
+            else {
+                unreachable!("pitch_shift kind must produce pitch parameters")
+            };
             PreparedMomentaryFxUpdate::PitchShift {
                 epoch,
-                ratio: 2.0_f32.powf((semitones + cents / 100.0) / 12.0),
-                mix: (value("mixPct", 100.0)? / 100.0).clamp(0.0, 1.0),
+                target_octaves,
+                mix,
+                slide_in_len,
+                slide_out_len,
             }
         }
     })
@@ -312,7 +323,10 @@ fn validate_momentary_params(
                 "cutoffPct" | "resonancePct" | "sweepInMs" | "sweepOutMs"
             ),
             super::support::MomentaryFxKind::PitchShift => {
-                matches!(key.as_str(), "semitones" | "cents" | "mixPct")
+                matches!(
+                    key.as_str(),
+                    "semitones" | "cents" | "mixPct" | "slideInMs" | "slideOutMs"
+                )
             }
         };
         if !allowed

@@ -6,7 +6,7 @@ pub(super) fn momentary_state(engine: &SynthEngine) -> Vec<String> {
         .iter()
         .map(|fx| {
             format!(
-                "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
+                "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
                 fx.id,
                 fx.kind,
                 fx.target,
@@ -19,6 +19,11 @@ pub(super) fn momentary_state(engine: &SynthEngine) -> Vec<String> {
                 fx.pitch_fill_pos,
                 fx.pitch_ramp_pos,
                 fx.pitch_ramp_len,
+                fx.pitch_amount_octaves,
+                fx.pitch_slide_start_octaves,
+                fx.pitch_slide_target_octaves,
+                fx.pitch_slide_pos,
+                fx.pitch_slide_len,
                 fx.stutter_write,
                 fx.stutter_ready,
                 fx.stutter_segment_len,

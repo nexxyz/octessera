@@ -23,6 +23,9 @@ fn routing_tree_pitch_release_matches_inline_through_retirement() {
             BTreeMap::from([
                 ("mixPct".into(), json!(100.0)),
                 ("semitones".into(), json!(7.0)),
+                ("cents".into(), json!(0.0)),
+                ("slideInMs".into(), json!(10.0)),
+                ("slideOutMs".into(), json!(10.0)),
             ]),
             MomentaryFxTarget::Global,
         );
@@ -68,6 +71,8 @@ fn routing_tree_pitch_release_matches_inline_through_retirement() {
         assert_interleaved_reassociated_close(&runtime, &routed_out, &inline_out);
         assert_eq!(momentary_state(&routed), momentary_state(&inline));
     }
+    assert!(routed.momentary_fx.is_empty());
+    assert!(inline.momentary_fx.is_empty());
     shutdown(lifecycle, runtime);
 }
 

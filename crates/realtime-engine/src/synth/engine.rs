@@ -30,6 +30,7 @@ mod lifecycle_tests;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
+mod pitch_shift_control;
 #[cfg(all(test, feature = "routing-tree-benchmark"))]
 mod pitch_shift_routing_tree_tests;
 mod prepared_control_apply;

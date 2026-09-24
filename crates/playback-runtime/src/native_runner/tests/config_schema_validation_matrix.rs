@@ -167,6 +167,14 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         |payload| payload["runtimeConfig"]["playFx"]["selected"]["fxType"] = json!("broken"),
     );
     assert_validation_error(
+        "Pitch slide-in range",
+        "runtimeConfig.playFx.selected.params.slideInMs is outside the supported range",
+        |payload| {
+            payload["runtimeConfig"]["playFx"]["selected"]["fxType"] = json!("pitch_shift");
+            payload["runtimeConfig"]["playFx"]["selected"]["params"] = json!({ "slideInMs": 9 });
+        },
+    );
+    assert_validation_error(
         "system Play mode",
         "configuration.system.playMode has unknown value `broken`",
         |payload| payload["system"]["playMode"] = json!("broken"),

@@ -284,6 +284,20 @@ pub(super) fn assert_momentary_state_matches(actual: &SynthEngine, expected: &Sy
         assert_eq!(actual.pitch_fill_pos, expected.pitch_fill_pos);
         assert_eq!(actual.pitch_ramp_pos, expected.pitch_ramp_pos);
         assert_eq!(actual.pitch_ramp_len, expected.pitch_ramp_len);
+        assert_eq!(
+            actual.pitch_amount_octaves.to_bits(),
+            expected.pitch_amount_octaves.to_bits()
+        );
+        assert_eq!(
+            actual.pitch_slide_start_octaves.to_bits(),
+            expected.pitch_slide_start_octaves.to_bits()
+        );
+        assert_eq!(
+            actual.pitch_slide_target_octaves.to_bits(),
+            expected.pitch_slide_target_octaves.to_bits()
+        );
+        assert_eq!(actual.pitch_slide_pos, expected.pitch_slide_pos);
+        assert_eq!(actual.pitch_slide_len, expected.pitch_slide_len);
         assert_eq!(actual.stutter_write, expected.stutter_write);
         assert_eq!(actual.stutter_ready, expected.stutter_ready);
         assert_eq!(actual.stutter_segment_len, expected.stutter_segment_len);

@@ -10,6 +10,7 @@ Play
 ├── Pan
 ├── FX
 │   ├── FX Type, Target, visible params for selected FX Type, Map to Grid
+│   ├── Pitch Shift: Semitones, Cents, Slide In, Slide Out, Mix
 │   └── Aux Map: editable auto-mapped Play FX params/actions, with 1-/1! OLED markers
 ├── Trigger Gate
 ├── Transpose
@@ -58,6 +59,7 @@ Play layer behavior:
 - Stutter captures a short audio segment on press and loops it repeatedly; `Rate Hz` sets segment length (longer at lower rates) and `Depth` controls wet mix. An ease-in ramp (~2ms) and loop-wrap crossfade prevent clicks.
 - Freeze captures the early sound burst into an infinite reverb tail on press (injection window ~120ms). The tail sustains while held with no new input after the window closes. On release, the tail fades out over `Release Ms` and the effect is then removed. `Mix` controls the wet/dry blend.
 - Filter Sweep starts with the filter fully open (~20kHz, no audible effect) and sweeps toward the target lowpass cutoff over `Sweep In` on press. On release, it sweeps back to fully open over `Sweep Out` and removes the effect when complete. `Cutoff` sets the target position between 20kHz (0) and the lowest cutoff (100). `Res` controls resonance.
+- Pitch Shift exposes `Semitones`, `Cents`, `Slide In`, `Slide Out`, and `Mix`. Slide times are 10–3000 ms in 10 ms steps, defaulting to 120 ms and 180 ms. Pitch amount glides linearly in musical octaves; the separate live-input fill and fixed 10 ms wet/dry anti-click envelopes remain unchanged.
 - FX LED colours are yellow for stutter, cyan for freeze, green for filter_sweep, and magenta for pitch_shift. Assigned inactive cells are bright, active cells add white, and limit-blocked cells are dimmed.
 - Grid releases in Play mode are consumed by the Play layer and do not reach the active behavior engine.
 - Aux encoder bindings continue to target whichever menu item they were bound to; Play page switching does not alter bindings.
