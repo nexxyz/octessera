@@ -30,6 +30,8 @@ mod lifecycle_tests;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
+#[cfg(all(test, feature = "routing-tree-benchmark"))]
+mod pitch_shift_routing_tree_tests;
 mod prepared_control_apply;
 mod prepared_control_prepare;
 mod render;
@@ -67,6 +69,8 @@ mod routing_tree_executor_test_support;
 mod routing_tree_executor_tests;
 #[cfg(feature = "routing-tree-benchmark")]
 mod routing_tree_lifecycle;
+#[cfg(test)]
+mod routing_tree_momentary_test_support;
 #[cfg(all(test, feature = "routing-tree-benchmark"))]
 mod routing_tree_pipeline_tests;
 #[cfg(any(test, feature = "routing-tree-benchmark"))]
@@ -218,8 +222,7 @@ use sample_voice_pool::SampleVoicePool;
 use support::{
     midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, parse_instrument_kind,
     parse_momentary_fx_kind, parse_route, sample_slot_for_note, InstrumentKind, MomentaryFxKind,
-    MomentaryFxRuntimeParams, MomentaryFxState, PreviewSampleVoice, SampleVoice,
-    DRY_HISTORY_FRAMES,
+    MomentaryFxRuntimeParams, MomentaryFxState, PreviewSampleVoice, SampleVoice, PITCH_FILL_FRAMES,
 };
 
 #[cfg(test)]
@@ -269,8 +272,6 @@ pub struct SynthEngine {
     cumulative_voice_steals: u64,
     cumulative_voice_admission_drops: u64,
     momentary_fx: Vec<MomentaryFxState>,
-    dry_history: Vec<f32>,
-    dry_history_pos: usize,
     fx_activity_hold_frames: u32,
     render_profile: RenderProfileState,
     block_slot_scratch: BlockSlotScratch,
@@ -363,8 +364,6 @@ impl SynthEngine {
             cumulative_voice_steals: 0,
             cumulative_voice_admission_drops: 0,
             momentary_fx: Vec::with_capacity(MAX_MOMENTARY_FX),
-            dry_history: vec![0.0; DRY_HISTORY_FRAMES * 2],
-            dry_history_pos: 0,
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
             render_profile: RenderProfileState::default(),
             block_slot_scratch: BlockSlotScratch::new(),

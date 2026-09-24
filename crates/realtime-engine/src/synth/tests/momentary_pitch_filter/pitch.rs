@@ -152,7 +152,7 @@ fn momentary_pitch_shift_cents_combined_with_semitones() {
 }
 
 #[test]
-fn momentary_pitch_shift_stop_immediately_removes() {
+fn momentary_pitch_shift_stop_during_fill_removes_immediately() {
     let mut engine = SynthEngine::new(48_000);
     engine.note_on(0, 60, 120, 1_000);
     engine.momentary_fx_start(
@@ -169,12 +169,12 @@ fn momentary_pitch_shift_stop_immediately_removes() {
     }
     assert!(
         engine.pitch_buf_probe("ps").is_some(),
-        "pitch shift should exist before stop"
+        "pitch shift should exist during fill before stop"
     );
     engine.momentary_fx_stop("ps");
     assert!(
         engine.pitch_buf_probe("ps").is_none(),
-        "pitch shift should be immediately removed on stop"
+        "pitch shift should be immediately removed when stopped during fill"
     );
 }
 

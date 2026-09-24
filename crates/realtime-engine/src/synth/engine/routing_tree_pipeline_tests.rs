@@ -90,12 +90,7 @@ pub(super) fn assert_worker_outputs_are_nonzero(runtime: &SourceWorkerRuntime, f
     }
 }
 
-pub(super) fn assert_global_mixer_state_matches(
-    runtime: &SourceWorkerRuntime,
-    actual: &SynthEngine,
-    expected: &SynthEngine,
-    frames: usize,
-) {
+pub(super) fn assert_global_mixer_state_matches(actual: &SynthEngine, expected: &SynthEngine) {
     assert_eq!(actual.sample_clock(), expected.sample_clock());
     assert_momentary_state_matches(actual, expected);
     assert_eq!(actual.master_slot_params, expected.master_slot_params);
@@ -112,30 +107,6 @@ pub(super) fn assert_global_mixer_state_matches(
         expected.master_activity_frames
     );
     assert_eq!(actual.routed_bus_slot_count, expected.routed_bus_slot_count);
-    assert_eq!(actual.dry_history_pos, expected.dry_history_pos);
-    let start = actual
-        .dry_history_pos
-        .wrapping_add(actual.dry_history.len())
-        .wrapping_sub(frames * 2)
-        % actual.dry_history.len();
-    for frame in 0..frames {
-        let index = (start + frame * 2) % actual.dry_history.len();
-        let workers = runtime.routing_tree_worker_outputs_for_test(frame);
-        assert_reassociated_close(
-            actual.dry_history[index],
-            expected.dry_history[index],
-            workers,
-            0,
-            "routing-tree dry-history left frame",
-        );
-        assert_reassociated_close(
-            actual.dry_history[index + 1],
-            expected.dry_history[index + 1],
-            workers,
-            1,
-            "routing-tree dry-history right frame",
-        );
-    }
 }
 
 fn verify_routing_tree_worker_name(parity: usize) -> Result<(), ()> {

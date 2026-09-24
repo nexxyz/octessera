@@ -44,7 +44,6 @@ impl SynthEngine {
         if process_buses {
             (left, right) = self.mix_fx_buses(&slot_out, left, right);
         }
-        self.push_dry_history(left, right);
         let master_signal = self.signal_present(left, right)
             || synth_active
             || sample_active
@@ -161,7 +160,6 @@ impl SynthEngine {
         for frame in 0..frames {
             let mut frame_left = left[frame];
             let mut frame_right = right[frame];
-            self.push_dry_history(frame_left, frame_right);
             let master_signal = self.signal_present(frame_left, frame_right)
                 || self.block_slot_scratch.source_active[frame]
                 || !self.momentary_fx.is_empty()
@@ -223,11 +221,6 @@ impl SynthEngine {
             (left, right) = self.mix_fx_buses(&slot_out, left, right);
         }
         self.render_profile.stage_ns[render_profile::PROFILE_FX_BUSES] =
-            start.elapsed().as_nanos() as u64;
-
-        let start = Instant::now();
-        self.push_dry_history(left, right);
-        self.render_profile.stage_ns[render_profile::PROFILE_DRY_HISTORY] =
             start.elapsed().as_nanos() as u64;
 
         let start = Instant::now();

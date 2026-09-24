@@ -138,8 +138,8 @@ fn routing_tree_reverse_completion_preserves_four_bus_output_parity() {
         inline.render_interleaved_block(128, &mut inline_left, &mut inline_right, &mut inline_out);
         assert_eq!(normal_out, reverse_out);
         assert_interleaved_reassociated_close(&normal_runtime, &normal_out, &inline_out);
-        assert_global_mixer_state_matches(&normal_runtime, &normal, &forced_reverse, 128);
-        assert_global_mixer_state_matches(&normal_runtime, &normal, &inline, 128);
+        assert_global_mixer_state_matches(&normal, &forced_reverse);
+        assert_global_mixer_state_matches(&normal, &inline);
         assert_eq!(normal.profile_snapshot(), forced_reverse.profile_snapshot());
         assert_eq!(normal.profile_snapshot(), inline.profile_snapshot());
         if block == 0 {
@@ -276,7 +276,6 @@ fn routing_tree_inline_parity_tracks_bus_hold_expiry_inside_quantum() {
         63
     );
     assert_eq!(routed.master_activity_frames, inline.master_activity_frames);
-    assert_eq!(routed.dry_history, inline.dry_history);
     lifecycle.shutdown(runtime.retire());
 }
 

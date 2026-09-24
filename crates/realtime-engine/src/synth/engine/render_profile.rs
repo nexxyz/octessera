@@ -5,7 +5,6 @@ pub(super) const PROFILE_PREVIEW_SAMPLE_VOICES: usize = 1;
 pub(super) const PROFILE_SYNTH_VOICES: usize = 2;
 pub(super) const PROFILE_PREPARE_MIX_SLOTS: usize = 3;
 pub(super) const PROFILE_FX_BUSES: usize = 4;
-pub(super) const PROFILE_DRY_HISTORY: usize = 5;
 pub(super) const PROFILE_MASTER_GLOBAL_FX: usize = 6;
 pub(super) const PROFILE_CLOCK_VOLUME_CLAMP: usize = 7;
 

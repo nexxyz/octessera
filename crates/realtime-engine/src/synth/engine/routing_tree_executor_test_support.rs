@@ -1,4 +1,5 @@
 use super::super::fx::FxBusState;
+use super::routing_tree_momentary_test_support::momentary_state;
 use super::routing_tree_plan::RoutingTreePlan;
 use super::SynthEngine;
 use crate::synth::{
@@ -280,6 +281,7 @@ pub(super) fn assert_momentary_state_matches(actual: &SynthEngine, expected: &Sy
         assert_eq!(actual.sweep_pos.to_bits(), expected.sweep_pos.to_bits());
         assert_eq!(actual.filt_l, expected.filt_l);
         assert_eq!(actual.filt_r, expected.filt_r);
+        assert_eq!(actual.pitch_fill_pos, expected.pitch_fill_pos);
         assert_eq!(actual.pitch_ramp_pos, expected.pitch_ramp_pos);
         assert_eq!(actual.pitch_ramp_len, expected.pitch_ramp_len);
         assert_eq!(actual.stutter_write, expected.stutter_write);
@@ -291,6 +293,9 @@ pub(super) fn assert_momentary_state_matches(actual: &SynthEngine, expected: &Sy
         assert_eq!(actual.freeze_lp, expected.freeze_lp);
         assert_eq!(actual.freeze_inject_pos, expected.freeze_inject_pos);
         assert_eq!(actual.freeze_inject_len, expected.freeze_inject_len);
+        assert_eq!(actual.freeze_ready_len, expected.freeze_ready_len);
+        assert_eq!(actual.freeze_activation_pos, expected.freeze_activation_pos);
+        assert_eq!(actual.freeze_activation_len, expected.freeze_activation_len);
         assert_eq!(
             actual.pitch_shifter.write_pos,
             expected.pitch_shifter.write_pos
@@ -304,7 +309,7 @@ pub(super) fn engine_state_signature(engine: &SynthEngine) -> String {
     let bus_chains = bus_chain_state(engine);
     let momentary = momentary_state(engine);
     format!(
-        "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
+        "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
         engine.sample_clock,
         synth_voices,
         sample_voices,
@@ -322,8 +327,6 @@ pub(super) fn engine_state_signature(engine: &SynthEngine) -> String {
         engine.active_bus_activity_count,
         engine.routed_bus_slot_count,
         momentary,
-        engine.dry_history,
-        engine.dry_history_pos,
         engine.cumulative_voice_steals,
         engine.cumulative_voice_admission_drops,
         engine.voice_steal_since_status,
@@ -350,39 +353,6 @@ pub(super) fn bus_chain_state(engine: &SynthEngine) -> Vec<String> {
                     chain.render_hold_frames,
                     chain.quiet_frames,
                 )
-            )
-        })
-        .collect()
-}
-
-pub(super) fn momentary_state(engine: &SynthEngine) -> Vec<String> {
-    engine
-        .momentary_fx
-        .iter()
-        .map(|fx| {
-            format!(
-                "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
-                fx.id,
-                fx.kind,
-                fx.target,
-                fx.releasing,
-                fx.release_pos,
-                fx.release_len,
-                fx.sweep_pos,
-                fx.filt_l,
-                fx.filt_r,
-                fx.pitch_ramp_pos,
-                fx.pitch_ramp_len,
-                fx.stutter_write,
-                fx.stutter_ready,
-                fx.stutter_segment_len,
-                fx.stutter_ramp_len,
-                fx.stutter_ramp_pos,
-                fx.freeze_idxs,
-                fx.freeze_lp,
-                fx.freeze_inject_pos,
-                fx.freeze_inject_len,
-                fx.pitch_shifter.write_pos,
             )
         })
         .collect()

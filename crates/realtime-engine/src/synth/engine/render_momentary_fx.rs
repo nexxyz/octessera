@@ -90,6 +90,9 @@ pub(super) fn apply_prepared_momentary_fx_update(
             else {
                 return ScalarMutation::Rejected;
             };
+            if fx.releasing {
+                return ScalarMutation::Rejected;
+            }
             if current_ratio.to_bits() == ratio.to_bits() && current_mix.to_bits() == mix.to_bits()
             {
                 return ScalarMutation::Unchanged;
@@ -170,9 +173,10 @@ pub(super) fn process_momentary_fx_states(
             fx.target == target
                 && fx.releasing
                 && match fx.kind {
+                    MomentaryFxKind::Stutter => true,
                     MomentaryFxKind::FilterSweep => fx.sweep_pos <= 0.0,
                     MomentaryFxKind::Freeze => fx.release_pos >= fx.release_len,
-                    _ => true,
+                    MomentaryFxKind::PitchShift => fx.release_pos >= fx.release_len,
                 }
         };
         if completed {
@@ -278,11 +282,10 @@ fn process_freeze(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32
         }
         wet_l *= 0.5;
         wet_r *= 0.5;
-        (
-            left * (1.0 - mix * fade) + wet_l * mix,
-            right * (1.0 - mix * fade) + wet_r * mix,
-        )
+        let activation_gain = freeze_activation_gain(fx);
+        mix_freeze_output(left, right, wet_l, wet_r, mix * activation_gain * fade)
     } else {
+        let activation_gain = freeze_activation_gain(fx);
         let injecting = fx.freeze_inject_pos < fx.freeze_inject_len;
         let inject_gain = if injecting { 1.0 } else { 0.0 };
         if injecting {
@@ -303,11 +306,38 @@ fn process_freeze(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32
         }
         wet_l *= 0.5;
         wet_r *= 0.5;
-        (
-            left * (1.0 - mix) + wet_l * mix,
-            right * (1.0 - mix) + wet_r * mix,
-        )
+        mix_freeze_output(left, right, wet_l, wet_r, mix * activation_gain)
     }
+}
+
+fn freeze_activation_gain(fx: &mut MomentaryFxState) -> f32 {
+    if fx.freeze_inject_pos < fx.freeze_ready_len {
+        return 0.0;
+    }
+    if fx.freeze_activation_pos >= fx.freeze_activation_len {
+        return 1.0;
+    }
+    let gain = fx.freeze_activation_pos as f32 / fx.freeze_activation_len as f32;
+    if !fx.releasing {
+        fx.freeze_activation_pos += 1;
+    }
+    gain
+}
+
+fn mix_freeze_output(
+    left: f32,
+    right: f32,
+    wet_l: f32,
+    wet_r: f32,
+    effective_mix: f32,
+) -> (f32, f32) {
+    if effective_mix == 0.0 {
+        return (left, right);
+    }
+    (
+        left * (1.0 - effective_mix) + wet_l * effective_mix,
+        right * (1.0 - effective_mix) + wet_r * effective_mix,
+    )
 }
 
 fn process_filter_sweep(
@@ -352,6 +382,22 @@ fn process_pitch_shift(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32
         return (left, right);
     };
     let (wet_l, wet_r) = fx.pitch_shifter.process_frame(left, right, ratio);
+    if fx.pitch_fill_pos < PITCH_FILL_FRAMES {
+        fx.pitch_fill_pos += 1;
+        return (left, right);
+    }
+    if fx.releasing {
+        let activation =
+            (fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len.max(1) as f32).clamp(0.0, 1.0);
+        let start_wet = mix * activation;
+        let release_gain = 1.0 - fx.release_pos as f32 / fx.release_len.max(1) as f32;
+        let wet_gain = start_wet * release_gain;
+        fx.release_pos += 1;
+        return (
+            left * (1.0 - wet_gain) + wet_l * wet_gain,
+            right * (1.0 - wet_gain) + wet_r * wet_gain,
+        );
+    }
     let ramp = if fx.pitch_ramp_pos < fx.pitch_ramp_len {
         let ramp = fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len as f32;
         fx.pitch_ramp_pos += 1;
@@ -366,6 +412,12 @@ fn process_pitch_shift(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32
     )
 }
 
+#[cfg(test)]
+#[path = "pitch_shift_release_tests.rs"]
+mod pitch_shift_release_tests;
+#[cfg(test)]
+#[path = "pitch_shift_tests.rs"]
+mod pitch_shift_tests;
 #[cfg(test)]
 #[path = "render_momentary_fx_tests.rs"]
 mod tests;

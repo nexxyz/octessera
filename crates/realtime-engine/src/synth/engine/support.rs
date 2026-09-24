@@ -4,10 +4,11 @@ use std::cell::Cell;
 use std::f32::consts::PI;
 
 pub(super) const FREEZE_INJECT_MS: u32 = 120;
-pub(super) const DRY_HISTORY_FRAMES: usize = 2048;
 pub(super) const PITCH_BUF_FRAMES: usize = 2048;
 const PITCH_MIN_DELAY: f32 = 64.0;
 const PITCH_RANGE: f32 = 1024.0;
+pub(super) const PITCH_FILL_FRAMES: u32 = (PITCH_MIN_DELAY + PITCH_RANGE) as u32;
+const PITCH_ACTIVATION_RAMP_MS: u32 = 10;
 
 #[cfg(test)]
 thread_local! {
@@ -138,6 +139,7 @@ pub(super) struct MomentaryFxState {
     pub(super) filt_l: BiquadState,
     pub(super) filt_r: BiquadState,
     pub(super) pitch_shifter: LivePitchShift,
+    pub(super) pitch_fill_pos: u32,
     pub(super) pitch_ramp_pos: u32,
     pub(super) pitch_ramp_len: u32,
     pub(super) stutter_l: Vec<f32>,
@@ -152,6 +154,9 @@ pub(super) struct MomentaryFxState {
     pub(super) freeze_lp: [f32; 4],
     pub(super) freeze_inject_pos: u32,
     pub(super) freeze_inject_len: u32,
+    pub(super) freeze_ready_len: u32,
+    pub(super) freeze_activation_pos: u32,
+    pub(super) freeze_activation_len: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -238,12 +243,14 @@ impl MomentaryFxState {
         sample_rate: u32,
     ) -> Self {
         let ramp_samples = ((sample_rate as f32 * 0.002) as usize).max(1);
-        let pitch_ramp_len = ((sample_rate as f32 * 0.002) as u32).max(1);
+        let pitch_ramp_len = pitch_activation_ramp_len(sample_rate);
         let stutter_segment_len = stutter_segment_len(sample_rate, params);
         const DELAY_LENS: [usize; 4] = [1557, 1617, 1491, 1422];
         let freeze_bufs: [Vec<f32>; 4] =
             DELAY_LENS.map(|n| vec![0.0; (n * sample_rate as usize / 44_100).max(1)]);
         let freeze_inject_len = (sample_rate * FREEZE_INJECT_MS / 1000).max(1);
+        let freeze_ready_len = freeze_bufs.iter().map(Vec::len).max().unwrap_or(1) as u32;
+        let freeze_activation_len = (sample_rate * 5 / 1000).max(1);
         let runtime_params = MomentaryFxRuntimeParams::from_params(kind, params, sample_rate);
         Self {
             id,
@@ -258,6 +265,7 @@ impl MomentaryFxState {
             filt_l: BiquadState::new(),
             filt_r: BiquadState::new(),
             pitch_shifter: LivePitchShift::new(sample_rate),
+            pitch_fill_pos: 0,
             pitch_ramp_pos: 0,
             pitch_ramp_len,
             stutter_l: vec![0.0; sample_rate as usize],
@@ -272,8 +280,15 @@ impl MomentaryFxState {
             freeze_lp: [0.0; 4],
             freeze_inject_pos: 0,
             freeze_inject_len,
+            freeze_ready_len,
+            freeze_activation_pos: 0,
+            freeze_activation_len,
         }
     }
+}
+
+fn pitch_activation_ramp_len(sample_rate: u32) -> u32 {
+    (sample_rate.saturating_mul(PITCH_ACTIVATION_RAMP_MS) / 1_000).max(1)
 }
 
 #[derive(Clone)]
@@ -297,31 +312,6 @@ impl LivePitchShift {
             min_delay: PITCH_MIN_DELAY,
             range: PITCH_RANGE,
         }
-    }
-
-    pub(super) fn prefill_from_ring(&mut self, ring: &[f32], write_pos: usize) {
-        let frames = ring.len().min(self.buf.len()) / 2;
-        let offset = self.buf_len.saturating_sub(frames);
-        let tail_frames = frames.min(ring.len().saturating_sub(write_pos) / 2);
-        for i in 0..tail_frames {
-            let src = (write_pos + i) * 2;
-            let dst = (offset + i) * 2;
-            if src + 1 < ring.len() && dst + 1 < self.buf.len() {
-                self.buf[dst] = ring[src];
-                self.buf[dst + 1] = ring[src + 1];
-            }
-        }
-        let head_frames = frames.saturating_sub(tail_frames);
-        for i in 0..head_frames {
-            let src = i * 2;
-            let dst = (offset + tail_frames + i) * 2;
-            if src + 1 < ring.len() && dst + 1 < self.buf.len() {
-                self.buf[dst] = ring[src];
-                self.buf[dst + 1] = ring[src + 1];
-            }
-        }
-        self.write_pos = self.buf_len - 1;
-        self.pos = PITCH_RANGE * 0.25;
     }
 
     pub(super) fn process_frame(&mut self, l: f32, r: f32, ratio: f32) -> (f32, f32) {
@@ -356,11 +346,14 @@ impl LivePitchShift {
     }
 
     fn interp(buf: &[f32], pos: f32, ch: usize) -> f32 {
-        let i = pos as usize;
-        let frac = pos - i as f32;
+        let frames = buf.len() / 2;
+        let base = pos.floor();
+        let i = (base as usize) % frames;
+        let frac = pos - base;
         let idx = i * 2 + ch;
         let a = buf.get(idx).copied().unwrap_or(0.0);
-        let b = buf.get(idx + 2).copied().unwrap_or(0.0);
+        let next = (i + 1) % frames;
+        let b = buf.get(next * 2 + ch).copied().unwrap_or(0.0);
         a + frac * (b - a)
     }
 }
@@ -392,6 +385,10 @@ pub(super) fn parse_instrument_kind(kind: &str) -> InstrumentKind {
         _ => InstrumentKind::Synth,
     }
 }
+
+#[cfg(test)]
+#[path = "support_tests.rs"]
+mod support_tests;
 
 pub(super) fn parse_momentary_fx_kind(kind: &str) -> Option<MomentaryFxKind> {
     match kind {

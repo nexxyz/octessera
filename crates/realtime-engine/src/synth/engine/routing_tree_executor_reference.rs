@@ -108,7 +108,6 @@ impl SynthEngine {
                     scratch.worker_right[0][frame] + scratch.worker_right[1][frame],
                 )
             };
-            self.push_dry_history(frame_left, frame_right);
             let master_signal = self.signal_present(frame_left, frame_right)
                 || sample_active
                 || synth_active
