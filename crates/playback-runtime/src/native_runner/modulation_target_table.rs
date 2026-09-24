@@ -230,6 +230,8 @@ const PLAY_FIELDS: &[&str] = &[
     "sweepOutMs",
     "semitones",
     "cents",
+    "slideInMs",
+    "slideOutMs",
 ];
 
 const PLAY_EXCLUSIVE_FIELDS: &[&str] = &[
@@ -239,6 +241,8 @@ const PLAY_EXCLUSIVE_FIELDS: &[&str] = &[
     "sweepOutMs",
     "semitones",
     "cents",
+    "slideInMs",
+    "slideOutMs",
 ];
 
 const BEHAVIOR_CONFIG_FIELDS: &[&str] = &[

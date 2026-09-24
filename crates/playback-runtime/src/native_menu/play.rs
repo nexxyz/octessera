@@ -165,6 +165,22 @@ pub(super) fn play_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuIte
                 1,
             ));
             children.push(number_item(
+                "Slide In",
+                "play.fx.params.slideInMs",
+                number_param(&config.play_fx_params, "slideInMs", 120),
+                10,
+                3000,
+                10,
+            ));
+            children.push(number_item(
+                "Slide Out",
+                "play.fx.params.slideOutMs",
+                number_param(&config.play_fx_params, "slideOutMs", 180),
+                10,
+                3000,
+                10,
+            ));
+            children.push(number_item(
                 "Mix",
                 "play.fx.params.mixPct",
                 number_param(&config.play_fx_params, "mixPct", 100),

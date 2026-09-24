@@ -189,7 +189,7 @@ pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
     runner.play_fx_selected = json!({
         "fxType": "pitch_shift",
         "targetKey": "fx_bus_1",
-        "params": { "semitones": 7, "cents": 12, "mixPct": 65 }
+        "params": { "semitones": 7, "cents": 12, "slideInMs": 120, "slideOutMs": 180, "mixPct": 65 }
     });
     let _ = runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
@@ -217,5 +217,13 @@ pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
     assert_eq!(
         loaded.play_fx_assignments[0].config["params"]["semitones"],
         7
+    );
+    assert_eq!(
+        loaded.play_fx_assignments[0].config["params"]["slideInMs"],
+        120
+    );
+    assert_eq!(
+        loaded.play_fx_assignments[0].config["params"]["slideOutMs"],
+        180
     );
 }

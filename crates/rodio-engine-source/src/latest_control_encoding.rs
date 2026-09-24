@@ -243,9 +243,21 @@ pub(super) fn encode_momentary(update: PreparedMomentaryFxUpdate) -> (u8, [u32; 
                 sweep_out_step.to_bits(),
             ],
         ),
-        PreparedMomentaryFxUpdate::PitchShift { ratio, mix, .. } => {
-            (3, [ratio.to_bits(), mix.to_bits(), 0, 0])
-        }
+        PreparedMomentaryFxUpdate::PitchShift {
+            target_octaves,
+            mix,
+            slide_in_len,
+            slide_out_len,
+            ..
+        } => (
+            3,
+            [
+                target_octaves.to_bits(),
+                mix.to_bits(),
+                slide_in_len,
+                slide_out_len,
+            ],
+        ),
     }
 }
 
@@ -274,9 +286,15 @@ pub(super) fn decode_momentary(
         },
         3 => PreparedMomentaryFxUpdate::PitchShift {
             epoch,
-            ratio: f32::from_bits(values[0]),
+            target_octaves: f32::from_bits(values[0]),
             mix: f32::from_bits(values[1]),
+            slide_in_len: values[2].max(1),
+            slide_out_len: values[3].max(1),
         },
         _ => return None,
     })
 }
+
+#[cfg(test)]
+#[path = "latest_control_encoding_tests.rs"]
+mod tests;

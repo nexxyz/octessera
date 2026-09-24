@@ -74,7 +74,7 @@ mod midi_host;
 mod normal_menu;
 mod oled_frame_cache;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod oled_test;
+mod oled_utility;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_audio;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -421,8 +421,8 @@ fn run_requested_utility() {
     if timing_probe::requested() {
         std::process::exit(exit_code(timing_probe::run()));
     }
-    if oled_test::requested() {
-        std::process::exit(exit_code(oled_test::run()));
+    if oled_utility::requested() {
+        std::process::exit(exit_code(oled_utility::run()));
     }
 }
 

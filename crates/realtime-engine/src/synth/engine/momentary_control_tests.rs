@@ -46,6 +46,8 @@ fn prepared_momentary_updates_cover_every_kind_and_reject_stale_or_wrong_epochs(
                 ("semitones", json!(-5.0)),
                 ("cents", json!(25.0)),
                 ("mixPct", json!(65.0)),
+                ("slideInMs", json!(120.0)),
+                ("slideOutMs", json!(180.0)),
             ],
         ),
     ];
@@ -101,8 +103,10 @@ fn prepared_momentary_updates_cover_every_kind_and_reject_stale_or_wrong_epochs(
             PreparedMomentaryFxUpdate::PitchShift { epoch, .. } => {
                 PreparedMomentaryFxUpdate::PitchShift {
                     epoch,
-                    ratio: 1.25,
+                    target_octaves: 0.25,
                     mix: 0.25,
+                    slide_in_len: 100,
+                    slide_out_len: 200,
                 }
             }
         };

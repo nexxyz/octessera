@@ -169,6 +169,35 @@ pub(crate) fn play_fx_page_is_flat_and_shows_selected_type_params() {
 }
 
 #[test]
+pub(crate) fn pitch_fx_page_exposes_independent_slide_rows() {
+    let mut config = config();
+    config.play_mode = "fx".into();
+    config.play_fx_type = "pitch_shift".into();
+    let mut menu = NativeMenuModel::new(config);
+    menu.state.stack = vec![3, 2];
+    let rows = menu.current_siblings();
+    for (label, key, value) in [
+        ("Slide In", "play.fx.params.slideInMs", 120),
+        ("Slide Out", "play.fx.params.slideOutMs", 180),
+    ] {
+        let row = rows
+            .iter()
+            .find(|item| item.label == label)
+            .unwrap_or_else(|| panic!("missing {label}"));
+        assert_eq!(row.key.as_deref(), Some(key));
+        assert!(matches!(
+            row.value,
+            NativeMenuValue::Number {
+                value: actual,
+                min: 10,
+                max: 3000,
+                step: 10
+            } if actual == value
+        ));
+    }
+}
+
+#[test]
 pub(crate) fn play_aux_map_rows_show_mapped_paths() {
     let mut config = config();
     config.play_mode = "fx".into();

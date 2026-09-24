@@ -82,23 +82,34 @@ pub(super) fn apply_prepared_momentary_fx_update(
             };
             ScalarMutation::Changed
         }
-        (MomentaryFxKind::PitchShift, PreparedMomentaryFxUpdate::PitchShift { ratio, mix, .. }) => {
-            let MomentaryFxRuntimeParams::PitchShift {
-                ratio: current_ratio,
-                mix: current_mix,
-            } = fx.runtime_params
-            else {
+        (
+            MomentaryFxKind::PitchShift,
+            PreparedMomentaryFxUpdate::PitchShift {
+                target_octaves,
+                mix,
+                slide_in_len,
+                slide_out_len,
+                ..
+            },
+        ) => {
+            if !matches!(
+                fx.runtime_params,
+                MomentaryFxRuntimeParams::PitchShift { .. }
+            ) {
                 return ScalarMutation::Rejected;
-            };
+            }
             if fx.releasing {
                 return ScalarMutation::Rejected;
             }
-            if current_ratio.to_bits() == ratio.to_bits() && current_mix.to_bits() == mix.to_bits()
-            {
-                return ScalarMutation::Unchanged;
-            }
-            fx.runtime_params = MomentaryFxRuntimeParams::PitchShift { ratio, mix };
-            ScalarMutation::Changed
+            super::pitch_shift_control::update_runtime_params(
+                fx,
+                MomentaryFxRuntimeParams::PitchShift {
+                    target_octaves,
+                    mix,
+                    slide_in_len,
+                    slide_out_len,
+                },
+            )
         }
         _ => ScalarMutation::Rejected,
     }
@@ -378,20 +389,40 @@ fn process_filter_sweep(
 }
 
 fn process_pitch_shift(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32) {
-    let MomentaryFxRuntimeParams::PitchShift { ratio, mix } = fx.runtime_params else {
+    let MomentaryFxRuntimeParams::PitchShift {
+        mix,
+        slide_out_len: _,
+        ..
+    } = fx.runtime_params
+    else {
         return (left, right);
     };
-    let (wet_l, wet_r) = fx.pitch_shifter.process_frame(left, right, ratio);
     if fx.pitch_fill_pos < PITCH_FILL_FRAMES {
+        let _ = fx.pitch_shifter.process_frame(left, right, 1.0);
         fx.pitch_fill_pos += 1;
         return (left, right);
     }
+    let pitch_octaves = if fx.pitch_slide_pos < fx.pitch_slide_len {
+        fx.pitch_slide_pos = (fx.pitch_slide_pos + 1).min(fx.pitch_slide_len);
+        let progress = fx.pitch_slide_pos as f32 / fx.pitch_slide_len.max(1) as f32;
+        fx.pitch_slide_start_octaves
+            + (fx.pitch_slide_target_octaves - fx.pitch_slide_start_octaves) * progress
+    } else {
+        fx.pitch_slide_target_octaves
+    };
+    fx.pitch_amount_octaves = pitch_octaves;
+    let ratio = 2.0_f32.powf(pitch_octaves);
+    let (wet_l, wet_r) = fx.pitch_shifter.process_frame(left, right, ratio);
     if fx.releasing {
         let activation =
             (fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len.max(1) as f32).clamp(0.0, 1.0);
-        let start_wet = mix * activation;
-        let release_gain = 1.0 - fx.release_pos as f32 / fx.release_len.max(1) as f32;
-        let wet_gain = start_wet * release_gain;
+        let fade_start = fx.release_len.saturating_sub(fx.pitch_ramp_len);
+        let release_gain = if fx.release_pos < fade_start {
+            1.0
+        } else {
+            fx.release_len.saturating_sub(fx.release_pos) as f32 / fx.pitch_ramp_len.max(1) as f32
+        };
+        let wet_gain = mix * activation * release_gain;
         fx.release_pos += 1;
         return (
             left * (1.0 - wet_gain) + wet_l * wet_gain,

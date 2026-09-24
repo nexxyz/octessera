@@ -9,7 +9,7 @@ pub(crate) fn play_fx_payload_sanitizes_type_target_and_params() {
     runner.apply_play_fx_payload(&json!({
         "selected": { "fxType": "stutter", "targetKey": "bad", "params": { "rateHz": 99, "depthPct": -5, "ignored": 42 } },
         "assignments": [
-            { "x": 1, "y": 2, "config": { "fxType": "pitch_shift", "targetKey": "instrument_8", "params": { "semitones": 99, "cents": -200, "mixPct": 250 } } }
+            { "x": 1, "y": 2, "config": { "fxType": "pitch_shift", "targetKey": "instrument_8", "params": { "semitones": 99, "cents": -200, "slideInMs": 1, "slideOutMs": 4000, "mixPct": 250 } } }
         ]
     }));
 
@@ -28,6 +28,14 @@ pub(crate) fn play_fx_payload_sanitizes_type_target_and_params() {
     assert_eq!(
         runner.play_fx_assignments[0].config["params"]["mixPct"],
         100
+    );
+    assert_eq!(
+        runner.play_fx_assignments[0].config["params"]["slideInMs"],
+        10
+    );
+    assert_eq!(
+        runner.play_fx_assignments[0].config["params"]["slideOutMs"],
+        3000
     );
 }
 

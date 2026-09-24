@@ -97,28 +97,14 @@ impl SynthEngine {
             return retired;
         }
         if self.momentary_fx[pos].kind == MomentaryFxKind::PitchShift {
-            if self.momentary_fx[pos].releasing {
-                return retired;
-            }
-            let fx = &mut self.momentary_fx[pos];
-            let activation = if fx.pitch_fill_pos < PITCH_FILL_FRAMES {
-                0.0
-            } else {
-                (fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len.max(1) as f32).clamp(0.0, 1.0)
-            };
-            let mix = match fx.runtime_params {
-                MomentaryFxRuntimeParams::PitchShift { mix, .. } => mix,
-                _ => 0.0,
-            };
-            if mix * activation == 0.0 {
+            if matches!(
+                super::pitch_shift_control::stop(&mut self.momentary_fx[pos]),
+                super::pitch_shift_control::PitchStopAction::Retire
+            ) {
                 store_retired_momentary(
                     &mut retired.displaced_momentary_fx,
                     self.momentary_fx.remove(pos),
                 );
-            } else {
-                fx.releasing = true;
-                fx.release_pos = 0;
-                fx.release_len = fx.pitch_ramp_len;
             }
             return retired;
         }
@@ -143,7 +129,8 @@ impl SynthEngine {
             return;
         }
         if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
-            if fx.kind == MomentaryFxKind::PitchShift && fx.releasing {
+            if fx.kind == MomentaryFxKind::PitchShift {
+                super::pitch_shift_control::update(fx, params, self.sample_rate);
                 return;
             }
             fx.runtime_params =

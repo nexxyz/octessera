@@ -135,6 +135,7 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
         ("filter_sweep", "sweepInMs" | "sweepOutMs") => Some((10, 3000)),
         ("pitch_shift", "semitones") => Some((-24, 24)),
         ("pitch_shift", "cents") => Some((-100, 100)),
+        ("pitch_shift", "slideInMs" | "slideOutMs") => Some((10, 3000)),
         ("pitch_shift", "mixPct") => Some((0, 100)),
         _ => None,
     }
