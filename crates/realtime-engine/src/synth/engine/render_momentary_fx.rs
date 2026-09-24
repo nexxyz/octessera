@@ -389,12 +389,7 @@ fn process_filter_sweep(
 }
 
 fn process_pitch_shift(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32) {
-    let MomentaryFxRuntimeParams::PitchShift {
-        mix,
-        slide_out_len: _,
-        ..
-    } = fx.runtime_params
-    else {
+    let MomentaryFxRuntimeParams::PitchShift { mix, .. } = fx.runtime_params else {
         return (left, right);
     };
     if fx.pitch_fill_pos < PITCH_FILL_FRAMES {
