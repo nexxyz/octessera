@@ -65,9 +65,6 @@ pub(crate) fn run_prepared_runtime(
             candidate_readiness,
         )?;
         if std::env::var("OCTESSERA_TIMING_AUTOPLAY").as_deref() == Ok("1") {
-            if scheduler.published_snapshot_revision() != playback.last_snapshot_revision() {
-                return Err("Orange timing autoplay needs a fresh normal OLED".into());
-            }
             for pressed in [true, false] {
                 let message = crate::input::neokey_message(1, pressed)
                     .ok_or("Orange timing autoplay NeoKey index 1 unavailable")?;
