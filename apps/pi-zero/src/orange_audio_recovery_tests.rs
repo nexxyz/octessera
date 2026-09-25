@@ -224,6 +224,8 @@ fn required_recovery_replays_preserved_sample_bank_before_synth_owner() {
     let health = AudioStreamHealth::optional("Jack".into());
     let config = prepare_instrument_slot_config(InstrumentSlotConfig {
         fm: None,
+        pluck: None,
+        drum: None,
         kind: "synth".into(),
         synth: default_synth_config(),
         mixer: None,
