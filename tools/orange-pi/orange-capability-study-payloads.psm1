@@ -240,7 +240,7 @@ sudo -n journalctl -u "$unit" -n 80 --no-pager > "$root/candidate-journal.txt" 2
 printf 'mode=live-candidate\nready=%s\nstatus=%s\n' "$ready" "$candidate_status" > "$root/study-result.txt"
 exit "$candidate_status"
 '@
-  return $body.Replace("__SAMPLE_COUNT__", [string]$sampleCount).Replace("__LIVE_SECONDS__", [string]$LiveSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$runtimeMaxSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__UI_PROFILE__", $(if ($UiProfile) { " --setenv=OCTESSERA_PI_UI_PROFILE=1" } else { "" })).Replace("__AUTO_PLAY__", $(if ($AutoPlay) { " --setenv=OCTESSERA_TIMING_AUTOPLAY=1" } else { "" }))
+  return $body.Replace("__SAMPLE_COUNT__", [string]$sampleCount).Replace("__LIVE_SECONDS__", [string]$LiveSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$runtimeMaxSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__UI_PROFILE__", $(if ($UiProfile) { " --setenv=OCTESSERA_PI_UI_PROFILE=1" } else { "" })).Replace("__AUTO_PLAY__", $(if ($AutoPlay) { " --setenv=OCTESSERA_TIMING_AUTOPLAY=1 --setenv=OCTESSERA_RUNTIME_TIMING_TRACE=1" } else { "" }))
 }
 
 function New-RemoteStudyPayload {

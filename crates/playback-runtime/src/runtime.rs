@@ -11,6 +11,8 @@ use std::collections::VecDeque;
 mod api;
 #[path = "runtime_dispatch.rs"]
 mod dispatch;
+#[path = "runtime_dispatch_profile.rs"]
+mod dispatch_profile;
 #[path = "runtime_midi.rs"]
 mod midi;
 #[path = "runtime_oled.rs"]
@@ -146,6 +148,7 @@ pub struct PlaybackRuntime {
     request_next_snapshot: bool,
     next_request_id: u64,
     oled: oled::RuntimeOled,
+    dispatch_profile: Option<dispatch_profile::RuntimeDispatchProfile>,
 }
 
 impl PlaybackRuntime {
