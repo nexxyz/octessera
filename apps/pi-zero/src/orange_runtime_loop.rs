@@ -64,7 +64,15 @@ pub(crate) fn run_prepared_runtime(
             audio_manager.required_jack_runtime_status(),
             candidate_readiness,
         )?;
+        let mut ui_profiler = crate::ui_profile::UiProfiler::from_process();
+        let profile_enabled = ui_profiler.enabled();
+        let mut last_loop_start = profile_enabled.then(Instant::now);
         while !signal::interrupted() {
+            let loop_start = profile_enabled.then(Instant::now);
+            let loop_gap = loop_start
+                .zip(last_loop_start)
+                .map(|(now, last)| now.duration_since(last));
+            last_loop_start = loop_start;
             if host.shutdown_pending() {
                 break;
             }
@@ -105,11 +113,15 @@ pub(crate) fn run_prepared_runtime(
                 if advance.request_snapshot {
                     playback.request_next_snapshot();
                 }
+                let advance_started = profile_enabled.then(Instant::now);
                 let output = playback.advance_duration_with_output(
                     advance.elapsed,
                     &mut runner,
                     &mut host,
                 )?;
+                if let Some(started) = advance_started {
+                    ui_profiler.record_runtime(advance.lateness, started.elapsed());
+                }
                 process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
                 let revision_after = playback.last_snapshot_revision();
                 let completed_at = Instant::now();
@@ -180,6 +192,10 @@ pub(crate) fn run_prepared_runtime(
                     &mut scheduler,
                     false,
                 )?;
+            }
+            if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
+                ui_profiler.record_loop(gap, started.elapsed());
+                ui_profiler.maybe_report();
             }
             std::thread::sleep(scheduler.sleep_duration(Instant::now(), &playback, &runner));
         }

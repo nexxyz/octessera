@@ -77,6 +77,7 @@ function Assert-Ordered {
 }
 
 $passive = Invoke-StudyPrintOnly -Parameters @{ Mode = "PassiveBaseline"; PrintOnly = $true }
+Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "PassiveBaseline"; UiProfile = $true; PrintOnly = $true } | Out-Null }
 Assert-NoPayloadPlaceholders $passive
 Assert-Contains $passive "PrintOnly: no Orange transport is invoked."
 Assert-Contains $passive $orangeTarget
@@ -107,6 +108,7 @@ foreach ($dspMode in @("Dsp64", "Dsp256")) {
 }
 
 $dsp64 = Invoke-StudyPrintOnly -Parameters @{ Mode = "Dsp64"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
+Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "Dsp64"; UiProfile = $true; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
 Assert-NoPayloadPlaceholders $dsp64
 Assert-Contains $dsp64 "OCTESSERA_AUDIO_RENDER_QUANTUM_FRAMES=64"
 Assert-Contains $dsp64 "--profile-dsp"
@@ -165,7 +167,11 @@ if (-not $refused) {
 }
 
 $live = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 30 }
+$profiledLive = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; UiProfile = $true; LiveSeconds = 30 }
 $live120 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 120 }
+Assert-Contains $profiledLive '--setenv=OCTESSERA_PI_UI_PROFILE=1 "$binary"'
+Assert-NotContains $live 'OCTESSERA_PI_UI_PROFILE'
+Assert-NotContains $live120 'OCTESSERA_PI_UI_PROFILE'
 Assert-NoPayloadPlaceholders $live
 Assert-NoPayloadPlaceholders $live120
 foreach ($required in @(
