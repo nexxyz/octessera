@@ -60,6 +60,26 @@ impl OrangeStartupReadinessGate {
     }
 }
 
+pub(super) fn ensure_timing_keep_awake(playback: &PlaybackRuntime) -> Result<(), String> {
+    if std::env::var("OCTESSERA_PI_TIMING_KEEP_AWAKE").as_deref() != Ok("1") {
+        return Ok(());
+    }
+    let snapshot = playback
+        .last_snapshot()
+        .ok_or("Orange AWAKE candidate has no native snapshot")?;
+    if !is_awake_menu_snapshot(snapshot) {
+        return Err("Orange AWAKE candidate did not load awake settings".into());
+    }
+    Ok(())
+}
+
+fn is_awake_menu_snapshot(snapshot: &serde_json::Value) -> bool {
+    is_normal_menu_snapshot(snapshot)
+        && snapshot["settings"]["dimTimerSeconds"] == 0
+        && snapshot["settings"]["screenSleepSeconds"] == 0
+        && snapshot["settings"]["ledsDimmed"] == false
+}
+
 pub(crate) fn prepare_runtime(
     audio: AudioService,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -221,7 +241,27 @@ pub(crate) fn wait_for_initial_audio_prep(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use std::sync::Arc;
+
+    #[test]
+    fn awake_candidate_requires_both_zero_timers_and_lit_normal_menu() {
+        let awake = json!({
+            "settings": { "dimTimerSeconds": 0, "screenSleepSeconds": 0, "ledsDimmed": false },
+            "display": { "off": false, "splash": "", "title": "Build", "lines": ["ready"] }
+        });
+        assert!(is_awake_menu_snapshot(&awake));
+        for (path, value) in [
+            ("/settings/dimTimerSeconds", json!(60)),
+            ("/settings/screenSleepSeconds", json!(60)),
+            ("/settings/ledsDimmed", json!(true)),
+            ("/display/off", json!(true)),
+        ] {
+            let mut rejected = awake.clone();
+            *rejected.pointer_mut(path).unwrap() = value;
+            assert!(!is_awake_menu_snapshot(&rejected), "{path}");
+        }
+    }
 
     #[test]
     fn orange_startup_uses_canonical_builtin_sample_favourites() {
