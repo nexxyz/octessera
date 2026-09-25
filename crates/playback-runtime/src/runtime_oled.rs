@@ -1,7 +1,7 @@
 use super::{PlaybackRuntime, RuntimeIngest, RuntimeOledCacheFault, RuntimePresentationMetrics};
 use crate::oled_frame::{
-    presentation_input_from_snapshot, render_oled_frame_into, OledPresentationMetrics,
-    OLED_FRAME_BYTES, OLED_HEIGHT, OLED_WIDTH,
+    presentation_input_from_snapshot, render_oled_frame_into, OledPresentationInput,
+    OledPresentationMetrics, OLED_FRAME_BYTES, OLED_HEIGHT, OLED_WIDTH,
 };
 use crate::protocol::{
     RunnerMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorMetadata, RuntimeOperation,
@@ -17,6 +17,9 @@ pub(super) struct RuntimeOled {
     revision: u64,
     has_frame: bool,
     pending_frame: bool,
+    last_rendered_input: Option<OledPresentationInput>,
+    #[cfg(test)]
+    render_count: usize,
     fault: Option<RuntimeErrorMetadata>,
     adapter_fault: Option<RuntimeErrorMetadata>,
 }
@@ -38,6 +41,9 @@ impl Default for RuntimeOled {
             revision: 0,
             has_frame: false,
             pending_frame: false,
+            last_rendered_input: None,
+            #[cfg(test)]
+            render_count: 0,
             fault: None,
             adapter_fault: None,
         }
@@ -121,7 +127,16 @@ impl RuntimeOled {
                 }
             };
         self.fault = None;
+        if self.has_frame && self.last_rendered_input.as_ref() == Some(&input) {
+            self.set_oled_frame_reference(snapshot);
+            return;
+        }
+        #[cfg(test)]
+        {
+            self.render_count += 1;
+        }
         render_oled_frame_into(&input, &mut self.scratch);
+        self.last_rendered_input = Some(input);
         if self.has_frame && self.current == self.scratch {
             self.set_oled_frame_reference(snapshot);
             return;
@@ -150,6 +165,11 @@ fn is_revisioned_snapshot(snapshot: &Value) -> bool {
 }
 
 impl PlaybackRuntime {
+    #[cfg(test)]
+    pub(crate) fn test_oled_render_count(&self) -> usize {
+        self.oled.render_count
+    }
+
     pub fn oled_frame_revision(&self) -> u64 {
         self.oled.revision
     }
@@ -214,13 +234,45 @@ fn oled_presentation_failure(field: String) -> RuntimeErrorMetadata {
 }
 
 pub(super) fn same_semantic_snapshot(left: &Value, right: &Value) -> bool {
-    let mut left = left.clone();
-    let mut right = right.clone();
-    if let Some(object) = left.as_object_mut() {
-        object.remove("oledFrameRevision");
+    let (Some(left), Some(right)) = (left.as_object(), right.as_object()) else {
+        return left == right;
+    };
+    let left_len = left.len() - usize::from(left.contains_key("oledFrameRevision"));
+    let right_len = right.len() - usize::from(right.contains_key("oledFrameRevision"));
+    left_len == right_len
+        && left
+            .iter()
+            .filter(|(key, _)| key.as_str() != "oledFrameRevision")
+            .all(|(key, value)| right.get(key) == Some(value))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::same_semantic_snapshot;
+    use serde_json::json;
+
+    #[test]
+    fn semantic_comparison_ignores_only_top_level_oled_revision() {
+        let base = json!({"display": {"title": "MENU"}, "leds": [1, 2], "nested": {"oledFrameRevision": 1}});
+        let left = json!({"oledFrameRevision": 1, "leds": [1, 2], "nested": {"oledFrameRevision": 1}, "display": {"title": "MENU"}});
+        let right = json!({"display": {"title": "MENU"}, "nested": {"oledFrameRevision": 1}, "leds": [1, 2], "oledFrameRevision": 12});
+        assert!(same_semantic_snapshot(&left, &right));
+        assert!(same_semantic_snapshot(&base, &left));
+        assert!(same_semantic_snapshot(&right, &base));
+        assert!(same_semantic_snapshot(&base, &base));
+        assert!(!same_semantic_snapshot(
+            &base,
+            &json!({"display": {"title": "Help"}, "leds": [1, 2], "nested": {"oledFrameRevision": 1}})
+        ));
+        assert!(!same_semantic_snapshot(
+            &base,
+            &json!({"display": {"title": "MENU"}, "leds": [1, 3], "nested": {"oledFrameRevision": 1}})
+        ));
+        assert!(!same_semantic_snapshot(
+            &base,
+            &json!({"display": {"title": "MENU"}, "leds": [1, 2], "nested": {"oledFrameRevision": 2}})
+        ));
+        assert!(!same_semantic_snapshot(&json!(null), &base));
+        assert!(same_semantic_snapshot(&json!([1, 2]), &json!([1, 2])));
     }
-    if let Some(object) = right.as_object_mut() {
-        object.remove("oledFrameRevision");
-    }
-    left == right
 }

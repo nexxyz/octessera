@@ -153,6 +153,7 @@ fn default_patch_due_beat_and_event_dot_onset_and_expiry_reach_oled() {
         platform_core::GRID_WIDTH * platform_core::GRID_HEIGHT * 3
     );
     let onset_revision = runtime.oled_frame_revision();
+    let onset_pixels = runtime.last_oled_frame().unwrap().to_vec();
 
     runner.test_set_display_time(start + Duration::from_millis(300));
     let expired = runtime
@@ -174,6 +175,7 @@ fn default_patch_due_beat_and_event_dot_onset_and_expiry_reach_oled() {
     assert_eq!(expiry["transportFlash"], "none");
     assert_eq!(expiry["display"]["title"], original_title);
     assert!(runtime.oled_frame_revision() > onset_revision);
+    assert_ne!(runtime.last_oled_frame(), Some(onset_pixels.as_slice()));
 }
 
 #[test]
