@@ -111,3 +111,138 @@ fn assert_positive_snapshot_revisions(messages: &[RunnerMessage]) {
         _ => true,
     }));
 }
+
+#[test]
+fn unchanged_oled_input_skips_render_but_full_led_and_hdmi_snapshots_still_publish() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let first = present(&mut runtime, snapshot("MENU"));
+    assert_positive_snapshot_revisions(&first);
+    let pixels = runtime.last_oled_frame().unwrap().to_vec();
+    let revision = runtime.oled_frame_revision();
+    let renders = runtime.test_oled_render_count();
+    assert_eq!(renders, 1);
+
+    let mut revision_only = snapshot("MENU");
+    revision_only["oledFrameRevision"] = json!(999);
+    let same = present(&mut runtime, revision_only);
+    assert!(
+        matches!(same.as_slice(), [RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }]
+        if snapshot["oledFrameRevision"] == revision)
+    );
+    assert_eq!(runtime.test_oled_render_count(), renders);
+
+    let mut changed = snapshot("MENU");
+    changed["leds"] = json!({"rgb": [1, 2, 3]});
+    changed["hdmiFrame"] = json!({"pixels": [4, 5, 6]});
+    changed["nested"] = json!({"oledFrameRevision": 99});
+    let output = present(&mut runtime, changed.clone());
+    assert!(matches!(output.as_slice(), [
+        RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }
+    ] if snapshot["leds"] == changed["leds"]
+        && snapshot["hdmiFrame"] == changed["hdmiFrame"]
+        && snapshot["nested"] == changed["nested"]
+        && snapshot["oledFrameRevision"] == revision));
+    assert_eq!(runtime.last_oled_frame(), Some(pixels.as_slice()));
+    assert_eq!(runtime.oled_frame_revision(), revision);
+    assert_eq!(runtime.test_oled_render_count(), renders);
+
+    let explicit = present(&mut runtime, changed);
+    assert!(
+        matches!(explicit.as_slice(), [RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }]
+        if snapshot["oledFrameRevision"] == revision)
+    );
+    assert_eq!(runtime.test_oled_render_count(), renders);
+}
+
+#[test]
+fn independent_transport_and_selection_cues_each_invalidate_oled_input() {
+    for (field, value) in [
+        ("transportIcon", json!("play")),
+        ("transportFlash", json!("beat")),
+        ("eventDotOn", json!(true)),
+        ("selectedRow", json!(0)),
+    ] {
+        let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+        let mut baseline = snapshot("MENU");
+        if field == "transportFlash" {
+            baseline["transportIcon"] = json!("play");
+        }
+        let _ = present(&mut runtime, baseline.clone());
+        let previous_pixels = runtime.last_oled_frame().unwrap().to_vec();
+        let mut changed = baseline;
+        changed[field] = value;
+        let output = present(&mut runtime, changed);
+        assert_eq!(runtime.test_oled_render_count(), 2, "{field}");
+        assert!(
+            matches!(output.as_slice(), [
+            RunnerMessage::OledFrame { revision: 2, pixels, .. },
+            RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }
+        ] if snapshot["oledFrameRevision"] == 2 && pixels != &previous_pixels),
+            "{field}"
+        );
+    }
+}
+
+#[test]
+fn individual_menu_and_brightness_edits_update_oled_pixels() {
+    for field in ["title", "lines", "brightness"] {
+        let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+        let _ = present(&mut runtime, snapshot("MENU"));
+        let old_pixels = runtime.last_oled_frame().unwrap().to_vec();
+        let mut changed = snapshot("MENU");
+        match field {
+            "title" => changed["display"]["title"] = json!("Help: Basic Help"),
+            "lines" => changed["display"]["lines"] = json!(["Try this"]),
+            "brightness" => changed["settings"]["displayBrightness"] = json!(35),
+            _ => unreachable!(),
+        }
+        let output = present(&mut runtime, changed);
+        assert_eq!(runtime.test_oled_render_count(), 2, "{field}");
+        assert!(
+            matches!(output.as_slice(), [
+            RunnerMessage::OledFrame { revision: 2, pixels, .. },
+            RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }
+        ] if snapshot["oledFrameRevision"] == 2 && pixels != &old_pixels),
+            "{field}"
+        );
+    }
+}
+
+#[test]
+fn visible_oled_inputs_rebuild_pixels_while_metrics_and_errors_remain_live() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let _ = present(&mut runtime, snapshot("MENU"));
+    let initial_pixels = runtime.last_oled_frame().unwrap().to_vec();
+    let mut next = snapshot("MENU");
+    next["display"]["title"] = json!("Help: Basic Help");
+    next["display"]["lines"] = json!(["Try this"]);
+    next["selectedRow"] = json!(0);
+    next["transportFlash"] = json!("beat");
+    next["eventDotOn"] = json!(true);
+    next["settings"]["displayBrightness"] = json!(35);
+    let shown = present(&mut runtime, next);
+    assert!(matches!(shown.as_slice(), [
+        RunnerMessage::OledFrame { revision: 2, pixels, .. },
+        RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }
+    ] if snapshot["oledFrameRevision"] == 2 && pixels != &initial_pixels));
+    assert_eq!(runtime.test_oled_render_count(), 2);
+
+    let metrics = runtime.update_presentation_metrics(RuntimePresentationMetrics {
+        worker_utilization: Some(0.9),
+        high_cpu_steady: true,
+        ..Default::default()
+    });
+    assert_positive_snapshot_revisions(&metrics.messages);
+    assert_eq!(runtime.test_oled_render_count(), 3);
+
+    runtime.latch_facts(crate::RuntimeErrorFacts::new(
+        crate::RuntimeErrorDomain::Storage,
+        crate::RuntimeErrorCode::OperationFailed,
+        crate::RuntimeOperation::Store,
+        Some("disk full".into()),
+    ));
+    assert_eq!(runtime.test_oled_render_count(), 4);
+    assert!(runtime
+        .last_snapshot()
+        .is_some_and(|snapshot| snapshot["runtimeError"]["message"] == "disk full"));
+}
