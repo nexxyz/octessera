@@ -103,7 +103,6 @@ mod setup_portal_paths;
 mod setup_portal_worker;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod timing_probe;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod ui_profile;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[cfg(test)]
