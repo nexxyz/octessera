@@ -20,6 +20,31 @@ impl PlaybackRuntime {
     }
 }
 
+#[cfg(test)]
+impl PlaybackRuntime {
+    pub(crate) fn test_enable_dispatch_profile(&mut self) {
+        self.dispatch_profile = Some(RuntimeDispatchProfile::new());
+    }
+
+    pub(crate) fn test_refresh_counts(&self) -> (u64, u64) {
+        let profile = self
+            .dispatch_profile
+            .as_ref()
+            .expect("test profile enabled");
+        (
+            profile.spans[Stage::FullSnapshotRefresh as usize].n,
+            profile.spans[Stage::StatusRefresh as usize].n,
+        )
+    }
+
+    pub(crate) fn test_received_snapshots(&self) -> u64 {
+        self.dispatch_profile
+            .as_ref()
+            .expect("test profile enabled")
+            .snapshots_received
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Span {
     n: u64,
@@ -261,10 +286,10 @@ mod tests {
         assert_eq!(profile.max_pulses, 2);
         assert_eq!(profile.snapshot_requests, 1);
         assert_eq!(profile.snapshots_received, 1);
-        assert_eq!(profile.spans[Stage::StatusRefresh as usize].n, 1);
-        assert_eq!(profile.spans[Stage::SnapshotClone as usize].n, 1);
-        assert_eq!(profile.spans[Stage::SemanticCompare as usize].n, 1);
-        assert_eq!(profile.spans[Stage::FrameRender as usize].n, 1);
-        assert_eq!(profile.spans[Stage::FullSnapshotRefresh as usize].n, 2);
+        assert_eq!(profile.spans[Stage::StatusRefresh as usize].n, 0);
+        assert_eq!(profile.spans[Stage::SnapshotClone as usize].n, 0);
+        assert_eq!(profile.spans[Stage::SemanticCompare as usize].n, 0);
+        assert_eq!(profile.spans[Stage::FrameRender as usize].n, 0);
+        assert_eq!(profile.spans[Stage::FullSnapshotRefresh as usize].n, 1);
     }
 }

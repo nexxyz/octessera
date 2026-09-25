@@ -299,10 +299,7 @@ fn platform_follow_up_dispatch_and_compatibility_requeue_preserve_oled_pairs() {
     );
     assert!(matches!(
         effect_output.messages.as_slice(),
-        [
-            RunnerMessage::Snapshot { snapshot },
-            RunnerMessage::RuntimeStatus { .. }
-        ] if snapshot["oledFrameRevision"] == 1
+        [RunnerMessage::RuntimeStatus { .. }]
     ));
     assert_eq!(effect_output.follow_ups.len(), 1);
 

@@ -18,6 +18,8 @@ mod recording;
 mod setup_portal;
 #[path = "runtime_test_support.rs"]
 pub(crate) mod support;
+#[path = "runtime_timing_regression_tests.rs"]
+mod timing_regression;
 #[path = "runtime_transport_tests.rs"]
 mod transport;
 #[path = "runtime_transport_origin_tests.rs"]

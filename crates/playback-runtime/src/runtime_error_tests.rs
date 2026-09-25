@@ -165,6 +165,48 @@ fn runtime_errors_decorate_presentations_and_preserve_last_good_state() {
 }
 
 #[test]
+fn status_only_runtime_error_still_publishes_the_error_snapshot() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    runtime
+        .ingest_runner_messages_with_output(
+            vec![RunnerMessage::Snapshot {
+                snapshot: canonical_oled_snapshot("normal"),
+            }],
+            &mut host,
+        )
+        .unwrap();
+    let error = RuntimeErrorMetadata::operation_failed(
+        RuntimeErrorDomain::Storage,
+        RuntimeOperation::StoreLoadDefault,
+        RuntimeRecovery::RetainLastGood,
+        "disk full".into(),
+    );
+    let output = runtime
+        .ingest_runner_messages_with_output(
+            vec![RunnerMessage::RuntimeStatus {
+                status: RuntimeStatus {
+                    state: RuntimeStatusState::Error,
+                    transport: RuntimeTransportState::Stopped,
+                    current_ppqn_pulse: 0,
+                    pending_resync: false,
+                    sync_source: SyncSource::Internal,
+                    message: None,
+                    error: Some(error.clone()),
+                },
+            }],
+            &mut host,
+        )
+        .unwrap();
+    assert!(output.messages.iter().any(|message| matches!(message,
+        RunnerMessage::Snapshot { snapshot } if snapshot["runtimeError"] == serde_json::to_value(&error).unwrap()
+    )));
+    assert!(
+        matches!(output.messages.last(), Some(RunnerMessage::RuntimeStatus { status }) if status.error.as_ref() == Some(&error))
+    );
+}
+
+#[test]
 fn stop_and_silence_stops_runner_and_panics_all_routes() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = FakeRunner::default();

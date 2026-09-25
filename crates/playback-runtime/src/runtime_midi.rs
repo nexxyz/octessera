@@ -118,7 +118,7 @@ impl PlaybackRuntime {
             return Ok(());
         }
         let previous = self.last_good_status.replace(status.clone());
-        self.refresh_presentations();
+        self.refresh_presented_status();
         let needs_note_cleanup = transport_requires_note_cleanup(previous.as_ref(), &status);
         let silence_error = needs_note_cleanup
             .then(|| host.silence_internal_audio())
