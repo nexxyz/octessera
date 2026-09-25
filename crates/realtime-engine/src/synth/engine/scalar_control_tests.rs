@@ -5,11 +5,8 @@ fn ten_thousand_typed_updates_are_allocation_free_and_final_values_are_exact() {
         crate::synth::test_allocator::count_allocations_and_deallocations(|| {
             for index in 0..10_000 {
                 assert_eq!(
-                    engine.set_synth_param_typed(
-                        0,
-                        SynthParamId::AmpGainPct,
-                        (index % 100) as f32,
-                    ),
+                    engine
+                        .set_synth_param_typed(0, SynthParamId::AmpGainPct, (index % 100) as f32,),
                     ScalarMutation::Changed
                 );
                 assert_eq!(
@@ -23,8 +20,14 @@ fn ten_thousand_typed_updates_are_allocation_free_and_final_values_are_exact() {
             }
         });
     assert_eq!((allocations, deallocations), (0, 0));
-    assert_eq!(synth_scalar_values(&engine, 0)[0].to_bits(), 99.0_f32.to_bits());
-    assert_eq!(sample_scalar_values(&engine, 0)[0].to_bits(), (-21.0_f32).to_bits());
+    assert_eq!(
+        synth_scalar_values(&engine, 0)[0].to_bits(),
+        99.0_f32.to_bits()
+    );
+    assert_eq!(
+        sample_scalar_values(&engine, 0)[0].to_bits(),
+        (-21.0_f32).to_bits()
+    );
 }
 
 #[test]
@@ -77,6 +80,9 @@ fn sample_filter_updates_only_changed_active_voice_parameters() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,
@@ -122,15 +128,9 @@ fn sample_filter_updates_only_changed_active_voice_parameters() {
 fn master_and_mixer_scalar_updates_handle_invalid_partial_fields() {
     let mut engine = mixer_engine();
     let initial_master = engine.master_volume;
-    assert_eq!(
-        engine.set_master_volume(f32::NAN),
-        ScalarMutation::Rejected
-    );
+    assert_eq!(engine.set_master_volume(f32::NAN), ScalarMutation::Rejected);
     assert_eq!(engine.master_volume, initial_master);
-    assert_eq!(
-        engine.set_master_volume(50.0),
-        ScalarMutation::Changed
-    );
+    assert_eq!(engine.set_master_volume(50.0), ScalarMutation::Changed);
     assert_eq!(engine.set_master_volume(50.0), ScalarMutation::Unchanged);
 
     let initial_instrument_volume = engine.slot_volume[0];
@@ -218,6 +218,9 @@ fn mixer_engine() -> SynthEngine {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {

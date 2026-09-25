@@ -67,8 +67,31 @@ pub(crate) fn is_live_link_lfo_target(key: &str) -> bool {
             .strip_prefix("params.")
             .is_some_and(|field| realtime_safe_fx_param_id(field).is_some());
     }
-    parse_instrument_binding_key(key)
-        .is_some_and(|(_index, field)| matches!(field, "mixer.volume" | "mixer.panPos"))
+    parse_instrument_binding_key(key).is_some_and(|(_index, field)| {
+        matches!(
+            field,
+            "mixer.volume"
+                | "mixer.panPos"
+                | "fm.index"
+                | "fm.amp.gainPct"
+                | "fm.filter.cutoffHz"
+                | "fm.filter.resonance"
+                | "pluck.amp.gainPct"
+                | "pluck.decayMs"
+                | "pluck.brightnessPct"
+                | "pluck.filter.cutoffHz"
+                | "pluck.filter.resonance"
+                | "drum.amp.gainPct"
+                | "drum.filter.cutoffHz"
+                | "drum.filter.resonance"
+                | "synth.osc1.levelPct"
+                | "synth.osc2.levelPct"
+                | "synth.osc1.detuneCents"
+                | "synth.osc2.detuneCents"
+                | "synth.osc1.pulseWidthPct"
+                | "synth.osc2.pulseWidthPct"
+        )
+    })
 }
 
 pub(super) fn realtime_safe_fx_param_id(field: &str) -> Option<FxParamId> {
@@ -114,6 +137,29 @@ pub(super) fn instrument_modulation_audio_command(
 ) -> Option<RuntimeAudioCommand> {
     let value = value.as_f64()?;
     let display = value.round() as i32;
+    if let Some((voice, param, min, max)) = super::drum_config::voice_numeric_field(field) {
+        return Some(RuntimeAudioCommand::SetDrumParam {
+            instrument_slot: index,
+            voice: voice as u8,
+            generation: 0,
+            path: format!("drum.{param}"),
+            value: value.round().clamp(f64::from(min), f64::from(max)) as f32,
+        });
+    }
+    if let Some((_, min, max)) = super::drum_config::common_numeric_field(field) {
+        let stored = if field == "drum.filter.cutoffHz" {
+            super::cutoff_display_to_hz(display) as f32
+        } else {
+            value.round().clamp(f64::from(min), f64::from(max)) as f32
+        };
+        return Some(RuntimeAudioCommand::SetDrumParam {
+            instrument_slot: index,
+            voice: 0,
+            generation: 0,
+            path: field.into(),
+            value: stored,
+        });
+    }
     match field {
         "mixer.volume" => Some(RuntimeAudioCommand::SetInstrumentMixer {
             instrument_slot: index,
@@ -133,6 +179,78 @@ pub(super) fn instrument_modulation_audio_command(
             path: field.into(),
             value: super::cutoff_display_to_hz(display) as f32,
         }),
+        "fm.filter.cutoffHz" => Some(RuntimeAudioCommand::SetFmParam {
+            instrument_slot: index,
+            generation: 0,
+            path: field.into(),
+            value: super::cutoff_display_to_hz(display) as f32,
+        }),
+        "pluck.filter.cutoffHz" => Some(RuntimeAudioCommand::SetPluckParam {
+            instrument_slot: index,
+            generation: 0,
+            path: field.into(),
+            value: super::cutoff_display_to_hz(display) as f32,
+        }),
+        field if field.starts_with("pluck.") => {
+            let (_, min, max) =
+                super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])?;
+            Some(RuntimeAudioCommand::SetPluckParam {
+                instrument_slot: index,
+                generation: 0,
+                path: field.into(),
+                value: value.round().clamp(f64::from(min), f64::from(max)) as f32,
+            })
+        }
+        "fm.index"
+        | "fm.amp.gainPct"
+        | "fm.amp.velocitySensitivityPct"
+        | "fm.filter.resonance"
+        | "fm.filter.envAmountPct"
+        | "fm.filter.keyTrackingPct"
+        | "fm.indexEnv.attackMs"
+        | "fm.indexEnv.decayMs"
+        | "fm.indexEnv.sustainPct"
+        | "fm.indexEnv.releaseMs"
+        | "fm.ampEnv.attackMs"
+        | "fm.ampEnv.decayMs"
+        | "fm.ampEnv.sustainPct"
+        | "fm.ampEnv.releaseMs"
+        | "fm.filterEnv.attackMs"
+        | "fm.filterEnv.decayMs"
+        | "fm.filterEnv.sustainPct"
+        | "fm.filterEnv.releaseMs" => {
+            let (_, min, max) = super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])?;
+            Some(RuntimeAudioCommand::SetFmParam {
+                instrument_slot: index,
+                generation: 0,
+                path: field.into(),
+                value: value.round().clamp(f64::from(min), f64::from(max)) as f32,
+            })
+        }
+        "synth.osc1.levelPct" | "synth.osc2.levelPct" | "synth.amp.gainPct" => {
+            Some(RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: index,
+                generation: 0,
+                path: field.into(),
+                value: value.round().clamp(0.0, 100.0) as f32,
+            })
+        }
+        "synth.osc1.detuneCents" | "synth.osc2.detuneCents" => {
+            Some(RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: index,
+                generation: 0,
+                path: field.into(),
+                value: value.round().clamp(-50.0, 50.0) as f32,
+            })
+        }
+        "synth.osc1.pulseWidthPct" | "synth.osc2.pulseWidthPct" => {
+            Some(RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: index,
+                generation: 0,
+                path: field.into(),
+                value: value.round().clamp(5.0, 95.0) as f32,
+            })
+        }
         "synth.filter.resonance" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
             generation: 0,
@@ -183,6 +301,20 @@ pub(super) fn instrument_modulation_audio_command(
             path: field.into(),
             value: value.round().clamp(0.0, 255.0) as f32,
         }),
+        "sample.tuneSemis" => Some(RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: index,
+            generation: 0,
+            path: field.into(),
+            value: value.round().clamp(-24.0, 24.0) as f32,
+        }),
+        "sample.amp.gainPct" | "sample.amp.velocitySensitivityPct" => {
+            Some(RuntimeAudioCommand::SetSampleBankParam {
+                instrument_slot: index,
+                generation: 0,
+                path: field.into(),
+                value: value.round().clamp(0.0, 100.0) as f32,
+            })
+        }
         _ => None,
     }
 }

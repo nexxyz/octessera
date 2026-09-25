@@ -53,11 +53,30 @@ pub(super) fn validate_binding_changes(
     Ok(())
 }
 
+pub(super) fn inert_sample_binding_key(key: &str) -> bool {
+    let Some((_, field)) = super::modulation_keys::parse_instrument_binding_key(key) else {
+        return false;
+    };
+    field.starts_with("sample.ampEnv.")
+        || field.starts_with("sample.filterEnv.")
+        || matches!(
+            field,
+            "sample.filter.type" | "sample.filter.envAmountPct" | "sample.filter.keyTrackingPct"
+        )
+}
+
 fn current_bindings(
     runner: &NativeRunner,
     changes: &[BindingChange],
 ) -> Result<Vec<(ModulationSourceId, Option<NativeParamBinding>)>, BindingValidationError> {
     for change in changes {
+        if change
+            .binding
+            .as_ref()
+            .is_some_and(|binding| inert_sample_binding_key(&binding.key))
+        {
+            return Err(BindingValidationError::UnsupportedTarget);
+        }
         if change.binding.is_some()
             && target_kind_for_binding(change.binding.as_ref().unwrap()).is_err()
         {

@@ -21,6 +21,9 @@ fn applies_instrument_config() {
     let cfg = default_synth_config();
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: cfg,
             mixer: None,
@@ -39,6 +42,9 @@ fn mixer_volume_controls_synth_output() {
     let mut muted = SynthEngine::new(48_000);
     muted.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -54,6 +60,9 @@ fn mixer_volume_controls_synth_output() {
     let mut full = SynthEngine::new(48_000);
     full.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -83,6 +92,9 @@ fn mixer_pan_controls_synth_output() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -112,6 +124,9 @@ fn routes_through_dynamic_bus_count_without_allocating_bus_vec() {
     let cfg = default_synth_config();
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: cfg,
             mixer: Some(InstrumentMixerConfig {
@@ -164,6 +179,9 @@ fn all_filter_types_generate_finite_non_silent_audio() {
 
         engine.set_instruments(InstrumentsConfig {
             instruments: vec![InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: cfg,
                 mixer: None,

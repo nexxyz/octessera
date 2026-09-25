@@ -80,6 +80,8 @@ mod device_input;
 mod device_input_buttons;
 mod display_deadlines;
 mod display_transients;
+mod drum_config;
+mod drum_control;
 mod factory_payload;
 mod fx_bus_config;
 mod fx_param_codec;
@@ -358,6 +360,10 @@ pub struct NativeRunner {
     recording_active: bool,
     play_mode: String,
     active_play_mode: String,
+    play_drum_selected_slot: Option<usize>,
+    drum_selected_voices: Vec<usize>,
+    drum_assign: Option<(usize, u8)>,
+    drum_cell_tune: Option<(usize, Option<(usize, usize)>)>,
     play_fx_selected: Value,
     play_fx_assign: Option<Value>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,

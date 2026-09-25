@@ -320,6 +320,9 @@ fn routing_tree_reasserts_bus_assignment_before_dispatch() {
 fn bus_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {

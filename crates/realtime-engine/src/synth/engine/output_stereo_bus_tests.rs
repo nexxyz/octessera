@@ -225,6 +225,9 @@ fn spread_bus_config(
 
 fn routed_sampler_slot() -> InstrumentSlotConfig {
     InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: "sampler".to_string(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {

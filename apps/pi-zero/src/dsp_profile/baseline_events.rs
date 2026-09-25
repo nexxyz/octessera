@@ -195,6 +195,9 @@ fn instruments(
             .iter()
             .enumerate()
             .map(|(slot, kind)| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: (*kind).into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

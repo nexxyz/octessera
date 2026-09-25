@@ -89,6 +89,8 @@ fn platform_request(effect: RuntimePlatformEffect) -> RuntimePlatformRequest {
 
 #[path = "host_adapter_audio_tests.rs"]
 mod audio;
+#[path = "host_adapter_drum_tests.rs"]
+mod drum;
 #[path = "host_adapter_momentary_tests.rs"]
 mod momentary;
 #[path = "host_adapter_platform_tests.rs"]

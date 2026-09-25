@@ -1,7 +1,7 @@
 use crate::audio::default_pi_instruments;
 use realtime_engine::synth::{
-    prepare_instruments_config, FxParamId, SampleBankConfig, SampleBankParamId, SynthParamId,
-    DEFAULT_AUDIO_SAMPLE_RATE,
+    prepare_instruments_config, DrumParamId, FmParamId, FxParamId, PluckParamId, SampleBankConfig,
+    SampleBankParamId, SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::{EngineEvent, EngineEventSender};
 use std::collections::BTreeMap;
@@ -265,6 +265,9 @@ enum ReplayKey {
     InstrumentSlot(usize),
     FxBusMixer(usize),
     SynthParam(usize, SynthParamId),
+    FmParam(usize, FmParamId),
+    PluckParam(usize, PluckParamId),
+    DrumParam(usize, usize, DrumParamId),
     SampleBankParam(usize, SampleBankParamId),
     FxBusSlot(usize, usize),
     FxBusParam(usize, usize, FxParamId),
@@ -289,9 +292,11 @@ impl ReplayKey {
 
     fn owner(self) -> Option<Self> {
         match self {
-            Self::InstrumentMixer(slot) | Self::SynthParam(slot, _) => {
-                Some(Self::InstrumentSlot(slot))
-            }
+            Self::InstrumentMixer(slot)
+            | Self::SynthParam(slot, _)
+            | Self::FmParam(slot, _)
+            | Self::PluckParam(slot, _) => Some(Self::InstrumentSlot(slot)),
+            Self::DrumParam(slot, _, _) => Some(Self::InstrumentSlot(slot)),
             Self::SampleBankParam(slot, _) => Some(Self::SampleBank(slot)),
             Self::FxBusParam(bus, slot, _) => Some(Self::FxBusSlot(bus, slot)),
             Self::GlobalFxParam(slot, _) => Some(Self::GlobalFxSlot(slot)),
@@ -313,6 +318,9 @@ fn event_generation(event: &EngineEvent) -> u64 {
         | EngineEvent::SetPreparedInstrumentSlot { generation, .. }
         | EngineEvent::SetFxBusMixer { generation, .. }
         | EngineEvent::SetSynthParam { generation, .. }
+        | EngineEvent::SetFmParam { generation, .. }
+        | EngineEvent::SetPluckParam { generation, .. }
+        | EngineEvent::SetDrumParam { generation, .. }
         | EngineEvent::SetSampleBankParam { generation, .. }
         | EngineEvent::SetFxBusParam { generation, .. }
         | EngineEvent::SetPreparedFxBusSlot { generation, .. }
@@ -347,6 +355,26 @@ fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
             param,
             ..
         } => Some(ReplayKey::SynthParam(usize::from(*instrument_slot), *param)),
+        EngineEvent::SetFmParam {
+            instrument_slot,
+            param,
+            ..
+        } => Some(ReplayKey::FmParam(usize::from(*instrument_slot), *param)),
+        EngineEvent::SetPluckParam {
+            instrument_slot,
+            param,
+            ..
+        } => Some(ReplayKey::PluckParam(usize::from(*instrument_slot), *param)),
+        EngineEvent::SetDrumParam {
+            instrument_slot,
+            voice,
+            param,
+            ..
+        } => Some(ReplayKey::DrumParam(
+            usize::from(*instrument_slot),
+            usize::from(*voice),
+            *param,
+        )),
         EngineEvent::SetSampleBankParam {
             instrument_slot,
             param,
@@ -436,6 +464,7 @@ pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
         event,
         EngineEvent::AllNotesOff
             | EngineEvent::NoteOn { .. }
+            | EngineEvent::DrumHit { .. }
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
             | EngineEvent::PreviewSample { .. }
@@ -451,6 +480,9 @@ pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
     cache.events()
 }
 
+#[cfg(test)]
+#[path = "audio_replay_drum_tests.rs"]
+mod drum_tests;
 #[cfg(test)]
 #[path = "audio_replay_tests.rs"]
 mod tests;

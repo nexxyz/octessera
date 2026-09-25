@@ -35,6 +35,9 @@ fn non_none_bus_slots(slots: [&str; 3]) -> Vec<&str> {
 fn instrument_kind_label(kind: &str) -> &'static str {
     match kind {
         "synth" => "Synth",
+        "fm" => "FM",
+        "pluck" => "Plucked",
+        "drum" => "Drum",
         "sampler" => "Sampler",
         "midi" => "MIDI",
         _ => "None",

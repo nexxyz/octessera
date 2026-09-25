@@ -3,6 +3,9 @@ use super::{json, NativeRunner, Value, OLED_BODY_ROWS};
 use crate::native_menu::NativeMenuSnapshot;
 use crate::oled_frame::OledDisplayLayout;
 
+#[path = "snapshot_display_drum.rs"]
+mod drum;
+
 const DISPLAY_LINE_WIDTH: usize = 28;
 const SELECTED_LINE_SCROLL_TICKS_PER_CHAR: usize = 4;
 const SELECTED_LINE_SCROLL_GAP: [char; 3] = [' ', ' ', ' '];
@@ -55,8 +58,10 @@ impl NativeRunner {
             help_popup_display(help)
         } else if let Some((title, lines)) = self.aux_mapping_overlay() {
             overlay_display(title, lines)
+        } else if let Some(display) = drum::cell_tune_display(self) {
+            display
         } else {
-            menu_display(self, menu)
+            drum::play_menu_display(self, menu)
         };
         let setup_visible = self
             .display

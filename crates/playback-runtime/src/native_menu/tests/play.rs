@@ -11,7 +11,15 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         labels,
-        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+        vec![
+            "Mix",
+            "Pan",
+            "FX",
+            "Trigger Gate",
+            "Transpose",
+            "XY",
+            "No Drum slot"
+        ]
     );
     let sense = &menu.root.children[1];
     assert_eq!(sense.children[0].label, "BPM");
@@ -55,7 +63,15 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         fx_labels,
-        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+        vec![
+            "Mix",
+            "Pan",
+            "FX",
+            "Trigger Gate",
+            "Transpose",
+            "XY",
+            "No Drum slot"
+        ]
     );
     let fx_labels = fx_menu.root.children[3].children[2]
         .children
@@ -75,7 +91,15 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         trigger_gate_labels,
-        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+        vec![
+            "Mix",
+            "Pan",
+            "FX",
+            "Trigger Gate",
+            "Transpose",
+            "XY",
+            "No Drum slot"
+        ]
     );
 }
 
@@ -342,4 +366,46 @@ pub(crate) fn aux_click_picker_exposes_assignable_actions() {
     ));
     assert!(contains_aux_click_action(&menu.root, 0, "play.fx.map"));
     assert!(contains_aux_click_reset(&menu.root, 0));
+}
+
+#[test]
+fn play_drums_has_seventh_page_named_slot_and_no_fake_guidance_row() {
+    let menu = NativeMenuModel::new(config());
+    let play = &menu.root.children[3];
+    assert_eq!(
+        play.children
+            .iter()
+            .map(|row| row.key.as_deref())
+            .collect::<Vec<_>>(),
+        [
+            Some("play.page.mix"),
+            Some("play.page.pan"),
+            Some("play.page.fx"),
+            Some("play.page.trigger-gate"),
+            Some("play.page.transpose"),
+            Some("play.page.xy"),
+            Some("play.page.drums")
+        ]
+    );
+    assert_eq!(play.children[6].label, "No Drum slot");
+    assert!(play.children[6].children.is_empty());
+    let mut cfg = config();
+    cfg.instrument_types[0] = "drum".into();
+    let menu = NativeMenuModel::new(cfg.clone());
+    let page = menu.item_for_key("play.page.drums").unwrap();
+    assert_eq!(page.label, "Drums");
+    assert_eq!(page.children.len(), 1);
+    assert_eq!(page.children[0].key.as_deref(), Some("play.drums.slot"));
+    assert!(
+        matches!(&page.children[0].value, NativeMenuValue::Enum { options, selected }
+        if options == &["I1: Drum"] && *selected == 0)
+    );
+    cfg.instrument_labels.push("I2: Drum".into());
+    cfg.instrument_types.push("drum".into());
+    cfg.play_drum_selected_slot = Some(1);
+    let menu = NativeMenuModel::new(cfg);
+    assert!(
+        matches!(&menu.item_for_key("play.drums.slot").unwrap().value,
+        NativeMenuValue::Enum { options, selected } if options == &["I1: Drum", "I2: Drum"] && *selected == 1)
+    );
 }

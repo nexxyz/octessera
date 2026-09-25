@@ -1,7 +1,6 @@
+use super::render_voice::synth_voice_render::{render_synth_voice_block, SynthVoiceFrameContext};
 use super::routing_tree_source_bank::RoutingTreeSourceBank;
-use super::source_lane_renderer::{
-    render_sample_voice_block, render_synth_voice_block, SynthSourceContext, SynthVoiceFrameContext,
-};
+use super::source_lane_renderer::{render_sample_voice_block, SynthSourceContext};
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use crate::synth::types::{
     INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
@@ -55,6 +54,7 @@ pub(super) fn render_routing_tree_sources(
         }
         scratch.synth_rendered_frames[lane] = render_synth_voice_block(
             voice,
+            bank.rings[lane].as_deref_mut().expect("routing voice ring"),
             slot,
             frames,
             base_sample_clock,

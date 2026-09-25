@@ -70,6 +70,9 @@ fn partition_fill_config(kind: &str) -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: (0..8)
             .map(|_| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -200,7 +203,7 @@ fn routing_tree_sample_note_admission_reaches_global_capacity_without_routing_re
 }
 
 #[test]
-fn routing_tree_hot_swap_renders_full_surviving_synth_and_sample_capacity() {
+fn routing_tree_hot_swap_retires_synth_and_renders_full_sample_capacity() {
     let mut engine = SynthEngine::new(44_100);
     let mut reference = SynthEngine::new(44_100);
     engine.set_instruments(partition_fill_config("synth"));
@@ -272,10 +275,7 @@ fn routing_tree_hot_swap_renders_full_surviving_synth_and_sample_capacity() {
     let expected_output = render_inline_full_capacity(&mut reference);
     assert_eq!(mixed_output, expected_output);
     let snapshot = engine.profile_snapshot();
-    assert_eq!(
-        snapshot.active_synth_voices,
-        crate::synth::types::SYNTH_VOICE_LANE_CAPACITY
-    );
+    assert_eq!(snapshot.active_synth_voices, 0);
     assert_eq!(
         snapshot.active_sample_voices,
         crate::synth::types::SAMPLE_VOICE_LANE_CAPACITY

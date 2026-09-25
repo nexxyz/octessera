@@ -34,6 +34,7 @@ fn assert_fixture_profile_barriers(executor_mode: BenchmarkExecutorMode, expecte
             config: prepare_instruments_config(
                 InstrumentsConfig {
                     instruments: vec![InstrumentSlotConfig {
+                        fm: None,
                         kind: "synth".into(),
                         synth: default_synth_config(),
                         mixer: None,

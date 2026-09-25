@@ -119,6 +119,9 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
     if is_sample_assignments_path(path) {
         return validate_sample_assignments(value, path);
     }
+    if is_drum_assignments_path(path) {
+        return validate_drum_assignments(value, path);
+    }
     if is_play_assignments_path(path) {
         return validate_play_assignments(value, path);
     }
@@ -189,6 +192,32 @@ fn validate_sample_assignments(value: &Value, path: &str) -> Result<(), String> 
         .ok_or_else(|| format!("{path} must be an array"))?;
     for (index, value) in assignments.iter().enumerate() {
         validate_sample_assignment(value, &format!("{path}[{index}]"))?;
+    }
+    Ok(())
+}
+
+fn validate_drum_assignments(value: &Value, path: &str) -> Result<(), String> {
+    let assignments = value
+        .as_array()
+        .ok_or_else(|| format!("{path} must be an array"))?;
+    for (index, value) in assignments.iter().enumerate() {
+        let path = format!("{path}[{index}]");
+        let object = value
+            .as_object()
+            .ok_or_else(|| format!("{path} must be an object"))?;
+        validate_object_keys(value, &path, DRUM_ASSIGNMENT_FIELDS)?;
+        for key in ["x", "y", "voice"] {
+            if let Some(value) = object.get(key) {
+                if value.as_u64().is_none() {
+                    return Err(format!("{path}.{key} must be an unsigned integer"));
+                }
+            }
+        }
+        if let Some(value) = object.get("tuneSemis") {
+            if value.as_i64().is_none() {
+                return Err(format!("{path}.tuneSemis must be a signed integer"));
+            }
+        }
     }
     Ok(())
 }
@@ -264,6 +293,10 @@ fn is_sample_assignments_path(path: &str) -> bool {
     path.ends_with(".sample.assignments")
 }
 
+fn is_drum_assignments_path(path: &str) -> bool {
+    path.ends_with(".drum.assignments")
+}
+
 fn is_play_assignments_path(path: &str) -> bool {
     path.ends_with(".playFx.assignments")
 }
@@ -276,5 +309,6 @@ const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "action", "slot"];
 const SYSTEM_FIELDS: &[&str] = &["playMode"];
 const SAMPLE_ASSIGNMENT_FIELDS: &[&str] = &["level", "sampleSlot", "x", "y"];
 const SAMPLE_ASSIGNMENT_LEVELS: &[&str] = &["high", "medium", "low"];
+const DRUM_ASSIGNMENT_FIELDS: &[&str] = &["x", "y", "voice", "tuneSemis"];
 const PLAY_ASSIGNMENT_FIELDS: &[&str] = &["config", "x", "y"];
 const PLAY_CONFIG_FIELDS: &[&str] = &["fxType", "params", "targetKey"];

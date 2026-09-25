@@ -100,6 +100,31 @@ fn routing_tree_matches_canonical_for_single_synth_bus_source() {
 }
 
 #[test]
+fn routing_tree_matches_canonical_for_tracked_synth_and_fm_bus_voices() {
+    for kind in ["synth", "fm"] {
+        let mut config = routed_config();
+        for slot in 1..config.instruments.len() {
+            config.instruments[slot].kind = "none".into();
+        }
+        config.instruments[0].kind = kind.into();
+        config.instruments[0].synth.filter.key_tracking_pct = 100.0;
+        let mut fm = FmConfig::default();
+        fm.filter.key_tracking_pct = 100.0;
+        config.instruments[0].fm = Some(fm);
+        let mut tree = SynthEngine::new(48_000);
+        let mut reference = SynthEngine::new(48_000);
+        tree.set_instruments(config.clone());
+        reference.set_instruments(config);
+        for note in [48, 72] {
+            tree.note_on(0, note, 100, 1_000);
+            reference.note_on(0, note, 100, 1_000);
+        }
+        assert_routing_tree_matches_reference(&mut tree, &mut reference, 128);
+        assert_routing_tree_matches_reference(&mut tree, &mut reference, 256);
+    }
+}
+
+#[test]
 fn routing_tree_matches_canonical_for_spread_and_auto_pan_bus_output() {
     let config = stereo_bus_config();
     let mut tree = SynthEngine::new(48_000);

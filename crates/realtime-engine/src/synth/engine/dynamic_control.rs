@@ -5,6 +5,13 @@ use super::bus_chain_owner::fx_kind_cost;
 use super::*;
 use crate::synth::engine::render_plan::render_plan_fx_slot;
 
+#[path = "drum_param_control.rs"]
+mod drum_param_control;
+#[path = "fm_param_control.rs"]
+mod fm_param_control;
+#[path = "pluck_param_control.rs"]
+mod pluck_param_control;
+
 impl SynthEngine {
     pub fn set_dsp_config(&mut self, config: DspRuntimeConfig) {
         self.worker_load_warning
@@ -120,6 +127,24 @@ impl SynthEngine {
         let mutation = {
             let synth = &mut self.instruments[slot];
             match id {
+                SynthParamId::Osc1LevelPct => {
+                    set_clamped_f32(&mut synth.osc1.level_pct, value, 0.0, 100.0, 1.0)
+                }
+                SynthParamId::Osc1DetuneCents => {
+                    set_clamped_f32(&mut synth.osc1.detune_cents, value, -50.0, 50.0, 1.0)
+                }
+                SynthParamId::Osc1PulseWidthPct => {
+                    set_clamped_f32(&mut synth.osc1.pulse_width_pct, value, 5.0, 95.0, 1.0)
+                }
+                SynthParamId::Osc2LevelPct => {
+                    set_clamped_f32(&mut synth.osc2.level_pct, value, 0.0, 100.0, 1.0)
+                }
+                SynthParamId::Osc2DetuneCents => {
+                    set_clamped_f32(&mut synth.osc2.detune_cents, value, -50.0, 50.0, 1.0)
+                }
+                SynthParamId::Osc2PulseWidthPct => {
+                    set_clamped_f32(&mut synth.osc2.pulse_width_pct, value, 5.0, 95.0, 1.0)
+                }
                 SynthParamId::AmpGainPct => {
                     set_clamped_f32(&mut synth.amp.gain_pct, value, 0.0, 100.0, 1.0)
                 }
@@ -169,8 +194,10 @@ impl SynthEngine {
             }
         };
         if mutation == ScalarMutation::Changed {
-            self.synth_render_configs[slot] =
-                SynthVoiceRenderConfig::from_config(self.instruments[slot]);
+            let source_generation = self.synth_render_configs[slot].source_generation;
+            let mut render = SynthVoiceRenderConfig::from_config(self.instruments[slot]);
+            render.source_generation = source_generation;
+            self.synth_render_configs[slot] = render;
             self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
         }
         mutation

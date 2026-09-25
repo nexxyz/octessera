@@ -1,7 +1,8 @@
 use super::aux_auto_map::ResolvedAuxSlot;
 use super::aux_auto_map_instrument_layouts::{
-    instrument_amp_auto_map, instrument_envelope_auto_map, instrument_filter_auto_map,
-    instrument_mixer_auto_map, instrument_oscillator_auto_map, instrument_sample_auto_map,
+    instrument_amp_auto_map, instrument_drum_voice_auto_map, instrument_envelope_auto_map,
+    instrument_filter_auto_map, instrument_fm_tone_auto_map, instrument_mixer_auto_map,
+    instrument_oscillator_auto_map, instrument_pluck_string_auto_map, instrument_sample_auto_map,
 };
 use super::*;
 use crate::native_menu::section_labels::{LINK_LABEL, PLAY_LABEL};
@@ -187,6 +188,9 @@ impl NativeRunner {
             .or_else(|| instrument_envelope_auto_map(self, field, &prefix))
             .or_else(|| instrument_oscillator_auto_map(self, field, &prefix))
             .or_else(|| instrument_amp_auto_map(self, field, &prefix))
+            .or_else(|| instrument_fm_tone_auto_map(self, field, &prefix))
+            .or_else(|| instrument_pluck_string_auto_map(self, field, &prefix))
+            .or_else(|| instrument_drum_voice_auto_map(self, index, field, &prefix))
             .or_else(|| instrument_sample_auto_map(self, index, field, &prefix))
             .or_else(|| instrument_mixer_auto_map(self, field, &prefix))
     }

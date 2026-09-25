@@ -56,6 +56,9 @@ fn none_allows_ninth_same_slot_sample_admission_without_stealing() {
     engine.set_instrument_slot(
         0,
         InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,
@@ -108,6 +111,9 @@ fn none_rejects_sample_admission_at_physical_capacity_without_mutation() {
     engine.set_instrument_slot(
         0,
         InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,

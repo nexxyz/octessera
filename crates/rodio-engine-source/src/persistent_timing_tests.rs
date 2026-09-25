@@ -132,6 +132,7 @@ fn routing_tree_timing_failure_recovers_and_resumes_fresh_output() {
             prepare_instruments_config(
                 InstrumentsConfig {
                     instruments: vec![InstrumentSlotConfig {
+                        fm: None,
                         kind: "synth".into(),
                         synth: default_synth_config(),
                         mixer: None,

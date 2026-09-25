@@ -23,6 +23,16 @@ impl<'a> ControlDrain<'a> {
                     engine.note_on(instrument_slot, note, velocity, duration_ms)
                 });
             }
+            EngineEvent::DrumHit {
+                instrument_slot,
+                voice,
+                tune_semis,
+                velocity,
+            } => {
+                Self::apply_source_event(engine, source_event_sample_clock, |engine| {
+                    engine.drum_hit(instrument_slot, voice, tune_semis, velocity)
+                });
+            }
             EngineEvent::NoteOff {
                 instrument_slot,
                 note,
@@ -200,6 +210,9 @@ impl<'a> ControlDrain<'a> {
             | EngineEvent::SetInstrumentMixer { .. }
             | EngineEvent::SetFxBusMixer { .. }
             | EngineEvent::SetSynthParam { .. }
+            | EngineEvent::SetFmParam { .. }
+            | EngineEvent::SetPluckParam { .. }
+            | EngineEvent::SetDrumParam { .. }
             | EngineEvent::SetSampleBankParam { .. }
             | EngineEvent::SetFxBusParam { .. }
             | EngineEvent::SetGlobalFxParam { .. }
@@ -259,6 +272,17 @@ impl<'a> ControlDrain<'a> {
                 })
             }
             EngineEvent::NoteOn { .. } => {}
+            EngineEvent::DrumHit {
+                instrument_slot,
+                voice,
+                tune_semis,
+                velocity,
+            } if allow_note_on => {
+                Self::apply_source_event(engine, source_event_sample_clock, |engine| {
+                    engine.drum_hit(instrument_slot, voice, tune_semis, velocity)
+                })
+            }
+            EngineEvent::DrumHit { .. } => {}
             EngineEvent::NoteOff {
                 instrument_slot,
                 note,
@@ -281,7 +305,10 @@ impl<'a> ControlDrain<'a> {
             }
             LatestKey::InstrumentVolume(slot)
             | LatestKey::InstrumentPan(slot)
-            | LatestKey::SynthParam(slot, _) => Some(self.generations.instrument[slot]),
+            | LatestKey::SynthParam(slot, _)
+            | LatestKey::FmParam(slot, _)
+            | LatestKey::PluckParam(slot, _) => Some(self.generations.instrument[slot]),
+            LatestKey::DrumParam(slot, _, _) => Some(self.generations.instrument[slot]),
             LatestKey::SampleBankParam(slot, _) => Some(self.generations.sample[slot]),
             LatestKey::FxBusVolume(bus) | LatestKey::FxBusPan(bus) => {
                 Some(self.generations.bus_mixer[bus])
@@ -331,6 +358,15 @@ impl<'a> ControlDrain<'a> {
             }
             LatestKey::SynthParam(slot, param) => {
                 engine.set_synth_param_typed(slot, param, value);
+            }
+            LatestKey::FmParam(slot, param) => {
+                engine.set_fm_param_typed(slot, param, value);
+            }
+            LatestKey::PluckParam(slot, param) => {
+                engine.set_pluck_param_typed(slot, param, value);
+            }
+            LatestKey::DrumParam(slot, voice, param) => {
+                engine.set_drum_param_typed(slot, voice as u8, param, value);
             }
             LatestKey::SampleBankParam(slot, param) => {
                 engine.set_sample_bank_param_typed(slot, param, value);

@@ -111,11 +111,17 @@ fn mixed_config(value: f32) -> realtime_engine::synth::PreparedAudioConfig {
         InstrumentsConfig {
             instruments: vec![
                 InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "synth".into(),
                     synth: default_synth_config(),
                     mixer: None,
                 },
                 InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "sampler".into(),
                     synth: default_synth_config(),
                     mixer: None,

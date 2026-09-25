@@ -186,6 +186,10 @@ impl NativeRunnerConstructionSeed {
             instrument_sample_paths: instrument_sample_paths(&self.instruments),
             instrument_sample_availability: self.sample_availability.clone(),
             instrument_synth_configs: instrument_synth_configs(&self.instruments),
+            instrument_fm_configs: instrument_fm_configs(&self.instruments),
+            instrument_pluck_configs: instrument_pluck_configs(&self.instruments),
+            instrument_drum_configs: super::drum_config::instrument_drum_configs(&self.instruments),
+            instrument_drum_selected_voices: vec![0; INSTRUMENT_COUNT],
             instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&self.instruments),
             instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&self.instruments),
             instrument_synth_filter_types: instrument_synth_filter_types(&self.instruments),
@@ -261,6 +265,10 @@ impl NativeRunnerConstructionSeed {
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
             play_mode: self.play_mode.clone(),
+            play_drum_selected_slot: self
+                .instruments
+                .iter()
+                .position(|instrument| instrument.kind == "drum"),
             play_fx_type: play_fx_type(&self.play_fx_selected).into(),
             play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
             play_fx_params: play_fx_params_map(&self.play_fx_selected),

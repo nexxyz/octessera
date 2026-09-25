@@ -236,9 +236,9 @@ or wiring harness.
 The native runtime keeps Jack Audio on while USB Audio and HDMI Audio remain
 independently selectable optional mirrors on the Orange profile. The
 smoke artifacts remain diagnostic-only. The production runtime routes internal
-synth/sample audio through the realtime engine and emits MIDI through the native
-host adapter. Orange Check, Apply, and Rollback use the root-owned broker and
-guarded updater with the explicit profile-qualified
+Synth, FM, Plucked, Drum, and Sampler audio through the realtime engine and
+emits MIDI through the native host adapter. Orange Check, Apply, and Rollback
+use the root-owned broker and guarded updater with the explicit profile-qualified
 `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and
 `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt` pair. Profile, asset,
 manifest, checksum, and health failures return typed failure and stop; no

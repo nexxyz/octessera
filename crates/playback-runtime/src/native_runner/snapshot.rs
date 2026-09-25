@@ -23,9 +23,16 @@ impl NativeRunner {
         let menu = self.menu.snapshot();
         let mut leds = self.base_led_snapshot(&model);
         self.apply_scan_progress_overlay(&mut leds);
-        self.apply_sample_assignment_overlay(&mut leds);
-        self.apply_trigger_probability_overlay(&mut leds);
         self.apply_play_overlay(&mut leds);
+        if self.play_fx_assign.is_none() {
+            if self.sample_assign.is_some() {
+                self.apply_sample_assignment_overlay(&mut leds);
+            } else if self.drum_assign.is_some() || self.drum_cell_tune.is_some() {
+                self.apply_drum_assignment_overlay(&mut leds);
+            } else if self.trigger_probability_assign.is_some() {
+                self.apply_trigger_probability_overlay(&mut leds);
+            }
+        }
         self.apply_param_mod_overlay(&mut leds);
         self.apply_fn_overlay(&mut leds);
         let mut led_rgb = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT * 3);

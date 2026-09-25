@@ -24,6 +24,9 @@ fn set_instruments_preserves_unchanged_fx_state() {
     let instruments = |slot1| {
         vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: cfg,
                 mixer: Some(InstrumentMixerConfig {
@@ -33,6 +36,9 @@ fn set_instruments_preserves_unchanged_fx_state() {
                 }),
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: slot1,
                 mixer: Some(InstrumentMixerConfig {

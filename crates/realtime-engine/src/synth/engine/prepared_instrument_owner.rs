@@ -38,13 +38,14 @@ impl SynthEngine {
             prepared.kind,
             prepared.synth,
             prepared.render_config,
-            prepared
-                .route
-                .map(|route| super::control::NormalizedInstrumentMixer {
+            prepared.drum_voices,
+            prepared.route.map(|route| {
+                super::control::instrument_slot_control::NormalizedInstrumentMixer {
                     route,
                     pan_pos: prepared.pan_pos.min(self.pan_positions - 1),
                     volume: prepared.volume,
-                }),
+                }
+            }),
         );
         if has_mixer {
             self.slot_pan_gains[index] =

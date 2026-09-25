@@ -247,6 +247,16 @@ impl HostAdapter for OrangeHostAdapter {
         self.audio_host.handle_musical_event(event)
     }
 
+    fn handle_drum_hit(
+        &mut self,
+        hit: &playback_runtime::DrumHit,
+    ) -> Result<(), RuntimeAdapterError> {
+        if self.shutdown_pending() {
+            return Ok(());
+        }
+        self.audio_host.handle_drum_hit(hit)
+    }
+
     fn handle_platform_effect(
         &mut self,
         request: &RuntimePlatformRequest,

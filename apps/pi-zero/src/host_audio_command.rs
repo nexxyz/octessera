@@ -8,7 +8,8 @@ use host_audio_command_validation::{
 use playback_runtime::{RuntimeAdapterError, RuntimeAudioCommand};
 use realtime_engine::synth::{
     prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_momentary_fx_type,
-    SampleBankParamId, SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE,
+    DrumParamId, FmParamId, PluckParamId, SampleBankParamId, SynthParamId,
+    DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::Path;
@@ -109,6 +110,59 @@ pub fn send_audio_command(
             })?;
             audio.send(EngineEvent::SetSynthParam {
                 instrument_slot: index_u8(*instrument_slot, "instrument slot")?,
+                generation: *generation,
+                param,
+                value: *value,
+            })?;
+            Ok(())
+        }
+        RuntimeAudioCommand::SetFmParam {
+            instrument_slot,
+            generation,
+            path,
+            value,
+        } => {
+            let param = FmParamId::from_path(path).ok_or_else(|| {
+                invalid_audio_command(format!("unsupported FM parameter path `{path}`"))
+            })?;
+            audio.send(EngineEvent::SetFmParam {
+                instrument_slot: index_u8(*instrument_slot, "instrument slot")?,
+                generation: *generation,
+                param,
+                value: *value,
+            })?;
+            Ok(())
+        }
+        RuntimeAudioCommand::SetPluckParam {
+            instrument_slot,
+            generation,
+            path,
+            value,
+        } => {
+            let param = PluckParamId::from_path(path).ok_or_else(|| {
+                invalid_audio_command(format!("unsupported Plucked parameter path `{path}`"))
+            })?;
+            audio.send(EngineEvent::SetPluckParam {
+                instrument_slot: index_u8(*instrument_slot, "instrument slot")?,
+                generation: *generation,
+                param,
+                value: *value,
+            })?;
+            Ok(())
+        }
+        RuntimeAudioCommand::SetDrumParam {
+            instrument_slot,
+            voice,
+            generation,
+            path,
+            value,
+        } => {
+            let param = DrumParamId::from_path(path).ok_or_else(|| {
+                invalid_audio_command(format!("unsupported Drum parameter path `{path}`"))
+            })?;
+            audio.send(EngineEvent::SetDrumParam {
+                instrument_slot: index_u8(*instrument_slot, "instrument slot")?,
+                voice: *voice,
                 generation: *generation,
                 param,
                 value: *value,

@@ -46,6 +46,9 @@ fn active_fx_bus_keeps_processing_after_recent_signal() {
 fn delay_bus_test_config(feedback: f32) -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {

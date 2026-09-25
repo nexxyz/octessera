@@ -7,9 +7,9 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 ```
 Shape
 ├── Instruments (group)
-│   ├── Instrument 1..8 (group)                ← compact overview label e.g. `I1: synth direct`, `I2: samp fxb1`, `I3: midi ch1`
-│   │   ├── Type: [none | synth | sampler | midi]
-│   │   ├── Note Mode: [oneshot | hold] default oneshot
+│   ├── Instrument 1..8 (group)                ← compact overview label e.g. `I1: synth direct`, `I2: FM direct`, `I3: Plucked direct`, `I4: Drum direct`, `I5: samp fxb1`, `I6: midi ch1`
+│   │   ├── Type: [none | synth | sampler | midi | fm | pluck | drum]   ← fm displays as FM; pluck as Plucked; drum as Drum
+│   │   ├── Note Mode: [oneshot | hold] default oneshot; hidden for Drum (always oneshot)
 │   │   ├── Synth (group, visible when type=synth)
 │   │   │   ├── Preset > Load (group)      ← per-slot synth preset load with confirm
 │   │   │   ├── Osc 1 (group)              ← Wave, Octave, Level, Detune, Pulse Width
@@ -18,6 +18,27 @@ Shape
 │   │   │   ├── Volume (group)             ← Gain, Vel Sens
 │   │   │   ├── Amp Env (group)            ← ADSR loudness contour
 │   │   │   └── Filter Env (group)         ← ADSR filter contour
+│   │   ├── FM (group, visible when type=fm)
+│   │   │   ├── Tone (group)               ← Ratio: [0.5 | 1 | 2 | 3 | 4 | 5 | 6 | 8] default 2, displayed as 1:2 | 1:1 | 2:1 ... 8:1; Index: [0..100] default 50
+│   │   │   ├── Index Env (group)          ← Attack 0 ms, Decay 250 ms, Sustain 20%, Release 120 ms by default
+│   │   │   ├── Filter (group)             ← same Type, Cutoff, Res, Env Amount, Key Tracking controls as Synth
+│   │   │   ├── Volume (group)             ← Gain 80%, Vel Sens 100% by default
+│   │   │   ├── Amp Env (group)            ← Attack 5 ms, Decay 300 ms, Sustain 70%, Release 350 ms by default
+│   │   │   └── Filter Env (group)         ← same ADSR controls and defaults as Synth
+│   │   ├── Drum (group, visible when type=drum)
+│   │   │   ├── Voice: [V1: Kick ... V8: Rim]  ← current Sound supplies each name; 8 kit voices
+│   │   │   ├── Edit (group)               ← Sound [kick | snare | closed_hat | open_hat | low_tom | high_tom | clap | rim], Tune -12..12 st, Decay 20..2000 ms, Tone 0..100%, Attack 0..50 ms
+│   │   │   ├── !Assign                     ← per-cell set/replace/toggle with selected voice
+│   │   │   ├── !Cell Tune                  ← assigned cell offset -24..24 st; Back returns/exits
+│   │   │   ├── !Preview                    ← base voice pitch, no cell offset
+│   │   │   ├── Filter (group)             ← own Type, Cutoff, Res, Env Amount, Key Tracking settings
+│   │   │   └── Volume (group)             ← own Gain 80%, Vel Sens 100%; no visible Drum Amp/Filter Env pages
+│   │   ├── Plucked (group, visible when type=pluck)
+│   │   │   ├── String (group)             ← Decay 100..5000 ms default 1500; Brightness 0..100% default 65; Pick Pos 5..50% default 25
+│   │   │   ├── Filter (group)             ← same Type, Cutoff, Res, Env Amount, Key Tracking controls as Synth
+│   │   │   ├── Volume (group)             ← Gain 80%, Vel Sens 100% by default
+│   │   │   ├── Amp Env (group)            ← Attack 0 ms, Decay 0 ms, Sustain 100%, Release 900 ms by default
+│   │   │   └── Filter Env (group)         ← same ADSR controls and defaults as Synth
 │   │   ├── Sampler (group, visible when type=sampler)
 │   │   │   ├── Sample Slot: [1..8]
 │   │   │   ├── S* Browse (group)          ← browses `samples/` tree (wav only)
@@ -38,7 +59,7 @@ Shape
 │   │   ├── MIDI (group)
 │   │   │   ├── Enabled: [on | off]       default off
 │   │   │   └── Channel: [1..16]
-│   │   ├── Auto Label: [on | off]        ← on: label auto-derives from Type as display text (`Synth`, `Sampler`, `MIDI`); off: label is manual text
+│   │   ├── Auto Label: [on | off]        ← on: label auto-derives from Type as display text (`Synth`, `FM`, `Plucked`, `Drum`, `Sampler`, `MIDI`); off: label is manual text
 │   │   ├── Name: (text, max 32)          ← display label; editing sets Auto Label off; charset includes uppercase, lowercase, digits, space, `_`, `-`
 │   │   └── Slot Actions (group)
 │   │       ├── !Clone (action)           ← duplicates instrument config to next free slot, with confirmation
@@ -68,12 +89,18 @@ Shape
 
 When an instrument Type is `none`, the slot keeps Type, Auto Label, and Name visible and hides Note Mode, engine-specific groups, Mixer, MIDI, and Slot Actions without deleting stored config.
 
+FM uses a sine carrier and modulator. Ratio sets the modulator-to-carrier pitch relationship; Index adds harmonics, with 50 mapping to 2 radians of modulation depth (0..100 maps to 0..4 radians). Index Env shapes that depth independently from the Amp and Filter envelopes. The Tone, Index Env, Filter, Volume, Amp Env, and Filter Env rows fit on one OLED page below the title; open a group to edit its controls with the usual encoder and Back.
+
+Plucked makes a ringing string you can color with Decay, Brightness, and Pick Pos. Pick Pos shapes the next pluck, not a note already ringing. Its String, Filter, Volume, Amp Env, and Filter Env rows fit below the OLED title; edit and Back work just as they do for Synth and FM.
+
+Drum starts with eight voices and no assigned grid cells. Sound changes only the selected voice's style controls; the Voice label follows its current Sound. Tune, Decay, Tone, and Attack set up the next hit, not one already ringing. Assign sets/replaces or toggles off cells with the selected voice: plain press edits one cell, Shift+press the whole world-space row (bottom is `y=0`), and the combined modifier a column. Cell Tune edits an assigned cell's own ±24-semitone offset; an empty cell says `No drum here`. Back returns to cell selection, then exits without undoing assignments. Preview plays the selected voice at its own Tune, without a cell offset. No kit-loading page or automatic full-grid map is present.
+
 ### Routing semantics
 
 - Instrument `Volume` is a post-voice per-slot fader controlled by `Play > Mix`.
 - Instrument `Route=direct` sends post-fader output to main mix using instrument `Pan Pos`.
 - Instrument `Route=fx_bus_n` sends post-fader output to the selected FX bus (exclusive send); instrument `Pan Pos` is non-editable because bus output pan controls placement.
-- Internal synth and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.
+- Internal synth, FM, Plucked, Drum, and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.
 - Each bus runs `Slot 1`, then `Slot 2`, then `Slot 3` in order; with `none` selected this is passthrough.
 - Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed, before global momentary FX and `Master Vol`.
 - FX bus assignments above the recommended active bus warning budget of 12 active bus FX slots are accepted and saved, but the runtime shows a toast warning. Global stereo FX slots do not count toward the bus FX warning budget.

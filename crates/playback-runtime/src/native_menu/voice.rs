@@ -1,15 +1,22 @@
 use super::{
-    action_item, bool_item, enum_item, group, number_item, selected_index, text_item,
-    NativeMenuAction, NativeMenuItem, NativeSampleAvailability, NativeSampleBrowserConfig,
+    action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
+    text_item, NativeMenuAction, NativeMenuItem, NativeSampleAvailability,
+    NativeSampleBrowserConfig,
 };
 
+mod drum;
+mod fm;
 mod midi;
 mod mixer;
+mod pluck;
 mod sampler;
 mod synth;
 
+use drum::drum_group;
+use fm::fm_group;
 use midi::midi_group;
 use mixer::mixer_group;
+use pluck::pluck_group;
 use sampler::sampler_group;
 use synth::synth_group;
 
@@ -27,6 +34,10 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_paths: &'a [Option<String>],
     pub(super) sample_availability: &'a [NativeSampleAvailability],
     pub(super) synth_config: Option<&'a serde_json::Value>,
+    pub(super) fm_config: Option<&'a serde_json::Value>,
+    pub(super) pluck_config: Option<&'a serde_json::Value>,
+    pub(super) drum_config: Option<&'a serde_json::Value>,
+    pub(super) drum_voice: usize,
     pub(super) synth_osc1_waveform: &'a str,
     pub(super) synth_osc2_waveform: &'a str,
     pub(super) synth_filter_type: &'a str,
@@ -59,12 +70,15 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         "none" => 0,
         "sampler" => 2,
         "midi" => 3,
+        "fm" => 4,
+        "pluck" => 5,
+        "drum" => 6,
         _ => 1,
     };
     let mut children = vec![enum_item(
         "Type",
         format!("{prefix}.type"),
-        vec!["none", "synth", "sampler", "midi"],
+        vec!["none", "synth", "sampler", "midi", "fm", "pluck", "drum"],
         type_selected,
     )];
     if config.kind == "none" {
@@ -76,14 +90,25 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         children.push(text_item("Name", format!("{prefix}.name"), config.name, 32));
         return group(config.label.clone(), children);
     }
-    children.push(enum_item(
-        "Note Mode",
-        format!("{prefix}.noteBehavior"),
-        vec!["oneshot", "hold"],
-        selected_index(&["oneshot", "hold"], config.note_behavior),
-    ));
+    if config.kind != "drum" {
+        children.push(enum_item(
+            "Note Mode",
+            format!("{prefix}.noteBehavior"),
+            vec!["oneshot", "hold"],
+            selected_index(&["oneshot", "hold"], config.note_behavior),
+        ));
+    }
     if config.kind == "synth" {
         children.push(synth_group(&config, &prefix));
+    }
+    if config.kind == "fm" {
+        children.push(fm_group(&config, &prefix));
+    }
+    if config.kind == "pluck" {
+        children.push(pluck_group(&config, &prefix));
+    }
+    if config.kind == "drum" {
+        children.push(drum_group(&config, &prefix));
     }
     if config.kind == "sampler" {
         children.push(sampler_group(&config, &prefix));
@@ -91,7 +116,7 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
     if config.kind == "midi" {
         children.push(midi_group(&config, &prefix));
     }
-    if matches!(config.kind, "synth" | "sampler") {
+    if matches!(config.kind, "synth" | "sampler" | "fm" | "pluck" | "drum") {
         children.push(mixer_group(&config, &prefix));
     }
     children.push(bool_item(

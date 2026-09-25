@@ -8,6 +8,9 @@ pub(crate) fn default_pi_instruments() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)
             .map(|idx| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth,
                 mixer: Some(InstrumentMixerConfig {

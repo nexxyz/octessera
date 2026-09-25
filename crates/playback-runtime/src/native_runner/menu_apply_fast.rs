@@ -49,6 +49,12 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
+        if key == "play.page.drums" {
+            return self.fast_play_page_key("drums");
+        }
+        if key == "play.drums.slot" {
+            return self.fast_play_drum_slot_key(key);
+        }
         if key == "play.fx.type" {
             return self.fast_play_fx_type_key(key);
         }

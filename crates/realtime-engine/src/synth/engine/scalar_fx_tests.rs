@@ -205,6 +205,9 @@ fn prepared_delay_geometry_grows_and_declines_without_callback_resize() {
 fn scalar_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {

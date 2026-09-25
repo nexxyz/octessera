@@ -15,6 +15,12 @@ pub struct InstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) synth: Option<SynthDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) fm: Option<FmDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) pluck: Option<PluckDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) drum: Option<DrumDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) sample: Option<SampleDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi: Option<MidiInstrumentDto>,
@@ -103,6 +109,86 @@ pub struct SynthDto {
     pub(super) filter: Option<FilterDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) filter_env: Option<EnvelopeDto>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FmDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) ratio: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) index: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) index_env: Option<EnvelopeDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) amp: Option<SynthAmpDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) amp_env: Option<EnvelopeDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) filter: Option<FilterDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) filter_env: Option<EnvelopeDto>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluckDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) decay_ms: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) brightness_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) pick_position_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) amp: Option<SynthAmpDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) amp_env: Option<EnvelopeDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) filter: Option<FilterDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) filter_env: Option<EnvelopeDto>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DrumDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) voices: Option<Vec<DrumVoiceDto>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) assignments: Option<Vec<DrumAssignmentDto>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) amp: Option<SynthAmpDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) amp_env: Option<EnvelopeDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) filter: Option<FilterDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) filter_env: Option<EnvelopeDto>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DrumVoiceDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) sound: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tune_semis: Option<i8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) decay_ms: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tone_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) attack_ms: Option<u8>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DrumAssignmentDto {
+    pub(super) x: Option<u8>,
+    pub(super) y: Option<u8>,
+    pub(super) voice: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tune_semis: Option<i8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

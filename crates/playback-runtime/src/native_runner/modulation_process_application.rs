@@ -3,6 +3,7 @@ use super::modulation_process::ModulationProcessState;
 use super::modulation_process_audio::queue_changed_instrument_commands;
 use super::modulation_target::Endpoint;
 use super::{NativeParamBinding, NativeRunner, Value};
+use crate::protocol::RuntimeAudioCommand;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(super) struct ComposedAudioApplication<'a> {
@@ -77,6 +78,7 @@ pub(super) fn apply_composed_audio_commands(
     runner: &mut NativeRunner,
     application: ComposedAudioApplication<'_>,
 ) {
+    let mut composed_keys = BTreeSet::new();
     for endpoint in application.endpoints {
         let Some(commands) = super::modulation_process_audio::materialize_endpoint_commands(
             runner,
@@ -86,6 +88,20 @@ pub(super) fn apply_composed_audio_commands(
         ) else {
             continue;
         };
+        if let Endpoint::InstrumentParameter { index, field } = &endpoint {
+            if commands.iter().any(|command| {
+                matches!(
+                    command,
+                    RuntimeAudioCommand::SetSynthParam { .. }
+                        | RuntimeAudioCommand::SetFmParam { .. }
+                        | RuntimeAudioCommand::SetPluckParam { .. }
+                        | RuntimeAudioCommand::SetDrumParam { .. }
+                        | RuntimeAudioCommand::SetSampleBankParam { .. }
+                )
+            }) {
+                composed_keys.insert(format!("instruments.{index}.{field}"));
+            }
+        }
         if (application.transient_endpoints.contains(&endpoint) && application.force)
             || state.audio_commands.get(&endpoint) != Some(&commands)
         {
@@ -95,7 +111,12 @@ pub(super) fn apply_composed_audio_commands(
             }
         }
     }
-    queue_changed_instrument_commands(runner, application.resolved, application.changed_keys);
+    queue_changed_instrument_commands(
+        runner,
+        application.resolved,
+        application.changed_keys,
+        &composed_keys,
+    );
     state
         .audio_commands
         .retain(|endpoint, _| application.active_endpoints.contains(endpoint));

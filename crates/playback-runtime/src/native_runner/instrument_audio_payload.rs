@@ -9,10 +9,13 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
         .collect::<Vec<_>>();
     json!({
         "type": instrument.kind,
-        "noteBehavior": instrument.note_behavior,
+        "noteBehavior": if instrument.kind == "drum" { "oneshot" } else { &instrument.note_behavior },
         "autoName": instrument.auto_name,
         "name": instrument.name,
         "synth": instrument.synth_config,
+        "fm": instrument.fm_config,
+        "pluck": instrument.pluck_config,
+        "drum": instrument.drum_config,
         "sample": {
             "selectedSlot": instrument.selected_sample_slot,
             "baseVelocity": instrument.sample_base_velocity,

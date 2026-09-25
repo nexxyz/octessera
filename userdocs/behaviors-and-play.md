@@ -96,8 +96,9 @@ Hold **Fn** and use the right grid column to choose a Play page.
 | Pan | Grid becomes a stereo field. | Move around the layers' stereo position. |
 | FX | Grid cells hold live effects. | Press mapped cells to trigger effects; release to stop them. |
 | Trigger Gate | Grid becomes a trigger gate. | Quickly block, allow, or use custom probability for each layer's triggers. |
-| Transpose | Grid becomes a pitch offset picker. | Temporarily transpose eligible synth and MIDI layers. |
+| Transpose | Grid becomes a pitch offset picker. | Temporarily transpose Synth, FM, Plucked, and enabled MIDI notes; not Sampler or Drum. |
 | XY | Grid becomes a mappable two-axis surface. | Live-manipulate assigned parameters with X/Y touch position. |
+| Drums | Grid plays mapped drum voices. | Pick a Drum slot and tap its assigned cells, even while stopped. Empty cells stay quiet. |
 
 ## Play FX details
 

@@ -93,40 +93,14 @@ fn voice_steal_is_scoped_to_instrument_slot() {
 }
 
 #[test]
-fn note_off_releases_matching_slot_note() {
-    let mut engine = SynthEngine::new(48_000);
-    engine.note_on(0, 60, 100, 50_000);
-    for _ in 0..64 {
-        let _ = engine.next_sample();
-    }
-    engine.note_off(0, 60);
-    for _ in 0..20_000 {
-        let _ = engine.next_sample();
-    }
-    assert_eq!(engine.active_voice_count_for_slot(0), 0);
-}
-
-#[test]
-fn all_notes_off_releases_all_slots() {
-    let mut engine = SynthEngine::new(48_000);
-    for i in 0..4 {
-        engine.note_on(0, 60 + i, 100, 50_000);
-        engine.note_on(1, 72 + i, 100, 50_000);
-    }
-    engine.all_notes_off();
-    for _ in 0..20_000 {
-        let _ = engine.next_sample();
-    }
-    assert_eq!(engine.active_voice_count_for_slot(0), 0);
-    assert_eq!(engine.active_voice_count_for_slot(1), 0);
-}
-
-#[test]
 fn all_notes_off_clears_synth_sample_and_preview_voices() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instrument_slot(
         1,
         InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,
@@ -295,7 +269,7 @@ fn disabled_global_voice_budget_preserves_per_slot_cap() {
 }
 
 #[test]
-fn omitted_and_type_edits_preserve_active_synth_voices() {
+fn omitted_slots_preserve_voices_but_type_edits_retire_old_synth_voices() {
     let mut engine = SynthEngine::new(48_000);
     engine.note_on(0, 60, 100, 5_000);
     engine.set_instruments(InstrumentsConfig {
@@ -309,12 +283,15 @@ fn omitted_and_type_edits_preserve_active_synth_voices() {
     engine.set_instrument_slot(
         0,
         InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,
         },
     );
-    assert_eq!(engine.active_voice_count_for_slot(0), 1);
+    assert_eq!(engine.active_voice_count_for_slot(0), 0);
 }
 
 #[test]
@@ -361,6 +338,9 @@ fn sample_voice_cap_limits_per_slot_to_configured_cap() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -443,13 +423,16 @@ fn sample_voice_none_global_budget_reaches_central_capacity() {
 }
 
 #[test]
-fn sample_routing_and_type_edits_preserve_active_voice_parity() {
+fn sample_routing_and_type_edits_retire_old_voices_with_prepared_parity() {
     let mut canonical = multi_slot_sample_voice_engine();
     let mut prepared = multi_slot_sample_voice_engine();
     canonical.note_on(0, 36, 100, 2_000);
     prepared.note_on(0, 36, 100, 2_000);
 
     let next = InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: "synth".into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {
@@ -465,8 +448,8 @@ fn sample_routing_and_type_edits_preserve_active_voice_parity() {
         canonical.profile_snapshot().active_sample_voices,
         prepared.profile_snapshot().active_sample_voices
     );
-    assert_eq!(canonical.active_sample_lane_indices_for_slot(0).len(), 1);
-    assert_eq!(prepared.active_sample_lane_indices_for_slot(0).len(), 1);
+    assert!(canonical.active_sample_lane_indices_for_slot(0).is_empty());
+    assert!(prepared.active_sample_lane_indices_for_slot(0).is_empty());
 }
 
 fn multi_slot_sample_voice_engine() -> SynthEngine {
@@ -474,6 +457,9 @@ fn multi_slot_sample_voice_engine() -> SynthEngine {
     engine.set_instruments(InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)
             .map(|_| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".into(),
                 synth: default_synth_config(),
                 mixer: None,

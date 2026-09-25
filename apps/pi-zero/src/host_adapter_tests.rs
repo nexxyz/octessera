@@ -16,6 +16,63 @@ fn assert_sd2_store_error(response: &[HostMessage], message: &str) {
 }
 
 #[test]
+fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
+    let root = std::env::temp_dir().join(format!("octessera-pi-drum-host-{}", std::process::id()));
+    let (audio, _, mut rx, _) =
+        crate::audio::test_service_with_recording_dir(root.join("recordings"));
+    let mut adapter = PiPlaybackHostAdapter::new(
+        Some(audio),
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        UsbAudioOut::Jack,
+    );
+    let hit = DrumHit {
+        instrument_slot: 1,
+        voice: 7,
+        tune_semis: -24,
+        velocity: 100,
+    };
+    adapter.handle_runtime_drum_hit(&hit).unwrap();
+    assert!(matches!(
+        rx.try_recv(),
+        Ok(EngineEvent::DrumHit {
+            instrument_slot: 1,
+            voice: 7,
+            tune_semis: -24,
+            velocity: 100,
+        })
+    ));
+    for invalid in [
+        DrumHit {
+            instrument_slot: 8,
+            ..hit.clone()
+        },
+        DrumHit {
+            voice: 8,
+            ..hit.clone()
+        },
+        DrumHit {
+            tune_semis: 25,
+            ..hit.clone()
+        },
+        DrumHit { velocity: 0, ..hit },
+    ] {
+        assert_eq!(
+            adapter
+                .handle_runtime_drum_hit(&invalid)
+                .unwrap_err()
+                .facts
+                .code,
+            RuntimeErrorCode::InvalidPayload
+        );
+    }
+    assert!(rx.try_recv().is_err());
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn raspberry_sd2_start_rejects_active_usb_audio() {
     let root =
         std::env::temp_dir().join(format!("octessera-pi-sd2-usb-audio-{}", std::process::id()));

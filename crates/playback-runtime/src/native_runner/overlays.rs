@@ -14,6 +14,7 @@ impl NativeRunner {
             "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),
             "transpose" => self.apply_play_transpose_overlay(leds),
             "xy" => self.apply_play_xy_overlay(leds),
+            "drums" => self.apply_play_drum_overlay(leds),
             _ => {}
         }
     }
@@ -38,6 +39,61 @@ impl NativeRunner {
                 LedColor::SYSTEM.dim(3)
             };
             self.set_display_led(leds, assignment.x, assignment.y, color);
+        }
+    }
+
+    pub(super) fn apply_drum_assignment_overlay(&self, leds: &mut [LedColor]) {
+        let Some((slot, selected_voice)) = self
+            .drum_assign
+            .map(|(slot, voice)| (slot, Some(voice)))
+            .or_else(|| self.drum_cell_tune.map(|(slot, _)| (slot, None)))
+        else {
+            return;
+        };
+        self.fill_leds(leds, LedColor::BLACK);
+        let Some(assignments) = self
+            .instruments
+            .get(slot)
+            .and_then(|instrument| instrument.drum_config.get("assignments"))
+            .and_then(serde_json::Value::as_array)
+        else {
+            return;
+        };
+        for cell in assignments {
+            let Some((x, y, voice)) = cell_coordinates(cell) else {
+                continue;
+            };
+            let selected_cell = self
+                .drum_cell_tune
+                .is_some_and(|(_, selected)| selected == Some((x, y)));
+            let color = if selected_cell || selected_voice == Some(voice) {
+                LedColor::WHITE
+            } else {
+                LedColor::WHITE.dim(3)
+            };
+            self.set_display_led(leds, x, y, color);
+        }
+    }
+
+    fn apply_play_drum_overlay(&self, leds: &mut [LedColor]) {
+        self.fill_leds(leds, LedColor::BLACK);
+        let slot = self.play_drum_selected_slot.or_else(|| {
+            self.instruments
+                .iter()
+                .position(|instrument| instrument.kind == "drum")
+        });
+        let Some(assignments) = slot
+            .and_then(|slot| self.instruments.get(slot))
+            .filter(|instrument| instrument.kind == "drum")
+            .and_then(|instrument| instrument.drum_config.get("assignments"))
+            .and_then(serde_json::Value::as_array)
+        else {
+            return;
+        };
+        for cell in assignments {
+            if let Some((x, y, _)) = cell_coordinates(cell) {
+                self.set_display_led(leds, x, y, LedColor::WHITE.dim(3));
+            }
         }
     }
 
@@ -250,4 +306,12 @@ impl NativeRunner {
         }
         (instrument.pan_pos, LedColor::WHITE)
     }
+}
+
+fn cell_coordinates(cell: &serde_json::Value) -> Option<(usize, usize, u8)> {
+    Some((
+        usize::try_from(cell.get("x")?.as_u64()?).ok()?,
+        usize::try_from(cell.get("y")?.as_u64()?).ok()?,
+        u8::try_from(cell.get("voice")?.as_u64()?).ok()?,
+    ))
 }

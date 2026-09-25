@@ -440,6 +440,9 @@ fn four_bus_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: (0..4)
             .map(|slot| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

@@ -248,6 +248,7 @@ fn should_use_number_bar(key: &str) -> bool {
         || key == "transport.bpm"
         || key == "dimTimerSeconds"
         || key == "screenSleepSeconds"
+        || key_lower.ends_with(".fm.index")
         || key.contains(".params.")
         || key_lower.ends_with("pct")
         || key_lower.ends_with("percent")

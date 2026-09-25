@@ -290,6 +290,9 @@ pub(super) fn full_bus_config() -> InstrumentsConfig {
 
 fn instrument(kind: &str, route: &str) -> InstrumentSlotConfig {
     InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: kind.into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {

@@ -18,6 +18,9 @@ fn deterministic_voice_pool_stress_preserves_invariants() {
     engine.set_instrument_slot(
         1,
         InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,

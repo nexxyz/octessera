@@ -310,6 +310,7 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
         RoutedMusicalEvents {
             audio: vec![expected.clone()],
             midi: vec![],
+            drum: Vec::new(),
         },
     );
     assert_eq!(immediate.audio, vec![expected.clone()]);

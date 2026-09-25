@@ -151,7 +151,15 @@ const VOICE_MODES: &[&str] = &[
     "auto-hard",
 ];
 const DISPLAY_MODES: &[&str] = &["bar", "numbers", "bar+numbers"];
-const PLAY_MODES: &[&str] = &["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
+const PLAY_MODES: &[&str] = &[
+    "mix",
+    "pan",
+    "fx",
+    "trigger-gate",
+    "transpose",
+    "xy",
+    "drums",
+];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
 const PLAY_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
 const PLAY_TARGETS: &[&str] = &[

@@ -1,4 +1,22 @@
+use super::source_worker_test_fixtures::dynamic_engine;
 use super::*;
+
+#[test]
+fn worker_scratch_is_exactly_one_parity_shape() {
+    let mut engine = dynamic_engine();
+    let (lifecycle, runtime) =
+        SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
+    assert_eq!(
+        runtime.scratch_shape_for_test(),
+        [
+            (SYNTH_VOICE_PARTITION_LANE_CAPACITY, 2048),
+            (SYNTH_VOICE_PARTITION_LANE_CAPACITY, 2048)
+        ]
+    );
+    assert!(engine.block_slot_scratch.inline_source_executor.is_none());
+    let retirement = runtime.retire();
+    let _ = lifecycle.shutdown(retirement);
+}
 
 #[test]
 fn persistent_source_staging_matches_inline_when_block_size_shrinks() {
@@ -47,6 +65,9 @@ fn routed_delay_engine() -> SynthEngine {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {

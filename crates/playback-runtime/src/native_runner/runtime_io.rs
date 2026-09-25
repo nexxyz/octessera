@@ -136,6 +136,9 @@ impl NativeRunner {
                     events: events.midi,
                 });
             }
+            if !events.drum.is_empty() {
+                out.push(RunnerMessage::DrumHits { hits: events.drum });
+            }
         }
         if self.outbox.has_platform_effects() {
             out.push(RunnerMessage::PlatformEffects {
@@ -237,6 +240,9 @@ impl NativeRunner {
                                 events: events.midi,
                             });
                         }
+                        if !events.drum.is_empty() {
+                            out.push(RunnerMessage::DrumHits { hits: events.drum });
+                        }
                     }
                     out.extend(self.messages_with_snapshot()?);
                     remaining -= before_boundary;
@@ -259,6 +265,9 @@ impl NativeRunner {
                             events: events.midi,
                         });
                     }
+                    if !events.drum.is_empty() {
+                        out.push(RunnerMessage::DrumHits { hits: events.drum });
+                    }
                 }
                 out.extend(self.messages_with_snapshot()?);
                 continue;
@@ -280,6 +289,9 @@ impl NativeRunner {
                     out.push(RunnerMessage::MidiEvents {
                         events: events.midi,
                     });
+                }
+                if !events.drum.is_empty() {
+                    out.push(RunnerMessage::DrumHits { hits: events.drum });
                 }
             }
             out.extend(self.messages_with_snapshot()?);

@@ -169,6 +169,7 @@ fn is_runtime_generated_enum(target: &EnumHelpTarget) -> bool {
     key.starts_with("key:midi.output")
         || key.starts_with("key:midi.input")
         || key.starts_with("key:sample.")
+        || key == "key:instruments.*.drum.voice"
         || target.target.path.contains(" Browse")
 }
 

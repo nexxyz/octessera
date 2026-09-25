@@ -164,6 +164,9 @@ fn instrument_overview_label(index: usize, instrument: &super::NativeInstrumentS
     let route = compact_route_postfix(&instrument.route);
     match instrument.kind.as_str() {
         "sampler" => format!("{prefix} samp {route}"),
+        "fm" => format!("{prefix} fm {route}"),
+        "pluck" => format!("{prefix} pluck {route}"),
+        "drum" => format!("{prefix} drum {route}"),
         "midi" => format!("{prefix} midi ch{}", instrument.midi_channel),
         "none" => format!("{prefix} none"),
         _ => format!("{prefix} synth {route}"),

@@ -152,6 +152,9 @@ fn delay_bus_config() -> InstrumentsConfig {
     let synth = default_synth_config();
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth,
             mixer: Some(InstrumentMixerConfig {
@@ -187,6 +190,9 @@ fn multi_slot_sample_engine() -> SynthEngine {
     engine.set_instruments(InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)
             .map(|_| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".to_string(),
                 synth: default_synth_config(),
                 mixer: None,

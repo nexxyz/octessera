@@ -1,10 +1,12 @@
 use super::routing_tree_executor::RoutingTreeAssignment;
 use super::support::SampleVoice;
+use crate::synth::pluck_string::PluckRings;
 use crate::synth::runtime_state::Voice;
 use crate::synth::types::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};
 
 pub(super) struct RoutingTreeSourceBank {
     pub(super) synth: Box<[Voice; SYNTH_VOICE_LANE_CAPACITY]>,
+    pub(super) rings: PluckRings,
     pub(super) sample: Box<[SampleVoice; SAMPLE_VOICE_LANE_CAPACITY]>,
 }
 
@@ -12,6 +14,7 @@ impl RoutingTreeSourceBank {
     pub(super) fn empty() -> Box<Self> {
         Box::new(Self {
             synth: Box::new([Voice::off(); SYNTH_VOICE_LANE_CAPACITY]),
+            rings: std::array::from_fn(|_| None),
             sample: Box::new(std::array::from_fn(|_| SampleVoice::off())),
         })
     }
@@ -40,6 +43,12 @@ impl RoutingTreeSourceBank {
                 return None;
             }
             banks[worker].synth[lane] = voice;
+            banks[worker].rings[lane] = self.rings[lane].take();
+        }
+        for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
+            if let Some(ring) = self.rings[lane].take() {
+                banks[0].rings[lane] = Some(ring);
+            }
         }
         for lane in 0..SAMPLE_VOICE_LANE_CAPACITY {
             if !self.sample[lane].active {
@@ -68,6 +77,14 @@ impl RoutingTreeSourceBank {
             }
             self.synth[lane] = std::mem::replace(&mut other.synth[lane], Voice::off());
         }
+        for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
+            if let Some(ring) = other.rings[lane].take() {
+                if self.rings[lane].is_some() {
+                    return false;
+                }
+                self.rings[lane] = Some(ring);
+            }
+        }
         for lane in 0..SAMPLE_VOICE_LANE_CAPACITY {
             if !other.sample[lane].active {
                 continue;
@@ -81,6 +98,7 @@ impl RoutingTreeSourceBank {
     }
 
     pub(super) fn clear(&mut self) {
+        debug_assert!(self.rings.iter().all(Option::is_none));
         self.synth.fill(Voice::off());
         self.sample.fill(SampleVoice::off());
     }
@@ -103,6 +121,7 @@ impl RoutingTreeSourceBank {
                     return false;
                 }
                 other.synth[lane] = std::mem::replace(&mut self.synth[lane], Voice::off());
+                other.rings[lane] = self.rings[lane].take();
             }
         }
         for lane in 0..self.sample.len() {

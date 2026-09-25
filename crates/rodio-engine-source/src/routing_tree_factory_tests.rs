@@ -223,6 +223,7 @@ fn routing_rejected_topology_state_is_retired_after_source_callback() {
 fn direct_synth_instruments() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {

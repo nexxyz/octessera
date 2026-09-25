@@ -67,19 +67,23 @@ impl DesktopPlaybackHostAdapter {
     }
 }
 
-fn validate_musical_channel(channel: u8) -> Result<(), RuntimeAdapterError> {
+pub(super) fn validate_musical_channel(channel: u8) -> Result<(), RuntimeAdapterError> {
     (usize::from(channel) < INSTRUMENT_SLOT_COUNT)
         .then_some(())
         .ok_or_else(|| invalid_musical_event(format!("channel is out of range: {channel}")))
 }
 
-fn validate_musical_range(value: u8, max: u8, name: &str) -> Result<(), RuntimeAdapterError> {
+pub(super) fn validate_musical_range(
+    value: u8,
+    max: u8,
+    name: &str,
+) -> Result<(), RuntimeAdapterError> {
     (value <= max)
         .then_some(())
         .ok_or_else(|| invalid_musical_event(format!("{name} is out of range: {value}")))
 }
 
-fn invalid_musical_event(message: impl Into<String>) -> RuntimeAdapterError {
+pub(super) fn invalid_musical_event(message: impl Into<String>) -> RuntimeAdapterError {
     RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
         RuntimeErrorDomain::Audio,
         RuntimeErrorCode::InvalidPayload,

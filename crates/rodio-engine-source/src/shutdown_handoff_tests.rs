@@ -38,6 +38,9 @@ fn shared_sample_engine() -> (SynthEngine, Arc<[f32]>) {
         InstrumentsConfig {
             instruments: (0..INSTRUMENT_SLOT_COUNT)
                 .map(|_| InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "sampler".into(),
                     synth: default_synth_config(),
                     mixer: None,

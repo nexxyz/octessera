@@ -33,6 +33,26 @@ impl NativeRunner {
             self.show_toast(format!("Assign S{}: grid", sample_slot + 1));
             return Ok(None);
         }
+        if let Some(rest) = action.strip_prefix("drum.assign:") {
+            let (slot, voice) = rest.split_once(':').ok_or("invalid Drum Assign action")?;
+            self.enter_drum_assign(
+                slot.parse().map_err(|_| "invalid Drum slot")?,
+                voice.parse().map_err(|_| "invalid Drum voice")?,
+            );
+            return Ok(None);
+        }
+        if let Some(slot) = action.strip_prefix("drum.cellTune:") {
+            self.enter_drum_cell_tune(slot.parse().map_err(|_| "invalid Drum slot")?);
+            return Ok(None);
+        }
+        if let Some(rest) = action.strip_prefix("drum.preview:") {
+            let (slot, voice) = rest.split_once(':').ok_or("invalid Drum Preview action")?;
+            self.preview_drum_voice(
+                slot.parse().map_err(|_| "invalid Drum slot")?,
+                voice.parse().map_err(|_| "invalid Drum voice")?,
+            );
+            return Ok(None);
+        }
         if let Some(rest) = action.strip_prefix("trigger.probability.assign:") {
             if let Ok(layer_index) = rest.parse::<usize>() {
                 self.trigger_probability_assign = Some(layer_index.min(GRID_HEIGHT - 1));

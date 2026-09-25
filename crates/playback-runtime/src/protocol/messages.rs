@@ -6,6 +6,15 @@ use platform_core::MusicalEvent;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DrumHit {
+    pub instrument_slot: u8,
+    pub voice: u8,
+    pub tune_semis: i8,
+    pub velocity: u8,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HostMessage {
@@ -56,6 +65,9 @@ pub enum RunnerMessage {
     },
     MusicalEvents {
         events: Vec<MusicalEvent>,
+    },
+    DrumHits {
+        hits: Vec<DrumHit>,
     },
     MidiEvents {
         events: Vec<MusicalEvent>,

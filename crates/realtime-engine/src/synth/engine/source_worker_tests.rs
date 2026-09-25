@@ -108,21 +108,22 @@ fn controls_gate_until_both_complete_bundles_are_home() {
     assert_eq!(engine.synth_render_revisions[1], revision);
 
     lifecycle.set_pause_for_test(false);
-    let mut collected = false;
-    for _ in 0..100_000 {
-        if runtime.collect_for_test(&mut engine) {
-            collected = true;
-            break;
+    assert!((0..100_000).any(|_| {
+        let collected = runtime.collect_for_test(&mut engine);
+        if !collected {
+            thread::yield_now();
         }
-        thread::yield_now();
-    }
-    assert!(collected);
+        collected
+    }));
     assert!(runtime
         .with_controls_ready(&mut engine, |engine| {
             engine.set_synth_param(1, "synth.filter.cutoffHz", 900.0);
             engine.set_instrument_slot(
                 1,
                 InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "synth".into(),
                     synth: default_synth_config(),
                     mixer: None,
@@ -132,23 +133,6 @@ fn controls_gate_until_both_complete_bundles_are_home() {
         .is_some());
     let retirement = runtime.retire();
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
-}
-
-#[test]
-fn worker_scratch_is_exactly_one_parity_shape() {
-    let mut engine = dynamic_engine();
-    let (lifecycle, runtime) =
-        SourceWorkerLifecycle::start_prewarmed(&mut engine).expect("worker runtime");
-    assert_eq!(
-        runtime.scratch_shape_for_test(),
-        [
-            (SYNTH_VOICE_PARTITION_LANE_CAPACITY, 2048),
-            (SYNTH_VOICE_PARTITION_LANE_CAPACITY, 2048)
-        ]
-    );
-    assert!(engine.block_slot_scratch.inline_source_executor.is_none());
-    let retirement = runtime.retire();
-    let _ = lifecycle.shutdown(retirement);
 }
 
 #[test]

@@ -240,13 +240,14 @@ impl NativeRunner {
         .any(|(slot, action)| self.play_transpose_target_eligible(slot, action))
     }
 
-    fn play_transpose_target_eligible(&self, slot: usize, action: &str) -> bool {
+    pub(super) fn play_transpose_target_eligible(&self, slot: usize, action: &str) -> bool {
         if !matches!(action, "note_on" | "note_off") {
             return false;
         }
         let Some(instrument) = self.instruments.get(slot) else {
             return false;
         };
-        instrument.kind == "synth" || (instrument.kind == "midi" && instrument.midi_enabled)
+        matches!(instrument.kind.as_str(), "synth" | "fm" | "pluck")
+            || (instrument.kind == "midi" && instrument.midi_enabled)
     }
 }

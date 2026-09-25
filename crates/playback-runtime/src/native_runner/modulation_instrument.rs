@@ -79,6 +79,15 @@ pub(super) fn apply_instrument_binding_value(
                 return false;
             }
         }
+        "sample.selectedSlot" => {
+            let Some(index) = value.as_str().and_then(|value| value.parse::<usize>().ok()) else {
+                return false;
+            };
+            if !(1..=8).contains(&index) {
+                return false;
+            }
+            instrument.selected_sample_slot = index - 1;
+        }
         "midi.enabled" => {
             let Some(value) = value.as_bool() else {
                 return false;

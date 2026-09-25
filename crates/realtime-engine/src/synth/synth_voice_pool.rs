@@ -1,45 +1,9 @@
+use super::pluck_string::PluckRing;
 use super::runtime_state::Voice;
+pub(super) use super::synth_voice_partition::SynthVoicePartition;
 use super::types::{
-    LogicalLaneId, INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY,
-    SYNTH_VOICE_PARTITION_LANE_CAPACITY, VOICE_PARTITION_COUNT,
+    LogicalLaneId, INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
-
-pub(super) struct SynthVoicePartition {
-    parity: usize,
-    lanes: [Voice; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-    pub(super) render_lanes: [usize; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-    pub(super) render_lane_count: usize,
-}
-
-impl SynthVoicePartition {
-    fn new(parity: usize) -> Self {
-        Self {
-            parity,
-            lanes: [Voice::off(); SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-            render_lanes: [0; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-            render_lane_count: 0,
-        }
-    }
-
-    pub(super) fn lanes_mut(&mut self) -> &mut [Voice; SYNTH_VOICE_PARTITION_LANE_CAPACITY] {
-        &mut self.lanes
-    }
-
-    pub(super) fn active_count(&self) -> usize {
-        self.lanes.iter().filter(|voice| voice.active).count()
-    }
-
-    fn rebuild_render_lanes(&mut self, lane_slots: &[Option<usize>; SYNTH_VOICE_LANE_CAPACITY]) {
-        let mut count = 0;
-        for (global_lane, owner) in lane_slots.iter().enumerate() {
-            if owner.is_some() && global_lane % VOICE_PARTITION_COUNT == self.parity {
-                self.render_lanes[count] = global_lane / VOICE_PARTITION_COUNT;
-                count += 1;
-            }
-        }
-        self.render_lane_count = count;
-    }
-}
 
 pub(super) struct SynthVoicePool {
     partitions: [Option<Box<SynthVoicePartition>>; VOICE_PARTITION_COUNT],
@@ -111,6 +75,19 @@ impl SynthVoicePool {
             .as_deref_mut()?
             .lanes
             .get_mut(local_lane)
+    }
+
+    pub(super) fn lane_and_ring_mut(
+        &mut self,
+        lane: usize,
+    ) -> Option<(&mut Voice, &mut PluckRing)> {
+        if !self.partitions_home() {
+            return None;
+        }
+        let (parity, local_lane) = partition_lane(lane)?;
+        self.partitions[parity]
+            .as_deref_mut()?
+            .lane_and_ring_mut(local_lane)
     }
 
     pub(super) fn active_total(&self) -> Option<usize> {

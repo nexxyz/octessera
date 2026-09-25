@@ -200,6 +200,9 @@ fn instrument(
     pan_pos: usize,
 ) -> InstrumentSlotConfig {
     InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: kind.to_string(),
         synth,
         mixer: Some(InstrumentMixerConfig {

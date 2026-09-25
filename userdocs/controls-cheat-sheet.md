@@ -83,7 +83,7 @@ in the simulator.
 | *Fn* + left grid column | **Navigate to Layer 1–8** | Jump to the chosen layer. Bottom row is layer 1. |
 | *Hold* *Fn* | **Navigation preview** | Left column shows layers: cyan for navigation/current focus, green for configured layers, gray/black for inactive or unavailable cells. Right column shows Play pages in yellow, with the active page in green. |
 | *Shift* + *Fn* + left grid column | **Layer trigger toggle** | Toggle that layer's emissions without changing the active layer. |
-| *Fn* + right grid column | **Navigate to Play pages** | Jump to *Mix*, *Pan*, *FX*, *Trigger Gate*, *Transpose*, or *XY*. If Play is already active, this exits Play. |
+| *Fn* + right grid column | **Navigate to Play pages** | Jump to *Mix*, *Pan*, *FX*, *Trigger Gate*, *Transpose*, *XY*, or *Drums*. If Play is already active, this exits Play. |
 | *Fn* + *aux encoder click* | **Bind focused value/action** | Assign the highlighted menu value to that aux turn, or the highlighted action to that aux click. |
 
 ## Aux encoders and auto-map
@@ -118,13 +118,15 @@ as `activate` or direct grid events from `keys` and `looper`.
 | Area | What changes |
 |---|---|
 | Sample assignment | *Shift* + cell maps the whole row. *Shift* + *Fn* + cell maps the whole column. |
+| Drum assignment | Select a Drum voice, then Assign. *Shift* + cell maps its row; *Shift* + *Fn* + cell maps its column. Cell Tune adjusts one mapped cell. |
 | Trigger probability map | Cells set trigger chance for the selected layer: never, low, high, or always. *Shift* + cell maps the whole row. *Shift* + *Fn* + cell maps the whole column. |
 | Play Mix | Grid turns into a mixer, where you can change the volume of each layer. |
 | Play Pan | Grid lets you move around the layers' stereo position. |
 | Play FX | Press mapped cells to trigger live effects. Releasing the cell stops the effect. |
 | Play Trigger Gate | Grid lets you quickly block, allow, or use custom probability for each layer's triggers. |
-| Play Transpose | Grid lets you temporarily transpose eligible synth and MIDI layers. |
+| Play Transpose | Grid temporarily transposes Synth, FM, Plucked, and enabled MIDI notes; not Sampler or Drum. |
 | Play XY | Mappable two-axis surface for live-manipulating parameters. |
+| Play Drums | Tap assigned cells in the selected Drum slot, even with transport stopped; empty cells are silent. |
 
 ## Sample browser
 

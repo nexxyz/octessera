@@ -15,6 +15,7 @@ impl NativeRunner {
                 .audio
                 .split_off(audio_start),
             midi: self.pending_transpose_note_offs.midi.split_off(midi_start),
+            drum: Vec::new(),
         };
         drained.extend(self.layer_owned_route_note_offs(layer_index));
         let released = self.release_layer_owned_route_notes(layer_index, drained);

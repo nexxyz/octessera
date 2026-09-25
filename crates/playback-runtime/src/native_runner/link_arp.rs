@@ -120,6 +120,16 @@ impl NativeRunner {
         arp: &NativeLinkArp,
     ) -> Vec<(u16, RoutedMusicalEvents)> {
         let mut out = Vec::new();
+        for (index, hit) in routed.drum.into_iter().enumerate() {
+            let offset = if matches!(arp.mode.as_str(), "direct" | "chord_strike") {
+                0
+            } else {
+                (index as u16).saturating_mul(u16::from(arp.step_interval_steps))
+            };
+            let mut event = RoutedMusicalEvents::default();
+            event.drum.push(hit);
+            out.push((offset, event));
+        }
         out.extend(self.arp_events_for_lane(layer_index, routed.audio, arp, true));
         out.extend(self.arp_events_for_lane(layer_index, routed.midi, arp, false));
         out
@@ -207,6 +217,7 @@ fn suppress_arp_note_offs(mut routed: RoutedMusicalEvents) -> RoutedMusicalEvent
 
 fn non_note_routed_events(routed: &RoutedMusicalEvents) -> RoutedMusicalEvents {
     RoutedMusicalEvents {
+        drum: routed.drum.clone(),
         audio: routed
             .audio
             .iter()

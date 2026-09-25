@@ -14,14 +14,16 @@ Play
 │   └── Aux Map: editable auto-mapped Play FX params/actions, with 1-/1! OLED markers
 ├── Trigger Gate
 ├── Transpose
-└── XY
-    └── X Axis, Y Axis, Smoothing, Invert X, Invert Y, Release
+├── XY
+│   └── X Axis, Y Axis, Smoothing, Invert X, Invert Y, Release
+└── Drums
+    └── Slot: [I#: Drum] (session-local, only when a Drum slot exists)
 ```
 
 Play layer behavior:
 
-- Hold Fn for navigation columns: the leftmost grid column selects the active layer using grid Y directly (`y=0` = layer 0), and the rightmost grid column selects and activates Play pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = transpose, row 5 = xy. Lower rows are unused. Hold Shift+Fn for the layer column only; pressing a left-column layer toggles that layer's trigger gate without changing the active layer, and the right column is reserved.
-- In the Play menu, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` are selectable pages, not submenus. Pressing the main encoder on one selects and activates that Play page without entering an empty child page. `FX` and `XY` remain enterable because they have configuration rows.
+- Hold Fn for navigation columns: the leftmost grid column selects the active layer using grid Y directly (`y=0` = layer 0), and the rightmost grid column selects and activates Play pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = transpose, row 5 = xy, row 6 = drums. Row 7 is unused. Hold Shift+Fn for the layer column only; pressing a left-column layer toggles that layer's trigger gate without changing the active layer, and the right column is reserved.
+- In the Play menu, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` are selectable pages, not submenus. Pressing the main encoder on one selects and activates that Play page without entering an empty child page. `FX`, `XY`, and `Drums` remain enterable when they have configuration rows.
 - Fn + leftmost grid selection exits the current Play overlay without changing the saved Play Page selection. Menu position is not changed by layer selection.
 - When Fn is held, the left grid column shows layer-selection options and the right grid column shows Play page options. The active layer and saved Play page are highlighted; layers whose behavior is not `none` have a dim indicator; `none` layers stay dark. When Shift+Fn is held, only the left layer column is shown. All other cells are dark to make the active shortcut lane unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
@@ -31,7 +33,9 @@ Play layer behavior:
 - `pan` maps the 8 grid columns onto 7 two-cell marker positions: column 0 stores `0` and lights 0+1; column 1 stores `5` and lights 1+2; column 2 stores `11` and lights 2+3; columns 3 and 4 both store center `16` and light 3+4; column 5 stores `21` and lights 4+5; column 6 stores `27` and lights 5+6; column 7 stores `32` and lights 6+7.
 - `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it. At most two momentary FX may be active at once, and only one momentary FX of each type may be active. If the active momentary FX limit is reached or another mapping of the same type is already active, the press is ignored and a toast warns the user.
 - `trigger-gate`: this Play page performs live trigger mode overrides for each layer; it does not edit the saved per-cell probability map.
-- `transpose`: left column toggles which eligible layers are affected; Shift + left column enables/disables transpose for all eligible layers. Columns 1..7 form a piano layout: white rows 1/3/5, black rows 2/4/6, octaves -1/0/+1, with center C at x=1,y=3 as no-op. Offsets apply transiently to synth and enabled MIDI note events after mapping and before routing; sampler assignment notes are not transposed.
+- `drums`: `Slot` selects an existing Drum instrument by name (`I#: Drum`), starting with the first Drum slot for this session. When none exists the seventh Play row says `No Drum slot`, with no fake selectable guidance row. On this page, pressing an assigned cell plays exactly one immediate hit from the selected slot even when transport is stopped; release is consumed. An empty cell or a slot no longer set to Drum stays silent. Manual play bypasses behavior, Link timing, and probability without also triggering the behavior engine. In the ordinary grid mode, mapped Drum hits still use the normal behavior/Link path.
+- Drum assignment and Cell Tune are exclusive grid modes. FX assignment takes priority, then Sample assignment, Drum assignment/Cell Tune, probability assignment, Play Drums, and ordinary grid. The winning Drum mode lights its selected kit voice bright white, other assigned cells dim white, and unassigned cells dark. Fn navigation LEDs stay suppressed during assignment; world bottom is `y=0` and LEDs use the normal display conversion.
+- `transpose`: left column toggles which eligible layers are affected; Shift + left column enables/disables transpose for all eligible layers. Columns 1..7 form a piano layout: white rows 1/3/5, black rows 2/4/6, octaves -1/0/+1, with center C at x=1,y=3 as no-op. Offsets apply transiently to Synth, FM, Plucked, and enabled MIDI notes after mapping and before routing; Sampler and Drum hits are not transposed.
 - Stored per-layer trigger probability data lives in `Link > L* > Trigger Prob.`.
 - `Map Prob Grid` edits the saved four-state probability map for the selected layer. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, magenta = `low`, yellow = `high`, green = `100%`.
@@ -48,7 +52,7 @@ Play layer behavior:
 - Bottom-row columns `5..7` are always-bright all-layers actions: set all layers to `0%`, `custom`, or `100%`.
 - Trigger filtering resolves per-layer mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that layer's `Low Prob` and `High Prob` thresholds.
 - `Shift+Fn+left-column layer` toggles that layer between `0%` and its previously active trigger mode without rewriting the stored probability map or changing the active layer.
-- Disabling a layer with `Shift+Fn+left-column layer` immediately releases notes owned by that layer, including internal synth/sample and external MIDI notes. It affects no other layer, suppresses future triggers for the disabled layer, and re-enabling it does not resurrect released notes.
+- Disabling a layer with `Shift+Fn+left-column layer` immediately releases its held Synth, FM, Plucked, Sampler, and external MIDI notes. Already-ringing one-shot Drum hits finish their own decay. Other layers are unaffected, future triggers for the disabled layer are suppressed, and re-enabling it does not resurrect released notes.
 - FX cells are mapped from `Play > FX`: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
 - `Play > FX > Aux Map` lists the current Play FX parameters/actions that are auto-mapped to aux controls. Rows are editable but do not change the mapping target. OLED row prefixes use the same `1-` turn and `1!` press markers as the live auto-map indicators.
 - Entering FX grid assignment shows a concise `Map FX: ...` toast; Back exits assignment without changing stored cells.
@@ -71,5 +75,5 @@ Play layer behavior:
 - `Invert X` / `Invert Y` flip the respective axis: `value = 1 - norm` when enabled, so left becomes max and right becomes min (X axis), or bottom becomes max and top becomes min (Y axis).
 - `Smoothing` is `Off` at `0`, or `10–500 ms` in `10 ms` steps (shipped default `80 ms`). It glides each mapped normalized axis independently from its current value toward the new target without overshoot; the raw visual marker follows the press immediately. `sample-hold` keeps an active glide running after release, while `reset-center` moves the marker to center immediately and glides mapped axes to `0.5` when smoothing is enabled.
 - Changing inversion retargets only the affected mapped axis through the same smoothing glide; the visual marker is never inverted.
-- Saved with presets/defaults: selected Play Page, FX page config and assignments, instrument mix volumes, pan positions, per-layer trigger probability mode, low/high thresholds, trigger probability map cell state, global X/Y bindings, X/Y smoothing, X/Y invert flags, and X/Y release behavior.
+- Saved with presets/defaults: selected Play Page, FX page config and assignments, instrument mix volumes, pan positions, per-layer trigger probability mode, low/high thresholds, trigger probability map cell state, global X/Y bindings, X/Y smoothing, X/Y invert flags, and X/Y release behavior. The selected Drum slot within Play > Drums is session-local, not a new patch field.
 - Not saved: transient performance state such as the currently active Play overlay on load/startup, Play Transpose selections/enabled state/offsets, the live X/Y touch position (`playXyTouch`), active momentary FX instances, assign modes, held modifiers, and other temporary overlays.

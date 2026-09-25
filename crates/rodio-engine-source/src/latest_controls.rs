@@ -1,8 +1,8 @@
 use crate::latest_control_encoding::{
-    bus_fx_cell, cell_for_key, encode_dsp_config, encode_voice_mode, global_fx_cell, key_for_cell,
-    sample_cell, synth_cell, DSP_CELL, FX_BUS_PAN_START, FX_BUS_VOLUME_START, INSTRUMENT_PAN_START,
-    INSTRUMENT_VOLUME_CELLS_START, MASTER_CELL, MOMENTARY_SLOT_COUNT, NORMAL_CELL_COUNT,
-    TOTAL_CELL_COUNT, VOICE_MODE_CELL,
+    bus_fx_cell, cell_for_key, drum_cell, encode_dsp_config, encode_voice_mode, fm_cell,
+    global_fx_cell, key_for_cell, pluck_cell, sample_cell, synth_cell, DSP_CELL, FX_BUS_PAN_START,
+    FX_BUS_VOLUME_START, INSTRUMENT_PAN_START, INSTRUMENT_VOLUME_CELLS_START, MASTER_CELL,
+    MOMENTARY_SLOT_COUNT, NORMAL_CELL_COUNT, TOTAL_CELL_COUNT, VOICE_MODE_CELL,
 };
 pub(super) use crate::latest_control_encoding::{
     decode_dsp_config, decode_voice_mode, LatestCandidate, LatestKey,
@@ -152,6 +152,37 @@ impl LatestControls {
                 value,
             } => self.publish(
                 synth_cell(usize::from(instrument_slot), param),
+                generation,
+                value.to_bits() as u64,
+            ),
+            EngineEvent::SetFmParam {
+                instrument_slot,
+                generation,
+                param,
+                value,
+            } => self.publish(
+                fm_cell(usize::from(instrument_slot), param),
+                generation,
+                value.to_bits() as u64,
+            ),
+            EngineEvent::SetPluckParam {
+                instrument_slot,
+                generation,
+                param,
+                value,
+            } => self.publish(
+                pluck_cell(usize::from(instrument_slot), param),
+                generation,
+                value.to_bits() as u64,
+            ),
+            EngineEvent::SetDrumParam {
+                instrument_slot,
+                voice,
+                generation,
+                param,
+                value,
+            } => self.publish(
+                drum_cell(usize::from(instrument_slot), usize::from(voice), param),
                 generation,
                 value.to_bits() as u64,
             ),

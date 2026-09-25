@@ -293,6 +293,9 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
     let config = prepare_audio_config(
         InstrumentsConfig {
             instruments: vec![InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: None,

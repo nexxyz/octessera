@@ -122,6 +122,32 @@ pub(crate) fn apply_events(
             } => {
                 let _ = engine.set_synth_param_typed((*instrument_slot).into(), *param, *value);
             }
+            EngineEvent::SetFmParam {
+                instrument_slot,
+                param,
+                value,
+                ..
+            } => {
+                let _ = engine.set_fm_param_typed((*instrument_slot).into(), *param, *value);
+            }
+            EngineEvent::SetPluckParam {
+                instrument_slot,
+                param,
+                value,
+                ..
+            } => {
+                let _ = engine.set_pluck_param_typed((*instrument_slot).into(), *param, *value);
+            }
+            EngineEvent::SetDrumParam {
+                instrument_slot,
+                voice,
+                param,
+                value,
+                ..
+            } => {
+                let _ =
+                    engine.set_drum_param_typed((*instrument_slot).into(), *voice, *param, *value);
+            }
             EngineEvent::SetSampleBankParam {
                 instrument_slot,
                 param,
@@ -179,6 +205,12 @@ pub(crate) fn apply_events(
                 velocity,
                 duration_ms,
             } => engine.note_on(*instrument_slot, *note, *velocity, *duration_ms),
+            EngineEvent::DrumHit {
+                instrument_slot,
+                voice,
+                tune_semis,
+                velocity,
+            } => engine.drum_hit(*instrument_slot, *voice, *tune_semis, *velocity),
             EngineEvent::NoteOff {
                 instrument_slot,
                 note,

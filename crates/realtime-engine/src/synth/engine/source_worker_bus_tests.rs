@@ -10,6 +10,9 @@ mod protocol;
 fn bus_config(buses: Vec<Vec<FxBusSlotConfig>>, route: &str) -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {

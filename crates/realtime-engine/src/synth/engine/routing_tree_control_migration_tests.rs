@@ -28,6 +28,9 @@ fn routing_tree_supports_topology_mutation_after_notes_start() {
     runtime.set_deadline_for_test(Duration::from_secs(1));
     let config = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: None,
@@ -259,9 +262,10 @@ fn assert_source_migration_parity(
             "surviving bus-routed source must follow its resulting bus worker"
         );
     } else {
+        assert_eq!(routed.active_voice_count_for_slot(MIGRATION_SOURCE_SLOT), 0);
         assert_eq!(
-            assignment.worker_for_slot(MIGRATION_SOURCE_SLOT),
-            Some(old_worker)
+            routed.active_sample_voice_count_for_slot(MIGRATION_SOURCE_SLOT),
+            0
         );
         assert!(matches!(
             routed.render_plan.instrument_slots[MIGRATION_SOURCE_SLOT].route,
@@ -357,6 +361,9 @@ fn removed_bus_config(instruments: Vec<InstrumentSlotConfig>) -> InstrumentsConf
 
 fn migration_slot(kind: &str, route: &str) -> InstrumentSlotConfig {
     InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: kind.into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {
@@ -387,6 +394,9 @@ fn mapping_config(gain_pct: f32) -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: (0..3)
             .map(|_| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: {
                     let mut synth = default_synth_config();

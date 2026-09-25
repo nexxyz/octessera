@@ -1,4 +1,98 @@
 use super::*;
+use crate::synth::{ScalarMutation, SynthParamId};
+
+#[test]
+fn inline_source_executor_does_not_allocate_at_default_quantum() {
+    let mut engine = SynthEngine::new(44_100);
+    engine.note_on(0, 60, 96, 1_000);
+    let mut left = Vec::with_capacity(128);
+    let mut right = Vec::with_capacity(128);
+    let mut out = Vec::with_capacity(256);
+    engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
+
+    let (_, allocations, deallocations) =
+        crate::synth::test_allocator::count_allocations_and_deallocations(|| {
+            engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
+        });
+    assert_eq!(allocations, 0);
+    assert_eq!(deallocations, 0);
+}
+
+#[test]
+fn synth_oscillator_scalar_edits_keep_held_voice_and_change_audio() {
+    for (id, value) in [
+        (SynthParamId::Osc1LevelPct, 0.0),
+        (SynthParamId::Osc1DetuneCents, 50.0),
+        (SynthParamId::Osc1PulseWidthPct, 5.0),
+        (SynthParamId::Osc2LevelPct, 0.0),
+        (SynthParamId::Osc2DetuneCents, -50.0),
+        (SynthParamId::Osc2PulseWidthPct, 95.0),
+    ] {
+        let mut cfg = default_synth_config();
+        cfg.osc1.waveform = WaveformId::Pulse;
+        cfg.osc2.waveform = WaveformId::Pulse;
+        cfg.amp_env.attack_ms = 0.0;
+        let mut changed = synth_engine(cfg);
+        let mut scalar = synth_engine(cfg);
+        let mut baseline = synth_engine(cfg);
+        for engine in [&mut changed, &mut scalar, &mut baseline] {
+            engine.note_on(0, 81, 127, 10_000);
+            for _ in 0..32 {
+                engine.next_sample();
+            }
+        }
+        let before = *changed.synth_voice_pool.lane(0).unwrap();
+        let other_slot = changed.instruments[1];
+        let other_revision = changed.synth_render_revisions[1];
+        let (mutation, allocations, _) =
+            crate::synth::test_allocator::count_allocations_and_deallocations(|| {
+                changed.set_synth_param_typed(0, id, value)
+            });
+        assert_eq!(mutation, ScalarMutation::Changed);
+        assert_eq!(allocations, 0);
+        assert_eq!(
+            scalar.set_synth_param_typed(0, id, value),
+            ScalarMutation::Changed
+        );
+        let held = changed.synth_voice_pool.lane(0).unwrap();
+        assert_eq!(held.canonical_lane, before.canonical_lane);
+        assert_eq!(held.started_sample, before.started_sample);
+        assert_eq!(
+            (held.phase1.to_bits(), held.phase2.to_bits()),
+            (before.phase1.to_bits(), before.phase2.to_bits())
+        );
+        assert_eq!(held.amp_env.stage, before.amp_env.stage);
+        assert_eq!(
+            changed.instruments[1].osc1.level_pct,
+            other_slot.osc1.level_pct
+        );
+        assert_eq!(changed.synth_render_revisions[1], other_revision);
+
+        let mut left = Vec::new();
+        let mut right = Vec::new();
+        let mut rendered = Vec::new();
+        changed.render_interleaved_block(256, &mut left, &mut right, &mut rendered);
+        let expected: Vec<_> = (0..256)
+            .flat_map(|_| {
+                let (l, r) = scalar.next_stereo_sample();
+                [l, r]
+            })
+            .collect();
+        assert_eq!(rendered.len(), expected.len());
+        for (actual, expected) in rendered.iter().zip(&expected) {
+            assert_eq!(actual.to_bits(), expected.to_bits(), "{id:?}");
+        }
+        let untouched: Vec<_> = (0..256).map(|_| baseline.next_sample()).collect();
+        let changed_energy = rendered
+            .chunks_exact(2)
+            .zip(untouched)
+            .map(|(stereo, old)| ((stereo[0] + stereo[1]) * 0.5 - old).abs())
+            .sum::<f32>();
+        assert!(changed_energy > 0.01, "{id:?}: {changed_energy}");
+        let after = changed.synth_voice_pool.lane(0).unwrap();
+        assert!(after.active && after.phase1 != before.phase1);
+    }
+}
 
 #[test]
 fn synth_block_matches_scalar_for_waveforms_velocities_and_quanta() {
@@ -134,6 +228,9 @@ fn synth_engine(cfg: SynthConfig) -> SynthEngine {
     let mut engine = SynthEngine::new(44_100);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: cfg,
             mixer: None,

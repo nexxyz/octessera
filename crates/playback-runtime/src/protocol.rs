@@ -20,7 +20,7 @@ mod user_data_restore_tests;
 mod user_data_transfer_tests;
 
 pub use audio::{RuntimeAudioCommand, RuntimeMomentaryFxTarget};
-pub use messages::{HostMessage, RunnerMessage};
+pub use messages::{DrumHit, HostMessage, RunnerMessage};
 pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{
     MidiPort, RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError, SampleEntry,

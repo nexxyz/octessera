@@ -11,6 +11,9 @@ fn instrument_owner_replacement_has_no_callback_memory_activity() {
         instrument_slot: 0,
         generation: 1,
         config: prepare_instrument_slot_config(InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: None,

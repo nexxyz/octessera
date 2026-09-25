@@ -12,6 +12,8 @@ impl NativeRunner {
             return;
         }
         if self.sample_assign.is_some()
+            || self.drum_assign.is_some()
+            || self.drum_cell_tune.is_some()
             || self.trigger_probability_assign.is_some()
             || self.play_fx_assign.is_some()
         {
@@ -131,6 +133,8 @@ impl NativeRunner {
             && !self.display.ui.fn_held
             && self.active_play_mode == "none"
             && self.sample_assign.is_none()
+            && self.drum_assign.is_none()
+            && self.drum_cell_tune.is_none()
             && self.trigger_probability_assign.is_none()
             && self.play_fx_assign.is_none()
     }
@@ -158,7 +162,15 @@ impl NativeRunner {
     }
 
     fn paint_fn_page_column(&self, leds: &mut [LedColor]) {
-        let page_options = ["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
+        let page_options = [
+            "mix",
+            "pan",
+            "fx",
+            "trigger-gate",
+            "transpose",
+            "xy",
+            "drums",
+        ];
         for (row, mode) in page_options.iter().enumerate() {
             let selected = self.active_play_mode != "none" && self.active_play_mode == *mode;
             let color = if selected {

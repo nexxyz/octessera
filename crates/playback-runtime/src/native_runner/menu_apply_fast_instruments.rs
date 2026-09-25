@@ -3,6 +3,13 @@ use crate::protocol::RuntimeAudioCommand;
 use super::menu_apply_fast_values::*;
 use super::NativeRunner;
 
+#[path = "menu_apply_instrument_drum.rs"]
+mod drum;
+#[path = "menu_apply_instrument_fm.rs"]
+pub(super) mod fm;
+#[path = "menu_apply_instrument_pluck.rs"]
+pub(super) mod pluck;
+
 impl NativeRunner {
     pub(super) fn apply_instrument_menu_key_fast(&mut self, key: &str) -> Option<bool> {
         let rest = key.strip_prefix("instruments.")?;
@@ -17,6 +24,54 @@ impl NativeRunner {
                 number_value,
                 "synth.amp.gainPct",
                 fast_instrument_synth_gain,
+            ),
+            "synth.osc1.levelPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.osc1.levelPct",
+                &["osc1", "levelPct"],
+                0,
+                100,
+            ),
+            "synth.osc1.detuneCents" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.osc1.detuneCents",
+                &["osc1", "detuneCents"],
+                -50,
+                50,
+            ),
+            "synth.osc1.pulseWidthPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.osc1.pulseWidthPct",
+                &["osc1", "pulseWidthPct"],
+                5,
+                95,
+            ),
+            "synth.osc2.levelPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.osc2.levelPct",
+                &["osc2", "levelPct"],
+                0,
+                100,
+            ),
+            "synth.osc2.detuneCents" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.osc2.detuneCents",
+                &["osc2", "detuneCents"],
+                -50,
+                50,
+            ),
+            "synth.osc2.pulseWidthPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.osc2.pulseWidthPct",
+                &["osc2", "pulseWidthPct"],
+                5,
+                95,
             ),
             "synth.filter.cutoffHz" => self.fast_instrument_synth_key(
                 index,
@@ -118,6 +173,15 @@ impl NativeRunner {
                 0,
                 10000,
             ),
+            suffix if suffix.starts_with("fm.") => {
+                return fm::apply_fm_menu_key(self, index, key, suffix)
+            }
+            suffix if suffix.starts_with("pluck.") => {
+                return pluck::apply_pluck_menu_key(self, index, key, suffix)
+            }
+            suffix if suffix.starts_with("drum.") => {
+                return drum::apply_drum_menu_key(self, index, key, suffix)
+            }
             "sample.tuneSemis" => {
                 self.fast_sample_bank_key(index, number_value, "sample.tuneSemis", fast_sample_tune)
             }

@@ -13,6 +13,7 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
     let (tx, rx) = event_queue();
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -101,6 +102,7 @@ fn recovers_routing_tree_with_current_global_controls_and_next_quantum_notes() {
         config: prepare_instruments_config(
             InstrumentsConfig {
                 instruments: vec![InstrumentSlotConfig {
+                    fm: None,
                     kind: "synth".into(),
                     synth: default_synth_config(),
                     mixer: None,

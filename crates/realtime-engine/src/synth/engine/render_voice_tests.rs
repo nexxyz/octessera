@@ -32,10 +32,127 @@ fn precomputed_render_matches_reference_for_pulse_and_square() {
     assert_precomputed_matches_reference(cfg, InstrumentMod::new());
 }
 
+#[test]
+fn synth_and_fm_key_tracking_follow_note_octaves_without_changing_zero_tracking() {
+    let mut synth = default_synth_config();
+    synth.filter.cutoff_hz = 1_000.0;
+    for cfg in [
+        SynthVoiceRenderConfig::from_config(synth),
+        SynthVoiceRenderConfig::from_fm(FmConfig::default()),
+    ] {
+        let mut cfg = cfg;
+        cfg.filter_cutoff_hz = 1_000.0;
+        for (tracking, expected) in [(0.0, [1_000.0; 3]), (1.0, [500.0, 1_000.0, 2_000.0])] {
+            cfg.filter_key_tracking = tracking;
+            for (note, expected_cutoff) in [48, 60, 72].into_iter().zip(expected) {
+                let mut voice = test_voice();
+                voice.midi_note = note;
+                refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 1);
+                let cutoff = synth_voice_cutoff(&cfg, 0.0, 0.0, voice.filter_key_scale, 44_100);
+                assert!(
+                    (cutoff - expected_cutoff).abs() < 0.001,
+                    "{note} {tracking}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn key_tracking_multiplies_filter_envelope_but_cc_overrides_both() {
+    let mut synth = default_synth_config();
+    synth.filter.cutoff_hz = 1_000.0;
+    synth.filter.env_amount_pct = 50.0;
+    synth.filter.key_tracking_pct = 100.0;
+    let cfg = SynthVoiceRenderConfig::from_config(synth);
+    let mut voice = test_voice();
+    voice.midi_note = 72;
+    refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 1);
+    assert_eq!(
+        synth_voice_cutoff(&cfg, 0.0, 1.0, voice.filter_key_scale, 44_100),
+        3_000.0
+    );
+    assert_eq!(
+        synth_voice_cutoff(&cfg, 0.5, 1.0, voice.filter_key_scale, 44_100),
+        synth_voice_cutoff(&cfg, 0.5, 0.0, 1.0, 44_100)
+    );
+    voice.midi_note = 127;
+    refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 2);
+    assert_eq!(
+        synth_voice_cutoff(&cfg, 0.0, 1.0, voice.filter_key_scale, 44_100),
+        20_000.0
+    );
+}
+
+#[test]
+fn held_synth_and_fm_tracking_edits_refresh_before_static_block_filter() {
+    for fm_kind in [false, true] {
+        let mut synth = default_synth_config();
+        synth.filter.cutoff_hz = 1_000.0;
+        let mut fm = FmConfig::default();
+        fm.filter.cutoff_hz = 1_000.0;
+        let slot = InstrumentSlotConfig {
+            kind: if fm_kind { "fm" } else { "synth" }.into(),
+            synth,
+            fm: fm_kind.then_some(fm),
+            pluck: None,
+            drum: None,
+            mixer: None,
+        };
+        let mut block = SynthEngine::new(44_100);
+        let mut scalar = SynthEngine::new(44_100);
+        for engine in [&mut block, &mut scalar] {
+            engine.set_instrument_slot(0, slot.clone());
+            engine.note_on(0, 72, 120, 10_000);
+        }
+        let mut left = Vec::new();
+        let mut right = Vec::new();
+        let mut out = Vec::new();
+        block.render_interleaved_block(128, &mut left, &mut right, &mut out);
+        for _ in 0..128 {
+            scalar.next_stereo_sample();
+        }
+        assert_eq!(
+            block.synth_voice_pool.lane(0).unwrap().filter_key_scale,
+            1.0
+        );
+        let before = *block.synth_voice_pool.lane(0).unwrap();
+        for engine in [&mut block, &mut scalar] {
+            let mutation = if fm_kind {
+                engine.set_fm_param_typed(0, crate::synth::FmParamId::FilterKeyTrackingPct, 100.0)
+            } else {
+                engine.set_synth_param_typed(
+                    0,
+                    crate::synth::SynthParamId::FilterKeyTrackingPct,
+                    100.0,
+                )
+            };
+            assert_eq!(mutation, crate::synth::ScalarMutation::Changed);
+        }
+        reset_prepare_count_for_test();
+        block.render_interleaved_block(128, &mut left, &mut right, &mut out);
+        assert_eq!(prepare_count_for_test(), 1);
+        let expected: Vec<_> = (0..128)
+            .flat_map(|_| {
+                let (left, right) = scalar.next_stereo_sample();
+                [left, right]
+            })
+            .collect();
+        for (actual, expected) in out.iter().zip(expected) {
+            assert_eq!(actual.to_bits(), expected.to_bits());
+        }
+        let after = block.synth_voice_pool.lane(0).unwrap();
+        assert_eq!(after.filter_key_scale, 2.0);
+        assert_eq!(after.canonical_lane, before.canonical_lane);
+        assert_eq!(after.started_sample, before.started_sample);
+    }
+}
+
 fn assert_precomputed_matches_reference(cfg: SynthConfig, mods: InstrumentMod) {
     let render_cfg = SynthVoiceRenderConfig::from_config(cfg);
     let mut actual = test_voice();
     let mut expected = test_voice();
+    let mut ring = Box::new([0.0; crate::synth::pluck_string::RING_LEN]);
     refresh_synth_voice_render_cache(&mut actual, &render_cfg, 44_100, 1);
     for frame in 0..1024 {
         let amp_env = 0.2 + (frame as f32 * 0.0003);
@@ -45,6 +162,7 @@ fn assert_precomputed_matches_reference(cfg: SynthConfig, mods: InstrumentMod) {
             mods,
             &render_cfg,
             &mut actual,
+            &mut ring,
             amp_env,
             filt_env,
         );
@@ -80,6 +198,7 @@ fn render_cache_refresh_matches_reference_after_config_change() {
     let second_render = SynthVoiceRenderConfig::from_config(second);
     let mut actual = test_voice();
     let mut expected = test_voice();
+    let mut ring = Box::new([0.0; crate::synth::pluck_string::RING_LEN]);
     refresh_synth_voice_render_cache(&mut actual, &first_render, 44_100, 1);
 
     for frame in 0..1024 {
@@ -98,6 +217,7 @@ fn render_cache_refresh_matches_reference_after_config_change() {
             InstrumentMod::new(),
             render_cfg,
             &mut actual,
+            &mut ring,
             amp_env,
             filt_env,
         );
