@@ -84,7 +84,9 @@ fn synth_oscillator_scalar_edits_keep_held_voice_and_change_audio() {
         }
         let untouched: Vec<_> = (0..256).map(|_| baseline.next_sample()).collect();
         let changed_energy = rendered
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .zip(untouched)
             .map(|(stereo, old)| ((stereo[0] + stereo[1]) * 0.5 - old).abs())
             .sum::<f32>();

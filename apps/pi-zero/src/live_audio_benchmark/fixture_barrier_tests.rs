@@ -35,6 +35,8 @@ fn assert_fixture_profile_barriers(executor_mode: BenchmarkExecutorMode, expecte
                 InstrumentsConfig {
                     instruments: vec![InstrumentSlotConfig {
                         fm: None,
+                        pluck: None,
+                        drum: None,
                         kind: "synth".into(),
                         synth: default_synth_config(),
                         mixer: None,
