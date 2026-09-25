@@ -95,6 +95,9 @@ if ($passive -match "run-pi-|with-rpi-ssh|ssh -i") {
 }
 
 $missingArtifact = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-study-test-release-missing"
+foreach ($mode in @("PassiveBaseline", "ProfileBaseline", "Dsp64", "Dsp256", "LiveAudioBenchmark")) {
+  Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = $mode; AutoPlay = $true; PrintOnly = $true } | Out-Null }
+}
 foreach ($dspMode in @("Dsp64", "Dsp256")) {
   $dspRefused = $false
   try {
@@ -168,10 +171,18 @@ if (-not $refused) {
 
 $live = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 30 }
 $profiledLive = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; UiProfile = $true; LiveSeconds = 30 }
+$autoPlayLive = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; UiProfile = $true; AutoPlay = $true; LiveSeconds = 30 }
 $live120 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 120 }
+Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; AutoPlay = $true; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
+Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; UiProfile = $true; AutoPlay = $true; PrintOnly = $true } | Out-Null }
+Assert-NoPayloadPlaceholders $autoPlayLive
+Assert-Contains $autoPlayLive '--setenv=OCTESSERA_PI_UI_PROFILE=1 --setenv=OCTESSERA_TIMING_AUTOPLAY=1 "$binary"'
 Assert-Contains $profiledLive '--setenv=OCTESSERA_PI_UI_PROFILE=1 "$binary"'
+Assert-NotContains $profiledLive 'OCTESSERA_TIMING_AUTOPLAY'
 Assert-NotContains $live 'OCTESSERA_PI_UI_PROFILE'
+Assert-NotContains $live 'OCTESSERA_TIMING_AUTOPLAY'
 Assert-NotContains $live120 'OCTESSERA_PI_UI_PROFILE'
+Assert-NotContains $live120 'OCTESSERA_TIMING_AUTOPLAY'
 Assert-NoPayloadPlaceholders $live
 Assert-NoPayloadPlaceholders $live120
 foreach ($required in @(

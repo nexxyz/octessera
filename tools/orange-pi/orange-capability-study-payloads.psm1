@@ -168,7 +168,8 @@ function New-LiveCandidateBody {
   param(
     [Parameter(Mandatory)][int]$LiveSeconds,
     [Parameter(Mandatory)][int]$StartupTimeoutSeconds,
-    [bool]$UiProfile = $false
+    [bool]$UiProfile = $false,
+    [bool]$AutoPlay = $false
   )
   $sampleCount = [Math]::Min(60, [Math]::Max(2, [Math]::Ceiling(($LiveSeconds + $StartupTimeoutSeconds) / 5)))
   $shutdownMarginSeconds = 10
@@ -187,7 +188,7 @@ sampler_pid=$!
 sudo -n systemctl stop "$service"
 printf '%s\n' 'expected_dac=hw:CARD=octesseradac,DEV=0' 'store_dir=/var/lib/octessera/presets' 'samples_dir=/var/lib/octessera/samples' > "$root/candidate-contract.txt"
 launch_status=0
-sudo -n systemd-run --unit="$unit" --service-type=exec --no-block --property=RuntimeMaxSec=__RUNTIME_MAX_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w --setenv=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets --setenv=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples --setenv=OCTESSERA_OLED_BOOT_HANDOFF=v1 --setenv=OCTESSERA_CANDIDATE_HEALTH_PATH=__HEALTH____UI_PROFILE__ "$binary" || launch_status=$?
+sudo -n systemd-run --unit="$unit" --service-type=exec --no-block --property=RuntimeMaxSec=__RUNTIME_MAX_SECONDS__s --property=TimeoutStopSec=5s --property=User=octessera-runtime --property=Group=octessera-runtime --property=Nice=-10 --property=LimitRTPRIO=70 --property=LimitMEMLOCK=infinity --property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes --property=RestrictNamespaces=yes --property=LockPersonality=yes --property=PrivateTmp=no --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755 --property="ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot" --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w --setenv=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets --setenv=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples --setenv=OCTESSERA_OLED_BOOT_HANDOFF=v1 --setenv=OCTESSERA_CANDIDATE_HEALTH_PATH=__HEALTH____UI_PROFILE____AUTO_PLAY__ "$binary" || launch_status=$?
 deadline=$(( $(date +%s) + __STARTUP_TIMEOUT_SECONDS__ ))
 ready=0
 pinned_main_pid=
@@ -239,7 +240,7 @@ sudo -n journalctl -u "$unit" -n 80 --no-pager > "$root/candidate-journal.txt" 2
 printf 'mode=live-candidate\nready=%s\nstatus=%s\n' "$ready" "$candidate_status" > "$root/study-result.txt"
 exit "$candidate_status"
 '@
-  return $body.Replace("__SAMPLE_COUNT__", [string]$sampleCount).Replace("__LIVE_SECONDS__", [string]$LiveSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$runtimeMaxSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__UI_PROFILE__", $(if ($UiProfile) { " --setenv=OCTESSERA_PI_UI_PROFILE=1" } else { "" }))
+  return $body.Replace("__SAMPLE_COUNT__", [string]$sampleCount).Replace("__LIVE_SECONDS__", [string]$LiveSeconds).Replace("__RUNTIME_MAX_SECONDS__", [string]$runtimeMaxSeconds).Replace("__STARTUP_TIMEOUT_SECONDS__", [string]$StartupTimeoutSeconds).Replace("__UI_PROFILE__", $(if ($UiProfile) { " --setenv=OCTESSERA_PI_UI_PROFILE=1" } else { "" })).Replace("__AUTO_PLAY__", $(if ($AutoPlay) { " --setenv=OCTESSERA_TIMING_AUTOPLAY=1" } else { "" }))
 }
 
 function New-RemoteStudyPayload {
@@ -259,7 +260,8 @@ function New-RemoteStudyPayload {
     [string]$Scenario = "",
     [int]$InternalFrames = 0,
     [int]$MeasureFrames = 0,
-    [bool]$UiProfile = $false
+    [bool]$UiProfile = $false,
+    [bool]$AutoPlay = $false
   )
   $body = switch ($Mode) {
     "PassiveBaseline" {
@@ -271,7 +273,7 @@ printf 'mode=PassiveBaseline\n' > "$root/study-result.txt"
     "ProfileBaseline" { New-OrangeProfileBaselineBody $Scenario $InternalFrames $MeasureFrames $TimeoutSeconds }
     "Dsp64" { New-DspBody 64 $TimeoutSeconds $ProfileMode }
     "Dsp256" { New-DspBody 256 $TimeoutSeconds $ProfileMode }
-    "LiveCandidate" { New-LiveCandidateBody $LiveSeconds $StartupTimeoutSeconds $UiProfile }
+    "LiveCandidate" { New-LiveCandidateBody $LiveSeconds $StartupTimeoutSeconds $UiProfile $AutoPlay }
   }
   $payload = @'
 set -eu
@@ -475,10 +477,11 @@ function New-OrangeCapabilityStudyPayloadBundle {
     [string]$Scenario = "",
     [int]$InternalFrames = 0,
     [int]$MeasureFrames = 0,
-    [bool]$UiProfile = $false
+    [bool]$UiProfile = $false,
+    [bool]$AutoPlay = $false
   )
   [pscustomobject]@{
-    Study = New-RemoteStudyPayload $Mode $ProfileMode $TimeoutSeconds $LiveSeconds $StartupTimeoutSeconds $RemoteRoot $HealthPath $ArtifactHash $Unit $Service $ActiveMode $ArtifactRequired $Scenario $InternalFrames $MeasureFrames $UiProfile
+    Study = New-RemoteStudyPayload $Mode $ProfileMode $TimeoutSeconds $LiveSeconds $StartupTimeoutSeconds $RemoteRoot $HealthPath $ArtifactHash $Unit $Service $ActiveMode $ArtifactRequired $Scenario $InternalFrames $MeasureFrames $UiProfile $AutoPlay
     Prepare = New-PreparePayload $RemoteRoot
     Cleanup = New-CleanupPayload $ActiveMode $RemoteRoot $HealthPath $Unit
   }

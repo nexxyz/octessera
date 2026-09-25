@@ -13,6 +13,7 @@ param(
   [ValidateRange(5, 300)]
   [int]$LiveSeconds = 30,
   [switch]$UiProfile,
+  [switch]$AutoPlay,
   [string]$Scenario = "",
   [ValidateSet(128, 256, 512, 1024)]
   [int]$OutputFrames = 256,
@@ -47,6 +48,7 @@ Set-StrictMode -Version Latest
 Assert-DeploymentTarget $Target | Out-Null
 if (-not [string]::IsNullOrWhiteSpace($WorkerTimingMode) -and @("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled when provided." }
 if ($UiProfile -and $Mode -cne "LiveCandidate") { throw "-UiProfile requires -Mode LiveCandidate." }
+if ($AutoPlay -and ($Mode -cne "LiveCandidate" -or -not $UiProfile)) { throw "-AutoPlay requires -Mode LiveCandidate -UiProfile." }
 
 $service = "octessera.service"
 $transport = Join-Path $PSScriptRoot "with-opi-ssh.ps1"
@@ -335,7 +337,8 @@ $payloadBundle = if ($Mode -eq "LiveAudioBenchmark") {
     -Scenario $(if ($null -ne $baselineSelection) { $baselineSelection.Scenario } else { "" }) `
     -InternalFrames $(if ($null -ne $baselineSelection) { $baselineSelection.InternalFrames } else { 0 }) `
     -MeasureFrames $(if ($null -ne $baselineSelection) { $baselineSelection.MeasureFrames } else { 0 }) `
-    -UiProfile:$UiProfile
+    -UiProfile:$UiProfile `
+    -AutoPlay:$AutoPlay
 }
 $payloadPaths = @()
 $studyFailure = $null
