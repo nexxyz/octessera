@@ -95,6 +95,7 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
+            let input_started = profile_enabled.then(Instant::now);
             drain_inputs(
                 seesaw,
                 encoder_rx,
@@ -103,6 +104,9 @@ pub(crate) fn run_prepared_runtime(
                 &mut runner,
                 &mut host,
             )?;
+            if let Some(started) = input_started {
+                ui_profiler.record_host_input(started.elapsed());
+            }
             if host.shutdown_pending() {
                 break;
             }
