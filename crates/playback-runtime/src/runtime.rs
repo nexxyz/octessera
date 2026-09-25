@@ -99,6 +99,15 @@ pub trait CoreRunner {
 pub trait HostAdapter {
     fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError>;
 
+    fn handle_drum_hit(
+        &mut self,
+        _hit: &crate::protocol::DrumHit,
+    ) -> Result<(), RuntimeAdapterError> {
+        Err(RuntimeAdapterError::operation_failed(
+            "DrumHit host adapter not connected".into(),
+        ))
+    }
+
     fn handle_platform_effect(
         &mut self,
         request: &RuntimePlatformRequest,

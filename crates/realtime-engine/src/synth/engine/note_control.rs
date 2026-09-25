@@ -121,6 +121,40 @@ impl SynthEngine {
     }
 
     pub fn note_on(&mut self, instrument_slot: u8, midi_note: u8, velocity: u8, duration_ms: u32) {
+        self.note_on_with_drum(instrument_slot, midi_note, velocity, duration_ms, None);
+    }
+
+    pub fn drum_hit(&mut self, instrument_slot: u8, voice: u8, tune_semis: i8, velocity: u8) {
+        let slot = usize::from(instrument_slot);
+        if slot >= INSTRUMENT_SLOT_COUNT
+            || voice >= 8
+            || !(-24..=24).contains(&tune_semis)
+            || !(1..=127).contains(&velocity)
+            || self.slot_kind[slot] != InstrumentKind::Drum
+        {
+            return;
+        }
+        let kit_voice = self.drum_voices[slot][usize::from(voice)];
+        let note =
+            (kit_voice.sound.base_midi() + i32::from(kit_voice.tune_semis) + i32::from(tune_semis))
+                .clamp(0, 127) as u8;
+        self.note_on_with_drum(
+            instrument_slot,
+            note,
+            velocity,
+            kit_voice.decay_ms as u32,
+            Some((kit_voice, tune_semis)),
+        );
+    }
+
+    fn note_on_with_drum(
+        &mut self,
+        instrument_slot: u8,
+        midi_note: u8,
+        velocity: u8,
+        duration_ms: u32,
+        drum: Option<(DrumVoiceConfig, i8)>,
+    ) {
         #[cfg(feature = "routing-tree-benchmark")]
         if self.routing_tree_assignment.is_some() {
             self.routing_tree_mark_note_event();
@@ -135,11 +169,20 @@ impl SynthEngine {
             .unwrap_or(self.sample_clock);
         #[cfg(not(feature = "routing-tree-benchmark"))]
         let event_sample_clock = self.sample_clock;
-        if self.slot_kind[slot] == InstrumentKind::Sample {
+        if self.slot_kind[slot] == InstrumentKind::Sample && drum.is_none() {
             self.sample_note_on(slot, midi_note, velocity);
             return;
         }
-        if self.slot_kind[slot] != InstrumentKind::Synth {
+        if !matches!(
+            self.slot_kind[slot],
+            InstrumentKind::Synth
+                | InstrumentKind::Fm
+                | InstrumentKind::Pluck
+                | InstrumentKind::Drum
+        ) {
+            return;
+        }
+        if (self.slot_kind[slot] == InstrumentKind::Drum) != drum.is_some() {
             return;
         }
         if !self.synth_voice_pool.has_home() {
@@ -233,6 +276,48 @@ impl SynthEngine {
             render_revision: 0,
             phase1: 0.0,
             phase2: 0.0,
+            fm: self.slot_kind[slot] == InstrumentKind::Fm,
+            pluck_voice: self.slot_kind[slot] == InstrumentKind::Pluck,
+            drum_voice: drum.is_some(),
+            drum: if let Some((kit_voice, local_tune)) = drum {
+                crate::synth::drum_state::DrumState::note_on(
+                    kit_voice,
+                    local_tune,
+                    v,
+                    lane,
+                    self.sample_rate,
+                )
+            } else {
+                crate::synth::drum_state::DrumState::off()
+            },
+            pluck: if let render_voice::VoiceSource::Pluck {
+                decay_ms,
+                brightness_pct,
+                pick_position_pct,
+            } = self.synth_render_configs[slot].source
+            {
+                crate::synth::pluck_string::PluckState::note_on(
+                    freq,
+                    self.sample_rate,
+                    midi_note,
+                    v,
+                    decay_ms,
+                    brightness_pct,
+                    pick_position_pct,
+                )
+            } else {
+                crate::synth::pluck_string::PluckState::off()
+            },
+            source_generation: self.synth_render_configs[slot].source_generation,
+            fm_index_limit: 0.0,
+            filter_key_scale: 1.0,
+            index_env: if let render_voice::VoiceSource::Fm { index_env, .. } =
+                self.synth_render_configs[slot].source
+            {
+                EnvState::note_on(index_env, self.sample_rate)
+            } else {
+                EnvState::note_on(FmConfig::default().index_env, self.sample_rate)
+            },
             amp_env,
             filt_env,
             filt: BiquadState::new(),
@@ -278,6 +363,9 @@ impl SynthEngine {
             return;
         }
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
+        if self.slot_kind[slot] == InstrumentKind::Drum {
+            return;
+        }
         #[cfg(feature = "routing-tree-benchmark")]
         let event_sample_clock = self
             .routing_tree_source_event_sample_clock
@@ -303,6 +391,11 @@ impl SynthEngine {
                 voice
                     .filt_env
                     .begin_release(cfg.filter_env, self.sample_rate);
+                if let render_voice::VoiceSource::Fm { index_env, .. } =
+                    self.synth_render_configs[slot].source
+                {
+                    voice.index_env.begin_release(index_env, self.sample_rate);
+                }
                 voice.note_off_sample = event_sample_clock;
             }
         }
@@ -374,6 +467,11 @@ impl SynthEngine {
                     voice
                         .filt_env
                         .begin_release(cfg.filter_env, self.sample_rate);
+                    if let render_voice::VoiceSource::Fm { index_env, .. } =
+                        self.synth_render_configs[slot].source
+                    {
+                        voice.index_env.begin_release(index_env, self.sample_rate);
+                    }
                     voice.note_off_sample = event_sample_clock;
                 }
             }

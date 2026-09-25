@@ -71,6 +71,9 @@ pub(super) fn sample_buffer_view_resolves_for_test() -> usize {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum InstrumentKind {
     Synth,
+    Fm,
+    Pluck,
+    Drum,
     Sample,
     Midi,
     None,
@@ -413,10 +416,14 @@ pub(super) fn parse_route(route: &str) -> usize {
 
 pub(super) fn parse_instrument_kind(kind: &str) -> InstrumentKind {
     match kind {
+        "synth" => InstrumentKind::Synth,
+        "fm" => InstrumentKind::Fm,
+        "pluck" => InstrumentKind::Pluck,
+        "drum" => InstrumentKind::Drum,
         "sampler" => InstrumentKind::Sample,
         "midi" => InstrumentKind::Midi,
         "none" => InstrumentKind::None,
-        _ => InstrumentKind::Synth,
+        _ => InstrumentKind::None,
     }
 }
 

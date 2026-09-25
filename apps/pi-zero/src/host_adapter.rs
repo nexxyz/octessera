@@ -10,7 +10,7 @@ mod host_adapter_recording;
 mod host_adapter_store;
 
 use crate::audio::AudioService;
-use crate::audio_event::musical_event_to_engine_event;
+use crate::audio_event::{drum_hit_to_engine_event, musical_event_to_engine_event};
 use crate::host_audio_command::send_audio_command;
 use crate::midi_host::{MidiHost, RuntimeOutputSink};
 use crate::oled_frame_cache::OledFrameCache;
@@ -19,7 +19,7 @@ use crate::platform_service::{
     PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
 };
 use playback_runtime::{
-    AudioOutputSet, DeferredDefaultSave, HostAdapter, HostMessage,
+    AudioOutputSet, DeferredDefaultSave, DrumHit, HostAdapter, HostMessage,
     MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult, UsbDataRole,
 };
@@ -50,6 +50,21 @@ pub enum PiPowerRequest {
     ApplyDeviceConfigReboot,
 }
 impl PiPlaybackHostAdapter {
+    pub(crate) fn handle_runtime_drum_hit(
+        &mut self,
+        hit: &DrumHit,
+    ) -> Result<(), RuntimeAdapterError> {
+        let event = drum_hit_to_engine_event(hit)?;
+        if self.shutdown_pending() {
+            return Ok(());
+        }
+        if let Some(audio) = &self.audio {
+            audio.send_realtime(event)
+        } else {
+            Ok(())
+        }
+    }
+
     pub(crate) fn handle_transfer_input(&self, message: &playback_runtime::HostMessage) -> bool {
         if let playback_runtime::HostMessage::DeviceInput { input, .. } = message {
             return self.platform_service.handle_transfer_input(input);
@@ -262,6 +277,10 @@ impl HostAdapter for PiPlaybackHostAdapter {
             return Ok(());
         };
         audio.send_realtime(musical_event_to_engine_event(event))
+    }
+
+    fn handle_drum_hit(&mut self, hit: &DrumHit) -> Result<(), RuntimeAdapterError> {
+        self.handle_runtime_drum_hit(hit)
     }
 
     fn handle_platform_effect(

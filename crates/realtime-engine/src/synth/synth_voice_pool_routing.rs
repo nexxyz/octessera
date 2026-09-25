@@ -1,3 +1,4 @@
+use super::super::pluck_string::PluckRings;
 use super::super::runtime_state::Voice;
 use super::super::types::{
     LogicalLaneId, INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY, VOICE_PARTITION_COUNT,
@@ -9,10 +10,17 @@ impl SynthVoicePool {
     pub(in crate::synth) fn take_routing_bank_into(
         &mut self,
         bank: &mut Box<[Voice; SYNTH_VOICE_LANE_CAPACITY]>,
+        rings: &mut PluckRings,
     ) -> bool {
         if !self.partitions_home()
             || bank.iter().any(|voice| voice.active)
+            || rings.iter().any(Option::is_some)
             || !self.routing_bank_metadata_valid()
+            || self
+                .partitions
+                .iter()
+                .flatten()
+                .any(|partition| partition.rings.iter().any(Option::is_none))
         {
             return false;
         }
@@ -25,14 +33,36 @@ impl SynthVoicePool {
         };
         bank.fill(Voice::off());
         for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
-            let source = if lane % VOICE_PARTITION_COUNT == 0 {
-                &mut first.lanes[lane / VOICE_PARTITION_COUNT]
+            let partition = if lane % VOICE_PARTITION_COUNT == 0 {
+                &mut first
             } else {
-                &mut second.lanes[lane / VOICE_PARTITION_COUNT]
+                &mut second
             };
+            let local = lane / VOICE_PARTITION_COUNT;
+            let source = &mut partition.lanes[local];
             if source.active {
                 let canonical = source.canonical_lane.expect("validated canonical lane") as usize;
                 bank[canonical] = std::mem::replace(source, Voice::off());
+                rings[canonical] = partition.rings[local].take();
+            }
+        }
+        for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
+            let partition = if lane % VOICE_PARTITION_COUNT == 0 {
+                &mut first
+            } else {
+                &mut second
+            };
+            let local = lane / VOICE_PARTITION_COUNT;
+            if let Some(ring) = partition.rings[local].take() {
+                let destination = if rings[lane].is_none() {
+                    lane
+                } else {
+                    rings
+                        .iter()
+                        .position(Option::is_none)
+                        .expect("free ring lane")
+                };
+                rings[destination] = Some(ring);
             }
         }
         for mut partition in [first, second] {
@@ -51,8 +81,17 @@ impl SynthVoicePool {
     pub(in crate::synth) fn install_routing_bank(
         &mut self,
         bank: &mut Box<[Voice; SYNTH_VOICE_LANE_CAPACITY]>,
+        rings: &mut PluckRings,
     ) -> bool {
-        if !self.partitions_home() || !routing_bank_is_valid(bank) {
+        if !self.partitions_home()
+            || !routing_bank_is_valid(bank)
+            || rings.iter().any(Option::is_none)
+            || self
+                .partitions
+                .iter()
+                .flatten()
+                .any(|partition| partition.rings.iter().any(Option::is_some))
+        {
             return false;
         }
         self.slot_lanes = [[0; SYNTH_VOICE_LANE_CAPACITY]; INSTRUMENT_SLOT_COUNT];
@@ -61,6 +100,11 @@ impl SynthVoicePool {
         for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
             let voice = std::mem::replace(&mut bank[lane], Voice::off());
             *self.lane_mut(lane).expect("home partition lane") = voice;
+            let (parity, local) = (lane % VOICE_PARTITION_COUNT, lane / VOICE_PARTITION_COUNT);
+            self.partitions[parity]
+                .as_deref_mut()
+                .expect("home partition")
+                .rings[local] = rings[lane].take();
         }
         for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
             let Some(voice) = self.lane(lane) else {
@@ -80,7 +124,7 @@ impl SynthVoicePool {
     }
 
     pub(in crate::synth) fn empty_partition(parity: usize) -> Box<SynthVoicePartition> {
-        Box::new(SynthVoicePartition::new(parity))
+        Box::new(SynthVoicePartition::empty(parity))
     }
 
     pub(in crate::synth) fn restore_empty_routing_home(&mut self) -> bool {

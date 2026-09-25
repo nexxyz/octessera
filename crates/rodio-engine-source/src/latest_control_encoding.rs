@@ -1,7 +1,8 @@
 use realtime_engine::synth::{
-    BusIdleThreshold, DspRuntimeConfig, FxParamId, PreparedMomentaryFxUpdate, SampleBankParamId,
-    SynthParamId, VoiceStealingMode, WorkerWarningThreshold, BUS_COUNT, BUS_SLOTS_PER_BUS,
-    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
+    BusIdleThreshold, DrumParamId, DspRuntimeConfig, FmParamId, FxParamId, PluckParamId,
+    PreparedMomentaryFxUpdate, SampleBankParamId, SynthParamId, VoiceStealingMode,
+    WorkerWarningThreshold, BUS_COUNT, BUS_SLOTS_PER_BUS, GLOBAL_FX_SLOT_COUNT,
+    INSTRUMENT_SLOT_COUNT,
 };
 
 pub(super) const MASTER_CELL: usize = 0;
@@ -14,8 +15,12 @@ pub(super) const INSTRUMENT_PAN_START: usize =
 pub(super) const FX_BUS_VOLUME_START: usize = INSTRUMENT_PAN_START + INSTRUMENT_SLOT_COUNT;
 pub(super) const FX_BUS_PAN_START: usize = FX_BUS_VOLUME_START + BUS_COUNT;
 pub(super) const SYNTH_START: usize = FX_BUS_PAN_START + BUS_COUNT;
+pub(super) const FM_START: usize = SYNTH_START + (INSTRUMENT_SLOT_COUNT * SynthParamId::ALL.len());
+pub(super) const PLUCK_START: usize = FM_START + (INSTRUMENT_SLOT_COUNT * FmParamId::ALL.len());
+pub(super) const DRUM_START: usize =
+    PLUCK_START + (INSTRUMENT_SLOT_COUNT * PluckParamId::ALL.len());
 pub(super) const SAMPLE_START: usize =
-    SYNTH_START + (INSTRUMENT_SLOT_COUNT * SynthParamId::ALL.len());
+    DRUM_START + (INSTRUMENT_SLOT_COUNT * 8 * DrumParamId::ALL.len());
 const BUS_FX_START: usize = SAMPLE_START + (INSTRUMENT_SLOT_COUNT * SampleBankParamId::ALL.len());
 pub(super) const GLOBAL_FX_START: usize =
     BUS_FX_START + (BUS_COUNT * BUS_SLOTS_PER_BUS * FxParamId::ALL.len());
@@ -35,6 +40,9 @@ pub(super) enum LatestKey {
     FxBusVolume(usize),
     FxBusPan(usize),
     SynthParam(usize, SynthParamId),
+    FmParam(usize, FmParamId),
+    PluckParam(usize, PluckParamId),
+    DrumParam(usize, usize, DrumParamId),
     SampleBankParam(usize, SampleBankParamId),
     FxBusParam(usize, usize, FxParamId),
     GlobalFxParam(usize, FxParamId),
@@ -72,11 +80,34 @@ pub(super) fn key_for_cell(index: usize) -> LatestKey {
     if index < SYNTH_START {
         return LatestKey::FxBusPan(index - FX_BUS_PAN_START);
     }
-    if index < SAMPLE_START {
+    if index < FM_START {
         let offset = index - SYNTH_START;
         return LatestKey::SynthParam(
             offset / SynthParamId::ALL.len(),
             SynthParamId::ALL[offset % SynthParamId::ALL.len()],
+        );
+    }
+    if index < PLUCK_START {
+        let offset = index - FM_START;
+        return LatestKey::FmParam(
+            offset / FmParamId::ALL.len(),
+            FmParamId::ALL[offset % FmParamId::ALL.len()],
+        );
+    }
+    if index < DRUM_START {
+        let offset = index - PLUCK_START;
+        return LatestKey::PluckParam(
+            offset / PluckParamId::ALL.len(),
+            PluckParamId::ALL[offset % PluckParamId::ALL.len()],
+        );
+    }
+    if index < SAMPLE_START {
+        let offset = index - DRUM_START;
+        let per_slot = 8 * DrumParamId::ALL.len();
+        return LatestKey::DrumParam(
+            offset / per_slot,
+            (offset % per_slot) / DrumParamId::ALL.len(),
+            DrumParamId::ALL[offset % DrumParamId::ALL.len()],
         );
     }
     if index < BUS_FX_START {
@@ -113,6 +144,9 @@ pub(super) fn cell_for_key(key: LatestKey) -> usize {
         LatestKey::FxBusVolume(bus) => FX_BUS_VOLUME_START + bus,
         LatestKey::FxBusPan(bus) => FX_BUS_PAN_START + bus,
         LatestKey::SynthParam(slot, param) => synth_cell(slot, param),
+        LatestKey::FmParam(slot, param) => fm_cell(slot, param),
+        LatestKey::PluckParam(slot, param) => pluck_cell(slot, param),
+        LatestKey::DrumParam(slot, voice, param) => drum_cell(slot, voice, param),
         LatestKey::SampleBankParam(slot, param) => sample_cell(slot, param),
         LatestKey::FxBusParam(bus, slot, param) => bus_fx_cell(bus, slot, param),
         LatestKey::GlobalFxParam(slot, param) => global_fx_cell(slot, param),
@@ -124,6 +158,34 @@ pub(super) fn synth_cell(slot: usize, param: SynthParamId) -> usize {
     SYNTH_START
         + slot.min(INSTRUMENT_SLOT_COUNT - 1) * SynthParamId::ALL.len()
         + SynthParamId::ALL
+            .iter()
+            .position(|candidate| *candidate == param)
+            .unwrap_or(0)
+}
+
+pub(super) fn fm_cell(slot: usize, param: FmParamId) -> usize {
+    FM_START
+        + slot.min(INSTRUMENT_SLOT_COUNT - 1) * FmParamId::ALL.len()
+        + FmParamId::ALL
+            .iter()
+            .position(|candidate| *candidate == param)
+            .unwrap_or(0)
+}
+
+pub(super) fn pluck_cell(slot: usize, param: PluckParamId) -> usize {
+    PLUCK_START
+        + slot.min(INSTRUMENT_SLOT_COUNT - 1) * PluckParamId::ALL.len()
+        + PluckParamId::ALL
+            .iter()
+            .position(|candidate| *candidate == param)
+            .unwrap_or(0)
+}
+
+pub(super) fn drum_cell(slot: usize, voice: usize, param: DrumParamId) -> usize {
+    DRUM_START
+        + slot.min(INSTRUMENT_SLOT_COUNT - 1) * 8 * DrumParamId::ALL.len()
+        + voice.min(7) * DrumParamId::ALL.len()
+        + DrumParamId::ALL
             .iter()
             .position(|candidate| *candidate == param)
             .unwrap_or(0)

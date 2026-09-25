@@ -27,6 +27,9 @@ fn energy(samples: &[f32]) -> f32 {
 fn synth_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: None,
@@ -40,6 +43,9 @@ fn synth_config() -> InstrumentsConfig {
 fn sample_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -86,6 +92,9 @@ fn prepared_with_bank(
 
 fn none_slot() -> InstrumentSlotConfig {
     InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: "none".into(),
         synth: default_synth_config(),
         mixer: None,
@@ -134,7 +143,7 @@ fn prepared_config_note_and_dynamic_control_cross_source_blocks() {
 }
 
 #[test]
-fn ordered_note_off_releases_synth_after_synth_to_sample_to_none() {
+fn ordered_note_off_after_synth_to_sample_to_none_has_no_old_voice() {
     let (tx, mut source) = source();
     let sample = sample_config().instruments[0].clone();
     tx.send(EngineEvent::SetPreparedAudioConfig {
@@ -179,15 +188,11 @@ fn ordered_note_off_releases_synth_after_synth_to_sample_to_none() {
     let _ = block(&mut source);
 
     assert_eq!(source.engine.profile_snapshot().active_sample_voices, 0);
-    assert_eq!(source.engine.profile_snapshot().active_synth_voices, 1);
-    for _ in 0..400 {
-        let _ = block(&mut source);
-    }
     assert_eq!(source.engine.profile_snapshot().active_synth_voices, 0);
 }
 
 #[test]
-fn ordered_note_off_stops_sample_after_sample_to_synth_to_none() {
+fn ordered_note_off_after_sample_to_synth_to_none_has_no_old_voice() {
     let (tx, mut source) = source();
     let synth = synth_config().instruments[0].clone();
     tx.send(EngineEvent::SetPreparedAudioConfig {
@@ -232,10 +237,6 @@ fn ordered_note_off_stops_sample_after_sample_to_synth_to_none() {
     let _ = block(&mut source);
 
     assert_eq!(source.engine.profile_snapshot().active_sample_voices, 0);
-    assert_eq!(source.engine.profile_snapshot().active_synth_voices, 1);
-    for _ in 0..400 {
-        let _ = block(&mut source);
-    }
     assert_eq!(source.engine.profile_snapshot().active_synth_voices, 0);
 }
 

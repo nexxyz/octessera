@@ -1,8 +1,8 @@
 use realtime_engine::synth::{
-    DspRuntimeConfig, FxParamId, PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot,
-    PreparedInstrumentSlot, PreparedInstrumentsConfig, PreparedMomentaryFxStart,
-    PreparedMomentaryFxUpdate, SampleBankConfig, SampleBankParamId, SampleBuffer, SynthParamId,
-    VoiceStealingMode,
+    DrumParamId, DspRuntimeConfig, FmParamId, FxParamId, PluckParamId, PreparedAudioConfig,
+    PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
+    PreparedMomentaryFxStart, PreparedMomentaryFxUpdate, SampleBankConfig, SampleBankParamId,
+    SampleBuffer, SynthParamId, VoiceStealingMode,
 };
 use std::sync::mpsc::SyncSender;
 use std::time::Instant;
@@ -15,6 +15,12 @@ pub enum EngineEvent {
         note: u8,
         velocity: u8,
         duration_ms: u32,
+    },
+    DrumHit {
+        instrument_slot: u8,
+        voice: u8,
+        tune_semis: i8,
+        velocity: u8,
     },
     NoteOff {
         instrument_slot: u8,
@@ -83,6 +89,25 @@ pub enum EngineEvent {
         instrument_slot: u8,
         generation: u64,
         param: SynthParamId,
+        value: f32,
+    },
+    SetFmParam {
+        instrument_slot: u8,
+        generation: u64,
+        param: FmParamId,
+        value: f32,
+    },
+    SetPluckParam {
+        instrument_slot: u8,
+        generation: u64,
+        param: PluckParamId,
+        value: f32,
+    },
+    SetDrumParam {
+        instrument_slot: u8,
+        voice: u8,
+        generation: u64,
+        param: DrumParamId,
         value: f32,
     },
     SetSampleBankParam {

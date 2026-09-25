@@ -15,6 +15,9 @@ pub(super) fn direct_synth_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: (0..2)
             .map(|_| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -57,6 +60,9 @@ pub(super) fn raw_duck_config() -> InstrumentsConfig {
     config.instruments[1].kind = "sampler".into();
     config.instruments[1].mixer.as_mut().unwrap().volume = 25.0;
     config.instruments.push(InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: "sampler".into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {
@@ -112,6 +118,9 @@ pub(super) fn invalid_state_config() -> InstrumentsConfig {
 pub(super) fn sample_direct_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -190,6 +199,9 @@ pub(super) fn routed_config() -> InstrumentsConfig {
             .into_iter()
             .enumerate()
             .map(|(slot, kind)| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

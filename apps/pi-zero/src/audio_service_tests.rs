@@ -1,6 +1,90 @@
 use super::*;
 use std::sync::mpsc::Sender;
 
+#[test]
+fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
+    use playback_runtime::RuntimeAudioCommand;
+    use realtime_engine::synth::{
+        prepare_audio_config, DrumConfig, DrumParamId, FmConfig, FmParamId, PluckConfig,
+        PluckParamId, DEFAULT_AUDIO_SAMPLE_RATE,
+    };
+
+    let audio = test_service_for_sample_prep();
+    let mut instruments = default_pi_instruments();
+    instruments.instruments[0].kind = "fm".into();
+    instruments.instruments[0].fm = Some(FmConfig::default());
+    instruments.instruments[1].kind = "pluck".into();
+    instruments.instruments[1].pluck = Some(PluckConfig::default());
+    instruments.instruments[2].kind = "drum".into();
+    instruments.instruments[2].drum = Some(DrumConfig::default());
+    audio
+        .send(EngineEvent::SetPreparedAudioConfig {
+            generation: 42,
+            config: prepare_audio_config(instruments, None, None, DEFAULT_AUDIO_SAMPLE_RATE),
+        })
+        .unwrap();
+
+    crate::host_audio_command::send_audio_command(
+        Some(audio.clone()),
+        &RuntimeAudioCommand::SetFmParam {
+            instrument_slot: 0,
+            generation: 42,
+            path: "fm.index".into(),
+            value: 51.0,
+        },
+        std::path::Path::new("samples"),
+    )
+    .unwrap();
+    crate::host_audio_command::send_audio_command(
+        Some(audio.clone()),
+        &RuntimeAudioCommand::SetPluckParam {
+            instrument_slot: 1,
+            generation: 42,
+            path: "pluck.decayMs".into(),
+            value: 220.0,
+        },
+        std::path::Path::new("samples"),
+    )
+    .unwrap();
+    crate::host_audio_command::send_audio_command(
+        Some(audio.clone()),
+        &RuntimeAudioCommand::SetDrumParam {
+            instrument_slot: 2,
+            voice: 4,
+            generation: 42,
+            path: "drum.decayMs".into(),
+            value: 350.0,
+        },
+        std::path::Path::new("samples"),
+    )
+    .unwrap();
+    audio
+        .send_realtime(EngineEvent::DrumHit {
+            instrument_slot: 2,
+            voice: 4,
+            tune_semis: 0,
+            velocity: 100,
+        })
+        .unwrap();
+    let replay = audio.replay_events.lock().unwrap();
+    let events = crate::audio_replay::collect_replay_events(&replay);
+    assert!(events.iter().any(|event| matches!(event,
+        EngineEvent::SetFmParam {
+            instrument_slot: 0, generation: 42, param: FmParamId::Index, value,
+        } if *value == 51.0)));
+    assert!(events.iter().any(|event| matches!(event,
+        EngineEvent::SetPluckParam {
+            instrument_slot: 1, generation: 42, param: PluckParamId::DecayMs, value,
+        } if *value == 220.0)));
+    assert!(events.iter().any(|event| matches!(event,
+        EngineEvent::SetDrumParam {
+            instrument_slot: 2, voice: 4, generation: 42, param: DrumParamId::DecayMs, value,
+        } if *value == 350.0)));
+    assert!(!events
+        .iter()
+        .any(|event| matches!(event, EngineEvent::DrumHit { .. })));
+}
+
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn test_service() -> (
     AudioService,

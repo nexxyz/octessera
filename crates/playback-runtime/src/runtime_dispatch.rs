@@ -295,6 +295,23 @@ impl PlaybackRuntime {
                         }
                     }
                 }
+                RunnerMessage::DrumHits { hits } => {
+                    for hit in hits {
+                        if let Err(error) = host.handle_drum_hit(&hit) {
+                            let error = self.adapter_error_metadata(
+                                error,
+                                RuntimeErrorDomain::Audio,
+                                RuntimeOperation::AudioCommand,
+                                RuntimeRecovery::RetainLastGood,
+                                None,
+                                None,
+                            );
+                            self.latch_error(error.clone());
+                            self.apply_recovery(error.recovery, &mut runner, host, &mut output);
+                            self.append_presentations(&mut output);
+                        }
+                    }
+                }
                 RunnerMessage::RuntimeStatus { status } => {
                     if let Err(error) = self.apply_runtime_status(status, host) {
                         let error = self.adapter_error_metadata(

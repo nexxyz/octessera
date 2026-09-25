@@ -5,6 +5,9 @@ fn sample_instrument_routes_through_bus_fx_delay_tail() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -52,6 +55,9 @@ fn sample_instrument_routes_through_bus_fx_slot3_delay_tail() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -100,6 +106,9 @@ fn sample_preview_routes_through_bus_fx_delay_tail() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -190,6 +199,9 @@ fn sample_filter_engine(cutoff_hz: f32, resonance: f32) -> SynthEngine {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: None,

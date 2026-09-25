@@ -181,6 +181,14 @@ fn instrument_item(config: &NativeMenuConfig, index: usize, label: &str) -> Nati
             .map(Vec::as_slice)
             .unwrap_or(&[]),
         synth_config: config.instrument_synth_configs.get(index),
+        fm_config: config.instrument_fm_configs.get(index),
+        pluck_config: config.instrument_pluck_configs.get(index),
+        drum_config: config.instrument_drum_configs.get(index),
+        drum_voice: config
+            .instrument_drum_selected_voices
+            .get(index)
+            .copied()
+            .unwrap_or(0),
         synth_osc1_waveform: config
             .instrument_synth_osc1_waveforms
             .get(index)
@@ -285,6 +293,9 @@ fn instrument_overview_label(
     let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
     let route = compact_route_postfix(route);
     match kind {
+        "fm" => format!("{prefix} FM {route}"),
+        "pluck" => format!("{prefix} Plucked {route}"),
+        "drum" => format!("{prefix} Drum {route}"),
         "sampler" => format!("{prefix} samp {route}"),
         "midi" => format!("{prefix} midi ch{midi_channel}"),
         "none" => format!("{prefix} none"),

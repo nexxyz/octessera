@@ -102,6 +102,7 @@ impl NativeRunner {
         };
         let mut messages = Vec::with_capacity(5);
         self.append_pending_transpose_note_offs(&mut messages);
+        self.append_pending_drum_hits(&mut messages);
         if let Some(effect) = save_default_effect {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: vec![effect],
@@ -135,6 +136,7 @@ impl NativeRunner {
         self.queue_audio_config_if_changed();
         let mut messages = Vec::with_capacity(4);
         self.append_pending_transpose_note_offs(&mut messages);
+        self.append_pending_drum_hits(&mut messages);
         if self.outbox.has_platform_effects() {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: self.outbox.drain_platform_effects(),
@@ -180,6 +182,17 @@ impl NativeRunner {
         if !events.midi.is_empty() {
             messages.push(RunnerMessage::MidiEvents {
                 events: events.midi,
+            });
+        }
+        if !events.drum.is_empty() {
+            messages.push(RunnerMessage::DrumHits { hits: events.drum });
+        }
+    }
+
+    fn append_pending_drum_hits(&mut self, messages: &mut Vec<RunnerMessage>) {
+        if !self.pending.drum_hits.is_empty() {
+            messages.push(RunnerMessage::DrumHits {
+                hits: std::mem::take(&mut self.pending.drum_hits),
             });
         }
     }
@@ -242,6 +255,9 @@ impl NativeRunner {
                     events: events.midi,
                 });
             }
+            if !events.drum.is_empty() {
+                messages.push(RunnerMessage::DrumHits { hits: events.drum });
+            }
         }
         messages.extend(self.messages_with_snapshot()?);
         Ok(messages)
@@ -265,6 +281,9 @@ impl NativeRunner {
                 messages.push(RunnerMessage::MidiEvents {
                     events: events.midi,
                 });
+            }
+            if !events.drum.is_empty() {
+                messages.push(RunnerMessage::DrumHits { hits: events.drum });
             }
         }
         Ok(messages)

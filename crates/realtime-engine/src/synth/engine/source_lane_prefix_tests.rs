@@ -228,11 +228,17 @@ fn prefix_engine() -> SynthEngine {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth,
                 mixer: None,
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".into(),
                 synth,
                 mixer: None,

@@ -1,7 +1,7 @@
 use super::{
     merge_preserved_aux_payloads, patch_payload_from_payload, strip_device_audio_fields,
     validate_audio_outputs, validate_canonical_lfo_bank_shape, validate_config_payload,
-    validate_portable_patch_fields, ConfigDto, Value,
+    validate_portable_patch_fields, ConfigDto, Value, INSTRUMENT_COUNT,
 };
 
 #[path = "config_schema_derived_names.rs"]
@@ -47,6 +47,7 @@ pub(super) fn prepare_config_payload(
         normalize_missing_usb_data_role(&mut input, false);
     }
     validate_supplied_audio_outputs(&input)?;
+    default_missing_instrument_blocks_in_full_config(&mut input);
     let merge_base = current.clone();
     let mut payload = merge_values(&merge_base, &input);
     if version.is_unversioned() {
@@ -75,6 +76,32 @@ pub(super) fn prepare_config_payload(
     })
 }
 
+fn default_missing_instrument_blocks_in_full_config(input: &mut Value) {
+    let Some(instruments) = input
+        .get_mut("runtimeConfig")
+        .and_then(|runtime| runtime.get_mut("instruments"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    if instruments.len() != INSTRUMENT_COUNT {
+        return;
+    }
+    for instrument in instruments {
+        if let Some(instrument) = instrument.as_object_mut() {
+            instrument
+                .entry("fm")
+                .or_insert_with(super::fm_default_config);
+            instrument
+                .entry("pluck")
+                .or_insert_with(super::pluck_default_config);
+            instrument
+                .entry("drum")
+                .or_insert_with(super::drum_config::drum_default_config);
+        }
+    }
+}
+
 pub(super) fn prepare_patch_payload(
     input: Value,
     current: &Value,
@@ -83,7 +110,9 @@ pub(super) fn prepare_patch_payload(
     let mut input = input;
     validate_canonical_lfo_bank_shape(&input)?;
     if version == EnvelopeVersion::V2 {
-        validate_portable_patch_fields(&input, current)?;
+        let mut validation_template = current.clone();
+        default_missing_instrument_blocks_in_full_config(&mut validation_template);
+        validate_portable_patch_fields(&input, &validation_template)?;
     }
     if version.is_unversioned() {
         normalize_missing_usb_data_role(&mut input, true);

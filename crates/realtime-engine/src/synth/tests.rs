@@ -50,6 +50,9 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -59,6 +62,9 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
                 }),
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

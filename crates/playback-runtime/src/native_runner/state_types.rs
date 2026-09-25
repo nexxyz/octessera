@@ -32,6 +32,7 @@ pub(super) struct NativePendingState {
     pub(super) pending_aux_turn_toast: Option<PendingNativeToast>,
     pub(super) pending_menu_apply: Option<PendingMenuApply>,
     pub(super) suppress_snapshot_response: bool,
+    pub(super) drum_hits: Vec<crate::protocol::DrumHit>,
 }
 
 #[derive(Clone)]

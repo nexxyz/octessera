@@ -5,6 +5,9 @@ fn master_volume_controls_final_output_gain() {
     let mut full = SynthEngine::new(48_000);
     full.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -20,6 +23,9 @@ fn master_volume_controls_final_output_gain() {
     let mut half = SynthEngine::new(48_000);
     half.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -55,6 +61,9 @@ fn master_fx_processes_bus_routed_output() {
     let mut dry = SynthEngine::new(48_000);
     dry.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -77,6 +86,9 @@ fn master_fx_processes_bus_routed_output() {
     let mut wet = SynthEngine::new(48_000);
     wet.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -123,6 +135,9 @@ fn master_compressor_is_stereo_linked() {
     right_only.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -132,6 +147,9 @@ fn master_compressor_is_stereo_linked() {
                 }),
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -164,6 +182,9 @@ fn master_compressor_is_stereo_linked() {
     linked.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -173,6 +194,9 @@ fn master_compressor_is_stereo_linked() {
                 }),
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -238,6 +262,9 @@ fn set_instruments_preserves_unchanged_master_fx_state() {
     });
     let instruments = |slot_cfg| {
         vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: slot_cfg,
             mixer: Some(InstrumentMixerConfig {

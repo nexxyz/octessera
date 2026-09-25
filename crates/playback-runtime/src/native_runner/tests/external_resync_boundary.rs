@@ -259,6 +259,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
                 duration_ms: None,
             }],
             midi: Vec::new(),
+            drum: Vec::new(),
         },
     });
     runner.link_arp_held_notes[0].push(LinkArpHeldNote {

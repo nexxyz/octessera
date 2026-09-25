@@ -30,6 +30,9 @@ fn sample_engine() -> SynthEngine {
     engine.set_instrument_slot(
         0,
         InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,

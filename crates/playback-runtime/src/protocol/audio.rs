@@ -61,6 +61,28 @@ pub enum RuntimeAudioCommand {
         path: String,
         value: f32,
     },
+    SetFmParam {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        generation: u64,
+        path: String,
+        value: f32,
+    },
+    SetPluckParam {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        generation: u64,
+        path: String,
+        value: f32,
+    },
+    SetDrumParam {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        voice: u8,
+        generation: u64,
+        path: String,
+        value: f32,
+    },
     SetSampleBankParam {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,

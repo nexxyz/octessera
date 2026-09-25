@@ -1,4 +1,6 @@
-use super::{cutoff_display_to_hz, set_json_path_number, NativeInstrumentSlot, PAN_POSITION_COUNT};
+use super::{
+    cutoff_display_to_hz, set_json_path_number, NativeInstrumentSlot, Value, PAN_POSITION_COUNT,
+};
 
 pub(super) fn apply_instrument_numeric_binding_value(
     instrument: &mut NativeInstrumentSlot,
@@ -10,7 +12,70 @@ pub(super) fn apply_instrument_numeric_binding_value(
         "mixer.panPos" => {
             instrument.pan_pos = value.round().clamp(0.0, f64::from(PAN_POSITION_COUNT - 1)) as u8
         }
-        "synth.amp.gainPct" => instrument.synth_gain_pct = value.round().clamp(0.0, 100.0) as u8,
+        "synth.amp.gainPct" => {
+            instrument.synth_gain_pct = value.round().clamp(0.0, 100.0) as u8;
+            set_json_path_number(
+                &mut instrument.synth_config,
+                &["amp", "gainPct"],
+                f64::from(instrument.synth_gain_pct),
+            );
+        }
+        field if field.starts_with("fm.") => {
+            let Some((path, min, max)) =
+                super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])
+            else {
+                return false;
+            };
+            let value = value.round().clamp(f64::from(min), f64::from(max)) as i32;
+            let stored = if field == "fm.filter.cutoffHz" {
+                cutoff_display_to_hz(value)
+            } else {
+                value
+            };
+            set_json_path_number(&mut instrument.fm_config, path, f64::from(stored));
+        }
+        field if field.starts_with("pluck.") => {
+            let Some((path, min, max)) =
+                super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])
+            else {
+                return false;
+            };
+            let value = value.round().clamp(f64::from(min), f64::from(max)) as i32;
+            let stored = if field == "pluck.filter.cutoffHz" {
+                cutoff_display_to_hz(value)
+            } else {
+                value
+            };
+            set_json_path_number(&mut instrument.pluck_config, path, f64::from(stored));
+        }
+        field if field.starts_with("drum.voices.") => {
+            let Some((voice, param, min, max)) = super::drum_config::voice_numeric_field(field)
+            else {
+                return false;
+            };
+            let Some(selected) = instrument
+                .drum_config
+                .get_mut("voices")
+                .and_then(Value::as_array_mut)
+                .and_then(|voices| voices.get_mut(voice))
+            else {
+                return false;
+            };
+            selected[param] =
+                super::json!(value.round().clamp(f64::from(min), f64::from(max)) as i32);
+        }
+        field if field.starts_with("drum.") => {
+            let Some((path, min, max)) = super::drum_config::common_numeric_field(field) else {
+                return false;
+            };
+            let value = value.round().clamp(f64::from(min), f64::from(max)) as i32;
+            let stored = if field == "drum.filter.cutoffHz" {
+                cutoff_display_to_hz(value)
+            } else {
+                value
+            };
+            set_json_path_number(&mut instrument.drum_config, path, f64::from(stored));
+        }
         "synth.filter.cutoffHz" => set_json_path_number(
             &mut instrument.synth_config,
             &["filter", "cutoffHz"],

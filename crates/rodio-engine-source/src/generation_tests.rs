@@ -1,9 +1,10 @@
 use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
-    prepare_instrument_slot_config, FxBusConfig, FxBusSlotConfig, FxParamId, InstrumentSlotConfig,
-    InstrumentsConfig, MasterFxConfig, MixerConfig, SampleBankConfig, SampleBankParamId,
-    SynthParamId, DEFAULT_PAN_POSITIONS,
+    prepare_instrument_slot_config, DrumConfig, DrumParamId, FmConfig, FmParamId, FxBusConfig,
+    FxBusSlotConfig, FxParamId, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig,
+    MixerConfig, PluckConfig, PluckParamId, SampleBankConfig, SampleBankParamId, SynthParamId,
+    DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 
@@ -13,6 +14,9 @@ fn full_config() -> realtime_engine::synth::PreparedAudioConfig {
     prepare_audio_config(
         InstrumentsConfig {
             instruments: vec![InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: None,
@@ -88,6 +92,94 @@ fn instrument_scalar(generation: u64) -> EngineEvent {
     }
 }
 
+fn fm_scalar(generation: u64) -> EngineEvent {
+    EngineEvent::SetFmParam {
+        instrument_slot: 0,
+        generation,
+        param: FmParamId::Index,
+        value: 73.0,
+    }
+}
+
+fn pluck_scalar(generation: u64) -> EngineEvent {
+    EngineEvent::SetPluckParam {
+        instrument_slot: 0,
+        generation,
+        param: PluckParamId::DecayMs,
+        value: 250.0,
+    }
+}
+
+fn drum_scalar(generation: u64) -> EngineEvent {
+    EngineEvent::SetDrumParam {
+        instrument_slot: 0,
+        voice: 3,
+        generation,
+        param: DrumParamId::DecayMs,
+        value: 320.0,
+    }
+}
+
+#[test]
+fn drum_instrument_generation_rejects_stale_voice_scalar_after_replacement() {
+    run_sequence(
+        EngineEvent::SetPreparedInstrumentSlot {
+            instrument_slot: 0,
+            generation: 21,
+            config: prepare_instrument_slot_config(InstrumentSlotConfig {
+                kind: "drum".into(),
+                synth: default_synth_config(),
+                fm: None,
+                pluck: None,
+                drum: Some(DrumConfig::default()),
+                mixer: None,
+            }),
+        },
+        drum_scalar,
+        instrument_owner,
+    );
+}
+
+#[test]
+fn pluck_instrument_generation_rejects_stale_scalar_after_replacement() {
+    run_sequence(
+        EngineEvent::SetPreparedInstrumentSlot {
+            instrument_slot: 0,
+            generation: 21,
+            config: prepare_instrument_slot_config(InstrumentSlotConfig {
+                kind: "pluck".into(),
+                synth: default_synth_config(),
+                fm: None,
+                pluck: Some(PluckConfig::default()),
+                drum: None,
+                mixer: None,
+            }),
+        },
+        pluck_scalar,
+        instrument_owner,
+    );
+}
+
+#[test]
+fn fm_instrument_generation_rejects_stale_scalar_after_replacement() {
+    run_sequence(
+        EngineEvent::SetPreparedInstrumentSlot {
+            instrument_slot: 0,
+            generation: 21,
+            config: prepare_instrument_slot_config(InstrumentSlotConfig {
+                kind: "fm".into(),
+                synth: default_synth_config(),
+                fm: Some(FmConfig::default()),
+                pluck: None,
+                drum: None,
+                mixer: None,
+            }),
+        },
+        fm_scalar,
+        instrument_owner,
+    );
+}
+
 fn sample_scalar(generation: u64) -> EngineEvent {
     EngineEvent::SetSampleBankParam {
         instrument_slot: 0,
@@ -152,6 +244,9 @@ fn instrument_generation_sequence_preserves_scalar_parity() {
             instrument_slot: 0,
             generation: 21,
             config: prepare_instrument_slot_config(InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: None,
@@ -170,6 +265,9 @@ fn instrument_owner_generation_gates_scalar_until_atomic_apply() {
         instrument_slot: 0,
         generation: 21,
         config: prepare_instrument_slot_config(InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,

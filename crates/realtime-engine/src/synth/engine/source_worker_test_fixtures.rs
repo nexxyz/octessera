@@ -11,11 +11,17 @@ pub(super) fn dynamic_engine() -> SynthEngine {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".into(),
                 synth,
                 mixer: None,
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth,
                 mixer: None,
@@ -44,6 +50,9 @@ pub(super) fn full_mixed_engine() -> SynthEngine {
     engine.set_instruments(InstrumentsConfig {
         instruments: (0..8)
             .map(|_| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: None,
@@ -74,6 +83,9 @@ pub(super) fn duck_post_engine(instrument_source: &str, bus_source: &str) -> Syn
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -83,6 +95,9 @@ pub(super) fn duck_post_engine(instrument_source: &str, bus_source: &str) -> Syn
                 }),
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -92,6 +107,9 @@ pub(super) fn duck_post_engine(instrument_source: &str, bus_source: &str) -> Syn
                 }),
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

@@ -52,7 +52,15 @@ pub(super) fn binding_spec_from_leaf(
     match &item.value {
         NativeMenuValue::Number { min, max, step, .. } => Some(NativeParamBindingSpec {
             key,
-            label: Some(item.label.clone()),
+            label: Some(
+                if let Some((voice, _)) = drum_voice_field(item.key.as_deref().unwrap_or("")) {
+                    format!("V{} {}", voice + 1, item.label)
+                } else if item.key.as_deref().is_some_and(|key| key.contains(".fm.")) {
+                    format!("FM {}", item.label)
+                } else {
+                    item.label.clone()
+                },
+            ),
             kind: "number".into(),
             min: Some(*min),
             max: Some(*max),
@@ -93,6 +101,32 @@ pub(super) fn binding_spec_from_leaf(
 pub(super) fn is_excluded_binding_key(key: &str) -> bool {
     key == "behaviorId"
         || key == "playMode"
+        || key.contains(".fm.")
+            && ![
+                ".fm.index",
+                ".fm.amp.gainPct",
+                ".fm.filter.cutoffHz",
+                ".fm.filter.resonance",
+            ]
+            .iter()
+            .any(|suffix| key.ends_with(suffix))
+        || key.contains(".pluck.")
+            && ![
+                ".pluck.decayMs",
+                ".pluck.brightnessPct",
+                ".pluck.pickPositionPct",
+                ".pluck.amp.gainPct",
+                ".pluck.filter.cutoffHz",
+                ".pluck.filter.resonance",
+            ]
+            .iter()
+            .any(|suffix| key.ends_with(suffix))
+        || key.contains(".drum.") && !is_bindable_drum_key(key)
+        || key.ends_with(".sample.filter.type")
+        || key.ends_with(".sample.filter.envAmountPct")
+        || key.ends_with(".sample.filter.keyTrackingPct")
+        || key.contains(".sample.ampEnv.")
+        || key.contains(".sample.filterEnv.")
         || key.ends_with(".name")
         || key.ends_with(".autoName")
         || key.ends_with(".clone")
@@ -101,6 +135,22 @@ pub(super) fn is_excluded_binding_key(key: &str) -> bool {
         || key.ends_with(".params.timeNote")
         || key.contains(".mapping.")
         || key.ends_with(".triggerProbability.map")
+}
+
+fn drum_voice_field(key: &str) -> Option<(u8, &str)> {
+    let (voice, field) = key.split_once(".drum.voices.")?.1.split_once('.')?;
+    Some((voice.parse::<u8>().ok().filter(|voice| *voice < 8)?, field))
+}
+
+fn is_bindable_drum_key(key: &str) -> bool {
+    let Some((_, field)) = key.split_once(".drum.") else {
+        return false;
+    };
+    matches!(
+        field,
+        "amp.gainPct" | "filter.cutoffHz" | "filter.resonance"
+    ) || drum_voice_field(key)
+        .is_some_and(|(_, field)| matches!(field, "tuneSemis" | "decayMs" | "tonePct" | "attackMs"))
 }
 
 #[allow(clippy::too_many_arguments)]

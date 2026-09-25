@@ -21,6 +21,9 @@ impl NativeRunner {
             apply_instrument_mixer_payload(slot, instrument);
             apply_instrument_sample_payload(slot, instrument);
             apply_instrument_synth_payload(slot, instrument);
+            apply_instrument_fm_payload(slot, instrument);
+            apply_instrument_pluck_payload(slot, instrument);
+            apply_instrument_drum_payload(slot, instrument);
             apply_instrument_midi_payload(slot, instrument);
         }
     }
@@ -235,7 +238,7 @@ impl NativeRunner {
         }
         if let Some(value) = runtime.get("playMode").and_then(Value::as_str) {
             let normalized = match value {
-                "mix" | "pan" | "fx" | "trigger-gate" | "transpose" | "xy" => Some(value),
+                "mix" | "pan" | "fx" | "trigger-gate" | "transpose" | "xy" | "drums" => Some(value),
                 "none" => Some("mix"),
                 _ => None,
             };

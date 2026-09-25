@@ -148,6 +148,18 @@ fn same_replacement_owner(left: &RuntimeAudioCommand, right: &RuntimeAudioComman
                 instrument_slot: left_slot,
                 ..
             }
+            | RuntimeAudioCommand::SetFmParam {
+                instrument_slot: left_slot,
+                ..
+            }
+            | RuntimeAudioCommand::SetPluckParam {
+                instrument_slot: left_slot,
+                ..
+            }
+            | RuntimeAudioCommand::SetDrumParam {
+                instrument_slot: left_slot,
+                ..
+            }
             | RuntimeAudioCommand::SetSampleBankParam {
                 instrument_slot: left_slot,
                 ..
@@ -207,6 +219,44 @@ fn same_scalar_key(left: &RuntimeAudioCommand, right: &RuntimeAudioCommand) -> b
                 ..
             },
             RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: right_slot,
+                path: right_path,
+                ..
+            },
+        ) => left_slot == right_slot && left_path == right_path,
+        (
+            RuntimeAudioCommand::SetDrumParam {
+                instrument_slot: left_slot,
+                voice: left_voice,
+                path: left_path,
+                ..
+            },
+            RuntimeAudioCommand::SetDrumParam {
+                instrument_slot: right_slot,
+                voice: right_voice,
+                path: right_path,
+                ..
+            },
+        ) => left_slot == right_slot && left_voice == right_voice && left_path == right_path,
+        (
+            RuntimeAudioCommand::SetPluckParam {
+                instrument_slot: left_slot,
+                path: left_path,
+                ..
+            },
+            RuntimeAudioCommand::SetPluckParam {
+                instrument_slot: right_slot,
+                path: right_path,
+                ..
+            },
+        ) => left_slot == right_slot && left_path == right_path,
+        (
+            RuntimeAudioCommand::SetFmParam {
+                instrument_slot: left_slot,
+                path: left_path,
+                ..
+            },
+            RuntimeAudioCommand::SetFmParam {
                 instrument_slot: right_slot,
                 path: right_path,
                 ..

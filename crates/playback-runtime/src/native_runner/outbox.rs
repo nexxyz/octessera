@@ -7,6 +7,8 @@ mod coalescing;
 #[cfg(test)]
 #[path = "outbox_generation_tests.rs"]
 mod generation_tests;
+#[path = "outbox_momentary_epochs.rs"]
+mod momentary_epochs;
 #[cfg(test)]
 #[path = "outbox_momentary_tests.rs"]
 mod momentary_tests;
@@ -180,6 +182,41 @@ impl NativeRunnerOutbox {
                 value,
             } => RuntimeAudioCommand::SetSynthParam {
                 instrument_slot,
+                generation: self.instrument_generation(instrument_slot, generation),
+                path,
+                value,
+            },
+            RuntimeAudioCommand::SetFmParam {
+                instrument_slot,
+                generation,
+                path,
+                value,
+            } => RuntimeAudioCommand::SetFmParam {
+                instrument_slot,
+                generation: self.instrument_generation(instrument_slot, generation),
+                path,
+                value,
+            },
+            RuntimeAudioCommand::SetPluckParam {
+                instrument_slot,
+                generation,
+                path,
+                value,
+            } => RuntimeAudioCommand::SetPluckParam {
+                instrument_slot,
+                generation: self.instrument_generation(instrument_slot, generation),
+                path,
+                value,
+            },
+            RuntimeAudioCommand::SetDrumParam {
+                instrument_slot,
+                voice,
+                generation,
+                path,
+                value,
+            } => RuntimeAudioCommand::SetDrumParam {
+                instrument_slot,
+                voice,
                 generation: self.instrument_generation(instrument_slot, generation),
                 path,
                 value,
@@ -402,47 +439,6 @@ impl NativeRunnerOutbox {
             self.global_fx_generations.insert(slot, generation);
         }
         generation
-    }
-
-    fn resolve_momentary_start_epoch(&mut self, requested: u64) -> u64 {
-        if !self.momentary_epoch_wrapped
-            && requested != 0
-            && requested != u64::MAX
-            && requested > self.momentary_epoch
-            && !self
-                .active_momentary_epochs
-                .values()
-                .any(|&epoch| epoch == requested)
-        {
-            self.momentary_epoch = requested;
-            requested
-        } else {
-            self.allocate_momentary_epoch()
-        }
-    }
-
-    fn allocate_momentary_epoch(&mut self) -> u64 {
-        let mut candidate = self.momentary_epoch.wrapping_add(1);
-        if candidate == 0 || candidate == u64::MAX {
-            candidate = 1;
-            self.momentary_epoch_wrapped = true;
-        }
-        for _ in 0..=self.active_momentary_epochs.len() {
-            if !self
-                .active_momentary_epochs
-                .values()
-                .any(|&epoch| epoch == candidate)
-            {
-                self.momentary_epoch = candidate;
-                return candidate;
-            }
-            candidate = candidate.wrapping_add(1);
-            if candidate == 0 || candidate == u64::MAX {
-                candidate = 1;
-                self.momentary_epoch_wrapped = true;
-            }
-        }
-        unreachable!("momentary epoch space exhausted by active effects")
     }
 }
 

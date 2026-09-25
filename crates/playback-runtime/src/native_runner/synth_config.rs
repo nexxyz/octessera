@@ -7,6 +7,46 @@ pub(super) fn instrument_synth_configs(instruments: &[NativeInstrumentSlot]) -> 
         .collect()
 }
 
+pub(super) fn instrument_fm_configs(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.fm_config.clone())
+        .collect()
+}
+
+pub(super) fn instrument_pluck_configs(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.pluck_config.clone())
+        .collect()
+}
+
+pub(super) fn pluck_default_config() -> Value {
+    let synth = synth_preset_config("init");
+    json!({
+        "decayMs": 1500,
+        "brightnessPct": 65,
+        "pickPositionPct": 25,
+        "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
+        "ampEnv": { "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 900 },
+        "filter": synth["filter"],
+        "filterEnv": synth["filterEnv"]
+    })
+}
+
+pub(super) fn fm_default_config() -> Value {
+    let synth = synth_preset_config("init");
+    json!({
+        "ratio": "2",
+        "index": 50,
+        "indexEnv": { "attackMs": 0, "decayMs": 250, "sustainPct": 20, "releaseMs": 120 },
+        "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
+        "ampEnv": { "attackMs": 5, "decayMs": 300, "sustainPct": 70, "releaseMs": 350 },
+        "filter": synth["filter"],
+        "filterEnv": synth["filterEnv"]
+    })
+}
+
 pub(super) fn instrument_synth_osc1_waveforms(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
     instruments
         .iter()

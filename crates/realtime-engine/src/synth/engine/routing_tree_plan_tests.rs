@@ -348,6 +348,9 @@ fn config(
             .into_iter()
             .zip(routes)
             .map(|(kind, route)| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

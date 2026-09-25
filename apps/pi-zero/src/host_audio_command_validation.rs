@@ -3,9 +3,10 @@ use playback_runtime::{
     RuntimeErrorFacts, RuntimeMomentaryFxTarget, RuntimeOperation,
 };
 use realtime_engine::synth::{
-    normalize_audio_config, validate_fx_type, validate_momentary_fx_type,
-    validate_sample_bank_param_path, validate_synth_param_path, MomentaryFxTarget, BUS_COUNT,
-    BUS_SLOTS_PER_BUS, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
+    normalize_audio_config, validate_fm_param_path, validate_fx_type, validate_momentary_fx_type,
+    validate_pluck_param_path, validate_sample_bank_param_path, validate_synth_param_path,
+    DrumParamId, MomentaryFxTarget, BUS_COUNT, BUS_SLOTS_PER_BUS, GLOBAL_FX_SLOT_COUNT,
+    INSTRUMENT_SLOT_COUNT,
 };
 use std::path::Path;
 
@@ -38,6 +39,42 @@ pub(super) fn validate_audio_command(
             validate_instrument_slot(*instrument_slot)?;
             validate_synth_param_path(path).map_err(invalid_audio_command)?;
             ensure_finite(*value, "synth parameter")?;
+        }
+        RuntimeAudioCommand::SetFmParam {
+            instrument_slot,
+            path,
+            value,
+            ..
+        } => {
+            validate_instrument_slot(*instrument_slot)?;
+            validate_fm_param_path(path).map_err(invalid_audio_command)?;
+            ensure_finite(*value, "FM parameter")?;
+        }
+        RuntimeAudioCommand::SetPluckParam {
+            instrument_slot,
+            path,
+            value,
+            ..
+        } => {
+            validate_instrument_slot(*instrument_slot)?;
+            validate_pluck_param_path(path).map_err(invalid_audio_command)?;
+            ensure_finite(*value, "Plucked parameter")?;
+        }
+        RuntimeAudioCommand::SetDrumParam {
+            instrument_slot,
+            voice,
+            path,
+            value,
+            ..
+        } => {
+            validate_instrument_slot(*instrument_slot)?;
+            let param = DrumParamId::from_path(path).ok_or_else(|| {
+                invalid_audio_command(format!("unsupported Drum parameter path `{path}`"))
+            })?;
+            if *voice >= 8 || (!param.is_voice_param() && *voice != 0) {
+                return Err(invalid_audio_command(format!("invalid Drum voice {voice}")));
+            }
+            ensure_finite(*value, "Drum parameter")?;
         }
         RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot,

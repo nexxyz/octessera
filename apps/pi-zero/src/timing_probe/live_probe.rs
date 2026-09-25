@@ -164,6 +164,21 @@ impl HostAdapter for LiveProbeHost {
         result
     }
 
+    fn handle_drum_hit(
+        &mut self,
+        hit: &playback_runtime::DrumHit,
+    ) -> Result<(), playback_runtime::RuntimeAdapterError> {
+        self.events.push(LiveEventRecord {
+            at_us: self.event_started_at.elapsed().as_micros(),
+            key: format!("drum:{}:{}", hit.instrument_slot, hit.voice),
+        });
+        let started = Instant::now();
+        let result = self.inner.handle_drum_hit(hit);
+        self.audio_send_us
+            .push(started.elapsed().as_micros() as f64);
+        result
+    }
+
     fn handle_platform_effect(
         &mut self,
         request: &RuntimePlatformRequest,

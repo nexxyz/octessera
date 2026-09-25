@@ -1,11 +1,22 @@
-use super::{NativeLinkLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
+use super::NativeLinkLayer;
+use crate::protocol::DrumHit;
 use platform_core::{CellTriggerIntent, MusicalEvent};
 use std::collections::BTreeMap;
+
+#[path = "modulation_drum.rs"]
+mod drum;
+pub(super) use drum::drum_hit_for_intent;
+#[path = "modulation_intent_values.rs"]
+mod intent_values;
+#[cfg(test)]
+pub(super) use intent_values::value_from_lane;
+pub(super) use intent_values::{cc_events_from_intent, velocity_from_intent};
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct RoutedMusicalEvents {
     pub(super) audio: Vec<MusicalEvent>,
     pub(super) midi: Vec<MusicalEvent>,
+    pub(super) drum: Vec<DrumHit>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,12 +28,13 @@ pub(super) struct TransposedHeldNote {
 
 impl RoutedMusicalEvents {
     pub(super) fn is_empty(&self) -> bool {
-        self.audio.is_empty() && self.midi.is_empty()
+        self.audio.is_empty() && self.midi.is_empty() && self.drum.is_empty()
     }
 
     pub(super) fn extend(&mut self, other: RoutedMusicalEvents) {
         self.audio.extend(other.audio);
         self.midi.extend(other.midi);
+        self.drum.extend(other.drum);
     }
 }
 
@@ -57,6 +69,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
 ) -> RoutedMusicalEvents {
     let mut out = Vec::with_capacity(events.len());
     let mut midi = Vec::new();
+    let mut drum = Vec::new();
     for event in events.iter().take(mapped_event_offset) {
         route_event_without_intent_with_held_transpose(
             event.clone(),
@@ -89,6 +102,27 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             }
         }
         let mut event = event.clone();
+        if instruments
+            .get(channel as usize)
+            .is_some_and(|instrument| instrument.kind == "drum")
+        {
+            match &mut event {
+                MusicalEvent::NoteOn { velocity, .. } => {
+                    if let Some(pulses_velocity) =
+                        sense.and_then(|sense| velocity_from_intent(intent, sense))
+                    {
+                        *velocity = pulses_velocity;
+                    }
+                    if let Some(hit) = drum_hit_for_intent(instruments, channel, intent, *velocity)
+                    {
+                        drum.push(hit);
+                    }
+                    continue;
+                }
+                MusicalEvent::NoteOff { .. } => continue,
+                MusicalEvent::Cc { .. } => {}
+            }
+        }
         let suppress = match &mut event {
             MusicalEvent::NoteOn { .. } => prepare_note_on_with_intent(
                 &mut event,
@@ -120,7 +154,11 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             }
         }
     }
-    RoutedMusicalEvents { audio: out, midi }
+    RoutedMusicalEvents {
+        audio: out,
+        midi,
+        drum,
+    }
 }
 
 fn prepare_note_on_with_intent(
@@ -150,7 +188,7 @@ fn prepare_note_on_with_intent(
         return false;
     };
     let held_note = match instrument.kind.as_str() {
-        "synth" => {
+        "synth" | "fm" | "pluck" => {
             transpose_note(note, transpose_offset);
             Some(TransposedHeldNote {
                 routed_channel: *channel,
@@ -225,7 +263,7 @@ fn prepare_note_off_with_intent(
         return false;
     };
     match instrument.kind.as_str() {
-        "synth" => transpose_note(note, transpose_offset),
+        "synth" | "fm" | "pluck" => transpose_note(note, transpose_offset),
         "midi" if instrument.midi_enabled => {
             transpose_note(note, transpose_offset);
             *channel = instrument.midi_channel.saturating_sub(1).min(15);
@@ -281,6 +319,16 @@ fn route_event_without_intent(
     midi: &mut Vec<MusicalEvent>,
 ) {
     let channel = event_channel(&event);
+    if instruments
+        .get(channel as usize)
+        .is_some_and(|instrument| instrument.kind == "drum")
+        && matches!(
+            event,
+            MusicalEvent::NoteOn { .. } | MusicalEvent::NoteOff { .. }
+        )
+    {
+        return;
+    }
     match instrument_route(instruments, channel) {
         InstrumentRoute::InternalAudio => audio.push(event),
         InstrumentRoute::ExternalMidi => {
@@ -362,102 +410,6 @@ pub(super) fn midi_event_channel(
         .filter(|instrument| instrument.kind == "midi" && instrument.midi_enabled)
         .map(|instrument| instrument.midi_channel.saturating_sub(1).min(15))
         .unwrap_or(slot_channel)
-}
-
-pub(super) fn cc_events_from_intent(
-    intent: &CellTriggerIntent,
-    sense: &NativeLinkLayer,
-    channel: u8,
-) -> Vec<MusicalEvent> {
-    let mut events = Vec::new();
-    push_lane_cc(
-        &mut events,
-        &sense.x_filter_cutoff,
-        intent.x,
-        GRID_WIDTH,
-        channel,
-        74,
-    );
-    push_lane_cc(
-        &mut events,
-        &sense.y_filter_cutoff,
-        intent.y,
-        GRID_HEIGHT,
-        channel,
-        74,
-    );
-    push_lane_cc(
-        &mut events,
-        &sense.x_filter_resonance,
-        intent.x,
-        GRID_WIDTH,
-        channel,
-        71,
-    );
-    push_lane_cc(
-        &mut events,
-        &sense.y_filter_resonance,
-        intent.y,
-        GRID_HEIGHT,
-        channel,
-        71,
-    );
-    events
-}
-
-fn push_lane_cc(
-    events: &mut Vec<MusicalEvent>,
-    lane: &NativeValueLane,
-    index: usize,
-    size: usize,
-    channel: u8,
-    controller: u8,
-) {
-    if !lane.enabled {
-        return;
-    }
-    events.push(MusicalEvent::Cc {
-        channel: channel.min(15),
-        controller,
-        value: value_from_lane(index, size, lane),
-    });
-}
-
-pub(super) fn velocity_from_intent(
-    intent: &CellTriggerIntent,
-    sense: &NativeLinkLayer,
-) -> Option<u8> {
-    let mut values = Vec::new();
-    if sense.x_velocity.enabled {
-        values.push(value_from_lane(intent.x, GRID_WIDTH, &sense.x_velocity));
-    }
-    if sense.y_velocity.enabled {
-        values.push(value_from_lane(intent.y, GRID_HEIGHT, &sense.y_velocity));
-    }
-    if values.is_empty() {
-        return None;
-    }
-    Some(
-        ((values.iter().map(|value| u16::from(*value)).sum::<u16>() / values.len() as u16)
-            .clamp(1, 127)) as u8,
-    )
-}
-
-pub(super) fn value_from_lane(index: usize, size: usize, lane: &NativeValueLane) -> u8 {
-    let size = size.max(1);
-    let shifted = ((index as i32 + lane.grid_offset).rem_euclid(size as i32)) as f32;
-    let norm = (shifted / (size.saturating_sub(1).max(1) as f32)).clamp(0.0, 1.0);
-    let shaped = if lane.curve == "curve" {
-        norm * norm
-    } else {
-        norm
-    };
-    (f32::from(lane.from) + shaped * (f32::from(lane.to) - f32::from(lane.from)))
-        .round()
-        .clamp(
-            f32::from(lane.from.min(lane.to)),
-            f32::from(lane.from.max(lane.to)),
-        ) as u8
 }
 
 pub(super) fn sampler_assignment_velocity(

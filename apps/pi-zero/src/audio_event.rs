@@ -1,4 +1,7 @@
-use playback_runtime::MusicalEvent;
+use playback_runtime::{
+    DrumHit, MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
+    RuntimeErrorFacts, RuntimeOperation,
+};
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEvent;
 
@@ -31,10 +34,31 @@ pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent
     }
 }
 
+pub(crate) fn drum_hit_to_engine_event(hit: &DrumHit) -> Result<EngineEvent, RuntimeAdapterError> {
+    if usize::from(hit.instrument_slot) >= INSTRUMENT_SLOT_COUNT
+        || hit.voice >= 8
+        || !(-24..=24).contains(&hit.tune_semis)
+        || !(1..=127).contains(&hit.velocity)
+    {
+        return Err(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
+            RuntimeErrorDomain::Audio,
+            RuntimeErrorCode::InvalidPayload,
+            RuntimeOperation::MusicalEvent,
+            Some("invalid Drum hit slot, voice, tune, or velocity".into()),
+        )));
+    }
+    Ok(EngineEvent::DrumHit {
+        instrument_slot: hit.instrument_slot,
+        voice: hit.voice,
+        tune_semis: hit.tune_semis,
+        velocity: hit.velocity,
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::musical_event_to_engine_event;
-    use playback_runtime::MusicalEvent;
+    use super::{drum_hit_to_engine_event, musical_event_to_engine_event};
+    use playback_runtime::{DrumHit, MusicalEvent};
     use rodio_engine_source::EngineEvent;
 
     #[test]
@@ -53,5 +77,53 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn drum_hit_mapping_preserves_fields_and_rejects_invalid_hit() {
+        let hit = DrumHit {
+            instrument_slot: 2,
+            voice: 7,
+            tune_semis: -24,
+            velocity: 120,
+        };
+        assert!(matches!(
+            drum_hit_to_engine_event(&hit).unwrap(),
+            EngineEvent::DrumHit {
+                instrument_slot: 2,
+                voice: 7,
+                tune_semis: -24,
+                velocity: 120
+            }
+        ));
+        assert!(matches!(
+            drum_hit_to_engine_event(&DrumHit {
+                tune_semis: 24,
+                ..hit.clone()
+            }),
+            Ok(EngineEvent::DrumHit {
+                instrument_slot: 2,
+                voice: 7,
+                tune_semis: 24,
+                velocity: 120
+            })
+        ));
+        for invalid in [
+            DrumHit {
+                instrument_slot: 8,
+                ..hit.clone()
+            },
+            DrumHit {
+                voice: 8,
+                ..hit.clone()
+            },
+            DrumHit {
+                tune_semis: 25,
+                ..hit.clone()
+            },
+            DrumHit { velocity: 0, ..hit },
+        ] {
+            assert!(drum_hit_to_engine_event(&invalid).is_err());
+        }
     }
 }

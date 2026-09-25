@@ -106,7 +106,7 @@ fn prepared_single_slot_apply_matches_canonical_single_slot_apply() {
 }
 
 #[test]
-fn prepared_single_non_synth_slot_apply_preserves_partial_state_and_voices() {
+fn prepared_single_non_synth_slot_apply_preserves_partial_state_and_retires_old_voices() {
     const SLOT: usize = 1;
     let initial = test_slot("synth", true);
     let mut next = test_slot("sampler", false);
@@ -138,10 +138,13 @@ fn prepared_single_non_synth_slot_apply_preserves_partial_state_and_voices() {
         canonical.synth_render_revisions,
         prepared.synth_render_revisions
     );
-    assert_eq!(canonical.synth_render_revisions[SLOT], canonical_revision);
-    assert_eq!(prepared.synth_render_revisions[SLOT], prepared_revision);
-    assert_eq!(canonical.active_voice_count_for_slot(SLOT), 1);
-    assert_eq!(prepared.active_voice_count_for_slot(SLOT), 1);
+    assert_eq!(
+        canonical.synth_render_revisions[SLOT],
+        canonical_revision + 1
+    );
+    assert_eq!(prepared.synth_render_revisions[SLOT], prepared_revision + 1);
+    assert_eq!(canonical.active_voice_count_for_slot(SLOT), 0);
+    assert_eq!(prepared.active_voice_count_for_slot(SLOT), 0);
 }
 
 #[test]
@@ -409,6 +412,9 @@ fn capacities(engine: &SynthEngine) -> (usize, usize, usize, usize, usize, usize
 pub(super) fn test_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -452,6 +458,9 @@ pub(super) fn test_slot(kind: &str, with_mixer: bool) -> InstrumentSlotConfig {
     synth.osc1.waveform = WaveformId::Triangle;
     synth.amp.gain_pct = 42.0;
     InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: kind.into(),
         synth,
         mixer: with_mixer.then_some(InstrumentMixerConfig {

@@ -6,6 +6,9 @@ fn compressor_quieter_when_above_threshold() {
     dry.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -25,6 +28,9 @@ fn compressor_quieter_when_above_threshold() {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -84,6 +90,9 @@ fn compressor_makeup_restores_gain() {
     dry.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -103,6 +112,9 @@ fn compressor_makeup_restores_gain() {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -158,6 +170,9 @@ fn eq_boosts_and_cuts_band_energy() {
     flat.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -177,6 +192,9 @@ fn eq_boosts_and_cuts_band_energy() {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

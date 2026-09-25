@@ -125,6 +125,9 @@ fn duck_post_staging_applies_only_instrument_and_source_bus_volumes() {
         .expect("target instrument mixer")
         .volume = 25.0;
     config.instruments.push(InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: "synth".into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {

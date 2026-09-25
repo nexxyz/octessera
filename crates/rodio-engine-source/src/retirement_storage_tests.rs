@@ -33,6 +33,9 @@ impl EngineSource {
 
 fn prepared_slot() -> realtime_engine::synth::PreparedInstrumentSlot {
     prepare_instrument_slot_config(InstrumentSlotConfig {
+        fm: None,
+        pluck: None,
+        drum: None,
         kind: "synth".into(),
         synth: default_synth_config(),
         mixer: None,

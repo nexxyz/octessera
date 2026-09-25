@@ -60,6 +60,7 @@ pub struct PreparedInstrumentSlot {
     pub(super) render_plan: PreparedInstrumentTopology,
     pub(super) kind: InstrumentKind,
     pub(super) synth: SynthConfig,
+    pub(super) drum_voices: [DrumVoiceConfig; 8],
     pub(super) render_config: SynthVoiceRenderConfig,
     pub(super) route: Option<usize>,
     pub(super) pan_pos: usize,
@@ -205,11 +206,36 @@ fn prepare_instrument_slot(slot: InstrumentSlotConfig) -> PreparedInstrumentSlot
             )
         })
         .unwrap_or((None, 0, 1.0));
+    let (synth, render_config) = if kind == InstrumentKind::Fm {
+        let fm = slot.fm.unwrap_or_default();
+        (
+            fm.common_voice_config(),
+            SynthVoiceRenderConfig::from_fm(fm),
+        )
+    } else if kind == InstrumentKind::Pluck {
+        let pluck = slot.pluck.unwrap_or_default();
+        (
+            pluck.common_voice_config(),
+            SynthVoiceRenderConfig::from_pluck(pluck),
+        )
+    } else if kind == InstrumentKind::Drum {
+        let drum = slot.drum.as_ref().cloned().unwrap_or_default();
+        (
+            drum.common_voice_config(),
+            SynthVoiceRenderConfig::from_drum(&drum),
+        )
+    } else {
+        (slot.synth, SynthVoiceRenderConfig::from_config(slot.synth))
+    };
     PreparedInstrumentSlot {
         render_plan,
         kind,
-        synth: slot.synth,
-        render_config: SynthVoiceRenderConfig::from_config(slot.synth),
+        synth,
+        drum_voices: slot
+            .drum
+            .as_ref()
+            .map_or_else(|| DrumConfig::default().voices, |drum| drum.voices),
+        render_config,
         route,
         pan_pos,
         volume,

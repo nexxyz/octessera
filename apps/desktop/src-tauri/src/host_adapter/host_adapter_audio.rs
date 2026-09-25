@@ -7,9 +7,9 @@ use playback_runtime::{
 };
 use realtime_engine::synth::{
     prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_fx_type,
-    validate_momentary_fx_type, MomentaryFxTarget, SampleBankParamId, SynthParamId, BUS_COUNT,
-    BUS_SLOTS_PER_BUS, DEFAULT_AUDIO_SAMPLE_RATE, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
-    SAMPLE_SLOTS_PER_INSTRUMENT,
+    validate_momentary_fx_type, FmParamId, MomentaryFxTarget, PluckParamId, SampleBankParamId,
+    SynthParamId, BUS_COUNT, BUS_SLOTS_PER_BUS, DEFAULT_AUDIO_SAMPLE_RATE, GLOBAL_FX_SLOT_COUNT,
+    INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT,
 };
 use rodio_engine_source::EngineEvent;
 use serde_json::Value;
@@ -148,6 +148,57 @@ impl DesktopPlaybackHostAdapter {
                     },
                     playback_runtime::RuntimeOperation::AudioCommand,
                 )
+            }
+            RuntimeAudioCommand::SetFmParam {
+                instrument_slot,
+                generation,
+                path,
+                value,
+            } => {
+                validate_instrument_slot(*instrument_slot)?;
+                let param = FmParamId::from_path(path).ok_or_else(|| {
+                    invalid_audio_command(format!("unsupported FM parameter path `{path}`"))
+                })?;
+                ensure_finite(*value, "FM parameter")?;
+                self.send_engine_event(
+                    EngineEvent::SetFmParam {
+                        instrument_slot: *instrument_slot as u8,
+                        generation: *generation,
+                        param,
+                        value: *value,
+                    },
+                    playback_runtime::RuntimeOperation::AudioCommand,
+                )
+            }
+            RuntimeAudioCommand::SetPluckParam {
+                instrument_slot,
+                generation,
+                path,
+                value,
+            } => {
+                validate_instrument_slot(*instrument_slot)?;
+                let param = PluckParamId::from_path(path).ok_or_else(|| {
+                    invalid_audio_command(format!("unsupported Plucked parameter path `{path}`"))
+                })?;
+                ensure_finite(*value, "Plucked parameter")?;
+                self.send_engine_event(
+                    EngineEvent::SetPluckParam {
+                        instrument_slot: *instrument_slot as u8,
+                        generation: *generation,
+                        param,
+                        value: *value,
+                    },
+                    playback_runtime::RuntimeOperation::AudioCommand,
+                )
+            }
+            RuntimeAudioCommand::SetDrumParam {
+                instrument_slot,
+                voice,
+                generation,
+                path,
+                value,
+            } => {
+                self.handle_runtime_drum_param(*instrument_slot, *voice, *generation, path, *value)
             }
             RuntimeAudioCommand::SetSampleBankParam {
                 instrument_slot,
@@ -369,7 +420,7 @@ fn prep_queue_error(
     ))
 }
 
-fn invalid_audio_command(message: String) -> RuntimeAdapterError {
+pub(super) fn invalid_audio_command(message: String) -> RuntimeAdapterError {
     RuntimeAdapterError::from_facts(playback_runtime::RuntimeErrorFacts::new(
         playback_runtime::RuntimeErrorDomain::Audio,
         playback_runtime::RuntimeErrorCode::InvalidPayload,
@@ -378,7 +429,7 @@ fn invalid_audio_command(message: String) -> RuntimeAdapterError {
     ))
 }
 
-fn ensure_finite(value: f32, name: &str) -> Result<(), RuntimeAdapterError> {
+pub(super) fn ensure_finite(value: f32, name: &str) -> Result<(), RuntimeAdapterError> {
     value
         .is_finite()
         .then_some(())
@@ -401,7 +452,7 @@ fn validate_param_values(params: &BTreeMap<String, Value>) -> Result<(), Runtime
     })
 }
 
-fn validate_instrument_slot(index: usize) -> Result<(), RuntimeAdapterError> {
+pub(super) fn validate_instrument_slot(index: usize) -> Result<(), RuntimeAdapterError> {
     (index < INSTRUMENT_SLOT_COUNT)
         .then_some(())
         .ok_or_else(|| invalid_audio_command(format!("invalid instrument slot {index}")))

@@ -101,6 +101,9 @@ fn bus_heavy_instruments() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)
             .map(|slot| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -129,6 +132,9 @@ fn fx_limit_instruments(bus_slots: usize) -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)
             .map(|slot| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: if slot % 2 == 0 { "synth" } else { "sampler" }.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

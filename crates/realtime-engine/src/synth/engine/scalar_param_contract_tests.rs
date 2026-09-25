@@ -3,6 +3,12 @@ use super::super::scalar_param::{SampleBankParamId, ScalarMutation, SynthParamId
 #[test]
 fn synth_scalar_ids_match_exact_dotted_paths() {
     let expected = [
+        (SynthParamId::Osc1LevelPct, "synth.osc1.levelPct"),
+        (SynthParamId::Osc1DetuneCents, "synth.osc1.detuneCents"),
+        (SynthParamId::Osc1PulseWidthPct, "synth.osc1.pulseWidthPct"),
+        (SynthParamId::Osc2LevelPct, "synth.osc2.levelPct"),
+        (SynthParamId::Osc2DetuneCents, "synth.osc2.detuneCents"),
+        (SynthParamId::Osc2PulseWidthPct, "synth.osc2.pulseWidthPct"),
         (SynthParamId::AmpGainPct, "synth.amp.gainPct"),
         (
             SynthParamId::AmpVelocitySensitivityPct,
@@ -22,14 +28,8 @@ fn synth_scalar_ids_match_exact_dotted_paths() {
             SynthParamId::FilterKeyTrackingPct,
             "synth.filter.keyTrackingPct",
         ),
-        (
-            SynthParamId::FilterEnvAttackMs,
-            "synth.filterEnv.attackMs",
-        ),
-        (
-            SynthParamId::FilterEnvDecayMs,
-            "synth.filterEnv.decayMs",
-        ),
+        (SynthParamId::FilterEnvAttackMs, "synth.filterEnv.attackMs"),
+        (SynthParamId::FilterEnvDecayMs, "synth.filterEnv.decayMs"),
         (
             SynthParamId::FilterEnvSustainPct,
             "synth.filterEnv.sustainPct",
@@ -57,7 +57,10 @@ fn sample_scalar_ids_match_exact_dotted_paths() {
             "sample.amp.velocitySensitivityPct",
         ),
         (SampleBankParamId::FilterCutoffHz, "sample.filter.cutoffHz"),
-        (SampleBankParamId::FilterResonance, "sample.filter.resonance"),
+        (
+            SampleBankParamId::FilterResonance,
+            "sample.filter.resonance",
+        ),
     ];
     assert_eq!(expected.len(), SampleBankParamId::ALL.len());
     for ((id, path), expected_id) in expected.into_iter().zip(SampleBankParamId::ALL) {
@@ -92,11 +95,34 @@ fn typed_scalar_updates_preserve_all_existing_clamps() {
             ScalarMutation::Changed
         );
     }
+    for (id, value) in [
+        (SynthParamId::Osc1LevelPct, 200.0),
+        (SynthParamId::Osc2LevelPct, -1.0),
+        (SynthParamId::Osc1DetuneCents, -500.0),
+        (SynthParamId::Osc2DetuneCents, 500.0),
+        (SynthParamId::Osc1PulseWidthPct, -1.0),
+        (SynthParamId::Osc2PulseWidthPct, 500.0),
+    ] {
+        assert_eq!(
+            engine.set_synth_param_typed(0, id, value),
+            ScalarMutation::Changed
+        );
+    }
+    let synth = engine.instruments[0];
+    assert_eq!((synth.osc1.level_pct, synth.osc2.level_pct), (100.0, 0.0));
+    assert_eq!(
+        (synth.osc1.detune_cents, synth.osc2.detune_cents),
+        (-50.0, 50.0)
+    );
+    assert_eq!(
+        (synth.osc1.pulse_width_pct, synth.osc2.pulse_width_pct),
+        (5.0, 95.0)
+    );
     assert_eq!(
         synth_scalar_values(&engine, 0),
         [
-            100.0, 0.0, 0.0, 5_000.0, 100.0, 10_000.0, 20.0, 255.0, -100.0, 100.0,
-            0.0, 5_000.0, 100.0, 10_000.0,
+            100.0, 0.0, 0.0, 5_000.0, 100.0, 10_000.0, 20.0, 255.0, -100.0, 100.0, 0.0, 5_000.0,
+            100.0, 10_000.0,
         ]
     );
 
@@ -142,10 +168,7 @@ fn typed_scalar_nonfinite_values_reject_without_mutation_or_revision_churn() {
                 engine.set_sample_bank_param_typed(0, id, value),
                 ScalarMutation::Rejected
             );
-            assert_f32_arrays_bitwise_equal(
-                before_sample_values,
-                sample_scalar_values(&engine, 0),
-            );
+            assert_f32_arrays_bitwise_equal(before_sample_values, sample_scalar_values(&engine, 0));
         }
     }
 }

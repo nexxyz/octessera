@@ -1,4 +1,4 @@
-use super::source_lane_renderer::{render_synth_voice_frame, SynthVoiceFrameContext};
+use super::render_voice::synth_voice_render::{render_synth_voice_frame, SynthVoiceFrameContext};
 use super::*;
 
 impl SynthEngine {
@@ -46,11 +46,11 @@ impl SynthEngine {
         let mut sample = 0.0;
         let mut active = false;
         for lane in lane_indices.into_iter().take(lane_count) {
-            let Some(voice) = self.synth_voice_pool.lane_mut(lane) else {
+            let Some((voice, ring)) = self.synth_voice_pool.lane_and_ring_mut(lane) else {
                 return SlotFrameOutput::default();
             };
             if let Some(rendered) =
-                render_synth_voice_frame(voice, slot_idx, frame_sample_clock, context)
+                render_synth_voice_frame(voice, ring, slot_idx, frame_sample_clock, context)
             {
                 sample += rendered;
                 active = true;

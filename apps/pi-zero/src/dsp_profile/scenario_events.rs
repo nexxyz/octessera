@@ -281,6 +281,9 @@ fn instruments_config(
             .iter()
             .enumerate()
             .map(|(slot, kind)| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: (*kind).to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

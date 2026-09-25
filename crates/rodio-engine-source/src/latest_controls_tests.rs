@@ -1,7 +1,9 @@
 use super::{LatestCell, LatestControls, LatestCursor, MASTER_CELL};
 use crate::queue_types::{QueueKind, QueueSendError};
 use crate::EngineEvent;
-use realtime_engine::synth::prepare_momentary_fx_update;
+use realtime_engine::synth::{
+    prepare_momentary_fx_update, DrumParamId, FmParamId, PluckParamId, SynthParamId,
+};
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier};
@@ -12,6 +14,140 @@ fn momentary_event(epoch: u64) -> EngineEvent {
         prepare_momentary_fx_update(epoch, "stutter".into(), BTreeMap::new(), 44_100)
             .expect("momentary update"),
     )
+}
+
+#[test]
+fn fm_index_coalesces_in_its_own_instrument_cell() {
+    let (sender, mut receiver) = crate::event_queue();
+    for value in [30.0, 85.0] {
+        sender
+            .send(EngineEvent::SetFmParam {
+                instrument_slot: 2,
+                generation: 7,
+                param: FmParamId::Index,
+                value,
+            })
+            .unwrap();
+    }
+    sender
+        .send(EngineEvent::SetSynthParam {
+            instrument_slot: 2,
+            generation: 7,
+            param: SynthParamId::AmpGainPct,
+            value: 60.0,
+        })
+        .unwrap();
+    let mut candidates = Vec::new();
+    while let Some(candidate) = receiver.take_latest_candidate() {
+        candidates.push((
+            candidate.key,
+            candidate.generation,
+            f32::from_bits(candidate.value as u32),
+        ));
+        receiver.mark_latest_applied(candidate);
+    }
+    assert_eq!(candidates.len(), 2);
+    assert!(candidates.contains(&(super::LatestKey::FmParam(2, FmParamId::Index), 7, 85.0)));
+    assert!(candidates.contains(&(
+        super::LatestKey::SynthParam(2, SynthParamId::AmpGainPct),
+        7,
+        60.0
+    )));
+}
+
+#[test]
+fn pluck_decay_coalesces_without_colliding_with_brightness_or_other_slots() {
+    let (sender, mut receiver) = crate::event_queue();
+    for value in [200.0, 1_500.0] {
+        sender
+            .send(EngineEvent::SetPluckParam {
+                instrument_slot: 2,
+                generation: 7,
+                param: PluckParamId::DecayMs,
+                value,
+            })
+            .unwrap();
+    }
+    sender
+        .send(EngineEvent::SetPluckParam {
+            instrument_slot: 2,
+            generation: 7,
+            param: PluckParamId::BrightnessPct,
+            value: 83.0,
+        })
+        .unwrap();
+    let mut candidates = Vec::new();
+    while let Some(candidate) = receiver.take_latest_candidate() {
+        candidates.push((
+            candidate.key,
+            candidate.generation,
+            f32::from_bits(candidate.value as u32),
+        ));
+        receiver.mark_latest_applied(candidate);
+    }
+    assert_eq!(candidates.len(), 2);
+    assert!(candidates.contains(&(
+        super::LatestKey::PluckParam(2, PluckParamId::DecayMs),
+        7,
+        1_500.0
+    )));
+    assert!(candidates.contains(&(
+        super::LatestKey::PluckParam(2, PluckParamId::BrightnessPct),
+        7,
+        83.0
+    )));
+}
+
+#[test]
+fn drum_scalar_latest_wins_only_within_same_slot_voice_and_parameter() {
+    let (sender, mut receiver) = crate::event_queue();
+    for (slot, voice, param, value) in [
+        (0, 2, DrumParamId::DecayMs, 100.0),
+        (0, 2, DrumParamId::DecayMs, 220.0),
+        (0, 3, DrumParamId::DecayMs, 300.0),
+        (1, 2, DrumParamId::DecayMs, 400.0),
+        (0, 2, DrumParamId::TonePct, 70.0),
+    ] {
+        sender
+            .send(EngineEvent::SetDrumParam {
+                instrument_slot: slot,
+                voice,
+                generation: 7,
+                param,
+                value,
+            })
+            .unwrap();
+    }
+    let mut candidates = Vec::new();
+    while let Some(candidate) = receiver.take_latest_candidate() {
+        candidates.push((
+            candidate.key,
+            candidate.generation,
+            f32::from_bits(candidate.value as u32),
+        ));
+        receiver.mark_latest_applied(candidate);
+    }
+    assert_eq!(candidates.len(), 4);
+    assert!(candidates.contains(&(
+        super::LatestKey::DrumParam(0, 2, DrumParamId::DecayMs),
+        7,
+        220.0
+    )));
+    assert!(candidates.contains(&(
+        super::LatestKey::DrumParam(0, 3, DrumParamId::DecayMs),
+        7,
+        300.0
+    )));
+    assert!(candidates.contains(&(
+        super::LatestKey::DrumParam(1, 2, DrumParamId::DecayMs),
+        7,
+        400.0
+    )));
+    assert!(candidates.contains(&(
+        super::LatestKey::DrumParam(0, 2, DrumParamId::TonePct),
+        7,
+        70.0
+    )));
 }
 
 #[test]

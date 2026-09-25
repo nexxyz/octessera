@@ -39,6 +39,28 @@ fn latest_controls_replace_without_consuming_fifo_capacity() {
 }
 
 #[test]
+fn distinct_drum_hits_stay_ordered_in_musical_fifo_and_not_latest_cells() {
+    let (sender, mut receiver) = event_queue();
+    for (voice, tune_semis) in [(0, -24), (2, 12)] {
+        sender
+            .send(EngineEvent::DrumHit {
+                instrument_slot: 3,
+                voice,
+                tune_semis,
+                velocity: 100,
+            })
+            .unwrap();
+    }
+    for (voice, tune_semis) in [(0, -24), (2, 12)] {
+        assert!(matches!(receiver.try_recv().unwrap(),
+            EngineEvent::DrumHit { instrument_slot: 3, voice: actual_voice,
+                tune_semis: actual_tune, velocity: 100 }
+            if actual_voice == voice && actual_tune == tune_semis));
+    }
+    assert!(receiver.take_latest_candidate().is_none());
+}
+
+#[test]
 fn musical_fifo_is_exact_under_latest_flood() {
     let (sender, mut receiver) = event_queue();
     for note in 0..MUSICAL_QUEUE_CAPACITY {
@@ -334,6 +356,9 @@ fn prepared_instrument_owner_is_one_retiring_structural_event() {
             generation: 1,
             config: realtime_engine::synth::prepare_instrument_slot_config(
                 realtime_engine::synth::InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "synth".into(),
                     synth: realtime_engine::synth::default_synth_config(),
                     mixer: None,

@@ -431,7 +431,7 @@ impl NativeRunner {
         true
     }
 
-    fn fast_play_page_key(&mut self, play_mode: &str) -> bool {
+    pub(super) fn fast_play_page_key(&mut self, play_mode: &str) -> bool {
         let changed = self.play_mode != play_mode;
         if changed {
             self.play_mode = play_mode.into();

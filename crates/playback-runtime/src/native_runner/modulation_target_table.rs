@@ -2,7 +2,16 @@
 
 use super::modulation_target::TargetValueKind;
 
+#[path = "modulation_instrument_target_fields.rs"]
+mod instrument_fields;
+use self::instrument_fields::{
+    INSTRUMENT_ADDITIVE_FIELDS, INSTRUMENT_BOOL_FIELDS, INSTRUMENT_ENUM_FIELDS, INSTRUMENT_FIELDS,
+};
+
 pub(super) fn instrument_field_kind(field: &str) -> Option<(TargetValueKind, bool)> {
+    if super::drum_config::voice_numeric_field(field).is_some() {
+        return Some((TargetValueKind::Numeric, false));
+    }
     let value_kind = if INSTRUMENT_ENUM_FIELDS.contains(&field) {
         TargetValueKind::Enum
     } else if INSTRUMENT_BOOL_FIELDS.contains(&field) {
@@ -67,103 +76,6 @@ pub(super) fn play_field_is_exclusive(field: &str) -> bool {
 pub(super) fn play_field_is_known(field: &str) -> bool {
     PLAY_FIELDS.contains(&field)
 }
-
-const INSTRUMENT_FIELDS: &[&str] = &[
-    "type",
-    "noteBehavior",
-    "mixer.route",
-    "mixer.volume",
-    "mixer.panPos",
-    "synth.osc1.waveform",
-    "synth.osc1.octave",
-    "synth.osc1.levelPct",
-    "synth.osc1.detuneCents",
-    "synth.osc1.pulseWidthPct",
-    "synth.osc2.waveform",
-    "synth.osc2.octave",
-    "synth.osc2.levelPct",
-    "synth.osc2.detuneCents",
-    "synth.osc2.pulseWidthPct",
-    "synth.amp.gainPct",
-    "synth.amp.velocitySensitivityPct",
-    "synth.ampEnv.attackMs",
-    "synth.ampEnv.decayMs",
-    "synth.ampEnv.sustainPct",
-    "synth.ampEnv.releaseMs",
-    "synth.filter.type",
-    "synth.filter.cutoffHz",
-    "synth.filter.resonance",
-    "synth.filter.envAmountPct",
-    "synth.filter.keyTrackingPct",
-    "synth.filterEnv.attackMs",
-    "synth.filterEnv.decayMs",
-    "synth.filterEnv.sustainPct",
-    "synth.filterEnv.releaseMs",
-    "sample.tuneSemis",
-    "sample.selectedSlot",
-    "sample.amp.gainPct",
-    "sample.amp.velocitySensitivityPct",
-    "sample.ampEnv.attackMs",
-    "sample.ampEnv.decayMs",
-    "sample.ampEnv.sustainPct",
-    "sample.ampEnv.releaseMs",
-    "sample.baseVelocity",
-    "sample.velocityLevelsEnabled",
-    "sample.velocityLevels.high",
-    "sample.velocityLevels.medium",
-    "sample.velocityLevels.low",
-    "sample.filter.type",
-    "sample.filter.cutoffHz",
-    "sample.filter.resonance",
-    "sample.filter.envAmountPct",
-    "sample.filter.keyTrackingPct",
-    "sample.filterEnv.attackMs",
-    "sample.filterEnv.decayMs",
-    "sample.filterEnv.sustainPct",
-    "sample.filterEnv.releaseMs",
-    "midi.enabled",
-    "midi.channel",
-    "midi.velocity",
-    "midi.durationMs",
-];
-
-const INSTRUMENT_ENUM_FIELDS: &[&str] = &[
-    "type",
-    "noteBehavior",
-    "mixer.route",
-    "synth.osc1.waveform",
-    "synth.osc2.waveform",
-    "synth.filter.type",
-    "sample.filter.type",
-    "sample.selectedSlot",
-];
-
-const INSTRUMENT_BOOL_FIELDS: &[&str] = &["sample.velocityLevelsEnabled", "midi.enabled"];
-
-const INSTRUMENT_ADDITIVE_FIELDS: &[&str] = &[
-    "synth.osc1.levelPct",
-    "synth.osc1.detuneCents",
-    "synth.osc1.pulseWidthPct",
-    "synth.osc2.levelPct",
-    "synth.osc2.detuneCents",
-    "synth.osc2.pulseWidthPct",
-    "synth.amp.gainPct",
-    "synth.amp.velocitySensitivityPct",
-    "synth.ampEnv.sustainPct",
-    "synth.filter.cutoffHz",
-    "synth.filter.resonance",
-    "synth.filter.envAmountPct",
-    "synth.filter.keyTrackingPct",
-    "synth.filterEnv.sustainPct",
-    "sample.amp.gainPct",
-    "sample.amp.velocitySensitivityPct",
-    "sample.ampEnv.sustainPct",
-    "sample.filter.cutoffHz",
-    "sample.filter.resonance",
-    "sample.filter.envAmountPct",
-    "sample.filter.keyTrackingPct",
-    "sample.filterEnv.sustainPct",
-];
 
 const FX_FIELDS: &[&str] = &[
     "source",

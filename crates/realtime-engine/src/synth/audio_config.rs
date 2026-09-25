@@ -1,8 +1,9 @@
 use super::fx_params::FxKind;
 use super::types::{
-    default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, SynthConfig,
-    VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT,
+    default_synth_config, DrumConfig, FmConfig, FxBusConfig, FxBusSlotConfig,
+    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig,
+    PluckConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    SAMPLE_SLOTS_PER_INSTRUMENT,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -103,6 +104,12 @@ struct AudioInstrumentPayload {
     kind: String,
     #[serde(default)]
     synth: Option<SynthConfig>,
+    #[serde(default)]
+    fm: Option<FmConfig>,
+    #[serde(default)]
+    pluck: Option<PluckConfig>,
+    #[serde(default)]
+    drum: Option<DrumConfig>,
     #[serde(default)]
     mixer: Option<AudioInstrumentMixerPayload>,
     #[serde(default)]
@@ -260,7 +267,13 @@ pub fn validate_momentary_fx_type(kind: &str) -> Result<(), String> {
 pub fn validate_synth_param_path(path: &str) -> Result<(), String> {
     if matches!(
         path,
-        "synth.amp.gainPct"
+        "synth.osc1.levelPct"
+            | "synth.osc1.detuneCents"
+            | "synth.osc1.pulseWidthPct"
+            | "synth.osc2.levelPct"
+            | "synth.osc2.detuneCents"
+            | "synth.osc2.pulseWidthPct"
+            | "synth.amp.gainPct"
             | "synth.amp.velocitySensitivityPct"
             | "synth.ampEnv.attackMs"
             | "synth.ampEnv.decayMs"
@@ -278,6 +291,18 @@ pub fn validate_synth_param_path(path: &str) -> Result<(), String> {
         return Ok(());
     }
     Err(format!("unsupported synth parameter path `{path}`"))
+}
+
+pub fn validate_fm_param_path(path: &str) -> Result<(), String> {
+    super::scalar_param::FmParamId::from_path(path)
+        .map(|_| ())
+        .ok_or_else(|| format!("unsupported FM parameter path `{path}`"))
+}
+
+pub fn validate_pluck_param_path(path: &str) -> Result<(), String> {
+    super::scalar_param::PluckParamId::from_path(path)
+        .map(|_| ())
+        .ok_or_else(|| format!("unsupported Plucked parameter path `{path}`"))
 }
 
 pub fn validate_sample_bank_param_path(path: &str) -> Result<(), String> {
@@ -311,14 +336,35 @@ fn normalize_instrument_slot(
     let AudioInstrumentPayload {
         kind,
         synth,
+        fm,
+        pluck,
+        drum,
         mixer,
         sample,
     } = slot;
+    if !matches!(
+        kind.as_str(),
+        "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi"
+    ) {
+        return Err(format!("unsupported instrument type `{kind}`"));
+    }
+    if let Some(fm) = fm.as_ref() {
+        validate_fm_config(fm)?;
+    }
+    if let Some(pluck) = pluck.as_ref() {
+        pluck.validate()?;
+    }
+    if let Some(drum) = drum.as_ref() {
+        drum.validate()?;
+    }
     let normalized_sample = sample.map(normalize_sample);
     Ok(NormalizedInstrumentSlot {
         slot: InstrumentSlotConfig {
             kind: kind.clone(),
             synth: synth.unwrap_or_else(default_synth_config),
+            fm,
+            pluck,
+            drum,
             mixer: Some(InstrumentMixerConfig {
                 route: mixer
                     .as_ref()
@@ -334,6 +380,33 @@ fn normalize_instrument_slot(
         kind,
         sample: normalized_sample,
     })
+}
+
+fn validate_fm_config(fm: &FmConfig) -> Result<(), String> {
+    let values = [
+        fm.amp.gain_pct,
+        fm.amp.velocity_sensitivity_pct,
+        fm.amp_env.attack_ms,
+        fm.amp_env.decay_ms,
+        fm.amp_env.sustain_pct,
+        fm.amp_env.release_ms,
+        fm.index_env.attack_ms,
+        fm.index_env.decay_ms,
+        fm.index_env.sustain_pct,
+        fm.index_env.release_ms,
+        fm.filter.cutoff_hz,
+        fm.filter.resonance,
+        fm.filter.env_amount_pct,
+        fm.filter.key_tracking_pct,
+        fm.filter_env.attack_ms,
+        fm.filter_env.decay_ms,
+        fm.filter_env.sustain_pct,
+        fm.filter_env.release_ms,
+    ];
+    if fm.index > 100 || values.iter().any(|value| !value.is_finite()) {
+        return Err("invalid FM parameter value".into());
+    }
+    Ok(())
 }
 
 fn normalize_sample(sample: AudioSamplePayload) -> NormalizedSampleConfig {

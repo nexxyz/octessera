@@ -32,6 +32,9 @@ fn sample_engine() -> SynthEngine {
     engine.set_instrument_slot(
         0,
         InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: None,
@@ -192,6 +195,9 @@ fn prepared_many_note_render_preserves_synth_ownership_and_audio() {
         InstrumentsConfig {
             instruments: (0..INSTRUMENT_SLOT_COUNT)
                 .map(|_| InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "synth".into(),
                     synth: default_synth_config(),
                     mixer: None,

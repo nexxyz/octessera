@@ -1,6 +1,8 @@
 mod envelope;
 mod filter;
 
+use super::drum_state::DrumState;
+use super::pluck_string::PluckState;
 pub(super) use envelope::{ms_to_samples, EnvStage, EnvState};
 pub(super) use filter::BiquadState;
 #[cfg(test)]
@@ -22,6 +24,15 @@ pub(super) struct Voice {
     pub(super) render_revision: u32,
     pub(super) phase1: f32,
     pub(super) phase2: f32,
+    pub(super) fm: bool,
+    pub(super) pluck_voice: bool,
+    pub(super) drum_voice: bool,
+    pub(super) drum: DrumState,
+    pub(super) pluck: PluckState,
+    pub(super) source_generation: u32,
+    pub(super) fm_index_limit: f32,
+    pub(super) filter_key_scale: f32,
+    pub(super) index_env: EnvState,
     pub(super) amp_env: EnvState,
     pub(super) filt_env: EnvState,
     pub(super) filt: BiquadState,
@@ -44,6 +55,15 @@ impl Voice {
             render_revision: 0,
             phase1: 0.0,
             phase2: 0.0,
+            fm: false,
+            pluck_voice: false,
+            drum_voice: false,
+            drum: DrumState::off(),
+            pluck: PluckState::off(),
+            source_generation: 0,
+            fm_index_limit: 0.0,
+            filter_key_scale: 1.0,
+            index_env: EnvState::note_on(super::types::FmConfig::default().index_env, 44_100),
             amp_env: EnvState {
                 stage: EnvStage::Off,
                 level: 0.0,

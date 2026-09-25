@@ -211,7 +211,10 @@ fn normalized_instrument_kind(value: Option<&Value>) -> &str {
 }
 
 fn is_valid_instrument_kind(kind: &str) -> bool {
-    matches!(kind, "none" | "synth" | "sampler" | "midi")
+    matches!(
+        kind,
+        "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi"
+    )
 }
 
 fn normalized_partial_bus_slots(

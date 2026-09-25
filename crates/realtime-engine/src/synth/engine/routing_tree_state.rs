@@ -9,7 +9,7 @@ pub(super) fn take_source_bank(engine: &mut SynthEngine) -> Option<Box<RoutingTr
     let mut bank = RoutingTreeSourceBank::empty();
     if !engine
         .synth_voice_pool
-        .take_routing_bank_into(&mut bank.synth)
+        .take_routing_bank_into(&mut bank.synth, &mut bank.rings)
     {
         return None;
     }
@@ -20,7 +20,7 @@ pub(super) fn take_source_bank(engine: &mut SynthEngine) -> Option<Box<RoutingTr
         assert!(
             engine
                 .synth_voice_pool
-                .install_routing_bank(&mut bank.synth),
+                .install_routing_bank(&mut bank.synth, &mut bank.rings),
             "failed to restore synth routing bank after sample bank extraction failure"
         );
         return None;
@@ -34,7 +34,7 @@ pub(super) fn install_source_bank(
 ) -> bool {
     engine
         .synth_voice_pool
-        .install_routing_bank(&mut bank.synth)
+        .install_routing_bank(&mut bank.synth, &mut bank.rings)
         && engine
             .sample_voice_pool
             .install_routing_bank(&mut bank.sample)
@@ -167,7 +167,7 @@ pub(super) fn move_engine_state_to_owners(
     }
     if !engine
         .synth_voice_pool
-        .take_routing_bank_into(&mut first_bank.synth)
+        .take_routing_bank_into(&mut first_bank.synth, &mut first_bank.rings)
         || !engine
             .sample_voice_pool
             .take_routing_bank_into(&mut first_bank.sample)

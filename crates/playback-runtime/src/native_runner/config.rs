@@ -1,13 +1,15 @@
 use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSampleEntryConfig};
 use crate::protocol::SyncSource;
 
+use super::drum_config::instrument_drum_configs;
 use super::play_fx_config::{play_fx_params_map, play_fx_target_key, play_fx_type};
 use super::{
     aux_binding_configs, aux_bindings_payload, device_runtime_config, fx_bus_configs,
     fx_slot_payload_with_params, instrument_audio_payload, instrument_auto_names,
-    instrument_labels, instrument_midi_channels, instrument_midi_duration_ms,
-    instrument_midi_enabled, instrument_midi_velocity, instrument_names, instrument_note_behaviors,
-    instrument_pan_positions, instrument_routes, instrument_sample_amp_envs,
+    instrument_fm_configs, instrument_labels, instrument_midi_channels,
+    instrument_midi_duration_ms, instrument_midi_enabled, instrument_midi_velocity,
+    instrument_names, instrument_note_behaviors, instrument_pan_positions,
+    instrument_pluck_configs, instrument_routes, instrument_sample_amp_envs,
     instrument_sample_amp_velocity_sensitivity_pct, instrument_sample_base_velocity,
     instrument_sample_filter_envs, instrument_sample_filters, instrument_sample_gain_pct,
     instrument_sample_paths, instrument_sample_slots, instrument_sample_tune_semis,
@@ -69,6 +71,10 @@ impl NativeRunner {
             instrument_sample_paths: instrument_sample_paths(&self.instruments),
             instrument_sample_availability: self.sample_availability.clone(),
             instrument_synth_configs: instrument_synth_configs(&self.instruments),
+            instrument_fm_configs: instrument_fm_configs(&self.instruments),
+            instrument_pluck_configs: instrument_pluck_configs(&self.instruments),
+            instrument_drum_configs: instrument_drum_configs(&self.instruments),
+            instrument_drum_selected_voices: self.drum_selected_voices.clone(),
             instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&self.instruments),
             instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&self.instruments),
             instrument_synth_filter_types: instrument_synth_filter_types(&self.instruments),
@@ -161,6 +167,11 @@ impl NativeRunner {
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
             play_mode: self.play_mode.clone(),
+            play_drum_selected_slot: self.play_drum_selected_slot.or_else(|| {
+                self.instruments
+                    .iter()
+                    .position(|instrument| instrument.kind == "drum")
+            }),
             play_fx_type: play_fx_type(&self.play_fx_selected).into(),
             play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
             play_fx_params: play_fx_params_map(&self.play_fx_selected),

@@ -3,6 +3,41 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     let Some(key) = key else {
         return raw;
     };
+    if key.starts_with("instruments.") && key.ends_with(".fm.ratio") {
+        return match raw.as_str() {
+            "0.5" => "1:2".into(),
+            "1" => "1:1".into(),
+            "2" => "2:1".into(),
+            "3" => "3:1".into(),
+            "4" => "4:1".into(),
+            "5" => "5:1".into(),
+            "6" => "6:1".into(),
+            "8" => "8:1".into(),
+            _ => raw,
+        };
+    }
+    if key.starts_with("instruments.") && key.ends_with(".type") && raw == "fm" {
+        return "FM".into();
+    }
+    if key.starts_with("instruments.") && key.ends_with(".type") && raw == "pluck" {
+        return "Plucked".into();
+    }
+    if key.starts_with("instruments.") && key.ends_with(".type") && raw == "drum" {
+        return "Drum".into();
+    }
+    if key.starts_with("instruments.") && key.contains(".drum.voices.") && key.ends_with(".sound") {
+        return match raw.as_str() {
+            "kick" => "Kick".into(),
+            "snare" => "Snare".into(),
+            "closed_hat" => "Closed Hat".into(),
+            "open_hat" => "Open Hat".into(),
+            "low_tom" => "Low Tom".into(),
+            "high_tom" => "High Tom".into(),
+            "clap" => "Clap".into(),
+            "rim" => "Rim".into(),
+            _ => raw,
+        };
+    }
     if key == "sound.optimizeFor" {
         return match raw.as_str() {
             "latency" => "Lat".into(),

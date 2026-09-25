@@ -5,14 +5,10 @@ use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::support::stutter_segment_len;
 use super::*;
 
-pub(super) const MAX_MOMENTARY_FX: usize = 2;
+#[path = "instrument_slot_control.rs"]
+pub(super) mod instrument_slot_control;
 
-#[derive(Clone, Copy)]
-pub(super) struct NormalizedInstrumentMixer {
-    pub(super) route: usize,
-    pub(super) pan_pos: usize,
-    pub(super) volume: f32,
-}
+pub(super) const MAX_MOMENTARY_FX: usize = 2;
 
 struct CompiledBusMixerState {
     pan_positions: Vec<usize>,
@@ -321,80 +317,6 @@ impl SynthEngine {
         #[cfg(feature = "routing-tree-benchmark")]
         if self.routing_tree_assignment.is_some() {
             let _ = self.refresh_routing_tree_assignment();
-        }
-    }
-
-    fn apply_instrument_slot_config(&mut self, idx: usize, slot: InstrumentSlotConfig) {
-        let InstrumentSlotConfig { kind, synth, mixer } = slot;
-        let kind = parse_instrument_kind(&kind);
-        let mixer = mixer.map(|mixer| NormalizedInstrumentMixer {
-            route: parse_route(&mixer.route),
-            pan_pos: mixer.pan_pos.min(self.pan_positions - 1),
-            volume: (mixer.volume / 100.0).clamp(0.0, 1.0),
-        });
-        self.apply_normalized_instrument_slot(
-            idx,
-            kind,
-            synth,
-            SynthVoiceRenderConfig::from_config(synth),
-            mixer,
-        );
-    }
-
-    pub(super) fn apply_normalized_instrument_slot(
-        &mut self,
-        idx: usize,
-        kind: InstrumentKind,
-        synth: SynthConfig,
-        render_config: SynthVoiceRenderConfig,
-        mixer: Option<NormalizedInstrumentMixer>,
-    ) {
-        self.slot_kind[idx] = kind;
-        if kind == InstrumentKind::Synth {
-            self.instruments[idx] = synth;
-            self.synth_render_configs[idx] = render_config;
-            self.synth_render_revisions[idx] = self.synth_render_revisions[idx].wrapping_add(1);
-        }
-        if let Some(mixer) = mixer {
-            self.apply_normalized_instrument_mixer(
-                idx,
-                Some(mixer.route),
-                Some(mixer.pan_pos),
-                Some(mixer.volume),
-            );
-        }
-    }
-
-    pub(super) fn apply_normalized_instrument_mixer(
-        &mut self,
-        idx: usize,
-        route: Option<usize>,
-        pan_pos: Option<usize>,
-        volume: Option<f32>,
-    ) {
-        if let Some(route) = route {
-            self.slot_route[idx] = route;
-        }
-        if let Some(pan_pos) = pan_pos {
-            self.slot_pan_pos[idx] = pan_pos;
-        }
-        if let Some(volume) = volume {
-            self.slot_volume[idx] = volume;
-        }
-    }
-
-    pub(super) fn refresh_routed_bus_slot_count(&mut self) {
-        let bus_count = self.bus_pan_pos.len();
-        self.routed_bus_slot_count = self
-            .slot_route
-            .iter()
-            .filter(|route| **route > 0 && **route <= bus_count)
-            .count();
-    }
-
-    fn refresh_slot_pan_gains(&mut self) {
-        for idx in 0..INSTRUMENT_SLOT_COUNT {
-            self.slot_pan_gains[idx] = pan_gains(self.slot_pan_pos[idx], self.pan_positions);
         }
     }
 

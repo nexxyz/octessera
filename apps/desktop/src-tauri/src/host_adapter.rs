@@ -1,4 +1,5 @@
 mod host_adapter_audio;
+mod host_adapter_drum;
 mod host_adapter_musical;
 #[path = "host_adapter_recording.rs"]
 mod host_adapter_recording;
@@ -145,6 +146,13 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
         event: &RuntimeMusicalEvent,
     ) -> Result<(), RuntimeAdapterError> {
         self.handle_runtime_musical_event(event)
+    }
+
+    fn handle_drum_hit(
+        &mut self,
+        hit: &playback_runtime::DrumHit,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.handle_runtime_drum_hit(hit)
     }
 
     fn handle_platform_effect(

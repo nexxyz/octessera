@@ -4,6 +4,7 @@ use super::*;
 pub(super) struct CapturedOutput {
     pub(super) musical_event_count: usize,
     pub(super) midi_event_count: usize,
+    pub(super) drum_hit_count: usize,
     pub(super) platform_effect_count: usize,
     pub(super) audio_command_count: usize,
     pub(super) runtime_status_count: usize,
@@ -26,6 +27,9 @@ impl CapturedOutput {
                 }
                 RunnerMessage::MidiEvents { events } => {
                     self.midi_event_count += events.len();
+                }
+                RunnerMessage::DrumHits { hits } => {
+                    self.drum_hit_count += hits.len();
                 }
                 RunnerMessage::PlatformEffects { effects } => {
                     self.platform_effect_count += effects.len();
@@ -84,6 +88,9 @@ impl CapturedOutput {
             | RuntimeAudioCommand::SetDspConfig { .. }
             | RuntimeAudioCommand::SetMasterVolume { .. }
             | RuntimeAudioCommand::SetInstrumentMixer { .. }
+            | RuntimeAudioCommand::SetFmParam { .. }
+            | RuntimeAudioCommand::SetPluckParam { .. }
+            | RuntimeAudioCommand::SetDrumParam { .. }
             | RuntimeAudioCommand::SetFxBusMixer { .. }
             | RuntimeAudioCommand::SetFxBusParam { .. }
             | RuntimeAudioCommand::SetFxBusSlot { .. }

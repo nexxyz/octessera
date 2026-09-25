@@ -6,6 +6,9 @@ fn profile_snapshot_reports_active_counts_and_steals() {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -15,6 +18,9 @@ fn profile_snapshot_reports_active_counts_and_steals() {
                 }),
             },
             InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

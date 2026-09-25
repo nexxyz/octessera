@@ -42,11 +42,17 @@ fn prepare_config(
         InstrumentsConfig {
             instruments: vec![
                 InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "synth".into(),
                     synth,
                     mixer: None,
                 },
                 InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "sampler".into(),
                     synth: default_synth_config(),
                     mixer: None,
@@ -67,6 +73,9 @@ fn bus_heavy_config() -> realtime_engine::synth::PreparedAudioConfig {
         InstrumentsConfig {
             instruments: (0..INSTRUMENT_SLOT_COUNT)
                 .map(|slot| InstrumentSlotConfig {
+                    fm: None,
+                    pluck: None,
+                    drum: None,
                     kind: "synth".into(),
                     synth: default_synth_config(),
                     mixer: Some(InstrumentMixerConfig {

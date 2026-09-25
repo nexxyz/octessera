@@ -165,6 +165,10 @@ impl NativeRunner {
             self.play_fx_assign = None;
         } else if self.sample_assign.is_some() {
             self.sample_assign = None;
+        } else if self.drum_assign.is_some() {
+            self.drum_assign = None;
+        } else if let Some((slot, selected)) = self.drum_cell_tune {
+            self.drum_cell_tune = selected.map(|_| (slot, None));
         } else if self.trigger_probability_assign.is_some() {
             self.trigger_probability_assign = None;
         } else if self.display.help_popup.is_some() {

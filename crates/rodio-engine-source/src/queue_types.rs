@@ -103,6 +103,9 @@ pub(crate) fn is_latest_event(event: &EngineEvent) -> bool {
             | EngineEvent::SetInstrumentMixer { .. }
             | EngineEvent::SetFxBusMixer { .. }
             | EngineEvent::SetSynthParam { .. }
+            | EngineEvent::SetFmParam { .. }
+            | EngineEvent::SetPluckParam { .. }
+            | EngineEvent::SetDrumParam { .. }
             | EngineEvent::SetSampleBankParam { .. }
             | EngineEvent::SetFxBusParam { .. }
             | EngineEvent::SetGlobalFxParam { .. }
@@ -113,7 +116,10 @@ pub(crate) fn is_latest_event(event: &EngineEvent) -> bool {
 pub(crate) fn is_musical_event(event: &EngineEvent) -> bool {
     matches!(
         event,
-        EngineEvent::NoteOn { .. } | EngineEvent::NoteOff { .. } | EngineEvent::Cc { .. }
+        EngineEvent::NoteOn { .. }
+            | EngineEvent::DrumHit { .. }
+            | EngineEvent::NoteOff { .. }
+            | EngineEvent::Cc { .. }
     )
 }
 

@@ -3,13 +3,20 @@ use super::{NativeParamBinding, NativeRunner, Value};
 use crate::protocol::RuntimeAudioCommand;
 use std::collections::{BTreeMap, BTreeSet};
 
+#[path = "modulation_instrument_audio_base.rs"]
+mod instrument_base;
+
 pub(super) fn queue_changed_instrument_commands(
     runner: &mut NativeRunner,
     resolved: &BTreeMap<String, (NativeParamBinding, Value)>,
     changed_keys: &BTreeSet<String>,
+    composed_keys: &BTreeSet<String>,
 ) {
     let mut affected = BTreeMap::<usize, Vec<(String, Value, Option<RuntimeAudioCommand>)>>::new();
     for key in changed_keys {
+        if composed_keys.contains(key) {
+            continue;
+        }
         let Some((index, field)) = super::modulation_keys::parse_instrument_binding_key(key) else {
             continue;
         };
@@ -35,7 +42,31 @@ pub(super) fn queue_changed_instrument_commands(
             }
             continue;
         }
-        if instrument.kind == "midi" {
+        if instrument.kind == "midi"
+            || field.starts_with("synth.") && instrument.kind != "synth"
+            || field.starts_with("fm.") && instrument.kind != "fm"
+            || field.starts_with("pluck.") && instrument.kind != "pluck"
+            || field.starts_with("drum.") && instrument.kind != "drum"
+            || field.starts_with("sample.") && instrument.kind != "sampler"
+        {
+            continue;
+        }
+        if matches!(
+            field,
+            "noteBehavior"
+                | "sample.selectedSlot"
+                | "sample.baseVelocity"
+                | "sample.velocityLevelsEnabled"
+                | "sample.velocityLevels.high"
+                | "sample.velocityLevels.medium"
+                | "sample.velocityLevels.low"
+                | "sample.filter.type"
+                | "sample.filter.envAmountPct"
+                | "sample.filter.keyTrackingPct"
+        ) || field.starts_with("sample.ampEnv.")
+            || field.starts_with("sample.filterEnv.")
+            || field.starts_with("midi.")
+        {
             continue;
         }
         let command = instrument_audio_command_for_kind(instrument, index, field, value);
@@ -71,6 +102,9 @@ fn instrument_audio_command_for_kind(
 ) -> Option<RuntimeAudioCommand> {
     if field.starts_with("synth.") && instrument.kind != "synth"
         || field.starts_with("sample.") && instrument.kind != "sampler"
+        || field.starts_with("fm.") && instrument.kind != "fm"
+        || field.starts_with("pluck.") && instrument.kind != "pluck"
+        || field.starts_with("drum.") && instrument.kind != "drum"
     {
         return None;
     }
@@ -83,7 +117,7 @@ pub(super) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> 
         return match field {
             "mixer.volume" => Some(f64::from(instrument.volume)),
             "mixer.panPos" => Some(f64::from(instrument.pan_pos)),
-            _ => instrument_numeric_value(instrument, field),
+            _ => instrument_base::instrument_numeric_value(instrument, field),
         };
     }
     if let Some((index, slot, field)) = super::modulation_keys::parse_fx_bus_binding_key(key) {
@@ -117,126 +151,6 @@ pub(super) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> 
         .get(field)
         .and_then(Value::as_f64)
         .map(|value| super::fx_param_codec::storage_to_display(field, value))
-}
-
-fn instrument_numeric_value(instrument: &super::NativeInstrumentSlot, field: &str) -> Option<f64> {
-    let value = match field {
-        "synth.amp.gainPct" => f64::from(instrument.synth_gain_pct),
-        "synth.osc1.levelPct" => json_number(&instrument.synth_config, &["osc1", "levelPct"])?,
-        "synth.osc1.detuneCents" => {
-            json_number(&instrument.synth_config, &["osc1", "detuneCents"])?
-        }
-        "synth.osc1.pulseWidthPct" => {
-            json_number(&instrument.synth_config, &["osc1", "pulseWidthPct"])?
-        }
-        "synth.osc2.levelPct" => json_number(&instrument.synth_config, &["osc2", "levelPct"])?,
-        "synth.osc2.detuneCents" => {
-            json_number(&instrument.synth_config, &["osc2", "detuneCents"])?
-        }
-        "synth.osc2.pulseWidthPct" => {
-            json_number(&instrument.synth_config, &["osc2", "pulseWidthPct"])?
-        }
-        "synth.filter.cutoffHz" => f64::from(super::cutoff_hz_to_display(super::synth_i32_at(
-            instrument,
-            &["filter", "cutoffHz"],
-            8000,
-        ))),
-        "synth.filter.resonance" => f64::from(super::synth_i32_at(
-            instrument,
-            &["filter", "resonance"],
-            32,
-        )),
-        "synth.filter.envAmountPct" => f64::from(super::synth_i32_at(
-            instrument,
-            &["filter", "envAmountPct"],
-            0,
-        )),
-        "synth.filter.keyTrackingPct" => f64::from(super::synth_i32_at(
-            instrument,
-            &["filter", "keyTrackingPct"],
-            0,
-        )),
-        "synth.amp.velocitySensitivityPct" => f64::from(super::synth_i32_at(
-            instrument,
-            &["amp", "velocitySensitivityPct"],
-            100,
-        )),
-        "synth.ampEnv.attackMs" => {
-            f64::from(super::synth_i32_at(instrument, &["ampEnv", "attackMs"], 10))
-        }
-        "synth.ampEnv.decayMs" => {
-            f64::from(super::synth_i32_at(instrument, &["ampEnv", "decayMs"], 100))
-        }
-        "synth.ampEnv.sustainPct" => f64::from(super::synth_i32_at(
-            instrument,
-            &["ampEnv", "sustainPct"],
-            80,
-        )),
-        "synth.ampEnv.releaseMs" => f64::from(super::synth_i32_at(
-            instrument,
-            &["ampEnv", "releaseMs"],
-            300,
-        )),
-        "synth.filterEnv.attackMs" => f64::from(super::synth_i32_at(
-            instrument,
-            &["filterEnv", "attackMs"],
-            10,
-        )),
-        "synth.filterEnv.decayMs" => f64::from(super::synth_i32_at(
-            instrument,
-            &["filterEnv", "decayMs"],
-            100,
-        )),
-        "synth.filterEnv.sustainPct" => f64::from(super::synth_i32_at(
-            instrument,
-            &["filterEnv", "sustainPct"],
-            80,
-        )),
-        "synth.filterEnv.releaseMs" => f64::from(super::synth_i32_at(
-            instrument,
-            &["filterEnv", "releaseMs"],
-            300,
-        )),
-        "sample.tuneSemis" => f64::from(instrument.sample_tune_semis),
-        "sample.amp.gainPct" => f64::from(instrument.sample_gain_pct),
-        "sample.amp.velocitySensitivityPct" => {
-            f64::from(instrument.sample_amp_velocity_sensitivity_pct)
-        }
-        "sample.ampEnv.attackMs" => json_number(&instrument.sample_amp_env, &["attackMs"])?,
-        "sample.ampEnv.decayMs" => json_number(&instrument.sample_amp_env, &["decayMs"])?,
-        "sample.ampEnv.sustainPct" => json_number(&instrument.sample_amp_env, &["sustainPct"])?,
-        "sample.ampEnv.releaseMs" => json_number(&instrument.sample_amp_env, &["releaseMs"])?,
-        "sample.filter.cutoffHz" => f64::from(super::cutoff_hz_to_display(json_number(
-            &instrument.sample_filter,
-            &["cutoffHz"],
-        )? as i32)),
-        "sample.filter.resonance" => json_number(&instrument.sample_filter, &["resonance"])?,
-        "sample.filter.envAmountPct" => json_number(&instrument.sample_filter, &["envAmountPct"])?,
-        "sample.filter.keyTrackingPct" => {
-            json_number(&instrument.sample_filter, &["keyTrackingPct"])?
-        }
-        "sample.filterEnv.attackMs" => json_number(&instrument.sample_filter_env, &["attackMs"])?,
-        "sample.filterEnv.decayMs" => json_number(&instrument.sample_filter_env, &["decayMs"])?,
-        "sample.filterEnv.sustainPct" => {
-            json_number(&instrument.sample_filter_env, &["sustainPct"])?
-        }
-        "sample.filterEnv.releaseMs" => json_number(&instrument.sample_filter_env, &["releaseMs"])?,
-        "sample.baseVelocity" => f64::from(instrument.sample_base_velocity),
-        "sample.velocityLevels.high" => f64::from(instrument.sample_velocity_high),
-        "sample.velocityLevels.medium" => f64::from(instrument.sample_velocity_medium),
-        "sample.velocityLevels.low" => f64::from(instrument.sample_velocity_low),
-        "midi.channel" => f64::from(instrument.midi_channel),
-        "midi.velocity" => f64::from(instrument.midi_velocity),
-        "midi.durationMs" => f64::from(instrument.midi_duration_ms),
-        _ => return None,
-    };
-    Some(value)
-}
-
-fn json_number(value: &Value, path: &[&str]) -> Option<f64> {
-    path.iter()
-        .try_fold(value, |value, key| value.get(*key))
-        .and_then(Value::as_f64)
 }
 
 pub(super) fn materialize_endpoint(
@@ -294,6 +208,29 @@ pub(super) fn materialize_endpoint(
                 ),
             })
         }
+        Endpoint::InstrumentParameter { index, field } => {
+            let key = format!("instruments.{index}.{field}");
+            if !matches!(
+                super::modulation_target::classify_key(&key),
+                Some((
+                    super::modulation_target::TargetValueKind::Numeric,
+                    super::modulation_target::TargetMode::Numeric,
+                    _
+                ))
+            ) {
+                return None;
+            }
+            let value = values
+                .get(&key)
+                .copied()
+                .or_else(|| audio_base_value(runner, &key))?;
+            instrument_audio_command_for_kind(
+                runner.instruments.get(*index)?,
+                *index,
+                field,
+                &Value::from(value),
+            )
+        }
         Endpoint::FxBusSlot { bus_index, slot } => {
             let bus = runner.fx_buses.get(*bus_index)?;
             let (slot_name, fx_type, persistent) = match slot {
@@ -342,10 +279,7 @@ pub(super) fn materialize_endpoint(
                 params,
             })
         }
-        Endpoint::GlobalControl { .. }
-        | Endpoint::LayerControl { .. }
-        | Endpoint::InstrumentParameter { .. }
-        | Endpoint::PlayFx => None,
+        Endpoint::GlobalControl { .. } | Endpoint::LayerControl { .. } | Endpoint::PlayFx => None,
     }
 }
 

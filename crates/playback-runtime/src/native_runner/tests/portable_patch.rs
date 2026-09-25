@@ -18,6 +18,16 @@ fn generated_desktop_default() -> Value {
     .unwrap()
 }
 
+fn without_fm(mut payload: Value) -> Value {
+    for slot in payload["runtimeConfig"]["instruments"]
+        .as_array_mut()
+        .unwrap()
+    {
+        slot.as_object_mut().unwrap().remove("fm");
+    }
+    payload
+}
+
 fn explicit_orange_default_payload(mut payload: Value) -> Value {
     payload["revision"] = json!(91);
     payload["system"]["playMode"] = json!("pan");
@@ -226,6 +236,67 @@ pub(crate) fn v2_portable_patch_unknown_fields_report_json_paths() {
     unknown_system["system"] = json!({ "futureField": true });
     let error = prepare_patch_payload(unknown_system, &runner.config_payload()).unwrap_err();
     assert!(error.contains("$.system.futureField"), "{error}");
+}
+
+#[test]
+fn v2_portable_fm_patch_validates_against_legacy_current_and_reexports_saved_settings() {
+    let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut edited = source.config_payload();
+    edited["runtimeConfig"]["instruments"][0]["type"] = json!("fm");
+    edited["runtimeConfig"]["instruments"][0]["fm"]["ratio"] = json!("8");
+    edited["runtimeConfig"]["instruments"][0]["fm"]["index"] = json!(74);
+    source.apply_config_payload(edited).unwrap();
+    let patch = portable_patch_projection(&source.config_payload()).unwrap();
+    let legacy_current = without_fm(
+        NativeRunner::new(NativeRunnerConfig::default())
+            .unwrap()
+            .config_payload(),
+    );
+
+    let prepared = prepare_patch_payload(patch.clone(), &legacy_current).unwrap();
+    assert_eq!(
+        prepared.payload["runtimeConfig"]["instruments"][0]["fm"]["ratio"],
+        "8"
+    );
+    assert_eq!(
+        prepared.payload["runtimeConfig"]["instruments"][0]["fm"]["index"],
+        74
+    );
+    assert_eq!(portable_patch_projection(&prepared.payload).unwrap(), patch);
+
+    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    loaded
+        .apply_patch_payload_preserving_device(patch.clone())
+        .unwrap();
+    assert_eq!(loaded.instruments[0].fm_config["index"], 74);
+    assert_eq!(loaded.patch_payload().unwrap(), patch);
+}
+
+#[test]
+fn v2_portable_fm_patch_rejects_unknown_nested_field_against_legacy_current() {
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut patch = runner.patch_payload().unwrap();
+    patch["runtimeConfig"]["instruments"][0]["fm"]["futureField"] = json!(true);
+    let legacy_current = without_fm(runner.config_payload());
+    let error = prepare_patch_payload(patch, &legacy_current).unwrap_err();
+    assert!(
+        error.contains("$.runtimeConfig.instruments[0].fm.futureField"),
+        "{error}"
+    );
+}
+
+#[test]
+fn v2_portable_legacy_patch_without_fm_still_loads_against_legacy_current() {
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let legacy_current = without_fm(runner.config_payload());
+    let patch = without_fm(runner.patch_payload().unwrap());
+    prepare_patch_payload(patch.clone(), &legacy_current).unwrap();
+    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    loaded.apply_patch_payload_preserving_device(patch).unwrap();
+    assert_eq!(
+        loaded.instruments[0].fm_config,
+        super::super::synth_config::fm_default_config()
+    );
 }
 
 #[test]

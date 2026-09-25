@@ -1,5 +1,5 @@
 use crate::audio::AudioService;
-use crate::audio_event::musical_event_to_engine_event;
+use crate::audio_event::{drum_hit_to_engine_event, musical_event_to_engine_event};
 use crate::audio_route::RouteOpenError;
 use crate::host_audio_command::send_audio_command;
 use cpal::traits::DeviceTrait;
@@ -134,6 +134,13 @@ impl OrangeAudioHost {
     pub(crate) fn new(audio: AudioService, samples_dir: PathBuf) -> Self {
         Self { audio, samples_dir }
     }
+
+    pub(crate) fn handle_runtime_drum_hit(
+        &mut self,
+        hit: &playback_runtime::DrumHit,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.audio.send_realtime(drum_hit_to_engine_event(hit)?)
+    }
 }
 
 fn orange_sample_format_rank(sample_format: SampleFormat) -> Option<u8> {
@@ -149,6 +156,13 @@ impl HostAdapter for OrangeAudioHost {
     fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
         self.audio
             .send_realtime(musical_event_to_engine_event(event))
+    }
+
+    fn handle_drum_hit(
+        &mut self,
+        hit: &playback_runtime::DrumHit,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.handle_runtime_drum_hit(hit)
     }
 
     fn handle_platform_effect(
@@ -271,6 +285,22 @@ mod tests {
         assert!(matches!(
             event_rx.try_recv(),
             Ok(EngineEvent::NoteOn { note: 60, .. })
+        ));
+        host.handle_runtime_drum_hit(&playback_runtime::DrumHit {
+            instrument_slot: 2,
+            voice: 3,
+            tune_semis: -24,
+            velocity: 110,
+        })
+        .unwrap();
+        assert!(matches!(
+            event_rx.try_recv(),
+            Ok(EngineEvent::DrumHit {
+                instrument_slot: 2,
+                voice: 3,
+                tune_semis: -24,
+                velocity: 110,
+            })
         ));
 
         host.handle_audio_command(&RuntimeAudioCommand::SetFxBusSlot {

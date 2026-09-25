@@ -5,6 +5,9 @@ fn fx_active_slot_indices_preserve_none_gaps_and_autopan() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {

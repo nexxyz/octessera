@@ -144,6 +144,96 @@ pub struct SynthConfig {
     pub filter_env: EnvConfig,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub enum FmRatio {
+    #[serde(rename = "0.5")]
+    Half,
+    #[serde(rename = "1")]
+    One,
+    #[serde(rename = "2")]
+    Two,
+    #[serde(rename = "3")]
+    Three,
+    #[serde(rename = "4")]
+    Four,
+    #[serde(rename = "5")]
+    Five,
+    #[serde(rename = "6")]
+    Six,
+    #[serde(rename = "8")]
+    Eight,
+}
+
+impl FmRatio {
+    pub fn value(self) -> f32 {
+        match self {
+            Self::Half => 0.5,
+            Self::One => 1.0,
+            Self::Two => 2.0,
+            Self::Three => 3.0,
+            Self::Four => 4.0,
+            Self::Five => 5.0,
+            Self::Six => 6.0,
+            Self::Eight => 8.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FmConfig {
+    pub ratio: FmRatio,
+    pub index: u8,
+    #[serde(rename = "indexEnv")]
+    pub index_env: EnvConfig,
+    pub amp: AmpConfig,
+    #[serde(rename = "ampEnv")]
+    pub amp_env: EnvConfig,
+    pub filter: FilterConfig,
+    #[serde(rename = "filterEnv")]
+    pub filter_env: EnvConfig,
+}
+
+impl Default for FmConfig {
+    fn default() -> Self {
+        let synth = default_synth_config();
+        Self {
+            ratio: FmRatio::Two,
+            index: 50,
+            index_env: EnvConfig {
+                attack_ms: 0.0,
+                decay_ms: 250.0,
+                sustain_pct: 20.0,
+                release_ms: 120.0,
+            },
+            amp: synth.amp,
+            amp_env: EnvConfig {
+                attack_ms: 5.0,
+                decay_ms: 300.0,
+                sustain_pct: 70.0,
+                release_ms: 350.0,
+            },
+            filter: synth.filter,
+            filter_env: synth.filter_env,
+        }
+    }
+}
+
+impl FmConfig {
+    pub fn common_voice_config(self) -> SynthConfig {
+        SynthConfig {
+            amp: self.amp,
+            amp_env: self.amp_env,
+            filter: self.filter,
+            filter_env: self.filter_env,
+            ..default_synth_config()
+        }
+    }
+}
+
+pub use super::drum_config::{DrumAssignment, DrumConfig, DrumSound, DrumVoiceConfig};
+pub use super::pluck_config::PluckConfig;
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct AmpConfig {
     #[serde(rename = "gainPct")]
@@ -157,6 +247,12 @@ pub struct InstrumentSlotConfig {
     #[serde(rename = "type")]
     pub kind: String,
     pub synth: SynthConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fm: Option<FmConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pluck: Option<PluckConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drum: Option<DrumConfig>,
     #[serde(default)]
     pub mixer: Option<InstrumentMixerConfig>,
 }

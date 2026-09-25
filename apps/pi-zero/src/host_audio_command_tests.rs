@@ -80,6 +80,31 @@ fn pi_accepts_every_valid_runtime_audio_command_at_the_adapter_boundary() {
             path: "synth.filter.cutoffHz".into(),
             value: 440.0,
         },
+        RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: 0,
+            generation: 0,
+            path: "synth.osc1.detuneCents".into(),
+            value: -12.0,
+        },
+        RuntimeAudioCommand::SetFmParam {
+            instrument_slot: 0,
+            generation: 0,
+            path: "fm.indexEnv.decayMs".into(),
+            value: 250.0,
+        },
+        RuntimeAudioCommand::SetPluckParam {
+            instrument_slot: 0,
+            generation: 0,
+            path: "pluck.brightnessPct".into(),
+            value: 65.0,
+        },
+        RuntimeAudioCommand::SetDrumParam {
+            instrument_slot: 0,
+            voice: 4,
+            generation: 0,
+            path: "drum.decayMs".into(),
+            value: 350.0,
+        },
         RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: 0,
             generation: 0,
@@ -140,6 +165,84 @@ fn pi_accepts_every_valid_runtime_audio_command_at_the_adapter_boundary() {
         send_audio_command(None, &command, &root).unwrap();
     }
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn pi_fm_scalar_rejects_invalid_path_and_nonfinite_value() {
+    for (path, value) in [("synth.amp.gainPct", 50.0), ("fm.index", f32::NAN)] {
+        let error = send_audio_command(
+            None,
+            &RuntimeAudioCommand::SetFmParam {
+                instrument_slot: 0,
+                generation: 0,
+                path: path.into(),
+                value,
+            },
+            Path::new("samples"),
+        )
+        .unwrap_err();
+        assert_eq!(error.facts.code, RuntimeErrorCode::InvalidPayload);
+    }
+}
+
+#[test]
+fn pi_pluck_scalar_rejects_invalid_path_and_nonfinite_value() {
+    for (path, value) in [("synth.amp.gainPct", 50.0), ("pluck.decayMs", f32::NAN)] {
+        let error = send_audio_command(
+            None,
+            &RuntimeAudioCommand::SetPluckParam {
+                instrument_slot: 0,
+                generation: 0,
+                path: path.into(),
+                value,
+            },
+            Path::new("samples"),
+        )
+        .unwrap_err();
+        assert_eq!(error.facts.code, RuntimeErrorCode::InvalidPayload);
+    }
+}
+
+#[test]
+fn pi_drum_scalar_rejects_invalid_voice_path_and_nonfinite_value() {
+    for (voice, path, value) in [
+        (8, "drum.decayMs", 250.0),
+        (1, "drum.amp.gainPct", 70.0),
+        (0, "drum.voices.0.decayMs", 250.0),
+        (0, "drum.filter.cutoffHz", f32::NAN),
+    ] {
+        let error = send_audio_command(
+            None,
+            &RuntimeAudioCommand::SetDrumParam {
+                instrument_slot: 0,
+                voice,
+                generation: 0,
+                path: path.into(),
+                value,
+            },
+            Path::new("samples"),
+        )
+        .unwrap_err();
+        assert_eq!(error.facts.code, RuntimeErrorCode::InvalidPayload);
+    }
+}
+
+#[test]
+fn pi_pluck_scalar_command_accepts_coalesced_audio_lane() {
+    let (audio, _, _event_rx, _) = crate::audio::test_service_with_recording_dir(
+        std::env::temp_dir().join("octessera-pi-pluck-command-recordings"),
+    );
+    send_audio_command(
+        Some(audio.clone()),
+        &RuntimeAudioCommand::SetPluckParam {
+            instrument_slot: 2,
+            generation: 42,
+            path: "pluck.decayMs".into(),
+            value: 220.0,
+        },
+        Path::new("samples"),
+    )
+    .unwrap();
 }
 
 #[test]

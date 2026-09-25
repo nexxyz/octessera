@@ -63,6 +63,7 @@ fn applies_controls_before_dispatching_next_quantum() {
     let (tx, rx) = event_queue();
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -105,6 +106,7 @@ fn routing_tree_note_events_start_at_next_quantum() {
     let (tx, rx) = event_queue();
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -283,6 +285,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
 fn routing_tree_profile_matches_inline_after_a_completed_quantum() {
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -333,6 +336,7 @@ fn routing_tree_profile_matches_inline_after_a_completed_quantum() {
 fn direct_synth_instruments() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -352,6 +356,7 @@ fn processes_bus_owned_by_worker() {
     let (tx, rx) = event_queue();
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {

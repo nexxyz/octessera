@@ -121,8 +121,11 @@ fn persistent_workers_match_inline_with_full_mixed_pools() {
                 inline.note_on(slot as u8, 48 + note, 96, 5_000);
             }
         }
-        for slot in 0..8 {
+        for slot in 4..8 {
             let sampler = InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".into(),
                 synth: default_synth_config(),
                 mixer: None,
@@ -134,8 +137,8 @@ fn persistent_workers_match_inline_with_full_mixed_pools() {
                 inline.note_on(slot as u8, 36, 96, 5_000);
             }
         }
-        assert_eq!(worker.profile_snapshot().active_synth_voices, 64);
-        assert_eq!(worker.profile_snapshot().active_sample_voices, 64);
+        assert_eq!(worker.profile_snapshot().active_synth_voices, 32);
+        assert_eq!(worker.profile_snapshot().active_sample_voices, 32);
         let (lifecycle, mut runtime) =
             SourceWorkerLifecycle::start_prewarmed(&mut worker).expect("worker runtime");
         runtime.set_deadline_for_test(TEST_DEADLINE);

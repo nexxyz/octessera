@@ -88,6 +88,6 @@ cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octesser
 ```
 
 These checks keep native runtime behavior in `platform-core` and
-`playback-runtime`, internal synth/sample paths in `realtime-engine`, and MIDI
-instruments on external MIDI paths. Desktop TypeScript remains a UI and bridge
-layer.
+`playback-runtime`, internal Synth, FM, Plucked, Drum, and Sampler paths in
+`realtime-engine`, and MIDI instruments on external MIDI paths. Desktop
+TypeScript remains a UI and bridge layer.

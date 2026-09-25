@@ -66,7 +66,7 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
             instrument,
             "type",
             &path,
-            &["none", "synth", "sampler", "midi"],
+            &["none", "synth", "fm", "pluck", "drum", "sampler", "midi"],
         )?;
         enum_field(instrument, "noteBehavior", &path, &["oneshot", "hold"])?;
         string_field(instrument, "name", &path)?;
@@ -85,6 +85,9 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
         }
         validate_sample(instrument, &path)?;
         validate_synth(instrument, &path)?;
+        validate_fm(instrument, &path)?;
+        validate_pluck(instrument, &path)?;
+        validate_drum(instrument, &path)?;
         for key in ["midi", "midiEngine"] {
             if let Some(midi) = object_field(instrument, key, &path)? {
                 let midi_path = format!("{path}.{key}");
@@ -202,6 +205,121 @@ fn validate_synth(instrument: &Map<String, Value>, path: &str) -> Result<(), Str
     validate_env(synth, "ampEnv", &path)?;
     validate_filter(synth, "filter", &path)?;
     validate_env(synth, "filterEnv", &path)
+}
+
+fn validate_fm(instrument: &Map<String, Value>, path: &str) -> Result<(), String> {
+    let Some(fm) = object_field(instrument, "fm", path)? else {
+        return Ok(());
+    };
+    let path = format!("{path}.fm");
+    enum_field(
+        fm,
+        "ratio",
+        &path,
+        &["0.5", "1", "2", "3", "4", "5", "6", "8"],
+    )?;
+    unsigned_field(fm, "index", &path, 0, 100)?;
+    validate_env(fm, "indexEnv", &path)?;
+    if let Some(amp) = object_field(fm, "amp", &path)? {
+        signed_field(amp, "gainPct", &format!("{path}.amp"), 0, 100)?;
+        signed_field(
+            amp,
+            "velocitySensitivityPct",
+            &format!("{path}.amp"),
+            0,
+            100,
+        )?;
+    }
+    validate_env(fm, "ampEnv", &path)?;
+    validate_filter(fm, "filter", &path)?;
+    validate_env(fm, "filterEnv", &path)
+}
+
+fn validate_pluck(instrument: &Map<String, Value>, path: &str) -> Result<(), String> {
+    let Some(pluck) = object_field(instrument, "pluck", path)? else {
+        return Ok(());
+    };
+    let path = format!("{path}.pluck");
+    unsigned_field(pluck, "decayMs", &path, 100, 5000)?;
+    unsigned_field(pluck, "brightnessPct", &path, 0, 100)?;
+    unsigned_field(pluck, "pickPositionPct", &path, 5, 50)?;
+    if let Some(amp) = object_field(pluck, "amp", &path)? {
+        signed_field(amp, "gainPct", &format!("{path}.amp"), 0, 100)?;
+        signed_field(
+            amp,
+            "velocitySensitivityPct",
+            &format!("{path}.amp"),
+            0,
+            100,
+        )?;
+    }
+    validate_env(pluck, "ampEnv", &path)?;
+    validate_filter(pluck, "filter", &path)?;
+    validate_env(pluck, "filterEnv", &path)
+}
+
+fn validate_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), String> {
+    let Some(drum) = object_field(instrument, "drum", path)? else {
+        return Ok(());
+    };
+    let path = format!("{path}.drum");
+    if let Some(voices) = array_field(drum, "voices", &path, 8)? {
+        if voices.len() != 8 {
+            return Err(format!("{path}.voices must contain eight voices"));
+        }
+        for (index, value) in voices.iter().enumerate() {
+            let voice_path = format!("{path}.voices[{index}]");
+            let voice = object_value(value, &voice_path)?;
+            enum_field(
+                voice,
+                "sound",
+                &voice_path,
+                &super::super::drum_config::DRUM_SOUNDS,
+            )?;
+            signed_field(voice, "tuneSemis", &voice_path, -12, 12)?;
+            unsigned_field(voice, "decayMs", &voice_path, 20, 2000)?;
+            unsigned_field(voice, "tonePct", &voice_path, 0, 100)?;
+            unsigned_field(voice, "attackMs", &voice_path, 0, 50)?;
+        }
+    }
+    if let Some(assignments) = array_field(drum, "assignments", &path, 64)? {
+        let mut seen = std::collections::BTreeSet::new();
+        for (index, value) in assignments.iter().enumerate() {
+            let cell_path = format!("{path}.assignments[{index}]");
+            let cell = object_value(value, &cell_path)?;
+            unsigned_field(cell, "x", &cell_path, 0, 7)?;
+            unsigned_field(cell, "y", &cell_path, 0, 7)?;
+            unsigned_field(cell, "voice", &cell_path, 0, 7)?;
+            signed_field(cell, "tuneSemis", &cell_path, -24, 24)?;
+            let x = cell
+                .get("x")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| format!("{cell_path}.x is required"))?;
+            let y = cell
+                .get("y")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| format!("{cell_path}.y is required"))?;
+            if !cell.contains_key("voice") {
+                return Err(format!("{cell_path}.voice is required"));
+            }
+            if !seen.insert((x, y)) {
+                return Err(format!("{cell_path} duplicates a drum cell"));
+            }
+        }
+    }
+    if let Some(amp) = object_field(drum, "amp", &path)? {
+        signed_field(amp, "gainPct", &format!("{path}.amp"), 0, 100)?;
+        signed_field(
+            amp,
+            "velocitySensitivityPct",
+            &format!("{path}.amp"),
+            0,
+            100,
+        )?;
+    }
+    validate_env(drum, "ampEnv", &path)?;
+    validate_filter(drum, "filter", &path)?;
+    validate_env(drum, "filterEnv", &path)
 }
 
 fn validate_env(parent: &Map<String, Value>, key: &str, path: &str) -> Result<(), String> {

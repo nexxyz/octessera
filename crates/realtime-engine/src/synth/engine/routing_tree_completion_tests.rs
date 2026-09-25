@@ -388,6 +388,9 @@ fn duplicated_analogue_sample_banks() -> Vec<SampleBankConfig> {
 fn hold_expiry_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -408,6 +411,9 @@ fn hold_expiry_config() -> InstrumentsConfig {
 fn momentary_expiry_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -441,6 +447,9 @@ fn duplicated_analogue_config() -> InstrumentsConfig {
             .into_iter()
             .zip(routes)
             .map(|(kind, route)| InstrumentSlotConfig {
+                fm: None,
+                pluck: None,
+                drum: None,
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

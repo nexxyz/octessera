@@ -1,15 +1,20 @@
 mod audio_config;
+mod drum_config;
+mod drum_state;
 mod dsp_config;
 mod engine;
 mod fx;
 mod fx_param;
 mod fx_params;
+mod pluck_config;
+mod pluck_string;
 mod runtime_state;
 mod scalar_param;
 #[cfg(feature = "source-worker-benchmark-timing")]
 mod source_worker_timing;
 #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
 mod source_worker_timing_tests;
+mod synth_voice_partition;
 mod synth_voice_pool;
 #[cfg(test)]
 mod tests;
@@ -17,9 +22,10 @@ mod types;
 
 pub use audio_config::{
     normalize_audio_config, normalize_fx_slot, normalize_instrument_slot_config,
-    parse_voice_stealing_mode, validate_fx_type, validate_momentary_fx_type,
-    validate_sample_bank_param_path, validate_synth_param_path, NormalizedAudioConfig,
-    NormalizedInstrumentSlot, NormalizedSampleConfig,
+    parse_voice_stealing_mode, validate_fm_param_path, validate_fx_type,
+    validate_momentary_fx_type, validate_pluck_param_path, validate_sample_bank_param_path,
+    validate_synth_param_path, NormalizedAudioConfig, NormalizedInstrumentSlot,
+    NormalizedSampleConfig,
 };
 pub use dsp_config::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 #[cfg(all(
@@ -53,23 +59,26 @@ pub use engine::{
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
 pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};
 pub use fx_param::{FxParamId, FxParamMutation};
-pub use scalar_param::{SampleBankParamId, ScalarMutation, SynthParamId};
+pub use scalar_param::{
+    DrumParamId, FmParamId, PluckParamId, SampleBankParamId, ScalarMutation, SynthParamId,
+};
 #[cfg(feature = "source-worker-benchmark-timing")]
 pub use source_worker_timing::{
     SourceWorkerCoordinatorTimingSnapshot, SourceWorkerCpuSampler, SourceWorkerTimingProbe,
     SourceWorkerTimingSnapshot, SourceWorkerWorkerTimingSnapshot,
 };
 pub use types::{
-    default_synth_config, AudioLoadStatus, EnvConfig, FilterConfig, FilterType, FxBusConfig,
-    FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, MomentaryFxTarget, OscConfig, RenderProfileSnapshot,
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, SynthConfig, SynthProfileSnapshot,
-    VoiceStealingMode, BUS_COUNT, BUS_FX_WARNING_SLOT_COUNT, BUS_SLOTS_PER_BUS,
-    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS,
-    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT, MAX_CONTROL_EVENTS_PER_CALLBACK,
-    MAX_SAMPLE_VOICES, MAX_SAMPLE_VOICES_PER_SLOT, MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT,
-    RENDER_PROFILE_STAGE_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT, SAMPLE_VOICE_LANE_CAPACITY,
-    SAMPLE_VOICE_RETIREMENT_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
+    default_synth_config, AudioLoadStatus, DrumAssignment, DrumConfig, DrumSound, DrumVoiceConfig,
+    EnvConfig, FilterConfig, FilterType, FmConfig, FmRatio, FxBusConfig, FxBusSlotConfig,
+    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig,
+    MomentaryFxTarget, OscConfig, PluckConfig, RenderProfileSnapshot, SampleBankConfig,
+    SampleBuffer, SampleSlotConfig, SynthConfig, SynthProfileSnapshot, VoiceStealingMode,
+    BUS_COUNT, BUS_FX_WARNING_SLOT_COUNT, BUS_SLOTS_PER_BUS, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+    DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
+    MAX_CONTROL_EVENTS_PER_CALLBACK, MAX_SAMPLE_VOICES, MAX_SAMPLE_VOICES_PER_SLOT,
+    MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT, RENDER_PROFILE_STAGE_COUNT,
+    SAMPLE_SLOTS_PER_INSTRUMENT, SAMPLE_VOICE_LANE_CAPACITY, SAMPLE_VOICE_RETIREMENT_CAPACITY,
+    SYNTH_VOICE_LANE_CAPACITY,
 };
 
 #[cfg(test)]
