@@ -48,6 +48,7 @@ impl PlaybackRuntime {
         host: &mut H,
     ) -> Result<RuntimeIngest, String> {
         let mut output = RuntimeIngest::default();
+        let previous_snapshot_revision = self.last_snapshot_revision;
         let mut queue = match input {
             RuntimeDispatchInput::HostMessage(message) => {
                 std::collections::VecDeque::from([message])
@@ -144,7 +145,16 @@ impl PlaybackRuntime {
             self.latch_error(metadata);
             output.merge(self.best_effort_stop_and_silence(runner, host));
         }
-        self.append_presentations(&mut output);
+        if self.last_snapshot_revision != previous_snapshot_revision
+            && !output
+                .messages
+                .iter()
+                .any(|message| matches!(message, RunnerMessage::Snapshot { .. }))
+        {
+            self.append_presentations(&mut output);
+        } else {
+            self.append_status(&mut output);
+        }
         Ok(output)
     }
 
@@ -191,12 +201,15 @@ impl PlaybackRuntime {
     ) -> Result<RuntimeIngest, String> {
         self.profile_ingest_messages(&messages);
         let mut output = RuntimeIngest::default();
+        let previous_snapshot_revision = self.last_snapshot_revision;
+        let mut received_snapshot = false;
         for message in messages {
             match message {
                 RunnerMessage::Snapshot { snapshot } => {
                     if snapshot.is_object() {
                         self.last_good_snapshot = Some(snapshot);
                         self.refresh_presented_snapshot();
+                        received_snapshot = true;
                     } else {
                         let error = Self::snapshot_failure();
                         self.latch_error(error.clone());
@@ -407,8 +420,23 @@ impl PlaybackRuntime {
                 }
             }
         }
-        self.append_presentations(&mut output);
+        self.append_ingested_presentations(
+            &mut output,
+            received_snapshot || self.last_snapshot_revision != previous_snapshot_revision,
+        );
         Ok(output)
+    }
+
+    fn append_ingested_presentations(
+        &mut self,
+        output: &mut RuntimeIngest,
+        received_snapshot: bool,
+    ) {
+        if received_snapshot {
+            self.append_presentations(output);
+        } else {
+            self.append_status(output);
+        }
     }
 }
 
