@@ -1,3 +1,4 @@
+use super::dispatch_profile::Stage;
 use super::oled::same_semantic_snapshot;
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeIngest};
 use crate::oled_frame::OledPresentationMetrics;
@@ -170,9 +171,16 @@ impl PlaybackRuntime {
     }
 
     pub(super) fn append_presentations(&mut self, output: &mut RuntimeIngest) {
+        let started = self
+            .dispatch_profile
+            .as_ref()
+            .and_then(|profile| profile.start());
         self.refresh_presented_status();
         super::oled::append_snapshot(&mut self.oled, output, self.presented_snapshot.as_ref());
         self.append_status(output);
+        if let Some(profile) = self.dispatch_profile.as_mut() {
+            profile.record(Stage::Append, started);
+        }
     }
 
     pub(super) fn apply_recovery<H: HostAdapter>(
@@ -295,10 +303,18 @@ impl PlaybackRuntime {
     }
 
     pub(super) fn refresh_presented_snapshot(&mut self) {
+        let refresh_started = self
+            .dispatch_profile
+            .as_ref()
+            .and_then(|profile| profile.start());
         let Some(raw_snapshot) = self.last_good_snapshot.as_ref() else {
             self.presented_snapshot = None;
             return;
         };
+        let clone_started = self
+            .dispatch_profile
+            .as_ref()
+            .and_then(|profile| profile.status_start());
         let mut presented = if let Some(error) = self.latched_errors.last() {
             let Some(mut snapshot) = raw_snapshot.as_object().cloned() else {
                 self.presented_snapshot = None;
@@ -319,23 +335,48 @@ impl PlaybackRuntime {
             raw_snapshot.clone()
         };
         apply_presentation_metrics(&mut presented, &self.oled.normalized_metrics);
+        if let Some(profile) = self.dispatch_profile.as_mut() {
+            profile.record(Stage::SnapshotClone, clone_started);
+        }
+        let compare_started = self
+            .dispatch_profile
+            .as_ref()
+            .and_then(|profile| profile.status_start());
         let semantic_unchanged = self
             .presented_snapshot
             .as_ref()
             .is_some_and(|previous| same_semantic_snapshot(previous, &presented));
+        if let Some(profile) = self.dispatch_profile.as_mut() {
+            profile.record(Stage::SemanticCompare, compare_started);
+        }
         let had_positive_frame = self.oled.has_positive_revision();
         let previous_snapshot_revision = self.last_snapshot_revision;
         if !semantic_unchanged {
             self.last_snapshot_revision = self.last_snapshot_revision.wrapping_add(1);
         }
         self.presented_snapshot = Some(presented);
+        let frame_started = self
+            .dispatch_profile
+            .as_ref()
+            .and_then(|profile| profile.status_start());
         self.oled
             .prepare_oled_frame(self.presented_snapshot.as_mut());
+        if let Some(profile) = self.dispatch_profile.as_mut() {
+            profile.record(Stage::FrameRender, frame_started);
+        }
         if !self.oled.has_positive_revision() {
             self.presented_snapshot = None;
             self.last_snapshot_revision = previous_snapshot_revision;
         } else if !had_positive_frame {
             self.last_snapshot_revision = self.last_snapshot_revision.max(1);
+        }
+        if let Some(profile) = self.dispatch_profile.as_mut() {
+            let stage = if profile.status_only {
+                Stage::StatusRefresh
+            } else {
+                Stage::FullSnapshotRefresh
+            };
+            profile.record(stage, refresh_started);
         }
     }
 

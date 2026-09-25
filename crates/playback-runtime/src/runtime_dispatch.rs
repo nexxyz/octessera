@@ -1,3 +1,4 @@
+use super::dispatch_profile::Stage;
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorMetadata,
@@ -6,6 +7,41 @@ use crate::protocol::{
 
 impl PlaybackRuntime {
     pub fn dispatch<R: CoreRunner, H: HostAdapter>(
+        &mut self,
+        input: RuntimeDispatchInput,
+        runner: &mut R,
+        host: &mut H,
+    ) -> Result<RuntimeIngest, String> {
+        if let Some(profile) = self.dispatch_profile.as_mut() {
+            profile.active = false;
+            if let RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
+                pulses,
+                source,
+                request_snapshot,
+                ..
+            }) = &input
+            {
+                if *source == crate::protocol::SyncSource::Internal
+                    && self.last_good_status.as_ref().is_some_and(|status| {
+                        status.transport == crate::RuntimeTransportState::Playing
+                    })
+                {
+                    profile.begin(*pulses, *request_snapshot == Some(true));
+                }
+            }
+        }
+        let dispatch_started = self
+            .dispatch_profile
+            .as_ref()
+            .and_then(|profile| profile.start());
+        let result = self.dispatch_inner(input, runner, host);
+        if let Some(profile) = self.dispatch_profile.as_mut() {
+            profile.finish(dispatch_started);
+        }
+        result
+    }
+
+    fn dispatch_inner<R: CoreRunner, H: HostAdapter>(
         &mut self,
         input: RuntimeDispatchInput,
         runner: &mut R,
@@ -39,7 +75,15 @@ impl PlaybackRuntime {
             };
             self.observe_host_message(&next, None);
             let acknowledge_restored_state = successful_default_load(&next);
-            let responses = match runner.send(next) {
+            let send_started = self
+                .dispatch_profile
+                .as_ref()
+                .and_then(|profile| profile.start());
+            let responses = runner.send(next);
+            if let Some(profile) = self.dispatch_profile.as_mut() {
+                profile.record(Stage::Runner, send_started);
+            }
+            let responses = match responses {
                 Ok(responses) => responses,
                 Err(message) => {
                     let error = RuntimeErrorMetadata::operation_failed(
@@ -77,7 +121,14 @@ impl PlaybackRuntime {
             } else {
                 responses
             };
+            let ingest_started = self
+                .dispatch_profile
+                .as_ref()
+                .and_then(|profile| profile.start());
             let ingest = self.ingest_core_messages(responses, runner, host)?;
+            if let Some(profile) = self.dispatch_profile.as_mut() {
+                profile.record(Stage::Ingest, ingest_started);
+            }
             output.messages.extend(ingest.messages);
             queue.extend(ingest.follow_ups);
         }
@@ -138,6 +189,7 @@ impl PlaybackRuntime {
         mut runner: Option<&mut dyn CoreRunner>,
         host: &mut H,
     ) -> Result<RuntimeIngest, String> {
+        self.profile_ingest_messages(&messages);
         let mut output = RuntimeIngest::default();
         for message in messages {
             match message {

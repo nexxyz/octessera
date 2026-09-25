@@ -176,11 +176,13 @@ $live120 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact
 Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; AutoPlay = $true; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
 Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; UiProfile = $true; AutoPlay = $true; PrintOnly = $true } | Out-Null }
 Assert-NoPayloadPlaceholders $autoPlayLive
-Assert-Contains $autoPlayLive '--setenv=OCTESSERA_PI_UI_PROFILE=1 --setenv=OCTESSERA_TIMING_AUTOPLAY=1 "$binary"'
+Assert-Contains $autoPlayLive '--setenv=OCTESSERA_PI_UI_PROFILE=1 --setenv=OCTESSERA_TIMING_AUTOPLAY=1 --setenv=OCTESSERA_RUNTIME_TIMING_TRACE=1 "$binary"'
 Assert-Contains $profiledLive '--setenv=OCTESSERA_PI_UI_PROFILE=1 "$binary"'
 Assert-NotContains $profiledLive 'OCTESSERA_TIMING_AUTOPLAY'
+Assert-NotContains $profiledLive 'OCTESSERA_RUNTIME_TIMING_TRACE'
 Assert-NotContains $live 'OCTESSERA_PI_UI_PROFILE'
 Assert-NotContains $live 'OCTESSERA_TIMING_AUTOPLAY'
+Assert-NotContains $live 'OCTESSERA_RUNTIME_TIMING_TRACE'
 Assert-NotContains $live120 'OCTESSERA_PI_UI_PROFILE'
 Assert-NotContains $live120 'OCTESSERA_TIMING_AUTOPLAY'
 Assert-NoPayloadPlaceholders $live

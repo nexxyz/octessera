@@ -28,6 +28,7 @@ impl PlaybackRuntime {
             request_next_snapshot: false,
             next_request_id: 0,
             oled: super::oled::RuntimeOled::default(),
+            dispatch_profile: super::dispatch_profile::RuntimeDispatchProfile::from_environment(),
         }
     }
 
