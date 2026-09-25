@@ -64,6 +64,7 @@ pub(crate) fn run_prepared_runtime(
             audio_manager.required_jack_runtime_status(),
             candidate_readiness,
         )?;
+        super::startup::ensure_timing_keep_awake(&playback)?;
         if std::env::var("OCTESSERA_TIMING_AUTOPLAY").as_deref() == Ok("1") {
             for pressed in [true, false] {
                 let message = crate::input::neokey_message(1, pressed)

@@ -172,7 +172,20 @@ if (-not $refused) {
 $live = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 30 }
 $profiledLive = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; UiProfile = $true; LiveSeconds = 30 }
 $autoPlayLive = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; UiProfile = $true; AutoPlay = $true; LiveSeconds = 30 }
+$awake = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; UiProfile = $true; AutoPlay = $true; KeepAwake = $true; LiveSeconds = 30 }
 $live120 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 120 }
+Assert-Contains $awake 'Display scenario: AWAKE'
+Assert-Contains $awake '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_PI_TIMING_KEEP_AWAKE=1'
+Assert-NotContains $autoPlayLive 'OCTESSERA_PI_TIMING_KEEP_AWAKE'
+Assert-NotContains $autoPlayLive 'scenario=AWAKE'
+Assert-NotContains $autoPlayLive 'study_store'
+Assert-NotContains $profiledLive 'OCTESSERA_PI_TIMING_KEEP_AWAKE'
+Assert-NotContains $live 'OCTESSERA_PI_TIMING_KEEP_AWAKE'
+foreach ($mode in @("PassiveBaseline", "ProfileBaseline", "Dsp64", "Dsp256", "LiveAudioBenchmark")) {
+  Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = $mode; KeepAwake = $true; PrintOnly = $true } | Out-Null }
+}
+Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; KeepAwake = $true; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
+Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; UiProfile = $true; KeepAwake = $true; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
 Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; AutoPlay = $true; AllowServiceInterruption = $true; PrintOnly = $true } | Out-Null }
 Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; UiProfile = $true; AutoPlay = $true; PrintOnly = $true } | Out-Null }
 Assert-NoPayloadPlaceholders $autoPlayLive
@@ -461,3 +474,4 @@ try {
 }
 
 Write-Output "Orange capability study PrintOnly, safety, DSP-mode, and transient-unit tests passed"
+& (Join-Path $PSScriptRoot "test-orange-study-store-isolation.ps1")
