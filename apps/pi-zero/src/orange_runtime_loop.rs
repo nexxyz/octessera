@@ -64,6 +64,21 @@ pub(crate) fn run_prepared_runtime(
             audio_manager.required_jack_runtime_status(),
             candidate_readiness,
         )?;
+        if std::env::var("OCTESSERA_TIMING_AUTOPLAY").as_deref() == Ok("1") {
+            if scheduler.published_snapshot_revision() != playback.last_snapshot_revision() {
+                return Err("Orange timing autoplay needs a fresh normal OLED".into());
+            }
+            for pressed in [true, false] {
+                let message = crate::input::neokey_message(1, pressed)
+                    .ok_or("Orange timing autoplay NeoKey index 1 unavailable")?;
+                dispatch(&mut playback, &mut runner, &mut host, message)?;
+            }
+            if !playback.last_status().is_some_and(|status| {
+                status.transport == playback_runtime::RuntimeTransportState::Playing
+            }) {
+                return Err("Orange timing autoplay did not enter Playing".into());
+            }
+        }
         let mut ui_profiler = crate::ui_profile::UiProfiler::from_process();
         let profile_enabled = ui_profiler.enabled();
         let mut last_loop_start = profile_enabled.then(Instant::now);
