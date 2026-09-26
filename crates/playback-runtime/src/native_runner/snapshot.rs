@@ -20,6 +20,15 @@ impl NativeRunner {
         self.display.transients.snapshot_pending()
     }
 
+    pub fn pending_display_scene_generation(&mut self) -> Option<u64> {
+        let now = self.display.transients.now();
+        self.display.transients.advance(now);
+        self.display
+            .transients
+            .snapshot_pending()
+            .then(|| self.display.transients.generation())
+    }
+
     pub(super) fn snapshot(&self) -> Result<Value, String> {
         Ok(self.capture_presentation_scene(true)?.into_snapshot())
     }
@@ -112,4 +121,78 @@ pub(super) fn display_active_cells(cells: &[bool]) -> Vec<bool> {
         active[display_index(x, y)] = *alive;
     }
     active
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{music_first_tests::playing_default, HostMessage, SyncSource};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn pending_generation_precedes_scene_capture_and_advances_due_transients() {
+        let mut runner = playing_default();
+        let start = Instant::now();
+        runner.test_set_display_time(start);
+        let initial = runner.capture_display_scene().unwrap();
+        runner.acknowledge_display_scene(initial.generation());
+        assert_eq!(runner.pending_display_scene_generation(), None);
+
+        let audio_revision = runner.last_snapshot_audio_config_revision;
+        runner
+            .send_music_first(HostMessage::TransportPulseStep {
+                pulses: 0,
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(true),
+            })
+            .unwrap();
+        let requested = runner.pending_display_scene_generation().unwrap();
+        assert_eq!(runner.pending_display_scene_generation(), Some(requested));
+        assert_eq!(runner.last_snapshot_audio_config_revision, audio_revision);
+        let scene = runner.capture_display_scene().unwrap();
+        assert_eq!(scene.generation(), requested);
+        runner.acknowledge_display_scene(requested);
+        assert_eq!(runner.pending_display_scene_generation(), None);
+
+        runner
+            .send_music_first(HostMessage::DeviceInput {
+                input: serde_json::json!({"type": "encoder_turn", "id": "main", "delta": 1}),
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        let menu_generation = runner.pending_display_scene_generation().unwrap();
+        assert!(menu_generation > requested);
+        let menu_scene = runner.capture_display_scene().unwrap();
+        assert_eq!(menu_scene.generation(), menu_generation);
+        runner.acknowledge_display_scene(menu_generation);
+
+        runner
+            .send_music_first(HostMessage::TransportPulseStep {
+                pulses: 24,
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        let beat_generation = runner.pending_display_scene_generation().unwrap();
+        assert!(beat_generation > menu_generation);
+        let beat_scene = runner.capture_display_scene().unwrap();
+        assert_eq!(beat_scene.generation(), beat_generation);
+        runner.acknowledge_display_scene(beat_generation);
+
+        runner.test_set_display_time(start + Duration::from_millis(200));
+        let expiry_generation = runner.pending_display_scene_generation().unwrap();
+        assert!(expiry_generation > beat_generation);
+        assert_eq!(
+            runner.pending_display_scene_generation(),
+            Some(expiry_generation)
+        );
+        let expired_scene = runner.capture_display_scene().unwrap();
+        assert_eq!(expired_scene.generation(), expiry_generation);
+        let expired_snapshot = expired_scene.into_snapshot();
+        assert_eq!(expired_snapshot["eventDotOn"], false);
+        assert_eq!(expired_snapshot["transportFlash"], "none");
+        runner.acknowledge_display_scene(expiry_generation);
+        assert_eq!(runner.pending_display_scene_generation(), None);
+    }
 }
