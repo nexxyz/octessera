@@ -215,7 +215,10 @@ pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
 pub use runner_config::NativeRunnerConfig;
-pub use snapshot_scene::PresentationScene;
+pub use snapshot_scene::{
+    NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,
+    NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation, PresentationScene,
+};
 pub use usb_data_role::UsbDataRole;
 
 use binding_payload::*;

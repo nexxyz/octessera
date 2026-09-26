@@ -1,5 +1,4 @@
-use super::{HdmiGrid, HdmiScene, PresentationScene};
-use crate::native_runner::snapshot::hdmi_frame_from_model;
+use super::{HdmiScene, PresentationScene};
 use crate::native_runner::snapshot_audio_settings::audio_payload;
 use crate::native_runner::{
     json, RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH,
@@ -129,14 +128,7 @@ impl PresentationScene {
 
 impl HdmiScene {
     fn into_snapshot(self, live_rgb: &[u8], live_active: &[bool]) -> Value {
-        let (rgb, active) = match self.grid {
-            HdmiGrid::Black => (
-                vec![0; GRID_WIDTH * GRID_HEIGHT * 3],
-                vec![false; GRID_WIDTH * GRID_HEIGHT],
-            ),
-            HdmiGrid::Live => (live_rgb.to_vec(), live_active.to_vec()),
-            HdmiGrid::Model(model) => hdmi_frame_from_model(&model),
-        };
+        let (rgb, active) = self.grid.into_frame(live_rgb, live_active);
         json!({
             "mode": self.mode,
             "showGridlines": self.show_gridlines,
