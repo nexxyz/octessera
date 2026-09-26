@@ -1,7 +1,7 @@
 use super::{PlaybackRuntime, RuntimeIngest, RuntimeOledCacheFault, RuntimePresentationMetrics};
 use crate::oled_frame::{
     presentation_input_from_snapshot, render_oled_frame_into, OledPresentationInput,
-    OledPresentationMetrics, OLED_FRAME_BYTES, OLED_HEIGHT, OLED_WIDTH,
+    OledPresentationMetrics, OledRuntimeErrorMetadata, OLED_FRAME_BYTES, OLED_HEIGHT, OLED_WIDTH,
 };
 use crate::protocol::{
     RunnerMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorMetadata, RuntimeOperation,
@@ -165,6 +165,18 @@ fn is_revisioned_snapshot(snapshot: &Value) -> bool {
 }
 
 impl PlaybackRuntime {
+    pub fn native_presentation_state(
+        &self,
+    ) -> (OledPresentationMetrics, Option<OledRuntimeErrorMetadata>) {
+        let error = self
+            .latched_errors
+            .last()
+            .or_else(|| self.oled.fault())
+            .or_else(|| self.oled.adapter_fault())
+            .map(oled_error_metadata);
+        (self.oled.normalized_metrics.clone(), error)
+    }
+
     #[cfg(test)]
     pub(crate) fn test_oled_render_count(&self) -> usize {
         self.oled.render_count
@@ -199,6 +211,23 @@ impl PlaybackRuntime {
         output
     }
 
+    pub fn update_native_presentation_metrics(
+        &mut self,
+        metrics: RuntimePresentationMetrics,
+    ) -> bool {
+        let normalized = OledPresentationMetrics::from_status(
+            metrics.worker_utilization,
+            metrics.high_cpu_steady,
+            metrics.missed_quantum_flash,
+            metrics.voice_steal,
+        );
+        if normalized == self.oled.normalized_metrics {
+            return false;
+        }
+        self.oled.normalized_metrics = normalized;
+        true
+    }
+
     pub fn report_oled_cache_fault(
         &mut self,
         fault: Option<RuntimeOledCacheFault>,
@@ -220,6 +249,75 @@ impl PlaybackRuntime {
         let mut output = RuntimeIngest::default();
         self.append_status(&mut output);
         output
+    }
+}
+
+fn oled_error_metadata(error: &RuntimeErrorMetadata) -> OledRuntimeErrorMetadata {
+    OledRuntimeErrorMetadata {
+        domain: Some(error_domain_name(&error.domain).into()),
+        code: Some(error_code_name(&error.code).into()),
+        operation: Some(error_operation_name(&error.operation).into()),
+        message: error.message.clone(),
+    }
+}
+
+fn error_domain_name(domain: &RuntimeErrorDomain) -> &'static str {
+    match domain {
+        RuntimeErrorDomain::Runtime => "runtime",
+        RuntimeErrorDomain::Storage => "storage",
+        RuntimeErrorDomain::Midi => "midi",
+        RuntimeErrorDomain::Sample => "sample",
+        RuntimeErrorDomain::Audio => "audio",
+        RuntimeErrorDomain::Serialization => "serialization",
+        RuntimeErrorDomain::Recording => "recording",
+    }
+}
+
+fn error_code_name(code: &RuntimeErrorCode) -> &'static str {
+    match code {
+        RuntimeErrorCode::OperationFailed => "operation_failed",
+        RuntimeErrorCode::Unavailable => "unavailable",
+        RuntimeErrorCode::InvalidPayload => "invalid_payload",
+        RuntimeErrorCode::NotFound => "not_found",
+        RuntimeErrorCode::Unsupported => "unsupported",
+        RuntimeErrorCode::SerializationFailed => "serialization_failed",
+        RuntimeErrorCode::AudioThreadFailed => "audio_thread_failed",
+    }
+}
+
+fn error_operation_name(operation: &RuntimeOperation) -> &'static str {
+    match operation {
+        RuntimeOperation::RuntimeDispatch => "runtime_dispatch",
+        RuntimeOperation::DeviceInput => "device_input",
+        RuntimeOperation::Transport => "transport",
+        RuntimeOperation::MusicalEvent => "musical_event",
+        RuntimeOperation::MidiEvent => "midi_event",
+        RuntimeOperation::MidiMessage => "midi_message",
+        RuntimeOperation::AudioCommand => "audio_command",
+        RuntimeOperation::AudioThread => "audio_thread",
+        RuntimeOperation::Snapshot => "snapshot",
+        RuntimeOperation::TransportStop => "transport_stop",
+        RuntimeOperation::Store => "store",
+        RuntimeOperation::StoreListPresets => "store_list_presets",
+        RuntimeOperation::StoreLoadPreset => "store_load_preset",
+        RuntimeOperation::StoreSavePreset => "store_save_preset",
+        RuntimeOperation::StoreDeletePreset => "store_delete_preset",
+        RuntimeOperation::StoreLoadDefault => "store_load_default",
+        RuntimeOperation::StoreSaveDefault => "store_save_default",
+        RuntimeOperation::StoreSaveBackup => "store_save_backup",
+        RuntimeOperation::StoreSaveRecovery => "store_save_recovery",
+        RuntimeOperation::RuntimeEmission => "runtime_emission",
+        RuntimeOperation::Persistence => "persistence",
+        RuntimeOperation::MidiListOutputs => "midi_list_outputs",
+        RuntimeOperation::MidiListInputs => "midi_list_inputs",
+        RuntimeOperation::MidiStatus => "midi_status",
+        RuntimeOperation::SampleList => "sample_list",
+        RuntimeOperation::SamplePreview => "sample_preview",
+        RuntimeOperation::DeviceUpdate => "device_update",
+        RuntimeOperation::Recording => "recording",
+        RuntimeOperation::SystemInfo => "system_info",
+        RuntimeOperation::SetupPortal => "setup_portal",
+        RuntimeOperation::UserDataTransfer => "user_data_transfer",
     }
 }
 

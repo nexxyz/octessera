@@ -19,6 +19,9 @@ mod midi;
 mod music_first;
 #[path = "runtime_oled.rs"]
 mod oled;
+#[cfg(test)]
+#[path = "runtime_presentation_state_tests.rs"]
+mod presentation_state_tests;
 #[path = "runtime_pulse_phase.rs"]
 mod pulse_phase;
 #[path = "runtime_status.rs"]
