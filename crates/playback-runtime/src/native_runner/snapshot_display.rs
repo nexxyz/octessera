@@ -1,6 +1,6 @@
 use super::toast_text::clip_display_line;
-use super::{json, NativeRunner, Value, OLED_BODY_ROWS};
-use crate::native_menu::NativeMenuSnapshot;
+use super::{NativeRunner, OLED_BODY_ROWS};
+use crate::native_menu::{NativeMenuBarValue, NativeMenuSnapshot};
 use crate::oled_frame::OledDisplayLayout;
 
 #[path = "snapshot_display_drum.rs"]
@@ -15,7 +15,7 @@ pub(super) struct DisplaySnapshot {
     pub(super) title: String,
     pub(super) lines: Vec<String>,
     pub(super) colors: Vec<u16>,
-    pub(super) bar_values: Vec<Value>,
+    pub(super) bar_values: Vec<Option<NativeMenuBarValue>>,
     pub(super) full_lines: Vec<Option<String>>,
     pub(super) scroll: Option<DisplayScrollMetadata>,
     pub(super) selected_row: Option<usize>,
@@ -74,7 +74,7 @@ impl NativeRunner {
                 display.title = error.title.clone();
                 display.lines = error.lines.clone();
                 display.colors = vec![platform_core::palette::WHITE_RGB565; display.lines.len()];
-                display.bar_values = vec![Value::Null; display.lines.len()];
+                display.bar_values = vec![None; display.lines.len()];
                 display.full_lines = vec![None; display.lines.len()];
                 display.scroll = None;
                 display.selected_row = None;
@@ -132,7 +132,7 @@ fn user_data_restore_display(state: &super::NativeUserDataRestoreState) -> Displ
         title,
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
         selected_row,
@@ -174,7 +174,7 @@ fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapsh
         title: confirm.title.clone(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
         selected_row: Some(
@@ -244,7 +244,7 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
         title,
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
         selected_row: Some(line_count - 1),
@@ -289,7 +289,7 @@ fn user_data_transfer_display(state: &super::NativeUserDataTransferState) -> Dis
         title,
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
         selected_row: Some(line_count.saturating_sub(1)),
@@ -320,7 +320,7 @@ fn usb_sd_transfer_modal_display(modal: &super::NativeUsbSdTransferModal) -> Dis
         title: modal.title.clone(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
         selected_row: Some(line_count.saturating_sub(1)),
@@ -336,7 +336,7 @@ fn system_info_modal_display(modal: &super::NativeSystemInfoModal) -> DisplaySna
         title: "Sys. Info".into(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: Some(DisplayScrollMetadata {
             scroll_offset: modal.scroll,
@@ -362,7 +362,7 @@ fn help_popup_display(help: &super::NativeHelpPopup) -> DisplaySnapshot {
         title: help.title.clone(),
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
         selected_row: Some(
@@ -381,7 +381,7 @@ fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
         title,
         lines,
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![Value::Null; line_count],
+        bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
         selected_row: None,
@@ -392,21 +392,6 @@ fn menu_display(
     runner: &NativeRunner,
     menu: crate::native_menu::NativeMenuSnapshot,
 ) -> DisplaySnapshot {
-    let bar_values = menu
-        .bar_values
-        .iter()
-        .map(|bar| {
-            bar.as_ref()
-                .map(|bar| {
-                    json!({
-                        "frac": f32::from(bar.frac_pct) / 100.0,
-                        "numChars": bar.num_chars,
-                        "style": bar.style,
-                    })
-                })
-                .unwrap_or(Value::Null)
-        })
-        .collect::<Vec<_>>();
     let rows = menu
         .lines
         .iter()
@@ -420,7 +405,7 @@ fn menu_display(
         title: menu.path,
         lines,
         colors: menu.colors,
-        bar_values,
+        bar_values: menu.bar_values,
         full_lines,
         scroll: menu.scroll.map(|scroll| DisplayScrollMetadata {
             scroll_offset: scroll.scroll_offset,

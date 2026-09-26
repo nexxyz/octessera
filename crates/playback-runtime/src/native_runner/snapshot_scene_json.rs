@@ -9,6 +9,20 @@ impl PresentationScene {
     pub fn into_snapshot(self) -> Value {
         let hdmi = self.hdmi.into_snapshot(&self.led_rgb, &self.active_cells);
         let display = self.display;
+        let bar_values = display
+            .bar_values
+            .into_iter()
+            .map(|bar| {
+                bar.map(|bar| {
+                    json!({
+                        "frac": f32::from(bar.frac_pct) / 100.0,
+                        "numChars": bar.num_chars,
+                        "style": bar.style,
+                    })
+                })
+                .unwrap_or(Value::Null)
+            })
+            .collect::<Vec<_>>();
         let ui = self.ui;
         let sound = self.sound;
         let transport = self.transport;
@@ -20,7 +34,7 @@ impl PresentationScene {
                 "title": display.title,
                 "lines": display.lines,
                 "colors": display.colors,
-                "barValues": display.bar_values,
+                "barValues": bar_values,
                 "scrollOffset": display.scroll.as_ref().map(|scroll| scroll.scroll_offset),
                 "totalRows": display.scroll.as_ref().map(|scroll| scroll.total_rows),
                 "visibleRows": display.scroll.as_ref().map(|scroll| scroll.visible_rows),
