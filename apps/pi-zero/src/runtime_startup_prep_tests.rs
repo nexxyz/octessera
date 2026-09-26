@@ -1,9 +1,14 @@
 use super::*;
-use crate::audio::test_service_with_prep_worker;
+use crate::audio::{test_service_with_prep_worker, test_service_with_recording_dir};
+use crate::candidate_readiness::CandidateReadiness;
 use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
+use crate::render::{HardwareRenderTargets, OLED_FRAME_BYTES};
+use crate::render_loop::RenderWorker;
+use octessera_hal::OledSsd1351;
 use playback_runtime::{
     CoreRunner, HostAdapter, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult,
 };
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -101,8 +106,172 @@ fn pi_v1_persisted_startup_sleep_remains_due_after_scheduler_creation() {
 
     assert!(
         scheduler
-            .display_snapshot_due(scheduler_now, &runner)
+            .display_snapshot_due(scheduler_now, &runner, &playback)
             .one_shot
     );
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[test]
+fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-prepared-oled-recording-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let (audio, control_rx, _event_rx, prep_result_tx) =
+        test_service_with_recording_dir(root.join("actual"));
+    crate::host_audio_prep::spawn_audio_control_worker(control_rx, audio.clone(), prep_result_tx);
+    let mut prepared = prepared_runtime(audio.clone(), &root, None);
+    let snapshot = prepared.playback.last_snapshot().unwrap().clone();
+    assert!(
+        crate::normal_menu::is_normal_menu_snapshot(&snapshot),
+        "{snapshot}"
+    );
+    let source_oled = prepared
+        .adapter
+        .oled_publication_for_snapshot(&snapshot, true)
+        .unwrap();
+    let source_revision = source_oled.revision().unwrap();
+    let expected_pixels = source_oled.shared_pixels().unwrap();
+    assert_eq!(expected_pixels.len(), OLED_FRAME_BYTES);
+    assert!(expected_pixels.iter().any(|pixel| *pixel != 0));
+
+    let worker = render_worker();
+    prepared.publish_acknowledged_snapshot(&worker).unwrap();
+    let (physical_revision, physical_pixels) = audio.latest_physical_oled_frame().unwrap();
+    assert!(physical_revision > source_revision);
+    assert_eq!(physical_pixels.as_ref(), expected_pixels.as_ref());
+
+    audio.start_recording_audio_oled_from_latest(1).unwrap();
+    audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
+    let actual = audio.stop_recording_with_outcome().unwrap().unwrap();
+    let (reference, _, _, _) = test_service_with_recording_dir(root.join("reference"));
+    reference
+        .start_recording_audio_oled_with_seed(
+            1,
+            Some((physical_revision, physical_pixels.to_vec())),
+        )
+        .unwrap();
+    reference
+        .test_push_recording_samples(&vec![0; 8_820])
+        .unwrap();
+    let expected = reference.stop_recording_with_outcome().unwrap().unwrap();
+    let actual_frames = avi_video_payloads(&actual.path);
+    let expected_frames = avi_video_payloads(&expected.path);
+    let menu_frame_position = actual_frames
+        .iter()
+        .position(|frame| frame == &expected_frames[0]);
+    assert_eq!(menu_frame_position, Some(0), "menu frame position");
+    worker.publish_shutdown().unwrap();
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[test]
+fn pi_prepared_startup_write_failure_keeps_recording_seed_and_ready_marker_absent() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-prepared-oled-failure-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let marker = root.join("candidate-ready.json");
+    let (audio, control_rx, _event_rx, prep_result_tx) =
+        test_service_with_recording_dir(root.join("recording"));
+    crate::host_audio_prep::spawn_audio_control_worker(control_rx, audio.clone(), prep_result_tx);
+    let prepared = prepared_runtime(audio.clone(), &root, Some(marker.clone()));
+    let worker = render_worker();
+    worker.fail_next_startup_oled_write_for_test();
+
+    prepared.run(worker);
+
+    assert!(audio.latest_physical_oled_frame().is_none());
+    assert!(!marker.exists());
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn prepared_runtime(
+    audio: crate::audio::AudioService,
+    root: &std::path::Path,
+    marker: Option<std::path::PathBuf>,
+) -> PreparedRuntime {
+    let mut adapter = PiPlaybackHostAdapter::new(
+        Some(audio),
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        playback_runtime::AudioOutputSet::jack(),
+    );
+    let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency, false);
+    runner.skip_startup_splash();
+    initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
+    crate::runtime_loop::dispatch_runtime_message(
+        &mut playback,
+        &mut runner,
+        &mut adapter,
+        HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(true),
+        },
+    )
+    .unwrap();
+    wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter).unwrap();
+    let (_, midi_rx) = mpsc::channel();
+    let (input_tx, input_rx) = mpsc::channel();
+    let (_, encoder_rx) = mpsc::channel();
+    PreparedRuntime {
+        midi_rx,
+        input_rx,
+        encoder_rx,
+        playback,
+        runner,
+        adapter,
+        candidate_readiness: CandidateReadiness::new(marker, "pi-recording-test".into()),
+        keyboard: crate::usb_keyboard::KeyboardCapture::spawn(input_tx, false),
+        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        audio_load_rx: None,
+    }
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn render_worker() -> RenderWorker {
+    let (seesaw_tx, _seesaw_rx) = mpsc::channel();
+    RenderWorker::spawn(HardwareRenderTargets {
+        oled: OledSsd1351::new().unwrap(),
+        seesaw_tx,
+        oled_handoff: None,
+        hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
+    })
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn avi_video_payloads(path: &std::path::Path) -> Vec<Vec<u8>> {
+    let bytes = std::fs::read(path).unwrap();
+    let list = bytes
+        .windows(12)
+        .position(|window| &window[..4] == b"LIST" && &window[8..12] == b"movi")
+        .unwrap();
+    let mut offset = list + 12;
+    let end = list + 8 + u32::from_le_bytes(bytes[list + 4..list + 8].try_into().unwrap()) as usize;
+    let mut videos = Vec::new();
+    while offset + 8 <= end {
+        let size = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap()) as usize;
+        let payload_end = offset + 8 + size;
+        if &bytes[offset..offset + 4] == b"00dc" {
+            videos.push(bytes[offset + 8..payload_end].to_vec());
+        }
+        offset = payload_end + size % 2;
+    }
+    videos
 }

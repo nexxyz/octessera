@@ -137,11 +137,16 @@ fn rejected_display_request_keeps_a_bounded_retry_deadline() {
     let now = Instant::now();
     let mut scheduler = HardwareRuntimeScheduler::new(now, 0);
     let runner = NativeRunner::new(playback_runtime::NativeRunnerConfig::default()).unwrap();
+    let playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let deadline = runner
         .next_timed_display_snapshot_deadline_after(Some(now))
         .expect("startup display should have a timed deadline");
 
-    assert!(scheduler.display_snapshot_due(deadline, &runner).one_shot);
+    assert!(
+        scheduler
+            .display_snapshot_due(deadline, &runner, &playback)
+            .one_shot
+    );
     scheduler.record_snapshot_attempt(
         deadline,
         DisplaySnapshotDue {
@@ -151,118 +156,23 @@ fn rejected_display_request_keeps_a_bounded_retry_deadline() {
         0,
         0,
     );
-    assert!(!scheduler.display_snapshot_due(deadline, &runner).any());
+    assert!(!scheduler
+        .display_snapshot_due(deadline, &runner, &playback)
+        .any());
     assert!(
         scheduler
-            .display_snapshot_due(deadline + SNAPSHOT_RETRY_DELAY, &runner)
+            .display_snapshot_due(deadline + SNAPSHOT_RETRY_DELAY, &runner, &playback)
             .one_shot
     );
 }
 
-#[test]
-fn realtime_activation_rebases_before_the_first_playing_tick() {
-    let now = Instant::now();
-    let (playback, _runner, _host) = playing_playback();
-    let mut scheduler = HardwareRuntimeScheduler::new(now, playback.last_snapshot_revision());
+#[cfg(test)]
+#[path = "hardware_runtime_playing_tests.rs"]
+mod playing_tests;
 
-    assert!(scheduler
-        .next_runtime_advance(now + Duration::from_secs(1), &playback, None)
-        .is_none());
-    assert_eq!(
-        scheduler
-            .next_runtime_advance(
-                now + Duration::from_secs(1) + PLAYBACK_TICK,
-                &playback,
-                None,
-            )
-            .expect("playing tick should be due")
-            .elapsed,
-        PLAYBACK_TICK
-    );
-}
-
-#[test]
-fn playing_runtime_requests_one_snapshot_per_thirty_three_milliseconds() {
-    let now = Instant::now();
-    let mut scheduler = HardwareRuntimeScheduler::new(now, 0);
-    let (playback, _runner, _host) = playing_playback();
-    let baseline = now + Duration::from_millis(1);
-
-    assert!(scheduler
-        .next_runtime_advance(baseline, &playback, None)
-        .is_none());
-    let first = scheduler
-        .next_runtime_advance(baseline + Duration::from_millis(33), &playback, None)
-        .expect("playing advance should be due");
-    assert!(first.request_snapshot);
-    let first_attempt = baseline + Duration::from_millis(33);
-    scheduler.record_snapshot_attempt(first_attempt, DisplaySnapshotDue::default(), 1, 1);
-    let next = scheduler
-        .next_runtime_advance(baseline + Duration::from_millis(41), &playback, None)
-        .expect("next playing advance should be due");
-    assert!(!next.request_snapshot);
-    assert_eq!(scheduler.last_snapshot_attempt_at, first_attempt);
-}
-
-#[test]
-fn accepted_external_snapshot_rebases_playing_and_continuous_cadence() {
-    let now = Instant::now();
-    let (mut playback, mut runner, mut host) = playing_playback();
-    let initial_revision = playback.last_snapshot_revision();
-    let mut scheduler = HardwareRuntimeScheduler::new(now, initial_revision);
-
-    assert!(scheduler
-        .next_runtime_advance(now, &playback, None)
-        .is_none());
-    runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::StoreError {
-                message: "a".repeat(40),
-            },
-        })
-        .expect("long toast should be accepted");
-    playback
-        .dispatch_host_message(
-            HostMessage::DeviceInput {
-                input: json!({"type": "other"}),
-                request_snapshot: None,
-            },
-            &mut runner,
-            &mut host,
-        )
-        .expect("external snapshot should be accepted");
-    let accepted_revision = playback.last_snapshot_revision();
-    assert!(accepted_revision > initial_revision);
-    let accepted_at = now + PLAYBACK_TICK;
-    scheduler.observe_snapshot_revision(accepted_at, initial_revision, accepted_revision);
-    assert_eq!(scheduler.last_snapshot_attempt_at, accepted_at);
-
-    let before_playing_due = scheduler
-        .next_runtime_advance(
-            accepted_at + SNAPSHOT_TICK - Duration::from_nanos(1),
-            &playback,
-            None,
-        )
-        .expect("playing tick should be due before snapshot cadence");
-    assert!(!before_playing_due.request_snapshot);
-    assert!(
-        !scheduler
-            .display_snapshot_due(
-                accepted_at + SNAPSHOT_TICK - Duration::from_nanos(1),
-                &runner,
-            )
-            .continuous
-    );
-    let after_playing_due = scheduler
-        .next_runtime_advance(accepted_at + SNAPSHOT_TICK + PLAYBACK_TICK, &playback, None)
-        .expect("next playing tick should be due");
-    assert!(after_playing_due.request_snapshot);
-    assert!(
-        scheduler
-            .display_snapshot_due(accepted_at + SNAPSHOT_TICK, &runner)
-            .continuous
-    );
-}
+#[cfg(test)]
+#[path = "hardware_runtime_error_snapshot_tests.rs"]
+mod error_snapshot_tests;
 
 #[test]
 fn scheduled_midi_idle_rebases_before_a_new_eight_millisecond_tick() {
@@ -450,6 +360,10 @@ fn scheduler_sleep_never_exceeds_eight_milliseconds() {
 
     assert!(scheduler.sleep_duration(now, &playback, &runner) <= SLEEP_MAX);
 }
+
+#[cfg(test)]
+#[path = "hardware_runtime_external_tests.rs"]
+mod external_tests;
 
 #[test]
 fn playing_snapshot_deadline_waits_for_the_next_eight_millisecond_tick() {

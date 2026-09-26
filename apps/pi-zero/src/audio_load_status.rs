@@ -1,6 +1,8 @@
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use super::AudioManager;
-use playback_runtime::{PlaybackRuntime, RuntimeIngest, RuntimePresentationMetrics};
+use playback_runtime::{
+    PlaybackRuntime, RuntimeIngest, RuntimePresentationMetrics, RuntimeTransportState,
+};
 use rodio_engine_source::AudioLoadStatusReceiver;
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -23,6 +25,30 @@ pub(crate) fn drain_audio_load_status(
     playback: &mut PlaybackRuntime,
     reset_pending: bool,
 ) -> RuntimeIngest {
+    if playback
+        .last_status()
+        .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
+    {
+        let mut changed = reset_pending
+            && playback.update_native_presentation_metrics(RuntimePresentationMetrics::default());
+        let mut newest = None;
+        while let Ok(status) = load_rx.try_recv() {
+            newest = Some(status);
+        }
+        if let Some(status) = newest {
+            changed |= playback.update_native_presentation_metrics(RuntimePresentationMetrics {
+                audio_load_ratio: status.ratio,
+                voice_steal: status.voice_steal,
+                worker_utilization: status.worker_utilization,
+                high_cpu_steady: status.high_cpu_steady,
+                missed_quantum_flash: status.missed_quantum_flash,
+            });
+        }
+        if changed {
+            playback.request_next_snapshot();
+        }
+        return RuntimeIngest::default();
+    }
     let mut output = if reset_pending {
         playback.update_presentation_metrics(RuntimePresentationMetrics::default())
     } else {

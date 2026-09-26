@@ -128,6 +128,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         ))),
         recording_tap: Arc::new(RwLock::new(None)),
         recording_oled: Arc::new(RwLock::new(None)),
+        accepted_oled_frame: Arc::new(RwLock::new(None)),
     };
     (service, prep_result_tx)
 }
@@ -159,6 +160,7 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
         ))),
         recording_tap: Arc::new(RwLock::new(None)),
         recording_oled: Arc::new(RwLock::new(None)),
+        accepted_oled_frame: Arc::new(RwLock::new(None)),
     };
     crate::host_audio_prep::spawn_audio_control_worker(control_rx, service.clone(), prep_result_tx);
     service
@@ -221,6 +223,7 @@ pub(crate) fn test_service_with_recording_dir(
         ))),
         recording_tap: Arc::new(RwLock::new(None)),
         recording_oled: Arc::new(RwLock::new(None)),
+        accepted_oled_frame: Arc::new(RwLock::new(None)),
     };
     (service, control_rx, event_rx, prep_result_tx)
 }

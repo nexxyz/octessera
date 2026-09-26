@@ -1,7 +1,8 @@
-use super::AudioService;
+use super::{AudioService, PhysicalOledFrame};
 use crate::audio_recording;
 use media_recording::{OledFrame, RecordingOutcome, RecordingStartError};
 use playback_runtime::RuntimeStoreResult;
+use std::sync::Arc;
 
 impl AudioService {
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), RecordingStartError> {
@@ -47,6 +48,37 @@ impl AudioService {
             .write()
             .map_err(|_| RecordingStartError::Io("OLED recording lock poisoned".into()))? =
             Some(recording.oled);
+        Ok(())
+    }
+
+    pub(crate) fn start_recording_audio_oled_from_latest(
+        &self,
+        max_minutes: u16,
+    ) -> Result<(), RecordingStartError> {
+        let accepted = self
+            .accepted_oled_frame
+            .read()
+            .map_err(|_| RecordingStartError::Io("accepted OLED frame lock poisoned".into()))?;
+        let seed = accepted
+            .as_ref()
+            .map(|frame| (frame.revision, frame.pixels.to_vec()));
+        self.start_recording_audio_oled_with_seed(max_minutes, seed)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn latest_physical_oled_frame(&self) -> Option<(u64, Arc<[u8]>)> {
+        self.accepted_oled_frame.read().ok().and_then(|frame| {
+            frame
+                .as_ref()
+                .map(|frame| (frame.revision, Arc::clone(&frame.pixels)))
+        })
+    }
+
+    pub(crate) fn clear_latest_physical_oled_frame(&self) -> Result<(), String> {
+        *self
+            .accepted_oled_frame
+            .write()
+            .map_err(|_| "accepted OLED frame lock poisoned".to_string())? = None;
         Ok(())
     }
 
@@ -114,11 +146,34 @@ impl AudioService {
             .map(|recorder| recorder.is_recording())
     }
 
+    #[cfg(test)]
     pub(crate) fn submit_accepted_oled_frame(
         &self,
         revision: u64,
         pixels: &[u8],
     ) -> Result<(), String> {
+        self.submit_accepted_oled_frame_shared(revision, Arc::from(pixels.to_vec()))
+    }
+
+    pub(crate) fn submit_accepted_oled_frame_shared(
+        &self,
+        revision: u64,
+        pixels: Arc<[u8]>,
+    ) -> Result<(), String> {
+        let mut accepted = self
+            .accepted_oled_frame
+            .write()
+            .map_err(|_| "accepted OLED frame lock poisoned".to_string())?;
+        if accepted.as_ref().is_some_and(|frame| {
+            frame.revision == revision && frame.pixels.as_ref() == pixels.as_ref()
+        }) {
+            return Ok(());
+        }
+        *accepted = Some(PhysicalOledFrame {
+            revision,
+            pixels: Arc::clone(&pixels),
+        });
+        drop(accepted);
         if !self.is_recording()? {
             return Ok(());
         }
@@ -135,13 +190,13 @@ impl AudioService {
         let Some((tap, oled)) = tap.zip(oled) else {
             return Ok(());
         };
-        let frame = OledFrame::from_bytes(revision, tap.audio_frame_cursor(), pixels)
+        let frame = OledFrame::from_bytes(revision, tap.audio_frame_cursor(), Arc::clone(&pixels))
             .map_err(|error| error.to_string())?;
         let _ = oled.try_submit(frame);
         Ok(())
     }
 
-    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(test)]
     pub(crate) fn test_push_recording_samples(&self, samples: &[i16]) -> Result<(), String> {
         let tap = self
             .recording_tap

@@ -103,6 +103,13 @@ pub struct AudioService {
     recorder: Arc<Mutex<RecordingServices>>,
     recording_tap: Arc<RwLock<Option<RecordingTap>>>,
     recording_oled: Arc<RwLock<Option<OledIngress>>>,
+    accepted_oled_frame: Arc<RwLock<Option<PhysicalOledFrame>>>,
+}
+
+#[derive(Clone)]
+struct PhysicalOledFrame {
+    revision: u64,
+    pixels: Arc<[u8]>,
 }
 
 pub enum AudioControlRequest {

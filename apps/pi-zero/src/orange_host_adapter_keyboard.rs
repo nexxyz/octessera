@@ -12,4 +12,10 @@ impl OrangeHostAdapter {
             control.observe_snapshot(snapshot);
         }
     }
+
+    pub(crate) fn observe_keyboard_capture_mode(&self, mode: playback_runtime::NativeHdmiMode) {
+        if let Some(control) = &self.keyboard_control {
+            control.observe_hdmi_mode(mode);
+        }
+    }
 }

@@ -2,10 +2,17 @@ use crate::oled_frame_cache::OledFramePublication;
 use crate::render::{
     HardwareRenderCache, HardwareRenderTargets, OledOwnershipStage, OledOwnershipState,
 };
-use crate::render_loop_queue::{merge_snapshot_command, RenderCommand, RenderState};
+use crate::render_loop_queue::{
+    merge_native_scene, merge_snapshot_command, NativeSceneCommand, NativeSceneCompletion,
+    RenderCommand, RenderState,
+};
 #[cfg(test)]
 use crate::render_loop_queue::{
     pending_work_wins_over_expired_animation_deadline, SnapshotCommand,
+};
+use playback_runtime::{
+    oled_frame::{OledPresentationMetrics, OledRuntimeErrorMetadata},
+    PresentationScene,
 };
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,6 +49,92 @@ pub struct RenderWorker {
 }
 
 impl RenderWorker {
+    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    pub(crate) fn block_next_native_scene_for_test(
+        &self,
+    ) -> (mpsc::Receiver<()>, mpsc::Sender<()>) {
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        self.state
+            .0
+            .lock()
+            .expect("render worker state mutex poisoned")
+            .native_render_gate = Some((entered_tx, release_rx));
+        (entered_rx, release_tx)
+    }
+
+    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+    pub(crate) fn allow_native_scenes_for_test(&self) {
+        self.state
+            .0
+            .lock()
+            .expect("render worker state mutex poisoned")
+            .acknowledged_snapshot_rendered = true;
+    }
+
+    pub(crate) fn set_recording_audio(&self, audio: crate::audio::AudioService) {
+        if let Ok(mut state) = self.state.0.lock() {
+            state.recording_audio = Some(audio);
+        }
+    }
+
+    #[cfg(test)]
+    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
+    pub(crate) fn fail_next_startup_oled_write_for_test(&self) {
+        if let Ok(mut state) = self.state.0.lock() {
+            state.fail_next_startup_oled_write = true;
+        }
+    }
+
+    pub(crate) fn take_acknowledged_startup_oled_frame(&self) -> Result<(u64, Arc<[u8]>), String> {
+        let mut state =
+            self.state.0.lock().map_err(|_| {
+                "render worker state mutex poisoned while reading startup OLED frame"
+            })?;
+        if !state.acknowledged_snapshot_rendered {
+            return Err("initial OLED frame has not been physically acknowledged".into());
+        }
+        state
+            .startup_accepted_oled_frame
+            .take()
+            .ok_or_else(|| "initial acknowledged OLED frame is unavailable".into())
+    }
+
+    pub(crate) fn publish_native_scene(
+        &self,
+        scene: PresentationScene,
+        metrics: OledPresentationMetrics,
+        error: Option<OledRuntimeErrorMetadata>,
+    ) -> Result<mpsc::Receiver<NativeSceneCompletion>, String> {
+        let (completion, receiver) = mpsc::channel();
+        let command = NativeSceneCommand {
+            scene,
+            metrics,
+            error,
+            completion,
+        };
+        let (lock, ready) = &*self.state;
+        let mut state = lock
+            .lock()
+            .map_err(|_| "render worker state mutex poisoned during native scene".to_string())?;
+        if !state.acknowledged_snapshot_rendered {
+            return Err("initial menu OLED write must be acknowledged before native scenes".into());
+        }
+        if matches!(
+            &state.command,
+            Some(
+                RenderCommand::Shutdown { .. }
+                    | RenderCommand::PreserveTerminal { .. }
+                    | RenderCommand::Abort { .. }
+            )
+        ) {
+            return Err("render worker is terminating".into());
+        }
+        merge_native_scene(&mut state, command);
+        ready.notify_one();
+        Ok(receiver)
+    }
+
     pub fn spawn(mut targets: HardwareRenderTargets) -> Self {
         let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
         let worker_state = Arc::clone(&state);
@@ -208,6 +301,26 @@ impl RenderWorker {
         }
     }
 }
+
+pub(super) fn take_startup_oled_write_failure(
+    state: &Arc<(Mutex<RenderState>, Condvar)>,
+    initial_acknowledged_snapshot: bool,
+) -> bool {
+    #[cfg(test)]
+    {
+        initial_acknowledged_snapshot
+            && state
+                .0
+                .lock()
+                .map(|mut state| std::mem::take(&mut state.fail_next_startup_oled_write))
+                .unwrap_or(false)
+    }
+    #[cfg(not(test))]
+    {
+        let _ = (state, initial_acknowledged_snapshot);
+        false
+    }
+}
 fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
     result.map_err(|error| format!("OLED display-off failed: {error}"))
 }
@@ -263,6 +376,9 @@ fn ownership_command_cancelled(cancellation: &AtomicBool) -> bool {
     cancellation.load(Ordering::Acquire)
 }
 
+#[cfg(test)]
+#[path = "render/native_worker_tests.rs"]
+mod native_worker_tests;
 #[cfg(test)]
 #[path = "render_loop_tests.rs"]
 mod tests;

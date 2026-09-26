@@ -1,6 +1,6 @@
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::hardware_runtime_scheduler::{
-    prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
+    is_playing, prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
 };
 use crate::host_adapter::{PiPlaybackHostAdapter, PiPowerRequest};
 use crate::power_lifecycle::{
@@ -17,6 +17,14 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 const HARDWARE_EVENT_BUDGET: usize = 16;
+
+#[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
+#[path = "main_runtime_power_tests.rs"]
+mod tests;
+
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[path = "main_runtime_error_tests.rs"]
+mod error_tests;
 
 pub(crate) fn drain_host_messages(
     input_rx: &mpsc::Receiver<HostMessage>,
@@ -66,6 +74,7 @@ pub(crate) fn maybe_advance_runtime(
     adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
     ui_profiler: &mut UiProfiler,
+    native_scenes: &mut crate::raspberry_native_scene::NativeScenePump,
 ) -> bool {
     if adapter.shutdown_pending() {
         return shutdown_if_requested(playback, adapter, render_worker);
@@ -114,6 +123,22 @@ pub(crate) fn maybe_advance_runtime(
     if !runtime_snapshot_requested {
         request_periodic_snapshot_if_due(now, scheduler, playback, runner, adapter);
     }
+    native_scenes.poll(runner);
+    let native_display_due = if is_playing(playback) {
+        scheduler.display_snapshot_due(Instant::now(), runner, playback)
+    } else {
+        DisplaySnapshotDue::default()
+    };
+    if let Some(captured_at) = native_scenes.submit(
+        Instant::now(),
+        native_display_due,
+        playback,
+        runner,
+        adapter,
+        render_worker,
+    ) {
+        scheduler.record_native_scene_capture(captured_at);
+    }
     service_render_if_due(now, scheduler, playback, adapter, render_worker);
     shutdown_if_requested(playback, adapter, render_worker)
 }
@@ -126,7 +151,15 @@ fn service_xy_glide_tick(
     if runner.next_xy_glide_deadline().is_none() {
         return;
     }
-    match playback.dispatch_runtime_tick(runner, adapter) {
+    let message = HostMessage::TransportPulseStep {
+        pulses: 0,
+        source: playback.config().sync_source.clone(),
+        at_ppqn_pulse: playback
+            .last_status()
+            .map(|status| status.current_ppqn_pulse),
+        request_snapshot: Some(false),
+    };
+    match playback.dispatch_host_message_music_first(message, runner, adapter) {
         Ok(output) => {
             if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
                 eprintln!("pi XY glide output processing failed: {error}");
@@ -156,7 +189,7 @@ fn advance_playback_if_due(
         playback.request_next_snapshot();
     }
     let advance_started = profile_enabled.then(Instant::now);
-    match playback.advance_duration_with_output(elapsed, runner, adapter) {
+    match playback.advance_duration_music_first_with_output(elapsed, runner, adapter) {
         Ok(output) => {
             if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
                 eprintln!("pi playback output processing failed: {error}");
@@ -179,10 +212,10 @@ fn request_periodic_snapshot_if_due(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) {
-    if adapter.shutdown_pending() {
+    if adapter.shutdown_pending() || is_playing(playback) {
         return;
     }
-    let due = scheduler.display_snapshot_due(now, runner);
+    let due = scheduler.display_snapshot_due(now, runner, playback);
     if !due.any() {
         return;
     }
@@ -458,33 +491,5 @@ fn power_command_attempts(
             ("/usr/sbin/reboot", &[]),
             ("/sbin/reboot", &[]),
         ],
-    }
-}
-
-#[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn power_command_attempts_match_shutdown_sudoers_shape() {
-        let shutdown = power_command_attempts(PiPowerRequest::Shutdown);
-        assert!(shutdown
-            .iter()
-            .any(|attempt| *attempt == ("/usr/bin/systemctl", &["poweroff"])));
-        assert!(shutdown
-            .iter()
-            .any(|attempt| *attempt == ("sudo", &["-n", "/usr/bin/systemctl", "poweroff"])));
-        assert!(!shutdown
-            .iter()
-            .any(|(_, args)| args.contains(&"--no-block")));
-
-        let reboot = power_command_attempts(PiPowerRequest::Reboot);
-        assert!(reboot
-            .iter()
-            .any(|attempt| *attempt == ("/usr/bin/systemctl", &["reboot"])));
-        assert!(reboot
-            .iter()
-            .any(|attempt| *attempt == ("sudo", &["-n", "/usr/bin/systemctl", "reboot"])));
-        assert!(!reboot.iter().any(|(_, args)| args.contains(&"--no-block")));
     }
 }

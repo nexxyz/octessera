@@ -1,5 +1,13 @@
 use super::*;
 
+#[cfg(test)]
+#[path = "orange_runtime_error_tests.rs"]
+mod error_tests;
+
+#[cfg(test)]
+#[path = "orange_runtime_keyboard_tests.rs"]
+mod keyboard_tests;
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_prepared_runtime(
     prepared: PreparedRuntime,
@@ -25,6 +33,7 @@ pub(crate) fn run_prepared_runtime(
     let mut scheduler = HardwareRuntimeScheduler::new(Instant::now(), initial_published_revision);
     let mut readiness_gate = OrangeStartupReadinessGate::new(initial_rendered);
     let mut pending_encoder_turns = PendingEncoderTurns::default();
+    let mut native_scenes = super::native_scene::OrangeNativeScenePump::new(Instant::now());
     audio_manager.report_runtime_terminal_diagnostics();
     ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
     audio.ensure_route_readiness()?;
@@ -89,6 +98,7 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
+            native_scenes.poll(&mut runner);
             audio_manager.recover_audio_if_due();
             let metrics = audio_manager.drain_audio_load_status(&mut playback);
             process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
@@ -131,7 +141,7 @@ pub(crate) fn run_prepared_runtime(
                     playback.request_next_snapshot();
                 }
                 let advance_started = profile_enabled.then(Instant::now);
-                let output = playback.advance_duration_with_output(
+                let output = playback.advance_duration_music_first_with_output(
                     advance.elapsed,
                     &mut runner,
                     &mut host,
@@ -162,12 +172,32 @@ pub(crate) fn run_prepared_runtime(
                 (false, false)
             };
             if runner.next_xy_glide_deadline().is_some() {
-                let output = playback.dispatch_runtime_tick(&mut runner, &mut host)?;
+                let output = playback.dispatch_host_message_music_first(
+                    scheduler.display_snapshot_message(&playback),
+                    &mut runner,
+                    &mut host,
+                )?;
                 process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
                 drain_host_work(&mut playback, &mut runner, &mut host)?;
             }
             if host.shutdown_pending() {
                 break;
+            }
+            let scene_capture_now = Instant::now();
+            let typed_display_due = if is_playing(&playback) {
+                scheduler.display_snapshot_due(scene_capture_now, &runner, &playback)
+            } else {
+                DisplaySnapshotDue::default()
+            };
+            if let Some(captured_at) = native_scenes.submit(
+                scene_capture_now,
+                typed_display_due,
+                &playback,
+                &mut runner,
+                &mut host,
+                render,
+            ) {
+                scheduler.record_native_scene_capture(captured_at);
             }
             let metrics = audio_manager.drain_audio_load_status(&mut playback);
             process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
@@ -185,8 +215,8 @@ pub(crate) fn run_prepared_runtime(
                 break;
             }
             let display_now = Instant::now();
-            let display_due = scheduler.display_snapshot_due(display_now, &runner);
-            if !runtime_snapshot_requested && display_due.any() {
+            let display_due = scheduler.display_snapshot_due(display_now, &runner, &playback);
+            if !runtime_snapshot_requested && !is_playing(&playback) && display_due.any() {
                 let message = scheduler.display_snapshot_message(&playback);
                 let revision_before = playback.last_snapshot_revision();
                 let dispatch_result = dispatch(&mut playback, &mut runner, &mut host, message);
@@ -274,10 +304,27 @@ fn drain_host_work(
     runner: &mut NativeRunner,
     host: &mut OrangeHostAdapter,
 ) -> Result<(), String> {
-    let responses = runner.flush_deferred_menu_apply()?;
+    let playing = playback
+        .last_status()
+        .is_some_and(|status| status.transport == playback_runtime::RuntimeTransportState::Playing);
+    let responses = if playing {
+        Vec::new()
+    } else {
+        runner.flush_deferred_menu_apply()?
+    };
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, host)?;
         process_runtime_output(playback, runner, host, output)?;
+    }
+    if host.shutdown_pending() {
+        return Ok(());
+    }
+    if playing {
+        let persistence = runner.flush_due_persistence_music_first()?;
+        if !persistence.is_empty() {
+            let output = playback.dispatch_runner_messages(persistence, runner, host)?;
+            process_runtime_output(playback, runner, host, output)?;
+        }
     }
     if host.shutdown_pending() {
         return Ok(());
@@ -345,11 +392,7 @@ pub(crate) fn dispatch(
         return Ok(());
     }
     let message = prepare_dispatch_message(playback, message);
-    let output = playback.dispatch(
-        playback_runtime::RuntimeDispatchInput::HostMessage(message),
-        runner,
-        host,
-    )?;
+    let output = playback.dispatch_host_message_music_first(message, runner, host)?;
     process_runtime_output(playback, runner, host, output)?;
     Ok(())
 }
@@ -361,13 +404,11 @@ pub(crate) fn process_runtime_output(
     output: playback_runtime::RuntimeIngest,
 ) -> Result<(), String> {
     ingest_oled_messages(host, &output.messages);
-    host.submit_accepted_oled_frame()?;
     let fault = host
         .oled_frame_fault()
         .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
     let fault_output = playback.report_oled_cache_fault(fault);
     ingest_oled_messages(host, &fault_output.messages);
-    host.submit_accepted_oled_frame()?;
     for follow_up in fault_output.follow_ups {
         if host.shutdown_pending() {
             break;
@@ -446,49 +487,4 @@ fn publish_snapshot(
         scheduler.record_snapshot_publication_accepted(snapshot_revision);
     }
     Ok(true)
-}
-
-#[cfg(test)]
-mod keyboard_tests {
-    use super::*;
-    use playback_runtime::RunnerMessage;
-    use serde_json::json;
-
-    #[test]
-    fn accepted_snapshot_ingestion_updates_orange_keyboard_gate() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-orange-keyboard-snapshot-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let (audio, _, _, _) = crate::audio::test_service_with_prep_sender();
-        let mut host = OrangeHostAdapter::with_directories(
-            audio,
-            root.join("store"),
-            root.join("samples"),
-            std::sync::Arc::new(|_| {}),
-            false,
-        )
-        .unwrap();
-        let control = crate::usb_keyboard::KeyboardCaptureControl::new(true);
-        host.set_keyboard_capture_control(control.clone());
-        ingest_oled_messages(
-            &mut host,
-            &[RunnerMessage::Snapshot {
-                snapshot: json!({ "hdmi": { "mode": "live-grid" } }),
-            }],
-        );
-        assert!(control.is_enabled());
-        ingest_oled_messages(
-            &mut host,
-            &[RunnerMessage::Snapshot {
-                snapshot: json!({ "hdmi": { "mode": "none" } }),
-            }],
-        );
-        assert!(!control.is_enabled());
-        let _ = std::fs::remove_dir_all(root);
-    }
 }

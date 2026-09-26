@@ -31,27 +31,31 @@ impl OledRenderDevice for OledSsd1351 {
 
 fn render_native_oled<O: OledRenderDevice>(
     oled: &mut O,
-    snapshot: &Value,
+    off: bool,
     frame: &[u8],
     frame_key: OledFrameKey,
     force_frame: bool,
     state: &mut OledOutputState,
-) -> Result<(), String> {
-    let off = super::snapshot_display_off(snapshot);
+) -> Result<bool, String> {
     let display_changed = state.display_off != Some(off);
     if !off && display_changed {
         oled.display_on()?;
         state.display_off = Some(false);
     }
-    if force_frame || state.frame != Some(frame_key) {
+    let frame_written = force_frame || state.pixels.as_deref() != Some(frame);
+    if frame_written {
         oled.write_frame(frame)?;
-        state.frame = Some(frame_key);
+        state.pixels = Some(frame.to_vec());
+    }
+    state.frame = Some(frame_key);
+    if let OledFrameKey::Native(revision) = frame_key {
+        state.physical_revision = state.physical_revision.max(revision);
     }
     if off && display_changed {
         oled.display_off()?;
         state.display_off = Some(true);
     }
-    Ok(())
+    Ok(frame_written)
 }
 
 pub(super) fn render_oled_if_changed<O: OledRenderDevice>(
@@ -61,7 +65,23 @@ pub(super) fn render_oled_if_changed<O: OledRenderDevice>(
     cache: &mut HardwareRenderCache,
     now: Instant,
 ) -> Option<Instant> {
-    let key = OledOutputKey::new(publication.key(), super::snapshot_display_off(snapshot));
+    render_oled_if_changed_off(
+        oled,
+        super::snapshot_display_off(snapshot),
+        publication,
+        cache,
+        now,
+    )
+}
+
+pub(super) fn render_oled_if_changed_off<O: OledRenderDevice>(
+    oled: &mut O,
+    off: bool,
+    publication: &OledFramePublication,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> Option<Instant> {
+    let key = OledOutputKey::new(publication.key(), off);
     if cache.oled_rendered_key == Some(key) {
         cache.clear_oled_retry();
         return None;
@@ -77,11 +97,93 @@ pub(super) fn render_oled_if_changed<O: OledRenderDevice>(
             return Some(retry_at);
         }
     }
-    attempt_oled_write(oled, snapshot, publication, key, cache, now)
+    attempt_oled_write(oled, off, publication, key, cache, now)
+}
+
+pub(crate) fn physical_oled_publication(
+    publication: &OledFramePublication,
+    cache: &HardwareRenderCache,
+) -> Result<OledFramePublication, String> {
+    let Some(pixels) = publication.pixels() else {
+        return Ok(publication.clone());
+    };
+    let revision = physical_oled_revision(pixels, publication.revision().unwrap_or(0), cache)?;
+    OledFramePublication::native_pixels(revision, pixels.to_vec())
+}
+
+pub(super) fn physical_oled_revision(
+    pixels: &[u8],
+    source_revision: u64,
+    cache: &HardwareRenderCache,
+) -> Result<u64, String> {
+    let accepted = cache.oled_output_state.pixels.as_deref();
+    let source_next = source_revision
+        .checked_add(1)
+        .filter(|revision| *revision > 0)
+        .ok_or_else(|| "physical OLED revision exhausted".to_string())?;
+    let revision = if accepted == Some(pixels) {
+        match cache.oled_output_state.frame {
+            Some(OledFrameKey::Native(revision))
+                if source_revision <= cache.oled_output_state.physical_revision =>
+            {
+                revision
+            }
+            _ => cache
+                .oled_output_state
+                .physical_revision
+                .checked_add(1)
+                .ok_or_else(|| "physical OLED revision exhausted".to_string())?
+                .max(source_next),
+        }
+    } else {
+        cache
+            .oled_output_state
+            .physical_revision
+            .saturating_add(1)
+            .max(source_next)
+    };
+    if revision == u64::MAX && cache.oled_output_state.physical_revision == u64::MAX {
+        return Err("physical OLED revision exhausted".into());
+    }
+    Ok(revision)
+}
+
+pub(crate) fn oled_publication_is_accepted(
+    publication: &OledFramePublication,
+    off: bool,
+    cache: &HardwareRenderCache,
+) -> bool {
+    let key = OledOutputKey::new(publication.key(), off);
+    let frame = publication
+        .pixels()
+        .unwrap_or(&[0; super::OLED_FRAME_BYTES]);
+    cache.oled_rendered_key == Some(key)
+        && cache.oled_output_state.frame == Some(publication.key())
+        && cache.oled_output_state.display_off == Some(off)
+        && cache.oled_output_state.pixels.as_deref() == Some(frame)
+}
+
+pub(crate) fn render_oled_typed_if_changed(
+    oled: &mut OledSsd1351,
+    off: bool,
+    publication: &OledFramePublication,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> Option<Instant> {
+    render_oled_if_changed_off(oled, off, publication, cache, now)
 }
 
 pub(crate) fn retry_oled_if_due(
     oled: &mut OledSsd1351,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> (Option<Instant>, bool) {
+    let attempted = cache.oled_retry_at.is_some_and(|retry_at| now >= retry_at);
+    (retry_oled_if_due_with_device(oled, cache, now), attempted)
+}
+
+fn retry_oled_if_due_with_device<O: OledRenderDevice>(
+    oled: &mut O,
     cache: &mut HardwareRenderCache,
     now: Instant,
 ) -> Option<Instant> {
@@ -93,12 +195,7 @@ pub(crate) fn retry_oled_if_due(
         cache.clear_oled_retry();
         return None;
     };
-    let snapshot = if cache.oled_retry_display_off {
-        serde_json::json!({"display": {"off": true}})
-    } else {
-        Value::Null
-    };
-    render_oled_if_changed(oled, &snapshot, &publication, cache, now)
+    render_oled_if_changed_off(oled, cache.oled_retry_display_off, &publication, cache, now)
 }
 
 pub(crate) fn force_oled_render(
@@ -116,40 +213,48 @@ fn force_oled_render_with_device<O: OledRenderDevice>(
     publication: &OledFramePublication,
     cache: &mut HardwareRenderCache,
 ) -> Result<(), String> {
-    cache.oled_output_state.display_off = None;
-    let result = write_publication(
+    force_oled_render_off(
         oled,
-        snapshot,
+        super::snapshot_display_off(snapshot),
         publication,
-        true,
-        &mut cache.oled_output_state,
-    );
+        cache,
+    )
+}
+
+pub(super) fn force_oled_render_off<O: OledRenderDevice>(
+    oled: &mut O,
+    off: bool,
+    publication: &OledFramePublication,
+    cache: &mut HardwareRenderCache,
+) -> Result<(), String> {
+    cache.oled_output_state.display_off = None;
+    let result = write_publication(oled, off, publication, true, &mut cache.oled_output_state);
     cache.clear_oled_retry();
-    result.map(|()| {
-        cache.mark_oled_rendered(OledOutputKey::new(
-            publication.key(),
-            super::snapshot_display_off(snapshot),
-        ));
+    result.map(|frame_written| {
+        cache.mark_oled_rendered(OledOutputKey::new(publication.key(), off), frame_written);
     })
+}
+
+pub(crate) fn force_oled_typed(
+    oled: &mut OledSsd1351,
+    off: bool,
+    publication: &OledFramePublication,
+    cache: &mut HardwareRenderCache,
+) -> Result<(), String> {
+    force_oled_render_off(oled, off, publication, cache)
 }
 
 fn attempt_oled_write<O: OledRenderDevice>(
     oled: &mut O,
-    snapshot: &Value,
+    off: bool,
     publication: &OledFramePublication,
     key: OledOutputKey,
     cache: &mut HardwareRenderCache,
     now: Instant,
 ) -> Option<Instant> {
-    match write_publication(
-        oled,
-        snapshot,
-        publication,
-        false,
-        &mut cache.oled_output_state,
-    ) {
-        Ok(()) => {
-            cache.mark_oled_rendered(key);
+    match write_publication(oled, off, publication, false, &mut cache.oled_output_state) {
+        Ok(frame_written) => {
+            cache.mark_oled_rendered(key, frame_written);
             cache.clear_oled_retry();
             None
         }
@@ -163,7 +268,7 @@ fn attempt_oled_write<O: OledRenderDevice>(
             }
             cache.oled_retry_at = Some(now + OLED_RETRY_INTERVAL);
             cache.oled_retry_publication = Some(publication.clone());
-            cache.oled_retry_display_off = super::snapshot_display_off(snapshot);
+            cache.oled_retry_display_off = off;
             cache.oled_retry_at
         }
     }
@@ -171,14 +276,14 @@ fn attempt_oled_write<O: OledRenderDevice>(
 
 fn write_publication<O: OledRenderDevice>(
     oled: &mut O,
-    snapshot: &Value,
+    off: bool,
     publication: &OledFramePublication,
     force_frame: bool,
     state: &mut OledOutputState,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     let black = [0_u8; super::OLED_FRAME_BYTES];
     let frame = publication.pixels().unwrap_or(&black);
-    render_native_oled(oled, snapshot, frame, publication.key(), force_frame, state)
+    render_native_oled(oled, off, frame, publication.key(), force_frame, state)
 }
 
 impl HardwareRenderCache {
@@ -191,61 +296,5 @@ impl HardwareRenderCache {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::oled_frame_cache::OledFramePublication;
-    use serde_json::json;
-
-    struct FakeOled {
-        writes: Vec<Vec<u8>>,
-    }
-
-    impl FakeOled {
-        fn new() -> Self {
-            Self { writes: Vec::new() }
-        }
-    }
-
-    impl OledRenderDevice for FakeOled {
-        fn display_on(&mut self) -> Result<(), String> {
-            Ok(())
-        }
-
-        fn write_frame(&mut self, frame: &[u8]) -> Result<(), String> {
-            self.writes.push(frame.to_vec());
-            Ok(())
-        }
-
-        fn display_off(&mut self) -> Result<(), String> {
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn force_render_writes_cached_revision_again_with_supplied_pixels() {
-        let snapshot = json!({
-            "display": { "off": false },
-            "oledFrameRevision": 7
-        });
-        let pixels = vec![0x2a; super::super::OLED_FRAME_BYTES];
-        let publication = OledFramePublication::test_native(7, pixels.clone());
-        let mut cache = HardwareRenderCache::default();
-        let mut oled = FakeOled::new();
-
-        assert_eq!(
-            render_oled_if_changed(
-                &mut oled,
-                &snapshot,
-                &publication,
-                &mut cache,
-                Instant::now(),
-            ),
-            None
-        );
-        assert_eq!(oled.writes.len(), 1);
-
-        force_oled_render_with_device(&mut oled, &snapshot, &publication, &mut cache).unwrap();
-
-        assert_eq!(oled.writes, vec![pixels.clone(), pixels]);
-    }
-}
+#[path = "oled_output_tests.rs"]
+mod tests;

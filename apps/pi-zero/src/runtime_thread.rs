@@ -24,6 +24,7 @@ struct SchedulerState {
     scheduler: HardwareRuntimeScheduler,
     pending_encoder_turns: PendingEncoderTurns,
     ui_profiler: UiProfiler,
+    native_scenes: crate::raspberry_native_scene::NativeScenePump,
 }
 
 impl SchedulerState {
@@ -33,6 +34,7 @@ impl SchedulerState {
             scheduler: HardwareRuntimeScheduler::new(now, initial_published_revision),
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler: UiProfiler::from_process(),
+            native_scenes: crate::raspberry_native_scene::NativeScenePump::new(now),
         }
     }
 
@@ -229,5 +231,6 @@ fn advance(
         adapter,
         render_worker,
         &mut state.ui_profiler,
+        &mut state.native_scenes,
     )
 }

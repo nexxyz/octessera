@@ -285,6 +285,25 @@ fn control_transitions_wake_and_update_gate() {
 }
 
 #[test]
+fn typed_hdmi_modes_keep_keyboard_capture_gate_in_lockstep() {
+    let control = KeyboardCaptureControl::new(true);
+    for mode in [
+        playback_runtime::NativeHdmiMode::LiveGrid,
+        playback_runtime::NativeHdmiMode::PlainGrid,
+        playback_runtime::NativeHdmiMode::ActiveBehavior,
+        playback_runtime::NativeHdmiMode::CycleBehaviors,
+    ] {
+        control.observe_hdmi_mode(mode);
+        assert!(control.is_enabled());
+    }
+    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::None);
+    assert!(!control.is_enabled());
+    let disabled = KeyboardCaptureControl::new(false);
+    disabled.observe_hdmi_mode(playback_runtime::NativeHdmiMode::LiveGrid);
+    assert!(!disabled.is_enabled());
+}
+
+#[test]
 fn held_release_order_is_stable_and_clears_once() {
     let mut state = KeyboardState::default();
     for key in [

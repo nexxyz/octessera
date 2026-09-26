@@ -1,3 +1,4 @@
+use playback_runtime::{NativeHdmiMode, NativeHdmiPresentation};
 use serde_json::Value;
 use std::fmt;
 use std::io;
@@ -132,6 +133,14 @@ mod imp {
             self.device
                 .render(snapshot, hdmi_mode(snapshot) == Some("none"), now)
         }
+
+        pub(crate) fn render_typed(
+            &mut self,
+            presentation: &NativeHdmiPresentation,
+            now: std::time::Instant,
+        ) -> device::HdmiRenderOutcome {
+            self.device.render_typed(presentation, now)
+        }
     }
 }
 
@@ -166,6 +175,61 @@ pub fn compose_frame_with_stride(
         .and_then(|hdmi| hdmi.get("showGridlines"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    compose_grid_frame_with_stride(
+        width,
+        height,
+        stride,
+        bytes_per_pixel,
+        show_gridlines,
+        |index| {
+            [
+                u8_at(rgb, index * 3),
+                u8_at(rgb, index * 3 + 1),
+                u8_at(rgb, index * 3 + 2),
+            ]
+        },
+    )
+}
+
+pub fn compose_frame_with_stride_typed(
+    presentation: &NativeHdmiPresentation,
+    width: usize,
+    height: usize,
+    stride: usize,
+    bytes_per_pixel: usize,
+) -> Option<Vec<u8>> {
+    assert_typed_grid(presentation);
+    if presentation.mode == NativeHdmiMode::None {
+        return None;
+    }
+    let rgb = &presentation.grid.rgb;
+    compose_grid_frame_with_stride(
+        width,
+        height,
+        stride,
+        bytes_per_pixel,
+        presentation.show_gridlines,
+        |index| {
+            let offset = index * 3;
+            [rgb[offset], rgb[offset + 1], rgb[offset + 2]]
+        },
+    )
+}
+
+fn assert_typed_grid(presentation: &NativeHdmiPresentation) {
+    assert_eq!((presentation.grid.width, presentation.grid.height), (8, 8));
+    assert_eq!(presentation.grid.rgb.len(), 8 * 8 * 3);
+    assert_eq!(presentation.grid.active.len(), 8 * 8);
+}
+
+fn compose_grid_frame_with_stride(
+    width: usize,
+    height: usize,
+    stride: usize,
+    bytes_per_pixel: usize,
+    show_gridlines: bool,
+    color_at: impl Fn(usize) -> [u8; 3],
+) -> Option<Vec<u8>> {
     let minimum_stride = width.checked_mul(bytes_per_pixel)?;
     if stride < minimum_stride {
         return None;
@@ -182,11 +246,7 @@ pub fn compose_frame_with_stride(
     for gy in 0..8 {
         for gx in 0..8 {
             let index = gy * 8 + gx;
-            let color = [
-                u8_at(rgb, index * 3),
-                u8_at(rgb, index * 3 + 1),
-                u8_at(rgb, index * 3 + 2),
-            ];
+            let color = color_at(index);
             for py in 0..cell {
                 for px in 0..cell {
                     if show_gridlines && (px == 0 || py == 0) {
@@ -245,9 +305,105 @@ pub fn hdmi_signature(snapshot: &Value) -> u64 {
     })
 }
 
+pub fn hdmi_signature_typed(presentation: &NativeHdmiPresentation) -> u64 {
+    assert_typed_grid(presentation);
+    if presentation.mode == NativeHdmiMode::None {
+        return 0;
+    }
+    let mut hash = 0xcbf29ce484222325_u64;
+    let flags = [
+        u8::from(presentation.show_gridlines),
+        presentation.cycle_measures,
+    ];
+    let source_index = presentation.source_layer_index.to_le_bytes();
+    let mut active = [0_u8; 64];
+    for (output, value) in active.iter_mut().zip(&presentation.grid.active) {
+        *output = u8::from(*value);
+    }
+    for bytes in [
+        presentation.mode.as_str().as_bytes(),
+        &flags,
+        &source_index,
+        presentation.source_behavior_id.as_bytes(),
+        &presentation.grid.rgb,
+        &active,
+    ] {
+        for byte in (bytes.len() as u64)
+            .to_le_bytes()
+            .into_iter()
+            .chain(bytes.iter().copied())
+        {
+            hash = (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3);
+        }
+    }
+    hash
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use playback_runtime::{NativeGridPresentation, NativeHdmiMode, NativeHdmiPresentation};
+
+    fn typed_hdmi(rgb: Vec<u8>, mode: NativeHdmiMode, gridlines: bool) -> NativeHdmiPresentation {
+        NativeHdmiPresentation {
+            mode,
+            show_gridlines: gridlines,
+            cycle_measures: 4,
+            source_layer_index: 1,
+            source_behavior_id: "sequencer".into(),
+            grid: NativeGridPresentation {
+                width: 8,
+                height: 8,
+                rgb,
+                active: vec![false; 64],
+            },
+        }
+    }
+
+    #[test]
+    fn typed_hdmi_composition_matches_legacy_stride_and_gridlines() {
+        let mut rgb = vec![0; 64 * 3];
+        rgb[0..3].copy_from_slice(&[255, 0, 0]);
+        rgb[7 * 8 * 3..7 * 8 * 3 + 3].copy_from_slice(&[0, 0, 255]);
+        for gridlines in [false, true] {
+            let legacy = serde_json::json!({"hdmi": {
+                "mode": "cycle-behaviors", "sourceLayerIndex": 1,
+                "sourceBehaviorId": "sequencer", "cycleMeasures": 4,
+                "showGridlines": gridlines, "grid": {"rgb": rgb}
+            }});
+            let typed = typed_hdmi(rgb.clone(), NativeHdmiMode::CycleBehaviors, gridlines);
+            let mut changed_legacy = legacy.clone();
+            changed_legacy["hdmi"]["sourceLayerIndex"] = serde_json::json!(2);
+            assert_ne!(hdmi_signature(&legacy), hdmi_signature(&changed_legacy));
+            assert_eq!(
+                compose_frame_with_stride_typed(&typed, 16, 8, 72, 4),
+                compose_frame_with_stride(&legacy, 16, 8, 72, 4)
+            );
+            assert_ne!(hdmi_signature_typed(&typed), 0);
+            let mut changed = typed_hdmi(rgb.clone(), NativeHdmiMode::CycleBehaviors, gridlines);
+            assert_eq!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            changed.source_layer_index = 2;
+            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            changed.source_layer_index = 1;
+            changed.source_behavior_id = "life".into();
+            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            changed.source_behavior_id = "sequencer".into();
+            changed.cycle_measures = 8;
+            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            changed.cycle_measures = 4;
+            changed.mode = NativeHdmiMode::PlainGrid;
+            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            changed.mode = NativeHdmiMode::CycleBehaviors;
+            changed.grid.active[0] = true;
+            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            changed.grid.active[0] = false;
+            changed.show_gridlines = !gridlines;
+            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+        }
+        let none = typed_hdmi(rgb, NativeHdmiMode::None, false);
+        assert_eq!(hdmi_signature_typed(&none), 0);
+        assert!(compose_frame_with_stride_typed(&none, 16, 8, 72, 4).is_none());
+    }
 
     #[test]
     fn none_mode_has_no_signature_or_frame() {

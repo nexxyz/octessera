@@ -35,6 +35,8 @@ pub(crate) struct HardwareRuntimeScheduler {
     last_render_attempt_at: Instant,
     last_accepted_snapshot_revision: u64,
     published_snapshot_revision: u64,
+    playing_snapshot_revision: Option<u64>,
+    playing_error_revision: Option<u64>,
     realtime_active: bool,
     snapshot_retry_at: Option<Instant>,
 }
@@ -48,6 +50,8 @@ impl HardwareRuntimeScheduler {
             last_render_attempt_at: now.checked_sub(SNAPSHOT_TICK).unwrap_or(now),
             last_accepted_snapshot_revision: initial_published_revision,
             published_snapshot_revision: initial_published_revision,
+            playing_snapshot_revision: None,
+            playing_error_revision: None,
             realtime_active: false,
             snapshot_retry_at: None,
         }
@@ -79,8 +83,7 @@ impl HardwareRuntimeScheduler {
         let elapsed = now.duration_since(self.last_tick_at);
         self.last_tick_at = now;
         let lateness = elapsed.saturating_sub(interval);
-        let request_snapshot = is_internal_playing(playback)
-            && now.duration_since(self.last_snapshot_attempt_at) >= SNAPSHOT_TICK;
+        let request_snapshot = false;
         Some(RuntimeAdvance {
             elapsed,
             lateness,
@@ -92,10 +95,12 @@ impl HardwareRuntimeScheduler {
         &self,
         now: Instant,
         runner: &NativeRunner,
+        playback: &PlaybackRuntime,
     ) -> DisplaySnapshotDue {
         if self
             .snapshot_retry_at
             .is_some_and(|retry_at| retry_at > now)
+            && !is_playing(playback)
         {
             return DisplaySnapshotDue::default();
         }
@@ -103,12 +108,16 @@ impl HardwareRuntimeScheduler {
             one_shot: runner
                 .next_timed_display_snapshot_deadline_after(Some(self.last_accepted_snapshot_at))
                 .is_some_and(|deadline| deadline <= now),
-            continuous: runner
-                .next_continuous_display_snapshot_deadline(
-                    self.last_snapshot_attempt_at,
-                    SNAPSHOT_TICK,
-                )
-                .is_some_and(|deadline| deadline <= now),
+            continuous: if is_playing(playback) {
+                now.duration_since(self.last_snapshot_attempt_at) >= SNAPSHOT_TICK
+            } else {
+                runner
+                    .next_continuous_display_snapshot_deadline(
+                        self.last_snapshot_attempt_at,
+                        SNAPSHOT_TICK,
+                    )
+                    .is_some_and(|deadline| deadline <= now)
+            },
         }
     }
 
@@ -128,6 +137,12 @@ impl HardwareRuntimeScheduler {
         }
     }
 
+    pub(crate) fn record_native_scene_capture(&mut self, captured_at: Instant) {
+        self.last_accepted_snapshot_at = captured_at;
+        self.last_snapshot_attempt_at = captured_at;
+        self.snapshot_retry_at = None;
+    }
+
     pub(crate) fn snapshot_publication_due(
         &mut self,
         now: Instant,
@@ -135,6 +150,31 @@ impl HardwareRuntimeScheduler {
     ) -> bool {
         self.observe_snapshot(now, playback);
         let revision = playback.last_snapshot_revision();
+        if is_playing(playback) {
+            let error_visible = playback
+                .last_snapshot()
+                .and_then(|snapshot| snapshot.get("runtimeError"))
+                .is_some_and(|error| !error.is_null());
+            if error_visible
+                && self
+                    .playing_snapshot_revision
+                    .is_some_and(|baseline| revision != 0 && revision != baseline)
+                && revision != self.published_snapshot_revision
+            {
+                self.playing_error_revision = Some(revision);
+                return now.duration_since(self.last_render_attempt_at) >= SNAPSHOT_TICK;
+            }
+            let error_cleared = self.playing_error_revision.is_some_and(|error_revision| {
+                revision != error_revision
+                    && playback
+                        .last_snapshot()
+                        .and_then(|snapshot| snapshot.get("runtimeError"))
+                        .is_none_or(serde_json::Value::is_null)
+            });
+            return error_cleared
+                && revision != self.published_snapshot_revision
+                && now.duration_since(self.last_render_attempt_at) >= SNAPSHOT_TICK;
+        }
         revision != 0
             && revision != self.published_snapshot_revision()
             && now.duration_since(self.last_render_attempt_at) >= SNAPSHOT_TICK
@@ -147,10 +187,23 @@ impl HardwareRuntimeScheduler {
     pub(crate) fn record_snapshot_publication_accepted(&mut self, snapshot_revision: u64) {
         if snapshot_revision != 0 {
             self.published_snapshot_revision = snapshot_revision;
+            if self
+                .playing_error_revision
+                .is_some_and(|error_revision| error_revision != snapshot_revision)
+            {
+                self.playing_error_revision = None;
+            }
         }
     }
 
     pub(crate) fn observe_snapshot(&mut self, now: Instant, playback: &PlaybackRuntime) {
+        if is_playing(playback) {
+            self.playing_snapshot_revision
+                .get_or_insert(self.published_snapshot_revision);
+        } else {
+            self.playing_snapshot_revision = None;
+            self.playing_error_revision = None;
+        }
         let revision = playback.last_snapshot_revision();
         self.observe_snapshot_revision(now, self.last_accepted_snapshot_revision, revision);
     }
@@ -179,7 +232,7 @@ impl HardwareRuntimeScheduler {
             at_ppqn_pulse: playback
                 .last_status()
                 .map(|status| status.current_ppqn_pulse),
-            request_snapshot: Some(true),
+            request_snapshot: Some(!is_playing(playback)),
         }
     }
 
@@ -202,9 +255,16 @@ impl HardwareRuntimeScheduler {
                 next_due.min((self.last_snapshot_attempt_at + SNAPSHOT_TICK).max(next_runtime_due));
         }
         if let Some(display_deadline) = self.display_snapshot_wake_deadline(now, runner) {
-            next_due = next_due.min(display_deadline);
+            let display_wake = if is_playing(playback) && display_deadline <= now {
+                now + PLAYBACK_TICK
+            } else {
+                display_deadline
+            };
+            next_due = next_due.min(display_wake);
         }
-        if playback.last_snapshot_revision() != self.published_snapshot_revision() {
+        if !is_playing(playback)
+            && playback.last_snapshot_revision() != self.published_snapshot_revision()
+        {
             next_due = next_due.min(self.last_render_attempt_at + SNAPSHOT_TICK);
         }
         let max_sleep = SLEEP_MAX;
@@ -269,6 +329,12 @@ pub(crate) fn is_internal_playing(playback: &PlaybackRuntime) -> bool {
             .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
 }
 
+pub(crate) fn is_playing(playback: &PlaybackRuntime) -> bool {
+    playback
+        .last_status()
+        .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
+}
+
 pub(crate) fn prepare_dispatch_message(
     playback: &PlaybackRuntime,
     message: HostMessage,
@@ -277,7 +343,7 @@ pub(crate) fn prepare_dispatch_message(
         HostMessage::DeviceInput {
             input,
             request_snapshot: None,
-        } if is_internal_playing(playback) => HostMessage::DeviceInput {
+        } if is_playing(playback) => HostMessage::DeviceInput {
             input,
             request_snapshot: Some(false),
         },

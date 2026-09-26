@@ -8,6 +8,11 @@ use std::sync::mpsc::Sender;
 use std::time::Instant;
 
 pub(crate) mod hdmi;
+mod native_leds;
+mod native_publication;
+pub(crate) use native_publication::{
+    prepare_legacy_presentation, prepare_native_scene, LatestPresentation,
+};
 mod oled;
 mod oled_output;
 mod oled_ownership;
@@ -18,6 +23,7 @@ mod sleep_leds;
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
 use oled::{glyph_rows, oled_frame, oled_frame_into};
+pub(crate) use oled_output::physical_oled_publication;
 pub(crate) use oled_output::retry_oled_if_due;
 use oled_output::{force_oled_render, render_oled_if_changed};
 pub(crate) use oled_ownership::{
@@ -49,6 +55,8 @@ impl OledOutputKey {
 pub(super) struct OledOutputState {
     pub(super) frame: Option<OledFrameKey>,
     pub(super) display_off: Option<bool>,
+    pub(super) pixels: Option<Vec<u8>>,
+    pub(super) physical_revision: u64,
 }
 
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
@@ -99,6 +107,7 @@ pub struct HardwareRenderCache {
     oled_retry_display_off: bool,
     oled_error_log_at: Option<Instant>,
     hdmi_signature: u64,
+    hdmi_initialized: bool,
 }
 
 impl HardwareRenderCache {
@@ -115,6 +124,7 @@ impl HardwareRenderCache {
             oled_retry_display_off: false,
             oled_error_log_at: None,
             hdmi_signature: 0,
+            hdmi_initialized: false,
         }
     }
 }
@@ -165,12 +175,13 @@ fn render_hdmi_if_changed(
     now: Instant,
 ) -> Option<Instant> {
     let signature = hdmi::hdmi_signature(snapshot);
-    if cache.hdmi_signature == signature && !hdmi.has_pending_retry() {
+    if cache.hdmi_initialized && cache.hdmi_signature == signature && !hdmi.has_pending_retry() {
         return None;
     }
     let outcome = hdmi.render(snapshot, now);
     if outcome.applied {
         cache.hdmi_signature = signature;
+        cache.hdmi_initialized = true;
     }
     outcome.retry_at
 }
@@ -227,9 +238,11 @@ impl HardwareRenderCache {
         self.oled_render_count
     }
 
-    pub(super) fn mark_oled_rendered(&mut self, key: OledOutputKey) {
+    pub(super) fn mark_oled_rendered(&mut self, key: OledOutputKey, frame_written: bool) {
         self.oled_rendered_key = Some(key);
-        self.oled_render_count = self.oled_render_count.saturating_add(1);
+        if frame_written {
+            self.oled_render_count = self.oled_render_count.saturating_add(1);
+        }
     }
 
     fn clear_sleep_animation(&mut self) {

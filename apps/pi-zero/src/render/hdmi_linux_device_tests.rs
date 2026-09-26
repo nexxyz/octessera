@@ -1,4 +1,5 @@
 use super::*;
+use playback_runtime::{NativeGridPresentation, NativeHdmiMode, NativeHdmiPresentation};
 use std::io;
 use std::sync::{Arc, Mutex};
 
@@ -157,6 +158,54 @@ fn snapshot(color: [u8; 3], mode: &str) -> Value {
             "showGridlines": false
         }
     })
+}
+
+#[test]
+fn typed_device_reuses_legacy_retry_and_terminal_lifecycle() {
+    let (mut typed_device, typed_control) = fake_device();
+    let (mut legacy_device, legacy_control) = fake_device();
+    typed_control.lock().unwrap().fail_write = 1;
+    legacy_control.lock().unwrap().fail_write = 1;
+    let typed = NativeHdmiPresentation {
+        mode: NativeHdmiMode::LiveGrid,
+        show_gridlines: false,
+        cycle_measures: 4,
+        source_layer_index: 0,
+        source_behavior_id: "life".into(),
+        grid: NativeGridPresentation {
+            width: 8,
+            height: 8,
+            rgb: [255, 0, 0].repeat(64),
+            active: vec![false; 64],
+        },
+    };
+    let now = Instant::now();
+    let next = typed_device.render_typed(&typed, now).retry_at.unwrap();
+    let old_next = legacy_device
+        .render(&snapshot([255, 0, 0], "live-grid"), false, now)
+        .retry_at
+        .unwrap();
+    assert_eq!(next, old_next);
+    assert_eq!(events(&typed_control), events(&legacy_control));
+    assert!(typed_device.render_typed(&typed, next).applied);
+    assert!(
+        legacy_device
+            .render(&snapshot([255, 0, 0], "live-grid"), false, next)
+            .applied
+    );
+    assert_eq!(
+        typed_control.lock().unwrap().writes,
+        legacy_control.lock().unwrap().writes
+    );
+    let mut none = typed;
+    none.mode = NativeHdmiMode::None;
+    assert!(typed_device.render_typed(&none, next).applied);
+    assert!(
+        legacy_device
+            .render(&snapshot([0, 0, 0], "none"), true, next)
+            .applied
+    );
+    assert_eq!(events(&typed_control), events(&legacy_control));
 }
 
 fn events(control: &SharedControl) -> Vec<String> {
