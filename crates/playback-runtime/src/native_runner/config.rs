@@ -5,22 +5,21 @@ use super::drum_config::instrument_drum_configs;
 use super::play_fx_config::{play_fx_params_map, play_fx_target_key, play_fx_type};
 use super::{
     aux_binding_configs, aux_bindings_payload, device_runtime_config, fx_bus_configs,
-    fx_slot_payload_with_params, instrument_audio_payload, instrument_auto_names,
-    instrument_fm_configs, instrument_labels, instrument_midi_channels,
-    instrument_midi_duration_ms, instrument_midi_enabled, instrument_midi_velocity,
-    instrument_names, instrument_note_behaviors, instrument_pan_positions,
-    instrument_pluck_configs, instrument_routes, instrument_sample_amp_envs,
-    instrument_sample_amp_velocity_sensitivity_pct, instrument_sample_base_velocity,
-    instrument_sample_filter_envs, instrument_sample_filters, instrument_sample_gain_pct,
-    instrument_sample_paths, instrument_sample_slots, instrument_sample_tune_semis,
-    instrument_sample_velocity_high, instrument_sample_velocity_levels_enabled,
-    instrument_sample_velocity_low, instrument_sample_velocity_medium, instrument_synth_configs,
-    instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
-    instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
-    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes, link_layer_configs,
-    link_layer_payload, param_binding_spec_from_native, param_mod_configs, param_mods_payload,
-    portable_patch_projection, velocity_curve_id, NativeLinkLfoConfig, NativeRunner, Value,
-    CONFIG_KIND, CONFIG_SCHEMA_VERSION,
+    instrument_audio_payload, instrument_auto_names, instrument_fm_configs, instrument_labels,
+    instrument_midi_channels, instrument_midi_duration_ms, instrument_midi_enabled,
+    instrument_midi_velocity, instrument_names, instrument_note_behaviors,
+    instrument_pan_positions, instrument_pluck_configs, instrument_routes,
+    instrument_sample_amp_envs, instrument_sample_amp_velocity_sensitivity_pct,
+    instrument_sample_base_velocity, instrument_sample_filter_envs, instrument_sample_filters,
+    instrument_sample_gain_pct, instrument_sample_paths, instrument_sample_slots,
+    instrument_sample_tune_semis, instrument_sample_velocity_high,
+    instrument_sample_velocity_levels_enabled, instrument_sample_velocity_low,
+    instrument_sample_velocity_medium, instrument_synth_configs, instrument_synth_filter_cutoffs,
+    instrument_synth_filter_resonance, instrument_synth_filter_types, instrument_synth_gain_pct,
+    instrument_synth_osc1_waveforms, instrument_synth_osc2_waveforms, instrument_types,
+    instrument_volumes, link_layer_configs, link_layer_payload, param_binding_spec_from_native,
+    param_mod_configs, param_mods_payload, portable_patch_projection, velocity_curve_id,
+    NativeLinkLfoConfig, NativeRunner, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION,
 };
 use serde_json::json;
 
@@ -321,24 +320,10 @@ impl NativeRunner {
     }
 
     pub(super) fn mixer_payload(&self) -> Value {
-        json!({
-            "buses": self.fx_buses.iter().map(|bus| {
-                json!({
-                    "name": bus.name,
-                    "slot1": fx_slot_payload_with_params(&bus.slot1_type, &bus.slot1_params),
-                    "slot2": fx_slot_payload_with_params(&bus.slot2_type, &bus.slot2_params),
-                    "slot3": fx_slot_payload_with_params(&bus.slot3_type, &bus.slot3_params),
-                    "panPos": bus.pan_pos,
-                    "volumePct": bus.volume_pct,
-                    "autoName": bus.auto_name
-                })
-            }).collect::<Vec<_>>(),
-            "master": {
-                "slots": self.global_fx_slots.iter().enumerate().map(|(index, slot_type)| {
-                    let params = self.global_fx_params.get(index).unwrap_or(&Value::Null);
-                    fx_slot_payload_with_params(slot_type, params)
-                }).collect::<Vec<_>>()
-            }
-        })
+        super::snapshot_audio_settings::mixer_payload(
+            &self.fx_buses,
+            &self.global_fx_slots,
+            &self.global_fx_params,
+        )
     }
 }

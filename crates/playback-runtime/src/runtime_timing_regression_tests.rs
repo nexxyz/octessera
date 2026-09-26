@@ -50,6 +50,15 @@ fn snapshot(output: &RuntimeIngest) -> Option<&Value> {
     })
 }
 
+#[test]
+fn presentation_scene_public_api_is_sendable_without_runner_reference() {
+    fn accepts_send<T: Send>(_scene: &T) {}
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let scene: crate::PresentationScene = runner.capture_next_presentation_scene().unwrap();
+    accepts_send(&scene);
+    assert!(scene.into_snapshot()["settings"]["instruments"].is_array());
+}
+
 fn assert_due_presentation<'a>(output: &'a RuntimeIngest, runtime: &PlaybackRuntime) -> &'a Value {
     let presented = snapshot(output).expect("visible transition needs its full snapshot");
     let revision = presented["oledFrameRevision"]
