@@ -45,37 +45,84 @@ impl NativeRunner {
         &mut self,
         now: Instant,
     ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
-        let menu_due = self
-            .pending
-            .pending_menu_apply
-            .as_ref()
-            .is_some_and(|pending| pending.due_at <= now);
         let autosave_due = self
             .pending
             .pending_autosave_payload_due_at
             .is_some_and(|due_at| due_at <= now);
+        let menu_due = self.apply_due_menu_key(now)?;
         if !menu_due && !autosave_due {
             return Ok(Vec::new());
-        }
-        if menu_due {
-            let key = self
-                .pending
-                .pending_menu_apply
-                .as_ref()
-                .unwrap()
-                .key
-                .clone();
-            self.pending.pending_menu_apply = None;
-            if !self.apply_deferred_menu_key_fast(&key) {
-                return Err(format!(
-                    "unhandled deferred menu edit key `{key}`; add an explicit deferred handler"
-                ));
-            }
         }
         if autosave_due {
             self.pending.pending_autosave_payload_due_at = None;
         }
         self.messages_with_snapshot()
+    }
+
+    pub(super) fn flush_deferred_menu_apply_music_first(
+        &mut self,
+        now: Instant,
+    ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
+        let autosave_due = self
+            .pending
+            .pending_autosave_payload_due_at
+            .is_some_and(|due_at| due_at <= now);
+        let menu_due = self.apply_due_menu_key(now)?;
+        if !menu_due && !autosave_due {
+            return Ok(Vec::new());
+        }
+        if menu_due || !self.display_scene_pending() {
+            self.display.transients.mark_presentation_due();
+        }
+        self.messages_without_presentation()
+    }
+
+    fn apply_due_menu_key(&mut self, now: Instant) -> Result<bool, String> {
+        let Some(pending) = self.pending.pending_menu_apply.as_ref() else {
+            return Ok(false);
+        };
+        if pending.due_at > now {
+            return Ok(false);
+        }
+        let key = pending.key.clone();
+        self.pending.pending_menu_apply = None;
+        if !self.apply_deferred_menu_key_fast(&key) {
+            return Err(format!(
+                "unhandled deferred menu edit key `{key}`; add an explicit deferred handler"
+            ));
+        }
+        Ok(true)
+    }
+
+    pub fn flush_due_persistence_music_first(
+        &mut self,
+    ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
+        if self
+            .pending
+            .pending_autosave_payload_due_at
+            .is_some_and(|due_at| due_at > Instant::now())
+        {
+            return Ok(Vec::new());
+        }
+        let due = self.pending.pending_autosave_payload_due_at.take();
+        let effects = self.pending_persistence_effects();
+        if due.is_some()
+            && self.auto_save_default
+            && !effects.iter().any(|effect| {
+                matches!(
+                    effect,
+                    crate::protocol::RuntimePlatformEffect::StoreSaveDefault { .. }
+                )
+            })
+        {
+            self.pending.pending_autosave_payload_due_at = due;
+        }
+        Ok(effects
+            .into_iter()
+            .map(|effect| crate::protocol::RunnerMessage::PlatformEffects {
+                effects: vec![effect],
+            })
+            .collect())
     }
 
     #[cfg(test)]

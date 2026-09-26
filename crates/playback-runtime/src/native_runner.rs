@@ -126,6 +126,10 @@ mod menu_apply_structural;
 mod menu_value_apply;
 mod message_dispatch;
 mod modulation;
+#[cfg(test)]
+mod music_first_persistence_tests;
+#[cfg(test)]
+mod music_first_tests;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod error_presentation_results;
 mod link_config;

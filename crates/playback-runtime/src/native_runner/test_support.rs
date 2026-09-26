@@ -11,6 +11,11 @@ impl NativeRunner {
         self.midi_enabled = true;
     }
 
+    #[cfg(test)]
+    pub fn test_bump_audio_config_revision(&mut self) {
+        self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+    }
+
     pub fn test_device_config_payload(payload: Value) -> Result<Value, String> {
         super::device_config_payload_from_payload(payload)
     }

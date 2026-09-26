@@ -1,9 +1,52 @@
 use crate::protocol::{HostMessage, RunnerMessage, RuntimePlatformRequest};
 use std::time::Instant;
 
-use super::{DeviceInput, NativeRunner};
+use super::{DeviceInput, NativeRunner, RuntimeTransportState};
 
 impl NativeRunner {
+    pub fn send_music_first(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        if self.transport.transport != RuntimeTransportState::Playing
+            || self.display.runtime_error_presentation.is_some()
+            || !matches!(
+                &message,
+                HostMessage::TransportPulseStep { .. }
+                    | HostMessage::MidiRealtimeClock { .. }
+                    | HostMessage::DeviceInput { .. }
+            )
+            || matches!(&message, HostMessage::DeviceInput { input, .. }
+                if !matches!(input.get("type").and_then(serde_json::Value::as_str),
+                    Some("encoder_turn" | "encoder_press" | "grid_press" | "grid_release")))
+            || matches!(&message, HostMessage::DeviceInput { input, .. }
+                if input.get("type").and_then(serde_json::Value::as_str) == Some("encoder_press")
+                    && input.get("id").and_then(serde_json::Value::as_str).unwrap_or("main") == "main")
+        {
+            let terminal_press = matches!(&message, HostMessage::DeviceInput { input, .. }
+                if input.get("type").and_then(serde_json::Value::as_str) == Some("encoder_press")
+                    && input.get("id").and_then(serde_json::Value::as_str).unwrap_or("main") == "main");
+            let messages = <Self as super::CoreRunner>::send(self, message)?;
+            return Ok(if terminal_press {
+                order_terminal_presentation(messages)
+            } else {
+                messages
+            });
+        }
+        if let HostMessage::DeviceInput {
+            input,
+            request_snapshot: Some(false),
+        } = &message
+        {
+            if input.get("type").and_then(serde_json::Value::as_str) != Some("encoder_turn")
+                || input.get("delta").and_then(serde_json::Value::as_i64) != Some(0)
+            {
+                self.display.transients.mark_presentation_due();
+            }
+        }
+        self.pending.presentation_deferred = true;
+        let result = <Self as super::CoreRunner>::send(self, message);
+        self.pending.presentation_deferred = false;
+        result
+    }
+
     fn send_device_input(
         &mut self,
         input: serde_json::Value,
@@ -26,6 +69,25 @@ impl NativeRunner {
         let input = serde_json::from_value::<DeviceInput>(input).unwrap_or(DeviceInput::Other);
         self.handle_presented_runtime_error_input(input)
     }
+}
+
+fn order_terminal_presentation(mut messages: Vec<RunnerMessage>) -> Vec<RunnerMessage> {
+    let Some(terminal) = messages.iter().position(|message| matches!(message,
+        RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect,
+            crate::RuntimePlatformEffect::Shutdown | crate::RuntimePlatformEffect::Reboot))
+    )) else { return messages; };
+    let Some(snapshot) = messages.iter().position(|message| {
+        matches!(message,
+            RunnerMessage::Snapshot { snapshot } if snapshot["display"]["splash"] == "shutdown"
+        )
+    }) else {
+        return messages;
+    };
+    if terminal < snapshot {
+        let effect = messages.remove(terminal);
+        messages.insert(snapshot, effect);
+    }
+    messages
 }
 
 impl super::CoreRunner for NativeRunner {
@@ -63,7 +125,11 @@ impl super::CoreRunner for NativeRunner {
         if presented_error_input {
             return Ok(messages);
         }
-        messages.extend(self.flush_deferred_menu_apply_at(flush_time)?);
+        if self.pending.presentation_deferred {
+            messages.extend(self.flush_deferred_menu_apply_music_first(flush_time)?);
+        } else {
+            messages.extend(self.flush_deferred_menu_apply_at(flush_time)?);
+        }
         self.append_runtime_config_if_changed(&mut messages);
         Ok(messages)
     }
