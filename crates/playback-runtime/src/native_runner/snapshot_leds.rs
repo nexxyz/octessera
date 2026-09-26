@@ -1,11 +1,14 @@
 use super::led_color::LedColor;
 use super::{
     display_index, DisplayTransientPresentation, NativeRunner, RuntimeTransportState,
-    TransportFlash, Value, GRID_HEIGHT, GRID_WIDTH,
+    TransportFlash, GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {
-    pub(super) fn neo_key_leds(&self, presentation: DisplayTransientPresentation) -> Value {
+    pub(super) fn neo_key_colors(
+        &self,
+        presentation: DisplayTransientPresentation,
+    ) -> [[u8; 3]; 4] {
         let space = match self.transport.transport {
             RuntimeTransportState::Stopped => LedColor::RED,
             RuntimeTransportState::Paused => LedColor::BLUE,
@@ -23,32 +26,24 @@ impl NativeRunner {
             self.display.ui.combined_modifier_held,
             self.display.ui.fn_held,
         );
-        serde_json::json!({
-            "back": [LedColor::RED.r, LedColor::RED.g, LedColor::RED.b],
-            "space": [space.r, space.g, space.b],
-            "shift": [shift.r, shift.g, shift.b],
-            "fn": [function.r, function.g, function.b],
-        })
+        [LedColor::RED, space, shift, function].map(|led| [led.r, led.g, led.b])
     }
+}
 
-    pub(super) fn base_led_snapshot(
-        &self,
-        model: &platform_core::BehaviorRenderModel,
-    ) -> Vec<LedColor> {
-        let mut leds = vec![LedColor::BLACK; GRID_WIDTH * GRID_HEIGHT];
-        for (logical_index, alive) in model.cells.iter().enumerate() {
-            let x = logical_index % GRID_WIDTH;
-            let y = logical_index / GRID_WIDTH;
-            let display_index = display_index(x, y);
-            let trigger = model
-                .trigger_types
-                .as_ref()
-                .and_then(|types| types.get(logical_index))
-                .copied();
-            leds[display_index] = base_led_color(*alive, trigger, &model.palette);
-        }
-        leds
+pub(super) fn base_led_snapshot(model: &platform_core::BehaviorRenderModel) -> Vec<LedColor> {
+    let mut leds = vec![LedColor::BLACK; GRID_WIDTH * GRID_HEIGHT];
+    for (logical_index, alive) in model.cells.iter().enumerate() {
+        let x = logical_index % GRID_WIDTH;
+        let y = logical_index / GRID_WIDTH;
+        let display_index = display_index(x, y);
+        let trigger = model
+            .trigger_types
+            .as_ref()
+            .and_then(|types| types.get(logical_index))
+            .copied();
+        leds[display_index] = base_led_color(*alive, trigger, &model.palette);
     }
+    leds
 }
 
 fn modifier_led(combined: bool, held: bool) -> LedColor {

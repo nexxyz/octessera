@@ -181,6 +181,9 @@ mod snapshot_audio_settings;
 mod snapshot_display;
 mod snapshot_leds;
 mod snapshot_messages;
+mod snapshot_scene;
+#[cfg(test)]
+mod snapshot_scene_tests;
 mod state_instrument_types;
 mod state_link;
 mod state_types;
@@ -208,6 +211,7 @@ pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
 pub use runner_config::NativeRunnerConfig;
+pub use snapshot_scene::PresentationScene;
 pub use usb_data_role::UsbDataRole;
 
 use binding_payload::*;
