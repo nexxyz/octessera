@@ -9,6 +9,93 @@ fn converted_scene(runner: &NativeRunner, audio: bool) -> Value {
         .unwrap()
 }
 
+fn assert_typed_oled_matches_legacy(runner: &NativeRunner) {
+    use crate::oled_frame::{
+        presentation_input_from_snapshot, render_oled_frame, OledPresentationMetrics,
+    };
+    let metrics = OledPresentationMetrics::from_status(Some(0.91), true, true, true);
+    let typed = runner
+        .capture_presentation_scene(false)
+        .unwrap()
+        .oled_presentation_input(metrics.clone(), None);
+    let json = converted_scene(runner, false);
+    let legacy = presentation_input_from_snapshot(&json, metrics)
+        .unwrap()
+        .unwrap();
+    assert_eq!(typed, legacy);
+    assert_eq!(render_oled_frame(&typed), render_oled_frame(&legacy));
+}
+
+#[test]
+fn numeric_bars_keep_legacy_fill_marker_null_and_number_width() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let payload: Value =
+        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    runner.apply_config_payload(payload).unwrap();
+    runner.skip_startup_splash();
+    for (key, fraction, style) in [
+        ("masterVolume", 0.73, Value::Null),
+        ("mixer.buses.0.panPos", 0.5, json!("marker")),
+    ] {
+        assert!(runner.menu.focus_item_key(key), "{key}");
+        let snapshot = converted_scene(&runner, false);
+        let bars = snapshot["display"]["barValues"].as_array().unwrap();
+        let populated: Vec<_> = bars.iter().filter(|bar| !bar.is_null()).collect();
+        assert_eq!(populated.len(), 1, "{key}");
+        let bar = populated[0];
+        assert_eq!(bar.as_object().unwrap().len(), 3, "{key}");
+        assert!(
+            (bar["frac"].as_f64().unwrap() - fraction).abs() < 0.000001,
+            "{key}"
+        );
+        assert_eq!(bar["numChars"], 3, "{key}");
+        assert_eq!(bar["style"], style, "{key}");
+        assert_typed_oled_matches_legacy(&runner);
+    }
+}
+
+#[test]
+fn typed_oled_preserves_menu_scroll_and_separate_runtime_error_metadata() {
+    use crate::oled_frame::{
+        presentation_input_from_snapshot, render_oled_frame, OledPresentationMetrics,
+        OledRuntimeErrorMetadata, OledScrollInput,
+    };
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    let _ = runner.menu.press();
+    runner.menu.state.cursor = 7;
+    let metrics = OledPresentationMetrics::default();
+    let metadata = OledRuntimeErrorMetadata {
+        domain: Some("runtime".into()),
+        code: Some("operation_failed".into()),
+        operation: Some("runtime_dispatch".into()),
+        message: Some("Keep playing".into()),
+    };
+    let typed = runner
+        .capture_presentation_scene(false)
+        .unwrap()
+        .oled_presentation_input(metrics.clone(), Some(metadata.clone()));
+    assert_eq!(
+        typed.display.scroll,
+        Some(OledScrollInput {
+            offset: 1,
+            total_rows: 8,
+            visible_rows: 7
+        })
+    );
+    assert_eq!(typed.runtime_error, Some(metadata));
+    let mut legacy_snapshot = converted_scene(&runner, false);
+    legacy_snapshot["runtimeError"] = json!({
+        "domain": "runtime", "code": "operation_failed",
+        "operation": "runtime_dispatch", "message": "Keep playing",
+    });
+    let legacy = presentation_input_from_snapshot(&legacy_snapshot, metrics)
+        .unwrap()
+        .unwrap();
+    assert_eq!(typed, legacy);
+    assert_eq!(render_oled_frame(&typed), render_oled_frame(&legacy));
+}
+
 #[test]
 fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     let payload: Value =
@@ -19,6 +106,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     let start = Instant::now();
     runner.test_set_display_time(start);
     let initial = converted_scene(&runner, true);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(initial["display"]["title"], "MENU");
     assert_eq!(
         initial["display"]["lines"],
@@ -56,6 +144,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
         })
         .unwrap();
     let beat = converted_scene(&runner, false);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(beat["transport"]["playing"], true);
     assert_eq!(beat["transport"]["ppqnPulse"], 24);
     assert_eq!(beat["transportFlash"], "beat");
@@ -71,6 +160,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
         })
         .unwrap();
     let expired = converted_scene(&runner, true);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(expired["transportFlash"], "none");
     assert_eq!(expired["eventDotOn"], false);
     assert_eq!(expired["display"]["title"], "MENU");
@@ -93,6 +183,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
         })
         .unwrap();
     let help = converted_scene(&runner, false);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(help["display"]["title"], "Help: Basic Help");
     assert_eq!(
         help["display"]["lines"].as_array().unwrap().last().unwrap(),
@@ -142,6 +233,7 @@ fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
     assert_eq!(runner.audio_config_revision, revision);
     let scene = runner.capture_presentation_scene(true).unwrap();
     let deferred = scene.into_snapshot();
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(
         deferred["settings"]["instruments"][0]["synth"]["osc1"]["levelPct"],
         82
@@ -215,6 +307,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
         scroll: 0,
     });
     let help = converted_scene(&runner, false);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(help["display"]["title"], "Help");
     assert_eq!(help["display"]["lines"], json!(["Use the grid", "> Close"]));
     assert_eq!(help["selectedRow"], 1);
@@ -228,6 +321,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
         confirm_before_execute: false,
     });
     let confirm = converted_scene(&runner, false);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(confirm["display"]["title"], "Confirm");
     assert_eq!(
         confirm["display"]["lines"],
@@ -239,6 +333,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
         lines: vec!["Keep playing".into()],
     });
     let error = converted_scene(&runner, false);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(error["display"]["title"], "Fault");
     assert_eq!(error["display"]["lines"], json!(["Keep playing"]));
     assert!(error["selectedRow"].is_null());
@@ -295,6 +390,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     }
     runner.display.oled_mode = NativeOledMode::Off;
     let sleeping = converted_scene(&runner, false);
+    assert_typed_oled_matches_legacy(&runner);
     assert_eq!(sleeping["display"]["off"], true);
     assert_eq!(sleeping["display"]["title"], "MENU");
 }

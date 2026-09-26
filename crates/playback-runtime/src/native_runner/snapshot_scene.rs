@@ -7,6 +7,11 @@ use super::{
     GRID_HEIGHT, GRID_WIDTH,
 };
 use crate::native_runner::snapshot_display::DisplaySnapshot;
+use crate::oled_frame::{
+    OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput, OledPresentationMetrics,
+    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
+    OledTransportIcon, OledTransportInput,
+};
 use crate::protocol::MidiPort;
 use platform_core::{BehaviorRenderModel, GlobalSoundConfig};
 
@@ -186,5 +191,74 @@ impl NativeRunner {
             transient,
             audio,
         })
+    }
+}
+
+impl PresentationScene {
+    pub fn oled_presentation_input(
+        self,
+        metrics: OledPresentationMetrics,
+        runtime_error: Option<OledRuntimeErrorMetadata>,
+    ) -> OledPresentationInput {
+        let display = self.display;
+        OledPresentationInput {
+            display: OledDisplayInput {
+                off: self.off,
+                splash: match self.splash.as_str() {
+                    "" => OledSplash::None,
+                    "sleep" => OledSplash::Sleep,
+                    "shutdown" => OledSplash::Shutdown,
+                    _ => OledSplash::Boot,
+                },
+                body_layout: display.body_layout,
+                title: display.title,
+                lines: display.lines,
+                colors: display.colors,
+                bars: display
+                    .bar_values
+                    .into_iter()
+                    .map(|bar| {
+                        bar.map(|bar| OledBarInput {
+                            fraction: f32::from(bar.frac_pct) / 100.0,
+                            style: if bar.style.as_deref() == Some("marker") {
+                                OledBarStyle::Marker
+                            } else {
+                                OledBarStyle::Fill
+                            },
+                        })
+                    })
+                    .collect(),
+                scroll: display.scroll.map(|scroll| OledScrollInput {
+                    offset: scroll.scroll_offset,
+                    total_rows: scroll.total_rows,
+                    visible_rows: scroll.visible_rows,
+                }),
+                editing: self.editing,
+                toast: self.toast,
+            },
+            selected_row: display.selected_row,
+            transport: OledTransportInput {
+                icon: match self.transport.transport {
+                    super::RuntimeTransportState::Playing => OledTransportIcon::Play,
+                    super::RuntimeTransportState::Paused => OledTransportIcon::Pause,
+                    super::RuntimeTransportState::Stopped => OledTransportIcon::Stop,
+                },
+                flash: match self.transient.transport_flash {
+                    super::TransportFlash::None => OledTransportFlash::None,
+                    super::TransportFlash::Beat => OledTransportFlash::Beat,
+                    super::TransportFlash::Measure => OledTransportFlash::Measure,
+                },
+            },
+            event_dot_on: self.transient.event_dot_on,
+            display_brightness: self.ui.display_brightness,
+            save_flash: if self.auto_save_flash {
+                OledSaveFlash::Flash
+            } else {
+                OledSaveFlash::None
+            },
+            save_flash_serial: self.auto_save_flash_serial,
+            metrics,
+            runtime_error,
+        }
     }
 }
