@@ -63,6 +63,16 @@ impl KeyboardCaptureControl {
 
     pub(crate) fn observe_snapshot(&self, snapshot: &Value) {
         let enabled = capture_enabled_for_snapshot(self.shared.board_host_enabled, snapshot);
+        self.set_enabled(enabled);
+    }
+
+    pub(crate) fn observe_hdmi_mode(&self, mode: playback_runtime::NativeHdmiMode) {
+        self.set_enabled(
+            self.shared.board_host_enabled && mode != playback_runtime::NativeHdmiMode::None,
+        );
+    }
+
+    fn set_enabled(&self, enabled: bool) {
         let mut state = self.shared.state.lock().unwrap();
         if state.enabled != enabled {
             state.enabled = enabled;

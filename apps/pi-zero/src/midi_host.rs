@@ -36,7 +36,7 @@ pub(crate) fn drain_midi_messages<A: HostAdapter + RuntimeOutputSink>(
         let Ok(MidiMessage::Realtime { bytes }) = midi_rx.try_recv() else {
             break;
         };
-        match playback.handle_midi_realtime_bytes_with_output(&bytes, runner, adapter) {
+        match playback.handle_midi_realtime_bytes_music_first_with_output(&bytes, runner, adapter) {
             Ok(output) => {
                 if let Err(error) = adapter.dispatch_output(playback, runner, output) {
                     eprintln!("realtime MIDI output processing failed: {error}");

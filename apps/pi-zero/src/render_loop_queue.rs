@@ -1,5 +1,9 @@
 use crate::oled_frame_cache::OledFramePublication;
 use crate::render::OledOwnershipStage;
+use playback_runtime::{
+    oled_frame::{OledPresentationMetrics, OledRuntimeErrorMetadata},
+    PresentationScene,
+};
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -11,6 +15,7 @@ pub(crate) enum RenderCommand {
         oled: OledFramePublication,
         rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
     },
+    NativeSnapshot(Box<NativeSceneCommand>),
     MarkFirstMenuRendered {
         ack: mpsc::Sender<Result<(), String>>,
     },
@@ -36,10 +41,26 @@ pub(crate) enum RenderCommand {
     },
 }
 
-pub(crate) struct SnapshotCommand {
-    pub(crate) snapshot: Value,
-    pub(crate) oled: OledFramePublication,
-    pub(crate) rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
+pub(crate) struct NativeSceneCompletion {
+    pub(crate) generation: u64,
+    pub(crate) result: Result<(), String>,
+    pub(crate) frame_revision: Option<u64>,
+}
+
+pub(crate) struct NativeSceneCommand {
+    pub(crate) scene: PresentationScene,
+    pub(crate) metrics: OledPresentationMetrics,
+    pub(crate) error: Option<OledRuntimeErrorMetadata>,
+    pub(crate) completion: mpsc::Sender<NativeSceneCompletion>,
+}
+
+pub(crate) enum SnapshotCommand {
+    Legacy {
+        snapshot: Value,
+        oled: OledFramePublication,
+        rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
+    },
+    Native(Box<NativeSceneCommand>),
 }
 
 #[derive(Default)]
@@ -48,6 +69,12 @@ pub(crate) struct RenderState {
     pub(crate) snapshot: Option<SnapshotCommand>,
     pub(crate) acknowledged_snapshot_published: bool,
     pub(crate) acknowledged_snapshot_rendered: bool,
+    pub(crate) startup_accepted_oled_frame: Option<(u64, std::sync::Arc<[u8]>)>,
+    pub(crate) recording_audio: Option<crate::audio::AudioService>,
+    #[cfg(test)]
+    pub(crate) native_render_gate: Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>,
+    #[cfg(test)]
+    pub(crate) fail_next_startup_oled_write: bool,
 }
 
 pub(crate) fn pending_work_wins_over_expired_animation_deadline(state: &RenderState) -> bool {
@@ -61,23 +88,55 @@ pub(crate) fn merge_snapshot_command(
     mut rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
 ) -> Option<SnapshotCommand> {
     match pending {
-        Some(SnapshotCommand {
+        Some(SnapshotCommand::Legacy {
             rendered_acks: mut pending_acks,
             ..
         }) => {
             pending_acks.append(&mut rendered_acks);
-            Some(SnapshotCommand {
+            Some(SnapshotCommand::Legacy {
                 snapshot,
                 oled,
                 rendered_acks: pending_acks,
             })
         }
-        None => Some(SnapshotCommand {
+        Some(SnapshotCommand::Native(previous)) => {
+            supersede_native(previous, "native scene superseded by legacy snapshot");
+            Some(SnapshotCommand::Legacy {
+                snapshot,
+                oled,
+                rendered_acks,
+            })
+        }
+        None => Some(SnapshotCommand::Legacy {
             snapshot,
             oled,
             rendered_acks,
         }),
     }
+}
+
+pub(crate) fn merge_native_scene(state: &mut RenderState, command: NativeSceneCommand) {
+    if let Some(previous) = state.snapshot.take() {
+        match previous {
+            SnapshotCommand::Native(previous) => {
+                supersede_native(previous, "native scene superseded")
+            }
+            SnapshotCommand::Legacy { rendered_acks, .. } => {
+                for ack in rendered_acks {
+                    let _ = ack.send(Err("legacy snapshot superseded by native scene".into()));
+                }
+            }
+        }
+    }
+    state.snapshot = Some(SnapshotCommand::Native(Box::new(command)));
+}
+
+pub(crate) fn supersede_native(command: Box<NativeSceneCommand>, reason: &str) {
+    let _ = command.completion.send(NativeSceneCompletion {
+        generation: command.scene.generation(),
+        result: Err(reason.into()),
+        frame_revision: None,
+    });
 }
 
 pub(crate) fn reject_pending_command(state: &mut RenderState, message: &str) {
@@ -87,6 +146,10 @@ pub(crate) fn reject_pending_command(state: &mut RenderState, message: &str) {
                 for ack in rendered_acks {
                     let _ = ack.send(Err(message.into()));
                 }
+                return;
+            }
+            RenderCommand::NativeSnapshot(scene) => {
+                supersede_native(scene, message);
                 return;
             }
             RenderCommand::MarkFirstMenuRendered { ack }
@@ -104,8 +167,13 @@ pub(crate) fn reject_pending_command(state: &mut RenderState, message: &str) {
         let _ = ack.send(Err(message.into()));
     }
     if let Some(snapshot) = state.snapshot.take() {
-        for ack in snapshot.rendered_acks {
-            let _ = ack.send(Err(message.into()));
+        match snapshot {
+            SnapshotCommand::Legacy { rendered_acks, .. } => {
+                for ack in rendered_acks {
+                    let _ = ack.send(Err(message.into()));
+                }
+            }
+            SnapshotCommand::Native(scene) => supersede_native(scene, message),
         }
     }
 }

@@ -103,6 +103,14 @@ impl HdmiFramebuffer {
         self.device
             .render(snapshot, hdmi_mode(snapshot) == Some("none"), now)
     }
+
+    pub(crate) fn render_typed(
+        &mut self,
+        presentation: &playback_runtime::NativeHdmiPresentation,
+        now: Instant,
+    ) -> device::HdmiRenderOutcome {
+        self.device.render_typed(presentation, now)
+    }
 }
 
 struct LinuxIo;

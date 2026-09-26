@@ -14,11 +14,7 @@ pub fn dispatch_runtime_message(
     adapter: &mut PiPlaybackHostAdapter,
     host_message: HostMessage,
 ) -> Result<(), String> {
-    let output = playback.dispatch(
-        playback_runtime::RuntimeDispatchInput::HostMessage(host_message),
-        runner,
-        adapter,
-    )?;
+    let output = playback.dispatch_host_message_music_first(host_message, runner, adapter)?;
     process_runtime_output(playback, runner, adapter, output)?;
     Ok(())
 }
@@ -30,13 +26,11 @@ pub fn process_runtime_output(
     output: playback_runtime::RuntimeIngest,
 ) -> Result<(), String> {
     ingest_oled_messages(adapter, &output.messages);
-    adapter.submit_accepted_oled_frame()?;
     let fault = adapter
         .oled_frame_fault()
         .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
     let fault_output = playback.report_oled_cache_fault(fault);
     ingest_oled_messages(adapter, &fault_output.messages);
-    adapter.submit_accepted_oled_frame()?;
     if adapter.shutdown_pending() {
         return Ok(());
     }
@@ -83,13 +77,27 @@ pub fn handle_deferred_host_work(
     if adapter.shutdown_pending() {
         return Ok(());
     }
-    let responses = runner.flush_deferred_menu_apply()?;
+    let playing = playback
+        .last_status()
+        .is_some_and(|status| status.transport == playback_runtime::RuntimeTransportState::Playing);
+    let responses = if playing {
+        Vec::new()
+    } else {
+        runner.flush_deferred_menu_apply()?
+    };
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, adapter)?;
         process_runtime_output(playback, runner, adapter, output)?;
     }
     if adapter.shutdown_pending() {
         return Ok(());
+    }
+    if playing {
+        let persistence = runner.flush_due_persistence_music_first()?;
+        if !persistence.is_empty() {
+            let output = playback.dispatch_runner_messages(persistence, runner, adapter)?;
+            process_runtime_output(playback, runner, adapter, output)?;
+        }
     }
     let follow_ups = adapter.flush_due_default_save()?;
     for follow_up in follow_ups {

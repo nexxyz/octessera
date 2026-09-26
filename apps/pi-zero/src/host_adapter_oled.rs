@@ -24,16 +24,6 @@ impl PiPlaybackHostAdapter {
         self.oled_frame_cache.fault()
     }
 
-    pub(crate) fn submit_accepted_oled_frame(&self) -> Result<(), String> {
-        let Some(frame) = self.oled_frame_cache.accepted_frame() else {
-            return Ok(());
-        };
-        let Some(audio) = &self.audio else {
-            return Ok(());
-        };
-        audio.submit_accepted_oled_frame(frame.revision(), frame.pixels())
-    }
-
     pub(crate) fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
         self.audio
             .as_ref()

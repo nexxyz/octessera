@@ -192,6 +192,10 @@ pub(crate) fn publish_prepared_acknowledged_snapshot(
         .host
         .oled_publication_for_snapshot(&snapshot, true)?;
     render.publish_acknowledged_snapshot(snapshot, oled)?;
+    let audio = prepared.host.audio_service();
+    let (frame_revision, pixels) = render.take_acknowledged_startup_oled_frame()?;
+    audio.submit_accepted_oled_frame_shared(frame_revision, pixels)?;
+    render.set_recording_audio(audio);
     Ok(revision)
 }
 

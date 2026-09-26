@@ -2,6 +2,7 @@ use super::{
     display_off_ack, HardwareRenderCache, HardwareRenderTargets, OledFramePublication,
     OledOwnershipState, RenderWorker, SHUTDOWN_ACK_TIMEOUT,
 };
+use crate::render::LatestPresentation;
 use crate::render::{force_latest_oled, render_shutdown_splash, restore_for_render};
 use crate::render_loop_queue::{reject_pending_command, RenderCommand};
 use crate::seesaw_io::SeesawCommand;
@@ -124,12 +125,10 @@ impl RenderWorker {
 pub(super) fn handle_shutdown(
     targets: &mut HardwareRenderTargets,
     cache: &mut HardwareRenderCache,
-    latest_snapshot: &Option<Value>,
-    latest_oled: &Option<OledFramePublication>,
+    latest: &Option<LatestPresentation>,
     ownership: &mut OledOwnershipState,
 ) -> Result<(), String> {
-    let restore_result =
-        restore_for_render(targets, cache, latest_snapshot, latest_oled, ownership);
+    let restore_result = restore_for_render(targets, cache, latest, ownership);
     if restore_result.is_ok() {
         render_shutdown_splash(&mut targets.oled);
     }
@@ -145,15 +144,13 @@ pub(super) fn handle_shutdown(
 pub(super) fn handle_preserve_terminal(
     targets: &mut HardwareRenderTargets,
     cache: &mut HardwareRenderCache,
-    latest_snapshot: &Option<Value>,
-    latest_oled: &Option<OledFramePublication>,
+    latest: &Option<LatestPresentation>,
     ownership: &mut OledOwnershipState,
     snapshot: &Value,
     oled: &OledFramePublication,
 ) -> Result<(), String> {
     let mut errors = Vec::new();
-    if let Err(error) = restore_for_render(targets, cache, latest_snapshot, latest_oled, ownership)
-    {
+    if let Err(error) = restore_for_render(targets, cache, latest, ownership) {
         errors.push(format!("OLED ownership restore failed: {error}"));
     }
     if let Err(error) = force_latest_oled(targets, snapshot, oled, cache) {
@@ -189,9 +186,8 @@ pub(super) fn handle_preserve_terminal(
 pub(super) fn handle_abort(
     targets: &mut HardwareRenderTargets,
     cache: &mut HardwareRenderCache,
-    latest_snapshot: &Option<Value>,
-    latest_oled: &Option<OledFramePublication>,
+    latest: &Option<LatestPresentation>,
     ownership: &mut OledOwnershipState,
 ) -> Result<(), String> {
-    restore_for_render(targets, cache, latest_snapshot, latest_oled, ownership)
+    restore_for_render(targets, cache, latest, ownership)
 }

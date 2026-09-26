@@ -151,7 +151,7 @@ fn snapshot_publication_is_rejected_once_terminal_command_is_queued() {
 fn atomic_terminal_rejects_stale_snapshot_and_uses_supplied_command() {
     let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
     let (stale_ack_tx, stale_ack_rx) = mpsc::channel();
-    state.0.lock().unwrap().snapshot = Some(SnapshotCommand {
+    state.0.lock().unwrap().snapshot = Some(SnapshotCommand::Legacy {
         snapshot: terminal_snapshot(1),
         oled: OledFramePublication::test_native(1, vec![1; OLED_FRAME_BYTES]),
         rendered_acks: vec![stale_ack_tx],
@@ -257,7 +257,7 @@ fn pending_snapshot_lane_wins_over_expired_animation_deadline() {
     {
         let (lock, _) = &*state;
         let mut guard = lock.lock().unwrap();
-        guard.snapshot = Some(SnapshotCommand {
+        guard.snapshot = Some(SnapshotCommand::Legacy {
             snapshot: Value::Null,
             oled: OledFramePublication::ExplicitBlack,
             rendered_acks: Vec::new(),
@@ -276,7 +276,7 @@ fn pending_work_decision_covers_command_and_snapshot_lanes() {
     let mut guard = state.0.lock().unwrap();
     assert!(!pending_work_wins_over_expired_animation_deadline(&guard));
 
-    guard.snapshot = Some(SnapshotCommand {
+    guard.snapshot = Some(SnapshotCommand::Legacy {
         snapshot: Value::Null,
         oled: OledFramePublication::ExplicitBlack,
         rendered_acks: Vec::new(),

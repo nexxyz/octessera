@@ -167,6 +167,11 @@ impl PreparedRuntime {
             .adapter
             .oled_publication_for_snapshot(&snapshot, true)?;
         render_worker.publish_acknowledged_snapshot(snapshot, oled)?;
+        let (frame_revision, pixels) = render_worker.take_acknowledged_startup_oled_frame()?;
+        if let Some(audio) = self.adapter.audio_service() {
+            audio.submit_accepted_oled_frame_shared(frame_revision, pixels)?;
+            render_worker.set_recording_audio(audio);
+        }
         Ok(revision)
     }
 

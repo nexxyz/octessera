@@ -89,6 +89,8 @@ mod persistence;
 mod platform_service;
 mod power_lifecycle;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod raspberry_native_scene;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_device_apply;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;

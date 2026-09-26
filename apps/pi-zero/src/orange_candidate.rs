@@ -4,7 +4,7 @@ use crate::boot_oled_handoff::{HandoffMode, StartupFatalCode};
 use crate::candidate_readiness::CandidateReadiness;
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::hardware_runtime_scheduler::{
-    prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
+    is_playing, prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
 };
 use crate::input::{midi_realtime_message, MidiMessage};
 use crate::main_paths::default_store_dir;
@@ -33,6 +33,8 @@ use std::time::{Duration, Instant};
 mod handoff;
 #[path = "orange_lifecycle.rs"]
 mod lifecycle;
+#[path = "orange_native_scene.rs"]
+mod native_scene;
 #[path = "orange_runtime_loop.rs"]
 mod runtime_loop;
 #[path = "orange_signal.rs"]

@@ -1,4 +1,5 @@
-use super::{compose_frame_with_stride, HdmiError};
+use super::{compose_frame_with_stride, compose_frame_with_stride_typed, HdmiError};
+use playback_runtime::{NativeHdmiMode, NativeHdmiPresentation};
 use serde_json::Value;
 use std::fmt;
 use std::mem;
@@ -106,6 +107,44 @@ impl HdmiDevice {
         terminal: bool,
         now: Instant,
     ) -> HdmiRenderOutcome {
+        self.render_with_frame(terminal, now, &|geometry| {
+            compose_frame_with_stride(
+                snapshot,
+                geometry.width,
+                geometry.height,
+                geometry.stride,
+                geometry.bytes_per_pixel,
+            )
+        })
+    }
+
+    pub(crate) fn render_typed(
+        &mut self,
+        presentation: &NativeHdmiPresentation,
+        now: Instant,
+    ) -> HdmiRenderOutcome {
+        super::assert_typed_grid(presentation);
+        self.render_with_frame(
+            presentation.mode == NativeHdmiMode::None,
+            now,
+            &|geometry| {
+                compose_frame_with_stride_typed(
+                    presentation,
+                    geometry.width,
+                    geometry.height,
+                    geometry.stride,
+                    geometry.bytes_per_pixel,
+                )
+            },
+        )
+    }
+
+    fn render_with_frame<F: Fn(FramebufferGeometry) -> Option<Vec<u8>>>(
+        &mut self,
+        terminal: bool,
+        now: Instant,
+        compose: &F,
+    ) -> HdmiRenderOutcome {
         if terminal {
             return self.restore_terminal(now);
         }
@@ -118,15 +157,15 @@ impl HdmiDevice {
         let state = mem::replace(&mut self.state, DeviceState::Terminal);
         match state {
             DeviceState::Graphics(lease) if !lease.needs_restore => {
-                self.render_on_existing_lease(lease, snapshot, now)
+                self.render_on_existing_lease(lease, compose, now)
             }
             DeviceState::Graphics(lease) => {
                 if !self.restore_lease(lease, now) {
                     return HdmiRenderOutcome::waiting(self.retry_deadline(now));
                 }
-                self.acquire_and_render(snapshot, now)
+                self.acquire_and_render(compose, now)
             }
-            DeviceState::Terminal | DeviceState::Waiting => self.acquire_and_render(snapshot, now),
+            DeviceState::Terminal | DeviceState::Waiting => self.acquire_and_render(compose, now),
         }
     }
 
@@ -145,19 +184,17 @@ impl HdmiDevice {
         }
     }
 
-    fn acquire_and_render(&mut self, snapshot: &Value, now: Instant) -> HdmiRenderOutcome {
+    fn acquire_and_render<F: Fn(FramebufferGeometry) -> Option<Vec<u8>>>(
+        &mut self,
+        compose: &F,
+        now: Instant,
+    ) -> HdmiRenderOutcome {
         let framebuffer = match self.io.open_framebuffer(&self.framebuffer_path) {
             Ok(framebuffer) => framebuffer,
             Err(error) => return self.wait_for_retry(now, error),
         };
         let geometry = framebuffer.geometry();
-        let Some(frame) = compose_frame_with_stride(
-            snapshot,
-            geometry.width,
-            geometry.height,
-            geometry.stride,
-            geometry.bytes_per_pixel,
-        ) else {
+        let Some(frame) = compose(geometry) else {
             drop(framebuffer);
             return self.wait_for_retry(now, "HDMI frame composition produced no frame");
         };
@@ -199,19 +236,13 @@ impl HdmiDevice {
         HdmiRenderOutcome::applied()
     }
 
-    fn render_on_existing_lease(
+    fn render_on_existing_lease<F: Fn(FramebufferGeometry) -> Option<Vec<u8>>>(
         &mut self,
         mut lease: GraphicsLease,
-        snapshot: &Value,
+        compose: &F,
         now: Instant,
     ) -> HdmiRenderOutcome {
-        let Some(frame) = compose_frame_with_stride(
-            snapshot,
-            lease.geometry.width,
-            lease.geometry.height,
-            lease.geometry.stride,
-            lease.geometry.bytes_per_pixel,
-        ) else {
+        let Some(frame) = compose(lease.geometry) else {
             return self.finish_failed_graphics(
                 now,
                 lease,

@@ -2,6 +2,9 @@ use super::*;
 use crate::audio::{test_service, test_service_with_outputs, test_service_with_recording_dir};
 use playback_runtime::{AudioOutputSet, RuntimeErrorCode, RuntimeErrorDomain};
 
+#[path = "orange_recording_seed_tests.rs"]
+mod seed_tests;
+
 fn assert_sd2_start_rejected(response: &[HostMessage], message: &str) {
     let [HostMessage::RuntimeResult {
         result: RuntimeStoreResult::RuntimeFailure { error },

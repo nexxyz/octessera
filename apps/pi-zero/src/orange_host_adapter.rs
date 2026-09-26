@@ -377,13 +377,9 @@ impl HostAdapter for OrangeHostAdapter {
                 );
             }
             RuntimePlatformEffect::RecordingStartAudioOled { max_minutes } => {
-                let seed = self
-                    .oled_frame_cache
-                    .accepted_frame()
-                    .map(|frame| (frame.revision(), frame.pixels().to_vec()));
                 return crate::audio_recording::recording_start_result(
                     self.audio
-                        .start_recording_audio_oled_with_seed(*max_minutes, seed),
+                        .start_recording_audio_oled_from_latest(*max_minutes),
                     request,
                 );
             }

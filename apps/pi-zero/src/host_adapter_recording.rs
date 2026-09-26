@@ -36,14 +36,10 @@ impl PiPlaybackHostAdapter {
                 )
             }
             RuntimePlatformEffect::RecordingStartAudioOled { max_minutes } => {
-                let seed = self
-                    .oled_frame_cache
-                    .accepted_frame()
-                    .map(|frame| (frame.revision(), frame.pixels().to_vec()));
                 crate::audio_recording::recording_start_result(
                     self.audio.as_ref().map_or_else(
                         || Err(recording_unavailable()),
-                        |audio| audio.start_recording_audio_oled_with_seed(*max_minutes, seed),
+                        |audio| audio.start_recording_audio_oled_from_latest(*max_minutes),
                     ),
                     request,
                 )
