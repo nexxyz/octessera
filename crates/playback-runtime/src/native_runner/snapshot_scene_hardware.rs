@@ -109,6 +109,10 @@ impl HdmiScene {
 }
 
 impl PresentationScene {
+    pub fn hdmi_mode(&self) -> NativeHdmiMode {
+        NativeHdmiMode::from_name(&self.hdmi.mode)
+    }
+
     pub fn into_hardware_presentation(
         self,
         metrics: OledPresentationMetrics,

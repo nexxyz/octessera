@@ -182,6 +182,27 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
 }
 
 #[test]
+fn scene_hdmi_mode_accessor_reads_all_fixed_modes_without_snapshot_conversion() {
+    let mut runner = shipped_runner();
+    let before_revision = runner.audio_config_revision;
+    let modes = [
+        ("none", NativeHdmiMode::None),
+        ("live-grid", NativeHdmiMode::LiveGrid),
+        ("plain-grid", NativeHdmiMode::PlainGrid),
+        ("active-behavior", NativeHdmiMode::ActiveBehavior),
+        ("cycle-behaviors", NativeHdmiMode::CycleBehaviors),
+    ];
+    for (name, expected) in modes {
+        runner.display.hdmi.mode = name.into();
+        let scene = runner.capture_presentation_scene(false).unwrap();
+        let generation = scene.generation();
+        assert_eq!(scene.hdmi_mode(), expected);
+        assert_eq!(scene.generation(), generation);
+        assert_eq!(runner.audio_config_revision, before_revision);
+    }
+}
+
+#[test]
 fn hardware_oled_off_and_error_leave_grid_and_hdmi_live() {
     let mut runner = shipped_runner();
     runner.display.hdmi.mode = "plain-grid".into();
