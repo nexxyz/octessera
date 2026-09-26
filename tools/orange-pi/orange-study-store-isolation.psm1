@@ -98,13 +98,29 @@ prepare_study_store() {
   verify_study_store
 }
 cleanup_study_store() {
-  [ -d "$study_store" ] && [ ! -L "$study_store" ] || return 1
-  sudo -n rm -rf -- "$study_store" || return 1
+  if ! printf '%s\n' "$unit" | grep -Eq '^octessera-study-[0-9a-f]{32}\.service$'; then
+    printf 'AWAKE clone unit identity is invalid\n' > "$root/awake-store-cleanup-error.txt"
+    return 1
+  fi
+  if ! sudo -n test -d "$study_store" || ! sudo -n test ! -L "$study_store"; then
+    printf 'AWAKE clone is missing or symlinked: %s\n' "$study_store" > "$root/awake-store-cleanup-error.txt"
+    return 1
+  fi
+  if ! sudo -n rm -rf -- "$study_store" 2> "$root/awake-store-cleanup-error.txt"; then
+    printf 'AWAKE clone deletion failed: %s\n' "$study_store" >> "$root/awake-store-cleanup-error.txt"
+    return 1
+  fi
+  if ! sudo -n test ! -e "$study_store" || ! sudo -n test ! -L "$study_store"; then
+    printf 'AWAKE clone path persists after deletion: %s\n' "$study_store" > "$root/awake-store-cleanup-error.txt"
+    return 1
+  fi
+  rm -f -- "$root/awake-store-cleanup-error.txt"
   if [ -r "$root/awake-parent-created.txt" ] && grep -Fxq yes "$root/awake-parent-created.txt"; then
     sudo -n rmdir -- "$study_parent" 2>/dev/null || true
   fi
 }
 '@.Replace('__PYTHON__', (Get-OrangeStudyStorePython))
+  $verifyFunctions = $storeFunctions.Substring(0, $storeFunctions.IndexOf('prepare_study_store() {', [StringComparison]::Ordinal))
   $study = $Bundle.Study
   $study = Replace-OrangeAwakeAnchor $study 'candidate_status=0' "$storeFunctions`ncandidate_status=0"
   $study = Replace-OrangeAwakeAnchor $study 'sudo -n systemctl stop "$service"' "prepare_study_store`nsudo -n systemctl stop `"`$service`""
@@ -125,21 +141,33 @@ cleanup_study_store() {
   fi
 '@
   $study = Replace-OrangeAwakeAnchor $study '  if ! timeout --signal=TERM --kill-after=2 15s sudo -n systemctl start "$service"' "$verifyBeforeRestore`n  if ! timeout --signal=TERM --kill-after=2 15s sudo -n systemctl start `"`$service`""
+  $study = Replace-OrangeAwakeAnchor $study "  local final_active`n  local final_enabled" "  final_active=unknown`n  final_enabled=unknown"
+  $stateWrite = @'
+  if ! printf 'initial_active=%s\ninitial_enabled=%s\nfinal_active=%s\nfinal_enabled=%s\nrestore_status=%s\ncleanup_status=%s\n' "$initial_active" "$initial_enabled" "$final_active" "$final_enabled" "$restore_status" "$cleanup_status" > "$root/service-restored-state.txt"; then
+    restore_status=1
+  fi
+'@
+  $study = Replace-OrangeAwakeAnchor $study $stateWrite ''
   $cleanupAfterRestore = @'
   if [ "$exit_status" -eq 0 ] && [ "$restore_status" -eq 0 ] && [ "$cleanup_status" -eq 0 ]; then
     if sudo -n systemctl is-active --quiet "$unit"; then
       cleanup_status=1
+      printf 'AWAKE candidate is still active\n' > "$root/awake-store-cleanup-error.txt"
     else
       cleanup_study_store || cleanup_status=1
     fi
+  else
+    cleanup_status=1
+    printf 'AWAKE clone cleanup skipped after unsuccessful study or restoration\n' > "$root/awake-store-cleanup-error.txt"
   fi
 '@
   $study = Replace-OrangeAwakeAnchor $study '  restore_service' "  restore_service`n$cleanupAfterRestore"
+  $study = Replace-OrangeAwakeAnchor $study '  if [ "$restore_status" -ne 0 ]; then' "$stateWrite`n  if [ `"`$restore_status`" -ne 0 ]; then"
   $study = Replace-OrangeAwakeAnchor $study 'exit "$candidate_status"' "printf 'scenario=AWAKE\n' >> `"`$root/study-result.txt`"`nexit `"`$candidate_status`""
   $Bundle.Study = $study
 
   $cleanup = $Bundle.Cleanup
-  $cleanup = Replace-OrangeAwakeAnchor $cleanup 'state_file="$root/service-initial-state.txt"' "$storeFunctions`nstate_file=`"`$root/service-initial-state.txt`""
+  $cleanup = Replace-OrangeAwakeAnchor $cleanup 'state_file="$root/service-initial-state.txt"' "$verifyFunctions`nstate_file=`"`$root/service-initial-state.txt`""
   $cleanupGuard = @'
   if [ -e "$root/awake-store-evidence.json" ] || [ -e "$study_store" ]; then
     verify_study_store || exit 72
