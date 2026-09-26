@@ -15,20 +15,11 @@ impl NativeRunner {
             )
             || matches!(&message, HostMessage::DeviceInput { input, .. }
                 if !matches!(input.get("type").and_then(serde_json::Value::as_str),
-                    Some("encoder_turn" | "encoder_press" | "grid_press" | "grid_release")))
-            || matches!(&message, HostMessage::DeviceInput { input, .. }
-                if input.get("type").and_then(serde_json::Value::as_str) == Some("encoder_press")
-                    && input.get("id").and_then(serde_json::Value::as_str).unwrap_or("main") == "main")
+                    Some("encoder_turn" | "encoder_press" | "grid_press" | "grid_release"
+                        | "button_a" | "button_s" | "button_shift" | "button_fn" | "button_combined_modifier")))
         {
-            let terminal_press = matches!(&message, HostMessage::DeviceInput { input, .. }
-                if input.get("type").and_then(serde_json::Value::as_str) == Some("encoder_press")
-                    && input.get("id").and_then(serde_json::Value::as_str).unwrap_or("main") == "main");
-            let messages = <Self as super::CoreRunner>::send(self, message)?;
-            return Ok(if terminal_press {
-                order_terminal_presentation(messages)
-            } else {
-                messages
-            });
+            return <Self as super::CoreRunner>::send(self, message)
+                .map(order_terminal_presentation);
         }
         if let HostMessage::DeviceInput {
             input,
@@ -44,7 +35,12 @@ impl NativeRunner {
         self.pending.presentation_deferred = true;
         let result = <Self as super::CoreRunner>::send(self, message);
         self.pending.presentation_deferred = false;
-        result
+        result.map(order_terminal_presentation)
+    }
+
+    pub(super) fn require_synchronous_action_presentation(&mut self) {
+        self.pending.presentation_deferred = false;
+        self.pending.suppress_snapshot_response = false;
     }
 
     fn send_device_input(

@@ -8,6 +8,10 @@ use super::{
 const OLED_HELP_LINE_WIDTH: usize = 18;
 const EXTERNAL_RESYNC_PPQN: u64 = 96;
 
+#[cfg(test)]
+#[path = "music_first_terminal_tests.rs"]
+mod terminal_tests;
+
 impl NativeRunner {
     pub(super) fn open_controls_help(&mut self) {
         self.display.help_popup = Some(NativeHelpPopup {
@@ -94,9 +98,11 @@ impl NativeRunner {
                 } else {
                     "restart.saveEverything"
                 };
+                self.require_synchronous_action_presentation();
                 return self.execute_restart_action(action);
             }
             if action == "restart.reboot" && confirm.cursor == 0 {
+                self.require_synchronous_action_presentation();
                 self.restart_settings.continue_after_save();
                 return Ok(None);
             }
@@ -111,6 +117,7 @@ impl NativeRunner {
             self.display.confirm_dialog = self.confirmation_for_action(&confirm.action);
             return Ok(None);
         }
+        self.require_synchronous_action_presentation();
         self.execute_confirmed_action(confirm.action)
     }
 

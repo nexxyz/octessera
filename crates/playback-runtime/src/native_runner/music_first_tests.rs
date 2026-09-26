@@ -50,12 +50,11 @@ fn playing_pulses_zero_xy_and_aux_edit_defer_presentation_without_losing_autosav
     let menu = runner
         .send_music_first(HostMessage::DeviceInput {
             input: json!({"type": "encoder_press", "id": "main"}),
-            request_snapshot: None,
+            request_snapshot: Some(false),
         })
         .unwrap();
-    assert!(menu
-        .iter()
-        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert_music_only(&menu);
+    assert!(runner.display_scene_pending());
     let grid = runner
         .send_music_first(HostMessage::DeviceInput {
             input: json!({"type": "grid_press", "x": 3, "y": 3}),
@@ -74,6 +73,120 @@ fn playing_pulses_zero_xy_and_aux_edit_defer_presentation_without_losing_autosav
             .unwrap();
         assert_music_only(&messages);
     }
+}
+
+#[test]
+fn playing_main_press_help_open_close_and_scalar_edit_are_presentation_deferred() {
+    let mut runner = playing_default();
+    for (index, input) in [
+        json!({"type":"button_shift","pressed":true}),
+        json!({"type":"button_fn","pressed":true}),
+        json!({"type":"encoder_press","id":"main"}),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let messages = runner
+            .send_music_first(HostMessage::DeviceInput {
+                input,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        assert!(
+            !messages
+                .iter()
+                .any(|message| matches!(message, RunnerMessage::Snapshot { .. })),
+            "help flow index={index}: {messages:?}"
+        );
+    }
+    assert_eq!(
+        runner.display.help_popup.as_ref().unwrap().title,
+        "Help: Build"
+    );
+    assert!(runner.display_scene_pending());
+    for (index, input) in [
+        json!({"type":"button_fn","pressed":false}),
+        json!({"type":"button_shift","pressed":false}),
+        json!({"type":"encoder_press","id":"main"}),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let messages = runner
+            .send_music_first(HostMessage::DeviceInput {
+                input,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        assert!(
+            !messages
+                .iter()
+                .any(|message| matches!(message, RunnerMessage::Snapshot { .. })),
+            "help close index={index}: {messages:?}"
+        );
+    }
+    assert!(runner.display.help_popup.is_none());
+
+    for _ in 0..4 {
+        let turn = runner
+            .send_music_first(HostMessage::DeviceInput {
+                input: json!({"type":"encoder_turn","id":"main","delta":1}),
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        assert_music_only(&turn);
+    }
+    assert_eq!(runner.menu.current_label(), Some("System"));
+    let enter_system = runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({"type":"encoder_press","id":"main"}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_music_only(&enter_system);
+    for _ in 0..4 {
+        runner
+            .send_music_first(HostMessage::DeviceInput {
+                input: json!({"type":"encoder_turn","id":"main","delta":1}),
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+    }
+    assert_eq!(runner.menu.current_label(), Some("Audio"));
+    let enter_audio = runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({"type":"encoder_press","id":"main"}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_music_only(&enter_audio);
+    assert_eq!(runner.menu.current_label(), Some("Master Vol"));
+    let enter_edit = runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({"type":"encoder_press","id":"main"}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_music_only(&enter_edit);
+    let volume_before = runner.display.ui.master_volume;
+    let edit = runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({"type":"encoder_turn","id":"main","delta":1}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_music_only(&edit);
+    assert!(edit
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::AudioCommands { .. })));
+    assert_ne!(runner.display.ui.master_volume, volume_before);
+    let leave = runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({"type":"encoder_press","id":"main"}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_music_only(&leave);
 }
 
 #[test]
@@ -293,89 +406,6 @@ fn music_first_defer_guard_resets_on_dispatch_failure() {
     assert!(snapshot
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-}
-
-#[test]
-fn playing_terminal_confirmation_publishes_shutdown_or_reboot_before_effect() {
-    for (label, expected_title) in [
-        ("Shutdown", "Confirm Shutdown"),
-        ("Reboot", "Confirm Reboot"),
-    ] {
-        let mut runner = playing_default();
-        for _ in 0..4 {
-            runner
-                .send_music_first(HostMessage::DeviceInput {
-                    input: json!({"type": "encoder_turn", "id": "main", "delta": 1}),
-                    request_snapshot: None,
-                })
-                .unwrap();
-        }
-        assert_eq!(runner.menu.current_label(), Some("System"));
-        let system = runner
-            .send_music_first(HostMessage::DeviceInput {
-                input: json!({"type": "encoder_press", "id": "main"}),
-                request_snapshot: None,
-            })
-            .unwrap();
-        assert!(system.iter().any(
-            |message| matches!(message, RunnerMessage::Snapshot { snapshot }
-            if snapshot["display"]["title"] == "/System")
-        ));
-        for _ in 0..30 {
-            if runner.menu.current_label() == Some(label) {
-                break;
-            }
-            runner
-                .send_music_first(HostMessage::DeviceInput {
-                    input: json!({"type": "encoder_turn", "id": "main", "delta": 1}),
-                    request_snapshot: None,
-                })
-                .unwrap();
-        }
-        assert_eq!(runner.menu.current_label(), Some(label));
-        let opened = runner
-            .send_music_first(HostMessage::DeviceInput {
-                input: json!({"type": "encoder_press", "id": "main"}),
-                request_snapshot: None,
-            })
-            .unwrap();
-        assert!(opened.iter().any(
-            |message| matches!(message, RunnerMessage::Snapshot { snapshot }
-            if snapshot["display"]["title"] == expected_title)
-        ));
-        runner
-            .send_music_first(HostMessage::DeviceInput {
-                input: json!({"type": "encoder_turn", "id": "main", "delta": 1}),
-                request_snapshot: None,
-            })
-            .unwrap();
-        let terminal = runner
-            .send_music_first(HostMessage::DeviceInput {
-                input: json!({"type": "encoder_press", "id": "main"}),
-                request_snapshot: None,
-            })
-            .unwrap();
-        let snapshot = terminal
-            .iter()
-            .position(|message| {
-                matches!(message, RunnerMessage::Snapshot { snapshot }
-            if snapshot["display"]["splash"] == "shutdown")
-            })
-            .unwrap();
-        let effect = terminal
-            .iter()
-            .position(|message| {
-                matches!(message, RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect,
-                RuntimePlatformEffect::Shutdown | RuntimePlatformEffect::Reboot)))
-            })
-            .unwrap();
-        assert!(
-            snapshot < effect,
-            "{label} effect must follow synchronous shutdown frame"
-        );
-        assert!(!runner.display_scene_pending());
-    }
 }
 
 #[test]
