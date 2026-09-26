@@ -60,8 +60,10 @@ impl NativeRunner {
                 .iter()
                 .enumerate()
                 .filter_map(|(index, behavior_id)| {
-                    (behavior_id != "none" && self.hdmi_model_for_layer(index).is_some())
-                        .then_some(index)
+                    (behavior_id != "none"
+                        && (index == self.active_layer_index
+                            || self.hdmi_model_for_layer(index).is_some()))
+                    .then_some(index)
                 })
                 .collect();
             if candidates.is_empty() {

@@ -17,6 +17,15 @@ use platform_core::{BehaviorRenderModel, GlobalSoundConfig};
 
 #[path = "snapshot_scene_json.rs"]
 mod conversion;
+#[path = "snapshot_scene_hardware.rs"]
+mod hardware;
+pub use hardware::{
+    NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,
+    NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation,
+};
+#[cfg(test)]
+#[path = "snapshot_scene_hardware_tests.rs"]
+mod hardware_tests;
 
 struct AudioScene {
     instruments: Vec<NativeInstrumentSlot>,
@@ -121,6 +130,12 @@ impl NativeRunner {
         let grid = match hdmi_mode {
             "live-grid" => HdmiGrid::Live,
             "plain-grid" => HdmiGrid::Model(model),
+            "active-behavior" | "cycle-behaviors"
+                if source_layer_index == self.active_layer_index
+                    && source_behavior_id != "none" =>
+            {
+                HdmiGrid::Model(model)
+            }
             "active-behavior" | "cycle-behaviors" => self
                 .hdmi_model_for_layer(source_layer_index)
                 .map(HdmiGrid::Model)
@@ -202,11 +217,11 @@ impl PresentationScene {
     }
 
     pub fn oled_presentation_input(
-        self,
+        &self,
         metrics: OledPresentationMetrics,
         runtime_error: Option<OledRuntimeErrorMetadata>,
     ) -> OledPresentationInput {
-        let display = self.display;
+        let display = &self.display;
         OledPresentationInput {
             display: OledDisplayInput {
                 off: self.off,
@@ -217,14 +232,14 @@ impl PresentationScene {
                     _ => OledSplash::Boot,
                 },
                 body_layout: display.body_layout,
-                title: display.title,
-                lines: display.lines,
-                colors: display.colors,
+                title: display.title.clone(),
+                lines: display.lines.clone(),
+                colors: display.colors.clone(),
                 bars: display
                     .bar_values
-                    .into_iter()
+                    .iter()
                     .map(|bar| {
-                        bar.map(|bar| OledBarInput {
+                        bar.as_ref().map(|bar| OledBarInput {
                             fraction: f32::from(bar.frac_pct) / 100.0,
                             style: if bar.style.as_deref() == Some("marker") {
                                 OledBarStyle::Marker
@@ -234,13 +249,13 @@ impl PresentationScene {
                         })
                     })
                     .collect(),
-                scroll: display.scroll.map(|scroll| OledScrollInput {
+                scroll: display.scroll.as_ref().map(|scroll| OledScrollInput {
                     offset: scroll.scroll_offset,
                     total_rows: scroll.total_rows,
                     visible_rows: scroll.visible_rows,
                 }),
                 editing: self.editing,
-                toast: self.toast,
+                toast: self.toast.clone(),
             },
             selected_row: display.selected_row,
             transport: OledTransportInput {
