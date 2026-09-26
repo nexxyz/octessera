@@ -41,6 +41,7 @@ pub(super) struct DisplayTransients {
     transport_flash: TransportFlash,
     transport_flash_until: Option<Instant>,
     snapshot_pending: bool,
+    generation: u64,
     #[cfg(any(test, feature = "test-support"))]
     test_now: Option<Instant>,
 }
@@ -52,6 +53,7 @@ impl DisplayTransients {
             transport_flash: TransportFlash::None,
             transport_flash_until: None,
             snapshot_pending: false,
+            generation: 0,
             #[cfg(any(test, feature = "test-support"))]
             test_now: None,
         }
@@ -69,7 +71,7 @@ impl DisplayTransients {
         self.advance(now);
         let deadline = now + EVENT_DOT_DURATION;
         if self.event_dot_until.is_none() {
-            self.snapshot_pending = true;
+            self.mark_presentation_due();
         }
         self.event_dot_until = Some(
             self.event_dot_until
@@ -89,7 +91,7 @@ impl DisplayTransients {
             return;
         }
         if self.transport_flash != flash || self.transport_flash_until.is_none() {
-            self.snapshot_pending = true;
+            self.mark_presentation_due();
         }
         self.transport_flash = flash;
         let deadline = now + TRANSPORT_FLASH_DURATION;
@@ -105,13 +107,16 @@ impl DisplayTransients {
         self.event_dot_until = None;
         self.transport_flash = TransportFlash::None;
         self.transport_flash_until = None;
-        self.snapshot_pending |= was_active;
+        if was_active {
+            self.mark_presentation_due();
+        }
     }
 
     pub(super) fn advance(&mut self, now: Instant) {
+        let mut changed = false;
         if self.event_dot_until.is_some_and(|deadline| now >= deadline) {
             self.event_dot_until = None;
-            self.snapshot_pending = true;
+            changed = true;
         }
         if self
             .transport_flash_until
@@ -119,8 +124,23 @@ impl DisplayTransients {
         {
             self.transport_flash_until = None;
             self.transport_flash = TransportFlash::None;
-            self.snapshot_pending = true;
+            changed = true;
         }
+        if changed {
+            self.mark_presentation_due();
+        }
+    }
+
+    pub(super) fn mark_presentation_due(&mut self) {
+        self.snapshot_pending = true;
+        self.generation = self
+            .generation
+            .checked_add(1)
+            .expect("presentation generation exhausted");
+    }
+
+    pub(super) fn generation(&self) -> u64 {
+        self.generation
     }
 
     #[cfg(test)]

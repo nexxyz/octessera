@@ -41,6 +41,7 @@ struct HdmiScene {
 }
 
 pub struct PresentationScene {
+    generation: u64,
     display: DisplaySnapshot,
     behavior_id: String,
     toast: String,
@@ -134,6 +135,7 @@ impl NativeRunner {
             params: self.global_fx_params.clone(),
         });
         Ok(PresentationScene {
+            generation: self.display.transients.generation(),
             display,
             behavior_id: self.behavior.id().to_string(),
             toast: self
@@ -195,6 +197,10 @@ impl NativeRunner {
 }
 
 impl PresentationScene {
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
     pub fn oled_presentation_input(
         self,
         metrics: OledPresentationMetrics,

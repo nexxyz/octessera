@@ -15,6 +15,8 @@ mod dispatch;
 mod dispatch_profile;
 #[path = "runtime_midi.rs"]
 mod midi;
+#[path = "runtime_music_first.rs"]
+mod music_first;
 #[path = "runtime_oled.rs"]
 mod oled;
 #[path = "runtime_pulse_phase.rs"]

@@ -2,6 +2,24 @@ use super::snapshot_leds::base_led_snapshot;
 use super::{display_index, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 
 impl NativeRunner {
+    pub fn capture_display_scene(&mut self) -> Result<super::PresentationScene, String> {
+        let now = self.display.transients.now();
+        self.display.transients.advance(now);
+        self.advance_oled_sleep_state();
+        self.advance_toast_state();
+        self.capture_presentation_scene(false)
+    }
+
+    pub fn acknowledge_display_scene(&mut self, generation: u64) {
+        if generation == self.display.transients.generation() {
+            self.display.transients.acknowledge_snapshot_pending();
+        }
+    }
+
+    pub fn display_scene_pending(&self) -> bool {
+        self.display.transients.snapshot_pending()
+    }
+
     pub(super) fn snapshot(&self) -> Result<Value, String> {
         Ok(self.capture_presentation_scene(true)?.into_snapshot())
     }
