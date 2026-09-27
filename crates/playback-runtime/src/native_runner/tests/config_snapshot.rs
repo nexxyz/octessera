@@ -3,6 +3,25 @@ use super::*;
 fn assert_send_static<T: Send + 'static>() {}
 
 #[test]
+fn captured_config_uses_the_existing_portable_patch_projection() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].synth_config["opaqueExtension"] = json!({ "keep": true });
+    let patch = runner
+        .capture_config_snapshot()
+        .into_portable_patch_payload()
+        .unwrap();
+
+    assert_eq!(patch["kind"], "octessera.patch");
+    assert_eq!(patch["schemaVersion"], 2);
+    assert_eq!(patch["runtimeConfig"]["activeBehavior"], "life");
+    assert!(patch["runtimeConfig"]["instruments"][0]["synth"]["opaqueExtension"].is_null());
+    assert_eq!(
+        patch,
+        portable_patch_payload_for_save(&runner.config_payload()).unwrap()
+    );
+}
+
+#[test]
 pub(crate) fn config_snapshot_capture_is_owned_and_matches_frozen_payload_fields() {
     assert_send_static::<NativeConfigSnapshot>();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
