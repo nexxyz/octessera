@@ -76,7 +76,10 @@ fn assert_menu_lines_fit(runner: &NativeRunner) {
     }
 }
 
-struct ImmediateFailureHost;
+#[derive(Default)]
+struct ImmediateFailureHost {
+    default_save_calls: usize,
+}
 
 impl HostAdapter for ImmediateFailureHost {
     fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
@@ -91,6 +94,7 @@ impl HostAdapter for ImmediateFailureHost {
             request.effect,
             RuntimePlatformEffect::StoreSaveDefault { .. }
         ) {
+            self.default_save_calls += 1;
             Err(RuntimeAdapterError::from("default save failed immediately"))
         } else {
             Ok(Vec::new())
@@ -379,7 +383,7 @@ fn back_during_save_and_restart_choice_only_cancels_restart_ui() {
 fn immediate_default_save_adapter_failure_exits_saving() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut host = ImmediateFailureHost;
+    let mut host = ImmediateFailureHost::default();
     assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
 
     for event in [
@@ -416,4 +420,49 @@ fn immediate_default_save_adapter_failure_exits_saving() {
         message,
         RunnerMessage::RuntimeStatus { status } if status.error.is_some()
     )));
+}
+
+#[test]
+fn immediate_autosave_failure_rearms_the_normal_deferred_retry() {
+    let mut runtime = PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
+    runner.menu.rebuild(runner.menu_config());
+    let mut host = ImmediateFailureHost::default();
+
+    assert!(runner.menu.focus_item_key("transport.bpm"));
+    let _ = press(&mut runner);
+    let _ = turn(&mut runner, 1);
+    runner.make_deferred_menu_apply_due_for_test();
+    let messages = runner.flush_deferred_menu_apply().unwrap();
+    runtime
+        .dispatch_runner_messages(messages, &mut runner, &mut host)
+        .unwrap();
+
+    assert_eq!(host.default_save_calls, 1);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let retry = runner.flush_deferred_menu_apply().unwrap();
+    assert_eq!(
+        retry
+            .iter()
+            .filter(|message| matches!(
+                message,
+                RunnerMessage::PlatformEffects { effects }
+                    if effects.iter().any(|effect| matches!(
+                        effect,
+                        RuntimePlatformEffect::StoreSaveDefault {
+                            mode: Some(mode),
+                            ..
+                        } if mode == "deferred"
+                    ))
+            ))
+            .count(),
+        1
+    );
+    runtime
+        .dispatch_runner_messages(retry, &mut runner, &mut host)
+        .unwrap();
+    assert_eq!(host.default_save_calls, 2);
 }

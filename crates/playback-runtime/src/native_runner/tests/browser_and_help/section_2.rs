@@ -130,7 +130,8 @@ pub(crate) fn repeated_autosaves_increment_flash_serial() {
         .unwrap();
     assert_eq!(first_serial, 0);
 
-    let revision = runner.config_revision;
+    let revision = runner.pending_default_write_revision().unwrap();
+    runner.register_default_write_request("save-1", Some(revision));
     let acknowledged = runner
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::Identified {

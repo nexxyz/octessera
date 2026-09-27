@@ -77,6 +77,7 @@ struct DefaultWrite {
     payload: Option<Arc<Value>>,
     scope: DefaultSaveScope,
     request_id: Option<String>,
+    native_origin: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -102,6 +103,7 @@ pub(super) struct DefaultWriteCompletion {
     pub(super) restart_flow: bool,
     pub(super) succeeded: bool,
     pub(super) host_role: bool,
+    pub(super) show_saved_feedback: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -145,6 +147,10 @@ impl RestartSettingsState {
 
     pub(super) fn has_pending_write(&self) -> bool {
         self.pending_write.is_some()
+    }
+
+    pub(super) fn has_restart_after_pending_write(&self) -> bool {
+        self.restart_after_pending_write
     }
 
     pub(super) fn setting_payload(
@@ -267,6 +273,7 @@ impl RestartSettingsState {
             payload: Some(Arc::new(payload)),
             scope,
             request_id: None,
+            native_origin: false,
         });
         self.native_payload_missing = false;
         if scope.is_restart() {
@@ -303,6 +310,7 @@ impl RestartSettingsState {
             payload: Some(Arc::new(payload)),
             scope,
             request_id: None,
+            native_origin: false,
         });
         self.native_payload_missing = false;
         true
@@ -322,6 +330,7 @@ impl RestartSettingsState {
             payload: None,
             scope,
             request_id: Some(request_id.into()),
+            native_origin: true,
         });
         self.native_payload_missing = false;
         if scope.is_restart() {
@@ -352,6 +361,26 @@ impl RestartSettingsState {
 
     pub(super) fn take_native_payload_missing(&mut self) -> bool {
         std::mem::take(&mut self.native_payload_missing)
+    }
+
+    pub(super) fn native_write_matches(&self, request_id: &str, revision: u64) -> bool {
+        self.pending_write.as_ref().is_some_and(|write| {
+            write.native_origin
+                && write.revision == revision
+                && write.request_id.as_deref() == Some(request_id)
+                && write
+                    .payload
+                    .as_ref()
+                    .and_then(|payload| payload.get("revision"))
+                    .and_then(Value::as_u64)
+                    == Some(revision)
+        })
+    }
+
+    pub(super) fn has_pending_native_write(&self) -> bool {
+        self.pending_write
+            .as_ref()
+            .is_some_and(|write| write.native_origin)
     }
 
     pub(super) fn register_request(&mut self, request_id: &str, revision: Option<u64>) {
@@ -390,6 +419,7 @@ impl RestartSettingsState {
         request_id: &str,
         revision: Option<u64>,
         succeeded: bool,
+        current_revision: u64,
     ) -> Option<DefaultWriteCompletion> {
         let revision = revision?;
         let write = self.pending_write.as_mut()?;
@@ -399,6 +429,8 @@ impl RestartSettingsState {
         let write = self.pending_write.take()?;
         let payload_missing = succeeded && write.payload.is_none();
         let succeeded = succeeded && !payload_missing;
+        let show_saved_feedback =
+            succeeded && (!write.native_origin || write.revision == current_revision);
         let restart_flow = write.scope.is_restart() && self.is_saving();
         let host_role = write.payload.as_deref().is_some_and(payload_is_host);
         if succeeded {
@@ -419,6 +451,7 @@ impl RestartSettingsState {
             restart_flow,
             succeeded,
             host_role,
+            show_saved_feedback,
         })
     }
 }

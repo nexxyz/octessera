@@ -128,6 +128,10 @@ impl NativeRunner {
                 }
                 let operation = result.operation();
                 let succeeded = result.error_facts().is_none();
+                let is_default_save_success = matches!(
+                    result.as_ref(),
+                    RuntimeStoreResult::SaveDefaultResult { ok: true, .. }
+                );
                 let pending_default_revision = self.pending_default_write_revision();
                 let restart_completion =
                     if operation == crate::protocol::RuntimeOperation::StoreSaveDefault {
@@ -140,7 +144,17 @@ impl NativeRunner {
                     crate::protocol::RuntimeOperation::StoreSavePreset
                         | crate::protocol::RuntimeOperation::StoreSaveDefault
                 );
-                let apply_result = self.apply_store_result(*result);
+                let apply_result = if operation
+                    == crate::protocol::RuntimeOperation::StoreSaveDefault
+                    && is_default_save_success
+                {
+                    self.apply_store_persistence_result_with_default_feedback(
+                        *result,
+                        restart_completion.is_some_and(|completion| completion.show_saved_feedback),
+                    )
+                } else {
+                    self.apply_store_result(*result)
+                };
                 if let Err(error) = apply_result {
                     if operation == crate::protocol::RuntimeOperation::StoreLoadDefault
                         && self.restore_rehydration_pending()
@@ -208,12 +222,16 @@ impl NativeRunner {
         result: RuntimeStoreResult,
     ) -> Result<(), String> {
         match result {
+            result @ RuntimeStoreResult::SaveDefaultResult { .. } => self
+                .apply_store_persistence_result_with_default_feedback(
+                    result,
+                    !self.restart_settings.has_pending_native_write(),
+                ),
             result @ (RuntimeStoreResult::ListPresetsResult { .. }
             | RuntimeStoreResult::LoadPresetResult { .. }
             | RuntimeStoreResult::SavePresetResult { .. }
             | RuntimeStoreResult::DeletePresetResult { .. }
             | RuntimeStoreResult::LoadDefaultResult { .. }
-            | RuntimeStoreResult::SaveDefaultResult { .. }
             | RuntimeStoreResult::SaveBackupResult { .. }
             | RuntimeStoreResult::SaveRecoveryResult { .. }) => {
                 self.apply_store_persistence_result(result)

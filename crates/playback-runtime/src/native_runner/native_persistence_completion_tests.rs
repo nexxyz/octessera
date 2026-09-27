@@ -1,5 +1,7 @@
+use super::music_first_tests::playing_default;
 use super::restart_settings::DefaultSaveScope;
 use super::*;
+use crate::tests::support::FakeHost;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -135,6 +137,7 @@ fn old_native_success_keeps_newer_edit_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.mark_config_dirty();
     let old_revision = runner.config_revision;
+    let baseline = Arc::clone(&runner.restart_settings.persisted_default);
     assert!(runner.register_native_default_write("native-save-old", old_revision, true));
     let old_payload = payload(old_revision);
     assert!(runner.attach_native_default_write_payload(
@@ -151,9 +154,234 @@ fn old_native_success_keeps_newer_edit_dirty() {
         &runner.restart_settings.persisted_default,
         &old_payload
     ));
+    assert!(!Arc::ptr_eq(
+        &runner.restart_settings.persisted_default,
+        &baseline
+    ));
     assert_eq!(runner.pending.pending_save_revision, None);
     assert!(runner.config_dirty);
     assert_eq!(runner.dirty_revision, Some(new_revision));
+}
+
+#[test]
+fn older_native_arc_completion_after_real_aux_edit_advances_baseline_without_saved_feedback() {
+    let mut runner = playing_default();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner
+        .menu
+        .focus_item_key("aux:0:turn.instruments.0.synth.osc1.levelPct"));
+    runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    runner.mark_config_dirty();
+    let written_revision = runner.config_revision;
+    let worker_payload = Arc::new(json!({ "revision": written_revision }));
+    assert!(runner.register_native_default_write(
+        "native-older-completion",
+        written_revision,
+        true,
+    ));
+    assert!(runner.attach_native_default_write_payload(
+        "native-older-completion",
+        written_revision,
+        Arc::clone(&worker_payload),
+    ));
+    let serialization_calls = runner.behavior_state_serialization_calls.get();
+    let flash_serial = runner.display.auto_save_flash_serial;
+    let old_level = runner.instruments[0].synth_config["osc1"]["levelPct"]
+        .as_f64()
+        .unwrap();
+    let edit = runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(!edit
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    let current_revision = runner.config_revision;
+    assert_eq!(current_revision, written_revision + 1);
+    assert_eq!(runner.dirty_revision, Some(current_revision));
+    assert!(runner.config_dirty);
+    assert_eq!(
+        runner.instruments[0].synth_config["osc1"]["levelPct"].as_f64(),
+        Some(old_level + 1.0)
+    );
+    let debounce_deadline = runner.pending.pending_autosave_payload_due_at;
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+
+    let output = runtime
+        .dispatch_host_message_music_first(
+            HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                        ok: true,
+                        is_auto: Some(true),
+                    }),
+                    request_id: "native-older-completion".into(),
+                    revision: Some(written_revision),
+                },
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+
+    assert!(output
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::RuntimeStatus { .. })));
+    assert!(!output
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(Arc::ptr_eq(
+        &runner.restart_settings.persisted_default,
+        &worker_payload
+    ));
+    assert!(runner.config_dirty);
+    assert_eq!(runner.dirty_revision, Some(current_revision));
+    assert_eq!(runner.pending.pending_save_revision, None);
+    assert_eq!(
+        runner.pending.pending_autosave_payload_due_at,
+        debounce_deadline
+    );
+    assert_eq!(runner.display.auto_save_flash_serial, flash_serial);
+    assert_ne!(
+        runner
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| toast.message.as_str()),
+        Some("Saved default")
+    );
+    assert!(runner.display.runtime_error_presentation.is_none());
+    assert_eq!(
+        runner.behavior_state_serialization_calls.get(),
+        serialization_calls
+    );
+}
+
+#[test]
+fn old_native_result_does_not_mutate_a_newer_pending_native_write() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.mark_config_dirty();
+    let old_revision = runner.config_revision;
+    let initial_baseline = Arc::clone(&runner.restart_settings.persisted_default);
+    assert!(runner.register_native_default_write("native-old", old_revision, true));
+    assert!(runner.attach_native_default_write_payload(
+        "native-old",
+        old_revision,
+        payload(old_revision),
+    ));
+    runner.restart_settings.abandon_pending_write();
+    runner.pending.pending_save_revision = None;
+    runner.mark_config_dirty();
+    let new_revision = runner.config_revision;
+    let new_payload = payload(new_revision);
+    assert!(runner.register_native_default_write("native-new", new_revision, true));
+    assert!(runner.attach_native_default_write_payload(
+        "native-new",
+        new_revision,
+        Arc::clone(&new_payload),
+    ));
+    let flash_serial = runner.display.auto_save_flash_serial;
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+
+    let output = runtime
+        .dispatch_host_message_music_first(
+            HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                        ok: true,
+                        is_auto: Some(true),
+                    }),
+                    request_id: "native-old".into(),
+                    revision: Some(old_revision),
+                },
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+
+    assert!(output
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(Arc::ptr_eq(
+        &runner.restart_settings.persisted_default,
+        &initial_baseline
+    ));
+    assert!(runner.config_dirty);
+    assert_eq!(runner.dirty_revision, Some(new_revision));
+    assert_eq!(
+        runner.restart_settings.pending_write_revision(),
+        Some(new_revision)
+    );
+    assert!(runner.pending.pending_save_revision == Some(new_revision));
+    assert_eq!(runner.display.auto_save_flash_serial, flash_serial);
+}
+
+#[test]
+fn duplicate_native_success_after_pending_write_is_gone_does_not_repeat_saved_feedback() {
+    let mut runner = playing_default();
+    runner.mark_config_dirty();
+    let revision = runner.config_revision;
+    let payload = payload(revision);
+    assert!(runner.register_native_default_write("native-completed", revision, true));
+    assert!(runner.attach_native_default_write_payload(
+        "native-completed",
+        revision,
+        Arc::clone(&payload),
+    ));
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    let result = || HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::Identified {
+            result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: Some(true),
+            }),
+            request_id: "native-completed".into(),
+            revision: Some(revision),
+        },
+    };
+
+    let first = runtime
+        .dispatch_host_message_music_first(result(), &mut runner, &mut host)
+        .unwrap();
+    assert!(!first
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(Arc::ptr_eq(
+        &runner.restart_settings.persisted_default,
+        &payload
+    ));
+    assert!(!runner.config_dirty);
+    let saved_flash_serial = runner.display.auto_save_flash_serial;
+
+    let duplicate = runtime
+        .dispatch_host_message_music_first(result(), &mut runner, &mut host)
+        .unwrap();
+
+    assert!(duplicate
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert_eq!(runner.display.auto_save_flash_serial, saved_flash_serial);
+    assert!(Arc::ptr_eq(
+        &runner.restart_settings.persisted_default,
+        &payload
+    ));
+    assert!(!runner.config_dirty);
 }
 
 #[test]

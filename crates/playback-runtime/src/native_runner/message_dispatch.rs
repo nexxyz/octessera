@@ -1,18 +1,23 @@
-use crate::protocol::{HostMessage, RunnerMessage, RuntimePlatformRequest};
+use crate::protocol::{HostMessage, RunnerMessage, RuntimePlatformRequest, RuntimeStoreResult};
 use std::time::Instant;
 
 use super::{DeviceInput, NativeRunner, RuntimeTransportState};
 
 impl NativeRunner {
     pub fn send_music_first(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        let deferred_persistence_result = !self.restart_settings.is_saving()
+            && !self.restart_settings.has_restart_after_pending_write()
+            && matches!(&message, HostMessage::RuntimeResult { result }
+                if is_successful_default_or_backup_result(self, result));
+        let supported_music_input = matches!(
+            &message,
+            HostMessage::TransportPulseStep { .. }
+                | HostMessage::MidiRealtimeClock { .. }
+                | HostMessage::DeviceInput { .. }
+        );
         if self.transport.transport != RuntimeTransportState::Playing
             || self.display.runtime_error_presentation.is_some()
-            || !matches!(
-                &message,
-                HostMessage::TransportPulseStep { .. }
-                    | HostMessage::MidiRealtimeClock { .. }
-                    | HostMessage::DeviceInput { .. }
-            )
+            || !(supported_music_input || deferred_persistence_result)
             || matches!(&message, HostMessage::DeviceInput { input, .. }
                 if !matches!(input.get("type").and_then(serde_json::Value::as_str),
                     Some("encoder_turn" | "encoder_press" | "grid_press" | "grid_release"
@@ -64,6 +69,27 @@ impl NativeRunner {
     ) -> Result<Vec<RunnerMessage>, String> {
         let input = serde_json::from_value::<DeviceInput>(input).unwrap_or(DeviceInput::Other);
         self.handle_presented_runtime_error_input(input)
+    }
+}
+
+fn is_successful_default_or_backup_result(
+    runner: &NativeRunner,
+    result: &RuntimeStoreResult,
+) -> bool {
+    let RuntimeStoreResult::Identified {
+        result,
+        request_id,
+        revision: Some(revision),
+    } = result
+    else {
+        return false;
+    };
+    match result.as_ref() {
+        RuntimeStoreResult::SaveDefaultResult { ok: true, .. } => runner
+            .restart_settings
+            .native_write_matches(request_id, *revision),
+        RuntimeStoreResult::SaveBackupResult { ok: true } => true,
+        _ => false,
     }
 }
 
