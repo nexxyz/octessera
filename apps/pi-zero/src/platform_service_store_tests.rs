@@ -58,6 +58,37 @@ fn preset_store_uses_only_canonical_patch_files() {
 }
 
 #[test]
+fn patch_catalog_accepts_valid_names_that_are_special_only_at_store_root() {
+    let dir = std::env::temp_dir().join(format!(
+        "octessera-pi-preset-special-stems-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let patches = dir.join("patches");
+    std::fs::create_dir_all(&patches).unwrap();
+    for name in ["default", "bak-jam", "default.patch", "current", "device"] {
+        std::fs::write(patches.join(format!("{name}.json")), "{}").unwrap();
+    }
+    std::fs::write(dir.join("default.json"), "{}").unwrap();
+    std::fs::write(dir.join("bak-root.json"), "{}").unwrap();
+
+    assert_eq!(
+        list_presets(&dir).unwrap(),
+        vec![
+            "bak-jam".to_string(),
+            "current".to_string(),
+            "default".to_string(),
+            "default.patch".to_string(),
+            "device".to_string(),
+        ]
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
 fn store_job_waits_for_store_lock() {
     let root = std::env::temp_dir().join(format!(
         "octessera-platform-store-lock-{}-{}",

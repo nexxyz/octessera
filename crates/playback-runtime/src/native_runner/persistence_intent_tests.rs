@@ -50,6 +50,47 @@ fn intent_tracks_debounce_revision_and_never_serializes_state() {
 }
 
 #[test]
+fn stopped_music_first_dispatch_defers_automatic_payload_but_keeps_intent_due() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
+    runner.rolling_backups = false;
+    let due_at = Instant::now();
+    dirty_at(&mut runner, due_at);
+
+    let messages = runner
+        .send_music_first(HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(effect,
+                crate::RuntimePlatformEffect::StoreSaveDefault { .. }
+                    | crate::RuntimePlatformEffect::StoreSaveBackup { .. }))
+    )));
+    assert!(runner.persistence_intent_at(due_at).is_some());
+
+    let generic = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(generic.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(effect,
+                crate::RuntimePlatformEffect::StoreSaveDefault { .. }))
+    )));
+}
+
+#[test]
 fn sixty_user_aux_edits_refresh_only_the_latest_native_persistence_intent() {
     let mut runner = playing_default();
     runner.auto_save_default = true;
@@ -165,6 +206,31 @@ fn intent_reports_backup_and_combined_eligibility_without_changing_legacy_rules(
     assert!(combined.default_eligible());
     assert!(combined.backup_eligible());
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+}
+
+#[test]
+fn native_backup_issuance_advances_only_backup_eligibility() {
+    let now = Instant::now();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
+    runner.rolling_backups = true;
+    let revision = dirty_at(&mut runner, now);
+    let before = runner.persistence_intent_at(now).unwrap();
+    assert!(before.default_eligible());
+    assert!(before.backup_eligible());
+
+    runner.mark_native_backup_issued_at(now);
+    let after = runner.persistence_intent_at(now).unwrap();
+    assert_eq!(after.revision(), revision);
+    assert!(after.default_eligible());
+    assert!(!after.backup_eligible());
+    assert!(runner.config_dirty);
+
+    let backup_due = runner
+        .persistence_intent_at(now + Duration::from_secs(300))
+        .unwrap();
+    assert!(backup_due.default_eligible());
+    assert!(backup_due.backup_eligible());
 }
 
 #[test]

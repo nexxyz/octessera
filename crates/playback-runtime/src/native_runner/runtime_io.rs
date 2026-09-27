@@ -117,8 +117,7 @@ impl NativeRunner {
             self.display.confirm_dialog = self.confirmation_for_action(&confirm.action);
             return Ok(None);
         }
-        let deferred_manual_save = self.pending.presentation_deferred
-            && self.transport.transport == RuntimeTransportState::Playing
+        let deferred_manual_save = self.pending.external_autosave_deferred
             && matches!(
                 &confirm.action,
                 crate::native_menu::NativeMenuAction::PlatformEffect(action)

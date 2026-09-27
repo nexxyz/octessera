@@ -1,13 +1,15 @@
 use super::*;
 use crate::audio::test_service;
 use playback_runtime::{
-    CoreRunner, HostAdapter, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
-    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult, RuntimeUserDataRestorePhase,
+    CoreRunner, HostAdapter, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
+    RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult, RuntimeTransportState, RuntimeUserDataRestorePhase,
     RuntimeUserDataRestoreStatus,
 };
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[path = "orange_host_adapter_drain_tests.rs"]
 mod drain_tests;
@@ -190,75 +192,6 @@ fn midi_panic_and_clear_selection_succeed_without_selected_ports() {
 }
 
 #[test]
-fn deferred_default_save_can_be_flushed() {
-    let (mut adapter, store, samples) = adapter();
-    let request = request(
-        RuntimePlatformEffect::StoreSaveDefault {
-            payload: json!({"runtimeConfig": {"bpm": 88}}),
-            mode: Some("deferred".into()),
-        },
-        "deferred-save",
-    );
-    assert!(adapter.handle_platform_effect(&request).unwrap().is_empty());
-    let entry = adapter.pending_default_save.take_now().unwrap();
-    adapter
-        .pending_default_save
-        .schedule(entry.payload, Instant::now(), entry.request);
-    assert!(adapter.flush_due_default_save().unwrap().is_empty());
-    assert!(!adapter.pending_default_save.is_pending());
-    let results = wait_for_result(&adapter);
-    let [HostMessage::RuntimeResult {
-        result:
-            RuntimeStoreResult::Identified {
-                result,
-                request_id,
-                revision,
-            },
-    }] = results.as_slice()
-    else {
-        panic!("expected identified deferred save result");
-    };
-    assert_eq!(request_id, "deferred-save");
-    assert_eq!(*revision, Some(1));
-    assert!(matches!(
-        result.as_ref(),
-        RuntimeStoreResult::SaveDefaultResult {
-            ok: true,
-            is_auto: Some(true),
-        }
-    ));
-    assert!(store.join("default.json").is_file());
-    let _ = std::fs::remove_dir_all(store.parent().unwrap());
-    let _ = std::fs::remove_dir_all(samples);
-}
-
-#[test]
-fn restore_barrier_cancels_pending_deferred_save_before_flush() {
-    let (mut adapter, store, samples) = adapter();
-    let request = request(
-        RuntimePlatformEffect::StoreSaveDefault {
-            payload: json!({"stale": true}),
-            mode: Some("deferred".into()),
-        },
-        "restore-race",
-    );
-    assert!(adapter.handle_platform_effect(&request).unwrap().is_empty());
-    let entry = adapter.pending_default_save.take_now().unwrap();
-    adapter
-        .pending_default_save
-        .schedule(entry.payload, Instant::now(), entry.request);
-
-    adapter.platform_service.invalidate_store_writes_for_test();
-    assert!(adapter.flush_due_default_save().unwrap().is_empty());
-    assert!(!adapter.pending_default_save.is_pending());
-    assert!(!store.join("default.json").exists());
-
-    adapter.platform_service.acknowledge_restored_state();
-    let _ = std::fs::remove_dir_all(store.parent().unwrap());
-    let _ = std::fs::remove_dir_all(samples);
-}
-
-#[test]
 fn runtime_restore_loads_default_before_orange_barrier_acknowledgement() {
     let (mut adapter, store, samples) = adapter();
     let mut payload = crate::user_data_archive::canonical_defaults();
@@ -325,6 +258,160 @@ fn failed_runtime_restore_apply_keeps_orange_barrier_blocked() {
         std::fs::read(store.join("recovery-save.json")).unwrap(),
         recovery
     );
+    let _ = std::fs::remove_dir_all(store.parent().unwrap());
+    let _ = std::fs::remove_dir_all(samples);
+}
+
+#[test]
+fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    let (store, samples) = directories();
+    let (audio, control_rx, mut event_rx, prep_tx) = crate::audio::test_service_with_prep_sender();
+    let mut adapter = OrangeHostAdapter::with_directories(
+        audio,
+        store.clone(),
+        samples.clone(),
+        Arc::new(|_| {}),
+        false,
+    )
+    .unwrap();
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.skip_startup_splash();
+    for input in [
+        json!({"type":"button_s","pressed":true}),
+        json!({"type":"button_s","pressed":false}),
+        json!({"type":"grid_press","x":2,"y":3}),
+        json!({"type":"grid_release","x":2,"y":3}),
+    ] {
+        crate::orange_candidate::dispatch(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            HostMessage::DeviceInput {
+                input,
+                request_snapshot: Some(false),
+            },
+        )
+        .unwrap();
+    }
+    assert_eq!(
+        playback.last_status().unwrap().transport,
+        RuntimeTransportState::Playing
+    );
+    let expected = runner
+        .capture_config_snapshot()
+        .into_portable_patch_payload()
+        .unwrap();
+    let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+    let (release_tx, release_rx) = mpsc::channel();
+    adapter
+        .platform_service
+        .enqueue(crate::platform_service::PlatformJob::new(
+            request(
+                RuntimePlatformEffect::SystemInfoRequest,
+                "preset-worker-gate",
+            ),
+            PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+
+    runner.test_focus_menu_item("preset.saveAs.save").unwrap();
+    for input in [
+        json!({"type":"encoder_press","id":"main"}),
+        json!({"type":"encoder_turn","id":"main","delta":1}),
+        json!({"type":"encoder_press","id":"main"}),
+    ] {
+        crate::orange_candidate::dispatch(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            HostMessage::DeviceInput {
+                input,
+                request_snapshot: Some(false),
+            },
+        )
+        .unwrap();
+    }
+    for _ in 0..4 {
+        let source = playback.config().sync_source.clone();
+        crate::orange_candidate::dispatch(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            HostMessage::TransportPulseStep {
+                pulses: 1,
+                source,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(false),
+            },
+        )
+        .unwrap();
+        std::thread::sleep(Duration::from_millis(8));
+    }
+    let audio_events = std::iter::from_fn(|| event_rx.try_recv().ok()).collect::<Vec<_>>();
+    assert!(audio_events
+        .iter()
+        .any(|event| matches!(event, rodio_engine_source::EngineEvent::NoteOn { .. })));
+    HostAdapter::handle_audio_command(
+        &mut adapter,
+        &RuntimeAudioCommand::SetMasterVolume {
+            generation: 0,
+            volume_pct: 77.0,
+        },
+    )
+    .unwrap();
+    HostAdapter::handle_midi_message(&mut adapter, &[0x90, 60, 100]).unwrap();
+    assert_eq!(
+        playback.last_status().unwrap().transport,
+        RuntimeTransportState::Playing
+    );
+    release_tx.send(()).unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut saved_name = None;
+    while Instant::now() < deadline && saved_name.is_none() {
+        for message in adapter.drain_results_for_runner(&mut runner, 8) {
+            if let HostMessage::RuntimeResult {
+                result:
+                    RuntimeStoreResult::Identified {
+                        result, request_id, ..
+                    },
+            } = &message
+            {
+                if request_id.starts_with("native-preset-") {
+                    if let RuntimeStoreResult::SavePresetResult { name, .. } = result.as_ref() {
+                        saved_name = Some(name.clone());
+                    }
+                }
+            }
+            crate::orange_candidate::dispatch(&mut playback, &mut runner, &mut adapter, message)
+                .unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let name = saved_name.expect("Orange native preset save did not complete");
+    let saved = crate::platform_service::load_json(
+        &crate::platform_service::preset_patch_path(&store, &name).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(saved, Some(expected));
+    assert!(runner
+        .test_focus_menu_item(&format!("preset.renamePick.{name}"))
+        .is_ok());
+    drop(control_rx);
+    drop(prep_tx);
+    let _ = event_rx.try_recv();
     let _ = std::fs::remove_dir_all(store.parent().unwrap());
     let _ = std::fs::remove_dir_all(samples);
 }

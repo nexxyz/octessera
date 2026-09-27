@@ -48,21 +48,13 @@ impl NativeRunner {
         let Some(write) = self.pending.native_preset_write.as_mut() else {
             return false;
         };
-        let NativeManualSaveRequest::Preset {
-            name, rename_from, ..
-        } = &write.request
-        else {
+        let NativeManualSaveRequest::Preset { name, .. } = &write.request else {
             return false;
         };
         if write.request_id != request_id || write.revision != revision || write.catalog.is_some() {
             return false;
         }
-        if !names.iter().any(|entry| entry == name)
-            || cleanup_error.is_some()
-                && rename_from
-                    .as_ref()
-                    .is_some_and(|source| source != name && !names.contains(source))
-        {
+        if !names.iter().any(|entry| entry == name) {
             return false;
         }
         write.catalog = Some(names);

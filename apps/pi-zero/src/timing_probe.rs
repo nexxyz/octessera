@@ -410,13 +410,10 @@ fn flush_live_deferred(
     runner: &mut LiveProbeRunner,
     host: &mut LiveProbeHost,
 ) -> Result<(), String> {
-    let responses = runner.inner.flush_deferred_menu_apply()?;
+    let responses = runner.inner.poll_deferred_menu_apply_music_first()?;
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, host)?;
         process_live_output(playback, runner, host, output)?;
-    }
-    for follow_up in host.inner.flush_due_default_save()? {
-        send_runtime_message(playback, runner, host, follow_up)?;
     }
     Ok(())
 }

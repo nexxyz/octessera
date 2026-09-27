@@ -113,6 +113,9 @@ impl NativeRunner {
     }
 
     pub(super) fn pending_persistence_effects(&mut self) -> Vec<RuntimePlatformEffect> {
+        if self.pending.external_autosave_deferred {
+            return Vec::new();
+        }
         let restore_blocks_config_writes = self.restore_blocks_config_writes();
         let autosave_pending = self.pending.pending_autosave_payload_due_at.is_some();
         let backup_due = !restore_blocks_config_writes

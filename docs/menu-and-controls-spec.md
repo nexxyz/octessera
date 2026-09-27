@@ -269,7 +269,7 @@ Overrides:
 - Disabled by default
 - Toggling Auto Save on triggers an immediate save when you exit that menu item
 - Explicit Save Default is always immediate and cancels any pending deferred default save
-- Backups are enabled by default. When any persistent config changes, runtime may emit `store_save_backup` at most once every five minutes; hosts keep the latest 20 `bak-{timestamp}.json` files.
+- Backups are enabled by default. The first eligible dirty edit may trigger a backup immediately; later backups are at least five minutes apart. Hosts keep the latest 20 `bak-{timestamp}.json` files.
 - Confirmed shutdown/reboot emits `store_save_recovery`; Pi writes the latest recovery payload synchronously before setting the power request.
 - Loading default, preset, or factory config stops transport, resets position, and sends MIDI panic/equivalent note clearing before applying the loaded config.
 - Presets are portable patch files. New preset saves write patch envelopes under `presets/patches/<name>.json`; loaders still accept legacy `presets/<name>.json` and prefer the patch-directory file when both exist. Loading a preset applies musical patch state only and preserves local device settings such as brightness, MIDI ports/sync, USB, HDMI, recording settings, audio buffer, autosave/backups, and sample favourites. Device/system aux bindings stay local; musical aux bindings travel with the patch. Saved defaults, recovery saves, USB reboot payloads, and backups remain full local snapshots in this phase.
@@ -300,7 +300,7 @@ Overrides:
 - Enum turning is clamped (no wrap)
 - Bool turning is clamped with directional behavior (`-1 => Off`, `+1 => On`)
 - `activeBehavior` and `behaviorConfig.*` updates re-initialize behavior state
-- All aux value changes schedule the deferred auto-save when enabled
+- Aux value changes become autosave-eligible after the native 150 ms edit debounce. Pi autosaves coalesce the latest eligible revision for two seconds, regardless of whether transport is Playing or Stopped; a newer eligible revision restarts that deadline.
 
 ### Stale (Inactive) Binding Detection
 

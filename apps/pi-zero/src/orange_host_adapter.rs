@@ -2,6 +2,8 @@
 mod construction;
 #[path = "orange_host_adapter_keyboard.rs"]
 mod keyboard;
+#[path = "orange_host_adapter_native_persistence.rs"]
+mod native_persistence;
 #[path = "orange_host_adapter_oled.rs"]
 mod oled;
 
@@ -12,24 +14,20 @@ use crate::orange_audio::OrangeAudioHost;
 use crate::orange_device_apply::OrangeShutdownRequest;
 use crate::platform_service::{
     dispatch_midi_effect_messages, dispatch_shared_effect, enqueue_job,
-    usb_sd_transfer_output_block_reason, PiPlatformService, PlatformJob, PlatformJobKind,
+    usb_sd_transfer_output_block_reason, PendingPiPersistence, PiPlatformService, PlatformJobKind,
     QueueFailureStyle,
 };
 use playback_runtime::{
-    DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError,
-    RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
+    HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
+    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
-use std::time::{Duration, Instant};
-
-const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
 
 pub(crate) struct OrangeHostAdapter {
     audio: AudioService,
     audio_host: OrangeAudioHost,
     platform_service: PiPlatformService,
-    pending_default_save: DeferredDefaultSave,
-    pending_default_save_generation: Option<u64>,
+    pending_default_save: PendingPiPersistence,
     midi: MidiHost,
     oled_frame_cache: OledFrameCache,
     shutdown_request: Option<OrangeShutdownRequest>,
@@ -46,16 +44,10 @@ impl OrangeHostAdapter {
     }
 
     pub(crate) fn take_transfer_status(&mut self) -> Option<HostMessage> {
-        if self
-            .pending_default_save_generation
-            .is_some_and(|generation| {
-                generation != self.platform_service.store_write_generation()
-                    || self.platform_service.store_writes_blocked()
-            })
-        {
-            self.pending_default_save.cancel();
-            self.pending_default_save_generation = None;
-        }
+        self.pending_default_save.cancel_if_invalid(
+            self.platform_service.store_write_generation(),
+            self.platform_service.store_writes_blocked(),
+        );
         self.platform_service.take_transfer_status()
     }
 
@@ -118,65 +110,6 @@ impl OrangeHostAdapter {
         self.platform_service.drain_results(max_results)
     }
 
-    pub(crate) fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
-        if self
-            .pending_default_save_generation
-            .is_some_and(|generation| {
-                generation != self.platform_service.store_write_generation()
-                    || self.platform_service.store_writes_blocked()
-            })
-        {
-            self.pending_default_save.cancel();
-            self.pending_default_save_generation = None;
-            return Ok(Vec::new());
-        }
-        let Some(entry) = self.pending_default_save.take_due(Instant::now()) else {
-            return Ok(Vec::new());
-        };
-        let generation = self.pending_default_save_generation.take();
-        let payload = entry.payload;
-        let request = entry.request;
-        let job = match generation {
-            Some(generation) => PlatformJob::with_store_write_generation(
-                request.clone(),
-                PlatformJobKind::SaveDefault {
-                    payload: payload.clone(),
-                    is_auto: Some(true),
-                },
-                generation,
-            ),
-            None => PlatformJob::new(
-                request.clone(),
-                PlatformJobKind::SaveDefault {
-                    payload: payload.clone(),
-                    is_auto: Some(true),
-                },
-            ),
-        };
-        if let Err(message) = self.platform_service.enqueue(job) {
-            if self.platform_service.store_writes_blocked()
-                || generation.is_some_and(|generation| {
-                    generation != self.platform_service.store_write_generation()
-                })
-            {
-                return Ok(Vec::new());
-            }
-            self.pending_default_save.retry(
-                playback_runtime::DeferredDefaultSaveEntry {
-                    payload,
-                    due_at: Instant::now(),
-                    request: request.clone(),
-                },
-                retry_default_save_at(),
-            );
-            self.pending_default_save_generation = generation;
-            return Ok(vec![failure_message(
-                &request,
-                format!("Auto-save queue failed: {message}"),
-            )]);
-        }
-        Ok(Vec::new())
-    }
     fn midi_status(&self, ok: bool, message: Option<String>) -> RuntimeStoreResult {
         RuntimeStoreResult::MidiStatus {
             ok,
@@ -294,14 +227,13 @@ impl HostAdapter for OrangeHostAdapter {
         let result = match &request.effect {
             RuntimePlatformEffect::StoreLoadDefault => {
                 self.pending_default_save.cancel();
-                self.pending_default_save_generation = None;
                 let payload = self
                     .platform_service
                     .load_default_now()
                     .map_err(RuntimeAdapterError::operation_failed)?;
                 RuntimeStoreResult::LoadDefaultResult { payload }
             }
-            RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
+            RuntimePlatformEffect::StoreSaveDefault { payload, .. } => {
                 if let Err(message) =
                     crate::usb_config_validation::validate_pi_audio_outputs_payload(payload)
                 {
@@ -314,18 +246,7 @@ impl HostAdapter for OrangeHostAdapter {
                             .into(),
                     )]);
                 }
-                if mode.as_deref() == Some("deferred") {
-                    self.pending_default_save.schedule(
-                        payload.clone(),
-                        deferred_default_save_due_at(),
-                        request.clone(),
-                    );
-                    self.pending_default_save_generation =
-                        Some(self.platform_service.store_write_generation());
-                    return Ok(Vec::new());
-                }
                 self.pending_default_save.cancel();
-                self.pending_default_save_generation = None;
                 return Ok(enqueue_job(
                     &self.platform_service,
                     request,
@@ -353,7 +274,6 @@ impl HostAdapter for OrangeHostAdapter {
             }
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 self.pending_default_save.cancel();
-                self.pending_default_save_generation = None;
                 let recording_result = self.stop_recording_for_transition(request)?;
                 let transaction = self
                     .platform_service
@@ -461,14 +381,6 @@ impl RuntimeOutputSink for OrangeHostAdapter {
     ) -> Result<(), String> {
         crate::orange_candidate::process_runtime_output(playback, runner, self, output)
     }
-}
-
-fn deferred_default_save_due_at() -> Instant {
-    Instant::now() + Duration::from_millis(DEFERRED_DEFAULT_SAVE_MS)
-}
-
-fn retry_default_save_at() -> Instant {
-    Instant::now() + Duration::from_secs(1)
 }
 
 fn failure_message(request: &RuntimePlatformRequest, message: String) -> HostMessage {

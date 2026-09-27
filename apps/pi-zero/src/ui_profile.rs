@@ -1,5 +1,3 @@
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use playback_runtime::{RunnerMessage, RuntimePlatformEffect};
 use std::time::{Duration, Instant};
 
 const REPORT_INTERVAL: Duration = Duration::from_secs(5);
@@ -42,10 +40,6 @@ pub struct UiProfiler {
     host_input: DurationStats,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     scene_capture: DurationStats,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    save_payload: DurationStats,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    save_payload_total: u64,
 }
 
 impl UiProfiler {
@@ -80,10 +74,6 @@ impl UiProfiler {
             host_input: DurationStats::default(),
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             scene_capture: DurationStats::default(),
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            save_payload: DurationStats::default(),
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            save_payload_total: 0,
         }
     }
 
@@ -118,30 +108,6 @@ impl UiProfiler {
         }
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    pub fn record_save_payload(&mut self, duration: Duration, messages: &[RunnerMessage]) {
-        if self.enabled
-            && messages.iter().any(|message| match message {
-                RunnerMessage::PlatformEffects { effects } => effects.iter().any(|effect| {
-                    matches!(
-                        effect,
-                        RuntimePlatformEffect::StoreSaveDefault { .. }
-                            | RuntimePlatformEffect::StoreSaveBackup { .. }
-                    )
-                }),
-                _ => false,
-            })
-        {
-            self.save_payload.record(duration);
-            self.save_payload_total = self.save_payload_total.saturating_add(1);
-        }
-    }
-
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    pub(crate) fn save_payload_count(&self) -> u64 {
-        self.save_payload_total
-    }
-
     #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn scene_capture_count_for_test(&self) -> u64 {
         self.scene_capture.count
@@ -153,14 +119,13 @@ impl UiProfiler {
         }
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         eprintln!(
-            "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} host_input={} scene_capture={} save_payload={}",
+            "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} host_input={} scene_capture={}",
             self.loop_iteration.summary(),
             self.loop_gap.summary(),
             self.runtime_late.summary(),
             self.runtime_advance.summary(),
             self.host_input.summary(),
             self.scene_capture.summary(),
-            self.save_payload.summary(),
         );
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         eprintln!(
@@ -171,13 +136,7 @@ impl UiProfiler {
             self.runtime_advance.summary(),
             self.host_input.summary(),
         );
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let save_payload_total = self.save_payload_total;
         *self = Self::new(true);
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        {
-            self.save_payload_total = save_payload_total;
-        }
     }
 }
 
@@ -186,12 +145,6 @@ mod tests {
     use super::UiProfiler;
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     use super::REPORT_INTERVAL;
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    use playback_runtime::{NativeRunner, NativeRunnerConfig};
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    use playback_runtime::{RunnerMessage, RuntimePlatformEffect};
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    use serde_json::json;
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     use std::time::{Duration, Instant};
 
@@ -212,31 +165,7 @@ mod tests {
         let mut profiler = UiProfiler::from_controls(Some("1"), false);
         profiler.record_scene_capture(Duration::from_micros(10));
         profiler.record_scene_capture(Duration::from_micros(20));
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        let no_due_save = runner.flush_due_persistence_music_first().unwrap();
-        assert!(no_due_save.is_empty());
-        profiler.record_save_payload(Duration::from_micros(50), &no_due_save);
-        assert_eq!(profiler.save_payload.summary(), "n=0");
-        profiler.record_save_payload(
-            Duration::from_micros(5),
-            &[RunnerMessage::PlatformEffects {
-                effects: vec![RuntimePlatformEffect::StoreSaveDefault {
-                    payload: json!({"one": 1}),
-                    mode: Some("deferred".into()),
-                }],
-            }],
-        );
-        profiler.record_save_payload(
-            Duration::from_micros(9),
-            &[RunnerMessage::PlatformEffects {
-                effects: vec![RuntimePlatformEffect::StoreSaveBackup {
-                    payload: json!({"two": 2}),
-                }],
-            }],
-        );
-
         assert_eq!(profiler.scene_capture.summary(), "n=2 avg=15us max=20us");
-        assert_eq!(profiler.save_payload.summary(), "n=2 avg=7us max=9us");
 
         profiler.last_report = Instant::now()
             .checked_sub(REPORT_INTERVAL)
@@ -244,8 +173,6 @@ mod tests {
         profiler.maybe_report();
 
         assert_eq!(profiler.scene_capture.summary(), "n=0");
-        assert_eq!(profiler.save_payload.summary(), "n=0");
-        assert_eq!(profiler.save_payload_count(), 2);
     }
 
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -253,18 +180,7 @@ mod tests {
     fn disabled_profile_keeps_stage_statistics_empty() {
         let mut profiler = UiProfiler::from_controls(Some("0"), false);
         profiler.record_scene_capture(Duration::from_micros(10));
-        profiler.record_save_payload(
-            Duration::from_micros(10),
-            &[RunnerMessage::PlatformEffects {
-                effects: vec![RuntimePlatformEffect::StoreSaveDefault {
-                    payload: json!({}),
-                    mode: None,
-                }],
-            }],
-        );
 
         assert_eq!(profiler.scene_capture.summary(), "n=0");
-        assert_eq!(profiler.save_payload.summary(), "n=0");
-        assert_eq!(profiler.save_payload_count(), 0);
     }
 }

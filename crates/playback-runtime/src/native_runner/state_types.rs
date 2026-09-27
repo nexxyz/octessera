@@ -36,6 +36,7 @@ pub(super) struct NativePendingState {
     pub(super) pending_menu_apply: Option<PendingMenuApply>,
     pub(super) suppress_snapshot_response: bool,
     pub(super) presentation_deferred: bool,
+    pub(super) external_autosave_deferred: bool,
     pub(super) drum_hits: Vec<crate::protocol::DrumHit>,
 }
 

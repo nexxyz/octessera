@@ -12,6 +12,9 @@ use std::sync::{Mutex, MutexGuard};
 
 static ENVIRONMENT_LOCK: Mutex<()> = Mutex::new(());
 
+#[path = "orange_native_autosave_tests.rs"]
+mod native_autosave_tests;
+
 struct EnvironmentRestore {
     previous: Vec<(&'static str, Option<OsString>)>,
     _lock: MutexGuard<'static, ()>,
@@ -129,7 +132,7 @@ fn prepare_timing(fixture: &mut RuntimeFixture) -> Result<Option<OrangeTimingInp
 fn timing_tick(
     fixture: &mut RuntimeFixture,
     timing: &mut OrangeTimingInput,
-    profiler: &crate::ui_profile::UiProfiler,
+    _profiler: &crate::ui_profile::UiProfiler,
     at: Instant,
 ) -> bool {
     let revision = fixture.playback.last_snapshot_revision();
@@ -140,12 +143,22 @@ fn timing_tick(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,
-            profiler,
         )
         .unwrap();
     assert!(timing.aux_turns.saturating_sub(previous_turns) <= 1);
     assert_eq!(fixture.playback.last_snapshot_revision(), revision);
     finished
+}
+
+fn identified_auto_save(revision: u64, ok: bool) -> RuntimeStoreResult {
+    RuntimeStoreResult::Identified {
+        result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+            ok,
+            is_auto: Some(true),
+        }),
+        request_id: format!("native-default-{revision}"),
+        revision: Some(revision),
+    }
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -233,7 +246,7 @@ fn autoaux_command_profile_ignores_runner_commands_rejected_by_host() {
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
-fn autoaux_timing_ticks_are_bounded_and_the_due_save_payload_is_measured() {
+fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
     let _environment = valid_environment(Some(
         "/var/lib/octessera/study-stores/octessera-study-fedcba9876543210fedcba9876543210.service",
     ));
@@ -291,7 +304,6 @@ fn autoaux_timing_ticks_are_bounded_and_the_due_save_payload_is_measured() {
     assert!(timing.missed_turns > 0);
 
     std::thread::sleep(Duration::from_millis(160));
-    let before_post_burst_save = profiler.save_payload_count();
     super::super::host_work::drain_host_work(
         &mut fixture.playback,
         &mut fixture.runner,
@@ -299,68 +311,96 @@ fn autoaux_timing_ticks_are_bounded_and_the_due_save_payload_is_measured() {
         &mut profiler,
     )
     .unwrap();
-    assert_eq!(profiler.save_payload_count(), before_post_burst_save + 1);
-    assert!(timing_tick(
+    assert!(!timing_tick(
         &mut fixture,
         &mut timing,
         &profiler,
-        rapid_start + RAPID + TAIL
+        rapid_start + RAPID + Duration::from_secs(1)
+    ));
+    assert!(timing.final_revision.is_some());
+    assert!(timing.save_completion.is_none());
+    let _ = std::fs::remove_dir_all(fixture.root);
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[test]
+fn autoaux_accepts_only_automatic_success_for_the_final_revision() {
+    let _environment = valid_environment(Some(
+        "/var/lib/octessera/study-stores/octessera-study-fedcba9876543210fedcba9876543210.service",
+    ));
+    let mut fixture = runtime_fixture(true);
+    let mut timing = prepare_timing(&mut fixture).unwrap().unwrap();
+    let started = Instant::now() - Duration::from_secs(3);
+    timing.phase = Phase::AwaitSave { started };
+    timing.final_revision = Some(91);
+    let wrong = identified_auto_save(90, true);
+    timing.accept_store_result(&wrong, Instant::now()).unwrap();
+    let manual = RuntimeStoreResult::Identified {
+        result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+            ok: true,
+            is_auto: None,
+        }),
+        request_id: "manual".into(),
+        revision: Some(91),
+    };
+    timing.accept_store_result(&manual, Instant::now()).unwrap();
+    let unidentified = RuntimeStoreResult::SaveDefaultResult {
+        ok: true,
+        is_auto: Some(true),
+    };
+    timing
+        .accept_store_result(&unidentified, Instant::now())
+        .unwrap();
+    assert!(timing.save_completion.is_none());
+
+    let success = identified_auto_save(91, true);
+    timing
+        .accept_store_result(&success, Instant::now())
+        .unwrap();
+    assert_eq!(
+        timing
+            .save_completion
+            .as_ref()
+            .map(|completion| completion.0.as_str()),
+        Some("native-default-91")
+    );
+    assert!(timing.save_completion.as_ref().unwrap().1 >= Duration::from_secs(3));
+    assert!(timing_tick(
+        &mut fixture,
+        &mut timing,
+        &crate::ui_profile::UiProfiler::from_controls(None, false),
+        Instant::now(),
     ));
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
-fn post_burst_save_requirement_rejects_a_preflight_only_payload() {
+fn autoaux_matching_failure_and_completion_timeout_are_errors() {
     let _environment = valid_environment(Some(
-        "/var/lib/octessera/study-stores/octessera-study-abcdef0123456789abcdef0123456789.service",
+        "/var/lib/octessera/study-stores/octessera-study-fedcba9876543210fedcba9876543210.service",
     ));
     let mut fixture = runtime_fixture(true);
     let mut timing = prepare_timing(&mut fixture).unwrap().unwrap();
-    let mut profiler = crate::ui_profile::UiProfiler::from_controls(Some("1"), false);
-    std::thread::sleep(Duration::from_millis(160));
-    super::super::host_work::drain_host_work(
-        &mut fixture.playback,
-        &mut fixture.runner,
-        &mut fixture.host,
-        &mut profiler,
-    )
-    .unwrap();
-    assert_eq!(profiler.save_payload_count(), 1);
-    let start = Instant::now();
-    assert!(!timing_tick(
-        &mut fixture,
-        &mut timing,
-        &profiler,
-        start + BASELINE
-    ));
-    assert!(!timing_tick(
-        &mut fixture,
-        &mut timing,
-        &profiler,
-        start + BASELINE + PLATEAU
-    ));
-    assert!(!timing_tick(
-        &mut fixture,
-        &mut timing,
-        &profiler,
-        start + BASELINE + PLATEAU + PLATEAU
-    ));
-    assert!(!timing_tick(
-        &mut fixture,
-        &mut timing,
-        &profiler,
-        start + BASELINE + PLATEAU + PLATEAU + RAPID
-    ));
+    let started = Instant::now();
+    timing.phase = Phase::AwaitSave { started };
+    timing.final_revision = Some(92);
+    let failure = identified_auto_save(92, false);
+    assert!(timing
+        .accept_store_result(&failure, started + Duration::from_secs(3))
+        .is_err());
+    assert!(timing.save_completion.is_none());
+
+    timing.phase = Phase::AwaitSave { started };
     assert!(timing
         .tick(
-            start + BASELINE + PLATEAU + PLATEAU + RAPID + TAIL,
+            started + SAVE_COMPLETION_TIMEOUT,
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,
-            &profiler,
         )
         .is_err());
+    assert!(timing.save_completion.is_none());
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 

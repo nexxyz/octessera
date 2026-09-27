@@ -5,6 +5,7 @@ use playback_runtime::{
     HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimePlatformEffect,
 };
 use serde_json::Value;
+use std::time::Instant;
 
 const PLATFORM_RESULT_BUDGET: usize = 4;
 
@@ -16,6 +17,10 @@ pub fn dispatch_runtime_message(
 ) -> Result<(), String> {
     let output = playback.dispatch_host_message_music_first(host_message, runner, adapter)?;
     process_runtime_output(playback, runner, adapter, output)?;
+    if let Some(message) = adapter.take_manual_save(playback, runner) {
+        let output = playback.dispatch_host_message_music_first(message, runner, adapter)?;
+        process_runtime_output(playback, runner, adapter, output)?;
+    }
     Ok(())
 }
 
@@ -77,14 +82,7 @@ pub fn handle_deferred_host_work(
     if adapter.shutdown_pending() {
         return Ok(());
     }
-    let playing = playback
-        .last_status()
-        .is_some_and(|status| status.transport == playback_runtime::RuntimeTransportState::Playing);
-    let responses = if playing {
-        Vec::new()
-    } else {
-        runner.flush_deferred_menu_apply()?
-    };
+    let responses = runner.poll_deferred_menu_apply_music_first()?;
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, adapter)?;
         process_runtime_output(playback, runner, adapter, output)?;
@@ -92,21 +90,10 @@ pub fn handle_deferred_host_work(
     if adapter.shutdown_pending() {
         return Ok(());
     }
-    if playing {
-        let persistence = runner.flush_due_persistence_music_first()?;
-        if !persistence.is_empty() {
-            let output = playback.dispatch_runner_messages(persistence, runner, adapter)?;
-            process_runtime_output(playback, runner, adapter, output)?;
-        }
+    for result in adapter.flush_native_persistence_at(playback, runner, Instant::now()) {
+        dispatch_runtime_message(playback, runner, adapter, result)?;
     }
-    let follow_ups = adapter.flush_due_default_save()?;
-    for follow_up in follow_ups {
-        if adapter.shutdown_pending() {
-            break;
-        }
-        dispatch_runtime_message(playback, runner, adapter, follow_up)?;
-    }
-    for result in adapter.drain_platform_results(PLATFORM_RESULT_BUDGET) {
+    for result in adapter.drain_platform_results_for_runner(runner, PLATFORM_RESULT_BUDGET) {
         if adapter.shutdown_pending() {
             break;
         }
@@ -137,6 +124,10 @@ pub fn initialize_host_state(
 pub fn latest_snapshot(playback: &PlaybackRuntime) -> Option<&Value> {
     playback.last_snapshot()
 }
+
+#[cfg(test)]
+#[path = "runtime_loop_native_autosave_tests.rs"]
+mod native_autosave_tests;
 
 #[cfg(test)]
 fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(

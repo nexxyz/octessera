@@ -252,9 +252,7 @@ impl NativeRunner {
     }
 
     fn queue_music_first_manual_save(&mut self, action: &str) -> bool {
-        if self.transport.transport != RuntimeTransportState::Playing
-            || !self.pending.presentation_deferred
-        {
+        if !self.pending.external_autosave_deferred {
             return false;
         }
         if action == "preset.saveCurrent" && self.current_preset_name.is_none() {

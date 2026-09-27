@@ -53,4 +53,8 @@ impl NativeRunner {
             backup_eligible,
         })
     }
+
+    pub fn mark_native_backup_issued_at(&mut self, issued_at: Instant) {
+        self.last_backup_save_at = Some(issued_at);
+    }
 }

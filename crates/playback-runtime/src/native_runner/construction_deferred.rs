@@ -9,6 +9,17 @@ impl NativeRunner {
         Ok(messages)
     }
 
+    pub fn poll_deferred_menu_apply_music_first(
+        &mut self,
+    ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
+        self.pending.external_autosave_deferred = true;
+        let result = self.flush_deferred_menu_apply_music_first(Instant::now());
+        self.pending.external_autosave_deferred = false;
+        let mut messages = result?;
+        self.append_runtime_config_if_changed(&mut messages);
+        Ok(messages)
+    }
+
     pub(super) fn schedule_deferred_menu_apply(&mut self, key: &str) {
         self.pending.pending_menu_apply = Some(PendingMenuApply {
             due_at: Instant::now() + Duration::from_millis(DEFERRED_MENU_APPLY_MS),
@@ -54,7 +65,7 @@ impl NativeRunner {
         if !menu_due && !autosave_due {
             return Ok(Vec::new());
         }
-        if autosave_due {
+        if autosave_due && !self.pending.external_autosave_deferred {
             self.pending.pending_autosave_payload_due_at = None;
         }
         self.messages_with_snapshot()

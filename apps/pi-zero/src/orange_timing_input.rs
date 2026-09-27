@@ -2,14 +2,16 @@ use super::dispatch;
 use super::timing_menu;
 use crate::input::{encoder_turn_message, neokey_message};
 use crate::orange_host_adapter::OrangeHostAdapter;
-use playback_runtime::{NativeRunner, PlaybackRuntime, RuntimeTransportState};
+use playback_runtime::{
+    NativeRunner, PlaybackRuntime, RuntimeOperation, RuntimeStoreResult, RuntimeTransportState,
+};
 use std::time::{Duration, Instant};
 
 const AUTOAUX_ENV: &str = "OCTESSERA_TIMING_AUTOAUX";
 const BASELINE: Duration = Duration::from_secs(5);
 const PLATEAU: Duration = Duration::from_millis(500);
 const RAPID: Duration = Duration::from_secs(3);
-const TAIL: Duration = Duration::from_secs(1);
+const SAVE_COMPLETION_TIMEOUT: Duration = Duration::from_secs(18);
 const TURN_INTERVAL: Duration = Duration::from_millis(16);
 
 pub(super) struct OrangeTimingInput {
@@ -19,7 +21,8 @@ pub(super) struct OrangeTimingInput {
     aux_turns: u32,
     rapid_turns: u32,
     missed_turns: u32,
-    tail_save_payload_checkpoint: Option<u64>,
+    final_revision: Option<u64>,
+    save_completion: Option<(String, Duration)>,
 }
 
 #[derive(Clone, Copy)]
@@ -38,7 +41,7 @@ enum Phase {
         next_turn: Instant,
         delta: i8,
     },
-    Tail {
+    AwaitSave {
         started: Instant,
     },
     Done,
@@ -128,7 +131,8 @@ impl OrangeTimingInput {
             aux_turns: 0,
             rapid_turns: 0,
             missed_turns: 0,
-            tail_save_payload_checkpoint: None,
+            final_revision: None,
+            save_completion: None,
         }))
     }
 
@@ -140,9 +144,11 @@ impl OrangeTimingInput {
         &self,
         accepted_rows: [(u64, u16); 2],
         audio: crate::orange_audio::AutoAuxCommandEvidence,
+        request_id: &str,
+        save_elapsed: Duration,
     ) {
         eprintln!(
-            "orange-autoaux cutoff_start={} oled_cutoff_a={} rev_a={} oled_cutoff_b={} rev_b={} synth_cutoff_successes={} synth_cutoff_a={} synth_cutoff_b={} aux_turns={} rapid_turns={} missed_turns={}",
+            "orange-autoaux cutoff_start={} oled_cutoff_a={} rev_a={} oled_cutoff_b={} rev_b={} synth_cutoff_successes={} synth_cutoff_a={} synth_cutoff_b={} save_revision={} save_request={} save_elapsed_ms={} aux_turns={} rapid_turns={} missed_turns={}",
             self.starting_cutoff,
             accepted_rows[0].1,
             accepted_rows[0].0,
@@ -151,6 +157,9 @@ impl OrangeTimingInput {
             audio.successful_count,
             audio.distinct_values[0].unwrap_or_default(),
             audio.distinct_values[1].unwrap_or_default(),
+            self.final_revision.unwrap_or_default(),
+            request_id,
+            save_elapsed.as_millis(),
             self.aux_turns,
             self.rapid_turns,
             self.missed_turns,
@@ -163,7 +172,6 @@ impl OrangeTimingInput {
         playback: &mut PlaybackRuntime,
         runner: &mut NativeRunner,
         host: &mut OrangeHostAdapter,
-        profiler: &crate::ui_profile::UiProfiler,
     ) -> Result<bool, String> {
         if !playback
             .last_status()
@@ -194,8 +202,7 @@ impl OrangeTimingInput {
             Phase::Rapid { started, .. } if now.duration_since(started) >= RAPID => {
                 let expected = (RAPID.as_millis() / TURN_INTERVAL.as_millis()) as u32;
                 self.missed_turns = expected.saturating_sub(self.rapid_turns);
-                self.tail_save_payload_checkpoint = Some(profiler.save_payload_count());
-                self.phase = Phase::Tail { started: now };
+                self.phase = Phase::AwaitSave { started: now };
             }
             Phase::Rapid {
                 started,
@@ -210,23 +217,75 @@ impl OrangeTimingInput {
                     delta: -delta,
                 };
             }
-            Phase::Tail { started } if now.duration_since(started) >= TAIL => {
-                let checkpoint = self
-                    .tail_save_payload_checkpoint
-                    .ok_or("Orange Aux timing smoke tail checkpoint is missing")?;
-                if profiler.save_payload_count() <= checkpoint {
-                    return Err(
-                        "Orange Aux timing smoke did not generate a post-burst config payload"
-                            .into(),
-                    );
+            Phase::AwaitSave { started } => {
+                if self.final_revision.is_none() {
+                    self.final_revision = runner
+                        .persistence_intent_at(now)
+                        .filter(|intent| intent.default_eligible())
+                        .map(|intent| intent.revision());
                 }
-                self.phase = Phase::Done;
-                return Ok(true);
+                if let Some((_, elapsed)) = self.save_completion {
+                    if elapsed <= now.duration_since(started) {
+                        self.phase = Phase::Done;
+                        return Ok(true);
+                    }
+                }
+                if now.duration_since(started) >= SAVE_COMPLETION_TIMEOUT {
+                    return Err("Orange Aux timing smoke timed out waiting for the final automatic default save completion".into());
+                }
             }
             Phase::Done => return Ok(false),
             _ => {}
         }
         Ok(false)
+    }
+
+    pub(super) fn accept_store_result(
+        &mut self,
+        result: &RuntimeStoreResult,
+        accepted_at: Instant,
+    ) -> Result<(), String> {
+        let Some(expected_revision) = self.final_revision else {
+            return Ok(());
+        };
+        let RuntimeStoreResult::Identified {
+            result,
+            request_id,
+            revision: Some(revision),
+        } = result
+        else {
+            return Ok(());
+        };
+        if request_id.is_empty() || *revision != expected_revision {
+            return Ok(());
+        }
+        match result.as_ref() {
+            RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: Some(true),
+            } => {
+                let Phase::AwaitSave { started } = self.phase else {
+                    return Ok(());
+                };
+                self.save_completion = Some((
+                    request_id.clone(),
+                    accepted_at.saturating_duration_since(started),
+                ));
+                Ok(())
+            }
+            RuntimeStoreResult::SaveDefaultResult {
+                ok: false,
+                is_auto: Some(true),
+            }
+            | RuntimeStoreResult::RuntimeFailure { .. }
+                if result.operation() == RuntimeOperation::StoreSaveDefault =>
+            {
+                Err(format!(
+                    "Orange Aux timing smoke final automatic default save failed for revision {expected_revision} ({request_id})"
+                ))
+            }
+            _ => Ok(()),
+        }
     }
 
     fn send_aux(
@@ -269,12 +328,15 @@ pub(super) fn tick_if_active(
     runner: &mut NativeRunner,
     host: &mut OrangeHostAdapter,
     scenes: &super::super::native_scene::OrangeNativeScenePump,
-    profiler: &crate::ui_profile::UiProfiler,
 ) -> Result<(), String> {
     let Some(timing) = timing.as_mut() else {
         return Ok(());
     };
-    if timing.tick(Instant::now(), playback, runner, host, profiler)? {
+    if timing.tick(Instant::now(), playback, runner, host)? {
+        let (request_id, elapsed) = timing
+            .save_completion
+            .as_ref()
+            .ok_or("Orange Aux timing smoke completed without a native save proof")?;
         let rows = scenes
             .timing_cutoff_acceptances()
             .ok_or("Orange Aux timing smoke did not physically publish both Cutoff plateaus")?;
@@ -297,7 +359,7 @@ pub(super) fn tick_if_active(
                     .into(),
             );
         }
-        timing.report(rows, audio);
+        timing.report(rows, audio, request_id, *elapsed);
     }
     Ok(())
 }
