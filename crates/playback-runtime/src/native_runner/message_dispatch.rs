@@ -8,7 +8,7 @@ impl NativeRunner {
         let deferred_persistence_result = !self.restart_settings.is_saving()
             && !self.restart_settings.has_restart_after_pending_write()
             && matches!(&message, HostMessage::RuntimeResult { result }
-                if is_successful_default_or_backup_result(self, result));
+                if is_successful_manual_save_result(self, result));
         let supported_music_input = matches!(
             &message,
             HostMessage::TransportPulseStep { .. }
@@ -72,10 +72,7 @@ impl NativeRunner {
     }
 }
 
-fn is_successful_default_or_backup_result(
-    runner: &NativeRunner,
-    result: &RuntimeStoreResult,
-) -> bool {
+fn is_successful_manual_save_result(runner: &NativeRunner, result: &RuntimeStoreResult) -> bool {
     let RuntimeStoreResult::Identified {
         result,
         request_id,
@@ -88,6 +85,9 @@ fn is_successful_default_or_backup_result(
         RuntimeStoreResult::SaveDefaultResult { ok: true, .. } => runner
             .restart_settings
             .native_write_matches(request_id, *revision),
+        RuntimeStoreResult::SavePresetResult { name, .. } => {
+            runner.native_preset_write_matches(request_id, *revision, name)
+        }
         RuntimeStoreResult::SaveBackupResult { ok: true } => true,
         _ => false,
     }

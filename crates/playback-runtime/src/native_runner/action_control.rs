@@ -4,8 +4,8 @@ use crate::protocol::RuntimePlatformEffect;
 use super::play_fx_config::play_fx_type;
 use super::{
     derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
-    NativeAuxBinding, NativeInstrumentSlot, NativeRunner, NativeToast, RuntimeTransportState,
-    Value, GRID_HEIGHT,
+    NativeAuxBinding, NativeInstrumentSlot, NativeManualSaveRequest, NativeRunner, NativeToast,
+    RuntimeTransportState, Value, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -155,7 +155,9 @@ impl NativeRunner {
                 Ok(None)
             }
             NativeMenuAction::PlatformEffect(action_type) => {
-                if action_type.starts_with("restart.") {
+                if self.queue_music_first_manual_save(&action_type) {
+                    Ok(None)
+                } else if action_type.starts_with("restart.") {
                     self.execute_restart_action(&action_type)
                 } else if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
                     self.preset_rename_source = Some(name.into());
@@ -247,6 +249,58 @@ impl NativeRunner {
                 Ok(None)
             }
         }
+    }
+
+    fn queue_music_first_manual_save(&mut self, action: &str) -> bool {
+        if self.transport.transport != RuntimeTransportState::Playing
+            || !self.pending.presentation_deferred
+        {
+            return false;
+        }
+        if action == "preset.saveCurrent" && self.current_preset_name.is_none() {
+            self.show_toast("No preset loaded");
+            return true;
+        }
+        let request = match action {
+            "default.save" => {
+                if self.restart_settings.has_pending_write() {
+                    self.show_toast("Save in progress");
+                    return true;
+                }
+                NativeManualSaveRequest::Default
+            }
+            "preset.saveAs" | "preset.renameApply" | "preset.saveCurrent" => {
+                if self.pending.manual_save_request.is_some()
+                    || self.pending.native_preset_write.is_some()
+                {
+                    self.show_toast("Save in progress");
+                    return true;
+                }
+                let name = if action == "preset.saveCurrent" {
+                    self.current_preset_name
+                        .clone()
+                        .expect("checked current preset")
+                } else {
+                    crate::clean_preset_name(&self.preset_draft_name)
+                };
+                NativeManualSaveRequest::Preset {
+                    name,
+                    mode: (action == "preset.saveCurrent").then(|| "overwrite".into()),
+                    rename_from: if action == "preset.renameApply" {
+                        self.preset_rename_source.clone()
+                    } else {
+                        None
+                    },
+                }
+            }
+            _ => return false,
+        };
+        if self.pending.manual_save_request.is_some() {
+            self.show_toast("Save in progress");
+            return true;
+        }
+        self.pending.manual_save_request = Some(request);
+        true
     }
 
     pub(super) fn start_power_action(

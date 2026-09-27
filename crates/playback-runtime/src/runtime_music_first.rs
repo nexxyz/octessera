@@ -30,9 +30,14 @@ impl PlaybackRuntime {
         revision: u64,
     ) -> NativeStoreRequest {
         self.next_request_id = self.next_request_id.saturating_add(1);
+        let request_id = if operation == RuntimeOperation::StoreSavePreset {
+            format!("native-preset-{}", self.next_request_id)
+        } else {
+            format!("platform-{}", self.next_request_id)
+        };
         NativeStoreRequest {
             operation,
-            request_id: format!("platform-{}", self.next_request_id),
+            request_id,
             revision,
         }
     }
@@ -94,15 +99,19 @@ mod tests {
     fn native_store_request_metadata_shares_the_platform_request_id_sequence() {
         let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
         let native = runtime.next_native_store_request(RuntimeOperation::StoreSaveDefault, 7);
+        let preset = runtime.next_native_store_request(RuntimeOperation::StoreSavePreset, 8);
         let regular = runtime.next_platform_request(RuntimePlatformEffect::StoreSaveBackup {
-            payload: json!({ "revision": 8 }),
+            payload: json!({ "revision": 9 }),
         });
 
         assert_eq!(native.operation(), &RuntimeOperation::StoreSaveDefault);
         assert_eq!(native.revision(), 7);
         assert_eq!(native.request_id(), "platform-1");
-        assert_eq!(regular.request_id, "platform-2");
-        assert_eq!(regular.revision, Some(8));
+        assert_eq!(preset.operation(), &RuntimeOperation::StoreSavePreset);
+        assert_eq!(preset.revision(), 8);
+        assert_eq!(preset.request_id(), "native-preset-2");
+        assert_eq!(regular.request_id, "platform-3");
+        assert_eq!(regular.revision, Some(9));
     }
 
     #[derive(Default)]

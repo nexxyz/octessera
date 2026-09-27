@@ -128,6 +128,8 @@ mod menu_value_apply;
 mod message_dispatch;
 mod modulation;
 #[cfg(test)]
+mod music_first_manual_save_tests;
+#[cfg(test)]
 mod music_first_persistence_tests;
 #[cfg(test)]
 mod music_first_tests;
@@ -174,6 +176,7 @@ mod play_fx_presentation;
 mod play_transpose;
 mod play_trigger_gate;
 mod portable_patch_validation;
+mod preset_native_completion;
 mod restart_settings;
 mod restart_settings_runtime;
 mod runner_config;
@@ -228,6 +231,16 @@ pub use snapshot_scene::{
     NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation, PresentationScene,
 };
 pub use usb_data_role::UsbDataRole;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum NativeManualSaveRequest {
+    Default,
+    Preset {
+        name: String,
+        mode: Option<String>,
+        rename_from: Option<String>,
+    },
+}
 
 use binding_payload::*;
 use binding_specs::*;
