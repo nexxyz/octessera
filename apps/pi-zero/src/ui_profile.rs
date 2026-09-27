@@ -44,6 +44,8 @@ pub struct UiProfiler {
     scene_capture: DurationStats,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     save_payload: DurationStats,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    save_payload_total: u64,
 }
 
 impl UiProfiler {
@@ -80,6 +82,8 @@ impl UiProfiler {
             scene_capture: DurationStats::default(),
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             save_payload: DurationStats::default(),
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            save_payload_total: 0,
         }
     }
 
@@ -129,7 +133,13 @@ impl UiProfiler {
             })
         {
             self.save_payload.record(duration);
+            self.save_payload_total = self.save_payload_total.saturating_add(1);
         }
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(crate) fn save_payload_count(&self) -> u64 {
+        self.save_payload_total
     }
 
     #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
@@ -161,7 +171,13 @@ impl UiProfiler {
             self.runtime_advance.summary(),
             self.host_input.summary(),
         );
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let save_payload_total = self.save_payload_total;
         *self = Self::new(true);
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        {
+            self.save_payload_total = save_payload_total;
+        }
     }
 }
 
@@ -229,6 +245,7 @@ mod tests {
 
         assert_eq!(profiler.scene_capture.summary(), "n=0");
         assert_eq!(profiler.save_payload.summary(), "n=0");
+        assert_eq!(profiler.save_payload_count(), 2);
     }
 
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -248,5 +265,6 @@ mod tests {
 
         assert_eq!(profiler.scene_capture.summary(), "n=0");
         assert_eq!(profiler.save_payload.summary(), "n=0");
+        assert_eq!(profiler.save_payload_count(), 0);
     }
 }

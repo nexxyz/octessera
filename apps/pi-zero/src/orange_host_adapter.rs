@@ -63,6 +63,16 @@ impl OrangeHostAdapter {
         self.audio.clone()
     }
 
+    pub(crate) fn begin_autoaux_command_evidence(&mut self) {
+        self.audio_host.begin_autoaux_command_evidence();
+    }
+
+    pub(crate) fn take_autoaux_command_evidence(
+        &mut self,
+    ) -> Option<crate::orange_audio::AutoAuxCommandEvidence> {
+        self.audio_host.take_autoaux_command_evidence()
+    }
+
     pub(crate) fn shutdown_pending(&self) -> bool {
         self.shutdown_request.is_some()
     }

@@ -196,6 +196,35 @@ Active runs use `-AllowServiceInterruption`; the live matrix additionally uses
 ./tools/orange-pi/test-run-orange-performance-baseline.ps1
 ```
 
+For an isolated Orange AWAKE live candidate, the workstation-only Aux timing
+smoke is separately opt-in. It runs a short, bounded cutoff-edit pattern after
+the native menu and host path are verified, while the existing AWAKE wrapper
+uses a temporary study store clone:
+
+```powershell
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+$previousAutoAux = $env:OCTESSERA_ORANGE_STUDY_AUTOAUX
+$env:OCTESSERA_ORANGE_STUDY_AUTOAUX = "1"
+try {
+  ./tools/orange-pi/run-orange-capability-study.ps1 `
+    -Target $OrangeTarget -Mode LiveCandidate -UiProfile -AutoPlay -KeepAwake `
+    -AllowServiceInterruption -LiveSeconds 30
+} finally {
+  if ($null -eq $previousAutoAux) {
+    Remove-Item Env:OCTESSERA_ORANGE_STUDY_AUTOAUX -ErrorAction SilentlyContinue
+  } else {
+    $env:OCTESSERA_ORANGE_STUDY_AUTOAUX = $previousAutoAux
+  }
+}
+```
+
+Without the workstation opt-in, `-KeepAwake` does not schedule Aux turns. The
+candidate refuses the timing sequence unless all its timing/profile gates and
+the isolated study-store path are present; it never rewrites the installed
+user store. If Auto Save is off, the candidate enables it through the native
+Saves menu in the temporary clone so a post-burst payload has a due save to
+measure; the installed default and original user store remain untouched.
+
 ## Orange Pi USB gadget composer
 
 `orange-pi-usb-gadget.sh` is the Armbian ConfigFS composer. It reads
