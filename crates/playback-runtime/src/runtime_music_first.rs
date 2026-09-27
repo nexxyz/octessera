@@ -1,6 +1,42 @@
-use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeIngest};
+use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeIngest, RuntimeOperation};
 use crate::{HostMessage, NativeRunner, RunnerMessage, RuntimePlatformRequest};
 use std::time::Duration;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeStoreRequest {
+    operation: RuntimeOperation,
+    request_id: String,
+    revision: u64,
+}
+
+impl NativeStoreRequest {
+    pub fn operation(&self) -> &RuntimeOperation {
+        &self.operation
+    }
+
+    pub fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+}
+
+impl PlaybackRuntime {
+    pub fn next_native_store_request(
+        &mut self,
+        operation: RuntimeOperation,
+        revision: u64,
+    ) -> NativeStoreRequest {
+        self.next_request_id = self.next_request_id.saturating_add(1);
+        NativeStoreRequest {
+            operation,
+            request_id: format!("platform-{}", self.next_request_id),
+            revision,
+        }
+    }
+}
 
 struct MusicFirstRunner<'a>(&'a mut NativeRunner);
 
@@ -49,10 +85,25 @@ mod tests {
     use crate::{
         DrumHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
         PlaybackRuntime, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig,
-        RuntimePlatformRequest, RuntimeTransportState,
+        RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeTransportState,
     };
     use serde_json::{json, Value};
     use std::time::Duration;
+
+    #[test]
+    fn native_store_request_metadata_shares_the_platform_request_id_sequence() {
+        let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+        let native = runtime.next_native_store_request(RuntimeOperation::StoreSaveDefault, 7);
+        let regular = runtime.next_platform_request(RuntimePlatformEffect::StoreSaveBackup {
+            payload: json!({ "revision": 8 }),
+        });
+
+        assert_eq!(native.operation(), &RuntimeOperation::StoreSaveDefault);
+        assert_eq!(native.revision(), 7);
+        assert_eq!(native.request_id(), "platform-1");
+        assert_eq!(regular.request_id, "platform-2");
+        assert_eq!(regular.revision, Some(8));
+    }
 
     #[derive(Default)]
     struct RecordingHost {

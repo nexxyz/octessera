@@ -132,6 +132,8 @@ mod music_first_persistence_tests;
 #[cfg(test)]
 mod music_first_tests;
 #[cfg(test)]
+mod native_persistence_completion_tests;
+#[cfg(test)]
 mod persistence_intent_tests;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod error_presentation_results;

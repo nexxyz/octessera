@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use std::sync::Arc;
 
 use super::UsbDataRole;
 
@@ -73,7 +74,7 @@ impl DefaultSaveScope {
 #[derive(Clone, Debug, PartialEq)]
 struct DefaultWrite {
     revision: u64,
-    payload: Value,
+    payload: Option<Arc<Value>>,
     scope: DefaultSaveScope,
     request_id: Option<String>,
 }
@@ -105,8 +106,9 @@ pub(super) struct DefaultWriteCompletion {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct RestartSettingsState {
-    pub(super) persisted_default: Value,
+    pub(super) persisted_default: Arc<Value>,
     pending_write: Option<DefaultWrite>,
+    native_payload_missing: bool,
     restart_after_pending_write: bool,
     editing: Option<RestartEdit>,
     flow: RestartFlow,
@@ -115,8 +117,9 @@ pub(super) struct RestartSettingsState {
 impl Default for RestartSettingsState {
     fn default() -> Self {
         Self {
-            persisted_default: Value::Null,
+            persisted_default: Arc::new(Value::Null),
             pending_write: None,
+            native_payload_missing: false,
             restart_after_pending_write: false,
             editing: None,
             flow: RestartFlow::Idle,
@@ -127,14 +130,15 @@ impl Default for RestartSettingsState {
 impl RestartSettingsState {
     pub(super) fn new(persisted_default: Value) -> Self {
         Self {
-            persisted_default,
+            persisted_default: Arc::new(persisted_default),
             ..Self::default()
         }
     }
 
     pub(super) fn set_baseline(&mut self, payload: Value) {
-        self.persisted_default = payload;
+        self.persisted_default = Arc::new(payload);
         self.abandon_pending_write();
+        self.native_payload_missing = false;
         self.editing = None;
         self.flow = RestartFlow::Idle;
     }
@@ -158,7 +162,7 @@ impl RestartSettingsState {
             .and_then(|runtime| runtime.get(parent))
             .and_then(|group| group.get(leaf))?
             .clone();
-        let mut payload = self.persisted_default.clone();
+        let mut payload = (*self.persisted_default).clone();
         let runtime = payload.get_mut("runtimeConfig")?.as_object_mut()?;
         let group = runtime.get_mut(parent)?.as_object_mut()?;
         group.insert(leaf.into(), value);
@@ -170,7 +174,7 @@ impl RestartSettingsState {
 
     fn usb_data_role_setting_payload(&self, current: &Value, revision: u64) -> Option<Value> {
         let current_runtime = current.get("runtimeConfig")?;
-        let mut payload = self.persisted_default.clone();
+        let mut payload = (*self.persisted_default).clone();
         let runtime = payload.get_mut("runtimeConfig")?.as_object_mut()?;
         for (parent, leaf) in [
             ("usb", "dataRole"),
@@ -260,10 +264,11 @@ impl RestartSettingsState {
         }
         self.pending_write = Some(DefaultWrite {
             revision,
-            payload,
+            payload: Some(Arc::new(payload)),
             scope,
             request_id: None,
         });
+        self.native_payload_missing = false;
         if scope.is_restart() {
             self.flow = RestartFlow::Saving;
         }
@@ -277,6 +282,7 @@ impl RestartSettingsState {
     pub(super) fn abandon_pending_write(&mut self) {
         self.pending_write = None;
         self.restart_after_pending_write = false;
+        self.native_payload_missing = false;
     }
 
     pub(super) fn take_restart_after_pending_write(&mut self) -> bool {
@@ -294,11 +300,58 @@ impl RestartSettingsState {
         }
         self.pending_write = Some(DefaultWrite {
             revision,
-            payload,
+            payload: Some(Arc::new(payload)),
             scope,
             request_id: None,
         });
+        self.native_payload_missing = false;
         true
+    }
+
+    pub(super) fn register_native_write(
+        &mut self,
+        request_id: &str,
+        revision: u64,
+        scope: DefaultSaveScope,
+    ) -> bool {
+        if self.has_pending_write() {
+            return false;
+        }
+        self.pending_write = Some(DefaultWrite {
+            revision,
+            payload: None,
+            scope,
+            request_id: Some(request_id.into()),
+        });
+        self.native_payload_missing = false;
+        if scope.is_restart() {
+            self.flow = RestartFlow::Saving;
+        }
+        true
+    }
+
+    pub(super) fn attach_native_payload(
+        &mut self,
+        request_id: &str,
+        revision: u64,
+        payload: Arc<Value>,
+    ) -> bool {
+        let Some(write) = self.pending_write.as_mut() else {
+            return false;
+        };
+        if write.revision != revision
+            || write.request_id.as_deref() != Some(request_id)
+            || payload.get("revision").and_then(Value::as_u64) != Some(revision)
+            || write.payload.is_some()
+        {
+            return false;
+        }
+        write.payload = Some(payload);
+        true
+    }
+
+    pub(super) fn take_native_payload_missing(&mut self) -> bool {
+        std::mem::take(&mut self.native_payload_missing)
     }
 
     pub(super) fn register_request(&mut self, request_id: &str, revision: Option<u64>) {
@@ -344,10 +397,15 @@ impl RestartSettingsState {
             return None;
         }
         let write = self.pending_write.take()?;
+        let payload_missing = succeeded && write.payload.is_none();
+        let succeeded = succeeded && !payload_missing;
         let restart_flow = write.scope.is_restart() && self.is_saving();
-        let host_role = payload_is_host(&write.payload);
+        let host_role = write.payload.as_deref().is_some_and(payload_is_host);
         if succeeded {
-            self.persisted_default = write.payload;
+            self.persisted_default = write.payload.expect("successful write has payload");
+        }
+        if payload_missing {
+            self.native_payload_missing = true;
         }
         if restart_flow {
             self.flow = if succeeded {
