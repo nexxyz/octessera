@@ -2,6 +2,7 @@ use super::*;
 use crate::hardware_runtime_scheduler::{HardwareRuntimeScheduler, PLAYBACK_TICK, SNAPSHOT_TICK};
 use crate::orange_host_adapter::OrangeHostAdapter;
 use crate::render_loop::RenderWorker;
+use crate::ui_profile::UiProfiler;
 use playback_runtime::{
     DrumHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
     PlaybackRuntime, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig,
@@ -14,6 +15,56 @@ fn worker() -> RenderWorker {
     let worker = RenderWorker::terminated_for_test();
     worker.allow_native_scenes_for_test();
     worker
+}
+
+#[test]
+fn opted_in_profile_counts_successful_and_failed_scene_capture_calls() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-orange-profile-capture-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let mut adapter = adapter(&root);
+    let (playback, mut runner, _) = playing_runner();
+    let worker = worker();
+    let mut profiler = UiProfiler::from_controls(Some("1"), false);
+    let first_now = Instant::now();
+    let mut successful = OrangeNativeScenePump::new(first_now - SNAPSHOT_TICK);
+    successful.set_capture_profile_enabled(profiler.enabled());
+
+    assert!(successful
+        .submit(
+            first_now,
+            DisplaySnapshotDue::default(),
+            &playback,
+            &mut runner,
+            &mut adapter,
+            &worker,
+        )
+        .is_some());
+    profiler.record_scene_capture(successful.take_capture_duration().unwrap());
+    assert_eq!(profiler.scene_capture_count_for_test(), 1);
+
+    runner.test_fail_next_snapshot();
+    let failure_now = first_now + SNAPSHOT_TICK;
+    let mut failed = OrangeNativeScenePump::new(failure_now - SNAPSHOT_TICK);
+    failed.set_capture_profile_enabled(profiler.enabled());
+    assert!(failed
+        .submit(
+            failure_now,
+            DisplaySnapshotDue::default(),
+            &playback,
+            &mut runner,
+            &mut adapter,
+            &worker,
+        )
+        .is_none());
+    profiler.record_scene_capture(failed.take_capture_duration().unwrap());
+    assert_eq!(profiler.scene_capture_count_for_test(), 2);
+    let _ = std::fs::remove_dir_all(root);
 }
 
 fn adapter(root: &std::path::Path) -> OrangeHostAdapter {

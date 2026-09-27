@@ -87,6 +87,7 @@ pub(crate) fn run_prepared_runtime(
             }
         }
         let mut ui_profiler = crate::ui_profile::UiProfiler::from_process();
+        native_scenes.set_capture_profile_enabled(ui_profiler.enabled());
         let profile_enabled = ui_profiler.enabled();
         let mut last_loop_start = profile_enabled.then(Instant::now);
         while !signal::interrupted() {
@@ -114,7 +115,7 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            drain_host_work(&mut playback, &mut runner, &mut host)?;
+            drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
             if host.shutdown_pending() {
                 break;
             }
@@ -178,7 +179,7 @@ pub(crate) fn run_prepared_runtime(
                     &mut host,
                 )?;
                 process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                drain_host_work(&mut playback, &mut runner, &mut host)?;
+                drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
             }
             if host.shutdown_pending() {
                 break;
@@ -189,21 +190,25 @@ pub(crate) fn run_prepared_runtime(
             } else {
                 DisplaySnapshotDue::default()
             };
-            if let Some(captured_at) = native_scenes.submit(
+            let captured = native_scenes.submit(
                 scene_capture_now,
                 typed_display_due,
                 &playback,
                 &mut runner,
                 &mut host,
                 render,
-            ) {
+            );
+            if let Some(duration) = native_scenes.take_capture_duration() {
+                ui_profiler.record_scene_capture(duration);
+            }
+            if let Some(captured_at) = captured {
                 scheduler.record_native_scene_capture(captured_at);
             }
             let metrics = audio_manager.drain_audio_load_status(&mut playback);
             process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
             audio_manager.report_runtime_terminal_diagnostics();
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
-            drain_host_work(&mut playback, &mut runner, &mut host)?;
+            drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
             if runtime_advanced {
                 scheduler.record_runtime_advance_complete(
                     Instant::now(),
@@ -303,6 +308,7 @@ fn drain_host_work(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     host: &mut OrangeHostAdapter,
+    ui_profiler: &mut crate::ui_profile::UiProfiler,
 ) -> Result<(), String> {
     let playing = playback
         .last_status()
@@ -320,7 +326,11 @@ fn drain_host_work(
         return Ok(());
     }
     if playing {
+        let persistence_started = ui_profiler.enabled().then(Instant::now);
         let persistence = runner.flush_due_persistence_music_first()?;
+        if let Some(started) = persistence_started {
+            ui_profiler.record_save_payload(started.elapsed(), &persistence);
+        }
         if !persistence.is_empty() {
             let output = playback.dispatch_runner_messages(persistence, runner, host)?;
             process_runtime_output(playback, runner, host, output)?;
