@@ -34,6 +34,7 @@ impl NativeRunner {
         self.mark_config_dirty();
         self.pending.pending_autosave_payload_due_at =
             Some(Instant::now() + Duration::from_millis(150));
+        self.pending.autosave_payload_notified_at = None;
     }
 
     #[cfg(test)]
@@ -63,13 +64,18 @@ impl NativeRunner {
         &mut self,
         now: Instant,
     ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
-        let autosave_due = self
+        let autosave_due_at = self
             .pending
             .pending_autosave_payload_due_at
-            .is_some_and(|due_at| due_at <= now);
+            .filter(|due_at| *due_at <= now);
+        let autosave_due = autosave_due_at
+            .is_some_and(|due_at| self.pending.autosave_payload_notified_at != Some(due_at));
         let menu_due = self.apply_due_menu_key(now)?;
         if !menu_due && !autosave_due {
             return Ok(Vec::new());
+        }
+        if autosave_due {
+            self.pending.autosave_payload_notified_at = autosave_due_at;
         }
         if menu_due || !self.display_scene_pending() {
             self.display.transients.mark_presentation_due();

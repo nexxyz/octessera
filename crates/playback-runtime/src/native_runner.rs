@@ -131,6 +131,8 @@ mod modulation;
 mod music_first_persistence_tests;
 #[cfg(test)]
 mod music_first_tests;
+#[cfg(test)]
+mod persistence_intent_tests;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod error_presentation_results;
 mod link_config;
@@ -163,6 +165,7 @@ mod pan_mapping;
 mod pan_position;
 mod patch_device_payload;
 mod payload_assign;
+mod persistence_intent;
 mod play_control;
 mod play_fx_config;
 mod play_fx_presentation;
@@ -216,6 +219,7 @@ pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
 pub use config_snapshot::NativeConfigSnapshot;
+pub use persistence_intent::NativePersistenceIntent;
 pub use runner_config::NativeRunnerConfig;
 pub use snapshot_scene::{
     NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,

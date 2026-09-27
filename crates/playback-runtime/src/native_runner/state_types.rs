@@ -29,6 +29,7 @@ pub(super) struct NativeUiState {
 pub(super) struct NativePendingState {
     pub(super) pending_save_revision: Option<u64>,
     pub(super) pending_autosave_payload_due_at: Option<Instant>,
+    pub(super) autosave_payload_notified_at: Option<Instant>,
     pub(super) pending_aux_turn_toast: Option<PendingNativeToast>,
     pub(super) pending_menu_apply: Option<PendingMenuApply>,
     pub(super) suppress_snapshot_response: bool,
