@@ -161,6 +161,7 @@ fn host_receives_due_audio_and_notes_before_explicit_save_serialization() {
 fn failed_music_first_default_write_remains_dirty_and_reschedules_with_visible_error() {
     let mut runner = playing_default();
     runner.auto_save_default = true;
+    runner.rolling_backups = false;
     runner.mark_fast_autosave_dirty();
     runner.make_deferred_menu_apply_due_for_test();
     runner
@@ -194,6 +195,14 @@ fn failed_music_first_default_write_remains_dirty_and_reschedules_with_visible_e
     ));
     assert!(runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+    let retry_due = runner.pending.pending_autosave_payload_due_at.unwrap();
+    assert!(runner
+        .persistence_intent_at(retry_due - std::time::Duration::from_millis(1))
+        .is_none());
+    assert_eq!(
+        runner.persistence_intent_at(retry_due).unwrap().revision(),
+        revision
+    );
     runner.make_deferred_menu_apply_due_for_test();
     let retry = runner.flush_due_persistence_music_first().unwrap();
     assert!(retry.iter().any(|message| matches!(message, RunnerMessage::PlatformEffects { effects }
