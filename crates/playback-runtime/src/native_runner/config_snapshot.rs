@@ -94,6 +94,10 @@ impl NativeConfigSnapshot {
         self.revision
     }
 
+    pub fn into_portable_patch_payload(self) -> Result<Value, String> {
+        super::portable_patch_payload_for_save(&self.into_payload())
+    }
+
     #[cfg(test)]
     pub(super) fn serializable_behavior_state_count(&self) -> usize {
         self.layers
