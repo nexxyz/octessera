@@ -30,11 +30,22 @@ pub(super) struct NativePendingState {
     pub(super) pending_save_revision: Option<u64>,
     pub(super) pending_autosave_payload_due_at: Option<Instant>,
     pub(super) autosave_payload_notified_at: Option<Instant>,
+    pub(super) manual_save_request: Option<NativeManualSaveRequest>,
+    pub(super) native_preset_write: Option<NativePendingPresetWrite>,
     pub(super) pending_aux_turn_toast: Option<PendingNativeToast>,
     pub(super) pending_menu_apply: Option<PendingMenuApply>,
     pub(super) suppress_snapshot_response: bool,
     pub(super) presentation_deferred: bool,
     pub(super) drum_hits: Vec<crate::protocol::DrumHit>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct NativePendingPresetWrite {
+    pub(super) request_id: String,
+    pub(super) revision: u64,
+    pub(super) request: NativeManualSaveRequest,
+    pub(super) catalog: Option<Vec<String>>,
+    pub(super) cleanup_error: Option<String>,
 }
 
 #[derive(Clone)]

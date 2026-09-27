@@ -1,5 +1,6 @@
 use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 
+use super::preset_native_completion::NativePresetResultAction;
 use super::restart_settings::DefaultSaveScope;
 use super::{
     clean_preset_name, native_factory_payload, portable_patch_payload_for_save, NativeRunner,
@@ -132,6 +133,18 @@ impl NativeRunner {
                     result.as_ref(),
                     RuntimeStoreResult::SaveDefaultResult { ok: true, .. }
                 );
+                let native_preset_action =
+                    if operation == crate::protocol::RuntimeOperation::StoreSavePreset {
+                        self.resolve_native_preset_result(&request_id, revision, result.as_ref())
+                    } else {
+                        None
+                    };
+                let native_preset_ignored = matches!(
+                    &native_preset_action,
+                    Some(
+                        NativePresetResultAction::Ignore | NativePresetResultAction::MissingCatalog
+                    )
+                );
                 let pending_default_revision = self.pending_default_write_revision();
                 let restart_completion =
                     if operation == crate::protocol::RuntimeOperation::StoreSaveDefault {
@@ -144,16 +157,31 @@ impl NativeRunner {
                     crate::protocol::RuntimeOperation::StoreSavePreset
                         | crate::protocol::RuntimeOperation::StoreSaveDefault
                 );
-                let apply_result = if operation
-                    == crate::protocol::RuntimeOperation::StoreSaveDefault
-                    && is_default_save_success
-                {
-                    self.apply_store_persistence_result_with_default_feedback(
-                        *result,
-                        restart_completion.is_some_and(|completion| completion.show_saved_feedback),
-                    )
-                } else {
-                    self.apply_store_result(*result)
+                let apply_result = match native_preset_action {
+                    Some(NativePresetResultAction::Complete(write)) => {
+                        self.finish_native_preset_write(write);
+                        Ok(())
+                    }
+                    Some(NativePresetResultAction::MissingCatalog) => self
+                        .apply_error_presentation_result(RuntimeStoreResult::RuntimeFailure {
+                            error: crate::RuntimeErrorFacts::new(
+                                crate::RuntimeErrorDomain::Storage,
+                                crate::RuntimeErrorCode::OperationFailed,
+                                crate::RuntimeOperation::StoreSavePreset,
+                                Some("native preset catalog unavailable".into()),
+                            ),
+                        }),
+                    Some(NativePresetResultAction::Ignore) => Ok(()),
+                    None if operation == crate::protocol::RuntimeOperation::StoreSaveDefault
+                        && is_default_save_success =>
+                    {
+                        self.apply_store_persistence_result_with_default_feedback(
+                            *result,
+                            restart_completion
+                                .is_some_and(|completion| completion.show_saved_feedback),
+                        )
+                    }
+                    None => self.apply_store_result(*result),
                 };
                 if let Err(error) = apply_result {
                     if operation == crate::protocol::RuntimeOperation::StoreLoadDefault
@@ -168,6 +196,7 @@ impl NativeRunner {
                     && restart_completion.is_none()
                     && operation != crate::protocol::RuntimeOperation::StoreSaveDefault
                     && pending_default_revision != revision
+                    && !native_preset_ignored
                 {
                     self.retry_config_save_after_restore_failure();
                 }
@@ -176,6 +205,7 @@ impl NativeRunner {
                     && restart_completion.is_none()
                     && operation != crate::protocol::RuntimeOperation::StoreSaveDefault
                     && pending_default_revision != revision
+                    && !native_preset_ignored
                 {
                     self.acknowledge_config_save(revision);
                 }
@@ -222,6 +252,11 @@ impl NativeRunner {
         result: RuntimeStoreResult,
     ) -> Result<(), String> {
         match result {
+            RuntimeStoreResult::SavePresetResult { .. }
+                if self.pending.native_preset_write.is_some() =>
+            {
+                Ok(())
+            }
             result @ RuntimeStoreResult::SaveDefaultResult { .. } => self
                 .apply_store_persistence_result_with_default_feedback(
                     result,

@@ -52,6 +52,59 @@ impl NativeMenuModel {
         }
     }
 
+    pub fn update_preset_catalog(
+        &mut self,
+        names: &[String],
+        draft_name: &str,
+        rename_source: Option<&str>,
+    ) {
+        let selected_key = self
+            .current_siblings()
+            .get(self.state.cursor)
+            .and_then(|item| item.key.clone());
+        if let Some(load) = find_item_by_key_mut(&mut self.root, "preset.load") {
+            load.children = super::system_saves::preset_action_children("preset.load", names);
+        }
+        if let Some(save_as) = find_item_by_key_mut(&mut self.root, "preset.library.saveAs") {
+            *save_as = super::system_saves::save_as_group(draft_name);
+        }
+        if let Some(load) = find_item_by_key_mut(&mut self.root, "preset.library.load") {
+            *load = super::system_saves::preset_action_group(
+                "Load",
+                "preset.library.load",
+                "preset.load",
+                names,
+            );
+        }
+        if let Some(rename) = find_item_by_key_mut(&mut self.root, "preset.library.rename") {
+            *rename = super::system_saves::preset_rename_group(names, draft_name, rename_source);
+        }
+        if let Some(delete) = find_item_by_key_mut(&mut self.root, "preset.library.delete") {
+            *delete = super::system_saves::preset_action_group(
+                "Delete",
+                "preset.library.delete",
+                "preset.delete",
+                names,
+            );
+        }
+        if let Some(selected_key) = selected_key {
+            if let Some(index) = self
+                .current_siblings()
+                .iter()
+                .position(|item| item.key.as_deref() == Some(selected_key.as_str()))
+            {
+                self.state.cursor = index;
+                return;
+            }
+        }
+        let siblings_len = self.current_siblings().len();
+        if siblings_len == 0 {
+            self.state.cursor = 0;
+        } else {
+            self.state.cursor = self.state.cursor.min(siblings_len - 1);
+        }
+    }
+
     pub fn focus_item_key(&mut self, key: &str) -> bool {
         let mut path = Vec::new();
         if !find_item_path_by_key(&self.root, key, &mut path) || path.is_empty() {

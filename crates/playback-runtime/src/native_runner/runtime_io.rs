@@ -117,7 +117,22 @@ impl NativeRunner {
             self.display.confirm_dialog = self.confirmation_for_action(&confirm.action);
             return Ok(None);
         }
-        self.require_synchronous_action_presentation();
+        let deferred_manual_save = self.pending.presentation_deferred
+            && self.transport.transport == RuntimeTransportState::Playing
+            && matches!(
+                &confirm.action,
+                crate::native_menu::NativeMenuAction::PlatformEffect(action)
+                    if matches!(
+                        action.as_str(),
+                        "default.save"
+                            | "preset.saveAs"
+                            | "preset.renameApply"
+                            | "preset.saveCurrent"
+                    )
+            );
+        if !deferred_manual_save {
+            self.require_synchronous_action_presentation();
+        }
         self.execute_confirmed_action(confirm.action)
     }
 

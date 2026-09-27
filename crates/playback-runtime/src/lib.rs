@@ -17,8 +17,8 @@ pub use deferred_default_save::{DeferredDefaultSave, DeferredDefaultSaveEntry};
 pub use native_runner::{
     AudioOptimization, AudioOutputSet, NativeConfigSnapshot, NativeControlButtonPresentation,
     NativeGridPresentation, NativeHardwarePresentation, NativeHdmiMode, NativeHdmiPresentation,
-    NativeLedPresentation, NativePersistenceIntent, NativeRunner, NativeRunnerConfig,
-    PresentationScene, UsbDataRole,
+    NativeLedPresentation, NativeManualSaveRequest, NativePersistenceIntent, NativeRunner,
+    NativeRunnerConfig, PresentationScene, UsbDataRole,
 };
 pub use platform_core::MusicalEvent;
 pub use preset_name_policy::{clean_preset_name, fresh_preset_name, is_valid_preset_name};

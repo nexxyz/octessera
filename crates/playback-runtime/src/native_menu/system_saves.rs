@@ -17,25 +17,24 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
             group(
                 "Library",
                 vec![
-                    group(
-                        "Save As",
-                        vec![
-                            super::text_item(
-                                "Name",
-                                "system.draftName",
-                                config.preset_draft_name.clone(),
-                                32,
-                            ),
-                            action_item(
-                                "Save",
-                                "preset.saveAs.save",
-                                NativeMenuAction::PlatformEffect("preset.saveAs".into()),
-                            ),
-                        ],
+                    save_as_group(&config.preset_draft_name),
+                    preset_action_group(
+                        "Load",
+                        "preset.library.load",
+                        "preset.load",
+                        &config.preset_names,
                     ),
-                    preset_action_group("Load", "preset.load", &config.preset_names),
-                    preset_rename_group(config),
-                    preset_action_group("Delete", "preset.delete", &config.preset_names),
+                    preset_rename_group(
+                        &config.preset_names,
+                        &config.preset_draft_name,
+                        config.preset_rename_source.as_deref(),
+                    ),
+                    preset_action_group(
+                        "Delete",
+                        "preset.library.delete",
+                        "preset.delete",
+                        &config.preset_names,
+                    ),
                     action_item(
                         "Save Current",
                         "preset.saveCurrent",
@@ -69,11 +68,35 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
     )
 }
 
-fn preset_action_group(label: &str, action_prefix: &str, names: &[String]) -> NativeMenuItem {
-    group(label, preset_action_children(action_prefix, names))
+pub(super) fn save_as_group(draft_name: &str) -> NativeMenuItem {
+    keyed_group(
+        "Save As",
+        "preset.library.saveAs",
+        vec![
+            super::text_item("Name", "system.draftName", draft_name, 32),
+            action_item(
+                "Save",
+                "preset.saveAs.save",
+                NativeMenuAction::PlatformEffect("preset.saveAs".into()),
+            ),
+        ],
+    )
 }
 
-fn preset_action_children(action_prefix: &str, names: &[String]) -> Vec<NativeMenuItem> {
+pub(super) fn preset_action_group(
+    label: &str,
+    group_key: &str,
+    action_prefix: &str,
+    names: &[String],
+) -> NativeMenuItem {
+    keyed_group(
+        label,
+        group_key,
+        preset_action_children(action_prefix, names),
+    )
+}
+
+pub(super) fn preset_action_children(action_prefix: &str, names: &[String]) -> Vec<NativeMenuItem> {
     if names.is_empty() {
         vec![action_item(
             "(none)",
@@ -94,16 +117,19 @@ fn preset_action_children(action_prefix: &str, names: &[String]) -> Vec<NativeMe
     }
 }
 
-fn preset_rename_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    let mut children = if config.preset_names.is_empty() {
+pub(super) fn preset_rename_group(
+    names: &[String],
+    draft_name: &str,
+    rename_source: Option<&str>,
+) -> NativeMenuItem {
+    let mut children = if names.is_empty() {
         vec![action_item(
             "(none)",
             "preset.rename.none",
             NativeMenuAction::PlatformEffect("preset.refresh".into()),
         )]
     } else {
-        config
-            .preset_names
+        names
             .iter()
             .map(|name| {
                 action_item(
@@ -114,11 +140,11 @@ fn preset_rename_group(config: &NativeMenuConfig) -> NativeMenuItem {
             })
             .collect()
     };
-    if config.preset_rename_source.is_some() {
+    if rename_source.is_some() {
         children.push(super::text_item(
             "New Name",
             "system.draftName",
-            config.preset_draft_name.clone(),
+            draft_name,
             32,
         ));
         children.push(action_item(
@@ -127,5 +153,5 @@ fn preset_rename_group(config: &NativeMenuConfig) -> NativeMenuItem {
             NativeMenuAction::PlatformEffect("preset.renameApply".into()),
         ));
     }
-    group("Rename", children)
+    keyed_group("Rename", "preset.library.rename", children)
 }

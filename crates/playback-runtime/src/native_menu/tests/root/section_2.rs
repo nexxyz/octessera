@@ -17,6 +17,59 @@ pub(crate) fn root_load_preset_back_returns_to_shortcut_row() {
 }
 
 #[test]
+pub(crate) fn preset_catalog_update_preserves_selection_and_refreshes_only_named_groups() {
+    let mut cfg = config();
+    cfg.preset_names = vec!["Alpha".into(), "Beta".into()];
+    cfg.preset_rename_source = Some("Alpha".into());
+    cfg.preset_rename_source = Some("Alpha".into());
+    let mut menu = NativeMenuModel::new(cfg);
+    assert!(menu.focus_item_key("preset.library.load"));
+    assert!(matches!(
+        menu.press(),
+        Some(NativeMenuPressResult::EnteredGroup)
+    ));
+    menu.turn(1);
+    assert_eq!(menu.current_label(), Some("Beta"));
+
+    menu.update_preset_catalog(&["Beta".into(), "Gamma".into()], "Draft", Some("Beta"));
+
+    assert_eq!(menu.current_label(), Some("Beta"));
+    assert!(menu.path_label().contains("Library/Load"));
+    assert!(menu.item_for_key("masterVolume").is_some());
+    for key in ["preset.library.saveAs", "preset.library.rename"] {
+        let group = menu.item_for_key(key).unwrap();
+        let name_row = group
+            .children
+            .iter()
+            .find(|child| child.key.as_deref() == Some("system.draftName"))
+            .unwrap();
+        assert!(matches!(
+            &name_row.value,
+            NativeMenuValue::Text { value, .. } if value == "Draft"
+        ));
+    }
+    for key in [
+        "preset.load",
+        "preset.library.load",
+        "preset.library.delete",
+        "preset.library.rename",
+    ] {
+        let item = menu.item_for_key(key).unwrap();
+        assert_eq!(
+            item.children
+                .iter()
+                .filter(|child| child.label == "Beta" || child.label == "Gamma")
+                .count(),
+            2
+        );
+    }
+
+    menu.update_preset_catalog(&["Gamma".into()], "Draft", None);
+    assert_eq!(menu.current_label(), Some("Gamma"));
+    assert!(menu.item_for_key("preset.load.Beta").is_none());
+}
+
+#[test]
 pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
     let mut cfg = config();
     cfg.preset_names = vec!["One".into(), "Two".into()];
