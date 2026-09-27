@@ -1,26 +1,24 @@
-use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSampleEntryConfig};
-use crate::protocol::SyncSource;
-
 use super::drum_config::instrument_drum_configs;
 use super::play_fx_config::{play_fx_params_map, play_fx_target_key, play_fx_type};
 use super::{
-    aux_binding_configs, aux_bindings_payload, device_runtime_config, fx_bus_configs,
-    instrument_audio_payload, instrument_auto_names, instrument_fm_configs, instrument_labels,
-    instrument_midi_channels, instrument_midi_duration_ms, instrument_midi_enabled,
-    instrument_midi_velocity, instrument_names, instrument_note_behaviors,
-    instrument_pan_positions, instrument_pluck_configs, instrument_routes,
-    instrument_sample_amp_envs, instrument_sample_amp_velocity_sensitivity_pct,
-    instrument_sample_base_velocity, instrument_sample_filter_envs, instrument_sample_filters,
-    instrument_sample_gain_pct, instrument_sample_paths, instrument_sample_slots,
-    instrument_sample_tune_semis, instrument_sample_velocity_high,
-    instrument_sample_velocity_levels_enabled, instrument_sample_velocity_low,
-    instrument_sample_velocity_medium, instrument_synth_configs, instrument_synth_filter_cutoffs,
-    instrument_synth_filter_resonance, instrument_synth_filter_types, instrument_synth_gain_pct,
-    instrument_synth_osc1_waveforms, instrument_synth_osc2_waveforms, instrument_types,
-    instrument_volumes, link_layer_configs, link_layer_payload, param_binding_spec_from_native,
-    param_mod_configs, param_mods_payload, portable_patch_projection, velocity_curve_id,
-    NativeLinkLfoConfig, NativeRunner, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION,
+    aux_binding_configs, device_runtime_config, fx_bus_configs, instrument_auto_names,
+    instrument_fm_configs, instrument_labels, instrument_midi_channels,
+    instrument_midi_duration_ms, instrument_midi_enabled, instrument_midi_velocity,
+    instrument_names, instrument_note_behaviors, instrument_pan_positions,
+    instrument_pluck_configs, instrument_routes, instrument_sample_amp_envs,
+    instrument_sample_amp_velocity_sensitivity_pct, instrument_sample_base_velocity,
+    instrument_sample_filter_envs, instrument_sample_filters, instrument_sample_gain_pct,
+    instrument_sample_paths, instrument_sample_slots, instrument_sample_tune_semis,
+    instrument_sample_velocity_high, instrument_sample_velocity_levels_enabled,
+    instrument_sample_velocity_low, instrument_sample_velocity_medium, instrument_synth_configs,
+    instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
+    instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
+    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes, link_layer_configs,
+    param_binding_spec_from_native, param_mod_configs, portable_patch_projection,
+    velocity_curve_id, NativeLinkLfoConfig, NativeRunner, Value, CONFIG_KIND,
+    CONFIG_SCHEMA_VERSION,
 };
+use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSampleEntryConfig};
 use serde_json::json;
 
 impl NativeRunner {
@@ -186,121 +184,14 @@ impl NativeRunner {
     }
 
     pub(super) fn config_payload(&self) -> Value {
-        json!({
-            "kind": CONFIG_KIND,
-            "schemaVersion": CONFIG_SCHEMA_VERSION,
-            "revision": self.config_revision,
-            "runtimeConfig": {
-                "activeBehavior": self.behavior.id(),
-                "activeLayerIndex": self.active_layer_index,
-                "linkLfos": self.link_lfos.iter().map(|lfo| json!({
-                    "enabled": lfo.enabled,
-                    "target": super::param_binding_payload(lfo.target.as_ref()),
-                    "period": lfo.period,
-                    "depthPct": lfo.depth_pct
-                })).collect::<Vec<_>>(),
-                "xy": {
-                    "x": super::param_binding_payload(self.xy_x_binding.as_ref()),
-                    "y": super::param_binding_payload(self.xy_y_binding.as_ref()),
-                    "smoothingMs": self.xy_smoothing_ms,
-                    "xInvert": self.xy_invert_x,
-                    "yInvert": self.xy_invert_y
-                },
-                "layers": self.layer_behavior_ids.iter().enumerate().map(|(index, behavior_id)| {
-                    let sense = self.link_layers.get(index).cloned().unwrap_or_default();
-                    let probability_map = self.trigger_probability_maps.get(index).cloned().unwrap_or_default();
-                    let auto_name = self.layer_auto_names.get(index).copied().unwrap_or(true);
-                    let name = if auto_name {
-                        behavior_id.clone()
-                    } else {
-                        self.layer_names.get(index).cloned().unwrap_or_else(|| behavior_id.clone())
-                    };
-                    json!({
-                        "build": self.build_payload_for_layer(index, behavior_id),
-                        "link": link_layer_payload(&sense, &probability_map),
-                        "paramMods": param_mods_payload(self.param_mods.get(index)),
-                        "autoName": auto_name,
-                        "name": name
-                    })
-                }).collect::<Vec<_>>(),
-                "playFx": {
-                    "selected": self.play_fx_selected.clone(),
-                    "assignments": self.play_fx_assignments.iter().map(|assignment| json!({
-                        "x": assignment.x,
-                        "y": assignment.y,
-                        "config": assignment.config,
-                    })).collect::<Vec<_>>()
-                },
-                "transport": {
-                    "bpm": crate::delay_timing::visible_bpm_u16(self.transport.bpm),
-                    "swingPct": self.transport.swing_pct
-                },
-                "xyRelease": self.xy_release,
-                "sampleFavouriteDirs": self.sample_favourite_dirs,
-                "hdmi": {
-                    "mode": self.display.hdmi.mode,
-                    "showGridlines": self.display.hdmi.show_gridlines,
-                    "cycleMeasures": self.display.hdmi.cycle_measures
-                },
-                "instruments": self.instruments.iter().map(|instrument| {
-                    instrument_audio_payload(instrument)
-                }).collect::<Vec<_>>(),
-                "mixer": self.mixer_payload(),
-                "masterVolume": self.display.ui.master_volume,
-                "sound": {
-                    "noteLengthMs": self.global_sound.note_length_ms,
-                    "velocityScalePct": self.global_sound.velocity_scale_pct,
-                    "velocityCurve": velocity_curve_id(self.global_sound.velocity_curve),
-                    "voiceStealingMode": self.voice_stealing_mode.clone(),
-                    "audioOutputBufferFrames": self.audio_output_buffer_frames,
-                    "optimizeFor": self.audio_optimization
-                },
-                "dsp": self.dsp_config,
-                "noteLengthMs": self.global_sound.note_length_ms,
-                "velocityScalePct": self.global_sound.velocity_scale_pct,
-                "velocityCurve": velocity_curve_id(self.global_sound.velocity_curve),
-                "voiceStealingMode": self.voice_stealing_mode.clone(),
-                "ghostCells": self.display.ui.ghost_cells,
-                "inputEventsWhilePaused": self.input_events_while_paused,
-                "numericDisplayMode": self.display.ui.numeric_display_mode,
-                "dimTimerSeconds": self.display.ui.dim_timer_seconds,
-                "screenSleepSeconds": self.display.ui.screen_sleep_seconds,
-                "displayBrightness": self.display.ui.display_brightness,
-                "gridBrightness": self.display.ui.grid_brightness,
-                "buttonBrightness": self.display.ui.button_brightness,
-                "autoSaveDefault": self.auto_save_default,
-                "rollingBackups": self.rolling_backups,
-                "auxAutoMapEnabled": self.aux_auto_map_enabled,
-                "bpm": self.transport.bpm,
-                "playMode": self.play_mode,
-                "auxBindings": aux_bindings_payload(&self.aux_bindings),
-                "shiftAuxBindings": aux_bindings_payload(&self.shift_aux_bindings),
-                "midi": {
-                    "enabled": self.midi_enabled,
-                    "outId": self.selected_midi_output_id,
-                    "inId": self.selected_midi_input_id,
-                    "syncMode": match self.transport.sync_source {
-                        SyncSource::Internal => "internal",
-                        SyncSource::External => "external",
-                    },
-                    "clockOutEnabled": self.midi_clock_out_enabled,
-                    "clockInEnabled": self.midi_clock_in_enabled,
-                    "respondToStartStop": self.midi_respond_to_start_stop
-                },
-                "usb": {
-                    "dataRole": self.usb_data_role.as_str(),
-                    "midiOutEnabled": self.usb_midi_out_enabled
-                },
-                "audioOutputs": self.audio_outputs.as_value(),
-                "recording": {
-                    "maxMinutes": self.recording_max_minutes
-                }
-            },
-            "mappingConfig": self.base_mapping_config,
-            "system": {
-                "playMode": self.play_mode
-            }
-        })
+        let snapshot = self.capture_config_snapshot();
+        #[cfg(test)]
+        self.behavior_state_serialization_calls.set(
+            self.behavior_state_serialization_calls
+                .get()
+                .saturating_add(snapshot.serializable_behavior_state_count()),
+        );
+        snapshot.into_payload()
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -317,13 +208,5 @@ impl NativeRunner {
             "revision": self.config_revision,
             "runtimeConfig": runtime,
         }))
-    }
-
-    pub(super) fn mixer_payload(&self) -> Value {
-        super::snapshot_audio_settings::mixer_payload(
-            &self.fx_buses,
-            &self.global_fx_slots,
-            &self.global_fx_params,
-        )
     }
 }

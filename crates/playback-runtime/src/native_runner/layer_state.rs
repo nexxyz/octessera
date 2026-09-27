@@ -199,57 +199,6 @@ impl NativeRunner {
         Ok(Value::Null)
     }
 
-    pub(super) fn build_payload_for_layer(&self, index: usize, behavior_id: &str) -> Value {
-        let step_pulses = if index == self.active_layer_index {
-            self.transport.algorithm_step_pulses
-        } else {
-            self.transport
-                .layer_algorithm_step_pulses
-                .get(index)
-                .copied()
-                .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)
-        };
-        let save_grid_state = self.save_grid_states.get(index).copied().unwrap_or(true);
-        let mut build = serde_json::Map::new();
-        build.insert("behaviorId".into(), json!(behavior_id));
-        if behavior_id != "none" {
-            build.insert("stepRate".into(), json!(note_unit_from_pulses(step_pulses)));
-        }
-        let behavior_config = if index == self.active_layer_index {
-            self.behavior_config.clone()
-        } else {
-            self.layer_behavior_configs
-                .get(index)
-                .cloned()
-                .unwrap_or(Value::Null)
-        };
-        build.insert(
-            "behaviorConfig".into(),
-            self.modulation_process
-                .persistent_behavior_config(index, behavior_config),
-        );
-        build.insert(
-            "behaviorConfigHistory".into(),
-            Value::Object(
-                self.layer_behavior_config_history
-                    .get(index)
-                    .cloned()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .collect(),
-            ),
-        );
-        build.insert("saveGridState".into(), json!(save_grid_state));
-        if save_grid_state && behavior_id != "none" {
-            if let Ok(state) = self.serialized_state_for_layer(index) {
-                if !state.is_null() {
-                    build.insert("savedState".into(), state);
-                }
-            }
-        }
-        Value::Object(build)
-    }
-
     pub(super) fn remap_bindings_for_behavior_change(
         &mut self,
         from_behavior_id: &str,

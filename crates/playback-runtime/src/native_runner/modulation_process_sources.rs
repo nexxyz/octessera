@@ -257,19 +257,17 @@ impl ModulationProcessState {
         self.dirty_persistent_keys.remove(key);
     }
 
-    pub(super) fn persistent_behavior_config(&self, layer_index: usize, config: Value) -> Value {
-        let Value::Object(mut config) = config else {
-            return config;
-        };
-        for (key, (_, value)) in &self.base_discrete {
-            let Some((index, field)) = parse_layer_behavior_config_binding_key(key) else {
-                continue;
-            };
-            if index == layer_index {
-                config.insert(field.into(), value.clone());
-            }
-        }
-        Value::Object(config)
+    pub(super) fn persistent_behavior_config_overrides(
+        &self,
+        layer_index: usize,
+    ) -> BTreeMap<String, Value> {
+        self.base_discrete
+            .iter()
+            .filter_map(|(key, (_, value))| {
+                let (index, field) = parse_layer_behavior_config_binding_key(key)?;
+                (index == layer_index).then(|| (field.into(), value.clone()))
+            })
+            .collect()
     }
 
     #[cfg(test)]
