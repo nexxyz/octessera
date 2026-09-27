@@ -91,6 +91,10 @@ impl NativeLayerEngine {
         self.behavior.serialize(&self.state)
     }
 
+    pub fn capture_persistence_state(&self) -> (NativeBehavior, NativeBehaviorState) {
+        (self.behavior, self.state.clone())
+    }
+
     pub fn on_input(
         &mut self,
         input: DeviceInput,
