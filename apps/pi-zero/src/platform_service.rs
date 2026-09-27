@@ -9,7 +9,8 @@ use crate::user_data_transfer::{
     production_random_source, StoreWriteBarrier, UserDataTransferService,
 };
 use playback_runtime::{
-    HostMessage, RuntimePlatformRequest, RuntimeSetupPortalDisposition, RuntimeStoreResult,
+    HostMessage, NativeManualSaveRequest, NativeStoreRequest, RuntimeOperation,
+    RuntimePlatformRequest, RuntimeSetupPortalDisposition, RuntimeStoreResult,
 };
 use std::collections::VecDeque;
 #[cfg(test)]
@@ -18,6 +19,14 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
+#[path = "pi_pending_persistence.rs"]
+mod pi_pending_persistence;
+#[path = "platform_native_autosave.rs"]
+pub(crate) mod platform_native_autosave;
+#[path = "platform_native_autosave_worker.rs"]
+mod platform_native_autosave_worker;
+#[path = "platform_native_persistence.rs"]
+pub(crate) mod platform_native_persistence;
 #[path = "platform_result_lane.rs"]
 mod platform_result_lane;
 #[path = "platform_service_dispatcher.rs"]
@@ -38,6 +47,11 @@ mod platform_service_test_support;
 mod platform_service_worker;
 #[path = "system_info.rs"]
 mod system_info;
+pub(crate) use pi_pending_persistence::PendingPiPersistence;
+use platform_native_persistence::{
+    NativeDefaultCompletion, NativePresetCompletion, NativePresetWrite, PlatformResult,
+    PlatformWorkItem,
+};
 pub(crate) use platform_result_lane::PlatformResultLane;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(crate) use platform_service_dispatcher::enqueue_job;
@@ -65,13 +79,15 @@ type UsbRoleApplier = ();
 
 pub struct PiPlatformService {
     store_dir: PathBuf,
-    jobs: SyncSender<PlatformJob>,
-    results: Receiver<HostMessage>,
-    preserved_results: Mutex<VecDeque<HostMessage>>,
+    jobs: SyncSender<PlatformWorkItem>,
+    results: Receiver<PlatformResult>,
+    preserved_results: Mutex<VecDeque<PlatformResult>>,
     #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
     result_lane: Arc<PlatformResultLane>,
     store_lock: Arc<Mutex<()>>,
     store_write_barrier: StoreWriteBarrier,
+    native_default_write: Mutex<Option<NativeStoreRequest>>,
+    native_preset_write: Mutex<Option<NativePresetWrite>>,
     setup_portal: SetupPortalService,
     setup_portal_stop: Arc<AtomicBool>,
     user_data_transfer: UserDataTransferService,
@@ -205,6 +221,8 @@ impl PiPlatformService {
             result_lane,
             store_lock,
             store_write_barrier,
+            native_default_write: Mutex::new(None),
+            native_preset_write: Mutex::new(None),
             setup_portal,
             setup_portal_stop,
             user_data_transfer,
@@ -285,10 +303,12 @@ impl PiPlatformService {
                 job.store_write_generation = Some(self.store_write_barrier.current_generation());
             }
         }
-        self.jobs.try_send(job).map_err(|error| match error {
-            TrySendError::Full(_) => "pi platform service queue is full".to_string(),
-            TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
-        })
+        self.jobs
+            .try_send(PlatformWorkItem::Legacy(job))
+            .map_err(|error| match error {
+                TrySendError::Full(_) => "pi platform service queue is full".to_string(),
+                TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
+            })
     }
 
     pub(crate) fn handle_transfer_input(&self, input: &serde_json::Value) -> bool {
@@ -407,18 +427,6 @@ impl PlatformJob {
             request,
             kind,
             store_write_generation: None,
-        }
-    }
-
-    pub(crate) fn with_store_write_generation(
-        request: RuntimePlatformRequest,
-        kind: PlatformJobKind,
-        generation: u64,
-    ) -> Self {
-        Self {
-            request,
-            kind,
-            store_write_generation: Some(generation),
         }
     }
 }

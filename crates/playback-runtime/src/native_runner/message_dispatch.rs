@@ -5,6 +5,16 @@ use super::{DeviceInput, NativeRunner, RuntimeTransportState};
 
 impl NativeRunner {
     pub fn send_music_first(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        self.pending.external_autosave_deferred = true;
+        let result = self.send_music_first_scoped(message);
+        self.pending.external_autosave_deferred = false;
+        result
+    }
+
+    fn send_music_first_scoped(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<Vec<RunnerMessage>, String> {
         let deferred_persistence_result = !self.restart_settings.is_saving()
             && !self.restart_settings.has_restart_after_pending_write()
             && matches!(&message, HostMessage::RuntimeResult { result }

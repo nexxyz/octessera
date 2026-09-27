@@ -117,7 +117,12 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            host_work::drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
+            host_work::drain_host_work_with_autoaux(
+                &mut playback,
+                &mut runner,
+                &mut host,
+                timing_input.as_mut(),
+            )?;
             if host.shutdown_pending() {
                 break;
             }
@@ -142,7 +147,6 @@ pub(crate) fn run_prepared_runtime(
                 &mut runner,
                 &mut host,
                 &native_scenes,
-                &ui_profiler,
             )?;
             let (runtime_snapshot_requested, runtime_advanced) = if let Some(advance) = scheduler
                 .next_runtime_advance(Instant::now(), &playback, runner.next_xy_glide_deadline())
@@ -189,11 +193,11 @@ pub(crate) fn run_prepared_runtime(
                     &mut host,
                 )?;
                 process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                host_work::drain_host_work(
+                host_work::drain_host_work_with_autoaux(
                     &mut playback,
                     &mut runner,
                     &mut host,
-                    &mut ui_profiler,
+                    timing_input.as_mut(),
                 )?;
             }
             if host.shutdown_pending() {
@@ -223,7 +227,13 @@ pub(crate) fn run_prepared_runtime(
             process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
             audio_manager.report_runtime_terminal_diagnostics();
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
-            host_work::drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
+            host_work::flush_native_persistence(&mut playback, &mut runner, &mut host)?;
+            host_work::drain_host_work_with_autoaux(
+                &mut playback,
+                &mut runner,
+                &mut host,
+                timing_input.as_mut(),
+            )?;
             if runtime_advanced {
                 scheduler.record_runtime_advance_complete(
                     Instant::now(),
@@ -367,6 +377,10 @@ pub(crate) fn dispatch(
     let message = prepare_dispatch_message(playback, message);
     let output = playback.dispatch_host_message_music_first(message, runner, host)?;
     process_runtime_output(playback, runner, host, output)?;
+    if let Some(message) = host.take_manual_save(playback, runner) {
+        let output = playback.dispatch_host_message_music_first(message, runner, host)?;
+        process_runtime_output(playback, runner, host, output)?;
+    }
     Ok(())
 }
 

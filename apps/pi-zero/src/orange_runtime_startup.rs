@@ -135,13 +135,10 @@ fn drain_startup_host_work(
     runner: &mut NativeRunner,
     host: &mut OrangeHostAdapter,
 ) -> Result<(), String> {
-    let responses = runner.flush_deferred_menu_apply()?;
+    let responses = runner.poll_deferred_menu_apply_music_first()?;
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, host)?;
         process_runtime_output(playback, runner, host, output)?;
-    }
-    for follow_up in host.flush_due_default_save()? {
-        dispatch(playback, runner, host, follow_up)?;
     }
     for result in host.drain_startup_platform_results(HOST_RESULT_BUDGET) {
         dispatch(playback, runner, host, result)?;

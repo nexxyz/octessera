@@ -16,24 +16,22 @@ use crate::midi_host::{MidiHost, RuntimeOutputSink};
 use crate::oled_frame_cache::OledFrameCache;
 use crate::platform_service::{
     dispatch_midi_effect_messages, dispatch_shared_effect, usb_sd_transfer_output_block_reason,
-    PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
+    PendingPiPersistence, PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
 };
 use playback_runtime::{
-    AudioOutputSet, DeferredDefaultSave, DrumHit, HostAdapter, HostMessage,
-    MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult, UsbDataRole,
+    AudioOutputSet, DrumHit, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
+    RuntimeAdapterError, RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult, UsbDataRole,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
 
 pub struct PiPlaybackHostAdapter {
     audio: Option<AudioService>,
     samples_dir: PathBuf,
     pub(crate) platform_service: PiPlatformService,
-    pending_default_save: DeferredDefaultSave,
-    pending_default_save_generation: Option<u64>,
+    pending_default_save: PendingPiPersistence,
     midi: MidiHost,
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
@@ -73,16 +71,10 @@ impl PiPlaybackHostAdapter {
     }
 
     pub(crate) fn take_transfer_status(&mut self) -> Option<HostMessage> {
-        if self
-            .pending_default_save_generation
-            .is_some_and(|generation| {
-                generation != self.platform_service.store_write_generation()
-                    || self.platform_service.store_writes_blocked()
-            })
-        {
-            self.pending_default_save.cancel();
-            self.pending_default_save_generation = None;
-        }
+        self.pending_default_save.cancel_if_invalid(
+            self.platform_service.store_write_generation(),
+            self.platform_service.store_writes_blocked(),
+        );
         self.platform_service.take_transfer_status()
     }
 
@@ -143,65 +135,6 @@ impl PiPlaybackHostAdapter {
         self.audio.clone()
     }
 
-    pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
-        if self
-            .pending_default_save_generation
-            .is_some_and(|generation| {
-                generation != self.platform_service.store_write_generation()
-                    || self.platform_service.store_writes_blocked()
-            })
-        {
-            self.pending_default_save.cancel();
-            self.pending_default_save_generation = None;
-            return Ok(Vec::new());
-        }
-        let Some(entry) = self.pending_default_save.take_due(Instant::now()) else {
-            return Ok(Vec::new());
-        };
-        let generation = self.pending_default_save_generation.take();
-        let payload = entry.payload;
-        let request = entry.request;
-        let job = match generation {
-            Some(generation) => PlatformJob::with_store_write_generation(
-                request.clone(),
-                PlatformJobKind::SaveDefault {
-                    payload: payload.clone(),
-                    is_auto: Some(true),
-                },
-                generation,
-            ),
-            None => PlatformJob::new(
-                request.clone(),
-                PlatformJobKind::SaveDefault {
-                    payload: payload.clone(),
-                    is_auto: Some(true),
-                },
-            ),
-        };
-        if let Err(message) = self.platform_service.enqueue(job) {
-            if self.platform_service.store_writes_blocked()
-                || generation.is_some_and(|generation| {
-                    generation != self.platform_service.store_write_generation()
-                })
-            {
-                return Ok(Vec::new());
-            }
-            self.pending_default_save.retry(
-                playback_runtime::DeferredDefaultSaveEntry {
-                    payload,
-                    due_at: Instant::now(),
-                    request: request.clone(),
-                },
-                retry_default_save_at(),
-            );
-            self.pending_default_save_generation = generation;
-            return Ok(vec![identified_failure(
-                &request,
-                format!("Auto-save queue failed: {message}"),
-            )]);
-        }
-        Ok(Vec::new())
-    }
     pub fn drain_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut results = self.platform_service.drain_results(max_results);
         if results.len() < max_results {
@@ -317,7 +250,6 @@ impl HostAdapter for PiPlaybackHostAdapter {
             }
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 self.pending_default_save.cancel();
-                self.pending_default_save_generation = None;
                 let recording_result = self.stop_recording_for_transition(request)?;
                 if let Err(message) =
                     crate::rpi_device_apply::apply(&self.platform_service, payload)
@@ -450,10 +382,6 @@ impl RuntimeOutputSink for PiPlaybackHostAdapter {
     }
 }
 
-fn retry_default_save_at() -> Instant {
-    Instant::now() + std::time::Duration::from_millis(1_000)
-}
-
 fn store_error(message: String) -> HostMessage {
     HostMessage::RuntimeResult {
         result: RuntimeStoreResult::StoreError { message },
@@ -468,9 +396,6 @@ fn identified_failure(request: &RuntimePlatformRequest, message: String) -> Host
     }
 }
 
-#[cfg(test)]
-#[path = "host_adapter_deferred_default_save_tests.rs"]
-mod deferred_default_save_tests;
 #[cfg(test)]
 #[path = "host_adapter_power_tests.rs"]
 mod power_tests;

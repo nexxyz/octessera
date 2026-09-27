@@ -46,10 +46,9 @@ fn arm_recovery_save(adapter: &mut OrangeHostAdapter, id: &str) {
 }
 
 #[test]
-fn apply_waits_behind_queued_default_and_cancels_deferred_save() {
+fn apply_waits_behind_queued_default_save() {
     let (mut adapter, root) = adapter("fifo");
     let earlier = json!({"earlier": true});
-    let deferred = json!({"deferred": true});
     let applied = json!({"applied": true});
     assert!(adapter
         .handle_platform_effect(&request(
@@ -58,16 +57,6 @@ fn apply_waits_behind_queued_default_and_cancels_deferred_save() {
                 mode: None,
             },
             "earlier",
-        ))
-        .unwrap()
-        .is_empty());
-    assert!(adapter
-        .handle_platform_effect(&request(
-            RuntimePlatformEffect::StoreSaveDefault {
-                payload: deferred,
-                mode: Some("deferred".into()),
-            },
-            "deferred",
         ))
         .unwrap()
         .is_empty());

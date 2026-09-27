@@ -17,13 +17,18 @@ pub(crate) fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), 
 }
 
 pub(super) fn delete_preset_payload(store_dir: &Path, name: &str) -> bool {
+    delete_preset_payload_result(store_dir, name).is_ok()
+}
+
+pub(crate) fn delete_preset_payload_result(store_dir: &Path, name: &str) -> Result<(), String> {
     let Ok(patch) = preset_patch_path(store_dir, name) else {
-        return false;
+        return Err(format!("Unsafe preset name: {name:?}"));
     };
-    if patch.is_file() {
-        return std::fs::remove_file(patch).is_ok();
+    if !patch.is_file() {
+        return Err(format!("Preset {name} does not exist"));
     }
-    false
+    std::fs::remove_file(patch)
+        .map_err(|error| format!("Preset {name} could not be removed: {error}"))
 }
 
 pub(crate) fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
@@ -39,7 +44,9 @@ pub(crate) fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
                 .path()
                 .file_name()
                 .and_then(|name| name.to_str())
-                .and_then(preset_name_from_file_name)
+                .and_then(|name| name.strip_suffix(".json"))
+                .filter(|name| playback_runtime::is_valid_preset_name(name))
+                .map(str::to_string)
             {
                 names.insert(name);
             }
@@ -78,20 +85,4 @@ pub(crate) fn save_backup(store_dir: &Path, payload: &serde_json::Value) -> Resu
         std::fs::remove_file(path).map_err(|error| error.to_string())?;
     }
     Ok(())
-}
-
-fn preset_name_from_file_name(file_name: &str) -> Option<String> {
-    if matches!(
-        file_name,
-        "default.json"
-            | "default.patch.json"
-            | "current.json"
-            | "device.json"
-            | "recovery-save.json"
-    ) || file_name.starts_with("bak-")
-    {
-        return None;
-    }
-    let name = file_name.strip_suffix(".json")?;
-    playback_runtime::is_valid_preset_name(name).then(|| name.to_string())
 }

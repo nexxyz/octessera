@@ -4,8 +4,7 @@ use crate::main_paths::{default_samples_dir, default_store_dir};
 use crate::midi_host::MidiHost;
 use crate::oled_frame_cache::OledFrameCache;
 use crate::orange_audio::OrangeAudioHost;
-use crate::platform_service::PiPlatformService;
-use playback_runtime::DeferredDefaultSave;
+use crate::platform_service::{PendingPiPersistence, PiPlatformService};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -40,8 +39,7 @@ impl OrangeHostAdapter {
             audio: audio.clone(),
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
             platform_service,
-            pending_default_save: DeferredDefaultSave::default(),
-            pending_default_save_generation: None,
+            pending_default_save: PendingPiPersistence::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             oled_frame_cache: OledFrameCache::default(),
             shutdown_request: None,
@@ -72,8 +70,7 @@ impl OrangeHostAdapter {
             audio: audio.clone(),
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
             platform_service,
-            pending_default_save: DeferredDefaultSave::default(),
-            pending_default_save_generation: None,
+            pending_default_save: PendingPiPersistence::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             oled_frame_cache: OledFrameCache::default(),
             shutdown_request: None,

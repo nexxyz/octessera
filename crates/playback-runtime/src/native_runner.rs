@@ -128,6 +128,8 @@ mod menu_value_apply;
 mod message_dispatch;
 mod modulation;
 #[cfg(test)]
+mod music_first_grid_persistence_tests;
+#[cfg(test)]
 mod music_first_manual_save_tests;
 #[cfg(test)]
 mod music_first_persistence_tests;

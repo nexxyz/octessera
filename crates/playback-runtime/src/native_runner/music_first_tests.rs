@@ -397,6 +397,7 @@ fn music_first_defer_guard_resets_on_dispatch_failure() {
     });
     assert!(failed.is_err());
     assert!(!runner.pending.presentation_deferred);
+    assert!(!runner.pending.external_autosave_deferred);
     let snapshot = runner
         .send(HostMessage::DeviceInput {
             input: json!({"type": "encoder_turn", "id": "aux1", "delta": 1}),

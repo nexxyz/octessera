@@ -1,16 +1,17 @@
+use super::platform_native_persistence::PlatformResult;
 use playback_runtime::HostMessage;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
 use std::sync::Mutex;
 
 pub(crate) struct PlatformResultLane {
-    sender: SyncSender<HostMessage>,
+    sender: SyncSender<PlatformResult>,
     producer_lock: Mutex<()>,
     setup_waiting: AtomicBool,
 }
 
 impl PlatformResultLane {
-    pub(crate) fn new(sender: SyncSender<HostMessage>) -> Self {
+    pub(crate) fn new(sender: SyncSender<PlatformResult>) -> Self {
         Self {
             sender,
             producer_lock: Mutex::new(()),
@@ -18,7 +19,7 @@ impl PlatformResultLane {
         }
     }
 
-    pub(crate) fn send_platform(&self, result: HostMessage) -> Result<(), ()> {
+    pub(crate) fn send_platform(&self, result: PlatformResult) -> Result<(), ()> {
         let _guard = self.producer_lock.lock().map_err(|_| ())?;
         self.sender.send(result).map_err(|_| ())
     }
@@ -29,7 +30,11 @@ impl PlatformResultLane {
             .producer_lock
             .lock()
             .map_err(|_| ())
-            .and_then(|_guard| self.sender.send(result).map_err(|_| ()));
+            .and_then(|_guard| {
+                self.sender
+                    .send(PlatformResult::Legacy(result))
+                    .map_err(|_| ())
+            });
         self.setup_waiting.store(false, Ordering::Release);
         outcome
     }

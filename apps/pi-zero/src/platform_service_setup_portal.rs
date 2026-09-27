@@ -21,11 +21,27 @@ impl PiPlatformService {
     }
 
     pub fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
+        let mut messages = Vec::new();
+        for result in self.drain_platform_results(max_results) {
+            match result {
+                PlatformResult::Legacy(message) => messages.push(message),
+                result @ (PlatformResult::NativeDefaultCompletion(_)
+                | PlatformResult::NativePresetCompletion(_)) => self
+                    .preserved_results
+                    .lock()
+                    .expect("Orange preserved platform results lock is poisoned")
+                    .push_back(result),
+            }
+        }
+        messages
+    }
+
+    pub(crate) fn drain_platform_results(&self, max_results: usize) -> Vec<PlatformResult> {
         self.user_data_transfer.expire_if_needed();
         let mut results = Vec::new();
         for _ in 0..max_results {
             if let Some(result) = self.user_data_transfer.take_runtime_status() {
-                results.push(result);
+                results.push(PlatformResult::Legacy(result));
                 continue;
             }
             if let Some(result) = self
