@@ -9,6 +9,8 @@ use std::collections::BTreeSet;
 
 #[path = "engine_finalization_tests.rs"]
 mod finalization_tests;
+#[path = "engine_persistence_tests.rs"]
+mod persistence_tests;
 #[path = "engine_twinkle_tests.rs"]
 mod twinkle_tests;
 
