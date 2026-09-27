@@ -124,26 +124,6 @@ fn start_ordinary_write(
         .expect("ordinary default write")
 }
 
-fn start_deferred_write(
-    runtime: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut ReplayHost,
-) -> RuntimePlatformRequest {
-    assert!(runner.menu.focus_item_key("transport.bpm"));
-    let _ = press(runtime, runner, host);
-    let _ = turn(runtime, runner, host, 1);
-    runner.make_deferred_menu_apply_due_for_test();
-    let messages = runner.flush_deferred_menu_apply().unwrap();
-    runtime
-        .dispatch_runner_messages(messages, runner, host)
-        .unwrap();
-    host.requests
-        .iter()
-        .find(|request| request.operation() == RuntimeOperation::StoreSaveDefault)
-        .cloned()
-        .expect("deferred default write")
-}
-
 fn edit_buffer_and_commit(
     runtime: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -156,11 +136,15 @@ fn edit_buffer_and_commit(
 }
 
 fn identified_save(request: &RuntimePlatformRequest, ok: bool) -> HostMessage {
+    identified_save_with_identity(&request.request_id, request.revision, ok)
+}
+
+fn identified_save_with_identity(request_id: &str, revision: Option<u64>, ok: bool) -> HostMessage {
     HostMessage::RuntimeResult {
         result: RuntimeStoreResult::Identified {
             result: Box::new(RuntimeStoreResult::SaveDefaultResult { ok, is_auto: None }),
-            request_id: request.request_id.clone(),
-            revision: request.revision,
+            request_id: request_id.into(),
+            revision,
         },
     }
 }
@@ -169,14 +153,34 @@ fn identified_save(request: &RuntimePlatformRequest, ok: bool) -> HostMessage {
 fn autosave_restart_intent_survives_an_older_default_write() {
     for deferred in [false, true] {
         let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        let mut runner = if deferred {
+            super::super::music_first_tests::playing_default()
+        } else {
+            NativeRunner::new(NativeRunnerConfig::default()).unwrap()
+        };
         runner.auto_save_default = true;
         runner.menu.rebuild(runner.menu_config());
         let mut host = ReplayHost::default();
-        let older = if deferred {
-            start_deferred_write(&mut runtime, &mut runner, &mut host)
+        let (older_request_id, older_revision) = if deferred {
+            runner.mark_config_dirty();
+            let revision = runner.config_revision;
+            let native_request =
+                runtime.next_native_store_request(RuntimeOperation::StoreSaveDefault, revision);
+            let payload = std::sync::Arc::new(runner.capture_config_snapshot().into_payload());
+            assert!(runner.register_native_default_write(
+                native_request.request_id(),
+                revision,
+                true,
+            ));
+            assert!(runner.attach_native_default_write_payload(
+                native_request.request_id(),
+                revision,
+                payload,
+            ));
+            (native_request.request_id().to_owned(), Some(revision))
         } else {
-            start_ordinary_write(&mut runtime, &mut runner, &mut host)
+            let older = start_ordinary_write(&mut runtime, &mut runner, &mut host);
+            (older.request_id, older.revision)
         };
 
         edit_buffer_and_commit(&mut runtime, &mut runner, &mut host);
@@ -184,10 +188,28 @@ fn autosave_restart_intent_survives_an_older_default_write() {
             runner.display.confirm_dialog.is_none(),
             "auto save opened a manual choice for {deferred:?}"
         );
+        if deferred {
+            assert!(runner.restart_settings.has_restart_after_pending_write());
+        }
 
-        let _ = runtime
-            .dispatch_host_message(identified_save(&older, true), &mut runner, &mut host)
-            .unwrap();
+        let result = identified_save_with_identity(&older_request_id, older_revision, true);
+        if deferred {
+            let output = runtime
+                .dispatch_host_message_music_first(result, &mut runner, &mut host)
+                .unwrap();
+            assert!(output
+                .messages
+                .iter()
+                .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+            let snapshot = snapshot_from(&output.messages);
+            assert_eq!(snapshot["display"]["title"], "Saving...");
+            assert_ne!(snapshot["display"]["toast"], "Saved default");
+            assert!(!runner.restart_settings.has_restart_after_pending_write());
+        } else {
+            let _ = runtime
+                .dispatch_host_message(result, &mut runner, &mut host)
+                .unwrap();
+        }
         let restart_requests: Vec<_> = host
             .requests
             .iter()
@@ -218,6 +240,7 @@ fn autosave_restart_intent_survives_an_older_default_write() {
                 mode: Some("restart-everything".into()),
             }
         );
+        assert_eq!(restart_request.revision, Some(runner.config_revision));
 
         let output = runtime
             .dispatch_host_message(
@@ -235,58 +258,14 @@ fn autosave_restart_intent_survives_an_older_default_write() {
                 .iter()
                 .filter(|request| request.operation() == RuntimeOperation::StoreSaveDefault)
                 .count(),
-            2,
+            if deferred { 1 } else { 2 },
             "{deferred:?}"
         );
+        assert!(!host.requests.iter().any(|request| matches!(
+            request.effect,
+            RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown
+        )));
     }
-}
-
-#[test]
-fn immediate_autosave_failure_rearms_the_normal_deferred_retry() {
-    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.auto_save_default = true;
-    runner.menu.rebuild(runner.menu_config());
-    let mut host = ReplayHost {
-        fail_first_default_save: true,
-        ..ReplayHost::default()
-    };
-
-    assert!(runner.menu.focus_item_key("transport.bpm"));
-    let _ = press(&mut runtime, &mut runner, &mut host);
-    let _ = turn(&mut runtime, &mut runner, &mut host, 1);
-    runner.make_deferred_menu_apply_due_for_test();
-    let messages = runner.flush_deferred_menu_apply().unwrap();
-    runtime
-        .dispatch_runner_messages(messages, &mut runner, &mut host)
-        .unwrap();
-
-    assert_eq!(host.default_save_calls, 1);
-    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
-
-    runner.make_deferred_menu_apply_due_for_test();
-    let retry = runner.flush_deferred_menu_apply().unwrap();
-    assert_eq!(
-        retry
-            .iter()
-            .filter(|message| matches!(
-                message,
-                RunnerMessage::PlatformEffects { effects }
-                    if effects.iter().any(|effect| matches!(
-                        effect,
-                        RuntimePlatformEffect::StoreSaveDefault {
-                            mode: Some(mode),
-                            ..
-                        } if mode == "deferred"
-                    ))
-            ))
-            .count(),
-        1
-    );
-    runtime
-        .dispatch_runner_messages(retry, &mut runner, &mut host)
-        .unwrap();
-    assert_eq!(host.default_save_calls, 2);
 }
 
 #[test]

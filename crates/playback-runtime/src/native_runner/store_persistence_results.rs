@@ -7,6 +7,14 @@ impl NativeRunner {
         &mut self,
         result: RuntimeStoreResult,
     ) -> Result<(), String> {
+        self.apply_store_persistence_result_with_default_feedback(result, true)
+    }
+
+    pub(super) fn apply_store_persistence_result_with_default_feedback(
+        &mut self,
+        result: RuntimeStoreResult,
+        allow_default_feedback: bool,
+    ) -> Result<(), String> {
         match result {
             RuntimeStoreResult::ListPresetsResult { names } => {
                 self.preset_names = names;
@@ -72,7 +80,7 @@ impl NativeRunner {
                             Some("native save payload unavailable".into()),
                         ),
                     })?;
-                } else {
+                } else if allow_default_feedback {
                     self.show_saved_default_feedback();
                 }
                 self.acknowledge_config_save(None);

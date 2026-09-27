@@ -1,6 +1,253 @@
 use super::music_first_tests::{assert_music_only, playing_default};
 use super::*;
 use crate::tests::support::FakeHost;
+use std::sync::Arc;
+
+#[test]
+fn native_save_result_is_music_first_without_snapshot_or_payload_serialization() {
+    let mut runner = playing_default();
+    let initial = runner.capture_display_scene().unwrap();
+    runner.acknowledge_display_scene(initial.generation());
+    assert!(!runner.display_scene_pending());
+    runner.mark_config_dirty();
+    let revision = runner.config_revision;
+    let serialization_calls = runner.behavior_state_serialization_calls.get();
+    let worker_payload = Arc::new(json!({
+        "revision": revision,
+        "runtimeConfig": { "usb": { "dataRole": "device" } }
+    }));
+    assert!(runner.register_native_default_write("native-music-save", revision, true));
+    assert!(runner.attach_native_default_write_payload(
+        "native-music-save",
+        revision,
+        Arc::clone(&worker_payload),
+    ));
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+
+    let output = runtime
+        .dispatch_host_message_music_first(
+            HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                        ok: true,
+                        is_auto: Some(true),
+                    }),
+                    request_id: "native-music-save".into(),
+                    revision: Some(revision),
+                },
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+
+    assert!(output
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::RuntimeStatus { .. })));
+    assert!(!output
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert_eq!(
+        runtime.last_status().unwrap().transport,
+        RuntimeTransportState::Playing
+    );
+    assert_eq!(
+        runner
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| toast.message.as_str()),
+        Some("Saved default")
+    );
+    assert!(Arc::ptr_eq(
+        &runner.restart_settings.persisted_default,
+        &worker_payload
+    ));
+    assert!(!runner.config_dirty);
+    assert_eq!(
+        runner.behavior_state_serialization_calls.get(),
+        serialization_calls
+    );
+    assert!(runner.display_scene_pending());
+    let saved_scene = runner.capture_display_scene().unwrap();
+    let saved_generation = saved_scene.generation();
+    let scene_snapshot = saved_scene.into_snapshot();
+    assert_eq!(scene_snapshot["display"]["toast"], "Saved default");
+    assert_eq!(scene_snapshot["settings"]["autoSaveFlash"], "flash");
+    runner.acknowledge_display_scene(saved_generation);
+    assert!(!runner.display_scene_pending());
+}
+
+#[test]
+fn successful_native_backup_is_music_first_without_replacing_default_baseline() {
+    let mut runner = playing_default();
+    let initial = runner.capture_display_scene().unwrap();
+    runner.acknowledge_display_scene(initial.generation());
+    let baseline = Arc::clone(&runner.restart_settings.persisted_default);
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    let output = runtime
+        .dispatch_host_message_music_first(
+            HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::SaveBackupResult { ok: true }),
+                    request_id: "native-backup".into(),
+                    revision: Some(runner.config_revision),
+                },
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+
+    assert!(output
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::RuntimeStatus { .. })));
+    assert!(!output
+        .messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(Arc::ptr_eq(
+        &runner.restart_settings.persisted_default,
+        &baseline
+    ));
+    assert!(!runner.display_scene_pending());
+}
+
+#[test]
+fn stale_unidentified_and_mismatched_native_default_successes_remain_synchronous() {
+    for result_kind in ["unidentified", "wrong-id", "wrong-revision"] {
+        let mut runner = playing_default();
+        runner.mark_config_dirty();
+        let revision = runner.config_revision;
+        let baseline = Arc::clone(&runner.restart_settings.persisted_default);
+        let worker_payload = Arc::new(json!({ "revision": revision }));
+        assert!(runner.register_native_default_write("native-current", revision, true));
+        assert!(runner.attach_native_default_write_payload(
+            "native-current",
+            revision,
+            Arc::clone(&worker_payload),
+        ));
+        let current_revision = revision;
+        let flash_serial = runner.display.auto_save_flash_serial;
+        let result = match result_kind {
+            "unidentified" => RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: Some(true),
+            },
+            "wrong-id" => RuntimeStoreResult::Identified {
+                result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                    ok: true,
+                    is_auto: Some(true),
+                }),
+                request_id: "different-request".into(),
+                revision: Some(revision),
+            },
+            "wrong-revision" => RuntimeStoreResult::Identified {
+                result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                    ok: true,
+                    is_auto: Some(true),
+                }),
+                request_id: "native-current".into(),
+                revision: Some(revision + 1),
+            },
+            _ => unreachable!(),
+        };
+        let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+        let mut host = FakeHost::default();
+
+        let output = runtime
+            .dispatch_host_message_music_first(
+                HostMessage::RuntimeResult { result },
+                &mut runner,
+                &mut host,
+            )
+            .unwrap();
+
+        assert!(
+            output
+                .messages
+                .iter()
+                .any(|message| matches!(message, RunnerMessage::Snapshot { .. })),
+            "result kind: {result_kind}"
+        );
+        assert!(!Arc::ptr_eq(
+            &runner.restart_settings.persisted_default,
+            &worker_payload
+        ));
+        assert!(Arc::ptr_eq(
+            &runner.restart_settings.persisted_default,
+            &baseline
+        ));
+        assert!(runner.config_dirty);
+        assert_eq!(runner.dirty_revision, Some(current_revision));
+        assert_eq!(
+            runner.restart_settings.pending_write_revision(),
+            Some(revision)
+        );
+        assert_eq!(runner.display.auto_save_flash_serial, flash_serial);
+    }
+}
+
+#[test]
+fn missing_native_payload_success_forces_synchronous_error_presentation() {
+    let mut runner = playing_default();
+    runner.auto_save_default = true;
+    runner.mark_config_dirty();
+    let revision = runner.config_revision;
+    assert!(runner.register_native_default_write("native-missing-result", revision, true));
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    let output = runtime
+        .dispatch_host_message_music_first(
+            HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified {
+                    result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                        ok: true,
+                        is_auto: Some(true),
+                    }),
+                    request_id: "native-missing-result".into(),
+                    revision: Some(revision),
+                },
+            },
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+
+    assert!(output.messages.iter().any(|message| matches!(message,
+        RunnerMessage::Snapshot { snapshot }
+            if snapshot["display"]["title"] == "RUNTIME ERROR"
+    )));
+    assert!(runner.display.runtime_error_presentation.is_some());
+    assert!(runner.config_dirty);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+}
+
+#[test]
+fn failed_default_result_remains_on_the_synchronous_presentation_path() {
+    let mut runner = playing_default();
+    let messages = runner
+        .send_music_first(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified {
+                result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                    ok: false,
+                    is_auto: Some(true),
+                }),
+                request_id: "failed-default".into(),
+                revision: Some(runner.config_revision),
+            },
+        })
+        .unwrap();
+
+    assert!(messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+}
 
 #[test]
 fn due_deferred_autosave_stays_dirty_until_separate_persistence_call() {

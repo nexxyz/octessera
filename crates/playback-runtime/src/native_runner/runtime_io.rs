@@ -315,8 +315,22 @@ impl NativeRunner {
         &mut self,
         result: crate::protocol::RuntimeStoreResult,
     ) -> Result<Vec<RunnerMessage>, String> {
+        let had_runtime_error = self.display.runtime_error_presentation.is_some();
+        let save_flash_serial = self.display.auto_save_flash_serial;
         self.apply_store_result(result)?;
-        self.messages_with_snapshot()
+        if self.pending.presentation_deferred {
+            if !had_runtime_error && self.display.runtime_error_presentation.is_some() {
+                self.require_synchronous_action_presentation();
+                self.messages_with_snapshot()
+            } else {
+                if self.display.auto_save_flash_serial != save_flash_serial {
+                    self.display.transients.mark_presentation_due();
+                }
+                self.messages_without_presentation()
+            }
+        } else {
+            self.messages_with_snapshot()
+        }
     }
 
     fn should_ignore_external_start_stop(&self) -> bool {

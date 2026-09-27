@@ -132,6 +132,7 @@ impl NativeRunner {
             request_id,
             revision,
             result.error_facts().is_none(),
+            self.config_revision,
         )?;
         if self.pending.pending_save_revision == revision {
             self.pending.pending_save_revision = None;
