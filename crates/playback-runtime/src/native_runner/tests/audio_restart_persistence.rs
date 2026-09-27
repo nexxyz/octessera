@@ -306,7 +306,8 @@ fn invalid_audio_baseline_omits_setting_only_save() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.restart_settings.persisted_default["runtimeConfig"]["audioOutputs"] = json!({
+    std::sync::Arc::make_mut(&mut runner.restart_settings.persisted_default)["runtimeConfig"]
+        ["audioOutputs"] = json!({
         "dac": "invalid",
         "usb": false,
         "hdmi": false

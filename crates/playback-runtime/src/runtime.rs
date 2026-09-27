@@ -27,6 +27,8 @@ mod pulse_phase;
 #[path = "runtime_status.rs"]
 mod status;
 
+pub use music_first::NativeStoreRequest;
+
 pub(super) const PPQN: f64 = 24.0;
 
 #[derive(Clone, Debug, Default, PartialEq)]

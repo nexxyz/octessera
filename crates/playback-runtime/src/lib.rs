@@ -35,8 +35,8 @@ pub use protocol::{
 };
 pub use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 pub use runtime::{
-    CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
-    RuntimeOledCacheFault, RuntimePresentationMetrics,
+    CoreRunner, HostAdapter, NativeStoreRequest, PlaybackRuntime, RuntimeConfig,
+    RuntimeDispatchInput, RuntimeIngest, RuntimeOledCacheFault, RuntimePresentationMetrics,
 };
 pub use timing_probe::{
     parse_timing_probe_durations, parse_timing_probe_scenarios,

@@ -63,7 +63,18 @@ impl NativeRunner {
                 });
             }
             RuntimeStoreResult::SaveDefaultResult { ok, is_auto: _ } if ok => {
-                self.show_saved_default_feedback();
+                if self.restart_settings.take_native_payload_missing() {
+                    self.apply_error_presentation_result(RuntimeStoreResult::RuntimeFailure {
+                        error: crate::RuntimeErrorFacts::new(
+                            crate::RuntimeErrorDomain::Storage,
+                            crate::RuntimeErrorCode::OperationFailed,
+                            crate::RuntimeOperation::StoreSaveDefault,
+                            Some("native save payload unavailable".into()),
+                        ),
+                    })?;
+                } else {
+                    self.show_saved_default_feedback();
+                }
                 self.acknowledge_config_save(None);
             }
             RuntimeStoreResult::SaveBackupResult { .. }

@@ -1,6 +1,7 @@
 use crate::native_menu::NativeMenuAction;
 use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use serde_json::Value;
+use std::sync::Arc;
 
 use super::restart_settings::{DefaultSaveScope, DefaultWriteCompletion, RestartSetting};
 use super::UsbDataRole;
@@ -56,6 +57,37 @@ impl NativeRunner {
                 payload,
                 mode: scope.mode(),
             });
+    }
+
+    pub fn register_native_default_write(
+        &mut self,
+        request_id: &str,
+        revision: u64,
+        is_auto: bool,
+    ) -> bool {
+        let scope = if is_auto {
+            DefaultSaveScope::Autosave
+        } else {
+            DefaultSaveScope::Ordinary
+        };
+        if !self
+            .restart_settings
+            .register_native_write(request_id, revision, scope)
+        {
+            return false;
+        }
+        self.pending.pending_save_revision = Some(revision);
+        true
+    }
+
+    pub fn attach_native_default_write_payload(
+        &mut self,
+        request_id: &str,
+        revision: u64,
+        payload: Arc<Value>,
+    ) -> bool {
+        self.restart_settings
+            .attach_native_payload(request_id, revision, payload)
     }
 
     pub(super) fn register_default_write(
@@ -179,7 +211,7 @@ impl NativeRunner {
 
     fn reconcile_dirty_with_persisted_default(&mut self) {
         let mut current = self.config_payload();
-        let mut baseline = self.restart_settings.persisted_default.clone();
+        let mut baseline = (*self.restart_settings.persisted_default).clone();
         if let (Some(current), Some(baseline)) = (current.as_object_mut(), baseline.as_object_mut())
         {
             current.remove("revision");
