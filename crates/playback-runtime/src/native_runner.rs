@@ -24,10 +24,10 @@ use modulation_sampler::sampler_assignment_velocity;
 use platform_core::{
     default_mapping_config, AxisStrategy, BehaviorActionInput, BehaviorConfigItem,
     BehaviorConfigItemType, DeviceInput, GlobalSoundConfig, GridInteraction, InterpretationProfile,
-    NativeBehavior, NativeLayerEngine, NativeLayerEngineConfig, NoteBehavior, RangeMode,
-    TickStrategy, TriggerAction, TriggerTarget, VelocityCurve, BUS_COUNT, GLOBAL_FX_SLOT_COUNT,
-    GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT, PAN_POSITION_COUNT,
-    PLAY_FX_MAX_CONCURRENT, SAMPLE_SLOT_COUNT,
+    NativeBehavior, NativeBehaviorState, NativeLayerEngine, NativeLayerEngineConfig, NoteBehavior,
+    RangeMode, TickStrategy, TriggerAction, TriggerTarget, VelocityCurve, BUS_COUNT,
+    GLOBAL_FX_SLOT_COUNT, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT,
+    PAN_POSITION_COUNT, PLAY_FX_MAX_CONCURRENT, SAMPLE_SLOT_COUNT,
 };
 #[cfg(test)]
 use platform_core::{CellTriggerIntent, MusicalEvent};
@@ -67,6 +67,7 @@ mod config;
 mod config_dto;
 mod config_schema;
 mod config_schema_validation;
+mod config_snapshot;
 mod configuration_transaction;
 mod confirmation_dialog_policy;
 mod construction;
@@ -214,6 +215,7 @@ pub use audio_optimization::AudioOptimization;
 pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
+pub use config_snapshot::NativeConfigSnapshot;
 pub use runner_config::NativeRunnerConfig;
 pub use snapshot_scene::{
     NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,

@@ -20,6 +20,7 @@ mod config_dto;
 mod config_field_partition;
 mod config_persistence;
 mod config_schema_validation_matrix;
+mod config_snapshot;
 mod config_transactions;
 mod construction_defaults;
 mod controls;
