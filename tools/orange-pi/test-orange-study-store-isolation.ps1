@@ -94,11 +94,29 @@ try {
   if ($null -ne $optionalEvidence.original_sha256.'recovery-save.json' -or (Test-Path -LiteralPath (Join-Path $optionalClone "recovery-save.json"))) { throw "Missing recovery-save was not kept optional." }
   [IO.File]::WriteAllBytes($recovery, $recoveryOriginal)
 
-  $plan = (& $runner -Target "octessera@orange.test.invalid" -Mode LiveCandidate -UiProfile -AutoPlay -KeepAwake -AllowServiceInterruption -Artifact (Join-Path $sandbox "missing") -PrintOnly) -join "`n"
+  $autoAuxEnvironment = [Environment]::GetEnvironmentVariable("OCTESSERA_ORANGE_STUDY_AUTOAUX", "Process")
+  try {
+    [Environment]::SetEnvironmentVariable("OCTESSERA_ORANGE_STUDY_AUTOAUX", $null, "Process")
+    $plan = (& $runner -Target "octessera@orange.test.invalid" -Mode LiveCandidate -UiProfile -AutoPlay -KeepAwake -AllowServiceInterruption -Artifact (Join-Path $sandbox "missing") -PrintOnly) -join "`n"
+    [Environment]::SetEnvironmentVariable("OCTESSERA_ORANGE_STUDY_AUTOAUX", "1", "Process")
+    $autoAuxAwake = (& $runner -Target "octessera@orange.test.invalid" -Mode LiveCandidate -UiProfile -AutoPlay -KeepAwake -AllowServiceInterruption -Artifact (Join-Path $sandbox "missing") -PrintOnly) -join "`n"
+    $autoAuxWithoutKeepAwake = (& $runner -Target "octessera@orange.test.invalid" -Mode LiveCandidate -UiProfile -AutoPlay -AllowServiceInterruption -Artifact (Join-Path $sandbox "missing") -PrintOnly) -join "`n"
+  } finally {
+    [Environment]::SetEnvironmentVariable("OCTESSERA_ORANGE_STUDY_AUTOAUX", $autoAuxEnvironment, "Process")
+  }
   Assert-PlanContains $plan 'Display scenario: AWAKE'
   Assert-PlanContains $plan 'scenario=AWAKE'
   Assert-PlanContains $plan '"store_dir=$study_store"'
   Assert-PlanContains $plan '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_PI_TIMING_KEEP_AWAKE=1'
+  if ($autoAuxWithoutKeepAwake.Contains('OCTESSERA_TIMING_AUTOAUX')) { throw "AutoAux environment was injected without -KeepAwake." }
+  if ($plan.Contains('OCTESSERA_TIMING_AUTOAUX')) { throw "AutoAux environment was injected without the workstation opt-in." }
+  $autoAuxStudyStart = $autoAuxAwake.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
+  $autoAuxStudy = $autoAuxAwake.Substring($autoAuxStudyStart, $autoAuxAwake.IndexOf("Study payload transport:", $autoAuxStudyStart, [StringComparison]::Ordinal) - $autoAuxStudyStart)
+  $autoAuxCleanupStart = $autoAuxAwake.IndexOf("Cleanup payload:`n", [StringComparison]::Ordinal) + "Cleanup payload:`n".Length
+  $autoAuxCleanupTail = $autoAuxAwake.Substring($autoAuxCleanupStart)
+  $autoAuxCleanup = $autoAuxCleanupTail.Substring(0, $autoAuxCleanupTail.LastIndexOf("`n& '", [StringComparison]::Ordinal))
+  Assert-PlanContains $autoAuxStudy '--setenv=OCTESSERA_TIMING_AUTOAUX=1'
+  if ($autoAuxCleanup.Contains('OCTESSERA_TIMING_AUTOAUX')) { throw "AutoAux environment leaked into the cleanup unit." }
   Assert-PlanContains $plan 'OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples'
   $studyStart = $plan.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
   $study = $plan.Substring($studyStart, $plan.IndexOf("Study payload transport:", $studyStart, [StringComparison]::Ordinal) - $studyStart)

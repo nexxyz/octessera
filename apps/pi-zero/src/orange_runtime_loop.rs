@@ -4,9 +4,17 @@ use super::*;
 #[path = "orange_runtime_error_tests.rs"]
 mod error_tests;
 
+#[path = "orange_runtime_host_work.rs"]
+mod host_work;
 #[cfg(test)]
 #[path = "orange_runtime_keyboard_tests.rs"]
 mod keyboard_tests;
+#[path = "orange_timing_input.rs"]
+mod timing_input;
+#[path = "orange_timing_menu.rs"]
+mod timing_menu;
+#[cfg(test)]
+pub(crate) use host_work::drain_host_results;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_prepared_runtime(
@@ -69,25 +77,19 @@ pub(crate) fn run_prepared_runtime(
         ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
         audio.ensure_route_readiness()?;
         audio_manager.ensure_selected_routes()?;
+        let timing_autoaux = timing_input::validate_startup(&playback)?;
         readiness_gate.try_mark_ready(
             audio_manager.required_jack_runtime_status(),
             candidate_readiness,
         )?;
-        super::startup::ensure_timing_keep_awake(&playback)?;
-        if std::env::var("OCTESSERA_TIMING_AUTOPLAY").as_deref() == Ok("1") {
-            for pressed in [true, false] {
-                let message = crate::input::neokey_message(1, pressed)
-                    .ok_or("Orange timing autoplay NeoKey index 1 unavailable")?;
-                dispatch(&mut playback, &mut runner, &mut host, message)?;
-            }
-            if !playback.last_status().is_some_and(|status| {
-                status.transport == playback_runtime::RuntimeTransportState::Playing
-            }) {
-                return Err("Orange timing autoplay did not enter Playing".into());
-            }
-        }
         let mut ui_profiler = crate::ui_profile::UiProfiler::from_process();
-        native_scenes.set_capture_profile_enabled(ui_profiler.enabled());
+        let mut timing_input = timing_input::OrangeTimingInput::prepare(
+            timing_autoaux,
+            &mut playback,
+            &mut runner,
+            &mut host,
+        )?;
+        timing_input::configure_scene_diagnostics(&timing_input, &mut native_scenes, &ui_profiler);
         let profile_enabled = ui_profiler.enabled();
         let mut last_loop_start = profile_enabled.then(Instant::now);
         while !signal::interrupted() {
@@ -115,7 +117,7 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
+            host_work::drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
             if host.shutdown_pending() {
                 break;
             }
@@ -134,6 +136,14 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
+            timing_input::tick_if_active(
+                &mut timing_input,
+                &mut playback,
+                &mut runner,
+                &mut host,
+                &native_scenes,
+                &ui_profiler,
+            )?;
             let (runtime_snapshot_requested, runtime_advanced) = if let Some(advance) = scheduler
                 .next_runtime_advance(Instant::now(), &playback, runner.next_xy_glide_deadline())
             {
@@ -179,7 +189,12 @@ pub(crate) fn run_prepared_runtime(
                     &mut host,
                 )?;
                 process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
+                host_work::drain_host_work(
+                    &mut playback,
+                    &mut runner,
+                    &mut host,
+                    &mut ui_profiler,
+                )?;
             }
             if host.shutdown_pending() {
                 break;
@@ -208,7 +223,7 @@ pub(crate) fn run_prepared_runtime(
             process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
             audio_manager.report_runtime_terminal_diagnostics();
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
-            drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
+            host_work::drain_host_work(&mut playback, &mut runner, &mut host, &mut ui_profiler)?;
             if runtime_advanced {
                 scheduler.record_runtime_advance_complete(
                     Instant::now(),
@@ -302,58 +317,6 @@ pub(crate) fn run_prepared_runtime(
             Err(OrangeRunError::Ordinary(error))
         }
     }
-}
-
-fn drain_host_work(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
-    ui_profiler: &mut crate::ui_profile::UiProfiler,
-) -> Result<(), String> {
-    let playing = playback
-        .last_status()
-        .is_some_and(|status| status.transport == playback_runtime::RuntimeTransportState::Playing);
-    let responses = if playing {
-        Vec::new()
-    } else {
-        runner.flush_deferred_menu_apply()?
-    };
-    if !responses.is_empty() {
-        let output = playback.dispatch_runner_messages(responses, runner, host)?;
-        process_runtime_output(playback, runner, host, output)?;
-    }
-    if host.shutdown_pending() {
-        return Ok(());
-    }
-    if playing {
-        let persistence_started = ui_profiler.enabled().then(Instant::now);
-        let persistence = runner.flush_due_persistence_music_first()?;
-        if let Some(started) = persistence_started {
-            ui_profiler.record_save_payload(started.elapsed(), &persistence);
-        }
-        if !persistence.is_empty() {
-            let output = playback.dispatch_runner_messages(persistence, runner, host)?;
-            process_runtime_output(playback, runner, host, output)?;
-        }
-    }
-    if host.shutdown_pending() {
-        return Ok(());
-    }
-    for follow_up in host.flush_due_default_save()? {
-        dispatch(playback, runner, host, follow_up)?;
-    }
-    drain_host_results(playback, runner, host)
-}
-
-pub(crate) fn drain_host_results(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
-) -> Result<(), String> {
-    for result in host.drain_results(HOST_RESULT_BUDGET) {
-        dispatch(playback, runner, host, result)?;
-    }
-    Ok(())
 }
 
 fn drain_inputs(

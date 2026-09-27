@@ -128,11 +128,81 @@ fn map_supported_configs_error(error: cpal::SupportedStreamConfigsError) -> Rout
 pub(crate) struct OrangeAudioHost {
     audio: AudioService,
     samples_dir: PathBuf,
+    autoaux_commands: Option<AutoAuxCommands>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct AutoAuxCommandEvidence {
+    pub(crate) successful_count: u64,
+    pub(crate) distinct_values: [Option<f32>; 2],
+}
+
+#[derive(Default)]
+struct AutoAuxCommands {
+    successful_count: u64,
+    distinct_value_bits: [Option<u32>; 2],
+}
+
+impl AutoAuxCommands {
+    fn record_success(&mut self, command: &RuntimeAudioCommand) {
+        let RuntimeAudioCommand::SetSynthParam {
+            instrument_slot,
+            path,
+            value,
+            ..
+        } = command
+        else {
+            return;
+        };
+        if *instrument_slot != 0 || path != "synth.filter.cutoffHz" {
+            return;
+        }
+        self.successful_count = self.successful_count.saturating_add(1);
+        let bits = value.to_bits();
+        if self
+            .distinct_value_bits
+            .iter()
+            .flatten()
+            .any(|existing| *existing == bits)
+        {
+            return;
+        }
+        if let Some(empty) = self
+            .distinct_value_bits
+            .iter_mut()
+            .find(|value| value.is_none())
+        {
+            *empty = Some(bits);
+        }
+    }
+
+    fn evidence(&self) -> AutoAuxCommandEvidence {
+        AutoAuxCommandEvidence {
+            successful_count: self.successful_count,
+            distinct_values: self
+                .distinct_value_bits
+                .map(|value| value.map(f32::from_bits)),
+        }
+    }
 }
 
 impl OrangeAudioHost {
     pub(crate) fn new(audio: AudioService, samples_dir: PathBuf) -> Self {
-        Self { audio, samples_dir }
+        Self {
+            audio,
+            samples_dir,
+            autoaux_commands: None,
+        }
+    }
+
+    pub(crate) fn begin_autoaux_command_evidence(&mut self) {
+        self.autoaux_commands = Some(AutoAuxCommands::default());
+    }
+
+    pub(crate) fn take_autoaux_command_evidence(&mut self) -> Option<AutoAuxCommandEvidence> {
+        self.autoaux_commands
+            .take()
+            .map(|profile| profile.evidence())
     }
 
     pub(crate) fn handle_runtime_drum_hit(
@@ -184,7 +254,11 @@ impl HostAdapter for OrangeAudioHost {
         &mut self,
         command: &RuntimeAudioCommand,
     ) -> Result<(), RuntimeAdapterError> {
-        send_audio_command(Some(self.audio.clone()), command, &self.samples_dir)
+        send_audio_command(Some(self.audio.clone()), command, &self.samples_dir)?;
+        if let Some(profile) = &mut self.autoaux_commands {
+            profile.record_success(command);
+        }
+        Ok(())
     }
 
     fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
