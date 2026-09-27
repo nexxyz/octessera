@@ -12,6 +12,8 @@ pub(super) struct OrangeNativeScenePump {
     )>,
     generation: Option<u64>,
     last_submission: Instant,
+    profile_capture: bool,
+    capture_duration: Option<std::time::Duration>,
     #[cfg(test)]
     capture_count: usize,
 }
@@ -24,6 +26,8 @@ impl OrangeNativeScenePump {
             last_submission: now
                 .checked_sub(crate::hardware_runtime_scheduler::SNAPSHOT_TICK)
                 .unwrap_or(now),
+            profile_capture: false,
+            capture_duration: None,
             #[cfg(test)]
             capture_count: 0,
         }
@@ -63,6 +67,7 @@ impl OrangeNativeScenePump {
         host: &mut OrangeHostAdapter,
         worker: &RenderWorker,
     ) -> Option<Instant> {
+        self.capture_duration = None;
         if playback
             .last_snapshot()
             .and_then(|snapshot| snapshot.get("runtimeError"))
@@ -88,7 +93,12 @@ impl OrangeNativeScenePump {
         {
             self.capture_count += 1;
         }
-        let Ok(scene) = runner.capture_display_scene() else {
+        let capture_started = self.profile_capture.then(Instant::now);
+        let capture = runner.capture_display_scene();
+        if let Some(started) = capture_started {
+            self.capture_duration = Some(started.elapsed());
+        }
+        let Ok(scene) = capture else {
             return None;
         };
         let generation = scene.generation();
@@ -104,6 +114,14 @@ impl OrangeNativeScenePump {
             self.generation = Some(generation);
         }
         Some(captured_at)
+    }
+
+    pub(super) fn set_capture_profile_enabled(&mut self, enabled: bool) {
+        self.profile_capture = enabled;
+    }
+
+    pub(super) fn take_capture_duration(&mut self) -> Option<std::time::Duration> {
+        self.capture_duration.take()
     }
 }
 
