@@ -40,6 +40,22 @@ pub struct PiPlaybackHostAdapter {
     recovery_save_status: Option<Result<(), String>>,
     pub(crate) oled_frame_cache: OledFrameCache,
     keyboard_control: Option<crate::usb_keyboard::KeyboardCaptureControl>,
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    pub(super) autoaux_audio_evidence: Option<RaspberryAutoAuxAudioEvidence>,
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    pub(super) autoaux_store_result:
+        Option<(playback_runtime::RuntimeStoreResult, std::time::Instant)>,
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    pub(super) autoaux_expected_revision: Option<u64>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PiPowerRequest {
@@ -47,6 +63,66 @@ pub enum PiPowerRequest {
     Shutdown,
     ApplyDeviceConfigReboot,
 }
+
+#[derive(Default)]
+#[cfg(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    all(test, not(feature = "hardware-orange-pi-zero-2w"))
+))]
+pub(crate) struct RaspberryAutoAuxAudioEvidence {
+    pub(crate) successful_count: u64,
+    distinct_values: [Option<u32>; 2],
+}
+
+#[cfg(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    all(test, not(feature = "hardware-orange-pi-zero-2w"))
+))]
+impl RaspberryAutoAuxAudioEvidence {
+    pub(crate) fn record(&mut self, command: &RuntimeAudioCommand) {
+        let RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: 0,
+            path,
+            value,
+            ..
+        } = command
+        else {
+            return;
+        };
+        if path != "synth.filter.cutoffHz" {
+            return;
+        }
+        self.successful_count = self.successful_count.saturating_add(1);
+        let bits = value.to_bits();
+        if self
+            .distinct_values
+            .iter()
+            .flatten()
+            .any(|seen| *seen == bits)
+        {
+            return;
+        }
+        if let Some(empty) = self
+            .distinct_values
+            .iter_mut()
+            .find(|value| value.is_none())
+        {
+            *empty = Some(bits);
+        }
+    }
+
+    pub(crate) fn distinct_values(&self) -> [Option<f32>; 2] {
+        self.distinct_values.map(|value| value.map(f32::from_bits))
+    }
+
+    pub(crate) fn has_two_values(&self) -> bool {
+        self.successful_count > 0
+            && self.distinct_values[0].is_some()
+            && self.distinct_values[1].is_some()
+            && self.distinct_values[0] != self.distinct_values[1]
+    }
+}
+
 impl PiPlaybackHostAdapter {
     pub(crate) fn handle_runtime_drum_hit(
         &mut self,
@@ -346,7 +422,15 @@ impl HostAdapter for PiPlaybackHostAdapter {
         if self.shutdown_pending() {
             return Ok(());
         }
-        send_audio_command(self.audio.clone(), command, &self.samples_dir)
+        send_audio_command(self.audio.clone(), command, &self.samples_dir)?;
+        #[cfg(any(
+            feature = "hardware-raspberry-pi-zero-2w",
+            all(test, not(feature = "hardware-orange-pi-zero-2w"))
+        ))]
+        if let Some(evidence) = self.autoaux_audio_evidence.as_mut() {
+            evidence.record(command);
+        }
+        Ok(())
     }
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
         if self.shutdown_pending() {

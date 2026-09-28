@@ -1,50 +1,34 @@
 use super::dispatch;
 use super::timing_menu;
+use crate::autoaux_sequence::{AutoAuxAction, AutoAuxSequence};
+#[cfg(test)]
+use crate::autoaux_sequence::{
+    Phase, BASELINE, PLATEAU, RAPID, SAVE_COMPLETION_TIMEOUT, TURN_INTERVAL,
+};
 use crate::input::{encoder_turn_message, neokey_message};
 use crate::orange_host_adapter::OrangeHostAdapter;
-use playback_runtime::{
-    NativeRunner, PlaybackRuntime, RuntimeOperation, RuntimeStoreResult, RuntimeTransportState,
-};
+use playback_runtime::{NativeRunner, PlaybackRuntime, RuntimeStoreResult, RuntimeTransportState};
 use std::time::{Duration, Instant};
 
 const AUTOAUX_ENV: &str = "OCTESSERA_TIMING_AUTOAUX";
-const BASELINE: Duration = Duration::from_secs(5);
-const PLATEAU: Duration = Duration::from_millis(500);
-const RAPID: Duration = Duration::from_secs(3);
-const SAVE_COMPLETION_TIMEOUT: Duration = Duration::from_secs(18);
-const TURN_INTERVAL: Duration = Duration::from_millis(16);
-
 pub(super) struct OrangeTimingInput {
-    phase: Phase,
+    sequence: AutoAuxSequence,
     starting_cutoff: u16,
     plateau_values: [u16; 2],
-    aux_turns: u32,
-    rapid_turns: u32,
-    missed_turns: u32,
-    final_revision: Option<u64>,
-    save_completion: Option<(String, Duration)>,
 }
 
-#[derive(Clone, Copy)]
-enum Phase {
-    Baseline {
-        started: Instant,
-    },
-    PlateauOne {
-        until: Instant,
-    },
-    PlateauTwo {
-        until: Instant,
-    },
-    Rapid {
-        started: Instant,
-        next_turn: Instant,
-        delta: i8,
-    },
-    AwaitSave {
-        started: Instant,
-    },
-    Done,
+impl std::ops::Deref for OrangeTimingInput {
+    type Target = AutoAuxSequence;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sequence
+    }
+}
+
+impl std::ops::DerefMut for OrangeTimingInput {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sequence
+    }
 }
 
 impl OrangeTimingInput {
@@ -123,16 +107,9 @@ impl OrangeTimingInput {
         host.begin_autoaux_command_evidence();
         let started_at = Instant::now();
         Ok(Some(Self {
-            phase: Phase::Baseline {
-                started: started_at,
-            },
+            sequence: AutoAuxSequence::new(started_at),
             starting_cutoff: original,
             plateau_values: [first, second],
-            aux_turns: 0,
-            rapid_turns: 0,
-            missed_turns: 0,
-            final_revision: None,
-            save_completion: None,
         }))
     }
 
@@ -179,63 +156,12 @@ impl OrangeTimingInput {
         {
             return Err("Orange Aux timing smoke left Playing unexpectedly".into());
         }
-        match self.phase {
-            Phase::Baseline { started } if now.duration_since(started) >= BASELINE => {
-                self.send_aux(playback, runner, host, 1)?;
-                self.phase = Phase::PlateauOne {
-                    until: now + PLATEAU,
-                };
+        match self.sequence.next_action(now, runner)? {
+            AutoAuxAction::Turn(delta) => {
+                self.send_aux(playback, runner, host, now, delta)?;
             }
-            Phase::PlateauOne { until } if now >= until => {
-                self.send_aux(playback, runner, host, 1)?;
-                self.phase = Phase::PlateauTwo {
-                    until: now + PLATEAU,
-                };
-            }
-            Phase::PlateauTwo { until } if now >= until => {
-                self.phase = Phase::Rapid {
-                    started: now,
-                    next_turn: now + TURN_INTERVAL,
-                    delta: -1,
-                };
-            }
-            Phase::Rapid { started, .. } if now.duration_since(started) >= RAPID => {
-                let expected = (RAPID.as_millis() / TURN_INTERVAL.as_millis()) as u32;
-                self.missed_turns = expected.saturating_sub(self.rapid_turns);
-                self.phase = Phase::AwaitSave { started: now };
-            }
-            Phase::Rapid {
-                started,
-                next_turn,
-                delta,
-            } if now >= next_turn => {
-                self.send_aux(playback, runner, host, delta)?;
-                self.rapid_turns = self.rapid_turns.saturating_add(1);
-                self.phase = Phase::Rapid {
-                    started,
-                    next_turn: now + TURN_INTERVAL,
-                    delta: -delta,
-                };
-            }
-            Phase::AwaitSave { started } => {
-                if self.final_revision.is_none() {
-                    self.final_revision = runner
-                        .persistence_intent_at(now)
-                        .filter(|intent| intent.default_eligible())
-                        .map(|intent| intent.revision());
-                }
-                if let Some((_, elapsed)) = self.save_completion {
-                    if elapsed <= now.duration_since(started) {
-                        self.phase = Phase::Done;
-                        return Ok(true);
-                    }
-                }
-                if now.duration_since(started) >= SAVE_COMPLETION_TIMEOUT {
-                    return Err("Orange Aux timing smoke timed out waiting for the final automatic default save completion".into());
-                }
-            }
-            Phase::Done => return Ok(false),
-            _ => {}
+            AutoAuxAction::Completed => return Ok(true),
+            AutoAuxAction::None => {}
         }
         Ok(false)
     }
@@ -245,47 +171,7 @@ impl OrangeTimingInput {
         result: &RuntimeStoreResult,
         accepted_at: Instant,
     ) -> Result<(), String> {
-        let Some(expected_revision) = self.final_revision else {
-            return Ok(());
-        };
-        let RuntimeStoreResult::Identified {
-            result,
-            request_id,
-            revision: Some(revision),
-        } = result
-        else {
-            return Ok(());
-        };
-        if request_id.is_empty() || *revision != expected_revision {
-            return Ok(());
-        }
-        match result.as_ref() {
-            RuntimeStoreResult::SaveDefaultResult {
-                ok: true,
-                is_auto: Some(true),
-            } => {
-                let Phase::AwaitSave { started } = self.phase else {
-                    return Ok(());
-                };
-                self.save_completion = Some((
-                    request_id.clone(),
-                    accepted_at.saturating_duration_since(started),
-                ));
-                Ok(())
-            }
-            RuntimeStoreResult::SaveDefaultResult {
-                ok: false,
-                is_auto: Some(true),
-            }
-            | RuntimeStoreResult::RuntimeFailure { .. }
-                if result.operation() == RuntimeOperation::StoreSaveDefault =>
-            {
-                Err(format!(
-                    "Orange Aux timing smoke final automatic default save failed for revision {expected_revision} ({request_id})"
-                ))
-            }
-            _ => Ok(()),
-        }
+        self.sequence.accept_store_result(result, accepted_at)
     }
 
     fn send_aux(
@@ -293,6 +179,7 @@ impl OrangeTimingInput {
         playback: &mut PlaybackRuntime,
         runner: &mut NativeRunner,
         host: &mut OrangeHostAdapter,
+        now: Instant,
         delta: i8,
     ) -> Result<(), String> {
         dispatch(
@@ -301,7 +188,7 @@ impl OrangeTimingInput {
             host,
             encoder_turn_message("encoder_aux_1", delta),
         )?;
-        self.aux_turns = self.aux_turns.saturating_add(1);
+        self.sequence.turn_issued(now);
         Ok(())
     }
 }

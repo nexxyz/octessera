@@ -86,11 +86,25 @@ The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it
 afterward; those modes require `-AllowServiceInterruption`. Runtime-only leaves
 it running. Use `-PrintOnly` to inspect the remote command first.
 
-After live probes, inspect recent logs:
+For the Raspberry normal-runtime, OLED-awake Aux/autosave study, first cross-build
+the current clean source, then run the candidate against an isolated preset clone:
+
+```powershell
+./tools/pi/run-pi-autoaux-study.ps1 -Target $PiTarget -Artifact target/pi-cross/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json -LiveSeconds 30 -AllowServiceInterruption
+```
+
+This one-shot study stops and restores the installed service. It requires a
+matching final automatic-save receipt and verifies that the original presets
+remain unchanged. Inspect its staged candidate and kernel journals for timing
+and audio errors; missing error text alone does not prove that no underrun
+occurred. On failure, retain the study evidence and clone until service
+restoration and the original-store checks are resolved.
+
+After live probes, inspect the current boot's service journal:
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
-./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'audio callback RT promotion not qualified|audio stream error|underrun|POLLERR' || true"
+./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget 'sudo journalctl -u octessera.service -b --no-pager'
 ```
 
 Use `-PrintOnly` before any live or service-changing probe. Runtime-only mode
