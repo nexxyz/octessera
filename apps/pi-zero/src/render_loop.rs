@@ -30,6 +30,10 @@ use std::time::Duration;
 ))]
 #[path = "render/hdmi_render_loop_tests.rs"]
 mod hdmi_render_loop_tests;
+#[path = "render_loop_ownership.rs"]
+mod ownership;
+#[path = "render_loop_presentation.rs"]
+mod presentation;
 #[path = "render_loop_terminal.rs"]
 mod terminal;
 #[path = "render_loop_worker.rs"]
