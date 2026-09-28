@@ -37,7 +37,13 @@ fn system_info_does_not_wait_for_store_lock() {
             .as_nanos()
     ));
     let service = PiPlatformService::new(root.join("store"), root.join("samples"));
-    let store_guard = service.store_lock.lock().unwrap();
+    let store_lock = Arc::clone(&service.store_lock);
+    let poison = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _guard = store_lock.lock().unwrap();
+        panic!("poison the store lock for the bypass test");
+    }));
+    assert!(poison.is_err());
+    assert!(service.store_lock.is_poisoned());
     service
         .enqueue(PlatformJob::new(
             RuntimePlatformRequest::new(
@@ -48,29 +54,27 @@ fn system_info_does_not_wait_for_store_lock() {
             PlatformJobKind::SystemInfo,
         ))
         .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
     let mut found = false;
-    for _ in 0..100 {
-        found |= service.drain_results(4).into_iter().any(|message| {
+    while !found && std::time::Instant::now() < deadline {
+        found = service.drain_results(4).into_iter().any(|message| {
             matches!(
                 message,
                 HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::Identified { request_id, result, .. }
                 } if request_id == "system-info-unblocked"
-                    && matches!(
-                        result.as_ref(),
-                        RuntimeStoreResult::SystemInfoResult { .. }
-                            | RuntimeStoreResult::SystemInfoError { .. }
-                    )
+                    && matches!(result.as_ref(), RuntimeStoreResult::SystemInfoResult { .. })
             )
         });
-        if found {
-            break;
+        if !found {
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        std::thread::sleep(std::time::Duration::from_millis(2));
     }
-    drop(store_guard);
-    assert!(found);
     let _ = std::fs::remove_dir_all(root);
+    assert!(
+        found,
+        "SystemInfo must return typed data with the store lock poisoned"
+    );
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
