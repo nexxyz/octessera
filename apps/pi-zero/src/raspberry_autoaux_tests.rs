@@ -5,7 +5,6 @@ use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::store_autoaux_result_observation;
-use octessera_hal::OledSsd1351;
 use playback_runtime::{
     NativeRunnerConfig, RuntimeConfig, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
     RuntimeOperation, SyncSource, UsbDataRole,
@@ -97,7 +96,7 @@ fn dispatch(
 fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiPlaybackHostAdapter) -> RenderWorker {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),

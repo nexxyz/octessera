@@ -1,7 +1,5 @@
 use super::*;
 use crate::render_loop_queue::SnapshotCommand;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use octessera_hal::OledSsd1351;
 use playback_runtime::{oled_frame::OledPresentationMetrics, NativeRunner, NativeRunnerConfig};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use playback_runtime::{
@@ -148,7 +146,7 @@ fn native_help_scene_supersedes_pending_ordinary_scene_with_failure_ack() {
 fn native_worker_returns_physically_accepted_typed_frame() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output_failing_writes(1),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -178,7 +176,7 @@ fn native_worker_returns_physically_accepted_typed_frame() {
 fn unchanged_scene_generation_is_acknowledged_without_a_new_frame_revision() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -267,7 +265,7 @@ fn native_to_terminal_source_revision_collision_acknowledges_preserving_teardown
     audio.start_recording_audio_oled_with_seed(1, None).unwrap();
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -316,7 +314,7 @@ fn worker_submits_accepted_native_frame_to_existing_audio_recording_ingress() {
     audio.start_recording_audio_oled_with_seed(1, None).unwrap();
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -349,7 +347,7 @@ fn worker_submits_accepted_native_frame_to_existing_audio_recording_ingress() {
 fn blocked_worker_publishes_beat_onset_then_expiry_without_blocking_scene_submit() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),

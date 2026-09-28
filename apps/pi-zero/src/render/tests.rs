@@ -371,14 +371,13 @@ fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
 mod hardware_render_tests {
     use super::*;
     use crate::oled_frame_cache::OledFramePublication;
-    use octessera_hal::OledSsd1351;
     use std::sync::mpsc;
 
     #[test]
     fn hdmi_failure_does_not_block_oled_publication() {
         let (seesaw_tx, _seesaw_rx) = mpsc::channel();
         let mut targets = HardwareRenderTargets {
-            oled: OledSsd1351::new().unwrap(),
+            oled: crate::render::test_oled_output::fake_oled_output(),
             seesaw_tx,
             oled_handoff: None,
             hdmi: hdmi::HdmiFramebuffer::new(),
@@ -405,7 +404,7 @@ mod hardware_render_tests {
     fn sleeping_animation_emits_at_entry_and_deadlines_only() {
         let (command_tx, command_rx) = mpsc::channel();
         let mut targets = HardwareRenderTargets {
-            oled: OledSsd1351::new().unwrap(),
+            oled: crate::render::test_oled_output::fake_oled_output(),
             seesaw_tx: command_tx,
             oled_handoff: None,
             hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -446,7 +445,7 @@ mod hardware_render_tests {
     fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
         let (command_tx, command_rx) = mpsc::channel();
         let mut targets = HardwareRenderTargets {
-            oled: OledSsd1351::new().unwrap(),
+            oled: crate::render::test_oled_output::fake_oled_output(),
             seesaw_tx: command_tx,
             oled_handoff: None,
             hdmi: crate::render::hdmi::HdmiFramebuffer::new(),

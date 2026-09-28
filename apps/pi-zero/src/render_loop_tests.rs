@@ -1,10 +1,5 @@
 use super::*;
 use crate::oled_frame_cache::OledFramePublication;
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
-use octessera_hal::OledSsd1351;
 use playback_runtime::oled_frame::OLED_FRAME_BYTES;
 #[cfg(not(any(
     feature = "hardware-raspberry-pi-zero-2w",
@@ -81,7 +76,7 @@ fn shutdown_ack_timeout_is_bounded() {
 fn preserving_terminal_teardown_acknowledges_and_joins_worker() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -161,7 +156,7 @@ fn atomic_terminal_rejects_stale_snapshot_and_uses_supplied_command() {
     let worker_gate = Arc::clone(&gate);
     let (seesaw_tx, seesaw_rx) = mpsc::channel();
     let mut targets = HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -329,7 +324,7 @@ fn snapshot_publication_reports_a_pending_shutdown() {
 fn mark_failed_ack_succeeds_without_an_attached_handoff() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -361,7 +356,7 @@ fn mark_failed_ack_reports_failed_status_persistence() {
     fs::create_dir(path.join("status.json")).unwrap();
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: Some(handoff),
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -426,7 +421,7 @@ fn initial_snapshot_ack_is_current_and_cannot_be_reused() {
     );
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -465,7 +460,7 @@ fn initial_snapshot_rejects_missing_or_mismatched_native_frame() {
     let make_worker = || {
         let (seesaw_tx, _seesaw_rx) = mpsc::channel();
         RenderWorker::spawn(HardwareRenderTargets {
-            oled: OledSsd1351::new().unwrap(),
+            oled: crate::render::test_oled_output::fake_oled_output(),
             seesaw_tx,
             oled_handoff: None,
             hdmi: crate::render::hdmi::HdmiFramebuffer::new(),

@@ -4,7 +4,6 @@ use crate::candidate_readiness::CandidateReadiness;
 use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::render::{HardwareRenderTargets, OLED_FRAME_BYTES};
 use crate::render_loop::RenderWorker;
-use octessera_hal::OledSsd1351;
 use playback_runtime::{
     CoreRunner, HostAdapter, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult,
 };
@@ -211,6 +210,7 @@ fn prepared_runtime(
         false,
         playback_runtime::AudioOutputSet::jack(),
     );
+    adapter.set_test_midi_backend([], [], []);
     let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency, false);
     runner.skip_startup_splash();
     initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
@@ -248,7 +248,7 @@ fn prepared_runtime(
 fn render_worker() -> RenderWorker {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),

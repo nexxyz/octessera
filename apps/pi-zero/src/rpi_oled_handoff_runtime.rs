@@ -29,6 +29,8 @@ pub(crate) fn run(
             return;
         }
     };
+    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    let oled = render::test_oled_output::real_oled_output(oled);
     let render_worker = RenderWorker::spawn(HardwareRenderTargets {
         oled,
         seesaw_tx,
