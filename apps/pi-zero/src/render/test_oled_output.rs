@@ -75,6 +75,6 @@ impl OledRenderDevice for TestOledOutput {
     }
 }
 
-struct FakeOledOutput {
+pub(crate) struct FakeOledOutput {
     failed_writes: usize,
 }
