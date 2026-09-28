@@ -20,11 +20,22 @@ mod ownership_control;
 mod ownership_decision;
 mod sleep_leds;
 
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[path = "render/test_oled_output.rs"]
+pub(crate) mod test_oled_output;
+
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+pub(crate) type OledRenderOutput = test_oled_output::TestOledOutput;
+#[cfg(not(all(test, not(feature = "hardware-orange-pi-zero-2w"))))]
+pub(crate) type OledRenderOutput = OledSsd1351;
+
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
 use oled::{glyph_rows, oled_frame, oled_frame_into};
 pub(crate) use oled_output::physical_oled_publication;
 pub(crate) use oled_output::retry_oled_if_due;
+#[cfg(test)]
+use oled_output::OledRenderDevice;
 use oled_output::{force_oled_render, render_oled_if_changed};
 pub(crate) use oled_ownership::{
     handle_stage, restore, restore_after_dropped_ack, OledOwnershipStage, OledOwnershipState,
@@ -89,7 +100,7 @@ pub(crate) use boot_sweep::{
 pub(crate) use boot_sweep::{boot_sweep_deadline, render_boot_splash};
 
 pub struct HardwareRenderTargets {
-    pub oled: OledSsd1351,
+    pub oled: OledRenderOutput,
     pub seesaw_tx: Sender<SeesawCommand>,
     pub oled_handoff: Option<crate::boot_oled_handoff::NativeOledGuard>,
     pub hdmi: hdmi::HdmiFramebuffer,
@@ -391,7 +402,7 @@ pub(crate) fn next_deadline(first: Option<Instant>, second: Option<Instant>) -> 
     }
 }
 
-pub fn render_shutdown_splash(oled: &mut OledSsd1351) {
+pub fn render_shutdown_splash(oled: &mut OledRenderOutput) {
     let snapshot = serde_json::json!({
         "display": {
             "off": false,

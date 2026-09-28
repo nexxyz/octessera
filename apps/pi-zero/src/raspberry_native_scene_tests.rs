@@ -3,7 +3,6 @@ use crate::hardware_runtime_scheduler::{HardwareRuntimeScheduler, PLAYBACK_TICK,
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::render::{HardwareRenderTargets, OLED_FRAME_BYTES};
 use crate::render_loop::RenderWorker;
-use octessera_hal::OledSsd1351;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage, RuntimeConfig,
     UsbDataRole,
@@ -19,7 +18,7 @@ fn worker() -> RenderWorker {
 pub(super) fn worker_with_recording(audio: Option<crate::audio::AudioService>) -> RenderWorker {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -52,7 +51,7 @@ fn failed_initial_oled_write_leaves_no_startup_recording_seed() {
     let (audio, _, _, _) = crate::audio::test_service_with_recording_dir(root.clone());
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
@@ -299,7 +298,7 @@ fn rejected_queue_submission_keeps_the_bounded_capture_retry() {
     let (_playback, mut runner) = playing_runner(&mut adapter);
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),

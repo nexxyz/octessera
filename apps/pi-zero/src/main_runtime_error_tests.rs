@@ -6,7 +6,6 @@ use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::raspberry_native_scene::NativeScenePump;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
-use octessera_hal::OledSsd1351;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, RuntimeConfig, RuntimeErrorCode,
     RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation, RuntimeStoreResult, UsbDataRole,
@@ -61,7 +60,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
 
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),

@@ -418,6 +418,8 @@ fn main() {
         rpi_oled_handoff_runtime::run(runtime_config, seesaw_io.command_tx.clone(), hdmi);
     } else {
         let oled = oled.expect("direct startup must initialize OLED");
+        #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+        let oled = render::test_oled_output::real_oled_output(oled);
         let render_worker = RenderWorker::spawn(HardwareRenderTargets {
             oled,
             seesaw_tx: seesaw_io.command_tx.clone(),

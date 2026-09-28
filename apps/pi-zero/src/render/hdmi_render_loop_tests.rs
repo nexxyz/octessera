@@ -1,6 +1,5 @@
 use super::*;
 use crate::oled_frame_cache::OledFramePublication;
-use octessera_hal::OledSsd1351;
 use playback_runtime::oled_frame::OLED_FRAME_BYTES;
 use serde_json::json;
 use std::io;
@@ -80,7 +79,7 @@ fn initial_ack_and_handoff_complete_before_blocking_hdmi_failure_and_retry() {
     );
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(crate::render::HardwareRenderTargets {
-        oled: OledSsd1351::new().unwrap(),
+        oled: crate::render::test_oled_output::fake_oled_output(),
         seesaw_tx,
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::from_device(hdmi_device),

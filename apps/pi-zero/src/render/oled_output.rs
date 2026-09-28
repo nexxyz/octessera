@@ -164,7 +164,7 @@ pub(crate) fn oled_publication_is_accepted(
 }
 
 pub(crate) fn render_oled_typed_if_changed(
-    oled: &mut OledSsd1351,
+    oled: &mut super::OledRenderOutput,
     off: bool,
     publication: &OledFramePublication,
     cache: &mut HardwareRenderCache,
@@ -174,7 +174,7 @@ pub(crate) fn render_oled_typed_if_changed(
 }
 
 pub(crate) fn retry_oled_if_due(
-    oled: &mut OledSsd1351,
+    oled: &mut super::OledRenderOutput,
     cache: &mut HardwareRenderCache,
     now: Instant,
 ) -> (Option<Instant>, bool) {
@@ -199,7 +199,7 @@ fn retry_oled_if_due_with_device<O: OledRenderDevice>(
 }
 
 pub(crate) fn force_oled_render(
-    oled: &mut OledSsd1351,
+    oled: &mut super::OledRenderOutput,
     snapshot: &Value,
     publication: &OledFramePublication,
     cache: &mut HardwareRenderCache,
@@ -236,7 +236,7 @@ pub(super) fn force_oled_render_off<O: OledRenderDevice>(
 }
 
 pub(crate) fn force_oled_typed(
-    oled: &mut OledSsd1351,
+    oled: &mut super::OledRenderOutput,
     off: bool,
     publication: &OledFramePublication,
     cache: &mut HardwareRenderCache,

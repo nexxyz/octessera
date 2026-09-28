@@ -106,7 +106,27 @@ pub(crate) fn prepare_runtime(
     if skip_startup_splash {
         runner.skip_startup_splash();
     }
-    let mut host = OrangeHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?;
+    let mut host = if cfg!(test) {
+        static NEXT_TEST_STORE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "octessera-orange-runtime-{}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+            NEXT_TEST_STORE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        OrangeHostAdapter::with_directories(
+            audio,
+            root.join("presets"),
+            root.join("samples"),
+            midi_handler,
+            usb_midi_out_enabled,
+        )?
+    } else {
+        OrangeHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?
+    };
     if let Some(control) = keyboard_control {
         host.set_keyboard_capture_control(control);
     }
