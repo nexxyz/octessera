@@ -25,6 +25,11 @@ struct SchedulerState {
     pending_encoder_turns: PendingEncoderTurns,
     ui_profiler: UiProfiler,
     native_scenes: crate::raspberry_native_scene::NativeScenePump,
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    autoaux: Option<crate::raspberry_autoaux::RaspberryAutoAux>,
 }
 
 impl SchedulerState {
@@ -35,6 +40,11 @@ impl SchedulerState {
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler: UiProfiler::from_process(),
             native_scenes: crate::raspberry_native_scene::NativeScenePump::new(now),
+            #[cfg(any(
+                feature = "hardware-raspberry-pi-zero-2w",
+                all(test, not(feature = "hardware-orange-pi-zero-2w"))
+            ))]
+            autoaux: None,
         }
     }
 
@@ -97,6 +107,30 @@ fn run_scheduler(
     let audio = adapter.audio_service();
     let mut state = SchedulerState::new(initial_rendered_revision);
     let profile_enabled = state.profile_enabled();
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    {
+        state.autoaux = match crate::raspberry_autoaux::RaspberryAutoAux::prepare(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            &mut state.native_scenes,
+            profile_enabled,
+        ) {
+            Ok(autoaux) => autoaux,
+            Err(error) if std::env::var_os("OCTESSERA_PI_TIMING_AUTOAUX").is_some() => {
+                crate::raspberry_autoaux::fail_autoaux(error)
+            }
+            Err(error) => {
+                eprintln!("pi AutoAux setup failed: {error}");
+                let _ = keyboard.shutdown();
+                let _ = render_worker.publish_shutdown();
+                return;
+            }
+        };
+    }
     let mut last_loop_start = profile_enabled.then(Instant::now);
 
     loop {
@@ -123,6 +157,13 @@ fn run_scheduler(
                 &mut adapter,
                 output,
             ) {
+                #[cfg(any(
+                    feature = "hardware-raspberry-pi-zero-2w",
+                    all(test, not(feature = "hardware-orange-pi-zero-2w"))
+                ))]
+                if adapter.autoaux_active() {
+                    crate::raspberry_autoaux::fail_autoaux(error);
+                }
                 eprintln!("pi audio load-status output processing failed: {error}");
             }
         }
@@ -132,6 +173,13 @@ fn run_scheduler(
                 .then(|| "required Jack audio stream faulted".to_string())
         });
         if let Some(message) = audio_fault {
+            #[cfg(any(
+                feature = "hardware-raspberry-pi-zero-2w",
+                all(test, not(feature = "hardware-orange-pi-zero-2w"))
+            ))]
+            if state.autoaux.is_some() {
+                crate::raspberry_autoaux::fail_autoaux(message);
+            }
             let error = playback_runtime::RuntimeErrorFacts::new(
                 playback_runtime::RuntimeErrorDomain::Audio,
                 playback_runtime::RuntimeErrorCode::AudioThreadFailed,
@@ -184,6 +232,24 @@ fn run_scheduler(
             &mut runner,
             &mut adapter,
         );
+        #[cfg(any(
+            feature = "hardware-raspberry-pi-zero-2w",
+            all(test, not(feature = "hardware-orange-pi-zero-2w"))
+        ))]
+        if let Some(autoaux) = state.autoaux.as_mut() {
+            let now = Instant::now();
+            match autoaux.tick(
+                now,
+                &mut playback,
+                &mut runner,
+                &mut adapter,
+                &state.native_scenes,
+            ) {
+                Ok(true) => state.autoaux = None,
+                Ok(false) => {}
+                Err(error) => crate::raspberry_autoaux::fail_autoaux(error),
+            }
+        }
         if advance(
             &mut state,
             &mut playback,
@@ -224,7 +290,7 @@ fn advance(
     adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
 ) -> bool {
-    maybe_advance_runtime(
+    let shutdown = maybe_advance_runtime(
         &mut state.scheduler,
         playback,
         runner,
@@ -232,5 +298,13 @@ fn advance(
         render_worker,
         &mut state.ui_profiler,
         &mut state.native_scenes,
-    )
+    );
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    if shutdown && state.autoaux.is_some() {
+        crate::raspberry_autoaux::fail_autoaux("runtime requested shutdown during the study");
+    }
+    shutdown
 }

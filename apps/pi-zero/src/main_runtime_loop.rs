@@ -9,6 +9,7 @@ use crate::power_lifecycle::{
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{
     dispatch_runtime_message, handle_deferred_host_work, process_runtime_output,
+    report_autoaux_runtime_failure as report_runtime_failure,
 };
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
@@ -162,13 +163,13 @@ fn service_xy_glide_tick(
     match playback.dispatch_host_message_music_first(message, runner, adapter) {
         Ok(output) => {
             if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
-                eprintln!("pi XY glide output processing failed: {error}");
+                report_runtime_failure(adapter, "pi XY glide output processing failed", error);
             }
         }
-        Err(error) => eprintln!("pi XY glide runtime tick failed: {error}"),
+        Err(error) => report_runtime_failure(adapter, "pi XY glide runtime tick failed", error),
     }
     if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
-        eprintln!("pi XY glide deferred host work failed: {error}");
+        report_runtime_failure(adapter, "pi XY glide deferred host work failed", error);
     }
 }
 
@@ -192,13 +193,13 @@ fn advance_playback_if_due(
     match playback.advance_duration_music_first_with_output(elapsed, runner, adapter) {
         Ok(output) => {
             if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
-                eprintln!("pi playback output processing failed: {error}");
+                report_runtime_failure(adapter, "pi playback output processing failed", error);
             }
         }
-        Err(error) => eprintln!("pi playback advance failed: {error}"),
+        Err(error) => report_runtime_failure(adapter, "pi playback advance failed", error),
     }
     if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
-        eprintln!("pi deferred host work failed: {error}");
+        report_runtime_failure(adapter, "pi deferred host work failed", error);
     }
     if let Some(started) = advance_started {
         ui_profiler.record_runtime(lateness, started.elapsed());
@@ -246,7 +247,7 @@ fn dispatch_or_log(
     }
     let message = prepare_dispatch_message(playback, message);
     if let Err(error) = dispatch_runtime_message(playback, runner, adapter, message) {
-        eprintln!("pi runtime dispatch failed: {error}");
+        report_runtime_failure(adapter, "pi runtime dispatch failed", error);
     }
 }
 

@@ -4,6 +4,11 @@ use playback_runtime::{CoreRunner, HostAdapter};
 use playback_runtime::{
     HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimePlatformEffect,
 };
+#[cfg(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    all(test, not(feature = "hardware-orange-pi-zero-2w"))
+))]
+use playback_runtime::{RuntimeOperation, RuntimeStoreResult};
 use serde_json::Value;
 use std::time::Instant;
 
@@ -15,13 +20,87 @@ pub fn dispatch_runtime_message(
     adapter: &mut PiPlaybackHostAdapter,
     host_message: HostMessage,
 ) -> Result<(), String> {
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    let autoaux_result = if adapter.autoaux_active() {
+        match &host_message {
+            HostMessage::RuntimeResult { result } => store_autoaux_result_observation(result),
+            _ => None,
+        }
+    } else {
+        None
+    };
     let output = playback.dispatch_host_message_music_first(host_message, runner, adapter)?;
     process_runtime_output(playback, runner, adapter, output)?;
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    if let Some(result) = autoaux_result {
+        adapter.observe_autoaux_store_result(result, Instant::now());
+    }
     if let Some(message) = adapter.take_manual_save(playback, runner) {
         let output = playback.dispatch_host_message_music_first(message, runner, adapter)?;
         process_runtime_output(playback, runner, adapter, output)?;
     }
     Ok(())
+}
+
+#[cfg(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    all(test, not(feature = "hardware-orange-pi-zero-2w"))
+))]
+pub(crate) fn store_autoaux_result_observation(
+    result: &RuntimeStoreResult,
+) -> Option<RuntimeStoreResult> {
+    let RuntimeStoreResult::Identified {
+        result,
+        request_id,
+        revision: Some(revision),
+    } = result
+    else {
+        return None;
+    };
+    let result = match result.as_ref() {
+        RuntimeStoreResult::SaveDefaultResult {
+            ok,
+            is_auto: Some(true),
+        } => RuntimeStoreResult::SaveDefaultResult {
+            ok: *ok,
+            is_auto: Some(true),
+        },
+        RuntimeStoreResult::RuntimeFailure { error }
+            if error.operation == RuntimeOperation::StoreSaveDefault =>
+        {
+            RuntimeStoreResult::RuntimeFailure {
+                error: error.clone(),
+            }
+        }
+        _ => return None,
+    };
+    Some(RuntimeStoreResult::Identified {
+        result: Box::new(result),
+        request_id: request_id.clone(),
+        revision: Some(*revision),
+    })
+}
+
+pub fn report_autoaux_runtime_failure(
+    adapter: &PiPlaybackHostAdapter,
+    prefix: &str,
+    error: String,
+) {
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        all(test, not(feature = "hardware-orange-pi-zero-2w"))
+    ))]
+    if adapter.autoaux_active() {
+        crate::raspberry_autoaux::fail_autoaux(error);
+    }
+    let _ = adapter;
+    eprintln!("{prefix}: {error}");
 }
 
 pub fn process_runtime_output(

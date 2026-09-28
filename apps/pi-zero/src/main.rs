@@ -27,6 +27,18 @@ mod audio_route;
 mod audio_sink_registry;
 #[cfg(feature = "native-audio")]
 mod audio_stream_health;
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w",
+    all(test, not(feature = "hardware-orange-pi-zero-2w"))
+))]
+mod autoaux_menu;
+#[cfg(any(
+    test,
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+mod autoaux_sequence;
 mod boot_oled_handoff;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod boot_startup_delayed;
@@ -88,6 +100,11 @@ mod orange_reboot;
 mod persistence;
 mod platform_service;
 mod power_lifecycle;
+#[cfg(any(
+    feature = "hardware-raspberry-pi-zero-2w",
+    all(test, not(feature = "hardware-orange-pi-zero-2w"))
+))]
+mod raspberry_autoaux;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod raspberry_native_scene;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

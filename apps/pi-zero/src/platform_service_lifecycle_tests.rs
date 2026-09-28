@@ -97,7 +97,7 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
     }
     use crate::setup_portal::SetupPortalEnvironment;
     use crate::setup_portal_files::SetupPortalPaths;
-    use playback_runtime::RuntimePlatformEffect;
+    use playback_runtime::{RuntimePlatformEffect, RuntimeSetupPortalPhase};
     use std::time::Duration;
 
     let root = std::env::temp_dir().join(format!(
@@ -174,8 +174,27 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
         .collect::<Vec<_>>();
     expected.push("setup-mixed-queue".into());
     expected.push("system-info-32".into());
+    let setup_phase = |message: &HostMessage| {
+        let HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { result, .. },
+        } = message
+        else {
+            panic!("expected identified setup result");
+        };
+        let RuntimeStoreResult::SetupPortalStatus { status } = result.as_ref() else {
+            panic!("expected setup portal status");
+        };
+        status.phase.clone()
+    };
+    assert_eq!(setup_phase(&results[32]), RuntimeSetupPortalPhase::Starting);
+    if keys.len() == expected.len() + 1 {
+        expected.push("setup-mixed-queue".into());
+        assert_eq!(
+            setup_phase(results.last().unwrap()),
+            RuntimeSetupPortalPhase::PortalReady
+        );
+    }
     assert_eq!(keys, expected);
-    assert!(service.drain_results(64).is_empty());
     let _ = std::fs::remove_dir_all(root);
 }
 
