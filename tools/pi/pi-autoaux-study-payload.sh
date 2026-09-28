@@ -157,7 +157,7 @@ trap on_exit EXIT
 [[ "$artifact_hash" =~ ^[0-9a-f]{64}$ ]] || die 'invalid artifact hash'
 [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]] || die 'invalid source identity'
 [[ "$live_seconds" =~ ^[0-9]+$ ]] || die 'invalid duration'
-sudo_n -v || die 'non-interactive sudo is unavailable'
+sudo_n true || die 'non-interactive sudo command execution is unavailable'
 test "$(sudo_n systemctl is-active "$service")" = active || die 'installed service is not active'
 test "$(sudo_n systemctl is-enabled "$service")" = enabled || die 'installed service is not enabled'
 test "$(service_value User)" = pi || die 'managed service user is not pi'

@@ -74,7 +74,8 @@ set -e
 [ "$1" = -n ] || exit 80
 shift
 printf '%s\n' "$*" >> "$MOCK_SUDO_LOG"
-[ "${1:-}" = -v ] && exit 0
+[ "${1:-}" = -v ] && exit 1
+if [ "${1:-}" = true ] && [ "${MOCK_SUDO_TRUE_DENIED:-0}" = 1 ]; then exit 1; fi
 if [ "${1:-}" = -u ]; then
   shift 2
   if [ "${1:-}" = test ] && [ "${2:-}" = -x ] && [ "${MOCK_EXECUTABLE:-1}" = 0 ]; then exit 1; fi
@@ -208,6 +209,9 @@ candidate_pid=
   if ($wrongStore.ExitCode -eq 0 -or [IO.File]::ReadAllText((Join-Path $wrongStore.State "service")) -ne "active") { throw "Wrong installed store path did not fail before interruption." }
   $permissionFailure = Invoke-FakeStudy "permission-failure" @{ MOCK_EXECUTABLE = "0" }
   if ($permissionFailure.ExitCode -eq 0 -or [IO.File]::ReadAllText((Join-Path $permissionFailure.State "service")) -ne "active" -or (Test-Path -LiteralPath (Join-Path $permissionFailure.State "service-starts"))) { throw "Runtime-user execute failure did not fail before service interruption." }
+  $sudoDenied = Invoke-FakeStudy "sudo-command-denied" @{ MOCK_SUDO_TRUE_DENIED = "1" }
+  $sudoDeniedLog = [IO.File]::ReadAllText((Join-Path $sudoDenied.State "sudo.log"))
+  if ($sudoDenied.ExitCode -eq 0 -or [IO.File]::ReadAllText((Join-Path $sudoDenied.State "service")).Trim() -ne "active" -or $sudoDeniedLog.Contains("systemctl stop octessera.service") -or (Test-Path -LiteralPath (Join-Path $sudoDenied.State "service-starts"))) { throw "Denied non-interactive sudo command reached service interruption." }
   $recoveryPath = Join-Path $presetDirectory "recovery-save.json"
   $recoveryBytes = [IO.File]::ReadAllBytes($recoveryPath)
   Remove-Item -LiteralPath $recoveryPath -Force
