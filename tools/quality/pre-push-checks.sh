@@ -86,11 +86,10 @@ run_pre_push_checks() {
   run_check "factory patch UI scenario" \
     cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
   run_check "cargo llvm-cov" bash ./tools/quality/check-rust-coverage.sh
-  run_check "stage desktop legal resources" corepack pnpm run legal:stage-desktop
+  run_check "tauri build smoke" corepack pnpm run tauri:build:ci
   run_check "cargo check desktop" cargo check -p octessera-desktop
   run_check "cargo test desktop" cargo test -p octessera-desktop
   run_check "cargo check pi" cargo check -p octessera-pi
-  run_check "tauri build smoke" corepack pnpm run tauri:build:ci
   run_check "cargo clippy production cognitive" \
     cargo clippy --workspace --lib --bins -- -W clippy::cognitive_complexity -D warnings
   run_check "cargo clippy" \

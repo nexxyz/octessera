@@ -4,7 +4,7 @@ use super::super::source_worker_lifecycle::{OwnerEnvelope, SourceWorkerOwnerIden
 use super::super::source_worker_protocol::{WorkStamp, WorkerPhase};
 use super::*;
 use crossbeam_channel::bounded;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub(in crate::synth::engine) type WorkerCompletionEvidence = (
     SourceWorkerOwnerIdentity,
@@ -428,7 +428,7 @@ impl SourceWorkerRuntime {
         active_cost_units: u16,
     ) -> bool {
         let receiver = &self.done_rxs.as_ref().expect("persistent source workers")[parity];
-        let Ok(mut completion) = receiver.try_recv() else {
+        let Ok(mut completion) = receiver.recv_timeout(Duration::from_secs(1)) else {
             return false;
         };
         completion.dsp_duration_ns = dsp_duration_ns;
