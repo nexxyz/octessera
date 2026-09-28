@@ -4,6 +4,7 @@ use playback_runtime::{
     AudioOutputSet, HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimePlatformEffect,
     RuntimePlatformRequest, RuntimeSetupPortalPhase, RuntimeStoreResult,
 };
+use std::time::{Duration, Instant};
 
 fn assert_sd2_store_error(response: &[HostMessage], message: &str) {
     let [HostMessage::RuntimeResult {
@@ -337,8 +338,6 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult};
     use std::fs;
     use std::sync::Arc;
-    use std::time::{Duration, Instant};
-
     let root = std::env::temp_dir().join(format!(
         "octessera-pi-setup-adapter-{}-{}",
         std::process::id(),
@@ -395,40 +394,84 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     assert_eq!(fs::read(&paths.request).unwrap(), b"start\n");
     fs::remove_file(&paths.request).unwrap();
     let payload = serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}});
-    fs::write(&paths.current, serde_json::to_vec(&payload).unwrap()).unwrap();
-    fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
-    std::thread::sleep(Duration::from_millis(40));
+    crate::persistence::atomic_write_bytes(
+        &paths.current,
+        &serde_json::to_vec(&payload).unwrap(),
+        0o640,
+    )
+    .unwrap();
+    wait_for_setup_portal_phase(&adapter, RuntimeSetupPortalPhase::Starting, None);
     let ready = serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}});
-    fs::write(&paths.current, serde_json::to_vec(&ready).unwrap()).unwrap();
-    fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
+    crate::persistence::atomic_write_bytes(
+        &paths.current,
+        &serde_json::to_vec(&ready).unwrap(),
+        0o640,
+    )
+    .unwrap();
+    wait_for_setup_portal_phase(&adapter, RuntimeSetupPortalPhase::PortalReady, Some("abcd"));
+    let _ = fs::remove_dir_all(root);
+}
+
+fn wait_for_setup_portal_phase(
+    adapter: &PiPlaybackHostAdapter,
+    expected_phase: RuntimeSetupPortalPhase,
+    expected_suffix: Option<&str>,
+) {
     let timeout = Duration::from_secs(5);
     let deadline = Instant::now() + timeout;
     let mut responses = Vec::new();
     let mut found = false;
     while Instant::now() < deadline {
-        responses.extend(adapter.drain_platform_results(4));
-        found = responses.iter().any(|message| {
-            matches!(
-                message,
-                HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::Identified {
+        for message in adapter.drain_platform_results(4) {
+            if let HostMessage::RuntimeResult {
+                result:
+                    RuntimeStoreResult::Identified {
                         request_id,
                         revision: Some(2),
-                        ..
+                        result,
+                    },
+            } = &message
+            {
+                if request_id == "pi-setup" {
+                    match result.as_ref() {
+                        RuntimeStoreResult::RuntimeFailure { .. }
+                        | RuntimeStoreResult::StoreError { .. } => {
+                            panic!("pi-setup revision 2 failed: {result:?}");
+                        }
+                        RuntimeStoreResult::SetupPortalStatus { status }
+                            if matches!(
+                                &status.phase,
+                                RuntimeSetupPortalPhase::Failed
+                                    | RuntimeSetupPortalPhase::TimedOut
+                                    | RuntimeSetupPortalPhase::Unsupported
+                            ) =>
+                        {
+                            panic!("pi-setup revision 2 failed: {status:?}");
+                        }
+                        RuntimeStoreResult::SetupPortalStatus { status }
+                            if status.phase == expected_phase
+                                && status.portal_suffix.as_deref() == expected_suffix =>
+                        {
+                            found = true;
+                        }
+                        _ => {}
                     }
-                } if request_id == "pi-setup"
-            )
-        });
+                }
+            }
+            responses.push(message);
+            if found {
+                break;
+            }
+        }
         if found {
             break;
         }
-        std::thread::sleep(Duration::from_millis(2));
+        std::thread::sleep(Duration::from_millis(10));
     }
     assert!(
         found,
-        "timed out after {timeout:?} waiting for pi-setup revision 2 result; drained responses: {responses:?}"
+        "timed out after {timeout:?} waiting for pi-setup revision 2 {expected_phase:?} status; drained responses: {responses:?}"
     );
-    let _ = fs::remove_dir_all(root);
 }
 
 #[cfg(any(unix, windows))]
