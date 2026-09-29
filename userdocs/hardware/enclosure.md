@@ -47,27 +47,21 @@ screws through active hardware areas.
 - NeoTrellis vertical retention uses the top faceplate, top pins, and edge
   capture ribs, not screws through the button field.
 
-1. Place the bottom enclosure on the bench.
-2. Put the PCB and NeoTrellis array onto the taller pillars.
-3. Add the 18 separate standoff pillars:
-   - use 8 of the 9.5mm pillars for the OLED and audio/DAC board;
-   - use the 10 10mm pillars for the selected compute board, power breakout,
-     and NeoKey;
-   - use no separate pillars for the NeoTrellis array; its eight pins enter the
-     integrated bottom pillars.
-4. Press in all 26 top pins: 18 into the separate standoffs and 8 into the
-   NeoTrellis integrated pillars. If a pin is loose, gently squeeze its ball
-   with pliers or replace it rather than crushing it.
-5. Place one silicone 4x4 keypad on each NeoTrellis board. Make the pads sit
-   flat and line up with the 8x8 opening.
-6. Optionally install the 8 M3 heat-set inserts into the underside of the top.
-7. Lower the top from the left/west side first so the connectors pass through
-   their openings, then lower the right/east side. Do not force it.
-8. Install the four encoder knobs and check that they slide on with friction but
-   can still be removed without force.
-9. Turn the device over carefully. Optionally install the 8 bottom screws and
-   add rubber feet or screw-hole covers.
+Follow the [assembly manual's enclosure sequence](assembly-manual.md#6-enclosure)
+after testing the electronics while open. The main PCB sits on the smaller
+west-side pillars; the cabled NeoTrellis array sits on the taller east-side
+pillars, held by eight top pins beneath its four silicone key membranes. Loose
+standoffs pass through the main PCB into the west-side pillars. The plug-in
+boards rest on those standoffs with their soldered header pins in the main-PCB
+sockets; another 18 top pins pass through their mounting holes into the loose
+standoffs.
 
-The printed dowel/standoff and top-pin system can hold the case without screws.
-Tighten screws gently. If the top does not sit flat, find the interference
-instead of forcing it closed.
+Heat-set the inserts into the **empty top** before fitting it. Fasten the bottom
+to the top with machine screws from underneath. Only then fit the four encoder
+caps, followed by the NeoKey switches and their keycaps: the top receives and
+friction-holds the switches and guides their pins into the breakout. For an
+optional early key check, seat the top without screws and use it as the guide.
+A bare-switch test without the top risks bending pins or breaking the NeoKey;
+try it only if you accept that risk and have spares. Remove any test switches
+through the guide before turning the unscrewed case over. Tighten screws gently;
+if the top does not sit flat, find the interference instead of forcing it closed.

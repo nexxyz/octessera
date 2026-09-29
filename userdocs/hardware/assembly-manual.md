@@ -41,7 +41,7 @@ connector.
 | 1 | 5-wire female-to-female Dupont cable, about 10cm | Any 2.54mm female-to-female jumper cable set | Use five adjacent leads for the NeoTrellis array. |
 | 25 pins | Straight male pin header, 2.54mm pitch | Any standard breakaway male pin header strip | Use 20 pins to link the four NeoTrellis boards and 5 pins for the external connection point on the upper-left board. |
 | several | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length for the selected compute board, OLED, DAC, power breakout, and other plug-in modules. Confirm socket height before ordering. |
-| 4 | Cherry MX-compatible key switches | [Cherry MX Black switches](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1), or any MX-compatible switch | Install into the NeoKey. |
+| 4 | Cherry MX-compatible key switches | [Cherry MX Black switches](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1), or any MX-compatible switch | Fit through the enclosure top into the NeoKey after closing the case. |
 | 1 | MicroSD card for the selected board | 16GB or larger recommended | Flash the matching board image. Raspberry and Orange images are separate. |
 | 1 | USB-C power supply | Dedicated regulated 5V/4A supply intended for Raspberry Pi 4-class systems | The documented GeeekPi 20W 5V/4A example is acceptable. Connect only to the USB-C breakout. |
 | 1 | USB data cable and adapter (optional) | Suitable cable and adapter for the selected USB operation | See [USB roles](usb-roles.md) before connecting it. |
@@ -49,9 +49,9 @@ connector.
 
 ### 3D-printed and mechanical parts
 
-The enclosure uses a printed dowel, standoff, and top-pin system. Screws and
-heat-set inserts are recommended but optional. The fits are snug, so calibrate
-the printer or test partial prints before printing the full set.
+The enclosure uses a printed dowel, standoff, and top-pin system. This assembly
+uses heat-set inserts and screws to join the two shells. The fits are snug, so
+calibrate the printer or test partial prints before printing the full set.
 
 The STEP, STL, single-material 3MF, and multicolor 3MF folders each contain a
 complete 18-part set. The multicolor set combines 12 authored two-material
@@ -67,8 +67,8 @@ designs with six one-material support pieces.
 | 8 | 9.5mm standoff pillar | Print `../../hardware/enclosure/stl/standoff_pillar_9_5mm.stl` and matching `../../hardware/enclosure/3mf-single-material/standoff_pillar_9_5mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the OLED and audio/DAC board support locations. |
 | 10 | 10mm standoff pillar | Print `../../hardware/enclosure/stl/standoff_pillar_10mm.stl` and matching `../../hardware/enclosure/3mf-single-material/standoff_pillar_10mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the selected compute board, power breakout, and NeoKey support locations. NeoTrellis array pins go straight into the bottom's integrated pillars. |
 | 26 | Standoff top pin | Print `../../hardware/enclosure/stl/standoff_top_pin_thin_base.stl` and matching `../../hardware/enclosure/3mf-single-material/standoff_top_pin_thin_base.3mf`, or use compatible purchased stackable PCB standoff pins | 4 compute-board + 4 audio/DAC + 4 OLED/screen + 4 NeoKey + 2 power + 8 NeoTrellis array pins = 26 total. |
-| 8 | Heat-set insert | M3x6x5 heat-set insert, such as the M3 size in this [heat-set insert kit](https://de.aliexpress.com/item/1005012199553197.html) | Recommended but optional. Insert from the underside of the top; the smooth lead-in side locates in the `4.6mm` pilot hole. |
-| 8 | Screws | M3x8 socket-head cap screw, DIN 912 / ISO 4762 style | Recommended but optional. Install from the bottom; head diameter must be no larger than `6.4mm`. |
+| 8 | Heat-set insert | M3x6x5 heat-set insert, such as the M3 size in this [heat-set insert kit](https://de.aliexpress.com/item/1005012199553197.html) | Install in the empty top from its underside; the smooth lead-in side locates in the `4.6mm` pilot hole. |
+| 8 | Screws | M3x8 socket-head cap screw, DIN 912 / ISO 4762 style | Install from the bottom; head diameter must be no larger than `6.4mm`. |
 | 8 | Rubber feet or screw-hole plugs | Small adhesive feet | Optional. Covers bottom screw holes and prevents sliding. |
 
 ### Tools and consumables
@@ -88,19 +88,22 @@ Before soldering, inspect the PCB, sort the sockets and modules, and mark the
 correct side of every module. Keep each module oriented as it will sit in the
 enclosure. Headers on the wrong side are difficult to fix.
 
-1. Solder the low-profile sockets for the selected compute board, OLED, DAC,
+1. Solder the four rotary encoders into `SW1` through `SW4`.
+2. Solder the low-profile sockets for the selected compute board, OLED, DAC,
    USB-C power breakout, and other socketed modules.
-2. Solder the 1x5 right-angle male header for the NeoTrellis connector.
-3. Solder `D1`, the `SA5.0A` TVS diode. Put the banded cathode in `K/+5V` and
+3. Solder the 1x5 right-angle male header at `J1` for the NeoTrellis cable.
+4. Solder `D1`, the `SA5.0A` TVS diode. Put the banded cathode in `K/+5V` and
    the unbanded anode in `A/GND`. Keep the body and leads clear of nearby pads
    and metal parts.
-4. Solder `C1`, the `470uF` polarized capacitor, matching the PCB polarity
+5. Solder `C1`, the `470uF` polarized capacitor, matching the PCB polarity
    markings. The legs may remain a little long so the capacitor can bend
    sideways; prevent the legs from touching pads or metal.
-5. Solder the four rotary encoders into `SW1` through `SW4`.
 
 Aim the horizontal NeoTrellis header toward the cable path and check the PCB
-connector indicator. Do not install plug-in modules yet.
+connector indicator. Solder the mating pin headers onto the plug-in compute
+board and breakouts before fitting them. Their pins must point into the main
+PCB's sockets when the modules sit on their standoffs. Do not install the
+modules yet.
 
 ### NeoTrellis and NeoKey
 
@@ -138,59 +141,88 @@ powering the device, check that `INT` is on the south side.
 ## 4. Open assembly
 
 1. Insert the selected compute board, OLED, DAC, USB-C power breakout, and
-   NeoKey into their sockets.
-2. Connect the NeoTrellis array to the PCB with the 5-wire female-to-female
-   Dupont cable.
-3. Install the Cherry MX switches into the NeoKey and add the four keycaps.
-4. If your build includes the optional board antenna, connect it now and secure
+   NeoKey into their sockets for the open-air first-boot test.
+2. Connect `J1` on the main PCB to the five-pin header on the upper-left
+   NeoTrellis board with the five female-to-female Dupont leads. Match `INT`,
+   `VIN`, `GND`, `SCL`, and `SDA` by their labels and the [J1 pin
+   reference](../../hardware/docs/pinout-and-connections.md#other-connections);
+   do not assume the cable's colors or physical pin order match at both ends.
+   Check the NeoTrellis orientation before applying power.
+3. If your build includes the optional board antenna, connect it now and secure
    it where it cannot touch contacts, cover pads, or be pinched.
-5. Connect headphones, speakers, or a mixer to the audio output.
-6. Keep the assembly open and continue with [flash and first boot](flash-and-first-boot.md).
+4. Connect headphones, speakers, or a mixer to the audio output.
+5. Keep the assembly open and continue with [flash and first boot](flash-and-first-boot.md).
 
 ## 5. Flash and setup
 
 Complete [flash and first boot](flash-and-first-boot.md) before installing the
-enclosure. Keep the boards accessible and run this acceptance gate:
+enclosure. Keep the boards accessible and check what does not need the silicone
+keys or the NeoKey switches yet:
 
 - All four encoders turn and click.
-- All four NeoKey switches respond.
-- All 64 NeoTrellis cells respond.
 - The OLED is readable.
-- A synth produces audio through the DAC.
+- The NeoTrellis cable is seated at both ends, with the five signals matched as
+  in [open assembly](#4-open-assembly).
 
-Do not close the enclosure if any item fails. Keep it open and troubleshoot
-before continuing.
+Do not close the enclosure if an open-air check fails. The full grid and synth
+audio checks belong in the [final check](#7-final-check) once the silicone keys
+and guided NeoKey switches are fitted. If you can test either safely while the
+assembly is open, do; neither requires a risky bare-switch test. For the normal
+open-air test, leave the NeoKey switches off:
+the enclosure top guides their pins and holds them by friction. A bare switch
+test without that guide is possible if you have spare switches or a spare
+NeoKey and accept the risk of bent pins or a damaged breakout; we recommend
+waiting until the top is in place.
 
 ## 6. Enclosure
 
-Remove both the selected compute board's boot microSD card and the OLED microSD
-card before putting the boards into the enclosure. They can catch on the case
-and break. Remove the NeoKey switches before fitting the case; you can leave
-their keycaps on. Reinsert the cards after the case is closed if the openings
-require it.
+Power off and disconnect the cables. Remove the selected compute board's boot
+microSD card and the OLED microSD card; they can catch on the case and break.
+Take the plug-in boards out of their sockets after the first-boot check.
+Reinsert the cards after closing the case if their openings require it.
 
-1. Place the bottom enclosure on the bench. It can also hold the upside-down
-   NeoTrellis array while you solder the four boards together.
-2. Put the PCB and NeoTrellis array onto the taller pillars.
-3. Add the 18 separate standoff pillars between the bottom supports and the
-   plug-in modules:
-   - use 8 of the 9.5mm pillars for the OLED and audio/DAC board;
-   - use the 10 10mm pillars for the selected compute board, power breakout,
-     and NeoKey;
-   - use no separate pillars for the NeoTrellis array; its eight pins enter the
-     integrated bottom pillars.
-4. Press in all 26 top pins: 18 into the separate standoffs and 8 into the
-   NeoTrellis integrated pillars. Use gentle pressure. If a pin is loose,
-   gently squeeze its ball with pliers or replace it rather than crushing it.
-5. Place one silicone 4x4 keypad on each NeoTrellis board. Make the pads sit
-   flat and line up with the 8x8 opening.
-6. Optionally install the 8 M3 heat-set inserts into the underside of the top.
-7. Lower the top from the left/west side first so the ports pass through their
-   openings, then lower the right/east side. Do not force it.
-8. Install the four encoder knobs and check that they slide on with friction
-   but can still be removed without force.
-9. Turn the device over carefully. Optionally install the 8 bottom screws and
-   add rubber feet or screw-hole covers.
+1. Place the bottom enclosure on the bench. Seat the main PCB over the smaller
+   integrated pillars on the west half, inside its locating rails.
+2. Place the joined NeoTrellis array on the taller integrated pillars on the
+   east half. Route its five-wire cable through the break in the left rail and
+   connect the upper-left array header to `J1` if you unplugged it after the
+   open-air test. Match the five signals as in [open
+   assembly](#4-open-assembly); keep the cable clear of posts and pin holes.
+3. Fix the NeoTrellis array to the taller pillars with its eight top pins. Use
+   gentle pressure. If a pin is loose, gently squeeze its ball with pliers or
+   replace it rather than crushing it.
+4. Put one silicone 4x4 key membrane on each NeoTrellis board. Seat all four
+   flat to form the 8x8 playing surface.
+5. Push the 18 loose standoffs down through the main PCB mounting holes and
+   into the smaller west-side pillars. Use eight 9.5mm standoffs for the OLED
+   and audio/DAC board, and ten 10mm standoffs for the selected compute board,
+   USB-C power breakout, and NeoKey.
+6. Set the plug-in boards on those standoffs. Guide their pre-soldered header
+   pins into the matching main-PCB sockets; do not bend or force the pins.
+7. Pass the remaining 18 top pins through the mounting holes of the plug-in
+   boards and press them into the loose standoffs. Check that every board sits
+   flat and its header is fully seated.
+8. Heat-set the eight M3 inserts into the wall pillars of the **empty top**
+   from its underside, then let the top cool. Lower the top onto the assembly
+   from the west side first so the ports pass through their openings, then
+   lower the east side. Do not force it.
+
+   If you want to try the NeoKey switches before fastening the case, leave the
+   top unscrewed but fully seated and use its openings to guide the switches
+   straight into the breakout. Reinsert the flashed boot card only if its slot
+   is accessible without moving the top. Check all four presses only if you can
+   power the stable assembly without pinching a cable. Power off and unplug it;
+   with the top and NeoKey supported, withdraw the switches straight through
+   the same guide holes. Remove the card before turning the unscrewed case over.
+   If the slot is not accessible, skip this test and use the final check instead.
+
+9. Turn the device over carefully and fasten the bottom to the top with the
+   eight M3 machine screws from underneath. Tighten gently; add the optional
+   rubber feet or screw-hole covers afterward.
+10. Press the four encoder caps onto their shafts. Finally, fit the four Cherry
+    MX switches into the NeoKey through the top openings, then press the four
+    keycaps onto the switches. The top friction-holds the switches and guides
+    their pins.
 
 Tighten screws gently. If the top does not sit flat, find the interference
 instead of forcing the case closed.
@@ -203,7 +235,13 @@ instead of forcing the case closed.
 3. Confirm that the enclosure has not blocked any controls or openings. If
    enclosure work disturbed a connection, reopen it and repeat the acceptance
    gate before use.
-4. Confirm that the compute-board microSD, OLED microSD, audio, USB-C power,
+4. Press each of the four NeoKey switches now that the top holds them in place.
+   If one does not respond, power off and reopen the case to check its seating
+   and connection rather than forcing the switch deeper.
+5. Check all 64 NeoTrellis cells through the silicone keys, then start a synth
+   and confirm that the DAC produces audio. If either fails, power off and
+   reopen the case rather than pressing harder on the playing surface.
+6. Confirm that the compute-board microSD, OLED microSD, audio, USB-C power,
    and video openings are accessible. See [enclosure](enclosure.md) for the
    matching board top.
 

@@ -82,6 +82,22 @@ Both Pi modes pass the actual elapsed interval to the shared runtime. These
 metrics diagnose trigger cadence and event batching; use `AudioDrain` separately
 for queue/control-drain measurements.
 
+## Backlog: shared-path timing smoke
+
+Make a short, repeatable on-device smoke profile for changes to shared audio
+processing or musical-event emission: bus-FX routing, general parameter
+modulation, transport, or event dispatch. Run it on both Pi variants with a
+Playing default patch, OLED awake, and representative parameter turns. Compare
+the same conditions before and after the change: note/event cadence, cumulative
+drift, late or batched pulses, and audio underruns. Do not call a shared-path
+change qualified if timing regresses or drift continues to accumulate.
+
+An individual new instrument or Build behavior can use focused tests and its
+own on-device profile unless it changes one of those shared paths. The existing
+Raspberry probes and Pi UI summaries help, but PC-only or DSP-only results
+would not have caught a Playing display/control stall. Reuse the existing board
+profiling tools for this smoke rather than adding a new CI framework.
+
 The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it
 afterward; those modes require `-AllowServiceInterruption`. Runtime-only leaves
 it running. Use `-PrintOnly` to inspect the remote command first.
