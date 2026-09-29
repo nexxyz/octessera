@@ -104,9 +104,22 @@ impl NativeRunner {
                 "Rollback to the previous release?".into(),
             )
         } else {
-            let rest = action_type.strip_prefix("synth.preset:")?;
-            let preset = rest.split(':').nth(1).unwrap_or("preset");
-            ("Confirm Synth", format!("Load synth preset {preset}?"))
+            let (title, kind, rest) = [
+                ("Confirm Synth", "synth preset", "synth.preset:"),
+                ("Confirm FM", "FM preset", "fm.preset:"),
+                ("Confirm Plucked", "Plucked preset", "pluck.preset:"),
+                ("Confirm Sampler", "Sampler kit", "sample.kit:"),
+                ("Confirm Drum", "Drum kit", "drum.kit:"),
+            ]
+            .into_iter()
+            .find_map(|(title, kind, prefix)| {
+                action_type
+                    .strip_prefix(prefix)
+                    .map(|rest| (title, kind, rest))
+            })?;
+            let (slot, choice) = rest.split_once(':')?;
+            let slot = slot.parse::<usize>().ok()?.checked_add(1)?;
+            (title, format!("Load I{slot} {kind} {choice}?"))
         };
         let options = vec!["Cancel".into(), "Confirm".into()];
         Some(NativeConfirmDialog {

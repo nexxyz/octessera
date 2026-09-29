@@ -218,6 +218,10 @@ fn is_musical_platform_effect_action(action: &str) -> bool {
         || action.starts_with("sample.assign:")
         || action.starts_with("trigger.probability.assign:")
         || action.starts_with("synth.preset:")
+        || action.starts_with("fm.preset:")
+        || action.starts_with("pluck.preset:")
+        || action.starts_with("sample.kit:")
+        || action.starts_with("drum.kit:")
 }
 
 fn canonicalize_json(value: Value) -> Value {

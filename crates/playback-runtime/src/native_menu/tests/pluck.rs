@@ -7,7 +7,7 @@ fn pluck_menu() -> NativeMenuModel {
 }
 
 #[test]
-fn plucked_type_and_five_rows_use_standard_oled_navigation() {
+fn plucked_type_and_six_rows_use_standard_oled_navigation() {
     let mut menu = pluck_menu();
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
@@ -42,11 +42,18 @@ fn plucked_type_and_five_rows_use_standard_oled_navigation() {
             .iter()
             .map(|row| row.label.as_str())
             .collect::<Vec<_>>(),
-        ["String", "Filter", "Volume", "Amp Env", "Filter Env"]
+        [
+            "Preset",
+            "String",
+            "Filter",
+            "Volume",
+            "Amp Env",
+            "Filter Env"
+        ]
     );
     assert!(menu.focus_current_group_label("Plucked"));
     let _ = menu.press();
-    assert_eq!(menu.snapshot().lines.len(), 5);
+    assert_eq!(menu.snapshot().lines.len(), 6);
     assert!(menu.focus_item_key("instruments.0.pluck.decayMs"));
     let snapshot = menu.snapshot();
     assert!(

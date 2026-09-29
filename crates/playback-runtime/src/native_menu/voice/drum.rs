@@ -1,7 +1,7 @@
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
 use super::{
-    action_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
-    InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
+    action_item, enum_item, enum_item_from_strings, factory_load_group, group, number_item,
+    selected_index, InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
 };
 
 const SOUNDS: [&str; 8] = [
@@ -30,6 +30,17 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
     group(
         "Drum",
         vec![
+            factory_load_group(
+                "drum",
+                config.index,
+                "kit",
+                "Kit",
+                &[
+                    ("default", "Default"),
+                    ("tight", "Tight"),
+                    ("heavy", "Heavy"),
+                ],
+            ),
             enum_item_from_strings(
                 "Voice",
                 format!("{prefix}.drum.voice"),

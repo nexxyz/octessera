@@ -12,7 +12,7 @@ fn fm_item<'a>(menu: &'a NativeMenuModel, field: &str) -> &'a NativeMenuItem {
 }
 
 #[test]
-fn fm_type_and_six_group_rows_use_standard_navigation() {
+fn fm_type_and_seven_group_rows_use_standard_navigation() {
     let mut menu = fm_menu();
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
@@ -44,6 +44,7 @@ fn fm_type_and_six_group_rows_use_standard_navigation() {
             .map(|row| row.label.as_str())
             .collect::<Vec<_>>(),
         [
+            "Preset",
             "Tone",
             "Index Env",
             "Filter",
@@ -52,15 +53,15 @@ fn fm_type_and_six_group_rows_use_standard_navigation() {
             "Filter Env"
         ]
     );
-    assert_eq!(fm.children.len(), 6);
-    assert_eq!(fm.children[0].children.len(), 2);
-    assert_eq!(fm.children[1].children.len(), 4);
+    assert_eq!(fm.children.len(), 7);
+    assert_eq!(fm.children[1].children.len(), 2);
+    assert_eq!(fm.children[2].children.len(), 4);
     let fm_bindings = super::super::binding_tree::binding_tree_from_menu_item(fm, "aux.turn.0")
         .expect("FM numeric binding groups");
     assert_eq!(fm_bindings.label, "FM");
     assert!(menu.focus_current_group_label("FM"));
     let _ = menu.press();
-    assert_eq!(menu.snapshot().lines.len(), 6);
+    assert_eq!(menu.snapshot().lines.len(), 7);
     assert!(menu.focus_item_key("instruments.0.fm.ratio"));
     assert!(menu
         .snapshot()

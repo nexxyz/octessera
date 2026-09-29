@@ -2,8 +2,8 @@ use super::super::sample_browser_menu::sample_browser_group;
 use super::super::voice_config_read::{cutoff_hz_to_display, sample_number, sample_string};
 use super::super::voice_env_groups::sample_env_group;
 use super::{
-    action_item, bool_item, enum_item, group, number_item, selected_index, InstrumentMenuConfig,
-    NativeMenuAction, NativeMenuItem,
+    action_item, bool_item, enum_item, factory_load_group, group, number_item, selected_index,
+    InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
 };
 use crate::native_menu::NativeSampleAvailability;
 use crate::native_menu::{sample_display_name, NativeMenuValue};
@@ -11,6 +11,17 @@ use crate::native_menu::{sample_display_name, NativeMenuValue};
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let sample_slot = config.sample_slot.min(7);
     let mut children = vec![
+        factory_load_group(
+            "sample",
+            config.index,
+            "kit",
+            "Kit",
+            &[
+                ("sdbkit", "SDB Kit"),
+                ("synthkit", "Synth Kit"),
+                ("distkit", "Dist Kit"),
+            ],
+        ),
         enum_item(
             "Sample Slot",
             format!("{prefix}.sample.selectedSlot"),
@@ -125,7 +136,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
         sample_env_group("Filter Env", prefix, "filterEnv", config.sample_filter_env),
     ];
     if config.sample_velocity_levels_enabled {
-        children.insert(7, velocity_levels_group(config, prefix));
+        children.insert(8, velocity_levels_group(config, prefix));
     }
     group("Sampler", children)
 }

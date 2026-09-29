@@ -71,7 +71,7 @@ pub(super) fn validate_portable_patch_sample_paths(
     Ok(())
 }
 
-fn validate_default_sample_id(value: &str, path: &str) -> Result<(), String> {
+pub(super) fn validate_default_sample_id(value: &str, path: &str) -> Result<(), String> {
     if !value.starts_with("samples/") || value.contains('\\') {
         return Err(format!(
             "{path} must be a canonical default-library WAV sample ID"

@@ -93,7 +93,7 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
     runner.instruments[0].kind = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 3;
+    runner.menu.state.cursor = 4;
 
     let opened = runner.messages_with_snapshot().unwrap();
     assert!(snapshot_from(&opened)["display"]["lines"]

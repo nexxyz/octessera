@@ -1,11 +1,25 @@
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
-use super::{enum_item, group, number_item, selected_index, InstrumentMenuConfig, NativeMenuItem};
+use super::{
+    enum_item, factory_load_group, group, number_item, selected_index, InstrumentMenuConfig,
+    NativeMenuItem,
+};
 
 pub(super) fn fm_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let fm = config.fm_config;
     group(
         "FM",
         vec![
+            factory_load_group(
+                "fm",
+                config.index,
+                "preset",
+                "Preset",
+                &[
+                    ("init", "Init"),
+                    ("soft_keys", "Soft Keys"),
+                    ("bell", "Bell"),
+                ],
+            ),
             group(
                 "Tone",
                 vec![
