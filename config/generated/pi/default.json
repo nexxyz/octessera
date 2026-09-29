@@ -485,7 +485,7 @@
           "route": "fx_bus_1",
           "volume": 100
         },
-        "name": "Synth",
+        "name": "Plucked",
         "noteBehavior": "hold",
         "sample": {
           "amp": {
@@ -587,7 +587,7 @@
             "waveform": "saw"
           }
         },
-        "type": "synth"
+        "type": "pluck"
       },
       {
         "autoName": true,
@@ -607,7 +607,7 @@
           "route": "fx_bus_2",
           "volume": 100
         },
-        "name": "Synth",
+        "name": "FM",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -709,7 +709,7 @@
             "waveform": "triangle"
           }
         },
-        "type": "synth"
+        "type": "fm"
       },
       {
         "autoName": true,

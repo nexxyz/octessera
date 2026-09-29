@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 const PI_DEFAULT_BYTES: &[u8] =
     include_bytes!("fixtures/config_persistence/pi_canonical_default.json");
-const PI_DEFAULT_SHA256: &str = "1c6be6284deb35302a09f38d55d3f41bfc1db6d67f8f754413c8b54262e38d15";
+const PI_DEFAULT_SHA256: &str = "9e2cb811980746858043497979779dc901ffb33dc5561040e7c1557746d134b2";
 
 #[test]
 pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
@@ -35,12 +35,25 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
         vec![1, 3, 5, 7, 42, 46]
     );
 
+    for (index, instrument_type, name) in [(2, "pluck", "Plucked"), (3, "fm", "FM")] {
+        for defaults in [&base, &desktop, &pi] {
+            let instrument = &defaults["runtimeConfig"]["instruments"][index];
+            assert_eq!(instrument["autoName"], true);
+            assert_eq!(instrument["name"], name);
+            assert_eq!(instrument["type"], instrument_type);
+        }
+    }
     let mut runner = runner_with_config(base.clone());
     let mut pi_default = pi_default();
     normalize_sample_paths(&mut pi_default);
     runner
         .apply_patch_payload_preserving_device(pi_default)
         .unwrap();
+    for (index, instrument_type, name) in [(2, "pluck", "Plucked"), (3, "fm", "FM")] {
+        assert_eq!(runner.instruments[index].kind, instrument_type);
+        assert_eq!(runner.instruments[index].name, name);
+        assert!(runner.instruments[index].auto_name);
+    }
 
     assert_eq!(
         runner.patch_payload().unwrap()["runtimeConfig"]["activeBehavior"],
