@@ -3,6 +3,7 @@ use crate::synth::engine::source_worker_test_fixtures::dynamic_engine;
 use crate::synth::engine::{SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS};
 use crate::synth::types::{SampleBankConfig, SampleBuffer, SampleSlotConfig};
 use std::thread;
+use std::time::{Duration, Instant};
 
 #[test]
 fn completion_reports_pre_render_source_cost_when_all_sources_finish() {
@@ -27,16 +28,15 @@ fn completion_reports_pre_render_source_cost_when_all_sources_finish() {
             .expect("worker runtime");
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     let mut measurements = [0; 2];
+    let deadline = Instant::now() + Duration::from_secs(1);
     for (parity, measurement) in measurements.iter_mut().enumerate() {
-        let mut ready = false;
-        for _ in 0..10_000 {
-            if runtime.completion_ready_for_test(parity) {
-                ready = true;
-                break;
-            }
+        while !runtime.completion_ready_for_test(parity) {
+            assert!(
+                Instant::now() < deadline,
+                "worker {parity} did not complete"
+            );
             thread::yield_now();
         }
-        assert!(ready, "worker {parity} did not complete");
         *measurement = runtime
             .completion_measurement_for_test(parity)
             .expect("worker completion")
