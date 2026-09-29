@@ -1,11 +1,26 @@
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
-use super::{enum_item, group, number_item, selected_index, InstrumentMenuConfig, NativeMenuItem};
+use super::{
+    enum_item, factory_load_group, group, number_item, selected_index, InstrumentMenuConfig,
+    NativeMenuItem,
+};
 
 pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let pluck = config.pluck_config;
     group(
         "Plucked",
         vec![
+            factory_load_group(
+                "pluck",
+                config.index,
+                "preset",
+                "Preset",
+                &[
+                    ("init", "Init"),
+                    ("nylon", "Nylon"),
+                    ("steel", "Steel"),
+                    ("muted", "Muted"),
+                ],
+            ),
             group(
                 "String",
                 vec![

@@ -1,5 +1,7 @@
 use crate::native_menu::NativeMenuAction;
-use crate::protocol::RuntimePlatformEffect;
+use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
+
+mod factory_instrument_load;
 
 use super::play_fx_config::play_fx_type;
 use super::{
@@ -66,6 +68,17 @@ impl NativeRunner {
             let preset = layers.next();
             if let (Some(slot), Some(preset)) = (slot, preset) {
                 self.load_synth_preset(slot, preset);
+            } else {
+                self.show_toast("Invalid synth preset action");
+            }
+            return Ok(None);
+        }
+        if ["fm.preset:", "pluck.preset:", "sample.kit:", "drum.kit:"]
+            .iter()
+            .any(|prefix| action.starts_with(prefix))
+        {
+            if let Err(error) = self.load_factory_instrument_action(action) {
+                self.show_toast(format!("Factory load rejected: {error}"));
             }
             return Ok(None);
         }
@@ -73,7 +86,22 @@ impl NativeRunner {
     }
 
     pub(super) fn load_synth_preset(&mut self, slot: usize, preset: &str) {
+        if !matches!(
+            preset,
+            "init"
+                | "soft_pad"
+                | "bright_pluck"
+                | "bass_mono"
+                | "hollow_pwm"
+                | "lead"
+                | "bell"
+                | "perc_hit"
+        ) {
+            self.show_toast(format!("Unknown synth preset {preset}"));
+            return;
+        }
         let Some(instrument) = self.instruments.get_mut(slot) else {
+            self.show_toast(format!("Invalid instrument slot {slot}"));
             return;
         };
         let synth_config = synth_preset_config(preset);
@@ -92,7 +120,14 @@ impl NativeRunner {
             message: format!("Loaded synth {preset}"),
             offset: 0,
         });
-        self.mark_config_dirty();
+        if let Some(config) = self.instrument_audio_config(slot) {
+            self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot: slot,
+                generation: 0,
+                config,
+            });
+        }
+        self.mark_fast_autosave_dirty();
         self.menu.rebuild(self.menu_config());
     }
 

@@ -19,6 +19,7 @@ Shape
 │   │   │   ├── Amp Env (group)            ← ADSR loudness contour
 │   │   │   └── Filter Env (group)         ← ADSR filter contour
 │   │   ├── FM (group, visible when type=fm)
+│   │   │   ├── Preset > Load (group)      ← Init | Soft Keys | Bell; confirmed FM-only load
 │   │   │   ├── Tone (group)               ← Ratio: [0.5 | 1 | 2 | 3 | 4 | 5 | 6 | 8] default 2, displayed as 1:2 | 1:1 | 2:1 ... 8:1; Index: [0..100] default 50
 │   │   │   ├── Index Env (group)          ← Attack 0 ms, Decay 250 ms, Sustain 20%, Release 120 ms by default
 │   │   │   ├── Filter (group)             ← same Type, Cutoff, Res, Env Amount, Key Tracking controls as Synth
@@ -26,6 +27,7 @@ Shape
 │   │   │   ├── Amp Env (group)            ← Attack 5 ms, Decay 300 ms, Sustain 70%, Release 350 ms by default
 │   │   │   └── Filter Env (group)         ← same ADSR controls and defaults as Synth
 │   │   ├── Drum (group, visible when type=drum)
+│   │   │   ├── Kit > Load (group)         ← Default | Tight | Heavy; confirmed eight-voice load
 │   │   │   ├── Voice: [V1: Kick ... V8: Rim]  ← current Sound supplies each name; 8 kit voices
 │   │   │   ├── Edit (group)               ← Sound [kick | snare | closed_hat | open_hat | low_tom | high_tom | clap | rim], Tune -12..12 st, Decay 20..2000 ms, Tone 0..100%, Attack 0..50 ms
 │   │   │   ├── !Assign                     ← per-cell set/replace/toggle with selected voice
@@ -34,21 +36,27 @@ Shape
 │   │   │   ├── Filter (group)             ← own Type, Cutoff, Res, Env Amount, Key Tracking settings
 │   │   │   └── Volume (group)             ← own Gain 80%, Vel Sens 100%; no visible Drum Amp/Filter Env pages
 │   │   ├── Plucked (group, visible when type=pluck)
+│   │   │   ├── Preset > Load (group)      ← Init | Nylon | Steel | Muted; confirmed Plucked-only load
 │   │   │   ├── String (group)             ← Decay 100..5000 ms default 1500; Brightness 0..100% default 65; Pick Pos 5..50% default 25
 │   │   │   ├── Filter (group)             ← same Type, Cutoff, Res, Env Amount, Key Tracking controls as Synth
 │   │   │   ├── Volume (group)             ← Gain 80%, Vel Sens 100% by default
 │   │   │   ├── Amp Env (group)            ← Attack 0 ms, Decay 0 ms, Sustain 100%, Release 900 ms by default
 │   │   │   └── Filter Env (group)         ← same ADSR controls and defaults as Synth
 │   │   ├── Sampler (group, visible when type=sampler)
+│   │   │   ├── Kit > Load (group)         ← SDB Kit | Synth Kit | Dist Kit; confirmed eight-path load
 │   │   │   ├── Sample Slot: [1..8]
+│   │   │   ├── Loaded sample (action)     ← opens its folder in the browser; shows (empty) when unset
 │   │   │   ├── S* Browse (group)          ← browses `samples/` tree (wav only)
 │   │   │   ├── Assign (action)            ← enters grid assignment mode for selected sample slot
-│   │   │   ├── Vel Levels: [on | off]
-│   │   │   ├── Level High / Medium / Low: [1..127] (visible when Vel Levels=on)
+│   │   │   ├── Tune: [-24..24] semitones
+│   │   │   ├── Gain: [0..100]
 │   │   │   ├── Base Velocity: [1..127]    ← used when Vel Levels=off
-│   │   │   ├── Tune Semis: [-24..24]
-│   │   │   ├── Filter (group)             ← sample filter + filter envelope (before Volume)
-│   │   │   └── Volume (group)             ← sample amp + amp envelope
+│   │   │   ├── Vel Levels (group)         ← High / Medium / Low: [1..127] (visible when Vel Levels=on)
+│   │   │   ├── Vel Levels: [on | off]
+│   │   │   ├── Filter (group)             ← sample filter controls
+│   │   │   ├── Vel Sens: [0..100]
+│   │   │   ├── Amp Env (group)            ← saved sample amp envelope
+│   │   │   └── Filter Env (group)         ← saved sample filter envelope
 │   │   ├── Note Settings (group, visible when type=midi)
 │   │   │   ├── Velocity: [1..127]
 │   │   │   └── Duration: [10..2000] ms
@@ -89,11 +97,13 @@ Shape
 
 When an instrument Type is `none`, the slot keeps Type, Auto Label, and Name visible and hides Note Mode, engine-specific groups, Mixer, MIDI, and Slot Actions without deleting stored config.
 
-FM uses a sine carrier and modulator. Ratio sets the modulator-to-carrier pitch relationship; Index adds harmonics, with 50 mapping to 2 radians of modulation depth (0..100 maps to 0..4 radians). Index Env shapes that depth independently from the Amp and Filter envelopes. The Tone, Index Env, Filter, Volume, Amp Env, and Filter Env rows fit on one OLED page below the title; open a group to edit its controls with the usual encoder and Back.
+FM uses a sine carrier and modulator. Ratio sets the modulator-to-carrier pitch relationship; Index adds harmonics, with 50 mapping to 2 radians of modulation depth (0..100 maps to 0..4 radians). Index Env shapes that depth independently from the Amp and Filter envelopes. Preset, Tone, Index Env, Filter, Volume, Amp Env, and Filter Env fit on one seven-row OLED page; open a group to edit its controls with the usual encoder and Back.
 
-Plucked makes a ringing string you can color with Decay, Brightness, and Pick Pos. Pick Pos shapes the next pluck, not a note already ringing. Its String, Filter, Volume, Amp Env, and Filter Env rows fit below the OLED title; edit and Back work just as they do for Synth and FM.
+Plucked makes a ringing string you can color with Decay, Brightness, and Pick Pos. Pick Pos shapes the next pluck, not a note already ringing. Its Preset, String, Filter, Volume, Amp Env, and Filter Env rows fit below the OLED title; edit and Back work just as they do for Synth and FM.
 
-Drum starts with eight voices and no assigned grid cells. Sound changes only the selected voice's style controls; the Voice label follows its current Sound. Tune, Decay, Tone, and Attack set up the next hit, not one already ringing. Assign sets/replaces or toggles off cells with the selected voice: plain press edits one cell, Shift+press the whole world-space row (bottom is `y=0`), and the combined modifier a column. Cell Tune edits an assigned cell's own ±24-semitone offset; an empty cell says `No drum here`. Back returns to cell selection, then exits without undoing assignments. Preview plays the selected voice at its own Tune, without a cell offset. No kit-loading page or automatic full-grid map is present.
+Drum starts with eight voices and no assigned grid cells. Its eight top rows scroll in the seven-row OLED body so Volume remains reachable. Sound changes only the selected voice's style controls; the Voice label follows its current Sound. Tune, Decay, Tone, and Attack set up the next hit, not one already ringing. Assign sets/replaces or toggles off cells with the selected voice: plain press edits one cell, Shift+press the whole world-space row (bottom is `y=0`), and the combined modifier a column. Cell Tune edits an assigned cell's own ±24-semitone offset; an empty cell says `No drum here`. Back returns to cell selection, then exits without undoing assignments. Preview plays the selected voice at its own Tune, without a cell offset. Kit Load changes eight voice settings but keeps cell references and tune offsets; it never auto-fills the grid or plays a preview.
+
+FM/Plucked Preset Load and Sampler/Drum Kit Load ask for confirmation with Cancel selected. Confirm changes only that slot; the custom name and mixer stay as they were. Sampler kits replace eight sample paths, not cell assignments, per-cell levels, or the current Sample Slot. `System > Saves` remains the separate whole-patch workflow.
 
 ### Routing semantics
 

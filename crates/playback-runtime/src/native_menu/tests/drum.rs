@@ -7,7 +7,7 @@ fn drum_menu() -> NativeMenuModel {
 }
 
 #[test]
-fn drum_type_hides_note_mode_and_keeps_seven_rows() {
+fn drum_type_hides_note_mode_and_scrolls_eight_rows() {
     let mut menu = drum_menu();
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
@@ -42,6 +42,7 @@ fn drum_type_hides_note_mode_and_keeps_seven_rows() {
             .map(|row| row.label.as_str())
             .collect::<Vec<_>>(),
         [
+            "Kit",
             "Voice",
             "Edit",
             "Assign",
@@ -52,7 +53,7 @@ fn drum_type_hides_note_mode_and_keeps_seven_rows() {
         ]
     );
     assert_eq!(
-        drum.children[1]
+        drum.children[2]
             .children
             .iter()
             .map(|row| row.label.as_str())

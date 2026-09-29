@@ -5,6 +5,7 @@ use platform_core::LAYER_COUNT;
 mod drum;
 mod dsp_mode;
 mod duck_ranges;
+mod factory_load;
 mod fixture_tests;
 mod fixtures;
 mod fm;

@@ -64,6 +64,31 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_browser: Option<&'a NativeSampleBrowserConfig>,
 }
 
+pub(super) fn factory_load_group(
+    kind: &str,
+    index: usize,
+    family: &str,
+    label: &str,
+    choices: &[(&str, &str)],
+) -> NativeMenuItem {
+    group(
+        label,
+        vec![group(
+            "Load",
+            choices
+                .iter()
+                .map(|(id, label)| {
+                    action_item(
+                        *label,
+                        format!("{kind}.{family}.{index}.{id}"),
+                        NativeMenuAction::PlatformEffect(format!("{kind}.{family}:{index}:{id}")),
+                    )
+                })
+                .collect(),
+        )],
+    )
+}
+
 pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
     let prefix = format!("instruments.{}", config.index);
     let type_selected = match config.kind {

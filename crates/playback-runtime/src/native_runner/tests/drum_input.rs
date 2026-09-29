@@ -152,7 +152,7 @@ fn drum_replacement_resets_only_local_tune_and_back_steps_through_cell_tune() {
     let drum_menu = runner.snapshot().unwrap();
     assert_eq!(oled_lines(&drum_menu).len(), 7);
     assert_eq!(drum_menu["display"]["visibleRows"], 7);
-    assert_eq!(drum_menu["display"]["totalRows"], 7);
+    assert_eq!(drum_menu["display"]["totalRows"], 8);
     assert!(drum_menu["selectedRow"].as_u64().unwrap() < 7);
 
     runner
