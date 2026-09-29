@@ -75,11 +75,16 @@ the result shown on the OLED rather than the browser's temporary state. After a
 successful setup, `System > Sys. Info` shows the device address. If setup fails,
 dismiss the OLED message and run **Open Portal** again.
 
-## 5. Make music
+## 5. Finish the open-air checks
 
 Once the OLED reports a successful setup, close the portal if it is still open,
-connect headphones or speakers, and make music. Keep the assembly accessible
-until you have checked the display, grid, keys, encoders, and audio.
+and check the OLED, encoders, and the NeoTrellis connection while everything is
+accessible. We recommend leaving the Cherry MX switches off until the enclosure
+top can guide and friction-hold them. You can seat the top without screws for
+an early switch test; testing bare switches risks bent pins or a broken NeoKey
+and is best left to builders with spares. Follow the [enclosure
+steps](assembly-manual.md#6-enclosure), then check all four keys, the full grid,
+and audio in the [final check](assembly-manual.md#7-final-check).
 
 For a later network or credential change, use [Open or reopen the setup
 portal](setup-portal.md). For USB data roles, see [USB roles](usb-roles.md).
