@@ -4,7 +4,7 @@ use crate::setup_portal_files::SetupPortalPaths;
 use playback_runtime::RuntimeSetupPortalPhase;
 use serde_json::json;
 use std::fs;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -15,8 +15,12 @@ fn orange_adapter_supports_setup_portal_effect() {
     let status_group = 0;
 
     let root = std::env::temp_dir().join(format!(
-        "octessera-orange-setup-adapter-{}",
-        std::process::id()
+        "octessera-orange-setup-adapter-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     let public = root.join("public");
     let paths = SetupPortalPaths {
@@ -68,8 +72,7 @@ fn orange_adapter_supports_setup_portal_effect() {
         "schema": 1,
         "status": {"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}
     });
-    fs::write(&paths.current, serde_json::to_vec(&payload).unwrap()).unwrap();
-    fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
+    publish_setup_status(&paths, &payload);
     let mut responses = Vec::new();
     for _ in 0..100 {
         responses = adapter.drain_results(4);
@@ -78,20 +81,22 @@ fn orange_adapter_supports_setup_portal_effect() {
         }
         std::thread::sleep(Duration::from_millis(2));
     }
-    assert!(matches!(
-        responses.as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { request_id, revision: Some(3), result, .. }
-        }] if request_id == "orange-setup"
-            && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::Starting)
-    ));
+    assert!(
+        matches!(
+            responses.as_slice(),
+            [HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified { request_id, revision: Some(3), result, .. }
+            }] if request_id == "orange-setup"
+                && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::Starting)
+        ),
+        "unexpected responses: {responses:?}"
+    );
 
     let current = json!({
         "schema": 1,
         "status": {"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"cafe","rebootRequired":false}
     });
-    fs::write(&paths.current, serde_json::to_vec(&current).unwrap()).unwrap();
-    fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
+    publish_setup_status(&paths, &current);
     responses.clear();
     for _ in 0..100 {
         responses = adapter.drain_results(4);
@@ -100,20 +105,22 @@ fn orange_adapter_supports_setup_portal_effect() {
         }
         std::thread::sleep(Duration::from_millis(2));
     }
-    assert!(matches!(
-        responses.as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { request_id, revision: Some(3), result, .. }
-        }] if request_id == "orange-setup"
-            && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::PortalReady && status.portal_suffix.as_deref() == Some("cafe"))
-    ));
+    assert!(
+        matches!(
+            responses.as_slice(),
+            [HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified { request_id, revision: Some(3), result, .. }
+            }] if request_id == "orange-setup"
+                && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::PortalReady && status.portal_suffix.as_deref() == Some("cafe"))
+        ),
+        "unexpected responses: {responses:?}"
+    );
 
     let succeeded = json!({
         "schema": 1,
         "status": {"type":"setup_portal_status","phase":"succeeded","rebootRequired":false}
     });
-    fs::write(&paths.current, serde_json::to_vec(&succeeded).unwrap()).unwrap();
-    fs::set_permissions(&paths.current, permissions(0o640)).unwrap();
+    publish_setup_status(&paths, &succeeded);
     responses.clear();
     for _ in 0..100 {
         responses = adapter.drain_results(4);
@@ -122,14 +129,26 @@ fn orange_adapter_supports_setup_portal_effect() {
         }
         std::thread::sleep(Duration::from_millis(2));
     }
-    assert!(matches!(
-        responses.as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { request_id, revision: Some(3), result, .. }
-        }] if request_id == "orange-setup"
-            && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::Succeeded && !status.reboot_required)
-    ));
+    assert!(
+        matches!(
+            responses.as_slice(),
+            [HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified { request_id, revision: Some(3), result, .. }
+            }] if request_id == "orange-setup"
+                && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::Succeeded && !status.reboot_required)
+        ),
+        "unexpected responses: {responses:?}"
+    );
     let _ = fs::remove_dir_all(root);
+}
+
+#[cfg(any(unix, windows))]
+fn publish_setup_status(paths: &SetupPortalPaths, payload: &serde_json::Value) {
+    let bytes = serde_json::to_vec(payload).unwrap();
+    let staging = paths.public.join("current.json.staging");
+    fs::write(&staging, bytes).unwrap();
+    fs::set_permissions(&staging, permissions(0o640)).unwrap();
+    fs::rename(staging, &paths.current).unwrap();
 }
 
 #[cfg(any(unix, windows))]
